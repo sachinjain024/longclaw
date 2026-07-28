@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en" data-appearance="light" data-theme="indigo">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LongClaw — v0 prototype · Phase 0 Step 2</title>
+<link rel="stylesheet" href="../foundations/proof/fonts.css">
+<link rel="stylesheet" href="../foundations/tokens/design-tokens.css">
+<link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+
+  <!-- ================================================================
+       DRIVER BAR — prototype harness, not app chrome.
+       Set on the inverse surface so it can never be mistaken for the
+       product. Everything below it is the app.
+       ================================================================ -->
+  <header class="driver" id="driver">
+    <span class="driver-name">longclaw · v0 prototype</span>
+
+    <nav class="driver-group" aria-label="Scenarios">
+      <button data-action="drv-reset" title="Wipe app state and return to first launch">reset · first launch</button>
+      <button data-action="drv-populated" title="Load the demo project with tickets">demo project</button>
+      <span class="driver-sep" aria-hidden="true"></span>
+      <button data-action="drv-agent" class="drv-agent" title="Simulated external agent edits ticket files on disk">❯ agent session</button>
+      <button data-action="drv-conflict" title="External edit lands while you are editing the same ticket">conflict while editing</button>
+      <button data-action="drv-corrupt" title="Hand-edit a ticket file into an unparseable state">corrupt a file</button>
+      <button data-action="drv-unplug" title="Project folder disappears (moved / unmounted)">unplug folder</button>
+    </nav>
+
+    <span class="driver-ticker mono" id="ticker" aria-live="polite"></span>
+    <span class="spacer"></span>
+
+    <div class="driver-swatches" role="group" aria-label="Project theme (driver shortcut — also in project settings and palette)">
+      <button class="swatch" data-action="drv-theme" data-value="indigo" aria-pressed="true" title="Indigo (default)"><i data-appearance="light" data-theme="indigo"></i><i data-appearance="light" data-theme="indigo"></i></button>
+      <button class="swatch" data-action="drv-theme" data-value="clay" aria-pressed="false" title="Clay"><i data-appearance="light" data-theme="clay"></i><i data-appearance="light" data-theme="clay"></i></button>
+      <button class="swatch" data-action="drv-theme" data-value="slate" aria-pressed="false" title="Slate"><i data-appearance="light" data-theme="slate"></i><i data-appearance="light" data-theme="slate"></i></button>
+      <button class="swatch" data-action="drv-theme" data-value="plum" aria-pressed="false" title="Plum"><i data-appearance="light" data-theme="plum"></i><i data-appearance="light" data-theme="plum"></i></button>
+    </div>
+    <div class="driver-seg" role="group" aria-label="Appearance">
+      <button data-action="drv-appearance" data-value="light" aria-pressed="true">light</button>
+      <button data-action="drv-appearance" data-value="dark" aria-pressed="false">dark</button>
+    </div>
+  </header>
+
+  <!-- The app -->
+  <div id="app" class="app"></div>
+
+  <!-- Modal layer: palette, quick create, pickers, settings, waitlist,
+       raw-file view, simulated folder picker. Rendered by prototype.js. -->
+  <div id="overlay" class="overlay-root"></div>
+
+  <!-- Toast layer -->
+  <div id="toast-root" class="toast-root" aria-live="polite"></div>
+
+<script src="prototype.js"></script>
+</body>
+</html>
