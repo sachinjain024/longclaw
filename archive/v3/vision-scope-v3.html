@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LongClaw — Vision &amp; Scope</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F7F8FA;
+    --card:#FFFFFF;
+    --ink:#151A26;
+    --ink-soft:#4A5165;
+    --ink-faint:#8A90A3;
+    --line:#E3E6ED;
+    --human:#4B4EE7;   /* planning / human surface — Indigo theme (default) */
+    --human-soft:#EEEEFD;
+    --agent:#12946A;   /* execution / agent surface — green, constant across themes */
+    --agent-soft:#E7F5F0;
+    --warn:#B4560E;
+    --warn-soft:#FBF0E4;
+    --mono:'JetBrains Mono', ui-monospace, monospace;
+    --body:'Inter', system-ui, sans-serif;
+    --display:'Familjen Grotesk', system-ui, sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--body);
+    font-size:16px;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+    padding:56px 24px 96px;
+  }
+  .doc{max-width:780px;margin:0 auto;}
+
+  /* ---- frontmatter block (signature) ---- */
+  .frontmatter{
+    font-family:var(--mono);
+    font-size:13px;
+    background:var(--ink);
+    color:#D6DAE6;
+    border-radius:10px;
+    padding:22px 26px;
+    line-height:1.85;
+    margin-bottom:52px;
+    overflow-x:auto;
+  }
+  .frontmatter .fence{color:#5B627A;}
+  .frontmatter .key{color:#8B90F4;}
+  .frontmatter .val{color:#E9EBF3;}
+  .frontmatter .cm{color:#5FBF9C;font-style:italic;}
+
+  h1{
+    font-family:var(--display);
+    font-weight:700;
+    font-size:clamp(30px,5vw,42px);
+    line-height:1.12;
+    letter-spacing:-0.02em;
+    margin-bottom:14px;
+  }
+  .subtitle{
+    color:var(--ink-soft);
+    font-size:18px;
+    max-width:60ch;
+    margin-bottom:40px;
+  }
+  .subtitle strong{color:var(--ink);font-weight:600;}
+
+  /* ---- sections ---- */
+  section{margin-bottom:60px;}
+  .sec-label{
+    font-family:var(--mono);
+    font-size:12px;
+    font-weight:500;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--human);
+    margin-bottom:8px;
+  }
+  .sec-label::before{content:"## ";color:var(--ink-faint);}
+  section.agent-sec .sec-label{color:var(--agent);}
+  section.warn-sec .sec-label{color:var(--warn);}
+  h2{
+    font-family:var(--display);
+    font-weight:600;
+    font-size:26px;
+    letter-spacing:-0.015em;
+    margin-bottom:16px;
+  }
+  h3{
+    font-family:var(--display);
+    font-weight:600;
+    font-size:18px;
+    margin:26px 0 8px;
+  }
+  p{margin-bottom:14px;color:var(--ink-soft);}
+  p strong, li strong{color:var(--ink);font-weight:600;}
+  ul{margin:0 0 14px 22px;color:var(--ink-soft);}
+  ol{margin:0 0 14px 22px;color:var(--ink-soft);}
+  li{margin-bottom:8px;}
+  code{
+    font-family:var(--mono);
+    font-size:0.86em;
+    background:var(--line);
+    padding:1.5px 6px;
+    border-radius:5px;
+    color:var(--ink);
+  }
+
+  .callout{
+    border-left:3px solid var(--human);
+    background:var(--human-soft);
+    border-radius:0 10px 10px 0;
+    padding:16px 20px;
+    margin:20px 0;
+  }
+  .callout.agent{border-color:var(--agent);background:var(--agent-soft);}
+  .callout.warn{border-color:var(--warn);background:var(--warn-soft);}
+  .callout p{margin:0;color:var(--ink);}
+  .callout p + p{margin-top:10px;}
+
+  /* actor tags */
+  .tag{
+    font-family:var(--mono);
+    font-size:11px;
+    font-weight:500;
+    padding:2px 8px;
+    border-radius:99px;
+    vertical-align:1px;
+    white-space:nowrap;
+  }
+  .tag.human{background:var(--human-soft);color:var(--human);}
+  .tag.agent{background:var(--agent-soft);color:var(--agent);}
+
+  /* two-column split for the bifurcation */
+  .split{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+    margin:22px 0;
+  }
+  @media (max-width:620px){.split{grid-template-columns:1fr;}}
+  .split .cell{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:18px 20px;
+  }
+  .cell .cell-head{
+    font-family:var(--mono);
+    font-size:12px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    margin-bottom:10px;
+    font-weight:500;
+  }
+  .cell.human-cell .cell-head{color:var(--human);}
+  .cell.agent-cell .cell-head{color:var(--agent);}
+  .cell p{font-size:14.5px;margin-bottom:0;}
+
+  /* theme swatch row */
+  .themes{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin:18px 0 6px;}
+  .theme-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;}
+  .theme-card .swatches{display:flex;gap:6px;margin-bottom:10px;}
+  .theme-card .sw{width:22px;height:22px;border-radius:6px;}
+  .theme-card .t-name{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--ink);}
+  .theme-card .t-note{font-size:12.5px;color:var(--ink-faint);margin-top:2px;}
+
+  /* tables */
+  table{
+    width:100%;
+    border-collapse:collapse;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:12px;
+    overflow:hidden;
+    font-size:14.5px;
+    margin:18px 0;
+  }
+  th{
+    font-family:var(--mono);
+    font-size:12px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    font-weight:500;
+    text-align:left;
+    color:var(--ink-faint);
+    background:var(--paper);
+    padding:12px 18px;
+    border-bottom:1px solid var(--line);
+  }
+  td{
+    padding:13px 18px;
+    border-bottom:1px solid var(--line);
+    vertical-align:top;
+    color:var(--ink-soft);
+  }
+  tr:last-child td{border-bottom:none;}
+  td:first-child{color:var(--ink);font-weight:500;width:38%;}
+
+  .rule{
+    border:none;
+    border-top:1px solid var(--line);
+    margin:0 0 60px;
+  }
+
+  .toc{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 24px;margin-bottom:52px;}
+  .toc-head{font-family:var(--mono);font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:12px;}
+  .toc-head::before{content:"## ";color:var(--ink-faint);}
+  .toc ol{list-style:none;margin:0;columns:2;column-gap:36px;}
+  .toc li{margin:0 0 4px;break-inside:avoid;}
+  .toc a{display:flex;gap:10px;align-items:baseline;text-decoration:none;color:var(--ink-soft);font-size:14.5px;padding:3px 0;transition:color .12s;}
+  .toc a:hover{color:var(--human);}
+  .toc .num{font-family:var(--mono);font-size:11.5px;color:var(--ink-faint);min-width:22px;}
+  .toc a:hover .num{color:var(--human);}
+  @media (max-width:560px){.toc ol{columns:1;}}
+  footer{
+    margin-top:72px;
+    padding-top:20px;
+    border-top:1px solid var(--line);
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--ink-faint);
+    display:flex;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  @media (prefers-reduced-motion: no-preference){
+    section{animation:rise .5s ease both;}
+    @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <div class="frontmatter">
+<span class="fence">---</span><br>
+<span class="key">title</span><span class="val">: Vision &amp; Scope</span><br>
+<span class="key">product</span><span class="val">: LongClaw — unified PM for humans &amp; agents</span><br>
+<span class="key">domain</span><span class="val">: longclaw.io</span><br>
+<span class="key">status</span><span class="val">: draft v1.0</span><br>
+<span class="key">layers</span><span class="val">: [vision, sequencing]</span><br>
+<span class="key">supersedes</span><span class="val">: v0.8 (Linear DS), v0.9 (Clay DS)</span>  <span class="cm"># v1.0 = v0.8 system + themes</span><br>
+<span class="key">canonical_format</span><span class="val">: markdown-in-repo</span>  <span class="cm"># this HTML is the review copy</span><br>
+<span class="fence">---</span>
+  </div>
+
+  <h1>One canvas where humans plan and agents execute.</h1>
+  <p class="subtitle">A local-first, Linear-grade issue tracker for AI-native startups — where <strong>humans</strong> plan work, assign tickets, and add detail, and <strong>AI agents</strong> execute those tickets and write their context back into the same system, stored as files on disk next to the code.</p>
+
+  <hr class="rule">
+
+  <nav class="toc">
+    <div class="toc-head">Contents</div>
+    <ol>
+      <li><a href="#problem"><span class="num">01</span><span>The problem</span></a></li>
+      <li><a href="#product"><span class="num">02</span><span>The product</span></a></li>
+      <li><a href="#audience"><span class="num">03</span><span>Who it's for</span></a></li>
+      <li><a href="#principles"><span class="num">04</span><span>Principles</span></a></li>
+      <li><a href="#experience"><span class="num">05</span><span>Core experience</span></a></li>
+      <li><a href="#themes"><span class="num">06</span><span>Project themes</span></a></li>
+      <li><a href="#terminals"><span class="num">07</span><span>Integrated execution</span></a></li>
+      <li><a href="#data"><span class="num">08</span><span>Data &amp; storage</span></a></li>
+      <li><a href="#sync"><span class="num">09</span><span>Sync &amp; collaboration</span></a></li>
+      <li><a href="#accounts"><span class="num">10</span><span>Accounts &amp; platform</span></a></li>
+      <li><a href="#business"><span class="num">11</span><span>Business model</span></a></li>
+      <li><a href="#decisions"><span class="num">12</span><span>Decisions</span></a></li>
+      <li><a href="#non-goals"><span class="num">13</span><span>Non-goals</span></a></li>
+      <li><a href="#open-questions"><span class="num">14</span><span>Open questions</span></a></li>
+      <li><a href="#sequencing"><span class="num">15</span><span>Sequencing</span></a></li>
+    </ol>
+  </nav>
+
+
+  <!-- 1. PROBLEM -->
+  <section id="problem">
+    <div class="sec-label">The problem</div>
+    <h2>Planning and execution have bifurcated</h2>
+    <p>In AI-native teams, the two halves of building software live in systems that don't talk to each other:</p>
+    <div class="split">
+      <div class="cell human-cell">
+        <div class="cell-head">Planning — humans</div>
+        <p>Happens in Linear, Jira, or Notion. Humans decide what to build, divide the work, file bugs, and track status — in a cloud database far from the code.</p>
+      </div>
+      <div class="cell agent-cell">
+        <div class="cell-head">Execution — agents</div>
+        <p>Happens in the git repo. Claude Code, Cursor, and other agents do the actual work, leave artifacts as files, and open PRs — with no visibility into the plan.</p>
+      </div>
+    </div>
+    <p>The ticket becomes a <strong>stub</strong>: it gets closed when a PR merges, but carries no fidelity on what the agent actually did, what it tried, what it discovered, or what broke downstream. Agents, meanwhile, start every session without the plan, the priorities, or the history. The coordination cost compounds as agents take on more of the work.</p>
+  </section>
+
+  <!-- 2. PRODUCT -->
+  <section id="product">
+    <div class="sec-label">The product</div>
+    <h2>What we're building</h2>
+    <p>One project-management surface where humans and agents collaborate on the same tickets, with state visible to both, living next to the code.</p>
+    <ul>
+      <li><span class="tag human">human</span>&nbsp; Plan work, create projects, write and assign tickets, add detail and priority, review progress on a fast, beautiful board.</li>
+      <li><span class="tag agent">agent</span>&nbsp; Pick up tickets with full context already on disk, execute them, and update the ticket — status, notes, discoveries, links to commits — in a format designed to be read and written by LLMs.</li>
+    </ul>
+    <p>It is a <strong>fast, performant desktop app with beautiful, elegant styling</strong>. The quality bar is Linear; the data model is Obsidian.</p>
+  </section>
+
+  <!-- 3. AUDIENCE -->
+  <section id="audience">
+    <div class="sec-label">Who it's for</div>
+    <h2>AI-native startups</h2>
+    <p>Small teams (roughly 3–15 people) doing AI-native or spec-driven development — the teams for whom agents already do a meaningful share of the coding, and for whom the planning/execution split is a daily tax. Solo builders using Claude Code or Cursor are the entry point; small teams are the business.</p>
+  </section>
+
+  <!-- 4. PRINCIPLES -->
+  <section id="principles">
+    <div class="sec-label">Principles</div>
+    <h2>What we believe</h2>
+    <h3>1. Local-first, files on disk — the Obsidian model</h3>
+    <p>Data is stored locally as markdown files (or a similarly plain, portable format) in the file system. The user selects a folder — ideally inside their GitHub repo — and that folder <em>is</em> the project. No lock-in: the files are readable without the app, forever.</p>
+    <h3>2. The data format is designed for agents first</h3>
+    <p>We pick a data model and on-disk format that is easy for AI agents to read, query, and update reliably — not just pretty for humans. This format is the moat; it is specced deliberately, by hand, before implementation begins.</p>
+    <h3>3. Linear-grade polish is non-negotiable</h3>
+    <p>Existing git-native trackers are CLI-first and visually spartan. Our differentiation is combining file-on-disk portability with a visual experience that feels as fast and considered as Linear. Anything that looks or feels generic is a bug.</p>
+    <div class="callout">
+      <p><strong>Visual direction (settled, v1.0):</strong> the design system stays deliberately in Linear's family of calm and restraint — that quality is what we chose it for. Differentiation comes through <strong>subtle, minor departures</strong>, not a redesign: our own accent palette expressed as <strong>swappable project themes</strong> (section 06), mono metadata as the file-native signature, and small own decisions at the detail level. An earlier fully-original exploration (Clay, v0.9) was rejected for introducing visual noise; its palette survives as one theme preset.</p>
+    </div>
+    <h3>4. Humans and agents are peers on the same canvas</h3>
+    <p>Every surface is designed for two kinds of users. A ticket must be equally legible to a person scanning a board and an agent parsing a file.</p>
+    <h3>5. Built in the open</h3>
+    <p>The product is <strong>open source</strong>: the client is developed publicly under MPL 2.0. Open source is both a trust signal for a privacy-sensitive, local-first audience and the distribution engine for the free solo tier. The hosted sync backend — the paid layer — remains closed source.</p>
+  </section>
+
+  <!-- 5. EXPERIENCE -->
+  <section id="experience">
+    <div class="sec-label">Core experience</div>
+    <h2>The app</h2>
+    <h3>Side panel</h3>
+    <p>The primary navigation surface. Users see:</p>
+    <ul>
+      <li><strong>All projects</strong> — everything they have access to</li>
+      <li><strong>Starred projects</strong> — pinned favorites</li>
+      <li><strong>Local projects</strong> — folders on this machine, no account/team attachment</li>
+      <li><strong>Teams</strong> — each team listed with its team projects nested under it</li>
+    </ul>
+    <h3>Board &amp; views</h3>
+    <p>Design inspiration from <strong>Linear</strong> (density, speed, keyboard-first interaction, refinement) and <strong>Trello</strong> (approachable card/board mental model). Core primitives: issue list, board, ticket side panel, command palette. Each project board carries a <strong>theme</strong> — one of a small fixed set of accent presets (section 06) — so different projects are distinguishable at a glance without any change to layout or behavior.</p>
+    <h3>Tickets</h3>
+    <p>Humans author scope, priority, and detail, and <strong>assignees are always humans</strong> — accountability stays with a person. Agents contribute as actors on the ticket: they <strong>comment, update the description, and check off checklist items</strong> as they execute, so the ticket accumulates a living record — plan, execution notes, discoveries, links to commits/PRs — instead of becoming a stub. Descriptions are edited <strong>in-app with a GitHub/Trello-style markdown editor</strong>; tickets include <strong>checklists</strong> as a first-class primitive (the natural human→agent work interface).</p>
+  </section>
+
+  <!-- 6. THEMES -->
+  <section id="themes">
+    <div class="sec-label">Project themes</div>
+    <h2>Fixed themes, chosen per project <span class="tag human">decided</span></h2>
+    <p>The two-actor accent pair (human accent + agent accent) is not a single hardcoded palette — it is a <strong>theme applied per project board</strong>. Phase 0 ships a <strong>small fixed set of theme presets</strong>; users pick one when creating a project (and can change it later). <strong>No custom color pickers</strong> — presets only. Custom colors are explicitly deferred.</p>
+    <div class="themes">
+      <div class="theme-card">
+        <div class="swatches"><span class="sw" style="background:#4B4EE7"></span><span class="sw" style="background:#12946A"></span></div>
+        <div class="t-name">Indigo · default</div>
+        <div class="t-note">The system this doc is set in</div>
+      </div>
+      <div class="theme-card">
+        <div class="swatches"><span class="sw" style="background:#A9482C"></span><span class="sw" style="background:#12946A"></span></div>
+        <div class="t-name">Clay</div>
+        <div class="t-note">Warm human accent, from the v0.9 exploration</div>
+      </div>
+      <div class="theme-card">
+        <div class="swatches"><span class="sw" style="background:#8A90A3"></span><span class="sw" style="background:#12946A"></span></div>
+        <div class="t-name">+ 2–3 more presets</div>
+        <div class="t-note">Design system's to propose</div>
+      </div>
+    </div>
+    <ul>
+      <li><strong>The human accent is what varies per theme</strong> (Indigo default, Clay, and a few more). <span class="tag human">proposed</span> The <strong>agent accent stays in the green family across every theme</strong>, so agent activity reads identically in every project — the differentiating surface never changes costume. Flag at design review if a theme-specific agent hue tests better.</li>
+      <li><strong>Every preset defines both light and dark values.</strong> Theme (accent pair) and appearance (light/dark) are independent axes.</li>
+      <li><strong>Architecturally, a theme is a token swap.</strong> The design system routes every accent usage through tokens; no component hardcodes a hue. This is a Phase 0 design-system requirement, not a later retrofit.</li>
+    </ul>
+  </section>
+
+  <!-- 7. TERMINALS -->
+  <section id="terminals" class="agent-sec">
+    <div class="sec-label">Integrated execution</div>
+    <h2>Terminals inside the tracker <span class="tag agent">post-v0 · before team sync</span></h2>
+    <p>Planned as the next major capability after v0 — and sequenced <strong>before</strong> cloud sync and teams: users can open a terminal alongside the product, in the style of VS Code or Cursor, and <strong>start an agent execution for a ticket directly from it</strong>. The tracker stops being a place you look at work and becomes the place work is launched from.</p>
+    <ul>
+      <li><strong>Multiple terminals, tabbed UI</strong> — users can open several terminals at once, presented as tabs.</li>
+      <li><strong>Terminals are linked to tickets</strong> — each terminal session is bound to a ticket, and users can navigate between a ticket and its terminal (and across running sessions) fluidly.</li>
+      <li><strong>Launch from the ticket</strong> — kick off execution for a ticket without leaving the app; the agent picks up the ticket's full context from disk.</li>
+    </ul>
+    <p>This closes the loop of the core thesis on one screen: humans plan on the board, agents execute in the attached terminal, and the ticket accumulates the execution record — plan, run, and result in a single surface.</p>
+    <div class="callout agent">
+      <p><strong>Architecture (decided):</strong> the terminal is <strong>embedded in the app</strong>, VS Code–style — xterm.js rendering in the webview, backed by a real Rust PTY (portable-pty / tauri-plugin-pty, the Tauri-native equivalent of VS Code's node-pty). Terminal↔ticket linkage lives in <strong>app state only</strong> — it is not part of the on-disk file format.</p>
+    </div>
+  </section>
+  <section id="data" class="agent-sec">
+    <div class="sec-label">Data &amp; storage</div>
+    <h2>Where the data lives</h2>
+    <p>Each project maps to a folder the user selects on their machine — ideally inside the project's git repository, so tickets travel with the code. Files use markdown (or the chosen agent-friendly format) as the source of truth; the app builds whatever local index it needs for speed on top of them.</p>
+    <div class="callout agent">
+      <p><strong>Open design work:</strong> the exact format (markdown + frontmatter? a fast local index? a CLI that emits JSON for agents?) is the core design decision of the product and is specced by hand before agent-driven implementation. See "Decisions" below.</p>
+    </div>
+  </section>
+
+  <!-- 9. SYNC -->
+  <section id="sync">
+    <div class="sec-label">Sync &amp; collaboration</div>
+    <h2>Cloud sync — the paid layer</h2>
+    <p>Sync is <strong>opt-in per project</strong> and is what we charge for. When a user enables sync on a project:</p>
+    <ul>
+      <li>Data <strong>stays on the local machine</strong> and is additionally synced to the cloud in real time for team collaboration.</li>
+      <li>The app shows a message advising the user to add the project directory to <code>.gitignore</code>, so real-time sync updates don't conflict with git version control.</li>
+    </ul>
+    <p>Local-only projects remain fully functional and free, forever.</p>
+  </section>
+
+  <!-- 10. ACCOUNTS & PLATFORM -->
+  <section id="accounts">
+    <div class="sec-label">Accounts &amp; platform</div>
+    <h2>How you get in</h2>
+    <h3>Accounts — the pure Obsidian model</h3>
+    <p><strong>No account is required to use the product locally.</strong> No signup wall, no telemetry — download it, point it at a folder, start working. The app surfaces an optional <strong>Sign up</strong> button in the UI (positioned around early access to cloud sync and team features); engaged users will convert voluntarily, and the sync waitlist becomes the primary signal of demand and reachable users.</p>
+    <p>An account becomes required only at the moment it delivers value: <strong>when the user enables cloud sync</strong> — the same pattern Obsidian users already accept.</p>
+    <h3>Platform</h3>
+    <p>Initially a <strong>macOS desktop app</strong>, built with <strong>Tauri v2</strong>. Cross-platform (Windows, Linux) follows once the Mac experience is excellent.</p>
+  </section>
+
+  <!-- 11. BUSINESS -->
+  <section id="business">
+    <div class="sec-label">Business model</div>
+    <h2>Free for one, paid for teams</h2>
+    <ul>
+      <li><strong>Free:</strong> full local product for solo use — the client is open source (MPL 2.0).</li>
+      <li><strong>Paid:</strong> cloud sync and team projects — the sync backend is closed source and hosted by us.</li>
+    </ul>
+  </section>
+
+  <!-- 12. DECISIONS -->
+  <section id="decisions">
+    <div class="sec-label">Decisions</div>
+    <h2>Settled vs. delegated</h2>
+    <p>To keep the implementation agent from re-litigating settled questions — and to make its freedoms explicit:</p>
+    <table>
+      <thead><tr><th>Already made — do not reopen</th><th>Rationale</th></tr></thead>
+      <tbody>
+        <tr><td>Tauri v2, macOS first</td><td>Performance + small bundle; native feel over Electron.</td></tr>
+        <tr><td>Files-on-disk as source of truth (Obsidian model)</td><td>Portability and agent access are the thesis.</td></tr>
+        <tr><td>Open-source client (MPL 2.0), closed paid sync backend</td><td>Trust + distribution for the client; revenue on collaboration.</td></tr>
+        <tr><td>No account for local use (pure Obsidian model)</td><td>Optional signup button in the UI; account required only when enabling cloud sync. No telemetry.</td></tr>
+        <tr><td>v0 is local projects only</td><td>Sync and teams come later; see sequencing layer.</td></tr>
+        <tr><td>Embedded terminal (xterm.js + Rust PTY)</td><td>VS Code–style, in-app; not an external terminal launch. Sequenced post-v0, before team sync.</td></tr>
+        <tr><td>Terminal↔ticket linkage in app state only</td><td>Session bindings are runtime state, not part of the on-disk file format.</td></tr>
+        <tr><td>Humans assign, agents contribute</td><td>Assignee is always a human; agents act via comments, description edits, and checklist updates.</td></tr>
+        <tr><td>In-app markdown editor for descriptions</td><td>GitHub/Trello-style editing experience; checklists are a first-class primitive.</td></tr>
+        <tr><td>Light + dark themes, system-matched, from v0</td><td>Both are first-class; neither is an afterthought. Every project-theme preset defines both.</td></tr>
+        <tr><td>Visual direction: the v1 (Linear-family) system, with subtle departures only</td><td>The Clay full-redesign exploration is retired — calm over novelty. Identity comes from theme tokens + mono metadata, not a new visual language.</td></tr>
+        <tr><td>Fixed project themes, not custom colors</td><td>Each project board uses one of a small set of preset accent themes (Indigo + Green default; Clay + Green among the presets). Presets are designed in Phase 0; no custom color pickers.</td></tr>
+        <tr><td>Linear-grade quality bar; Linear + Trello as board inspiration</td><td>Polish is the differentiation.</td></tr>
+      </tbody>
+    </table>
+    <table>
+      <thead><tr><th>Delegated to the implementation agent</th><th>Constraint</th></tr></thead>
+      <tbody>
+        <tr><td>Internal architecture: state management, IPC patterns, indexing strategy</td><td>Built on the hand-reviewed Tauri foundation spike.</td></tr>
+        <tr><td>Component implementation details</td><td>Must match the design-system handoff bundle exactly — including routing all accent color through theme tokens.</td></tr>
+        <tr><td>Test strategy, tooling, CI setup</td><td>PR-level human review; manual deploys.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout">
+      <p><strong>Kept in human hands regardless:</strong> the on-disk file format &amp; data model spec, and the initial Tauri architecture spike. Both are specced/reviewed manually before mass ticket execution.</p>
+    </div>
+  </section>
+
+  <!-- 13. NON-GOALS -->
+  <section id="non-goals">
+    <div class="sec-label">Non-goals</div>
+    <h2>What v0 is not</h2>
+    <ul>
+      <li>No cloud sync, no team projects, no billing — v0 is local-only.</li>
+      <li>No integrated terminals yet — they arrive after v0, ahead of team sync.</li>
+      <li>No custom theme colors — fixed presets only; a theme builder is explicitly deferred.</li>
+      <li>No Windows/Linux builds yet.</li>
+      <li>No web or mobile client.</li>
+      <li>Not a git host, code review tool, or chat product.</li>
+      <li>Not a generic PM tool for non-technical teams — the repo-adjacent, agent-first workflow is the point.</li>
+    </ul>
+  </section>
+
+  <!-- 14. OPEN QUESTIONS -->
+  <section id="open-questions" class="warn-sec">
+    <div class="sec-label">Open questions</div>
+    <h2>Tensions to resolve</h2>
+    <div class="callout warn">
+      <p><strong>1. "In the repo" vs. <code>.gitignore</code> on sync — parked.</strong> The founding thesis is "tickets live in your git repo" — diffable, versioned, traveling with the code — while enabling cloud sync advises git-ignoring the folder, which removes those properties for synced teams. <strong>Decision deferred to the team-sync phase.</strong> One constraint carries forward now: the v0 file format spec should avoid choices that foreclose a git-friendly, merge-tolerant answer later.</p>
+      <p><strong>2. Exact file format.</strong> Markdown + frontmatter vs. alternatives; index and CLI story. <strong>Timing decided:</strong> hand-specced after the design prototype is built and reviewed, and before mass ticket execution begins.</p>
+      <p><strong>3. Where the project theme is stored.</strong> App state vs. the project's on-disk config. Leaning on-disk (it is project metadata and should travel with the folder), but the call belongs to the file-format spec above.</p>
+    </div>
+    <p style="margin-top:14px;font-size:14px;color:var(--ink-faint);"><em>Resolved:</em> product name — <strong>LongClaw</strong>. Signup model — pure Obsidian. Visual direction — v1 Linear-family system with theme tokens; Clay retired as a direction, kept as a preset. See Principles and Themes.</p>
+  </section>
+
+  <!-- 15. SEQUENCING -->
+  <section id="sequencing">
+    <div class="sec-label">Sequencing</div>
+    <h2>Phasing &amp; MVP boundary</h2>
+    <p>The vision above explains <em>why</em>; this layer says <em>what order</em>. Anything not listed in the current phase is out of scope for that phase's tickets, even if the vision describes it — this is the guard against gold-plating early work with future-phase concerns.</p>
+
+    <h3><span class="tag human">Phase 0</span>&nbsp; Foundations — human-led, before mass ticket execution</h3>
+    <p>Ordered — design comes first, and the format spec follows the reviewed prototype:</p>
+    <ol>
+      <li><strong>Design system → screens → handoff bundle</strong> — brand/design system in Claude Design first, then the core screens; iterate until the prototype is reviewed and settled; export the handoff bundle and commit it to the repo alongside this doc. <strong>Includes the theme architecture:</strong> accent-as-token throughout, and the fixed preset set (Indigo default + Clay + 2–3 more, each in light and dark). Prove the swap by rendering at least one core screen in two themes.</li>
+      <li><strong>File format &amp; data model spec</strong> — hand-specced and reviewed <em>after</em> the design prototype review (the reviewed screens reveal what the data model must express), and <em>before</em> mass ticket execution. Carries the one constraint from the parked sync question: don't foreclose a git-friendly, merge-tolerant answer later. Decides where the project theme setting lives.</li>
+      <li><strong>Tauri v2 architecture spike</strong> — project structure, state management, IPC patterns, file watcher ↔ index interaction. Leave room in the IPC design for streaming PTY channels, so Phase 2 terminals extend this skeleton rather than fight it.</li>
+    </ol>
+
+    <h3><span class="tag human">Phase 1</span>&nbsp; v0: Local core — the MVP boundary</h3>
+    <ul>
+      <li>macOS app (Tauri v2), <strong>local projects only</strong>: select a folder, create a project, work.</li>
+      <li>File format read/write, local index, and file watcher — the app and any external agent editing the files stay in sync.</li>
+      <li>Side panel with local and starred projects. Teams/cloud entries: not built, not stubbed.</li>
+      <li>Issue list, board, ticket side panel, command palette — at the Linear-grade bar.</li>
+      <li><strong>Per-project theme selection from the fixed presets</strong> — set at project creation, changeable later. No custom colors.</li>
+      <li>Optional <strong>Sign up</strong> button wired to the sync waitlist. No account required, no telemetry.</li>
+    </ul>
+    <div class="callout">
+      <p><strong>Ship point (mandatory milestone, mid-v0):</strong> as soon as the first vertical slice works — one project, one board, tickets round-tripping through the file format with a real agent — put it in front of a handful of Claude Code / Cursor users. Their reaction reshapes the remaining ticket list before the rest of the backlog executes. The vision layer stays stable; this sequencing layer is what absorbs the feedback.</p>
+    </div>
+
+    <h3><span class="tag agent">Phase 2</span>&nbsp; Integrated execution — terminals</h3>
+    <ul>
+      <li>Embedded terminal panel (xterm.js + Rust PTY), multiple terminals in a tabbed UI.</li>
+      <li>Terminal↔ticket linkage (app state only) with fluid navigation between a ticket and its session.</li>
+      <li>Launch an agent execution for a ticket directly from the app; context read from disk, results written back to the ticket.</li>
+    </ul>
+
+    <h3><span class="tag human">Phase 3</span>&nbsp; Sync &amp; teams — the paid layer</h3>
+    <ul>
+      <li>Accounts become functional beyond the waitlist; cloud sync opt-in per project; billing.</li>
+      <li>Teams and team projects appear in the side panel; <code>.gitignore</code> guidance shown on sync enable.</li>
+      <li><strong>Gate:</strong> resolve the parked "in the repo vs. <code>.gitignore</code>" question before building sync — it determines the sync architecture.</li>
+    </ul>
+
+    <h3><span class="tag human">Someday</span>&nbsp; Explicitly deferred</h3>
+    <ul>
+      <li>Windows and Linux builds — after the Mac experience is excellent (note the Rust-PTY Windows rough edges for the terminal port).</li>
+      <li>Custom theme colors / a theme builder — only if fixed presets prove limiting.</li>
+      <li>Anything else the vision doesn't name — integrations, web/mobile, automations — requires a deliberate addition to this doc first.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <span>vision-scope · draft v1.0</span>
+    <span>canonical copy: markdown in repo</span>
+  </footer>
+
+</div>
+</body>
+</html>

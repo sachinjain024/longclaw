@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Editor and tool-local state
+.idea/
+.vscode/
+.claude/settings.local.json
+*.swp
+*~
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# JavaScript and frontend build output
+node_modules/
+dist/
+coverage/
+.nyc_output/
+.vite/
+*.log
+
+# Rust and Tauri build output
+target/
+

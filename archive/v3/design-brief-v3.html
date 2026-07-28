@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LongClaw — Design Brief</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F7F8FA; --card:#FFFFFF; --ink:#151A26; --ink-soft:#4A5165;
+    --ink-faint:#8A90A3; --line:#E3E6ED;
+    --human:#4B4EE7; --human-soft:#EEEEFD;
+    --agent:#12946A; --agent-soft:#E7F5F0;
+    --warn:#B4560E; --warn-soft:#FBF0E4;
+    --mono:'JetBrains Mono', ui-monospace, monospace;
+    --body:'Inter', system-ui, sans-serif;
+    --display:'Familjen Grotesk', system-ui, sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased;padding:56px 24px 96px;}
+  .doc{max-width:780px;margin:0 auto;}
+  .frontmatter{font-family:var(--mono);font-size:13px;background:var(--ink);color:#D6DAE6;border-radius:10px;padding:22px 26px;line-height:1.85;margin-bottom:52px;overflow-x:auto;}
+  .frontmatter .fence{color:#5B627A;} .frontmatter .key{color:#8B90F4;}
+  .frontmatter .val{color:#E9EBF3;} .frontmatter .cm{color:#5FBF9C;font-style:italic;}
+  h1{font-family:var(--display);font-weight:700;font-size:clamp(30px,5vw,40px);line-height:1.12;letter-spacing:-0.02em;margin-bottom:14px;}
+  .subtitle{color:var(--ink-soft);font-size:18px;max-width:62ch;margin-bottom:40px;}
+  .subtitle strong{color:var(--ink);font-weight:600;}
+  section{margin-bottom:58px;}
+  .sec-label{font-family:var(--mono);font-size:12px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:var(--human);margin-bottom:8px;}
+  .sec-label::before{content:"## ";color:var(--ink-faint);}
+  section.agent-sec .sec-label{color:var(--agent);}
+  section.warn-sec .sec-label{color:var(--warn);}
+  h2{font-family:var(--display);font-weight:600;font-size:26px;letter-spacing:-0.015em;margin-bottom:16px;}
+  h3{font-family:var(--display);font-weight:600;font-size:18px;margin:26px 0 8px;}
+  p{margin-bottom:14px;color:var(--ink-soft);}
+  p strong, li strong, td strong{color:var(--ink);font-weight:600;}
+  ul, ol{margin:0 0 14px 22px;color:var(--ink-soft);}
+  li{margin-bottom:8px;}
+  code{font-family:var(--mono);font-size:0.86em;background:var(--line);padding:1.5px 6px;border-radius:5px;color:var(--ink);}
+  .callout{border-left:3px solid var(--human);background:var(--human-soft);border-radius:0 10px 10px 0;padding:16px 20px;margin:20px 0;}
+  .callout.agent{border-color:var(--agent);background:var(--agent-soft);}
+  .callout.warn{border-color:var(--warn);background:var(--warn-soft);}
+  .callout p{margin:0;color:var(--ink);}
+  .callout p + p{margin-top:10px;}
+  .tag{font-family:var(--mono);font-size:11px;font-weight:500;padding:2px 8px;border-radius:99px;vertical-align:1px;white-space:nowrap;}
+  .tag.human{background:var(--human-soft);color:var(--human);}
+  .tag.agent{background:var(--agent-soft);color:var(--agent);}
+  .tag.warn{background:var(--warn-soft);color:var(--warn);}
+  table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:14.5px;margin:18px 0;}
+  th{font-family:var(--mono);font-size:12px;letter-spacing:0.06em;text-transform:uppercase;font-weight:500;text-align:left;color:var(--ink-faint);background:var(--paper);padding:12px 18px;border-bottom:1px solid var(--line);}
+  td{padding:13px 18px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--ink-soft);}
+  tr:last-child td{border-bottom:none;}
+  td:first-child{color:var(--ink);font-weight:500;width:34%;}
+  .rule{border:none;border-top:1px solid var(--line);margin:0 0 58px;}
+  .flow{font-family:var(--mono);font-size:13.5px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin:14px 0 20px;color:var(--ink-soft);line-height:2;}
+  .flow b{color:var(--ink);font-weight:600;}
+  .flow .arr{color:var(--human);}
+
+  /* theme swatch row */
+  .themes{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin:18px 0 6px;}
+  .theme-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;}
+  .theme-card .swatches{display:flex;gap:6px;margin-bottom:10px;}
+  .theme-card .sw{width:22px;height:22px;border-radius:6px;}
+  .theme-card .t-name{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--ink);}
+  .theme-card .t-note{font-size:12.5px;color:var(--ink-faint);margin-top:2px;}
+
+  .toc{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 24px;margin-bottom:52px;}
+  .toc-head{font-family:var(--mono);font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:12px;}
+  .toc-head::before{content:"## ";color:var(--ink-faint);}
+  .toc ol{list-style:none;margin:0;columns:2;column-gap:36px;}
+  .toc li{margin:0 0 4px;break-inside:avoid;}
+  .toc a{display:flex;gap:10px;align-items:baseline;text-decoration:none;color:var(--ink-soft);font-size:14.5px;padding:3px 0;transition:color .12s;}
+  .toc a:hover{color:var(--human);}
+  .toc .num{font-family:var(--mono);font-size:11.5px;color:var(--ink-faint);min-width:22px;}
+  .toc a:hover .num{color:var(--human);}
+  @media (max-width:560px){.toc ol{columns:1;}}
+  footer{margin-top:72px;padding-top:20px;border-top:1px solid var(--line);font-family:var(--mono);font-size:12px;color:var(--ink-faint);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <div class="frontmatter">
+<span class="fence">---</span><br>
+<span class="key">title</span><span class="val">: Design Brief</span><br>
+<span class="key">product</span><span class="val">: LongClaw</span><br>
+<span class="key">companion_to</span><span class="val">: vision-scope (v1.0)</span><br>
+<span class="key">consumer</span><span class="val">: Claude Design</span>  <span class="cm"># feed both docs together</span><br>
+<span class="key">status</span><span class="val">: draft v0.5</span><br>
+<span class="key">scope</span><span class="val">: design system + v0 screens + shell for Phase 2</span><br>
+<span class="key">direction</span><span class="val">: v1 system + theme tokens</span>  <span class="cm"># v2 (Clay) retired; see 01</span><br>
+<span class="fence">---</span>
+  </div>
+
+  <h1>LongClaw — design brief for the prototype</h1>
+  <p class="subtitle">This document translates the vision into what a designer needs: brand direction, ticket anatomy, surfaces, flows, and states. Items marked <span class="tag human">decided</span> are settled; items marked <span class="tag warn">proposed</span> are sensible defaults awaiting founder approval — flag them in the first design review rather than silently diverging.</p>
+  <p class="subtitle" style="margin-top:-26px;"><strong>The direction is now settled by review of two full explorations.</strong> The v1 (Linear-family) system won on calm and restraint; the v2 (Clay) system introduced noise, notably on the ticket screen and priority marks, and is retired. This revision keeps the v1 system, moves every accent color into <strong>swappable project-theme tokens</strong>, and asks for <strong>subtle, minor departures only</strong> — no redesigns, no new visual language.</p>
+
+  <hr class="rule">
+
+  <nav class="toc">
+    <div class="toc-head">Contents</div>
+    <ol>
+      <li><a href="#brand"><span class="num">01</span><span>Brand direction</span></a></li>
+      <li><a href="#themes"><span class="num">02</span><span>Project themes</span></a></li>
+      <li><a href="#ticket-anatomy"><span class="num">03</span><span>Ticket anatomy</span></a></li>
+      <li><a href="#agent-presence"><span class="num">04</span><span>Agent presence</span></a></li>
+      <li><a href="#surfaces"><span class="num">05</span><span>Surfaces</span></a></li>
+      <li><a href="#flows"><span class="num">06</span><span>Key flows</span></a></li>
+      <li><a href="#states"><span class="num">07</span><span>Empty, error &amp; conflict states</span></a></li>
+      <li><a href="#interaction"><span class="num">08</span><span>Interaction quality</span></a></li>
+      <li><a href="#out-of-scope"><span class="num">09</span><span>Out of scope</span></a></li>
+      <li><a href="#process"><span class="num">10</span><span>Process</span></a></li>
+    </ol>
+  </nav>
+
+
+  <!-- 1. BRAND -->
+  <section id="brand">
+    <div class="sec-label">Brand direction</div>
+    <h2>Personality &amp; feel</h2>
+    <p><strong>Product name &amp; domain:</strong> <span class="tag human">decided</span> <strong>LongClaw</strong> · <code>longclaw.io</code>.</p>
+    <p><strong>Logo &amp; icon:</strong> <span class="tag human">decided</span> an <strong>owl</strong> mark — the namesake nod is Longclaw, the owl character from the Sonic universe. Design an <strong>original, abstract/geometric owl</strong> that channels the qualities (wise guardian, watchful, swift) rather than the character itself: no reproduction or close likeness of the Sega/Paramount design, its color scheme, or its silhouette — that character is protected IP, and the mark must stand on its own. A restrained, sharp-edged owl reads perfectly against the precise, engineered personality below, and the "watchful guardian over your work" idea gives the brand a story that fits a tracker.</p>
+    <p><strong>Personality in five words:</strong> precise, fast, calm, engineered, warm-technical. The product should feel like a well-made tool — closer to Linear's restraint than Trello's playfulness, but never sterile. Density with breathing room; motion that communicates state, never decorates.</p>
+    <p><strong>Base direction:</strong> <span class="tag human">decided</span> <strong>keep the v1 design system</strong> — its palette structure, typography, geometry, component language, and overall calm. It is the reviewed and preferred foundation. The two changes this revision asks for: (a) accent colors become <strong>theme tokens</strong> (section 02), and (b) a handful of <strong>subtle differentiators</strong>, below.</p>
+    <p><strong>The one distinctive brand hook — two actors, two hues.</strong> The product's thesis is a shared canvas for humans and agents. Encode it visually: a <strong>human accent</strong> for planning actions and human-authored content, and an <strong>agent accent</strong> for agent activity — agent comments, agent-made edits, live checklist updates, and (Phase 2) terminal chrome. Used with restraint, this makes agent presence legible at a glance and gives the brand a story no competitor has. <span class="tag human">decided</span> The accent pair is no longer one hardcoded palette — it is a <strong>project theme</strong>; see section 02.</p>
+    <p><strong>Differentiation, lightly.</strong> <span class="tag human">decided</span> We are staying in Linear's family on purpose; the goal is not to look unlike Linear, it is to not be mistaken for it at a glance. That is carried by small things, not a redesign:</p>
+    <ul>
+      <li><strong>Theme tokens instead of Linear's indigo-on-dark chrome</strong> — even the default Indigo theme is our own pair (indigo human + green agent), and it changes per project.</li>
+      <li><strong>Mono metadata as the file-native signature</strong> — IDs, file paths, timestamps, checklist counts in the monospace register. Push this slightly further than v1 did; it is true to the product and cheap.</li>
+      <li><strong>The agent-accent surface</strong> — no competitor has one; it is inherently ours wherever it appears.</li>
+      <li><strong>Detail-level independence</strong> — glyph weights, radii, spacing values are our own numbers, not pixel-matched copies. Familiar language, own handwriting.</li>
+    </ul>
+    <p>What this explicitly does <em>not</em> ask for: a new UI typeface, inverted geometry, novel status/priority glyph systems, or any of the v2 originality program. If a proposed departure makes a screen busier, drop it — <strong>calm wins every tie</strong>.</p>
+    <p><strong>Typography feel:</strong> a grotesque with character for display, a workhorse sans for UI, and a monospace that appears wherever the file-on-disk nature shows through (ticket IDs, file paths, frontmatter-ish metadata). The mono accents are part of the identity — this is a tool that's honest about being files. The v1 choices stand.</p>
+    <p><strong>Appearance:</strong> <span class="tag human">decided</span> light and dark are both first-class from v0, system-matched by default with a manual override. Design every screen in both; neither is a derived afterthought. Appearance (light/dark) and project theme (accent pair) are independent axes — every theme preset defines both.</p>
+  </section>
+
+  <!-- 2. PROJECT THEMES -->
+  <section id="themes">
+    <div class="sec-label">Project themes</div>
+    <h2>Fixed presets, per-project, token-driven <span class="tag human">decided</span></h2>
+    <p>Each project board carries a theme chosen from a <strong>small fixed set of presets</strong> — picked at project creation, changeable later. <strong>No custom color pickers in Phase 0</strong>; presets only. A theme is an accent pair: the human accent plus the agent accent, each with soft/tint variants, in both light and dark.</p>
+    <div class="themes">
+      <div class="theme-card">
+        <div class="swatches"><span class="sw" style="background:#4B4EE7"></span><span class="sw" style="background:#12946A"></span></div>
+        <div class="t-name">Indigo · default</div>
+        <div class="t-note">The v1 pair; this doc is set in it</div>
+      </div>
+      <div class="theme-card">
+        <div class="swatches"><span class="sw" style="background:#A9482C"></span><span class="sw" style="background:#12946A"></span></div>
+        <div class="t-name">Clay</div>
+        <div class="t-note">The v2 human accent, kept as a preset</div>
+      </div>
+      <div class="theme-card">
+        <div class="swatches"><span class="sw" style="background:#8A90A3"></span><span class="sw" style="background:#12946A"></span></div>
+        <div class="t-name">+ 2–3 more</div>
+        <div class="t-note">Design system proposes; founder approves</div>
+      </div>
+    </div>
+    <ul>
+      <li><strong>What varies per theme: the human accent.</strong> <span class="tag warn">proposed</span> The <strong>agent accent stays in the green family across all themes</strong> so agent activity is instantly recognizable in every project — the differentiating surface never changes costume. (It also means "Clay + Green", "Indigo + Green", etc.) Flag at review if theme-specific agent hues test better; if they do, the agent hue must still never collide with status colors, especially Done-green.</li>
+      <li><strong>Token architecture is a hard requirement.</strong> Every accent usage in every component routes through theme tokens (<code>--accent-human</code>, <code>--accent-human-soft</code>, <code>--accent-agent</code>, <code>--accent-agent-soft</code>, hover/active variants). No component hardcodes a hue. Switching themes is a token swap and nothing else.</li>
+      <li><strong>Neutrals, status colors, and warn/error colors are theme-independent</strong> — they are system tokens shared by all themes, so boards stay legible and consistent regardless of preset.</li>
+      <li><strong>Preset count:</strong> <span class="tag warn">proposed</span> 4–5 total including Indigo (default) and Clay. Each must pass contrast (WCAG AA on both appearances) and must keep the human/agent pair distinguishable for common color-vision deficiencies.</li>
+      <li><strong>Proof requirement:</strong> render at least one core screen (the board) in two themes × two appearances before the system is called done. If anything breaks, the token architecture — not the screen — gets fixed.</li>
+      <li><strong>Surfaces for choosing:</strong> theme picker (preset swatches, no wheel) in project creation and project settings; <span class="tag warn">proposed</span> a <code>change project theme</code> command in the palette.</li>
+    </ul>
+  </section>
+
+  <!-- 3. TICKET ANATOMY -->
+  <section id="ticket-anatomy">
+    <div class="sec-label">Ticket anatomy</div>
+    <h2>The core object</h2>
+    <table>
+      <thead><tr><th>Field</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>ID</td><td>Short, human-readable, mono-styled (e.g. <code>PROJ-42</code>). Visible everywhere; copyable.</td></tr>
+        <tr><td>Title</td><td>Single line, the board/list anchor.</td></tr>
+        <tr><td>Description</td><td><span class="tag human">decided</span> Edited <strong>in-app</strong> with a GitHub/Trello-style markdown editor: write/preview, toolbar for common formatting, drag-in images later. Agents may also edit it; see activity rules below.</td></tr>
+        <tr><td>Checklist</td><td><span class="tag human">decided</span> First-class primitive, not just markdown syntax. The human→agent work interface: human writes items, agent checks them off during execution. Progress (3/7) surfaces on cards.</td></tr>
+        <tr><td>Status</td><td><span class="tag warn">proposed</span> Backlog · Todo · In Progress · In Review · Done · Canceled. Board columns map to these. Quiet glyphs in the v1 manner; status colors are system tokens, identical across themes.</td></tr>
+        <tr><td>Priority</td><td><span class="tag warn">proposed</span> Urgent · High · Medium · Low · None, with quiet Linear-style glyphs — monochrome except Urgent. The v2 treatment was rejected as noisy; priority should be scannable, not loud. Draw the glyphs ourselves (own weights/geometry), keep the familiar language.</td></tr>
+        <tr><td>Assignee</td><td><span class="tag human">decided</span> <strong>Always a human.</strong> Agents are never assignees.</td></tr>
+        <tr><td>Labels</td><td>Free-form, colored, project-scoped. Label colors come from a fixed system ramp, not from the theme.</td></tr>
+        <tr><td>Comments &amp; activity</td><td>Single merged timeline: human comments, agent comments, and change events (status, checklist, description edits). See next section.</td></tr>
+        <tr><td>Timestamps</td><td>Created / updated; relative display, mono-styled.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 4. AGENT PRESENCE -->
+  <section id="agent-presence" class="agent-sec">
+    <div class="sec-label">Agent presence</div>
+    <h2>How agents show up — the differentiating surface</h2>
+    <p>This is the design problem no reference product solves, and the reason this app isn't a Linear clone. It is also where our identity is cheapest to establish — nothing exists to imitate here, so every decision is ours by default. Rules:</p>
+    <ul>
+      <li><span class="tag human">decided</span> <strong>Humans own, agents contribute.</strong> Agents appear only in the activity stream: comments, description edits, checklist check-offs, status updates. They never appear in the assignee slot.</li>
+      <li><strong>Agent actions are visually distinct</strong> — agent-accent tint, an agent badge/avatar treatment clearly different from human avatars. A scanning eye should separate human and agent activity instantly. Because the agent accent is (proposed) constant across themes, this reads the same in every project.</li>
+      <li><strong>Live external updates are a designed moment.</strong> In v0, agents edit files on disk from outside the app; the file watcher brings changes in. When a ticket updates externally, the card/panel should acknowledge it — a subtle pulse or highlight, an unobtrusive "updated by agent" affordance. This is the product's magic moment; design it deliberately, don't let it be a silent re-render.</li>
+      <li><strong>Description edits by agents</strong> appear in the timeline as change events (who, when, expandable diff-style view later; a simple "edited the description" event is enough for v0).</li>
+    </ul>
+  </section>
+
+  <!-- 5. SURFACES -->
+  <section id="surfaces">
+    <div class="sec-label">Surfaces</div>
+    <h2>The screens to design</h2>
+    <h3>App shell</h3>
+    <p>Side panel + main content area. <strong>Reserve a collapsible bottom region in the shell layout for the Phase 2 terminal panel</strong> — design its collapsed/expanded geometry now (empty in v0) so terminals later extend the shell instead of forcing a redesign. Design the full side panel per the vision (All / Starred / Local / Teams), but v0 screens show only Local and Starred populated — no teams stubs. <span class="tag warn">proposed</span> Projects in the side panel may carry a small theme-colored marker (dot or tick) as a wayfinding cue — subtle; skip it if it adds noise.</p>
+    <h3>Issue list</h3>
+    <p>Dense, keyboard-navigable rows: ID, title, status, priority, assignee, labels, checklist progress, updated-at. Grouping by status; sort and filter affordances.</p>
+    <h3>Board</h3>
+    <p>Columns = status. Linear's density and speed, Trello's card clarity. Cards show ID, title, priority glyph, assignee avatar, labels, checklist progress, and the agent-activity indicator when fresh.</p>
+    <h3>Ticket panel</h3>
+    <p>Opens over/beside the list or board. Header (ID, title, status, priority, assignee, labels), description editor, checklist block, merged comments/activity timeline with composer. Keep the v1 calm — the v2 revision of this screen is the reference for what to avoid.</p>
+    <h3>Project creation &amp; settings</h3>
+    <p>Folder picker plus the <strong>theme picker</strong>: a row of preset swatches (each showing its human/agent pair), Indigo preselected. Same picker appears in project settings. No custom color affordance anywhere.</p>
+    <h3>Command palette</h3>
+    <p><span class="tag warn">proposed</span> v0 command set: create ticket · go to project · change status · assign · search tickets · star project · toggle appearance · change project theme · new terminal <em>(Phase 2, design the slot)</em>.</p>
+    <h3>Sign up</h3>
+    <p>A quiet, persistent button in the side panel footer → modal: value proposition ("early access to cloud sync &amp; teams"), email, done. Never a wall, never nagging.</p>
+  </section>
+
+  <!-- 6. FLOWS -->
+  <section id="flows">
+    <div class="sec-label">Key flows</div>
+    <h2>Flows to design end-to-end</h2>
+    <h3>1. First launch — the make-or-break flow</h3>
+    <div class="flow"><b>Welcome</b> <span class="arr">→</span> Open a folder / Create a project <span class="arr">→</span> native folder picker <span class="arr">→</span> theme preset (Indigo preselected, one click to skip) <span class="arr">→</span> <b>project appears in side panel</b> <span class="arr">→</span> empty board with a guided "create your first ticket" affordance</div>
+    <p>No account step anywhere in this flow. The time from app open to first ticket should feel under a minute, and the folder-on-disk nature should be visible, not hidden (show the chosen path). The theme step must never slow this flow — it is a preselected default, not a decision gate.</p>
+    <h3>2. Ticket creation</h3>
+    <p>Two speeds: <strong>quick create</strong> (palette or <code>C</code>: title + status, enter, done) and <strong>full create</strong> (opens the ticket panel for description, checklist, labels).</p>
+    <h3>3. Agent round-trip (the demo flow)</h3>
+    <div class="flow">Human writes ticket + checklist <span class="arr">→</span> agent (external, e.g. Claude Code) edits files on disk <span class="arr">→</span> watcher ingests <span class="arr">→</span> <b>board card pulses, checklist ticks, agent comment appears</b> <span class="arr">→</span> human reviews activity, moves to Done</div>
+    <h3>4. Change project theme</h3>
+    <p>Settings or palette → preset swatches → selection applies instantly (optimistic, animated only as a soft crossfade of accent surfaces). Nothing moves; only accents change.</p>
+    <h3>5. Sign up → waitlist</h3>
+    <p>Button → modal → confirmation state. Nothing in the app changes afterward except the button becoming a subtle "you're on the list."</p>
+  </section>
+
+  <!-- 7. STATES -->
+  <section id="states" class="warn-sec">
+    <div class="sec-label">States</div>
+    <h2>Empty, error &amp; conflict states</h2>
+    <p>A files-on-disk app earns trust in its failure states. Design these, don't default them:</p>
+    <ul>
+      <li><strong>No projects yet</strong> — the welcome state doubles as this.</li>
+      <li><strong>Empty project</strong> — board with guided first-ticket affordance.</li>
+      <li><strong>Folder missing/moved</strong> — project stays listed, marked unreachable, with "locate folder" and "remove" actions. Never silently delete.</li>
+      <li><strong>Unparseable ticket file</strong> — a user or agent hand-edited a file into an invalid state. Show the ticket as a degraded card with an error affordance; opening it reveals the raw file content and the parse error. <strong>Non-destructive always</strong> — the app never rewrites or discards a file it can't parse.</li>
+      <li><strong>External edit during in-app editing</strong> — the watcher detects the open ticket changed on disk mid-edit. Design the conflict affordance (e.g. banner: "changed on disk — reload / keep mine"). Exact merge behavior is an engineering call; the UI pattern is a design call, make it now.</li>
+    </ul>
+  </section>
+
+  <!-- 8. INTERACTION BAR -->
+  <section id="interaction">
+    <div class="sec-label">Interaction quality</div>
+    <h2>The Linear-grade bar, operationalized</h2>
+    <ul>
+      <li><strong>Keyboard-first:</strong> <code>Cmd+K</code> palette, single-key actions on focused tickets (<span class="tag warn">proposed</span> <code>C</code> create, <code>S</code> status, <code>A</code> assign, <code>P</code> priority), arrow/j-k navigation. Every pointer action has a keyboard path.</li>
+      <li><strong>Perceived speed:</strong> optimistic UI on every mutation; motion under ~150ms and always meaningful (state change, external update, theme change), never ornamental.</li>
+      <li><strong>Density with hierarchy:</strong> lists and boards hold a lot without feeling crowded; mono metadata + restrained color carry the hierarchy.</li>
+    </ul>
+  </section>
+
+  <!-- 9. OUT OF SCOPE -->
+  <section id="out-of-scope">
+    <div class="sec-label">Out of scope</div>
+    <h2>Do not design</h2>
+    <ul>
+      <li>Teams UI internals, sync settings, billing — Phase 3.</li>
+      <li>The terminal panel's interior — Phase 2; only its reserved position in the shell is designed now.</li>
+      <li>Custom theme colors, a theme builder, or per-user theme overrides — presets only.</li>
+      <li>A new visual identity — the v1 system is the base; the v2 originality program is retired.</li>
+      <li>Onboarding for accounts — there is none; only the waitlist modal.</li>
+      <li>Windows/Linux chrome — macOS only.</li>
+    </ul>
+  </section>
+
+  <!-- 10. PROCESS -->
+  <section id="process">
+    <div class="sec-label">Process</div>
+    <h2>Order of work in Claude Design</h2>
+    <ol>
+      <li><strong>Design system first — starting from v1, not from scratch.</strong> Refactor the v1 palette into the theme-token architecture; define the preset set (Indigo default + Clay + 2–3 proposals, each light + dark); apply the subtle differentiators from section 01. Anchor everything here before any screen.</li>
+      <li><strong>Theme proof</strong> — render the board in two themes × two appearances. Fix the tokens, not the screen, if anything breaks.</li>
+      <li><strong>Screens</strong> — shell → board → ticket panel → issue list → palette → flows &amp; states above. Design in the default Indigo theme; spot-check key screens in Clay. Iterate until the experience is settled; this is the cheap place to change minds.</li>
+      <li><strong>Handoff bundle</strong> — export tokens (system + all theme presets) + component specs and commit to the repo alongside the vision doc.</li>
+    </ol>
+  </section>
+
+  <footer>
+    <span>design-brief · draft v0.5</span>
+    <span>companion to vision-scope v1.0</span>
+  </footer>
+
+</div>
+</body>
+</html>

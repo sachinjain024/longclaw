@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LongClaw — Design Brief</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F7F8FA; --card:#FFFFFF; --ink:#151A26; --ink-soft:#4A5165;
+    --ink-faint:#8A90A3; --line:#E3E6ED;
+    --human:#A9482C; --human-soft:#FBEDE7;
+    --agent:#0F7B86; --agent-soft:#E2F1F2;
+    --warn:#8C3B6B; --warn-soft:#F8EBF3;
+    --mono:'JetBrains Mono', ui-monospace, monospace;
+    --body:'Inter', system-ui, sans-serif;
+    --display:'Familjen Grotesk', system-ui, sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased;padding:56px 24px 96px;}
+  .doc{max-width:780px;margin:0 auto;}
+  .frontmatter{font-family:var(--mono);font-size:13px;background:var(--ink);color:#D6DAE6;border-radius:10px;padding:22px 26px;line-height:1.85;margin-bottom:52px;overflow-x:auto;}
+  .frontmatter .fence{color:#5B627A;} .frontmatter .key{color:#DFA184;}
+  .frontmatter .val{color:#E9EBF3;} .frontmatter .cm{color:#6FC3CC;font-style:italic;}
+  h1{font-family:var(--display);font-weight:700;font-size:clamp(30px,5vw,40px);line-height:1.12;letter-spacing:-0.02em;margin-bottom:14px;}
+  .subtitle{color:var(--ink-soft);font-size:18px;max-width:62ch;margin-bottom:40px;}
+  .subtitle strong{color:var(--ink);font-weight:600;}
+  section{margin-bottom:58px;}
+  .sec-label{font-family:var(--mono);font-size:12px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:var(--human);margin-bottom:8px;}
+  .sec-label::before{content:"## ";color:var(--ink-faint);}
+  section.agent-sec .sec-label{color:var(--agent);}
+  section.warn-sec .sec-label{color:var(--warn);}
+  h2{font-family:var(--display);font-weight:600;font-size:26px;letter-spacing:-0.015em;margin-bottom:16px;}
+  h3{font-family:var(--display);font-weight:600;font-size:18px;margin:26px 0 8px;}
+  p{margin-bottom:14px;color:var(--ink-soft);}
+  p strong, li strong, td strong{color:var(--ink);font-weight:600;}
+  ul, ol{margin:0 0 14px 22px;color:var(--ink-soft);}
+  li{margin-bottom:8px;}
+  code{font-family:var(--mono);font-size:0.86em;background:var(--line);padding:1.5px 6px;border-radius:5px;color:var(--ink);}
+  .callout{border-left:3px solid var(--human);background:var(--human-soft);border-radius:0 10px 10px 0;padding:16px 20px;margin:20px 0;}
+  .callout.agent{border-color:var(--agent);background:var(--agent-soft);}
+  .callout.warn{border-color:var(--warn);background:var(--warn-soft);}
+  .callout p{margin:0;color:var(--ink);}
+  .callout p + p{margin-top:10px;}
+  .tag{font-family:var(--mono);font-size:11px;font-weight:500;padding:2px 8px;border-radius:99px;vertical-align:1px;white-space:nowrap;}
+  .tag.human{background:var(--human-soft);color:var(--human);}
+  .tag.agent{background:var(--agent-soft);color:var(--agent);}
+  .tag.warn{background:var(--warn-soft);color:var(--warn);}
+  table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:14.5px;margin:18px 0;}
+  th{font-family:var(--mono);font-size:12px;letter-spacing:0.06em;text-transform:uppercase;font-weight:500;text-align:left;color:var(--ink-faint);background:var(--paper);padding:12px 18px;border-bottom:1px solid var(--line);}
+  td{padding:13px 18px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--ink-soft);}
+  tr:last-child td{border-bottom:none;}
+  td:first-child{color:var(--ink);font-weight:500;width:34%;}
+  .rule{border:none;border-top:1px solid var(--line);margin:0 0 58px;}
+  .flow{font-family:var(--mono);font-size:13.5px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin:14px 0 20px;color:var(--ink-soft);line-height:2;}
+  .flow b{color:var(--ink);font-weight:600;}
+  .flow .arr{color:var(--human);}
+
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:22px 0;}
+  @media (max-width:620px){.split{grid-template-columns:1fr;}}
+  .split .cell{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;}
+  .cell .cell-head{font-family:var(--mono);font-size:12px;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px;font-weight:500;}
+  .cell.do .cell-head{color:var(--agent);}
+  .cell.dont .cell-head{color:var(--warn);}
+  .cell ul{margin:0 0 0 18px;font-size:14.5px;}
+  .cell li{margin-bottom:6px;}
+  .cell li:last-child{margin-bottom:0;}
+  .test{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--ink);border-radius:0 12px 12px 0;padding:18px 22px;margin:22px 0;}
+  .test .test-head{font-family:var(--mono);font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink);margin-bottom:10px;font-weight:500;}
+  .test p{margin-bottom:0;}
+  .test p + p{margin-top:10px;}
+
+  .toc{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 24px;margin-bottom:52px;}
+  .toc-head{font-family:var(--mono);font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:12px;}
+  .toc-head::before{content:"## ";color:var(--ink-faint);}
+  .toc ol{list-style:none;margin:0;columns:2;column-gap:36px;}
+  .toc li{margin:0 0 4px;break-inside:avoid;}
+  .toc a{display:flex;gap:10px;align-items:baseline;text-decoration:none;color:var(--ink-soft);font-size:14.5px;padding:3px 0;transition:color .12s;}
+  .toc a:hover{color:var(--human);}
+  .toc .num{font-family:var(--mono);font-size:11.5px;color:var(--ink-faint);min-width:22px;}
+  .toc a:hover .num{color:var(--human);}
+  @media (max-width:560px){.toc ol{columns:1;}}
+  footer{margin-top:72px;padding-top:20px;border-top:1px solid var(--line);font-family:var(--mono);font-size:12px;color:var(--ink-faint);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <div class="frontmatter">
+<span class="fence">---</span><br>
+<span class="key">title</span><span class="val">: Design Brief</span><br>
+<span class="key">product</span><span class="val">: LongClaw</span><br>
+<span class="key">companion_to</span><span class="val">: vision-scope (v0.9)</span><br>
+<span class="key">consumer</span><span class="val">: Claude Design</span>  <span class="cm"># feed both docs together</span><br>
+<span class="key">status</span><span class="val">: draft v0.4</span><br>
+<span class="key">scope</span><span class="val">: design system + v0 screens + shell for Phase 2</span><br>
+<span class="key">hard_constraint</span><span class="val">: borrow the bar, not the look</span>  <span class="cm"># see 02</span><br>
+<span class="fence">---</span>
+  </div>
+
+  <h1>LongClaw — design brief for the prototype</h1>
+  <p class="subtitle">This document translates the vision into what a designer needs: brand direction, ticket anatomy, surfaces, flows, and states. Items marked <span class="tag human">decided</span> are settled; items marked <span class="tag warn">proposed</span> are sensible defaults awaiting founder approval — flag them in the first design review rather than silently diverging.</p>
+  <p class="subtitle" style="margin-top:-26px;"><strong>One constraint outranks everything else here:</strong> the craft bar is borrowed from best-in-class trackers, the visual identity is not. A first pass at this system came back looking like a Linear reskin — beautiful, and wrong. Section <a href="#originality" style="color:var(--human);">02</a> defines the line, and it is a review gate, not a preference.</p>
+
+  <hr class="rule">
+
+  <nav class="toc">
+    <div class="toc-head">Contents</div>
+    <ol>
+      <li><a href="#brand"><span class="num">01</span><span>Brand direction</span></a></li>
+      <li><a href="#originality"><span class="num">02</span><span>Originality mandate</span></a></li>
+      <li><a href="#ticket-anatomy"><span class="num">03</span><span>Ticket anatomy</span></a></li>
+      <li><a href="#agent-presence"><span class="num">04</span><span>Agent presence</span></a></li>
+      <li><a href="#surfaces"><span class="num">05</span><span>Surfaces</span></a></li>
+      <li><a href="#flows"><span class="num">06</span><span>Key flows</span></a></li>
+      <li><a href="#states"><span class="num">07</span><span>Empty, error &amp; conflict states</span></a></li>
+      <li><a href="#interaction"><span class="num">08</span><span>Interaction quality</span></a></li>
+      <li><a href="#out-of-scope"><span class="num">09</span><span>Out of scope</span></a></li>
+      <li><a href="#process"><span class="num">10</span><span>Process</span></a></li>
+    </ol>
+  </nav>
+
+
+  <!-- 1. BRAND -->
+  <section id="brand">
+    <div class="sec-label">Brand direction</div>
+    <h2>Personality &amp; feel <span class="tag warn">proposed</span></h2>
+    <p><strong>Product name &amp; domain:</strong> <span class="tag human">decided</span> <strong>LongClaw</strong> · <code>longclaw.io</code>.</p>
+    <p><strong>Logo &amp; icon:</strong> <span class="tag human">decided</span> an <strong>owl</strong> mark — the namesake nod is Longclaw, the owl character from the Sonic universe. Design an <strong>original, abstract/geometric owl</strong> that channels the qualities (wise guardian, watchful, swift) rather than the character itself: no reproduction or close likeness of the Sega/Paramount design, its color scheme, or its silhouette — that character is protected IP, and the mark must stand on its own. A restrained, sharp-edged owl reads perfectly against the precise, engineered personality below, and the "watchful guardian over your work" idea gives the brand a story that fits a tracker.</p>
+    <p><strong>Personality in five words:</strong> precise, fast, calm, engineered, warm-technical. The product should feel like a well-made hand tool — restrained, but never sterile and never anonymous. Density with breathing room; motion that communicates state, never decorates.</p>
+    <p><strong>Where the identity comes from — the source material is the file, not another tracker.</strong> This product's one honest truth is that a ticket is a plain-text file on disk. That is the well to draw from: the visual world of well-set documents, editors, and plain text — hairline rules, mono metadata, honest structure, generous margins, real paper-white — rather than the visual world of the SaaS dashboard, which is where every competitor already lives. <em>These two documents are a usable seed:</em> the frontmatter block, the <code>##</code> section markers, the mono labels against a paper ground. Extend that language into an application. If a screen would look at home in a well-made writing tool, it is on direction.</p>
+    <p><strong>The one distinctive brand hook — two actors, two hues.</strong> The product's thesis is a shared canvas for humans and agents. Encode it visually: a <strong>human accent</strong> for planning actions and human-authored content, and an <strong>agent accent</strong> for agent activity — agent comments, agent-made edits, live checklist updates, and (Phase 2) terminal chrome. Used with restraint, this makes agent presence legible at a glance and gives the brand a story no competitor has.</p>
+    <p><span class="tag warn">proposed</span> Two hard constraints on the pair, then three directions to choose between:</p>
+    <ul>
+      <li><strong>No indigo, no violet.</strong> The indigo-to-violet band is the single most identifying thing about the reference product, and it is also the default accent of roughly every AI-era dev tool. Using it guarantees the derivative read. <em>This is the highest-leverage change in this revision.</em></li>
+      <li><strong>The agent accent cannot be green.</strong> Green is spoken for by <code>Done</code> in every status system, this one included. An agent accent in the same family makes a board ambiguous exactly where it needs to be sharpest: is that card finished, or is a machine working on it?</li>
+    </ul>
+    <ul>
+      <li><strong>Direction A — warm human, cool machine.</strong> Human accent in a warm register (clay, terracotta, ochre); agent accent cool and precise (teal, cyan). The metaphor reads instantly without a legend, and it is nowhere near anyone else's palette. <em>This document is set in Direction A so you can see it running.</em></li>
+      <li><strong>Direction B — neutral plus one.</strong> The entire interface is achromatic; the agent accent is the only saturated color in the product. Maximum restraint, maximum legibility of the differentiating surface, and an identity that is genuinely hard to confuse with anything else. Riskier: the human side loses its hue, so hierarchy has to carry more weight.</li>
+      <li><strong>Direction C — ink and signal.</strong> Human accent a deep ink-blue that is unambiguously blue rather than violet; agent accent a warm signal amber that reads as "live / running." Inverts A's metaphor; pick it only if the amber-as-activity reading tests better with you than warm-as-human.</li>
+    </ul>
+    <p>Choose one direction, build both themes from it, and bring all three to the first review if the call is close. Exact hue values are the design system's to set.</p>
+    <p><strong>Typography feel:</strong> a grotesque with character for display, a workhorse sans for UI, and a monospace wherever the file-on-disk nature shows through. Two notes that matter more than the specific families:</p>
+    <ul>
+      <li><strong>Not Inter for UI.</strong> It is the house sans of the reference product and of most of the tools it inspired; reaching for it is half of the derivative read before a single color is chosen. Pick a workhorse with some grain to it — Geist, Public Sans, IBM Plex Sans, Instrument Sans and Schibsted Grotesk are all in range and all read as someone's choice rather than the default.</li>
+      <li><strong>Mono is load-bearing, not decorative.</strong> Push it further than a normal tracker would: IDs, statuses, priorities, counts, checklist progress, timestamps, keyboard hints, file paths. Metadata in mono against prose in sans is a strong, cheap, instantly recognizable signature, and it is true to the product rather than applied to it.</li>
+    </ul>
+    <p><strong>Surface &amp; geometry:</strong> <span class="tag warn">proposed</span> the reference aesthetic is soft — large radii, floating panels, glassy layers, gradient chrome, shadow-defined depth. Take the opposite pole and the work will read as its own: <strong>rules over shadows</strong> (hairline dividers, borders, real alignment doing the structural work), <strong>tighter radii</strong> (4–6px, not 12–16px), <strong>no gradients on chrome</strong>, and depth expressed through contrast and spacing rather than elevation. Flat, ruled, and precise — a page, not a stack of cards.</p>
+    <p><strong>Theming:</strong> <span class="tag human">decided</span> light and dark are both first-class from v0, system-matched by default with a manual override. Design every screen in both; neither is a derived afterthought. <span class="tag warn">proposed</span> <strong>Design light-first.</strong> Dark-first is the reference product's home ground and where imitation is hardest to avoid; a genuinely paper-white light theme is both rarer and closer to the document identity above. Derive dark from a resolved light theme, not the reverse.</p>
+  </section>
+
+  <!-- 2. ORIGINALITY MANDATE -->
+  <section id="originality" class="warn-sec">
+    <div class="sec-label">Originality mandate</div>
+    <h2>Borrow the bar, not the look</h2>
+    <p>Everywhere this brief and the vision doc say <strong>"Linear-grade,"</strong> they mean a <em>standard of craft</em> — latency, keyboard coverage, density, restraint, the fact that no state is left undesigned. They never mean a visual reference. The first pass at this design system conflated the two and came back as a high-quality replica: same palette family, same chrome, same iconography. That is a failure of the brief, which this section repairs.</p>
+    <div class="split">
+      <div class="cell do">
+        <div class="cell-head">Borrow — the bar</div>
+        <ul>
+          <li>Keyboard-first: every pointer action has a key path</li>
+          <li>Optimistic UI; perceived latency under the thresholds in 08</li>
+          <li>High information density without crowding</li>
+          <li>Motion only when it reports a state change</li>
+          <li>Every empty, loading, error and conflict state designed</li>
+          <li>Ruthless removal of decoration that carries no meaning</li>
+        </ul>
+      </div>
+      <div class="cell dont">
+        <div class="cell-head">Do not borrow — the look</div>
+        <ul>
+          <li>The indigo/violet accent band, and near-black gradient chrome</li>
+          <li>Inter as the UI face, at its familiar scale and spacing</li>
+          <li>Floating rounded panels, glassy layers, shadow-defined depth</li>
+          <li>The signal-strength bar-stack priority glyphs</li>
+          <li>Circular status rings with partial-fill progress</li>
+          <li>The sidebar geometry, avatar treatment, and label pill styling</li>
+        </ul>
+      </div>
+    </div>
+    <p>The distinction is simple in practice: <strong>anything a user feels is fair game; anything a user sees must be ours.</strong> A stopwatch and a screenshot measure two different things, and only one of them is allowed to match.</p>
+    <div class="test">
+      <div class="test-head">The review gate</div>
+      <p><strong>The removal test.</strong> Take any finished screen, delete the logo and the product name, and show it to someone who uses these tools daily. If the first guess is a known tracker, the screen fails and gets reworked — not adjusted at the margins. Run this on the board and the ticket panel specifically; they are where imitation concentrates.</p>
+      <p><strong>The five-thing test.</strong> Name the five visual decisions a user would remember a week later. If the list is generic — "clean," "fast," "dark mode" — the identity hasn't been made yet. Strong answers look like: mono metadata everywhere, the agent hue, paper-white ground, hairline rules, bracket-notation status tokens.</p>
+      <p><strong>Where originality is cheapest to win:</strong> agent presence (section 04). No competitor has designed it, so there is nothing to imitate and every decision is necessarily ours. Treat it as the identity carrier rather than a feature that needs a tint.</p>
+    </div>
+  </section>
+
+  <!-- 3. TICKET ANATOMY -->
+  <section id="ticket-anatomy">
+    <div class="sec-label">Ticket anatomy</div>
+    <h2>The core object</h2>
+    <table>
+      <thead><tr><th>Field</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>ID</td><td>Short, human-readable, mono-styled (e.g. <code>PROJ-42</code>). Visible everywhere; copyable.</td></tr>
+        <tr><td>Title</td><td>Single line, the board/list anchor.</td></tr>
+        <tr><td>Description</td><td><span class="tag human">decided</span> Edited <strong>in-app</strong> with a GitHub/Trello-style markdown editor: write/preview, toolbar for common formatting, drag-in images later. Agents may also edit it; see activity rules below.</td></tr>
+        <tr><td>Checklist</td><td><span class="tag human">decided</span> First-class primitive, not just markdown syntax. The human→agent work interface: human writes items, agent checks them off during execution. Progress (3/7) surfaces on cards.</td></tr>
+        <tr><td>Status</td><td><span class="tag warn">proposed</span> Backlog · Todo · In Progress · In Review · Done · Canceled. Board columns map to these. <strong>Glyph treatment is an originality surface:</strong> avoid circular partial-fill progress rings — they read as a direct lift. A mono state token honest to the file format (<code>[ ]</code> <code>[~]</code> <code>[x]</code>) is a stronger and more distinctive candidate; test it against a purely typographic label before defaulting to icons.</td></tr>
+        <tr><td>Priority</td><td><span class="tag warn">proposed</span> Urgent · High · Medium · Low · None. <strong>Design original glyphs.</strong> Specifically not the four-bar signal-strength stack — that mark is the reference product's most recognizable single element. Mono tokens (<code>P0</code>–<code>P3</code>) or a weighted typographic mark fit the file-native identity and stay legible at list density.</td></tr>
+        <tr><td>Assignee</td><td><span class="tag human">decided</span> <strong>Always a human.</strong> Agents are never assignees.</td></tr>
+        <tr><td>Labels</td><td>Free-form, colored, project-scoped.</td></tr>
+        <tr><td>Comments &amp; activity</td><td>Single merged timeline: human comments, agent comments, and change events (status, checklist, description edits). See next section.</td></tr>
+        <tr><td>Timestamps</td><td>Created / updated; relative display.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 3. AGENT PRESENCE -->
+  <section id="agent-presence" class="agent-sec">
+    <div class="sec-label">Agent presence</div>
+    <h2>How agents show up — the differentiating surface</h2>
+    <p>This is the design problem no reference product solves — which makes it both the product's differentiator and, per section 02, the place where the visual identity is cheapest to establish. <strong>Spend disproportionate design time here.</strong> Every other surface has a hundred prior examples pulling it toward the mean; this one has none. Rules:</p>
+    <ul>
+      <li><span class="tag human">decided</span> <strong>Humans own, agents contribute.</strong> Agents appear only in the activity stream: comments, description edits, checklist check-offs, status updates. They never appear in the assignee slot.</li>
+      <li><strong>Agent actions are visually distinct</strong> — agent-accent tint, an agent badge/avatar treatment clearly different from human avatars. A scanning eye should separate human and agent activity instantly.</li>
+      <li><strong>Live external updates are a designed moment.</strong> In v0, agents edit files on disk from outside the app; the file watcher brings changes in. When a ticket updates externally, the card/panel should acknowledge it — a subtle pulse or highlight, an unobtrusive "updated by agent" affordance. This is the product's magic moment; design it deliberately, don't let it be a silent re-render.</li>
+      <li><strong>Description edits by agents</strong> appear in the timeline as change events (who, when, expandable diff-style view later; a simple "edited the description" event is enough for v0).</li>
+    </ul>
+  </section>
+
+  <!-- 4. SURFACES -->
+  <section id="surfaces">
+    <div class="sec-label">Surfaces</div>
+    <h2>The screens to design</h2>
+    <h3>App shell</h3>
+    <p>Side panel + main content area. <strong>Reserve a collapsible bottom region in the shell layout for the Phase 2 terminal panel</strong> — design its collapsed/expanded geometry now (empty in v0) so terminals later extend the shell instead of forcing a redesign. Design the full side panel per the vision (All / Starred / Local / Teams), but v0 screens show only Local and Starred populated — no teams stubs.</p>
+    <h3>Issue list</h3>
+    <p>Dense, keyboard-navigable rows: ID, title, status, priority, assignee, labels, checklist progress, updated-at. Grouping by status; sort and filter affordances.</p>
+    <h3>Board</h3>
+    <p>Columns = status. Cards show ID, title, priority glyph, assignee avatar, labels, checklist progress, and the agent-activity indicator when fresh. Target the density of a professional tracker with the scan-clarity of a card board — but hit it with absolute numbers rather than by matching a reference: <span class="tag warn">proposed</span> card title one line with ellipsis, metadata row capped at three items plus overflow, three-line maximum card height, 8px spacing grid throughout, side panel 240px.</p>
+    <h3>Ticket panel</h3>
+    <p>Opens over/beside the list or board. Header (ID, title, status, priority, assignee, labels), description editor, checklist block, merged comments/activity timeline with composer.</p>
+    <p><span class="tag warn">proposed</span> <strong>Add a "view source" affordance</strong> — a toggle revealing the ticket's raw file exactly as it sits on disk, with its path. It costs almost nothing, it is the single clearest expression of the product's thesis, and no cloud tracker can copy it. It also generalizes the degraded-file state in section 07 into a normal, always-available view rather than an error-only escape hatch.</p>
+    <h3>Command palette</h3>
+    <p><span class="tag warn">proposed</span> v0 command set: create ticket · go to project · change status · assign · search tickets · star project · toggle theme · new terminal <em>(Phase 2, design the slot)</em>.</p>
+    <h3>Sign up</h3>
+    <p>A quiet, persistent button in the side panel footer → modal: value proposition ("early access to cloud sync &amp; teams"), email, done. Never a wall, never nagging.</p>
+  </section>
+
+  <!-- 5. FLOWS -->
+  <section id="flows">
+    <div class="sec-label">Key flows</div>
+    <h2>Flows to design end-to-end</h2>
+    <h3>1. First launch — the make-or-break flow</h3>
+    <div class="flow"><b>Welcome</b> <span class="arr">→</span> Open a folder / Create a project <span class="arr">→</span> native folder picker <span class="arr">→</span> <b>project appears in side panel</b> <span class="arr">→</span> empty board with a guided "create your first ticket" affordance</div>
+    <p>No account step anywhere in this flow. The time from app open to first ticket should feel under a minute, and the folder-on-disk nature should be visible, not hidden (show the chosen path).</p>
+    <h3>2. Ticket creation</h3>
+    <p>Two speeds: <strong>quick create</strong> (palette or <code>C</code>: title + status, enter, done) and <strong>full create</strong> (opens the ticket panel for description, checklist, labels).</p>
+    <h3>3. Agent round-trip (the demo flow)</h3>
+    <div class="flow">Human writes ticket + checklist <span class="arr">→</span> agent (external, e.g. Claude Code) edits files on disk <span class="arr">→</span> watcher ingests <span class="arr">→</span> <b>board card pulses, checklist ticks, agent comment appears</b> <span class="arr">→</span> human reviews activity, moves to Done</div>
+    <h3>4. Sign up → waitlist</h3>
+    <p>Button → modal → confirmation state. Nothing in the app changes afterward except the button becoming a subtle "you're on the list."</p>
+  </section>
+
+  <!-- 6. STATES -->
+  <section id="states" class="warn-sec">
+    <div class="sec-label">States</div>
+    <h2>Empty, error &amp; conflict states</h2>
+    <p>A files-on-disk app earns trust in its failure states. Design these, don't default them:</p>
+    <ul>
+      <li><strong>No projects yet</strong> — the welcome state doubles as this.</li>
+      <li><strong>Empty project</strong> — board with guided first-ticket affordance.</li>
+      <li><strong>Folder missing/moved</strong> — project stays listed, marked unreachable, with "locate folder" and "remove" actions. Never silently delete.</li>
+      <li><strong>Unparseable ticket file</strong> — a user or agent hand-edited a file into an invalid state. Show the ticket as a degraded card with an error affordance; opening it reveals the raw file content and the parse error. <strong>Non-destructive always</strong> — the app never rewrites or discards a file it can't parse.</li>
+      <li><strong>External edit during in-app editing</strong> — the watcher detects the open ticket changed on disk mid-edit. Design the conflict affordance (e.g. banner: "changed on disk — reload / keep mine"). Exact merge behavior is an engineering call; the UI pattern is a design call, make it now.</li>
+    </ul>
+  </section>
+
+  <!-- 7. INTERACTION BAR -->
+  <section id="interaction">
+    <div class="sec-label">Interaction quality</div>
+    <h2>The quality bar, in numbers</h2>
+    <p>Stated as thresholds rather than as a comparison, so the bar can be met without looking at anyone else's product:</p>
+    <ul>
+      <li><strong>Keyboard-first:</strong> <code>Cmd+K</code> palette, single-key actions on focused tickets (<span class="tag warn">proposed</span> <code>C</code> create, <code>S</code> status, <code>A</code> assign, <code>P</code> priority), arrow/j-k navigation. <strong>Target: 100% of pointer actions have a key path</strong>, and the palette can reach every one of them.</li>
+      <li><strong>Perceived speed:</strong> optimistic UI on every mutation. Interaction feedback under 50ms; view transitions 120–180ms; no spinner for anything expected to resolve under 300ms. Motion fires only on a state change or an external update — never on hover, never on entrance.</li>
+      <li><strong>Density with hierarchy:</strong> <span class="tag warn">proposed</span> list rows 32–36px, base UI text 13px, mono metadata 11–12px, 8px spacing grid. Hierarchy carried by weight, case, and the mono/sans split — not by adding color.</li>
+      <li><strong>State coverage:</strong> no surface ships with an undesigned empty, loading, error, or conflict state. This is the least visible half of the bar and the half most often skipped.</li>
+    </ul>
+  </section>
+
+  <!-- 8. OUT OF SCOPE -->
+  <section id="out-of-scope">
+    <div class="sec-label">Out of scope</div>
+    <h2>Do not design</h2>
+    <ul>
+      <li>Teams UI internals, sync settings, billing — Phase 3.</li>
+      <li>The terminal panel's interior — Phase 2; only its reserved position in the shell is designed now.</li>
+      <li>Onboarding for accounts — there is none; only the waitlist modal.</li>
+      <li>Windows/Linux chrome — macOS only.</li>
+      <li>Do not start from a clone of an existing tracker's UI and adjust inward — see section 02. Nothing is imported as a starting point.</li>
+    </ul>
+  </section>
+
+  <!-- 9. PROCESS -->
+  <section id="process">
+    <div class="sec-label">Process</div>
+    <h2>Order of work in Claude Design</h2>
+    <ol>
+      <li><strong>Direction lock — before any pixels.</strong> Pick one accent direction (A/B/C above), one UI face that is not Inter, and the surface geometry. Present these as a one-page direction board and get sign-off. Ten minutes here is what prevents a beautiful replica three hours later.</li>
+      <li><strong>Design system</strong> — palette (human/agent pair, light + dark), typography scale, spacing grid, core components, and the original status/priority glyph set. Anchor everything here before any screen.</li>
+      <li><strong>Screens</strong> — shell → board → ticket panel → issue list → palette → flows &amp; states above. Iterate until the experience is settled; this is the cheap place to change minds.</li>
+      <li><strong>Divergence review</strong> — run the removal test and the five-thing test from section 02 on the board and the ticket panel. A fail here means reworking the system, not the screen; catch it before the bundle is exported.</li>
+      <li><strong>Handoff bundle</strong> — export tokens + component specs and commit to the repo alongside the vision doc.</li>
+    </ol>
+  </section>
+
+  <footer>
+    <span>design-brief · draft v0.4</span>
+    <span>companion to vision-scope v0.9</span>
+  </footer>
+
+</div>
+</body>
+</html>
