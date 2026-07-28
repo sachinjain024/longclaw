@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="LongClaw mark">
+  <!--
+    LongClaw owl mark — variant A "talon" (decisions.md D13).
+    An original abstract/geometric owl: six straight cuts and four circles —
+    two ear points, a level gaze, a face that tapers to a single talon point
+    (the claw in LongClaw). No likeness to any existing character.
+
+    Construction:
+      body     polygon 9,7 32,16 55,7 55,40 32,59 9,40 (the six cuts)
+      eyes     r=7.5 at (22.5,29.5) and (41.5,29.5), punched out
+      talon    diamond 32,39.5 36,45 32,51.5 28,45, punched out
+      pupils   r=3 at the eye centers
+
+    The mark is single-color: fill inherits currentColor so it sits on any
+    surface (set color: var(- -lc-ink) in app chrome). Works at 16px.
+    Two-actor duotone pupils (human/agent accents) are reserved for marketing
+    moments only — never in-app chrome.
+  -->
+  <path fill="currentColor" fill-rule="evenodd" d="
+    M9 7 L32 16 L55 7 L55 40 L32 59 L9 40 Z
+    M22.5 22 a7.5 7.5 0 1 0 0 15 a7.5 7.5 0 1 0 0 -15 Z
+    M41.5 22 a7.5 7.5 0 1 0 0 15 a7.5 7.5 0 1 0 0 -15 Z
+    M32 39.5 L36 45 L32 51.5 L28 45 Z"/>
+  <circle cx="22.5" cy="29.5" r="3" fill="currentColor"/>
+  <circle cx="41.5" cy="29.5" r="3" fill="currentColor"/>
+</svg>

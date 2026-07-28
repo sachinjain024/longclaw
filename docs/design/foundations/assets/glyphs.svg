@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 96" width="340" height="96">
+  <!--
+    LongClaw glyph masters — status, priority, checkbox, agent prompt,
+    folder, warning. Geometry spec lives in components.md.
+
+    All fills/strokes route through - -lc-* tokens with light-Indigo preview
+    fallbacks so this sheet renders standalone. Components must consume the
+    <symbol>s (or copy the geometry) with tokens — never the fallback hexes.
+
+    Grid: 14×14 viewBox per glyph · ring r=5 stroke 1.6 · bars 3px rx1 ·
+    filled discs r=6 · checkbox 12×12 rx3.5.
+  -->
+  <defs>
+    <symbol id="status-backlog" viewBox="0 0 14 14">
+      <circle cx="7" cy="7" r="5" fill="none" stroke="var(--lc-status-backlog, #82879B)" stroke-width="1.6" stroke-dasharray="2.1 2.5"/>
+    </symbol>
+    <symbol id="status-todo" viewBox="0 0 14 14">
+      <circle cx="7" cy="7" r="5" fill="none" stroke="var(--lc-status-todo, #82879B)" stroke-width="1.6"/>
+    </symbol>
+    <!-- Non-default statuses: the same dot, filled with the status color
+         (founder revision, decisions.md D3). Fill + same-color stroke so the
+         visual weight matches the unfilled ring. -->
+    <symbol id="status-in-progress" viewBox="0 0 14 14">
+      <circle cx="7" cy="7" r="5" fill="var(--lc-status-in-progress, #B47D0A)" stroke="var(--lc-status-in-progress, #B47D0A)" stroke-width="1.6"/>
+    </symbol>
+    <symbol id="status-in-review" viewBox="0 0 14 14">
+      <circle cx="7" cy="7" r="5" fill="var(--lc-status-in-review, #C25C1B)" stroke="var(--lc-status-in-review, #C25C1B)" stroke-width="1.6"/>
+    </symbol>
+    <symbol id="status-done" viewBox="0 0 14 14">
+      <!-- fill routes to the HUMAN accent: completion is a human call (D5) -->
+      <circle cx="7" cy="7" r="5" fill="var(--lc-status-done, #6B5CF6)" stroke="var(--lc-status-done, #6B5CF6)" stroke-width="1.6"/>
+    </symbol>
+    <symbol id="status-canceled" viewBox="0 0 14 14">
+      <circle cx="7" cy="7" r="5" fill="var(--lc-status-canceled, #82879B)" stroke="var(--lc-status-canceled, #82879B)" stroke-width="1.6"/>
+    </symbol>
+    <!-- User-created status: same dot, color chosen at creation from the
+         label ramp; default is the grey ring (status-todo geometry). -->
+    <symbol id="status-custom" viewBox="0 0 14 14">
+      <circle cx="7" cy="7" r="5" fill="var(--status-color, #82879B)" stroke="var(--status-color, #82879B)" stroke-width="1.6"/>
+    </symbol>
+
+    <symbol id="priority-urgent" viewBox="0 0 14 14">
+      <rect x="1" y="1" width="12" height="12" rx="3" fill="var(--lc-priority-urgent, #C2591D)"/>
+      <rect x="6.25" y="3.4" width="1.5" height="4.6" rx="0.75" fill="var(--lc-priority-urgent-mark, #FFFFFF)"/>
+      <rect x="6.25" y="9.2" width="1.5" height="1.5" rx="0.75" fill="var(--lc-priority-urgent-mark, #FFFFFF)"/>
+    </symbol>
+    <!-- P1–P4: bordered mono chips (founder revision, decisions.md D4).
+         21×14 viewBox; the label is real text — in components, render as a
+         styled <span> so the chip uses the app's loaded mono face. -->
+    <symbol id="priority-p1" viewBox="0 0 21 14">
+      <rect x="0.5" y="0.5" width="20" height="13" rx="3" fill="none" stroke="var(--lc-priority-chip-border, #B9BDCC)"/>
+      <text x="10.5" y="10.4" text-anchor="middle" font-family="JetBrains Mono, ui-monospace, monospace" font-size="9" font-weight="500" fill="var(--lc-priority-chip-text, #5A5F75)">P1</text>
+    </symbol>
+    <symbol id="priority-p2" viewBox="0 0 21 14">
+      <rect x="0.5" y="0.5" width="20" height="13" rx="3" fill="none" stroke="var(--lc-priority-chip-border, #B9BDCC)"/>
+      <text x="10.5" y="10.4" text-anchor="middle" font-family="JetBrains Mono, ui-monospace, monospace" font-size="9" font-weight="500" fill="var(--lc-priority-chip-text, #5A5F75)">P2</text>
+    </symbol>
+    <symbol id="priority-p3" viewBox="0 0 21 14">
+      <rect x="0.5" y="0.5" width="20" height="13" rx="3" fill="none" stroke="var(--lc-priority-chip-border, #B9BDCC)"/>
+      <text x="10.5" y="10.4" text-anchor="middle" font-family="JetBrains Mono, ui-monospace, monospace" font-size="9" font-weight="500" fill="var(--lc-priority-chip-text, #5A5F75)">P3</text>
+    </symbol>
+    <symbol id="priority-p4" viewBox="0 0 21 14">
+      <rect x="0.5" y="0.5" width="20" height="13" rx="3" fill="none" stroke="var(--lc-priority-chip-border, #B9BDCC)"/>
+      <text x="10.5" y="10.4" text-anchor="middle" font-family="JetBrains Mono, ui-monospace, monospace" font-size="9" font-weight="500" fill="var(--lc-priority-chip-text, #5A5F75)">P4</text>
+    </symbol>
+    <symbol id="priority-none" viewBox="0 0 14 14">
+      <rect x="2.5" y="6.2" width="9" height="1.6" rx="0.8" fill="var(--lc-priority-none, #82879B)"/>
+    </symbol>
+
+    <symbol id="checkbox-empty" viewBox="0 0 14 14">
+      <rect x="1.5" y="1.5" width="11" height="11" rx="3" fill="none" stroke="var(--lc-line-strong, #DCDFE9)" stroke-width="1.5"/>
+    </symbol>
+    <symbol id="checkbox-checked" viewBox="0 0 14 14">
+      <rect x="1" y="1" width="12" height="12" rx="3.5" fill="var(--lc-ink-3, #666B80)"/>
+      <polyline points="4,7.2 6.2,9.2 10,4.9" fill="none" stroke="var(--lc-surface, #FFFFFF)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="checkbox-agent" viewBox="0 0 14 14">
+      <!-- agent-fresh check: the AGENT accent, exclusively (D2) -->
+      <rect x="1" y="1" width="12" height="12" rx="3.5" fill="var(--lc-accent-agent, #279E52)"/>
+      <polyline points="4,7.2 6.2,9.2 10,4.9" fill="none" stroke="var(--lc-on-accent-agent, #FFFFFF)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+
+    <symbol id="agent-tile" viewBox="0 0 14 14">
+      <rect x="0.75" y="0.75" width="12.5" height="12.5" rx="2.5" fill="var(--lc-tile, #171923)" stroke="var(--lc-accent-agent-avatar-ring, #279E52)" stroke-width="1"/>
+      <path d="M4.6 4.4 L7.4 7 L4.6 9.6 M8 9.8 L10 9.8" fill="none" stroke="var(--lc-accent-agent, #279E52)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="folder" viewBox="0 0 14 14">
+      <path d="M1.5 3.5 Q1.5 2.5 2.5 2.5 L5 2.5 L6.2 4 L11.5 4 Q12.5 4 12.5 5 L12.5 10.5 Q12.5 11.5 11.5 11.5 L2.5 11.5 Q1.5 11.5 1.5 10.5 Z" fill="none" stroke="var(--lc-ink-3, #666B80)" stroke-width="1.3"/>
+    </symbol>
+    <symbol id="warn" viewBox="0 0 14 14">
+      <path d="M7 1.5 L13 12 L1 12 Z" fill="none" stroke="var(--lc-warn, #9A5008)" stroke-width="1.4" stroke-linejoin="round"/>
+      <rect x="6.35" y="5.2" width="1.3" height="3.4" rx="0.65" fill="var(--lc-warn, #9A5008)"/>
+      <rect x="6.35" y="9.6" width="1.3" height="1.3" rx="0.65" fill="var(--lc-warn, #9A5008)"/>
+    </symbol>
+  </defs>
+
+  <!-- preview rows (light Indigo fallbacks) -->
+  <g>
+    <use href="#status-backlog"     x="8"   y="8"  width="28" height="28"/>
+    <use href="#status-todo"        x="44"  y="8"  width="28" height="28"/>
+    <use href="#status-in-progress" x="80"  y="8"  width="28" height="28"/>
+    <use href="#status-in-review"   x="116" y="8"  width="28" height="28"/>
+    <use href="#status-done"        x="152" y="8"  width="28" height="28"/>
+    <use href="#status-canceled"    x="188" y="8"  width="28" height="28"/>
+    <use href="#checkbox-empty"     x="232" y="8"  width="28" height="28"/>
+    <use href="#checkbox-checked"   x="268" y="8"  width="28" height="28"/>
+    <use href="#checkbox-agent"     x="304" y="8"  width="28" height="28"/>
+    <use href="#priority-urgent"    x="8"   y="52" width="28" height="28"/>
+    <use href="#priority-p1"        x="44"  y="59" width="21" height="14"/>
+    <use href="#priority-p2"        x="73"  y="59" width="21" height="14"/>
+    <use href="#priority-p3"        x="102" y="59" width="21" height="14"/>
+    <use href="#priority-p4"        x="131" y="59" width="21" height="14"/>
+    <use href="#priority-none"      x="158" y="52" width="28" height="28"/>
+    <use href="#agent-tile"         x="196" y="52" width="28" height="28"/>
+    <use href="#folder"             x="232" y="52" width="28" height="28"/>
+    <use href="#warn"               x="268" y="52" width="28" height="28"/>
+  </g>
+</svg>

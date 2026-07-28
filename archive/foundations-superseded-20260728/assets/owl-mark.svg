@@ -1,0 +1,24 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 64 64"
+  role="img"
+  aria-labelledby="owl-title owl-description"
+>
+  <title id="owl-title">LongClaw owl mark</title>
+  <desc id="owl-description">
+    An original geometric owl with two pointed ears, a level gaze, and a
+    single tapered claw point.
+  </desc>
+  <defs>
+    <mask id="owl-cutouts">
+      <rect width="64" height="64" fill="black" />
+      <polygon points="9,7 32,16 55,7 55,40 32,59 9,40" fill="white" />
+      <circle cx="22.5" cy="29.5" r="7.5" fill="black" />
+      <circle cx="41.5" cy="29.5" r="7.5" fill="black" />
+      <polygon points="32,39.5 36,45 32,51.5 28,45" fill="black" />
+    </mask>
+  </defs>
+  <rect width="64" height="64" fill="currentColor" mask="url(#owl-cutouts)" />
+  <circle cx="22.5" cy="29.5" r="3" fill="currentColor" />
+  <circle cx="41.5" cy="29.5" r="3" fill="currentColor" />
+</svg>

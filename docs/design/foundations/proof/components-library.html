@@ -1,0 +1,1252 @@
+<!doctype html>
+<html lang="en" data-appearance="light" data-theme="indigo">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LongClaw — components library · foundations proof</title>
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="../tokens/design-tokens.css">
+<style>
+  /* ============================================================
+     COMPONENTS LIBRARY — every foundation component on live tokens.
+     Same discipline as board.html: not a single hex value in this
+     file; switching data-theme / data-appearance swaps tokens only.
+     Color values shown under swatches are read back from the
+     rendered pixels by JS, so they are always the shipped values.
+     ============================================================ */
+
+  * { margin: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--lc-font-ui);
+    font-size: var(--lc-type-body-size);
+    line-height: var(--lc-type-body-leading);
+    color: var(--lc-ink);
+    background: var(--lc-bg);
+    transition: background var(--lc-motion-panel) var(--lc-motion-ease),
+                color var(--lc-motion-panel) var(--lc-motion-ease);
+  }
+  button { font: inherit; cursor: pointer; }
+  .mono { font-family: var(--lc-font-mono); }
+  .spacer { flex: 1; }
+
+  /* ---- proof bar (identical anatomy to board.html) ---- */
+  .proofbar {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; gap: var(--lc-space-4);
+    padding: 10px var(--lc-space-4);
+    background: var(--lc-surface); border-bottom: 1px solid var(--lc-line);
+  }
+  .proofbar .name { font-family: var(--lc-font-display); font-weight: 600; font-size: 15px;
+    display: flex; align-items: center; gap: 8px; }
+  .proofbar .meta { font-family: var(--lc-font-mono); font-size: 10.5px; color: var(--lc-ink-3); }
+  .swatches { display: flex; gap: 8px; }
+  .swatch { width: 44px; height: 28px; border-radius: var(--lc-radius-control);
+    border: 1px solid var(--lc-line-strong); padding: 0; overflow: hidden; display: flex;
+    background: var(--lc-surface); }
+  .swatch i { display: block; height: 100%; }
+  .swatch i:first-child { flex: 2; background: var(--lc-accent-human); }
+  .swatch i:last-child { flex: 1; background: var(--lc-accent-agent); }
+  .swatch[aria-pressed="true"] { border-color: var(--lc-accent-human); box-shadow: var(--lc-focus-ring); }
+  .seg { display: flex; border: 1px solid var(--lc-line-strong); border-radius: var(--lc-radius-control); overflow: hidden; }
+  .seg button { height: 28px; padding: 0 12px; border: none; background: var(--lc-surface);
+    color: var(--lc-ink-2); font-size: 12.5px; font-weight: 500; }
+  .seg button[aria-pressed="true"] { background: var(--lc-accent-human); color: var(--lc-on-accent-human); }
+
+  /* ---- page scaffold ---- */
+  .page { max-width: 1060px; margin: 0 auto; padding: var(--lc-space-7) var(--lc-space-6) 120px; }
+  .toc { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: var(--lc-space-4) 0 var(--lc-space-7); }
+  .toc a { font-family: var(--lc-font-mono); font-size: 11px; color: var(--lc-ink-3); text-decoration: none; }
+  .toc a:hover { color: var(--lc-accent-human-text); }
+
+  section { margin-bottom: 72px; scroll-margin-top: 72px; }
+  .kicker { font-family: var(--lc-font-mono); font-size: 11px; letter-spacing: .09em;
+    text-transform: uppercase; font-weight: 500; color: var(--lc-accent-human-text); margin-bottom: 6px; }
+  .kicker .hash { color: var(--lc-ink-disabled); }
+  section > h2 { font-family: var(--lc-font-display); font-weight: 600; font-size: 24px;
+    letter-spacing: -0.015em; margin-bottom: 6px; }
+  .blurb { font-size: var(--lc-type-body-size); color: var(--lc-ink-2); max-width: 68ch; margin-bottom: var(--lc-space-5); }
+  .blurb .m { font-family: var(--lc-font-mono); font-size: 12px; }
+
+  .panel { background: var(--lc-surface); border: 1px solid var(--lc-line);
+    border-radius: var(--lc-radius-modal); padding: var(--lc-space-5) var(--lc-space-6); }
+  .panel + .panel { margin-top: var(--lc-space-3); }
+  .row-label { font-size: 12px; font-weight: 500; color: var(--lc-ink-2); margin: 0 0 10px; }
+  .group + .group { margin-top: var(--lc-space-5); }
+  .flexrow { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .note { font-size: 12px; color: var(--lc-ink-3); }
+
+  /* ---- 01 type ---- */
+  .type-specimen { display: grid; grid-template-columns: 180px 1fr; gap: 10px 24px; align-items: baseline; }
+  .type-specimen .m { font-family: var(--lc-font-mono); font-size: 10.5px; color: var(--lc-ink-3); }
+  .t-display { font-family: var(--lc-type-display-font); font-size: var(--lc-type-display-size); font-weight: var(--lc-type-display-weight); line-height: var(--lc-type-display-leading); letter-spacing: var(--lc-type-display-tracking); }
+  .t-title { font-family: var(--lc-type-title-font); font-size: var(--lc-type-title-size); font-weight: var(--lc-type-title-weight); line-height: var(--lc-type-title-leading); letter-spacing: var(--lc-type-title-tracking); }
+  .t-heading { font-family: var(--lc-type-heading-font); font-size: var(--lc-type-heading-size); font-weight: var(--lc-type-heading-weight); line-height: var(--lc-type-heading-leading); }
+  .t-body { font-family: var(--lc-type-body-font); font-size: var(--lc-type-body-size); font-weight: var(--lc-type-body-weight); line-height: var(--lc-type-body-leading); }
+  .t-ui { font-family: var(--lc-type-ui-font); font-size: var(--lc-type-ui-size); font-weight: var(--lc-type-ui-weight); }
+  .t-small { font-family: var(--lc-type-small-font); font-size: var(--lc-type-small-size); font-weight: var(--lc-type-small-weight); color: var(--lc-ink-2); }
+  .t-micro { font-family: var(--lc-type-micro-font); font-size: var(--lc-type-micro-size); font-weight: var(--lc-type-micro-weight); color: var(--lc-ink-2); }
+  .t-label { font-family: var(--lc-type-label-font); font-size: var(--lc-type-label-size); font-weight: var(--lc-type-label-weight); letter-spacing: var(--lc-type-label-tracking); text-transform: uppercase; color: var(--lc-ink-3); }
+  .t-code { font-family: var(--lc-type-code-font); font-size: var(--lc-type-code-size); font-weight: var(--lc-type-code-weight); background: var(--lc-wash); border-radius: var(--lc-radius-tile); padding: 1px 5px; }
+  .voices { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--lc-space-3); }
+  .voice { border: 1px solid var(--lc-line); border-radius: var(--lc-radius-panel); padding: var(--lc-space-4); }
+  .voice .which { font-family: var(--lc-font-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--lc-ink-3); margin-bottom: 10px; }
+  .voice .sample { font-size: 17px; margin-bottom: 8px; }
+  .voice p { font-size: 12px; color: var(--lc-ink-3); }
+
+  /* ---- 02 color ---- */
+  .chips-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px; }
+  .cswatch { border: 1px solid var(--lc-line); border-radius: var(--lc-radius-card); overflow: hidden; }
+  .cswatch .fill { height: 44px; border-bottom: 1px solid var(--lc-line-soft); }
+  .cswatch .meta { padding: 6px 9px; }
+  .cswatch .tname { font-family: var(--lc-font-mono); font-size: 10px; color: var(--lc-ink-2); word-break: break-all; }
+  .cswatch .tval { font-family: var(--lc-font-mono); font-size: 10px; color: var(--lc-ink-3); word-break: break-all; }
+
+  /* ---- 03 space / radius / elevation / motion ---- */
+  .space-bars { display: flex; align-items: flex-end; gap: 14px; }
+  .space-bars .bar { background: var(--lc-accent-human-soft); border: 1px solid var(--lc-accent-human-border); border-radius: 3px; width: 26px; }
+  .space-bars .m { font-family: var(--lc-font-mono); font-size: 10px; color: var(--lc-ink-3); text-align: center; margin-top: 5px; }
+  .radius-row { display: flex; gap: 14px; align-items: flex-end; }
+  .radius-row .box { width: 56px; height: 44px; background: var(--lc-wash); border: 1px solid var(--lc-line-strong);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--lc-font-mono); font-size: 10.5px; color: var(--lc-ink-3); }
+  .shadow-row { display: flex; gap: var(--lc-space-5); }
+  .shadow-row .box { width: 130px; height: 72px; background: var(--lc-surface); border: 1px solid var(--lc-line);
+    border-radius: var(--lc-radius-card); display: flex; align-items: flex-end; padding: 8px;
+    font-family: var(--lc-font-mono); font-size: 10px; color: var(--lc-ink-3); }
+  .motion-row { display: grid; grid-template-columns: 64px 1fr; gap: 8px 12px; align-items: center; max-width: 460px; }
+  .motion-row .m { font-family: var(--lc-font-mono); font-size: 11px; color: var(--lc-accent-human-text); }
+  .motion-row .m.agent { color: var(--lc-accent-agent-text); }
+  .motion-row .what { font-size: 12.5px; color: var(--lc-ink-2); }
+  .pulse-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--lc-accent-agent); display: inline-block; vertical-align: middle; }
+  .pulsing { animation: lc-pulse var(--lc-motion-pulse-duration) var(--lc-motion-ease) 2; }
+
+  /* ---- 04 buttons ---- */
+  .btn { display: inline-flex; align-items: center; gap: 8px; height: var(--lc-size-control);
+    padding: 0 12px; border-radius: var(--lc-radius-control); font-size: 13px; font-weight: 500; border: none;
+    transition: background var(--lc-motion-fast) var(--lc-motion-ease); }
+  .btn.sm { height: var(--lc-size-control-sm); padding: 0 9px; font-size: 11.5px; }
+  .btn:focus-visible, .btn.force-focus { outline: none; box-shadow: var(--lc-focus-ring), 0 0 0 1px var(--lc-accent-human) inset; }
+  .btn-primary { background: var(--lc-accent-human); color: var(--lc-on-accent-human); }
+  .btn-primary:hover, .btn-primary.force-hover { background: var(--lc-accent-human-hover); }
+  .btn-primary:active, .btn-primary.force-active { background: var(--lc-accent-human-active); }
+  .btn-secondary { border: 1px solid var(--lc-line-strong); background: var(--lc-surface); color: var(--lc-ink); }
+  .btn-secondary:hover, .btn-secondary.force-hover { background: var(--lc-wash); }
+  [data-appearance="dark"] .btn-secondary { background: var(--lc-raised); }
+  .btn-ghost { background: transparent; color: var(--lc-ink-2); }
+  .btn-ghost:hover, .btn-ghost.force-hover { background: var(--lc-wash); }
+  .btn-danger { border: 1px solid var(--lc-danger-border); background: var(--lc-surface); color: var(--lc-danger); }
+  .btn-danger:hover, .btn-danger.force-hover { background: var(--lc-danger-surface); }
+  [data-appearance="dark"] .btn-danger { background: var(--lc-raised); }
+  .btn[disabled] { background: var(--lc-wash); color: var(--lc-ink-disabled); border: none; cursor: default; }
+  .kbd { font-family: var(--lc-font-mono); font-size: var(--lc-type-kbd-size);
+    background: color-mix(in oklab, var(--lc-on-accent-human) 20%, transparent);
+    border-radius: var(--lc-radius-kbd); padding: 1px 5px; }
+  .kbd-plain { font-family: var(--lc-font-mono); font-size: var(--lc-type-kbd-size); color: var(--lc-ink-2);
+    background: var(--lc-wash); border: 1px solid var(--lc-line); border-radius: var(--lc-radius-kbd); padding: 1px 5px; }
+  .state-grid { display: grid; grid-template-columns: 110px repeat(4, auto); gap: 12px 18px; align-items: center; justify-content: start; }
+  .state-grid .h { font-family: var(--lc-font-mono); font-size: 10px; letter-spacing: .07em; text-transform: uppercase; color: var(--lc-ink-3); }
+
+  /* ---- 05 fields ---- */
+  .field { height: var(--lc-size-control); border: 1px solid var(--lc-line-strong); border-radius: var(--lc-radius-control);
+    background: var(--lc-surface); display: flex; align-items: center; gap: 8px; padding: 0 10px;
+    font-size: 13px; color: var(--lc-ink); max-width: 360px; }
+  [data-appearance="dark"] .field { background: var(--lc-surface); }
+  .field.placeholder { color: var(--lc-ink-3); }
+  .field.force-focus { border-color: var(--lc-accent-human); box-shadow: var(--lc-focus-ring); }
+  .field .caret { width: 1.5px; height: 15px; background: var(--lc-accent-human); }
+  .field.mono-field { font-family: var(--lc-font-mono); font-size: var(--lc-type-code-size); color: var(--lc-ink-2); }
+  .field.invalid { border-color: var(--lc-danger); }
+  .field[aria-disabled="true"] { background: var(--lc-wash); color: var(--lc-ink-disabled); border-color: var(--lc-line); }
+  .field-msg { display: flex; align-items: center; gap: 6px; font-size: var(--lc-type-small-size); color: var(--lc-danger); margin-top: 5px; }
+  .fields-col { display: flex; flex-direction: column; gap: 12px; }
+
+  /* ---- 06 chips ---- */
+  .label-chip { display: inline-flex; align-items: center; gap: 6px; height: var(--lc-size-chip); padding: 0 9px;
+    border: 1px solid var(--lc-line); border-radius: var(--lc-radius-full); font-size: 11.5px; font-weight: 500;
+    color: var(--lc-ink-2); background: var(--lc-surface); }
+  [data-appearance="dark"] .label-chip { background: var(--lc-raised); }
+  .label-chip i { width: 7px; height: 7px; border-radius: 50%; background: var(--label, var(--lc-label-gray)); }
+  .id-chip { display: inline-flex; align-items: center; height: var(--lc-size-chip); padding: 0 9px;
+    border-radius: var(--lc-radius-control); background: var(--lc-accent-human-soft);
+    font-family: var(--lc-font-mono); font-size: 11px; font-weight: 500; color: var(--lc-accent-human-text); }
+  .agent-chip { display: inline-flex; align-items: center; gap: 6px; height: var(--lc-size-chip); padding: 0 9px;
+    border-radius: var(--lc-radius-control); background: var(--lc-accent-agent-soft);
+    font-family: var(--lc-font-mono); font-size: 11px; font-weight: 500; color: var(--lc-accent-agent-text); }
+  .agent-chip b { font-weight: 600; }
+  .agent-badge { font-family: var(--lc-font-mono); font-size: 9.5px; font-weight: 500; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--lc-accent-agent-text); background: var(--lc-accent-agent-soft);
+    border-radius: var(--lc-radius-kbd); padding: 1px 5px; }
+
+  /* ---- 07/08 status & priority ---- */
+  .glyph-row { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; }
+  .glyph-item { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--lc-ink-2); }
+  .dot-swatch { width: 26px; height: 26px; border-radius: var(--lc-radius-control);
+    border: 1px solid transparent; display: inline-flex; align-items: center; justify-content: center; }
+  .dot-swatch:hover { border-color: var(--lc-line-strong); }
+  .dot-swatch.selected { border-color: var(--lc-accent-human); box-shadow: var(--lc-focus-ring); }
+  .p-chip {
+    display: inline-flex; align-items: center; justify-content: center;
+    height: 14px; min-width: 21px; padding: 0 3px; flex: none;
+    border: 1px solid var(--lc-priority-chip-border); border-radius: var(--lc-radius-kbd);
+    font-family: var(--lc-font-mono); font-size: 9px; font-weight: 500; line-height: 1;
+    color: var(--lc-priority-chip-text);
+  }
+  .p-chip.sm { height: 13px; min-width: 20px; font-size: 8.5px; }
+
+  svg.glyph { flex: none; }
+
+  /* ---- 09 avatars ---- */
+  .avatar { border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 600; flex: none;
+    background: color-mix(in oklab, var(--tint, var(--lc-label-gray)) 18%, var(--lc-surface));
+    color: color-mix(in oklab, var(--tint, var(--lc-label-gray)) 60%, var(--lc-ink)); }
+  .avatar.lg { width: var(--lc-size-avatar); height: var(--lc-size-avatar); font-size: 10.5px; }
+  .avatar.sm { width: var(--lc-size-avatar-sm); height: var(--lc-size-avatar-sm); font-size: 8.5px; }
+  .agent-tile { width: var(--lc-size-avatar); height: var(--lc-size-avatar); border-radius: var(--lc-radius-tile);
+    background: var(--lc-tile); border: 1.5px solid var(--lc-accent-agent-avatar-ring);
+    color: var(--lc-accent-agent); display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--lc-font-mono); font-size: 11px; font-weight: 600; flex: none; }
+
+  /* ---- 10 checklist ---- */
+  .check-rows { display: flex; flex-direction: column; gap: 6px; max-width: 420px; }
+  .check-row { display: flex; align-items: center; gap: 9px; font-size: 13px; }
+  .check-row.done span { color: var(--lc-ink-3); text-decoration: line-through; }
+  .check-row.agent-fresh { background: var(--lc-accent-agent-wash); border-radius: 6px; padding: 3px 6px; margin: 0 -6px; }
+  .check-row .just-now { margin-left: auto; font-family: var(--lc-font-mono); font-size: 10px; color: var(--lc-accent-agent-text); }
+  .progress { height: 3px; width: 44px; border-radius: 2px; background: var(--lc-wash); overflow: hidden; display: inline-block; }
+  .progress i { display: block; height: 100%; border-radius: 2px; background: var(--lc-ink-3); }
+  .fraction { font-family: var(--lc-font-mono); font-size: 10.5px; font-weight: 500; color: var(--lc-ink-3); }
+
+  /* ---- 11 cards ---- */
+  .cards-row { display: flex; gap: var(--lc-space-3); flex-wrap: wrap; align-items: flex-start; }
+  .card { width: 246px; background: var(--lc-surface); border: 1px solid var(--lc-line);
+    border-radius: var(--lc-radius-card); padding: var(--lc-size-card-pad-y) var(--lc-size-card-pad-x);
+    box-shadow: var(--lc-shadow-card); }
+  .card .top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .card .id { font-family: var(--lc-font-mono); font-size: 11px; color: var(--lc-ink-3); }
+  .card .title { font-size: 13px; font-weight: 500; line-height: 1.35; margin-bottom: 8px; }
+  .card .foot { display: flex; align-items: center; gap: 8px; }
+  .card .label-chip { height: var(--lc-size-chip-sm); padding: 0 7px; font-size: 10.5px; }
+  .card .label-chip i { width: 6px; height: 6px; }
+  .card.fresh { border-color: var(--lc-accent-agent-fresh-border);
+    box-shadow: 0 0 0 var(--lc-border-focus) var(--lc-accent-agent-fresh-ring); }
+  .card.fresh .fraction { color: var(--lc-accent-agent-text); }
+  .card.fresh .progress i { background: var(--lc-accent-agent); }
+  .card .dot8 { width: 8px; height: 8px; border-radius: 50%; background: var(--lc-accent-agent); }
+  .agent-foot { margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--lc-line-soft);
+    display: flex; align-items: center; gap: 6px; font-family: var(--lc-font-mono); font-size: 10.5px;
+    color: var(--lc-accent-agent-text); }
+  .card.degraded { border-color: var(--lc-danger-border); }
+  .card.degraded .id { color: var(--lc-danger); display: inline-flex; align-items: center; gap: 6px; }
+  .card.degraded .title { font-family: var(--lc-font-mono); font-size: 12px; color: var(--lc-ink-2); }
+  .raw-link { font-size: 11.5px; font-weight: 500; color: var(--lc-danger); background: none; border: none; padding: 0; }
+  .card.selected { border-color: var(--lc-accent-human); box-shadow: var(--lc-focus-ring); }
+
+  /* ---- 12 list view ---- */
+  .list { border: 1px solid var(--lc-line); border-radius: var(--lc-radius-panel); overflow: hidden;
+    background: var(--lc-surface); }
+  .lgroup { display: flex; align-items: center; gap: 7px; height: 32px; padding: 0 12px;
+    background: var(--lc-bg); font-size: 12.5px; font-weight: 500; color: var(--lc-ink-2);
+    border-bottom: 1px solid var(--lc-line); }
+  .lgroup:not(:first-child) { border-top: 1px solid var(--lc-line); }
+  .lgroup .count { font-family: var(--lc-font-mono); font-size: 11px; color: var(--lc-ink-3); }
+  .lrow { display: flex; align-items: center; gap: 10px; height: var(--lc-size-row); padding: 0 12px;
+    font-size: 13px; }
+  .lrow + .lrow { border-top: 1px solid var(--lc-line-soft); }
+  .lrow:hover { background: var(--lc-wash); }
+  .lrow.selected { background: var(--lc-accent-human-soft); }
+  .lrow.focused { box-shadow: inset 0 0 0 1px var(--lc-accent-human); }
+  .lrow .id { font-family: var(--lc-font-mono); font-size: 11px; color: var(--lc-ink-3); width: 52px; flex: none; }
+  .lrow .ltitle { font-weight: 500; color: var(--lc-ink); flex: 1; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lrow .label-chip { height: var(--lc-size-chip-sm); padding: 0 7px; font-size: 10.5px; flex: none; }
+  .lrow .label-chip i { width: 6px; height: 6px; }
+  .lrow .updated { font-family: var(--lc-font-mono); font-size: 10.5px; color: var(--lc-ink-3);
+    width: 36px; text-align: right; flex: none; }
+  .lrow .updated.agent { color: var(--lc-accent-agent-text); }
+
+  /* ---- 13 timeline ---- */
+  .timeline { display: flex; flex-direction: column; gap: var(--lc-space-4); max-width: 560px; }
+  .entry { display: flex; gap: 10px; }
+  .entry .body { flex: 1; }
+  .entry .head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px; flex-wrap: wrap; }
+  .entry .who { font-size: 12.5px; font-weight: 600; }
+  .entry .when { font-family: var(--lc-font-mono); font-size: 10.5px; color: var(--lc-ink-3); }
+  .entry .text { font-size: 13px; line-height: 1.5; }
+  .entry.agent .body { border-left: var(--lc-border-rail) solid var(--lc-accent-agent-rail); padding-left: 12px; }
+  .entry.agent .who { font-family: var(--lc-font-mono); font-size: 12px; color: var(--lc-accent-agent-text); }
+  .event { display: flex; align-items: center; gap: 8px; padding-left: 36px; font-size: 12px; color: var(--lc-ink-2); }
+  .event .actor { font-family: var(--lc-font-mono); font-size: 11.5px; font-weight: 500; color: var(--lc-accent-agent-text); }
+  .event .actor.human { color: var(--lc-accent-human-text); }
+  .event .when { font-family: var(--lc-font-mono); font-size: 11px; color: var(--lc-ink-3); }
+
+  /* ---- 14 ticket panel ---- */
+  .ticket { border: 1px solid var(--lc-line); border-radius: var(--lc-radius-panel); background: var(--lc-surface);
+    max-width: 660px; padding: var(--lc-space-5) var(--lc-space-6); display: flex; flex-direction: column;
+    gap: var(--lc-space-5); box-shadow: var(--lc-shadow-card); }
+  .ticket .trow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .ticket .ttitle { font-size: var(--lc-type-title-size); font-weight: var(--lc-type-title-weight);
+    letter-spacing: var(--lc-type-title-tracking); line-height: var(--lc-type-title-leading); }
+  .meta-ctl { display: inline-flex; align-items: center; gap: 6px; height: var(--lc-size-control-sm);
+    padding: 0 9px; border: 1px solid var(--lc-line-strong); border-radius: var(--lc-radius-control);
+    font-size: 12px; font-weight: 500; color: var(--lc-ink); background: var(--lc-surface); cursor: pointer; }
+  [data-appearance="dark"] .meta-ctl { background: var(--lc-raised); }
+  .meta-ctl:hover { background: var(--lc-wash); }
+  .meta-ctl .who { font-size: 12px; }
+  .tdivider { border-top: 1px solid var(--lc-line-soft); }
+  .editor { border: 1px solid var(--lc-line-strong); border-radius: var(--lc-radius-card); overflow: hidden; }
+  .editor .ebar { display: flex; align-items: center; gap: 4px; height: 34px; padding: 0 6px;
+    border-bottom: 1px solid var(--lc-line-soft); background: var(--lc-wash); }
+  .etab { height: 24px; padding: 0 10px; border: 1px solid transparent; background: transparent;
+    border-radius: var(--lc-radius-control); font-size: 12px; font-weight: 500; color: var(--lc-ink-3); }
+  .etab[aria-selected="true"] { background: var(--lc-surface); color: var(--lc-ink);
+    border-color: var(--lc-line); box-shadow: var(--lc-shadow-card); }
+  .ebar .esep { width: 1px; height: 16px; background: var(--lc-line-strong); margin: 0 4px; }
+  .ebtn { width: 24px; height: 24px; border: none; background: transparent; border-radius: var(--lc-radius-kbd);
+    color: var(--lc-ink-3); font-family: var(--lc-font-mono); font-size: 11.5px;
+    display: inline-flex; align-items: center; justify-content: center; }
+  .ebtn:hover { background: var(--lc-line-soft); color: var(--lc-ink-2); }
+  .editor .ebody { padding: 12px 14px; font-size: 13.5px; line-height: 1.55; color: var(--lc-ink); }
+  .composer { display: flex; gap: 10px; align-items: center; }
+  .composer .field { flex: 1; max-width: none; }
+
+  /* ---- 15 toast & banners ---- */
+  .toast { display: inline-flex; align-items: center; gap: 10px; background: var(--lc-inverse-surface);
+    color: var(--lc-inverse-ink); border-radius: var(--lc-radius-card); padding: 9px 12px; font-size: 12.5px;
+    box-shadow: var(--lc-shadow-overlay); }
+  .toast .kbd-inv { font-family: var(--lc-font-mono); font-size: var(--lc-type-kbd-size);
+    background: color-mix(in oklab, var(--lc-inverse-ink) 14%, transparent); border-radius: var(--lc-radius-kbd); padding: 1px 5px; }
+  .toast .hint { color: var(--lc-inverse-ink-2); }
+  .banner { display: flex; align-items: center; gap: 10px; border-radius: var(--lc-radius-card); padding: 10px 12px; max-width: 470px; }
+  .banner .text { font-size: 12.5px; flex: 1; }
+  .banner.warn { background: var(--lc-warn-surface); border: 1px solid var(--lc-warn-border); }
+  .banner.warn .btn-b { height: var(--lc-size-control-sm); padding: 0 9px; border: 1px solid var(--lc-warn-border-strong);
+    border-radius: var(--lc-radius-control); background: var(--lc-surface); color: var(--lc-ink); font-size: 11.5px; font-weight: 500; }
+  [data-appearance="dark"] .banner.warn .btn-b { background: var(--lc-raised); }
+  .banner.warn .btn-g { height: var(--lc-size-control-sm); padding: 0 9px; border: none; border-radius: var(--lc-radius-control);
+    background: transparent; color: var(--lc-warn-ink); font-size: 11.5px; font-weight: 500; }
+  .banner.danger { background: var(--lc-danger-surface); border: 1px solid var(--lc-danger-border); }
+  .banner.danger .btn-b { height: var(--lc-size-control-sm); padding: 0 9px; border: 1px solid var(--lc-danger-border);
+    border-radius: var(--lc-radius-control); background: var(--lc-surface); color: var(--lc-danger); font-size: 11.5px; font-weight: 500; }
+  [data-appearance="dark"] .banner.danger .btn-b { background: var(--lc-raised); }
+
+  /* ---- 14 navigation ---- */
+  .nav-demo { display: grid; grid-template-columns: 240px 1fr; gap: var(--lc-space-5); align-items: start; }
+  .sidepanel { background: var(--lc-bg); border: 1px solid var(--lc-line); border-radius: var(--lc-radius-panel);
+    padding: var(--lc-space-3); }
+  .section-h { font-family: var(--lc-font-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--lc-ink-3); padding: 10px 8px 6px; }
+  .proj { display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 8px;
+    border-radius: var(--lc-radius-control); color: var(--lc-ink-2); font-size: 13px; }
+  .proj:hover { background: var(--lc-wash); }
+  .proj.active { background: var(--lc-accent-human-soft); color: var(--lc-ink); font-weight: 500; }
+  .proj .dot { width: var(--lc-size-theme-dot); height: var(--lc-size-theme-dot); border-radius: 50%;
+    background: var(--lc-accent-human); flex: none; }
+  .proj .dot[data-foreign] { background: var(--proj-accent, var(--lc-ink-disabled)); }
+  .col-head { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 500; color: var(--lc-ink-2); }
+  .col-head .count { font-family: var(--lc-font-mono); font-size: 11px; color: var(--lc-ink-3); }
+  .palette { border: 1px solid var(--lc-line); border-radius: var(--lc-radius-modal); overflow: hidden;
+    box-shadow: var(--lc-shadow-modal); background: var(--lc-surface); max-width: 460px; }
+  .palette .pinput { display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 14px;
+    border-bottom: 1px solid var(--lc-line); font-size: 15px; color: var(--lc-ink-3); }
+  .palette .pinput .caret { width: 1.5px; height: 17px; background: var(--lc-accent-human); }
+  .prow { display: flex; align-items: center; gap: 10px; height: var(--lc-size-row); padding: 0 14px; font-size: 13px; }
+  .prow .k { margin-left: auto; }
+  .prow.selected { background: var(--lc-accent-human-soft); }
+  .prow.disabled { color: var(--lc-ink-disabled); }
+  .prow.disabled .phase { font-family: var(--lc-font-mono); font-size: 10px; color: var(--lc-ink-disabled); margin-left: auto; }
+  .picker-row { display: flex; gap: 14px; }
+  .picker { text-align: center; }
+  .picker .pswatch { width: 44px; height: 28px; border-radius: var(--lc-radius-control); overflow: hidden;
+    display: flex; border: 1px solid var(--lc-line-strong); }
+  .picker.selected .pswatch { border-color: var(--lc-accent-human); box-shadow: var(--lc-focus-ring); }
+  .picker .pswatch i { display: block; height: 100%; }
+  .picker .pswatch i:first-child { flex: 2; background: var(--lc-accent-human); }
+  .picker .pswatch i:last-child { flex: 1; background: var(--lc-accent-agent); }
+  .picker .pname { font-family: var(--lc-font-mono); font-size: 9.5px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--lc-ink-3); margin-top: 4px; }
+  .term-slot { height: 24px; border: 1px solid var(--lc-line); border-radius: var(--lc-radius-control);
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    font-family: var(--lc-font-mono); font-size: 10px; letter-spacing: .07em; text-transform: uppercase;
+    color: var(--lc-ink-disabled); background: var(--lc-surface); }
+
+  /* ---- 15 empty state ---- */
+  .empty { text-align: center; padding: var(--lc-space-7) 0; }
+  .empty h3 { font-family: var(--lc-type-display-font); font-size: var(--lc-type-display-size);
+    font-weight: var(--lc-type-display-weight); letter-spacing: var(--lc-type-display-tracking); margin-bottom: 8px; }
+  .empty p { color: var(--lc-ink-2); margin-bottom: var(--lc-space-4); }
+  .guided { width: 246px; margin: 0 auto; border: 1px dashed var(--lc-line-strong); border-radius: var(--lc-radius-card);
+    padding: 14px 12px; color: var(--lc-ink-3); font-size: 12.5px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+
+  /* ---- 16 brand ---- */
+  .brand-row { display: flex; align-items: flex-end; gap: var(--lc-space-5); }
+  .brand-row .mark { color: var(--lc-ink); }
+  .wordmark { display: flex; align-items: center; gap: 8px; font-family: var(--lc-font-display); font-weight: 600; font-size: 16px; }
+
+  .foot-note { border-top: 1px solid var(--lc-line); margin-top: var(--lc-space-7); padding-top: var(--lc-space-4);
+    font-family: var(--lc-font-mono); font-size: 10.5px; color: var(--lc-ink-3); }
+</style>
+</head>
+<body>
+
+<div class="proofbar">
+  <span class="name">
+    <svg viewBox="0 0 64 64" width="22" height="22" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M9 7 L32 16 L55 7 L55 40 L32 59 L9 40 Z M22.5 22 a7.5 7.5 0 1 0 0 15 a7.5 7.5 0 1 0 0 -15 Z M41.5 22 a7.5 7.5 0 1 0 0 15 a7.5 7.5 0 1 0 0 -15 Z M32 39.5 L36 45 L32 51.5 L28 45 Z"/><circle cx="22.5" cy="29.5" r="3" fill="currentColor"/><circle cx="41.5" cy="29.5" r="3" fill="currentColor"/></svg>
+    LongClaw
+  </span>
+  <span class="meta">components library · every foundation on live tokens</span>
+  <span class="spacer"></span>
+  <div class="swatches" role="group" aria-label="Project theme">
+    <button class="swatch" data-set-theme="indigo" aria-pressed="true" title="Indigo (default)"><i data-appearance="light" data-theme="indigo"></i><i data-appearance="light" data-theme="indigo"></i></button>
+    <button class="swatch" data-set-theme="clay" aria-pressed="false" title="Clay"><i data-appearance="light" data-theme="clay"></i><i data-appearance="light" data-theme="clay"></i></button>
+    <button class="swatch" data-set-theme="slate" aria-pressed="false" title="Slate (proposed)"><i data-appearance="light" data-theme="slate"></i><i data-appearance="light" data-theme="slate"></i></button>
+    <button class="swatch" data-set-theme="plum" aria-pressed="false" title="Plum (proposed)"><i data-appearance="light" data-theme="plum"></i><i data-appearance="light" data-theme="plum"></i></button>
+  </div>
+  <div class="seg" role="group" aria-label="Appearance">
+    <button data-set-appearance="light" aria-pressed="true">Light</button>
+    <button data-set-appearance="dark" aria-pressed="false">Dark</button>
+  </div>
+</div>
+
+<div class="page">
+
+  <div class="kicker"><span class="hash">## </span>longclaw · design foundations</div>
+  <h1 class="t-display">One canvas. Two actors. Files on disk.</h1>
+  <p class="blurb" style="margin-top:8px">Every component below consumes only <span class="m">--lc-*</span> tokens.
+    Switch the theme or appearance above: layout never moves, only tokens swap. Human accent means a person planned it;
+    agent green means an agent did it — and green appears nowhere else.</p>
+
+  <nav class="toc">
+    <a href="#type">01·type</a><a href="#color">02·color</a><a href="#space">03·space·radius·elevation·motion</a>
+    <a href="#buttons">04·buttons</a><a href="#fields">05·fields</a><a href="#chips">06·chips&amp;labels</a>
+    <a href="#status">07·status</a><a href="#priority">08·priority</a><a href="#avatars">09·avatars</a>
+    <a href="#checklist">10·checklist</a><a href="#cards">11·cards</a><a href="#list">12·list view</a>
+    <a href="#timeline">13·timeline</a><a href="#ticket">14·ticket panel</a>
+    <a href="#toasts">15·toast&amp;banners</a><a href="#navigation">16·navigation</a>
+    <a href="#empty">17·empty states</a><a href="#brand">18·brand</a>
+  </nav>
+
+  <!-- ============ 01 TYPE ============ -->
+  <section id="type">
+    <div class="kicker"><span class="hash">## </span>01 · type</div>
+    <h2>Three voices</h2>
+    <p class="blurb">A grotesque with character for display, a workhorse sans for UI, and a monospace wherever the
+      file-on-disk nature shows through. Mono metadata is the file-native signature.</p>
+    <div class="panel">
+      <div class="voices group">
+        <div class="voice">
+          <div class="which">display · Familjen Grotesk</div>
+          <div class="sample" style="font-family: var(--lc-font-display); font-weight: 600;">Plan with people. Ship with agents.</div>
+          <p>Panel titles, empty states, the welcome screen. Weights 600–700 only.</p>
+        </div>
+        <div class="voice">
+          <div class="which">ui · Geist</div>
+          <div class="sample" style="font-size: 13px;">Every ticket title, list row, button, and menu. Set at 13–13.5px — desktop-app density. <b style="font-weight:500">Medium 500 for titles,</b> <b style="font-weight:600">Semibold 600 for emphasis.</b></div>
+          <p>Crisp at small sizes, neutral enough to disappear behind the content.</p>
+        </div>
+        <div class="voice">
+          <div class="which">files · JetBrains Mono</div>
+          <div class="sample mono" style="font-size: 12px; line-height: 1.7;">LC-128<br>~/dev/longclaw/.tickets/<br>status: in-progress<br>checklist: 3/7</div>
+          <p>IDs, paths, frontmatter-ish metadata, keyboard hints. Part of the identity.</p>
+        </div>
+      </div>
+      <div class="group type-specimen">
+        <span class="m">display / 26 · 600</span><span class="t-display">Welcome to LongClaw</span>
+        <span class="m">title / 17 · 600</span><span class="t-title">Fix watcher debounce on rename</span>
+        <span class="m">heading / 14.5 · 600</span><span class="t-heading">Checklist — the human→agent interface</span>
+        <span class="m">body / 13.5 · 400</span><span class="t-body">The watcher fires twice when a file is renamed; debounce events within 50ms.</span>
+        <span class="m">ui / 13 · 500</span><span class="t-ui">New ticket · Filter · Change status</span>
+        <span class="m">small / 12.5 · 400</span><span class="t-small">Updated 4 minutes ago by Mara Kim</span>
+        <span class="m">micro / 11.5 · 500</span><span class="t-micro">Indigo · default</span>
+        <span class="m">label / 11 mono · 500</span><span class="t-label">In Progress · 4</span>
+        <span class="m">code / 12 mono · 400</span><span><span class="t-code">.tickets/lc-128.md</span></span>
+        <span class="m">kbd / 10 mono · 500</span><span><span class="kbd-plain">⌘K</span> <span class="kbd-plain">C</span> <span class="kbd-plain">S</span></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 02 COLOR ============ -->
+  <section id="color">
+    <div class="kicker"><span class="hash">## </span>02 · color</div>
+    <h2>Two actors, two hues</h2>
+    <p class="blurb">Indigo — or the active theme's human accent — means a person planned it; green means an agent did it.
+      The app is neutral ink on paper; accents appear only where an actor acted. Values below are read live from the
+      rendered tokens — switch theme or appearance and watch them change (neutrals, status, feedback and labels won't:
+      they are system tokens).</p>
+
+    <div class="panel">
+      <div class="group">
+        <p class="row-label">Accents — theme tokens (the only per-theme values)</p>
+        <div class="chips-grid" id="sw-accents"></div>
+      </div>
+      <div class="group">
+        <p class="row-label">Derived accent variants — color-mix derivations, never authored per theme</p>
+        <div class="chips-grid" id="sw-derived"></div>
+      </div>
+      <div class="group">
+        <p class="row-label">Neutrals — system, theme-independent</p>
+        <div class="chips-grid" id="sw-neutrals"></div>
+      </div>
+      <div class="group">
+        <p class="row-label">Status — system; Done routes to the human accent (completion is a human call)</p>
+        <div class="chips-grid" id="sw-status"></div>
+      </div>
+      <div class="group">
+        <p class="row-label">Priority &amp; feedback — system</p>
+        <div class="chips-grid" id="sw-feedback"></div>
+      </div>
+      <div class="group">
+        <p class="row-label">Label ramp — 8 fixed hues; the green band is deliberately absent</p>
+        <div class="chips-grid" id="sw-labels"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 03 SPACE / RADIUS / ELEVATION / MOTION ============ -->
+  <section id="space">
+    <div class="kicker"><span class="hash">## </span>03 · space · radius · elevation · motion</div>
+    <h2>Dense, but breathing</h2>
+    <div class="panel">
+      <div class="group">
+        <p class="row-label">Spacing — 4px base · row 36 · control 30 · card padding 12/10 · panel gutters 16/24</p>
+        <div class="space-bars">
+          <div><div class="bar" style="height: var(--lc-space-1)"></div><div class="m">4</div></div>
+          <div><div class="bar" style="height: var(--lc-space-2)"></div><div class="m">8</div></div>
+          <div><div class="bar" style="height: var(--lc-space-3)"></div><div class="m">12</div></div>
+          <div><div class="bar" style="height: var(--lc-space-4)"></div><div class="m">16</div></div>
+          <div><div class="bar" style="height: var(--lc-space-5)"></div><div class="m">20</div></div>
+          <div><div class="bar" style="height: var(--lc-space-6)"></div><div class="m">24</div></div>
+          <div><div class="bar" style="height: var(--lc-space-7)"></div><div class="m">32</div></div>
+          <div><div class="bar" style="height: var(--lc-space-8)"></div><div class="m">40</div></div>
+        </div>
+      </div>
+      <div class="group">
+        <p class="row-label">Radius — kbd 3 · tile 4 · controls 5 · cards 8 · panels 10 · modals &amp; palette 14. Never pill-shaped containers.</p>
+        <div class="radius-row">
+          <div class="box" style="border-radius: var(--lc-radius-kbd)">3</div>
+          <div class="box" style="border-radius: var(--lc-radius-tile)">4</div>
+          <div class="box" style="border-radius: var(--lc-radius-control)">5</div>
+          <div class="box" style="border-radius: var(--lc-radius-card)">8</div>
+          <div class="box" style="border-radius: var(--lc-radius-panel)">10</div>
+          <div class="box" style="border-radius: var(--lc-radius-modal)">14</div>
+        </div>
+      </div>
+      <div class="group">
+        <p class="row-label">Elevation — cards whisper, overlays speak, modals command. Dark carries elevation with the raised color, not shadow.</p>
+        <div class="shadow-row">
+          <div class="box" style="box-shadow: var(--lc-shadow-card)">card</div>
+          <div class="box" style="box-shadow: var(--lc-shadow-overlay)">overlay</div>
+          <div class="box" style="box-shadow: var(--lc-shadow-modal)">modal</div>
+        </div>
+      </div>
+      <div class="group">
+        <p class="row-label">Motion — state, never decoration · ease cubic-bezier(0.2, 0, 0, 1)</p>
+        <div class="motion-row">
+          <span class="m">80ms</span><span class="what">hover, press</span>
+          <span class="m">120ms</span><span class="what">state change, reorder</span>
+          <span class="m">150ms</span><span class="what">panel open, palette, theme crossfade</span>
+          <span class="m agent">2×900</span><span class="what"><span class="pulse-dot" id="motion-pulse"></span>&nbsp;
+            agent pulse — the one exception <button class="btn btn-ghost sm" id="replay-pulse" style="margin-left:6px">replay</button></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 04 BUTTONS ============ -->
+  <section id="buttons">
+    <div class="kicker"><span class="hash">## </span>04 · buttons</div>
+    <h2>Four variants, one height</h2>
+    <p class="blurb">30px controls, 24px small (banner actions). Primary is the human accent — a button is always a
+      planning act. Hover and press are live; the focus and disabled columns are forced for documentation.</p>
+    <div class="panel">
+      <div class="state-grid">
+        <span class="h"></span><span class="h">default</span><span class="h">focus</span><span class="h">disabled</span><span class="h">small</span>
+        <span class="h">primary</span>
+        <button class="btn btn-primary">New ticket <span class="kbd">C</span></button>
+        <button class="btn btn-primary force-focus">New ticket <span class="kbd">C</span></button>
+        <button class="btn btn-primary" disabled>New ticket</button>
+        <button class="btn btn-primary sm">Save</button>
+        <span class="h">secondary</span>
+        <button class="btn btn-secondary">Filter</button>
+        <button class="btn btn-secondary force-focus">Filter</button>
+        <button class="btn btn-secondary" disabled>Filter</button>
+        <button class="btn btn-secondary sm">Reload file</button>
+        <span class="h">ghost</span>
+        <button class="btn btn-ghost">Cancel</button>
+        <button class="btn btn-ghost force-focus">Cancel</button>
+        <button class="btn btn-ghost" disabled>Cancel</button>
+        <button class="btn btn-ghost sm">Keep mine</button>
+        <span class="h">danger</span>
+        <button class="btn btn-danger">Remove project</button>
+        <button class="btn btn-danger force-focus">Remove project</button>
+        <button class="btn btn-danger" disabled>Remove project</button>
+        <button class="btn btn-danger sm">Discard</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 05 FIELDS ============ -->
+  <section id="fields">
+    <div class="kicker"><span class="hash">## </span>05 · fields</div>
+    <h2>Inputs</h2>
+    <p class="blurb">30px, radius 5, focus is a 1px human-accent border plus the 3px ring. Paths and IDs run mono —
+      wherever a value is really a file, the disk shows through.</p>
+    <div class="panel">
+      <div class="fields-col">
+        <div class="field placeholder">Ticket title…</div>
+        <div class="field force-focus">Fix watcher debounce<span class="caret"></span></div>
+        <div class="field mono-field">
+          <svg class="glyph" width="13" height="13" viewBox="0 0 14 14"><path d="M1.5 3.5 Q1.5 2.5 2.5 2.5 L5 2.5 L6.2 4 L11.5 4 Q12.5 4 12.5 5 L12.5 10.5 Q12.5 11.5 11.5 11.5 L2.5 11.5 Q1.5 11.5 1.5 10.5 Z" fill="none" stroke="var(--lc-ink-3)" stroke-width="1.3"/></svg>
+          ~/dev/longclaw/.tickets
+        </div>
+        <div>
+          <div class="field invalid">lc 128 draft??</div>
+          <div class="field-msg">
+            <svg class="glyph" width="13" height="13" viewBox="0 0 14 14"><path d="M7 1.5 L13 12 L1 12 Z" fill="none" stroke="var(--lc-danger)" stroke-width="1.4" stroke-linejoin="round"/><rect x="6.35" y="5.2" width="1.3" height="3.4" rx="0.65" fill="var(--lc-danger)"/><rect x="6.35" y="9.6" width="1.3" height="1.3" rx="0.65" fill="var(--lc-danger)"/></svg>
+            IDs are generated — this field only takes a title.
+          </div>
+        </div>
+        <div class="field" aria-disabled="true">Assignee (project has no members yet)</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 06 CHIPS ============ -->
+  <section id="chips">
+    <div class="kicker"><span class="hash">## </span>06 · chips &amp; labels</div>
+    <h2>Small carriers of meaning</h2>
+    <p class="blurb">Label chips are the one pill exception — chips are content, not containers. Label dot colors come
+      from the fixed system ramp, never the theme. The ID chip wears the human accent; the agent chip wears green.</p>
+    <div class="panel">
+      <div class="flexrow">
+        <span class="label-chip" style="--label: var(--lc-label-blue)"><i></i>infra</span>
+        <span class="label-chip" style="--label: var(--lc-label-orange)"><i></i>watcher</span>
+        <span class="label-chip" style="--label: var(--lc-label-pink)"><i></i>design</span>
+        <span class="label-chip" style="--label: var(--lc-label-purple)"><i></i>editor</span>
+        <span class="label-chip" style="--label: var(--lc-label-cyan)"><i></i>sync</span>
+        <span class="label-chip" style="--label: var(--lc-label-amber)"><i></i>docs</span>
+        <span class="label-chip" style="--label: var(--lc-label-red)"><i></i>crash</span>
+        <span class="label-chip" style="--label: var(--lc-label-gray)"><i></i>chore</span>
+      </div>
+      <div class="flexrow group">
+        <span class="id-chip">LC-128</span>
+        <span class="agent-chip"><b>❯</b>claude-code · agent</span>
+        <span class="agent-badge">agent</span>
+        <span class="kbd-plain">⌘K</span>
+        <span class="note">← ID chip: human accent · agent chip &amp; badge: agent accent, exclusively</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 07 STATUS ============ -->
+  <section id="status">
+    <div class="kicker"><span class="hash">## </span>07 · status</div>
+    <h2>A color dot + text</h2>
+    <p class="blurb">One dot geometry for every status, user-created ones included: the default state is the unfilled
+      grey ring (Todo), every other state fills the same dot with the status color. Done takes the human accent —
+      completion is a human call, and green is never offered. The dot never appears without its label; on the board
+      the column header names it.</p>
+    <div class="panel">
+      <div class="glyph-row">
+        <span class="glyph-item"><svg class="glyph" width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="none" stroke="var(--lc-status-backlog)" stroke-width="1.6" stroke-dasharray="2.1 2.5"/></svg>Backlog</span>
+        <span class="glyph-item"><svg class="glyph" width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="none" stroke="var(--lc-status-todo)" stroke-width="1.6"/></svg>Todo</span>
+        <span class="glyph-item"><svg class="glyph" width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="var(--lc-status-in-progress)" stroke="var(--lc-status-in-progress)" stroke-width="1.6"/></svg>In Progress</span>
+        <span class="glyph-item"><svg class="glyph" width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="var(--lc-status-in-review)" stroke="var(--lc-status-in-review)" stroke-width="1.6"/></svg>In Review</span>
+        <span class="glyph-item"><svg class="glyph" width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="var(--lc-status-done)" stroke="var(--lc-status-done)" stroke-width="1.6"/></svg>Done</span>
+        <span class="glyph-item"><svg class="glyph" width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="var(--lc-status-canceled)" stroke="var(--lc-status-canceled)" stroke-width="1.6"/></svg>Canceled</span>
+      </div>
+      <div class="group" style="margin-top: var(--lc-space-5);">
+        <p class="row-label">Creating a status — a color is always chosen; grey ring is the default. Ramp hues only, never green.</p>
+        <div class="flexrow">
+          <div class="field placeholder" style="max-width: 200px;">Status name…</div>
+          <span class="dot-swatch selected" title="Default (grey)"><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="none" stroke="var(--lc-status-todo)" stroke-width="1.6"/></svg></span>
+          <span class="dot-swatch"><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="var(--lc-label-blue)" stroke="var(--lc-label-blue)" stroke-width="1.6"/></svg></span>
+          <span class="dot-swatch"><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="var(--lc-label-cyan)" stroke="var(--lc-label-cyan)" stroke-width="1.6"/></svg></span>
+          <span class="dot-swatch"><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="var(--lc-label-purple)" stroke="var(--lc-label-purple)" stroke-width="1.6"/></svg></span>
+          <span class="dot-swatch"><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="var(--lc-label-pink)" stroke="var(--lc-label-pink)" stroke-width="1.6"/></svg></span>
+          <span class="dot-swatch"><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="var(--lc-label-red)" stroke="var(--lc-label-red)" stroke-width="1.6"/></svg></span>
+          <span class="dot-swatch"><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="var(--lc-label-orange)" stroke="var(--lc-label-orange)" stroke-width="1.6"/></svg></span>
+          <span class="dot-swatch"><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="var(--lc-label-amber)" stroke="var(--lc-label-amber)" stroke-width="1.6"/></svg></span>
+          <span class="dot-swatch"><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="var(--lc-label-gray)" stroke="var(--lc-label-gray)" stroke-width="1.6"/></svg></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 08 PRIORITY ============ -->
+  <section id="priority">
+    <div class="kicker"><span class="hash">## </span>08 · priority</div>
+    <h2>Scannable, not loud</h2>
+    <p class="blurb">Six levels, monochrome except Urgent. P1–P4 are bordered mono chips — the number carries the
+      level, so there is no fill hierarchy to read. Urgent and None keep the reference glyphs.</p>
+    <div class="panel">
+      <div class="glyph-row">
+        <span class="glyph-item"><svg class="glyph" width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--lc-priority-urgent)"/><rect x="6.25" y="3.4" width="1.5" height="4.6" rx="0.75" fill="var(--lc-priority-urgent-mark)"/><rect x="6.25" y="9.2" width="1.5" height="1.5" rx="0.75" fill="var(--lc-priority-urgent-mark)"/></svg>Urgent</span>
+        <span class="glyph-item"><span class="p-chip">P1</span>P1</span>
+        <span class="glyph-item"><span class="p-chip">P2</span>P2</span>
+        <span class="glyph-item"><span class="p-chip">P3</span>P3</span>
+        <span class="glyph-item"><span class="p-chip">P4</span>P4</span>
+        <span class="glyph-item"><svg class="glyph" width="14" height="14" viewBox="0 0 14 14"><rect x="2.5" y="6.2" width="9" height="1.6" rx="0.8" fill="var(--lc-priority-none)"/></svg>None</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 09 AVATARS ============ -->
+  <section id="avatars">
+    <div class="kicker"><span class="hash">## </span>09 · avatars</div>
+    <h2>Humans are circles, agents are not</h2>
+    <p class="blurb">Human tints hash into the label ramp — which contains no green, so no human can ever wear the
+      agent's color. The agent is a terminal tile: near-black in both appearances, mono ❯, agent-green ring.
+      Never in the assignee slot.</p>
+    <div class="panel">
+      <div class="flexrow" style="gap: 12px;">
+        <span class="avatar lg" style="--tint: var(--lc-label-purple)">MK</span>
+        <span class="avatar lg" style="--tint: var(--lc-label-amber)">AR</span>
+        <span class="avatar lg" style="--tint: var(--lc-label-cyan)">JT</span>
+        <span class="avatar sm" style="--tint: var(--lc-label-purple)">MK</span>
+        <span class="avatar sm" style="--tint: var(--lc-label-amber)">AR</span>
+        <span style="width: 12px"></span>
+        <span class="agent-tile">❯</span>
+        <span class="note">← 26px and 20px circles · agent tile 26px, radius 4, ring 1.5px</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 10 CHECKLIST ============ -->
+  <section id="checklist">
+    <div class="kicker"><span class="hash">## </span>10 · checklist</div>
+    <h2>The human→agent interface</h2>
+    <p class="blurb">Humans write items; agents check them off during execution. A settled check is quiet gray; a fresh
+      agent check wears green with the row wash and a mono timestamp, then settles once the ticket is viewed.</p>
+    <div class="panel">
+      <div class="check-rows">
+        <div class="check-row done">
+          <svg class="glyph" width="15" height="15" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" rx="3.5" fill="var(--lc-ink-3)"/><polyline points="4,7.2 6.2,9.2 10,4.9" fill="none" stroke="var(--lc-surface)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Reproduce double-fire on rename</span>
+        </div>
+        <div class="check-row agent-fresh">
+          <svg class="glyph" width="15" height="15" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" rx="3.5" fill="var(--lc-accent-agent)"/><polyline points="4,7.2 6.2,9.2 10,4.9" fill="none" stroke="var(--lc-on-accent-agent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Add 50ms debounce to watcher</span>
+          <span class="just-now">❯ just now</span>
+        </div>
+        <div class="check-row">
+          <svg class="glyph" width="15" height="15" viewBox="0 0 14 14"><rect x="1.5" y="1.5" width="11" height="11" rx="3" fill="none" stroke="var(--lc-line-strong)" stroke-width="1.5"/></svg>
+          <span>Update format spec note</span>
+        </div>
+      </div>
+      <div class="flexrow group" style="gap: 10px;">
+        <span class="fraction" style="color: var(--lc-accent-agent-text)">3/7</span>
+        <span class="progress"><i style="width: 43%; background: var(--lc-accent-agent)"></i></span>
+        <span class="note">fresh — agent accent</span>
+        <span style="width: 16px"></span>
+        <span class="fraction">3/7</span>
+        <span class="progress"><i style="width: 43%"></i></span>
+        <span class="note">settled — neutral</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 11 CARDS ============ -->
+  <section id="cards">
+    <div class="kicker"><span class="hash">## </span>11 · cards</div>
+    <h2>Resting · fresh · selected · degraded</h2>
+    <p class="blurb">The fresh state is the product's magic moment: an external file edit earns the agent border, ring,
+      a two-beat pulse and the mono footer — never a silent re-render. Unparseable files degrade non-destructively.</p>
+    <div class="panel">
+      <div class="cards-row">
+        <div class="card">
+          <div class="top"><span class="id">LC-114</span><span class="spacer"></span>
+            <span class="p-chip sm">P2</span>
+          </div>
+          <div class="title">Empty board illustration for first launch</div>
+          <div class="foot">
+            <svg class="glyph" width="13" height="13" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="none" stroke="var(--lc-status-todo)" stroke-width="1.6"/></svg>
+            <span class="label-chip" style="--label: var(--lc-label-pink)"><i></i>design</span>
+            <span class="spacer"></span>
+            <span class="avatar sm" style="--tint: var(--lc-label-purple)">MK</span>
+          </div>
+        </div>
+        <div class="card fresh">
+          <div class="top"><span class="id">LC-128</span><span class="spacer"></span>
+            <span class="dot8 pulsing" id="card-pulse"></span>
+            <span class="p-chip sm">P1</span>
+          </div>
+          <div class="title">Fix watcher debounce on rename</div>
+          <div class="foot">
+            <svg class="glyph" width="13" height="13" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="var(--lc-status-in-progress)" stroke="var(--lc-status-in-progress)" stroke-width="1.6"/></svg>
+            <span class="fraction">3/7</span>
+            <span class="progress"><i style="width: 43%"></i></span>
+            <span class="spacer"></span>
+            <span class="avatar sm" style="--tint: var(--lc-label-amber)">AR</span>
+          </div>
+          <div class="agent-foot"><b>❯</b> updated by agent · 12s</div>
+        </div>
+        <div class="card selected">
+          <div class="top"><span class="id">LC-119</span><span class="spacer"></span>
+            <span class="p-chip sm">P2</span>
+          </div>
+          <div class="title">File format: frontmatter schema for checklists</div>
+          <div class="foot">
+            <svg class="glyph" width="13" height="13" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="var(--lc-status-in-review)" stroke="var(--lc-status-in-review)" stroke-width="1.6"/></svg>
+            <span class="label-chip" style="--label: var(--lc-label-blue)"><i></i>infra</span>
+            <span class="spacer"></span>
+            <span class="avatar sm" style="--tint: var(--lc-label-cyan)">JT</span>
+          </div>
+        </div>
+        <div class="card degraded">
+          <div class="top">
+            <span class="id">
+              <svg class="glyph" width="12" height="12" viewBox="0 0 14 14"><path d="M7 1.5 L13 12 L1 12 Z" fill="none" stroke="var(--lc-danger)" stroke-width="1.4" stroke-linejoin="round"/><rect x="6.35" y="5.2" width="1.3" height="3.4" rx="0.65" fill="var(--lc-danger)"/><rect x="6.35" y="9.6" width="1.3" height="1.3" rx="0.65" fill="var(--lc-danger)"/></svg>
+              can't parse
+            </span>
+          </div>
+          <div class="title">.tickets/lc-129.md</div>
+          <div class="foot"><button class="raw-link">View raw file</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 12 LIST VIEW ============ -->
+  <section id="list">
+    <div class="kicker"><span class="hash">## </span>12 · list view</div>
+    <h2>Dense rows, grouped by status</h2>
+    <p class="blurb">36px keyboard-navigable rows: priority, ID, title, labels, checklist progress, assignee,
+      updated-at. The group header carries the status dot and name, so rows don't repeat it. <span class="m">↑↓</span>/<span class="m">J K</span> move focus (inset accent border);
+      selection is the soft human wash. An agent-fresh row gets the pulse dot and mono agent timestamp — same
+      grammar as the board card.</p>
+    <div class="panel">
+      <div class="list">
+        <div class="lgroup">
+          <svg class="glyph" width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="var(--lc-status-in-progress)" stroke="var(--lc-status-in-progress)" stroke-width="1.6"/></svg>
+          In Progress <span class="count">2</span>
+        </div>
+        <div class="lrow">
+          <span class="p-chip">P1</span>
+          <span class="id">LC-128</span>
+          <span class="ltitle">Fix watcher debounce on rename</span>
+          <span class="label-chip" style="--label: var(--lc-label-orange)"><i></i>watcher</span>
+          <span class="fraction" style="color: var(--lc-accent-agent-text)">3/7</span>
+          <span class="dot8 pulsing" style="width:8px;height:8px;border-radius:50%;background:var(--lc-accent-agent);"></span>
+          <span class="avatar sm" style="--tint: var(--lc-label-amber)">AR</span>
+          <span class="updated agent">12s</span>
+        </div>
+        <div class="lrow">
+          <span class="p-chip">P3</span>
+          <span class="id">LC-122</span>
+          <span class="ltitle">Ticket panel: markdown editor write/preview toggle</span>
+          <span class="fraction">1/4</span>
+          <span class="avatar sm" style="--tint: var(--lc-label-purple)">MK</span>
+          <span class="updated">1h</span>
+        </div>
+        <div class="lgroup">
+          <svg class="glyph" width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="none" stroke="var(--lc-status-todo)" stroke-width="1.6"/></svg>
+          Todo <span class="count">3</span>
+        </div>
+        <div class="lrow selected">
+          <svg class="glyph" width="13" height="13" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--lc-priority-urgent)"/><rect x="6.25" y="3.4" width="1.5" height="4.6" rx="0.75" fill="var(--lc-priority-urgent-mark)"/><rect x="6.25" y="9.2" width="1.5" height="1.5" rx="0.75" fill="var(--lc-priority-urgent-mark)"/></svg>
+          <span class="id">LC-131</span>
+          <span class="ltitle">Watcher drops events when folder is renamed while app is closed</span>
+          <span class="label-chip" style="--label: var(--lc-label-orange)"><i></i>watcher</span>
+          <span class="avatar sm" style="--tint: var(--lc-label-cyan)">JT</span>
+          <span class="updated">2d</span>
+        </div>
+        <div class="lrow focused">
+          <span class="p-chip">P2</span>
+          <span class="id">LC-114</span>
+          <span class="ltitle">Empty board illustration for first launch</span>
+          <span class="label-chip" style="--label: var(--lc-label-pink)"><i></i>design</span>
+          <span class="avatar sm" style="--tint: var(--lc-label-purple)">MK</span>
+          <span class="updated">3d</span>
+        </div>
+        <div class="lrow">
+          <span class="p-chip">P4</span>
+          <span class="id">LC-109</span>
+          <span class="ltitle">Waitlist modal copy pass</span>
+          <span class="avatar sm" style="--tint: var(--lc-label-cyan)">JT</span>
+          <span class="updated">5d</span>
+        </div>
+      </div>
+      <p class="note" style="margin-top: 10px;">selected row (soft wash) · focused row (inset accent border) · fresh row (pulse + mono agent timestamp)</p>
+    </div>
+  </section>
+
+  <!-- ============ 13 TIMELINE ============ -->
+  <section id="timeline">
+    <div class="kicker"><span class="hash">## </span>13 · timeline</div>
+    <h2>One merged stream, two voices apart</h2>
+    <p class="blurb">Human entries are plain — circle avatar, ink text. Agent entries carry the tile, the mono name, a
+      hairline of green and a <span class="m">via file edit</span> note that keeps the app honest about where the
+      change came from.</p>
+    <div class="panel">
+      <div class="timeline">
+        <div class="entry">
+          <span class="avatar lg" style="--tint: var(--lc-label-purple)">MK</span>
+          <div class="body">
+            <div class="head"><span class="who">Mara Kim</span><span class="when">2h</span></div>
+            <div class="text">Scoped this down to the rename case only — see the checklist.</div>
+          </div>
+        </div>
+        <div class="entry agent">
+          <span class="agent-tile">❯</span>
+          <div class="body">
+            <div class="head">
+              <span class="who">claude-code</span>
+              <span class="agent-badge">agent</span>
+              <span class="when">12s · via file edit</span>
+            </div>
+            <div class="text">Debounce added at 50ms. Rename now fires a single event — repro script in
+              <span class="t-code">scripts/watch-test.sh</span>.</div>
+          </div>
+        </div>
+        <div class="event">
+          <svg class="glyph" width="12" height="12" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" rx="3.5" fill="var(--lc-accent-agent)"/><polyline points="4,7.2 6.2,9.2 10,4.9" fill="none" stroke="var(--lc-on-accent-agent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span><span class="actor">claude-code</span> checked 2 items · <span class="when">3m</span></span>
+        </div>
+        <div class="event">
+          <svg class="glyph" width="12" height="12" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="var(--lc-status-done)" stroke="var(--lc-status-done)" stroke-width="1.6"/></svg>
+          <span><span class="actor human">Mara Kim</span> moved to Done · <span class="when">1m</span></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 14 TICKET PANEL ============ -->
+  <section id="ticket">
+    <div class="kicker"><span class="hash">## </span>14 · ticket panel</div>
+    <h2>The whole ticket, one calm column</h2>
+    <p class="blurb">Header (ID, title, status, priority, assignee, labels), in-app markdown editor with
+      write/preview, the checklist block, and the merged activity stream with its composer. Every piece is the
+      primitive specified above — the panel is composition, not new chrome.</p>
+    <div class="ticket">
+      <div class="trow">
+        <span class="id-chip">LC-128</span>
+        <span class="spacer"></span>
+        <span class="agent-chip"><b>❯</b>claude-code · agent</span>
+      </div>
+      <div class="ttitle">Fix watcher debounce on rename</div>
+      <div class="trow">
+        <button class="meta-ctl">
+          <svg class="glyph" width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="var(--lc-status-in-progress)" stroke="var(--lc-status-in-progress)" stroke-width="1.6"/></svg>
+          In Progress
+        </button>
+        <button class="meta-ctl"><span class="p-chip" style="border:none; padding:0; min-width:auto;">P1</span> Priority</button>
+        <button class="meta-ctl"><span class="avatar sm" style="--tint: var(--lc-label-amber)">AR</span><span class="who">Aria Rowe</span></button>
+        <span class="label-chip" style="--label: var(--lc-label-orange)"><i></i>watcher</span>
+        <span class="label-chip" style="--label: var(--lc-label-blue)"><i></i>infra</span>
+      </div>
+
+      <div>
+        <p class="row-label">Description</p>
+        <div class="editor">
+          <div class="ebar">
+            <button class="etab" aria-selected="true">Write</button>
+            <button class="etab" aria-selected="false">Preview</button>
+            <span class="esep"></span>
+            <button class="ebtn" title="Bold" style="font-weight:700;">B</button>
+            <button class="ebtn" title="Italic" style="font-style:italic;">I</button>
+            <button class="ebtn" title="Code">&lt;&gt;</button>
+            <button class="ebtn" title="Link">🔗︎</button>
+            <button class="ebtn" title="List">≔</button>
+          </div>
+          <div class="ebody">The watcher fires twice when a file is renamed — once for the unlink, once for the add.
+            Debounce events within <span class="t-code">50ms</span> and treat unlink+add on the same inode as a rename.</div>
+        </div>
+      </div>
+
+      <div>
+        <p class="row-label">Checklist — 3/7 <span class="progress" style="margin-left:6px; vertical-align:middle;"><i style="width: 43%; background: var(--lc-accent-agent)"></i></span></p>
+        <div class="check-rows">
+          <div class="check-row done">
+            <svg class="glyph" width="15" height="15" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" rx="3.5" fill="var(--lc-ink-3)"/><polyline points="4,7.2 6.2,9.2 10,4.9" fill="none" stroke="var(--lc-surface)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>Reproduce double-fire on rename</span>
+          </div>
+          <div class="check-row agent-fresh">
+            <svg class="glyph" width="15" height="15" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" rx="3.5" fill="var(--lc-accent-agent)"/><polyline points="4,7.2 6.2,9.2 10,4.9" fill="none" stroke="var(--lc-on-accent-agent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>Add 50ms debounce to watcher</span>
+            <span class="just-now">❯ just now</span>
+          </div>
+          <div class="check-row">
+            <svg class="glyph" width="15" height="15" viewBox="0 0 14 14"><rect x="1.5" y="1.5" width="11" height="11" rx="3" fill="none" stroke="var(--lc-line-strong)" stroke-width="1.5"/></svg>
+            <span>Update format spec note</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tdivider"></div>
+
+      <div>
+        <p class="row-label">Activity</p>
+        <div class="timeline">
+          <div class="entry">
+            <span class="avatar lg" style="--tint: var(--lc-label-purple)">MK</span>
+            <div class="body">
+              <div class="head"><span class="who">Mara Kim</span><span class="when">2h</span></div>
+              <div class="text">Scoped this down to the rename case only — see the checklist.</div>
+            </div>
+          </div>
+          <div class="entry agent">
+            <span class="agent-tile">❯</span>
+            <div class="body">
+              <div class="head">
+                <span class="who">claude-code</span>
+                <span class="agent-badge">agent</span>
+                <span class="when">12s · via file edit</span>
+              </div>
+              <div class="text">Debounce added at 50ms. Rename now fires a single event — repro script in
+                <span class="t-code">scripts/watch-test.sh</span>.</div>
+            </div>
+          </div>
+          <div class="event">
+            <svg class="glyph" width="12" height="12" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" rx="3.5" fill="var(--lc-accent-agent)"/><polyline points="4,7.2 6.2,9.2 10,4.9" fill="none" stroke="var(--lc-on-accent-agent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span><span class="actor">claude-code</span> checked 2 items · <span class="when">3m</span></span>
+          </div>
+          <div class="composer">
+            <span class="avatar lg" style="--tint: var(--lc-label-purple)">MK</span>
+            <div class="field placeholder">Leave a comment…</div>
+            <button class="btn btn-primary">Comment</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 15 TOAST & BANNERS ============ -->
+  <section id="toasts">
+    <div class="kicker"><span class="hash">## </span>15 · toast &amp; banners</div>
+    <h2>Failure states earn trust</h2>
+    <p class="blurb">A files-on-disk app is judged by its conflicts. The banner pattern is designed, not defaulted —
+      and nothing is ever silently rewritten or deleted.</p>
+    <div class="panel">
+      <div class="group">
+        <span class="toast">Moved to Done<span class="kbd-inv">⌘Z</span><span class="hint">undo</span></span>
+      </div>
+      <div class="group banner warn">
+        <svg class="glyph" width="15" height="15" viewBox="0 0 14 14"><path d="M7 1.5 L13 12 L1 12 Z" fill="none" stroke="var(--lc-warn)" stroke-width="1.4" stroke-linejoin="round"/><rect x="6.35" y="5.2" width="1.3" height="3.4" rx="0.65" fill="var(--lc-warn)"/><rect x="6.35" y="9.6" width="1.3" height="1.3" rx="0.65" fill="var(--lc-warn)"/></svg>
+        <span class="text"><b>Changed on disk</b> while you were editing.</span>
+        <button class="btn-b">Reload file</button>
+        <button class="btn-g">Keep mine</button>
+      </div>
+      <div class="group banner warn">
+        <svg class="glyph" width="15" height="15" viewBox="0 0 14 14"><path d="M1.5 3.5 Q1.5 2.5 2.5 2.5 L5 2.5 L6.2 4 L11.5 4 Q12.5 4 12.5 5 L12.5 10.5 Q12.5 11.5 11.5 11.5 L2.5 11.5 Q1.5 11.5 1.5 10.5 Z" fill="none" stroke="var(--lc-warn)" stroke-width="1.3"/></svg>
+        <span class="text"><b>Folder unreachable</b> — <span class="m" style="font-size:11.5px">~/dev/longclaw</span> moved or missing.</span>
+        <button class="btn-b">Locate folder…</button>
+        <button class="btn-g">Remove</button>
+      </div>
+      <div class="group banner danger">
+        <svg class="glyph" width="15" height="15" viewBox="0 0 14 14"><path d="M7 1.5 L13 12 L1 12 Z" fill="none" stroke="var(--lc-danger)" stroke-width="1.4" stroke-linejoin="round"/><rect x="6.35" y="5.2" width="1.3" height="3.4" rx="0.65" fill="var(--lc-danger)"/><rect x="6.35" y="9.6" width="1.3" height="1.3" rx="0.65" fill="var(--lc-danger)"/></svg>
+        <span class="text"><b>Couldn't parse</b> <span class="m" style="font-size:11.5px">.tickets/lc-129.md</span> — the file is untouched.</span>
+        <button class="btn-b">View raw file</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 14 NAVIGATION ============ -->
+  <section id="navigation">
+    <div class="kicker"><span class="hash">## </span>16 · navigation</div>
+    <h2>Side panel · palette · pickers</h2>
+    <p class="blurb">The 6px theme dot is each project's own human accent — the only chrome that leaks another
+      project's theme. The palette is the keyboard front door: every pointer action has a path through it.</p>
+    <div class="panel">
+      <div class="nav-demo">
+        <div>
+          <p class="row-label">Side panel</p>
+          <div class="sidepanel">
+            <div class="section-h">Starred</div>
+            <div class="proj active"><span class="dot"></span>longclaw</div>
+            <div class="section-h">Local</div>
+            <div class="proj"><span class="dot" data-foreign style="--proj-accent: var(--lc-label-orange)"></span>personal-site</div>
+            <div class="proj"><span class="dot" data-foreign style="--proj-accent: var(--lc-label-blue)"></span>dotfiles</div>
+          </div>
+          <p class="row-label" style="margin-top: 18px;">Board column header</p>
+          <div class="col-head">
+            <svg class="glyph" width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="var(--lc-status-in-progress)" stroke="var(--lc-status-in-progress)" stroke-width="1.6"/></svg>
+            In Progress <span class="count">2</span>
+          </div>
+          <p class="row-label" style="margin-top: 18px;">Terminal slot — Phase 2 reservation</p>
+          <div class="term-slot">terminal · reserved · phase 2</div>
+        </div>
+        <div>
+          <p class="row-label">Command palette</p>
+          <div class="palette">
+            <div class="pinput">chan<span class="caret"></span></div>
+            <div class="prow selected">
+              <svg class="glyph" width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="none" stroke="var(--lc-status-todo)" stroke-width="1.6"/></svg>
+              Change status<span class="k kbd-plain">S</span>
+            </div>
+            <div class="prow">
+              <span style="width:14px; text-align:center;"><span class="dot" style="display:inline-block; width:8px; height:8px; border-radius:50%; background: var(--lc-accent-human);"></span></span>
+              Change project theme
+            </div>
+            <div class="prow">
+              <span class="p-chip sm">P2</span>
+              Set priority<span class="k kbd-plain">P</span>
+            </div>
+            <div class="prow disabled">
+              <svg class="glyph" width="14" height="14" viewBox="0 0 14 14"><rect x="0.75" y="0.75" width="12.5" height="12.5" rx="2.5" fill="none" stroke="var(--lc-ink-disabled)" stroke-width="1.2"/><path d="M4.6 4.4 L7.4 7 L4.6 9.6" fill="none" stroke="var(--lc-ink-disabled)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              New terminal<span class="phase">phase 2</span>
+            </div>
+          </div>
+          <p class="row-label" style="margin-top: 18px;">Theme picker — preset swatches, no wheel, no custom colors</p>
+          <div class="picker-row">
+            <div class="picker selected" data-preview="indigo"><div class="pswatch"><i data-appearance="light" data-theme="indigo"></i><i data-appearance="light" data-theme="indigo"></i></div><div class="pname">Indigo</div></div>
+            <div class="picker" data-preview="clay"><div class="pswatch"><i data-appearance="light" data-theme="clay"></i><i data-appearance="light" data-theme="clay"></i></div><div class="pname">Clay</div></div>
+            <div class="picker" data-preview="slate"><div class="pswatch"><i data-appearance="light" data-theme="slate"></i><i data-appearance="light" data-theme="slate"></i></div><div class="pname">Slate</div></div>
+            <div class="picker" data-preview="plum"><div class="pswatch"><i data-appearance="light" data-theme="plum"></i><i data-appearance="light" data-theme="plum"></i></div><div class="pname">Plum</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 15 EMPTY STATES ============ -->
+  <section id="empty">
+    <div class="kicker"><span class="hash">## </span>17 · empty states</div>
+    <h2>The welcome doubles as no-projects</h2>
+    <div class="panel">
+      <div class="empty">
+        <h3>Welcome to LongClaw</h3>
+        <p>Point it at a folder. Your tickets live there as plain files.</p>
+        <button class="btn btn-primary" style="margin-bottom: var(--lc-space-5);">Open a folder</button>
+        <div class="guided">
+          <span class="kbd-plain">C</span> create your first ticket
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 16 BRAND ============ -->
+  <section id="brand">
+    <div class="kicker"><span class="hash">## </span>18 · brand</div>
+    <h2>The watcher</h2>
+    <p class="blurb">An original geometric owl — six straight cuts and four circles, a face that tapers to a single
+      talon point. Single-color, inherits ink, works at 16px. Duotone eyes are for marketing moments only.</p>
+    <div class="panel">
+      <div class="brand-row">
+        <svg class="mark" viewBox="0 0 64 64" width="16" height="16"><path fill="currentColor" fill-rule="evenodd" d="M9 7 L32 16 L55 7 L55 40 L32 59 L9 40 Z M22.5 22 a7.5 7.5 0 1 0 0 15 a7.5 7.5 0 1 0 0 -15 Z M41.5 22 a7.5 7.5 0 1 0 0 15 a7.5 7.5 0 1 0 0 -15 Z M32 39.5 L36 45 L32 51.5 L28 45 Z"/><circle cx="22.5" cy="29.5" r="3" fill="currentColor"/><circle cx="41.5" cy="29.5" r="3" fill="currentColor"/></svg>
+        <svg class="mark" viewBox="0 0 64 64" width="24" height="24"><path fill="currentColor" fill-rule="evenodd" d="M9 7 L32 16 L55 7 L55 40 L32 59 L9 40 Z M22.5 22 a7.5 7.5 0 1 0 0 15 a7.5 7.5 0 1 0 0 -15 Z M41.5 22 a7.5 7.5 0 1 0 0 15 a7.5 7.5 0 1 0 0 -15 Z M32 39.5 L36 45 L32 51.5 L28 45 Z"/><circle cx="22.5" cy="29.5" r="3" fill="currentColor"/><circle cx="41.5" cy="29.5" r="3" fill="currentColor"/></svg>
+        <svg class="mark" viewBox="0 0 64 64" width="32" height="32"><path fill="currentColor" fill-rule="evenodd" d="M9 7 L32 16 L55 7 L55 40 L32 59 L9 40 Z M22.5 22 a7.5 7.5 0 1 0 0 15 a7.5 7.5 0 1 0 0 -15 Z M41.5 22 a7.5 7.5 0 1 0 0 15 a7.5 7.5 0 1 0 0 -15 Z M32 39.5 L36 45 L32 51.5 L28 45 Z"/><circle cx="22.5" cy="29.5" r="3" fill="currentColor"/><circle cx="41.5" cy="29.5" r="3" fill="currentColor"/></svg>
+        <span class="wordmark">
+          <svg viewBox="0 0 64 64" width="22" height="22" style="color: var(--lc-ink)"><path fill="currentColor" fill-rule="evenodd" d="M9 7 L32 16 L55 7 L55 40 L32 59 L9 40 Z M22.5 22 a7.5 7.5 0 1 0 0 15 a7.5 7.5 0 1 0 0 -15 Z M41.5 22 a7.5 7.5 0 1 0 0 15 a7.5 7.5 0 1 0 0 -15 Z M32 39.5 L36 45 L32 51.5 L28 45 Z"/><circle cx="22.5" cy="29.5" r="3" fill="currentColor"/><circle cx="41.5" cy="29.5" r="3" fill="currentColor"/></svg>
+          LongClaw
+        </span>
+        <span class="note">16 · 24 · 32 · wordmark</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="foot-note">
+    longclaw · components library · tokens v1.0.0 ·
+    zero hex values in this file (grep it) ·
+    specs: ../components.md · decisions: ../decisions.md · contrast &amp; CVD: ../accessibility.md ·
+    board proof: board.html
+  </div>
+</div>
+
+<script>
+  /* ---- proof controls (same contract as board.html) ---- */
+  document.querySelectorAll("[data-set-theme]").forEach((b) =>
+    b.addEventListener("click", () => {
+      document.documentElement.dataset.theme = b.dataset.setTheme;
+      document.querySelectorAll("[data-set-theme]").forEach((x) =>
+        x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+      document.querySelectorAll(".picker").forEach((p) =>
+        p.classList.toggle("selected", p.dataset.preview === b.dataset.setTheme));
+      paintValues();
+    })
+  );
+  document.querySelectorAll("[data-set-appearance]").forEach((b) =>
+    b.addEventListener("click", () => {
+      document.documentElement.dataset.appearance = b.dataset.setAppearance;
+      document.querySelectorAll("[data-set-appearance]").forEach((x) =>
+        x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+      document.querySelectorAll(".swatch i, .pswatch i").forEach((i) =>
+        i.setAttribute("data-appearance", b.dataset.setAppearance));
+      paintValues();
+    })
+  );
+
+  /* theme-picker demo also drives the page theme */
+  document.querySelectorAll(".picker").forEach((p) =>
+    p.addEventListener("click", () =>
+      document.querySelector(`[data-set-theme="${p.dataset.preview}"]`).click())
+  );
+
+  /* ---- pulse replay (900ms × 2, per spec — never infinite) ---- */
+  const replay = () => {
+    document.querySelectorAll(".pulse-dot, .dot8").forEach((d) => {
+      d.classList.remove("pulsing");
+      void d.offsetWidth;
+      d.classList.add("pulsing");
+    });
+  };
+  document.getElementById("replay-pulse").addEventListener("click", replay);
+
+  /* ---- color swatch grids: token name + live rendered value ----
+     Values are read back from the painted pixels (getComputedStyle
+     backgroundColor), so derived color-mix tokens display their real
+     resolved color in the active theme × appearance. */
+  const GROUPS = {
+    "sw-accents": ["accent-human", "accent-human-text", "on-accent-human",
+                   "accent-agent", "accent-agent-text", "on-accent-agent"],
+    "sw-derived": ["accent-human-soft", "accent-human-hover", "accent-human-active",
+                   "accent-human-ring", "accent-human-border",
+                   "accent-agent-soft", "accent-agent-wash", "accent-agent-rail",
+                   "accent-agent-fresh-border", "accent-agent-avatar-ring"],
+    "sw-neutrals": ["bg", "surface", "raised", "wash", "ink", "ink-2", "ink-3",
+                    "ink-disabled", "line", "line-soft", "line-strong", "tile",
+                    "inverse-surface", "inverse-ink"],
+    "sw-status": ["status-backlog", "status-todo", "status-in-progress",
+                  "status-in-review", "status-done", "status-canceled"],
+    "sw-feedback": ["priority-urgent", "priority-chip-text", "priority-chip-border", "priority-none",
+                    "warn", "warn-surface", "warn-border", "danger", "danger-surface", "danger-border"],
+    "sw-labels": ["label-blue", "label-cyan", "label-purple", "label-pink",
+                  "label-red", "label-orange", "label-amber", "label-gray"],
+  };
+
+  for (const [gid, tokens] of Object.entries(GROUPS)) {
+    const grid = document.getElementById(gid);
+    for (const t of tokens) {
+      const el = document.createElement("div");
+      el.className = "cswatch";
+      el.innerHTML = `<div class="fill" style="background: var(--lc-${t})"></div>
+        <div class="meta"><div class="tname">--lc-${t}</div><div class="tval" data-val></div></div>`;
+      grid.appendChild(el);
+    }
+  }
+
+  const fmt = (r, g, b, a) =>
+    "#" + [r, g, b].map((n) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, "0").toUpperCase()).join("") +
+    (a < 1 ? " · " + Math.round(a * 100) + "%" : "");
+  const unlin = (c) => (c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1 / 2.4) - 0.055);
+  const toHex = (css) => {
+    let m = css.match(/rgba?\(([\d.]+)[, ]+([\d.]+)[, ]+([\d.]+)(?:[,/ ]+([\d.]+))?\)/);
+    if (m) return fmt(+m[1], +m[2], +m[3], m[4] !== undefined ? +m[4] : 1);
+    /* color-mix resolves to oklab(L a b / alpha) in computed style */
+    m = css.match(/oklab\(([-\d.]+%?)\s+([-\d.]+)\s+([-\d.]+)(?:\s*\/\s*([\d.]+%?))?\)/);
+    if (!m) return css;
+    let L = m[1].endsWith("%") ? parseFloat(m[1]) / 100 : +m[1];
+    const a = +m[2], b = +m[3];
+    let alpha = m[4] === undefined ? 1 : (m[4].endsWith("%") ? parseFloat(m[4]) / 100 : +m[4]);
+    const l = Math.pow(L + 0.3963377774 * a + 0.2158037573 * b, 3);
+    const mm = Math.pow(L - 0.1055613458 * a - 0.0638541728 * b, 3);
+    const s = Math.pow(L - 0.0894841775 * a - 1.291485548 * b, 3);
+    return fmt(
+      unlin(4.0767416621 * l - 3.3077115913 * mm + 0.2309699292 * s) * 255,
+      unlin(-1.2684380046 * l + 2.6097574011 * mm - 0.3413193965 * s) * 255,
+      unlin(-0.0041960863 * l - 0.7034186147 * mm + 1.707614701 * s) * 255,
+      alpha
+    );
+  };
+  function paintValues() {
+    requestAnimationFrame(() =>
+      document.querySelectorAll(".cswatch").forEach((s) => {
+        s.querySelector("[data-val]").textContent =
+          toHex(getComputedStyle(s.querySelector(".fill")).backgroundColor);
+      })
+    );
+  }
+  paintValues();
+</script>
+</body>
+</html>

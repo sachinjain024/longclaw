@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="en" data-appearance="light" data-theme="indigo">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LongClaw — board proof · themes × appearances</title>
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="../tokens/design-tokens.css">
+<style>
+  /* ============================================================
+     BOARD PROOF — Phase 0 Step 1 exit gate.
+     Every color below routes through a --lc-* token. There is not
+     a single hex value in this stylesheet; switching data-theme or
+     data-appearance on <html> swaps tokens and nothing else.
+     ============================================================ */
+
+  * { margin: 0; box-sizing: border-box; }
+  html { height: 100%; }
+  body {
+    height: 100%; display: flex; flex-direction: column;
+    font-family: var(--lc-font-ui);
+    font-size: var(--lc-type-body-size);
+    color: var(--lc-ink);
+    background: var(--lc-bg);
+    transition: background var(--lc-motion-panel) var(--lc-motion-ease),
+                color var(--lc-motion-panel) var(--lc-motion-ease);
+  }
+  button { font: inherit; cursor: pointer; }
+  .mono { font-family: var(--lc-font-mono); }
+
+  /* ---- proof controls (not app chrome) ---- */
+  .proofbar {
+    display: flex; align-items: center; gap: var(--lc-space-4);
+    padding: 10px var(--lc-space-4);
+    background: var(--lc-surface); border-bottom: 1px solid var(--lc-line);
+  }
+  .proofbar .name {
+    font-family: var(--lc-font-display); font-weight: 600; font-size: 15px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .proofbar .meta { font-family: var(--lc-font-mono); font-size: 10.5px; color: var(--lc-ink-3); }
+  .spacer { flex: 1; }
+
+  .swatches { display: flex; gap: 8px; }
+  .swatch {
+    width: 44px; height: 28px; border-radius: var(--lc-radius-control);
+    border: 1px solid var(--lc-line-strong); padding: 0; overflow: hidden;
+    display: flex; background: var(--lc-surface);
+  }
+  /* Swatch previews are pure CSS: each <i> carries the preset's own
+     data-theme/data-appearance attributes, so the theme token blocks apply
+     locally — the picker previews every preset without a single hue here. */
+  .swatch i { display: block; height: 100%; }
+  .swatch i:first-child { flex: 2; background: var(--lc-accent-human); }
+  .swatch i:last-child { flex: 1; background: var(--lc-accent-agent); }
+  .swatch[aria-pressed="true"] {
+    border-color: var(--lc-accent-human);
+    box-shadow: var(--lc-focus-ring);
+  }
+  .swatch-label { font-family: var(--lc-font-mono); font-size: 9.5px; color: var(--lc-ink-3); text-transform: uppercase; letter-spacing: .06em; display:block; text-align:center; margin-top: 3px; }
+
+  .seg {
+    display: flex; border: 1px solid var(--lc-line-strong);
+    border-radius: var(--lc-radius-control); overflow: hidden;
+  }
+  .seg button {
+    height: 28px; padding: 0 12px; border: none; background: var(--lc-surface);
+    color: var(--lc-ink-2); font-size: 12.5px; font-weight: 500;
+  }
+  .seg button[aria-pressed="true"] { background: var(--lc-accent-human); color: var(--lc-on-accent-human); }
+
+  /* ---- shell ---- */
+  .shell { flex: 1; display: flex; min-height: 0; }
+
+  aside {
+    width: 240px; flex: none; display: flex; flex-direction: column;
+    padding: var(--lc-space-4) var(--lc-space-3);
+    border-right: 1px solid var(--lc-line);
+  }
+  .logo { display: flex; align-items: center; gap: 8px; padding: 2px 8px 14px; color: var(--lc-ink); }
+  .logo svg { width: 22px; height: 22px; }
+  .logo b { font-family: var(--lc-font-display); font-weight: 600; font-size: 14.5px; }
+  .section { font-family: var(--lc-font-mono); font-size: 10.5px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--lc-ink-3); padding: 12px 8px 6px; }
+  .proj {
+    display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 8px;
+    border-radius: var(--lc-radius-control); color: var(--lc-ink-2); font-size: 13px;
+  }
+  .proj:hover { background: var(--lc-wash); }
+  .proj.active { background: var(--lc-accent-human-soft); color: var(--lc-ink); font-weight: 500; }
+  .proj .dot { width: var(--lc-size-theme-dot); height: var(--lc-size-theme-dot);
+    border-radius: 50%; background: var(--lc-accent-human); flex: none; }
+  /* another project's marker shows THAT project's stored preset — stand-in data below */
+  .proj .dot[data-foreign] { background: var(--proj-accent, var(--lc-ink-disabled)); }
+  .side-footer { margin-top: auto; padding: 8px; }
+  .ghost-btn {
+    height: var(--lc-size-control); padding: 0 12px; border: none; background: transparent;
+    border-radius: var(--lc-radius-control); color: var(--lc-ink-2); font-size: 13px; font-weight: 500;
+  }
+  .ghost-btn:hover { background: var(--lc-wash); }
+
+  main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+  .board-header {
+    display: flex; align-items: center; gap: var(--lc-space-3);
+    padding: var(--lc-space-4) var(--lc-space-6) var(--lc-space-3);
+  }
+  .board-header h1 { font-size: var(--lc-type-title-size); font-weight: var(--lc-type-title-weight); letter-spacing: var(--lc-type-title-tracking); }
+  .path {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--lc-font-mono); font-size: var(--lc-type-code-size); color: var(--lc-ink-2);
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: var(--lc-size-control); padding: 0 12px;
+    border-radius: var(--lc-radius-control); font-size: 13px; font-weight: 500;
+    transition: background var(--lc-motion-fast) var(--lc-motion-ease);
+  }
+  .btn:focus-visible { outline: none; box-shadow: var(--lc-focus-ring); border: 1px solid var(--lc-accent-human); }
+  .btn-primary { border: none; background: var(--lc-accent-human); color: var(--lc-on-accent-human); }
+  .btn-primary:hover { background: var(--lc-accent-human-hover); }
+  .btn-primary:active { background: var(--lc-accent-human-active); }
+  .btn-secondary { border: 1px solid var(--lc-line-strong); background: var(--lc-surface); color: var(--lc-ink); }
+  .btn-secondary:hover { background: var(--lc-wash); }
+  [data-appearance="dark"] .btn-secondary { background: var(--lc-raised); }
+  [data-appearance="dark"] .btn-secondary:hover { background: var(--lc-wash); }
+  .kbd {
+    font-family: var(--lc-font-mono); font-size: var(--lc-type-kbd-size);
+    background: color-mix(in oklab, var(--lc-on-accent-human) 20%, transparent);
+    border-radius: var(--lc-radius-kbd); padding: 1px 5px;
+  }
+
+  /* ---- board ---- */
+  .board {
+    flex: 1; display: flex; gap: var(--lc-space-3);
+    padding: var(--lc-space-2) var(--lc-space-6) var(--lc-space-5);
+    overflow-x: auto; min-height: 0; align-items: flex-start;
+  }
+  .col { width: 264px; flex: none; }
+  .col-head {
+    display: flex; align-items: center; gap: 7px; padding: 6px 4px 10px;
+    font-size: 13px; font-weight: 500; color: var(--lc-ink-2);
+  }
+  .col-head .count { font-family: var(--lc-font-mono); font-size: 11px; color: var(--lc-ink-3); }
+  .cards { display: flex; flex-direction: column; gap: 8px; }
+
+  .card {
+    background: var(--lc-surface);
+    border: 1px solid var(--lc-line);
+    border-radius: var(--lc-radius-card);
+    padding: var(--lc-size-card-pad-y) var(--lc-size-card-pad-x);
+    box-shadow: var(--lc-shadow-card);
+    transition: border-color var(--lc-motion-fast) var(--lc-motion-ease),
+                box-shadow var(--lc-motion-fast) var(--lc-motion-ease);
+  }
+  .card:hover { border-color: var(--lc-line-strong); }
+  [data-appearance="dark"] .card:hover { background: var(--lc-raised); }
+  .card:focus-visible { outline: none; border-color: var(--lc-accent-human); box-shadow: var(--lc-focus-ring); }
+  .card .top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .card .id { font-family: var(--lc-font-mono); font-size: 11px; color: var(--lc-ink-3); }
+  .card .title { font-size: 13px; font-weight: 500; line-height: 1.35; margin-bottom: 8px; }
+  .card .foot { display: flex; align-items: center; gap: 8px; }
+
+  .label-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: var(--lc-size-chip-sm); padding: 0 7px;
+    border: 1px solid var(--lc-line); border-radius: var(--lc-radius-full);
+    font-size: 10.5px; font-weight: 500; color: var(--lc-ink-2);
+    background: var(--lc-surface);
+  }
+  .label-chip i { width: 6px; height: 6px; border-radius: 50%; background: var(--label, var(--lc-label-gray)); }
+
+  .avatar {
+    width: var(--lc-size-avatar-sm); height: var(--lc-size-avatar-sm); border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 8.5px; font-weight: 600; flex: none;
+    background: color-mix(in oklab, var(--tint, var(--lc-label-gray)) 18%, var(--lc-surface));
+    color: color-mix(in oklab, var(--tint, var(--lc-label-gray)) 60%, var(--lc-ink));
+  }
+
+  .progress { height: 3px; width: 44px; border-radius: 2px; background: var(--lc-wash); overflow: hidden; }
+  .progress i { display: block; height: 100%; border-radius: 2px; background: var(--lc-ink-3); }
+  .fraction { font-family: var(--lc-font-mono); font-size: 10.5px; font-weight: 500; color: var(--lc-ink-3); }
+
+  /* fresh agent activity — the designed moment */
+  .card.fresh {
+    border-color: var(--lc-accent-agent-fresh-border);
+    box-shadow: 0 0 0 var(--lc-border-focus) var(--lc-accent-agent-fresh-ring);
+  }
+  .card.fresh .fraction { color: var(--lc-accent-agent-text); }
+  .card.fresh .progress i { background: var(--lc-accent-agent); }
+  .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--lc-accent-agent); }
+  .pulsing { animation: lc-pulse var(--lc-motion-pulse-duration) var(--lc-motion-ease) 2; }
+  .agent-foot {
+    margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--lc-line-soft);
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--lc-font-mono); font-size: 10.5px; color: var(--lc-accent-agent-text);
+  }
+  .agent-foot b { font-weight: 600; }
+
+  /* degraded (unparseable file) card */
+  .card.degraded { border-color: var(--lc-danger-border); }
+  .card.degraded .id { color: var(--lc-danger); display: inline-flex; align-items: center; gap: 6px; }
+  .card.degraded .title { font-family: var(--lc-font-mono); font-size: 12px; color: var(--lc-ink-2); }
+  .raw-link { font-size: 11.5px; font-weight: 500; color: var(--lc-danger); background: none; border: none; padding: 0; }
+
+  /* terminal slot — Phase 2 reservation, geometry only */
+  .term-slot {
+    height: 24px; flex: none;
+    border-top: 1px solid var(--lc-line);
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    font-family: var(--lc-font-mono); font-size: 10px; letter-spacing: .07em;
+    text-transform: uppercase; color: var(--lc-ink-disabled);
+    background: var(--lc-surface);
+  }
+
+  .gate-note {
+    padding: 8px var(--lc-space-6); border-top: 1px solid var(--lc-line);
+    font-family: var(--lc-font-mono); font-size: 10.5px; color: var(--lc-ink-3);
+    background: var(--lc-bg);
+  }
+
+  .p-chip {
+    display: inline-flex; align-items: center; justify-content: center;
+    height: 13px; min-width: 20px; padding: 0 3px; flex: none;
+    border: 1px solid var(--lc-priority-chip-border); border-radius: var(--lc-radius-kbd);
+    font-family: var(--lc-font-mono); font-size: 8.5px; font-weight: 500; line-height: 1;
+    color: var(--lc-priority-chip-text);
+  }
+
+  svg.glyph { flex: none; }
+</style>
+</head>
+<body>
+
+  <!-- ============ proof controls ============ -->
+  <div class="proofbar">
+    <span class="name">
+      <svg viewBox="0 0 64 64" width="22" height="22" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M9 7 L32 16 L55 7 L55 40 L32 59 L9 40 Z M22.5 22 a7.5 7.5 0 1 0 0 15 a7.5 7.5 0 1 0 0 -15 Z M41.5 22 a7.5 7.5 0 1 0 0 15 a7.5 7.5 0 1 0 0 -15 Z M32 39.5 L36 45 L32 51.5 L28 45 Z"/><circle cx="22.5" cy="29.5" r="3" fill="currentColor"/><circle cx="41.5" cy="29.5" r="3" fill="currentColor"/></svg>
+      LongClaw
+    </span>
+    <span class="meta">board proof · step 1 exit gate · themes × appearances</span>
+    <span class="spacer"></span>
+
+    <div class="swatches" role="group" aria-label="Project theme">
+      <!-- Each preview cell scopes the preset's own tokens via attributes —
+           exactly how the project-settings picker previews other presets. -->
+      <button class="swatch" data-set-theme="indigo" aria-pressed="true" title="Indigo (default)"><i data-appearance="light" data-theme="indigo"></i><i data-appearance="light" data-theme="indigo"></i></button>
+      <button class="swatch" data-set-theme="clay" aria-pressed="false" title="Clay"><i data-appearance="light" data-theme="clay"></i><i data-appearance="light" data-theme="clay"></i></button>
+      <button class="swatch" data-set-theme="slate" aria-pressed="false" title="Slate (proposed)"><i data-appearance="light" data-theme="slate"></i><i data-appearance="light" data-theme="slate"></i></button>
+      <button class="swatch" data-set-theme="plum" aria-pressed="false" title="Plum (proposed)"><i data-appearance="light" data-theme="plum"></i><i data-appearance="light" data-theme="plum"></i></button>
+    </div>
+
+    <div class="seg" role="group" aria-label="Appearance">
+      <button data-set-appearance="light" aria-pressed="true">Light</button>
+      <button data-set-appearance="dark" aria-pressed="false">Dark</button>
+    </div>
+
+    <button class="btn btn-secondary" id="simulate">❯ Simulate agent edit</button>
+  </div>
+
+  <!-- ============ app shell ============ -->
+  <div class="shell">
+    <aside>
+      <div class="logo">
+        <svg viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M9 7 L32 16 L55 7 L55 40 L32 59 L9 40 Z M22.5 22 a7.5 7.5 0 1 0 0 15 a7.5 7.5 0 1 0 0 -15 Z M41.5 22 a7.5 7.5 0 1 0 0 15 a7.5 7.5 0 1 0 0 -15 Z M32 39.5 L36 45 L32 51.5 L28 45 Z"/><circle cx="22.5" cy="29.5" r="3" fill="currentColor"/><circle cx="41.5" cy="29.5" r="3" fill="currentColor"/></svg>
+        <b>LongClaw</b>
+      </div>
+      <div class="section">Starred</div>
+      <div class="proj active"><span class="dot"></span>longclaw</div>
+      <div class="section">Local</div>
+      <div class="proj"><span class="dot" data-foreign style="--proj-accent: var(--lc-label-orange)"></span>personal-site</div>
+      <div class="proj"><span class="dot" data-foreign style="--proj-accent: var(--lc-label-blue)"></span>dotfiles</div>
+      <div class="side-footer">
+        <button class="ghost-btn">Get early access</button>
+      </div>
+    </aside>
+
+    <main>
+      <div class="board-header">
+        <h1>longclaw</h1>
+        <span class="path">
+          <svg class="glyph" width="13" height="13" viewBox="0 0 14 14"><path d="M1.5 3.5 Q1.5 2.5 2.5 2.5 L5 2.5 L6.2 4 L11.5 4 Q12.5 4 12.5 5 L12.5 10.5 Q12.5 11.5 11.5 11.5 L2.5 11.5 Q1.5 11.5 1.5 10.5 Z" fill="none" stroke="var(--lc-ink-3)" stroke-width="1.3"/></svg>
+          ~/dev/longclaw/.tickets
+        </span>
+        <span class="spacer"></span>
+        <button class="btn btn-secondary">Filter</button>
+        <button class="btn btn-primary">New ticket <span class="kbd">C</span></button>
+      </div>
+
+      <div class="board">
+
+        <!-- ================= TODO ================= -->
+        <div class="col">
+          <div class="col-head">
+            <svg class="glyph" width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="none" stroke="var(--lc-status-todo)" stroke-width="1.6"/></svg>
+            Todo <span class="count">3</span>
+          </div>
+          <div class="cards">
+            <div class="card" tabindex="0">
+              <div class="top"><span class="id">LC-114</span><span class="spacer"></span>
+                <span class="p-chip">P2</span>
+              </div>
+              <div class="title">Empty board illustration for first launch</div>
+              <div class="foot">
+                <span class="label-chip" style="--label: var(--lc-label-pink)"><i></i>design</span>
+                <span class="spacer"></span>
+                <span class="avatar" style="--tint: var(--lc-label-purple)">MK</span>
+              </div>
+            </div>
+            <div class="card" tabindex="0">
+              <div class="top"><span class="id">LC-131</span><span class="spacer"></span>
+                <svg class="glyph" width="13" height="13" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" rx="3" fill="var(--lc-priority-urgent)"/><rect x="6.25" y="3.4" width="1.5" height="4.6" rx="0.75" fill="var(--lc-priority-urgent-mark)"/><rect x="6.25" y="9.2" width="1.5" height="1.5" rx="0.75" fill="var(--lc-priority-urgent-mark)"/></svg>
+              </div>
+              <div class="title">Watcher drops events when folder is renamed while app is closed</div>
+              <div class="foot">
+                <span class="label-chip" style="--label: var(--lc-label-orange)"><i></i>watcher</span>
+                <span class="spacer"></span>
+                <span class="avatar" style="--tint: var(--lc-label-cyan)">JT</span>
+              </div>
+            </div>
+            <div class="card degraded" tabindex="0">
+              <div class="top">
+                <span class="id">
+                  <svg class="glyph" width="12" height="12" viewBox="0 0 14 14"><path d="M7 1.5 L13 12 L1 12 Z" fill="none" stroke="var(--lc-danger)" stroke-width="1.4" stroke-linejoin="round"/><rect x="6.35" y="5.2" width="1.3" height="3.4" rx="0.65" fill="var(--lc-danger)"/><rect x="6.35" y="9.6" width="1.3" height="1.3" rx="0.65" fill="var(--lc-danger)"/></svg>
+                  can't parse
+                </span>
+                <span class="spacer"></span>
+              </div>
+              <div class="title">.tickets/lc-129.md</div>
+              <div class="foot">
+                <button class="raw-link">View raw file</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= IN PROGRESS ================= -->
+        <div class="col">
+          <div class="col-head">
+            <svg class="glyph" width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="var(--lc-status-in-progress)" stroke="var(--lc-status-in-progress)" stroke-width="1.6"/></svg>
+            In Progress <span class="count">2</span>
+          </div>
+          <div class="cards">
+            <div class="card fresh" tabindex="0" id="fresh-card">
+              <div class="top">
+                <span class="id">LC-128</span><span class="spacer"></span>
+                <span class="pulse-dot pulsing" id="pulse-dot"></span>
+                <span class="p-chip">P1</span>
+              </div>
+              <div class="title">Fix watcher debounce on rename</div>
+              <div class="foot">
+                <span class="fraction">3/7</span>
+                <span class="progress"><i style="width: 43%"></i></span>
+                <span class="label-chip" style="--label: var(--lc-label-orange)"><i></i>watcher</span>
+                <span class="spacer"></span>
+                <span class="avatar" style="--tint: var(--lc-label-amber)">AR</span>
+              </div>
+              <div class="agent-foot"><b>❯</b> updated by agent · <span id="fresh-ago">12s</span></div>
+            </div>
+            <div class="card" tabindex="0">
+              <div class="top"><span class="id">LC-122</span><span class="spacer"></span>
+                <span class="p-chip">P3</span>
+              </div>
+              <div class="title">Ticket panel: markdown editor write/preview toggle</div>
+              <div class="foot">
+                <span class="fraction">1/4</span>
+                <span class="progress"><i style="width: 25%"></i></span>
+                <span class="spacer"></span>
+                <span class="avatar" style="--tint: var(--lc-label-purple)">MK</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= IN REVIEW ================= -->
+        <div class="col">
+          <div class="col-head">
+            <svg class="glyph" width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="var(--lc-status-in-review)" stroke="var(--lc-status-in-review)" stroke-width="1.6"/></svg>
+            In Review <span class="count">1</span>
+          </div>
+          <div class="cards">
+            <div class="card" tabindex="0">
+              <div class="top"><span class="id">LC-119</span><span class="spacer"></span>
+                <span class="p-chip">P2</span>
+              </div>
+              <div class="title">File format: frontmatter schema for checklists</div>
+              <div class="foot">
+                <span class="label-chip" style="--label: var(--lc-label-blue)"><i></i>infra</span>
+                <span class="spacer"></span>
+                <span class="avatar" style="--tint: var(--lc-label-cyan)">JT</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= DONE ================= -->
+        <div class="col">
+          <div class="col-head">
+            <svg class="glyph" width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="var(--lc-status-done)" stroke="var(--lc-status-done)" stroke-width="1.6"/></svg>
+            Done <span class="count">2</span>
+          </div>
+          <div class="cards">
+            <div class="card" tabindex="0">
+              <div class="top"><span class="id">LC-127</span><span class="spacer"></span>
+                <span class="p-chip">P1</span>
+              </div>
+              <div class="title">Debounce config: expose watch interval in settings file</div>
+              <div class="foot">
+                <span class="fraction">5/5</span>
+                <span class="progress"><i style="width: 100%"></i></span>
+                <span class="spacer"></span>
+                <span class="avatar" style="--tint: var(--lc-label-amber)">AR</span>
+              </div>
+            </div>
+            <div class="card" tabindex="0">
+              <div class="top"><span class="id">LC-108</span><span class="spacer"></span>
+                <svg class="glyph" width="13" height="13" viewBox="0 0 14 14"><rect x="2.5" y="6.2" width="9" height="1.6" rx="0.8" fill="var(--lc-priority-none)"/></svg>
+              </div>
+              <div class="title">Side panel: starred section ordering</div>
+              <div class="foot">
+                <span class="label-chip" style="--label: var(--lc-label-pink)"><i></i>design</span>
+                <span class="spacer"></span>
+                <span class="avatar" style="--tint: var(--lc-label-purple)">MK</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="term-slot">terminal · reserved · phase 2</div>
+    </main>
+  </div>
+
+  <div class="gate-note">
+    exit gate: this board renders in 4 themes × 2 appearances from one DOM — switching swaps --lc-* tokens only ·
+    zero hardcoded accent hues in components (grep this file for "#": glyph geometry only) ·
+    human/agent distinction verified in accessibility.md
+  </div>
+
+<script>
+  document.querySelectorAll("[data-set-theme]").forEach((b) =>
+    b.addEventListener("click", () => {
+      document.documentElement.dataset.theme = b.dataset.setTheme;
+      document.querySelectorAll("[data-set-theme]").forEach((x) =>
+        x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+    })
+  );
+  document.querySelectorAll("[data-set-appearance]").forEach((b) =>
+    b.addEventListener("click", () => {
+      document.documentElement.dataset.appearance = b.dataset.setAppearance;
+      document.querySelectorAll("[data-set-appearance]").forEach((x) =>
+        x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+      // swatch previews follow the active appearance
+      document.querySelectorAll(".swatch i").forEach((i) =>
+        i.setAttribute("data-appearance", b.dataset.setAppearance));
+    })
+  );
+
+  // The designed moment: an external agent edit re-triggers the pulse
+  // (900ms ease, exactly two beats — never an infinite loop).
+  const dot = document.getElementById("pulse-dot");
+  document.getElementById("simulate").addEventListener("click", () => {
+    document.getElementById("fresh-ago").textContent = "just now";
+    dot.classList.remove("pulsing");
+    void dot.offsetWidth;
+    dot.classList.add("pulsing");
+  });
+
+  paintSwatches();
+</script>
+</body>
+</html>

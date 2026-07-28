@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://longclaw.io/schemas/design-tokens-v1.json",
+  "title": "LongClaw design tokens",
+  "type": "object",
+  "required": ["name", "version", "system", "appearances", "themes"],
+  "properties": {
+    "name": { "type": "string" },
+    "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "description": { "type": "string" },
+    "system": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": "string" }
+    },
+    "appearances": {
+      "type": "object",
+      "required": ["light", "dark"],
+      "additionalProperties": {
+        "type": "object",
+        "minProperties": 1,
+        "additionalProperties": { "type": "string" }
+      }
+    },
+    "themes": {
+      "type": "object",
+      "minProperties": 4,
+      "maxProperties": 4,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["label", "description", "light", "dark"],
+        "properties": {
+          "label": { "type": "string" },
+          "description": { "type": "string" },
+          "light": { "$ref": "#/$defs/accentSet" },
+          "dark": { "$ref": "#/$defs/accentSet" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "$defs": {
+    "accentSet": {
+      "type": "object",
+      "required": [
+        "accent-human",
+        "accent-human-hover",
+        "accent-human-active",
+        "accent-human-soft",
+        "accent-human-soft-hover",
+        "accent-human-border",
+        "accent-human-on-solid",
+        "accent-agent",
+        "accent-agent-hover",
+        "accent-agent-active",
+        "accent-agent-soft",
+        "accent-agent-soft-hover",
+        "accent-agent-border",
+        "accent-agent-on-solid"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^#[0-9A-F]{6}$"
+      }
+    }
+  },
+  "additionalProperties": true
+}
