@@ -1,6 +1,6 @@
 # Errors cross IPC as a closed tagged shape
 
-**Status:** proposed for acceptance at the M2 human-review gate.
+**Status:** accepted at the M2 human-review gate on 2026-07-29.
 
 Represent expected failures as:
 

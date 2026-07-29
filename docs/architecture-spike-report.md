@@ -1,6 +1,6 @@
 # Tauri v2 architecture spike — review report
 
-**Status:** implementation and automated proof complete; human M2 acceptance pending.
+**Status:** accepted at the M2 human-review gate on 2026-07-29.
 
 **Branch:** `spike/tauri-v2-architecture`
 
@@ -10,22 +10,22 @@
 
 This throwaway spike asks whether one small architecture can make project files authoritative while delivering external edits to visible Tauri state and app edits back to disk without watcher loops.
 
-**Verdict:** yes for the exercised direct-distribution macOS path. The deep `ProjectEngine` module hides parsing, atomic replacement, content hashes, index rebuilds, FSEvents stabilization/coalescing, and self-write receipts behind a small interface. Thin Tauri and Zustand adapters translate that state across the IPC seam. Phase 1 can extend this shape after a human accepts M2 and the still-draft M1 format is formally approved.
+**Verdict:** yes for the exercised direct-distribution macOS path. The deep `ProjectEngine` module hides parsing, atomic replacement, content hashes, index rebuilds, FSEvents stabilization/coalescing, and self-write receipts behind a small interface. Thin Tauri and Zustand adapters translate that state across the IPC seam. M2 accepted this architecture; Phase 1 promotion still requires formal approval of the still-draft M1 format.
 
 ## Exit-gate evidence
 
 | Gate | Result | Evidence |
 |---|---|---|
-| External file edit reaches visible Tauri UI state | Pass for change; deletion pending M2 visual check | The exact final-source release binary rendered five fixture rows. A real edit to `LC-1/ticket.md` produced `event 1 · ticketChanged`; the next animation-frame probe contained `EXACT SOURCE — watcher reached rendered state` in the rendered row. Restoring the file produced `event 2 · ticketChanged` with the original title. Automated polling-watcher coverage now deletes a real `ticket.md`, asserts the exact camelCase `ticketRemoved` JSON, removes the indexed row, and produces no duplicate; the shared Rust-locked JSON fixture removes the Zustand row. Step 5 below is the native visible-state confirmation. |
+| External file edit reaches visible Tauri UI state | Pass | The exact final-source release binary rendered five fixture rows. A real edit to `LC-1/ticket.md` produced `event 1 · ticketChanged`; the next animation-frame probe contained `EXACT SOURCE — watcher reached rendered state` in the rendered row. Automated polling-watcher coverage deletes a real `ticket.md`, asserts the exact camelCase `ticketRemoved` JSON, removes the indexed row, and produces no duplicate; the shared Rust-locked JSON fixture removes the Zustand row. The M2 review confirmed the native visible deletion and restoration path. |
 | In-app edit reaches disk atomically without a watcher loop or duplicate activity | Pass | `filesystem_round_trip_covers_self_write_external_burst_deletion_and_reconcile`: sibling temp, file sync, rename, directory sync; one activity event; zero watcher echo; unknown extension retained. The release-window probe separately exercised native FSEvents. |
 | Local index can be deleted and rebuilt entirely from project files | Pass | `index_is_disposable_and_rebuilds_degraded_records_from_files`: clear produced zero records; rescan reproduced all five records, including both degraded records. |
 | Typed Phase 2 streaming extension exists | Pass | Real Tauri `Channel<StreamFrame>` sends ordered `started/chunk/finished` tagged frames with binary byte chunks. |
-| Sleep/wake, removal, rapid edits, rename/write patterns exercised | Partial; M2 physical wake check pending | Four rapid sibling-renames, stable parse delay, coalescing, external ticket deletion, explicit reconciliation, and a moved folder pass. The reconciliation operation is tested, but its former Rust trigger was not: tao 0.35.3 marks lifecycle `Resumed` unsupported on macOS, and a tagged 30-second normal release session observed zero `RunEvent::Resumed` callbacks. The misleading arm was removed. Frontend focus/visibility recovery remains; use the explicit M2 criteria below. |
-| Human review accepts the spike | Pending | Run the review scenario below and record accept/revise before merging any durable ADRs or starting broad implementation. |
+| Sleep/wake, removal, rapid edits, rename/write patterns exercised | Pass within the documented M2 rubric | Four rapid sibling-renames, stable parse delay, coalescing, external ticket deletion, explicit reconciliation, and a moved folder pass. The M2 review completed the physical sleep/wake scenario successfully. The accepted Phase 1 gap remains: tao does not provide a macOS wake trigger while focus stays unchanged, so production must add the documented native adapter. |
+| Human review accepts the spike | Pass | The full M2 scenario was completed successfully on 2026-07-29, including picker click-through, native external deletion/restoration, physical sleep/wake, and the moved-folder banner path check. ADRs 0006–0010 are accepted. |
 
 The attempted screenshot capture was blocked by macOS screen-recording permissions. No screenshot is claimed. The release-mode application launch and animation-frame DOM probes are retained as the deterministic visible-state evidence.
 
-The native picker is implemented, capability-scoped, and release-compiled; project registration/restart persistence is automated. macOS also denied assistive-access automation, so clicking through the picker itself remains step 3 of the human review scenario rather than an automated claim.
+The native picker is implemented, capability-scoped, and release-compiled; project registration/restart persistence is automated. macOS denied assistive-access automation, so the M2 reviewer completed the picker click-through manually.
 
 The committed lockfile resolves `serde` and `serde_derive` 1.0.229, which is newer than the 1.0.190 release that introduced `rename_all_fields`; the locked derive source contains the attribute implementation, so no additional pin is required. The IPC regression harness uses one checked-in JSON fixture: Rust exact-JSON tests lock every `ProjectEvent` and `StreamFrame` variant to it, and Vitest replays its deletion and unavailable envelopes through `store.applyEvent`.
 
@@ -162,6 +162,8 @@ fixtures/
 Do not split the five `project/` files into public crates on day one. They are one deep module with one external interface. Extract `longclaw-format` only when a second real caller (for example, a CLI) exists. Introduce an index port only when both in-memory and SQLite adapters are justified.
 
 ## Human review scenario
+
+**M2 result:** accepted on 2026-07-29. The reviewer reported that every step below completed correctly. The scenario remains here for future Tauri upgrades and regression reviews.
 
 1. Ensure Node 22+ and Rust 1.93+ are active.
 2. Run `cd spikes/tauri-v2-architecture && npm install && npm run verify && npm run spike`.

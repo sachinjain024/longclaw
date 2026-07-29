@@ -1,6 +1,6 @@
 # Zustand is a thin frontend state cache
 
-**Status:** proposed for acceptance at the M2 human-review gate.
+**Status:** accepted at the M2 human-review gate on 2026-07-29.
 
 Use one small Zustand store for device-session view state. It stores the active project snapshot, the latest monotonically sequenced Rust event, optimistic write state, and ephemeral search/stream-probe presentation. It does not parse files, allocate ticket identity, resolve conflicts, suppress watcher events, or decide canonical ticket state.
 

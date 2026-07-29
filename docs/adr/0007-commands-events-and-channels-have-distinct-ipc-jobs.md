@@ -1,6 +1,6 @@
 # Commands, events, and channels have distinct IPC jobs
 
-**Status:** proposed for acceptance at the M2 human-review gate.
+**Status:** accepted at the M2 human-review gate on 2026-07-29.
 
 Use Tauri commands for request/response work, a single versioned project-event topic for low-volume invalidations and external changes, and Tauri channels for ordered high-throughput streams.
 

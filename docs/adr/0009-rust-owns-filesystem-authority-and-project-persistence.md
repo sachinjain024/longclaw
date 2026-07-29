@@ -1,6 +1,6 @@
 # Rust owns filesystem authority and project persistence
 
-**Status:** proposed for acceptance at the M2 human-review gate.
+**Status:** accepted at the M2 human-review gate on 2026-07-29.
 
 The main webview may open a native folder picker, call registered commands, and receive events. It receives no filesystem, shell, process, or network capability. Rust canonicalizes the chosen folder, validates `.longclaw/longclaw.yaml`, and persists a small project-reference registry in the operating system application-support directory using the same sibling-temp-plus-rename discipline as ticket writes.
 

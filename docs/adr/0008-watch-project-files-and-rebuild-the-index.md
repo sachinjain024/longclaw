@@ -1,6 +1,6 @@
 # Watch project files and rebuild the index
 
-**Status:** proposed for acceptance at the M2 human-review gate.
+**Status:** accepted at the M2 human-review gate on 2026-07-29.
 
 Use a native recursive watcher on the selected project’s `.longclaw/tickets` directory. Normalize each notification burst into canonical `ticket.md` paths, wait for a 140 ms quiet period with a 900 ms maximum burst, and confirm the destination file is stable across a 35 ms interval before parsing.
 
