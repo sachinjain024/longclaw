@@ -10,7 +10,7 @@
 
 This throwaway spike asks whether one small architecture can make project files authoritative while delivering external edits to visible Tauri state and app edits back to disk without watcher loops.
 
-**Verdict:** yes for the exercised direct-distribution macOS path. The deep `ProjectEngine` module hides parsing, atomic replacement, content hashes, index rebuilds, FSEvents stabilization/coalescing, and self-write receipts behind a small interface. Thin Tauri and Zustand adapters translate that state across the IPC seam. M2 accepted this architecture; Phase 1 promotion still requires formal approval of the still-draft M1 format.
+**Verdict:** yes for the exercised direct-distribution macOS path. The deep `ProjectEngine` module hides parsing, atomic replacement, content hashes, index rebuilds, FSEvents stabilization/coalescing, and self-write receipts behind a small interface. Thin Tauri and Zustand adapters translate that state across the IPC seam. M1 accepted the v1 file-format contract and M2 accepted this architecture. Production parser/write promotion remains gated on the full Step 3 compatibility fixture suite recorded in the risk register.
 
 ## Exit-gate evidence
 

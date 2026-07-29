@@ -1,7 +1,8 @@
 ---
 title: "LongClaw — On-Disk File Format & Data Model"
 product: LongClaw
-status: draft
+status: approved
+approved_at: "2026-07-29"
 scope: "Phase 0 file format and data model; Phase 1 v0 storage contract"
 sources:
   - vision.md
@@ -10,6 +11,8 @@ sources:
 ---
 
 # LongClaw — On-Disk File Format & Data Model
+
+Approved at the M1 human-review gate on 2026-07-29.
 
 ## Recommendation
 

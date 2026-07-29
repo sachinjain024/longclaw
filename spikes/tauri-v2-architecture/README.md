@@ -6,7 +6,7 @@
 
 Can a small Tauri v2 architecture keep LongClaw project files authoritative while reliably propagating external file edits through Rust and IPC into visible UI state, and propagating in-app edits back through atomic disk writes without watcher loops or duplicate activity?
 
-The answer from this spike is **yes for the exercised direct-distribution macOS path**. M2 human review accepted the architecture on 2026-07-29. Formal approval of the still-draft v1 file format remains required before production promotion.
+The answer from this spike is **yes for the exercised direct-distribution macOS path**. M1 human review accepted the v1 file-format contract and M2 human review accepted the architecture on 2026-07-29. The full Step 3 compatibility fixture suite remains required before promoting the production parser/write path.
 
 ## One command
 
@@ -54,7 +54,7 @@ If a login shell resolves the legacy `/usr/local/bin/node`, activate Node 22 bef
 This branch is the primary source for the spike. M2 is accepted; for production promotion:
 
 1. keep the spike on this throwaway branch;
-2. promote only accepted ADRs and the deep `ProjectEngine` interface into the production foundation after M1 format approval;
+2. promote the accepted ADRs and deep `ProjectEngine` interface into the production foundation, while keeping parser/write promotion gated on the full Step 3 compatibility fixture suite;
 3. link this branch from the implementation ticket rather than merging the throwaway shell into main.
 
 See [the review report](../../docs/architecture-spike-report.md), [risk register](../../docs/architecture-spike-risk-register.md), and ADRs 0006–0010.
