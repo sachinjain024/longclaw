@@ -79,7 +79,7 @@
 |---|---|---|
 | Quick-create context `KEY-n` | project key + next sequence | `longclaw.yaml` + canonical ticket scan under creation lock (file_format § Ticket ID allocation) |
 | Full create fields | same as panel fields | written to a new `tickets/<KEY-n>/ticket.md` |
-| "created this ticket" event | actor = local human identity | see open item 1 below |
+| "created this ticket" event | reserved local human actor | `{ type: human, id: local }`; rendered as “You” |
 
 ### First launch / project creation & settings
 
@@ -134,22 +134,22 @@ the screens:** starred, appearance, view preference, filter, freshness,
 conflict hashes, palette history, waitlist joined. None of these need to
 be portable; none enter the files.
 
-**Open items surfaced by the prototype — status after ADRs 0001–0005:**
+**Items surfaced by the prototype — status after ADRs 0001–0005:**
 
-1. **Local human identity** — *narrowed by [ADR 0001](../../adr/0001-no-assignee-in-local-mode.md).*
-   With no assignee in local mode, identity is needed only for actor
-   attribution on comments and activity events (a display identity).
-   Step 3 still decides how that local actor id/name is established per
-   machine (project creation prompt vs OS username default).
+1. **Local human identity** — *closed by [ADR 0001](../../adr/0001-no-assignee-in-local-mode.md).*
+   Local projects expose no identity or profile UI in v0. App-authored
+   human activity uses the reserved actor `{ type: human, id: local }`,
+   omits a personal name, and renders as “You.”
 2. **Status enum vs user-defined statuses** — *closed by
    [ADR 0002](../../adr/0002-fixed-statuses-in-v0.md).* v0 ships the six
    built-ins only; no status registry enters the v1 format. User-defined
    statuses arrive later as per-project data outside `longclaw.yaml`.
-3. **Ticket ordering** — *largely closed by
+3. **Ticket ordering** — *closed by
    [ADR 0003](../../adr/0003-priority-default-ordering-manual-option.md).*
    Priority order is the default and needs nothing on disk; `rank` is
-   written only by manual reordering. Step 3 still specifies the rank
-   midpoint scheme and the rank assigned on first manual reorder.
+   written only by drag-and-drop while the board sort option is Manual.
+   LongClaw owns rank allocation in v0; agents preserve existing ranks and
+   do not invent them.
 4. **Freshness provenance** — unchanged. "Updated by agent" derives from
    the newest activity entry's actor when a watcher event arrives; an
    unattributed external mutation shows as

@@ -122,6 +122,20 @@ pub fn parse_ticket(path: &Path, project_root: &Path) -> AppResult<TicketRecord>
             )
         })?;
     validate_ticket_format(&frontmatter, path)?;
+    let directory_key = path
+        .parent()
+        .and_then(Path::file_name)
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| AppError::parse(path, "Ticket directory must have a UTF-8 key name"))?;
+    if frontmatter.key != directory_key {
+        return Err(AppError::parse(
+            path,
+            format!(
+                "Ticket key {} does not match directory {directory_key}",
+                frontmatter.key
+            ),
+        ));
+    }
     let (checked_count, checklist_count) = checklist_counts(body);
     let relative_path = path
         .strip_prefix(project_root)
@@ -134,7 +148,7 @@ pub fn parse_ticket(path: &Path, project_root: &Path) -> AppResult<TicketRecord>
         view: TicketView {
             key: frontmatter.key,
             title: frontmatter.title,
-            status: frontmatter.status,
+            status: frontmatter.status.as_str().to_owned(),
             checked_count,
             checklist_count,
             content_hash: content_hash(&bytes),
@@ -275,7 +289,7 @@ fn append_activity(body: &str, title: &str) -> String {
     let now = Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
     let event_id = format!("evt_{}", Uuid::new_v4().simple());
     output.push_str(&format!(
-        "\n\n<!-- longclaw:event\nid: {event_id}\nkind: update\noccurred_at: {now}\nactor:\n  type: human\n  id: longclaw-spike\n  name: LongClaw spike UI\nchanges:\n  - field: title\n    to: {}\n-->\n### LongClaw spike UI updated this ticket\n\nChanged the title through the atomic-write architecture proof.\n<!-- /longclaw:event -->\n",
+        "\n\n<!-- longclaw:event\nid: {event_id}\nkind: update\noccurred_at: {now}\nactor:\n  type: human\n  id: local\nchanges:\n  - field: title\n    to: {}\n-->\n### You updated this ticket\n\nChanged the title through the atomic-write architecture proof.\n<!-- /longclaw:event -->\n",
         serde_json::to_string(title).expect("serializing a string cannot fail")
     ));
     output

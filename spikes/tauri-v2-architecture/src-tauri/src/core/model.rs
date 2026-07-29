@@ -33,10 +33,45 @@ pub struct TicketFrontmatter {
     pub id: String,
     pub key: String,
     pub title: String,
-    pub status: String,
-    pub priority: String,
+    pub status: Status,
+    pub priority: Priority,
     pub created_at: String,
     pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum Status {
+    Backlog,
+    Todo,
+    InProgress,
+    InReview,
+    Done,
+    Canceled,
+}
+
+impl Status {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Backlog => "backlog",
+            Self::Todo => "todo",
+            Self::InProgress => "in_progress",
+            Self::InReview => "in_review",
+            Self::Done => "done",
+            Self::Canceled => "canceled",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Priority {
+    Urgent,
+    P1,
+    P2,
+    P3,
+    P4,
+    None,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

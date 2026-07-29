@@ -1,12 +1,12 @@
-# PROTOTYPE — Tauri v2 architecture spike
+# ARCHIVED PROTOTYPE — Tauri v2 architecture spike
 
-> Throwaway primary-source code for Phase 0 Step 4. Do not turn this directory into the production app.
+> Archival evidence for Phase 0 Step 4. This directory may remain under `spikes/` on `main`, but it is not production code and must not become the production app.
 
 ## Question
 
 Can a small Tauri v2 architecture keep LongClaw project files authoritative while reliably propagating external file edits through Rust and IPC into visible UI state, and propagating in-app edits back through atomic disk writes without watcher loops or duplicate activity?
 
-The answer from this spike is **yes for the exercised direct-distribution macOS path**. M1 human review accepted the v1 file-format contract and M2 human review accepted the architecture on 2026-07-29. The full Step 3 compatibility fixture suite remains required before promoting the production parser/write path.
+The answer from this spike is **yes for the exercised direct-distribution macOS path**. M1 human review accepted the v1 file-format contract and M2 human review accepted the architecture on 2026-07-29. Focused real-file compatibility tests protect the v0 contract; a comprehensive canonical conformance-fixture corpus is deferred to the post-MVP product v1.
 
 ## One command
 
@@ -51,10 +51,10 @@ If a login shell resolves the legacy `/usr/local/bin/node`, activate Node 22 bef
 
 ## Capture and promotion
 
-This branch is the primary source for the spike. M2 is accepted; for production promotion:
+M2 is accepted. Preserve the exact reviewed snapshot with an annotated tag; the directory may also remain on `main` for discoverability. For production promotion:
 
-1. keep the spike on this throwaway branch;
-2. promote the accepted ADRs and deep `ProjectEngine` interface into the production foundation, while keeping parser/write promotion gated on the full Step 3 compatibility fixture suite;
-3. link this branch from the implementation ticket rather than merging the throwaway shell into main.
+1. keep this directory under `spikes/` and label it as archived evidence;
+2. promote the accepted ADRs and deep `ProjectEngine` interface into the production foundation, while implementing the production parser/write path against the focused compatibility tests instead of copying the spike parser;
+3. link the annotated spike tag from the implementation ticket.
 
 See [the review report](../../docs/architecture-spike-report.md), [risk register](../../docs/architecture-spike-risk-register.md), and ADRs 0006–0010.

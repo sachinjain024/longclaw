@@ -8,9 +8,9 @@
 
 ## Question and verdict
 
-This throwaway spike asks whether one small architecture can make project files authoritative while delivering external edits to visible Tauri state and app edits back to disk without watcher loops.
+This archived spike asks whether one small architecture can make project files authoritative while delivering external edits to visible Tauri state and app edits back to disk without watcher loops.
 
-**Verdict:** yes for the exercised direct-distribution macOS path. The deep `ProjectEngine` module hides parsing, atomic replacement, content hashes, index rebuilds, FSEvents stabilization/coalescing, and self-write receipts behind a small interface. Thin Tauri and Zustand adapters translate that state across the IPC seam. M1 accepted the v1 file-format contract and M2 accepted this architecture. Production parser/write promotion remains gated on the full Step 3 compatibility fixture suite recorded in the risk register.
+**Verdict:** yes for the exercised direct-distribution macOS path. The deep `ProjectEngine` module hides parsing, atomic replacement, content hashes, index rebuilds, FSEvents stabilization/coalescing, and self-write receipts behind a small interface. Thin Tauri and Zustand adapters translate that state across the IPC seam. M1 accepted the v1 file-format contract and M2 accepted this architecture. Focused real-file compatibility tests protect the v0 contract; a comprehensive canonical conformance-fixture corpus is deferred to the post-MVP product v1.
 
 ## Exit-gate evidence
 
@@ -156,7 +156,7 @@ apps/desktop/
         ├── registry/         # application-support project references
         └── platform/macos/   # wake notification and future bookmark adapter
 fixtures/
-└── format-v1/                # Step 3 canonical compatibility suite
+└── format-v1/                # post-MVP product-v1 conformance corpus (deferred)
 ```
 
 Do not split the five `project/` files into public crates on day one. They are one deep module with one external interface. Extract `longclaw-format` only when a second real caller (for example, a CLI) exists. Introduce an index port only when both in-memory and SQLite adapters are justified.

@@ -30,10 +30,18 @@ export interface ActorSummary {
   name?: string;
 }
 
+export type TicketStatus =
+  | "backlog"
+  | "todo"
+  | "in_progress"
+  | "in_review"
+  | "done"
+  | "canceled";
+
 export interface TicketView {
   key: string;
   title: string;
-  status: string;
+  status: TicketStatus;
   checkedCount: number;
   checklistCount: number;
   contentHash: string;

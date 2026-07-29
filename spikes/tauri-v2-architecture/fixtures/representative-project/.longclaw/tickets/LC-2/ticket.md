@@ -2,9 +2,9 @@
 format: longclaw.ticket/v1
 id: 019c9f45-8c1c-7334-bc9d-48770180844c
 key: LC-2
-title: Preserve fields during an atomic in-app write
+title: LC-2 Preserve fields during an atomic in-app write
 status: todo
-priority: high
+priority: p1
 labels:
   - reliability
 created_at: 2026-07-29T08:08:00Z

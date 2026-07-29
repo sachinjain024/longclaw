@@ -58,7 +58,7 @@ id: 019c8c7e-5f42-7b09-a07c-7411ef79e129
 key: LC-42
 title: Add retry support to the sync worker
 status: in_progress
-priority: high
+priority: p1
 assignee: sachin
 labels:
   - reliability
@@ -125,8 +125,10 @@ Important choices:
 
 - The directory name contains only the immutable human key, not the title. Renaming a title must not rename paths.
 - `id` is the globally unique identity; `key` is the human-facing identifier such as `LC-42`.
+- `status` is one of `backlog`, `todo`, `in_progress`, `in_review`, `done`, or `canceled`.
+- `priority` is one of `urgent`, `p1`, `p2`, `p3`, `p4`, or `none`. Priority order is the default board order.
 - Checklist items use ordinary Markdown tasks plus invisible stable IDs. Agents can safely change `[ ]` to `[x]`, while the app can still identify and attribute changes to a particular item.
-- `rank` lives on the ticket, preventing a shared board-order file from becoming a conflict hotspot.
+- `rank` is optional and lives on the ticket, preventing a shared board-order file from becoming a conflict hotspot. It affects order only when the board's device-local sort option is **Manual**. Drag-and-drop is disabled for priority sorting and writes ranks only in Manual mode. In v0, LongClaw owns rank allocation; agents preserve existing ranks and do not invent them.
 - Derived values such as checklist progress, comment count, and last activity are not stored in the ticket.
 - Every canonical structured record declares its own versioned `format`; project format version alone is not sufficient for safe partial migrations.
 - Attachment and activity entries receive stable IDs in v0 so they can be moved into individual files later without reconstructing identity or attribution.
@@ -188,6 +190,7 @@ The activity model follows these rules:
 - If the app directly observes a stable before-and-after external change, it may create a durable `external_change` activity event with `actor.type: unknown`.
 - If the app did not observe the transition, it must not invent an actor, timestamp, or field-level historical details.
 - Actor type is explicit. The app never guesses whether an actor is a human or agent from its name.
+- Local projects expose no identity or profile UI in v0. App-authored human activity uses the reserved actor `{ type: human, id: local }`, omits a personal name, and renders as “You” in the app. The reserved `local` actor is not an assignee or a member of the project `people` registry.
 - Activity is sorted by `occurred_at`, with `id` used as a deterministic tie-breaker.
 
 Keeping activity embedded gives v0 agents one file to read and mutate. The accepted tradeoff is that comments, state changes, checklist updates, and activity appends all contend on `ticket.md`. Content-hash conflict detection and the external-edit UI are required from v0.
@@ -219,7 +222,7 @@ labels:
 
 The project key becomes immutable after the first ticket is created. Otherwise, changing it would require renaming every human-facing ticket key and directory.
 
-Ticket assignees refer to stable IDs in `people`. Only registered people are valid assignees. Agents appear as explicitly typed actors in embedded activity events but never in the assignable people registry.
+Ticket assignees refer to stable IDs in `people`. Only registered people are valid assignees. Local projects have no assignee or identity UI in v0, so they do not require a local human entry in `people`. Agents appear as explicitly typed actors in embedded activity events but never in the assignable people registry.
 
 Tickets store label slugs. This lets a label's display name or color change without rewriting every ticket carrying that label.
 
@@ -270,6 +273,8 @@ The registry entry contains the stable attachment ID, relative file path, origin
 
 Attachment rules:
 
+- The v0 app supports attachments whose detected media type is `image/*`, `text/*`, or `video/*`.
+- Each attachment is limited to 10 MB (10,000,000 bytes).
 - Copy files into the ticket's `attachments/` directory; never store absolute external paths as canonical attachments.
 - Name files `<attachment-id>-<sanitized-original-name>`.
 - Keep the original display name in the ticket registry.
@@ -284,7 +289,13 @@ Attachment rules:
 - Serve videos with byte-range support so seeking does not require loading the complete file.
 - Warn when large files may be unsuitable for ordinary git storage or may benefit from Git LFS. LongClaw does not modify git configuration automatically.
 
-Exact supported media types and size limits belong in the versioned format specification. Unknown file types remain downloadable as opaque attachments rather than being executed or rendered as trusted content.
+An unsupported media type already present on disk remains preserved as an opaque attachment rather than being executed or rendered as trusted content. The v0 app does not create a new registry entry for it.
+
+## Agent access and CLI projection
+
+The v0 agent interface is the versioned project-file contract itself. Agents read and safely edit `.longclaw/longclaw.yaml` and canonical `ticket.md` files according to `.longclaw/AGENTS.md`.
+
+A CLI/JSON projection would add commands that expose the same records as machine-readable JSON and perform mutations on an agent's behalf. It is deferred until a real second caller needs it. No CLI, JSON projection, or sidecar JSON file is required for v0, and its absence does not block the direct file round-trip.
 
 ## Data that should not live in the project
 

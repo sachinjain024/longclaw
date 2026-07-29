@@ -5,3 +5,5 @@ v0 renders no attachment UI — no upload, gallery, or preview surfaces. The v1 
 ## Consequences
 
 - Agents may already register attachments per the format contract; the app must preserve those records losslessly even though it doesn't render them (closes `data-requirements.md` open item 6).
+- The supported media families are `image/*`, `text/*`, and `video/*`, with a maximum of 10 MB (10,000,000 bytes) per attachment.
+- Unsupported media types already present on disk are preserved as opaque records, but the v0 app does not create new registry entries for them.

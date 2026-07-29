@@ -150,7 +150,7 @@ Phase 0 is deliberately human-led. Its purpose is to remove expensive ambiguity 
 
 **Goal:** Create the durable, agent-first contract that serves as the source of truth for both the app and external agents.
 
-**Approved foundation:** [On-Disk File Format & Data Model](file_format.md). Complete the fixtures, compatibility tests, and editing guide below before closing the M1 gate.
+**Approved foundation:** [On-Disk File Format & Data Model](file_format.md). Complete focused real-file compatibility tests and the editing guide before closing the M1 gate. A comprehensive canonical conformance-fixture corpus is deferred to the post-MVP product v1 and is not an M1 gate.
 
 **Work:**
 
@@ -180,7 +180,7 @@ Phase 0 is deliberately human-led. Its purpose is to remove expensive ambiguity 
 
 - Versioned file-format and data-model specification.
 - Canonical example project containing representative tickets and activity.
-- Valid, invalid, partially written, unknown-field, and version-mismatch fixtures.
+- Representative valid, invalid, partially written, unknown-field, and version-mismatch examples. A comprehensive conformance-fixture corpus follows in the post-MVP product v1.
 - Round-trip invariants and compatibility policy.
 - Agent editing guide with before/after examples.
 
