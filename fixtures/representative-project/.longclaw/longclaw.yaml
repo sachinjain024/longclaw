@@ -1,0 +1,8 @@
+format: longclaw.project/v1
+id: representative-project
+name: Representative Project
+key: LC
+theme: indigo
+created_at: 2026-07-29T00:00:00Z
+people: {}
+labels: {}

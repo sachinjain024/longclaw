@@ -1,0 +1,50 @@
+{
+  "name": "@longclaw/desktop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tauri dev",
+    "dev:web": "vite",
+    "dev:fixture": "LONGCLAW_DEV_PROJECT=$PWD/../../fixtures/representative-project tauri dev",
+    "build": "tsc --noEmit && vite build",
+    "build:app": "tauri build",
+    "check": "npm run tokens:check && npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build",
+    "format": "prettier --write . && cargo fmt --manifest-path src-tauri/Cargo.toml",
+    "format:check": "prettier --check . && cargo fmt --manifest-path src-tauri/Cargo.toml --check",
+    "lint": "eslint . --max-warnings=0 && cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings",
+    "tokens:build": "node src/tokens/build.mjs",
+    "tokens:check": "node src/tokens/build.mjs && prettier --write src/tokens/design-tokens.css && git diff --exit-code -- src/tokens/design-tokens.css",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run test:frontend && npm run test:rust",
+    "tauri": "tauri",
+    "test:frontend": "vitest run",
+    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "test:watcher": "cargo test --manifest-path src-tauri/Cargo.toml filesystem_round_trip -- --ignored --nocapture",
+    "lint:rust": "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings",
+    "perf:rust": "cargo test --manifest-path src-tauri/Cargo.toml performance_budgets -- --ignored --nocapture",
+    "verify": "npm run check && npm run test:watcher"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.8.0",
+    "@tauri-apps/plugin-dialog": "^2.4.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.8.4",
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.4",
+    "eslint": "^9.32.0",
+    "prettier": "^3.6.2",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.38.0",
+    "vite": "^7.1.7",
+    "vitest": "^4.1.10"
+  }
+}

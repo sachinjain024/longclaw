@@ -1,0 +1,35 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "LongClaw",
+  "version": "0.1.0",
+  "identifier": "io.longclaw.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev:web",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "security": {
+      "capabilities": ["main"],
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost; style-src 'self' 'unsafe-inline'; script-src 'self'",
+      "freezePrototype": true
+    },
+    "windows": [
+      {
+        "label": "main",
+        "title": "LongClaw",
+        "width": 1180,
+        "height": 780,
+        "minWidth": 760,
+        "minHeight": 620,
+        "resizable": true
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app"],
+    "icon": ["icons/icon.png"]
+  }
+}

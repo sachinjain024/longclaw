@@ -2,7 +2,8 @@
 
 LongClaw is a local-first project manager for humans and AI agents. Humans plan and remain accountable for tickets; agents execute work and contribute their context back to the same ticket record stored beside the code.
 
-The product is currently in its foundation and specification phase.
+The product is in v0 local-core development. The production desktop app lives
+in `apps/desktop` and targets Tauri v2 on macOS.
 
 ## Product principles
 
@@ -19,6 +20,51 @@ The product is currently in its foundation and specification phase.
 - [MVP execution plan](docs/mvp_plan_order.md)
 - [On-disk file format and data model](docs/file_format.md)
 - [Domain language](CONTEXT.md)
+- [Contributor setup](CONTRIBUTING.md)
+
+## Development
+
+Prerequisites:
+
+- Node.js 22 or newer.
+- Rust with Cargo, Rustfmt, and Clippy.
+- macOS for the supported Tauri desktop target.
+
+Install and verify from a clean checkout:
+
+```sh
+npm --prefix apps/desktop install
+npm run verify
+```
+
+Launch the app:
+
+```sh
+npm run dev
+```
+
+Launch with the development fixture registered:
+
+```sh
+npm run dev:fixture
+```
+
+Build web assets and the production desktop app:
+
+```sh
+npm run build
+npm run build:app
+```
+
+`npm run verify` rejects formatting, lint, type, unit-test, integration-test,
+Clippy, watcher-integration, and Vite production-build failures.
+
+Local diagnostics are stdout-only and prefixed with
+`LONGCLAW_LOCAL_DIAGNOSTIC`; no telemetry or analytics are sent.
+
+## License
+
+LongClaw source code is licensed under the [Mozilla Public License 2.0](LICENSE).
 
 ## v0 ticket layout
 
@@ -33,4 +79,3 @@ Each ticket owns a stable directory containing its canonical Markdown record and
 `ticket.md` stores the ticket's structured metadata, description, checklist, attachment registry, comments, and activity. Text, image, and video attachment files live under the ticket's `attachments/` directory.
 
 See [docs/file_format.md](docs/file_format.md) for the approved contract.
-

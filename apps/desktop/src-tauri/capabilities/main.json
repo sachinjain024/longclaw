@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main",
+  "description": "The LongClaw desktop webview may use typed IPC/events and open one native folder picker. It has no frontend filesystem, shell, network, or process capability.",
+  "windows": ["main"],
+  "platforms": ["macOS"],
+  "permissions": ["core:default", "core:event:default", "dialog:allow-open"]
+}
