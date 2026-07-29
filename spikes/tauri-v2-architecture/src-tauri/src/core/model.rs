@@ -136,7 +136,12 @@ pub struct StreamEnvelope {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "type", content = "data", rename_all = "camelCase")]
+#[serde(
+    tag = "type",
+    content = "data",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum ProjectEvent {
     TicketChanged {
         ticket: TicketView,
@@ -158,7 +163,12 @@ pub enum ProjectEvent {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "event", content = "data", rename_all = "camelCase")]
+#[serde(
+    tag = "event",
+    content = "data",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum StreamFrame {
     Started {
         stream_id: String,
@@ -185,4 +195,166 @@ pub struct VisibleUiProbe {
     pub trace_text: String,
     pub viewport_width: u32,
     pub viewport_height: u32,
+}
+
+#[cfg(test)]
+mod json_contract_tests {
+    use serde_json::Value;
+
+    use super::{
+        ActorSummary, ProjectEvent, ProjectReference, ProjectSnapshot, StreamEnvelope, StreamFrame,
+        TicketView,
+    };
+
+    const EMITTED_AT: &str = "2026-07-29T12:00:00.000Z";
+    const PROJECT_ID: &str = "project-fixture";
+    const ROOT_PATH: &str = "/tmp/LongClaw Fixture";
+
+    fn fixture() -> Value {
+        serde_json::from_str(include_str!("../../tests/fixtures/ipc-contract.json"))
+            .expect("IPC contract fixture must be valid JSON")
+    }
+
+    fn ticket() -> TicketView {
+        TicketView {
+            key: "LC-3".to_owned(),
+            title: "External deletion contract".to_owned(),
+            status: "todo".to_owned(),
+            checked_count: 1,
+            checklist_count: 2,
+            content_hash: "abc123".to_owned(),
+            relative_path: ".longclaw/tickets/LC-3/ticket.md".to_owned(),
+            degraded: false,
+            diagnostic: None,
+            last_actor: Some(ActorSummary {
+                actor_type: "human".to_owned(),
+                name: Some("Sachin".to_owned()),
+            }),
+        }
+    }
+
+    fn project() -> ProjectReference {
+        ProjectReference {
+            id: PROJECT_ID.to_owned(),
+            name: "Fixture Project".to_owned(),
+            root_path: ROOT_PATH.to_owned(),
+            theme: "indigo".to_owned(),
+            reachable: true,
+        }
+    }
+
+    fn snapshot() -> ProjectSnapshot {
+        ProjectSnapshot {
+            project: project(),
+            tickets: vec![ticket()],
+            generation: 7,
+            rebuilt_in_ms: 12.5,
+        }
+    }
+
+    fn envelope(sequence: u64, event: ProjectEvent) -> StreamEnvelope {
+        StreamEnvelope {
+            contract_version: 1,
+            sequence,
+            project_id: PROJECT_ID.to_owned(),
+            emitted_at: EMITTED_AT.to_owned(),
+            event,
+        }
+    }
+
+    fn assert_project_event_contract(name: &str, sequence: u64, event: ProjectEvent) {
+        let expected = &fixture()["projectEventEnvelopes"][name];
+        let actual =
+            serde_json::to_value(envelope(sequence, event)).expect("project event must serialize");
+        assert_eq!(&actual, expected, "{name} JSON contract changed");
+    }
+
+    fn assert_stream_frame_contract(name: &str, frame: StreamFrame) {
+        let expected = &fixture()["streamFrames"][name];
+        let actual = serde_json::to_value(frame).expect("stream frame must serialize");
+        assert_eq!(&actual, expected, "{name} JSON contract changed");
+    }
+
+    #[test]
+    fn json_contract_ticket_changed() {
+        assert_project_event_contract(
+            "ticketChanged",
+            1,
+            ProjectEvent::TicketChanged {
+                ticket: ticket(),
+                source: "external".to_owned(),
+                coalesced_events: 4,
+                detected_in_ms: 186.96,
+            },
+        );
+    }
+
+    #[test]
+    fn json_contract_ticket_removed() {
+        assert_project_event_contract(
+            "ticketRemoved",
+            2,
+            ProjectEvent::TicketRemoved {
+                ticket_key: "LC-3".to_owned(),
+                source: "external".to_owned(),
+            },
+        );
+    }
+
+    #[test]
+    fn json_contract_index_rebuilt() {
+        assert_project_event_contract(
+            "indexRebuilt",
+            3,
+            ProjectEvent::IndexRebuilt {
+                snapshot: snapshot(),
+                reason: "resume".to_owned(),
+            },
+        );
+    }
+
+    #[test]
+    fn json_contract_project_unavailable() {
+        assert_project_event_contract(
+            "projectUnavailable",
+            4,
+            ProjectEvent::ProjectUnavailable {
+                root_path: ROOT_PATH.to_owned(),
+            },
+        );
+    }
+
+    #[test]
+    fn json_contract_stream_started() {
+        assert_stream_frame_contract(
+            "started",
+            StreamFrame::Started {
+                stream_id: "stream-fixture".to_owned(),
+                kind: "architecture-probe".to_owned(),
+            },
+        );
+    }
+
+    #[test]
+    fn json_contract_stream_chunk() {
+        assert_stream_frame_contract(
+            "chunk",
+            StreamFrame::Chunk {
+                stream_id: "stream-fixture".to_owned(),
+                sequence: 1,
+                bytes: b"ok\n".to_vec(),
+            },
+        );
+    }
+
+    #[test]
+    fn json_contract_stream_finished() {
+        assert_stream_frame_contract(
+            "finished",
+            StreamFrame::Finished {
+                stream_id: "stream-fixture".to_owned(),
+                exit_code: 0,
+            },
+        );
+    }
 }

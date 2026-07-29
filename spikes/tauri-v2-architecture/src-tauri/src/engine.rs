@@ -466,7 +466,7 @@ mod tests {
 
     #[test]
     #[ignore = "filesystem watcher integration; run through npm run test:watcher"]
-    fn filesystem_round_trip_covers_self_write_external_burst_resume_and_removal() {
+    fn filesystem_round_trip_covers_self_write_external_burst_deletion_and_reconcile() {
         let _serial = filesystem_test_guard();
         let (temp, root) = copy_fixture();
         let (engine, receiver) = start_engine(&root);
@@ -539,8 +539,44 @@ mod tests {
             "Rapid external edit 4"
         );
 
+        let deleted_path = root.join(".longclaw/tickets/LC-3/ticket.md");
+        fs::remove_file(&deleted_path).unwrap();
+        let deleted = receiver
+            .recv_timeout(Duration::from_secs(10))
+            .expect("external ticket deletion event");
+        assert_eq!(
+            serde_json::to_value(&deleted.event).unwrap(),
+            serde_json::json!({
+                "type": "ticketRemoved",
+                "data": {
+                    "ticketKey": "LC-3",
+                    "source": "external"
+                }
+            }),
+            "external deletion must cross IPC with the frontend field contract"
+        );
+        assert!(matches!(
+            deleted.event,
+            ProjectEvent::TicketRemoved {
+                ref ticket_key,
+                ref source
+            } if ticket_key == "LC-3" && source == "external"
+        ));
+        assert!(
+            engine
+                .snapshot()
+                .tickets
+                .iter()
+                .all(|ticket| ticket.key != "LC-3"),
+            "external deletion must remove the indexed row"
+        );
+        assert!(
+            receiver.recv_timeout(Duration::from_millis(500)).is_err(),
+            "one external deletion should produce one visible event"
+        );
+
         let resumed = engine.rebuild("resume", true).unwrap();
-        assert_eq!(resumed.tickets.len(), 5);
+        assert_eq!(resumed.tickets.len(), 4);
         let resume_event = receiver.recv_timeout(Duration::from_secs(1)).unwrap();
         assert!(matches!(
             resume_event.event,

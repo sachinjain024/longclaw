@@ -16,16 +16,18 @@ This throwaway spike asks whether one small architecture can make project files 
 
 | Gate | Result | Evidence |
 |---|---|---|
-| External file edit reaches visible Tauri UI state | Pass | The exact final-source release binary rendered five fixture rows. A real edit to `LC-1/ticket.md` produced `event 1 · ticketChanged`; the next animation-frame probe contained `EXACT SOURCE — watcher reached rendered state` in the rendered row. Restoring the file produced `event 2 · ticketChanged` with the original title. |
-| In-app edit reaches disk atomically without a watcher loop or duplicate activity | Pass | `filesystem_round_trip_covers_self_write_external_burst_resume_and_removal`: sibling temp, file sync, rename, directory sync; one activity event; zero watcher echo; unknown extension retained. The release-window probe separately exercised native FSEvents. |
+| External file edit reaches visible Tauri UI state | Pass for change; deletion pending M2 visual check | The exact final-source release binary rendered five fixture rows. A real edit to `LC-1/ticket.md` produced `event 1 · ticketChanged`; the next animation-frame probe contained `EXACT SOURCE — watcher reached rendered state` in the rendered row. Restoring the file produced `event 2 · ticketChanged` with the original title. Automated polling-watcher coverage now deletes a real `ticket.md`, asserts the exact camelCase `ticketRemoved` JSON, removes the indexed row, and produces no duplicate; the shared Rust-locked JSON fixture removes the Zustand row. Step 5 below is the native visible-state confirmation. |
+| In-app edit reaches disk atomically without a watcher loop or duplicate activity | Pass | `filesystem_round_trip_covers_self_write_external_burst_deletion_and_reconcile`: sibling temp, file sync, rename, directory sync; one activity event; zero watcher echo; unknown extension retained. The release-window probe separately exercised native FSEvents. |
 | Local index can be deleted and rebuilt entirely from project files | Pass | `index_is_disposable_and_rebuilds_degraded_records_from_files`: clear produced zero records; rescan reproduced all five records, including both degraded records. |
 | Typed Phase 2 streaming extension exists | Pass | Real Tauri `Channel<StreamFrame>` sends ordered `started/chunk/finished` tagged frames with binary byte chunks. |
-| Sleep/wake, removal, rapid edits, rename/write patterns exercised | Pass with human soak remaining | Resume reconciliation, moved folder, four rapid sibling-renames, stable parse delay, and watcher coalescing pass. A physical overnight sleep/wake soak remains on the human checklist. |
+| Sleep/wake, removal, rapid edits, rename/write patterns exercised | Partial; M2 physical wake check pending | Four rapid sibling-renames, stable parse delay, coalescing, external ticket deletion, explicit reconciliation, and a moved folder pass. The reconciliation operation is tested, but its former Rust trigger was not: tao 0.35.3 marks lifecycle `Resumed` unsupported on macOS, and a tagged 30-second normal release session observed zero `RunEvent::Resumed` callbacks. The misleading arm was removed. Frontend focus/visibility recovery remains; use the explicit M2 criteria below. |
 | Human review accepts the spike | Pending | Run the review scenario below and record accept/revise before merging any durable ADRs or starting broad implementation. |
 
 The attempted screenshot capture was blocked by macOS screen-recording permissions. No screenshot is claimed. The release-mode application launch and animation-frame DOM probes are retained as the deterministic visible-state evidence.
 
 The native picker is implemented, capability-scoped, and release-compiled; project registration/restart persistence is automated. macOS also denied assistive-access automation, so clicking through the picker itself remains step 3 of the human review scenario rather than an automated claim.
+
+The committed lockfile resolves `serde` and `serde_derive` 1.0.229, which is newer than the 1.0.190 release that introduced `rename_all_fields`; the locked derive source contains the attribute implementation, so no additional pin is required. The IPC regression harness uses one checked-in JSON fixture: Rust exact-JSON tests lock every `ProjectEvent` and `StreamFrame` variant to it, and Vitest replays its deletion and unavailable envelopes through `store.applyEvent`.
 
 ## Architecture and trust
 
@@ -77,13 +79,23 @@ Budgets are p95 on the oldest supported production Mac unless stated otherwise.
 | Large project load, 5,000 tickets | ≤ 2,500 ms | **711.49 ms** latest; **640.66 ms** earlier, both in an unoptimized Rust test build. |
 | Large-board keyboard/input → paint | ≤ 50 ms p95; ≤ 16 ms p50 | Phase 1 must add virtualization and a WebKit trace; the spike intentionally does not render 5,000 rows. |
 | Search, 5,000 tickets | ≤ 50 ms | **2.35 ms** latest; **2.37 ms** earlier in the unoptimized Rust harness. |
-| Stable external save → visible paint | ≤ 500 ms | **186.96 ms** through coalescing, stable read, parse, index, and Rust event for a six-notification burst; the release probe confirmed the title on the next animation frame. Phase 1 adds percentile telemetry stored locally. |
+| Stable external save → visible paint | ≤ 500 ms | **197.27 ms** in the latest `npm run verify` through coalescing, stable read, parse, index, and Rust event; the release probe confirmed the title on the next animation frame. Phase 1 adds percentile telemetry stored locally. |
 
 Measured command:
 
 ```sh
 npm run perf:rust
 ```
+
+## Reproducible verification gate
+
+The amended `npm run verify` passed once on 2026-07-29 with Node 22 and Cargo on `PATH`. Its output visibly included:
+
+- TypeScript checking and the Vite production build: pass, 562 ms build.
+- Vitest replay of the Rust-locked deletion and unavailable JSON envelopes: 2 passed.
+- `cargo clippy --all-targets -- -D warnings`: pass.
+- Rust unit/contract suite: 13 passed, 2 intentionally ignored.
+- Explicit polling-watcher round trip: 1 passed, including external ticket deletion, exact JSON, index removal, and no duplicate; latest external pipeline measurement 197.27 ms.
 
 Startup instrumentation for review hardware:
 
@@ -104,7 +116,7 @@ LONGCLAW_SPIKE_EXIT_AFTER_FIRST_PROBE=1 \
 - Recursive native watching, temporary-file filtering, quiet-period coalescing, stable-file confirmation, and exact-hash self-write suppression.
 - Degraded records for malformed and unsupported-version tickets.
 - Full index deletion/rebuild and case-insensitive search.
-- Rust `RunEvent::Resumed` plus frontend visibility/focus reconciliation.
+- Frontend visibility/focus reconciliation. A native macOS wake notification is explicitly deferred to Phase 1.
 - Versioned low-volume events and an ordered binary-safe channel.
 
 ## Rejected approaches and observed failure modes
@@ -142,7 +154,7 @@ apps/desktop/
         │   ├── index.rs
         │   └── watcher.rs
         ├── registry/         # application-support project references
-        └── platform/macos/   # resume and future bookmark adapter
+        └── platform/macos/   # wake notification and future bookmark adapter
 fixtures/
 └── format-v1/                # Step 3 canonical compatibility suite
 ```
@@ -152,13 +164,21 @@ Do not split the five `project/` files into public crates on day one. They are o
 ## Human review scenario
 
 1. Ensure Node 22+ and Rust 1.93+ are active.
-2. Run `cd spikes/tauri-v2-architecture && npm install && npm run spike`.
+2. Run `cd spikes/tauri-v2-architecture && npm install && npm run verify && npm run spike`.
 3. Choose `fixtures/representative-project`.
 4. Edit `LC-1/ticket.md` in a normal editor and confirm the green trace and updated title appear without refresh.
-5. Select `LC-2`, change its title, and choose **Save atomically**. Confirm the file contains one new activity event and still contains `x_fixture_extension`.
-6. Confirm no second green external trace appears for that in-app save.
-7. Choose **Delete + rebuild index** and confirm all five rows return.
-8. Choose **Probe ordered stream** and confirm `ordered binary-safe channel`.
-9. Put the Mac to sleep for at least one minute, wake it, edit again, and confirm reconciliation.
-10. Move the fixture folder temporarily and confirm the unavailable state; move it back and reopen.
-11. Record **accept** or the required revisions. Do not merge the proposed ADRs or begin broad Phase 1 implementation before that decision.
+5. Externally remove `LC-3/ticket.md` by renaming it to `ticket.md.m2-backup`. Confirm the `LC-3` row disappears, the trace reports `ticketRemoved`, and no duplicate event appears. Rename it back to `ticket.md` and confirm the row returns.
+6. Select `LC-2`, change its title, and choose **Save atomically**. Confirm the file contains one new activity event and still contains `x_fixture_extension`.
+7. Confirm no second green external trace appears for that in-app save.
+8. Choose **Delete + rebuild index** and confirm all five rows return.
+9. Choose **Probe ordered stream** and confirm `ordered binary-safe channel`.
+10. Put the Mac to sleep for at least one minute with LongClaw focused and visible. Wake without deliberately focusing another application, then follow the sleep/wake criteria below.
+11. Move `fixtures/representative-project` temporarily to `fixtures/representative-project.m2-moved`. Confirm the unavailable banner contains the original absolute project path—not `undefined`—then move it back and reopen.
+12. Record **accept** or the required revisions. Do not merge the proposed ADRs or begin broad Phase 1 implementation before that decision.
+
+### Sleep/wake M2 criteria
+
+- **Expected while focus stays unchanged:** no automatic `indexRebuilt` event is promised. The spike has no native macOS wake notification, and WebKit may emit neither `focus` nor `visibilitychange` when the same window remains focused. Record that absence as the accepted Phase 1 wake-adapter gap; it does not by itself block M2.
+- **Required after wake:** the app remains responsive. Make one external ticket edit, return to LongClaw if an editor took focus, and confirm the final title appears. Deliberately focus another application and return once; the focus recovery must complete without duplicate activity or a watcher loop.
+- **Blocks M2:** a crash or hang; the post-wake edit is still stale after returning focus; deliberate focus/visibility recovery does not restore the disk snapshot; the watcher emits duplicate visible activity; or a removed project remains silently usable after focus recovery.
+- **Phase 1 gap, not an M2 blocker:** the window stays focused across wake and no reconciliation happens until a later focus/visibility transition. Phase 1 must close that gap with `NSWorkspaceDidWakeNotification`, coalesced with the existing recovery path.

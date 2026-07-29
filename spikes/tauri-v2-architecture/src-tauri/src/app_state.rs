@@ -52,10 +52,4 @@ impl AppState {
     ) -> AppResult<ProjectSnapshot> {
         Ok(self.engine(project_id, sink)?.snapshot())
     }
-
-    pub fn reconcile_open_projects(&self) {
-        for engine in self.engines.read().values() {
-            let _ = engine.rebuild("resume", true);
-        }
-    }
 }

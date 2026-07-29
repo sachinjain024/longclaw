@@ -13,6 +13,8 @@ Command inputs use domain identifiers (`projectId`, `ticketKey`, expected conten
 
 The spike includes an actual `Channel<StreamFrame>` path with tagged `started`, `chunk`, and `finished` frames. Phase 2 can replace the architecture-probe producer with a PTY producer without changing the frontend consumption shape. Binary output stays bytes and is not forced through UTF-8 event strings.
 
+Enum variant names and every field inside their payloads serialize as `camelCase`. A shared JSON fixture is asserted by Rust for every project-event and stream-frame variant, then replayed through the Zustand event consumer for deletion and unavailable-state behavior. This keeps the Rust serializer and TypeScript consumer on one visible contract.
+
 ## Consequences
 
 - Commands acknowledge in-app mutations only after the atomic disk write and index update succeed.

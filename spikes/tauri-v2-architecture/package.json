@@ -11,10 +11,12 @@
     "build": "tsc --noEmit && vite build",
     "spike": "tauri dev",
     "tauri": "tauri",
+    "test:frontend": "vitest run",
     "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
     "test:watcher": "cargo test --manifest-path src-tauri/Cargo.toml filesystem_round_trip -- --ignored --nocapture",
+    "lint:rust": "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings",
     "perf:rust": "cargo test --manifest-path src-tauri/Cargo.toml performance_budgets -- --ignored --nocapture",
-    "verify": "npm run build && npm run test:rust && npm run test:watcher"
+    "verify": "npm run build && npm run test:frontend && npm run lint:rust && npm run test:rust && npm run test:watcher"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.8.0",
@@ -29,6 +31,7 @@
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.4",
     "typescript": "~5.9.3",
-    "vite": "^7.1.7"
+    "vite": "^7.1.7",
+    "vitest": "^4.1.10"
   }
 }

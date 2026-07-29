@@ -150,7 +150,7 @@ fn report_visible_ui(probe: VisibleUiProbe, app: AppHandle) -> AppResult<()> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let _ = PROCESS_STARTED.set(Instant::now());
-    let app = tauri::Builder::default()
+    tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let app_data_dir = app.path().app_data_dir()?;
@@ -171,12 +171,6 @@ pub fn run() {
             stream_probe,
             report_visible_ui
         ])
-        .build(tauri::generate_context!())
-        .expect("Tauri spike should build");
-
-    app.run(|app, event| {
-        if matches!(event, tauri::RunEvent::Resumed) {
-            app.state::<AppState>().reconcile_open_projects();
-        }
-    });
+        .run(tauri::generate_context!())
+        .expect("Tauri spike should run");
 }

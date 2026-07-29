@@ -36,7 +36,7 @@ If a login shell resolves the legacy `/usr/local/bin/node`, activate Node 22 bef
 - Application-support project registry with atomic persistence.
 - Representative v1 Markdown/YAML project files.
 - Rust parsing, degraded records, content hashes, conflict rejection, sibling-temp atomic writes, directory sync, and unknown-field preservation.
-- macOS FSEvents through `notify`, burst coalescing, stable-file checks, exact-hash self-write receipts, removal detection, and resume/focus reconciliation.
+- macOS FSEvents through `notify`, burst coalescing, stable-file checks, exact-hash self-write receipts, removal detection, and frontend focus/visibility reconciliation. A native wake notification remains Phase 1 work.
 - Disposable index deletion, full rebuild, and search.
 - React rendering from a thin Zustand view cache.
 
