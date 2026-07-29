@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import {
   chooseAndRegisterProject,
+  editTicket,
   listProjects,
   listenForProjectEvents,
   openProject,
@@ -9,10 +10,9 @@ import {
   reportVisibleUi,
   runStreamProbe,
   searchTickets,
-  writeTicketTitle,
 } from "./api";
 import { useLongClawStore } from "./state";
-import type { AppError, ErrorCode, TicketView } from "./types";
+import type { AppError, ErrorCode, TicketRow } from "./types";
 
 const ERROR_CODES = new Set<ErrorCode>([
   "cancelled",
@@ -47,12 +47,45 @@ export function normalizeError(error: unknown): AppError {
   };
 }
 
-function sourceLabel(ticket: TicketView): string {
-  if (ticket.degraded) return "Needs repair";
-  if (ticket.lastActor?.type === "agent") {
-    return `❯ ${ticket.lastActor.name ?? "agent"}`;
+interface RowPresentation {
+  title: string;
+  meta: string;
+  source: string;
+}
+
+/**
+ * Everything a row renders, decided in one place. Branching on `state` per field
+ * lets the labels drift apart — a read-only newer-format row saying both "newer
+ * format" and "can't parse".
+ */
+function present(ticket: TicketRow): RowPresentation {
+  if (ticket.state === "degraded") {
+    return ticket.readOnly
+      ? {
+          title: ticket.relativePath,
+          meta: "newer format",
+          source: "Read-only",
+        }
+      : {
+          title: ticket.relativePath,
+          meta: "can't parse",
+          source: "Needs repair",
+        };
   }
-  return ticket.lastActor?.name ?? "Disk";
+  const actor = ticket.lastActivity?.actor;
+  const source =
+    actor?.type === "agent"
+      ? `❯ ${actor.name ?? actor.id ?? "agent"}`
+      : actor?.type === "human"
+        ? "You"
+        : actor?.type === "unknown"
+          ? "Changed on disk"
+          : "Disk";
+  return {
+    title: ticket.title,
+    meta: `${ticket.status} · ${ticket.checkedCount}/${ticket.checklistCount}`,
+    source,
+  };
 }
 
 export function App() {
@@ -126,7 +159,7 @@ export function App() {
   }, [applyEvent, applySnapshot, setError, setLoading, setProjects]);
 
   useEffect(() => {
-    if (!selected) return;
+    if (selected?.state !== "indexed") return;
     setDraft(selected.title);
   }, [selected]);
 
@@ -184,13 +217,15 @@ export function App() {
   }
 
   async function saveTitle() {
-    if (!selected || !activeProjectId || !draft.trim()) return;
+    if (selected?.state !== "indexed" || !activeProjectId || !draft.trim()) {
+      return;
+    }
     try {
-      const result = await writeTicketTitle({
+      const result = await editTicket({
         projectId: activeProjectId,
         ticketKey: selected.key,
-        title: draft.trim(),
         expectedHash: selected.contentHash,
+        edit: { title: draft.trim() },
       });
       applyLocalWrite(result.ticket, result.generation);
     } catch (error) {
@@ -233,7 +268,7 @@ export function App() {
 
   const visibleTickets = query.trim()
     ? tickets.filter((ticket) =>
-        `${ticket.key} ${ticket.title}`
+        `${ticket.key} ${present(ticket).title}`
           .toLowerCase()
           .includes(query.trim().toLowerCase()),
       )
@@ -363,31 +398,31 @@ export function App() {
 
             <div className="ticket-grid">
               <div className="ticket-list">
-                {visibleTickets.map((ticket) => (
-                  <button
-                    key={ticket.key}
-                    className={[
-                      "ticket-row",
-                      ticket.key === selectedKey ? "selected" : "",
-                      ticket.degraded ? "degraded" : "",
-                      lastEvent?.event.type === "ticketChanged" &&
-                      lastEvent.event.data.ticket.key === ticket.key
-                        ? "fresh"
-                        : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                    onClick={() => setSelectedKey(ticket.key)}
-                  >
-                    <span className="ticket-key">{ticket.key}</span>
-                    <strong>{ticket.title}</strong>
-                    <span className="ticket-meta">
-                      {ticket.status} · {ticket.checkedCount}/
-                      {ticket.checklistCount}
-                    </span>
-                    <span className="actor">{sourceLabel(ticket)}</span>
-                  </button>
-                ))}
+                {visibleTickets.map((ticket) => {
+                  const row = present(ticket);
+                  return (
+                    <button
+                      key={ticket.key}
+                      className={[
+                        "ticket-row",
+                        ticket.key === selectedKey ? "selected" : "",
+                        ticket.state === "degraded" ? "degraded" : "",
+                        lastEvent?.event.type === "ticketChanged" &&
+                        lastEvent.event.data.ticket.key === ticket.key
+                          ? "fresh"
+                          : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                      onClick={() => setSelectedKey(ticket.key)}
+                    >
+                      <span className="ticket-key">{ticket.key}</span>
+                      <strong>{row.title}</strong>
+                      <span className="ticket-meta">{row.meta}</span>
+                      <span className="actor">{row.source}</span>
+                    </button>
+                  );
+                })}
               </div>
 
               <div className="inspector">
@@ -397,13 +432,22 @@ export function App() {
                       <span className="ticket-key">{selected.key}</span>
                       <code>{selected.relativePath}</code>
                     </div>
-                    {selected.degraded ? (
+                    {selected.state === "degraded" ? (
                       <div className="degraded-copy">
-                        <h3>Shown without repair</h3>
-                        <p>{selected.diagnostic}</p>
+                        <h3>
+                          {selected.readOnly
+                            ? "Shown read-only"
+                            : "Shown without repair"}
+                        </h3>
                         <p>
-                          Fix the file externally. The watcher will retry after
-                          its write burst settles.
+                          {selected.diagnostic.line
+                            ? `${selected.relativePath}:${selected.diagnostic.line} — ${selected.diagnostic.message}`
+                            : selected.diagnostic.message}
+                        </p>
+                        <p>
+                          {selected.readOnly
+                            ? "A newer version of LongClaw wrote this file. Nothing here was changed."
+                            : "Fix the file in an editor. The watcher re-reads it once the write settles."}
                         </p>
                       </div>
                     ) : (

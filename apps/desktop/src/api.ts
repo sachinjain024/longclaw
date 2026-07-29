@@ -2,14 +2,16 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import type {
+  CreateTicketRequest,
+  EditTicketRequest,
   ProjectReference,
   ProjectSnapshot,
   SearchResult,
   StreamEnvelope,
   StreamFrame,
+  TicketDetail,
   VisibleUiProbe,
   WriteResult,
-  WriteTicketTitleRequest,
 } from "./types";
 
 const PROJECT_EVENT_NAME = "longclaw://project-event";
@@ -33,10 +35,29 @@ export async function openProject(projectId: string): Promise<ProjectSnapshot> {
   return invoke("open_project", { projectId });
 }
 
-export async function writeTicketTitle(
-  request: WriteTicketTitleRequest,
+/** Reads one ticket from disk, including the raw file when it will not parse. */
+export async function readTicket(
+  projectId: string,
+  ticketKey: string,
+): Promise<TicketDetail> {
+  return invoke("read_ticket", { projectId, ticketKey });
+}
+
+/**
+ * Saves a change. The request carries the hash the edit started from; a newer
+ * file on disk comes back as a `conflict` and is never overwritten.
+ */
+export async function editTicket(
+  request: EditTicketRequest,
 ): Promise<WriteResult> {
-  return invoke("write_ticket_title", { request });
+  return invoke("edit_ticket", { request });
+}
+
+/** Creates a ticket. Rust allocates the key from the project's own files. */
+export async function createTicket(
+  request: CreateTicketRequest,
+): Promise<WriteResult> {
+  return invoke("create_ticket", { request });
 }
 
 export async function rebuildIndex(

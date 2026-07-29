@@ -1,8 +1,16 @@
 format: longclaw.project/v1
-id: representative-project
+id: 019c8c31-4d7e-71ad-8997-e67700962b55
 name: Representative Project
 key: LC
 theme: indigo
 created_at: 2026-07-29T00:00:00Z
-people: {}
-labels: {}
+people:
+  sachin:
+    name: Sachin Jain
+labels:
+  reliability:
+    name: Reliability
+    color: amber
+  storage:
+    name: Storage
+    color: blue

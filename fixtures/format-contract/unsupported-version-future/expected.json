@@ -1,0 +1,8 @@
+{
+  "summary": "A newer ticket format version is a read-only degraded record, never migrated or rewritten automatically.",
+  "key": "LC-32",
+  "outcome": "degraded",
+  "code": "unsupported_version",
+  "diagnosticContains": "longclaw.ticket/v99",
+  "readOnly": true
+}

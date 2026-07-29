@@ -1,0 +1,2 @@
+Attachment bytes stay beside the ticket that owns them.
+Registered in v0, no UI yet.

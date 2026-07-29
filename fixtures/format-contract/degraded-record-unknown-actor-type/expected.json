@@ -1,0 +1,9 @@
+{
+  "summary": "An actor type outside human, agent, and unknown degrades that record rather than being guessed at.",
+  "key": "LC-13",
+  "outcome": "valid",
+  "ticket": {
+    "activity": [],
+    "recordDiagnostics": ["actor"]
+  }
+}

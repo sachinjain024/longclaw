@@ -1,0 +1,7 @@
+{
+  "summary": "A required frontmatter key is missing, so the ticket degrades rather than being defaulted.",
+  "key": "LC-30",
+  "outcome": "degraded",
+  "code": "parse_failed",
+  "diagnosticContains": "title"
+}

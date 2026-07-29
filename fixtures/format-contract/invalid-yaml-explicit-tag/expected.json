@@ -1,0 +1,7 @@
+{
+  "summary": "Explicit YAML tags are outside the constrained subset.",
+  "key": "LC-28",
+  "outcome": "degraded",
+  "code": "parse_failed",
+  "diagnosticContains": "tag"
+}

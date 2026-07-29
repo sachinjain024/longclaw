@@ -1,0 +1,8 @@
+{
+  "summary": "A format value from another tool is a parse failure, not a future LongClaw version.",
+  "key": "LC-33",
+  "outcome": "degraded",
+  "code": "parse_failed",
+  "diagnosticContains": "someone-elses-tracker/v1",
+  "readOnly": false
+}

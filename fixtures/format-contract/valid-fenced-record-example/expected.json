@@ -1,0 +1,17 @@
+{
+  "summary": "A record marker inside a fenced code block is documentation, not a misplaced record, so it raises no diagnostic.",
+  "key": "LC-35",
+  "outcome": "valid",
+  "ticket": {
+    "activity": [
+      {
+        "id": "evt_7c2d9e10",
+        "kind": "comment",
+        "actorType": "human",
+        "actorId": "local"
+      }
+    ],
+    "recordDiagnostics": [],
+    "historyIncomplete": false
+  }
+}

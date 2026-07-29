@@ -1,0 +1,19 @@
+{
+  "summary": "An attachment registry entry with no file path degrades locally while the valid entry beside it stays registered.",
+  "key": "LC-14",
+  "outcome": "valid",
+  "ticket": {
+    "attachments": [
+      {
+        "id": "att_0002",
+        "file": "attachments/att_0002-readable.txt",
+        "name": "readable.txt",
+        "mediaType": "text/plain",
+        "size": 9,
+        "addedByType": "human",
+        "addedById": "local"
+      }
+    ],
+    "recordDiagnostics": ["attachment record"]
+  }
+}

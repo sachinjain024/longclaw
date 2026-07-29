@@ -1,0 +1,12 @@
+{
+  "summary": "A reserved heading inside a fenced code block stays description content.",
+  "key": "LC-10",
+  "outcome": "valid",
+  "ticket": {
+    "description": "The description explains the checklist format, so it quotes it:\n\n```md\n## Checklist\n\n- [ ] this line is documentation, not a task\n```",
+    "checklist": [
+      { "id": "ck_0001", "text": "the only real task", "checked": false }
+    ],
+    "recordDiagnostics": []
+  }
+}

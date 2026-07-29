@@ -1,0 +1,21 @@
+{
+  "summary": "Only the required frontmatter keys, with no body at all.",
+  "key": "LC-1",
+  "outcome": "valid",
+  "ticket": {
+    "id": "019c8ca0-0000-7000-8000-000000000001",
+    "title": "The smallest legal ticket",
+    "status": "backlog",
+    "priority": "none",
+    "labels": [],
+    "assignee": null,
+    "rank": null,
+    "archivedAt": null,
+    "description": "",
+    "checklist": [],
+    "attachments": [],
+    "activity": [],
+    "unknownKeys": [],
+    "recordDiagnostics": []
+  }
+}

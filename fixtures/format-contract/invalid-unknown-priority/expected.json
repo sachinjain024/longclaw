@@ -1,0 +1,7 @@
+{
+  "summary": "A priority outside urgent, p1..p4, and none degrades the ticket.",
+  "key": "LC-21",
+  "outcome": "degraded",
+  "code": "parse_failed",
+  "diagnosticContains": "priority"
+}

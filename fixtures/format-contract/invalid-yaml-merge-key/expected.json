@@ -1,0 +1,7 @@
+{
+  "summary": "YAML merge keys are outside the constrained subset.",
+  "key": "LC-27",
+  "outcome": "degraded",
+  "code": "parse_failed",
+  "diagnosticContains": "merge key"
+}

@@ -1,0 +1,7 @@
+{
+  "summary": "Timestamps must be UTC RFC 3339 strings; a local offset degrades with an actionable diagnostic instead of being normalized in place.",
+  "key": "LC-31",
+  "outcome": "degraded",
+  "code": "parse_failed",
+  "diagnosticContains": "UTC"
+}

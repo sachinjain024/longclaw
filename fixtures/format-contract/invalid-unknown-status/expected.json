@@ -1,0 +1,8 @@
+{
+  "summary": "A status outside the fixed v0 set degrades the ticket instead of being coerced.",
+  "key": "LC-20",
+  "outcome": "degraded",
+  "code": "parse_failed",
+  "diagnosticContains": "status",
+  "readOnly": false
+}

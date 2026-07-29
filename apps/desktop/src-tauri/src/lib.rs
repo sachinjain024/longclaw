@@ -1,6 +1,6 @@
 mod app_state;
 pub mod core;
-mod engine;
+pub mod engine;
 mod registry;
 
 use std::path::PathBuf;
@@ -9,8 +9,9 @@ use std::time::Instant;
 
 use app_state::AppState;
 use core::{
-    AppResult, ProjectReference, ProjectSnapshot, RebuildReason, SearchResult, StreamEnvelope,
-    StreamFrame, StreamKind, VisibleUiProbe, WriteResult, WriteTicketTitleRequest,
+    AppResult, CreateTicketRequest, EditTicketRequest, ProjectReference, ProjectSnapshot,
+    RebuildReason, SearchResult, StreamEnvelope, StreamFrame, StreamKind, TicketDetail,
+    VisibleUiProbe, WriteResult,
 };
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -67,62 +68,81 @@ fn search_tickets(
 }
 
 #[tauri::command]
-fn write_ticket_title(
-    request: WriteTicketTitleRequest,
+fn read_ticket(
+    project_id: String,
+    ticket_key: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<TicketDetail> {
+    state
+        .engine(&project_id, tauri_sink(&app))?
+        .detail(&ticket_key)
+}
+
+#[tauri::command]
+fn edit_ticket(
+    request: EditTicketRequest,
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> AppResult<WriteResult> {
     state
         .engine(&request.project_id, tauri_sink(&app))?
-        .write_title(&request.ticket_key, &request.title, &request.expected_hash)
+        .edit_ticket(&request.ticket_key, &request.edit, &request.expected_hash)
+}
+
+#[tauri::command]
+fn create_ticket(
+    request: CreateTicketRequest,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<WriteResult> {
+    state
+        .engine(&request.project_id, tauri_sink(&app))?
+        .create_ticket(&request.ticket)
+}
+
+/// Sends one frame on a typed channel. The channel is the extension point Phase 2
+/// PTY output will use, so its failures translate at this seam like any other.
+fn send_frame(channel: &Channel<StreamFrame>, frame: StreamFrame) -> AppResult<()> {
+    channel.send(frame).map_err(|error| {
+        core::AppError::new(
+            core::ErrorCode::Internal,
+            format!("Sending a stream frame failed: {error}"),
+            false,
+        )
+    })
 }
 
 #[tauri::command]
 fn stream_probe(on_event: Channel<StreamFrame>) -> AppResult<()> {
     let stream_id = format!("probe-{}", uuid::Uuid::new_v4().simple());
-    on_event
-        .send(StreamFrame::Started {
+    send_frame(
+        &on_event,
+        StreamFrame::Started {
             stream_id: stream_id.clone(),
             kind: StreamKind::ArchitectureProbe,
-        })
-        .map_err(|error| {
-            core::AppError::new(
-                core::ErrorCode::Internal,
-                format!("Sending stream-start frame failed: {error}"),
-                false,
-            )
-        })?;
+        },
+    )?;
     for (sequence, text) in ["ordered ", "binary-safe ", "channel\n"]
         .into_iter()
         .enumerate()
     {
-        on_event
-            .send(StreamFrame::Chunk {
+        send_frame(
+            &on_event,
+            StreamFrame::Chunk {
                 stream_id: stream_id.clone(),
                 sequence: sequence as u64,
                 bytes: text.as_bytes().to_vec(),
-            })
-            .map_err(|error| {
-                core::AppError::new(
-                    core::ErrorCode::Internal,
-                    format!("Sending stream chunk failed: {error}"),
-                    false,
-                )
-            })?;
+            },
+        )?;
     }
-    on_event
-        .send(StreamFrame::Finished {
+    send_frame(
+        &on_event,
+        StreamFrame::Finished {
             stream_id,
             exit_code: 0,
-        })
-        .map_err(|error| {
-            core::AppError::new(
-                core::ErrorCode::Internal,
-                format!("Sending stream-finished frame failed: {error}"),
-                false,
-            )
-        })?;
-    Ok(())
+        },
+    )
 }
 
 #[tauri::command]
@@ -168,7 +188,9 @@ pub fn run() {
             open_project,
             rebuild_index,
             search_tickets,
-            write_ticket_title,
+            read_ticket,
+            edit_ticket,
+            create_ticket,
             stream_probe,
             report_visible_ui
         ])

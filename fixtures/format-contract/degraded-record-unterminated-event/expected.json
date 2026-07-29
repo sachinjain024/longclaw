@@ -1,0 +1,11 @@
+{
+  "summary": "An activity record without its closing marker degrades locally; current state is never rolled back to match broken history.",
+  "key": "LC-12",
+  "outcome": "valid",
+  "ticket": {
+    "title": "A half-written event degrades only itself",
+    "status": "todo",
+    "activity": [],
+    "recordDiagnostics": ["closing"]
+  }
+}

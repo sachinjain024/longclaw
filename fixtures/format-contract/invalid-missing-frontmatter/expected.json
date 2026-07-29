@@ -1,0 +1,7 @@
+{
+  "summary": "A ticket.md with no frontmatter block is degraded, not adopted with defaults.",
+  "key": "LC-23",
+  "outcome": "degraded",
+  "code": "parse_failed",
+  "diagnosticContains": "frontmatter"
+}

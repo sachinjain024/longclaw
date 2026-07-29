@@ -1,0 +1,16 @@
+{
+  "summary": "An activity record missing its stable id degrades locally while the ticket and its other records stay valid.",
+  "key": "LC-11",
+  "outcome": "valid",
+  "ticket": {
+    "activity": [
+      {
+        "id": "evt_00c0ffee",
+        "kind": "comment",
+        "actorType": "human",
+        "actorId": "local"
+      }
+    ],
+    "recordDiagnostics": ["activity record"]
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "summary": "Multiple YAML documents inside one frontmatter block are outside the constrained subset.",
+  "key": "LC-29",
+  "outcome": "degraded",
+  "code": "parse_failed",
+  "diagnosticContains": "document"
+}

@@ -1,0 +1,7 @@
+{
+  "summary": "YAML anchors are outside the constrained subset even though a general YAML parser would resolve them.",
+  "key": "LC-26",
+  "outcome": "degraded",
+  "code": "parse_failed",
+  "diagnosticContains": "anchor"
+}

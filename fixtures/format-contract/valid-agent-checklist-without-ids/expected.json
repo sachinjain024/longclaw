@@ -1,0 +1,12 @@
+{
+  "summary": "A checklist item written without a longclaw:item marker stays readable instead of degrading the ticket.",
+  "key": "LC-8",
+  "outcome": "valid",
+  "ticket": {
+    "checklist": [
+      { "id": "ck_0001", "text": "Item with a stable id", "checked": true },
+      { "id": null, "text": "Item an agent appended", "checked": false }
+    ],
+    "recordDiagnostics": []
+  }
+}

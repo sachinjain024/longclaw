@@ -1,0 +1,14 @@
+{
+  "summary": "Unknown scalar, mapping, and sequence frontmatter keys are preserved rather than dropped or rejected.",
+  "key": "LC-7",
+  "outcome": "valid",
+  "ticket": {
+    "title": "Unknown supported keys survive a round trip",
+    "unknownKeys": [
+      "x_scalar_extension",
+      "x_mapping_extension",
+      "x_sequence_extension"
+    ],
+    "recordDiagnostics": []
+  }
+}

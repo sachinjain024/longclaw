@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use parking_lot::RwLock;
 
-use crate::core::storage::{atomic_write, parse_project};
+use crate::core::storage::{atomic_write, project_file_path, read_project};
 use crate::core::{AppError, AppResult, ErrorCode, ProjectReference};
 
 pub struct RegistryStore {
@@ -35,15 +35,16 @@ impl RegistryStore {
         })
     }
 
+    /// Every registered project, with reachability probed. An entry whose folder
+    /// has moved stays listed with its cached name so it can be relocated rather
+    /// than lost.
     pub fn list(&self) -> Vec<ProjectReference> {
         self.projects
             .read()
             .iter()
             .cloned()
             .map(|mut project| {
-                project.reachable = Path::new(&project.root_path)
-                    .join(".longclaw/longclaw.yaml")
-                    .is_file();
+                project.reachable = project_file_path(Path::new(&project.root_path)).is_file();
                 project
             })
             .collect()
@@ -64,8 +65,22 @@ impl RegistryStore {
             })
     }
 
+    /// Validates a chosen folder and records a reference to it. Registering never
+    /// changes the project's files.
     pub fn register(&self, root: &Path) -> AppResult<ProjectReference> {
-        let project = parse_project(root)?;
+        let canonical = root
+            .canonicalize()
+            .map_err(|error| AppError::io("Canonicalizing project folder", root, error))?;
+        let document = read_project(&canonical)?;
+        let project =
+            ProjectReference::from_project(document.project(), canonical.display().to_string());
+        self.remember(&project)?;
+        Ok(project)
+    }
+
+    /// Updates the cached reference for a project that is already registered, or
+    /// adds it. The project's own files remain the source of truth.
+    pub fn remember(&self, project: &ProjectReference) -> AppResult<()> {
         let mut projects = self.projects.write();
         let mut next = projects.clone();
         next.retain(|candidate| candidate.id != project.id);
@@ -73,7 +88,7 @@ impl RegistryStore {
         next.sort_by(|left, right| left.name.cmp(&right.name));
         self.persist(&next)?;
         *projects = next;
-        Ok(project)
+        Ok(())
     }
 
     fn persist(&self, projects: &[ProjectReference]) -> AppResult<()> {

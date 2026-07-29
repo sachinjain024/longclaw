@@ -73,3 +73,93 @@ impl Display for AppError {
 }
 
 impl std::error::Error for AppError {}
+
+/// Why a file or one embedded record inside it could not be read.
+///
+/// Diagnostics travel inside successful payloads — a degraded ticket is data,
+/// not a failed command — so unlike the `AppError` channel that ADR 0010
+/// describes, a diagnostic carries a typed line number the raw-file view can
+/// point at.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Diagnostic {
+    pub code: ErrorCode,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line: Option<u32>,
+}
+
+impl Diagnostic {
+    pub fn parse(message: impl Into<String>) -> Self {
+        Self {
+            code: ErrorCode::ParseFailed,
+            message: message.into(),
+            line: None,
+        }
+    }
+
+    pub fn parse_at(message: impl Into<String>, line: u32) -> Self {
+        Self::parse(message).at_line(line)
+    }
+
+    /// A construct outside the YAML subset the format contract defines.
+    pub fn subset(detail: impl AsRef<str>, line: u32) -> Self {
+        Self::parse_at(
+            format!(
+                "Frontmatter uses YAML outside the constrained subset: {}",
+                detail.as_ref()
+            ),
+            line,
+        )
+    }
+
+    /// A file this build must show read-only instead of migrating or rewriting.
+    pub fn unsupported_version(message: impl Into<String>) -> Self {
+        Self {
+            code: ErrorCode::UnsupportedVersion,
+            message: message.into(),
+            line: None,
+        }
+    }
+
+    pub fn at_line(mut self, line: u32) -> Self {
+        self.line = Some(line);
+        self
+    }
+
+    /// Translates a line number measured inside an embedded block into the line
+    /// number of the whole file.
+    pub fn shift_lines(mut self, offset: u32) -> Self {
+        self.line = self.line.map(|line| line + offset);
+        self
+    }
+
+    /// A newer format version is shown as-is; every other diagnostic invites a
+    /// fix, so the app offers a retry.
+    pub fn is_read_only(&self) -> bool {
+        self.code == ErrorCode::UnsupportedVersion
+    }
+}
+
+impl Display for Diagnostic {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        match self.line {
+            Some(line) => write!(formatter, "{} (line {line})", self.message),
+            None => formatter.write_str(&self.message),
+        }
+    }
+}
+
+impl From<Diagnostic> for AppError {
+    fn from(diagnostic: Diagnostic) -> Self {
+        let error = Self::new(
+            diagnostic.code,
+            diagnostic.message,
+            diagnostic.code != ErrorCode::UnsupportedVersion,
+        );
+        match diagnostic.line {
+            Some(line) => error.with_context("line", line.to_string()),
+            None => error,
+        }
+    }
+}

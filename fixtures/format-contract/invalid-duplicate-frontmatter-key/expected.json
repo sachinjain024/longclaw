@@ -1,0 +1,7 @@
+{
+  "summary": "Duplicate frontmatter keys are invalid; no reader gets to pick a winner.",
+  "key": "LC-25",
+  "outcome": "degraded",
+  "code": "parse_failed",
+  "diagnosticContains": "duplicate key"
+}

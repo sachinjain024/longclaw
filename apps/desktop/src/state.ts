@@ -5,13 +5,13 @@ import type {
   ProjectSnapshot,
   StreamEnvelope,
   StreamFrame,
-  TicketView,
+  TicketRow,
 } from "./types";
 
 interface LongClawState {
   projects: ProjectReference[];
   activeProjectId?: string;
-  tickets: TicketView[];
+  tickets: TicketRow[];
   generation: number;
   lastSequence: number;
   lastEvent?: StreamEnvelope;
@@ -21,14 +21,14 @@ interface LongClawState {
   setProjects: (projects: ProjectReference[]) => void;
   applySnapshot: (snapshot: ProjectSnapshot) => void;
   applyEvent: (envelope: StreamEnvelope) => void;
-  applyLocalWrite: (ticket: TicketView, generation: number) => void;
+  applyLocalWrite: (ticket: TicketRow, generation: number) => void;
   appendStreamFrame: (frame: StreamFrame) => void;
   clearStreamFrames: () => void;
   setLoading: (loading: boolean) => void;
   setError: (error?: AppError) => void;
 }
 
-const byKey = (a: TicketView, b: TicketView) =>
+const byKey = (a: TicketRow, b: TicketRow) =>
   a.key.localeCompare(b.key, undefined, { numeric: true });
 
 export const useLongClawStore = create<LongClawState>((set, get) => ({

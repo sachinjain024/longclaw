@@ -1,0 +1,18 @@
+{
+  "summary": "A reserved-section heading inside a bounded event body is body text, not a section boundary.",
+  "key": "LC-9",
+  "outcome": "valid",
+  "ticket": {
+    "checklist": [],
+    "activity": [
+      {
+        "id": "evt_a1b2c3d4",
+        "kind": "comment",
+        "actorType": "agent",
+        "actorId": "quoting-agent",
+        "body": "### Quoting Agent commented\n\n## Checklist\n\nThe heading above belongs to this comment body. It is not a reserved section."
+      }
+    ],
+    "recordDiagnostics": []
+  }
+}

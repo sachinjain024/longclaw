@@ -1,0 +1,7 @@
+{
+  "summary": "A file observed mid-write has no closing frontmatter delimiter. It degrades and is never rewritten; the watcher's stability check keeps this transient state out of the UI.",
+  "key": "LC-24",
+  "outcome": "degraded",
+  "code": "parse_failed",
+  "diagnosticContains": "closing"
+}

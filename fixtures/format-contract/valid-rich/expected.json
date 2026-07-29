@@ -1,0 +1,48 @@
+{
+  "summary": "Every documented field, including an archived timestamp, quoted scalars, a stable-id checklist, an attachment registry entry, and an attributed agent event.",
+  "key": "LC-42",
+  "outcome": "valid",
+  "ticket": {
+    "id": "019c8c7e-5f42-7b09-a07c-7411ef79e129",
+    "title": "Add retry support to the sync worker",
+    "status": "in_progress",
+    "priority": "p1",
+    "assignee": "sachin",
+    "labels": ["reliability", "backend"],
+    "rank": "a0V",
+    "createdAt": "2026-07-27T08:20:00Z",
+    "updatedAt": "2026-07-27T09:12:31Z",
+    "archivedAt": "2026-07-27T09:30:00Z",
+    "description": "The worker currently fails permanently after a transient network error.\n\n## Acceptance criteria\n\n- Retries use exponential backoff.\n- Permanent failures remain visible.",
+    "checklist": [
+      { "id": "ck_7d2a", "text": "Add retry policy", "checked": true },
+      { "id": "ck_8e31", "text": "Add failure metrics", "checked": false },
+      { "id": "ck_a821", "text": "Cover timeout behavior", "checked": false }
+    ],
+    "attachments": [
+      {
+        "id": "att_7d2a",
+        "file": "attachments/att_7d2a-debug-log.txt",
+        "name": "debug-log.txt",
+        "mediaType": "text/plain",
+        "size": 26,
+        "addedByType": "human",
+        "addedById": "sachin"
+      }
+    ],
+    "activity": [
+      {
+        "id": "evt_f83f615b",
+        "kind": "update",
+        "occurredAt": "2026-07-27T09:12:31Z",
+        "actorType": "agent",
+        "actorId": "claude-code",
+        "actorName": "Claude Code",
+        "changedFields": ["status", "checklist.ck_7d2a.checked"],
+        "body": "### Claude Code updated this ticket\n\nImplemented the retry policy. Metrics still need to be added."
+      }
+    ],
+    "unknownKeys": [],
+    "recordDiagnostics": []
+  }
+}

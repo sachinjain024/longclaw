@@ -46,6 +46,26 @@ The gate covers formatting, linting, TypeScript type checking, frontend unit
 tests, Rust unit/integration tests, watcher integration coverage, Clippy, and
 the Vite production build.
 
+## The file format is tested from fixtures
+
+`fixtures/format-contract/` holds one directory per contract case: the bytes a
+human, agent, or editor could put on disk, and the outcome a conforming reader
+must produce. Adding a directory adds a test — see that directory's `README.md`,
+which also records the reader decisions the corpus fixes.
+
+`fixtures/representative-project/` is the canonical example project. It doubles
+as the `dev:fixture` project and is asserted to round-trip byte-for-byte, so keep
+it conformant; `LC-98` and `LC-99` are intentionally broken and are expected to
+stay that way.
+
+Test suites worth knowing about:
+
+| Command | Covers |
+|---|---|
+| `npm test` | frontend unit tests, Rust unit tests, the fixture corpus, storage and watcher integration |
+| `npm run test:watcher` | the production FSEvents watcher end to end (ignored by default) |
+| `npm run perf:rust` | index rebuild, search, read, and write budgets against a 5,000-ticket project |
+
 ## Diagnostics and privacy
 
 Local diagnostics are written to stdout with a `LONGCLAW_LOCAL_DIAGNOSTIC`

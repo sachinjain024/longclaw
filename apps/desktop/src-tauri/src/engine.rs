@@ -1,4 +1,27 @@
-use std::collections::{HashMap, HashSet};
+//! One open project: its index, its watcher, and every write that touches it.
+//!
+//! The engine is the seam the rest of the app uses, and it keeps the filesystem's
+//! awkwardness behind that seam. ADR 0008 named the v0 seam `open`, `snapshot`,
+//! `write`, `search`, and `rebuild`; Step 6 splits reading into `snapshot` (index
+//! rows) and `detail` (one ticket, read fresh), and writing into `edit_ticket` and
+//! `create_ticket`, because key allocation is a file-format rule rather than a
+//! caller's choice. Anything beyond reading and writing tickets — project settings,
+//! for instance — belongs outside this type.
+//!
+//! Three behaviours are worth knowing about before changing anything here:
+//!
+//! - **Bursts collapse.** Editors and agents save in several syscalls. Events are
+//!   coalesced per path over a quiet period, and the file must hold still before
+//!   it is parsed, so one save produces one visible update with final content.
+//! - **Self-writes are recognized, not ignored.** Before an app write is renamed
+//!   into place, the engine records `(path, hash)`. A watcher event is suppressed
+//!   only when both match. A different hash is always someone else's edit, even
+//!   within the receipt window — the app never goes blind for a period of time.
+//! - **A rename is a removal and an arrival.** Every event path is normalized to
+//!   the canonical `ticket.md` it concerns, so a directory rename removes one row
+//!   and adds another without the watcher needing to understand rename semantics.
+
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -6,66 +29,106 @@ use std::sync::{mpsc, Arc, Weak};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use chrono::Utc;
-#[cfg(test)]
-use notify::{Config, PollWatcher};
-use notify::{Event, RecursiveMode, Watcher};
+use chrono::{SecondsFormat, Utc};
+use notify::{Config, Event, PollWatcher, RecursiveMode, Watcher};
 use parking_lot::Mutex;
 
-use crate::core::storage::{atomic_write, content_hash, parse_project, patch_ticket_title};
+use crate::core::storage::{
+    self, atomic_write, content_hash, directory_key, prepare_new_ticket, prepare_ticket_edit,
+    read_project, ticket_file_path, NewTicket,
+};
+use crate::core::ticket::TicketEdit;
 use crate::core::{
     AppError, AppResult, ErrorCode, EventSource, ProjectEvent, ProjectReference, ProjectSnapshot,
-    RebuildReason, SearchResult, StreamEnvelope, TicketIndex, WriteResult,
+    RebuildReason, SearchResult, StreamEnvelope, TicketDetail, TicketIndex, WriteResult,
 };
 
+/// How long a burst of events must go quiet before it is processed.
 const DEBOUNCE: Duration = Duration::from_millis(140);
+/// The longest a burst is allowed to keep extending itself.
 const MAX_BURST: Duration = Duration::from_millis(900);
+/// How long the file must hold the same size and mtime to count as settled.
+const STABILITY_INTERVAL: Duration = Duration::from_millis(35);
+/// How many times to wait for a file to settle before reading it anyway. A file
+/// still changing after this will send another event, so the worst case is a
+/// short-lived degraded row rather than a stale one.
+const STABILITY_ATTEMPTS: usize = 6;
+/// How long a self-write receipt stays valid.
 const SELF_WRITE_TTL: Duration = Duration::from_secs(5);
 
-type EventSink = Arc<dyn Fn(StreamEnvelope) + Send + Sync + 'static>;
+pub type EventSink = Arc<dyn Fn(StreamEnvelope) + Send + Sync + 'static>;
 
-struct WriteReceipt {
+/// Which filesystem watcher to use.
+#[derive(Debug, Clone, Copy)]
+pub enum WatcherAdapter {
+    /// The production adapter: FSEvents on macOS.
+    Native,
+    /// Deterministic polling. Integration tests use this so a test asserts the
+    /// pipeline's behaviour rather than the platform's event timing.
+    Polling { interval_ms: u64 },
+}
+
+struct Receipt {
     hash: String,
     expires_at: Instant,
 }
 
+/// The hashes the app itself just wrote, per path.
+///
+/// A path can hold several: two quick saves both have receipts in flight, and the
+/// watcher may report either. Unmatched receipts are left to expire rather than
+/// being cleared by someone else's edit, because only the app's own bytes can
+/// produce a matching hash.
 #[derive(Default)]
 struct ReceiptBook {
-    entries: HashMap<PathBuf, WriteReceipt>,
+    entries: HashMap<PathBuf, Vec<Receipt>>,
 }
 
 impl ReceiptBook {
     fn remember(&mut self, path: PathBuf, hash: String, now: Instant) {
-        self.entries.insert(
-            path,
-            WriteReceipt {
-                hash,
-                expires_at: now + SELF_WRITE_TTL,
-            },
-        );
+        self.entries.entry(path).or_default().push(Receipt {
+            hash,
+            expires_at: now + SELF_WRITE_TTL,
+        });
     }
 
-    fn forget(&mut self, path: &Path) {
-        self.entries.remove(path);
+    fn forget(&mut self, path: &Path, hash: &str) {
+        if let Some(receipts) = self.entries.get_mut(path) {
+            receipts.retain(|receipt| receipt.hash != hash);
+            if receipts.is_empty() {
+                self.entries.remove(path);
+            }
+        }
     }
 
     fn consume_if_match(&mut self, path: &Path, hash: &str, now: Instant) -> bool {
-        self.entries.retain(|_, receipt| receipt.expires_at > now);
-        let matched = self
-            .entries
-            .get(path)
-            .is_some_and(|receipt| receipt.hash == hash);
-        // A mismatched hash is external and invalidates the stale receipt.
-        self.entries.remove(path);
-        matched
+        for receipts in self.entries.values_mut() {
+            receipts.retain(|receipt| receipt.expires_at > now);
+        }
+        self.entries.retain(|_, receipts| !receipts.is_empty());
+
+        let Some(receipts) = self.entries.get_mut(path) else {
+            return false;
+        };
+        let Some(position) = receipts.iter().position(|receipt| receipt.hash == hash) else {
+            return false;
+        };
+        // Anything written before the matched write can no longer be observed.
+        receipts.drain(..=position);
+        if receipts.is_empty() {
+            self.entries.remove(path);
+        }
+        true
     }
 }
 
 pub struct ProjectEngine {
-    project: ProjectReference,
+    project: Mutex<ProjectReference>,
     root: PathBuf,
     index: TicketIndex,
     receipts: Mutex<ReceiptBook>,
+    /// Held while a key is allocated so two creations cannot pick the same one.
+    creation: Mutex<()>,
     sequence: AtomicU64,
     sink: EventSink,
     watcher: Mutex<Option<ProjectWatcher>>,
@@ -76,17 +139,10 @@ struct ProjectWatcher {
     worker: Option<thread::JoinHandle<()>>,
 }
 
-#[derive(Clone, Copy)]
-enum WatcherMode {
-    Native,
-    #[cfg(test)]
-    Polling,
-}
-
 impl Drop for ProjectWatcher {
     fn drop(&mut self) {
-        // Dropping RecommendedWatcher disconnects the callback sender.
-        // The worker exits on disconnect; joining keeps teardown deterministic.
+        // Dropping the watcher disconnects the callback sender. The worker exits on
+        // disconnect; joining keeps teardown deterministic.
         drop(self.watcher.take());
         if let Some(worker) = self.worker.take() {
             let _ = worker.join();
@@ -96,62 +152,67 @@ impl Drop for ProjectWatcher {
 
 impl ProjectEngine {
     pub fn start(project: ProjectReference, sink: EventSink) -> AppResult<Arc<Self>> {
-        Self::start_with_mode(project, sink, WatcherMode::Native)
+        Self::start_with_adapter(project, sink, WatcherAdapter::Native)
     }
 
-    fn start_with_mode(
+    pub fn start_with_adapter(
         project: ProjectReference,
         sink: EventSink,
-        watcher_mode: WatcherMode,
+        adapter: WatcherAdapter,
     ) -> AppResult<Arc<Self>> {
-        let root = PathBuf::from(&project.root_path);
+        // The root is canonicalized once, here. macOS reports watcher paths in
+        // resolved form (`/private/var/...`), so a root holding an unresolved
+        // symlink would make every event look like it came from outside the
+        // project.
+        let requested = PathBuf::from(&project.root_path);
+        let root = requested
+            .canonicalize()
+            .map_err(|error| AppError::io("Canonicalizing project folder", &requested, error))?;
+        let mut project = project;
+        project.root_path = root.display().to_string();
         let engine = Arc::new(Self {
-            project,
+            project: Mutex::new(project),
             root,
             index: TicketIndex::default(),
             receipts: Mutex::new(ReceiptBook::default()),
+            creation: Mutex::new(()),
             sequence: AtomicU64::new(0),
             sink,
             watcher: Mutex::new(None),
         });
         engine.index.rebuild(&engine.root)?;
-        let watcher = ProjectWatcher::start(Arc::downgrade(&engine), watcher_mode)?;
+        let watcher = ProjectWatcher::start(Arc::downgrade(&engine), adapter)?;
         *engine.watcher.lock() = Some(watcher);
         Ok(engine)
     }
 
-    #[cfg(test)]
-    fn start_polling(project: ProjectReference, sink: EventSink) -> AppResult<Arc<Self>> {
-        Self::start_with_mode(project, sink, WatcherMode::Polling)
+    pub fn project(&self) -> ProjectReference {
+        self.project.lock().clone()
     }
 
     pub fn snapshot(&self) -> ProjectSnapshot {
         let index = self.index.snapshot();
         ProjectSnapshot {
-            project: self.project.clone(),
+            project: self.project(),
             tickets: index.tickets,
             generation: index.generation,
             rebuilt_in_ms: index.rebuilt_in_ms,
         }
     }
 
+    /// Throws the index away and rebuilds it from the project files.
     pub fn rebuild(&self, reason: RebuildReason, emit: bool) -> AppResult<ProjectSnapshot> {
         if !self.root.is_dir() {
-            self.emit(ProjectEvent::ProjectUnavailable {
-                root_path: self.root.display().to_string(),
-            });
-            return Err(AppError::new(
-                ErrorCode::ProjectUnavailable,
-                "The selected project folder is no longer available",
-                true,
-            )
-            .with_context("path", self.root.display().to_string()));
+            return Err(self.report_unavailable());
         }
-        // Clear first to prove no device-local state is authoritative.
+        // Clear first, so a rebuild cannot pass by keeping stale rows.
         self.index.clear();
         let index = self.index.rebuild(&self.root)?;
-        let mut project = parse_project(&self.root)?;
-        project.reachable = true;
+        let project = ProjectReference::from_project(
+            read_project(&self.root)?.project(),
+            self.root.display().to_string(),
+        );
+        *self.project.lock() = project.clone();
         let snapshot = ProjectSnapshot {
             project,
             tickets: index.tickets,
@@ -171,82 +232,121 @@ impl ProjectEngine {
         self.index.search(query)
     }
 
-    pub fn write_title(
+    /// Reads one ticket from disk, so the panel always opens the current file
+    /// rather than an index row that may be a moment old.
+    pub fn detail(&self, key: &str) -> AppResult<TicketDetail> {
+        storage::read_ticket_detail(&self.root, key)
+    }
+
+    pub fn edit_ticket(
         &self,
         key: &str,
-        title: &str,
+        edit: &TicketEdit,
         expected_hash: &str,
     ) -> AppResult<WriteResult> {
-        let (path, next) = patch_ticket_title(&self.root, key, title, expected_hash)?;
-        let next_hash = content_hash(&next);
+        let write = prepare_ticket_edit(&self.root, key, edit, expected_hash, &now())?;
+        self.commit(write, false)
+    }
+
+    pub fn create_ticket(&self, request: &NewTicket) -> AppResult<WriteResult> {
+        let project_key = self.project().key;
+        let write = {
+            let _claim = self.creation.lock();
+            prepare_new_ticket(&self.root, &project_key, request, &now())?
+        };
+        self.commit(write, true)
+    }
+
+    /// Records the receipt, places the bytes, and updates the index exactly once.
+    fn commit(&self, write: crate::core::TicketWrite, created: bool) -> AppResult<WriteResult> {
+        let hash = content_hash(&write.bytes);
         self.receipts
             .lock()
-            .remember(path.clone(), next_hash, Instant::now());
-        if let Err(error) = atomic_write(&path, &next) {
-            self.receipts.lock().forget(&path);
+            .remember(write.path.clone(), hash.clone(), Instant::now());
+        if let Err(error) = atomic_write(&write.path, &write.bytes) {
+            self.receipts.lock().forget(&write.path, &hash);
+            if created {
+                storage::discard_claimed_ticket_directory(&write.path);
+            }
             return Err(error);
         }
-        let ticket = self.index.ingest(&path, &self.root)?;
-        let generation = self.index.snapshot().generation;
+        let ticket = self.index.ingest(&write.path)?;
         Ok(WriteResult {
             ticket,
-            generation,
-            atomic_rename: true,
-            watcher_echo_suppressed: true,
+            generation: self.index.snapshot().generation,
+            changes: write.changes,
         })
+    }
+
+    fn report_unavailable(&self) -> AppError {
+        let root_path = self.root.display().to_string();
+        self.emit(ProjectEvent::ProjectUnavailable {
+            root_path: root_path.clone(),
+        });
+        AppError::new(
+            ErrorCode::ProjectUnavailable,
+            "The selected project folder is no longer available",
+            true,
+        )
+        .with_context("path", root_path)
     }
 
     fn emit(&self, event: ProjectEvent) {
         let envelope = StreamEnvelope {
             contract_version: 1,
             sequence: self.sequence.fetch_add(1, Ordering::Relaxed) + 1,
-            project_id: self.project.id.clone(),
-            emitted_at: Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+            project_id: self.project.lock().id.clone(),
+            emitted_at: now(),
             event,
         };
         (self.sink)(envelope);
     }
 
-    fn process_paths(&self, paths: HashMap<PathBuf, usize>, started: Instant) {
+    /// Turns one settled burst into visible events.
+    fn process_burst(&self, paths: HashMap<PathBuf, usize>, started: Instant) {
         if !self.root.is_dir() {
-            self.emit(ProjectEvent::ProjectUnavailable {
-                root_path: self.root.display().to_string(),
-            });
+            self.report_unavailable();
             return;
         }
+        let mut ordered: Vec<(PathBuf, usize)> = paths.into_iter().collect();
+        ordered.sort_by(|left, right| left.0.cmp(&right.0));
 
-        for (path, coalesced_events) in paths {
-            if path.file_name().and_then(|value| value.to_str()) != Some("ticket.md") {
-                continue;
-            }
-            if path.exists() {
-                if !stable_file(&path) {
-                    continue;
-                }
-                let bytes = match fs::read(&path) {
-                    Ok(bytes) => bytes,
-                    Err(_) => continue,
-                };
-                let hash = content_hash(&bytes);
-                let now = Instant::now();
-                let mut receipts = self.receipts.lock();
-                if receipts.consume_if_match(&path, &hash, now) {
-                    continue;
-                }
-                drop(receipts);
-
-                if let Ok(ticket) = self.index.ingest(&path, &self.root) {
-                    self.emit(ProjectEvent::TicketChanged {
-                        ticket,
+        for (path, coalesced_events) in ordered {
+            if !path.exists() {
+                if let Some(ticket_key) = self.index.remove_path(&path) {
+                    self.emit(ProjectEvent::TicketRemoved {
+                        ticket_key,
                         source: EventSource::External,
-                        coalesced_events,
-                        detected_in_ms: started.elapsed().as_secs_f64() * 1_000.0,
                     });
                 }
-            } else if let Some(ticket_key) = self.index.remove_path(&path) {
-                self.emit(ProjectEvent::TicketRemoved {
-                    ticket_key,
+                continue;
+            }
+            let Some(bytes) = read_when_settled(&path) else {
+                continue;
+            };
+            let hash = content_hash(&bytes);
+            if self
+                .receipts
+                .lock()
+                .consume_if_match(&path, &hash, Instant::now())
+            {
+                continue;
+            }
+            // The same bytes we already hold are not a change, whoever touched the
+            // file. This is what keeps a metadata-only event from re-announcing a
+            // change the app has already applied.
+            if directory_key(&path)
+                .and_then(|key| self.index.row(&key))
+                .is_some_and(|row| row.content_hash() == hash)
+            {
+                continue;
+            }
+            if let Ok(ticket) = self.index.ingest(&path) {
+                self.emit(ProjectEvent::TicketChanged {
+                    ticket: Box::new(ticket),
                     source: EventSource::External,
+                    coalesced_events,
+                    detected_in_ms: started.elapsed().as_secs_f64() * 1_000.0,
                 });
             }
         }
@@ -254,24 +354,29 @@ impl ProjectEngine {
 }
 
 impl ProjectWatcher {
-    fn start(engine: Weak<ProjectEngine>, mode: WatcherMode) -> AppResult<Self> {
+    fn start(engine: Weak<ProjectEngine>, adapter: WatcherAdapter) -> AppResult<Self> {
         let (event_tx, event_rx) = mpsc::channel::<notify::Result<Event>>();
-        let watcher_result: notify::Result<Box<dyn Watcher + Send>> = match mode {
-            WatcherMode::Native => {
+        let watcher_result: notify::Result<Box<dyn Watcher + Send>> = match adapter {
+            WatcherAdapter::Native => {
                 let event_tx = event_tx.clone();
                 notify::recommended_watcher(move |event| {
                     let _ = event_tx.send(event);
                 })
                 .map(|watcher| Box::new(watcher) as Box<dyn Watcher + Send>)
             }
-            #[cfg(test)]
-            WatcherMode::Polling => {
+            WatcherAdapter::Polling { interval_ms } => {
                 let event_tx = event_tx.clone();
                 PollWatcher::new(
                     move |event| {
                         let _ = event_tx.send(event);
                     },
-                    Config::default().with_poll_interval(Duration::from_millis(50)),
+                    // Polling compares modification times in whole seconds, so two
+                    // writes inside one second look identical to it. Comparing
+                    // contents costs a read per poll and is what makes this adapter
+                    // deterministic enough to assert on.
+                    Config::default()
+                        .with_poll_interval(Duration::from_millis(interval_ms))
+                        .with_compare_contents(true),
                 )
                 .map(|watcher| Box::new(watcher) as Box<dyn Watcher + Send>)
             }
@@ -290,7 +395,7 @@ impl ProjectWatcher {
                 false,
             ));
         };
-        let tickets_root = strong.root.join(".longclaw/tickets");
+        let tickets_root = storage::tickets_root(&strong.root);
         watcher
             .watch(&tickets_root, RecursiveMode::Recursive)
             .map_err(|error| {
@@ -308,18 +413,28 @@ impl ProjectWatcher {
                 while let Ok(first) = event_rx.recv() {
                     let burst_started = Instant::now();
                     let mut paths = HashMap::<PathBuf, usize>::new();
-                    collect_event(first, &mut paths);
+                    let mut root_touched = collect_event(first, &tickets_root, &mut paths);
                     while burst_started.elapsed() < MAX_BURST {
                         match event_rx.recv_timeout(DEBOUNCE) {
-                            Ok(event) => collect_event(event, &mut paths),
+                            Ok(event) => {
+                                root_touched |= collect_event(event, &tickets_root, &mut paths);
+                            }
                             Err(mpsc::RecvTimeoutError::Timeout) => break,
                             Err(mpsc::RecvTimeoutError::Disconnected) => return,
                         }
                     }
-                    if let Some(engine) = engine.upgrade() {
-                        engine.process_paths(paths, burst_started);
-                    } else {
+                    let Some(engine) = engine.upgrade() else {
                         return;
+                    };
+                    // A tickets root that is gone means the project is gone. A root
+                    // that is merely touched is left to the frontend's focus
+                    // reconciliation rather than triggering a full rebuild here.
+                    if root_touched && !tickets_root.is_dir() {
+                        engine.report_unavailable();
+                        continue;
+                    }
+                    if !paths.is_empty() {
+                        engine.process_burst(paths, burst_started);
                     }
                 }
             })
@@ -337,357 +452,203 @@ impl ProjectWatcher {
     }
 }
 
-fn collect_event(event: notify::Result<Event>, paths: &mut HashMap<PathBuf, usize>) {
+/// Folds one notification into the burst. Returns whether the tickets root itself
+/// was named.
+fn collect_event(
+    event: notify::Result<Event>,
+    tickets_root: &Path,
+    paths: &mut HashMap<PathBuf, usize>,
+) -> bool {
     let Ok(event) = event else {
-        return;
+        return false;
     };
-    let mut unique = HashSet::new();
+    let mut root_touched = false;
+    let mut seen = Vec::new();
     for path in event.paths {
-        if path
-            .file_name()
-            .and_then(|value| value.to_str())
-            .is_some_and(|name| name.contains(".longclaw-") && name.ends_with(".tmp"))
-        {
-            continue;
+        match normalize(&path, tickets_root) {
+            Some(Target::Ticket(canonical)) => {
+                if !seen.contains(&canonical) {
+                    seen.push(canonical.clone());
+                    *paths.entry(canonical).or_default() += 1;
+                }
+            }
+            Some(Target::TicketsRoot) => root_touched = true,
+            None => {}
         }
-        if unique.insert(path.clone()) {
-            *paths.entry(path).or_default() += 1;
+    }
+    root_touched
+}
+
+enum Target {
+    Ticket(PathBuf),
+    TicketsRoot,
+}
+
+/// Reduces any watched path to the canonical `ticket.md` it concerns.
+///
+/// This is where rename handling lives: an editor's temporary file is ignored, a
+/// ticket directory resolves to the ticket inside it, and both halves of a rename
+/// resolve to their own canonical paths, so one becomes a removal and the other an
+/// arrival.
+fn normalize(path: &Path, tickets_root: &Path) -> Option<Target> {
+    if path == tickets_root {
+        return Some(Target::TicketsRoot);
+    }
+    let relative = path.strip_prefix(tickets_root).ok()?;
+    let mut components = relative.components();
+    let key = components.next()?.as_os_str().to_str()?;
+    if !storage::valid_ticket_key(key) {
+        return None;
+    }
+    let ticket = ticket_file_path(tickets_root, key);
+    match components.next() {
+        // The ticket directory itself: created, removed, or renamed.
+        None => Some(Target::Ticket(ticket)),
+        Some(component) => {
+            let name = component.as_os_str().to_str()?;
+            // Attachment bytes and editor temporaries are not indexed. The registry
+            // inside ticket.md is what the index reads.
+            if ticket.file_name().is_none_or(|canonical| canonical != name)
+                || components.next().is_some()
+            {
+                return None;
+            }
+            Some(Target::Ticket(ticket))
         }
     }
 }
 
-fn stable_file(path: &Path) -> bool {
-    let first = fs::metadata(path)
-        .ok()
-        .and_then(|metadata| metadata.modified().ok().map(|time| (metadata.len(), time)));
-    thread::sleep(Duration::from_millis(35));
-    let second = fs::metadata(path)
-        .ok()
-        .and_then(|metadata| metadata.modified().ok().map(|time| (metadata.len(), time)));
-    first.is_some() && first == second
+/// Waits for a file to hold the same size and mtime across an interval, then reads
+/// it. A file that never settles is read anyway: another event is coming, so a
+/// brief degraded row is better than a permanently stale one.
+fn read_when_settled(path: &Path) -> Option<Vec<u8>> {
+    let fingerprint = |path: &Path| {
+        fs::metadata(path)
+            .ok()
+            .and_then(|metadata| metadata.modified().ok().map(|time| (metadata.len(), time)))
+    };
+    for _ in 0..STABILITY_ATTEMPTS {
+        let first = fingerprint(path);
+        thread::sleep(STABILITY_INTERVAL);
+        let second = fingerprint(path);
+        if first.is_some() && first == second {
+            return fs::read(path).ok();
+        }
+        // Deleted while settling; the deletion event covers it.
+        second?;
+    }
+    fs::read(path).ok()
+}
+
+fn now() -> String {
+    Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)
 }
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
     use std::path::{Path, PathBuf};
-    use std::sync::{mpsc, Arc, Mutex as StdMutex, MutexGuard, OnceLock};
-    use std::time::{Duration, Instant};
+    use std::time::Instant;
 
-    use tempfile::TempDir;
-    use walkdir::WalkDir;
+    use super::{normalize, ReceiptBook, Target};
 
-    use super::ProjectEngine;
-    use crate::core::storage::{content_hash, parse_project, parse_ticket, patch_ticket_title};
-    use crate::core::{
-        ErrorCode, EventSource, ProjectEvent, RebuildReason, StreamEnvelope, TicketIndex,
-    };
-
-    fn filesystem_test_guard() -> MutexGuard<'static, ()> {
-        static SERIAL: OnceLock<StdMutex<()>> = OnceLock::new();
-        SERIAL
-            .get_or_init(|| StdMutex::new(()))
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-    }
-
-    fn copy_fixture() -> (TempDir, PathBuf) {
-        let source = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .parent()
-            .and_then(Path::parent)
-            .and_then(Path::parent)
-            .expect("repository root")
-            .join("fixtures/representative-project");
-        let temp = tempfile::tempdir().expect("temp fixture parent");
-        let target = temp.path().join("representative-project");
-        for entry in WalkDir::new(&source).into_iter().map(Result::unwrap) {
-            let relative = entry.path().strip_prefix(&source).unwrap();
-            let destination = target.join(relative);
-            if entry.file_type().is_dir() {
-                fs::create_dir_all(&destination).unwrap();
-            } else {
-                fs::copy(entry.path(), &destination).unwrap();
-            }
-        }
-        (temp, target)
-    }
-
-    fn start_engine(root: &Path) -> (Arc<ProjectEngine>, mpsc::Receiver<StreamEnvelope>) {
-        let project = parse_project(root).unwrap();
-        let (sender, receiver) = mpsc::channel();
-        let sink = Arc::new(move |event| {
-            sender.send(event).unwrap();
-        });
-        let engine = ProjectEngine::start_polling(project, sink).unwrap();
-        // Let the deterministic polling adapter establish its first snapshot.
-        // The production adapter remains native FSEvents and is covered by the
-        // release-window acceptance probe.
-        std::thread::sleep(Duration::from_millis(100));
-        (engine, receiver)
-    }
-
-    fn editor_atomic_replace(path: &Path, raw: &str, sequence: usize) {
-        let temporary = path.with_file_name(format!("ticket.md.editor-{sequence}.tmp"));
-        fs::write(&temporary, raw).unwrap();
-        fs::rename(temporary, path).unwrap();
-    }
-
-    fn replace_title(raw: &str, title: &str) -> String {
-        raw.lines()
-            .map(|line| {
-                if line.starts_with("title:") {
-                    format!("title: {title}")
-                } else {
-                    line.to_owned()
-                }
-            })
-            .collect::<Vec<_>>()
-            .join("\n")
-            + "\n"
+    fn tickets_root() -> PathBuf {
+        PathBuf::from("/project/.longclaw/tickets")
     }
 
     #[test]
-    fn index_is_disposable_and_rebuilds_degraded_records_from_files() {
-        let _serial = filesystem_test_guard();
-        let (_temp, root) = copy_fixture();
-        let index = TicketIndex::default();
-        let first = index.rebuild(&root).unwrap();
-        assert_eq!(first.tickets.len(), 5);
-        assert_eq!(
-            first
-                .tickets
-                .iter()
-                .filter(|ticket| ticket.degraded)
-                .count(),
-            2
-        );
-        index.clear();
-        assert!(index.snapshot().tickets.is_empty());
-        let rebuilt = index.rebuild(&root).unwrap();
-        assert_eq!(rebuilt.tickets, first.tickets);
-        assert!(rebuilt.generation > first.generation);
+    fn every_watched_path_reduces_to_the_ticket_it_concerns() {
+        let root = tickets_root();
+        let canonical = root.join("LC-2").join("ticket.md");
+
+        assert!(matches!(
+            normalize(&canonical, &root),
+            Some(Target::Ticket(path)) if path == canonical
+        ));
+        // A directory rename or removal names the directory, not the file.
+        assert!(matches!(
+            normalize(&root.join("LC-2"), &root),
+            Some(Target::Ticket(path)) if path == canonical
+        ));
+        assert!(matches!(normalize(&root, &root), Some(Target::TicketsRoot)));
     }
 
     #[test]
-    #[ignore = "filesystem watcher integration; run through npm run test:watcher"]
-    fn filesystem_round_trip_covers_self_write_external_burst_deletion_and_reconcile() {
-        let _serial = filesystem_test_guard();
-        let (temp, root) = copy_fixture();
-        let (engine, receiver) = start_engine(&root);
-        let ticket = engine
-            .snapshot()
-            .tickets
-            .into_iter()
-            .find(|ticket| ticket.key == "LC-2")
-            .unwrap();
-        let result = engine
-            .write_title(
-                "LC-2",
-                "The UI write crossed IPC once",
-                &ticket.content_hash,
-            )
-            .unwrap();
-        assert!(result.atomic_rename);
-        assert!(result.watcher_echo_suppressed);
-        assert_eq!(result.ticket.title, "The UI write crossed IPC once");
-
-        let raw = fs::read_to_string(root.join(".longclaw/tickets/LC-2/ticket.md")).unwrap();
-        assert!(raw.contains("x_fixture_extension:\n  owner: future-version"));
-        assert_eq!(
-            raw.matches("kind: update").count(),
-            1,
-            "one UI mutation creates one durable activity event"
-        );
-        assert!(
-            receiver.recv_timeout(Duration::from_millis(800)).is_err(),
-            "the watcher must not echo a self-authored atomic rename"
-        );
-
-        let path = root.join(".longclaw/tickets/LC-1/ticket.md");
-        let initial = fs::read_to_string(&path).unwrap();
-        for sequence in 1..=4 {
-            let raw = replace_title(&initial, &format!("Rapid external edit {sequence}"));
-            editor_atomic_replace(&path, &raw, sequence);
+    fn paths_that_cannot_change_a_ticket_row_are_dropped() {
+        let root = tickets_root();
+        for ignored in [
+            root.join("LC-2/.ticket.md.longclaw-1234.tmp"),
+            root.join("LC-2/ticket.md.editor-1.tmp"),
+            root.join("LC-2/attachments/att_1-log.txt"),
+            root.join("LC-2/notes/scratch.md"),
+            root.join("not-a-key/ticket.md"),
+            root.join(".DS_Store"),
+            PathBuf::from("/elsewhere/ticket.md"),
+        ] {
+            assert!(
+                normalize(&ignored, &root).is_none(),
+                "{} should be ignored",
+                ignored.display()
+            );
         }
-
-        let event = receiver.recv_timeout(Duration::from_secs(10)).unwrap();
-        match event.event {
-            ProjectEvent::TicketChanged {
-                ticket,
-                source,
-                coalesced_events,
-                detected_in_ms,
-            } => {
-                println!(
-                    "PERF external_visibility_pipeline_ms={detected_in_ms:.2} coalesced_events={coalesced_events}"
-                );
-                assert_eq!(ticket.title, "Rapid external edit 4");
-                assert_eq!(source, EventSource::External);
-                assert!(coalesced_events >= 1);
-                assert!(detected_in_ms < 1_500.0);
-            }
-            other => panic!("expected ticket change, got {other:?}"),
-        }
-        assert!(
-            receiver.recv_timeout(Duration::from_millis(500)).is_err(),
-            "one editor save burst should produce one visible update"
-        );
-        assert_eq!(
-            engine
-                .snapshot()
-                .tickets
-                .iter()
-                .find(|ticket| ticket.key == "LC-1")
-                .unwrap()
-                .title,
-            "Rapid external edit 4"
-        );
-
-        let deleted_path = root.join(".longclaw/tickets/LC-3/ticket.md");
-        fs::remove_file(&deleted_path).unwrap();
-        let deleted = receiver
-            .recv_timeout(Duration::from_secs(10))
-            .expect("external ticket deletion event");
-        assert_eq!(
-            serde_json::to_value(&deleted.event).unwrap(),
-            serde_json::json!({
-                "type": "ticketRemoved",
-                "data": {
-                    "ticketKey": "LC-3",
-                    "source": "external"
-                }
-            }),
-            "external deletion must cross IPC with the frontend field contract"
-        );
-        assert!(matches!(
-            deleted.event,
-            ProjectEvent::TicketRemoved {
-                ref ticket_key,
-                ref source
-            } if ticket_key == "LC-3" && *source == EventSource::External
-        ));
-        assert!(
-            engine
-                .snapshot()
-                .tickets
-                .iter()
-                .all(|ticket| ticket.key != "LC-3"),
-            "external deletion must remove the indexed row"
-        );
-        assert!(
-            receiver.recv_timeout(Duration::from_millis(500)).is_err(),
-            "one external deletion should produce one visible event"
-        );
-
-        let resumed = engine.rebuild(RebuildReason::Resume, true).unwrap();
-        assert_eq!(resumed.tickets.len(), 4);
-        let resume_event = receiver.recv_timeout(Duration::from_secs(1)).unwrap();
-        assert!(matches!(
-            resume_event.event,
-            ProjectEvent::IndexRebuilt {
-                reason: RebuildReason::Resume,
-                ..
-            }
-        ));
-
-        let moved = temp.path().join("folder-moved");
-        fs::rename(&root, &moved).unwrap();
-        let error = engine.rebuild(RebuildReason::Resume, true).unwrap_err();
-        assert_eq!(error.code, ErrorCode::ProjectUnavailable);
-        let unavailable = receiver
-            .recv_timeout(Duration::from_secs(2))
-            .expect("project unavailable event");
-        assert!(matches!(
-            unavailable.event,
-            ProjectEvent::ProjectUnavailable { .. }
-        ));
-        assert!(moved.join(".longclaw/longclaw.yaml").is_file());
     }
 
     #[test]
-    fn self_write_receipts_require_an_exact_path_and_hash_match() {
+    fn a_receipt_needs_an_exact_path_and_hash_match() {
         let now = Instant::now();
-        let path = PathBuf::from("/project/.longclaw/tickets/LC-2/ticket.md");
-        let mut receipts = super::ReceiptBook::default();
+        let path = tickets_root().join("LC-2/ticket.md");
+        let mut receipts = ReceiptBook::default();
+
         receipts.remember(path.clone(), "app-hash".to_owned(), now);
         assert!(!receipts.consume_if_match(&path, "external-hash", now));
-
-        receipts.remember(path.clone(), "app-hash".to_owned(), now);
+        assert!(!receipts.consume_if_match(Path::new("/other/ticket.md"), "app-hash", now));
         assert!(receipts.consume_if_match(&path, "app-hash", now));
         assert!(!receipts.consume_if_match(&path, "app-hash", now));
     }
 
     #[test]
-    fn stale_in_app_write_returns_a_typed_conflict_without_overwrite() {
-        let _serial = filesystem_test_guard();
-        let (_temp, root) = copy_fixture();
-        let path = root.join(".longclaw/tickets/LC-1/ticket.md");
-        let ticket = parse_ticket(&path, &root).unwrap();
-        let external = replace_title(
-            &fs::read_to_string(&path).unwrap(),
-            "External version wins until review",
-        );
-        editor_atomic_replace(&path, &external, 1);
+    fn an_external_edit_between_two_app_writes_does_not_discard_the_pending_receipt() {
+        let now = Instant::now();
+        let path = tickets_root().join("LC-2/ticket.md");
+        let mut receipts = ReceiptBook::default();
 
-        let error = patch_ticket_title(
-            &root,
-            "LC-1",
-            "Stale local version",
-            &ticket.view.content_hash,
-        )
-        .unwrap_err();
-        assert_eq!(error.code, ErrorCode::Conflict);
-        assert!(fs::read_to_string(&path)
-            .unwrap()
-            .contains("title: External version wins until review"));
+        receipts.remember(path.clone(), "first".to_owned(), now);
+        receipts.remember(path.clone(), "second".to_owned(), now);
+        assert!(!receipts.consume_if_match(&path, "someone-else".to_owned().as_str(), now));
+        // Both app writes are still recognizable as the app's own.
+        assert!(receipts.consume_if_match(&path, "second", now));
     }
 
     #[test]
-    #[ignore = "explicit performance harness"]
-    fn performance_budgets_for_project_load_and_search() {
-        let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("large-project");
-        let tickets = root.join(".longclaw/tickets");
-        fs::create_dir_all(&tickets).unwrap();
-        fs::write(
-            root.join(".longclaw/longclaw.yaml"),
-            "format: longclaw.project/v1\nid: perf-project\nname: Performance Fixture\nkey: PF\ntheme: indigo\ncreated_at: 2026-07-29T00:00:00Z\n",
-        )
-        .unwrap();
-        for sequence in 1..=5_000 {
-            let directory = tickets.join(format!("PF-{sequence}"));
-            fs::create_dir(&directory).unwrap();
-            fs::write(
-                directory.join("ticket.md"),
-                format!(
-                    "---\nformat: longclaw.ticket/v1\nid: perf-{sequence}\nkey: PF-{sequence}\ntitle: Searchable architecture ticket {sequence}\nstatus: todo\npriority: none\ncreated_at: 2026-07-29T00:00:00Z\nupdated_at: 2026-07-29T00:00:00Z\n---\n\n## Checklist\n\n- [ ] Measure it <!-- longclaw:item=ck_{sequence} -->\n"
-                ),
-            )
-            .unwrap();
-        }
-        let index = TicketIndex::default();
-        let loaded = index.rebuild(&root).unwrap();
-        let search = index.search("ticket 4999");
-        println!(
-            "PERF large_project_load_ms={:.2} search_ms={:.2} records={}",
-            loaded.rebuilt_in_ms,
-            search.elapsed_ms,
-            loaded.tickets.len()
-        );
-        assert_eq!(loaded.tickets.len(), 5_000);
-        assert!(
-            loaded.rebuilt_in_ms <= 2_500.0,
-            "5k project load budget exceeded: {:.2}ms",
-            loaded.rebuilt_in_ms
-        );
-        assert!(
-            search.elapsed_ms <= 50.0,
-            "search budget exceeded: {:.2}ms",
-            search.elapsed_ms
-        );
-        assert_eq!(search.tickets.len(), 1);
+    fn matching_a_later_write_retires_the_ones_it_replaced() {
+        let now = Instant::now();
+        let path = tickets_root().join("LC-2/ticket.md");
+        let mut receipts = ReceiptBook::default();
 
-        let sample = fs::read(root.join(".longclaw/tickets/PF-4999/ticket.md")).unwrap();
-        assert!(!content_hash(&sample).is_empty());
+        receipts.remember(path.clone(), "first".to_owned(), now);
+        receipts.remember(path.clone(), "second".to_owned(), now);
+        assert!(receipts.consume_if_match(&path, "second", now));
+        assert!(!receipts.consume_if_match(&path, "first", now));
+    }
+
+    #[test]
+    fn a_receipt_expires_so_a_missed_event_cannot_hide_a_later_edit() {
+        let now = Instant::now();
+        let path = tickets_root().join("LC-2/ticket.md");
+        let mut receipts = ReceiptBook::default();
+
+        receipts.remember(path.clone(), "app-hash".to_owned(), now);
+        let later = now + super::SELF_WRITE_TTL + std::time::Duration::from_millis(1);
+        assert!(!receipts.consume_if_match(&path, "app-hash", later));
+    }
+
+    #[test]
+    fn a_failed_write_forgets_its_receipt() {
+        let now = Instant::now();
+        let path = tickets_root().join("LC-2/ticket.md");
+        let mut receipts = ReceiptBook::default();
+
+        receipts.remember(path.clone(), "app-hash".to_owned(), now);
+        receipts.forget(&path, "app-hash");
+        assert!(!receipts.consume_if_match(&path, "app-hash", now));
     }
 }

@@ -1,0 +1,11 @@
+{
+  "summary": "State newer than the newest activity entry is preserved and flagged as incomplete history, never reverted to match the record.",
+  "key": "LC-36",
+  "outcome": "valid",
+  "ticket": {
+    "status": "done",
+    "updatedAt": "2026-07-29T12:00:00Z",
+    "historyIncomplete": true,
+    "recordDiagnostics": []
+  }
+}

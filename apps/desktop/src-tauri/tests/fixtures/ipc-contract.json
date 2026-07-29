@@ -9,18 +9,31 @@
         "type": "ticketChanged",
         "data": {
           "ticket": {
+            "state": "indexed",
             "key": "LC-3",
+            "id": "019c8c7e-7b22-7ef0-9c33-84a1d5e0b7c6",
             "title": "External deletion contract",
             "status": "todo",
+            "priority": "p2",
+            "labels": ["reliability"],
+            "createdAt": "2026-07-29T00:00:00Z",
+            "updatedAt": "2026-07-29T09:00:00Z",
             "checkedCount": 1,
             "checklistCount": 2,
+            "commentCount": 1,
+            "attachmentCount": 0,
+            "lastActivity": {
+              "id": "evt_f83f615b",
+              "kind": "comment",
+              "occurredAt": "2026-07-29T09:00:00Z",
+              "actor": {
+                "type": "agent",
+                "id": "claude-code",
+                "name": "Claude Code"
+              }
+            },
             "contentHash": "abc123",
-            "relativePath": ".longclaw/tickets/LC-3/ticket.md",
-            "degraded": false,
-            "lastActor": {
-              "type": "human",
-              "name": "Sachin"
-            }
+            "relativePath": ".longclaw/tickets/LC-3/ticket.md"
           },
           "source": "external",
           "coalescedEvents": 4,
@@ -54,22 +67,49 @@
               "id": "project-fixture",
               "name": "Fixture Project",
               "rootPath": "/tmp/LongClaw Fixture",
+              "key": "LC",
               "theme": "indigo",
               "reachable": true
             },
             "tickets": [
               {
+                "state": "indexed",
                 "key": "LC-3",
+                "id": "019c8c7e-7b22-7ef0-9c33-84a1d5e0b7c6",
                 "title": "External deletion contract",
                 "status": "todo",
+                "priority": "p2",
+                "labels": ["reliability"],
+                "createdAt": "2026-07-29T00:00:00Z",
+                "updatedAt": "2026-07-29T09:00:00Z",
                 "checkedCount": 1,
                 "checklistCount": 2,
+                "commentCount": 1,
+                "attachmentCount": 0,
+                "lastActivity": {
+                  "id": "evt_f83f615b",
+                  "kind": "comment",
+                  "occurredAt": "2026-07-29T09:00:00Z",
+                  "actor": {
+                    "type": "agent",
+                    "id": "claude-code",
+                    "name": "Claude Code"
+                  }
+                },
                 "contentHash": "abc123",
-                "relativePath": ".longclaw/tickets/LC-3/ticket.md",
-                "degraded": false,
-                "lastActor": {
-                  "type": "human",
-                  "name": "Sachin"
+                "relativePath": ".longclaw/tickets/LC-3/ticket.md"
+              },
+              {
+                "state": "degraded",
+                "key": "LC-98",
+                "contentHash": "def456",
+                "relativePath": ".longclaw/tickets/LC-98/ticket.md",
+                "byteLength": 420,
+                "readOnly": false,
+                "diagnostic": {
+                  "code": "parse_failed",
+                  "message": "status must be one of backlog, todo; found blocked",
+                  "line": 6
                 }
               }
             ],

@@ -1,0 +1,7 @@
+{
+  "summary": "Frontmatter key and ticket directory must agree; a rename that breaks the pair degrades rather than being repaired.",
+  "key": "LC-22",
+  "outcome": "degraded",
+  "code": "parse_failed",
+  "diagnosticContains": "directory"
+}

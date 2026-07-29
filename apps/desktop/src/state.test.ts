@@ -57,4 +57,47 @@ describe("Rust project-event JSON applied to visible state", () => {
       recoverable: true,
     });
   });
+
+  it("keeps an unreadable ticket visible with its diagnostic", () => {
+    useLongClawStore
+      .getState()
+      .applyEvent(ipcContract.projectEventEnvelopes.indexRebuilt);
+
+    const tickets = useLongClawStore.getState().tickets;
+    expect(tickets).toHaveLength(2);
+    const degraded = tickets.find((ticket) => ticket.state === "degraded");
+    expect(degraded).toMatchObject({
+      state: "degraded",
+      key: "LC-98",
+      readOnly: false,
+      relativePath: ".longclaw/tickets/LC-98/ticket.md",
+      diagnostic: { code: "parse_failed", line: 6 },
+    });
+    expect(useLongClawStore.getState().generation).toBe(7);
+  });
+
+  it("carries the attribution an external change arrived with", () => {
+    useLongClawStore.setState({ tickets: [] });
+    useLongClawStore.getState().applyEvent(changedEnvelope);
+
+    const [ticket] = useLongClawStore.getState().tickets;
+    expect(ticket.state).toBe("indexed");
+    if (ticket.state !== "indexed") throw new Error("expected an indexed row");
+    expect(ticket.lastActivity?.actor).toEqual({
+      type: "agent",
+      id: "claude-code",
+      name: "Claude Code",
+    });
+    expect(ticket.contentHash).toBe("abc123");
+  });
+
+  it("ignores an event that arrived out of order", () => {
+    const store = useLongClawStore.getState();
+    store.applyEvent(ipcContract.projectEventEnvelopes.indexRebuilt);
+    store.applyEvent(ipcContract.projectEventEnvelopes.ticketRemoved);
+
+    // The removal has a lower sequence than the rebuild, so it does not apply.
+    expect(useLongClawStore.getState().tickets).toHaveLength(2);
+    expect(useLongClawStore.getState().lastSequence).toBe(3);
+  });
 });
