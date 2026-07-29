@@ -1,0 +1,16 @@
+format: longclaw.project/v1
+id: 019c9f43-9e9e-7b5f-9f53-5d4f0a6427a1
+name: Architecture Proof
+key: LC
+theme: indigo
+created_at: 2026-07-29T08:00:00Z
+people:
+  sachin:
+    name: Sachin Jain
+labels:
+  architecture:
+    name: Architecture
+    color: purple
+  reliability:
+    name: Reliability
+    color: amber

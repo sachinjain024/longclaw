@@ -1,0 +1,34 @@
+{
+  "name": "longclaw-tauri-v2-architecture-spike",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "spike": "tauri dev",
+    "tauri": "tauri",
+    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "test:watcher": "cargo test --manifest-path src-tauri/Cargo.toml filesystem_round_trip -- --ignored --nocapture",
+    "perf:rust": "cargo test --manifest-path src-tauri/Cargo.toml performance_budgets -- --ignored --nocapture",
+    "verify": "npm run build && npm run test:rust && npm run test:watcher"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.8.0",
+    "@tauri-apps/plugin-dialog": "^2.4.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.8.4",
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.4",
+    "typescript": "~5.9.3",
+    "vite": "^7.1.7"
+  }
+}
