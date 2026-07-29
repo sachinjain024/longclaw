@@ -25,6 +25,8 @@ This throwaway spike asks whether one small architecture can make project files 
 
 The attempted screenshot capture was blocked by macOS screen-recording permissions. No screenshot is claimed. The release-mode application launch and animation-frame DOM probes are retained as the deterministic visible-state evidence.
 
+The native picker is implemented, capability-scoped, and release-compiled; project registration/restart persistence is automated. macOS also denied assistive-access automation, so clicking through the picker itself remains step 3 of the human review scenario rather than an automated claim.
+
 ## Architecture and trust
 
 ```text
@@ -93,7 +95,7 @@ LONGCLAW_SPIKE_EXIT_AFTER_FIRST_PROBE=1 \
 
 ## Representative paths proved
 
-- Native folder selection through `@tauri-apps/plugin-dialog`.
+- Native folder selection wired through `@tauri-apps/plugin-dialog`, with click-through reserved for the human review.
 - Atomic persistence of the application-support project registry.
 - Format-v1 project and ticket parsing against real Markdown/YAML files.
 - Unknown frontmatter preservation through targeted text mutation.
