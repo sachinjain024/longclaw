@@ -7,6 +7,13 @@
 > — this document adds the geometry that assembles those components into
 > screens. Every value below is expressed in `--lc-*` tokens or px where a
 > token does not exist yet. The live reference is `prototype.html`.
+>
+> Revised after the M0 ADRs: no assignee anywhere in v0 (local mode,
+> ADR 0001), board ordering control (ADR 0003), and ticket archival
+> (ADR 0004). Where this document diverges from the Step 1 component
+> foundations (card/list assignee slots), the ADRs win for v0; the avatar
+> component itself remains — humans appear as circle avatars in the
+> timeline and composer.
 
 ## App shell
 
@@ -37,8 +44,9 @@
 - **Content header:** padding 16px 24px 12px. Project name
   (`--lc-type-title`), settings gear (ghost icon button), path chip (mono
   12px, folder glyph, click copies, hover `wash`), disk-state indicator
-  (below), spacer, filter field (190×28px), view segment (Board | List),
-  primary **New ticket** button with `C` kbd chip.
+  (below), spacer, filter field (190×28px), **ordering control** (ghost,
+  `Order: Priority|Manual`, opens the ordering menu — ADR 0003), view
+  segment (Board | List), primary **New ticket** button with `C` kbd chip.
 - **Disk-state indicator:** mono 10px. While a write is in flight:
   9px spinner + `writing ticket.md…` in `ink-3`. Settled: `✓ ticket.md`
   in `ink-disabled`. This is the honest surface of optimistic UI — the
@@ -97,12 +105,21 @@ movement. No custom-color affordance exists anywhere.
   preseeded with that column's status). Card stack gap 8px; each column
   scrolls independently when tall.
 - Column order = status order: Backlog · Todo · In Progress · In Review ·
-  Done · Canceled. The Canceled column renders only when it has tickets
-  (it is reachable via the list view and search regardless).
+  Done · Canceled — the fixed v0 set; no status creation exists (ADR
+  0002). The Canceled column renders only when it has tickets (it is
+  reachable via the list view and search regardless).
+- **Ordering (ADR 0003):** within a column, tickets order by priority by
+  default (Urgent → P1 → P2 → P3 → P4 → None, stable within a level).
+  The header control switches the board to Manual, which renders the
+  per-ticket `rank` order; the choice is a per-project view preference in
+  app state. Keyboard navigation always follows the visual order.
+- **Archived tickets never render on the board** (ADR 0004); the list
+  view is the archive surface.
 - **Cards:** anatomy and all states (resting/hover/focus/selected/fresh/
-  degraded) per components.md § Board card. Board-specific rules:
+  degraded) per components.md § Board card, minus the assignee avatar —
+  v0 is local mode and has no assignee (ADR 0001). Board-specific rules:
   - max 2 label chips; when a checklist fraction is present, max 1 — the
-    footer never wraps or clips the assignee avatar;
+    footer never wraps;
   - fresh treatment decays when the ticket is opened, or 2 minutes after
     the last agent write, whichever comes first;
   - clicking anywhere on the card opens the panel; the card is a single
@@ -124,11 +141,17 @@ movement. No custom-color affordance exists anywhere.
 - **Row:** 36px (`--lc-size-row`), padding 0 12px, gap 10px. Order: status
   dot 13 · mono ID 11px `ink-3` (58px fixed) · priority glyph · title
   (13px/500, truncates) · fresh dot (agent, when fresh) · checklist
-  fraction · ≤2 label chips · assignee avatar 20 · relative updated mono
-  10.5px right-aligned (46px fixed).
+  fraction · ≤2 label chips · relative updated mono 10.5px right-aligned
+  (46px fixed). No assignee slot in v0 (ADR 0001). Rows within a group
+  follow the same ordering preference as the board.
   Hover `wash`; focus = inset human border + ring; selected = human wash +
   2px left accent bar. Degraded rows: warn triangle, mono filename, "View
   raw file".
+- **Archived group (ADR 0004):** below the last status group, a
+  toggleable header — folder glyph, "Archived", mono count, show/hide —
+  collapsed by default. Expanded rows render at 80% opacity, use the
+  same row anatomy, and open the panel normally. Archived tickets also
+  surface in palette search, tagged `· archived`.
 
 ## Ticket panel
 
@@ -138,14 +161,18 @@ movement. No custom-color affordance exists anywhere.
   and clickable behind it — clicking another card retargets the panel; Esc
   closes and returns focus to the originating card.
 - **Header row** (padding 14px 20px 0): ID chip (click copies), mono file
-  path `tickets/LC-128/ticket.md` — the disk made visible — spacer, close.
+  path `tickets/LC-128/ticket.md` — the disk made visible — an `archived`
+  kbd-style chip when archived, spacer, **Archive/Unarchive** ghost button
+  (ADR 0004), close. Archiving closes the panel, hides the ticket from
+  the board and default views, raises the undo toast, and logs an
+  activity event; the directory never moves.
 - **Title:** borderless textarea, `--lc-type-title`, hover `wash`, focus =
   field treatment. Enter or blur commits (activity: "renamed"); Esc
   reverts.
 - **Meta grid:** 84px label column, 12px gap. Rows: Status, Priority,
-  Assignee, Labels — each value a 26px menu trigger (hover `wash`).
-  The assignee menu lists **registered humans only** and carries the mono
-  footnote: `❯ agents contribute — in the timeline, never as assignee.`
+  Labels — each value a 26px menu trigger (hover `wash`). There is no
+  Assignee row: v0 is local mode and the concept doesn't exist here
+  (ADR 0001); the row returns with team projects.
 - **Description:** rendered markdown block; hover shows `wash` + Edit
   affordance; click enters edit mode. Editor anatomy:
   - tab strip on `wash`: **Write** / **Preview** tabs (24px), formatting
@@ -182,7 +209,7 @@ movement. No custom-color affordance exists anywhere.
 ## Full create
 
 - The ticket panel in create mode: provisional ID chip (`KEY-n · new`),
-  title textarea, the same meta grid (status/priority/assignee/labels),
+  title textarea, the same meta grid (status/priority/labels),
   description editor (write mode only until first save), checklist
   draft rows with remove affordances and add-row. Footer: primary
   **Create ticket** (`⌘↵`) + ghost Cancel. On create the panel swaps to
@@ -194,26 +221,30 @@ movement. No custom-color affordance exists anywhere.
   Input row 44px (15px type, `esc` chip). Result rows 36px: 16px glyph
   slot, 13px name, right-aligned kbd hint. Active row `accent-human-soft`.
   Footer: mono legend `↑↓ navigate · ↵ run · esc close/back`.
-- **Root commands (D14):** create ticket · go to project… · change status…
-  (`S`) · assign… (`A`) · search tickets… · star/unstar project · toggle
-  appearance · change project theme… · **new terminal** — present,
-  disabled, tagged `PHASE 2`. Plus two Step 2 additions staged for
-  sign-off (see README § Proposals): set priority… (`P`) and switch
-  board/list view.
-- **Sub-modes** (status, assign, priority, theme, project, search) replace
-  the list and show a crumb chip in the input row; `Esc` steps back to
-  root, not out. Status/assign/priority target the open or focused ticket
-  and are disabled with an inline explanation when there is none. Theme
-  rows carry miniature pair swatches. Search rows: status dot + mono key +
-  title, Enter opens the panel.
+- **Root commands:** create ticket · go to project… · change status…
+  (`S`) · set priority… (`P`) · search tickets… · star/unstar project ·
+  toggle appearance · change project theme… · archive/unarchive ticket
+  (ADR 0004) · change board ordering… (ADR 0003) · switch board/list
+  view · **new terminal** — present, disabled, tagged `PHASE 2`.
+  This is D14 minus "assign…" (no assignee in v0, ADR 0001) plus the
+  additions staged in README § Proposals.
+- **Sub-modes** (status, priority, ordering, theme, project, search)
+  replace the list and show a crumb chip in the input row; `Esc` steps
+  back to root, not out. Status/priority/archive target the open or
+  focused ticket and are disabled with an inline explanation when there
+  is none. Theme rows carry miniature pair swatches. Search rows: status
+  dot + mono key + title (archived tickets tagged `· archived`), Enter
+  opens the panel.
 
-## Menus (status · priority · assignee · labels)
+## Menus (status · priority · ordering · labels)
 
 - Anchored popover: min 220px, `raised` bg, hairline, radius 10,
   `--lc-shadow-overlay`, 5px padding. Rows 30px with the option's own
   glyph; current value shows a trailing human-accent check. Arrow keys
   cycle, Enter picks, Esc returns focus to the trigger. Opened from the
-  keyboard (`S`/`A`/`P`) the menu anchors to the focused card/row.
+  keyboard (`S`/`P`) the menu anchors to the focused card/row. The
+  ordering menu carries the mono footnote "Ordering is a view preference
+  on this board — it never rewrites files."
 
 ## Project settings
 

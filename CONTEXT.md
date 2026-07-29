@@ -13,7 +13,7 @@ A human or agent that contributes a comment or change to a ticket.
 _Avoid_: User, contributor
 
 **Assignee**:
-The human accountable for a ticket. An agent is never an assignee.
+The human accountable for a ticket in a team project. An agent is never an assignee, and local projects have no assignees — the concept exists only in team mode.
 _Avoid_: Owner, agent assignee
 
 **Attachment**:

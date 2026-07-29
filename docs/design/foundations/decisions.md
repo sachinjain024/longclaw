@@ -42,7 +42,12 @@ tritanopia (`accessibility.md`); the Clay pairing required a value adjustment
 (D10) rather than a rule exception. The agent green also never collides with
 a status color because Done is not green (D5).
 
-## D3 — Status set & glyphs · revised (founder direction, 2026-07-28)
+## D3 — Status set & glyphs · revised (founder direction, 2026-07-28) · scope-adjusted by ADR 0002
+
+> **ADR 0002 (2026-07-28):** statuses are **fixed in v0** — the
+> user-defined-status creation row below is deferred to a later version,
+> where statuses live per project outside `longclaw.yaml`. The dot+label
+> visual language is unchanged.
 
 **Current:** a status is a **color dot + text label**, one geometry for all —
 the old Todo ring is the shape; the default state stays an unfilled grey
@@ -127,6 +132,9 @@ undo · `⌘F` filter. Exactly the brief's proposed single-key set plus the
 non-negotiable navigation/undo basics; no chords in v0. Full table in
 `components.md`.
 
+> **ADR 0001 (2026-07-28):** `A` assign is reserved, not bound, in v0 —
+> local mode has no assignee. The binding returns with team projects.
+
 ## D9 — Side-panel project theme marker · accepted
 
 A 6px dot in each project's own human accent, left of the project name.
@@ -193,6 +201,12 @@ create ticket · go to project · change status · assign · search tickets ·
 star project · toggle appearance · change project theme · new terminal
 (Phase 2 slot, visible but disabled). "Change project theme" ships in the
 palette per the brief's proposal.
+
+> **ADR 0001 (2026-07-28):** "assign" is dropped from the v0 palette —
+> no assignee in local mode. The Step 2 bundle additionally stages
+> set-priority, view-toggle, archive (ADR 0004) and board-ordering
+> (ADR 0003) commands for sign-off; see
+> `../prototype/README.md` § Proposals.
 
 ## D15 — Token architecture · accepted (hard requirement, verified)
 

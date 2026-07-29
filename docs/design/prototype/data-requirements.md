@@ -16,7 +16,7 @@
 | `ticket.md` body | description (CommonMark), `## Checklist` tasks + stable item IDs, `## Attachments` registry, `## Activity` bounded events | canonical |
 | `longclaw.yaml` | project id, name, key, **theme**, created_at, people registry, label definitions | canonical |
 | `.longclaw/AGENTS.md` | generated agent editing contract | documentation |
-| App state (OS app-support dir) | project registry (paths), starred, appearance preference, window/panel state, palette history, index, watcher checkpoints, content hashes | disposable / device-local |
+| App state (OS app-support dir) | project registry (paths), starred, appearance preference, board ordering preference (ADR 0003), archived-view toggle, window/panel state, palette history, index, watcher checkpoints, content hashes | disposable / device-local |
 | Derived at render | checklist progress, counts, relative times, freshness, degraded status | never stored |
 
 ## Per-surface requirements
@@ -50,8 +50,8 @@
 | Priority glyph / chip | priority | frontmatter |
 | Labels (name + color) | ticket label slugs → project label defs | frontmatter + `longclaw.yaml` |
 | Checklist fraction + progress | checklist items + checked | body `## Checklist` (derived) |
-| Assignee avatar | assignee id → person name/initials | frontmatter + `longclaw.yaml` `people` |
-| Ordering within column | rank | frontmatter `rank` |
+| Ordering within column | priority (default) or rank (Manual mode, ADR 0003) | frontmatter `priority` / `rank`; mode from app state |
+| Archived exclusion / list archived group | archived_at (ADR 0004) | frontmatter `archived_at` |
 | Updated-at (list) | updated_at | frontmatter |
 | Fresh treatment + "updated by agent · 12s" | last external write time + actor type | watcher event + newest activity actor (derived, app state) |
 | Degraded card/row | parse result, raw bytes, error, path | storage layer (never written back) |
@@ -62,8 +62,8 @@
 |---|---|---|
 | ID chip, file path line | key; path derived from key | frontmatter; path convention `tickets/<KEY>/ticket.md` |
 | Title (editable) | title | frontmatter |
-| Status/priority menus | current value + enum | frontmatter |
-| Assignee menu | people registry (humans only) | `longclaw.yaml` `people` |
+| Status/priority menus | current value + fixed v0 enum (ADR 0002) | frontmatter |
+| Archive / Unarchive control | archived_at (ADR 0004) | frontmatter `archived_at` |
 | Labels row + picker | slugs + project label defs | frontmatter + `longclaw.yaml` |
 | Description (view/edit) | markdown body (non-reserved sections) | `ticket.md` body |
 | Checklist block | items: stable id, text, checked | `## Checklist` + `longclaw:item` markers |
@@ -96,9 +96,9 @@
 | Mode | Data | Source |
 |---|---|---|
 | Root commands | static set + target-ticket presence | D14 + focus state |
-| Search tickets | key, title, status of all parseable tickets | index (disposable, rebuilt from files) |
+| Search tickets | key, title, status, archived_at of all parseable tickets (archived rows tagged) | index (disposable, rebuilt from files) |
 | Go to project | registry + reachability + theme | app state + `longclaw.yaml` |
-| Status/assign/priority/theme rows | enums, people, presets | as above |
+| Status/priority/ordering/theme rows | fixed enums, ordering modes, presets | as above |
 
 ### Waitlist
 
@@ -123,43 +123,43 @@
 ## Contract verification — prototype vs `file_format.md`
 
 Every canonical field the screens consume exists in the approved format:
-ticket identity (`id`/`key`), title, status, priority, assignee, labels,
-rank, timestamps, description, checklist with stable item ids, activity
-events with typed actors, project name/key/theme, people, label
-definitions. ✅
+ticket identity (`id`/`key`), title, status, priority, labels, rank,
+`archived_at`, timestamps, description, checklist with stable item ids,
+activity events with typed actors, project name/key/theme, people, label
+definitions. ✅ (`assignee` stays in the schema as optional but no v0
+surface reads or writes it — ADR 0001.)
 
 **Items the format intentionally leaves to app state, confirmed OK from
 the screens:** starred, appearance, view preference, filter, freshness,
 conflict hashes, palette history, waitlist joined. None of these need to
 be portable; none enter the files.
 
-**Open items surfaced by the prototype for Step 3 to close:**
+**Open items surfaced by the prototype — status after ADRs 0001–0005:**
 
-1. **Local human identity.** Events and `assignee` need a stable person id
-   for "the human at this machine" without accounts. The prototype assumes
-   the first entry in `people` is the local user; Step 3 must decide how
-   `people` gets its first entry (project creation prompt vs OS username
-   default) and how the local actor id is chosen per machine.
-2. **Status enum vs user-defined statuses.** D3 makes statuses
-   user-definable with colored dots; `longclaw.yaml` in the format doc does
-   not yet carry a status registry. v0 screens only need the six built-ins;
-   if user statuses stay in v0 scope, the project file needs a `statuses`
-   section (name, color from the 8-hue ramp, order) — flagged, not decided
-   here.
-3. **Ticket ordering.** Cards render by `rank` within a column; the
-   prototype inserts new tickets at the top. Step 3 should state the rank
-   scheme (lexicographic midpoints per the format doc) and the default rank
-   on create.
-4. **Freshness provenance.** "Updated by agent" derives from the newest
-   activity entry's actor when a watcher event arrives. If an agent
-   mutates state without appending an event (legal but history-incomplete
-   per the format), the card still pulses but attributes as
-   `file changed on disk — actor unknown`. No format change needed;
-   noting the derivation rule.
-5. **Archived tickets.** `archived_at` exists in the format's lifecycle
-   semantics but no v0 surface displays or sets it. Confirm it is
-   post-MVP UI (the format keeps it legal on disk).
-6. **Attachments.** The format registers attachments; no v0 screen in this
-   prototype renders them (drag-in images are explicitly "later" in the
-   brief). Descriptions may reference them as plain links. Confirm
-   attachment UI is post-MVP while the on-disk registry ships in v1 format.
+1. **Local human identity** — *narrowed by [ADR 0001](../../adr/0001-no-assignee-in-local-mode.md).*
+   With no assignee in local mode, identity is needed only for actor
+   attribution on comments and activity events (a display identity).
+   Step 3 still decides how that local actor id/name is established per
+   machine (project creation prompt vs OS username default).
+2. **Status enum vs user-defined statuses** — *closed by
+   [ADR 0002](../../adr/0002-fixed-statuses-in-v0.md).* v0 ships the six
+   built-ins only; no status registry enters the v1 format. User-defined
+   statuses arrive later as per-project data outside `longclaw.yaml`.
+3. **Ticket ordering** — *largely closed by
+   [ADR 0003](../../adr/0003-priority-default-ordering-manual-option.md).*
+   Priority order is the default and needs nothing on disk; `rank` is
+   written only by manual reordering. Step 3 still specifies the rank
+   midpoint scheme and the rank assigned on first manual reorder.
+4. **Freshness provenance** — unchanged. "Updated by agent" derives from
+   the newest activity entry's actor when a watcher event arrives; an
+   unattributed external mutation shows as
+   `file changed on disk — actor unknown`. No format change needed.
+5. **Archival** — *reversed by [ADR 0004](../../adr/0004-archive-in-v0.md):
+   archival UI is v0 scope.* The app reads and writes `archived_at`,
+   excludes archived tickets from the board and default views, and lists
+   them in the list view's archived group. Already legal in the format.
+6. **Attachments** — *closed by
+   [ADR 0005](../../adr/0005-attachments-ui-post-mvp.md).* No attachment
+   UI in v0; the v1 format ships the registry and `attachments/`
+   directory, and the app preserves agent-registered attachments
+   losslessly.

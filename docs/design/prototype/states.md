@@ -59,8 +59,8 @@
   mutated element.
 - **Surface:** the header disk-state line: `⟳ writing ticket.md…` (mono,
   `ink-3`) → `✓ ticket.md` (`ink-disabled`). Destructive-adjacent
-  mutations (status, priority, assign, create, check) also raise a toast
-  with **Undo ⌘Z** (5s, bottom-center, single stack).
+  mutations (status, priority, archive/unarchive, create, check) also
+  raise a toast with **Undo ⌘Z** (5s, bottom-center, single stack).
 - **Failure:** a failed write re-raises the toast as a danger banner state
   with retry; the optimistic value stays visible and marked unsaved.
   (Write-failure UI is exercised in Step 6+ with real storage; the pattern

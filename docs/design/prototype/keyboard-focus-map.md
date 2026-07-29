@@ -40,13 +40,13 @@
 | `←` / `H`, `→` / `L` | Move focus across columns (row index clamps) |
 | `Enter` | Open focused ticket in the panel |
 | `S` | Status menu, anchored to the focused card |
-| `A` | Assignee menu, anchored to the focused card |
 | `P` | Priority menu, anchored to the focused card |
 | `C` | Quick create (column `+` buttons preseed that column's status) |
 
 Focus entry: the first card of the first non-empty column on first arrow
 press. A degraded card accepts focus; `Enter` opens the raw file view; the
-`S`/`A`/`P` actions are inert on it.
+`S`/`P` actions are inert on it. Focus order always matches the visual
+order, including the board-ordering preference (ADR 0003).
 
 ## Issue list
 
@@ -58,14 +58,15 @@ groups; `←→`/`H L` are unbound. Group headers are not focus stops.
 | Key | Action |
 |---|---|
 | `Esc` | Close panel → focus returns to the originating card/row |
-| `Tab` | Natural order: ID chip → close → title → status → priority → assignee → labels → description → checklist rows → add-item → composer → comment |
+| `Tab` | Natural order: ID chip → archive → close → title → status → priority → labels → description → checklist rows → add-item → composer → comment |
 | `Enter` / `Space` on a checklist row | Toggle the item |
 | `Enter` in add-item field | Append item, keep focus in the field |
 | `Enter` on a meta trigger | Open that menu |
 
-The panel does not steal `↑↓` from the page scroll. `S`/`A`/`P` still work
+The panel does not steal `↑↓` from the page scroll. `S`/`P` still work
 (they target the open ticket) because the panel's ticket is the focused
-ticket.
+ticket. There is no `A` shortcut in v0 — assignment does not exist in
+local mode (ADR 0001); the key returns with team projects.
 
 ## Title editing (panel)
 
@@ -103,7 +104,10 @@ canceling returns focus to the description block.
 
 Focus enters the input on open and returns to the pre-palette focus on
 close. Disabled rows (no target ticket; `New terminal` until Phase 2) are
-skipped by `Enter` but remain visible with their reason.
+skipped by `Enter` but remain visible with their reason. Archive/
+unarchive and board ordering have no single-key binding — the palette is
+their keyboard path (per the "every pointer action has a keyboard path"
+rule; the list's Archived show/hide toggle is a focusable header button).
 
 ## Quick create
 
@@ -113,7 +117,7 @@ skipped by `Enter` but remain visible with their reason.
 | `Esc` | Cancel, focus returns |
 | `Tab` | Title → status trigger → Open full editor → Create |
 
-## Menus (status / priority / assignee / labels)
+## Menus (status / priority / ordering / labels)
 
 | Key | Action |
 |---|---|
@@ -150,6 +154,8 @@ swatches (radio group, arrows move, space selects) → Create → Back.
 ## Not bound in v0 (deliberate)
 
 - No chords beyond the `⌘` basics (D8: "no chords in v0").
+- No `A` (assign) — D8 listed it, but v0 local mode has no assignee
+  (ADR 0001); the binding is reserved for team mode.
 - No drag-and-drop keyboard equivalent — reordering within a column is
   post-v0 (LC-136 canceled); status moves *are* the keyboard path across
   columns (`S`).

@@ -151,7 +151,7 @@ const humanActor = (id) => ({ type: "human", id, name: PEOPLE[id].name });
 function T(o) {
   return Object.assign({
     id: uid("t"), labels: [], checklist: [], activity: [], priority: "none",
-    assignee: null, description: "", fresh: false, freshAt: 0, degraded: null, pending: false,
+    assignee: null, description: "", fresh: false, freshAt: 0, degraded: null, pending: false, archivedAt: null,
   }, o);
 }
 const ck = (text, checked = false) => ({ id: uid("ck"), text, checked, agentFresh: false, by: null });
@@ -161,20 +161,20 @@ function seedLongclaw() {
   const t0 = now();
   const tickets = [
     T({ key: "LC-101", title: "Project settings: relocate folder flow", status: "backlog", priority: "p3",
-        assignee: "jun", labels: ["onboarding"], createdAt: t0 - 21 * DAY, updatedAt: t0 - 9 * DAY,
+        labels: ["onboarding"], createdAt: t0 - 21 * DAY, updatedAt: t0 - 9 * DAY,
         description: "When a project folder is missing, the settings dialog needs a **Locate folder…** path that re-points the registry entry without touching ticket files.",
         activity: [evCreate("jun", t0 - 21 * DAY)] }),
     T({ key: "LC-108", title: "Side panel: starred section ordering", status: "backlog", priority: "none",
-        assignee: "mira", labels: ["design"], createdAt: t0 - 18 * DAY, updatedAt: t0 - 6 * DAY,
+        labels: ["design"], createdAt: t0 - 18 * DAY, updatedAt: t0 - 6 * DAY,
         description: "Starred projects should keep manual order; drag to reorder within the section.",
         activity: [evCreate("mira", t0 - 18 * DAY)] }),
     T({ key: "LC-114", title: "Empty board illustration for first launch", status: "todo", priority: "p2",
-        assignee: "mira", labels: ["design", "onboarding"], createdAt: t0 - 12 * DAY, updatedAt: t0 - 2 * DAY,
+        labels: ["design", "onboarding"], createdAt: t0 - 12 * DAY, updatedAt: t0 - 2 * DAY,
         description: "The guided first-ticket card needs its final copy and the dashed affordance from the foundations spec.\n\n- keep it calm — no mascots on the board\n- `C` kbd hint on the card",
         checklist: [ck("Final copy for the guide card"), ck("Dashed border treatment", true), ck("Keyboard hint placement")],
         activity: [evCreate("mira", t0 - 12 * DAY)] }),
     T({ key: "LC-119", title: "File format: frontmatter schema for checklists", status: "in_review", priority: "p2",
-        assignee: "jun", labels: ["infra"], createdAt: t0 - 10 * DAY, updatedAt: t0 - 5 * HOUR,
+        labels: ["infra"], createdAt: t0 - 10 * DAY, updatedAt: t0 - 5 * HOUR,
         description: "Checklist items are ordinary Markdown tasks plus invisible stable IDs:\n\n```md\n- [x] Add retry policy <!-- longclaw:item=ck_7d2a -->\n```\n\nAgents flip `[ ]` to `[x]`; the app attributes the change to the stable item.",
         checklist: [ck("Draft schema", true), ck("Fixture: valid ticket", true), ck("Fixture: unknown fields", true), ck("Review with founder")],
         activity: [evCreate("jun", t0 - 10 * DAY),
@@ -182,14 +182,14 @@ function seedLongclaw() {
             body: "Stable IDs in comments read well in raw files. Ship it for the format review." },
           { id: uid("ev"), kind: "event", actor: humanActor("jun"), at: t0 - 5 * HOUR, ev: { field: "status", from: "in_progress", to: "in_review" } }] }),
     T({ key: "LC-122", title: "Ticket panel: markdown editor write/preview toggle", status: "in_progress", priority: "p3",
-        assignee: "mira", labels: ["design"], createdAt: t0 - 9 * DAY, updatedAt: t0 - 3 * HOUR,
+        labels: ["design"], createdAt: t0 - 9 * DAY, updatedAt: t0 - 3 * HOUR,
         description: "GitHub/Trello-style editing: **Write** and **Preview** tabs with a small toolbar for common formatting.\n\n- toolbar: bold, italic, code, link, list, task\n- preview renders the constrained CommonMark subset\n- `⌘Enter` saves, `Esc` cancels",
         checklist: [ck("Write tab textarea in mono", true), ck("Preview renderer"), ck("Toolbar buttons"), ck("Save / cancel semantics")],
         activity: [evCreate("mira", t0 - 9 * DAY),
           { id: uid("ev"), kind: "comment", actor: humanActor("mira"), at: t0 - 3 * HOUR,
             body: "Editor chrome should stay quieter than the content — wash tab strip, no borders inside the preview." }] }),
     T({ key: "LC-128", title: "Fix watcher debounce on rename", status: "in_progress", priority: "p1",
-        assignee: "ana", labels: ["watcher"], createdAt: t0 - 6 * DAY, updatedAt: t0 - 40 * MIN,
+        labels: ["watcher"], createdAt: t0 - 6 * DAY, updatedAt: t0 - 40 * MIN,
         description: "Editors that write via rename (VS Code, vim) emit `unlink` + `add` pairs that the watcher currently treats as a delete.\n\n## Approach\n\nCoalesce events per path over a 120ms window and diff content hashes before reporting.",
         checklist: [ck("Reproduce with VS Code atomic save", true), ck("Reproduce with vim backupcopy", true),
           ck("Coalesce unlink+add pairs", true), ck("Suppress self-writes"), ck("Hash-diff before emitting"),
@@ -201,29 +201,34 @@ function seedLongclaw() {
           { id: uid("ev"), kind: "comment", actor: AGENT, at: t0 - 40 * MIN, via: "file edit",
             body: "Read the repro notes and `watcher/coalesce.rs`. Starting on the unlink+add coalescing — will check items off as they land." }] }),
     T({ key: "LC-127", title: "Debounce config: expose watch interval in settings file", status: "done", priority: "p1",
-        assignee: "ana", labels: ["watcher"], createdAt: t0 - 8 * DAY, updatedAt: t0 - 2 * DAY,
+        labels: ["watcher"], createdAt: t0 - 8 * DAY, updatedAt: t0 - 2 * DAY,
         description: "Expose `watch.debounce_ms` in `longclaw.yaml` with a safe default.",
         checklist: [ck("Config key", true), ck("Clamp range", true), ck("Docs", true), ck("Tests", true), ck("Changelog", true)],
         activity: [evCreate("ana", t0 - 8 * DAY),
           { id: uid("ev"), kind: "event", actor: humanActor("ana"), at: t0 - 2 * DAY, ev: { field: "status", from: "in_review", to: "done" } }] }),
     T({ key: "LC-131", title: "Watcher drops events when folder is renamed while app is closed", status: "todo", priority: "urgent",
-        assignee: "jun", labels: ["watcher"], createdAt: t0 - 4 * DAY, updatedAt: t0 - 22 * HOUR,
+        labels: ["watcher"], createdAt: t0 - 4 * DAY, updatedAt: t0 - 22 * HOUR,
         description: "On next launch the project points at a stale path. Needs the unreachable-folder state plus a rescan on relocate.",
         activity: [evCreate("jun", t0 - 4 * DAY)] }),
     T({ key: "LC-133", title: "Command palette: change project theme command", status: "todo", priority: "p4",
-        assignee: "mira", labels: ["design"], createdAt: t0 - 3 * DAY, updatedAt: t0 - 3 * DAY,
+        labels: ["design"], createdAt: t0 - 3 * DAY, updatedAt: t0 - 3 * DAY,
         description: "Palette lists the four presets with pair swatches; selection applies instantly as a soft accent crossfade.",
         activity: [evCreate("mira", t0 - 3 * DAY)] }),
     T({ key: "LC-135", title: "AGENTS.md generator: safe-mutation examples", status: "in_review", priority: "p2",
-        assignee: "sachin", labels: ["infra", "docs"], createdAt: t0 - 2 * DAY, updatedAt: t0 - 7 * HOUR,
+        labels: ["infra", "docs"], createdAt: t0 - 2 * DAY, updatedAt: t0 - 7 * HOUR,
         description: "Generated `.longclaw/AGENTS.md` needs before/after examples for: checking an item, appending an event, registering an attachment.",
         checklist: [ck("Checklist example", true), ck("Event example", true), ck("Attachment example", true)],
         activity: [evCreate("sachin", t0 - 2 * DAY),
           { id: uid("ev"), kind: "comment", actor: AGENT, at: t0 - 7 * HOUR, via: "file edit",
             body: "Verified all three examples parse and round-trip. The attachment example needed a relative-path fix — updated in place." },
           { id: uid("ev"), kind: "event", actor: AGENT, at: t0 - 7 * HOUR, via: "file edit", ev: { field: "checklist", item: "Attachment example", to: true } }] }),
+    T({ key: "LC-104", title: "Spike: compare file-watcher crates", status: "done", priority: "p3",
+        labels: ["watcher"], createdAt: t0 - 20 * DAY, updatedAt: t0 - 5 * DAY, archivedAt: t0 - 5 * DAY,
+        description: "notify vs fsevent bindings — settled on notify with the debounce layer on top.",
+        activity: [evCreate("ana", t0 - 20 * DAY),
+          { id: uid("ev"), kind: "event", actor: humanActor("sachin"), at: t0 - 5 * DAY, ev: { field: "archived" } }] }),
     T({ key: "LC-136", title: "Board: keyboard reorder within a column", status: "canceled", priority: "p4",
-        assignee: "mira", labels: ["design"], createdAt: t0 - 5 * DAY, updatedAt: t0 - 1 * DAY,
+        labels: ["design"], createdAt: t0 - 5 * DAY, updatedAt: t0 - 1 * DAY,
         description: "Superseded by rank-on-ticket ordering; manual reorder is post-v0.",
         activity: [evCreate("mira", t0 - 5 * DAY),
           { id: uid("ev"), kind: "event", actor: humanActor("sachin"), at: t0 - 1 * DAY, ev: { field: "status", from: "todo", to: "canceled" } }] }),
@@ -246,7 +251,7 @@ function seedSmall(name, key, path, theme, titles) {
     labels: { misc: { name: "misc", color: "gray" } },
     tickets: titles.map((tt, i) => T({
       key: `${key}-${i + 1}`, title: tt[0], status: tt[1], priority: tt[2] || "none",
-      assignee: "sachin", createdAt: t0 - (i + 2) * DAY, updatedAt: t0 - (i + 1) * DAY,
+      createdAt: t0 - (i + 2) * DAY, updatedAt: t0 - (i + 1) * DAY,
       description: "", activity: [evCreate("sachin", t0 - (i + 2) * DAY)],
     })),
   };
@@ -261,7 +266,7 @@ function blankApp() {
     filter: "", panel: null, focusKey: null, lastCardFocus: null,
     overlay: null, menu: null, toast: null, undoStack: [],
     waitlistJoined: false, termOpen: false, termH: 280,
-    loading: false, pendingCreate: null,
+    loading: false, pendingCreate: null, orderingByProject: {}, showArchived: false,
     firstLaunch: { t0: now(), clicks: 0, done: false },
     diskState: null, // {label, settled}
   };
@@ -491,6 +496,9 @@ function mainHTML() {
         <input id="filter" class="field" placeholder="Filter…" value="${esc(app.filter)}" autocomplete="off" spellcheck="false">
         <span class="kbd kbd-quiet">⌘F</span>
       </div>
+      <button class="btn btn-ghost btn-sm" data-action="menu" data-menu="ordering" title="Board ordering — Priority (default) or Manual">
+        Order: ${orderingOf(p) === "manual" ? "Manual" : "Priority"} <span style="color:var(--lc-ink-3);display:inline-flex">${GL.chev}</span>
+      </button>
       <div class="view-seg" role="group" aria-label="View">
         <button data-action="set-view" data-value="board" aria-pressed="${app.view === "board"}">${GL.boardIcon} Board</button>
         <button data-action="set-view" data-value="list" aria-pressed="${app.view === "list"}">${GL.listIcon} List</button>
@@ -529,15 +537,28 @@ function termRegionHTML() {
   </div>`;
 }
 
-/* ---------- filtering ---------- */
+/* ---------- filtering & ordering ---------- */
 
-function visibleTickets(p) {
+function matchesFilter(t, p) {
   const q = app.filter.trim().toLowerCase();
-  if (!q) return p.tickets;
-  return p.tickets.filter((t) =>
-    t.key.toLowerCase().includes(q) || t.title.toLowerCase().includes(q) ||
+  if (!q) return true;
+  return t.key.toLowerCase().includes(q) || t.title.toLowerCase().includes(q) ||
     t.labels.some((l) => label(l, p).name.toLowerCase().includes(q)) ||
-    statusName(t.status).toLowerCase().includes(q));
+    statusName(t.status).toLowerCase().includes(q);
+}
+function visibleTickets(p) {
+  return p.tickets.filter((t) => !t.archivedAt && matchesFilter(t, p));
+}
+function archivedTickets(p) {
+  return p.tickets.filter((t) => t.archivedAt && matchesFilter(t, p));
+}
+
+/* ADR 0003 — priority order by default; Manual keeps array order (the rank stand-in). */
+const PRI_ORDER = { urgent: 0, p1: 1, p2: 2, p3: 3, p4: 4, none: 5 };
+const orderingOf = (p) => (p && app.orderingByProject[p.id]) || "priority";
+function orderTickets(list, p) {
+  if (orderingOf(p) === "manual") return list;
+  return [...list].sort((a, b) => PRI_ORDER[a.priority] - PRI_ORDER[b.priority]);
 }
 
 /* ---------- board ---------- */
@@ -552,7 +573,7 @@ function boardHTML(p) {
   }
   return `<div class="board" role="list" aria-label="Board">
     ${cols.map((s) => {
-      const cards = tickets.filter((t) => t.status === s.id);
+      const cards = orderTickets(tickets.filter((t) => t.status === s.id), p);
       return `<div class="col" data-status="${s.id}">
         <div class="col-head">${statusDot(s.id)} ${esc(s.name)} <span class="count">${cards.length}</span>
           <button class="col-add" data-action="quick-create" data-status="${s.id}" title="New ticket in ${esc(s.name)}" aria-label="New ticket in ${esc(s.name)}">${GL.plus}</button>
@@ -592,7 +613,6 @@ function cardHTML(t) {
       ${total ? `<span class="fraction">${done}/${total}</span><span class="progress"><i style="width:${total ? Math.round(done / total * 100) : 0}%"></i></span>` : ""}
       ${t.labels.slice(0, total ? 1 : 2).map((l) => `<span class="label-chip" style="--label: var(--lc-label-${label(l, p).color})"><i></i>${esc(label(l, p).name)}</span>`).join("")}
       <span class="spacer"></span>
-      ${t.assignee ? avatar(PEOPLE[t.assignee], true) : ""}
     </span>
     ${freshNow ? `<span class="agent-foot"><b>❯</b> updated by agent · ${relTime(t.freshAt)}</span>` : ""}
   </button>`;
@@ -622,12 +642,19 @@ function listHTML(p) {
       <div class="actions"><button class="btn btn-primary" data-action="quick-create">New ticket <span class="kbd">C</span></button></div></div>`;
   }
   const groups = STATUSES.filter((s) => tickets.some((t) => t.status === s.id));
+  const archived = archivedTickets(p);
   return `<div class="list">
     ${groups.map((s) => `
       <div class="group-head">${statusDot(s.id)} ${esc(s.name)} <span class="count">${tickets.filter((t) => t.status === s.id).length}</span></div>
       <div class="rows">
-        ${tickets.filter((t) => t.status === s.id).map((t) => rowHTML(t, p)).join("")}
+        ${orderTickets(tickets.filter((t) => t.status === s.id), p).map((t) => rowHTML(t, p)).join("")}
       </div>`).join("")}
+    ${archived.length ? `
+      <button class="group-head archived-head" data-action="toggle-archived" aria-expanded="${app.showArchived}">
+        <span style="display:inline-flex;color:var(--lc-ink-3)">${GL.folder}</span> Archived <span class="count">${archived.length}</span>
+        <span style="color:var(--lc-ink-3);font-size:11px">${app.showArchived ? "hide" : "show"}</span>
+      </button>
+      ${app.showArchived ? `<div class="rows archived-rows">${archived.map((t) => rowHTML(t, p)).join("")}</div>` : ""}` : ""}
   </div>`;
 }
 
@@ -649,7 +676,6 @@ function rowHTML(t, p) {
     ${isFresh(t) ? `<span class="fresh-dot pulsing" title="Updated by agent"></span>` : ""}
     ${total ? `<span class="fraction">${done}/${total}</span>` : ""}
     ${t.labels.slice(0, 2).map((l) => `<span class="label-chip" style="--label: var(--lc-label-${label(l, p).color})"><i></i>${esc(label(l, p).name)}</span>`).join("")}
-    ${t.assignee ? avatar(PEOPLE[t.assignee], true) : ""}
     <span class="updated">${relTime(t.updatedAt)}</span>
   </button>`;
 }
@@ -668,7 +694,9 @@ function panelHTML() {
     <div class="panel-head">
       <button class="id-chip" data-action="copy-id" data-key="${t.key}" title="Copy ${esc(t.key)}">${esc(t.key)}</button>
       <span class="path-chip" style="cursor:default">${GL.folder}<span class="txt">tickets/${esc(t.key)}/ticket.md</span></span>
+      ${t.archivedAt ? `<span class="kbd kbd-quiet" title="Hidden from board and default views">archived</span>` : ""}
       <span class="spacer"></span>
+      <button class="btn btn-ghost btn-sm" data-action="archive-ticket" data-key="${t.key}">${t.archivedAt ? "Unarchive" : "Archive"}</button>
       <button class="panel-close" data-action="close-panel" aria-label="Close ticket" title="Close · Esc">${GL.x}</button>
     </div>
     <div class="panel-body">
@@ -679,10 +707,6 @@ function panelHTML() {
         <span><button class="meta-trigger" data-action="menu" data-menu="status" data-key="${t.key}">${statusDot(t.status, 13)} ${esc(statusName(t.status))} <span style="color:var(--lc-ink-3);display:inline-flex">${GL.chev}</span></button></span>
         <span class="mlabel">Priority</span>
         <span><button class="meta-trigger" data-action="menu" data-menu="priority" data-key="${t.key}">${priGlyph(t.priority, true)} ${esc(PRIORITIES.find((x) => x.id === t.priority).name)} <span style="color:var(--lc-ink-3);display:inline-flex">${GL.chev}</span></button></span>
-        <span class="mlabel">Assignee</span>
-        <span><button class="meta-trigger" data-action="menu" data-menu="assignee" data-key="${t.key}">
-          ${t.assignee ? `${avatar(PEOPLE[t.assignee], true)} ${esc(PEOPLE[t.assignee].name)}` : `<span class="muted">Unassigned</span>`}
-          <span style="color:var(--lc-ink-3);display:inline-flex">${GL.chev}</span></button></span>
         <span class="mlabel">Labels</span>
         <span class="meta-labels">
           ${t.labels.map((l) => `<span class="label-chip lg" style="--label: var(--lc-label-${label(l, p).color})"><i></i>${esc(label(l, p).name)}</span>`).join("")}
@@ -808,7 +832,7 @@ function eventGlyph(ev) {
   if (ev.field === "description") return GL.pencil;
   if (ev.field === "created") return GL.plus;
   if (ev.field === "priority") return GL.chev;
-  if (ev.field === "assignee") return GL.person;
+  if (ev.field === "archived" || ev.field === "unarchived") return GL.folder;
   if (ev.field === "external") return GL.warn(12);
   return GL.chev;
 }
@@ -824,7 +848,8 @@ function eventText(a) {
   if (e.field === "checklist") return `${actorSpan(a)} ${e.to ? "checked" : "unchecked"} “${esc(e.item)}”`;
   if (e.field === "description") return `${actorSpan(a)} edited the description${e.note ? ` — ${esc(e.note)}` : ""}`;
   if (e.field === "priority") return `${actorSpan(a)} set priority to ${esc(e.to)}`;
-  if (e.field === "assignee") return `${actorSpan(a)} assigned ${esc(e.to)}`;
+  if (e.field === "archived") return `${actorSpan(a)} archived this ticket`;
+  if (e.field === "unarchived") return `${actorSpan(a)} unarchived this ticket`;
   if (e.field === "renamed") return `${actorSpan(a)} renamed this ticket`;
   if (e.field === "external") return `file changed on disk — actor unknown`;
   return `${actorSpan(a)} updated this ticket`;
@@ -849,10 +874,6 @@ function createPanelHTML() {
         <span><button class="meta-trigger" data-action="menu" data-menu="create-status">${statusDot(d.status, 13)} ${esc(statusName(d.status))} <span style="color:var(--lc-ink-3);display:inline-flex">${GL.chev}</span></button></span>
         <span class="mlabel">Priority</span>
         <span><button class="meta-trigger" data-action="menu" data-menu="create-priority">${priGlyph(d.priority, true)} ${esc(PRIORITIES.find((x) => x.id === d.priority).name)} <span style="color:var(--lc-ink-3);display:inline-flex">${GL.chev}</span></button></span>
-        <span class="mlabel">Assignee</span>
-        <span><button class="meta-trigger" data-action="menu" data-menu="create-assignee">
-          ${d.assignee ? `${avatar(PEOPLE[d.assignee], true)} ${esc(PEOPLE[d.assignee].name)}` : `<span class="muted">Unassigned</span>`}
-          <span style="color:var(--lc-ink-3);display:inline-flex">${GL.chev}</span></button></span>
         <span class="mlabel">Labels</span>
         <span class="meta-labels">
           ${d.labels.map((l) => `<span class="label-chip lg" style="--label: var(--lc-label-${label(l, p).color})"><i></i>${esc(label(l, p).name)}</span>`).join("")}
@@ -912,12 +933,13 @@ function paletteCommands() {
     { id: "create", name: "Create ticket…", glyph: GL.plus, kbd: "C" },
     { id: "go-project", name: "Go to project…", glyph: GL.arrowGo, sub: "" },
     { id: "status", name: "Change status…", glyph: statusDot("in_progress", 13), kbd: "S", disabled: needTicket },
-    { id: "assign", name: "Assign…", glyph: GL.person, kbd: "A", disabled: needTicket },
     { id: "priority", name: "Set priority…", glyph: priGlyph("p2", true), kbd: "P", disabled: needTicket },
     { id: "search", name: "Search tickets…", glyph: GL.search },
     { id: "star", name: p && p.starred ? "Unstar project" : "Star project", glyph: GL.star(false) },
     { id: "appearance", name: "Toggle appearance", glyph: GL.moon },
     { id: "theme", name: "Change project theme…", glyph: GL.swatchG },
+    { id: "archive", name: target && target.archivedAt ? "Unarchive ticket" : "Archive ticket", glyph: GL.folder, disabled: needTicket, sub: "adr 0004" },
+    { id: "ordering", name: "Change board ordering…", glyph: GL.listIcon, sub: "adr 0003" },
     { id: "view", name: app.view === "board" ? "Switch to list view" : "Switch to board view", glyph: app.view === "board" ? GL.listIcon : GL.boardIcon, sub: "step 2 proposal" },
     { id: "terminal", name: "New terminal", glyph: GL.term, disabled: "arrives with Phase 2", phase2: true },
   ];
@@ -947,7 +969,7 @@ function paletteHTML(o) {
     o.items = !p ? [] : p.tickets.filter((t) => !t.degraded &&
       (t.key.toLowerCase().includes(q) || t.title.toLowerCase().includes(q))).slice(0, 9)
       .map((t) => ({ id: "open", key: t.key, glyph: statusDot(t.status, 13),
-        html: `<span class="mono" style="font-size:11px;color:var(--lc-ink-3);margin-right:6px">${esc(t.key)}</span>${esc(t.title)}` }));
+        html: `<span class="mono" style="font-size:11px;color:var(--lc-ink-3);margin-right:6px">${esc(t.key)}</span>${esc(t.title)}${t.archivedAt ? ` <span class="sub">· archived</span>` : ""}` }));
     rows = o.items.map(mk).join("");
   } else if (o.mode === "project") {
     crumb = "go to project";
@@ -957,15 +979,16 @@ function paletteHTML(o) {
         : GL.warn(11),
         html: `${esc(pp.name)}${pp.reachable ? "" : ` <span class="sub">· unreachable</span>`}` }));
     rows = o.items.map(mk).join("");
-  } else if (o.mode === "status" || o.mode === "priority" || o.mode === "assign" || o.mode === "theme") {
+  } else if (o.mode === "status" || o.mode === "priority" || o.mode === "ordering" || o.mode === "theme") {
     const t = paletteTarget();
-    crumb = o.mode === "theme" ? "theme" : `${o.mode} · ${t ? t.key : ""}`;
+    crumb = o.mode === "theme" ? "theme" : o.mode === "ordering" ? "board ordering" : `${o.mode} · ${t ? t.key : ""}`;
     if (o.mode === "status") o.items = STATUSES.filter((s) => s.name.toLowerCase().includes(q))
       .map((s) => ({ id: "set-status", val: s.id, glyph: statusDot(s.id, 13), name: s.name }));
     if (o.mode === "priority") o.items = PRIORITIES.filter((s) => s.name.toLowerCase().includes(q))
       .map((s) => ({ id: "set-priority", val: s.id, glyph: priGlyph(s.id, true), name: s.name }));
-    if (o.mode === "assign") o.items = Object.values(PEOPLE).filter((pp) => pp.name.toLowerCase().includes(q))
-      .map((pp) => ({ id: "set-assignee", val: pp.id, glyph: avatar(pp, true), name: pp.name }));
+    if (o.mode === "ordering") o.items = [["priority", "Priority — Urgent first (default)"], ["manual", "Manual — your order, kept in each ticket's rank"]]
+      .filter(([, n]) => n.toLowerCase().includes(q))
+      .map(([v, n]) => ({ id: "set-ordering", val: v, glyph: GL.listIcon, name: n }));
     if (o.mode === "theme") o.items = ["indigo", "clay", "slate", "plum"].filter((th) => th.includes(q))
       .map((th) => ({ id: "set-theme", val: th, name: th[0].toUpperCase() + th.slice(1),
         glyph: `<span style="display:inline-flex;width:16px;height:11px;border-radius:2px;overflow:hidden" data-appearance="${document.documentElement.dataset.appearance}" data-theme="${th}"><i style="flex:2;background:var(--lc-accent-human)"></i><i style="flex:1;background:var(--lc-accent-agent)"></i></span>` }));
@@ -1157,7 +1180,7 @@ function confirmHTML(o) {
   </div>`;
 }
 
-/* anchored menus (status / priority / assignee / label pickers) */
+/* anchored menus (status / priority / ordering / label pickers) */
 function menuHTML(m) {
   const p = proj();
   let rows = "", note = "";
@@ -1169,11 +1192,11 @@ function menuHTML(m) {
   } else if (m.type.endsWith("priority")) {
     const sel = m.type === "priority" ? (t && t.priority) : app.panel.draft.priority;
     rows = PRIORITIES.map((s) => `<button class="menu-row" data-action="menu-pick" data-value="${s.id}">${priGlyph(s.id, true)} ${esc(s.name)} ${s.id === sel ? cur() : ""}</button>`).join("");
-  } else if (m.type.endsWith("assignee")) {
-    const sel = m.type === "assignee" ? (t && t.assignee) : app.panel.draft.assignee;
-    rows = Object.values(PEOPLE).map((pp) => `<button class="menu-row" data-action="menu-pick" data-value="${pp.id}">${avatar(pp, true)} ${esc(pp.name)} ${pp.id === sel ? cur() : ""}</button>`).join("")
-      + `<button class="menu-row" data-action="menu-pick" data-value="">${GL.person} Unassigned ${!sel ? cur() : ""}</button>`;
-    note = `<div class="menu-note"><b>❯ agents contribute</b> — in the timeline, never as assignee.</div>`;
+  } else if (m.type === "ordering") {
+    const sel = orderingOf(p);
+    rows = [["priority", "Priority", "Urgent first — the default"], ["manual", "Manual", "your order, kept in rank"]]
+      .map(([v, n, sub]) => `<button class="menu-row" data-action="menu-pick" data-value="${v}">${GL.listIcon} ${n} <span style="color:var(--lc-ink-3);font-size:11px">· ${sub}</span> ${v === sel ? cur() : ""}</button>`).join("");
+    note = `<div class="menu-note">Ordering is a view preference on this board — it never rewrites files.</div>`;
   } else if (m.type.endsWith("label")) {
     const sel = m.type === "label" ? (t ? t.labels : []) : app.panel.draft.labels;
     rows = Object.entries(p.labels).map(([slug, l]) =>
@@ -1204,13 +1227,13 @@ function navKeys() {
   if (!p || !p.reachable) return [];
   const tk = visibleTickets(p);
   const order = [];
-  STATUSES.forEach((s) => tk.filter((t) => t.status === s.id).forEach((t) => order.push(t.key)));
+  STATUSES.forEach((s) => orderTickets(tk.filter((t) => t.status === s.id), p).forEach((t) => order.push(t.key)));
   return order;
 }
 function boardColumns() {
   const p = proj();
   const tk = visibleTickets(p);
-  return STATUSES.map((s) => tk.filter((t) => t.status === s.id).map((t) => t.key)).filter((c) => c.length);
+  return STATUSES.map((s) => orderTickets(tk.filter((t) => t.status === s.id), p).map((t) => t.key)).filter((c) => c.length);
 }
 function moveFocus(dir) {
   const keys = navKeys();
@@ -1247,12 +1270,6 @@ function setPriority(t, to) {
   mutate(t, () => { t.priority = to; addEvent(t, humanActor(ME), { field: "priority", from, to: PRIORITIES.find((p) => p.id === to).name }); },
     { toast: `${t.key} priority: ${PRIORITIES.find((p) => p.id === to).name}`, undo: () => { t.priority = from; t.activity.pop(); } });
 }
-function setAssignee(t, to) {
-  const from = t.assignee;
-  if (from === to) return;
-  mutate(t, () => { t.assignee = to || null; if (to) addEvent(t, humanActor(ME), { field: "assignee", to: PEOPLE[to].name }); },
-    { toast: to ? `${t.key} → ${PEOPLE[to].name}` : `${t.key} unassigned`, undo: () => { t.assignee = from; if (to) t.activity.pop(); } });
-}
 function toggleLabel(t, slug) {
   const had = t.labels.includes(slug);
   mutate(t, () => { t.labels = had ? t.labels.filter((l) => l !== slug) : [...t.labels, slug]; },
@@ -1281,6 +1298,15 @@ function createTicket({ title, status = "todo", priority = "none", assignee = nu
   pushUndo(() => { p.tickets = p.tickets.filter((x) => x.key !== t.key); p.seq--; if (app.panel && app.panel.key === t.key) app.panel = null; });
   toast(`${t.key} created`, { undo: true });
   return t;
+}
+/* ADR 0004 — archive sets archived_at; never moves or deletes the directory. */
+function toggleArchive(t) {
+  const was = t.archivedAt;
+  mutate(t, () => {
+    t.archivedAt = was ? null : now();
+    addEvent(t, humanActor(ME), { field: was ? "unarchived" : "archived" });
+  }, { toast: was ? `${t.key} unarchived` : `${t.key} archived`, undo: () => { t.archivedAt = was; t.activity.pop(); } });
+  if (!was && app.panel && app.panel.key === t.key) closePanel();
 }
 function markSeen(t) {
   let changed = false;
@@ -1378,6 +1404,8 @@ document.addEventListener("click", (e) => {
     "set-view": () => { app.view = target.dataset.value; render(); },
     "copy-path": () => { try { navigator.clipboard.writeText(p.path); } catch {} toast("Path copied", { sub: p.path }); },
     "clear-filter": () => { app.filter = ""; render(); },
+    "toggle-archived": () => { app.showArchived = !app.showArchived; render(); },
+    "archive-ticket": () => toggleArchive(findTicket(target.dataset.key)),
     "term-toggle": () => { app.termOpen = !app.termOpen; render(); },
     "settings-open": () => { app.overlay = { type: "settings" }; render(); },
     "set-theme": () => { p.theme = target.dataset.value; disk("longclaw.yaml"); ticker(`<b>❯</b> theme → ${p.theme} · wrote longclaw.yaml`); render(); },
@@ -1414,7 +1442,7 @@ document.addEventListener("click", (e) => {
     "qc-confirm": () => qcConfirm(),
     "qc-full": () => {
       const o = app.overlay; app.overlay = null;
-      app.panel = { mode: "create", draft: { title: o.title || ($("#qc-title") || {}).value || "", status: o.status, priority: "none", assignee: null, labels: [], description: "", checklist: [] } };
+      app.panel = { mode: "create", draft: { title: o.title || ($("#qc-title") || {}).value || "", status: o.status, priority: "none", labels: [], description: "", checklist: [] } };
       render();
     },
     "create-confirm": () => createConfirm(),
@@ -1496,7 +1524,7 @@ function qcConfirm() {
   const title = ($("#qc-title") || {}).value || o.title;
   if (!title.trim()) { toast("Give it a title"); return; }
   app.overlay = null;
-  const t = createTicket({ title, status: o.status, assignee: ME });
+  const t = createTicket({ title, status: o.status });
   app.focusKey = t.key;
   render();
 }
@@ -1536,12 +1564,11 @@ function menuPick(value) {
   const t = m.key ? findTicket(m.key) : null;
   if (m.type === "status") setStatus(t, value);
   else if (m.type === "priority") setPriority(t, value);
-  else if (m.type === "assignee") setAssignee(t, value);
   else if (m.type === "label") toggleLabel(t, value);
+  else if (m.type === "ordering") { app.orderingByProject[proj().id] = value; render(); }
   else if (m.type === "qc-status") { app.overlay.status = value; app.overlay.title = ($("#qc-title") || {}).value || ""; render(); }
   else if (m.type === "create-status") { app.panel.draft.status = value; syncCreateDraft(); render(); }
   else if (m.type === "create-priority") { app.panel.draft.priority = value; syncCreateDraft(); render(); }
-  else if (m.type === "create-assignee") { app.panel.draft.assignee = value || null; syncCreateDraft(); render(); }
   else if (m.type === "create-label") {
     const d = app.panel.draft;
     d.labels = d.labels.includes(value) ? d.labels.filter((l) => l !== value) : [...d.labels, value];
@@ -1568,8 +1595,9 @@ function paletteRun(i) {
     const go = { create: () => { app.overlay = { type: "quick", status: "todo", title: "" }; },
       "go-project": () => { o.mode = "project"; o.query = ""; o.sel = 0; },
       status: () => { o.mode = "status"; o.query = ""; o.sel = 0; },
-      assign: () => { o.mode = "assign"; o.query = ""; o.sel = 0; },
       priority: () => { o.mode = "priority"; o.query = ""; o.sel = 0; },
+      ordering: () => { o.mode = "ordering"; o.query = ""; o.sel = 0; },
+      archive: () => { const t2 = paletteTarget(); app.overlay = null; if (t2) { toggleArchive(t2); return; } },
       search: () => { o.mode = "search"; o.query = ""; o.sel = 0; },
       star: () => { const p = proj(); p.starred = !p.starred; app.overlay = null; toast(p.starred ? `Starred ${p.name}` : `Unstarred ${p.name}`); },
       appearance: () => { app.appearancePref = document.documentElement.dataset.appearance === "dark" ? "light" : "dark"; app.overlay = null; },
@@ -1590,7 +1618,7 @@ function paletteRun(i) {
   }
   else if (r.id === "set-status" && t) { setStatus(t, r.val); return; }
   else if (r.id === "set-priority" && t) { setPriority(t, r.val); return; }
-  else if (r.id === "set-assignee" && t) { setAssignee(t, r.val); return; }
+  else if (r.id === "set-ordering") { app.orderingByProject[proj().id] = r.val; }
   else if (r.id === "set-theme") { const p = proj(); p.theme = r.val; disk("longclaw.yaml"); ticker(`<b>❯</b> theme → ${r.val} · wrote longclaw.yaml`); }
   render();
 }
@@ -1766,7 +1794,6 @@ document.addEventListener("keydown", (e) => {
   const focused = app.focusKey && findTicket(app.focusKey);
   if (focused && !focused.degraded && !mod) {
     if (k === "s") { e.preventDefault(); anchorMenuOnFocused("status"); return; }
-    if (k === "a") { e.preventDefault(); anchorMenuOnFocused("assignee"); return; }
     if (k === "p") { e.preventDefault(); anchorMenuOnFocused("priority"); return; }
   }
   if (e.key === "Enter" && app.focusKey) { e.preventDefault(); openTicket(app.focusKey); return; }
@@ -1798,9 +1825,9 @@ function runAgentSession() {
   if (agentRunning) return;
   const p = requireDemo();
   if (!p.reachable) { ticker("folder unreachable — relocate it first"); return; }
-  const t = p.tickets.find((x) => x.key === "LC-128" && !x.degraded && x.checklist.some((c) => !c.checked))
-    || p.tickets.find((x) => !x.degraded && x.checklist.some((c) => !c.checked))
-    || p.tickets.find((x) => !x.degraded);
+  const t = p.tickets.find((x) => x.key === "LC-128" && !x.degraded && !x.archivedAt && x.checklist.some((c) => !c.checked))
+    || p.tickets.find((x) => !x.degraded && !x.archivedAt && x.checklist.some((c) => !c.checked))
+    || p.tickets.find((x) => !x.degraded && !x.archivedAt);
   if (!t) { ticker("no workable ticket"); return; }
   agentRunning = true;
   const btn = $("[data-action='drv-agent']"); if (btn) btn.disabled = true;
@@ -1842,7 +1869,7 @@ function runAgentSession() {
 function stageConflict() {
   const p = requireDemo();
   if (!p.reachable) { ticker("folder unreachable — relocate it first"); return; }
-  const t = p.tickets.find((x) => x.key === "LC-122" && !x.degraded) || p.tickets.find((x) => !x.degraded);
+  const t = p.tickets.find((x) => x.key === "LC-122" && !x.degraded && !x.archivedAt) || p.tickets.find((x) => !x.degraded && !x.archivedAt);
   if (!t) return;
   openTicket(t.key);
   app.panel.editingDesc = true; app.panel.descTab = "write";
@@ -1866,7 +1893,7 @@ function stageConflict() {
 function stageCorrupt() {
   const p = requireDemo();
   if (!p.reachable) { ticker("folder unreachable — relocate it first"); return; }
-  const t = p.tickets.find((x) => !x.degraded && x.status === "todo") || p.tickets.find((x) => !x.degraded);
+  const t = p.tickets.find((x) => !x.degraded && !x.archivedAt && x.status === "todo") || p.tickets.find((x) => !x.degraded && !x.archivedAt);
   if (!t) return;
   if (app.panel && app.panel.key === t.key) app.panel = null;
   const raw = [
@@ -1877,7 +1904,6 @@ function stageCorrupt() {
     `title: ${t.title}`,
     "status: todo",
     "priority: p2: high",
-    `assignee: ${t.assignee || "mira"}`,
     "labels:",
     ...t.labels.map((l) => `  - ${l}`),
     `created_at: 2026-07-16T08:20:00Z`,

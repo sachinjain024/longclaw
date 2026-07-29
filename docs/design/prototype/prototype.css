@@ -426,6 +426,10 @@ svg.glyph { flex: none; }
 }
 .group-head .count { font-family: var(--lc-font-mono); font-size: 11px; color: var(--lc-ink-3); }
 .rows { background: var(--lc-surface); border: 1px solid var(--lc-line); border-radius: var(--lc-radius-card); overflow: hidden; margin-bottom: 14px; }
+.archived-head { width: 100%; text-align: left; color: var(--lc-ink-3); border-radius: var(--lc-radius-control); }
+.archived-head:hover { color: var(--lc-ink-2); }
+.archived-head:focus-visible { box-shadow: inset var(--lc-focus-ring); }
+.archived-rows { opacity: .8; }
 .rows .row {
   display: flex; align-items: center; gap: 10px; width: 100%; height: var(--lc-size-row);
   padding: 0 12px; text-align: left; border-bottom: 1px solid var(--lc-line-soft);

@@ -34,14 +34,17 @@ harness, deliberately not app chrome. It never appears in the product.
 | Theme swatches / light–dark | Token-swap proof on the full app (also available in-app via settings and the palette, which is the product path) |
 
 Keyboard tour (full map in `keyboard-focus-map.md`): `⌘K` palette · `C`
-quick create · `J K H L`/arrows to move focus · `Enter` open · `S A P` on
+quick create · `J K H L`/arrows to move focus · `Enter` open · `S P` on
 a focused ticket · `⌘F` filter · `⌘Z` undo · `Esc` walks back out.
 
-Other flows to poke: the view toggle (board/list), quick create → “Open
-full editor”, the settings dialog (key lock, theme, appearance, remove
-guarantee), the waitlist button in the sidebar footer (try a bad email and
-one containing “offline”), the terminal handle at the bottom edge
-(reserved Phase 2 geometry only), and project switching (skeleton load).
+Other flows to poke: the view toggle (board/list), the **Order** control
+in the header (Priority default / Manual — ADR 0003), quick create →
+“Open full editor”, archiving from the panel header and the list view's
+collapsed **Archived** group (ADR 0004), the settings dialog (key lock,
+theme, appearance, remove guarantee), the waitlist button in the sidebar
+footer (try a bad email and one containing “offline”), the terminal
+handle at the bottom edge (reserved Phase 2 geometry only), and project
+switching (skeleton load).
 
 ## Step-plan coverage
 
@@ -55,6 +58,8 @@ Every Step 2 work item maps to a place in this bundle:
   section in `screen-specs.md`.
 - **Quick + full ticket creation** — `C` / palette / column `+` → quick;
   “Open full editor” → full create.
+- **Board ordering & archival (ADRs 0003/0004)** — header Order control;
+  panel Archive action + list archived group.
 - **Agent round-trip moment** — driver `❯ agent session`; specified in
   `states.md` § External-update states.
 - **All five trust states** — driver buttons; specified in `states.md`.
@@ -71,16 +76,37 @@ rather than silently:
 
 | # | Proposal | Rationale |
 |---|---|---|
-| P1 | Palette gains **set priority…** and **switch board/list view** beyond the fixed D14 set | D8 ships `P` as a shortcut and components.md requires every shortcut be palette-discoverable; the view toggle otherwise has no keyboard path |
+| P1 | Palette gains **set priority…**, **switch board/list view**, **archive/unarchive ticket**, and **change board ordering…** beyond the fixed D14 set (which also loses *assign…* per ADR 0001) | D8 ships `P` as a shortcut and components.md requires every shortcut be palette-discoverable; the view toggle, archive (ADR 0004) and ordering (ADR 0003) otherwise have no keyboard path |
 | P2 | Quick create = title + status only | The brief's "title + status, enter, done"; everything else lives in full create |
 | P3 | Ticket panel is a 560px right overlay; board stays live behind it | Density + context; Esc returns focus to the originating card |
 | P4 | Freshness decays on open or after 2 minutes | components.md said "opened or after 2 minutes"; confirmed as the rule for list + board |
 | P5 | Canceled column renders only when non-empty | Keeps the default board at five columns; canceled tickets remain in list/search |
-| P6 | Card footer: ≤2 labels, ≤1 when a checklist fraction is present | Footer never wraps or clips the assignee |
+| P6 | Card footer: ≤2 labels, ≤1 when a checklist fraction is present | Footer never wraps |
 | P7 | Header **disk-state indicator** (`writing ticket.md… → ✓`) | The honest counterpart to optimistic UI in a files-first product |
 | P8 | Conflict "Keep mine": draft stays, save annotates the event, external version stays in history | UI semantics for the format's "never silently overwrite" rule; engineering detail lands in Step 3/6 |
 | P9 | Opening a folder that already contains `.longclaw/` skips the create form entirely | Existing projects open in two clicks |
 | P10 | Welcome copy: "Plan with your agents." + mono trust line | The folder-on-disk model stated before any interaction |
+
+## ADR propagation (post-M0 founder decisions)
+
+The five ADRs in [`docs/adr/`](../../adr/) are propagated through the
+prototype and every spec in this bundle:
+
+- **ADR 0001 — no assignee in local mode.** All of v0 is local mode, so
+  the assignee row, avatars on cards/rows, the `A` shortcut, and the
+  palette assign command are gone; `assignee` remains an optional schema
+  field for team mode. Human circle avatars still appear in the timeline
+  and composer (actors, not assignment).
+- **ADR 0002 — fixed statuses.** No status-creation UI anywhere; the six
+  built-ins are the enum (foundations D3's creation row is deferred).
+- **ADR 0003 — ordering.** Header `Order: Priority|Manual` control,
+  priority-default sorting, palette command, keyboard nav follows visual
+  order.
+- **ADR 0004 — archival in v0.** Archive/Unarchive in the panel header,
+  archived chip, undo toast, activity events, list-view archived group,
+  archived tickets excluded from board and tagged in search.
+- **ADR 0005 — attachments UI post-MVP.** Unchanged: no attachment
+  surfaces in the prototype; the format keeps the registry.
 
 ## Exit-gate status
 
