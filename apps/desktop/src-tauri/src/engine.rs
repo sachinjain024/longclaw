@@ -1,12 +1,10 @@
 //! One open project: its index, its watcher, and every write that touches it.
 //!
 //! The engine is the seam the rest of the app uses, and it keeps the filesystem's
-//! awkwardness behind that seam. ADR 0008 named the v0 seam `open`, `snapshot`,
-//! `write`, `search`, and `rebuild`; Step 6 splits reading into `snapshot` (index
-//! rows) and `detail` (one ticket, read fresh), and writing into `edit_ticket` and
-//! `create_ticket`, because key allocation is a file-format rule rather than a
-//! caller's choice. Anything beyond reading and writing tickets — project settings,
-//! for instance — belongs outside this type.
+//! awkwardness behind that seam: `open`, `snapshot`, `detail`, `search`, `rebuild`,
+//! `edit_ticket`, and `create_ticket`, as revised in ADR 0008. Anything beyond
+//! reading and writing tickets — project settings, for instance — belongs outside
+//! this type.
 //!
 //! Three behaviours are worth knowing about before changing anything here:
 //!
