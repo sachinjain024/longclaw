@@ -31,7 +31,7 @@ have been invented to stand in for it. What the ranking is built from instead:
 | Source | What it justifies |
 |---|---|
 | [The spike risk register](../architecture-spike-risk-register.md) | Every Wave 0 item. These are recorded, open, code-level risks with named failure modes. |
-| [The reported create-project bug](../plans/resolved/project-key-derivation-bug.md) | One real onboarding failure, from one real session. Fixed in Step 10 before this ranking was written. |
+| [The reported create-project bug](../plans/completed/project-key-derivation-bug.md) | One real onboarding failure, from one real session. Fixed in Step 10 before this ranking was written. |
 | [Known pilot limitations](../acceptance/pilot-build.md) | Which absent features the build already admits to, and therefore which breadth a participant would hit first. |
 | [The approved prototype and its specs](../design/prototype/) | What "complete" means for each surface, so no item is a fresh design decision. |
 | The ADRs | Which plan items are superseded, so nothing is built twice or built wrong. |
@@ -86,7 +86,7 @@ measures exactly the trust they threaten.
 | V0-07 | Attribute a change from newly appended event IDs only; show actor unknown rather than guessing | 14 | **Release-blocking.** Attribution currently reports the newest explicit actor, which can disagree with the change that actually triggered the watcher. Crediting an agent for a human's edit, or the reverse, breaks the shared record the whole product is for. | Diff stable before/after records and associate only new event IDs; a change with no new attributable record reads as actor unknown. Covered by the round-trip scenario's actor assertions | Domain | fixed |
 
 Step 10 also cleared one Wave 0 item before writing this list: the
-[project-key create-form dead end](../plans/resolved/project-key-derivation-bug.md),
+[project-key create-form dead end](../plans/completed/project-key-derivation-bug.md),
 reported from a real session, fixed with a shared grammar fixture and the two
 create forms merged into one tested component.
 

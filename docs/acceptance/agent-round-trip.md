@@ -70,7 +70,7 @@ leaves no `.longclaw/` behind.
 This ordering is the check itself. The reported failure was not the refusal but
 its timing: the user answered a native dialog before learning the form was
 invalid, and the folder kept the residue. See
-[the resolved report](../plans/resolved/project-key-derivation-bug.md).
+[the resolved report](../plans/completed/project-key-derivation-bug.md).
 
 **Pass:** the board opens empty, the header shows the folder path, and the
 folder now contains `.longclaw/longclaw.yaml`, `.longclaw/AGENTS.md`, and
