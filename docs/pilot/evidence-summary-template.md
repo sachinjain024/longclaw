@@ -2,7 +2,7 @@
 title: "Pilot evidence summary template"
 product: LongClaw
 status: template
-milestone: "M4 - Pilot direction accepted (Step 9)"
+milestone: "M4 — Pilot direction accepted (Step 9)"
 ---
 
 # Pilot evidence summary
@@ -23,42 +23,44 @@ Choose one:
 
 Recommendation:
 
-## Evidence Base
+## Evidence base
 
-| Field                  | Value |
-| ---------------------- | ----- |
-| Sessions completed     |       |
-| Date range             |       |
-| Solo builders          |       |
-| Small-team users       |       |
-| Claude Code users      |       |
-| Codex users            |       |
-| Cursor users           |       |
-| Other agent tools      |       |
-| Packaged builds tested |       |
-| Real repositories used |       |
+| Field | Value |
+|---|---|
+| Sessions completed | |
+| Date range | |
+| Solo builders | |
+| Small-team users | |
+| Claude Code users | |
+| Codex users | |
+| Cursor users | |
+| Other agent tools | |
+| Packaged builds tested | |
+| Real repositories used | |
+| Sessions using root bridge file | |
+| Sessions with unaided `.longclaw/` discovery | |
 
-## Core Round-Trip Result
+## Core round-trip result
 
-| Question                                                         | Answer           | Evidence |
-| ---------------------------------------------------------------- | ---------------- | -------- |
-| Could users create a project without account or telemetry setup? | yes / no / mixed |          |
-| Could users create a real ticket?                                | yes / no / mixed |          |
-| Could agents discover the instructions without format coaching?  | yes / no / mixed |          |
-| Could agents safely mutate the ticket file?                      | yes / no / mixed |          |
-| Did changes return to the UI without refresh?                    | yes / no / mixed |          |
-| Did users recognize and trust incoming agent changes?            | yes / no / mixed |          |
-| Did restart or rebuild preserve the result?                      | yes / no / mixed |          |
+| Question | Answer | Evidence |
+|---|---|---|
+| Could users create a project without account or telemetry setup? | yes / no / mixed | |
+| Could users create a real ticket? | yes / no / mixed | |
+| Could agents discover the instructions without format coaching? | yes / no / mixed | |
+| Could agents safely mutate the ticket file? | yes / no / mixed | |
+| Did changes return to the UI without refresh? | yes / no / mixed | |
+| Did users recognize and trust incoming agent changes? | yes / no / mixed | |
+| Did restart or rebuild preserve the result? | yes / no / mixed | |
 
 ## Blockers
 
 | Blocker | Severity | Frequency | Evidence | Required before Step 10 |
-| ------- | -------- | --------- | -------- | ----------------------- |
-|         |          |           |          |                         |
+|---|---|---|---|---|
+| | | | | |
 
-## What We Learned
+## What we learned
 
-### Core Thesis
+### Core thesis
 
 State whether the planning/execution split was easier, unchanged, or worse for
 the participants.
@@ -67,33 +69,33 @@ the participants.
 
 State where users first became confident or confused.
 
-### File Model
+### File model
 
 State whether users understood and accepted the `.longclaw/` model.
 
-### Agent Behavior
+### Agent behavior
 
 State which agent tools succeeded, failed, or required prompt changes.
 
-### Trust and Recovery
+### Trust and recovery
 
 State whether users believed LongClaw preserved work and made external changes
 legible.
 
-## Step 10 Inputs
+## Step 10 inputs
 
 | Decision Needed | Evidence | Recommended Action |
-| --------------- | -------- | ------------------ |
-|                 |          |                    |
+|---|---|---|
+| | | |
 
-## Acceptance Criteria to Update
+## Acceptance criteria to update
 
 | Existing criterion | Evidence gap or failure | Proposed update |
-| ------------------ | ----------------------- | --------------- |
-|                    |                         |                 |
+|---|---|---|
+| | | |
 
-## Deferred or Rejected Requests
+## Deferred or rejected requests
 
-| Request | Decision                                | Reason |
-| ------- | --------------------------------------- | ------ |
-|         | useful after MVP / Phase 2-3 / rejected |        |
+| Request | Decision | Reason |
+|---|---|---|
+| | useful after MVP / Phase 2-3 / rejected | |

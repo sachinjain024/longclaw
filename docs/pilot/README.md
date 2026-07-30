@@ -2,7 +2,7 @@
 title: "Mid-v0 pilot protocol"
 product: LongClaw
 status: active
-milestone: "M4 - Pilot direction accepted (Step 9)"
+milestone: "M4 — Pilot direction accepted (Step 9)"
 ---
 
 # Mid-v0 pilot protocol
@@ -26,6 +26,19 @@ Step 10 before any broad MVP surface work continues.
 - The agent context in [`examples/agent-context/`](../../examples/agent-context/).
 - One copy of [the session notes template](session-notes-template.md).
 
+## Consent and privacy
+
+This is a public MPL-2.0 repository, so raw pilot data does not belong here.
+
+Before the session starts, ask for explicit permission to observe and, if
+applicable, record the session. Use participant codes such as `P01`; do not put
+participant names, company names, private repository names, recording URLs, raw
+logs, or unredacted ticket/file excerpts in this repo.
+
+Store raw notes, recordings, private repository names, and full before/after
+files outside the public repository. Commit only redacted summaries and
+sanitized excerpts that are necessary to support a finding.
+
 ## Recruit
 
 Recruit 5 to 8 active agent users. Prefer people who already use an agent on
@@ -45,7 +58,11 @@ Record the tool they actually use; agent fit is part of the evidence.
 Do not count a sample repository run toward the Step 9 exit gate. A sample repo
 can debug the build or the script, but it cannot prove the core workflow.
 
-## Session Shape
+M4 requires at least 5 completed real-repository sessions. Continue toward 8
+sessions when the first 5 do not cover both solo-builder and small-team users,
+or when evidence is split enough that Step 10 would be guessing.
+
+## Session shape
 
 Plan for 45 minutes.
 
@@ -76,7 +93,9 @@ Capture evidence for these specific behaviors:
 - **Ticket authoring:** Can they create a useful real ticket without needing
   missing fields from later MVP steps?
 - **Agent discovery:** Does the agent find `.longclaw/AGENTS.md` and the target
-  ticket without the moderator teaching the format?
+  ticket without the moderator teaching the format? Record whether the
+  repository had a root-level bridge file such as `AGENTS.md` or `CLAUDE.md`
+  pointing at `.longclaw/`.
 - **Agent mutation:** Does the agent safely update status, description,
   checklist, and activity without damaging unrelated fields?
 - **Incoming-change recognition:** Does the participant notice the external
@@ -86,7 +105,7 @@ Capture evidence for these specific behaviors:
 - **Recovery:** When something goes wrong, can they identify the problem and the
   next action without developer intervention?
 
-## Intervention Rules
+## Intervention rules
 
 - Let confusion run long enough to identify the cause, but do not waste the
   session once the cause is clear.
@@ -95,7 +114,7 @@ Capture evidence for these specific behaviors:
 - Do not fix ticket files by hand unless the session is already marked failed.
 - Do not describe future features as available. Log requests for later ranking.
 
-## Classify Findings
+## Classify findings
 
 After each session, classify every finding into exactly one category:
 
@@ -115,7 +134,7 @@ After each session, classify every finding into exactly one category:
 - **Rejected or inconsistent:** Conflicts with the local-first MVP vision or
   scope guardrails.
 
-## Severity and Frequency
+## Severity and frequency
 
 Rank problems with the following severity scale:
 
@@ -139,14 +158,15 @@ Track frequency as:
 The ranked problem list should sort by severity first, then frequency, then
 confidence in the evidence.
 
-## Exit Gate
+## Exit gate
 
 Step 9 is complete when the repo contains:
 
-- session notes for every observed participant;
+- redacted session notes for at least 5 completed real-repository sessions under
+  [`sessions/`](sessions/), indexed by participant code;
 - a ranked problem list using [the problem list template](problem-list-template.md);
 - an evidence summary using [the evidence summary template](evidence-summary-template.md);
-- explicit examples for any failed agent mutation or data-integrity concern;
+- sanitized examples for any failed agent mutation or data-integrity concern;
 - a clear recommendation for Step 10: proceed, fix blockers first, rerun part of
   the pilot, or reject the current vertical-slice direction.
 

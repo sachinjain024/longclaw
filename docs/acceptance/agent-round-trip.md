@@ -186,7 +186,7 @@ For each run, record:
 - pass or fail per numbered step;
 - for any failure: the ticket file before and after, and what the agent did.
 
-Store the notes with the pilot notes from Step 9. A run with any
-release-blocking failure means the slice is not ready to show.
+Store redacted session notes under [`docs/pilot/sessions/`](../pilot/sessions/).
+A run with any release-blocking failure means the slice is not ready to show.
 Use [the mid-v0 pilot session notes template](../pilot/session-notes-template.md)
 when the run is part of a participant session.
