@@ -41,7 +41,8 @@ Give each pilot participant:
 2. the note below about the unsigned build;
 3. [`examples/agent-context/`](../../examples/agent-context/) so their agent can
    find the ticket instructions;
-4. nothing else — no account, no key, no configuration. If a participant needs
+4. the [mid-v0 pilot protocol](../pilot/README.md) for the moderator only;
+5. nothing else — no account, no key, no configuration. If a participant needs
    anything more to reach a board, that is a finding.
 
 ### Note for participants (unsigned build)

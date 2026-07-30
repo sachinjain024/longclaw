@@ -188,3 +188,5 @@ For each run, record:
 
 Store the notes with the pilot notes from Step 9. A run with any
 release-blocking failure means the slice is not ready to show.
+Use [the mid-v0 pilot session notes template](../pilot/session-notes-template.md)
+when the run is part of a participant session.

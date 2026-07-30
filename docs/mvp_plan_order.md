@@ -370,9 +370,12 @@ Phase 0 is deliberately human-led. Its purpose is to remove expensive ambiguity 
 
 **Deliverables:**
 
-- Pilot notes linked to observed sessions.
-- Ranked problem list with severity and frequency.
-- Evidence summary for the agent round-trip and onboarding flows.
+- Pilot notes linked to observed sessions, using
+  [the session notes template](pilot/session-notes-template.md).
+- Ranked problem list with severity and frequency, using
+  [the problem list template](pilot/problem-list-template.md).
+- Evidence summary for the agent round-trip and onboarding flows, using
+  [the evidence summary template](pilot/evidence-summary-template.md).
 
 **Expected outcome / exit gate:**
 
