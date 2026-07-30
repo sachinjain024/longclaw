@@ -13,6 +13,7 @@ use core::{
     RebuildReason, SearchResult, StreamEnvelope, StreamFrame, StreamKind, TicketDetail,
     VisibleUiProbe, WriteResult,
 };
+use serde::Deserialize;
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Emitter, Manager, State};
 
@@ -34,6 +35,69 @@ fn list_projects(state: State<'_, AppState>) -> Vec<ProjectReference> {
 #[tauri::command]
 fn register_project(root_path: String, state: State<'_, AppState>) -> AppResult<ProjectReference> {
     state.register_project(PathBuf::from(root_path))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct CreateProjectRequest {
+    root_path: String,
+    name: String,
+    key: String,
+    theme: String,
+}
+
+#[tauri::command]
+fn create_project(
+    request: CreateProjectRequest,
+    state: State<'_, AppState>,
+) -> AppResult<ProjectReference> {
+    state.create_project(
+        PathBuf::from(request.root_path),
+        &request.name,
+        &request.key,
+        &request.theme,
+    )
+}
+
+#[tauri::command]
+fn relocate_project(
+    project_id: String,
+    root_path: String,
+    state: State<'_, AppState>,
+) -> AppResult<ProjectReference> {
+    state.relocate_project(&project_id, PathBuf::from(root_path))
+}
+
+#[tauri::command]
+fn set_project_starred(
+    project_id: String,
+    starred: bool,
+    state: State<'_, AppState>,
+) -> AppResult<ProjectReference> {
+    state.set_project_starred(&project_id, starred)
+}
+
+#[tauri::command]
+fn update_project_theme(
+    project_id: String,
+    theme: String,
+    state: State<'_, AppState>,
+) -> AppResult<ProjectReference> {
+    state.update_project_theme(&project_id, &theme)
+}
+
+#[tauri::command]
+fn update_project_name(
+    project_id: String,
+    name: String,
+    state: State<'_, AppState>,
+) -> AppResult<ProjectReference> {
+    state.update_project_name(&project_id, &name)
+}
+
+#[tauri::command]
+fn remove_project(project_id: String, state: State<'_, AppState>) -> AppResult<()> {
+    state.remove_project(&project_id)
 }
 
 #[tauri::command]
@@ -185,6 +249,12 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             list_projects,
             register_project,
+            create_project,
+            relocate_project,
+            set_project_starred,
+            update_project_theme,
+            update_project_name,
+            remove_project,
             open_project,
             rebuild_index,
             search_tickets,

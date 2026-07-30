@@ -29,6 +29,52 @@ impl AppState {
         self.registry.register(&root)
     }
 
+    pub fn create_project(
+        &self,
+        root: PathBuf,
+        name: &str,
+        key: &str,
+        theme: &str,
+    ) -> AppResult<ProjectReference> {
+        self.registry.create(&root, name, key, theme)
+    }
+
+    pub fn relocate_project(&self, project_id: &str, root: PathBuf) -> AppResult<ProjectReference> {
+        let project = self.registry.relocate(project_id, &root)?;
+        self.engines.write().remove(project_id);
+        Ok(project)
+    }
+
+    pub fn set_project_starred(
+        &self,
+        project_id: &str,
+        starred: bool,
+    ) -> AppResult<ProjectReference> {
+        self.registry.set_starred(project_id, starred)
+    }
+
+    pub fn update_project_theme(
+        &self,
+        project_id: &str,
+        theme: &str,
+    ) -> AppResult<ProjectReference> {
+        let project = self.registry.update_theme(project_id, theme)?;
+        self.engines.write().remove(project_id);
+        Ok(project)
+    }
+
+    pub fn update_project_name(&self, project_id: &str, name: &str) -> AppResult<ProjectReference> {
+        let project = self.registry.update_name(project_id, name)?;
+        self.engines.write().remove(project_id);
+        Ok(project)
+    }
+
+    pub fn remove_project(&self, project_id: &str) -> AppResult<()> {
+        self.registry.remove(project_id)?;
+        self.engines.write().remove(project_id);
+        Ok(())
+    }
+
     pub fn engine(
         &self,
         project_id: &str,

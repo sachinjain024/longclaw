@@ -27,6 +27,7 @@ describe("Rust project-event JSON applied to visible state", () => {
     useLongClawStore.setState({
       projects: [],
       activeProjectId: changedEnvelope.projectId,
+      appearance: "system",
       tickets: [initialTicket],
       generation: 0,
       lastSequence: 0,
@@ -99,5 +100,99 @@ describe("Rust project-event JSON applied to visible state", () => {
     // The removal has a lower sequence than the rebuild, so it does not apply.
     expect(useLongClawStore.getState().tickets).toHaveLength(2);
     expect(useLongClawStore.getState().lastSequence).toBe(3);
+  });
+
+  it("upserts and removes local project references without keeping stale active rows", () => {
+    const project = {
+      id: "local-project",
+      name: "Local Project",
+      rootPath: "/tmp/local-project",
+      key: "LP",
+      theme: "indigo",
+      starred: false,
+      reachable: true,
+    };
+
+    useLongClawStore.getState().upsertProject(project);
+    useLongClawStore.getState().applySnapshot({
+      project,
+      tickets: [initialTicket],
+      generation: 1,
+      rebuiltInMs: 0,
+    });
+    useLongClawStore
+      .getState()
+      .upsertProject({ ...project, starred: true, theme: "clay" });
+
+    expect(useLongClawStore.getState().projects).toMatchObject([
+      { id: "local-project", starred: true, theme: "clay" },
+    ]);
+
+    useLongClawStore.getState().removeProjectReference("local-project");
+
+    expect(useLongClawStore.getState().projects).toEqual([]);
+    expect(useLongClawStore.getState().activeProjectId).toBeUndefined();
+    expect(useLongClawStore.getState().tickets).toEqual([]);
+  });
+
+  it("selects an unreachable project without keeping rows from the last project", () => {
+    useLongClawStore.setState({
+      projects: [
+        {
+          id: "missing-project",
+          name: "Missing Project",
+          rootPath: "/tmp/missing-project",
+          key: "MP",
+          theme: "indigo",
+          starred: false,
+          reachable: false,
+        },
+      ],
+      activeProjectId: changedEnvelope.projectId,
+      tickets: [initialTicket],
+      generation: 4,
+      lastSequence: 9,
+      lastEvent: changedEnvelope,
+    });
+
+    useLongClawStore.getState().setActiveProjectId("missing-project");
+
+    expect(useLongClawStore.getState()).toMatchObject({
+      activeProjectId: "missing-project",
+      tickets: [],
+      generation: 0,
+      lastSequence: 0,
+      lastEvent: undefined,
+    });
+  });
+
+  it("marks a project unreachable while preserving the registry entry", () => {
+    useLongClawStore.setState({
+      projects: [
+        {
+          id: "moved-project",
+          name: "Moved Project",
+          rootPath: "/tmp/moved-project",
+          key: "MP",
+          theme: "indigo",
+          starred: true,
+          reachable: true,
+        },
+      ],
+    });
+
+    useLongClawStore.getState().markProjectReachable("moved-project", false);
+
+    expect(useLongClawStore.getState().projects).toEqual([
+      {
+        id: "moved-project",
+        name: "Moved Project",
+        rootPath: "/tmp/moved-project",
+        key: "MP",
+        theme: "indigo",
+        starred: true,
+        reachable: false,
+      },
+    ]);
   });
 });

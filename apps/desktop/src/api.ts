@@ -31,6 +31,61 @@ export async function chooseAndRegisterProject(): Promise<ProjectReference | nul
   return invoke("register_project", { rootPath: selected });
 }
 
+export async function chooseAndCreateProject(request: {
+  name: string;
+  key: string;
+  theme: string;
+}): Promise<ProjectReference | null> {
+  const selected = await open({
+    directory: true,
+    multiple: false,
+    title: "Create a LongClaw project",
+  });
+
+  if (!selected) return null;
+  return invoke("create_project", {
+    request: { rootPath: selected, ...request },
+  });
+}
+
+export async function chooseAndRelocateProject(
+  projectId: string,
+): Promise<ProjectReference | null> {
+  const selected = await open({
+    directory: true,
+    multiple: false,
+    title: "Locate the LongClaw project folder",
+  });
+
+  if (!selected) return null;
+  return invoke("relocate_project", { projectId, rootPath: selected });
+}
+
+export async function setProjectStarred(
+  projectId: string,
+  starred: boolean,
+): Promise<ProjectReference> {
+  return invoke("set_project_starred", { projectId, starred });
+}
+
+export async function updateProjectTheme(
+  projectId: string,
+  theme: string,
+): Promise<ProjectReference> {
+  return invoke("update_project_theme", { projectId, theme });
+}
+
+export async function updateProjectName(
+  projectId: string,
+  name: string,
+): Promise<ProjectReference> {
+  return invoke("update_project_name", { projectId, name });
+}
+
+export async function removeProject(projectId: string): Promise<void> {
+  return invoke("remove_project", { projectId });
+}
+
 export async function openProject(projectId: string): Promise<ProjectSnapshot> {
   return invoke("open_project", { projectId });
 }

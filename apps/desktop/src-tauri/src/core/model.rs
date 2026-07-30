@@ -25,6 +25,8 @@ pub struct ProjectReference {
     #[serde(default)]
     pub key: String,
     pub theme: String,
+    #[serde(default)]
+    pub starred: bool,
     pub reachable: bool,
 }
 
@@ -36,6 +38,7 @@ impl ProjectReference {
             root_path,
             key: project.key.clone(),
             theme: project.theme.clone(),
+            starred: false,
             reachable: true,
         }
     }
@@ -385,6 +388,7 @@ mod json_contract_tests {
             root_path: ROOT_PATH.to_owned(),
             key: "LC".to_owned(),
             theme: "indigo".to_owned(),
+            starred: false,
             reachable: true,
         }
     }

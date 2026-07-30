@@ -69,6 +69,7 @@
               "rootPath": "/tmp/LongClaw Fixture",
               "key": "LC",
               "theme": "indigo",
+              "starred": false,
               "reachable": true
             },
             "tickets": [

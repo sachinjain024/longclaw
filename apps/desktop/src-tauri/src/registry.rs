@@ -3,7 +3,12 @@ use std::path::{Path, PathBuf};
 
 use parking_lot::RwLock;
 
-use crate::core::storage::{atomic_write, project_file_path, read_project};
+use chrono::{SecondsFormat, Utc};
+
+use crate::core::storage::{
+    atomic_write, initialize_project, project_file_path, read_project, tickets_root,
+    write_agent_contract,
+};
 use crate::core::{AppError, AppResult, ErrorCode, ProjectReference};
 
 pub struct RegistryStore {
@@ -44,7 +49,7 @@ impl RegistryStore {
             .iter()
             .cloned()
             .map(|mut project| {
-                project.reachable = project_file_path(Path::new(&project.root_path)).is_file();
+                project.reachable = project_is_reachable(Path::new(&project.root_path));
                 project
             })
             .collect()
@@ -75,7 +80,97 @@ impl RegistryStore {
         let project =
             ProjectReference::from_project(document.project(), canonical.display().to_string());
         self.remember(&project)?;
+        self.find(&project.id)
+    }
+
+    pub fn create(
+        &self,
+        root: &Path,
+        name: &str,
+        key: &str,
+        theme: &str,
+    ) -> AppResult<ProjectReference> {
+        let canonical = root
+            .canonicalize()
+            .map_err(|error| AppError::io("Canonicalizing project folder", root, error))?;
+        let now = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
+        let document = initialize_project(&canonical, name, key, Some(theme), &now)?;
+        let project =
+            ProjectReference::from_project(document.project(), canonical.display().to_string());
+        self.remember(&project)?;
+        self.find(&project.id)
+    }
+
+    pub fn relocate(&self, project_id: &str, root: &Path) -> AppResult<ProjectReference> {
+        let canonical = root
+            .canonicalize()
+            .map_err(|error| AppError::io("Canonicalizing project folder", root, error))?;
+        let document = read_project(&canonical)?;
+        if document.project().id != project_id {
+            return Err(AppError::new(
+                ErrorCode::InvalidProject,
+                "The selected folder is a different LongClaw project",
+                true,
+            )
+            .with_context("path", canonical.display().to_string()));
+        }
+        let project =
+            ProjectReference::from_project(document.project(), canonical.display().to_string());
+        self.remember(&project)?;
+        self.find(&project.id)
+    }
+
+    pub fn set_starred(&self, project_id: &str, starred: bool) -> AppResult<ProjectReference> {
+        let mut projects = self.projects.write();
+        let Some(index) = projects.iter().position(|project| project.id == project_id) else {
+            return Err(unknown_project(project_id));
+        };
+        let mut next = projects.clone();
+        next[index].starred = starred;
+        let updated = next[index].clone();
+        self.persist(&next)?;
+        *projects = next;
+        Ok(updated)
+    }
+
+    pub fn update_theme(&self, project_id: &str, theme: &str) -> AppResult<ProjectReference> {
+        self.update_project_file(project_id, |document| document.set_theme(theme))
+    }
+
+    pub fn update_name(&self, project_id: &str, name: &str) -> AppResult<ProjectReference> {
+        self.update_project_file(project_id, |document| document.set_name(name))
+    }
+
+    fn update_project_file(
+        &self,
+        project_id: &str,
+        edit: impl FnOnce(
+            &mut crate::core::project::ProjectDocument,
+        ) -> Result<Vec<u8>, crate::core::Diagnostic>,
+    ) -> AppResult<ProjectReference> {
+        let current = self.find(project_id)?;
+        let root = Path::new(&current.root_path);
+        let mut document = read_project(root)?;
+        let bytes = edit(&mut document).map_err(AppError::from)?;
+        atomic_write(&project_file_path(root), &bytes)?;
+        write_agent_contract(root, &document)?;
+        let mut project =
+            ProjectReference::from_project(document.project(), current.root_path.clone());
+        project.starred = current.starred;
+        self.remember(&project)?;
         Ok(project)
+    }
+
+    pub fn remove(&self, project_id: &str) -> AppResult<()> {
+        let mut projects = self.projects.write();
+        if !projects.iter().any(|project| project.id == project_id) {
+            return Err(unknown_project(project_id));
+        }
+        let mut next = projects.clone();
+        next.retain(|project| project.id != project_id);
+        self.persist(&next)?;
+        *projects = next;
+        Ok(())
     }
 
     /// Updates the cached reference for a project that is already registered, or
@@ -83,8 +178,14 @@ impl RegistryStore {
     pub fn remember(&self, project: &ProjectReference) -> AppResult<()> {
         let mut projects = self.projects.write();
         let mut next = projects.clone();
+        let starred = next
+            .iter()
+            .find(|candidate| candidate.id == project.id)
+            .is_some_and(|candidate| candidate.starred);
+        let mut project = project.clone();
+        project.starred = starred;
         next.retain(|candidate| candidate.id != project.id);
-        next.push(project.clone());
+        next.push(project);
         next.sort_by(|left, right| left.name.cmp(&right.name));
         self.persist(&next)?;
         *projects = next;
@@ -101,6 +202,18 @@ impl RegistryStore {
         })?;
         atomic_write(&self.path, &bytes)
     }
+}
+
+fn project_is_reachable(root: &Path) -> bool {
+    read_project(root).is_ok() && fs::read_dir(tickets_root(root)).is_ok()
+}
+
+fn unknown_project(project_id: &str) -> AppError {
+    AppError::new(
+        ErrorCode::InvalidProject,
+        format!("Unknown project id: {project_id}"),
+        true,
+    )
 }
 
 #[cfg(test)]
@@ -129,6 +242,7 @@ mod tests {
         let projects = restored.list();
         assert_eq!(projects.len(), 1);
         assert_eq!(projects[0].id, "registry-proof");
+        assert!(!projects[0].starred);
         assert!(projects[0].reachable);
 
         let moved = temp.path().join("project-moved");
@@ -138,5 +252,61 @@ mod tests {
         assert!(!missing[0].reachable);
         assert_eq!(missing[0].root_path, registered_path);
         assert!(moved.join(".longclaw/longclaw.yaml").is_file());
+    }
+
+    #[test]
+    fn creating_and_removing_a_project_never_deletes_project_files() {
+        let temp = tempfile::tempdir().unwrap();
+        let app_data = temp.path().join("app-support");
+        let project = temp.path().join("fresh");
+        fs::create_dir_all(&project).unwrap();
+
+        let store = RegistryStore::load(&app_data).unwrap();
+        let reference = store
+            .create(&project, "Fresh Project", "FP", "indigo")
+            .unwrap();
+        assert_eq!(reference.name, "Fresh Project");
+        assert!(project.join(".longclaw/longclaw.yaml").is_file());
+        assert!(project.join(".longclaw/tickets").is_dir());
+
+        store.remove(&reference.id).unwrap();
+        assert!(store.list().is_empty());
+        assert!(project.join(".longclaw/longclaw.yaml").is_file());
+    }
+
+    #[test]
+    fn stars_theme_changes_and_relocation_survive_restart() {
+        let temp = tempfile::tempdir().unwrap();
+        let app_data = temp.path().join("app-support");
+        let project = temp.path().join("project");
+        fs::create_dir_all(project.join(".longclaw/tickets")).unwrap();
+        fs::write(
+            project.join(".longclaw/longclaw.yaml"),
+            "format: longclaw.project/v1\nid: settings-proof\nname: Settings Proof\nkey: SP\ntheme: indigo\ncreated_at: 2026-07-29T00:00:00Z\npeople: {}\nlabels: {}\n",
+        )
+        .unwrap();
+
+        let store = RegistryStore::load(&app_data).unwrap();
+        let reference = store.register(&project).unwrap();
+        store.set_starred(&reference.id, true).unwrap();
+        let themed = store.update_theme(&reference.id, "clay").unwrap();
+        assert!(themed.starred);
+        assert_eq!(themed.theme, "clay");
+
+        let moved = temp.path().join("moved");
+        fs::rename(&project, &moved).unwrap();
+        let relocated = store.relocate(&reference.id, &moved).unwrap();
+        assert!(relocated.starred);
+        assert_eq!(
+            relocated.root_path,
+            moved.canonicalize().unwrap().display().to_string()
+        );
+
+        drop(store);
+        let restored = RegistryStore::load(&app_data).unwrap();
+        let [restored] = restored.list().try_into().unwrap();
+        assert!(restored.starred);
+        assert_eq!(restored.theme, "clay");
+        assert!(restored.reachable);
     }
 }

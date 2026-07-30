@@ -11,6 +11,7 @@ import type {
 interface LongClawState {
   projects: ProjectReference[];
   activeProjectId?: string;
+  appearance: "light" | "dark" | "system";
   tickets: TicketRow[];
   generation: number;
   lastSequence: number;
@@ -19,6 +20,11 @@ interface LongClawState {
   loading: boolean;
   error?: AppError;
   setProjects: (projects: ProjectReference[]) => void;
+  upsertProject: (project: ProjectReference) => void;
+  removeProjectReference: (projectId: string) => void;
+  markProjectReachable: (projectId: string, reachable: boolean) => void;
+  setActiveProjectId: (projectId?: string) => void;
+  setAppearance: (appearance: "light" | "dark" | "system") => void;
   applySnapshot: (snapshot: ProjectSnapshot) => void;
   applyEvent: (envelope: StreamEnvelope) => void;
   applyLocalWrite: (ticket: TicketRow, generation: number) => void;
@@ -33,12 +39,46 @@ const byKey = (a: TicketRow, b: TicketRow) =>
 
 export const useLongClawStore = create<LongClawState>((set, get) => ({
   projects: [],
+  appearance: "system",
   tickets: [],
   generation: 0,
   lastSequence: 0,
   streamFrames: [],
   loading: false,
   setProjects: (projects) => set({ projects }),
+  upsertProject: (project) =>
+    set((state) => ({
+      projects: [
+        ...state.projects.filter((item) => item.id !== project.id),
+        project,
+      ].sort((left, right) => left.name.localeCompare(right.name)),
+    })),
+  removeProjectReference: (projectId) =>
+    set((state) => ({
+      projects: state.projects.filter((project) => project.id !== projectId),
+      activeProjectId:
+        state.activeProjectId === projectId ? undefined : state.activeProjectId,
+      tickets: state.activeProjectId === projectId ? [] : state.tickets,
+      lastEvent:
+        state.activeProjectId === projectId ? undefined : state.lastEvent,
+      error: state.activeProjectId === projectId ? undefined : state.error,
+    })),
+  markProjectReachable: (projectId, reachable) =>
+    set((state) => ({
+      projects: state.projects.map((project) =>
+        project.id === projectId ? { ...project, reachable } : project,
+      ),
+    })),
+  setActiveProjectId: (projectId) =>
+    set({
+      activeProjectId: projectId,
+      tickets: [],
+      generation: 0,
+      lastSequence: 0,
+      lastEvent: undefined,
+      error: undefined,
+    }),
+  setAppearance: (appearance) => set({ appearance }),
   applySnapshot: (snapshot) =>
     set((state) => {
       const switchingProject = state.activeProjectId !== snapshot.project.id;

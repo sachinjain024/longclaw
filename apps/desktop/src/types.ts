@@ -44,6 +44,7 @@ export interface ProjectReference {
   /** The immutable prefix of every ticket key in this project. */
   key: string;
   theme: string;
+  starred: boolean;
   /** False when the folder has moved or gone. The project stays listed. */
   reachable: boolean;
 }
