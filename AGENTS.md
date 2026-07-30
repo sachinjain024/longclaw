@@ -12,17 +12,6 @@ Five canonical triage roles map to LongClaw label slugs. See `docs/agents/triage
 
 This is a single-context repository. See `docs/agents/domain.md`.
 
-## Pending work
-
-`docs/plans/active/` holds the handoff for work in flight: where the last session
-stopped, what to pick up first, and what not to do. Read it before starting
-something new. Finished reports move to `docs/plans/completed/` rather than being
-deleted.
-
-This directory exists because LongClaw owns ticket-key allocation and this
-repository has no `.longclaw/` store yet, so an agent cannot file a ticket for
-work it finds. See `docs/agents/issue-tracker.md`.
-
 ## Git workflow
 
 Agents must always create a topic branch before making changes.
