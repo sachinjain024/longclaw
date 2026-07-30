@@ -317,7 +317,14 @@ The two rules cannot drift again without failing a test in each language.
 | The derivation could produce an invalid key | `defaultProjectKey` drops leading non-letters and falls back to `LC` (`src/projectKey.ts`). `30 July 4PM` now derives `J4`. |
 | Both forms clobbered a hand-typed key | The form derives only while the key is untouched. Once edited it is the human's (`src/CreateProjectForm.tsx`). |
 | Nothing validated before the folder picker | The rule is shown as help text, an invalid key is explained inline via `role="alert"`, and submit is disabled, so the native picker never opens on an invalid form. |
-| The refusal read as an internal fault and left residue | `initialize_project` validates the key and theme **before** `create_dir_all`, and returns `invalid_project` with `recoverable: true` and a message written for a form. Nothing is created in the chosen folder when creation fails. |
+| The refusal read as an internal fault and left residue | `initialize_project` validates name, key, and theme **before** `create_dir_all`, and returns `invalid_project` with `recoverable: true` and a message written for a form. Nothing is created in the chosen folder when creation fails. |
+
+The name was validated alongside the key, one field wider than the report asked
+for, because it had the same defect: creation accepted any non-empty name while
+`set_name` refuses anything over 120 characters or spanning lines, so a name the
+create form invited could be refused the first time the user renamed the project.
+`is_project_name` is now the one rule both call, and the form caps the field at
+the length the project file accepts.
 
 The two validators now agree: `storage::valid_ticket_key` holds a ticket-key
 prefix to `project::is_project_key` rather than to a looser local rule, so ticket
@@ -352,15 +359,20 @@ test.
 ### Verification
 
 - `src/projectKey.test.ts` — the grammar and the derivation table, from the
-  shared fixture; every derived key is asserted to be one the backend accepts.
+  shared fixture.
+- `src-tauri/tests/project_key_grammar.rs` — the same fixture against both Rust
+  validators, the length case, and the join between the two languages: every key
+  the form can derive is asserted to be one `is_project_key` accepts. The two
+  suites meet in the fixture rather than trusting each other.
 - `src/CreateProjectForm.test.tsx` — an invalid key disables submit and the
   picker never opens; an edited key survives a later name edit; an emptied key
-  asks rather than inventing one.
-- `src-tauri/tests/project_key_grammar.rs` — the same fixture against both Rust
-  validators, plus the length case.
-- `src-tauri/tests/storage_integration.rs` — a refused key and a refused theme
-  each return `invalid_project`, `recoverable: true`, and leave the chosen folder
-  exactly as the user left it.
+  asks rather than inventing one; and two forms mounted at once each explain
+  their own key, which a shared element id had quietly broken.
+- `src-tauri/tests/storage_integration.rs` — each refused field returns
+  `invalid_project`, `recoverable: true`, and leaves the chosen folder exactly as
+  the user left it.
+- [The round-trip scenario](../../acceptance/agent-round-trip.md) step 1 — the
+  manual half: a refused form never opens the native picker.
 
 The report's `tmp_probe_invalid_key_leaves_residue` probe is superseded by
 `a_refused_project_key_writes_nothing_and_reads_as_a_project_problem`, which

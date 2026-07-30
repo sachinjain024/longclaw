@@ -147,10 +147,8 @@ impl ProjectDocument {
     /// Rewrites the display name and nothing else. The key stays immutable.
     pub fn set_name(&mut self, name: &str) -> Result<Vec<u8>, Diagnostic> {
         let name = name.trim();
-        if name.is_empty() || name.chars().count() > 120 || name.contains('\n') {
-            return Err(Diagnostic::parse(
-                "A project name is a single line of 1 to 120 characters",
-            ));
+        if !is_project_name(name) {
+            return Err(Diagnostic::parse(PROJECT_NAME_RULE));
         }
         self.mapping.set_scalar("name", name);
         self.project.name = name.to_owned();
@@ -215,6 +213,14 @@ impl<'de> Deserialize<'de> for Label {
 
 fn default_label_color() -> String {
     "slate".to_owned()
+}
+
+pub const PROJECT_NAME_RULE: &str = "A project name is a single line of 1 to 120 characters";
+
+/// The one project-name rule, so creating a project and renaming one cannot
+/// disagree about what a name is. Callers trim first.
+pub fn is_project_name(name: &str) -> bool {
+    !name.is_empty() && name.chars().count() <= 120 && !name.contains('\n')
 }
 
 /// A preset id. The frontend owns the preset list, so an unfamiliar-but-well-formed

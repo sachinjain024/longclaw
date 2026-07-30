@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  KEY_MAX_LENGTH,
+  PROJECT_KEY_MAX_LENGTH,
   PROJECT_KEY_RULE,
   defaultProjectKey,
   isProjectKey,
@@ -24,7 +24,7 @@ describe("the project key grammar", () => {
   });
 
   it("caps a new key at the length the fixture states", () => {
-    expect(KEY_MAX_LENGTH).toBe(grammar.creationMaxLength);
+    expect(PROJECT_KEY_MAX_LENGTH).toBe(grammar.creationMaxLength);
   });
 
   it("states the rule in words a person in a create form can act on", () => {
@@ -60,7 +60,10 @@ describe("deriving a key from a project name", () => {
       expect(isProjectKey(derived), `derived ${derived} from ${name}`).toBe(
         true,
       );
-      expect(derived.length).toBeLessThanOrEqual(KEY_MAX_LENGTH);
+      expect(derived.length).toBeLessThanOrEqual(grammar.derivationMaxLength);
+      expect(grammar.derivationMaxLength).toBeLessThanOrEqual(
+        PROJECT_KEY_MAX_LENGTH,
+      );
     }
   });
 
@@ -76,6 +79,8 @@ describe("normalizing what someone types into the key field", () => {
   });
 
   it("stops at the creation cap", () => {
-    expect(normalizeProjectKey("abcdefgh")).toHaveLength(KEY_MAX_LENGTH);
+    expect(normalizeProjectKey("abcdefgh")).toHaveLength(
+      PROJECT_KEY_MAX_LENGTH,
+    );
   });
 });

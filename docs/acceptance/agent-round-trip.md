@@ -56,7 +56,21 @@ window rather than on the checklist.
 ### 1. Create the project (human)
 
 1. Launch the app. On first launch, choose **Create project in folder**.
-2. Give it a name and a ticket key, keep Indigo, and pick the folder.
+2. Type a name beginning with a digit — `30 July 4PM` — and read the key the form
+   suggests.
+3. Clear the key field, then type `3J4` by hand.
+4. Restore a valid key, give it a name, keep Indigo, and pick the folder.
+
+**Pass (release-blocking):** the form never opens the native folder picker on a
+key the app would refuse. At step 2 the suggested key starts with a letter; at
+step 3 the invalid key is explained inline and **Choose folder** is disabled. The
+chosen folder is untouched until a valid form is submitted — a refused creation
+leaves no `.longclaw/` behind.
+
+This ordering is the check itself. The reported failure was not the refusal but
+its timing: the user answered a native dialog before learning the form was
+invalid, and the folder kept the residue. See
+[the resolved report](../plans/resolved/project-key-derivation-bug.md).
 
 **Pass:** the board opens empty, the header shows the folder path, and the
 folder now contains `.longclaw/longclaw.yaml`, `.longclaw/AGENTS.md`, and

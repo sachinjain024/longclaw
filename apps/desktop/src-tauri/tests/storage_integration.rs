@@ -350,10 +350,21 @@ fn a_refused_project_key_writes_nothing_and_reads_as_a_project_problem() {
 /// look untouched while they fix it.
 #[test]
 fn every_refused_create_field_leaves_the_folder_untouched() {
+    // One character past what renaming accepts.
+    let too_long = "a".repeat(121);
+
     for (case, name, key, theme) in [
         ("a digit-leading key", "30 July 4PM", "3J4", None),
         ("a lowercase key", "My Project", "mp", None),
         ("an empty name", "   ", "MP", None),
+        // A name creation accepts but renaming would refuse is the same drift as
+        // the two key validators disagreeing.
+        (
+            "a name past the project file's limit",
+            too_long.as_str(),
+            "MP",
+            None,
+        ),
         (
             "a theme that is not a preset id",
             "Spaced Theme",

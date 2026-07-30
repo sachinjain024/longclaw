@@ -37,7 +37,8 @@ npm run perf:rust     # the performance budgets, ignored by default
 | Change | Why | State |
 |---|---|---|
 | The project-key grammar is now a documented contract with a shared fixture, and a refused key must leave the chosen folder untouched | The reported create-project dead end passed every existing check: no test exercised project creation from the UI, and the two key validators were free to disagree. The [resolved report](../plans/resolved/project-key-derivation-bug.md) records the analysis | Landed. Covered by `src/projectKey.test.ts`, `src/CreateProjectForm.test.tsx`, `src-tauri/tests/project_key_grammar.rs`, and two refusal tests in `src-tauri/tests/storage_integration.rs` |
-| Step 1 of the round-trip scenario should assert that a refused create form never opens the folder picker | The bug's worst part was ordering: the user answered a native dialog before learning the form was invalid. The scenario starts at a valid form and so never exercised the refusal | Proposed. Add when the scenario is next revised, alongside any pilot-driven changes, so the document is edited once |
+| Step 1 of [the round-trip scenario](agent-round-trip.md) now walks a refused create form before a valid one, and asserts the native picker never opens on a key the app would refuse | The bug's worst part was ordering: the user answered a native dialog before learning the form was invalid. The scenario started at a valid form and so never exercised the refusal | Landed, release-blocking |
+| The project name is held to one rule at creation and at rename | Creation accepted a name the rename surface refuses. Two rules for one concept is the same drift that produced the key bug, one field over | Landed. Covered by the name cases in `every_refused_create_field_leaves_the_folder_untouched` and the form's own cap |
 
 ## Scenarios still required before M6
 

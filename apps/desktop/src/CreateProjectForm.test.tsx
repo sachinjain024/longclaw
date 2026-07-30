@@ -143,4 +143,53 @@ describe("the create-project form", () => {
 
     expect(form.key.value).toBe("ABCDE");
   });
+
+  it("caps the name at the length the project file accepts", () => {
+    const form = renderForm();
+
+    expect(form.name.maxLength).toBe(120);
+  });
+});
+
+// First launch renders the Welcome form while the side panel renders its own, so
+// two of these are mounted at once. A shared constant id would point both key
+// fields at the first form's explanation.
+describe("two create forms on screen at once", () => {
+  it("explains each form's key in that form", () => {
+    render(
+      <>
+        <CreateProjectForm
+          themes={THEMES}
+          submitLabel="Choose folder"
+          onSubmit={vi.fn()}
+        />
+        <CreateProjectForm
+          themes={THEMES}
+          submitLabel="Create project in folder"
+          onSubmit={vi.fn()}
+        />
+      </>,
+    );
+
+    const [firstKey, secondKey] = screen.getAllByLabelText(
+      "Key",
+    ) as HTMLInputElement[];
+    fireEvent.change(secondKey, { target: { value: "3J4" } });
+
+    const firstRule = firstKey.getAttribute("aria-describedby");
+    const secondRule = secondKey.getAttribute("aria-describedby");
+    expect(firstRule).not.toBe(secondRule);
+
+    // The refusal belongs to the form it happened in, and only that form.
+    expect(document.getElementById(secondRule!)?.textContent).toMatch(
+      /starting with a letter/i,
+    );
+    expect(document.getElementById(secondRule!)?.getAttribute("role")).toBe(
+      "alert",
+    );
+    expect(document.getElementById(firstRule!)?.getAttribute("role")).toBe(
+      null,
+    );
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+  });
 });

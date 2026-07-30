@@ -26,8 +26,8 @@ use super::model::{
     ActivitySummary, DegradedRow, IndexedRow, TicketDetail, TicketRow, TicketWrite,
 };
 use super::project::{
-    is_project_key, is_theme_id, render_agent_contract, render_new_project, ProjectDocument,
-    DEFAULT_THEME,
+    is_project_key, is_project_name, is_theme_id, render_agent_contract, render_new_project,
+    ProjectDocument, DEFAULT_THEME, PROJECT_NAME_RULE,
 };
 use super::ticket::{render_new_ticket, Priority, Status, Ticket, TicketDocument, TicketEdit};
 
@@ -689,10 +689,12 @@ pub fn initialize_project(
     // look untouched when they fix it. Only after this can the render fail, and a
     // failure there is a programmer fault rather than something a form can fix.
     let theme = theme.unwrap_or(DEFAULT_THEME);
-    if name.trim().is_empty() {
+    if !is_project_name(name.trim()) {
+        // The same rule renaming uses. Creation accepting a name that the rename
+        // surface would refuse is the drift this validation exists to prevent.
         return Err(AppError::new(
             ErrorCode::InvalidProject,
-            "Project name is required",
+            PROJECT_NAME_RULE,
             true,
         ));
     }

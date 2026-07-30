@@ -76,6 +76,27 @@ fn a_ticket_key_prefix_obeys_the_same_grammar() {
     }
 }
 
+/// The bug in one assertion: the frontend derives, this validator accepts. The
+/// frontend's own test proves it produces the fixture's keys; this proves the
+/// backend takes every one of them, so neither side has to trust the other.
+#[test]
+fn every_key_the_form_can_derive_is_a_key_this_build_accepts() {
+    let fixture = grammar();
+    let derivations = fixture["derivations"]
+        .as_array()
+        .expect("a derivation table");
+    assert!(derivations.len() > 5, "the table is a real one");
+
+    for case in derivations {
+        let name = case["name"].as_str().expect("a name");
+        let derived = case["key"].as_str().expect("a derived key");
+        assert!(
+            is_project_key(derived),
+            "the form derives {derived:?} from {name:?}, so creation must accept it"
+        );
+    }
+}
+
 #[test]
 fn length_is_not_part_of_the_grammar() {
     let fixture = grammar();

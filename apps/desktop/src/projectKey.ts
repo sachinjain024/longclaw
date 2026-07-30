@@ -12,7 +12,13 @@
 const PROJECT_KEY = /^[A-Z][A-Z0-9]*$/;
 
 /** What a new key is capped at in a create form, for readability. */
-export const KEY_MAX_LENGTH = 5;
+export const PROJECT_KEY_MAX_LENGTH = 5;
+
+/**
+ * What the project file accepts as a name, so the field stops there rather than
+ * letting the backend refuse a name the form invited (`core::project`).
+ */
+export const PROJECT_NAME_MAX_LENGTH = 120;
 
 /** How many initials a derived key takes before it is capped. */
 const DERIVATION_MAX_LENGTH = 4;
@@ -55,7 +61,7 @@ export function defaultProjectKey(name: string) {
  * can explain the refusal instead of silently eating what was typed.
  */
 export function normalizeProjectKey(typed: string) {
-  return typed.toUpperCase().slice(0, KEY_MAX_LENGTH);
+  return typed.toUpperCase().slice(0, PROJECT_KEY_MAX_LENGTH);
 }
 
 /** The form-facing complaint about a key, or null when it is fine. */

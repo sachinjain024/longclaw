@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import {
-  KEY_MAX_LENGTH,
+  PROJECT_KEY_MAX_LENGTH,
   PROJECT_KEY_RULE,
+  PROJECT_NAME_MAX_LENGTH,
   defaultProjectKey,
   normalizeProjectKey,
   projectKeyProblem,
@@ -33,6 +34,9 @@ export function CreateProjectForm(props: {
   const [key, setKey] = useState(() => defaultProjectKey(""));
   const [keyEdited, setKeyEdited] = useState(false);
   const [theme, setTheme] = useState(props.themes[0]?.id ?? "indigo");
+  // First launch renders this form while the side panel renders another one, so
+  // the id that ties the key field to its explanation cannot be a constant.
+  const keyRuleId = useId();
 
   const problem = projectKeyProblem(key);
 
@@ -58,6 +62,7 @@ export function CreateProjectForm(props: {
         <input
           value={name}
           placeholder={DEFAULT_PROJECT_NAME}
+          maxLength={PROJECT_NAME_MAX_LENGTH}
           onChange={(event) => {
             setName(event.target.value);
             // A key the human typed is theirs. Only a suggested one is replaced.
@@ -70,9 +75,9 @@ export function CreateProjectForm(props: {
           <span>Key</span>
           <input
             value={key}
-            maxLength={KEY_MAX_LENGTH}
+            maxLength={PROJECT_KEY_MAX_LENGTH}
             aria-invalid={problem ? "true" : undefined}
-            aria-describedby="create-project-key-rule"
+            aria-describedby={keyRuleId}
             onChange={(event) => {
               setKeyEdited(true);
               setKey(normalizeProjectKey(event.target.value));
@@ -80,15 +85,11 @@ export function CreateProjectForm(props: {
           />
         </label>
         {problem ? (
-          <small
-            className="field-problem"
-            role="alert"
-            id="create-project-key-rule"
-          >
+          <small className="field-problem" role="alert" id={keyRuleId}>
             {problem}
           </small>
         ) : (
-          <small className="field-hint" id="create-project-key-rule">
+          <small className="field-hint" id={keyRuleId}>
             {PROJECT_KEY_RULE} Locks after the first ticket.
           </small>
         )}
