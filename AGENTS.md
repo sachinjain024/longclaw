@@ -12,6 +12,19 @@ Five canonical triage roles map to LongClaw label slugs. See `docs/agents/triage
 
 This is a single-context repository. See `docs/agents/domain.md`.
 
+## Git workflow
+
+Agents must always create a topic branch before making changes.
+
+Before creating the topic branch, agents must:
+
+1. Run `git status --short --branch`.
+2. If there are unrelated local changes, preserve them and ask before moving branches if needed.
+3. Update local `main` from `origin/main`.
+4. Create a new topic branch from the updated `main`.
+
+Agents may commit only on topic branches. Agents must not commit directly to `main`. Agents must not merge into `main` unless the user explicitly asks them to do so.
+
 ## Token discipline
 
 - Prefer `rg` and targeted file ranges over broad file dumps.
