@@ -42,9 +42,15 @@ Run the full local gate before committing:
 npm run verify
 ```
 
-The gate covers formatting, linting, TypeScript type checking, frontend unit
-tests, Rust unit/integration tests, watcher integration coverage, Clippy, and
-the Vite production build.
+The gate covers formatting, linting, TypeScript type checking, frontend unit and
+component tests, Rust unit/integration tests, watcher integration coverage,
+Clippy, and the Vite production build.
+
+Component tests run in jsdom and opt in per file with a
+`// @vitest-environment jsdom` docblock, so pure logic tests stay on the fast
+node environment. A component test stubs `src/api.ts` rather than reaching for
+IPC: it asserts what the surface does with what storage returned, and the real
+storage path is covered by the Rust integration suites.
 
 ## The file format is tested from fixtures
 
@@ -62,7 +68,7 @@ Test suites worth knowing about:
 
 | Command | Covers |
 |---|---|
-| `npm test` | frontend unit tests, Rust unit tests, the fixture corpus, storage and watcher integration |
+| `npm test` | frontend unit and component tests, Rust unit tests, the fixture corpus, storage and watcher integration |
 | `npm run test:watcher` | the production FSEvents watcher end to end (ignored by default) |
 | `npm run perf:rust` | index rebuild, search, read, and write budgets against a 5,000-ticket project |
 

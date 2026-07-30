@@ -59,7 +59,14 @@ interface TicketPanelProps {
 }
 
 export function TicketPanel(props: TicketPanelProps) {
-  const { projectId, ticketKey, onError } = props;
+  const { projectId, ticketKey } = props;
+  /**
+   * The error reporter, held in a ref: reading the file is expensive, so the
+   * loader must not be rebuilt — and the file re-read — because a parent
+   * re-rendered with a new callback identity.
+   */
+  const onErrorRef = useRef(props.onError);
+  onErrorRef.current = props.onError;
   const [detail, setDetail] = useState<TicketDetail>();
   const [titleDraft, setTitleDraft] = useState("");
   const [descriptionDraft, setDescriptionDraft] = useState("");
@@ -118,7 +125,7 @@ export function TicketPanel(props: TicketPanelProps) {
       try {
         next = await readTicket(projectId, ticketKey);
       } catch (error) {
-        onError(normalizeError(error));
+        onErrorRef.current(normalizeError(error));
         return undefined;
       }
       const checklist = next.ticket?.checklist ?? [];
@@ -158,7 +165,7 @@ export function TicketPanel(props: TicketPanelProps) {
       }
       return next;
     },
-    [projectId, ticketKey, onError],
+    [projectId, ticketKey],
   );
 
   useEffect(() => {
@@ -222,7 +229,7 @@ export function TicketPanel(props: TicketPanelProps) {
       if (normalized.code === "conflict") {
         setConflict({ error: normalized, pending: edit });
       } else {
-        onError(normalized);
+        onErrorRef.current(normalized);
       }
     } finally {
       setSaving(false);

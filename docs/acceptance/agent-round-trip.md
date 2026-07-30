@@ -26,12 +26,17 @@ the sections marked **release-blocking** stops the release.
 | App write → disk → restart → rebuild | `src-tauri/tests/storage_integration.rs` | `npm test` |
 | Acknowledgement and decay logic | `src/freshness.test.ts`, `src/state.test.ts` | `npm test` |
 | Attribution and the conflict it raises | `src/attribution.test.ts` | `npm test` |
+| The card treatment, its decay, and degraded rows | `src/Board.test.tsx` | `npm test` |
+| Panel behaviour: tick attribution, conflict, drafts, disk-state | `src/TicketPanel.test.tsx` | `npm test` |
+| Ticket creation input | `src/QuickCreate.test.tsx`, `src/tickets.test.ts` | `npm test` |
 | The request shapes the UI sends | `src-tauri/tests/ipc_requests.rs` | `npm test` |
 | **A real agent discovering, reading, and editing a ticket** | this document | manual |
 
-The automated suite proves the pipeline. It cannot prove that a real agent —
-Claude Code, Cursor, or anything else — can find the instructions and follow
-them, which is the part this scenario exists for.
+The automated suite proves the pipeline and what each surface does with what it
+is given. It cannot prove that a real agent — Claude Code, Cursor, or anything
+else — can find the instructions and follow them, or that the result reads well
+on screen. That is what this scenario exists for, so run it with your eyes on the
+window rather than on the checklist.
 
 ## Preparation
 
@@ -119,12 +124,13 @@ preserved in the file and never presented as a human assignee.
 **Pass:** if the agent's record carried no actor metadata, the acknowledgement
 reads `⚠ file changed on disk — actor unknown` rather than crediting an agent.
 
-**Deliberate addition beyond the approved prototype:** a change whose newest
-record is a *person* (a hand edit in an editor, say) is acknowledged too, with
-the human accent and `• changed on disk · <age> · via file edit`. The prototype
-specifies the treatment for agent and unknown actors only; showing nothing for a
-human file edit would be the silent re-render the design forbids. Reject this
-addition if it reads as noise in the pilot.
+**Accepted addition beyond the approved prototype:** a change whose newest record
+is a *person* (a hand edit in an editor, say) is acknowledged too, with the human
+accent and `• changed on disk · <age> · via file edit`. The prototype specifies
+the treatment for agent and unknown actors only; showing nothing for a human file
+edit would be the silent re-render the design forbids, so it was kept. Watch it
+in the pilot: if it reads as noise, the treatment is one branch in
+`src/freshness.ts` and one CSS variant to remove.
 
 ### 5. Review and answer (human)
 
