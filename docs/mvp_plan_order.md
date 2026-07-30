@@ -356,7 +356,7 @@ Phase 0 is deliberately human-led. Its purpose is to remove expensive ambiguity 
 
 **Work:**
 
-- Recruit a small set of active Claude Code and/or Cursor users, including solo builders and small-team members where possible.
+- Recruit a small set of active Claude Code, Codex and/or Cursor users, including solo builders and small-team members where possible.
 - Give them the build and ask them to use it with a real repository and real ticket.
 - Observe rather than over-script:
   - folder/project setup;
