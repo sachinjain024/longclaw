@@ -221,6 +221,7 @@ labels:
 ```
 
 The project key becomes immutable after the first ticket is created. Otherwise, changing it would require renaming every human-facing ticket key and directory.
+It must start with an uppercase ASCII letter and then use only uppercase ASCII letters or digits, for example `LC` or `LC2`.
 
 Ticket assignees refer to stable IDs in `people`. Only registered people are valid assignees. Local projects have no assignee or identity UI in v0, so they do not require a local human entry in `people`. Agents appear as explicitly typed actors in embedded activity events but never in the assignable people registry.
 

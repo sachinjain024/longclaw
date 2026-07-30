@@ -308,6 +308,26 @@ fn initializing_a_folder_writes_a_project_and_its_agent_contract() {
     assert_eq!(error.code, ErrorCode::InvalidProject);
 }
 
+#[test]
+fn initializing_with_an_invalid_key_writes_nothing() {
+    let temp = tempfile::tempdir().expect("temporary folder");
+    let root = temp.path().join("fresh");
+    fs::create_dir_all(&root).expect("create the folder");
+
+    let error =
+        storage::initialize_project(&root, "30 July 4PM", "3J4", None, "2026-07-29T00:00:00Z")
+            .expect_err("an invalid key must be refused");
+
+    assert_eq!(error.code, ErrorCode::InvalidProject);
+    assert!(error.recoverable);
+    assert!(error
+        .message
+        .contains("Project key must start with a letter"));
+    assert!(!storage::project_file_path(&root).exists());
+    assert!(!storage::tickets_root(&root).exists());
+    assert!(!root.join(".longclaw").exists());
+}
+
 /// The contract's worked example carries freshly minted ids on every render, so a
 /// comparison of two renders has to ignore them and nothing else.
 fn without_minted_ids(contract: &str) -> String {

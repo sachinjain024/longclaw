@@ -25,7 +25,9 @@ use super::error::{AppError, AppResult, Diagnostic, ErrorCode};
 use super::model::{
     ActivitySummary, DegradedRow, IndexedRow, TicketDetail, TicketRow, TicketWrite,
 };
-use super::project::{render_agent_contract, render_new_project, ProjectDocument, DEFAULT_THEME};
+use super::project::{
+    is_project_key, render_agent_contract, render_new_project, ProjectDocument, DEFAULT_THEME,
+};
 use super::ticket::{render_new_ticket, Priority, Status, Ticket, TicketDocument, TicketEdit};
 
 const PROJECT_DIRECTORY: &str = ".longclaw";
@@ -69,10 +71,7 @@ pub fn valid_ticket_key(key: &str) -> bool {
     let Some((prefix, sequence)) = key.split_once('-') else {
         return false;
     };
-    !prefix.is_empty()
-        && prefix
-            .bytes()
-            .all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit())
+    is_project_key(prefix)
         && !sequence.is_empty()
         && sequence.bytes().all(|byte| byte.is_ascii_digit())
         && !sequence.starts_with('0')
@@ -680,9 +679,6 @@ pub fn initialize_project(
         )
         .with_context("path", project_path.display().to_string()));
     }
-    let tickets = tickets_root(project_root);
-    fs::create_dir_all(&tickets)
-        .map_err(|error| AppError::io("Creating the project folder", &tickets, error))?;
     let rendered = render_new_project(
         &Uuid::new_v4().to_string(),
         name.trim(),
@@ -690,8 +686,21 @@ pub fn initialize_project(
         theme.unwrap_or(DEFAULT_THEME),
         now,
     );
-    let document = ProjectDocument::parse(&rendered)
-        .map_err(|diagnostic| AppError::new(ErrorCode::Internal, diagnostic.message, false))?;
+    let document = ProjectDocument::parse(&rendered).map_err(|diagnostic| {
+        AppError::new(
+            ErrorCode::InvalidProject,
+            if diagnostic.message.contains("key is the immutable prefix") {
+                "Project key must start with a letter and use only uppercase letters and digits, such as LC."
+                    .to_owned()
+            } else {
+                diagnostic.message
+            },
+            true,
+        )
+    })?;
+    let tickets = tickets_root(project_root);
+    fs::create_dir_all(&tickets)
+        .map_err(|error| AppError::io("Creating the project folder", &tickets, error))?;
     atomic_write(&project_path, rendered.as_bytes())?;
     write_agent_contract(project_root, &document)?;
     Ok(document)
@@ -718,6 +727,7 @@ mod tests {
     fn the_key_grammar_rejects_path_shaped_inputs() {
         assert!(valid_ticket_key("LC-42"));
         assert!(valid_ticket_key("LC2-42"));
+        assert!(!valid_ticket_key("3J4-1"));
         assert!(!valid_ticket_key("../LC-42"));
         assert!(!valid_ticket_key("LC/42"));
         assert!(!valid_ticket_key("lc-42"));

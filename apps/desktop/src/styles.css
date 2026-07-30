@@ -318,6 +318,20 @@ label {
   font-weight: 700;
 }
 
+.field-help,
+.field-error {
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.field-help {
+  color: var(--lc-ink-3);
+}
+
+.field-error {
+  color: var(--lc-danger);
+}
+
 .project-toolbar,
 .board-heading,
 .toolbar-actions {

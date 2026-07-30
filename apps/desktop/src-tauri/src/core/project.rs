@@ -229,7 +229,7 @@ fn validate_theme(theme: &str) -> Result<(), Diagnostic> {
     Ok(())
 }
 
-fn is_project_key(key: &str) -> bool {
+pub fn is_project_key(key: &str) -> bool {
     let mut characters = key.chars();
     characters
         .next()

@@ -17,6 +17,13 @@ import {
 } from "./api";
 import { Board } from "./Board";
 import { normalizeError } from "./errors";
+import {
+  defaultProjectKey,
+  normalizeProjectKey,
+  PROJECT_KEY_ERROR,
+  PROJECT_KEY_HELP,
+  validProjectKey,
+} from "./projectKey";
 import { QuickCreate } from "./QuickCreate";
 import { useLongClawStore } from "./state";
 import { TicketPanel } from "./TicketPanel";
@@ -31,20 +38,15 @@ const THEMES = [
 
 const APPEARANCE_KEY = "longclaw.appearance";
 
+type ProjectCreateFormState = {
+  name: string;
+  key: string;
+  theme: string;
+  keyError?: string;
+};
+
 function defaultProjectName() {
   return "Untitled Project";
-}
-
-function defaultProjectKey(name: string) {
-  const letters = name
-    .toUpperCase()
-    .replace(/[^A-Z0-9 ]/g, "")
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 4);
-  return letters || "LC";
 }
 
 function sortedProjects(projects: ProjectReference[]) {
@@ -93,6 +95,7 @@ export function App() {
   const [now, setNow] = useState(() => Date.now());
   const [createName, setCreateName] = useState(defaultProjectName());
   const [createKey, setCreateKey] = useState("LC");
+  const [createKeyEdited, setCreateKeyEdited] = useState(false);
   const [createTheme, setCreateTheme] = useState("indigo");
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
   const [settingsName, setSettingsName] = useState("");
@@ -121,6 +124,26 @@ export function App() {
   const starredProjects = sortedProjects(
     projects.filter((candidate) => candidate.starred),
   );
+  const normalizedCreateKey = normalizeProjectKey(createKey);
+  const createKeyError = validProjectKey(createKey)
+    ? undefined
+    : PROJECT_KEY_ERROR;
+  const createFormState = {
+    name: createName,
+    key: createKey,
+    theme: createTheme,
+    keyError: createKeyError,
+  };
+
+  function updateCreateName(name: string) {
+    setCreateName(name);
+    if (!createKeyEdited) setCreateKey(defaultProjectKey(name));
+  }
+
+  function updateCreateKey(key: string) {
+    setCreateKey(key.toUpperCase());
+    setCreateKeyEdited(true);
+  }
 
   async function loadProject(projectId: string) {
     const knownProject = useLongClawStore
@@ -281,10 +304,11 @@ export function App() {
   }
 
   async function createProject() {
+    if (createKeyError) return;
     try {
       const project = await chooseAndCreateProject({
         name: createName.trim() || defaultProjectName(),
-        key: createKey.trim().toUpperCase() || defaultProjectKey(createName),
+        key: normalizedCreateKey,
         theme: createTheme,
       });
       if (!project) return;
@@ -385,49 +409,17 @@ export function App() {
               Create project
             </button>
             {quickCreateOpen && (
-              <form
+              <ProjectCreateForm
                 className="quick-create"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void createProject();
-                }}
-              >
-                <label>
-                  <span>Name</span>
-                  <input
-                    value={createName}
-                    onChange={(event) => {
-                      setCreateName(event.target.value);
-                      setCreateKey(defaultProjectKey(event.target.value));
-                    }}
-                  />
-                </label>
-                <label>
-                  <span>Key</span>
-                  <input
-                    value={createKey}
-                    onChange={(event) =>
-                      setCreateKey(event.target.value.toUpperCase())
-                    }
-                  />
-                </label>
-                <label>
-                  <span>Theme</span>
-                  <select
-                    value={createTheme}
-                    onChange={(event) => setCreateTheme(event.target.value)}
-                  >
-                    {THEMES.map((theme) => (
-                      <option key={theme.id} value={theme.id}>
-                        {theme.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button className="primary" type="submit">
-                  Choose folder
-                </button>
-              </form>
+                nameLabel="Name"
+                keyLabel="Key"
+                buttonLabel="Choose folder"
+                form={createFormState}
+                onCreateName={updateCreateName}
+                onCreateKey={updateCreateKey}
+                onCreateTheme={setCreateTheme}
+                onCreate={() => void createProject()}
+              />
             )}
           </section>
           <ProjectSection
@@ -474,14 +466,9 @@ export function App() {
 
         {!project ? (
           <Welcome
-            createName={createName}
-            createKey={createKey}
-            createTheme={createTheme}
-            onCreateName={(name) => {
-              setCreateName(name);
-              setCreateKey(defaultProjectKey(name));
-            }}
-            onCreateKey={setCreateKey}
+            form={createFormState}
+            onCreateName={updateCreateName}
+            onCreateKey={updateCreateKey}
             onCreateTheme={setCreateTheme}
             onCreate={() => void createProject()}
             onOpen={() => void chooseProject()}
@@ -710,10 +697,82 @@ function ProjectSection(props: {
   );
 }
 
+function ProjectCreateForm(props: {
+  className: string;
+  nameLabel: string;
+  keyLabel: string;
+  buttonLabel: string;
+  form: ProjectCreateFormState;
+  onCreateName: (name: string) => void;
+  onCreateKey: (key: string) => void;
+  onCreateTheme: (theme: string) => void;
+  onCreate: () => void;
+}) {
+  const keyHelpId = `${props.className}-key-help`;
+  const keyErrorId = `${props.className}-key-error`;
+  const keyDescription = props.form.keyError
+    ? `${keyHelpId} ${keyErrorId}`
+    : keyHelpId;
+  return (
+    <form
+      className={props.className}
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!props.form.keyError) props.onCreate();
+      }}
+    >
+      <label>
+        <span>{props.nameLabel}</span>
+        <input
+          value={props.form.name}
+          aria-label={props.nameLabel}
+          onChange={(event) => props.onCreateName(event.target.value)}
+        />
+      </label>
+      <label>
+        <span>{props.keyLabel}</span>
+        <input
+          value={props.form.key}
+          aria-label={props.keyLabel}
+          aria-invalid={props.form.keyError ? "true" : undefined}
+          aria-describedby={keyDescription}
+          onChange={(event) => props.onCreateKey(event.target.value)}
+        />
+        <small id={keyHelpId} className="field-help">
+          {PROJECT_KEY_HELP}
+        </small>
+        {props.form.keyError && (
+          <small id={keyErrorId} className="field-error">
+            {props.form.keyError}
+          </small>
+        )}
+      </label>
+      <label>
+        <span>Theme</span>
+        <select
+          value={props.form.theme}
+          onChange={(event) => props.onCreateTheme(event.target.value)}
+        >
+          {THEMES.map((theme) => (
+            <option key={theme.id} value={theme.id}>
+              {theme.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <button
+        className="primary"
+        type="submit"
+        disabled={!!props.form.keyError}
+      >
+        {props.buttonLabel}
+      </button>
+    </form>
+  );
+}
+
 function Welcome(props: {
-  createName: string;
-  createKey: string;
-  createTheme: string;
+  form: ProjectCreateFormState;
   onCreateName: (name: string) => void;
   onCreateKey: (key: string) => void;
   onCreateTheme: (theme: string) => void;
@@ -734,46 +793,17 @@ function Welcome(props: {
         </button>
       </div>
 
-      <form
+      <ProjectCreateForm
         className="create-card"
-        onSubmit={(event) => {
-          event.preventDefault();
-          props.onCreate();
-        }}
-      >
-        <label>
-          <span>Project name</span>
-          <input
-            value={props.createName}
-            onChange={(event) => props.onCreateName(event.target.value)}
-          />
-        </label>
-        <label>
-          <span>Ticket key</span>
-          <input
-            value={props.createKey}
-            onChange={(event) =>
-              props.onCreateKey(event.target.value.toUpperCase())
-            }
-          />
-        </label>
-        <label>
-          <span>Theme</span>
-          <select
-            value={props.createTheme}
-            onChange={(event) => props.onCreateTheme(event.target.value)}
-          >
-            {THEMES.map((theme) => (
-              <option key={theme.id} value={theme.id}>
-                {theme.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button className="primary" type="submit">
-          Create project in folder
-        </button>
-      </form>
+        nameLabel="Project name"
+        keyLabel="Ticket key"
+        buttonLabel="Create project in folder"
+        form={props.form}
+        onCreateName={props.onCreateName}
+        onCreateKey={props.onCreateKey}
+        onCreateTheme={props.onCreateTheme}
+        onCreate={props.onCreate}
+      />
     </section>
   );
 }
