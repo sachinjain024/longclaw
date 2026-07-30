@@ -19,6 +19,9 @@ in `apps/desktop` and targets Tauri v2 on macOS.
 - [Design brief](docs/design_brief.md)
 - [MVP execution plan](docs/mvp_plan_order.md)
 - [On-disk file format and data model](docs/file_format.md)
+- [Agent round-trip acceptance scenario](docs/acceptance/agent-round-trip.md)
+- [Pilot macOS build](docs/acceptance/pilot-build.md)
+- [Example agent context files](examples/agent-context/)
 - [Domain language](CONTEXT.md)
 - [Contributor setup](CONTRIBUTING.md)
 

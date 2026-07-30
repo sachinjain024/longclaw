@@ -16,6 +16,8 @@ interface IpcContractFixture {
 // frontend consumer against payloads locked to the Rust JSON contract.
 const ipcContract = ipcContractJson as IpcContractFixture;
 const changedEnvelope = ipcContract.projectEventEnvelopes.ticketChanged;
+/** A fixed observation time, so acknowledgement decay is asserted, not timed. */
+const OBSERVED_AT = 1_800_000_000_000;
 
 if (changedEnvelope.event.type !== "ticketChanged") {
   throw new Error("IPC fixture ticketChanged envelope has the wrong variant");
@@ -32,6 +34,7 @@ describe("Rust project-event JSON applied to visible state", () => {
       generation: 0,
       lastSequence: 0,
       lastEvent: undefined,
+      externalMarks: {},
       streamFrames: [],
       loading: false,
       error: undefined,
@@ -90,6 +93,60 @@ describe("Rust project-event JSON applied to visible state", () => {
       name: "Claude Code",
     });
     expect(ticket.contentHash).toBe("abc123");
+  });
+
+  it("acknowledges an agent change until the ticket is reviewed", () => {
+    useLongClawStore.setState({ tickets: [] });
+    useLongClawStore.getState().applyEvent(changedEnvelope, OBSERVED_AT);
+
+    expect(useLongClawStore.getState().externalMarks).toEqual({
+      "LC-3": {
+        actorType: "agent",
+        actorLabel: "Claude Code",
+        at: OBSERVED_AT,
+      },
+    });
+
+    // Opening the ticket is the review that decays the treatment.
+    useLongClawStore.getState().reviewTicket("LC-3");
+
+    expect(useLongClawStore.getState().externalMarks).toEqual({});
+  });
+
+  it("drops the acknowledgement when the ticket file goes away", () => {
+    useLongClawStore.getState().applyEvent(changedEnvelope, OBSERVED_AT);
+    useLongClawStore
+      .getState()
+      .applyEvent(ipcContract.projectEventEnvelopes.ticketRemoved, OBSERVED_AT);
+
+    expect(useLongClawStore.getState().externalMarks).toEqual({});
+  });
+
+  it("forgets acknowledgements from another project", () => {
+    useLongClawStore.getState().applyEvent(changedEnvelope, OBSERVED_AT);
+    useLongClawStore.getState().setActiveProjectId("another-project");
+
+    expect(useLongClawStore.getState().externalMarks).toEqual({});
+  });
+
+  it("keeps an app write out of the acknowledgement treatment", () => {
+    useLongClawStore.getState().applyLocalWrite(initialTicket, 3);
+
+    expect(useLongClawStore.getState().externalMarks).toEqual({});
+    expect(useLongClawStore.getState().generation).toBe(3);
+  });
+
+  it("sweeps decayed acknowledgements", () => {
+    useLongClawStore.getState().applyEvent(changedEnvelope, OBSERVED_AT);
+    useLongClawStore.getState().sweepMarks(OBSERVED_AT + 119_000);
+
+    expect(Object.keys(useLongClawStore.getState().externalMarks)).toEqual([
+      "LC-3",
+    ]);
+
+    useLongClawStore.getState().sweepMarks(OBSERVED_AT + 120_001);
+
+    expect(useLongClawStore.getState().externalMarks).toEqual({});
   });
 
   it("ignores an event that arrived out of order", () => {

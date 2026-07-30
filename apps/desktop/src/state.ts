@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import type { ExternalMarks } from "./freshness";
+import { externalMark, pruneMarks } from "./freshness";
 import type {
   AppError,
   ProjectReference,
@@ -16,6 +18,12 @@ interface LongClawState {
   generation: number;
   lastSequence: number;
   lastEvent?: StreamEnvelope;
+  /**
+   * Changes that arrived from disk and have not been reviewed yet, keyed by
+   * ticket. App-authored writes never appear here: the engine suppresses its own
+   * writes, so anything in this map came from outside.
+   */
+  externalMarks: ExternalMarks;
   streamFrames: StreamFrame[];
   loading: boolean;
   error?: AppError;
@@ -26,8 +34,11 @@ interface LongClawState {
   setActiveProjectId: (projectId?: string) => void;
   setAppearance: (appearance: "light" | "dark" | "system") => void;
   applySnapshot: (snapshot: ProjectSnapshot) => void;
-  applyEvent: (envelope: StreamEnvelope) => void;
+  applyEvent: (envelope: StreamEnvelope, observedAt?: number) => void;
   applyLocalWrite: (ticket: TicketRow, generation: number) => void;
+  /** Opening a ticket is the review that decays its acknowledgement. */
+  reviewTicket: (ticketKey: string) => void;
+  sweepMarks: (now: number) => void;
   appendStreamFrame: (frame: StreamFrame) => void;
   clearStreamFrames: () => void;
   setLoading: (loading: boolean) => void;
@@ -37,12 +48,20 @@ interface LongClawState {
 const byKey = (a: TicketRow, b: TicketRow) =>
   a.key.localeCompare(b.key, undefined, { numeric: true });
 
+function without(marks: ExternalMarks, ticketKey: string): ExternalMarks {
+  if (!(ticketKey in marks)) return marks;
+  const next = { ...marks };
+  delete next[ticketKey];
+  return next;
+}
+
 export const useLongClawStore = create<LongClawState>((set, get) => ({
   projects: [],
   appearance: "system",
   tickets: [],
   generation: 0,
   lastSequence: 0,
+  externalMarks: {},
   streamFrames: [],
   loading: false,
   setProjects: (projects) => set({ projects }),
@@ -61,6 +80,8 @@ export const useLongClawStore = create<LongClawState>((set, get) => ({
       tickets: state.activeProjectId === projectId ? [] : state.tickets,
       lastEvent:
         state.activeProjectId === projectId ? undefined : state.lastEvent,
+      externalMarks:
+        state.activeProjectId === projectId ? {} : state.externalMarks,
       error: state.activeProjectId === projectId ? undefined : state.error,
     })),
   markProjectReachable: (projectId, reachable) =>
@@ -76,6 +97,7 @@ export const useLongClawStore = create<LongClawState>((set, get) => ({
       generation: 0,
       lastSequence: 0,
       lastEvent: undefined,
+      externalMarks: {},
       error: undefined,
     }),
   setAppearance: (appearance) => set({ appearance }),
@@ -88,10 +110,13 @@ export const useLongClawStore = create<LongClawState>((set, get) => ({
         generation: snapshot.generation,
         lastSequence: switchingProject ? 0 : state.lastSequence,
         lastEvent: switchingProject ? undefined : state.lastEvent,
+        // An index rebuild keeps its acknowledgements: the index is disposable,
+        // but what an agent just did to the files is not.
+        externalMarks: switchingProject ? {} : state.externalMarks,
         error: undefined,
       };
     }),
-  applyEvent: (envelope) => {
+  applyEvent: (envelope, observedAt = Date.now()) => {
     const state = get();
     if (envelope.sequence <= state.lastSequence) return;
     if (state.activeProjectId && envelope.projectId !== state.activeProjectId) {
@@ -100,13 +125,16 @@ export const useLongClawStore = create<LongClawState>((set, get) => ({
 
     const event = envelope.event;
     if (event.type === "ticketChanged") {
+      const ticket = event.data.ticket;
       set({
         tickets: [
-          ...state.tickets.filter(
-            (ticket) => ticket.key !== event.data.ticket.key,
-          ),
-          event.data.ticket,
+          ...state.tickets.filter((candidate) => candidate.key !== ticket.key),
+          ticket,
         ].sort(byKey),
+        externalMarks: {
+          ...pruneMarks(state.externalMarks, observedAt),
+          [ticket.key]: externalMark(ticket, observedAt),
+        },
         lastEvent: envelope,
         lastSequence: envelope.sequence,
         error: undefined,
@@ -118,6 +146,7 @@ export const useLongClawStore = create<LongClawState>((set, get) => ({
         tickets: state.tickets.filter(
           (ticket) => ticket.key !== event.data.ticketKey,
         ),
+        externalMarks: without(state.externalMarks, event.data.ticketKey),
         lastEvent: envelope,
         lastSequence: envelope.sequence,
       });
@@ -149,8 +178,20 @@ export const useLongClawStore = create<LongClawState>((set, get) => ({
         ticket,
       ].sort(byKey),
       generation,
+      // The human just wrote this row, so any pending acknowledgement on it has
+      // been seen by definition.
+      externalMarks: without(state.externalMarks, ticket.key),
       error: undefined,
     })),
+  reviewTicket: (ticketKey) =>
+    set((state) => ({
+      externalMarks: without(state.externalMarks, ticketKey),
+    })),
+  sweepMarks: (now) =>
+    set((state) => {
+      const pruned = pruneMarks(state.externalMarks, now);
+      return pruned === state.externalMarks ? {} : { externalMarks: pruned };
+    }),
   appendStreamFrame: (frame) =>
     set((state) => ({ streamFrames: [...state.streamFrames, frame] })),
   clearStreamFrames: () => set({ streamFrames: [] }),

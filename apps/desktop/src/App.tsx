@@ -1,9 +1,9 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import {
   chooseAndCreateProject,
   chooseAndRegisterProject,
   chooseAndRelocateProject,
-  editTicket,
+  createTicket,
   listProjects,
   listenForProjectEvents,
   openProject,
@@ -15,27 +15,12 @@ import {
   updateProjectName,
   updateProjectTheme,
 } from "./api";
+import { Board } from "./Board";
+import { normalizeError } from "./errors";
+import { QuickCreate } from "./QuickCreate";
 import { useLongClawStore } from "./state";
-import type {
-  AppError,
-  ErrorCode,
-  ProjectReference,
-  TicketRow,
-  TicketStatus,
-} from "./types";
-
-const ERROR_CODES = new Set<ErrorCode>([
-  "cancelled",
-  "invalid_project",
-  "project_unavailable",
-  "ticket_not_found",
-  "parse_failed",
-  "unsupported_version",
-  "conflict",
-  "permission_denied",
-  "io",
-  "internal",
-]);
+import { TicketPanel } from "./TicketPanel";
+import type { CreateTicketRequest, ProjectReference } from "./types";
 
 const THEMES = [
   { id: "indigo", label: "Indigo" },
@@ -44,64 +29,7 @@ const THEMES = [
   { id: "plum", label: "Plum" },
 ];
 
-const STATUSES: { id: TicketStatus; label: string }[] = [
-  { id: "backlog", label: "Backlog" },
-  { id: "todo", label: "Todo" },
-  { id: "in_progress", label: "In Progress" },
-  { id: "in_review", label: "In Review" },
-  { id: "done", label: "Done" },
-  { id: "canceled", label: "Canceled" },
-];
-
 const APPEARANCE_KEY = "longclaw.appearance";
-
-function isAppError(error: unknown): error is AppError {
-  if (typeof error !== "object" || error === null) return false;
-  const candidate = error as Partial<AppError>;
-  return (
-    typeof candidate.code === "string" &&
-    ERROR_CODES.has(candidate.code as ErrorCode) &&
-    typeof candidate.message === "string" &&
-    typeof candidate.recoverable === "boolean"
-  );
-}
-
-export function normalizeError(error: unknown): AppError {
-  if (isAppError(error)) return error;
-  return {
-    code: "internal",
-    message: error instanceof Error ? error.message : String(error),
-    recoverable: false,
-  };
-}
-
-function ticketStatus(ticket: TicketRow): TicketStatus | "unreadable" {
-  return ticket.state === "indexed" ? ticket.status : "unreadable";
-}
-
-function present(ticket: TicketRow) {
-  if (ticket.state === "degraded") {
-    return {
-      title: ticket.relativePath,
-      meta: ticket.readOnly ? "newer format" : "needs repair",
-      source: "Unreadable",
-    };
-  }
-  const actor = ticket.lastActivity?.actor;
-  const source =
-    actor?.type === "agent"
-      ? `Agent: ${actor.name ?? actor.id ?? "unknown"}`
-      : actor?.type === "human"
-        ? "You"
-        : actor?.type === "unknown"
-          ? "Changed on disk"
-          : "Disk";
-  return {
-    title: ticket.title,
-    meta: `${ticket.priority} - ${ticket.checkedCount}/${ticket.checklistCount}`,
-    source,
-  };
-}
 
 function defaultProjectName() {
   return "Untitled Project";
@@ -150,11 +78,19 @@ export function App() {
   const applySnapshot = useLongClawStore((state) => state.applySnapshot);
   const applyEvent = useLongClawStore((state) => state.applyEvent);
   const applyLocalWrite = useLongClawStore((state) => state.applyLocalWrite);
+  const externalMarks = useLongClawStore((state) => state.externalMarks);
+  const reviewTicket = useLongClawStore((state) => state.reviewTicket);
+  const sweepMarks = useLongClawStore((state) => state.sweepMarks);
   const setLoading = useLongClawStore((state) => state.setLoading);
   const setError = useLongClawStore((state) => state.setError);
 
   const [selectedKey, setSelectedKey] = useState<string>();
-  const [draft, setDraft] = useState("");
+  const [ticketFormOpen, setTicketFormOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  /** Bumped when an external change lands for the open ticket. */
+  const [panelReload, setPanelReload] = useState(0);
+  /** Drives the acknowledgement age text and its decay. */
+  const [now, setNow] = useState(() => Date.now());
   const [createName, setCreateName] = useState(defaultProjectName());
   const [createKey, setCreateKey] = useState("LC");
   const [createTheme, setCreateTheme] = useState("indigo");
@@ -163,10 +99,24 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const project = projects.find((item) => item.id === activeProjectId);
-  const selected = useMemo(
-    () => tickets.find((ticket) => ticket.key === selectedKey),
-    [selectedKey, tickets],
+  const openTicket = useCallback(
+    (key: string) => {
+      setSelectedKey(key);
+      // Opening a ticket is the review that decays its acknowledgement.
+      reviewTicket(key);
+    },
+    [reviewTicket],
   );
+  /** Closing returns focus to the card that opened the panel. */
+  const closeTicket = useCallback((key?: string) => {
+    setSelectedKey(undefined);
+    if (!key) return;
+    requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLElement>(`.ticket-row[data-ticket-key="${key}"]`)
+        ?.focus();
+    });
+  }, []);
   const localProjects = sortedProjects(projects);
   const starredProjects = sortedProjects(
     projects.filter((candidate) => candidate.starred),
@@ -255,10 +205,25 @@ export function App() {
     };
   }, [applyEvent, applySnapshot, setError, setLoading, setProjects]);
 
+  // An external change to the open ticket makes the panel re-read the file, so
+  // the description, checklist, and timeline it shows are the ones on disk.
   useEffect(() => {
-    if (selected?.state !== "indexed") return;
-    setDraft(selected.title);
-  }, [selected]);
+    if (!selectedKey || lastEvent?.event.type !== "ticketChanged") return;
+    if (lastEvent.event.data.ticket.key !== selectedKey) return;
+    setPanelReload(lastEvent.sequence);
+  }, [lastEvent, selectedKey]);
+
+  // Acknowledgements age visibly and then decay on their own.
+  const hasMarks = Object.keys(externalMarks).length > 0;
+  useEffect(() => {
+    if (!hasMarks) return;
+    const timer = setInterval(() => {
+      const at = Date.now();
+      setNow(at);
+      sweepMarks(at);
+    }, 1_000);
+    return () => clearInterval(timer);
+  }, [hasMarks, sweepMarks]);
 
   useEffect(() => {
     const reconcile = () => {
@@ -380,26 +345,25 @@ export function App() {
     }
   }
 
-  async function saveTitle() {
-    if (selected?.state !== "indexed" || !activeProjectId || !draft.trim()) {
-      return;
-    }
+  async function submitNewTicket(
+    request: Omit<CreateTicketRequest, "projectId">,
+  ) {
+    if (!activeProjectId) return;
+    setCreating(true);
     try {
-      const result = await editTicket({
+      const result = await createTicket({
         projectId: activeProjectId,
-        ticketKey: selected.key,
-        expectedHash: selected.contentHash,
-        edit: { title: draft.trim() },
+        ...request,
       });
       applyLocalWrite(result.ticket, result.generation);
+      setTicketFormOpen(false);
+      openTicket(result.ticket.key);
     } catch (error) {
       setError(normalizeError(error));
+    } finally {
+      setCreating(false);
     }
   }
-
-  const unreadableTickets = tickets.filter(
-    (ticket) => ticketStatus(ticket) === "unreadable",
-  );
 
   return (
     <main className="app-shell">
@@ -635,46 +599,58 @@ export function App() {
                     >
                       Rebuild index
                     </button>
+                    <button
+                      className="primary"
+                      onClick={() => setTicketFormOpen(true)}
+                    >
+                      New ticket
+                    </button>
                   </div>
                 </div>
 
                 {tickets.length === 0 ? (
-                  <EmptyBoard project={project} />
+                  <EmptyBoard
+                    project={project}
+                    onCreate={() => setTicketFormOpen(true)}
+                  />
                 ) : (
-                  <div className="board-grid">
-                    {STATUSES.map((status) => (
-                      <BoardColumn
-                        key={status.id}
-                        title={status.label}
-                        tickets={tickets.filter(
-                          (ticket) => ticketStatus(ticket) === status.id,
-                        )}
-                        selectedKey={selectedKey}
-                        onSelect={setSelectedKey}
-                      />
-                    ))}
-                    {unreadableTickets.length > 0 && (
-                      <BoardColumn
-                        title="Unreadable"
-                        tickets={unreadableTickets}
-                        selectedKey={selectedKey}
-                        onSelect={setSelectedKey}
-                      />
-                    )}
-                  </div>
+                  <Board
+                    tickets={tickets}
+                    selectedKey={selectedKey}
+                    marks={externalMarks}
+                    now={now}
+                    onSelect={openTicket}
+                  />
                 )}
-
-                <Inspector
-                  selected={selected}
-                  draft={draft}
-                  onDraft={setDraft}
-                  onSave={() => void saveTitle()}
-                />
               </section>
             )}
           </>
         )}
       </section>
+
+      {project && activeProjectId && selectedKey && project.reachable && (
+        <TicketPanel
+          projectId={activeProjectId}
+          ticketKey={selectedKey}
+          mark={externalMarks[selectedKey]}
+          reloadSignal={panelReload}
+          now={now}
+          onClose={() => closeTicket(selectedKey)}
+          onWrite={(result) =>
+            applyLocalWrite(result.ticket, result.generation)
+          }
+          onError={setError}
+        />
+      )}
+
+      {project && activeProjectId && ticketFormOpen && (
+        <QuickCreate
+          projectKey={project.key}
+          submitting={creating}
+          onCancel={() => setTicketFormOpen(false)}
+          onCreate={(request) => void submitNewTicket(request)}
+        />
+      )}
     </main>
   );
 }
@@ -802,14 +778,20 @@ function Welcome(props: {
   );
 }
 
-function EmptyBoard({ project }: { project: ProjectReference }) {
+function EmptyBoard(props: {
+  project: ProjectReference;
+  onCreate: () => void;
+}) {
   return (
     <div className="empty-board">
-      <strong>Empty board</strong>
+      <strong>Create your first ticket</strong>
       <p>
-        The project is ready. Ticket files will live under
-        <code> {project.rootPath}/.longclaw/tickets/</code>.
+        Every ticket is one file. This one will live under
+        <code> {props.project.rootPath}/.longclaw/tickets/</code>.
       </p>
+      <button className="primary" onClick={props.onCreate}>
+        New ticket
+      </button>
     </div>
   );
 }
@@ -837,95 +819,5 @@ function UnreachableProject(props: {
         </button>
       </div>
     </section>
-  );
-}
-
-function BoardColumn(props: {
-  title: string;
-  tickets: TicketRow[];
-  selectedKey?: string;
-  onSelect: (key: string) => void;
-}) {
-  return (
-    <section className="board-column">
-      <h3>
-        {props.title}
-        <span>{props.tickets.length}</span>
-      </h3>
-      {props.tickets.map((ticket) => {
-        const row = present(ticket);
-        return (
-          <button
-            key={ticket.key}
-            className={[
-              "ticket-row",
-              ticket.key === props.selectedKey ? "selected" : "",
-              ticket.state === "degraded" ? "degraded" : "",
-            ]
-              .filter(Boolean)
-              .join(" ")}
-            onClick={() => props.onSelect(ticket.key)}
-          >
-            <span className="ticket-key">{ticket.key}</span>
-            <strong>{row.title}</strong>
-            <span className="ticket-meta">{row.meta}</span>
-            <span className="actor">{row.source}</span>
-          </button>
-        );
-      })}
-    </section>
-  );
-}
-
-function Inspector(props: {
-  selected?: TicketRow;
-  draft: string;
-  onDraft: (value: string) => void;
-  onSave: () => void;
-}) {
-  const selected = props.selected;
-  return (
-    <aside className="inspector">
-      {selected ? (
-        <>
-          <div className="inspector-heading">
-            <span className="ticket-key">{selected.key}</span>
-            <code>{selected.relativePath}</code>
-          </div>
-          {selected.state === "degraded" ? (
-            <div className="degraded-copy">
-              <h3>
-                {selected.readOnly ? "Shown read-only" : "Shown without repair"}
-              </h3>
-              <p>
-                {selected.diagnostic.line
-                  ? `${selected.relativePath}:${selected.diagnostic.line} - ${selected.diagnostic.message}`
-                  : selected.diagnostic.message}
-              </p>
-            </div>
-          ) : (
-            <label className="title-editor">
-              <span>Title</span>
-              <textarea
-                value={props.draft}
-                onChange={(event) => props.onDraft(event.target.value)}
-                rows={4}
-              />
-              <button
-                className="primary"
-                disabled={props.draft.trim() === selected.title}
-                onClick={props.onSave}
-              >
-                Save atomically
-              </button>
-            </label>
-          )}
-        </>
-      ) : (
-        <div className="inspector-empty">
-          Select a ticket to inspect the file-backed row.
-        </div>
-      )}
-    </aside>
   );
 }

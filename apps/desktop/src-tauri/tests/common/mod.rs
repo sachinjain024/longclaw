@@ -54,6 +54,23 @@ pub fn copy_representative_project() -> (TempDir, PathBuf) {
     (temp, target)
 }
 
+/// Creates an empty project the way first launch does, so a test can walk the
+/// human's own path: choose a folder, then create the first ticket in it.
+pub fn new_project(name: &str, key: &str) -> (TempDir, PathBuf) {
+    let temp = tempfile::tempdir().expect("temporary project parent");
+    let root = temp.path().join(name);
+    fs::create_dir_all(&root).expect("project folder");
+    longclaw_desktop_lib::core::storage::initialize_project(
+        &root,
+        name,
+        key,
+        None,
+        "2026-07-30T09:00:00Z",
+    )
+    .expect("the folder should become a project");
+    (temp, root)
+}
+
 pub fn project_reference(root: &Path) -> ProjectReference {
     let document = read_project(root).expect("the fixture project should be readable");
     ProjectReference::from_project(document.project(), root.display().to_string())

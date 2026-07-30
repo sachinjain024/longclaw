@@ -308,6 +308,43 @@ fn initializing_a_folder_writes_a_project_and_its_agent_contract() {
     assert_eq!(error.code, ErrorCode::InvalidProject);
 }
 
+/// The contract's worked example carries freshly minted ids on every render, so a
+/// comparison of two renders has to ignore them and nothing else.
+fn without_minted_ids(contract: &str) -> String {
+    contract
+        .lines()
+        .map(|line| match line.split_once("longclaw:item=") {
+            Some((prefix, rest)) => {
+                let tail = rest.split_once(' ').map(|(_, tail)| tail).unwrap_or("");
+                format!("{prefix}longclaw:item=<minted> {tail}")
+            }
+            None => match line.split_once("id: ") {
+                Some((prefix, _)) => format!("{prefix}id: <minted>"),
+                None => line.to_owned(),
+            },
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// The example project committed for pilots and manual runs carries the same
+/// contract a created project gets, so what a real agent reads there is not a
+/// stale copy of what the app generates.
+#[test]
+fn the_example_projects_agent_contract_matches_the_generator() {
+    let (_temp, root) = copy_representative_project();
+    let document = storage::read_project(&root).expect("the fixture project");
+
+    let committed = fs::read_to_string(storage::agent_contract_path(&root))
+        .expect("the fixture should carry .longclaw/AGENTS.md");
+    let generated = longclaw_desktop_lib::core::project::render_agent_contract(document.project());
+
+    assert_eq!(
+        without_minted_ids(&committed),
+        without_minted_ids(&generated)
+    );
+}
+
 #[test]
 fn search_matches_keys_titles_labels_and_descriptions() {
     let (_temp, root) = copy_representative_project();
