@@ -1,0 +1,91 @@
+//! The project-key grammar, read from the shared fixture.
+//!
+//! The frontend derives a key and the backend accepts or refuses it. When those
+//! two rules were written in different languages with no shared case table they
+//! drifted, and the create form suggested keys the backend rejected. Both sides
+//! now assert against `fixtures/project-key-grammar.json`, so a change to one
+//! rule that is not a change to the fixture fails here.
+//!
+//! The frontend half of the same fixture is `apps/desktop/src/projectKey.test.ts`.
+
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use longclaw_desktop_lib::core::project::is_project_key;
+use longclaw_desktop_lib::core::storage::valid_ticket_key;
+use serde_json::Value;
+
+fn repository_root() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(3)
+        .expect("repository root")
+        .to_path_buf()
+}
+
+fn grammar() -> Value {
+    let path = repository_root().join("fixtures/project-key-grammar.json");
+    let raw = fs::read_to_string(&path).expect("the shared project-key grammar fixture");
+    serde_json::from_str(&raw).expect("the fixture is JSON")
+}
+
+fn cases(fixture: &Value, section: &str, field: &str) -> Vec<(String, bool, String)> {
+    fixture[section]
+        .as_array()
+        .unwrap_or_else(|| panic!("fixture section {section} is an array"))
+        .iter()
+        .map(|case| {
+            (
+                case[field]
+                    .as_str()
+                    .unwrap_or_else(|| panic!("case {case} has a {field}"))
+                    .to_owned(),
+                case["valid"].as_bool().expect("case declares valid"),
+                case["note"].as_str().unwrap_or("").to_owned(),
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn the_project_key_validator_matches_the_shared_grammar() {
+    let fixture = grammar();
+    let keys = cases(&fixture, "keys", "key");
+    assert!(keys.len() > 10, "the fixture carries a real case table");
+
+    for (key, valid, note) in keys {
+        assert_eq!(
+            is_project_key(&key),
+            valid,
+            "project key {key:?} should be {}: {note}",
+            if valid { "accepted" } else { "refused" }
+        );
+    }
+}
+
+#[test]
+fn a_ticket_key_prefix_obeys_the_same_grammar() {
+    let fixture = grammar();
+    for (ticket_key, valid, note) in cases(&fixture, "ticketKeys", "ticketKey") {
+        assert_eq!(
+            valid_ticket_key(&ticket_key),
+            valid,
+            "ticket key {ticket_key:?} should be {}: {note}",
+            if valid { "accepted" } else { "refused" }
+        );
+    }
+}
+
+#[test]
+fn length_is_not_part_of_the_grammar() {
+    let fixture = grammar();
+    let creation_cap = fixture["creationMaxLength"]
+        .as_u64()
+        .expect("a creation cap") as usize;
+    let longer_than_the_form_allows = "L".repeat(creation_cap + 3);
+
+    assert!(
+        is_project_key(&longer_than_the_form_allows),
+        "a project created before or outside the form's cap must stay openable"
+    );
+}

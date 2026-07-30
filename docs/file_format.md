@@ -220,6 +220,8 @@ labels:
     color: amber
 ```
 
+The project key is one or more characters, uppercase ASCII letters and digits only, starting with a letter — `LC`, `LC2`, `L`. It is the prefix of every ticket key and of every ticket directory name, so the same grammar governs both: a ticket key is `<KEY>-<n>` where `n` carries no leading zero. Length is not part of the grammar; a project keeps whatever key length it was created with, and the creation surfaces cap a new key at five characters for readability. The shared case table both implementations test against is [`fixtures/project-key-grammar.json`](../fixtures/project-key-grammar.json).
+
 The project key becomes immutable after the first ticket is created. Otherwise, changing it would require renaming every human-facing ticket key and directory.
 
 Ticket assignees refer to stable IDs in `people`. Only registered people are valid assignees. Local projects have no assignee or identity UI in v0, so they do not require a local human entry in `people`. Agents appear as explicitly typed actors in embedded activity events but never in the assignable people registry.

@@ -318,6 +318,36 @@ label {
   font-weight: 700;
 }
 
+/* A labelled control plus the line that explains it. */
+.field {
+  display: grid;
+  gap: 5px;
+}
+
+.field-hint,
+.field-problem {
+  font-size: 10.5px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.field-hint {
+  color: var(--lc-ink-3);
+}
+
+.field-problem {
+  color: var(--lc-danger);
+}
+
+input[aria-invalid="true"] {
+  border-color: var(--lc-danger-border);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .project-toolbar,
 .board-heading,
 .toolbar-actions {

@@ -1,0 +1,79 @@
+{
+  "statement": "A project key is one or more characters, uppercase ASCII letters and digits only, starting with a letter. It is the immutable prefix of every ticket key and of every ticket directory name, so the project validator and the ticket-path validator enforce the same rule.",
+  "lengthIsNotPartOfTheGrammar": "An existing project keeps whatever key length it was created with, so neither validator caps length. The creation surfaces cap a new key at creationMaxLength for readability, and key derivation produces at most derivationMaxLength characters.",
+  "creationMaxLength": 5,
+  "derivationMaxLength": 4,
+  "fallbackKey": "LC",
+  "readers": [
+    "apps/desktop/src/projectKey.ts via apps/desktop/src/projectKey.test.ts",
+    "apps/desktop/src-tauri/tests/project_key_grammar.rs"
+  ],
+  "keys": [
+    { "key": "LC", "valid": true, "note": "the canonical example" },
+    { "key": "L", "valid": true, "note": "one letter is a key" },
+    { "key": "LC2", "valid": true, "note": "digits are legal after the first character" },
+    { "key": "ABCDE", "valid": true, "note": "the creation cap" },
+    {
+      "key": "LONGCLAWPROJECT",
+      "valid": true,
+      "note": "longer than the creation cap; the grammar still accepts it, so an existing project stays openable"
+    },
+    { "key": "", "valid": false, "note": "a key is never empty" },
+    {
+      "key": "3J4",
+      "valid": false,
+      "note": "the reported bug: derived from the name '30 July 4PM' and then refused"
+    },
+    { "key": "3", "valid": false, "note": "a digit is not a first character" },
+    { "key": "2R", "valid": false, "note": "derived from '2026 roadmap'" },
+    { "key": "lc", "valid": false, "note": "lowercase is not uppercase" },
+    { "key": "Lc", "valid": false, "note": "one lowercase character is enough to fail" },
+    { "key": "L-C", "valid": false, "note": "the hyphen separates a ticket key from its number" },
+    { "key": "L C", "valid": false, "note": "no whitespace" },
+    { "key": "LC ", "valid": false, "note": "no trailing whitespace" },
+    { "key": "LC_1", "valid": false, "note": "no punctuation" },
+    { "key": "LÇ", "valid": false, "note": "ASCII only; the key is a path component" },
+    { "key": "..", "valid": false, "note": "a key can never become a path traversal" },
+    { "key": "L/C", "valid": false, "note": "a key can never carry a separator" }
+  ],
+  "ticketKeys": [
+    { "ticketKey": "LC-42", "valid": true },
+    { "ticketKey": "LC2-42", "valid": true, "note": "a digit inside the prefix is legal" },
+    { "ticketKey": "L-1", "valid": true },
+    {
+      "ticketKey": "3J4-1",
+      "valid": false,
+      "note": "the prefix must satisfy the project-key grammar, so the two validators cannot disagree"
+    },
+    { "ticketKey": "lc-42", "valid": false },
+    { "ticketKey": "LC-0", "valid": false, "note": "no leading zero in the number" },
+    { "ticketKey": "LC-", "valid": false },
+    { "ticketKey": "-42", "valid": false },
+    { "ticketKey": "LC-42-1", "valid": false },
+    { "ticketKey": "../LC-42", "valid": false },
+    { "ticketKey": "LC/42", "valid": false }
+  ],
+  "derivations": [
+    {
+      "name": "30 July 4PM",
+      "key": "J4",
+      "note": "the reported bug: initials '3J4' began with a digit, so the leading digit is dropped"
+    },
+    { "name": "2026 roadmap", "key": "R" },
+    { "name": "3rd party audit", "key": "PA" },
+    {
+      "name": "3j4",
+      "key": "LC",
+      "note": "one word whose initial is a digit leaves nothing, so the fallback applies"
+    },
+    { "name": "My Project", "key": "MP" },
+    { "name": "longclaw", "key": "L" },
+    { "name": "  spaced   out  ", "key": "SO", "note": "surrounding whitespace is not a word" },
+    { "name": "alpha beta gamma delta epsilon", "key": "ABGD", "note": "the derivation cap" },
+    { "name": "release-2026", "key": "R", "note": "punctuation joins the word it sits in" },
+    { "name": "日本語プロジェクト", "key": "LC", "note": "nothing survives the ASCII filter" },
+    { "name": "4", "key": "LC" },
+    { "name": "", "key": "LC" },
+    { "name": "   ", "key": "LC" }
+  ]
+}

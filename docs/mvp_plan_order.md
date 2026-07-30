@@ -387,6 +387,13 @@ Phase 0 is deliberately human-led. Its purpose is to remove expensive ambiguity 
 
 **Goal:** Absorb pilot evidence into execution while keeping the product vision stable.
 
+**Artifacts:** [the revised v0 backlog](backlog/v0-backlog.md),
+[the pilot response memo](pilot/response-memo.md),
+[the release risks](release-risks.md), and
+[the acceptance index](acceptance/README.md). The backlog states which of its
+claims are risk-based and therefore independent of the pilot, and which are a
+pre-pilot baseline awaiting evidence.
+
 **Work:**
 
 - Fix any data-loss, parse, watcher, onboarding, or agent-discovery blocker first.
@@ -424,7 +431,9 @@ Phase 0 is deliberately human-led. Its purpose is to remove expensive ambiguity 
   - first-class checklist and progress;
   - status;
   - priority;
-  - human assignee;
+  - ~~human assignee~~ — superseded by
+    [ADR 0001](adr/0001-no-assignee-in-local-mode.md): local projects have no
+    assignee, and the field is hidden from every surface;
   - project-scoped labels;
   - timestamps.
 - Implement full create, read, update, and any approved cancel/archive behavior.

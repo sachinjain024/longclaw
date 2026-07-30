@@ -16,6 +16,7 @@ import {
   updateProjectTheme,
 } from "./api";
 import { Board } from "./Board";
+import { CreateProjectForm, type ProjectDraft } from "./CreateProjectForm";
 import { normalizeError } from "./errors";
 import { QuickCreate } from "./QuickCreate";
 import { useLongClawStore } from "./state";
@@ -30,22 +31,6 @@ const THEMES = [
 ];
 
 const APPEARANCE_KEY = "longclaw.appearance";
-
-function defaultProjectName() {
-  return "Untitled Project";
-}
-
-function defaultProjectKey(name: string) {
-  const letters = name
-    .toUpperCase()
-    .replace(/[^A-Z0-9 ]/g, "")
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 4);
-  return letters || "LC";
-}
 
 function sortedProjects(projects: ProjectReference[]) {
   return [...projects].sort((left, right) =>
@@ -91,9 +76,6 @@ export function App() {
   const [panelReload, setPanelReload] = useState(0);
   /** Drives the acknowledgement age text and its decay. */
   const [now, setNow] = useState(() => Date.now());
-  const [createName, setCreateName] = useState(defaultProjectName());
-  const [createKey, setCreateKey] = useState("LC");
-  const [createTheme, setCreateTheme] = useState("indigo");
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
   const [settingsName, setSettingsName] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -280,15 +262,12 @@ export function App() {
     }
   }
 
-  async function createProject() {
+  async function createProject(draft: ProjectDraft) {
     try {
-      const project = await chooseAndCreateProject({
-        name: createName.trim() || defaultProjectName(),
-        key: createKey.trim().toUpperCase() || defaultProjectKey(createName),
-        theme: createTheme,
-      });
+      const project = await chooseAndCreateProject(draft);
       if (!project) return;
       upsertProject(project);
+      setQuickCreateOpen(false);
       await loadProject(project.id);
     } catch (error) {
       setError(normalizeError(error));
@@ -385,49 +364,12 @@ export function App() {
               Create project
             </button>
             {quickCreateOpen && (
-              <form
+              <CreateProjectForm
                 className="quick-create"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void createProject();
-                }}
-              >
-                <label>
-                  <span>Name</span>
-                  <input
-                    value={createName}
-                    onChange={(event) => {
-                      setCreateName(event.target.value);
-                      setCreateKey(defaultProjectKey(event.target.value));
-                    }}
-                  />
-                </label>
-                <label>
-                  <span>Key</span>
-                  <input
-                    value={createKey}
-                    onChange={(event) =>
-                      setCreateKey(event.target.value.toUpperCase())
-                    }
-                  />
-                </label>
-                <label>
-                  <span>Theme</span>
-                  <select
-                    value={createTheme}
-                    onChange={(event) => setCreateTheme(event.target.value)}
-                  >
-                    {THEMES.map((theme) => (
-                      <option key={theme.id} value={theme.id}>
-                        {theme.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button className="primary" type="submit">
-                  Choose folder
-                </button>
-              </form>
+                themes={THEMES}
+                submitLabel="Choose folder"
+                onSubmit={(draft) => void createProject(draft)}
+              />
             )}
           </section>
           <ProjectSection
@@ -474,16 +416,7 @@ export function App() {
 
         {!project ? (
           <Welcome
-            createName={createName}
-            createKey={createKey}
-            createTheme={createTheme}
-            onCreateName={(name) => {
-              setCreateName(name);
-              setCreateKey(defaultProjectKey(name));
-            }}
-            onCreateKey={setCreateKey}
-            onCreateTheme={setCreateTheme}
-            onCreate={() => void createProject()}
+            onCreate={(draft) => void createProject(draft)}
             onOpen={() => void chooseProject()}
           />
         ) : (
@@ -711,13 +644,7 @@ function ProjectSection(props: {
 }
 
 function Welcome(props: {
-  createName: string;
-  createKey: string;
-  createTheme: string;
-  onCreateName: (name: string) => void;
-  onCreateKey: (key: string) => void;
-  onCreateTheme: (theme: string) => void;
-  onCreate: () => void;
+  onCreate: (draft: ProjectDraft) => void;
   onOpen: () => void;
 }) {
   return (
@@ -734,46 +661,12 @@ function Welcome(props: {
         </button>
       </div>
 
-      <form
+      <CreateProjectForm
         className="create-card"
-        onSubmit={(event) => {
-          event.preventDefault();
-          props.onCreate();
-        }}
-      >
-        <label>
-          <span>Project name</span>
-          <input
-            value={props.createName}
-            onChange={(event) => props.onCreateName(event.target.value)}
-          />
-        </label>
-        <label>
-          <span>Ticket key</span>
-          <input
-            value={props.createKey}
-            onChange={(event) =>
-              props.onCreateKey(event.target.value.toUpperCase())
-            }
-          />
-        </label>
-        <label>
-          <span>Theme</span>
-          <select
-            value={props.createTheme}
-            onChange={(event) => props.onCreateTheme(event.target.value)}
-          >
-            {THEMES.map((theme) => (
-              <option key={theme.id} value={theme.id}>
-                {theme.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button className="primary" type="submit">
-          Create project in folder
-        </button>
-      </form>
+        themes={THEMES}
+        submitLabel="Create project in folder"
+        onSubmit={props.onCreate}
+      />
     </section>
   );
 }

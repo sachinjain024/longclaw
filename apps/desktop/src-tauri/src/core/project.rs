@@ -220,8 +220,12 @@ fn default_label_color() -> String {
 /// A preset id. The frontend owns the preset list, so an unfamiliar-but-well-formed
 /// value is accepted here and falls back to the default when rendered, rather than
 /// making the project unopenable.
+pub fn is_theme_id(theme: &str) -> bool {
+    !theme.is_empty() && !theme.chars().any(char::is_whitespace)
+}
+
 fn validate_theme(theme: &str) -> Result<(), Diagnostic> {
-    if theme.is_empty() || theme.chars().any(char::is_whitespace) {
+    if !is_theme_id(theme) {
         return Err(Diagnostic::parse(format!(
             "theme is a preset id without whitespace; found {theme:?}"
         )));
@@ -229,7 +233,16 @@ fn validate_theme(theme: &str) -> Result<(), Diagnostic> {
     Ok(())
 }
 
-fn is_project_key(key: &str) -> bool {
+/// The one project-key grammar: uppercase ASCII letters and digits, starting
+/// with a letter.
+///
+/// The key is the immutable prefix of every ticket key and of every ticket
+/// directory name, so `storage::valid_ticket_key` enforces this same rule on a
+/// prefix rather than a second, looser one. Length is deliberately not part of
+/// the grammar: an existing project keeps whatever key it was created with, and
+/// the creation surfaces cap a new key instead. The shared case table is
+/// `fixtures/project-key-grammar.json`.
+pub fn is_project_key(key: &str) -> bool {
     let mut characters = key.chars();
     characters
         .next()

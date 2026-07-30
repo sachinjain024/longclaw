@@ -171,4 +171,7 @@ Step 9 is complete when the repo contains:
   the pilot, or reject the current vertical-slice direction.
 
 Do not close M4 until Step 10 maps this evidence to backlog decisions and
-acceptance-test updates.
+acceptance-test updates. That mapping is
+[the pilot response memo](response-memo.md), whose decision rules are already
+fixed: a finding's category determines what it obliges us to do, so the rule
+cannot be chosen after the evidence is in.

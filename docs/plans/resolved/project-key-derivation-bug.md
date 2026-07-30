@@ -1,25 +1,32 @@
 ---
 title: "Bug: project creation suggests a key it then refuses"
 product: LongClaw
-status: open
-severity: "Onboarding blocker — fix before Step 9 pilot sessions"
-triage: ready-for-agent
+status: fixed
+severity: "Onboarding blocker — was to be fixed before Step 9 pilot sessions"
+triage: done
 reported: 2026-07-30
 reported_by: sachin.j@browserstack.com
 affects: "main @ 7c1037d; introduced in 57b291e (Step 7)"
+fixed: 2026-07-30
+fixed_in: "Step 10, the first blocker the re-plan had to clear"
 ---
 
 # Bug: project creation suggests a key it then refuses
+
+**Fixed.** The report below is kept as written, because its reproduction and its
+grammar analysis are the evidence for the decision recorded in
+[§ Resolution](#resolution). Everything above that section describes the app as
+it was, not as it is.
 
 Creating a project whose name begins with a digit fails with an error the user
 cannot act on, after the folder picker has already been answered, leaving a
 partial `.longclaw/` directory in the chosen folder.
 
-This is a prepared ticket body. Per
+This was a prepared ticket body. Per
 [the issue-tracker rules](../../agents/issue-tracker.md), an agent must not mint
 a ticket key or create `.longclaw/tickets/<KEY>/` directly, and this repository
-has no `.longclaw/` store yet. Move this content into a LongClaw ticket with the
-`ready-for-agent` label once a creation surface exists, and delete this file.
+has no `.longclaw/` store yet. It was fixed directly rather than filed, because
+Step 10 fixes onboarding blockers before it ranks anything else.
 
 ## Symptom
 
@@ -279,3 +286,82 @@ fn tmp_probe_invalid_key_leaves_residue() {
 - Renaming an existing project's key. The format fixes the key as immutable after
   the first ticket (`docs/file_format.md:223`); this bug is only about creation.
 - The Step 9 pilot documentation. Unrelated to this code path.
+
+## Resolution
+
+Fixed on 2026-07-30 as the first item of Step 10, which fixes onboarding
+blockers before it ranks anything else.
+
+### The grammar, settled first
+
+**A digit-leading project key is not legal.** The key is both a filesystem prefix
+and a human identifier, and letter-first keeps `LC-42` unambiguous. Two things
+follow from settling it rather than patching around it:
+
+- The rule is now written down in `docs/file_format.md`, beside the immutability
+  note, where it had never been stated.
+- **Length is not part of the grammar.** Neither validator caps it, so a project
+  created before or outside the form keeps its key and stays openable. The
+  five-character cap is a create-form constraint, which is where the design
+  specifies it.
+
+`fixtures/project-key-grammar.json` is the shared case table. It carries the key
+cases, the ticket-key cases, and the derivation table, and both languages assert
+against it — `src/projectKey.test.ts` and `src-tauri/tests/project_key_grammar.rs`.
+The two rules cannot drift again without failing a test in each language.
+
+### The four defects
+
+| Defect | Fix |
+| --- | --- |
+| The derivation could produce an invalid key | `defaultProjectKey` drops leading non-letters and falls back to `LC` (`src/projectKey.ts`). `30 July 4PM` now derives `J4`. |
+| Both forms clobbered a hand-typed key | The form derives only while the key is untouched. Once edited it is the human's (`src/CreateProjectForm.tsx`). |
+| Nothing validated before the folder picker | The rule is shown as help text, an invalid key is explained inline via `role="alert"`, and submit is disabled, so the native picker never opens on an invalid form. |
+| The refusal read as an internal fault and left residue | `initialize_project` validates the key and theme **before** `create_dir_all`, and returns `invalid_project` with `recoverable: true` and a message written for a form. Nothing is created in the chosen folder when creation fails. |
+
+The two validators now agree: `storage::valid_ticket_key` holds a ticket-key
+prefix to `project::is_project_key` rather than to a looser local rule, so ticket
+directories can no longer exist under a key project creation would refuse.
+
+### Both create forms are now one form
+
+The sidebar form and the Welcome form were written twice and validated
+differently. They are now one `CreateProjectForm`, which is what
+`src/CreateProjectForm.test.tsx` tests. The report's "why it was not caught"
+section named the untested create surface as the gap; it is the surface now under
+test.
+
+### The open questions, answered
+
+1. **Digit-leading keys legal?** No. See § The grammar, settled first.
+2. **Should the Key field stay visible?** Yes. The approved design shows Name,
+   Key, and Theme in the create form, with the key hint "locks after the first
+   ticket" (`docs/design/prototype/screen-specs.md` § Welcome / first launch).
+   Hiding an immutable identifier behind a disclosure would make it harder to
+   change at the only moment it can be changed. The rule is now stated in the
+   form, which was the real problem.
+3. **Should a failed creation clean up after itself?** Validate-first is enough
+   for this bug and is what shipped. The residual risk the report named — an I/O
+   failure between `create_dir_all` and the write — is real but different, and is
+   ranked as `V0-32` in [the v0 backlog](../../backlog/v0-backlog.md).
+4. **Is a four-character derivation cap right?** The derivation still takes at
+   most four initials, and the field now accepts up to five characters, matching
+   the design's `≤5`. The two numbers are deliberate: a derived key stays short,
+   and a human who wants five gets five.
+
+### Verification
+
+- `src/projectKey.test.ts` — the grammar and the derivation table, from the
+  shared fixture; every derived key is asserted to be one the backend accepts.
+- `src/CreateProjectForm.test.tsx` — an invalid key disables submit and the
+  picker never opens; an edited key survives a later name edit; an emptied key
+  asks rather than inventing one.
+- `src-tauri/tests/project_key_grammar.rs` — the same fixture against both Rust
+  validators, plus the length case.
+- `src-tauri/tests/storage_integration.rs` — a refused key and a refused theme
+  each return `invalid_project`, `recoverable: true`, and leave the chosen folder
+  exactly as the user left it.
+
+The report's `tmp_probe_invalid_key_leaves_residue` probe is superseded by
+`a_refused_project_key_writes_nothing_and_reads_as_a_project_problem`, which
+asserts what the probe printed.

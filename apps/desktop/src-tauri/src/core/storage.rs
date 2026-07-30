@@ -25,7 +25,10 @@ use super::error::{AppError, AppResult, Diagnostic, ErrorCode};
 use super::model::{
     ActivitySummary, DegradedRow, IndexedRow, TicketDetail, TicketRow, TicketWrite,
 };
-use super::project::{render_agent_contract, render_new_project, ProjectDocument, DEFAULT_THEME};
+use super::project::{
+    is_project_key, is_theme_id, render_agent_contract, render_new_project, ProjectDocument,
+    DEFAULT_THEME,
+};
 use super::ticket::{render_new_ticket, Priority, Status, Ticket, TicketDocument, TicketEdit};
 
 const PROJECT_DIRECTORY: &str = ".longclaw";
@@ -65,14 +68,15 @@ pub fn agent_contract_path(project_root: &Path) -> PathBuf {
 /// `<PREFIX>-<n>`, where the prefix is the project key and `n` has no leading
 /// zero. Anything else cannot be a ticket directory, which is what stops a
 /// caller-supplied key from becoming a path.
+///
+/// The prefix is held to `project::is_project_key` rather than a looser local
+/// rule. When the two disagreed, this validator accepted ticket directories
+/// under a key that project creation refused.
 pub fn valid_ticket_key(key: &str) -> bool {
     let Some((prefix, sequence)) = key.split_once('-') else {
         return false;
     };
-    !prefix.is_empty()
-        && prefix
-            .bytes()
-            .all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit())
+    is_project_key(prefix)
         && !sequence.is_empty()
         && sequence.bytes().all(|byte| byte.is_ascii_digit())
         && !sequence.starts_with('0')
@@ -680,18 +684,43 @@ pub fn initialize_project(
         )
         .with_context("path", project_path.display().to_string()));
     }
+    // Refuse a bad key or theme before creating anything. These two come from a
+    // create form, so they are the user's to fix, and a folder they chose must
+    // look untouched when they fix it. Only after this can the render fail, and a
+    // failure there is a programmer fault rather than something a form can fix.
+    let theme = theme.unwrap_or(DEFAULT_THEME);
+    if name.trim().is_empty() {
+        return Err(AppError::new(
+            ErrorCode::InvalidProject,
+            "Project name is required",
+            true,
+        ));
+    }
+    if !is_project_key(key) {
+        return Err(AppError::new(
+            ErrorCode::InvalidProject,
+            "Project key must start with a letter and use only uppercase letters and digits, \
+             such as LC",
+            true,
+        )
+        .with_context("projectKey", key.to_owned()));
+    }
+    if !is_theme_id(theme) {
+        return Err(AppError::new(
+            ErrorCode::InvalidProject,
+            "Theme must be a preset id with no spaces, such as indigo",
+            true,
+        )
+        .with_context("theme", theme.to_owned()));
+    }
+
+    let rendered = render_new_project(&Uuid::new_v4().to_string(), name.trim(), key, theme, now);
+    let document = ProjectDocument::parse(&rendered)
+        .map_err(|diagnostic| AppError::new(ErrorCode::Internal, diagnostic.message, false))?;
+
     let tickets = tickets_root(project_root);
     fs::create_dir_all(&tickets)
         .map_err(|error| AppError::io("Creating the project folder", &tickets, error))?;
-    let rendered = render_new_project(
-        &Uuid::new_v4().to_string(),
-        name.trim(),
-        key,
-        theme.unwrap_or(DEFAULT_THEME),
-        now,
-    );
-    let document = ProjectDocument::parse(&rendered)
-        .map_err(|diagnostic| AppError::new(ErrorCode::Internal, diagnostic.message, false))?;
     atomic_write(&project_path, rendered.as_bytes())?;
     write_agent_contract(project_root, &document)?;
     Ok(document)

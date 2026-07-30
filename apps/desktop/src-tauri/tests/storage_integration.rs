@@ -308,6 +308,79 @@ fn initializing_a_folder_writes_a_project_and_its_agent_contract() {
     assert_eq!(error.code, ErrorCode::InvalidProject);
 }
 
+/// A refused key must be refused before anything is created. The reported
+/// onboarding bug left an empty `.longclaw/tickets/` in the user's own
+/// repository and reported the refusal as an internal fault, so a user who hit a
+/// validation rule was told the app had broken.
+#[test]
+fn a_refused_project_key_writes_nothing_and_reads_as_a_project_problem() {
+    let temp = tempfile::tempdir().expect("temporary folder");
+    let root = temp.path().join("repo");
+    fs::create_dir_all(&root).expect("create the folder");
+
+    let error =
+        storage::initialize_project(&root, "30 July 4PM", "3J4", None, "2026-07-29T00:00:00Z")
+            .expect_err("a digit-leading key must be refused");
+
+    assert_eq!(error.code, ErrorCode::InvalidProject);
+    assert!(
+        error.recoverable,
+        "the user can fix the key and try again, so the banner must say the files were left alone"
+    );
+    assert!(
+        error.message.contains("start with a letter"),
+        "the message is read in a create form, not by a format implementer: {}",
+        error.message
+    );
+
+    assert!(
+        !storage::tickets_root(&root).exists(),
+        "a refusal must not leave a .longclaw/tickets/ behind in the chosen folder"
+    );
+    assert!(!storage::project_file_path(&root).exists());
+    assert_eq!(
+        fs::read_dir(&root).expect("the chosen folder").count(),
+        0,
+        "the chosen folder must be exactly as the user left it"
+    );
+}
+
+/// Every field the create form collects is validated on the same pass, for the
+/// same reason: whichever one the user got wrong, the folder they chose has to
+/// look untouched while they fix it.
+#[test]
+fn every_refused_create_field_leaves_the_folder_untouched() {
+    for (case, name, key, theme) in [
+        ("a digit-leading key", "30 July 4PM", "3J4", None),
+        ("a lowercase key", "My Project", "mp", None),
+        ("an empty name", "   ", "MP", None),
+        (
+            "a theme that is not a preset id",
+            "Spaced Theme",
+            "ST",
+            Some("indigo dark"),
+        ),
+    ] {
+        let temp = tempfile::tempdir().expect("temporary folder");
+        let root = temp.path().join("repo");
+        fs::create_dir_all(&root).expect("create the folder");
+
+        let Err(error) =
+            storage::initialize_project(&root, name, key, theme, "2026-07-29T00:00:00Z")
+        else {
+            panic!("{case} must be refused");
+        };
+
+        assert_eq!(error.code, ErrorCode::InvalidProject, "{case}");
+        assert!(error.recoverable, "{case}");
+        assert_eq!(
+            fs::read_dir(&root).expect("the chosen folder").count(),
+            0,
+            "{case} left something behind"
+        );
+    }
+}
+
 /// The contract's worked example carries freshly minted ids on every render, so a
 /// comparison of two renders has to ignore them and nothing else.
 fn without_minted_ids(contract: &str) -> String {
