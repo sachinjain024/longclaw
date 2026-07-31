@@ -1644,6 +1644,40 @@ button:disabled {
   line-height: 1.55;
 }
 
+/* ------------------------------------------------------------ create mode */
+
+/* Full create wears the panel (`screen-specs.md:209`); the footer is pinned to
+   the bottom so Create ticket is reachable without scrolling a long draft. */
+.create-panel .editor-footer {
+  position: sticky;
+  bottom: 0;
+  margin-top: auto;
+  background: var(--lc-surface);
+}
+
+/* `KEY-n · new`, and it says which half is the guess. */
+.provisional-mark {
+  color: var(--lc-ink-3);
+  font-weight: 400;
+}
+
+/* A draft row's box cannot be ticked: a created checklist item is always open,
+   so an enabled checkbox would offer something the create cannot carry. */
+.checklist-row.draft input {
+  opacity: 0.5;
+}
+
+.checklist-row .row-remove {
+  margin-left: auto;
+  padding: 0 var(--lc-space-1);
+  color: var(--lc-ink-3);
+}
+
+.checklist-row .row-remove:hover,
+.checklist-row .row-remove:focus-visible {
+  color: var(--lc-ink);
+}
+
 /* ----------------------------------------------------------- quick creation */
 
 .modal-scrim {
@@ -1669,9 +1703,28 @@ button:disabled {
   box-shadow: var(--lc-shadow-overlay);
 }
 
-.quick-create-modal textarea {
-  padding: var(--lc-space-2);
-  resize: vertical;
+/* Borderless 15px title (`screen-specs.md:200`): the modal is two fields, so a
+   box around the first one is a frame around nothing. */
+.quick-create-title {
+  border: none;
+  padding: 0;
+  color: var(--lc-ink);
+  background: none;
+  font-size: 15px;
+}
+
+.quick-create-meta {
+  display: flex;
+}
+
+.quick-create-modal .editor-footer {
+  padding: var(--lc-space-2) 0 0;
+}
+
+/* The hints sit between the two actions, so `code` cannot take the whole gap
+   the panel's own footer gives it. */
+.quick-create-modal .editor-footer code {
+  margin: 0 auto;
 }
 
 /* ------------------------------------------------------------------- toasts */

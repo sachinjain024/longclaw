@@ -3,7 +3,7 @@ title: "Active plans"
 product: LongClaw
 status: active
 milestone: "M5 — Feature-complete v0 (Steps 11–15)"
-written: 2026-07-31
+written: 2026-08-01
 applies_to: "main @ 6a3925a"
 ---
 
@@ -13,24 +13,33 @@ One file per piece of pending work. Each is self-contained: it carries its own
 working rules, the current behaviour with file and line, what to change, and what
 has to pass before it is done. Pick one and execute it without reading the others.
 
-**There are no active plans right now, and Step 11 is under way.** Every plan below
-is closed, Wave 0 is clear, and M4 closed on 2026-07-31 when the founder decided to
+**There are no active plans right now, and Step 11 is done.** Every plan below is
+closed, Wave 0 is clear, and M4 closed on 2026-07-31 when the founder decided to
 proceed without the pilot sessions
 ([decision](../../pilot/response-memo.md#direction-decision-2026-07-31-superseded-the-same-day)).
 Step 11 is [Wave 1 of the backlog](../../backlog/v0-backlog.md) — V0-08 through
-V0-19 — and eleven of them are now closed: V0-19 as plan 11, V0-18 as plan 12,
-V0-17 as plan 13, V0-08 as plan 14, V0-10 as plan 15, V0-14 as plan 16, V0-11
-as plan 17, V0-12 as plan 18, V0-13 as plan 19, V0-09 as plan 20, and V0-15 as
-plan 21. One is open — V0-16. Write a plan here before starting it.
+V0-19 — and all twelve are now closed: V0-19 as plan 11, V0-18 as plan 12, V0-17
+as plan 13, V0-08 as plan 14, V0-10 as plan 15, V0-14 as plan 16, V0-11 as plan 17,
+V0-12 as plan 18, V0-13 as plan 19, V0-09 as plan 20, V0-15 as plan 21, and V0-16
+as plan 22.
 
-Two things to read first, once, before Step 11 code:
+Be careful what that is taken to mean. Wave 1 is closed against its own must-pass
+checks and nothing more: **the order those twelve were built in was never
+validated, because the pilot that would have validated it was skipped**, and no
+part of the slice has been in front of a user. Several closed rows name a
+divergence, an open edge, or a spec the ADRs contradict; the backlog's must-pass
+column is where those live, and it is worth reading before assuming a surface is
+finished rather than merely shipped.
+
+**Step 12 — [Wave 2](../../backlog/v0-backlog.md), keyboard-first — is untouched.**
+No plan exists for any of it. Write one here when you pick an item up.
+
+Two things to read first, once, before Step 12 code:
 
 - [`AGENTS.md`](../../../AGENTS.md) § Toolchain and the gate — the shims, the traps,
   and why a red native watcher is an environment suspect before a code one.
 - [The retired handoff](../completed/pending-work-after-step-10.md) § The one thing
-  worth carrying forward — Wave 1's order was never validated, because the pilot that
-  would have validated it was skipped. Short, and it names the two items most
-  affected.
+  worth carrying forward — the unvalidated order above, in its original words.
 
 ## Order
 
@@ -61,6 +70,7 @@ marked independent can be done at any time by anyone.
 | ~~19~~ | ~~Complete the merged timeline~~ — **done 2026-08-01**, [outcome](../completed/19-merged-timeline.md) | V0-13 | Closed. `Timeline.tsx` reads `event.kind` now, and what a kind and a field mean lives in `src/timelineEvents.ts` rather than in JSX. It also extended the markdown subset with ordered lists and block quotes, and added a cross-language pin on the set of fields an edit can write. Read its outcome before V0-09 or V0-16 — a new `FieldChange.field` needs a sentence, and the fixture will say so. |
 | ~~20~~ | ~~Board ordering, Manual mode, and drag-and-drop~~ — **done 2026-08-01**, [outcome](../completed/20-board-ordering-and-drag.md) | V0-09 | Closed, and it is the second comparator the board was built to take. Rank allocation is fractional indexing in `src/rank.ts`; the drop position is arithmetic over `boardGeometry.ts` rather than the element under the pointer. Read its outcome before V0-15 — the mixed ranked/unranked rule and its one limitation are decided there, not in a surface. |
 | ~~21~~ | ~~Filter, sort, and grouping behaviour~~ — **done 2026-08-01**, [outcome](../completed/21-filter-and-grouping.md) | V0-15 | Closed, and it is the last narrowing seam the surfaces get. The filter is `src/filtering.ts`, called once in `App.tsx` before grouping, so both surfaces receive one already-narrowed array. Read its outcome before V0-23 (the `Esc` ladder now has its last rung) and before V0-24 (the header filter and search deliberately match different things). |
+| ~~22~~ | ~~Full ticket create surface~~ — **done 2026-08-01**, [outcome](../completed/22-full-create-surface.md) | V0-16 | Closed, and it closes Wave 1. There are two create surfaces now: quick create is title + status, and `src/CreatePanel.tsx` is the panel in create mode with every approved field. Read its outcome before V0-23 — the create panel takes its own `Esc` and `⌘↵` rung, and it found that a `<button>` in a `<form>` submits it. |
 
 Dependencies worth knowing:
 
@@ -234,33 +244,52 @@ Dependencies worth knowing:
   move focus only for a *new* focus request — a change to the roving key is not
   a licence to grab focus, because a query changes it while a human is typing.
 
+- **22 is done, and it is the last one.** There are two create surfaces and the
+  split is the spec's (`screen-specs.md:198-216`): quick create is title and
+  status, and everything else is `apps/desktop/src/CreatePanel.tsx`, the panel in
+  create mode. It sits **beside** `TicketPanel.tsx` rather than inside it because
+  every behaviour there is a function of a file on disk, and shares the panel's
+  vocabulary through `src/metaOptions.tsx` — **do not build a second status or
+  priority option list, and do not give a create surface a labels text field**;
+  `LabelMenuButton` is the row, and a slug typed into free text is a slug the
+  project may not define. `DescriptionEditor` now has a `writeOnly` variant with
+  no Preview tab and no footer, which is the shape any future surface that edits
+  markdown before a file exists should take. **The create write is
+  `submitNewTicket` in `App.tsx` and there is still only one write path**: the
+  card is optimistic through `mutate()`, but the panel only swaps to view mode
+  once the write has returned a real key, because view mode reads a file. **One
+  trap worth carrying forward:** a `<button>` inside a `<form>` defaults to
+  `submit`, and `Menu.tsx` had no `type` — putting the status menu in quick
+  create's form fired a create per click. Every menu button is `type="button"`
+  now; keep it that way.
 - **09 and 10 are both closed, and no plan is open.** The vanished-path overflow bug
   is fixed in `collect_event`, and the npm-launched native watcher timeout that
   blocked local `npm run verify` no longer reproduces — closed without a fix, so
   treat a recurrence as an environment question and read
   [10's outcome](../completed/10-npm-native-watcher-timeout.md) before reopening
-  anything. Wave 0 is clear and M4 is closed, so no code and no gate stands between
-  this repository and Step 11.
+  anything. Wave 0 is clear and M4 is closed, so no code and no gate stood between
+  this repository and Step 11, which is now behind it.
 
-## Waves 1–3 are unplanned, and now for a different reason
+## Waves 2–3 are unplanned, and Wave 1 no longer is
 
-Waves 1–3 of [the backlog](../../backlog/v0-backlog.md) — 21 of its 39 items, now
-that V0-08, V0-09, V0-10, V0-11, V0-12, V0-13, V0-14, V0-15, V0-17, V0-18, and V0-19 are closed — still have no plans here. The original reason is gone: the
-guardrail has been satisfied and the pilot will not invalidate anything, because it
-was skipped.
+Wave 1 is closed. Waves 2–3 of [the backlog](../../backlog/v0-backlog.md) — 19 of
+its 40 items — still have no plans here, and the original reason is long gone: the
+guardrail was satisfied and the pilot will not invalidate anything, because it was
+skipped.
 
-What remains is ordinary sequencing. Write a plan when you pick an item up, not 32
-plans in advance — the backlog's Wave 1 rows already carry the must-pass check and
-the reason each exists, which is most of what a plan needs. Take them roughly in
-order; that order is now final rather than provisional, and
-[the retired handoff](../completed/pending-work-after-step-10.md) says what that is
-worth.
+What remains is ordinary sequencing. Write a plan when you pick an item up, not
+nineteen plans in advance — the backlog rows already carry the must-pass check and the
+reason each exists, which is most of what a plan needs. Take them roughly in
+order; that order is final rather than provisional, and
+[the retired handoff](../completed/pending-work-after-step-10.md) says what that
+is worth, which is not much: it was never tested against a user.
 
-Three items were risk-based rather than breadth, so they are safe to take out of
-order at any time: ~~V0-19~~ (remove assignee from the prototype specs — taken
-first, exactly as this said, and [closed](../completed/11-remove-assignee-from-specs.md)
-before Step 11 built the surfaces around it), V0-30 (index-loss recovery), and
-V0-40 (scope Dependabot to what ships).
+Two items were risk-based rather than breadth, so they are safe to take out of
+order at any time: V0-30 (index-loss recovery) and V0-40 (scope Dependabot to what
+ships). The third, ~~V0-19~~, was taken first exactly as this said and
+[closed](../completed/11-remove-assignee-from-specs.md) before Step 11 built the
+surfaces around it — though the `proof/` pages it names are still uncorrected, and
+V0-14 and V0-16 both shipped past them.
 
 ## When a plan is done
 

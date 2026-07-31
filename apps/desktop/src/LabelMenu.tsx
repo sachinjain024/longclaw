@@ -48,6 +48,7 @@ export function LabelMenuButton(props: {
   return (
     <>
       <button
+        type="button"
         className="menu-trigger"
         ref={trigger}
         aria-haspopup="menu"

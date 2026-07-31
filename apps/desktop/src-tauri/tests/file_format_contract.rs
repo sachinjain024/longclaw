@@ -10,7 +10,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use longclaw_desktop_lib::core::error::Diagnostic;
-use longclaw_desktop_lib::core::storage::{belongs_to_project, foreign_project_diagnostic};
+use longclaw_desktop_lib::core::storage::{
+    belongs_to_project, foreign_project_diagnostic, prepare_new_ticket, NewTicket,
+};
 use longclaw_desktop_lib::core::ticket::{
     ChecklistToggle, Priority, Status, TicketDocument, TicketEdit,
 };
@@ -1167,6 +1169,206 @@ fn an_unrelated_edit_never_reformats_the_description() {
         "description rewritten",
         description_region(&rewritten) != before,
         || "a real description change left the region alone".to_owned(),
+    );
+    report.finish();
+}
+
+/// The ticket state the two creation paths were both asked to produce, and the
+/// state neither of them was asked to touch.
+///
+/// Everything left out of this struct is left out because it *must* differ, and
+/// the doc comment on the test says why for each one. Comparing what remains is
+/// the strongest honest form of "identically": every field the surface can set,
+/// plus every field it cannot, so a create that quietly wrote a rank or an
+/// assignee would fail here as loudly as one that dropped a label.
+#[derive(Debug, PartialEq, Eq)]
+struct CreatedState {
+    title: String,
+    status: Status,
+    priority: Priority,
+    labels: Vec<String>,
+    description: String,
+    /// Text and checked, in order. The ids are minted per item and cannot match.
+    checklist: Vec<(String, bool)>,
+    assignee: Option<String>,
+    rank: Option<String>,
+    archived_at: Option<String>,
+    attachments: usize,
+    unknown_keys: Vec<String>,
+    history_incomplete: bool,
+    record_diagnostics: usize,
+}
+
+impl CreatedState {
+    fn of(document: &TicketDocument) -> Self {
+        let ticket = document.ticket();
+        Self {
+            title: ticket.title.clone(),
+            status: ticket.status,
+            priority: ticket.priority,
+            labels: ticket.labels.clone(),
+            description: ticket.description.clone(),
+            checklist: ticket
+                .checklist
+                .iter()
+                .map(|item| (item.text.clone(), item.checked))
+                .collect(),
+            assignee: ticket.assignee.clone(),
+            rank: ticket.rank.clone(),
+            archived_at: ticket.archived_at.clone(),
+            attachments: ticket.attachments.len(),
+            unknown_keys: ticket.unknown_keys.clone(),
+            history_incomplete: ticket.history_incomplete,
+            record_diagnostics: ticket.record_diagnostics.len(),
+        }
+    }
+}
+
+/// Reads a `TicketWrite`'s own bytes back the way the app will read the file it
+/// is about to become, so nothing downstream trusts an in-memory document.
+fn parse_written(bytes: &[u8], key: &str) -> TicketDocument {
+    let raw = std::str::from_utf8(bytes).expect("app output should be UTF-8");
+    TicketDocument::parse(raw, key)
+        .unwrap_or_else(|error| panic!("{key}: the app wrote a file it cannot read: {error}"))
+}
+
+/// V0-16's must-pass: **a ticket created with every field parses identically to
+/// the same ticket assembled by edits.**
+///
+/// The full create surface can set six things — title, status, priority, labels,
+/// description, and a checklist — and the same six can be reached one at a time
+/// through the panel. Two routes to one ticket is two chances to disagree about
+/// what a field means, so this pins that they do not.
+///
+/// `CreatedState` is what is compared, and it deliberately leaves out the things
+/// that *cannot* match between two files written minutes apart:
+///
+/// - `id` is a fresh UUID per create, and `key` is the directory each one claimed.
+/// - `created_at` and `updated_at` differ because the second path is asked for its
+///   changes *after* its create, which is the whole point of it.
+/// - Checklist item ids are minted per item; the text and the checked flag are the
+///   claim, and they are compared in order.
+/// - The activity histories differ by construction — one create event against a
+///   create plus one update per field. That is the difference between the two
+///   paths, not a defect in either.
+#[test]
+fn a_ticket_created_with_every_field_matches_one_assembled_by_edits() {
+    let temp = tempfile::tempdir().expect("temporary folder");
+    let root = temp.path();
+    let later = "2026-07-30T10:05:00.000Z";
+
+    let title = "Prove the agent round trip";
+    let description = "Check whether the round trip holds.\n\n- read the file\n- write it back";
+    let labels = ["backend".to_owned(), "reliability".to_owned()];
+    let checklist = [
+        "Let an agent read this ticket".to_owned(),
+        "Review what it changed".to_owned(),
+    ];
+
+    // Path one: the full create surface, with every field it can set.
+    let everything = NewTicket {
+        title: title.to_owned(),
+        description: description.to_owned(),
+        status: Some(Status::InReview),
+        priority: Some(Priority::P1),
+        labels: labels.to_vec(),
+        checklist: checklist.to_vec(),
+    };
+    let created = prepare_new_ticket(root, "LC", &everything, NOW).expect("the create should land");
+    let created = parse_written(&created.bytes, &created.key);
+
+    // Path two: quick create's minimum, then one edit per field.
+    let minimum = NewTicket {
+        title: title.to_owned(),
+        description: String::new(),
+        status: None,
+        priority: None,
+        labels: Vec::new(),
+        checklist: Vec::new(),
+    };
+    let seed = prepare_new_ticket(root, "LC", &minimum, NOW).expect("the create should land");
+    let mut assembled = parse_written(&seed.bytes, &seed.key);
+    let key = seed.key.clone();
+    for (name, edit) in [
+        (
+            "status",
+            TicketEdit {
+                status: Some(Status::InReview),
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "priority",
+            TicketEdit {
+                priority: Some(Priority::P1),
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "labels",
+            TicketEdit {
+                labels: Some(labels.to_vec()),
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "description",
+            TicketEdit {
+                description: Some(description.to_owned()),
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "checklist",
+            TicketEdit {
+                add_checklist_items: checklist.to_vec(),
+                ..TicketEdit::default()
+            },
+        ),
+    ] {
+        let applied = assembled
+            .apply(&edit, later)
+            .unwrap_or_else(|error| panic!("the {name} edit was refused: {error}"));
+        assembled = parse_written(&applied.bytes, &key);
+    }
+
+    let mut report = Report::default();
+    let created_state = CreatedState::of(&created);
+    let assembled_state = CreatedState::of(&assembled);
+
+    // Nothing here may be a default, or two blank tickets would agree about
+    // nothing and the comparison below would prove nothing.
+    report.equal("created", "status", created_state.status, Status::InReview);
+    report.equal("created", "priority", created_state.priority, Priority::P1);
+    report.equal("created", "labels", created_state.labels.len(), 2);
+    report.equal("created", "checklist", created_state.checklist.len(), 2);
+    report.check("created", !created_state.description.is_empty(), || {
+        "the create wrote no description".to_owned()
+    });
+
+    report.check("both paths", created_state == assembled_state, || {
+        format!("created {created_state:#?}\nassembled {assembled_state:#?}")
+    });
+
+    // The excluded fields are excluded because they must differ, so say so here
+    // rather than only in the comment: a create that reused an id or a key would
+    // be a far worse defect than one that dropped a label.
+    report.check(
+        "identity",
+        created.ticket().id != assembled.ticket().id
+            && created.ticket().key != assembled.ticket().key,
+        || "two creations claimed the same id or the same key".to_owned(),
+    );
+    report.check(
+        "history",
+        created.ticket().activity.len() == 1 && assembled.ticket().activity.len() == 6,
+        || {
+            format!(
+                "expected one create event against a create plus five updates, got {} and {}",
+                created.ticket().activity.len(),
+                assembled.ticket().activity.len()
+            )
+        },
     );
     report.finish();
 }

@@ -7,8 +7,11 @@
 use longclaw_desktop_lib::core::ticket::{Priority, Status};
 use longclaw_desktop_lib::core::{CreateTicketRequest, EditTicketRequest};
 
+/// Full create sends the whole shape (V0-16): every field the design approved,
+/// in one write. This used to be named for quick create, which sent the same
+/// six fields until V0-16 narrowed it to the two below.
 #[test]
-fn the_create_request_the_quick_create_form_sends() {
+fn the_create_request_the_full_create_surface_sends() {
     let json = r#"{
         "projectId": "019c8c31-4d7e-71ad-8997-e67700962b55",
         "title": "Prove the agent round trip",
@@ -27,6 +30,27 @@ fn the_create_request_the_quick_create_form_sends() {
     assert_eq!(request.ticket.priority, Some(Priority::P1));
     assert_eq!(request.ticket.labels, vec!["backend", "reliability"]);
     assert_eq!(request.ticket.checklist.len(), 2);
+}
+
+/// Quick create is title and status and nothing else (`screen-specs.md:198-207`),
+/// so the fields it leaves out have to be genuinely optional on the wire rather
+/// than merely always sent.
+#[test]
+fn the_create_request_quick_create_sends() {
+    let json = r#"{
+        "projectId": "019c8c31-4d7e-71ad-8997-e67700962b55",
+        "title": "Prove the agent round trip",
+        "status": "in_progress"
+    }"#;
+
+    let request: CreateTicketRequest = serde_json::from_str(json).expect("a create request");
+
+    assert_eq!(request.ticket.status, Some(Status::InProgress));
+    // Absent, not empty-and-sent: the defaults are Rust's to apply.
+    assert_eq!(request.ticket.priority, None);
+    assert!(request.ticket.description.is_empty());
+    assert!(request.ticket.labels.is_empty());
+    assert!(request.ticket.checklist.is_empty());
 }
 
 #[test]

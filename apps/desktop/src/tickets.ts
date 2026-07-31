@@ -98,14 +98,3 @@ export function provisionalTicket(
     relativePath: `.longclaw/tickets/${key}/ticket.md`,
   };
 }
-
-/**
- * One checklist item per typed line, with an optional Markdown task prefix
- * accepted so pasting a list from anywhere works.
- */
-export function checklistFromLines(text: string): string[] {
-  return text
-    .split("\n")
-    .map((line) => line.replace(/^\s*[-*]\s*(\[[ xX]\]\s*)?/, "").trim())
-    .filter(Boolean);
-}

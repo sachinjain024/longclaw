@@ -27,6 +27,7 @@ import {
   updateProjectTheme,
 } from "./api";
 import { Board } from "./Board";
+import { CreatePanel } from "./CreatePanel";
 import { CreateProjectForm, type ProjectDraft } from "./CreateProjectForm";
 import { normalizeError } from "./errors";
 import { filterTickets, isFiltering } from "./filtering";
@@ -51,6 +52,7 @@ import type {
   Label,
   ProjectReference,
   TicketPriority,
+  TicketStatus,
 } from "./types";
 import { ToastStack, WriteIndicator } from "./WriteFeedback";
 
@@ -169,7 +171,16 @@ export function App() {
   const setError = useLongClawStore((state) => state.setError);
 
   const [selectedKey, setSelectedKey] = useState<string>();
-  const [ticketFormOpen, setTicketFormOpen] = useState(false);
+  /**
+   * Which create surface is up, if either (`screen-specs.md:198-216`). One at a
+   * time: quick create's **Open full editor →** is a move between them, carrying
+   * what has been typed rather than throwing it away.
+   */
+  const [createSurface, setCreateSurface] = useState<"quick" | "full">();
+  const [carriedDraft, setCarriedDraft] = useState<{
+    title: string;
+    status: TicketStatus;
+  }>();
   /** Bumped when an external change lands for the open ticket. */
   const [panelReload, setPanelReload] = useState(0);
   /** Drives the acknowledgement age text and its decay. */
@@ -221,6 +232,24 @@ export function App() {
   const unreadableShown = noMatches
     ? visibleTickets.filter((row) => row.state === "degraded").length
     : 0;
+
+  /**
+   * The key the next create will probably claim, shown by both create surfaces
+   * as the provisional ID. A guess off the rows on screen: Rust allocates the
+   * real one from the project's own directory names.
+   */
+  const nextKey = project ? provisionalTicketKey(project.key, tickets) : "";
+
+  /**
+   * Leaving create without creating. Focus goes back to the surface behind it —
+   * its roving row, or the New ticket button that opened this — because rule 3
+   * of the focus map is that closing a layer never drops focus on the floor.
+   */
+  function closeCreateSurface() {
+    setCreateSurface(undefined);
+    setCarriedDraft(undefined);
+    focusSurface();
+  }
 
   const clearFilter = useCallback(() => {
     setFilterQuery("");
@@ -291,12 +320,12 @@ export function App() {
    * the panel closes on `Esc` without preventing anything.
    */
   useEffect(() => {
-    const layerOpen = selectedKey !== undefined || ticketFormOpen;
+    const layerOpen = selectedKey !== undefined || createSurface !== undefined;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "f") {
         const field = filterField.current;
-        if (!field || ticketFormOpen) return;
+        if (!field || createSurface !== undefined) return;
         event.preventDefault();
         field.focus();
         // "Selects existing query" (`keyboard-focus-map.md:31`), so the next
@@ -309,7 +338,7 @@ export function App() {
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [clearFilter, filtering, selectedKey, ticketFormOpen]);
+  }, [clearFilter, createSurface, filtering, selectedKey]);
 
   useEffect(() => {
     try {
@@ -573,14 +602,24 @@ export function App() {
 
   /**
    * Creating never blocks on the disk write (`screen-specs.md:204-207`): the
-   * card appears at once under a key guessed from the board, the modal closes,
+   * card appears at once under a key guessed from the board, the surface closes,
    * and whatever key Rust allocated replaces the guess when the write lands.
+   *
+   * `openPanel` is full create's ending (`screen-specs.md:214`): the panel swaps
+   * to view mode of **the real ticket**, so it can only open once the write has
+   * returned a key — view mode reads the file, and there is no file to read
+   * before then. The card is still optimistic, and focus rides it in the
+   * meantime, so nothing waits and focus never lands on the floor.
    */
-  function submitNewTicket(request: Omit<CreateTicketRequest, "projectId">) {
+  function submitNewTicket(
+    request: Omit<CreateTicketRequest, "projectId">,
+    options?: { openPanel?: boolean },
+  ) {
     const projectId = activeProjectId;
     if (!projectId || !project) return;
     const guessKey = provisionalTicketKey(project.key, tickets);
-    setTicketFormOpen(false);
+    setCreateSurface(undefined);
+    setCarriedDraft(undefined);
 
     void mutate({
       apply: () => {
@@ -594,7 +633,8 @@ export function App() {
       onWritten: (written) => {
         removeTicket(guessKey);
         applyLocalWrite(written.ticket, written.generation);
-        focusCard(written.ticket.key);
+        if (options?.openPanel) openTicket(written.ticket.key);
+        else focusCard(written.ticket.key);
       },
       toast: (written) => `${written.ticket.key} created`,
       // v0 has no ticket deletion (ADR 0004), so the inverse of a create is an
@@ -998,7 +1038,7 @@ export function App() {
                     </button>
                     <button
                       className="primary"
-                      onClick={() => setTicketFormOpen(true)}
+                      onClick={() => setCreateSurface("quick")}
                     >
                       New ticket
                     </button>
@@ -1010,7 +1050,7 @@ export function App() {
                   // filter state, whatever is in the field.
                   <EmptyBoard
                     project={project}
-                    onCreate={() => setTicketFormOpen(true)}
+                    onCreate={() => setCreateSurface("quick")}
                   />
                 ) : (
                   <>
@@ -1059,31 +1099,53 @@ export function App() {
         )}
       </section>
 
-      {project && activeProjectId && selectedKey && project.reachable && (
-        <TicketPanel
-          projectId={activeProjectId}
-          ticketKey={selectedKey}
-          labels={project.labels}
-          mark={externalMarks[selectedKey]}
-          reloadSignal={panelReload}
-          now={now}
-          archived={openRow !== undefined && isArchived(openRow)}
-          onClose={() => closeTicket(selectedKey)}
-          onArchive={(archived) => {
-            if (openRow?.state === "indexed") setArchived(openRow, archived);
+      {/* Create mode takes the panel's place rather than stacking on it: they
+          are the same surface in two modes, not two overlays. */}
+      {project &&
+        activeProjectId &&
+        selectedKey &&
+        project.reachable &&
+        createSurface !== "full" && (
+          <TicketPanel
+            projectId={activeProjectId}
+            ticketKey={selectedKey}
+            labels={project.labels}
+            mark={externalMarks[selectedKey]}
+            reloadSignal={panelReload}
+            now={now}
+            archived={openRow !== undefined && isArchived(openRow)}
+            onClose={() => closeTicket(selectedKey)}
+            onArchive={(archived) => {
+              if (openRow?.state === "indexed") setArchived(openRow, archived);
+            }}
+            onWrite={(result) =>
+              applyLocalWrite(result.ticket, result.generation)
+            }
+            onError={setError}
+          />
+        )}
+
+      {project && activeProjectId && createSurface === "quick" && (
+        <QuickCreate
+          projectName={project.name}
+          provisionalKey={nextKey}
+          onCancel={closeCreateSurface}
+          onCreate={submitNewTicket}
+          onOpenFullEditor={(draft) => {
+            setCarriedDraft(draft);
+            setCreateSurface("full");
           }}
-          onWrite={(result) =>
-            applyLocalWrite(result.ticket, result.generation)
-          }
-          onError={setError}
         />
       )}
 
-      {project && activeProjectId && ticketFormOpen && (
-        <QuickCreate
-          projectKey={project.key}
-          onCancel={() => setTicketFormOpen(false)}
-          onCreate={submitNewTicket}
+      {project && activeProjectId && createSurface === "full" && (
+        <CreatePanel
+          provisionalKey={nextKey}
+          labels={project.labels}
+          initialTitle={carriedDraft?.title}
+          initialStatus={carriedDraft?.status}
+          onCancel={closeCreateSurface}
+          onCreate={(request) => submitNewTicket(request, { openPanel: true })}
         />
       )}
 

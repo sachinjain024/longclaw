@@ -1,84 +1,98 @@
 // @vitest-environment jsdom
 
+/**
+ * Quick create after V0-16 narrowed it: title and status, and a door to the
+ * surface that owns everything else (`screen-specs.md:198-207`).
+ */
+
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { QuickCreate } from "./QuickCreate";
 
 afterEach(cleanup);
 
-describe("creating a ticket", () => {
-  it("sends the title, description, checklist, and status the human typed", () => {
+function quickCreate(props?: {
+  onCancel?: () => void;
+  onCreate?: (request: unknown) => void;
+  onOpenFullEditor?: (draft: unknown) => void;
+}) {
+  return (
+    <QuickCreate
+      projectName="Round Trip"
+      provisionalKey="RT-4"
+      onCancel={props?.onCancel ?? (() => {})}
+      onCreate={props?.onCreate ?? (() => {})}
+      onOpenFullEditor={props?.onOpenFullEditor ?? (() => {})}
+    />
+  );
+}
+
+/** The status meta trigger, which is the shared popover rather than a select. */
+function statusTrigger() {
+  return screen.getByRole("button", { name: /^Status: / });
+}
+
+describe("quick create is title and status", () => {
+  it("sends the title and status the human typed, and nothing else", () => {
     const onCreate = vi.fn();
-    render(
-      <QuickCreate projectKey="RT" onCancel={() => {}} onCreate={onCreate} />,
-    );
+    render(quickCreate({ onCreate }));
 
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "  Prove the agent round trip  " },
     });
-    fireEvent.change(screen.getByLabelText("Description"), {
-      target: { value: "Check whether the round trip holds." },
-    });
-    fireEvent.change(screen.getByLabelText("Checklist — one item per line"), {
-      target: { value: "Let an agent read it\n\n- [ ] Review what changed" },
-    });
-    fireEvent.change(screen.getByLabelText("Status"), {
-      target: { value: "in_progress" },
-    });
-    fireEvent.click(screen.getByText("Create ticket"));
+    fireEvent.click(statusTrigger());
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "In Progress" }));
+    fireEvent.click(screen.getByText("Create"));
 
     expect(onCreate).toHaveBeenCalledWith({
       title: "Prove the agent round trip",
-      description: "Check whether the round trip holds.",
       status: "in_progress",
-      priority: "none",
-      labels: [],
-      checklist: ["Let an agent read it", "Review what changed"],
     });
   });
 
-  it("sends priority and project label slugs when creating a ticket", () => {
+  it("offers no description, checklist, priority or label field at all", () => {
+    render(quickCreate());
+
+    // Everything past title and status lives in full create. The label field in
+    // particular was free text, typed against definitions the project keeps in
+    // `longclaw.yaml`, which is what V0-10's menu exists to stop.
+    expect(screen.queryByLabelText("Description")).toBeNull();
+    expect(screen.queryByLabelText(/Checklist/)).toBeNull();
+    expect(screen.queryByLabelText(/^Priority/)).toBeNull();
+    expect(screen.queryByLabelText(/^Labels/)).toBeNull();
+  });
+
+  it("carries what has been typed into full create rather than dropping it", () => {
+    const onOpenFullEditor = vi.fn();
     const onCreate = vi.fn();
-    render(
-      <QuickCreate projectKey="RT" onCancel={() => {}} onCreate={onCreate} />,
-    );
+    render(quickCreate({ onOpenFullEditor, onCreate }));
 
     fireEvent.change(screen.getByLabelText("Title"), {
-      target: { value: "Prioritized work" },
+      target: { value: "  Needs more thought  " },
     });
-    fireEvent.change(screen.getByLabelText("Priority"), {
-      target: { value: "p1" },
-    });
-    fireEvent.change(screen.getByLabelText("Labels — comma separated"), {
-      target: { value: "backend, reliability" },
-    });
-    fireEvent.click(screen.getByText("Create ticket"));
+    fireEvent.click(statusTrigger());
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Backlog" }));
+    fireEvent.click(screen.getByText("Open full editor →"));
 
-    expect(onCreate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        priority: "p1",
-        labels: ["backend", "reliability"],
-      }),
-    );
+    expect(onOpenFullEditor).toHaveBeenCalledWith({
+      title: "Needs more thought",
+      status: "backlog",
+    });
+    // Moving surfaces is not creating.
+    expect(onCreate).not.toHaveBeenCalled();
   });
 
-  it("says where the ticket will land before it is created", () => {
-    render(
-      <QuickCreate projectKey="RT" onCancel={() => {}} onCreate={() => {}} />,
-    );
+  it("names the project and the key the create will probably claim", () => {
+    render(quickCreate());
 
-    expect(
-      screen.getByText("writes .longclaw/tickets/RT-n/ticket.md"),
-    ).toBeTruthy();
+    expect(screen.getByText("Round Trip · RT-4")).toBeTruthy();
   });
 
   it("will not create a ticket with no title", () => {
     const onCreate = vi.fn();
-    render(
-      <QuickCreate projectKey="RT" onCancel={() => {}} onCreate={onCreate} />,
-    );
+    render(quickCreate({ onCreate }));
 
-    fireEvent.click(screen.getByText("Create ticket"));
+    fireEvent.click(screen.getByText("Create"));
 
     expect(onCreate).not.toHaveBeenCalled();
   });
@@ -86,9 +100,7 @@ describe("creating a ticket", () => {
   it("closes on Escape without creating anything", () => {
     const onCancel = vi.fn();
     const onCreate = vi.fn();
-    render(
-      <QuickCreate projectKey="RT" onCancel={onCancel} onCreate={onCreate} />,
-    );
+    render(quickCreate({ onCancel, onCreate }));
 
     fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Escape" });
 

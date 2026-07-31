@@ -192,12 +192,13 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
     await screen.findByRole("heading", { name: "Board" });
   }
 
+  /** Quick create: title, Enter, done (`screen-specs.md:198-207`). */
   function submitNewTicket(title: string) {
     fireEvent.click(screen.getAllByText("New ticket")[0]);
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: title },
     });
-    fireEvent.click(screen.getByText("Create ticket"));
+    fireEvent.click(screen.getByText("Create"));
   }
 
   it("must-pass 1: the card appears before the create write returns", async () => {
@@ -261,6 +262,203 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
     });
     // The copy is honest about what undo actually did to the file.
     expect(await screen.findByText(/LC-1 archived/)).toBeTruthy();
+  });
+});
+
+describe("the full create surface (V0-16)", () => {
+  const project = {
+    id: "project-fixture",
+    name: "Fixture Project",
+    rootPath: "/tmp/LongClaw Fixture",
+    key: "LC",
+    theme: "indigo",
+    starred: false,
+    reachable: true,
+    labels: {
+      backend: { name: "Backend", color: "blue" },
+      reliability: { name: "Reliability", color: "amber" },
+    },
+  };
+
+  function created(): WriteResult {
+    return {
+      ticket: {
+        state: "indexed",
+        key: "LC-7",
+        id: "019c8c7e",
+        title: "Prove the agent round trip",
+        status: "in_review",
+        priority: "p1",
+        labels: ["backend"],
+        createdAt: "2026-07-31T09:00:00Z",
+        updatedAt: "2026-07-31T09:00:00Z",
+        checkedCount: 0,
+        checklistCount: 1,
+        commentCount: 0,
+        attachmentCount: 0,
+        contentHash: "hash-created",
+        relativePath: ".longclaw/tickets/LC-7/ticket.md",
+      },
+      generation: 2,
+      changes: [],
+    };
+  }
+
+  /** What the panel reads once the create has claimed its key. */
+  function detail(): TicketDetail {
+    return {
+      key: "LC-7",
+      relativePath: ".longclaw/tickets/LC-7/ticket.md",
+      contentHash: "hash-created",
+      byteLength: 300,
+      readOnly: false,
+      raw: "",
+      rawTruncated: false,
+      missingAttachments: [],
+      orphanAttachments: [],
+      ticket: {
+        id: "019c8c7e",
+        key: "LC-7",
+        title: "Prove the agent round trip",
+        status: "in_review",
+        priority: "p1",
+        labels: ["backend"],
+        createdAt: "2026-07-31T09:00:00Z",
+        updatedAt: "2026-07-31T09:00:00Z",
+        description: "Check whether the round trip holds.",
+        checklist: [],
+        attachments: [],
+        activity: [],
+        historyIncomplete: false,
+        unknownKeys: [],
+        recordDiagnostics: [],
+      },
+    };
+  }
+
+  async function openBoard() {
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.readTicket).mockResolvedValue(detail());
+    vi.mocked(api.openProject).mockResolvedValue({
+      project,
+      tickets: [],
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    render(<App />);
+    await screen.findByRole("heading", { name: "Board" });
+  }
+
+  /** The ticket panel, which is the only `aside` that names a ticket. */
+  function ticketPanel() {
+    return screen.queryByRole("complementary", { name: /^Ticket / });
+  }
+
+  /** Quick create, then its door into the surface that owns the rest. */
+  function openFullCreate() {
+    fireEvent.click(screen.getAllByText("New ticket")[0]);
+    fireEvent.click(screen.getByText("Open full editor →"));
+  }
+
+  function metaTrigger(field: "Status" | "Priority" | "Labels") {
+    return screen.getByRole("button", { name: new RegExp(`^${field}: `) });
+  }
+
+  it("writes every field the surface can set in one create", async () => {
+    vi.mocked(api.createTicket).mockResolvedValue(created());
+    await openBoard();
+    openFullCreate();
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Prove the agent round trip" },
+    });
+    fireEvent.click(metaTrigger("Status"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "In Review" }));
+    fireEvent.click(metaTrigger("Priority"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "P1" }));
+    fireEvent.click(metaTrigger("Labels"));
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "Backend" }));
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    fireEvent.change(screen.getByLabelText("Description"), {
+      target: { value: "Check whether the round trip holds." },
+    });
+    const addItem = screen.getByLabelText("Add a checklist item");
+    fireEvent.change(addItem, { target: { value: "Let an agent read it" } });
+    fireEvent.submit(addItem.closest("form")!);
+    fireEvent.click(screen.getByText("Create ticket"));
+
+    expect(api.createTicket).toHaveBeenCalledWith({
+      projectId: project.id,
+      title: "Prove the agent round trip",
+      status: "in_review",
+      priority: "p1",
+      labels: ["backend"],
+      description: "Check whether the round trip holds.",
+      checklist: ["Let an agent read it"],
+    });
+    await screen.findByText("LC-7 created");
+  });
+
+  it("carries the title quick create was holding into the panel", async () => {
+    await openBoard();
+    fireEvent.click(screen.getAllByText("New ticket")[0]);
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Needs more thought" },
+    });
+
+    fireEvent.click(screen.getByText("Open full editor →"));
+
+    expect(screen.getByLabelText<HTMLTextAreaElement>("Title").value).toBe(
+      "Needs more thought",
+    );
+    // One create surface at a time: the modal is gone, not stacked behind.
+    expect(screen.queryByText("Open full editor →")).toBeNull();
+  });
+
+  it("shows the card before the write returns and swaps to the real ticket after", async () => {
+    let settle: (result: WriteResult) => void = () => {};
+    vi.mocked(api.createTicket).mockReturnValue(
+      new Promise<WriteResult>((resolve) => {
+        settle = resolve;
+      }),
+    );
+    await openBoard();
+    openFullCreate();
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Prove the agent round trip" },
+    });
+
+    fireEvent.click(screen.getByText("Create ticket"));
+
+    // The board never waits: the card is up under the guessed key, and the
+    // create surface is gone.
+    expect(screen.queryByText("Create ticket")).toBeNull();
+    expect(screen.getByText("Prove the agent round trip")).toBeTruthy();
+    // The panel does wait, because view mode is a projection of a file and
+    // there is no file to read until the write has claimed a key.
+    expect(ticketPanel()).toBeNull();
+    expect(api.readTicket).not.toHaveBeenCalled();
+
+    settle(created());
+
+    // "On create the panel swaps to view mode of the real ticket"
+    // (`screen-specs.md:214`) — the real one, LC-7, not the guessed LC-1.
+    const panel = await screen.findByRole("complementary", {
+      name: "Ticket LC-7",
+    });
+    expect(panel).toBeTruthy();
+    expect(api.readTicket).toHaveBeenCalledWith(project.id, "LC-7");
+  });
+
+  it("cancels without writing, and puts focus back on the board", async () => {
+    await openBoard();
+    openFullCreate();
+
+    fireEvent.click(screen.getByText("Cancel"));
+
+    expect(screen.queryByLabelText("Title")).toBeNull();
+    expect(api.createTicket).not.toHaveBeenCalled();
   });
 });
 

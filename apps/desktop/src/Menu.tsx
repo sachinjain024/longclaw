@@ -141,6 +141,9 @@ export function Menu<T extends string>(props: MenuProps<T>) {
         return (
           <button
             key={option.id}
+            // A menu row is never a submit: quick create's status trigger sits
+            // inside a form, and a bare `<button>` there would create a ticket.
+            type="button"
             className="menu-row"
             role={role}
             aria-checked={checked}
@@ -183,6 +186,7 @@ export function MenuButton<T extends string>(props: {
   return (
     <>
       <button
+        type="button"
         className="menu-trigger"
         ref={trigger}
         aria-haspopup="menu"

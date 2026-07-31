@@ -27,10 +27,9 @@ import { LabelMenuButton } from "./LabelMenu";
 import { sameLabels } from "./labels";
 import { MarkdownView } from "./MarkdownView";
 import { MenuButton } from "./Menu";
+import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "./metaOptions";
 import { mutate } from "./mutations";
-import { PriorityGlyph } from "./PriorityGlyph";
-import { StatusDot } from "./StatusDot";
-import { PRIORITIES, priorityLabel, statusLabel, STATUSES } from "./tickets";
+import { priorityLabel, statusLabel } from "./tickets";
 import { Timeline } from "./Timeline";
 import type {
   AppError,
@@ -43,23 +42,6 @@ import type {
   WriteResult,
 } from "./types";
 import { WriteIndicator } from "./WriteFeedback";
-
-/**
- * Every menu row carries the option's own glyph (`screen-specs.md:240`), and the
- * status menu's glyph is the coloured dot. Built once: the rows never differ per
- * ticket.
- */
-const STATUS_OPTIONS = STATUSES.map((option) => ({
-  id: option.id,
-  label: option.label,
-  glyph: <StatusDot status={option.id} decorative />,
-}));
-
-const PRIORITY_OPTIONS = PRIORITIES.map((option) => ({
-  id: option.id,
-  label: option.label,
-  glyph: <PriorityGlyph priority={option.id} decorative />,
-}));
 
 /**
  * What a destructive-adjacent change adds to a save: the state it shows before
