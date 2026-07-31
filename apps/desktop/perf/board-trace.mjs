@@ -144,12 +144,12 @@ async function traceKeyboard(page) {
   });
   if (!started) throw new Error("the board rendered no cards to navigate");
 
-  // Never more presses than the lane has cards; running off the end would read
-  // as a broken run rather than as the end of the lane.
-  const lane = await page.evaluate(() =>
+  // Never more presses than the column has cards; running off the end would read
+  // as a broken run rather than as the end of the column.
+  const column = await page.evaluate(() =>
     Number(document.querySelector(".board-column h3 span")?.textContent ?? 0),
   );
-  const presses = Math.min(NAV_SAMPLES, lane - 1);
+  const presses = Math.min(NAV_SAMPLES, column - 1);
 
   const samples = [];
   let previous = started;
@@ -234,12 +234,9 @@ async function traceExternalWrite(page) {
             },
             ticket: {
               state: "indexed",
-              // The first card of the In Review lane: always on screen, so the
-              // measurement is of a write that has to paint, not one the window
-              // is free to ignore.
-              // The first card of the In Review lane, so it is always inside the
-              // window: this measures a write that has to paint, not one the
-              // lane is free to leave unrendered.
+              // The first card of the In Review column, so it is always inside
+              // the window: this measures a write that has to paint, not one the
+              // column is free to leave unrendered.
               key: "PF-3",
               id: "perf-3",
               title,

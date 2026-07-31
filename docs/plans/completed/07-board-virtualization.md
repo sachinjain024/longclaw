@@ -160,7 +160,7 @@ things came back, and they set the shape of the work:
   200-ticket board. So the cost was the nodes in the document, and no amount of
   selector narrowing would have touched it.
 - **`content-visibility: auto` does not help.** Measured at 75 ms p50 / 96 ms p95,
-  slightly *worse* than doing nothing. It would also have been unavailable
+  slightly _worse_ than doing nothing. It would also have been unavailable
   anyway: `tauri.conf.json` sets `minimumSystemVersion: 13.0`, and no WebKit that
   ships with macOS 13 supports it.
 - **There was no keyboard navigation to measure.** WebKit does not put `<button>`
@@ -168,31 +168,42 @@ things came back, and they set the shape of the work:
   board the cards could not be reached from the keyboard at all. The plan asked
   for `j`/`k`-or-arrows navigation to be traced; it had to be built first.
   `docs/design/prototype/keyboard-focus-map.md` § Board already specified it, key
-  for key — roving focus, `↑`/`K` and `↓`/`J` within a lane, `←`/`H` and `→`/`L`
-  across lanes with the row index clamped, focus entering at the first card of the
-  first non-empty lane. This implements that section; the `S`, `P`, and `C`
+  for key — roving focus, `↑`/`K` and `↓`/`J` within a column, `←`/`H` and `→`/`L`
+  across columns with the row index clamped, focus entering at the first card of
+  the first non-empty column. This implements that section; the `S`, `P`, and `C`
   bindings beside it remain unimplemented and belong to their own items.
 
 ### What shipped
 
-- **Each lane is its own windowed scroll container** (`screen-specs.md` § Board,
-  which already asked for independent lane scrolling). `boardGeometry.ts` holds
+- **Each column is its own windowed scroll container** (`screen-specs.md` § Board,
+  which already asked for independent column scrolling). `boardGeometry.ts` holds
   the arithmetic — strides, offsets, and the visible range — as pure functions.
 - **The geometry is exact rather than measured.** The stylesheet pins both card
   heights to new tokens, `--lc-size-board-card` (55px) and
   `--lc-size-board-card-fresh` (79.33px). Both are what the card already
   measured, so nothing moved. The fresh height is only knowable because `.actor`
-  is now `white-space: nowrap`, which the board spec already required ("the
-  footer never wraps") and which the shipped CSS did not do — a long agent name
-  wrapped the footer and made the card 12px taller.
+  is now `white-space: nowrap`. `screen-specs.md` § Board states "the footer never
+  wraps" as a property of the card — it says it while capping label chips, so it
+  is not literally a rule about the acknowledgement line, but it is the same
+  intent, and the shipped CSS held neither: a long enough agent name wrapped the
+  footer and made the card 12px taller. It truncates now, the way the card's title
+  already did.
 - **Cards are memoized on their own ticket**, and the acknowledgement clock is
   handed only to cards wearing an acknowledgement, so the once-a-second tick does
-  not re-render a lane that has nothing to say. Grouping is one pass over the
+  not re-render a column that has nothing to say. Grouping is one pass over the
   tickets instead of one `filter` per status.
-- **Roving focus**, to `keyboard-focus-map.md` § Board. Arrows, or `j`/`k`/`h`/`l`,
-  move a single tab stop through the visual order. The lane keeps its focused card and its open card mounted wherever
-  they have been scrolled to, so windowing can never drop focus onto the body.
-  Sideways moves skip empty lanes and clamp to the lane they land in.
+- **Roving focus**, to `keyboard-focus-map.md` § Board. Arrows, or
+  `j`/`k`/`h`/`l`, move a single tab stop through the visual order. The column
+  keeps its focused card and its open card mounted wherever they have been
+  scrolled to, so windowing can never drop focus onto the body. Sideways moves
+  skip empty columns and clamp to the one they land in.
+- **The pulse plays once.** `.pulse-dot` carried its animation unconditionally,
+  and a CSS animation restarts whenever its element mounts — so with the column
+  windowed, scrolling a fresh card out and back would have replayed the two-beat
+  pulse for a change the human saw two minutes ago, which is exactly what the
+  plan's item 4 forbids. `freshness.isPulsing` gates the animation on the change
+  still being newer than the pulse itself; the ring and the footer stay, because
+  they are still true.
 - **`perf/`, the harness.** It builds the app's own bundle as a web page with the
   three Tauri modules stubbed, serves it, and drives it in WebKit. Adds one
   dependency, `playwright-core@1.62.1` (13 MB, downloads no browsers); the
@@ -203,14 +214,17 @@ things came back, and they set the shape of the work:
 
 `npm run perf:board`, 2026-07-31, macOS 26.5.2 (build 25F84), Apple Silicon,
 Node 22.15.1, WebKit 26.5 (`AppleWebKit/605.1.15`) via `playwright-core` 1.62.1,
-production Vite build, 1440×900. 5,000 tickets across six lanes; 78 cards
+production Vite build, 1440×900. 5,000 tickets across six columns; 78 cards
 rendered.
 
-| Interaction (input → paint)      | n   | p50    | p95    | max   | 600-ticket floor p50 / p95 |
-| -------------------------------- | --- | ------ | ------ | ----- | -------------------------- |
-| Keyboard `ArrowDown` down a lane | 145 | 17 ms  | 18 ms  | 19 ms | 17 / 18 ms                 |
-| Scrolling a full lane            | 131 | 20 ms  | 21 ms  | 23 ms | 20 / 21 ms                 |
-| External write → paint           | 40  | 17 ms  | 18 ms  | 19 ms | 18 / 20 ms                 |
+| Interaction (input → paint)        | n   | p50   | p95   | max   | 600-ticket floor p50 / p95 |
+| ---------------------------------- | --- | ----- | ----- | ----- | -------------------------- |
+| Keyboard `ArrowDown` down a column | 145 | 17 ms | 18 ms | 19 ms | 17 / 17 ms                 |
+| Scrolling a full column            | 131 | 20 ms | 22 ms | 24 ms | 20 / 20 ms                 |
+| External write → paint             | 40  | 19 ms | 20 ms | 22 ms | 19 / 20 ms                 |
+
+Run to run these move by a millisecond or two; the numbers above are one run, and
+the floor beside them is from the same one.
 
 Against the budget of ≤ 50 ms p95 and ≤ 16 ms p50:
 
@@ -225,7 +239,7 @@ Against the budget of ≤ 50 ms p95 and ≤ 16 ms p50:
 
 Before, for the same interactions: scroll 71 ms p50 / 74 ms p95, external write
 36 ms p50 / 47 ms p95, keyboard not reachable. Load to first painted rows went
-from 533 ms to 108 ms, which is the mount cost the plan warned virtualization
+from 533 ms to 112 ms, which is the mount cost the plan warned virtualization
 could regress going the other way.
 
 Storage numbers from the same machine, for the pair the plan asked to sit side by
@@ -233,23 +247,25 @@ side:
 
 ```
 PERF tickets=5000 open_ms=1790.36 rebuild_ms=1628.07 search_ms=2.14 detail_ms=0.50 write_ms=53.36 create_ms=63.50
-PERF-UI tickets=5000 rendered_rows=78 first_paint_ms=108 nav_key=ArrowDown
+PERF-UI tickets=5000 rendered_rows=78 first_paint_ms=112 nav_key=ArrowDown
 ```
 
 ### Automated proof
 
 - `boardGeometry.test.ts` — strides, offsets, the visible range at both ends of a
-  lane, the unmeasured first paint, and that the constants agree with the tokens
+  column, the unmeasured first paint, and that the constants agree with the tokens
   the stylesheet is generated from.
 - `Board.test.tsx` — the existing card, acknowledgement, decay, degraded-row, and
-  grouping cases pass **unchanged**. Added: a lane renders a window and not the
-  rest; the sizer reserves the whole lane; a scroll swaps the window; a focused
+  grouping cases pass **unchanged**. Added: a column renders a window and not
+  the rest; the sizer reserves the whole column; a scroll swaps the window; a focused
   card that scrolls out stays mounted and keeps focus; the open card stays
   mounted; a single tab stop; arrows and `j`/`k` move in visual order; a move
-  crosses to the next non-empty lane; a modified arrow is left to the window;
-  navigation reaches a card the lane is not rendering; **a change to one ticket
-  presents one card and no other**; and the once-a-second acknowledgement tick
-  presents only the card wearing one.
+  crosses to the next non-empty column; a modified arrow is left to the window;
+  navigation reaches a card the column is not rendering; **a change to one ticket
+  presents one card and no other**; the once-a-second acknowledgement tick
+  presents only the card wearing one; the pulse beats on a change that has just
+  arrived, not on one already seen, and not again when a scroll brings the card
+  back.
 - `npm run verify` passes: 113 frontend tests, the Rust suite, tokens, format,
   lint, typecheck, build, and `npm run test:watcher`.
 
@@ -259,8 +275,29 @@ PERF-UI tickets=5000 rendered_rows=78 first_paint_ms=108 nav_key=ArrowDown
 unreviewed agent change, in Indigo and Clay, light and dark. Compared against the
 same four renders built from `main`: **zero pixels differ in all four**. The
 acknowledgement ring, which a scroll container would otherwise clip, keeps its
-room because the lane's padding was split between the section and the scroll box
+room because the column's padding was split between the section and the scroll box
 rather than added to it.
+
+### Deviations worth naming
+
+- **The harness stubs Tauri rather than driving the app.** The plan said to build
+  from the existing harness — `tests/performance.rs` and `npm run dev:fixture`.
+  `perf/fixture.ts` instead generates the same 5,000 tickets in TypeScript and
+  serves them through stubbed Tauri commands. Driving the real app needs a GUI
+  session and cannot run unattended or reproducibly, and the trace is about the
+  render path. The consequence is real and worth stating: **this trace does not
+  exercise Rust, IPC, or the watcher at all.** `npm run perf:rust` and
+  `npm run test:watcher` are what cover those, and the fixture is kept in the
+  shape `tests/performance.rs` writes so the two describe one project.
+- **The probe is a witness, not the clock.** The plan said to reuse
+  `reportVisibleUi` rather than invent a measurement. Its effect only re-runs when
+  the ticket array or the sequence changes, so it cannot time a keypress that only
+  moves focus. The harness times on the same animation-frame boundary the probe
+  reports on, and _asserts_ the probe fired and named the row that was written —
+  a measurement that paints the wrong thing fails rather than reads fast.
+- **"Lane" is this plan's word; the code says "column".** `screen-specs.md`,
+  `keyboard-focus-map.md`, and the existing `BoardColumn`/`.board-column` all say
+  column, so the code stayed with column throughout.
 
 ### What remains
 
@@ -272,6 +309,6 @@ rather than added to it.
   measured here. The margin is wide, but the acceptance row stays partly covered
   until it is run there.
 - **`App.tsx` still subscribes to the whole ticket array.** It is no longer worth
-  changing: with the lane windowed and the cards memoized, the board's cost is at
+  changing: with the column windowed and the cards memoized, the board's cost is at
   the floor, and the plan's own instruction was to pick the smallest thing that
   hits the budget.

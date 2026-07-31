@@ -1,11 +1,11 @@
 /**
- * Where the cards in one board lane sit, so a lane can render only the ones on
- * screen.
+ * Where the cards in one board column sit, so a column can render only the ones
+ * on screen.
  *
  * A 5,000-ticket board scrolls at roughly 71 ms a frame in WebKit and at roughly
  * 21 ms when only the visible cards exist — the whole cost is the nodes, not the
- * React work (`perf/README.md`). So the lane has to know its own geometry, and
- * that geometry has to be exact: a lane that guesses a card's height jitters as
+ * React work (`perf/README.md`). So the column has to know its own geometry, and
+ * that geometry has to be exact: a column that guesses a card's height jitters as
  * it scrolls.
  *
  * It can be exact because the stylesheet pins both card heights. A card is one
@@ -26,7 +26,7 @@ export const CARD_HEIGHT = 55;
 /**
  * `--lc-size-board-card-fresh`: the same card with the acknowledgement footer
  * under it. Not a round number because it is not a chosen one — it is what the
- * footer's 10.5px line already measured, pinned so the lane can place the cards
+ * footer's 10.5px line already measured, pinned so the column can place the cards
  * below it without measuring anything.
  */
 export const FRESH_CARD_HEIGHT = 79.33;
@@ -38,8 +38,8 @@ export const CARD_STRIDE = CARD_HEIGHT + CARD_GAP;
 export const FRESH_CARD_STRIDE = FRESH_CARD_HEIGHT + CARD_GAP;
 
 /**
- * The height a lane must reserve before it has measured itself. Deliberately a
- * tall viewport rather than zero: a lane that windows down to nothing on the
+ * The height a column must reserve before it has measured itself. Deliberately a
+ * tall viewport rather than zero: a column that windows down to nothing on the
  * first paint would show an empty board for a frame.
  */
 export const ASSUMED_VIEWPORT = 720;
@@ -55,10 +55,10 @@ export function cardStrides(
 }
 
 /**
- * Running tops, one entry longer than the lane. The last entry is the lane's
+ * Running tops, one entry longer than the column. The last entry is the column's
  * full height, which is what the scroll container is sized to.
  */
-export function laneOffsets(strides: number[]): number[] {
+export function columnOffsets(strides: number[]): number[] {
   const offsets = [0];
   for (const stride of strides)
     offsets.push(offsets[offsets.length - 1] + stride);
@@ -78,9 +78,9 @@ function indexAt(offsets: number[], position: number): number {
 }
 
 /**
- * The half-open range of cards a lane renders: everything touching the viewport,
- * plus `overscan` cards each side so a scroll does not expose a gap before React
- * has caught up.
+ * The half-open range of cards a column renders: everything touching the
+ * viewport, plus `overscan` cards each side so a scroll does not expose a gap
+ * before React has caught up.
  */
 export function windowFor(
   offsets: number[],

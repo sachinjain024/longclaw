@@ -60,7 +60,7 @@ try {
       );
 
       // One card wearing an unreviewed agent change, because the acknowledgement
-      // is the treatment most at risk from a lane that recycles rows.
+      // is the treatment most at risk from a column that recycles rows.
       await page.evaluate(() => {
         const key =
           document

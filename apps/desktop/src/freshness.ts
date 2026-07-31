@@ -56,6 +56,29 @@ export function isFresh(mark: ExternalMark | undefined, now: number): boolean {
 }
 
 /**
+ * How long the pulse runs: `--lc-motion-pulse-duration` twice over, which is the
+ * two beats `--lc-motion-pulse-iterations` asks for.
+ */
+export const PULSE_MS = 1_800;
+
+/**
+ * True only while the pulse is still the truth.
+ *
+ * The pulse is a CSS animation, and a CSS animation restarts whenever its element
+ * mounts. A board column renders only the cards it can show, so a card scrolled
+ * out and back is a fresh mount — without this, the product's signature moment
+ * would replay every time a row came back into view, for a change the human saw
+ * two minutes ago. The ring and the footer stay; they are still true. The pulse
+ * is the part that says *just now*.
+ */
+export function isPulsing(
+  mark: ExternalMark | undefined,
+  now: number,
+): boolean {
+  return isFresh(mark, now) && now - (mark?.at ?? 0) < PULSE_MS;
+}
+
+/**
  * The card footer line. An unattributed change gets the warn glyph and says so
  * instead of borrowing the agent's voice.
  */

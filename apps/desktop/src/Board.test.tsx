@@ -91,14 +91,14 @@ function card(key: string): HTMLElement {
   return element;
 }
 
-/** A lane long enough that the window cannot hold all of it. */
-function lane(count: number, status: "todo" | "in_progress" = "todo") {
+/** A column long enough that the window cannot hold all of it. */
+function columnOf(count: number, status: "todo" | "in_progress" = "todo") {
   return Array.from({ length: count }, (_, index) =>
     row({ key: `LC-${index + 1}`, title: `Ticket ${index + 1}`, status }),
   );
 }
 
-/** The scroll container of one named lane; every other lane has one too. */
+/** The scroll container of one named column; every column has one. */
 function stack(title = "Todo"): HTMLElement {
   const heading = screen.getByRole("heading", {
     name: new RegExp(`^${title}`),
@@ -106,7 +106,7 @@ function stack(title = "Todo"): HTMLElement {
   const element = heading
     .closest(".board-column")
     ?.querySelector<HTMLElement>(".board-stack");
-  if (!element) throw new Error(`no lane for ${title}`);
+  if (!element) throw new Error(`no column for ${title}`);
   return element;
 }
 
@@ -185,6 +185,59 @@ describe("a card carrying an unreviewed agent change", () => {
   });
 });
 
+describe("the pulse, which says a change just landed", () => {
+  it("beats on a change that has only just arrived", () => {
+    render(board({ marks: mark({ at: NOW - 200 }) }));
+
+    expect(card("LC-1").querySelector(".pulse-dot")?.className).toContain(
+      "pulsing",
+    );
+  });
+
+  it("does not beat again for a change the human has already seen", () => {
+    render(board({ marks: mark({ at: NOW - 30_000 }) }));
+
+    // Still acknowledged — the ring and the footer are still true — but the
+    // two-beat pulse is the part that means "just now", and it already played.
+    const element = card("LC-1");
+    expect(element.className).toContain("fresh");
+    expect(element.textContent).toContain("via file edit");
+    expect(element.querySelector(".pulse-dot")?.className).not.toContain(
+      "pulsing",
+    );
+  });
+
+  // A column renders only what it can show, so a card that scrolls away and
+  // comes back is a fresh mount, and a CSS animation restarts whenever its
+  // element mounts.
+  it("does not beat again for a card a scroll brings back", () => {
+    // LC-50 rather than LC-1: the first card holds the tab stop, so it is an
+    // anchor and never unmounts.
+    const marks: ExternalMarks = {
+      "LC-50": {
+        actorType: "agent",
+        actorLabel: "Claude Code",
+        at: NOW - 30_000,
+      },
+    };
+    render(
+      <Board tickets={columnOf(400)} marks={marks} now={NOW} onSelect={noop} />,
+    );
+    scrollTo(stack(), 49 * CARD_STRIDE);
+    expect(card("LC-50").className).toContain("fresh");
+
+    scrollTo(stack(), 299 * CARD_STRIDE);
+    expect(document.querySelector('[data-ticket-key="LC-50"]')).toBeNull();
+    scrollTo(stack(), 49 * CARD_STRIDE);
+
+    const element = card("LC-50");
+    expect(element.className).toContain("fresh");
+    expect(element.querySelector(".pulse-dot")?.className).not.toContain(
+      "pulsing",
+    );
+  });
+});
+
 describe("the board's own shape", () => {
   it("groups tickets under their status and counts them", () => {
     render(
@@ -249,29 +302,29 @@ describe("the board's own shape", () => {
   });
 });
 
-describe("a lane holding more cards than it can show", () => {
+describe("a column holding more cards than it can show", () => {
   it("renders the cards the viewport touches and not the rest", () => {
-    render(board({ tickets: lane(400) }));
+    render(board({ tickets: columnOf(400) }));
 
     const rendered = document.querySelectorAll(".ticket-row");
-    // A card and its gap is CARD_STRIDE tall, so an unmeasured lane holds about
-    // ASSUMED_VIEWPORT / CARD_STRIDE of them, plus the overscan.
+    // A card and its gap is CARD_STRIDE tall, so an unmeasured column holds
+    // about ASSUMED_VIEWPORT / CARD_STRIDE of them, plus the overscan.
     expect(rendered.length).toBeGreaterThan(ASSUMED_VIEWPORT / CARD_STRIDE);
     expect(rendered.length).toBeLessThan(400);
-    // It still says how many tickets are in the lane, not how many it drew.
+    // It still says how many tickets are in the column, not how many it drew.
     expect(screen.getByRole("heading", { name: /Todo/ }).textContent).toBe(
       "Todo400",
     );
   });
 
-  it("reserves the whole lane's height, so the scrollbar tells the truth", () => {
-    render(board({ tickets: lane(400) }));
+  it("reserves the whole column's height, so the scrollbar tells the truth", () => {
+    render(board({ tickets: columnOf(400) }));
 
     expect(sizer().style.height).toBe(`${400 * CARD_STRIDE}px`);
   });
 
   it("swaps in the cards a scroll brings into view", () => {
-    render(board({ tickets: lane(400) }));
+    render(board({ tickets: columnOf(400) }));
     expect(document.querySelector('[data-ticket-key="LC-300"]')).toBeNull();
 
     scrollTo(stack(), 299 * CARD_STRIDE);
@@ -281,16 +334,16 @@ describe("a lane holding more cards than it can show", () => {
   });
 });
 
-describe("focus on a lane that is being scrolled", () => {
+describe("focus on a column that is being scrolled", () => {
   it("keeps the focused card mounted and focused after it scrolls away", () => {
-    render(board({ tickets: lane(400) }));
+    render(board({ tickets: columnOf(400) }));
 
     card("LC-1").focus();
     expect(document.activeElement).toBe(card("LC-1"));
 
     scrollTo(stack(), 299 * CARD_STRIDE);
 
-    // The card the human is standing on stays, wherever the lane has scrolled
+    // The card the human is standing on stays, wherever the column has scrolled
     // to. Unmounting it would move focus to the body without saying so.
     expect(card("LC-1")).toBeTruthy();
     expect(document.activeElement).toBe(card("LC-1"));
@@ -301,7 +354,7 @@ describe("focus on a lane that is being scrolled", () => {
   it("keeps the open ticket's card mounted, so closing the panel can return to it", () => {
     render(
       <Board
-        tickets={lane(400)}
+        tickets={columnOf(400)}
         selectedKey="LC-200"
         marks={{}}
         now={NOW}
@@ -332,7 +385,7 @@ describe("moving through the board with the keyboard", () => {
     expect(stops.map((element) => element.dataset.ticketKey)).toEqual(["LC-1"]);
   });
 
-  it("moves down the lane in visual order", () => {
+  it("moves down the column in visual order", () => {
     render(board({ tickets: across }));
     card("LC-1").focus();
 
@@ -354,7 +407,7 @@ describe("moving through the board with the keyboard", () => {
     expect(document.activeElement).toBe(card("LC-1"));
   });
 
-  it("stays put at the end of a lane", () => {
+  it("stays put at the end of a column", () => {
     render(board({ tickets: across }));
     card("LC-1").focus();
 
@@ -363,12 +416,12 @@ describe("moving through the board with the keyboard", () => {
     expect(document.activeElement).toBe(card("LC-1"));
   });
 
-  it("crosses to the next lane that has cards", () => {
+  it("crosses to the next column that has cards", () => {
     render(board({ tickets: across }));
     card("LC-2").focus();
 
-    // Backlog is empty and In Progress is two lanes over; the move skips the
-    // empty lane and clamps to the last card of the one it lands in.
+    // Backlog is empty and In Progress is two columns over; the move skips the
+    // empty column and clamps to the last card of the one it lands in.
     fireEvent.keyDown(card("LC-2"), { key: "ArrowRight" });
 
     expect(document.activeElement).toBe(card("LC-3"));
@@ -383,8 +436,8 @@ describe("moving through the board with the keyboard", () => {
     expect(document.activeElement).toBe(card("LC-1"));
   });
 
-  it("reaches a card the lane is not currently rendering", () => {
-    render(board({ tickets: lane(400) }));
+  it("reaches a card the column is not currently rendering", () => {
+    render(board({ tickets: columnOf(400) }));
     scrollTo(stack(), 299 * CARD_STRIDE);
     card("LC-300").focus();
 
@@ -419,18 +472,19 @@ describe("what a change to one ticket costs", () => {
   });
 
   it("re-renders only the acknowledged card as its age ticks over", () => {
+    // LC-1 wears an acknowledgement; LC-2 and LC-3 do not.
     const marks = mark({ at: NOW - 12_000 });
-    const props = { tickets: three, marks };
-    render(<Board {...props} now={NOW} onSelect={() => {}} />);
+    const { rerender } = render(
+      <Board tickets={three} marks={marks} now={NOW} onSelect={noop} />,
+    );
     presented.length = 0;
 
-    // The clock behind the acknowledgement's age moves every second. Only the
-    // card wearing one reads it.
-    cleanup();
-    render(<Board {...props} now={NOW + 1_000} onSelect={() => {}} />);
-    presented.length = 0;
-    render(<Board {...props} now={NOW + 2_000} onSelect={() => {}} />);
+    // The clock behind the acknowledgement's age moves every second, and it
+    // moves for the whole board. Only the card with an age to show reads it.
+    rerender(
+      <Board tickets={three} marks={marks} now={NOW + 1_000} onSelect={noop} />,
+    );
 
-    expect(new Set(presented)).toEqual(new Set(["LC-1", "LC-2", "LC-3"]));
+    expect(presented).toEqual(["LC-1"]);
   });
 });

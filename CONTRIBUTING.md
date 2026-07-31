@@ -66,11 +66,22 @@ stay that way.
 
 Test suites worth knowing about:
 
-| Command | Covers |
-|---|---|
-| `npm test` | frontend unit and component tests, Rust unit tests, the fixture corpus, storage and watcher integration |
-| `npm run test:watcher` | the production FSEvents watcher end to end (ignored by default) |
-| `npm run perf:rust` | index rebuild, search, read, and write budgets against a 5,000-ticket project |
+| Command                | Covers                                                                                                  |
+| ---------------------- | ------------------------------------------------------------------------------------------------------- |
+| `npm test`             | frontend unit and component tests, Rust unit tests, the fixture corpus, storage and watcher integration |
+| `npm run test:watcher` | the production FSEvents watcher end to end (ignored by default)                                         |
+| `npm run perf:rust`    | index rebuild, search, read, and write budgets against a 5,000-ticket project                           |
+| `npm run perf:board`   | input → paint on a 5,000-ticket board, traced in WebKit (see `apps/desktop/perf/README.md`)             |
+
+`perf:board` needs a WebKit build, once per machine:
+
+```sh
+npx playwright@1.62.1 install webkit
+```
+
+Neither performance harness is part of `npm run verify`: both take minutes, and
+`perf:board` downloads a browser. Run them when you change what the board renders
+or what storage does per ticket.
 
 ## Diagnostics and privacy
 

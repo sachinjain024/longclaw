@@ -27,10 +27,10 @@ export const PROJECT: ProjectReference = {
 };
 
 /**
- * Spread across every status so each lane is long, rather than piling every
+ * Spread across every status so each column is long, rather than piling every
  * ticket into one column and leaving the other five empty.
  */
-const LANES: TicketStatus[] = [
+const COLUMNS: TicketStatus[] = [
   "backlog",
   "todo",
   "in_progress",
@@ -45,7 +45,7 @@ export function ticket(sequence: number): TicketRow {
     key: `PF-${sequence}`,
     id: `perf-${sequence}`,
     title: `Searchable storage ticket ${sequence}`,
-    status: LANES[sequence % LANES.length],
+    status: COLUMNS[sequence % COLUMNS.length],
     priority: "none",
     labels: ["storage"],
     createdAt: "2026-07-29T00:00:00Z",

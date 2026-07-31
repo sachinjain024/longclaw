@@ -1,8 +1,8 @@
 /**
- * The status board: one lane per status, plus a lane for files this build cannot
+ * The status board: one column per status, plus one for files this build cannot
  * read, because a ticket that will not parse still belongs to the project.
  *
- * Each lane scrolls on its own and renders only the cards its scroll position
+ * Each column scrolls on its own and renders only the cards its scroll position
  * touches (`screen-specs.md` § Board, `boardGeometry.ts`). A 5,000-ticket board
  * costs about 71 ms a frame to scroll when every card is in the document and
  * about 21 ms when only the visible ones are, so the window is what keeps a large
@@ -11,7 +11,7 @@
  * Windowing takes the cards off the Tab order, so the board carries the roving
  * focus `keyboard-focus-map.md` § Board already asked for: arrows or
  * `j`/`k`/`h`/`l` move a single tab stop through the *visual* order, entering at
- * the first card of the first non-empty lane. The focused card stays mounted
+ * the first card of the first non-empty column. The focused card stays mounted
  * wherever it has been scrolled to, so a scroll can never silently drop focus
  * onto the body.
  */
@@ -26,8 +26,8 @@ import {
 } from "react";
 import type { KeyboardEvent } from "react";
 import { presentCard } from "./boardCard";
-import { cardStrides, laneOffsets, windowFor } from "./boardGeometry";
-import { acknowledgement, isFresh } from "./freshness";
+import { cardStrides, columnOffsets, windowFor } from "./boardGeometry";
+import { acknowledgement, isFresh, isPulsing } from "./freshness";
 import type { ExternalMark, ExternalMarks } from "./freshness";
 import { STATUSES } from "./tickets";
 import type { TicketRow, TicketStatus } from "./types";
@@ -39,7 +39,7 @@ export function ticketStatus(ticket: TicketRow): TicketStatus | "unreadable" {
   return ticket.state === "indexed" ? ticket.status : "unreadable";
 }
 
-interface Lane {
+interface Column {
   id: string;
   title: string;
   tickets: TicketRow[];
@@ -47,13 +47,19 @@ interface Lane {
 
 /** Where a card sits in the visual order, which is what the arrows follow. */
 interface Seat {
-  lane: number;
+  column: number;
   index: number;
 }
 
+/** How far one key press travels. Steps, not positions. */
+interface Move {
+  columns: number;
+  cards: number;
+}
+
 /** One pass over the tickets rather than one filter per status. */
-function layOutLanes(tickets: TicketRow[]): {
-  lanes: Lane[];
+function layOutColumns(tickets: TicketRow[]): {
+  columns: Column[];
   seats: Map<string, Seat>;
 } {
   const byStatus = new Map<string, TicketRow[]>(
@@ -66,56 +72,74 @@ function layOutLanes(tickets: TicketRow[]): {
     else byStatus.get(status)?.push(ticket);
   }
 
-  const lanes: Lane[] = STATUSES.map((status) => ({
+  const columns: Column[] = STATUSES.map((status) => ({
     id: status.id,
     title: status.label,
     tickets: byStatus.get(status.id) ?? [],
   }));
   if (unreadable.length > 0) {
-    lanes.push({ id: "unreadable", title: "Unreadable", tickets: unreadable });
+    columns.push({
+      id: "unreadable",
+      title: "Unreadable",
+      tickets: unreadable,
+    });
   }
 
   const seats = new Map<string, Seat>();
-  lanes.forEach((lane, laneIndex) =>
-    lane.tickets.forEach((ticket, index) =>
-      seats.set(ticket.key, { lane: laneIndex, index }),
+  columns.forEach((column, columnIndex) =>
+    column.tickets.forEach((ticket, index) =>
+      seats.set(ticket.key, { column: columnIndex, index }),
     ),
   );
-  return { lanes, seats };
+  return { columns, seats };
 }
 
-/** Arrow keys, and the same moves on the home row. */
-const MOVES: Record<string, { lane: number; card: number }> = {
-  ArrowDown: { lane: 0, card: 1 },
-  ArrowUp: { lane: 0, card: -1 },
-  ArrowRight: { lane: 1, card: 0 },
-  ArrowLeft: { lane: -1, card: 0 },
-  j: { lane: 0, card: 1 },
-  k: { lane: 0, card: -1 },
-  l: { lane: 1, card: 0 },
-  h: { lane: -1, card: 0 },
+/**
+ * The board's keys, from `keyboard-focus-map.md` § Board. The letters are listed
+ * there in upper case and matched here in lower, because caps lock or a held
+ * shift is still the same key to the person pressing it.
+ */
+const MOVES: Record<string, Move> = {
+  ArrowDown: { columns: 0, cards: 1 },
+  ArrowUp: { columns: 0, cards: -1 },
+  ArrowRight: { columns: 1, cards: 0 },
+  ArrowLeft: { columns: -1, cards: 0 },
+  j: { columns: 0, cards: 1 },
+  k: { columns: 0, cards: -1 },
+  l: { columns: 1, cards: 0 },
+  h: { columns: -1, cards: 0 },
 };
 
+function moveFor(key: string): Move | undefined {
+  return MOVES[key] ?? MOVES[key.toLowerCase()];
+}
+
 /** The card a move lands on, or undefined when the move runs off the board. */
-function moveTo(
-  lanes: Lane[],
-  from: Seat,
-  move: { lane: number; card: number },
-): string | undefined {
-  if (move.lane === 0) {
-    return lanes[from.lane].tickets[from.index + move.card]?.key;
+function moveTo(columns: Column[], from: Seat, move: Move): string | undefined {
+  if (move.columns === 0) {
+    return columns[from.column].tickets[from.index + move.cards]?.key;
   }
-  // Sideways skips empty lanes, because an empty lane holds nothing to focus.
+  // Sideways skips empty columns, because an empty one holds nothing to focus,
+  // and clamps into the column it lands in (keyboard-focus-map.md § Board).
   for (
-    let lane = from.lane + move.lane;
-    lane >= 0 && lane < lanes.length;
-    lane += move.lane
+    let column = from.column + move.columns;
+    column >= 0 && column < columns.length;
+    column += move.columns
   ) {
-    const tickets = lanes[lane].tickets;
+    const tickets = columns[column].tickets;
     if (tickets.length === 0) continue;
     return tickets[Math.min(from.index, tickets.length - 1)].key;
   }
   return undefined;
+}
+
+/** Finds a mounted card by key without building a selector out of one. */
+function cardFor(root: HTMLElement | null, key: string) {
+  // A degraded row is keyed by its directory name, which nothing has vetted as
+  // CSS, so the key is compared rather than interpolated.
+  return Array.from(
+    root?.querySelectorAll<HTMLElement>(".ticket-row") ?? [],
+  ).find((element) => element.dataset.ticketKey === key);
 }
 
 export function Board(props: {
@@ -125,8 +149,8 @@ export function Board(props: {
   now: number;
   onSelect: (key: string) => void;
 }) {
-  const { lanes, seats } = useMemo(
-    () => layOutLanes(props.tickets),
+  const { columns, seats } = useMemo(
+    () => layOutColumns(props.tickets),
     [props.tickets],
   );
   const [focusedKey, setFocusedKey] = useState<string>();
@@ -135,8 +159,8 @@ export function Board(props: {
   const grid = useRef<HTMLDivElement>(null);
 
   // A card that was deleted, or that changed status, cannot hold the tab stop.
-  const firstKey = lanes.find((lane) => lane.tickets.length > 0)?.tickets[0]
-    ?.key;
+  const firstKey = columns.find((column) => column.tickets.length > 0)
+    ?.tickets[0]?.key;
   const rovingKey =
     focusedKey !== undefined && seats.has(focusedKey) ? focusedKey : firstKey;
 
@@ -144,7 +168,7 @@ export function Board(props: {
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
-    const move = MOVES[event.key];
+    const move = moveFor(event.key);
     if (!move) return;
     // The card the key was pressed on, not the one the last render believed was
     // focused: a click that has not been committed yet would otherwise move the
@@ -155,21 +179,17 @@ export function Board(props: {
     if (!from) return;
 
     event.preventDefault();
-    const next = moveTo(lanes, from, move);
+    const next = moveTo(columns, from, move);
     if (next === undefined || next === fromKey) return;
     setFocusedKey(next);
     setFocusRequest((request) => request + 1);
   }
 
-  // The lane keeps its focused card mounted wherever it is, so the card the
+  // The column keeps its focused card mounted wherever it is, so the card the
   // arrows just moved to is always here to be focused and scrolled to.
   useLayoutEffect(() => {
     if (focusRequest === 0 || rovingKey === undefined) return;
-    // Matched on the key rather than interpolated into a selector: a degraded
-    // row is keyed by its directory name, which nothing has vetted as CSS.
-    const card = Array.from(
-      grid.current?.querySelectorAll<HTMLElement>(".ticket-row") ?? [],
-    ).find((element) => element.dataset.ticketKey === rovingKey);
+    const card = cardFor(grid.current, rovingKey);
     card?.focus();
     card?.scrollIntoView?.({ block: "nearest" });
   }, [focusRequest, rovingKey]);
@@ -180,15 +200,15 @@ export function Board(props: {
 
   return (
     <div className="board-grid" ref={grid} onKeyDown={onKeyDown}>
-      {lanes.map((lane, laneIndex) => (
+      {columns.map((column, columnIndex) => (
         <BoardColumn
-          key={lane.id}
-          title={lane.title}
-          tickets={lane.tickets}
+          key={column.id}
+          title={column.title}
+          tickets={column.tickets}
           selectedKey={props.selectedKey}
           rovingKey={rovingKey}
           anchors={[focusSeat, openSeat]
-            .filter((seat) => seat?.lane === laneIndex)
+            .filter((seat) => seat?.column === columnIndex)
             .map((seat) => (seat as Seat).index)}
           marks={props.marks}
           now={props.now}
@@ -201,8 +221,8 @@ export function Board(props: {
 }
 
 /**
- * One lane: its own scroll container, sized to the whole lane but holding only
- * the cards the scroll position touches, plus its anchors.
+ * One column: its own scroll container, sized to the whole column but holding
+ * only the cards the scroll position touches, plus its anchors.
  */
 function BoardColumn(props: {
   title: string;
@@ -210,9 +230,9 @@ function BoardColumn(props: {
   selectedKey?: string;
   rovingKey?: string;
   /**
-   * Cards that stay mounted wherever they have been scrolled to: the one the
-   * human is standing on and the one they have open. Unmounting the focused card
-   * mid-scroll would drop focus onto the body without saying so.
+   * Indexes of cards that stay mounted wherever they have been scrolled to: the
+   * one the human is standing on and the one they have open. Unmounting the
+   * focused card mid-scroll would drop focus onto the body without saying so.
    */
   anchors: number[];
   marks: ExternalMarks;
@@ -236,7 +256,7 @@ function BoardColumn(props: {
   }, []);
 
   const offsets = useMemo(
-    () => laneOffsets(cardStrides(props.tickets, props.marks, props.now)),
+    () => columnOffsets(cardStrides(props.tickets, props.marks, props.now)),
     [props.tickets, props.marks, props.now],
   );
   const range = windowFor(offsets, scrollTop, viewport, OVERSCAN);
@@ -247,8 +267,8 @@ function BoardColumn(props: {
   }
   for (let index = range.start; index < range.end; index += 1)
     shown.push(index);
-  // Rendered in visual order, so the accessibility tree reads down the lane even
-  // though an anchor can sit anywhere in it.
+  // Rendered in visual order, so the accessibility tree reads down the column
+  // even though an anchor can sit anywhere in it.
   shown.sort((left, right) => left - right);
 
   return (
@@ -278,7 +298,7 @@ function BoardColumn(props: {
                 tabStop={ticket.key === props.rovingKey}
                 mark={mark}
                 // The acknowledgement clock ticks every second. Handing it to a
-                // card with nothing to acknowledge would re-render the lane once
+                // card with nothing to acknowledge would re-render the column once
                 // a second for a number none of those cards read.
                 now={mark ? props.now : 0}
                 onSelect={props.onSelect}
@@ -298,9 +318,10 @@ function BoardColumn(props: {
  * human opens the ticket or the window passes.
  *
  * Memoized on its own ticket, so a change to one ticket re-renders one card and
- * not the lane around it (ADR 0006). React keys the card by ticket key, so a card
- * scrolled out and back is the same row remounting rather than a recycled node
- * inheriting another ticket's pulse.
+ * not the column around it — the isolated subscription ADR 0006 wants, at the
+ * card. React keys the card by ticket key, so a card scrolled out and back is the
+ * same row remounting rather than a recycled node inheriting another ticket's
+ * acknowledgement; `isPulsing` is what stops the remount replaying the pulse.
  */
 const BoardCard = memo(function BoardCard(props: {
   ticket: TicketRow;
@@ -334,7 +355,14 @@ const BoardCard = memo(function BoardCard(props: {
     >
       <span className="ticket-key">
         {ticket.key}
-        {fresh && <span className="pulse-dot" aria-hidden="true" />}
+        {fresh && (
+          <span
+            className={
+              isPulsing(mark, props.now) ? "pulse-dot pulsing" : "pulse-dot"
+            }
+            aria-hidden="true"
+          />
+        )}
       </span>
       <strong>{row.title}</strong>
       <span className="ticket-meta">{row.meta}</span>

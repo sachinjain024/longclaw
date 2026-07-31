@@ -493,10 +493,10 @@ button:disabled {
   padding: 18px;
 }
 
-/* The lane's own padding is split between the section and the scroll container
-   inside it, so a card sits exactly where it sat before the lane could scroll
-   and the fresh card's 3px ring has room instead of being clipped by the
-   scroll container's edge. 6 + 4 is the 10px the section used to carry. */
+/* The column's own padding is split between the section and the scroll container
+   inside it, so a card sits exactly where it sat before the column could scroll,
+   and the fresh card's 3px ring has room instead of being clipped by the scroll
+   container's edge. 6 + 4 is the 10px the section used to carry. */
 .board-column {
   min-height: 270px;
   border: 1px solid var(--lc-line);
@@ -519,23 +519,28 @@ button:disabled {
   font-family: var(--lc-type-code-font);
 }
 
-/* Each lane scrolls independently (screen-specs.md § Board). Bounding it here is
-   also what lets the lane render only the cards this box can show. */
+/* Each column scrolls independently (screen-specs.md § Board). Bounding it here
+   is also what lets the column render only the cards this box can show.
+
+   The reserve in --lc-size-board-stack is the chrome above and below a column at
+   the default window: toolbar, trace strip, board heading, and the grid's own
+   padding. Under a short board the cap never binds and nothing moves; over a tall
+   one the column scrolls inside it instead of stretching the page. */
 .board-stack {
   max-height: var(--lc-size-board-stack);
   padding: 3px 4px 0;
   overflow-y: auto;
 }
 
-/* Sized to the whole lane, so the scrollbar tells the truth about a lane whose
-   cards are not all rendered. */
+/* Sized to the whole column, so the scrollbar tells the truth about a column
+   whose cards are not all rendered. */
 .board-sizer {
   position: relative;
 }
 
-/* Cards are placed by the lane rather than stacked by flow: the lane knows every
-   card's offset (boardGeometry.ts), including the ones it is not rendering.
-   The pinned height is what makes those offsets exact. */
+/* Cards are placed by the column rather than stacked by flow: the column knows
+   every card's offset (boardGeometry.ts), including for the cards it is not
+   rendering. The pinned height is what makes those offsets exact. */
 .ticket-row {
   position: absolute;
   right: 0;
@@ -589,7 +594,7 @@ button:disabled {
 }
 
 /* The footer never wraps (screen-specs.md § Board), which is also what keeps a
-   fresh card to one known height for the lane to place cards by. */
+   fresh card to one known height for the column to place cards by. */
 .actor {
   grid-column: 1 / -1;
   overflow: hidden;
@@ -624,8 +629,16 @@ button:disabled {
   margin-left: 6px;
   border-radius: 50%;
   background: var(--lc-accent-agent);
-  animation: lc-pulse 900ms ease-out 2;
   vertical-align: middle;
+}
+
+/* Only while the change is still new (freshness.ts `isPulsing`). A column
+   renders only the cards it can show, so a card scrolled out and back remounts,
+   and an animation on the dot itself would beat again for a change the human saw
+   minutes ago. */
+.pulse-dot.pulsing {
+  animation: lc-pulse var(--lc-motion-pulse-duration) ease-out
+    var(--lc-motion-pulse-iterations);
 }
 
 .ticket-row.human-fresh .pulse-dot {
