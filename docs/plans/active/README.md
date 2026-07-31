@@ -4,7 +4,7 @@ product: LongClaw
 status: active
 milestone: "M5 — Feature-complete v0 (Steps 11–15)"
 written: 2026-08-01
-applies_to: "main @ 6a3925a"
+applies_to: "wave-1-ticket-domain-and-surfaces @ eb54bac"
 ---
 
 # Active plans
@@ -13,9 +13,9 @@ One file per piece of pending work. Each is self-contained: it carries its own
 working rules, the current behaviour with file and line, what to change, and what
 has to pass before it is done. Pick one and execute it without reading the others.
 
-**There are no active plans right now, and Step 11 is done.** Every plan below is
-closed, Wave 0 is clear, and M4 closed on 2026-07-31 when the founder decided to
-proceed without the pilot sessions
+**Six plans are open — 24 through 29 — and together they are Step 12.** Everything
+before them is closed, Wave 0 is clear, and M4 closed on 2026-07-31 when the
+founder decided to proceed without the pilot sessions
 ([decision](../../pilot/response-memo.md#direction-decision-2026-07-31-superseded-the-same-day)).
 Step 11 is [Wave 1 of the backlog](../../backlog/v0-backlog.md) — V0-08 through
 V0-19 — and all twelve are now closed: V0-19 as plan 11, V0-18 as plan 12, V0-17
@@ -33,15 +33,32 @@ divergence, an open edge, or a spec the ADRs contradict; the backlog's must-pass
 column is where those live, and it is worth reading before assuming a surface is
 finished rather than merely shipped.
 
-**Step 12 — [Wave 2](../../backlog/v0-backlog.md), keyboard-first — is untouched.**
-No plan exists for any of it. Write one here when you pick an item up.
+**Step 12 — [Wave 2](../../backlog/v0-backlog.md), keyboard-first — is planned but
+unstarted.** V0-20 through V0-25 are plans 24–29 below, written together on
+2026-08-01 at the founder's request rather than one at a time. That is a deliberate
+departure from the rule further down this file ("write a plan when you pick an item
+up"), and it has a cost worth knowing: the later a plan sits in that list, the more
+its "what exists today" section is a prediction. **Plans 27, 28 and 29 describe a
+codebase that plans 24–26 have not built yet.** Re-verify every file:line before
+editing, and amend the plan rather than working around it when it is wrong.
 
-Two things to read first, once, before Step 12 code:
+Three things to read first, once, before Step 12 code:
 
 - [`AGENTS.md`](../../../AGENTS.md) § Toolchain and the gate — the shims, the traps,
   and why a red native watcher is an environment suspect before a code one.
+- [`keyboard-focus-map.md`](../../design/prototype/keyboard-focus-map.md) — the
+  normative document for all six items, including its § Not bound in v0
+  (deliberate), which is as much of the spec as the tables are.
 - [The retired handoff](../completed/pending-work-after-step-10.md) § The one thing
   worth carrying forward — the unvalidated order above, in its original words.
+
+**One trap that costs an hour if you find it the hard way.**
+[`docs/mvp_plan_order.md` § Step 12](../../mvp_plan_order.md) was never
+ADR-propagated: it still lists an `assign` palette command (removed by ADR 0001)
+and still says to "reserve but do not expose" the terminal command, which the
+backlog must-pass and three design docs all contradict. The design docs, the ADRs
+and the backlog's must-pass column govern; the step plan describes intent and is
+stale on both points. Plan 25 says so at length.
 
 ## Order
 
@@ -74,6 +91,12 @@ marked independent can be done at any time by anyone.
 | ~~21~~ | ~~Filter, sort, and grouping behaviour~~ — **done 2026-08-01**, [outcome](../completed/21-filter-and-grouping.md) | V0-15 | Closed, and it is the last narrowing seam the surfaces get. The filter is `src/filtering.ts`, called once in `App.tsx` before grouping, so both surfaces receive one already-narrowed array. Read its outcome before V0-23 (the `Esc` ladder now has its last rung) and before V0-24 (the header filter and search deliberately match different things). |
 | ~~22~~ | ~~Full ticket create surface~~ — **done 2026-08-01**, [outcome](../completed/22-full-create-surface.md) | V0-16 | Closed, and it closes Wave 1. There are two create surfaces now: quick create is title + status, and `src/CreatePanel.tsx` is the panel in create mode with every approved field. Read its outcome before V0-23 — the create panel takes its own `Esc` and `⌘↵` rung, and it found that a `<button>` in a `<form>` submits it. |
 | ~~23~~ | ~~Retry must not re-send a stale hash~~ — **done 2026-08-01**, [outcome](../completed/23-retry-must-not-resend-a-stale-hash.md) | —       | Closed. A defect found while Wave 1 was being built, not a backlog row: `mutate()` offered a Retry on every failed write, and on a conflict the `expectedHash` that Retry re-sends is stale by definition, so the button could never succeed. A conflict now says what changed and who changed it and offers **Open ticket** instead. Read its outcome before V0-29 — it names four things it deliberately left there, including the fact that a board-raised conflict still cannot reach `ConflictBanner`. |
+| **24** | [Single-key actions on the focused ticket](24-single-key-actions.md) | V0-22 | **Open. Do this one first.** Wave 1 shipped exactly one single-key action — `P`, scoped to `.board-grid` — and the map specifies four across two surfaces. `S` and `C` are bound nowhere and the list has no `P`. More importantly it builds the rule the rest of the wave rests on: single-key shortcuts suspend while an input has focus, chords do not. Read its note on the must-pass before starting — taken literally that clause cannot be met. |
+| **25** | [The `⌘K` palette shell and the root command set](25-command-palette-shell.md) | V0-20 | Open. The twelve root commands, the visible-but-disabled `PHASE 2` terminal row, and the palette's rung in the `Esc` ladder. It resolves three spec conflicts in writing, including that `mvp_plan_order.md` § Step 12 is stale and that shipping twelve commands rather than eight executes proposal P1 as approved-by-default. |
+| **26** | [Palette sub-modes](26-palette-sub-modes.md) | V0-21 | Open. Five of the six sub-modes — status, priority, ordering, theme, project — the crumb, and `Esc` stepping back to root rather than out. Search is 27; leave it the seam. The status and priority option lists already exist in `src/metaOptions.tsx`; do not build a third. |
+| **27** | [The search surface over the existing index](27-search-surface.md) | V0-24 | Open, and it closes Wave 1's last open edge. `search_tickets` has been registered and tested since Step 6 and **has never had a caller**. Search is the sixth sub-mode, not a screen. Three gaps it has to decide: the palette's missing empty and no-result states, the silent 100-result cap, and what a degraded ticket looks like in a result row. |
+| **28** | [Navigation, focus return, and the escape contract](28-focus-and-the-escape-contract.md) | V0-23 | Open. Most of this already works; what does not exist is a test that would notice it breaking, which is what the must-pass actually asks for. It also unifies the two mechanisms the `Esc` ladder currently runs on and fixes the two holes named below. Read its § One thing not to add before touching reordering. |
+| **29** | [The shortcut reference](29-shortcut-reference.md) | V0-25 | Open, and last — its must-pass is a two-way check and every earlier item changes what it checks. **Owner is Design, and there is no design**: no trigger, no placement, no anatomy anywhere in the bundle. Its first deliverable is a decision about what the reference even is; `components.md:298-299` implies the palette already is one. |
 
 Dependencies worth knowing:
 
@@ -283,6 +306,41 @@ Dependencies worth knowing:
   [23's outcome](../completed/23-retry-must-not-resend-a-stale-hash.md) names.
   `handles` is unchanged and still wins over all of this: a surface that owns its
   own conflicts keeps owning them.
+
+Wave 2's own dependencies, which are tighter than Wave 1's were:
+
+- **24 goes first, and 29 goes last, and both for the same reason.** 24 builds the
+  rule the whole wave rests on — *single-key shortcuts suspend while an input has
+  focus, chords do not* (`keyboard-focus-map.md:13-15`) — which today exists only as
+  an ad-hoc `closest("input, textarea, …")` call in `WriteFeedback.tsx:83-86`. The
+  palette is a chord that must stay live inside its own text input, so 25 cannot be
+  reasoned about until that rule is a tested seam. 29 is a two-way check against the
+  implemented set, and every item before it changes that set.
+- **25 → 26 → 27 is one surface built in three passes.** The shell, then the
+  sub-mode machinery, then search as the sixth sub-mode. Search is **not** a
+  separate screen: `screen-specs.md` enumerates every v0 modal and there is no
+  search surface among them.
+- **28 is late on purpose, and it costs something.** Its must-pass names the
+  palette, so the palette has to exist before the gate can be met. The price is that
+  two known `Esc` holes survive until then — quick create and the ticket panel can
+  be mounted at once so one press closes both, and `Esc` in the panel's title
+  textarea both reverts the draft and closes the panel. Plans 25–27 are told not to
+  make them worse; 28 owns fixing them.
+- **Three design gaps are named in the plans rather than discovered during them.**
+  The palette has **no empty and no no-result state** anywhere in the design bundle
+  (25 and 27 derive theirs from `states.md:38-42` and say so); `SEARCH_LIMIT = 100`
+  truncates silently with no designed affordance (27 decides); and **V0-25 has no
+  design at all** — no trigger, no placement, no anatomy — which is why 29's first
+  deliverable is a decision and its owner column says Design.
+- **Do not add a keyboard path for reordering.** `keyboard-focus-map.md:158-161`
+  puts it outside v0 deliberately and names `S` as the path that exists across
+  columns. [20's outcome](../completed/20-board-ordering-and-drag.md) asks V0-23 to
+  read that paragraph before touching it: adding one contradicts an approved line
+  rather than filling a hole in it.
+- **V0-24 closes Wave 1's last open edge.** `search_tickets` already returns
+  archived tickets and a Rust test pins it, but the `· archived` tag
+  (`screen-specs.md:154`, `:236`) was left unbuilt by V0-11 because there was no
+  search UI to hang it on. The row carries `archivedAt`; 27 renders it.
 - **09 and 10 are both closed, and no plan is open.** The vanished-path overflow bug
   is fixed in `collect_event`, and the npm-launched native watcher timeout that
   blocked local `npm run verify` no longer reproduces — closed without a fix, so
@@ -291,17 +349,19 @@ Dependencies worth knowing:
   anything. Wave 0 is clear and M4 is closed, so no code and no gate stood between
   this repository and Step 11, which is now behind it.
 
-## Waves 2–3 are unplanned, and Wave 1 no longer is
+## Wave 3 is unplanned, and Waves 1–2 no longer are
 
-Wave 1 is closed. Waves 2–3 of [the backlog](../../backlog/v0-backlog.md) — 19 of
-its 40 items — still have no plans here, and the original reason is long gone: the
-guardrail was satisfied and the pilot will not invalidate anything, because it was
-skipped.
+Wave 1 is closed and Wave 2 is planned above. Wave 3 of
+[the backlog](../../backlog/v0-backlog.md) — 13 of its 41 items — still has no
+plans here, and the original reason is long gone: the guardrail was satisfied and
+the pilot will not invalidate anything, because it was skipped.
 
-What remains is ordinary sequencing. Write a plan when you pick an item up, not
-nineteen plans in advance — the backlog rows already carry the must-pass check and the
-reason each exists, which is most of what a plan needs. Take them roughly in
-order; that order is final rather than provisional, and
+What remains is ordinary sequencing. Wave 2 was written all at once on 2026-08-01
+because the founder asked for it; **that is the exception, and the § Step 12 note
+above records what it costs.** For Wave 3, write a plan when you pick an item up,
+not thirteen plans in advance — the backlog rows already carry the must-pass check
+and the reason each exists, which is most of what a plan needs. Take them roughly
+in order; that order is final rather than provisional, and
 [the retired handoff](../completed/pending-work-after-step-10.md) says what that
 is worth, which is not much: it was never tested against a user.
 
