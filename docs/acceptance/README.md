@@ -39,6 +39,7 @@ npm run perf:rust     # the performance budgets, ignored by default
 | The project-key grammar is now a documented contract with a shared fixture, and a refused key must leave the chosen folder untouched | The reported create-project dead end passed every existing check: no test exercised project creation from the UI, and the two key validators were free to disagree. The [resolved report](../plans/completed/project-key-derivation-bug.md) records the analysis | Landed. Covered by `src/projectKey.test.ts`, `src/CreateProjectForm.test.tsx`, `src-tauri/tests/project_key_grammar.rs`, and two refusal tests in `src-tauri/tests/storage_integration.rs` |
 | Step 1 of [the round-trip scenario](agent-round-trip.md) now walks a refused create form before a valid one, and asserts the native picker never opens on a key the app would refuse | The bug's worst part was ordering: the user answered a native dialog before learning the form was invalid. The scenario started at a valid form and so never exercised the refusal | Landed, release-blocking |
 | The project name is held to one rule at creation and at rename | Creation accepted a name the rename surface refuses. Two rules for one concept is the same drift that produced the key bug, one field over | Landed. Covered by the name cases in `every_refused_create_field_leaves_the_folder_untouched` and the form's own cap |
+| Watcher recovery now covers focused-window sleep/wake, event overflow, and removed/restored roots | FSEvents is an invalidation stream, and macOS does not deliver a useful Tauri `Resumed` callback while the window stays focused | Landed. Covered by watcher integration tests plus a 2026-07-31 focused-window manual soak on macOS 26.5.2 |
 
 ## Scenarios still required before M6
 
@@ -49,7 +50,6 @@ should land together.
 | Required scenario | Covers | Backlog item |
 |---|---|---|
 | Concurrency and race stress: interleaved app and external writes at the validation/replace boundary, plus rapid external bursts | The silent-overwrite risk and the watcher's behaviour under bursts. Currently the most severe untested path in the product | V0-01, V0-33 |
-| Watcher recovery: sleep/wake with the window focused, event overflow, removed and restored root | FSEvents dropping history. Today the only recovery trigger is a frontend focus handler | V0-04 |
 | Event-loss recovery: a dropped project event and a reordered one | Silent staleness — the board looking live while being wrong | V0-02 |
 | Index loss: delete the index, corrupt the index, reopen, rebuild twice | The "index is disposable" promise, including that rebuild is idempotent | V0-30 |
 | Keyboard-only ticket lifecycle: create, find, open, update, and navigate without a pointer | The product's speed claim, and that focus is never lost behind a panel, modal, menu, or the palette | V0-20 – V0-25 |

@@ -136,3 +136,45 @@ behaviour, and add the run to
 - **Sandboxing interacts with this.** The register's open distribution question
   (security-scoped bookmarks) affects whether a path is still accessible after a wake.
   Out of scope here, but note anything you observe.
+
+## Outcome
+
+Completed 2026-07-31 on branch `fix/05-watcher-recovery`.
+
+What shipped:
+
+- The production watcher now installs a macOS `NSWorkspaceDidWakeNotification`
+  observer behind `platform/macos`, owned by the project watcher and removed on
+  watcher teardown.
+- Wake and overflow signals flow through the watcher worker and call
+  `ProjectEngine::rebuild`, reusing the snapshot recovery boundary from item 02.
+- Resume and overflow recoveries are coalesced across the debounce window, while a
+  missing project root still reports `ProjectUnavailable` immediately rather than
+  returning a stale live-looking snapshot.
+- `notify` errors are treated as overflow/dropped-event recovery triggers, and
+  `LONGCLAW_LOCAL_DIAGNOSTIC` emits a local stdout diagnostic when enabled.
+- The frontend already had the stale-board affordance through
+  `ProjectUnavailable`; the store now marks the project unreachable and surfaces
+  the unavailable-folder error when the watcher reports it.
+
+Automated proof:
+
+- `an_overflow_recovery_converges_on_disk_state`
+- `a_removed_root_can_be_restored_and_reconciled`
+- `recovery_triggers_close_together_emit_one_rebuild`
+- `coalescing_does_not_mask_a_root_that_vanished`
+- Existing burst and self-write watcher tests still pass.
+- `npm run verify` passed, including `npm run test:watcher`.
+
+Manual proof:
+
+- 2026-07-31 on macOS 26.5.2 (build 25F84), a real focused-window sleep/wake soak
+  was run. External ticket edits before wake, after several wake cycles, and after
+  a longer sleep all appeared on the board without clicking away, refreshing, or
+  restarting.
+
+What remains:
+
+- Large synchronous rebuild work is still open as V0-05 / plan 06. This plan makes
+  wake recovery correct; plan 06 is what keeps large rebuilds from blocking command
+  handling.

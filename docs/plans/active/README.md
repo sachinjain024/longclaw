@@ -29,19 +29,18 @@ marked independent can be done at any time by anyone.
 | ~~02~~ | ~~Recover from an event-sequence gap~~ — **done 2026-07-31**, [outcome](../completed/02-event-sequence-gap.md) | V0-02 | Closed. It added `ProjectSnapshot.sequence`, which is the snapshot-reconcile boundary item 05 needs. |
 | ~~03~~ | ~~Attribute a change from new records only~~ — **done 2026-07-31**, [outcome](../completed/03-attribution-from-new-records.md) | V0-07 | Closed. It restructured the tail of `process_burst`, which 05 and 06 both touch. |
 | ~~04~~ | ~~Validate the project prefix on ingest~~ — **done 2026-07-31**, [outcome](../completed/04-project-prefix-validation.md) | V0-03 | Closed. It changed the signatures 05 and 06 will be holding: `read_ticket_file`, `TicketIndex::rebuild`, and both `ingest` methods now take the project key. |
-| 05  | [Recover the watcher over sleep, wake, and overflow](05-watcher-recovery.md)   | V0-04   | Larger platform work. Reuses the snapshot recovery path that 02 builds.                                                |
+| ~~05~~ | ~~Recover the watcher over sleep, wake, and overflow~~ — **done 2026-07-31**, [outcome](../completed/05-watcher-recovery.md) | V0-04 | Closed. It added native macOS wake recovery, overflow recovery, coalescing, and explicit unavailable reporting. |
 | 06  | [Move heavy work off the command thread](06-blocking-workers.md)               | V0-05   | Restructures engine orchestration, so it goes after the correctness fixes rather than moving code out from under them. |
 | 07  | [Virtualize the board and list](07-board-virtualization.md)                    | V0-06   | Independent. Must land before Wave 1's list surface, which is what renders 5,000 rows.                                 |
 | 08  | [Triage the dependabot advisories](08-dependabot-triage.md)                    | —       | Independent. Do it whenever; it may turn out to be nothing.                                                            |
 
 Dependencies worth knowing:
 
-- **02 is done, and 05 inherits it.** `ProjectSnapshot.sequence` is the boundary a
-  snapshot reconcile resumes from, and `reconciling`/`reconcileFailed` in the store
-  are the recovery path. Item 05 should raise the same flag for a watcher gap rather
-  than inventing a second way to say "the board may be stale".
-- **05 and 06 both touch `process_burst`** in
-  `apps/desktop/src-tauri/src/engine.rs`, and 03 has already reshaped its tail: the
+- **05 is done, and 06 inherits it.** Wake and overflow recovery now travel through
+  `ProjectEngine::rebuild`, and resume/overflow rebuilds are coalesced. Item 06
+  must preserve that coalescing when rebuild work moves off the command thread.
+- **06 touches `process_burst`** in `apps/desktop/src-tauri/src/engine.rs`, and 03
+  has already reshaped its tail: the
   previous row is read once, before the ingest, because attribution needs the record
   id the ingest is about to overwrite. Do not reorder that. 04 added one more thing
   to it: the project key is read once at the top of the burst, so every path in the

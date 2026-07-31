@@ -32,7 +32,6 @@ is release-blocking.
 
 | Risk | Owner | Retired by | Must pass before release |
 |---|---|---|---|
-| FSEvents drops history over sleep, wake, overflow, or a removed root, and macOS gives no `Resumed` callback while the window stays focused | Platform | V0-04 | A real sleep/wake soak with the window focused, plus an overflow injection, both reconciling to disk state; an unavailable watcher says so |
 | Local use acquires an account, network, or telemetry dependency | Release | Step 16 audit | A binary and runtime audit finds no telemetry, no unnecessary network call, and no overbroad filesystem permission; the app works offline with no account |
 
 ## High
@@ -72,6 +71,7 @@ a later change that removes the test is visibly removing a release gate.
 
 | Risk | Owner | Retired by | Test that holds it |
 |---|---|---|---|
+| FSEvents drops history over sleep, wake, overflow, or a removed root, and macOS gives no `Resumed` callback while the window stays focused | Platform | V0-04, [plan 05](plans/completed/05-watcher-recovery.md) | `an_overflow_recovery_converges_on_disk_state`, `a_removed_root_can_be_restored_and_reconciled`, `recovery_triggers_close_together_emit_one_rebuild`, and `coalescing_does_not_mask_a_root_that_vanished` in `tests/watcher_integration.rs`; `npm run test:watcher`; and a 2026-07-31 focused-window sleep/wake soak on macOS 26.5.2 |
 | A ticket directory carries a prefix that is not this project's key and is indexed as if it were | Format | V0-03, [plan 04](plans/completed/04-project-prefix-validation.md) | `a_ticket_directory_from_another_project_is_shown_and_never_claimed` in `tests/storage_integration.rs`, `renaming_a_ticket_directory_into_another_project_s_key_degrades_and_renaming_back_recovers` in `tests/watcher_integration.rs`, the `invalid-key-foreign-project-prefix` fixture, and four unit tests in `core/storage.rs`. Confirmed to fail with the ownership rule removed |
 | A change is attributed to the wrong actor, or an agent is presented as a human | Domain | V0-07, [plan 03](plans/completed/03-attribution-from-new-records.md) | `an_external_write_that_appended_no_record_is_actor_unknown`, `rewritten_history_is_actor_unknown_rather_than_a_guess`, and `a_newly_appended_record_is_credited_to_the_actor_who_wrote_it` in `tests/watcher_integration.rs`, over six unit tests in `core/attribution.rs`. Confirmed to fail against the newest-record rule. The round-trip scenario's § 4 hand walkthrough is still outstanding |
 | A dropped project event leaves the UI silently stale while still looking live | Frontend | V0-02, [plan 02](plans/completed/02-event-sequence-gap.md) | `stops applying events when one goes missing, and asks for a snapshot once`, `converges on the state it would have had if nothing was lost`, and four more in `apps/desktop/src/state.test.ts` and `App.test.tsx`. Confirmed to fail against the previous `applyEvent` |
