@@ -191,12 +191,15 @@ impl ProjectEngine {
     }
 
     pub fn snapshot(&self) -> ProjectSnapshot {
+        // Before the rows, deliberately. See `ProjectSnapshot::sequence`.
+        let sequence = self.sequence.load(Ordering::Relaxed);
         let index = self.index.snapshot();
         ProjectSnapshot {
             project: self.project(),
             tickets: index.tickets,
             generation: index.generation,
             rebuilt_in_ms: index.rebuilt_in_ms,
+            sequence,
         }
     }
 
@@ -205,6 +208,8 @@ impl ProjectEngine {
         if !self.root.is_dir() {
             return Err(self.report_unavailable());
         }
+        // Before the rows, deliberately. See `ProjectSnapshot::sequence`.
+        let sequence = self.sequence.load(Ordering::Relaxed);
         // Clear first, so a rebuild cannot pass by keeping stale rows.
         self.index.clear();
         let index = self.index.rebuild(&self.root)?;
@@ -218,6 +223,7 @@ impl ProjectEngine {
             tickets: index.tickets,
             generation: index.generation,
             rebuilt_in_ms: index.rebuilt_in_ms,
+            sequence,
         };
         if emit {
             self.emit(ProjectEvent::IndexRebuilt {

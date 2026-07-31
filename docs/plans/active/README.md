@@ -26,7 +26,7 @@ marked independent can be done at any time by anyone.
 | --- | ------------------------------------------------------------------------------ | ------- | ---------------------------------------------------------------------------------------------------------------------- |
 | 00  | [Confirm CI on main](00-confirm-ci-on-main.md)                                 | —       | Five minutes, and it tells you whether the tree you are about to build on is green. Do it first.                       |
 | ~~01~~ | ~~Close the atomic-replace race~~ — **done 2026-07-31**, [outcome](../completed/01-atomic-replace-race.md) | V0-01 | Closed. Read its outcome before starting 06: the write path moved, and the test seam it added assumes writes stay on the calling thread. |
-| 02  | [Recover from an event-sequence gap](02-event-sequence-gap.md)                 | V0-02   | Silent staleness, frontend-only, self-contained. Cheapest severe fix on the list.                                      |
+| ~~02~~ | ~~Recover from an event-sequence gap~~ — **done 2026-07-31**, [outcome](../completed/02-event-sequence-gap.md) | V0-02 | Closed. It added `ProjectSnapshot.sequence`, which is the snapshot-reconcile boundary item 05 needs. |
 | 03  | [Attribute a change from new records only](03-attribution-from-new-records.md) | V0-07   | Wrong-actor credit breaks the shared record. Touches the same burst loop as 05, so do it while that code is fresh.     |
 | 04  | [Validate the project prefix on ingest](04-project-prefix-validation.md)       | V0-03   | Small and isolated. Completes the key work Step 10 started.                                                            |
 | 05  | [Recover the watcher over sleep, wake, and overflow](05-watcher-recovery.md)   | V0-04   | Larger platform work. Reuses the snapshot recovery path that 02 builds.                                                |
@@ -36,8 +36,10 @@ marked independent can be done at any time by anyone.
 
 Dependencies worth knowing:
 
-- **02 before 05.** Item 05 needs a way to say "reconcile from a snapshot"; item 02
-  builds it. Doing 05 first means building it twice.
+- **02 is done, and 05 inherits it.** `ProjectSnapshot.sequence` is the boundary a
+  snapshot reconcile resumes from, and `reconciling`/`reconcileFailed` in the store
+  are the recovery path. Item 05 should raise the same flag for a watcher gap rather
+  than inventing a second way to say "the board may be stale".
 - **03 and 05 and 06 all touch `process_burst`** in
   `apps/desktop/src-tauri/src/engine.rs`. Sequential is easier than parallel here.
 - **06 inherits two things from 01.** The write path an edit takes is now

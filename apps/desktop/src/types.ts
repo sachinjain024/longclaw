@@ -192,6 +192,13 @@ export interface ProjectSnapshot {
   tickets: TicketRow[];
   generation: number;
   rebuiltInMs: number;
+  /**
+   * The event sequence these rows are current as of, so a frontend recovering
+   * from a dropped event knows which incremental events the snapshot already
+   * accounts for. Rust reads it before the rows, so it can only be too low — a
+   * redundant re-apply, never a skipped change.
+   */
+  sequence: number;
 }
 
 export interface SearchResult {

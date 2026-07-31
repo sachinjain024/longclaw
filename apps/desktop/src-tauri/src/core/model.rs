@@ -191,6 +191,15 @@ pub struct ProjectSnapshot {
     pub tickets: Vec<TicketRow>,
     pub generation: u64,
     pub rebuilt_in_ms: f64,
+    /// The event sequence these rows are current as of.
+    ///
+    /// A frontend that missed an event recovers by snapshot, and then has to know
+    /// which incremental events the snapshot already accounts for. It is read
+    /// *before* the rows are, so it can only ever be too low — which costs a
+    /// redundant re-apply of an event the snapshot already contains, and those are
+    /// idempotent. Reading it after the rows could skip an event that is not in
+    /// them, which is the failure this whole field exists to prevent.
+    pub sequence: u64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -406,6 +415,7 @@ mod json_contract_tests {
             tickets: vec![indexed(), degraded()],
             generation: 7,
             rebuilt_in_ms: 12.5,
+            sequence: 41,
         }
     }
 

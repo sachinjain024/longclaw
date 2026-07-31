@@ -45,7 +45,76 @@ beforeEach(() => {
     externalMarks: {},
     streamFrames: [],
     loading: false,
+    reconciling: false,
     error: undefined,
+  });
+});
+
+describe("recovering from a lost project event", () => {
+  const project = {
+    id: "project-fixture",
+    name: "Fixture Project",
+    rootPath: "/tmp/LongClaw Fixture",
+    key: "LC",
+    theme: "indigo",
+    starred: false,
+    reachable: true,
+  };
+
+  it("fetches one snapshot, says it is reconciling, and resumes", async () => {
+    vi.mocked(api.reconcileProject).mockResolvedValue({
+      project,
+      tickets: [],
+      generation: 9,
+      rebuiltInMs: 1,
+      sequence: 12,
+    });
+    useLongClawStore.setState({
+      projects: [project],
+      activeProjectId: project.id,
+      lastSequence: 4,
+      reconciling: true,
+      loading: true,
+    });
+
+    render(<App />);
+
+    expect(screen.getByText("reconciling")).toBeTruthy();
+    await vi.waitFor(() => {
+      expect(useLongClawStore.getState().reconciling).toBe(false);
+      expect(useLongClawStore.getState().loading).toBe(false);
+    });
+    expect(api.reconcileProject).toHaveBeenCalledTimes(1);
+    expect(api.reconcileProject).toHaveBeenCalledWith(project.id);
+    expect(useLongClawStore.getState().lastSequence).toBe(12);
+  });
+
+  it("surfaces a failed snapshot instead of retrying behind the user's back", async () => {
+    vi.mocked(api.reconcileProject).mockRejectedValue({
+      code: "project_unavailable",
+      message: "Project folder is unavailable: /tmp/LongClaw Fixture",
+      recoverable: true,
+    });
+    useLongClawStore.setState({
+      projects: [project],
+      activeProjectId: project.id,
+      lastSequence: 4,
+      reconciling: true,
+      loading: true,
+    });
+
+    render(<App />);
+
+    await vi.waitFor(() => {
+      expect(useLongClawStore.getState().reconciling).toBe(false);
+    });
+    expect(api.reconcileProject).toHaveBeenCalledTimes(1);
+    expect(useLongClawStore.getState().error).toMatchObject({
+      code: "project_unavailable",
+    });
+    // The boundary is untouched, so the staleness is still known about rather
+    // than papered over by a failed recovery.
+    expect(useLongClawStore.getState().lastSequence).toBe(4);
   });
 });
 

@@ -47,6 +47,7 @@ export function App() {
   const lastSequence = useLongClawStore((state) => state.lastSequence);
   const lastEvent = useLongClawStore((state) => state.lastEvent);
   const loading = useLongClawStore((state) => state.loading);
+  const reconciling = useLongClawStore((state) => state.reconciling);
   const error = useLongClawStore((state) => state.error);
   const setProjects = useLongClawStore((state) => state.setProjects);
   const upsertProject = useLongClawStore((state) => state.upsertProject);
@@ -63,6 +64,7 @@ export function App() {
   const applySnapshot = useLongClawStore((state) => state.applySnapshot);
   const applyEvent = useLongClawStore((state) => state.applyEvent);
   const applyLocalWrite = useLongClawStore((state) => state.applyLocalWrite);
+  const reconcileFailed = useLongClawStore((state) => state.reconcileFailed);
   const externalMarks = useLongClawStore((state) => state.externalMarks);
   const reviewTicket = useLongClawStore((state) => state.reviewTicket);
   const sweepMarks = useLongClawStore((state) => state.sweepMarks);
@@ -206,6 +208,46 @@ export function App() {
     }, 1_000);
     return () => clearInterval(timer);
   }, [hasMarks, sweepMarks]);
+
+  // A lost event cannot be caught up incrementally, so the store stops applying
+  // events and says so; the snapshot is fetched here, because asking Rust for the
+  // truth is the app's job rather than the cache's (ADR 0006). Exactly one request
+  // goes out: the flag stays raised until a snapshot lands, and every event that
+  // arrives meanwhile is dropped rather than queued.
+  useEffect(() => {
+    if (!reconciling) return;
+    if (!activeProjectId) {
+      reconcileFailed();
+      return;
+    }
+    let active = true;
+    void reconcileProject(activeProjectId)
+      .then((snapshot) => {
+        if (!active) return;
+        // Both here rather than in a `finally`: applying the snapshot lowers
+        // `reconciling`, which re-runs this effect and marks this pass inactive
+        // before a `finally` would ever get to run.
+        applySnapshot(snapshot);
+        setLoading(false);
+      })
+      .catch((error) => {
+        if (!active) return;
+        // Surfaced, not retried. The next gap asks again; a timer here would
+        // rebuild the same silent-failure problem one layer up.
+        setError(normalizeError(error));
+        reconcileFailed();
+      });
+    return () => {
+      active = false;
+    };
+  }, [
+    reconciling,
+    activeProjectId,
+    applySnapshot,
+    reconcileFailed,
+    setError,
+    setLoading,
+  ]);
 
   useEffect(() => {
     const reconcile = () => {
@@ -517,9 +559,17 @@ export function App() {
                   </div>
                   <div className="toolbar-actions">
                     <span
-                      className={loading ? "disk-state busy" : "disk-state"}
+                      className={
+                        loading || reconciling
+                          ? "disk-state busy"
+                          : "disk-state"
+                      }
                     >
-                      {loading ? "reading" : "watching"}
+                      {reconciling
+                        ? "reconciling"
+                        : loading
+                          ? "reading"
+                          : "watching"}
                     </span>
                     <button
                       className="secondary"

@@ -24,6 +24,19 @@ if (changedEnvelope.event.type !== "ticketChanged") {
 }
 const initialTicket = changedEnvelope.event.data.ticket;
 
+/**
+ * Applies an envelope as though every event before it had already arrived.
+ *
+ * The fixture envelopes carry sequences 1–4, and a store that has only ever seen
+ * sequence 0 would rightly call sequence 3 a gap. A test about acknowledgement
+ * decay or degraded rows is not a test about gaps, so it states its precondition
+ * instead of relying on a store that never checked.
+ */
+function applyInSequence(envelope: StreamEnvelope, observedAt?: number) {
+  useLongClawStore.setState({ lastSequence: envelope.sequence - 1 });
+  useLongClawStore.getState().applyEvent(envelope, observedAt);
+}
+
 describe("Rust project-event JSON applied to visible state", () => {
   beforeEach(() => {
     useLongClawStore.setState({
@@ -37,23 +50,20 @@ describe("Rust project-event JSON applied to visible state", () => {
       externalMarks: {},
       streamFrames: [],
       loading: false,
+      reconciling: false,
       error: undefined,
     });
   });
 
   it("removes a row for an externally deleted ticket.md", () => {
-    useLongClawStore
-      .getState()
-      .applyEvent(ipcContract.projectEventEnvelopes.ticketRemoved);
+    applyInSequence(ipcContract.projectEventEnvelopes.ticketRemoved);
 
     expect(useLongClawStore.getState().tickets).toEqual([]);
     expect(useLongClawStore.getState().lastSequence).toBe(2);
   });
 
   it("shows the real unavailable project path", () => {
-    useLongClawStore
-      .getState()
-      .applyEvent(ipcContract.projectEventEnvelopes.projectUnavailable);
+    applyInSequence(ipcContract.projectEventEnvelopes.projectUnavailable);
 
     expect(useLongClawStore.getState().error).toMatchObject({
       code: "project_unavailable",
@@ -63,9 +73,7 @@ describe("Rust project-event JSON applied to visible state", () => {
   });
 
   it("keeps an unreadable ticket visible with its diagnostic", () => {
-    useLongClawStore
-      .getState()
-      .applyEvent(ipcContract.projectEventEnvelopes.indexRebuilt);
+    applyInSequence(ipcContract.projectEventEnvelopes.indexRebuilt);
 
     const tickets = useLongClawStore.getState().tickets;
     expect(tickets).toHaveLength(2);
@@ -82,7 +90,7 @@ describe("Rust project-event JSON applied to visible state", () => {
 
   it("carries the attribution an external change arrived with", () => {
     useLongClawStore.setState({ tickets: [] });
-    useLongClawStore.getState().applyEvent(changedEnvelope);
+    applyInSequence(changedEnvelope);
 
     const [ticket] = useLongClawStore.getState().tickets;
     expect(ticket.state).toBe("indexed");
@@ -97,7 +105,7 @@ describe("Rust project-event JSON applied to visible state", () => {
 
   it("acknowledges an agent change until the ticket is reviewed", () => {
     useLongClawStore.setState({ tickets: [] });
-    useLongClawStore.getState().applyEvent(changedEnvelope, OBSERVED_AT);
+    applyInSequence(changedEnvelope, OBSERVED_AT);
 
     expect(useLongClawStore.getState().externalMarks).toEqual({
       "LC-3": {
@@ -114,16 +122,17 @@ describe("Rust project-event JSON applied to visible state", () => {
   });
 
   it("drops the acknowledgement when the ticket file goes away", () => {
-    useLongClawStore.getState().applyEvent(changedEnvelope, OBSERVED_AT);
-    useLongClawStore
-      .getState()
-      .applyEvent(ipcContract.projectEventEnvelopes.ticketRemoved, OBSERVED_AT);
+    applyInSequence(changedEnvelope, OBSERVED_AT);
+    applyInSequence(
+      ipcContract.projectEventEnvelopes.ticketRemoved,
+      OBSERVED_AT,
+    );
 
     expect(useLongClawStore.getState().externalMarks).toEqual({});
   });
 
   it("forgets acknowledgements from another project", () => {
-    useLongClawStore.getState().applyEvent(changedEnvelope, OBSERVED_AT);
+    applyInSequence(changedEnvelope, OBSERVED_AT);
     useLongClawStore.getState().setActiveProjectId("another-project");
 
     expect(useLongClawStore.getState().externalMarks).toEqual({});
@@ -137,7 +146,7 @@ describe("Rust project-event JSON applied to visible state", () => {
   });
 
   it("sweeps decayed acknowledgements", () => {
-    useLongClawStore.getState().applyEvent(changedEnvelope, OBSERVED_AT);
+    applyInSequence(changedEnvelope, OBSERVED_AT);
     useLongClawStore.getState().sweepMarks(OBSERVED_AT + 119_000);
 
     expect(Object.keys(useLongClawStore.getState().externalMarks)).toEqual([
@@ -150,12 +159,145 @@ describe("Rust project-event JSON applied to visible state", () => {
   });
 
   it("ignores an event that arrived out of order", () => {
-    const store = useLongClawStore.getState();
-    store.applyEvent(ipcContract.projectEventEnvelopes.indexRebuilt);
-    store.applyEvent(ipcContract.projectEventEnvelopes.ticketRemoved);
+    applyInSequence(ipcContract.projectEventEnvelopes.indexRebuilt);
+    useLongClawStore
+      .getState()
+      .applyEvent(ipcContract.projectEventEnvelopes.ticketRemoved);
 
     // The removal has a lower sequence than the rebuild, so it does not apply.
     expect(useLongClawStore.getState().tickets).toHaveLength(2);
+    expect(useLongClawStore.getState().lastSequence).toBe(3);
+  });
+
+  it("stops applying events when one goes missing, and asks for a snapshot once", () => {
+    applyInSequence(changedEnvelope);
+    const beforeTheGap = useLongClawStore.getState().tickets;
+
+    // Sequence 2 never arrived. Three is not the next event; it is evidence that
+    // the board is already wrong.
+    useLongClawStore
+      .getState()
+      .applyEvent(ipcContract.projectEventEnvelopes.indexRebuilt);
+
+    expect(useLongClawStore.getState().reconciling).toBe(true);
+    expect(useLongClawStore.getState().tickets).toBe(beforeTheGap);
+    // The high-water mark must not move. Adopting it is how the change nobody
+    // saw becomes unrecoverable.
+    expect(useLongClawStore.getState().lastSequence).toBe(1);
+
+    // Everything that arrives while the snapshot is in flight is dropped, not
+    // queued, so no second recovery is requested and no history applies late.
+    useLongClawStore
+      .getState()
+      .applyEvent(ipcContract.projectEventEnvelopes.projectUnavailable);
+
+    expect(useLongClawStore.getState().reconciling).toBe(true);
+    expect(useLongClawStore.getState().lastSequence).toBe(1);
+    expect(useLongClawStore.getState().error).toBeUndefined();
+  });
+
+  it("converges on the state it would have had if nothing was lost", () => {
+    applyInSequence(changedEnvelope, OBSERVED_AT);
+    const marksBefore = useLongClawStore.getState().externalMarks;
+
+    useLongClawStore
+      .getState()
+      .applyEvent(ipcContract.projectEventEnvelopes.indexRebuilt);
+    expect(useLongClawStore.getState().reconciling).toBe(true);
+
+    const rebuilt = ipcContract.projectEventEnvelopes.indexRebuilt;
+    if (rebuilt.event.type !== "indexRebuilt") {
+      throw new Error(
+        "IPC fixture indexRebuilt envelope has the wrong variant",
+      );
+    }
+    useLongClawStore.getState().applySnapshot({
+      ...rebuilt.event.data.snapshot,
+      sequence: rebuilt.sequence,
+    });
+
+    // The same rows the lost event and the one after it would have produced.
+    expect(useLongClawStore.getState().tickets).toHaveLength(2);
+    expect(useLongClawStore.getState().generation).toBe(7);
+    expect(useLongClawStore.getState().reconciling).toBe(false);
+    // Resumed at the snapshot's own boundary, so the next event applies normally.
+    expect(useLongClawStore.getState().lastSequence).toBe(3);
+    // An agent's acknowledgement is not index state, and recovering the index
+    // must not scrub the ring off a card it just touched.
+    expect(useLongClawStore.getState().externalMarks).toEqual(marksBefore);
+
+    useLongClawStore
+      .getState()
+      .applyEvent(ipcContract.projectEventEnvelopes.projectUnavailable);
+
+    expect(useLongClawStore.getState().lastSequence).toBe(4);
+    expect(useLongClawStore.getState().error).toMatchObject({
+      code: "project_unavailable",
+    });
+  });
+
+  it("treats a late duplicate as reordering rather than a gap", () => {
+    applyInSequence(ipcContract.projectEventEnvelopes.indexRebuilt);
+
+    useLongClawStore
+      .getState()
+      .applyEvent(ipcContract.projectEventEnvelopes.ticketRemoved);
+
+    expect(useLongClawStore.getState().reconciling).toBe(false);
+    expect(useLongClawStore.getState().lastSequence).toBe(3);
+  });
+
+  it("does not read a project switch as a gap", () => {
+    applyInSequence(changedEnvelope);
+
+    // Another project's engine has its own counter, so its sequences say nothing
+    // about this project's.
+    useLongClawStore.getState().applyEvent({
+      ...ipcContract.projectEventEnvelopes.indexRebuilt,
+      projectId: "a-different-project",
+    });
+
+    expect(useLongClawStore.getState().reconciling).toBe(false);
+    expect(useLongClawStore.getState().lastSequence).toBe(1);
+  });
+
+  it("lets the next gap ask again after a failed snapshot request", () => {
+    applyInSequence(changedEnvelope);
+    useLongClawStore
+      .getState()
+      .applyEvent(ipcContract.projectEventEnvelopes.indexRebuilt);
+    expect(useLongClawStore.getState().reconciling).toBe(true);
+
+    useLongClawStore.getState().reconcileFailed();
+
+    expect(useLongClawStore.getState().reconciling).toBe(false);
+    expect(useLongClawStore.getState().loading).toBe(false);
+    // Still no adopted high-water mark, so the staleness is not papered over.
+    expect(useLongClawStore.getState().lastSequence).toBe(1);
+
+    useLongClawStore
+      .getState()
+      .applyEvent(ipcContract.projectEventEnvelopes.projectUnavailable);
+
+    expect(useLongClawStore.getState().reconciling).toBe(true);
+  });
+
+  it("never moves the sequence boundary backwards on an ordinary reconcile", () => {
+    applyInSequence(ipcContract.projectEventEnvelopes.indexRebuilt);
+    const rebuilt = ipcContract.projectEventEnvelopes.indexRebuilt;
+    if (rebuilt.event.type !== "indexRebuilt") {
+      throw new Error(
+        "IPC fixture indexRebuilt envelope has the wrong variant",
+      );
+    }
+
+    // A focus reconcile can carry a boundary read before the events already
+    // applied on top of it. Adopting it would replay them.
+    useLongClawStore.getState().applySnapshot({
+      ...rebuilt.event.data.snapshot,
+      sequence: 1,
+    });
+
     expect(useLongClawStore.getState().lastSequence).toBe(3);
   });
 
@@ -176,6 +318,7 @@ describe("Rust project-event JSON applied to visible state", () => {
       tickets: [initialTicket],
       generation: 1,
       rebuiltInMs: 0,
+      sequence: 0,
     });
     useLongClawStore
       .getState()

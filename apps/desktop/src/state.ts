@@ -26,6 +26,16 @@ interface LongClawState {
   externalMarks: ExternalMarks;
   streamFrames: StreamFrame[];
   loading: boolean;
+  /**
+   * Set when a project event went missing: the board is stale and cannot be
+   * caught up incrementally, because the events that would have caught it up are
+   * the ones that were lost.
+   *
+   * The store only raises the flag. Asking Rust for a snapshot is `App`'s job —
+   * the store is a cache, not a second source of truth (ADR 0006) — and
+   * `applySnapshot` lowers it again.
+   */
+  reconciling: boolean;
   error?: AppError;
   setProjects: (projects: ProjectReference[]) => void;
   upsertProject: (project: ProjectReference) => void;
@@ -35,6 +45,12 @@ interface LongClawState {
   setAppearance: (appearance: "light" | "dark" | "system") => void;
   applySnapshot: (snapshot: ProjectSnapshot) => void;
   applyEvent: (envelope: StreamEnvelope, observedAt?: number) => void;
+  /**
+   * The snapshot `reconciling` asked for could not be fetched. Lowers the flag
+   * without adopting a sequence, so the next gap asks once more rather than the
+   * app either retrying in a loop or going deaf for the rest of the session.
+   */
+  reconcileFailed: () => void;
   applyLocalWrite: (ticket: TicketRow, generation: number) => void;
   /** Opening a ticket is the review that decays its acknowledgement. */
   reviewTicket: (ticketKey: string) => void;
@@ -64,6 +80,7 @@ export const useLongClawStore = create<LongClawState>((set, get) => ({
   externalMarks: {},
   streamFrames: [],
   loading: false,
+  reconciling: false,
   setProjects: (projects) => set({ projects }),
   upsertProject: (project) =>
     set((state) => ({
@@ -98,6 +115,7 @@ export const useLongClawStore = create<LongClawState>((set, get) => ({
       lastSequence: 0,
       lastEvent: undefined,
       externalMarks: {},
+      reconciling: false,
       error: undefined,
     }),
   setAppearance: (appearance) => set({ appearance }),
@@ -108,11 +126,20 @@ export const useLongClawStore = create<LongClawState>((set, get) => ({
         activeProjectId: snapshot.project.id,
         tickets: [...snapshot.tickets].sort(byKey),
         generation: snapshot.generation,
-        lastSequence: switchingProject ? 0 : state.lastSequence,
+        // The snapshot's own boundary is what makes recovery converge: it says
+        // which events these rows already account for, so the next incremental
+        // event is judged against the truth rather than against a high-water mark
+        // left behind by whatever we last happened to see. Never move it
+        // backwards — an ordinary focus reconcile can carry an older boundary
+        // than the events already applied on top of it.
+        lastSequence: switchingProject
+          ? snapshot.sequence
+          : Math.max(state.lastSequence, snapshot.sequence),
         lastEvent: switchingProject ? undefined : state.lastEvent,
         // An index rebuild keeps its acknowledgements: the index is disposable,
         // but what an agent just did to the files is not.
         externalMarks: switchingProject ? {} : state.externalMarks,
+        reconciling: false,
         error: undefined,
       };
     }),
@@ -120,6 +147,19 @@ export const useLongClawStore = create<LongClawState>((set, get) => ({
     const state = get();
     if (envelope.sequence <= state.lastSequence) return;
     if (state.activeProjectId && envelope.projectId !== state.activeProjectId) {
+      return;
+    }
+    // A different project's engine has its own sequence counter starting at zero,
+    // which is why the guard above runs first. Reordering these two would make
+    // every project switch look like a gap.
+    if (state.reconciling) return;
+    if (envelope.sequence > state.lastSequence + 1) {
+      // An event was lost. Applying the one in hand would write newer state over
+      // rows that are already missing a change, so stop applying and let `App`
+      // fetch a snapshot. `lastSequence` deliberately does not advance: adopting
+      // the new high-water mark is exactly how the change we never saw becomes
+      // unrecoverable.
+      set({ reconciling: true, loading: true });
       return;
     }
 
@@ -171,6 +211,7 @@ export const useLongClawStore = create<LongClawState>((set, get) => ({
       },
     });
   },
+  reconcileFailed: () => set({ reconciling: false, loading: false }),
   applyLocalWrite: (ticket, generation) =>
     set((state) => ({
       tickets: [

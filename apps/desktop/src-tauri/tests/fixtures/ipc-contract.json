@@ -115,7 +115,8 @@
               }
             ],
             "generation": 7,
-            "rebuiltInMs": 12.5
+            "rebuiltInMs": 12.5,
+            "sequence": 41
           },
           "reason": "resume"
         }
