@@ -832,3 +832,166 @@ describe("the archive button in the header (V0-11)", () => {
     expect(screen.queryByRole("button", { name: "Archive" })).toBeNull();
   });
 });
+
+/**
+ * Markdown a careless editor would tidy: a setext heading, three bullet markers
+ * in one list, a four-space indent, a trailing-space hard break, constructs the
+ * subset does not render, and a fence whose interior spacing is load-bearing.
+ *
+ * Nothing here is a reserved heading, so it is a legal description
+ * (`ticket.rs:738-750`).
+ */
+const NON_CANONICAL = [
+  "Setext heading",
+  "===",
+  "",
+  "*   a star bullet with loose spacing",
+  "-  a dash bullet",
+  "    - a four-space indent",
+  "+ and a plus",
+  "",
+  "Trailing spaces here  ",
+  "make the line above a hard break.",
+  "",
+  "> a block quote the subset does not render",
+  "",
+  "1. an ordered item the subset does not render",
+  "",
+  "```js",
+  "const spacing = '  load   bearing  ';",
+  "```",
+  "",
+  "\tA tab-indented line.",
+].join("\n");
+
+async function openTheEditor(description: string) {
+  readTicketMock.mockResolvedValue(detail({ description }));
+  render(surface());
+  await ready();
+  fireEvent.click(screen.getByRole("button", { name: /Edit description/ }));
+  return screen.getByLabelText("Description") as HTMLTextAreaElement;
+}
+
+describe("the description editor (V0-12)", () => {
+  it("shows Write and Preview tabs and exactly six formatting buttons", async () => {
+    const textarea = await openTheEditor("Check whether the round trip holds.");
+
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+      "Write",
+      "Preview",
+    ]);
+    expect(screen.getByRole("tab", { name: "Write" })).toHaveProperty(
+      "ariaSelected",
+      "true",
+    );
+    // Six, no more and no fewer (`screen-specs.md:179-180`).
+    const toolbar = screen.getByRole("toolbar", { name: "Formatting" });
+    expect(
+      Array.from(toolbar.querySelectorAll("button")).map((button) =>
+        button.getAttribute("aria-label"),
+      ),
+    ).toEqual(["Bold", "Italic", "Code", "Bulleted list", "Task list", "Link"]);
+    expect(textarea.value).toBe("Check whether the round trip holds.");
+  });
+
+  it("previews the markdown as elements, and never as markup", async () => {
+    await openTheEditor(
+      "A **bold** claim\n\n- one\n- two\n\n<img src=x onerror=alert(1)>",
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Preview" }));
+
+    const preview = screen.getByRole("tabpanel", { name: "Preview" });
+    expect(preview.querySelector("strong")?.textContent).toBe("bold");
+    expect(preview.querySelectorAll("li")).toHaveLength(2);
+    // The one rule that matters: injected HTML is text, not DOM.
+    expect(preview.querySelector("img")).toBeNull();
+    expect(preview.textContent).toContain("<img src=x onerror=alert(1)>");
+  });
+
+  it("must-pass 2: hands the bytes the human typed to the write, untouched", async () => {
+    editTicketMock.mockResolvedValue(writeResult());
+    const textarea = await openTheEditor(NON_CANONICAL);
+    expect(textarea.value).toBe(NON_CANONICAL);
+
+    // One word changes. Everything else must survive the round trip through the
+    // editor, including a pass through the preview and back.
+    const edited = NON_CANONICAL.replace("Trailing", "Trailingg");
+    fireEvent.change(textarea, { target: { value: edited } });
+    fireEvent.click(screen.getByRole("tab", { name: "Preview" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Write" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Save/ }));
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(1));
+    expect(editTicketMock.mock.calls[0][0].edit.description).toBe(edited);
+  });
+
+  it("saves on ⌘↵ and cancels on Esc without closing the panel", async () => {
+    editTicketMock.mockResolvedValue(writeResult());
+    const onClose = vi.fn();
+    readTicketMock.mockResolvedValue(detail({ description: "Before." }));
+    render(
+      <>
+        {panel({ onClose })}
+        <ToastStack />
+      </>,
+    );
+    await ready();
+    fireEvent.click(screen.getByRole("button", { name: /Edit description/ }));
+
+    const textarea = screen.getByLabelText("Description");
+    fireEvent.change(textarea, { target: { value: "Cancelled." } });
+    fireEvent.keyDown(textarea, { key: "Escape" });
+
+    // Esc is the editor's, not the panel's (`keyboard-focus-map.md:82`).
+    expect(onClose).not.toHaveBeenCalled();
+    expect(editTicketMock).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText("Description")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /Edit description/ }));
+    const reopened = screen.getByLabelText("Description");
+    // The cancelled draft is gone, not kept.
+    expect(reopened).toHaveProperty("value", "Before.");
+    fireEvent.change(reopened, { target: { value: "Saved by ⌘↵." } });
+    fireEvent.keyDown(reopened, { key: "Enter", metaKey: true });
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(1));
+    expect(editTicketMock.mock.calls[0][0].edit).toEqual({
+      description: "Saved by ⌘↵.",
+    });
+  });
+
+  it("refuses to send a description the file already has", async () => {
+    await openTheEditor("Check whether the round trip holds.");
+
+    // `TicketDocument::apply` refuses an edit that changes nothing, so the
+    // editor must not offer to send one.
+    expect(screen.getByRole("button", { name: /^Save/ })).toHaveProperty(
+      "disabled",
+      true,
+    );
+  });
+
+  it("wraps the selection a toolbar button is pressed on, and nothing else", async () => {
+    const textarea = await openTheEditor("alpha beta gamma");
+    textarea.setSelectionRange(6, 10);
+
+    fireEvent.click(screen.getByRole("button", { name: "Bold" }));
+
+    expect(textarea.value).toBe("alpha **beta** gamma");
+  });
+
+  it("renders the description as markdown before it is opened", async () => {
+    readTicketMock.mockResolvedValue(
+      detail({ description: "## Approach\n\n- first\n- second" }),
+    );
+    render(surface());
+    await ready();
+
+    const view = document.querySelector(".description-view");
+    expect(view?.querySelectorAll("li")).toHaveLength(2);
+    // A `##` under the panel's own `<h3>Description</h3>` is an h5, not a
+    // second-level heading in the panel's outline.
+    expect(view?.querySelector("h5")?.textContent).toBe("Approach");
+  });
+});

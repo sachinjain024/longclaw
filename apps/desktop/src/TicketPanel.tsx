@@ -19,11 +19,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { editTicket, readTicket } from "./api";
 import { externalEditConflict } from "./attribution";
 import { ConflictBanner } from "./ConflictBanner";
+import { DescriptionEditor } from "./DescriptionEditor";
 import { normalizeError } from "./errors";
 import type { ExternalMark } from "./freshness";
 import { acknowledgement, freshlyChecked } from "./freshness";
 import { LabelMenuButton } from "./LabelMenu";
 import { sameLabels } from "./labels";
+import { MarkdownView } from "./MarkdownView";
 import { MenuButton } from "./Menu";
 import { mutate } from "./mutations";
 import { PriorityGlyph } from "./PriorityGlyph";
@@ -331,6 +333,20 @@ export function TicketPanel(props: TicketPanelProps) {
     await save(pending, { resolvesConflict: true });
   }
 
+  /**
+   * Where focus goes when the editor closes: back to the description block
+   * (`keyboard-focus-map.md:86`), but only when the human closed it themselves.
+   * A reload that drops the editor should not steal focus from wherever they
+   * are.
+   */
+  const editButton = useRef<HTMLButtonElement>(null);
+  const returnFocus = useRef(false);
+  useEffect(() => {
+    if (editingDescription || !returnFocus.current) return;
+    returnFocus.current = false;
+    editButton.current?.focus();
+  }, [editingDescription]);
+
   function openDescriptionEditor(description: string) {
     drafts.current.description = description;
     drafts.current.editing = true;
@@ -339,6 +355,7 @@ export function TicketPanel(props: TicketPanelProps) {
   }
 
   function closeDescriptionEditor() {
+    returnFocus.current = true;
     drafts.current.editing = false;
     setEditingDescription(false);
   }
@@ -527,46 +544,48 @@ export function TicketPanel(props: TicketPanelProps) {
           <section className="panel-section">
             <h3>Description</h3>
             {editingDescription ? (
-              <div className="description-editor">
-                <textarea
-                  value={descriptionDraft}
-                  rows={8}
-                  aria-label="Description"
-                  onChange={(event) => {
-                    drafts.current.description = event.target.value;
-                    setDescriptionDraft(event.target.value);
-                  }}
+              <DescriptionEditor
+                value={descriptionDraft}
+                // `TicketDocument::apply` refuses an edit that changes nothing.
+                canSave={descriptionDraft.trim() !== ticket.description}
+                onChange={(next) => {
+                  drafts.current.description = next;
+                  setDescriptionDraft(next);
+                }}
+                onCancel={() => {
+                  drafts.current.description = ticket.description;
+                  setDescriptionDraft(ticket.description);
+                  closeDescriptionEditor();
+                }}
+                onSave={() => {
+                  closeDescriptionEditor();
+                  // The draft, not a re-render of the parsed tree: the bytes the
+                  // human typed are the bytes that reach the file.
+                  void save({ description: descriptionDraft });
+                }}
+              />
+            ) : ticket.description ? (
+              <div className="description-view">
+                <MarkdownView
+                  source={ticket.description}
+                  headingOffset={3}
+                  className="markdown"
                 />
-                <div className="editor-footer">
-                  <code>writes to ticket.md on save</code>
-                  <button
-                    className="ghost"
-                    onClick={() => {
-                      drafts.current.description = ticket.description;
-                      setDescriptionDraft(ticket.description);
-                      closeDescriptionEditor();
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    className="primary"
-                    disabled={descriptionDraft.trim() === ticket.description}
-                    onClick={() => {
-                      closeDescriptionEditor();
-                      void save({ description: descriptionDraft });
-                    }}
-                  >
-                    Save
-                  </button>
-                </div>
+                <button
+                  className="ghost description-edit"
+                  ref={editButton}
+                  onClick={() => openDescriptionEditor(ticket.description)}
+                >
+                  Edit description
+                </button>
               </div>
             ) : (
               <button
-                className="description-view"
-                onClick={() => openDescriptionEditor(ticket.description)}
+                className="description-view empty"
+                ref={editButton}
+                onClick={() => openDescriptionEditor("")}
               >
-                {ticket.description || "Add a description"}
+                Add a description
               </button>
             )}
           </section>

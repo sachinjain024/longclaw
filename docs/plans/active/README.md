@@ -18,9 +18,10 @@ is closed, Wave 0 is clear, and M4 closed on 2026-07-31 when the founder decided
 proceed without the pilot sessions
 ([decision](../../pilot/response-memo.md#direction-decision-2026-07-31-superseded-the-same-day)).
 Step 11 is [Wave 1 of the backlog](../../backlog/v0-backlog.md) — V0-08 through
-V0-19 — and seven of them are now closed: V0-19 as plan 11, V0-18 as plan 12,
-V0-17 as plan 13, V0-08 as plan 14, V0-10 as plan 15, V0-14 as plan 16, and V0-11
-as plan 17. The rest are open. Write a plan here before starting one of them.
+V0-19 — and eight of them are now closed: V0-19 as plan 11, V0-18 as plan 12,
+V0-17 as plan 13, V0-08 as plan 14, V0-10 as plan 15, V0-14 as plan 16, V0-11
+as plan 17, and V0-12 as plan 18. The rest are open. Write a plan here before
+starting one of them.
 
 Two things to read first, once, before Step 11 code:
 
@@ -56,6 +57,7 @@ marked independent can be done at any time by anyone.
 | ~~15~~ | ~~Project-scoped labels~~ — **done 2026-07-31**, [outcome](../completed/15-project-scoped-labels.md) | V0-10 | Closed. It is the frontend half of what plan 12 built: definitions are managed in project settings and a ticket still carries slugs and nothing else. Read its outcome before V0-14 or V0-16 — `src/labels.ts` and `src/LabelChip.tsx` are the chip both of them need, and `src/LabelMenu.tsx` is the meta row a create surface reuses. |
 | ~~16~~ | ~~The dense issue list~~ — **done 2026-07-31**, [outcome](../completed/16-dense-issue-list.md) | V0-14 | Closed, and it is the second surface. Read its outcome before V0-09, V0-11 or V0-15 — the board's bucketing moved to `src/grouping.ts`, `boardGeometry.ts`'s `columnOffsets` is now `runningOffsets`, and the status dot the whole app was missing now exists. |
 | ~~17~~ | ~~Archive and unarchive~~ — **done 2026-07-31**, [outcome](../completed/17-archive-and-unarchive.md) | V0-11 | Closed. Archived tickets now leave `groupByStatus` rather than leaving the board, and the write is raised in `App.tsx` because archiving closes the panel. Read its outcome before V0-15 (the exclusion is in the shared bucketing) and before V0-24 (the `· archived` tag on a search result is still open). |
+| ~~18~~ | ~~Markdown write/preview editor~~ — **done 2026-07-31**, [outcome](../completed/18-markdown-editor.md) | V0-12 | Closed, and it is the renderer the rest of the product reads markdown through. Read its outcome before V0-13 (comment bodies want `MarkdownView`) and before V0-27 (a relative attachment link deliberately does not become a link yet). |
 
 Dependencies worth knowing:
 
@@ -149,6 +151,24 @@ Dependencies worth knowing:
   pins it, but the `· archived` tag on a result (`screen-specs.md:154`, `:236`) is
   unbuilt, because there is no search UI in the app to hang it on. The row carries
   `archivedAt`; rendering the tag is V0-24's.
+- **18 is done, and V0-13 and V0-27 each inherit one edge of it.** There is one
+  markdown renderer now and there must not be a second:
+  `apps/desktop/src/markdown.ts` parses to a tree whose node union has **no
+  `html` member**, and `src/MarkdownView.tsx` renders that tree to React
+  elements. The app has no sanitizer and needs none — a renderer with no branch
+  that can emit markup has nothing to sanitize — so **do not introduce
+  `dangerouslySetInnerHTML` anywhere, and do not add a markdown dependency that
+  hands back an HTML string.** `headingOffset` exists so a `#` inside a panel
+  section becomes an `h4`; **V0-13 should render comment bodies through it**,
+  replacing the bare `<p>{prose}</p>` at `src/Timeline.tsx:50`, because a comment
+  body is agent-written by definition. **V0-27 inherits the other half:** a
+  relative attachment link and an image render as their own markdown text rather
+  than as a link or an `<img>`, deliberately, because v0 has no attachment UI
+  (ADR 0005) and the webview would navigate the app to a 404. `linkHref` in
+  `markdown.ts` is the one place that rule lives. The six formatting actions are
+  pure string transforms in `src/markdownToolbar.ts`, which is what lets the
+  no-reformatting claim be a unit test rather than a DOM one; a seventh button
+  would be a row there, not a new component.
 - **09 and 10 are both closed, and no plan is open.** The vanished-path overflow bug
   is fixed in `collect_event`, and the npm-launched native watcher timeout that
   blocked local `npm run verify` no longer reproduces — closed without a fix, so
@@ -159,8 +179,8 @@ Dependencies worth knowing:
 
 ## Waves 1–3 are unplanned, and now for a different reason
 
-Waves 1–3 of [the backlog](../../backlog/v0-backlog.md) — 25 of its 39 items, now
-that V0-08, V0-10, V0-11, V0-14, V0-17, V0-18, and V0-19 are closed — still have no plans here. The original reason is gone: the
+Waves 1–3 of [the backlog](../../backlog/v0-backlog.md) — 24 of its 39 items, now
+that V0-08, V0-10, V0-11, V0-12, V0-14, V0-17, V0-18, and V0-19 are closed — still have no plans here. The original reason is gone: the
 guardrail has been satisfied and the pilot will not invalidate anything, because it
 was skipped.
 

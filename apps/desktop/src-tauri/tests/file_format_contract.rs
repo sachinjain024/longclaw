@@ -905,6 +905,272 @@ fn an_agent_written_priority_is_never_rewritten_by_an_unrelated_edit() {
     report.finish();
 }
 
+/// The description exactly as it stands between the frontmatter and the first
+/// reserved heading, newlines included.
+///
+/// Comparing the region rather than `Ticket::description` is the point: two
+/// descriptions that parse the same have still lost a trailing space, a tab, or
+/// a bullet marker their author chose.
+fn description_region(raw: &str) -> &str {
+    let close = raw[4..]
+        .find("\n---\n")
+        .expect("the fixture has closing frontmatter");
+    let body = &raw[4 + close + 5..];
+    let end = ["\n## Checklist\n", "\n## Attachments\n", "\n## Activity\n"]
+        .iter()
+        .filter_map(|heading| body.find(heading))
+        .min()
+        .unwrap_or(body.len());
+    &body[..end]
+}
+
+/// Every markdown construct `docs/file_format.md` documents for a ticket body,
+/// plus the ones V0-12's six-button toolbar writes.
+///
+/// Each is written whole, so a construct that needs more than one line — a
+/// fence, a list, a hard break — is exercised as its author would type it.
+const DOCUMENTED_CONSTRUCTS: &[(&str, &str)] = &[
+    ("paragraph", "The worker fails after a transient error."),
+    (
+        "atx headings",
+        "## Acceptance criteria\n\n### Claude Code updated this ticket\n\n###### deep",
+    ),
+    (
+        "bullet list",
+        "- Retries use exponential backoff.\n- Permanent failures remain visible.",
+    ),
+    ("star and plus bullets", "* one\n+ two"),
+    (
+        "task list",
+        "- [x] Add retry policy\n- [ ] Add failure metrics",
+    ),
+    (
+        "fenced code",
+        "```js\nconst spacing = '  load   bearing  ';\n```",
+    ),
+    ("tilde fence", "~~~\nliteral   spacing\n~~~"),
+    ("strong and emphasis", "A **bold** and *emphatic* claim."),
+    ("code span", "Run `cargo test --all` first."),
+    (
+        "relative attachment link",
+        "See [debug-log.txt](./attachments/att_7d2a-debug-log.txt).",
+    ),
+    (
+        "image",
+        "![Failure state](./attachments/att_8e31-failure-state.png)",
+    ),
+    ("absolute link", "See [the docs](https://example.com/x)."),
+    (
+        "hard line break",
+        "A line with two trailing spaces  \nis a hard break.",
+    ),
+    (
+        "an ordinary heading beside prose",
+        "Plan:\n\n## Approach\n\nRewrite the worker.\n\n## Discoveries\n\nIt was the retry policy.",
+    ),
+    (
+        "a reserved heading quoted in a fence",
+        "The description, with a fence:\n\n```md\n## Activity\n```",
+    ),
+    ("html that is not rendered", "<!-- a note -->\n\n<b>x</b>"),
+    (
+        "the constructs the preview does not render",
+        "1. an ordered item\n\n> a block quote\n\nSetext\n======\n\n| a | b |\n| - | - |",
+    ),
+];
+
+/// V0-12's first must-pass clause, stated as it is written: every markdown
+/// construct the format documents survives a round trip through the app.
+///
+/// The frontend half of the claim is that the textarea's bytes are the bytes
+/// handed to `edit_ticket`. This is the durable half: those bytes go to disk and
+/// come back identical. The one transformation the writer is allowed is trimming
+/// the outer edges (`ticket.rs:761`), so every construct here is written without
+/// leading or trailing whitespace.
+#[test]
+fn a_description_round_trips_every_construct_the_format_documents() {
+    let case = repository_root().join("fixtures/format-contract/valid-non-canonical-description");
+    let raw = fs::read_to_string(case.join("ticket.md")).expect("the fixture should be readable");
+    let document = TicketDocument::parse(&raw, "LC-99").expect("the fixture should parse");
+
+    let mut report = Report::default();
+    for (name, construct) in DOCUMENTED_CONSTRUCTS {
+        let applied = match document.apply(
+            &TicketEdit {
+                description: Some((*construct).to_owned()),
+                ..TicketEdit::default()
+            },
+            NOW,
+        ) {
+            Ok(applied) => applied,
+            Err(diagnostic) => {
+                report
+                    .failures
+                    .push(format!("{name}: the description was refused: {diagnostic}"));
+                continue;
+            }
+        };
+        let written = applied.document.ticket().description.as_str();
+        report.check(name, written == *construct, || {
+            format!("wrote {construct:?} and read back {written:?}")
+        });
+        // And again from the bytes, not from the document the writer handed
+        // back, because the file is the record.
+        let next = String::from_utf8(applied.bytes).expect("app output should be UTF-8");
+        let reread = TicketDocument::parse(&next, "LC-99")
+            .expect("the app must be able to read back what it wrote");
+        let reread = reread.ticket().description.as_str();
+        report.check(name, reread == *construct, || {
+            format!("re-reading the file gave {reread:?}, not {construct:?}")
+        });
+    }
+    report.finish();
+}
+
+/// V0-12's second must-pass clause, on the durable side: an edit the human did
+/// not make to the description never reformats it.
+///
+/// The fixture's description is deliberately non-canonical — setext, three
+/// bullet markers in one list, a four-space indent, trailing-space hard breaks,
+/// a tab, a table, an HTML comment — so a writer that normalized anything would
+/// show up as a changed byte rather than as an argument.
+#[test]
+fn an_unrelated_edit_never_reformats_the_description() {
+    let case = repository_root().join("fixtures/format-contract/valid-non-canonical-description");
+    let raw = fs::read_to_string(case.join("ticket.md")).expect("the fixture should be readable");
+    let document = TicketDocument::parse(&raw, "LC-99").expect("the fixture should parse");
+    let before = description_region(&raw);
+    assert!(
+        before.contains("*   a star bullet") && before.contains("\n\tA tab-indented line."),
+        "the fixture must carry markdown in a style the app never writes"
+    );
+    assert!(
+        before.contains("trailing spaces  \n"),
+        "the fixture must carry a hard break made of trailing whitespace"
+    );
+
+    let mut report = Report::default();
+    let mutations = [
+        (
+            "title",
+            TicketEdit {
+                title: Some("A title the app wrote".to_owned()),
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "status",
+            TicketEdit {
+                status: Some(Status::InProgress),
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "priority",
+            TicketEdit {
+                priority: Some(Priority::Urgent),
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "labels replace",
+            TicketEdit {
+                labels: Some(vec!["backend".to_owned()]),
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "rank set",
+            TicketEdit {
+                rank: Some(Some("a0V".to_owned())),
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "archive",
+            TicketEdit {
+                archived: Some(true),
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "checklist toggle",
+            TicketEdit {
+                checklist: vec![ChecklistToggle {
+                    item_id: "ck_9901".to_owned(),
+                    checked: true,
+                }],
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "checklist append",
+            TicketEdit {
+                add_checklist_items: vec!["One more task".to_owned()],
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "comment",
+            TicketEdit {
+                comment: Some("Leaving a note.".to_owned()),
+                ..TicketEdit::default()
+            },
+        ),
+    ];
+
+    for (name, edit) in mutations {
+        let applied = match document.apply(&edit, NOW) {
+            Ok(applied) => applied,
+            Err(diagnostic) => {
+                report
+                    .failures
+                    .push(format!("{name}: the edit was refused: {diagnostic}"));
+                continue;
+            }
+        };
+        let next = String::from_utf8(applied.bytes).expect("app output should be UTF-8");
+        let after = description_region(&next);
+        report.check(name, after == before, || {
+            format!("the description was rewritten: {before:?} became {after:?}")
+        });
+    }
+
+    // Setting the description the file already has is refused outright rather
+    // than rewritten in the app's own style — the strongest form of the claim.
+    let no_op = document.apply(
+        &TicketEdit {
+            description: Some(document.ticket().description.clone()),
+            ..TicketEdit::default()
+        },
+        NOW,
+    );
+    report.check(
+        "description set to the value already there",
+        no_op.is_err(),
+        || "an edit that changes nothing still rewrote the file".to_owned(),
+    );
+
+    // The other half: the description is preserved because nothing asked for it,
+    // not because the writer cannot write one.
+    let rewritten = document
+        .apply(
+            &TicketEdit {
+                description: Some("Rewritten in the panel.".to_owned()),
+                ..TicketEdit::default()
+            },
+            NOW,
+        )
+        .expect("a real description change should be accepted");
+    let rewritten = String::from_utf8(rewritten.bytes).expect("app output should be UTF-8");
+    report.check(
+        "description rewritten",
+        description_region(&rewritten) != before,
+        || "a real description change left the region alone".to_owned(),
+    );
+    report.finish();
+}
+
 #[test]
 fn every_representative_project_ticket_behaves_as_documented() {
     let tickets = repository_root().join("fixtures/representative-project/.longclaw/tickets");

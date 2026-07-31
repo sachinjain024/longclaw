@@ -1093,6 +1093,7 @@ button:disabled {
 }
 
 .description-view {
+  position: relative;
   display: block;
   width: 100%;
   border: 1px solid transparent;
@@ -1103,11 +1104,27 @@ button:disabled {
   background: transparent;
   font-size: 13px;
   line-height: 1.55;
-  white-space: pre-wrap;
+}
+
+.description-view.empty {
+  color: var(--lc-ink-3);
 }
 
 .description-view:hover {
   background: var(--lc-wash);
+}
+
+/* The Edit affordance appears on hover, and whenever it is the focused thing. */
+.description-edit {
+  position: absolute;
+  top: var(--lc-space-1);
+  right: var(--lc-space-1);
+  opacity: 0;
+}
+
+.description-view:hover .description-edit,
+.description-edit:focus-visible {
+  opacity: 1;
 }
 
 .description-editor textarea,
@@ -1117,7 +1134,6 @@ button:disabled {
   width: 100%;
 }
 
-.description-editor textarea,
 .composer textarea {
   border: 1px solid var(--lc-line-strong);
   border-radius: 7px;
@@ -1129,17 +1145,180 @@ button:disabled {
   resize: vertical;
 }
 
+.description-editor {
+  border: 1px solid var(--lc-line-strong);
+  border-radius: 7px;
+  background: var(--lc-surface);
+}
+
+/* Tabs left, formatting right, both on the wash (`screen-specs.md:178-180`). */
+.editor-tabstrip {
+  display: flex;
+  gap: var(--lc-space-2);
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--lc-line);
+  border-radius: 7px 7px 0 0;
+  padding: 0 var(--lc-space-2);
+  background: var(--lc-wash);
+}
+
+.editor-tabstrip [role="tablist"] {
+  display: flex;
+  gap: var(--lc-space-1);
+}
+
+.editor-tab {
+  height: 24px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 0 var(--lc-space-2);
+  color: var(--lc-ink-3);
+  background: transparent;
+  font-size: 11px;
+}
+
+.editor-tab.active {
+  color: var(--lc-ink);
+  border-bottom-color: var(--lc-accent-human);
+}
+
+.editor-toolbar {
+  display: flex;
+  gap: 2px;
+  padding: 2px 0;
+}
+
+.editor-toolbar button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: var(--lc-radius-control);
+  color: var(--lc-ink-2);
+  background: transparent;
+  font: 600 11px var(--lc-type-code-font);
+}
+
+.editor-toolbar button:hover:not(:disabled) {
+  color: var(--lc-ink);
+  background: var(--lc-surface);
+}
+
+.editor-toolbar button:disabled {
+  color: var(--lc-ink-disabled);
+}
+
+.description-editor textarea {
+  min-height: 132px;
+  border: 0;
+  padding: var(--lc-space-2);
+  color: var(--lc-ink);
+  background: transparent;
+  font: var(--lc-type-code-weight) var(--lc-type-code-size) /
+    var(--lc-type-code-leading) var(--lc-type-code-font);
+  resize: vertical;
+}
+
+.description-preview {
+  min-height: 132px;
+  padding: var(--lc-space-2);
+}
+
+.editor-empty {
+  margin: 0;
+  padding: var(--lc-space-2);
+  color: var(--lc-ink-3);
+  font-size: 12px;
+}
+
 .editor-footer {
   display: flex;
   gap: var(--lc-space-2);
   align-items: center;
-  margin-top: var(--lc-space-2);
+  border-top: 1px solid var(--lc-line);
+  padding: var(--lc-space-2);
 }
 
 .editor-footer code {
   margin-right: auto;
   color: var(--lc-ink-3);
   font-size: 10px;
+}
+
+.editor-footer kbd {
+  margin-left: 4px;
+  color: var(--lc-ink-3);
+  font: 500 var(--lc-type-kbd-size) var(--lc-type-code-font);
+}
+
+.editor-footer .primary kbd {
+  color: var(--lc-inverse-ink-2);
+}
+
+/* The rendered subset. 13px/1.55 per `screen-specs.md:184`. */
+.markdown {
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.markdown > * {
+  margin: 0 0 var(--lc-space-2);
+}
+
+.markdown > *:last-child {
+  margin-bottom: 0;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4,
+.markdown h5,
+.markdown h6 {
+  margin-top: var(--lc-space-3);
+  color: var(--lc-ink);
+  font-size: 13px;
+  font-weight: 620;
+}
+
+.markdown code {
+  border-radius: 4px;
+  padding: 1px 4px;
+  background: var(--lc-tile);
+  font: var(--lc-type-code-weight) 12px var(--lc-type-code-font);
+}
+
+.markdown-code {
+  overflow-x: auto;
+  border: 1px solid var(--lc-line);
+  border-radius: 6px;
+  padding: var(--lc-space-2);
+  background: var(--lc-tile);
+}
+
+.markdown-code code {
+  padding: 0;
+  background: transparent;
+}
+
+.markdown-list {
+  display: grid;
+  gap: 2px;
+  padding-left: var(--lc-space-4);
+}
+
+.markdown-list .markdown-task {
+  display: flex;
+  gap: var(--lc-space-2);
+  align-items: baseline;
+  list-style: none;
+  margin-left: calc(-1 * var(--lc-space-4));
+}
+
+.markdown a {
+  color: var(--lc-accent-human-text);
 }
 
 .checklist {
