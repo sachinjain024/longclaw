@@ -50,11 +50,15 @@ Read the consequence honestly:
   should not be needed to justify an item that is already here.
 
 The plan's guardrail still holds: *do not continue executing the original breadth
-backlog after M3 until the pilot feedback in M4 has been processed.* So Wave 0 is
-runnable now — it is blocker work, which Step 10 puts first by definition — and
-Waves 1 onward wait for either the pilot evidence or an explicit founder decision
-to proceed without it. [The pilot response memo](../pilot/response-memo.md) is
-where that evidence lands and where this order gets revised.
+backlog after M3 until the pilot feedback in M4 has been processed.* Wave 0 was
+runnable immediately — it is blocker work, which Step 10 puts first by definition —
+and **it closed on 2026-07-31**. Waves 1 onward waited for either the pilot evidence
+or an explicit founder decision to proceed without it, and on 2026-07-31 that
+question was settled the first way: the pilot runs
+([decision](../pilot/response-memo.md#direction-decision-2026-07-31)). So the wait
+is now specifically for evidence, and the order below is still a baseline expecting
+to be reshuffled. [The pilot response memo](../pilot/response-memo.md) is where that
+evidence lands and where this order gets revised.
 
 ## How to read an entry
 
