@@ -12,7 +12,7 @@ import type * as BoardCard from "./boardCard";
 import { ASSUMED_VIEWPORT, CARD_STRIDE } from "./boardGeometry";
 import { FRESH_WINDOW_MS } from "./freshness";
 import type { ExternalMark, ExternalMarks } from "./freshness";
-import type { IndexedTicket, TicketPriority, TicketRow } from "./types";
+import type { IndexedTicket, Label, TicketPriority, TicketRow } from "./types";
 
 /**
  * Every card render presents itself exactly once, so this is the render count
@@ -23,9 +23,9 @@ const { presented } = vi.hoisted(() => ({ presented: [] as string[] }));
 vi.mock("./boardCard", async (importOriginal) => {
   const actual = await importOriginal<typeof BoardCard>();
   return {
-    presentCard: (ticket: TicketRow) => {
-      presented.push(ticket.key);
-      return actual.presentCard(ticket);
+    presentCard: (...args: Parameters<typeof actual.presentCard>) => {
+      presented.push(args[0].key);
+      return actual.presentCard(...args);
     },
   };
 });
@@ -72,15 +72,23 @@ function mark(overrides?: Partial<ExternalMark>): ExternalMarks {
  */
 const noop = () => {};
 
+const DEFINITIONS: Record<string, Label> = {
+  backend: { name: "Backend", color: "blue" },
+  reliability: { name: "Reliability", color: "amber" },
+  docs: { name: "Docs", color: "cyan" },
+};
+
 function board(props?: {
   tickets?: TicketRow[];
   marks?: ExternalMarks;
+  labels?: Record<string, Label>;
   onChangePriority?: (ticket: IndexedTicket, next: TicketPriority) => void;
 }) {
   return (
     <Board
       tickets={props?.tickets ?? [row()]}
       marks={props?.marks ?? {}}
+      labels={props?.labels ?? DEFINITIONS}
       now={NOW}
       onSelect={noop}
       onChangePriority={props?.onChangePriority ?? noop}
@@ -229,6 +237,7 @@ describe("the pulse, which says a change just landed", () => {
       <Board
         tickets={columnOf(400)}
         marks={marks}
+        labels={DEFINITIONS}
         now={NOW}
         onSelect={noop}
         onChangePriority={noop}
@@ -307,6 +316,7 @@ describe("the board's own shape", () => {
       <Board
         tickets={[row()]}
         marks={{}}
+        labels={DEFINITIONS}
         now={NOW}
         onSelect={onSelect}
         onChangePriority={noop}
@@ -374,6 +384,7 @@ describe("focus on a column that is being scrolled", () => {
         tickets={columnOf(400)}
         selectedKey="LC-200"
         marks={{}}
+        labels={DEFINITIONS}
         now={NOW}
         onSelect={() => {}}
         onChangePriority={noop}
@@ -496,6 +507,7 @@ describe("what a change to one ticket costs", () => {
       <Board
         tickets={three}
         marks={marks}
+        labels={DEFINITIONS}
         now={NOW}
         onSelect={noop}
         onChangePriority={noop}
@@ -509,6 +521,7 @@ describe("what a change to one ticket costs", () => {
       <Board
         tickets={three}
         marks={marks}
+        labels={DEFINITIONS}
         now={NOW + 1_000}
         onSelect={noop}
         onChangePriority={noop}
@@ -625,5 +638,55 @@ describe("priority on the board", () => {
     fireEvent.keyDown(card("LC-2"), { key: "p", metaKey: true });
 
     expect(screen.queryByRole("menu")).toBeNull();
+  });
+});
+
+describe("label chips on a card (V0-10)", () => {
+  const chips = (key: string) =>
+    Array.from(card(key).querySelectorAll(".label-chip")).map(
+      (chip) => chip.textContent,
+    );
+
+  it("draws one chip per slug, under the definition's display name", () => {
+    render(
+      board({
+        tickets: [
+          row({ labels: ["backend", "reliability"], checklistCount: 0 }),
+        ],
+      }),
+    );
+
+    expect(chips("LC-1")).toEqual(["Backend", "Reliability"]);
+  });
+
+  it("must-pass 3: draws an undefined slug as itself", () => {
+    render(
+      board({
+        tickets: [row({ labels: ["legacy-thing"], checklistCount: 0 })],
+      }),
+    );
+
+    expect(chips("LC-1")).toEqual(["legacy-thing"]);
+  });
+
+  it("stops at two chips, and at one beside a checklist fraction", () => {
+    // The footer never wraps (`screen-specs.md:121-122`).
+    const carrying = ["backend", "reliability", "docs"];
+    render(
+      board({
+        tickets: [
+          row({ key: "LC-1", labels: carrying, checklistCount: 0 }),
+          row({
+            key: "LC-2",
+            labels: carrying,
+            checkedCount: 1,
+            checklistCount: 3,
+          }),
+        ],
+      }),
+    );
+
+    expect(chips("LC-1")).toEqual(["Backend", "Reliability"]);
+    expect(chips("LC-2")).toEqual(["Backend"]);
   });
 });

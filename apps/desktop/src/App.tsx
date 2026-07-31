@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import {
+  addProjectLabel,
   chooseAndCreateProject,
   chooseAndRegisterProject,
   chooseAndRelocateProject,
@@ -11,14 +12,17 @@ import {
   rebuildIndex,
   reconcileProject,
   removeProject,
+  removeProjectLabel,
   reportVisibleUi,
   setProjectStarred,
+  updateProjectLabel,
   updateProjectName,
   updateProjectTheme,
 } from "./api";
 import { Board } from "./Board";
 import { CreateProjectForm, type ProjectDraft } from "./CreateProjectForm";
 import { normalizeError } from "./errors";
+import { LABEL_COLORS } from "./labels";
 import { mutate } from "./mutations";
 import { QuickCreate } from "./QuickCreate";
 import { useLongClawStore } from "./state";
@@ -29,8 +33,10 @@ import {
   provisionalTicketKey,
 } from "./tickets";
 import type {
+  AppError,
   CreateTicketRequest,
   IndexedTicket,
+  Label,
   ProjectReference,
   TicketPriority,
 } from "./types";
@@ -614,6 +620,11 @@ export function App() {
                 >
                   Locate folder
                 </button>
+                <ProjectLabels
+                  project={project}
+                  onUpdated={upsertProject}
+                  onError={setError}
+                />
                 <button
                   className="danger"
                   onClick={() => void forgetProject(project.id)}
@@ -697,6 +708,7 @@ export function App() {
                     tickets={tickets}
                     selectedKey={selectedKey}
                     marks={externalMarks}
+                    labels={project.labels}
                     now={now}
                     onSelect={openTicket}
                     onChangePriority={changePriority}
@@ -712,6 +724,7 @@ export function App() {
         <TicketPanel
           projectId={activeProjectId}
           ticketKey={selectedKey}
+          labels={project.labels}
           mark={externalMarks[selectedKey]}
           reloadSignal={panelReload}
           now={now}
@@ -788,6 +801,179 @@ function ProjectSection(props: {
         ))
       )}
     </section>
+  );
+}
+
+/**
+ * Label definitions, which are project data rather than ticket data
+ * (`file_format.md:213-231`). `screen-specs.md` § Project settings never
+ * mentions them, so they sit in the panel that already owns the project file's
+ * other fields: the name, the theme, and the folder.
+ *
+ * Nothing here writes a ticket. A slug is not editable — it is what every ticket
+ * carrying the label stores — and removing a definition leaves the slug where it
+ * is, to be rendered as itself.
+ */
+function ProjectLabels(props: {
+  project: ProjectReference;
+  onUpdated: (project: ProjectReference) => void;
+  onError: (error: AppError) => void;
+}) {
+  const [slug, setSlug] = useState("");
+  const [name, setName] = useState("");
+  const [color, setColor] = useState<string>(LABEL_COLORS[0]);
+  const definitions = Object.entries(props.project.labels);
+
+  /** Every write here returns the project as the file now reads. */
+  async function run(write: () => Promise<ProjectReference>) {
+    try {
+      props.onUpdated(await write());
+      return true;
+    } catch (error) {
+      // Rust owns the slug grammar and the name and colour rules, so its
+      // refusal is the message — this never guesses at one of its own.
+      props.onError(normalizeError(error));
+      return false;
+    }
+  }
+
+  return (
+    <section className="label-settings" aria-label="Labels">
+      <h3>Labels</h3>
+      {definitions.length === 0 && (
+        <p>No labels are defined in this project&apos;s longclaw.yaml yet.</p>
+      )}
+      {definitions.map(([definedSlug, label]) => (
+        <LabelDefinition
+          // Keyed by its values, so a row's drafts follow what landed on disk.
+          key={`${definedSlug}:${label.name}:${label.color}`}
+          slug={definedSlug}
+          label={label}
+          onSave={(next) =>
+            void run(() =>
+              updateProjectLabel({
+                projectId: props.project.id,
+                slug: definedSlug,
+                ...next,
+              }),
+            )
+          }
+          onRemove={() =>
+            void run(() =>
+              removeProjectLabel({
+                projectId: props.project.id,
+                slug: definedSlug,
+              }),
+            )
+          }
+        />
+      ))}
+      <form
+        className="label-row"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!slug.trim() || !name.trim()) return;
+          void (async () => {
+            const added = await run(() =>
+              addProjectLabel({
+                projectId: props.project.id,
+                slug: slug.trim(),
+                name: name.trim(),
+                color,
+              }),
+            );
+            if (!added) return;
+            setSlug("");
+            setName("");
+          })();
+        }}
+      >
+        <input
+          value={slug}
+          aria-label="New label slug"
+          placeholder="slug"
+          onChange={(event) => setSlug(event.target.value)}
+        />
+        <input
+          value={name}
+          aria-label="New label name"
+          placeholder="Display name"
+          onChange={(event) => setName(event.target.value)}
+        />
+        <ColorSelect
+          label="New label color"
+          value={color}
+          onChange={setColor}
+        />
+        <button className="secondary" type="submit">
+          Add label
+        </button>
+      </form>
+    </section>
+  );
+}
+
+/** One definition. The slug is shown as what it is: a key, not a field. */
+function LabelDefinition(props: {
+  slug: string;
+  label: Label;
+  onSave: (next: { name: string; color: string }) => void;
+  onRemove: () => void;
+}) {
+  const [name, setName] = useState(props.label.name);
+  const [color, setColor] = useState(props.label.color);
+  const unchanged =
+    name.trim() === props.label.name && color === props.label.color;
+  return (
+    <div className="label-row">
+      <code>{props.slug}</code>
+      <input
+        value={name}
+        aria-label={`Name of label ${props.slug}`}
+        onChange={(event) => setName(event.target.value)}
+      />
+      <ColorSelect
+        label={`Color of label ${props.slug}`}
+        value={color}
+        onChange={setColor}
+      />
+      <button
+        className="secondary"
+        disabled={unchanged}
+        onClick={() => props.onSave({ name: name.trim(), color })}
+      >
+        {`Save label ${props.slug}`}
+      </button>
+      <button className="danger" onClick={props.onRemove}>
+        {`Remove label ${props.slug}`}
+      </button>
+    </div>
+  );
+}
+
+/** The eight ramp hues (D12), which are the only colours a label may take. */
+function ColorSelect(props: {
+  label: string;
+  value: string;
+  onChange: (color: string) => void;
+}) {
+  return (
+    <select
+      aria-label={props.label}
+      value={props.value}
+      onChange={(event) => props.onChange(event.target.value)}
+    >
+      {/* A colour the ramp does not hold still has to be selectable, or saving
+          an unrelated rename would silently recolour the label. */}
+      {!LABEL_COLORS.includes(props.value as (typeof LABEL_COLORS)[number]) && (
+        <option value={props.value}>{props.value}</option>
+      )}
+      {LABEL_COLORS.map((color) => (
+        <option key={color} value={color}>
+          {color}
+        </option>
+      ))}
+    </select>
   );
 }
 

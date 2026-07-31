@@ -22,6 +22,8 @@ import { ConflictBanner } from "./ConflictBanner";
 import { normalizeError } from "./errors";
 import type { ExternalMark } from "./freshness";
 import { acknowledgement, freshlyChecked } from "./freshness";
+import { LabelMenuButton } from "./LabelMenu";
+import { sameLabels } from "./labels";
 import { MenuButton } from "./Menu";
 import { mutate } from "./mutations";
 import { PriorityGlyph } from "./PriorityGlyph";
@@ -30,6 +32,7 @@ import { Timeline } from "./Timeline";
 import type {
   AppError,
   ChecklistItem,
+  Label,
   TicketDetail,
   TicketEdit,
   TicketPriority,
@@ -75,6 +78,8 @@ type LoadMode = "open" | "external" | "local";
 interface TicketPanelProps {
   projectId: string;
   ticketKey: string;
+  /** The project's label definitions. A ticket carries slugs and nothing else. */
+  labels: Record<string, Label>;
   /** An unreviewed external change to this ticket, if there is one. */
   mark?: ExternalMark;
   /** Bumped when an external change to this ticket lands, to re-read the file. */
@@ -118,6 +123,8 @@ export function TicketPanel(props: TicketPanelProps) {
   const [pendingStatus, setPendingStatus] = useState<TicketStatus>();
   /** Same, for priority. */
   const [pendingPriority, setPendingPriority] = useState<TicketPriority>();
+  /** Same, for labels — the whole list, because a label edit replaces it whole. */
+  const [pendingLabels, setPendingLabels] = useState<string[]>();
 
   /** The checklist as last read, so an external tick can be told from a stale one. */
   const loadedChecklist = useRef<ChecklistItem[]>([]);
@@ -172,6 +179,7 @@ export function TicketPanel(props: TicketPanelProps) {
       setPendingChecks({});
       setPendingStatus(undefined);
       setPendingPriority(undefined);
+      setPendingLabels(undefined);
       setDetail(next);
 
       const unsaved = mode === "external" ? draftEdit() : undefined;
@@ -237,6 +245,7 @@ export function TicketPanel(props: TicketPanelProps) {
       setPendingChecks({});
       setPendingStatus(undefined);
       setPendingPriority(undefined);
+      setPendingLabels(undefined);
       return;
     }
     const hash = detail?.contentHash;
@@ -281,6 +290,7 @@ export function TicketPanel(props: TicketPanelProps) {
         setPendingChecks({});
         setPendingStatus(undefined);
         setPendingPriority(undefined);
+        setPendingLabels(undefined);
         return true;
       },
     });
@@ -449,6 +459,31 @@ export function TicketPanel(props: TicketPanelProps) {
                     toast: `${ticketKey} → ${priorityLabel(next)}`,
                     inverse: { priority: previous },
                     inverseToast: `${ticketKey} back to ${priorityLabel(previous)}`,
+                  },
+                );
+              }}
+            />
+            <span>Labels</span>
+            <LabelMenuButton
+              slugs={pendingLabels ?? ticket.labels}
+              definitions={props.labels}
+              onToggle={(next, toggled) => {
+                const previous = pendingLabels ?? ticket.labels;
+                // `TicketDocument::apply` refuses an edit that changes nothing.
+                if (sameLabels(next, previous)) return;
+                const added = next.includes(toggled.slug);
+                void save(
+                  { labels: next },
+                  {
+                    apply: () => {
+                      setPendingLabels(next);
+                      return () => setPendingLabels(undefined);
+                    },
+                    toast: `${ticketKey} ${added ? "labeled" : "unlabeled"} ${toggled.name}`,
+                    // A label edit replaces the list, so its inverse is the
+                    // whole list as it was — not the one slug that moved.
+                    inverse: { labels: [...previous] },
+                    inverseToast: `${ticketKey} ${added ? "unlabeled" : "labeled"} ${toggled.name}`,
                   },
                 );
               }}

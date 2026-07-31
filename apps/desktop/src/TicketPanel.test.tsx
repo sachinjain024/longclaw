@@ -23,6 +23,7 @@ import { ToastStack } from "./WriteFeedback";
 import type {
   ActivityEvent,
   ChecklistItem,
+  Label,
   TicketDetail,
   WriteResult,
 } from "./types";
@@ -64,6 +65,7 @@ function detail(options?: {
   contentHash?: string;
   title?: string;
   description?: string;
+  labels?: string[];
   checklist?: ChecklistItem[];
   activity?: ActivityEvent[];
 }): TicketDetail {
@@ -83,7 +85,7 @@ function detail(options?: {
       title: options?.title ?? "Prove the agent round trip",
       status: "todo",
       priority: "p2",
-      labels: [],
+      labels: options?.labels ?? [],
       createdAt: "2026-07-30T11:00:00Z",
       updatedAt: "2026-07-30T11:59:00Z",
       description:
@@ -130,11 +132,18 @@ const failOnError = (error: { message: string }) => {
   throw new Error(`unexpected error: ${error.message}`);
 };
 
+/** What `longclaw.yaml` defines in these tests. Tickets carry only the slugs. */
+const DEFINITIONS: Record<string, Label> = {
+  backend: { name: "Backend", color: "blue" },
+  reliability: { name: "Reliability", color: "amber" },
+};
+
 function panel(props?: { reloadSignal?: number; onClose?: () => void }) {
   return (
     <TicketPanel
       projectId="project-1"
       ticketKey="LC-1"
+      labels={DEFINITIONS}
       reloadSignal={props?.reloadSignal ?? 0}
       now={NOW}
       onClose={props?.onClose ?? noop}
@@ -155,7 +164,7 @@ function surface(props?: { reloadSignal?: number }) {
 }
 
 /** The panel's meta rows are menus now, so a change is opened and picked. */
-function metaTrigger(field: "Status" | "Priority"): HTMLElement {
+function metaTrigger(field: "Status" | "Priority" | "Labels"): HTMLElement {
   return screen.getByRole("button", { name: new RegExp(`^${field}: `) });
 }
 
@@ -171,6 +180,11 @@ function ready() {
 function pick(field: "Status" | "Priority", option: string) {
   fireEvent.click(metaTrigger(field));
   fireEvent.click(screen.getByRole("menuitemradio", { name: option }));
+}
+
+/** The labels menu ticks rather than picks, so it stays open between rows. */
+function tick(option: string) {
+  fireEvent.click(screen.getByRole("menuitemcheckbox", { name: option }));
 }
 
 function checklistRow(text: string): HTMLElement {
@@ -578,5 +592,157 @@ describe("priority in the panel (V0-08)", () => {
     pick("Priority", "P2");
 
     expect(editTicketMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("labels in the panel (V0-10)", () => {
+  const chips = () =>
+    Array.from(metaTrigger("Labels").querySelectorAll(".label-chip")).map(
+      (chip) => chip.textContent,
+    );
+
+  it("shows a chip per slug, and follows priority in the tab order", async () => {
+    readTicketMock.mockResolvedValue(detail({ labels: ["backend"] }));
+    render(surface());
+    await ready();
+
+    expect(chips()).toEqual(["Backend"]);
+    // status → priority → labels (`keyboard-focus-map.md:61`).
+    const triggers = screen.getAllByRole("button", {
+      name: /^(Status|Priority|Labels): /,
+    });
+    expect(
+      triggers.map((trigger) => trigger.getAttribute("aria-label")),
+    ).toEqual(["Status: Todo", "Priority: P2", "Labels: Backend"]);
+  });
+
+  it("must-pass 3: renders a slug this project does not define, as itself", async () => {
+    readTicketMock.mockResolvedValue(detail({ labels: ["legacy-thing"] }));
+    render(surface());
+    await ready();
+
+    expect(chips()).toEqual(["legacy-thing"]);
+    // And it is on the menu, so it can be taken off again.
+    fireEvent.click(metaTrigger("Labels"));
+    expect(
+      screen
+        .getAllByRole("menuitemcheckbox")
+        .map((row) => [
+          row.querySelector(".menu-label")?.textContent,
+          row.getAttribute("aria-checked"),
+        ]),
+    ).toEqual([
+      ["Backend", "false"],
+      ["Reliability", "false"],
+      ["legacy-thing", "true"],
+    ]);
+  });
+
+  it("must-pass 1: writes the whole list and offers to take it back", async () => {
+    readTicketMock.mockResolvedValue(detail({ labels: ["backend"] }));
+    editTicketMock.mockResolvedValue(writeResult());
+    render(surface());
+    await ready();
+
+    fireEvent.click(metaTrigger("Labels"));
+    tick("Reliability");
+
+    expect(chips()).toEqual(["Backend", "Reliability"]);
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(1));
+    expect(editTicketMock.mock.calls[0][0]).toEqual({
+      projectId: "project-1",
+      ticketKey: "LC-1",
+      expectedHash: "hash-1",
+      edit: { labels: ["backend", "reliability"] },
+    });
+
+    await screen.findByText("LC-1 labeled Reliability");
+    fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
+    // The inverse of a whole-list replace is the whole previous list.
+    expect(editTicketMock.mock.calls[1][0]).toEqual({
+      projectId: "project-1",
+      ticketKey: "LC-1",
+      expectedHash: "hash-2",
+      edit: { labels: ["backend"] },
+    });
+    await screen.findByText("LC-1 unlabeled Reliability");
+  });
+
+  it("must-pass 3: carries an undefined slug through a write untouched", async () => {
+    readTicketMock.mockResolvedValue(detail({ labels: ["legacy-thing"] }));
+    editTicketMock.mockResolvedValue(writeResult());
+    render(surface());
+    await ready();
+
+    fireEvent.click(metaTrigger("Labels"));
+    tick("Backend");
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(1));
+    expect(editTicketMock.mock.calls[0][0]).toMatchObject({
+      edit: { labels: ["legacy-thing", "backend"] },
+    });
+  });
+
+  it("takes a label off, and stays open while it does", async () => {
+    readTicketMock.mockResolvedValue(
+      detail({ labels: ["backend", "reliability"] }),
+    );
+    editTicketMock.mockResolvedValue(writeResult());
+    render(surface());
+    await ready();
+
+    fireEvent.click(metaTrigger("Labels"));
+    tick("Backend");
+
+    // Multi-select ticks and stays open (`screen-specs.md:239-247`).
+    expect(screen.getByRole("menu", { name: "Labels" })).toBeTruthy();
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(1));
+    expect(editTicketMock.mock.calls[0][0]).toMatchObject({
+      edit: { labels: ["reliability"] },
+    });
+    await screen.findByText("LC-1 unlabeled Backend");
+  });
+
+  it("puts the chips back when the write fails", async () => {
+    editTicketMock.mockRejectedValue({
+      code: "io",
+      message: "No space left on device",
+      recoverable: true,
+    });
+    readTicketMock.mockResolvedValue(detail({ labels: ["backend"] }));
+    render(surface());
+    await ready();
+
+    fireEvent.click(metaTrigger("Labels"));
+    tick("Reliability");
+
+    expect(chips()).toEqual(["Backend", "Reliability"]);
+    await waitFor(() => expect(chips()).toEqual(["Backend"]));
+  });
+});
+
+describe("the labels menu while it stays open (V0-10)", () => {
+  it("keeps an unticked undefined slug on the menu, so it can go back", async () => {
+    // The rows are the project's definitions plus whatever this ticket carries.
+    // Unticking an undefined slug would otherwise delete the row out from under
+    // the pointer, and take the only way of putting it back with it.
+    readTicketMock.mockResolvedValue(detail({ labels: ["legacy-thing"] }));
+    editTicketMock.mockResolvedValue(writeResult());
+    render(surface());
+    await ready();
+
+    fireEvent.click(metaTrigger("Labels"));
+    tick("legacy-thing");
+
+    expect(
+      screen.getByRole("menuitemcheckbox", { name: "legacy-thing" }),
+    ).toBeTruthy();
+    expect(
+      screen
+        .getByRole("menuitemcheckbox", { name: "legacy-thing" })
+        .getAttribute("aria-checked"),
+    ).toBe("false");
   });
 });

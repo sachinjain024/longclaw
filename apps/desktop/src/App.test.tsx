@@ -31,6 +31,9 @@ vi.mock("./api", () => ({
   setProjectStarred: vi.fn(),
   updateProjectName: vi.fn(),
   updateProjectTheme: vi.fn(),
+  addProjectLabel: vi.fn(),
+  updateProjectLabel: vi.fn(),
+  removeProjectLabel: vi.fn(),
 }));
 
 afterEach(() => {
@@ -419,5 +422,160 @@ describe("project creation", () => {
       key: "MP",
       theme: "indigo",
     });
+  });
+});
+
+describe("label definitions in project settings (V0-10)", () => {
+  const project = {
+    id: "project-fixture",
+    name: "Fixture Project",
+    rootPath: "/tmp/LongClaw Fixture",
+    key: "LC",
+    theme: "indigo",
+    starred: false,
+    reachable: true,
+    labels: { backend: { name: "Backend", color: "blue" } },
+  };
+
+  const ticket = {
+    state: "indexed" as const,
+    key: "LC-1",
+    id: "019c8c7e",
+    title: "Prove the round trip",
+    status: "todo" as const,
+    priority: "p3" as const,
+    labels: ["backend"],
+    createdAt: "2026-07-31T09:00:00Z",
+    updatedAt: "2026-07-31T09:00:00Z",
+    checkedCount: 0,
+    checklistCount: 0,
+    commentCount: 0,
+    attachmentCount: 0,
+    contentHash: "hash-1",
+    relativePath: ".longclaw/tickets/LC-1/ticket.md",
+  };
+
+  async function openSettings() {
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project,
+      tickets: [ticket],
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    render(<App />);
+    await screen.findByText("Board");
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+  }
+
+  const chips = () =>
+    Array.from(document.querySelectorAll(".ticket-row .label-chip")).map(
+      (chip) => chip.textContent,
+    );
+
+  it("defines a label from the settings panel", async () => {
+    vi.mocked(api.addProjectLabel).mockResolvedValue({
+      ...project,
+      labels: {
+        ...project.labels,
+        reliability: { name: "Reliability", color: "amber" },
+      },
+    });
+    await openSettings();
+
+    fireEvent.change(screen.getByLabelText("New label slug"), {
+      target: { value: "reliability" },
+    });
+    fireEvent.change(screen.getByLabelText("New label name"), {
+      target: { value: "Reliability" },
+    });
+    fireEvent.change(screen.getByLabelText("New label color"), {
+      target: { value: "amber" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add label" }));
+
+    await waitFor(() => expect(api.addProjectLabel).toHaveBeenCalledTimes(1));
+    expect(api.addProjectLabel).toHaveBeenCalledWith({
+      projectId: project.id,
+      slug: "reliability",
+      name: "Reliability",
+      color: "amber",
+    });
+    expect(
+      (
+        await screen.findByLabelText<HTMLInputElement>(
+          "Name of label reliability",
+        )
+      ).value,
+    ).toBe("Reliability");
+  });
+
+  it("must-pass 2: a renamed definition rewrites no ticket", async () => {
+    vi.mocked(api.updateProjectLabel).mockResolvedValue({
+      ...project,
+      labels: { backend: { name: "Platform", color: "purple" } },
+    });
+    await openSettings();
+    expect(chips()).toEqual(["Backend"]);
+
+    fireEvent.change(screen.getByLabelText("Name of label backend"), {
+      target: { value: "Platform" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save label backend" }));
+
+    await waitFor(() =>
+      expect(api.updateProjectLabel).toHaveBeenCalledTimes(1),
+    );
+    expect(api.updateProjectLabel).toHaveBeenCalledWith({
+      projectId: project.id,
+      slug: "backend",
+      name: "Platform",
+      color: "blue",
+    });
+    // The card follows the definition, and not one ticket was written.
+    await waitFor(() => expect(chips()).toEqual(["Platform"]));
+    expect(api.editTicket).not.toHaveBeenCalled();
+  });
+
+  it("must-pass 3: a removed definition leaves the slug on the ticket", async () => {
+    vi.mocked(api.removeProjectLabel).mockResolvedValue({
+      ...project,
+      labels: {},
+    });
+    await openSettings();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove label backend" }),
+    );
+
+    await waitFor(() =>
+      expect(api.removeProjectLabel).toHaveBeenCalledWith({
+        projectId: project.id,
+        slug: "backend",
+      }),
+    );
+    await waitFor(() => expect(chips()).toEqual(["backend"]));
+    expect(api.editTicket).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a slug the format refuses rather than swallowing it", async () => {
+    vi.mocked(api.addProjectLabel).mockRejectedValue({
+      code: "parse_failed",
+      message:
+        'A label slug is lowercase letters and digits, optionally separated by - or _, starting with a letter; found "9lives"',
+      recoverable: true,
+    });
+    await openSettings();
+
+    fireEvent.change(screen.getByLabelText("New label slug"), {
+      target: { value: "9lives" },
+    });
+    fireEvent.change(screen.getByLabelText("New label name"), {
+      target: { value: "Nine lives" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add label" }));
+
+    expect(await screen.findByText(/found "9lives"/)).toBeTruthy();
   });
 });

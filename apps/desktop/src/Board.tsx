@@ -29,12 +29,14 @@ import { presentCard } from "./boardCard";
 import { cardStrides, columnOffsets, windowFor } from "./boardGeometry";
 import { acknowledgement, isFresh, isPulsing } from "./freshness";
 import type { ExternalMark, ExternalMarks } from "./freshness";
+import { LabelChip } from "./LabelChip";
 import { Menu } from "./Menu";
 import { orderColumn } from "./ordering";
 import { PriorityGlyph } from "./PriorityGlyph";
 import { PRIORITIES, STATUSES } from "./tickets";
 import type {
   IndexedTicket,
+  Label,
   TicketPriority,
   TicketRow,
   TicketStatus,
@@ -163,6 +165,8 @@ export function Board(props: {
   tickets: TicketRow[];
   selectedKey?: string;
   marks: ExternalMarks;
+  /** The project's label definitions, for the chips a card's slugs resolve to. */
+  labels: Record<string, Label>;
   now: number;
   onSelect: (key: string) => void;
   /** Raised by the `P` menu. The board holds no project id and writes nothing. */
@@ -260,6 +264,7 @@ export function Board(props: {
             .filter((seat) => seat?.column === columnIndex)
             .map((seat) => (seat as Seat).index)}
           marks={props.marks}
+          labels={props.labels}
           now={props.now}
           onSelect={props.onSelect}
           onFocusCard={onFocusCard}
@@ -295,6 +300,7 @@ function BoardColumn(props: {
    */
   anchors: number[];
   marks: ExternalMarks;
+  labels: Record<string, Label>;
   now: number;
   onSelect: (key: string) => void;
   onFocusCard: (key: string) => void;
@@ -356,6 +362,7 @@ function BoardColumn(props: {
                 selected={ticket.key === props.selectedKey}
                 tabStop={ticket.key === props.rovingKey}
                 mark={mark}
+                labels={props.labels}
                 // The acknowledgement clock ticks every second. Handing it to a
                 // card with nothing to acknowledge would re-render the column once
                 // a second for a number none of those cards read.
@@ -388,12 +395,13 @@ const BoardCard = memo(function BoardCard(props: {
   selected: boolean;
   tabStop: boolean;
   mark?: ExternalMark;
+  labels: Record<string, Label>;
   now: number;
   onSelect: (key: string) => void;
   onFocusCard: (key: string) => void;
 }) {
   const { ticket, mark } = props;
-  const row = presentCard(ticket);
+  const row = presentCard(ticket, props.labels);
   const fresh = isFresh(mark, props.now);
   return (
     <button
@@ -426,6 +434,9 @@ const BoardCard = memo(function BoardCard(props: {
       <strong>{row.title}</strong>
       <span className="ticket-meta">
         {row.priority && <PriorityGlyph priority={row.priority} small />}
+        {row.labels.map((label) => (
+          <LabelChip key={label.slug} label={label} small />
+        ))}
         {row.meta}
       </span>
       {fresh && mark && (
