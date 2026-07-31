@@ -22,12 +22,12 @@
 //!   and adds another without the watcher needing to understand rename semantics.
 
 use std::collections::HashMap;
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{mpsc, Arc, Weak};
 use std::thread;
 use std::time::{Duration, Instant};
+use std::{fs, io};
 
 use chrono::{SecondsFormat, Utc};
 use notify::{Config, Event, PollWatcher, RecursiveMode, Watcher};
@@ -672,9 +672,13 @@ fn collect_event(
     tickets_root: &Path,
     paths: &mut HashMap<PathBuf, usize>,
 ) -> (bool, Option<RebuildReason>) {
-    let Ok(event) = event else {
-        local_diagnostic("watcher overflow or dropped filesystem events; rebuilding index");
-        return (false, Some(RebuildReason::Overflow));
+    let event = match event {
+        Ok(event) => event,
+        Err(error) if is_transient_not_found(&error) => return (false, None),
+        Err(_) => {
+            local_diagnostic("watcher overflow or dropped filesystem events; rebuilding index");
+            return (false, Some(RebuildReason::Overflow));
+        }
     };
     let mut root_touched = false;
     let mut seen = Vec::new();
@@ -691,6 +695,13 @@ fn collect_event(
         }
     }
     (root_touched, None)
+}
+
+fn is_transient_not_found(error: &notify::Error) -> bool {
+    match &error.kind {
+        notify::ErrorKind::Io(error) => error.kind() == io::ErrorKind::NotFound,
+        _ => false,
+    }
 }
 
 fn local_diagnostic(message: &str) {
@@ -766,10 +777,14 @@ fn now() -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+    use std::io;
     use std::path::{Path, PathBuf};
     use std::time::Instant;
 
-    use super::{normalize, ReceiptBook, Target};
+    use crate::core::RebuildReason;
+
+    use super::{collect_event, normalize, ReceiptBook, Target};
 
     fn tickets_root() -> PathBuf {
         PathBuf::from("/project/.longclaw/tickets")
@@ -810,6 +825,32 @@ mod tests {
                 ignored.display()
             );
         }
+    }
+
+    #[test]
+    fn a_missing_path_watcher_error_does_not_force_an_overflow_rebuild() {
+        let mut paths = HashMap::new();
+        let error = notify::Error::io(io::Error::from(io::ErrorKind::NotFound))
+            .add_path(tickets_root().join("LC-2"));
+
+        let (root_touched, recovery) = collect_event(Err(error), &tickets_root(), &mut paths);
+
+        assert!(!root_touched);
+        assert!(recovery.is_none());
+        assert!(paths.is_empty());
+    }
+
+    #[test]
+    fn non_missing_watcher_errors_still_force_an_overflow_rebuild() {
+        let mut paths = HashMap::new();
+        let error = notify::Error::io(io::Error::from(io::ErrorKind::PermissionDenied))
+            .add_path(tickets_root());
+
+        let (root_touched, recovery) = collect_event(Err(error), &tickets_root(), &mut paths);
+
+        assert!(!root_touched);
+        assert!(matches!(recovery, Some(RebuildReason::Overflow)));
+        assert!(paths.is_empty());
     }
 
     #[test]
