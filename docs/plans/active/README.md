@@ -4,7 +4,7 @@ product: LongClaw
 status: active
 milestone: "M4 — Pilot direction accepted"
 written: 2026-07-31
-applies_to: "main @ aae472d"
+applies_to: "main @ b773a7a"
 ---
 
 # Active plans
@@ -24,7 +24,7 @@ marked independent can be done at any time by anyone.
 
 | #   | Plan                                                                           | Backlog | Why here in the order                                                                                                  |
 | --- | ------------------------------------------------------------------------------ | ------- | ---------------------------------------------------------------------------------------------------------------------- |
-| 00  | [Confirm CI on main](00-confirm-ci-on-main.md)                                 | —       | Five minutes, and it tells you whether the tree you are about to build on is green. Do it first.                       |
+| ~~00~~ | ~~Confirm CI on main~~ — **done 2026-07-31**, [outcome](../completed/00-confirm-ci-on-main.md) | — | Closed. `main` does build: run 30624782219 on `b773a7a` is green through `tauri build`. It also caught a red run on the previous tip, which produced 09. |
 | ~~01~~ | ~~Close the atomic-replace race~~ — **done 2026-07-31**, [outcome](../completed/01-atomic-replace-race.md) | V0-01 | Closed. Read its outcome before starting 06: the write path moved, and the test seam it added assumes writes stay on the calling thread. |
 | ~~02~~ | ~~Recover from an event-sequence gap~~ — **done 2026-07-31**, [outcome](../completed/02-event-sequence-gap.md) | V0-02 | Closed. It added `ProjectSnapshot.sequence`, which is the snapshot-reconcile boundary item 05 needs. |
 | ~~03~~ | ~~Attribute a change from new records only~~ — **done 2026-07-31**, [outcome](../completed/03-attribution-from-new-records.md) | V0-07 | Closed. It restructured the tail of `process_burst`, which 05 and 06 both touch. |
@@ -33,6 +33,7 @@ marked independent can be done at any time by anyone.
 | 06  | [Move heavy work off the command thread](06-blocking-workers.md)               | V0-05   | Restructures engine orchestration, so it goes after the correctness fixes rather than moving code out from under them. |
 | ~~07~~ | ~~Virtualize the board and list~~ — **done 2026-07-31**, [outcome](../completed/07-board-virtualization.md) | V0-06 | Closed for the board. Columns are windowed scroll containers over `boardGeometry.ts`, and the board carries roving arrow/`j`-`k` focus because WebKit never had the cards in the Tab order. Wave 1's list surface (V0-14) inherits that geometry and re-traces with `npm run perf:board`. |
 | ~~08~~ | ~~Triage the dependabot advisories~~ — **done 2026-07-31**, [outcome](../completed/08-dependabot-triage.md) | V0-40 | Closed. All three advisories are unreachable, with the argument recorded. It produced V0-40: the alert list itself is the problem, not any advisory in it. |
+| 09  | [Stop treating a vanished path as a watcher overflow](09-rename-is-not-an-overflow.md) | —       | Found by 00. The gate goes red at random, so it cannot vouch for anything until this is fixed. Small, and it buys back trust in CI. |
 
 Dependencies worth knowing:
 
@@ -62,6 +63,10 @@ Dependencies worth knowing:
   `boardGeometry.ts` and is what the list surface should be built on; its sticky
   group headers and archived group are the part 07 did not have to solve. The
   board's keyboard navigation is new and is the model the list should follow.
+- **09 is independent, and it gates trusting every other item's "CI is green".**
+  It touches `collect_event` in `apps/desktop/src-tauri/src/engine.rs`, which 06
+  also moves around. Whichever lands second rebases onto the other; they do not
+  conflict in intent.
 
 ## What is deliberately not planned yet
 
