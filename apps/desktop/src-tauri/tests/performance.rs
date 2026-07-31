@@ -6,11 +6,11 @@ mod common;
 
 use std::fs;
 use std::path::Path;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use longclaw_desktop_lib::core::storage::NewTicket;
 use longclaw_desktop_lib::core::ticket::TicketEdit;
-use longclaw_desktop_lib::core::{RebuildReason, TicketRow};
+use longclaw_desktop_lib::core::{ProjectEvent, RebuildReason, TicketRow};
 
 /// A project size well past what a solo builder is likely to reach.
 const TICKETS: usize = 5_000;
@@ -89,6 +89,40 @@ fn performance_budgets_for_project_load_search_and_write() {
         common::start_engine_with(&root, longclaw_desktop_lib::engine::WatcherAdapter::Native);
     let open_ms = started.elapsed().as_secs_f64() * 1_000.0;
 
+    // Tauri's rebuild command returns the current snapshot while the bounded
+    // worker publishes the completed snapshot as one event. Two close triggers
+    // must not start two scans of the same project.
+    let (event_sender, event_receiver) = std::sync::mpsc::channel();
+    let event_engine = longclaw_desktop_lib::engine::ProjectEngine::start_with_adapter(
+        common::project_reference(&root),
+        std::sync::Arc::new(move |event| {
+            let _ = event_sender.send(event);
+        }),
+        longclaw_desktop_lib::engine::WatcherAdapter::Native,
+    )
+    .expect("the concurrent engine should start");
+    let request_started = Instant::now();
+    let before = event_engine.snapshot();
+    let _ = event_engine
+        .request_rebuild(RebuildReason::Manual)
+        .expect("the first rebuild request should be accepted");
+    let _ = event_engine
+        .request_rebuild(RebuildReason::Manual)
+        .expect("the second rebuild request should be coalesced");
+    let request_ms = request_started.elapsed().as_secs_f64() * 1_000.0;
+    let completion = event_receiver
+        .recv_timeout(Duration::from_secs(10))
+        .expect("the rebuild should publish a completion event");
+    assert!(
+        request_ms < 250.0,
+        "rebuild request blocked for {request_ms:.2}ms"
+    );
+    assert!(matches!(
+        completion.event,
+        ProjectEvent::IndexRebuilt { .. }
+    ));
+    assert_eq!(event_engine.snapshot().generation, before.generation + 1);
+
     let rebuilt = engine
         .rebuild(RebuildReason::Manual, false)
         .expect("the index should rebuild");
@@ -130,7 +164,8 @@ fn performance_budgets_for_project_load_search_and_write() {
 
     println!(
         "PERF tickets={TICKETS} open_ms={open_ms:.2} rebuild_ms={:.2} search_ms={:.2} \
-         detail_ms={detail_ms:.2} write_ms={write_ms:.2} create_ms={create_ms:.2}",
+         detail_ms={detail_ms:.2} write_ms={write_ms:.2} create_ms={create_ms:.2} \
+         concurrent_request_ms={request_ms:.2}",
         rebuilt.rebuilt_in_ms, search.elapsed_ms
     );
 

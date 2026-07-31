@@ -541,12 +541,11 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> AppResult<()> {
 /// behaviour under test is an interleaving, and a test that waits for it to happen
 /// by luck is not evidence that it was handled.
 ///
-/// The seams are **per-thread**, so installing them in one test cannot reach a test
-/// running beside it. That holds because a write runs on the thread that asked for
-/// it: `edit_ticket` calls `commit` calls `atomic_replace`, all synchronously. Move
-/// the write onto a worker and the installer has to move with it.
+/// The seam is installed on the calling thread and explicitly captured by the
+/// engine before it submits a write to a blocking worker. This keeps independent
+/// tests isolated while ensuring the worker still drives the intended interleaving.
 /// What runs inside the replace window, given the path being replaced.
-pub type BeforeSwap = Arc<dyn Fn(&Path)>;
+pub type BeforeSwap = Arc<dyn Fn(&Path) + Send + Sync>;
 
 #[derive(Clone, Default)]
 pub struct ReplaceSeams {
@@ -569,7 +568,7 @@ pub fn clear_replace_seams() {
     REPLACE_SEAMS.with(|cell| *cell.borrow_mut() = None);
 }
 
-fn replace_seams() -> ReplaceSeams {
+pub fn replace_seams_for_worker() -> ReplaceSeams {
     REPLACE_SEAMS.with(|cell| cell.borrow().clone().unwrap_or_default())
 }
 
@@ -675,7 +674,15 @@ fn swap_unsupported_error(path: &Path) -> AppError {
 /// The external write is never lost. In the worst case — the restoring swap itself
 /// fails — its bytes are preserved beside the ticket and the error names where.
 pub fn atomic_replace(path: &Path, bytes: &[u8], expected_hash: &str) -> AppResult<()> {
-    let seams = replace_seams();
+    atomic_replace_with_seams(path, bytes, expected_hash, replace_seams_for_worker())
+}
+
+pub fn atomic_replace_with_seams(
+    path: &Path,
+    bytes: &[u8],
+    expected_hash: &str,
+    seams: ReplaceSeams,
+) -> AppResult<()> {
     if !SWAP_SUPPORTED || seams.force_swap_unsupported {
         return Err(swap_unsupported_error(path));
     }

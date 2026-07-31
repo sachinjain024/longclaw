@@ -119,7 +119,7 @@ fn rebuild_index(
 ) -> AppResult<ProjectSnapshot> {
     state
         .engine(&project_id, tauri_sink(&app))?
-        .rebuild(reason, true)
+        .request_rebuild(reason)
 }
 
 #[tauri::command]

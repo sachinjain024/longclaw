@@ -34,8 +34,8 @@ use notify::{Config, Event, PollWatcher, RecursiveMode, Watcher};
 use parking_lot::Mutex;
 
 use crate::core::storage::{
-    self, atomic_replace, atomic_write, content_hash, directory_key, prepare_new_ticket,
-    prepare_ticket_edit, read_project, ticket_file_path, NewTicket,
+    self, atomic_write, content_hash, directory_key, prepare_new_ticket, prepare_ticket_edit,
+    read_project, ticket_file_path, NewTicket,
 };
 use crate::core::ticket::TicketEdit;
 use crate::core::{
@@ -58,6 +58,81 @@ const STABILITY_ATTEMPTS: usize = 6;
 const SELF_WRITE_TTL: Duration = Duration::from_secs(5);
 
 pub type EventSink = Arc<dyn Fn(StreamEnvelope) + Send + Sync + 'static>;
+
+type BlockingJob = Box<dyn FnOnce() + Send + 'static>;
+
+/// A small, per-project pool for filesystem and parsing work.
+///
+/// Keeping the pool on the engine bounds work independently for each open
+/// project. Rebuild requests have an additional coalescing gate below, so a
+/// burst of recovery requests cannot consume every worker with identical scans.
+struct BlockingPool {
+    sender: Option<mpsc::SyncSender<BlockingJob>>,
+    workers: Vec<thread::JoinHandle<()>>,
+}
+
+impl BlockingPool {
+    fn new(size: usize) -> AppResult<Self> {
+        let (sender, receiver) = mpsc::sync_channel::<BlockingJob>(size);
+        let receiver = Arc::new(Mutex::new(receiver));
+        let mut workers = Vec::with_capacity(size);
+        for number in 0..size {
+            let receiver = Arc::clone(&receiver);
+            workers.push(
+                thread::Builder::new()
+                    .name(format!("longclaw-blocking-{number}"))
+                    .spawn(move || loop {
+                        let job = receiver.lock().recv();
+                        match job {
+                            Ok(job) => job(),
+                            Err(_) => break,
+                        }
+                    })
+                    .map_err(|error| {
+                        AppError::new(
+                            ErrorCode::Internal,
+                            format!("Starting blocking worker failed: {error}"),
+                            false,
+                        )
+                    })?,
+            );
+        }
+        Ok(Self {
+            sender: Some(sender),
+            workers,
+        })
+    }
+
+    fn submit(&self, job: BlockingJob) -> AppResult<()> {
+        self.sender
+            .as_ref()
+            .expect("blocking pool sender is present while the pool is live")
+            .send(job)
+            .map_err(|_| AppError::new(ErrorCode::Internal, "Blocking worker stopped", false))
+    }
+
+    fn run<T: Send + 'static>(
+        &self,
+        job: impl FnOnce() -> AppResult<T> + Send + 'static,
+    ) -> AppResult<T> {
+        let (result_tx, result_rx) = mpsc::sync_channel(1);
+        self.submit(Box::new(move || {
+            let _ = result_tx.send(job());
+        }))?;
+        result_rx
+            .recv()
+            .map_err(|_| AppError::new(ErrorCode::Internal, "Blocking worker stopped", false))?
+    }
+}
+
+impl Drop for BlockingPool {
+    fn drop(&mut self) {
+        self.sender.take();
+        for worker in self.workers.drain(..) {
+            let _ = worker.join();
+        }
+    }
+}
 
 /// Which filesystem watcher to use.
 #[derive(Debug, Clone, Copy)]
@@ -132,8 +207,10 @@ pub struct ProjectEngine {
     creation: Mutex<()>,
     sequence: AtomicU64,
     sink: EventSink,
+    blocking: BlockingPool,
     watcher: Mutex<Option<ProjectWatcher>>,
     recovery: Mutex<Option<Instant>>,
+    rebuild_queued: Mutex<bool>,
 }
 
 struct ProjectWatcher {
@@ -187,11 +264,18 @@ impl ProjectEngine {
             creation: Mutex::new(()),
             sequence: AtomicU64::new(0),
             sink,
+            blocking: BlockingPool::new(2)?,
             watcher: Mutex::new(None),
             recovery: Mutex::new(None),
+            rebuild_queued: Mutex::new(false),
         });
         let project_key = engine.project.lock().key.clone();
-        engine.index.rebuild(&engine.root, &project_key)?;
+        let initial_engine = Arc::clone(&engine);
+        engine.blocking.run(move || {
+            initial_engine
+                .index
+                .rebuild(&initial_engine.root, &project_key)
+        })?;
         let watcher = ProjectWatcher::start(Arc::downgrade(&engine), adapter)?;
         *engine.watcher.lock() = Some(watcher);
         Ok(engine)
@@ -215,7 +299,16 @@ impl ProjectEngine {
     }
 
     /// Throws the index away and rebuilds it from the project files.
-    pub fn rebuild(&self, reason: RebuildReason, emit: bool) -> AppResult<ProjectSnapshot> {
+    pub fn rebuild(
+        self: &Arc<Self>,
+        reason: RebuildReason,
+        emit: bool,
+    ) -> AppResult<ProjectSnapshot> {
+        let engine = Arc::clone(self);
+        self.blocking.run(move || engine.rebuild_now(reason, emit))
+    }
+
+    fn rebuild_now(&self, reason: RebuildReason, emit: bool) -> AppResult<ProjectSnapshot> {
         // Availability is checked before coalescing, never after. A root that
         // disappeared between two recovery triggers has to surface as unavailable;
         // suppressing it would hand back a stale snapshot that looks live.
@@ -256,6 +349,36 @@ impl ProjectEngine {
             });
         }
         Ok(snapshot)
+    }
+
+    /// Starts one rebuild and returns the current snapshot immediately. A second
+    /// request while the first is running is deliberately folded into that same
+    /// completion event.
+    pub fn request_rebuild(self: &Arc<Self>, reason: RebuildReason) -> AppResult<ProjectSnapshot> {
+        if !self.root.is_dir() {
+            return Err(self.report_unavailable());
+        }
+        let should_queue = {
+            let mut queued = self.rebuild_queued.lock();
+            if *queued {
+                false
+            } else {
+                *queued = true;
+                true
+            }
+        };
+        if should_queue {
+            let weak = Arc::downgrade(self);
+            if let Err(error) = self.blocking.submit(Box::new(move || {
+                let Some(engine) = weak.upgrade() else { return };
+                let _ = engine.rebuild_now(reason, true);
+                *engine.rebuild_queued.lock() = false;
+            })) {
+                *self.rebuild_queued.lock() = false;
+                return Err(error);
+            }
+        }
+        Ok(self.snapshot())
     }
 
     pub fn search(&self, query: &str) -> SearchResult {
@@ -304,10 +427,16 @@ impl ProjectEngine {
         self.receipts
             .lock()
             .remember(write.path.clone(), hash.clone(), Instant::now());
-        let placed = match &write.expected_hash {
-            Some(expected) => atomic_replace(&write.path, &write.bytes, expected),
-            None => atomic_write(&write.path, &write.bytes),
-        };
+        let path = write.path.clone();
+        let bytes = write.bytes.clone();
+        let expected_hash = write.expected_hash.clone();
+        let replace_seams = storage::replace_seams_for_worker();
+        let placed = self.blocking.run(move || match expected_hash {
+            Some(expected) => {
+                storage::atomic_replace_with_seams(&path, &bytes, &expected, replace_seams)
+            }
+            None => atomic_write(&path, &bytes),
+        });
         if let Err(error) = placed {
             // Our bytes are not on disk, so the receipt must go too. Left behind, it
             // would suppress the watcher event carrying whoever's write did land —

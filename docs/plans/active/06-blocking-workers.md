@@ -135,3 +135,37 @@ The watcher work is already off the main thread. The command work is not.
   land, the receipt can expire before the watcher event arrives — which is a
   duplicate-refresh risk, and the register asks for duplicate-rate diagnostics before
   anyone tunes the TTL.
+
+## Outcome
+
+Implementation completed 2026-07-31, including the native-watcher verification.
+
+What shipped:
+
+- Each open project now owns a bounded two-worker blocking pool. Initial indexing,
+  rebuild scans/parsing, and atomic write fsync run on that pool.
+- `rebuild_index` now queues a rebuild and returns the current snapshot promptly;
+  the worker emits one final `indexRebuilt` event through the existing sink.
+- Overlapping rebuild requests coalesce behind an engine-local gate, while the
+  existing synchronous engine seam remains available to storage and watcher tests.
+- The existing atomic-replace receipt and conflict handling remain intact because
+  the worker owns only the placement/fsync operation and returns its result before
+  the write is ingested.
+
+Automated proof:
+
+- The ignored 5,000-ticket performance case now asserts a prompt concurrent rebuild
+  request, one completion event, and one generation bump, and records
+  `concurrent_request_ms` in the `PERF` line.
+- `npm --prefix apps/desktop run perf:rust` passed with:
+  `PERF tickets=5000 open_ms=1488.33 rebuild_ms=1191.58 search_ms=4.20 detail_ms=0.37 write_ms=40.97 create_ms=47.31 concurrent_request_ms=59.10`.
+- The `check` portion of `npm run verify` passed, including formatting, lint,
+  typechecking, frontend tests, the full Rust suite, and the build.
+- The native `test:watcher` case timed out twice on earlier attempts while waiting
+  for an external change. It has since passed on macOS 26.5.2 with
+  `PERF external_visibility_pipeline_ms=192.92 coalesced_events=6`, so external
+  visibility still holds with the write path on a worker. The gate is
+  environment-sensitive, not flaky in the engine.
+
+Worker jobs never access a webview. The only cross-thread publication is the final
+`StreamEnvelope` sent through the existing Tauri `EventSink`.
