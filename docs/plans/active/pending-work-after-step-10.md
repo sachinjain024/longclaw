@@ -107,7 +107,7 @@ the few real dependencies between items.
 | ~~01~~ | ~~Close the atomic-replace race~~ — **done 2026-07-31**, [outcome](../completed/01-atomic-replace-race.md) | V0-01 | ~~An external write during a save is destroyed, and the app reports success.~~ Closed. |
 | ~~02~~ | ~~Recover from an event-sequence gap~~ — **done 2026-07-31**, [outcome](../completed/02-event-sequence-gap.md) | V0-02 | ~~One dropped event leaves the board silently stale.~~ Closed. |
 | ~~03~~ | ~~Attribute a change from new records only~~ — **done 2026-07-31**, [outcome](../completed/03-attribution-from-new-records.md) | V0-07 | ~~The app can credit an agent for a person's edit, or the reverse.~~ Closed. |
-| 04  | [Validate the project prefix on ingest](04-project-prefix-validation.md)       | V0-03   | A foreign ticket key is indexed as this project's.                         |
+| ~~04~~ | ~~Validate the project prefix on ingest~~ — **done 2026-07-31**, [outcome](../completed/04-project-prefix-validation.md) | V0-03 | ~~A foreign ticket key is indexed as this project's.~~ Closed. |
 | 05  | [Recover the watcher over sleep and wake](05-watcher-recovery.md)              | V0-04   | A closed laptop lid can leave the app confidently wrong.                   |
 | 06  | [Move heavy work off the command thread](06-blocking-workers.md)               | V0-05   | A large rebuild blocks the command it runs on.                             |
 | 07  | [Virtualize the board and list](07-board-virtualization.md)                    | V0-06   | The one Step 4 budget with no measurement behind it.                       |
@@ -115,7 +115,7 @@ the few real dependencies between items.
 
 Items 01–07 are Wave 0 of [the backlog](../../backlog/v0-backlog.md): recorded,
 open risk. **None of them needs pilot evidence**, and all of them should be cleared
-whatever the pilot finds. Items 01, 02, and 03 are closed; 04–07 are open.
+whatever the pilot finds. Items 01, 02, 03, and 04 are closed; 05–07 are open.
 
 Waves 1–3 — the other 32 backlog items — deliberately have no plans yet. The plan's
 guardrail forbids starting Wave 1 breadth before M4 is decided, and their internal

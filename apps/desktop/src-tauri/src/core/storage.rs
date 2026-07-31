@@ -87,6 +87,41 @@ pub fn valid_ticket_key(key: &str) -> bool {
         && !sequence.contains('-')
 }
 
+/// Whether a ticket directory belongs to the project keyed `project_key`.
+///
+/// [`valid_ticket_key`] proves a key's *shape*; this proves *whose* it is. A
+/// directory copied out of another project, or left behind by one that was
+/// renamed, satisfies the grammar and is still not this project's ticket. The two
+/// checks are separate on purpose: grammar is a property of the string, ownership
+/// is a property of where the string sits.
+pub fn belongs_to_project(project_key: &str, ticket_key: &str) -> bool {
+    ticket_key
+        .split_once('-')
+        .is_some_and(|(prefix, _)| prefix == project_key)
+}
+
+/// Why a ticket directory that names another project is shown rather than indexed.
+///
+/// Written for someone looking at a folder rather than for a format implementer
+/// (ADR 0010): it names the key that is there and the key this project uses, and
+/// every repair it suggests is one the human performs. LongClaw does not rename or
+/// move the directory, and the wording must never imply that it will.
+pub fn foreign_project_diagnostic(project_key: &str, ticket_key: &str) -> Diagnostic {
+    match ticket_key.split_once('-') {
+        Some((prefix, _)) if !prefix.is_empty() => Diagnostic::parse(format!(
+            "{ticket_key} is a ticket of project {prefix}, and this project's key is \
+             {project_key}. The folder is shown as it is on disk and nothing in it has been \
+             changed. Move it back to the {prefix} project, or rename the folder and its \
+             key field to a {project_key}- key yourself."
+        )),
+        _ => Diagnostic::parse(format!(
+            "{ticket_key} is not a ticket of project {project_key}. A ticket folder is named \
+             {project_key}-<number>, like {project_key}-1. The folder is shown as it is on \
+             disk and nothing in it has been changed."
+        )),
+    }
+}
+
 fn key_error(key: &str) -> AppError {
     AppError::new(
         ErrorCode::PermissionDenied,
@@ -237,9 +272,28 @@ impl TicketFile {
     }
 }
 
-/// Reads one ticket file. A read never fails as a whole: an unreadable file
-/// becomes a degraded record carrying its raw bytes and a diagnostic.
-pub fn read_ticket_file(path: &Path) -> AppResult<TicketFile> {
+/// Reads one ticket file as a ticket of the project keyed `project_key`. A read
+/// never fails as a whole: an unreadable file, or one belonging to another
+/// project, becomes a degraded record carrying its raw bytes and a diagnostic.
+///
+/// The project key is a parameter rather than something derived from the path so
+/// that no caller can read a ticket without saying which project it is reading
+/// for. Every reader — rebuild, ingest, the detail panel, and the write path that
+/// refuses to rewrite a degraded file — inherits the ownership check from here.
+pub fn read_ticket_file(path: &Path, project_key: &str) -> AppResult<TicketFile> {
+    read_ticket_file_owned_by(path, Some(project_key))
+}
+
+/// Reads a ticket file without deciding whether the project owns it.
+///
+/// Only the conflict path in [`atomic_replace`] uses this. It has just displaced
+/// bytes at a path the caller already proved is this project's ticket, and it
+/// re-reads the file only to name whoever wrote what it found there.
+fn read_ticket_file_unowned(path: &Path) -> AppResult<TicketFile> {
+    read_ticket_file_owned_by(path, None)
+}
+
+fn read_ticket_file_owned_by(path: &Path, project_key: Option<&str>) -> AppResult<TicketFile> {
     let bytes = fs::read(path).map_err(|error| AppError::io("Reading ticket", path, error))?;
     let key = directory_key(path).ok_or_else(|| {
         AppError::new(
@@ -252,14 +306,24 @@ pub fn read_ticket_file(path: &Path) -> AppResult<TicketFile> {
     let relative_path = relative_ticket_path(&key);
     let content_hash = content_hash(&bytes);
     let byte_length = bytes.len();
-    let (raw, parsed) = match std::str::from_utf8(&bytes) {
-        Ok(raw) => (raw.to_owned(), TicketDocument::parse(raw, &key)),
-        Err(error) => (
+    // Ownership is settled before the contents are believed, and a foreign
+    // directory is never parsed: it is not this project's ticket whatever its
+    // frontmatter says. The bytes still reach `raw`, so the raw-file view shows it.
+    let foreign = project_key.filter(|owner| !belongs_to_project(owner, &key));
+    let (raw, parsed) = match foreign {
+        Some(owner) => (
             String::from_utf8_lossy(&bytes).into_owned(),
-            Err(Diagnostic::parse(format!(
-                "{TICKET_FILE} is not UTF-8 and was left untouched: {error}"
-            ))),
+            Err(foreign_project_diagnostic(owner, &key)),
         ),
+        None => match std::str::from_utf8(&bytes) {
+            Ok(raw) => (raw.to_owned(), TicketDocument::parse(raw, &key)),
+            Err(error) => (
+                String::from_utf8_lossy(&bytes).into_owned(),
+                Err(Diagnostic::parse(format!(
+                    "{TICKET_FILE} is not UTF-8 and was left untouched: {error}"
+                ))),
+            ),
+        },
     };
     Ok(TicketFile {
         key,
@@ -343,6 +407,11 @@ pub fn scan_ticket_paths(project_root: &Path) -> AppResult<Vec<PathBuf>> {
 /// Every directory name under `tickets/`, whether or not it holds a readable
 /// ticket. Key allocation reads this rather than the index, so a number is never
 /// reused because a ticket was archived or became unreadable.
+///
+/// Names are returned unfiltered, including ones belonging to another project.
+/// Filtering happens at the one place that cares: `next_sequence_of` only counts a
+/// name that starts with this project's key, so a foreign directory cannot push
+/// this project's sequence forward. See `a_foreign_prefix_directory_does_not_spend_a_key`.
 fn scan_ticket_directory_names(project_root: &Path) -> AppResult<BTreeSet<String>> {
     let tickets = tickets_root(project_root);
     let entries = fs::read_dir(&tickets)
@@ -362,9 +431,13 @@ fn scan_ticket_directory_names(project_root: &Path) -> AppResult<BTreeSet<String
 
 /// The full record behind the ticket panel, including the raw file and the state
 /// of the attachment directory.
-pub fn read_ticket_detail(project_root: &Path, key: &str) -> AppResult<TicketDetail> {
+pub fn read_ticket_detail(
+    project_root: &Path,
+    project_key: &str,
+    key: &str,
+) -> AppResult<TicketDetail> {
     let path = resolve_ticket_path(project_root, key)?;
-    let file = read_ticket_file(&path)?;
+    let file = read_ticket_file(&path, project_key)?;
     let ticket = file
         .parsed
         .as_ref()
@@ -657,7 +730,7 @@ pub fn atomic_replace(path: &Path, bytes: &[u8], expected_hash: &str) -> AppResu
     let _ = fs::remove_file(&temporary);
     sync_directory(parent)?;
 
-    let file = read_ticket_file(path)?;
+    let file = read_ticket_file_unowned(path)?;
     Err(conflict_error(&file, expected_hash).with_context("racedInsideWrite", "true".to_owned()))
 }
 
@@ -689,20 +762,32 @@ fn sync_directory(parent: &Path) -> AppResult<()> {
 /// Reads a ticket, applies `edit`, and returns the bytes to write. Nothing is
 /// written here: the caller records its self-write receipt first, so the watcher
 /// can recognize the change as its own.
+///
+/// A ticket the project does not own is refused here, by the same route as one
+/// that will not parse: [`read_ticket_file`] degrades it, and a degraded file is
+/// never rewritten. That is deliberate — rewriting a foreign ticket into
+/// conformity is exactly the repair the format contract forbids.
 pub fn prepare_ticket_edit(
     project_root: &Path,
+    project_key: &str,
     key: &str,
     edit: &TicketEdit,
     expected_hash: &str,
     now: &str,
 ) -> AppResult<TicketWrite> {
     let path = resolve_ticket_path(project_root, key)?;
-    let file = read_ticket_file(&path)?;
+    let file = read_ticket_file(&path, project_key)?;
     if file.content_hash != expected_hash {
         return Err(conflict_error(&file, expected_hash));
     }
+    let foreign = !belongs_to_project(project_key, &file.key);
     let document = file.parsed.map_err(|diagnostic| {
-        let refusal = if diagnostic.is_read_only() {
+        let refusal = if foreign {
+            format!(
+                "LongClaw will not write to a ticket that belongs to another project: {}",
+                diagnostic.message
+            )
+        } else if diagnostic.is_read_only() {
             format!(
                 "{key} uses a newer ticket format. This build shows it read-only rather than \
                  rewriting it: {}",
@@ -970,8 +1055,8 @@ mod tests {
     use std::fs;
 
     use super::{
-        read_ticket_detail, read_ticket_file, resolve_ticket_path, scan_ticket_paths,
-        valid_ticket_key,
+        belongs_to_project, foreign_project_diagnostic, prepare_new_ticket, read_ticket_detail,
+        read_ticket_file, resolve_ticket_path, scan_ticket_paths, valid_ticket_key, NewTicket,
     };
     use crate::core::ErrorCode;
 
@@ -988,6 +1073,97 @@ mod tests {
         assert!(!valid_ticket_key("-42"));
         assert!(!valid_ticket_key("LC"));
         assert!(!valid_ticket_key(""));
+    }
+
+    #[test]
+    fn ownership_is_about_whose_key_it_is_and_not_about_the_grammar() {
+        assert!(belongs_to_project("LC", "LC-1"));
+        assert!(belongs_to_project("LC", "LC-4210"));
+        // Shape is `valid_ticket_key`'s job, and these are still not ours.
+        assert!(!belongs_to_project("LC", "ZZ-1"));
+        assert!(!belongs_to_project("LC", "LCX-1"));
+        assert!(!belongs_to_project("LC", "lc-1"));
+        assert!(!belongs_to_project("LC", "LC"));
+        assert!(!belongs_to_project("LC", "notes"));
+        assert!(!belongs_to_project("LC", ""));
+        // A longer project key is not shadowed by its own prefix.
+        assert!(belongs_to_project("LC2", "LC2-1"));
+        assert!(!belongs_to_project("LC2", "LC-1"));
+    }
+
+    #[test]
+    fn the_diagnostic_names_both_keys_and_promises_nothing_was_touched() {
+        let message = foreign_project_diagnostic("LC", "ZZ-1").message;
+        assert!(message.contains("ZZ-1"));
+        assert!(message.contains("ZZ"));
+        assert!(message.contains("LC"));
+        assert!(message.contains("nothing in it has been changed"));
+
+        // A directory that is not key-shaped at all still gets an answer a human
+        // can act on, without being told a prefix it does not have.
+        let unshaped = foreign_project_diagnostic("LC", "notes").message;
+        assert!(unshaped.contains("notes"));
+        assert!(unshaped.contains("LC-<number>"));
+    }
+
+    #[test]
+    fn a_directory_from_another_project_degrades_with_its_bytes_intact() {
+        let temp = tempfile::tempdir().unwrap();
+        let project = temp.path().join("project");
+        let directory = project.join(".longclaw/tickets/ZZ-1");
+        fs::create_dir_all(&directory).unwrap();
+        let path = directory.join("ticket.md");
+        let raw = concat!(
+            "---\n",
+            "format: longclaw.ticket/v1\n",
+            "id: 019c8ca0-0000-7000-8000-0000000000ff\n",
+            "key: ZZ-1\n",
+            "title: A ticket of another project\n",
+            "status: todo\n",
+            "priority: none\n",
+            "created_at: 2026-07-29T00:00:00Z\n",
+            "updated_at: 2026-07-29T00:00:00Z\n",
+            "---\n",
+            "\nIts directory and its frontmatter agree with each other.\n",
+        );
+        fs::write(&path, raw).unwrap();
+
+        // Read as its own project's ticket it is perfectly readable, which is the
+        // point: the file is not broken, it is somewhere it does not belong.
+        assert!(read_ticket_file(&path, "ZZ").unwrap().parsed.is_ok());
+
+        let file = read_ticket_file(&path, "LC").unwrap();
+        assert_eq!(file.key, "ZZ-1");
+        let diagnostic = file.parsed.as_ref().expect_err("should be degraded");
+        assert_eq!(diagnostic.code, ErrorCode::ParseFailed);
+        assert!(!diagnostic.is_read_only());
+        assert!(diagnostic.message.contains("ZZ"));
+        assert!(diagnostic.message.contains("LC"));
+        // Degrading is a display decision, never a repair.
+        assert_eq!(fs::read_to_string(&path).unwrap(), raw);
+        assert_eq!(file.raw, raw);
+    }
+
+    #[test]
+    fn a_foreign_prefix_directory_does_not_spend_a_key() {
+        let temp = tempfile::tempdir().unwrap();
+        let project = temp.path().join("project");
+        let tickets = project.join(".longclaw/tickets");
+        fs::create_dir_all(tickets.join("LC-1")).unwrap();
+        fs::create_dir_all(tickets.join("ZZ-9")).unwrap();
+
+        let write = prepare_new_ticket(
+            &project,
+            "LC",
+            &NewTicket {
+                title: "The next key follows this project's own sequence".to_owned(),
+                ..NewTicket::default()
+            },
+            "2026-07-30T09:00:00Z",
+        )
+        .unwrap();
+        assert_eq!(write.key, "LC-2");
+        assert!(tickets.join("ZZ-9").is_dir());
     }
 
     #[cfg(unix)]
@@ -1018,7 +1194,7 @@ mod tests {
         let path = directory.join("ticket.md");
         fs::write(&path, [0xff, 0xfe, b'h', b'i']).unwrap();
 
-        let file = read_ticket_file(&path).unwrap();
+        let file = read_ticket_file(&path, "LC").unwrap();
         assert_eq!(file.key, "LC-1");
         assert_eq!(file.relative_path, ".longclaw/tickets/LC-1/ticket.md");
         let diagnostic = file.parsed.as_ref().expect_err("should be degraded");
@@ -1065,7 +1241,7 @@ mod tests {
         .unwrap();
         fs::write(directory.join("attachments/stray.txt"), "stray").unwrap();
 
-        let detail = read_ticket_detail(temp.path(), "LC-1").unwrap();
+        let detail = read_ticket_detail(temp.path(), "LC", "LC-1").unwrap();
         assert_eq!(detail.missing_attachments, vec!["att_gone".to_owned()]);
         assert_eq!(
             detail.orphan_attachments,

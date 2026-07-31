@@ -27,6 +27,44 @@ fn indexed<'a>(tickets: &'a [TicketRow], key: &str) -> &'a longclaw_desktop_lib:
     }
 }
 
+fn degraded<'a>(
+    tickets: &'a [TicketRow],
+    key: &str,
+) -> &'a longclaw_desktop_lib::core::DegradedRow {
+    match tickets
+        .iter()
+        .find(|row| row.key() == key)
+        .unwrap_or_else(|| panic!("{key} should still be listed"))
+    {
+        TicketRow::Degraded(row) => row,
+        TicketRow::Indexed(row) => panic!("{key} should be degraded, got {}", row.title),
+    }
+}
+
+/// Puts a folder that is a perfectly good ticket of another project inside this
+/// one, the way copying a directory between projects or renaming a project does.
+/// Its directory name and its frontmatter key agree with each other, so nothing
+/// about the file itself is wrong.
+fn plant_foreign_ticket(root: &Path, key: &str) -> std::path::PathBuf {
+    let source = fs::read_to_string(ticket_path(root, "LC-1")).expect("a ticket to copy");
+    let raw: String = source
+        .lines()
+        .map(|line| {
+            if line.starts_with("key:") {
+                format!("key: {key}")
+            } else {
+                line.to_owned()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n";
+    let path = ticket_path(root, key);
+    fs::create_dir_all(path.parent().expect("a ticket directory")).expect("the foreign directory");
+    fs::write(&path, raw).expect("the foreign ticket");
+    path
+}
+
 #[test]
 fn an_app_write_reaches_disk_and_survives_a_restart() {
     let (_temp, root) = copy_representative_project();
@@ -144,6 +182,101 @@ fn a_degraded_ticket_stays_visible_and_is_never_rewritten() {
         );
         assert_eq!(fs::read(&path).expect("still there"), original);
     }
+}
+
+#[test]
+fn a_ticket_directory_from_another_project_is_shown_and_never_claimed() {
+    let (_temp, root) = copy_representative_project();
+    let foreign = plant_foreign_ticket(&root, "ZZ-1");
+    let original = fs::read(&foreign).expect("the planted ticket");
+
+    let (engine, _events) = start_engine(&root);
+    let snapshot = engine.snapshot();
+    assert_eq!(snapshot.project.key, "LC");
+    assert_eq!(snapshot.tickets.len(), 7);
+
+    // The row stays visible, and its diagnostic names the key that is there and the
+    // key this project uses, so a human can tell which folder is in the wrong place.
+    let row = degraded(&snapshot.tickets, "ZZ-1");
+    assert!(!row.read_only);
+    assert!(row.diagnostic.message.contains("ZZ"));
+    assert!(row.diagnostic.message.contains("LC"));
+    assert_eq!(row.byte_length, original.len());
+
+    // One foreign folder does not take the board down.
+    for key in ["LC-1", "LC-2", "LC-3", "LC-4"] {
+        indexed(&snapshot.tickets, key);
+    }
+
+    // The raw file is available for the raw-file view, byte for byte.
+    let detail = engine
+        .detail("ZZ-1")
+        .expect("a degraded ticket still reads");
+    assert!(detail.ticket.is_none());
+    assert_eq!(detail.raw.as_bytes(), original.as_slice());
+
+    // A write is refused before it is attempted, rather than rewriting the ticket
+    // into this project's key.
+    let error = engine
+        .edit_ticket(
+            "ZZ-1",
+            &TicketEdit {
+                status: Some(Status::Done),
+                ..TicketEdit::default()
+            },
+            &row.content_hash,
+        )
+        .expect_err("a ticket of another project must not be rewritten");
+    assert_eq!(error.code, ErrorCode::ParseFailed);
+    assert!(error.message.contains("another project"));
+    assert_eq!(fs::read(&foreign).expect("still there"), original);
+
+    // A rebuild reaches the same visible state, degraded row included, and still
+    // leaves the bytes alone.
+    let first = engine
+        .rebuild(RebuildReason::Manual, false)
+        .expect("the index should rebuild");
+    let second = engine
+        .rebuild(RebuildReason::Manual, false)
+        .expect("the index should rebuild again");
+    assert_eq!(second.tickets, first.tickets);
+    assert_eq!(
+        second
+            .tickets
+            .iter()
+            .filter(|row| row.is_degraded())
+            .count(),
+        3
+    );
+    assert_eq!(
+        degraded(&second.tickets, "ZZ-1").content_hash,
+        row.content_hash
+    );
+    assert_eq!(fs::read(&foreign).expect("still there"), original);
+
+    // Read as its own project's ticket the same bytes are perfectly readable. The
+    // file is not broken; it is somewhere it does not belong.
+    let ticket = longclaw_desktop_lib::core::storage::read_ticket_file(&foreign, "ZZ")
+        .expect("the file reads");
+    assert!(ticket.parsed.is_ok());
+}
+
+#[test]
+fn a_foreign_prefix_directory_does_not_consume_this_project_s_next_key() {
+    let (_temp, root) = copy_representative_project();
+    plant_foreign_ticket(&root, "ZZ-98");
+    let (engine, _events) = start_engine(&root);
+
+    // The representative project's highest own key is LC-99, and ZZ-98 is not part
+    // of that sequence however high its number is.
+    let created = engine
+        .create_ticket(&NewTicket {
+            title: "The next key follows this project's own sequence".to_owned(),
+            ..NewTicket::default()
+        })
+        .expect("a ticket should be created");
+    assert_eq!(created.ticket.key(), "LC-100");
+    assert!(ticket_path(&root, "ZZ-98").is_file());
 }
 
 #[test]

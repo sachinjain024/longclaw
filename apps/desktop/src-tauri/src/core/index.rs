@@ -70,13 +70,18 @@ pub struct TicketIndex {
 
 impl TicketIndex {
     /// Reads every canonical ticket file and replaces the index with the result.
-    pub fn rebuild(&self, project_root: &Path) -> AppResult<IndexSnapshot> {
+    ///
+    /// `project_key` is passed in on every call rather than held here: the project
+    /// document is authoritative for it and is re-read on each rebuild, so the
+    /// index would only be caching an answer it does not own. Rows are all this
+    /// stores; whose ticket a row is remains the caller's question to answer.
+    pub fn rebuild(&self, project_root: &Path, project_key: &str) -> AppResult<IndexSnapshot> {
         let started = Instant::now();
         let paths = scan_ticket_paths(project_root)?;
         let mut records = HashMap::with_capacity(paths.len());
         let mut by_path = HashMap::with_capacity(paths.len());
         for path in paths {
-            let Ok(file) = read_ticket_file(&path) else {
+            let Ok(file) = read_ticket_file(&path, project_key) else {
                 // A file that vanished between the scan and the read belongs to
                 // the next rebuild, not this one.
                 continue;
@@ -110,8 +115,8 @@ impl TicketIndex {
     }
 
     /// Reads one ticket file into the index and returns the row it produced.
-    pub fn ingest(&self, path: &Path) -> AppResult<TicketRow> {
-        Ok(self.ingest_attributing(path, None)?.0)
+    pub fn ingest(&self, path: &Path, project_key: &str) -> AppResult<TicketRow> {
+        Ok(self.ingest_attributing(path, project_key, None)?.0)
     }
 
     /// Ingests, and also says which record explains the change that brought us
@@ -125,12 +130,14 @@ impl TicketIndex {
     pub fn ingest_attributing(
         &self,
         path: &Path,
+        project_key: &str,
         previously_seen: Option<&str>,
     ) -> AppResult<(TicketRow, Option<ActivitySummary>)> {
-        let file = read_ticket_file(path)?;
+        let file = read_ticket_file(path, project_key)?;
         let attribution = match &file.parsed {
             Ok(document) => attribute_change(previously_seen, &document.ticket().activity),
-            // A file this build cannot parse has no records to attribute from.
+            // A file this build cannot parse, or one belonging to another project,
+            // has no records to attribute from.
             Err(_) => None,
         };
         let row = file.row();

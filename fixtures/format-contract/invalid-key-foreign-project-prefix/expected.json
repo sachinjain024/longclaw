@@ -1,0 +1,9 @@
+{
+  "summary": "A ticket key's prefix is the project that owns it; a directory naming another project degrades instead of being indexed as this one's.",
+  "key": "ZZ-1",
+  "projectKey": "LC",
+  "outcome": "degraded",
+  "code": "parse_failed",
+  "diagnosticContains": "project ZZ",
+  "readOnly": false
+}

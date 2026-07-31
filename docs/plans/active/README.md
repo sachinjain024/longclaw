@@ -28,7 +28,7 @@ marked independent can be done at any time by anyone.
 | ~~01~~ | ~~Close the atomic-replace race~~ — **done 2026-07-31**, [outcome](../completed/01-atomic-replace-race.md) | V0-01 | Closed. Read its outcome before starting 06: the write path moved, and the test seam it added assumes writes stay on the calling thread. |
 | ~~02~~ | ~~Recover from an event-sequence gap~~ — **done 2026-07-31**, [outcome](../completed/02-event-sequence-gap.md) | V0-02 | Closed. It added `ProjectSnapshot.sequence`, which is the snapshot-reconcile boundary item 05 needs. |
 | ~~03~~ | ~~Attribute a change from new records only~~ — **done 2026-07-31**, [outcome](../completed/03-attribution-from-new-records.md) | V0-07 | Closed. It restructured the tail of `process_burst`, which 05 and 06 both touch. |
-| 04  | [Validate the project prefix on ingest](04-project-prefix-validation.md)       | V0-03   | Small and isolated. Completes the key work Step 10 started.                                                            |
+| ~~04~~ | ~~Validate the project prefix on ingest~~ — **done 2026-07-31**, [outcome](../completed/04-project-prefix-validation.md) | V0-03 | Closed. It changed the signatures 05 and 06 will be holding: `read_ticket_file`, `TicketIndex::rebuild`, and both `ingest` methods now take the project key. |
 | 05  | [Recover the watcher over sleep, wake, and overflow](05-watcher-recovery.md)   | V0-04   | Larger platform work. Reuses the snapshot recovery path that 02 builds.                                                |
 | 06  | [Move heavy work off the command thread](06-blocking-workers.md)               | V0-05   | Restructures engine orchestration, so it goes after the correctness fixes rather than moving code out from under them. |
 | 07  | [Virtualize the board and list](07-board-virtualization.md)                    | V0-06   | Independent. Must land before Wave 1's list surface, which is what renders 5,000 rows.                                 |
@@ -43,7 +43,17 @@ Dependencies worth knowing:
 - **05 and 06 both touch `process_burst`** in
   `apps/desktop/src-tauri/src/engine.rs`, and 03 has already reshaped its tail: the
   previous row is read once, before the ingest, because attribution needs the record
-  id the ingest is about to overwrite. Do not reorder that.
+  id the ingest is about to overwrite. Do not reorder that. 04 added one more thing
+  to it: the project key is read once at the top of the burst, so every path in the
+  burst is judged against the same project.
+- **04 is done, and both 05 and 06 inherit its signatures.** Reading a ticket now
+  requires saying which project you are reading for:
+  `storage::read_ticket_file(path, project_key)`,
+  `TicketIndex::rebuild(root, project_key)`, and `ingest`/`ingest_attributing` all
+  take it. Item 06 moves these onto workers, so whatever carries work to a worker
+  has to carry the key with it. Item 05's snapshot reconcile goes through
+  `ProjectEngine::rebuild`, which now reads `project.md` *before* the tickets —
+  deliberately, because the key decides which directories are this project's at all.
 - **06 inherits two things from 01.** The write path an edit takes is now
   `commit` → `storage::atomic_replace`, not `atomic_write`. And `ReplaceSeams`, the
   test seam 01 added, lives in a `thread_local!` that is only correct while a write

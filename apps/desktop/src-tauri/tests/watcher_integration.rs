@@ -341,18 +341,7 @@ fn renaming_a_ticket_directory_removes_one_row_and_adds_another() {
     fs::rename(tickets.join("LC-3"), tickets.join("LC-7")).expect("rename the ticket directory");
 
     // Both halves of the rename arrive; order depends on the platform.
-    let mut removed = None;
-    let mut arrived = None;
-    for _ in 0..2 {
-        match next_event(&events) {
-            ProjectEvent::TicketRemoved { ticket_key, .. } => removed = Some(ticket_key),
-            ProjectEvent::TicketChanged { ticket, .. } => arrived = Some(*ticket),
-            other => panic!(
-                "unexpected event {}",
-                serde_json::to_string(&other).unwrap_or_default()
-            ),
-        }
-    }
+    let (removed, arrived) = next_rename(&events);
     assert_eq!(removed.as_deref(), Some("LC-3"));
     let arrived = arrived.expect("the renamed directory should arrive as a row");
     assert_eq!(arrived.key(), "LC-7");
@@ -368,6 +357,82 @@ fn renaming_a_ticket_directory_removes_one_row_and_adds_another() {
     let keys: Vec<&str> = snapshot.tickets.iter().map(TicketRow::key).collect();
     assert!(keys.contains(&"LC-7"));
     assert!(!keys.contains(&"LC-3"));
+}
+
+/// Both halves of a directory rename, in whatever order the platform reports them.
+fn next_rename(events: &Receiver<StreamEnvelope>) -> (Option<String>, Option<TicketRow>) {
+    let mut removed = None;
+    let mut arrived = None;
+    for _ in 0..2 {
+        match next_event(events) {
+            ProjectEvent::TicketRemoved { ticket_key, .. } => removed = Some(ticket_key),
+            ProjectEvent::TicketChanged { ticket, .. } => arrived = Some(*ticket),
+            other => panic!(
+                "unexpected event {}",
+                serde_json::to_string(&other).unwrap_or_default()
+            ),
+        }
+    }
+    (removed, arrived)
+}
+
+#[test]
+fn renaming_a_ticket_directory_into_another_project_s_key_degrades_and_renaming_back_recovers() {
+    let _serial = serially();
+    let (_temp, root) = copy_representative_project();
+    let (engine, events) = start_engine(&root);
+    let tickets = root.join(".longclaw/tickets");
+    let original = fs::read(ticket_path(&root, "LC-3")).expect("the ticket before the rename");
+
+    fs::rename(tickets.join("LC-3"), tickets.join("ZZ-3")).expect("rename into a foreign key");
+
+    let (removed, arrived) = next_rename(&events);
+    assert_eq!(removed.as_deref(), Some("LC-3"));
+    let arrived = arrived.expect("the renamed directory should arrive as a row");
+    assert_eq!(arrived.key(), "ZZ-3");
+
+    // The old row does not survive the rename, and the new one is not indexed as a
+    // ticket of this project.
+    //
+    // The frontmatter still says LC-3, so this file now breaks two rules at once:
+    // the pair no longer agrees, and the directory names a project that is not this
+    // one. Ownership is settled before the contents are read, so the diagnostic is
+    // the ownership one — asserted specifically here, because a message about the
+    // directory alone is what this defect looked like before it was fixed.
+    let TicketRow::Degraded(row) = &arrived else {
+        panic!("a directory renamed into another project's key should degrade");
+    };
+    assert!(
+        row.diagnostic.message.contains("project ZZ"),
+        "expected an ownership diagnostic, got {:?}",
+        row.diagnostic.message
+    );
+    assert!(row.diagnostic.message.contains("LC"));
+    let snapshot = engine.snapshot();
+    let keys: Vec<&str> = snapshot.tickets.iter().map(TicketRow::key).collect();
+    assert!(keys.contains(&"ZZ-3"));
+    assert!(!keys.contains(&"LC-3"));
+
+    // The ingest read the file and changed nothing in it.
+    assert_eq!(
+        fs::read(ticket_path(&root, "ZZ-3")).expect("still there"),
+        original
+    );
+
+    // Renaming it back recovers the row, from the same bytes.
+    fs::rename(tickets.join("ZZ-3"), tickets.join("LC-3")).expect("rename back");
+    let (removed, arrived) = next_rename(&events);
+    assert_eq!(removed.as_deref(), Some("ZZ-3"));
+    let arrived = arrived.expect("the restored directory should arrive as a row");
+    assert_eq!(arrived.key(), "LC-3");
+    let TicketRow::Indexed(recovered) = &arrived else {
+        panic!("the restored directory should be readable again");
+    };
+    assert_eq!(recovered.key, "LC-3");
+    assert_eq!(
+        fs::read(ticket_path(&root, "LC-3")).expect("still there"),
+        original
+    );
 }
 
 #[test]

@@ -224,6 +224,8 @@ The project key is one or more characters, uppercase ASCII letters and digits on
 
 The project key becomes immutable after the first ticket is created. Otherwise, changing it would require renaming every human-facing ticket key and directory.
 
+Because the prefix is the project key, it also says which project a ticket directory belongs to. A directory under `.longclaw/tickets/` whose prefix is not this project's key is not this project's ticket, however well-formed its contents are; see the reader rule in [Write and conflict rules](#write-and-conflict-rules).
+
 Ticket assignees refer to stable IDs in `people`. Only registered people are valid assignees. Local projects have no assignee or identity UI in v0, so they do not require a local human entry in `people`. Agents appear as explicitly typed actors in embedded activity events but never in the assignable people registry.
 
 Tickets store label slugs. This lets a label's display name or color change without rewriting every ticket carrying that label.
@@ -324,6 +326,7 @@ None of this data should enter git or cloud sync. Deleting it must never lose ca
 - Unknown supported fields are preserved during read-modify-write operations.
 - Files using a newer unsupported format version are shown read-only rather than migrated or rewritten automatically.
 - An unparseable ticket remains visible as a degraded ticket with access to its raw contents and parse error.
+- A ticket key's prefix is the project that owns it. A reader settles ownership from the directory name before it believes the contents, so a directory whose key names another project — copied in, or left behind by a project that was renamed — degrades with a diagnostic naming both keys instead of being indexed as this project's ticket. It is never renamed, moved, or rewritten into conformity, and it is never a candidate for an app write.
 - The parser validates embedded attachment and activity records independently. An invalid record degrades only that attachment or timeline entry when the rest of `ticket.md` remains safely parseable.
 - Ticket creation scans canonical active, archived, and recoverably deleted tickets while holding an exclusive project-scoped creation lock. It never trusts the disposable index alone when allocating a key.
 

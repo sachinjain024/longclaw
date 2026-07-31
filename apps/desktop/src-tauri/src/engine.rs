@@ -180,7 +180,8 @@ impl ProjectEngine {
             sink,
             watcher: Mutex::new(None),
         });
-        engine.index.rebuild(&engine.root)?;
+        let project_key = engine.project.lock().key.clone();
+        engine.index.rebuild(&engine.root, &project_key)?;
         let watcher = ProjectWatcher::start(Arc::downgrade(&engine), adapter)?;
         *engine.watcher.lock() = Some(watcher);
         Ok(engine)
@@ -212,12 +213,15 @@ impl ProjectEngine {
         let sequence = self.sequence.load(Ordering::Relaxed);
         // Clear first, so a rebuild cannot pass by keeping stale rows.
         self.index.clear();
-        let index = self.index.rebuild(&self.root)?;
+        // The project document is read before the tickets, deliberately: its key
+        // decides which directories under `tickets/` are this project's at all, so
+        // reading it afterwards would index a rebuild against the previous key.
         let project = ProjectReference::from_project(
             read_project(&self.root)?.project(),
             self.root.display().to_string(),
         );
         *self.project.lock() = project.clone();
+        let index = self.index.rebuild(&self.root, &project.key)?;
         let snapshot = ProjectSnapshot {
             project,
             tickets: index.tickets,
@@ -241,7 +245,7 @@ impl ProjectEngine {
     /// Reads one ticket from disk, so the panel always opens the current file
     /// rather than an index row that may be a moment old.
     pub fn detail(&self, key: &str) -> AppResult<TicketDetail> {
-        storage::read_ticket_detail(&self.root, key)
+        storage::read_ticket_detail(&self.root, &self.project().key, key)
     }
 
     pub fn edit_ticket(
@@ -250,7 +254,14 @@ impl ProjectEngine {
         edit: &TicketEdit,
         expected_hash: &str,
     ) -> AppResult<WriteResult> {
-        let write = prepare_ticket_edit(&self.root, key, edit, expected_hash, &now())?;
+        let write = prepare_ticket_edit(
+            &self.root,
+            &self.project().key,
+            key,
+            edit,
+            expected_hash,
+            &now(),
+        )?;
         self.commit(write, false)
     }
 
@@ -287,7 +298,7 @@ impl ProjectEngine {
             }
             return Err(error);
         }
-        let ticket = self.index.ingest(&write.path)?;
+        let ticket = self.index.ingest(&write.path, &self.project().key)?;
         Ok(WriteResult {
             ticket,
             generation: self.index.snapshot().generation,
@@ -327,6 +338,9 @@ impl ProjectEngine {
         }
         let mut ordered: Vec<(PathBuf, usize)> = paths.into_iter().collect();
         ordered.sort_by(|left, right| left.0.cmp(&right.0));
+        // One key for the whole burst, so every path in it is judged against the
+        // same project.
+        let project_key = self.project.lock().key.clone();
 
         for (path, coalesced_events) in ordered {
             if !path.exists() {
@@ -366,9 +380,9 @@ impl ProjectEngine {
                 TicketRow::Indexed(row) => row.last_activity.as_ref().map(|event| event.id.clone()),
                 TicketRow::Degraded(_) => None,
             });
-            if let Ok((ticket, attribution)) = self
-                .index
-                .ingest_attributing(&path, previously_seen.as_deref())
+            if let Ok((ticket, attribution)) =
+                self.index
+                    .ingest_attributing(&path, &project_key, previously_seen.as_deref())
             {
                 self.emit(ProjectEvent::TicketChanged {
                     ticket: Box::new(ticket),

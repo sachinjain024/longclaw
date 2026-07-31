@@ -9,6 +9,8 @@ use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use longclaw_desktop_lib::core::error::Diagnostic;
+use longclaw_desktop_lib::core::storage::{belongs_to_project, foreign_project_diagnostic};
 use longclaw_desktop_lib::core::ticket::{TicketDocument, TicketEdit};
 use serde::{Deserialize, Deserializer};
 
@@ -27,6 +29,11 @@ struct Expectation {
     #[allow(dead_code)]
     summary: String,
     key: String,
+    /// The project the case is read as belonging to. Absent means the directory's
+    /// own prefix, so a case that is not about ownership is read by its own project
+    /// and behaves exactly as it did before this field existed.
+    #[serde(default)]
+    project_key: Option<String>,
     outcome: Outcome,
     #[serde(default)]
     code: Option<String>,
@@ -206,11 +213,24 @@ fn every_format_contract_case_matches_its_expectation() {
     report.finish();
 }
 
+/// Reads a case the way `storage::read_ticket_file` does: ownership of the
+/// directory is settled before the contents are believed, so a folder belonging to
+/// another project degrades whether or not its bytes would parse.
+fn read_case(raw: &str, expectation: &Expectation) -> Result<TicketDocument, Diagnostic> {
+    let project_key = expectation.project_key.clone().unwrap_or_else(|| {
+        expectation
+            .key
+            .split_once('-')
+            .map_or_else(|| expectation.key.clone(), |(prefix, _)| prefix.to_owned())
+    });
+    if !belongs_to_project(&project_key, &expectation.key) {
+        return Err(foreign_project_diagnostic(&project_key, &expectation.key));
+    }
+    TicketDocument::parse(raw, &expectation.key)
+}
+
 fn check_case(report: &mut Report, name: &str, raw: &str, expectation: &Expectation) {
-    match (
-        TicketDocument::parse(raw, &expectation.key),
-        &expectation.outcome,
-    ) {
+    match (read_case(raw, expectation), &expectation.outcome) {
         (Ok(document), Outcome::Valid) => {
             report.check(name, document.render() == raw, || {
                 "an unmodified document did not render its own bytes".to_owned()
