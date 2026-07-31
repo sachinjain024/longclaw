@@ -234,6 +234,7 @@ export interface CreateTicketRequest {
   description?: string;
   status?: TicketStatus;
   priority?: TicketPriority;
+  labels?: string[];
   checklist?: string[];
 }
 

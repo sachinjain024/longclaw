@@ -14,6 +14,8 @@ fn the_create_request_the_quick_create_form_sends() {
         "title": "Prove the agent round trip",
         "description": "Check whether the round trip holds.",
         "status": "todo",
+        "priority": "p1",
+        "labels": ["backend", "reliability"],
         "checklist": ["Let an agent read this ticket", "Review what it changed"]
     }"#;
 
@@ -22,8 +24,8 @@ fn the_create_request_the_quick_create_form_sends() {
     assert_eq!(request.project_id, "019c8c31-4d7e-71ad-8997-e67700962b55");
     assert_eq!(request.ticket.title, "Prove the agent round trip");
     assert_eq!(request.ticket.status, Some(Status::Todo));
-    // A form that never asks for a priority leaves the field alone.
-    assert_eq!(request.ticket.priority, None);
+    assert_eq!(request.ticket.priority, Some(Priority::P1));
+    assert_eq!(request.ticket.labels, vec!["backend", "reliability"]);
     assert_eq!(request.ticket.checklist.len(), 2);
 }
 

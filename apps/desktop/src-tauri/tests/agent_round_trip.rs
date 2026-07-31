@@ -129,6 +129,7 @@ fn create_first_ticket(engine: &longclaw_desktop_lib::engine::ProjectEngine) -> 
             description: "Check whether the round trip holds.".to_owned(),
             status: Some(Status::Todo),
             priority: None,
+            labels: vec![],
             checklist: vec![
                 "Let an agent read this ticket".to_owned(),
                 "Review what it changed".to_owned(),

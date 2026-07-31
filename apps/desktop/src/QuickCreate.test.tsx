@@ -36,8 +36,40 @@ describe("creating a ticket", () => {
       title: "Prove the agent round trip",
       description: "Check whether the round trip holds.",
       status: "in_progress",
+      priority: "none",
+      labels: [],
       checklist: ["Let an agent read it", "Review what changed"],
     });
+  });
+
+  it("sends priority and project label slugs when creating a ticket", () => {
+    const onCreate = vi.fn();
+    render(
+      <QuickCreate
+        projectKey="RT"
+        submitting={false}
+        onCancel={() => {}}
+        onCreate={onCreate}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Prioritized work" },
+    });
+    fireEvent.change(screen.getByLabelText("Priority"), {
+      target: { value: "p1" },
+    });
+    fireEvent.change(screen.getByLabelText("Labels — comma separated"), {
+      target: { value: "backend, reliability" },
+    });
+    fireEvent.click(screen.getByText("Create ticket"));
+
+    expect(onCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        priority: "p1",
+        labels: ["backend", "reliability"],
+      }),
+    );
   });
 
   it("says where the ticket will land before it is created", () => {
