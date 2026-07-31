@@ -42,6 +42,7 @@ use crate::core::{
     AppError, AppResult, ErrorCode, EventSource, ProjectEvent, ProjectReference, ProjectSnapshot,
     RebuildReason, SearchResult, StreamEnvelope, TicketDetail, TicketIndex, TicketRow, WriteResult,
 };
+use crate::platform::macos;
 
 /// How long a burst of events must go quiet before it is processed.
 const DEBOUNCE: Duration = Duration::from_millis(140);
@@ -132,17 +133,25 @@ pub struct ProjectEngine {
     sequence: AtomicU64,
     sink: EventSink,
     watcher: Mutex<Option<ProjectWatcher>>,
+    recovery: Mutex<Option<Instant>>,
 }
 
 struct ProjectWatcher {
     watcher: Option<Box<dyn Watcher + Send>>,
     worker: Option<thread::JoinHandle<()>>,
+    wake_observer: Option<macos::WakeObserver>,
+}
+
+enum WatchSignal {
+    File(notify::Result<Event>),
+    Wake,
 }
 
 impl Drop for ProjectWatcher {
     fn drop(&mut self) {
         // Dropping the watcher disconnects the callback sender. The worker exits on
         // disconnect; joining keeps teardown deterministic.
+        drop(self.wake_observer.take());
         drop(self.watcher.take());
         if let Some(worker) = self.worker.take() {
             let _ = worker.join();
@@ -179,6 +188,7 @@ impl ProjectEngine {
             sequence: AtomicU64::new(0),
             sink,
             watcher: Mutex::new(None),
+            recovery: Mutex::new(None),
         });
         let project_key = engine.project.lock().key.clone();
         engine.index.rebuild(&engine.root, &project_key)?;
@@ -206,8 +216,18 @@ impl ProjectEngine {
 
     /// Throws the index away and rebuilds it from the project files.
     pub fn rebuild(&self, reason: RebuildReason, emit: bool) -> AppResult<ProjectSnapshot> {
+        // Availability is checked before coalescing, never after. A root that
+        // disappeared between two recovery triggers has to surface as unavailable;
+        // suppressing it would hand back a stale snapshot that looks live.
         if !self.root.is_dir() {
             return Err(self.report_unavailable());
+        }
+        if matches!(reason, RebuildReason::Resume | RebuildReason::Overflow) {
+            let mut last_recovery = self.recovery.lock();
+            if last_recovery.is_some_and(|at| at.elapsed() < DEBOUNCE) {
+                return Ok(self.snapshot());
+            }
+            *last_recovery = Some(Instant::now());
         }
         // Before the rows, deliberately. See `ProjectSnapshot::sequence`.
         let sequence = self.sequence.load(Ordering::Relaxed);
@@ -398,12 +418,12 @@ impl ProjectEngine {
 
 impl ProjectWatcher {
     fn start(engine: Weak<ProjectEngine>, adapter: WatcherAdapter) -> AppResult<Self> {
-        let (event_tx, event_rx) = mpsc::channel::<notify::Result<Event>>();
+        let (event_tx, event_rx) = mpsc::channel::<WatchSignal>();
         let watcher_result: notify::Result<Box<dyn Watcher + Send>> = match adapter {
             WatcherAdapter::Native => {
                 let event_tx = event_tx.clone();
                 notify::recommended_watcher(move |event| {
-                    let _ = event_tx.send(event);
+                    let _ = event_tx.send(WatchSignal::File(event));
                 })
                 .map(|watcher| Box::new(watcher) as Box<dyn Watcher + Send>)
             }
@@ -411,7 +431,7 @@ impl ProjectWatcher {
                 let event_tx = event_tx.clone();
                 PollWatcher::new(
                     move |event| {
-                        let _ = event_tx.send(event);
+                        let _ = event_tx.send(WatchSignal::File(event));
                     },
                     // Polling compares modification times in whole seconds, so two
                     // writes inside one second look identical to it. Comparing
@@ -448,6 +468,14 @@ impl ProjectWatcher {
                     true,
                 )
             })?;
+        let wake_observer = if matches!(adapter, WatcherAdapter::Native) {
+            let wake_tx = event_tx.clone();
+            Some(macos::observe_wake(Arc::new(move || {
+                let _ = wake_tx.send(WatchSignal::Wake);
+            })))
+        } else {
+            None
+        };
         drop(strong);
 
         let worker = thread::Builder::new()
@@ -456,12 +484,21 @@ impl ProjectWatcher {
                 while let Ok(first) = event_rx.recv() {
                     let burst_started = Instant::now();
                     let mut paths = HashMap::<PathBuf, usize>::new();
-                    let mut root_touched = collect_event(first, &tickets_root, &mut paths);
+                    let (mut root_touched, mut recovery_reason) = match first {
+                        WatchSignal::File(event) => collect_event(event, &tickets_root, &mut paths),
+                        WatchSignal::Wake => (false, Some(RebuildReason::Resume)),
+                    };
                     while burst_started.elapsed() < MAX_BURST {
                         match event_rx.recv_timeout(DEBOUNCE) {
-                            Ok(event) => {
-                                root_touched |= collect_event(event, &tickets_root, &mut paths);
+                            Ok(WatchSignal::File(event)) => {
+                                let (touched, recovery) =
+                                    collect_event(event, &tickets_root, &mut paths);
+                                root_touched |= touched;
+                                if recovery.is_some() {
+                                    recovery_reason = recovery;
+                                }
                             }
+                            Ok(WatchSignal::Wake) => recovery_reason = Some(RebuildReason::Resume),
                             Err(mpsc::RecvTimeoutError::Timeout) => break,
                             Err(mpsc::RecvTimeoutError::Disconnected) => return,
                         }
@@ -475,6 +512,9 @@ impl ProjectWatcher {
                     if root_touched && !tickets_root.is_dir() {
                         engine.report_unavailable();
                         continue;
+                    }
+                    if let Some(reason) = recovery_reason {
+                        let _ = engine.rebuild(reason, true);
                     }
                     if !paths.is_empty() {
                         engine.process_burst(paths, burst_started);
@@ -491,6 +531,7 @@ impl ProjectWatcher {
         Ok(Self {
             watcher: Some(watcher),
             worker: Some(worker),
+            wake_observer,
         })
     }
 }
@@ -501,9 +542,10 @@ fn collect_event(
     event: notify::Result<Event>,
     tickets_root: &Path,
     paths: &mut HashMap<PathBuf, usize>,
-) -> bool {
+) -> (bool, Option<RebuildReason>) {
     let Ok(event) = event else {
-        return false;
+        local_diagnostic("watcher overflow or dropped filesystem events; rebuilding index");
+        return (false, Some(RebuildReason::Overflow));
     };
     let mut root_touched = false;
     let mut seen = Vec::new();
@@ -519,7 +561,13 @@ fn collect_event(
             None => {}
         }
     }
-    root_touched
+    (root_touched, None)
+}
+
+fn local_diagnostic(message: &str) {
+    if std::env::var_os("LONGCLAW_LOCAL_DIAGNOSTIC").is_some() {
+        println!("LONGCLAW_LOCAL_DIAGNOSTIC {message}");
+    }
 }
 
 enum Target {

@@ -250,15 +250,21 @@ export function App() {
   ]);
 
   useEffect(() => {
+    let reconcileInFlight = false;
     const reconcile = () => {
       if (
         document.visibilityState === "visible" &&
         activeProjectId &&
-        project?.reachable
+        project?.reachable &&
+        !reconcileInFlight
       ) {
+        reconcileInFlight = true;
         void reconcileProject(activeProjectId)
           .then(applySnapshot)
-          .catch((error) => setError(normalizeError(error)));
+          .catch((error) => setError(normalizeError(error)))
+          .finally(() => {
+            reconcileInFlight = false;
+          });
       }
     };
     document.addEventListener("visibilitychange", reconcile);

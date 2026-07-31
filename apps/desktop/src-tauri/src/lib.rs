@@ -1,6 +1,7 @@
 mod app_state;
 pub mod core;
 pub mod engine;
+mod platform;
 mod registry;
 
 use std::path::PathBuf;

@@ -258,6 +258,7 @@ pub enum EventSource {
 pub enum RebuildReason {
     Manual,
     Resume,
+    Overflow,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]

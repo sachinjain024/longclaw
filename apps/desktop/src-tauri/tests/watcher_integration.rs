@@ -229,6 +229,100 @@ fn one_burst_of_saves_produces_one_update_holding_the_final_content() {
 }
 
 #[test]
+fn an_overflow_recovery_converges_on_disk_state() {
+    let _serial = serially();
+    let (_temp, root) = copy_representative_project();
+    let (engine, events) = start_engine(&root);
+    let path = ticket_path(&root, "LC-1");
+    let raw = fs::read_to_string(&path).expect("ticket.md");
+    editor_atomic_replace(&path, &replace_title(&raw, "Recovered after overflow"), 1);
+
+    let snapshot = engine
+        .rebuild(RebuildReason::Overflow, true)
+        .expect("overflow recovery should rebuild");
+    assert_eq!(
+        snapshot
+            .tickets
+            .iter()
+            .find(|ticket| ticket.key() == "LC-1")
+            .map(title_of),
+        Some("Recovered after overflow")
+    );
+    assert!(matches!(
+        next_event(&events),
+        ProjectEvent::IndexRebuilt {
+            reason: RebuildReason::Overflow,
+            ..
+        }
+    ));
+}
+
+#[test]
+fn a_removed_root_can_be_restored_and_reconciled() {
+    let _serial = serially();
+    let (temp, root) = copy_representative_project();
+    let (engine, events) = start_engine(&root);
+    let moved = temp.path().join("temporarily-moved");
+    fs::rename(&root, &moved).expect("move project root");
+    assert!(engine.rebuild(RebuildReason::Resume, true).is_err());
+    assert!(matches!(
+        next_event(&events),
+        ProjectEvent::ProjectUnavailable { .. }
+    ));
+    fs::rename(&moved, &root).expect("restore project root");
+    std::thread::sleep(Duration::from_millis(200));
+    let snapshot = engine
+        .rebuild(RebuildReason::Resume, true)
+        .expect("restored root should recover");
+    assert_eq!(snapshot.tickets.len(), 6);
+    assert!(root.join(".longclaw/longclaw.yaml").is_file());
+}
+
+#[test]
+fn recovery_triggers_close_together_emit_one_rebuild() {
+    let _serial = serially();
+    let (_temp, root) = copy_representative_project();
+    let (engine, events) = start_engine(&root);
+    let first = engine
+        .rebuild(RebuildReason::Resume, true)
+        .expect("first recovery");
+    let second = engine
+        .rebuild(RebuildReason::Overflow, true)
+        .expect("coalesced recovery");
+    assert_eq!(first.generation, second.generation);
+    assert!(matches!(
+        next_event(&events),
+        ProjectEvent::IndexRebuilt { .. }
+    ));
+    expect_no_event(&events, "coalesced recovery must not emit a second rebuild");
+}
+
+#[test]
+fn coalescing_does_not_mask_a_root_that_vanished() {
+    let _serial = serially();
+    let (temp, root) = copy_representative_project();
+    let (engine, events) = start_engine(&root);
+    // Arm the coalescing window, then remove the root inside it. Suppressing the
+    // second recovery here would report a live board over a folder that is gone.
+    engine
+        .rebuild(RebuildReason::Resume, true)
+        .expect("first recovery");
+    assert!(matches!(
+        next_event(&events),
+        ProjectEvent::IndexRebuilt { .. }
+    ));
+    fs::rename(&root, temp.path().join("vanished")).expect("move project root");
+    assert!(
+        engine.rebuild(RebuildReason::Resume, true).is_err(),
+        "a removed root must be reported even inside the coalescing window"
+    );
+    assert!(matches!(
+        next_event(&events),
+        ProjectEvent::ProjectUnavailable { .. }
+    ));
+}
+
+#[test]
 fn an_app_write_is_not_echoed_back_as_an_external_change() {
     let _serial = serially();
     let (_temp, root) = copy_representative_project();

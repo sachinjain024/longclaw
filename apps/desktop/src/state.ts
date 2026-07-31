@@ -204,6 +204,11 @@ export const useLongClawStore = create<LongClawState>((set, get) => ({
     set({
       lastEvent: envelope,
       lastSequence: envelope.sequence,
+      projects: state.projects.map((project) =>
+        project.id === envelope.projectId
+          ? { ...project, reachable: false }
+          : project,
+      ),
       error: {
         code: "project_unavailable",
         message: `Project folder is unavailable: ${event.data.rootPath}`,
