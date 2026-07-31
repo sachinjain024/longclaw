@@ -8,6 +8,7 @@
 import type {
   CreateTicketRequest,
   IndexedTicket,
+  TicketPriority,
   TicketRow,
   TicketStatus,
 } from "./types";
@@ -20,6 +21,24 @@ export const STATUSES: { id: TicketStatus; label: string }[] = [
   { id: "done", label: "Done" },
   { id: "canceled", label: "Canceled" },
 ];
+
+/**
+ * Listed most urgent first, which is also the board's default column order
+ * (ADR 0003). `ordering.ts` reads the rank off this list rather than keeping a
+ * second copy of it.
+ */
+export const PRIORITIES: { id: TicketPriority; label: string }[] = [
+  { id: "urgent", label: "Urgent" },
+  { id: "p1", label: "P1" },
+  { id: "p2", label: "P2" },
+  { id: "p3", label: "P3" },
+  { id: "p4", label: "P4" },
+  { id: "none", label: "None" },
+];
+
+export function priorityLabel(priority: TicketPriority): string {
+  return PRIORITIES.find((option) => option.id === priority)?.label ?? priority;
+}
 
 /**
  * The key a create is about to be given, read off the rows already on screen.

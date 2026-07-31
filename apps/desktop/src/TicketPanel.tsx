@@ -22,14 +22,17 @@ import { ConflictBanner } from "./ConflictBanner";
 import { normalizeError } from "./errors";
 import type { ExternalMark } from "./freshness";
 import { acknowledgement, freshlyChecked } from "./freshness";
+import { MenuButton } from "./Menu";
 import { mutate } from "./mutations";
-import { STATUSES } from "./tickets";
+import { PriorityGlyph } from "./PriorityGlyph";
+import { PRIORITIES, priorityLabel, STATUSES } from "./tickets";
 import { Timeline } from "./Timeline";
 import type {
   AppError,
   ChecklistItem,
   TicketDetail,
   TicketEdit,
+  TicketPriority,
   TicketStatus,
   WriteResult,
 } from "./types";
@@ -38,6 +41,12 @@ import { WriteIndicator } from "./WriteFeedback";
 function statusLabel(status: TicketStatus): string {
   return STATUSES.find((option) => option.id === status)?.label ?? status;
 }
+
+const PRIORITY_OPTIONS = PRIORITIES.map((option) => ({
+  id: option.id,
+  label: option.label,
+  glyph: <PriorityGlyph priority={option.id} decorative />,
+}));
 
 /**
  * What a destructive-adjacent change adds to a save: the state it shows before
@@ -107,6 +116,8 @@ export function TicketPanel(props: TicketPanelProps) {
   );
   /** The status the human just picked, rendered over the file's until it lands. */
   const [pendingStatus, setPendingStatus] = useState<TicketStatus>();
+  /** Same, for priority. */
+  const [pendingPriority, setPendingPriority] = useState<TicketPriority>();
 
   /** The checklist as last read, so an external tick can be told from a stale one. */
   const loadedChecklist = useRef<ChecklistItem[]>([]);
@@ -160,6 +171,7 @@ export function TicketPanel(props: TicketPanelProps) {
       loadedChecklist.current = checklist;
       setPendingChecks({});
       setPendingStatus(undefined);
+      setPendingPriority(undefined);
       setDetail(next);
 
       const unsaved = mode === "external" ? draftEdit() : undefined;
@@ -224,6 +236,7 @@ export function TicketPanel(props: TicketPanelProps) {
       // pretends to have been written while the conflict is open.
       setPendingChecks({});
       setPendingStatus(undefined);
+      setPendingPriority(undefined);
       return;
     }
     const hash = detail?.contentHash;
@@ -267,6 +280,7 @@ export function TicketPanel(props: TicketPanelProps) {
         setConflict({ error, pending: edit });
         setPendingChecks({});
         setPendingStatus(undefined);
+        setPendingPriority(undefined);
         return true;
       },
     });
@@ -396,12 +410,13 @@ export function TicketPanel(props: TicketPanelProps) {
 
           <div className="meta-grid">
             <span>Status</span>
-            <select
+            <MenuButton
+              label="Status"
+              options={STATUSES}
               value={pendingStatus ?? ticket.status}
-              aria-label="Status"
-              onChange={(event) => {
-                const next = event.target.value as TicketStatus;
+              onPick={(next) => {
                 const previous = ticket.status;
+                if (next === previous) return;
                 void save(
                   { status: next },
                   {
@@ -415,13 +430,29 @@ export function TicketPanel(props: TicketPanelProps) {
                   },
                 );
               }}
-            >
-              {STATUSES.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            />
+            <span>Priority</span>
+            <MenuButton
+              label="Priority"
+              options={PRIORITY_OPTIONS}
+              value={pendingPriority ?? ticket.priority}
+              onPick={(next) => {
+                const previous = ticket.priority;
+                if (next === previous) return;
+                void save(
+                  { priority: next },
+                  {
+                    apply: () => {
+                      setPendingPriority(next);
+                      return () => setPendingPriority(undefined);
+                    },
+                    toast: `${ticketKey} → ${priorityLabel(next)}`,
+                    inverse: { priority: previous },
+                    inverseToast: `${ticketKey} back to ${priorityLabel(previous)}`,
+                  },
+                );
+              }}
+            />
             <span>Updated</span>
             <code>{ticket.updatedAt}</code>
           </div>

@@ -251,6 +251,116 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
   });
 });
 
+describe("priority from the board (V0-08)", () => {
+  const project = {
+    id: "project-fixture",
+    name: "Fixture Project",
+    rootPath: "/tmp/LongClaw Fixture",
+    key: "LC",
+    theme: "indigo",
+    starred: false,
+    reachable: true,
+    labels: {},
+  };
+
+  const ticket = {
+    state: "indexed" as const,
+    key: "LC-1",
+    id: "019c8c7e",
+    title: "Prove the round trip",
+    status: "todo" as const,
+    priority: "p3" as const,
+    labels: [],
+    createdAt: "2026-07-31T09:00:00Z",
+    updatedAt: "2026-07-31T09:00:00Z",
+    checkedCount: 0,
+    checklistCount: 0,
+    commentCount: 0,
+    attachmentCount: 0,
+    contentHash: "hash-1",
+    relativePath: ".longclaw/tickets/LC-1/ticket.md",
+  };
+
+  function written(): WriteResult {
+    return {
+      ticket: { ...ticket, priority: "urgent", contentHash: "hash-2" },
+      generation: 2,
+      changes: [],
+    };
+  }
+
+  async function openBoard() {
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project,
+      tickets: [ticket],
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    render(<App />);
+    await screen.findByText("Board");
+  }
+
+  function pressPAndPick(option: RegExp) {
+    const card = document.querySelector<HTMLElement>(
+      '.ticket-row[data-ticket-key="LC-1"]',
+    );
+    if (!card) throw new Error("no card for LC-1");
+    card.focus();
+    fireEvent.keyDown(card, { key: "p" });
+    fireEvent.click(screen.getByRole("menuitemradio", { name: option }));
+  }
+
+  it("writes the picked priority and offers to take it back", async () => {
+    vi.mocked(api.editTicket).mockResolvedValue(written());
+    await openBoard();
+
+    pressPAndPick(/Urgent/);
+
+    await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(1));
+    expect(api.editTicket).toHaveBeenCalledWith({
+      projectId: project.id,
+      ticketKey: "LC-1",
+      expectedHash: "hash-1",
+      edit: { priority: "urgent" },
+    });
+    await screen.findByText("LC-1 \u2192 Urgent");
+
+    fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+
+    await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(2));
+    expect(api.editTicket).toHaveBeenCalledWith({
+      projectId: project.id,
+      ticketKey: "LC-1",
+      expectedHash: "hash-2",
+      edit: { priority: "p3" },
+    });
+    await screen.findByText("LC-1 back to P3");
+  });
+
+  it("draws the new priority before the write returns and puts it back if it fails", async () => {
+    vi.mocked(api.editTicket).mockRejectedValue({
+      code: "io",
+      message: "No space left on device",
+      recoverable: true,
+    });
+    await openBoard();
+
+    pressPAndPick(/Urgent/);
+
+    expect(
+      document.querySelector('[aria-label="Priority: Urgent"]'),
+    ).toBeTruthy();
+    await waitFor(() =>
+      expect(
+        document.querySelector('[aria-label="Priority: P3"]'),
+      ).toBeTruthy(),
+    );
+    expect(screen.getByText(/No space left on device/)).toBeTruthy();
+  });
+});
+
 describe("project creation", () => {
   it("derives a backend-valid key for digit-leading project names", async () => {
     render(<App />);

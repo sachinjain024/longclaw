@@ -590,6 +590,9 @@ button:disabled {
 }
 
 .ticket-meta {
+  display: flex;
+  gap: 5px;
+  align-items: center;
   grid-column: 2;
 }
 
@@ -793,13 +796,8 @@ button:disabled {
   font-weight: 700;
 }
 
-.meta-grid select {
-  height: var(--lc-size-control);
-  border: 1px solid var(--lc-line-strong);
-  border-radius: 7px;
-  padding: 0 var(--lc-space-2);
-  color: var(--lc-ink);
-  background: var(--lc-surface);
+.meta-grid .menu-trigger {
+  justify-self: start;
 }
 
 .meta-grid code {
@@ -1138,6 +1136,117 @@ button:disabled {
   padding: 1px 4px;
   background: color-mix(in oklab, var(--lc-inverse-ink) 14%, transparent);
   font: 500 10.5px var(--lc-type-code-font);
+}
+
+/* ------------------------------------------------------ priority and menus */
+
+/* Monochrome except Urgent (components.md:134-144). The exclamation is the
+   mark colour so it reads on the filled square in both appearances. */
+.priority-glyph {
+  flex: none;
+  fill: var(--lc-priority-urgent);
+}
+
+.priority-glyph .mark {
+  fill: var(--lc-priority-urgent-mark);
+}
+
+.priority-glyph.none {
+  fill: var(--lc-priority-none);
+}
+
+/* A bordered container around real text: the number carries the level, so the
+   chip never gains a fill and never takes the theme accent. */
+.priority-chip {
+  display: inline-flex;
+  flex: none;
+  min-width: 21px;
+  height: 14px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--lc-priority-chip-border);
+  border-radius: var(--lc-radius-kbd);
+  padding: 0 3px;
+  color: var(--lc-priority-chip-text);
+  background: transparent;
+  font: 500 9px / 1 var(--lc-type-code-font);
+  letter-spacing: var(--lc-type-kbd-tracking);
+  text-transform: uppercase;
+}
+
+.priority-chip.small {
+  height: 13px;
+  font-size: 8.5px;
+}
+
+/* One popover behind status, priority, ordering and labels
+   (screen-specs.md:239-247). Fixed to the viewport, so a scrolling column
+   cannot carry it away from the card it is anchored to. */
+.menu-popover {
+  position: fixed;
+  z-index: 3;
+  display: flex;
+  min-width: 220px;
+  flex-direction: column;
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-panel);
+  padding: 5px;
+  background: var(--lc-raised);
+  box-shadow: var(--lc-shadow-overlay);
+}
+
+.menu-row {
+  display: flex;
+  height: var(--lc-size-control);
+  gap: var(--lc-space-2);
+  align-items: center;
+  border: 0;
+  border-radius: var(--lc-radius-control);
+  padding: 0 var(--lc-space-2);
+  color: var(--lc-ink);
+  background: none;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-row:hover,
+.menu-row:focus-visible {
+  background: var(--lc-wash);
+}
+
+.menu-glyph {
+  display: inline-flex;
+  align-items: center;
+}
+
+.menu-label {
+  flex: 1;
+}
+
+/* The value that is set, in the human accent: this is a person's own choice. */
+.menu-check {
+  color: var(--lc-accent-human-text);
+}
+
+.menu-footnote {
+  padding: var(--lc-space-1) var(--lc-space-2) 0;
+  color: var(--lc-ink-3);
+  font: 400 10.5px var(--lc-type-code-font);
+}
+
+.menu-trigger {
+  display: inline-flex;
+  height: var(--lc-size-control);
+  gap: var(--lc-space-2);
+  align-items: center;
+  border: 1px solid var(--lc-line-strong);
+  border-radius: 7px;
+  padding: 0 var(--lc-space-2);
+  color: var(--lc-ink);
+  background: var(--lc-surface);
+  font-size: 12.5px;
+  cursor: pointer;
 }
 
 @media (prefers-reduced-motion: reduce) {

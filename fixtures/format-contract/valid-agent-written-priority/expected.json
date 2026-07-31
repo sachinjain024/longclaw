@@ -1,0 +1,13 @@
+{
+  "summary": "A priority written in a legal YAML style the app never emits reads as p1, and stays exactly as its author wrote it.",
+  "key": "LC-88",
+  "outcome": "valid",
+  "ticket": {
+    "title": "An agent wrote this priority in its own hand",
+    "status": "todo",
+    "priority": "p1",
+    "labels": ["reliability"],
+    "historyIncomplete": false,
+    "recordDiagnostics": []
+  }
+}

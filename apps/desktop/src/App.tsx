@@ -23,8 +23,17 @@ import { mutate } from "./mutations";
 import { QuickCreate } from "./QuickCreate";
 import { useLongClawStore } from "./state";
 import { TicketPanel } from "./TicketPanel";
-import { provisionalTicket, provisionalTicketKey } from "./tickets";
-import type { CreateTicketRequest, ProjectReference } from "./types";
+import {
+  priorityLabel,
+  provisionalTicket,
+  provisionalTicketKey,
+} from "./tickets";
+import type {
+  CreateTicketRequest,
+  IndexedTicket,
+  ProjectReference,
+  TicketPriority,
+} from "./types";
 import { ToastStack, WriteIndicator } from "./WriteFeedback";
 
 const THEMES = [
@@ -429,6 +438,49 @@ export function App() {
     });
   }
 
+  /**
+   * The `P` menu on a focused card. The panel has `save()` over the same seam;
+   * a card on the board is outside it, so this goes to `mutate()` directly.
+   */
+  function changePriority(ticket: IndexedTicket, next: TicketPriority) {
+    const projectId = activeProjectId;
+    if (!projectId || next === ticket.priority) return;
+
+    void mutate({
+      path: ticket.relativePath,
+      // The card re-sorts into its new place at once; a failed write puts the
+      // row back exactly as it was read.
+      apply: () => {
+        applyLocalWrite({ ...ticket, priority: next }, generation);
+        return () => applyLocalWrite(ticket, generation);
+      },
+      write: () =>
+        editTicket({
+          projectId,
+          ticketKey: ticket.key,
+          expectedHash: ticket.contentHash,
+          edit: { priority: next },
+        }),
+      onWritten: (result) => applyLocalWrite(result.ticket, result.generation),
+      toast: () => `${ticket.key} → ${priorityLabel(next)}`,
+      undo: (result) => ({
+        path: result.ticket.relativePath,
+        write: () =>
+          editTicket({
+            projectId,
+            ticketKey: ticket.key,
+            // The hash the first write left, so the inverse is not refused as
+            // stale by its own predecessor.
+            expectedHash: result.ticket.contentHash,
+            edit: { priority: ticket.priority },
+          }),
+        onWritten: (undone) =>
+          applyLocalWrite(undone.ticket, undone.generation),
+        toast: () => `${ticket.key} back to ${priorityLabel(ticket.priority)}`,
+      }),
+    });
+  }
+
   return (
     <main className="app-shell">
       <aside className="side-panel">
@@ -647,6 +699,7 @@ export function App() {
                     marks={externalMarks}
                     now={now}
                     onSelect={openTicket}
+                    onChangePriority={changePriority}
                   />
                 )}
               </section>

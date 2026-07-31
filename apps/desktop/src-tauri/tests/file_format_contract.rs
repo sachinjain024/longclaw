@@ -745,6 +745,166 @@ fn check_attachments_survive(
     );
 }
 
+/// The `priority:` line exactly as it stands in the file, newline included.
+fn priority_line(raw: &str) -> &str {
+    let start = raw
+        .find("\npriority:")
+        .expect("the fixture has a priority key");
+    let region = &raw[start + 1..];
+    let end = region.find('\n').expect("the line is terminated");
+    &region[..end]
+}
+
+/// V0-08's third must-pass clause: an agent-written priority is read without the
+/// app rewriting the field.
+///
+/// The fixture writes `priority: "p1"` — legal YAML that LongClaw itself never
+/// emits, so a reformat is a changed byte rather than an argument. Every mutation
+/// a `TicketEdit` can make runs against it, including a priority edit that sets
+/// the value already there, and none of them may touch the line.
+#[test]
+fn an_agent_written_priority_is_never_rewritten_by_an_unrelated_edit() {
+    let case = repository_root().join("fixtures/format-contract/valid-agent-written-priority");
+    let raw = fs::read_to_string(case.join("ticket.md")).expect("the fixture should be readable");
+    let document = TicketDocument::parse(&raw, "LC-88").expect("the fixture should parse");
+    let before = priority_line(&raw);
+    assert_eq!(
+        before, "priority: \"p1\"",
+        "the fixture must carry a priority in a style the app never writes"
+    );
+    assert_eq!(
+        document.ticket().priority,
+        Priority::P1,
+        "the quoted form must still read as p1"
+    );
+
+    let mut report = Report::default();
+    let mutations = [
+        (
+            "title",
+            TicketEdit {
+                title: Some("A title the app wrote".to_owned()),
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "status",
+            TicketEdit {
+                status: Some(Status::InProgress),
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "labels replace",
+            TicketEdit {
+                labels: Some(vec!["backend".to_owned()]),
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "rank set",
+            TicketEdit {
+                rank: Some(Some("a0V".to_owned())),
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "archive",
+            TicketEdit {
+                archived: Some(true),
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "description",
+            TicketEdit {
+                description: Some("Rewritten in the panel.".to_owned()),
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "checklist toggle",
+            TicketEdit {
+                checklist: vec![ChecklistToggle {
+                    item_id: "ck_8801".to_owned(),
+                    checked: true,
+                }],
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "checklist append",
+            TicketEdit {
+                add_checklist_items: vec!["One more task".to_owned()],
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "comment",
+            TicketEdit {
+                comment: Some("Leaving a note.".to_owned()),
+                ..TicketEdit::default()
+            },
+        ),
+    ];
+
+    for (name, edit) in mutations {
+        let applied = match document.apply(&edit, NOW) {
+            Ok(applied) => applied,
+            Err(diagnostic) => {
+                report
+                    .failures
+                    .push(format!("{name}: the edit was refused: {diagnostic}"));
+                continue;
+            }
+        };
+        let next = String::from_utf8(applied.bytes).expect("app output should be UTF-8");
+        let after = priority_line(&next);
+        report.check(name, after == before, || {
+            format!("the priority line changed: {before:?} became {after:?}")
+        });
+        report.equal(
+            name,
+            "priority",
+            applied.document.ticket().priority,
+            Priority::P1,
+        );
+    }
+
+    // Setting the value that is already there is refused outright rather than
+    // rewritten in the app's own style. That is the strongest form of the claim:
+    // a file the app never opens for writing.
+    let no_op = document.apply(
+        &TicketEdit {
+            priority: Some(Priority::P1),
+            ..TicketEdit::default()
+        },
+        NOW,
+    );
+    report.check(
+        "priority set to the value already there",
+        no_op.is_err(),
+        || "an edit that changes nothing still rewrote the file".to_owned(),
+    );
+
+    // The other half of the claim: the field is preserved because nothing asked
+    // for it, not because the writer cannot write it.
+    let raised = document
+        .apply(
+            &TicketEdit {
+                priority: Some(Priority::Urgent),
+                ..TicketEdit::default()
+            },
+            NOW,
+        )
+        .expect("raising the priority should be accepted");
+    let raised = String::from_utf8(raised.bytes).expect("app output should be UTF-8");
+    report.check("priority raised", priority_line(&raised) != before, || {
+        "a real priority change left the line alone".to_owned()
+    });
+    report.finish();
+}
+
 #[test]
 fn every_representative_project_ticket_behaves_as_documented() {
     let tickets = repository_root().join("fixtures/representative-project/.longclaw/tickets");

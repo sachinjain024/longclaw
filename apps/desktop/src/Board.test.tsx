@@ -12,7 +12,7 @@ import type * as BoardCard from "./boardCard";
 import { ASSUMED_VIEWPORT, CARD_STRIDE } from "./boardGeometry";
 import { FRESH_WINDOW_MS } from "./freshness";
 import type { ExternalMark, ExternalMarks } from "./freshness";
-import type { TicketRow } from "./types";
+import type { IndexedTicket, TicketPriority, TicketRow } from "./types";
 
 /**
  * Every card render presents itself exactly once, so this is the render count
@@ -72,13 +72,18 @@ function mark(overrides?: Partial<ExternalMark>): ExternalMarks {
  */
 const noop = () => {};
 
-function board(props?: { tickets?: TicketRow[]; marks?: ExternalMarks }) {
+function board(props?: {
+  tickets?: TicketRow[];
+  marks?: ExternalMarks;
+  onChangePriority?: (ticket: IndexedTicket, next: TicketPriority) => void;
+}) {
   return (
     <Board
       tickets={props?.tickets ?? [row()]}
       marks={props?.marks ?? {}}
       now={NOW}
       onSelect={noop}
+      onChangePriority={props?.onChangePriority ?? noop}
     />
   );
 }
@@ -221,7 +226,13 @@ describe("the pulse, which says a change just landed", () => {
       },
     };
     render(
-      <Board tickets={columnOf(400)} marks={marks} now={NOW} onSelect={noop} />,
+      <Board
+        tickets={columnOf(400)}
+        marks={marks}
+        now={NOW}
+        onSelect={noop}
+        onChangePriority={noop}
+      />,
     );
     scrollTo(stack(), 49 * CARD_STRIDE);
     expect(card("LC-50").className).toContain("fresh");
@@ -293,7 +304,13 @@ describe("the board's own shape", () => {
   it("opens the ticket a card belongs to", () => {
     const onSelect = vi.fn();
     render(
-      <Board tickets={[row()]} marks={{}} now={NOW} onSelect={onSelect} />,
+      <Board
+        tickets={[row()]}
+        marks={{}}
+        now={NOW}
+        onSelect={onSelect}
+        onChangePriority={noop}
+      />,
     );
 
     fireEvent.click(card("LC-1"));
@@ -359,6 +376,7 @@ describe("focus on a column that is being scrolled", () => {
         marks={{}}
         now={NOW}
         onSelect={() => {}}
+        onChangePriority={noop}
       />,
     );
 
@@ -475,16 +493,137 @@ describe("what a change to one ticket costs", () => {
     // LC-1 wears an acknowledgement; LC-2 and LC-3 do not.
     const marks = mark({ at: NOW - 12_000 });
     const { rerender } = render(
-      <Board tickets={three} marks={marks} now={NOW} onSelect={noop} />,
+      <Board
+        tickets={three}
+        marks={marks}
+        now={NOW}
+        onSelect={noop}
+        onChangePriority={noop}
+      />,
     );
     presented.length = 0;
 
     // The clock behind the acknowledgement's age moves every second, and it
     // moves for the whole board. Only the card with an age to show reads it.
     rerender(
-      <Board tickets={three} marks={marks} now={NOW + 1_000} onSelect={noop} />,
+      <Board
+        tickets={three}
+        marks={marks}
+        now={NOW + 1_000}
+        onSelect={noop}
+        onChangePriority={noop}
+      />,
     );
 
     expect(presented).toEqual(["LC-1"]);
+  });
+});
+
+describe("priority on the board", () => {
+  // Handed in deliberately out of key order: "stable within a level" is about
+  // the order the tickets arrived in, and LC-4 arrives before LC-2.
+  const column = [
+    row({ key: "LC-1", title: "None", status: "todo", priority: "none" }),
+    row({ key: "LC-4", title: "First p2", status: "todo", priority: "p2" }),
+    row({ key: "LC-3", title: "Urgent", status: "todo", priority: "urgent" }),
+    row({ key: "LC-2", title: "Second p2", status: "todo", priority: "p2" }),
+    row({ key: "LC-5", title: "P4", status: "todo", priority: "p4" }),
+  ];
+
+  /** The keys of one column, in the order the column renders them. */
+  function columnKeys(title = "Todo"): string[] {
+    return Array.from(
+      stack(title).querySelectorAll<HTMLElement>(".ticket-row"),
+    ).map((element) => element.dataset.ticketKey ?? "");
+  }
+
+  it("orders a column by priority, stable within a level (ADR 0003)", () => {
+    render(board({ tickets: column }));
+
+    expect(columnKeys()).toEqual(["LC-3", "LC-4", "LC-2", "LC-5", "LC-1"]);
+  });
+
+  it("moves down the column in the order it is looking at", () => {
+    // `screen-specs.md:115`: keyboard navigation follows the visual order, so
+    // the second card down is the second card drawn, not the next key.
+    render(board({ tickets: column }));
+    card("LC-3").focus();
+
+    fireEvent.keyDown(card("LC-3"), { key: "ArrowDown" });
+
+    expect(document.activeElement).toBe(card("LC-4"));
+  });
+
+  it("draws the priority with a name rather than printing the slug", () => {
+    render(board({ tickets: [row({ priority: "urgent" })] }));
+
+    const element = card("LC-1");
+    expect(element.textContent).not.toContain("urgent");
+    expect(
+      element.querySelector('[aria-label="Priority: Urgent"]'),
+    ).toBeTruthy();
+  });
+
+  it("opens the priority menu on the focused card when P is pressed", () => {
+    const onChangePriority = vi.fn();
+    render(board({ tickets: column, onChangePriority }));
+    card("LC-2").focus();
+
+    fireEvent.keyDown(card("LC-2"), { key: "p" });
+
+    expect(screen.getByRole("menu", { name: "Priority" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Urgent/ }));
+
+    expect(onChangePriority).toHaveBeenCalledWith(
+      expect.objectContaining({ key: "LC-2" }),
+      "urgent",
+    );
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("leaves the card holding the tab stop after the menu closes", () => {
+    render(board({ tickets: column }));
+    card("LC-2").focus();
+
+    fireEvent.keyDown(card("LC-2"), { key: "p" });
+    fireEvent.keyDown(screen.getAllByRole("menuitemradio")[0], {
+      key: "Escape",
+    });
+
+    expect(document.activeElement).toBe(card("LC-2"));
+  });
+
+  it("is inert on a file it could not read", () => {
+    // keyboard-focus-map.md:48 — a degraded card takes focus, but S and P have
+    // nothing to write to.
+    render(
+      board({
+        tickets: [
+          {
+            state: "degraded",
+            key: "LC-98",
+            contentHash: "hash-98",
+            relativePath: ".longclaw/tickets/LC-98/ticket.md",
+            byteLength: 220,
+            readOnly: false,
+            diagnostic: { code: "parse_failed", message: "no frontmatter" },
+          },
+        ],
+      }),
+    );
+    card("LC-98").focus();
+
+    fireEvent.keyDown(card("LC-98"), { key: "p" });
+
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("leaves a modified P to the window", () => {
+    render(board({ tickets: column }));
+    card("LC-2").focus();
+
+    fireEvent.keyDown(card("LC-2"), { key: "p", metaKey: true });
+
+    expect(screen.queryByRole("menu")).toBeNull();
   });
 });

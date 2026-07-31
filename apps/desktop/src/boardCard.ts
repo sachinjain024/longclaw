@@ -8,11 +8,13 @@
  * `Board.test.tsx` assert that a change to one ticket re-renders one card.
  */
 
-import type { TicketRow } from "./types";
+import type { TicketPriority, TicketRow } from "./types";
 
 export interface CardCopy {
   title: string;
   meta: string;
+  /** Drawn as its glyph. A file that would not parse has none to draw. */
+  priority?: TicketPriority;
 }
 
 /** A file that will not parse still belongs to the project, so it still reads. */
@@ -25,6 +27,7 @@ export function presentCard(ticket: TicketRow): CardCopy {
   }
   return {
     title: ticket.title,
-    meta: `${ticket.priority} · ${ticket.checkedCount}/${ticket.checklistCount}`,
+    meta: `${ticket.checkedCount}/${ticket.checklistCount}`,
+    priority: ticket.priority,
   };
 }

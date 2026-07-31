@@ -154,6 +154,25 @@ function surface(props?: { reloadSignal?: number }) {
   );
 }
 
+/** The panel's meta rows are menus now, so a change is opened and picked. */
+function metaTrigger(field: "Status" | "Priority"): HTMLElement {
+  return screen.getByRole("button", { name: new RegExp(`^${field}: `) });
+}
+
+/** The panel, once the file it is reading has arrived. */
+function ready() {
+  return screen.findByRole("button", { name: /^Status: / });
+}
+
+/**
+ * Opens a meta menu and picks a row, with nothing awaited in between: an
+ * optimistic value is only observable before the write's promise settles.
+ */
+function pick(field: "Status" | "Priority", option: string) {
+  fireEvent.click(metaTrigger(field));
+  fireEvent.click(screen.getByRole("menuitemradio", { name: option }));
+}
+
 function checklistRow(text: string): HTMLElement {
   const row = screen.getByText(text).closest("li");
   if (!row) throw new Error(`no checklist row for ${text}`);
@@ -371,11 +390,13 @@ describe("a destructive-adjacent change and taking it back", () => {
       }),
     );
     render(surface());
-    const status = await screen.findByLabelText("Status");
+    await ready();
 
-    fireEvent.change(status, { target: { value: "in_progress" } });
+    pick("Status", "In Progress");
 
-    expect(status).toHaveProperty("value", "in_progress");
+    expect(metaTrigger("Status").getAttribute("aria-label")).toBe(
+      "Status: In Progress",
+    );
     settle(writeResult());
     await screen.findByText("LC-1 → In Progress");
     expect(screen.getByRole("button", { name: /Undo/ })).toBeTruthy();
@@ -384,9 +405,9 @@ describe("a destructive-adjacent change and taking it back", () => {
   it("must-pass 3: undo restores the previous file content through the ordinary write path", async () => {
     editTicketMock.mockResolvedValue(writeResult());
     render(surface());
-    const status = await screen.findByLabelText("Status");
+    await ready();
 
-    fireEvent.change(status, { target: { value: "in_progress" } });
+    pick("Status", "In Progress");
     await screen.findByText("LC-1 → In Progress");
     fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
 
@@ -405,9 +426,9 @@ describe("a destructive-adjacent change and taking it back", () => {
   it("runs undo from ⌘Z as well as the toast button", async () => {
     editTicketMock.mockResolvedValue(writeResult());
     render(surface());
-    const status = await screen.findByLabelText("Status");
+    await ready();
 
-    fireEvent.change(status, { target: { value: "in_progress" } });
+    pick("Status", "In Progress");
     await screen.findByText("LC-1 → In Progress");
     fireEvent.keyDown(document.body, { key: "z", metaKey: true });
 
@@ -424,12 +445,18 @@ describe("a destructive-adjacent change and taking it back", () => {
       recoverable: true,
     });
     render(surface());
-    const status = await screen.findByLabelText("Status");
+    await ready();
 
-    fireEvent.change(status, { target: { value: "in_progress" } });
+    pick("Status", "In Progress");
 
-    expect(status).toHaveProperty("value", "in_progress");
-    await waitFor(() => expect(status).toHaveProperty("value", "todo"));
+    expect(metaTrigger("Status").getAttribute("aria-label")).toBe(
+      "Status: In Progress",
+    );
+    await waitFor(() =>
+      expect(metaTrigger("Status").getAttribute("aria-label")).toBe(
+        "Status: Todo",
+      ),
+    );
     expect(screen.getByText(/No space left on device/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();
     // A reverted write offers no Undo: there is nothing on disk to take back.
@@ -447,9 +474,9 @@ describe("a destructive-adjacent change and taking it back", () => {
       },
     });
     render(surface());
-    const status = await screen.findByLabelText("Status");
+    await ready();
 
-    fireEvent.change(status, { target: { value: "in_progress" } });
+    pick("Status", "In Progress");
 
     await screen.findByText("⚠ Changed on disk while you were editing");
     expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
@@ -470,5 +497,86 @@ describe("a destructive-adjacent change and taking it back", () => {
     expect(editTicketMock.mock.calls[1][0]).toMatchObject({
       edit: { checklist: [{ itemId: "ck_2", checked: false }] },
     });
+  });
+});
+
+describe("priority in the panel (V0-08)", () => {
+  it("shows the priority the file carries, as a named glyph", async () => {
+    render(surface());
+
+    expect(
+      (await screen.findByRole("button", { name: /^Priority: / })).getAttribute(
+        "aria-label",
+      ),
+    ).toBe("Priority: P2");
+    // The panel tab order is status → priority → labels
+    // (`keyboard-focus-map.md:61`), so priority follows status in the document.
+    const triggers = screen.getAllByRole("button", {
+      name: /^(Status|Priority): /,
+    });
+    expect(
+      triggers.map((trigger) => trigger.getAttribute("aria-label")),
+    ).toEqual(["Status: Todo", "Priority: P2"]);
+  });
+
+  it("must-pass 1: writes the picked priority and offers to take it back", async () => {
+    editTicketMock.mockResolvedValue(writeResult());
+    render(surface());
+    await ready();
+
+    pick("Priority", "Urgent");
+
+    expect(metaTrigger("Priority").getAttribute("aria-label")).toBe(
+      "Priority: Urgent",
+    );
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(1));
+    expect(editTicketMock.mock.calls[0][0]).toEqual({
+      projectId: "project-1",
+      ticketKey: "LC-1",
+      expectedHash: "hash-1",
+      edit: { priority: "urgent" },
+    });
+
+    await screen.findByText("LC-1 → Urgent");
+    fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
+    expect(editTicketMock.mock.calls[1][0]).toEqual({
+      projectId: "project-1",
+      ticketKey: "LC-1",
+      expectedHash: "hash-2",
+      edit: { priority: "p2" },
+    });
+    await screen.findByText("LC-1 back to P2");
+  });
+
+  it("puts the priority back when the write fails", async () => {
+    editTicketMock.mockRejectedValue({
+      code: "io",
+      message: "No space left on device",
+      recoverable: true,
+    });
+    render(surface());
+    await ready();
+
+    pick("Priority", "Urgent");
+
+    expect(metaTrigger("Priority").getAttribute("aria-label")).toBe(
+      "Priority: Urgent",
+    );
+    await waitFor(() =>
+      expect(metaTrigger("Priority").getAttribute("aria-label")).toBe(
+        "Priority: P2",
+      ),
+    );
+  });
+
+  it("writes nothing when the priority already set is picked again", async () => {
+    render(surface());
+    await ready();
+
+    pick("Priority", "P2");
+
+    expect(editTicketMock).not.toHaveBeenCalled();
   });
 });

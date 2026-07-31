@@ -29,8 +29,16 @@ import { presentCard } from "./boardCard";
 import { cardStrides, columnOffsets, windowFor } from "./boardGeometry";
 import { acknowledgement, isFresh, isPulsing } from "./freshness";
 import type { ExternalMark, ExternalMarks } from "./freshness";
-import { STATUSES } from "./tickets";
-import type { TicketRow, TicketStatus } from "./types";
+import { Menu } from "./Menu";
+import { orderColumn } from "./ordering";
+import { PriorityGlyph } from "./PriorityGlyph";
+import { PRIORITIES, STATUSES } from "./tickets";
+import type {
+  IndexedTicket,
+  TicketPriority,
+  TicketRow,
+  TicketStatus,
+} from "./types";
 
 /** Cards rendered beyond each edge of the viewport, so a scroll shows no gap. */
 const OVERSCAN = 4;
@@ -72,10 +80,12 @@ function layOutColumns(tickets: TicketRow[]): {
     else byStatus.get(status)?.push(ticket);
   }
 
+  // Ordered here, once, because the seats below and the arrows that read them
+  // have to agree with what the column draws (`screen-specs.md:115`).
   const columns: Column[] = STATUSES.map((status) => ({
     id: status.id,
     title: status.label,
-    tickets: byStatus.get(status.id) ?? [],
+    tickets: orderColumn(byStatus.get(status.id) ?? []),
   }));
   if (unreadable.length > 0) {
     columns.push({
@@ -142,12 +152,21 @@ function cardFor(root: HTMLElement | null, key: string) {
   ).find((element) => element.dataset.ticketKey === key);
 }
 
+/** The rows of the priority menu, built once: they never differ per card. */
+const PRIORITY_OPTIONS = PRIORITIES.map((option) => ({
+  id: option.id,
+  label: option.label,
+  glyph: <PriorityGlyph priority={option.id} decorative />,
+}));
+
 export function Board(props: {
   tickets: TicketRow[];
   selectedKey?: string;
   marks: ExternalMarks;
   now: number;
   onSelect: (key: string) => void;
+  /** Raised by the `P` menu. The board holds no project id and writes nothing. */
+  onChangePriority: (ticket: IndexedTicket, next: TicketPriority) => void;
 }) {
   const { columns, seats } = useMemo(
     () => layOutColumns(props.tickets),
@@ -156,6 +175,8 @@ export function Board(props: {
   const [focusedKey, setFocusedKey] = useState<string>();
   /** Bumped only by a key press, so focus follows the arrows and nothing else. */
   const [focusRequest, setFocusRequest] = useState(0);
+  /** The card whose priority menu is open, if one is. */
+  const [priorityFor, setPriorityFor] = useState<string>();
   const grid = useRef<HTMLDivElement>(null);
 
   // A card that was deleted, or that changed status, cannot hold the tab stop.
@@ -166,17 +187,34 @@ export function Board(props: {
 
   const onFocusCard = useCallback((key: string) => setFocusedKey(key), []);
 
+  function ticketAt(seat: Seat): TicketRow {
+    return columns[seat.column].tickets[seat.index];
+  }
+
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
-    const move = moveFor(event.key);
-    if (!move) return;
+    // The open menu owns the keys it handles; the board must not also move focus
+    // out from under it.
+    if (event.defaultPrevented) return;
     // The card the key was pressed on, not the one the last render believed was
     // focused: a click that has not been committed yet would otherwise move the
     // human off a card they are already standing on.
     const on = (event.target as HTMLElement).closest?.(".ticket-row");
     const fromKey = (on as HTMLElement | null)?.dataset.ticketKey ?? rovingKey;
     const from = fromKey === undefined ? undefined : seats.get(fromKey);
-    if (!from) return;
+    if (!from || fromKey === undefined) return;
+
+    if (event.key.toLowerCase() === "p") {
+      // Inert on a file that would not read: there is no field to write to
+      // (`keyboard-focus-map.md:48`).
+      if (ticketAt(from).state !== "indexed") return;
+      event.preventDefault();
+      setPriorityFor(fromKey);
+      return;
+    }
+
+    const move = moveFor(event.key);
+    if (!move) return;
 
     event.preventDefault();
     const next = moveTo(columns, from, move);
@@ -198,6 +236,17 @@ export function Board(props: {
   const openSeat =
     props.selectedKey === undefined ? undefined : seats.get(props.selectedKey);
 
+  const menuSeat =
+    priorityFor === undefined ? undefined : seats.get(priorityFor);
+  const menuTicket = menuSeat && ticketAt(menuSeat);
+
+  function closePriorityMenu() {
+    setPriorityFor(undefined);
+    // A pick re-sorts the column, so the card is asked for by key again rather
+    // than left to whatever node the menu was hanging off.
+    setFocusRequest((request) => request + 1);
+  }
+
   return (
     <div className="board-grid" ref={grid} onKeyDown={onKeyDown}>
       {columns.map((column, columnIndex) => (
@@ -216,6 +265,16 @@ export function Board(props: {
           onFocusCard={onFocusCard}
         />
       ))}
+      {menuTicket?.state === "indexed" && (
+        <Menu
+          label="Priority"
+          options={PRIORITY_OPTIONS}
+          selected={[menuTicket.priority]}
+          anchor={cardFor(grid.current, menuTicket.key) ?? null}
+          onPick={(next) => props.onChangePriority(menuTicket, next)}
+          onClose={closePriorityMenu}
+        />
+      )}
     </div>
   );
 }
@@ -365,7 +424,10 @@ const BoardCard = memo(function BoardCard(props: {
         )}
       </span>
       <strong>{row.title}</strong>
-      <span className="ticket-meta">{row.meta}</span>
+      <span className="ticket-meta">
+        {row.priority && <PriorityGlyph priority={row.priority} small />}
+        {row.meta}
+      </span>
       {fresh && mark && (
         <span className="actor">{acknowledgement(mark, props.now)}</span>
       )}
