@@ -58,7 +58,7 @@ Dependencies worth knowing:
   test seam 01 added, lives in a `thread_local!` that is only correct while a write
   runs on the thread that asked for it — moving writes to a worker means the seam
   installer moves with them, or the race test silently stops driving anything.
-- **07 is done, and V0-14 inherits it.** The board's lane geometry lives in
+- **07 is done, and V0-14 inherits it.** The board's column geometry lives in
   `boardGeometry.ts` and is what the list surface should be built on; its sticky
   group headers and archived group are the part 07 did not have to solve. The
   board's keyboard navigation is new and is the model the list should follow.
