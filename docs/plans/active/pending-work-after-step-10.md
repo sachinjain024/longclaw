@@ -109,13 +109,13 @@ the few real dependencies between items.
 | ~~03~~ | ~~Attribute a change from new records only~~ — **done 2026-07-31**, [outcome](../completed/03-attribution-from-new-records.md) | V0-07 | ~~The app can credit an agent for a person's edit, or the reverse.~~ Closed. |
 | ~~04~~ | ~~Validate the project prefix on ingest~~ — **done 2026-07-31**, [outcome](../completed/04-project-prefix-validation.md) | V0-03 | ~~A foreign ticket key is indexed as this project's.~~ Closed. |
 | 05  | [Recover the watcher over sleep and wake](../completed/05-watcher-recovery.md) | V0-04   | Closed 2026-07-31: native wake recovery, overflow recovery, and unavailable reporting landed. |
-| 06  | [Move heavy work off the command thread](06-blocking-workers.md)               | V0-05   | A large rebuild blocks the command it runs on.                             |
+| ~~06~~ | ~~Move heavy work off the command thread~~ — **done 2026-07-31**, [outcome](../completed/06-blocking-workers.md) | V0-05 | ~~A large rebuild blocks the command it runs on.~~ Closed. |
 | 07  | [Virtualize the board and list](07-board-virtualization.md)                    | V0-06   | The one Step 4 budget with no measurement behind it.                       |
 | 08  | [Triage the dependabot advisories](08-dependabot-triage.md)                    | —       | 1 high and 2 moderate, unread.                                             |
 
 Items 01–07 are Wave 0 of [the backlog](../../backlog/v0-backlog.md): recorded,
 open risk. **None of them needs pilot evidence**, and all of them should be cleared
-whatever the pilot finds. Items 01, 02, 03, 04, and 05 are closed; 06–07 are open.
+whatever the pilot finds. Items 01, 02, 03, 04, 05, and 06 are closed; 07 is open.
 
 Waves 1–3 — the other 32 backlog items — deliberately have no plans yet. The plan's
 guardrail forbids starting Wave 1 breadth before M4 is decided, and their internal

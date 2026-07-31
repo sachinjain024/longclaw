@@ -30,16 +30,16 @@ marked independent can be done at any time by anyone.
 | ~~03~~ | ~~Attribute a change from new records only~~ — **done 2026-07-31**, [outcome](../completed/03-attribution-from-new-records.md) | V0-07 | Closed. It restructured the tail of `process_burst`, which 05 and 06 both touch. |
 | ~~04~~ | ~~Validate the project prefix on ingest~~ — **done 2026-07-31**, [outcome](../completed/04-project-prefix-validation.md) | V0-03 | Closed. It changed the signatures 05 and 06 will be holding: `read_ticket_file`, `TicketIndex::rebuild`, and both `ingest` methods now take the project key. |
 | ~~05~~ | ~~Recover the watcher over sleep, wake, and overflow~~ — **done 2026-07-31**, [outcome](../completed/05-watcher-recovery.md) | V0-04 | Closed. It added native macOS wake recovery, overflow recovery, coalescing, and explicit unavailable reporting. |
-| 06  | [Move heavy work off the command thread](06-blocking-workers.md)               | V0-05   | Restructures engine orchestration, so it goes after the correctness fixes rather than moving code out from under them. |
+| ~~06~~ | ~~Move heavy work off the command thread~~ — **done 2026-07-31**, [outcome](../completed/06-blocking-workers.md) | V0-05 | Closed. Scans, parsing, and fsync run on a bounded two-worker pool; rebuild requests return promptly and coalesce behind one `IndexRebuilt` event. |
 | ~~07~~ | ~~Virtualize the board and list~~ — **done 2026-07-31**, [outcome](../completed/07-board-virtualization.md) | V0-06 | Closed for the board. Columns are windowed scroll containers over `boardGeometry.ts`, and the board carries roving arrow/`j`-`k` focus because WebKit never had the cards in the Tab order. Wave 1's list surface (V0-14) inherits that geometry and re-traces with `npm run perf:board`. |
 | ~~08~~ | ~~Triage the dependabot advisories~~ — **done 2026-07-31**, [outcome](../completed/08-dependabot-triage.md) | V0-40 | Closed. All three advisories are unreachable, with the argument recorded. It produced V0-40: the alert list itself is the problem, not any advisory in it. |
 
 Dependencies worth knowing:
 
-- **05 is done, and 06 inherits it.** Wake and overflow recovery now travel through
-  `ProjectEngine::rebuild`, and resume/overflow rebuilds are coalesced. Item 06
-  must preserve that coalescing when rebuild work moves off the command thread.
-- **06 touches `process_burst`** in `apps/desktop/src-tauri/src/engine.rs`, and 03
+- **05 is done, and 06 preserved it.** Wake and overflow recovery still travel through
+  `ProjectEngine::rebuild`, and resume/overflow rebuilds remain coalesced after
+  rebuild work moved off the command thread.
+- **06 touched `process_burst`** in `apps/desktop/src-tauri/src/engine.rs`, and 03
   has already reshaped its tail: the
   previous row is read once, before the ingest, because attribution needs the record
   id the ingest is about to overwrite. Do not reorder that. 04 added one more thing
@@ -49,15 +49,14 @@ Dependencies worth knowing:
   requires saying which project you are reading for:
   `storage::read_ticket_file(path, project_key)`,
   `TicketIndex::rebuild(root, project_key)`, and `ingest`/`ingest_attributing` all
-  take it. Item 06 moves these onto workers, so whatever carries work to a worker
-  has to carry the key with it. Item 05's snapshot reconcile goes through
+  take it. Item 06 moved these onto workers, carrying the project key with the
+  work. Item 05's snapshot reconcile goes through
   `ProjectEngine::rebuild`, which now reads `project.md` *before* the tickets —
   deliberately, because the key decides which directories are this project's at all.
-- **06 inherits two things from 01.** The write path an edit takes is now
+- **06 inherited two things from 01.** The write path an edit takes is now
   `commit` → `storage::atomic_replace`, not `atomic_write`. And `ReplaceSeams`, the
-  test seam 01 added, lives in a `thread_local!` that is only correct while a write
-  runs on the thread that asked for it — moving writes to a worker means the seam
-  installer moves with them, or the race test silently stops driving anything.
+  test seam 01 added, lives in a `thread_local!`; the engine now captures it before
+  submitting the worker write, so the race test still drives the swap window.
 - **07 is done, and V0-14 inherits it.** The board's column geometry lives in
   `boardGeometry.ts` and is what the list surface should be built on; its sticky
   group headers and archived group are the part 07 did not have to solve. The

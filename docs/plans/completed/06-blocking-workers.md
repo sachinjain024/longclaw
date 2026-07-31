@@ -1,7 +1,7 @@
 ---
 title: "Move heavy work off the command thread"
 product: LongClaw
-status: ready
+status: completed
 backlog_id: V0-05
 order: 6
 owner_area: Platform
@@ -166,6 +166,13 @@ Automated proof:
   `PERF external_visibility_pipeline_ms=192.92 coalesced_events=6`, so external
   visibility still holds with the write path on a worker. The gate is
   environment-sensitive, not flaky in the engine.
+- Validation on 2026-07-31 confirmed the implementation shape and reran the proof:
+  the deterministic `check` portion of `npm run verify` passed twice, `npm --prefix
+  apps/desktop run perf:rust` passed with `concurrent_request_ms=82.72`, and two
+  isolated native watcher runs passed with `external_visibility_pipeline_ms=184.37`
+  and `188.38`. Full `npm run verify` still hit the native watcher timeout at its
+  final step twice in this environment, matching the sensitivity noted above rather
+  than a deterministic engine failure.
 
 Worker jobs never access a webview. The only cross-thread publication is the final
 `StreamEnvelope` sent through the existing Tauri `EventSink`.
