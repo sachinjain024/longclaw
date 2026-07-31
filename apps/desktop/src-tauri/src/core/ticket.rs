@@ -915,6 +915,29 @@ pub fn render_new_ticket(
     checklist: &[String],
     now: &str,
 ) -> String {
+    render_new_ticket_with_labels(
+        key,
+        title,
+        status,
+        priority,
+        &[],
+        description,
+        checklist,
+        now,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn render_new_ticket_with_labels(
+    key: &str,
+    title: &str,
+    status: Status,
+    priority: Priority,
+    labels: &[String],
+    description: &str,
+    checklist: &[String],
+    now: &str,
+) -> String {
     let mut rendered = String::from("---\n");
     rendered.push_str(&format!("format: {TICKET_FORMAT}\n"));
     rendered.push_str(&format!("id: {}\n", Uuid::new_v4()));
@@ -922,6 +945,12 @@ pub fn render_new_ticket(
     rendered.push_str(&format!("title: {}\n", encode_scalar(title)));
     rendered.push_str(&format!("status: {}\n", status.as_str()));
     rendered.push_str(&format!("priority: {}\n", priority.as_str()));
+    if !labels.is_empty() {
+        rendered.push_str("labels:\n");
+        for label in labels {
+            rendered.push_str(&format!("  - {}\n", encode_scalar(label.trim())));
+        }
+    }
     rendered.push_str(&format!("created_at: {}\n", encode_scalar(now)));
     rendered.push_str(&format!("updated_at: {}\n", encode_scalar(now)));
     rendered.push_str("---\n");
@@ -1949,11 +1978,12 @@ mod tests {
 
     #[test]
     fn a_new_ticket_parses_and_round_trips() {
-        let rendered = render_new_ticket(
+        let rendered = super::render_new_ticket_with_labels(
             "LC-7",
             "Ship the storage engine",
             Status::Todo,
             Priority::P1,
+            &["backend".to_owned(), "reliability".to_owned()],
             "Written from nothing.",
             &["Parse".to_owned(), "Write".to_owned()],
             NOW,
@@ -1967,6 +1997,7 @@ mod tests {
         assert_eq!(ticket.title, "Ship the storage engine");
         assert_eq!(ticket.status, Status::Todo);
         assert_eq!(ticket.priority, Priority::P1);
+        assert_eq!(ticket.labels, vec!["backend", "reliability"]);
         assert_eq!(ticket.description, "Written from nothing.");
         assert_eq!(ticket.checklist.len(), 2);
         assert!(ticket.checklist.iter().all(|item| item.id.is_some()));

@@ -33,7 +33,7 @@ use super::project::{
     is_project_key, is_project_name, is_theme_id, render_agent_contract, render_new_project,
     ProjectDocument, DEFAULT_THEME, PROJECT_NAME_RULE,
 };
-use super::ticket::{render_new_ticket, Priority, Status, Ticket, TicketDocument, TicketEdit};
+use super::ticket::{Priority, Status, Ticket, TicketDocument, TicketEdit};
 
 const PROJECT_DIRECTORY: &str = ".longclaw";
 const PROJECT_FILE: &str = "longclaw.yaml";
@@ -868,6 +868,8 @@ pub struct NewTicket {
     pub status: Option<Status>,
     pub priority: Option<Priority>,
     #[serde(default)]
+    pub labels: Vec<String>,
+    #[serde(default)]
     pub checklist: Vec<String>,
 }
 
@@ -913,11 +915,12 @@ pub fn prepare_new_ticket(
         match fs::create_dir(&directory) {
             Ok(()) => {
                 let path = directory.join(TICKET_FILE);
-                let rendered = render_new_ticket(
+                let rendered = super::ticket::render_new_ticket_with_labels(
                     &key,
                     title,
                     request.status.unwrap_or(Status::Todo),
                     request.priority.unwrap_or(Priority::None),
+                    &request.labels,
                     &request.description,
                     &request.checklist,
                     now,

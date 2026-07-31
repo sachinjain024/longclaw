@@ -54,7 +54,7 @@ The following stay outside this plan:
 | M1 — Data contract approved | Step 3 | The file format is documented, fixture-backed, agent-readable, versioned, and reviewed by a human. |
 | M2 — Architecture proven | Step 4 | The Tauri spike proves the riskiest filesystem, watcher, index, and IPC paths on macOS. |
 | M3 — Vertical slice ready | Steps 5–8 | One real project and ticket complete a human → disk → agent → disk → UI round-trip. |
-| M4 — Pilot direction accepted | Steps 9–10 | Target users have tried the slice and the remaining backlog has been explicitly revised. |
+| M4 — Pilot direction accepted | Steps 9–10 | Target users have tried the slice and the remaining backlog has been explicitly revised. **Closed 2026-07-31 by founder decision with the first half unmet** — the backlog was revised, no target user tried the slice ([decision](pilot/response-memo.md#direction-decision-2026-07-31-superseded-the-same-day)). |
 | M5 — Feature-complete v0 | Steps 11–15 | All in-scope workflows and trust states work against real files. |
 | M6 — MVP release | Steps 16–17 | Release quality, packaging, documentation, and final acceptance checks pass. |
 
@@ -352,11 +352,16 @@ Phase 0 is deliberately human-led. Its purpose is to remove expensive ambiguity 
 
 ### Step 9 — Run the mandatory mid-v0 pilot
 
-**Status: not started, and it is the critical path.** No sessions have run and
-[`pilot/sessions/`](pilot/sessions/) is empty. On 2026-07-31 the founder decided to
-run this step rather than proceed without it
-([decision](pilot/response-memo.md#direction-decision-2026-07-31)), so M4 closes
-only through here. Recruiting is the open action and it is not an agent's task.
+**Status: skipped by founder decision, 2026-07-31.** No sessions ran,
+[`pilot/sessions/`](pilot/sessions/) is empty, and it will stay that way. The founder
+first decided to run this step, then reversed and chose to proceed without it
+([both recorded](pilot/response-memo.md#direction-decision-2026-07-31-superseded-the-same-day)).
+M4 closed on that decision instead.
+
+This step is *not* deleted from the plan, and its work list below is not obsolete.
+It is the thing the project chose not to do, and
+[the memo](pilot/response-memo.md) records what that cost. If sessions ever happen,
+this is still how to run them and the memo's rules still bind the findings.
 
 **Goal:** Test whether the vertical slice solves the planning/execution split for the intended users.
 
@@ -399,15 +404,17 @@ finished — Wave 0's seven items and all ten plans in
 [`plans/completed/`](plans/completed/) are closed, with `npm run verify` and CI green
 on `6230240`.
 
-What is still owed, and returns here after Step 9: this step's *goal* is absorbing
-pilot evidence, and there is none. So the re-ranking record and scope decisions in
-[the memo](pilot/response-memo.md) are empty, and the § Work item "re-rank Steps
-11–15 by observed user value and risk" has been done from dependency and risk only.
-That ordering is a baseline, not a finding. **Step 10 gets a second pass** once the
-pilot produces evidence; nothing here is a substitute for it.
+What was never done, and now will not be: this step's *goal* is absorbing pilot
+evidence, and there is none. The re-ranking record and scope decisions in
+[the memo](pilot/response-memo.md) are permanently empty, and the § Work item
+"re-rank Steps 11–15 by observed user value and risk" was done from dependency and
+risk only. ~~Step 10 gets a second pass once the pilot produces evidence.~~ **No
+second pass is coming** — Step 9 was skipped on 2026-07-31, so that ordering is
+final without ever having been a finding.
 
-Consequently M4 remains open, and Step 11 does not start. See
-[the handoff](plans/active/pending-work-after-step-10.md).
+M4 closed on the same decision and Step 11 is open. Steps 11–15 execute against the
+unvalidated order in [the backlog](backlog/v0-backlog.md); its § How to read an entry
+says which of its markings that makes inert.
 
 **Goal:** Absorb pilot evidence into execution while keeping the product vision stable.
 
@@ -415,8 +422,9 @@ Consequently M4 remains open, and Step 11 does not start. See
 [the pilot response memo](pilot/response-memo.md),
 [the release risks](release-risks.md), and
 [the acceptance index](acceptance/README.md). The backlog states which of its
-claims are risk-based and therefore independent of the pilot, and which are a
-pre-pilot baseline awaiting evidence.
+claims are risk-based and therefore independent of the pilot, and which were a
+pre-pilot baseline — the latter are now final rather than awaiting evidence, since
+the pilot was skipped.
 
 **Work:**
 

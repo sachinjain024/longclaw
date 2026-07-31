@@ -8,7 +8,11 @@
 
 import { useState } from "react";
 import { STATUSES, checklistFromLines } from "./tickets";
-import type { CreateTicketRequest, TicketStatus } from "./types";
+import type {
+  CreateTicketRequest,
+  TicketPriority,
+  TicketStatus,
+} from "./types";
 
 interface QuickCreateProps {
   projectKey: string;
@@ -22,6 +26,8 @@ export function QuickCreate(props: QuickCreateProps) {
   const [description, setDescription] = useState("");
   const [checklistText, setChecklistText] = useState("");
   const [status, setStatus] = useState<TicketStatus>("todo");
+  const [priority, setPriority] = useState<TicketPriority>("none");
+  const [labelsText, setLabelsText] = useState("");
 
   return (
     <div className="modal-scrim" role="presentation">
@@ -38,6 +44,11 @@ export function QuickCreate(props: QuickCreateProps) {
             title: title.trim(),
             description: description.trim(),
             status,
+            priority,
+            labels: labelsText
+              .split(",")
+              .map((label) => label.trim())
+              .filter(Boolean),
             checklist: checklistFromLines(checklistText),
           });
         }}
@@ -79,6 +90,30 @@ export function QuickCreate(props: QuickCreateProps) {
               </option>
             ))}
           </select>
+        </label>
+        <label>
+          <span>Priority</span>
+          <select
+            value={priority}
+            onChange={(event) =>
+              setPriority(event.target.value as TicketPriority)
+            }
+          >
+            <option value="urgent">Urgent</option>
+            <option value="p1">P1</option>
+            <option value="p2">P2</option>
+            <option value="p3">P3</option>
+            <option value="p4">P4</option>
+            <option value="none">None</option>
+          </select>
+        </label>
+        <label>
+          <span>Labels — comma separated</span>
+          <input
+            value={labelsText}
+            placeholder="backend, reliability"
+            onChange={(event) => setLabelsText(event.target.value)}
+          />
         </label>
         <div className="editor-footer">
           <code>writes .longclaw/tickets/{props.projectKey}-n/ticket.md</code>

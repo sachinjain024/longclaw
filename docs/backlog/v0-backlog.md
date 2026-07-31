@@ -49,16 +49,21 @@ Read the consequence honestly:
   item earlier, add an item, or promote something from the deferred register. It
   should not be needed to justify an item that is already here.
 
-The plan's guardrail still holds: *do not continue executing the original breadth
-backlog after M3 until the pilot feedback in M4 has been processed.* Wave 0 was
-runnable immediately — it is blocker work, which Step 10 puts first by definition —
-and **it closed on 2026-07-31**. Waves 1 onward waited for either the pilot evidence
-or an explicit founder decision to proceed without it, and on 2026-07-31 that
-question was settled the first way: the pilot runs
-([decision](../pilot/response-memo.md#direction-decision-2026-07-31)). So the wait
-is now specifically for evidence, and the order below is still a baseline expecting
-to be reshuffled. [The pilot response memo](../pilot/response-memo.md) is where that
-evidence lands and where this order gets revised.
+The plan's guardrail was: *do not continue executing the original breadth backlog
+after M3 until the pilot feedback in M4 has been processed.* Wave 0 was runnable
+immediately — it is blocker work, which Step 10 puts first by definition — and **it
+closed on 2026-07-31**. Waves 1 onward waited for either the pilot evidence or an
+explicit founder decision to proceed without it, and **on 2026-07-31 the founder
+decided to proceed without the pilot sessions**
+([decision](../pilot/response-memo.md#direction-decision-2026-07-31-superseded-the-same-day)).
+M4 is closed and Wave 1 is open.
+
+**Read the consequence for this document, because it is the one that changed most.**
+The order below was written as a pre-pilot baseline expecting to be reshuffled. It
+will not be reshuffled. It is now the plan of record, and it still rests on
+dependency and on the plan's own acceptance criteria rather than on anything
+observed — the same "weakest claim in this document" as before, promoted rather than
+tested. Nothing about the decision made the baseline better; it made it final.
 
 ## How to read an entry
 
@@ -68,7 +73,7 @@ evidence lands and where this order gets revised.
 | Why it exists | The user consequence or the risk. An item with neither does not belong in the MVP. |
 | Must-pass | The check that has to pass before the item is called done. Release-blocking where marked. |
 | Owner | The work area, following the risk register's convention. Not a person. |
-| Pilot | `re-rank` — evidence may move it; `confirm` — evidence should confirm or kill the current design; `fixed` — position is risk-based and evidence does not move it. |
+| Pilot | **Inert as of 2026-07-31**, kept as a record of what evidence would have been asked to settle. `re-rank` — evidence may move it; `confirm` — evidence should confirm or kill the current design; `fixed` — position is risk-based and evidence does not move it. With the pilot skipped, every `re-rank` keeps its baseline rank and every `confirm` ships on its current design unexamined. The `confirm` rows are the ones to read twice. |
 
 ---
 

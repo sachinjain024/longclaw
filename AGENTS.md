@@ -25,6 +25,44 @@ Before creating the topic branch, agents must:
 
 Agents may commit only on topic branches. Agents must not commit directly to `main`. Agents must not merge into `main` unless the user explicitly asks them to do so.
 
+## Toolchain and the gate
+
+The shims are not all on `PATH`. Export this before any Rust work:
+
+```sh
+export PATH="/opt/homebrew/opt/rustup/bin:$PATH"   # rustup is Homebrew's
+
+node -v   # v26.5.0 (Homebrew). An old /usr/local/bin/node v10 is still present.
+cargo -V  # 1.97.1; stable is the default toolchain
+```
+
+Two traps: Homebrew runs under Rosetta on this Mac, so installs need
+`arch -arm64 brew install …`, and `apps/desktop/node_modules` may be missing — run
+`npm --prefix apps/desktop ci` first.
+
+```sh
+npm run verify   # tokens, format, lint, typecheck, tests, vite build, native watcher
+npm run dev      # launch the app
+npm --prefix apps/desktop run test:rust     # cargo test alone
+npm --prefix apps/desktop run test:frontend # vitest alone
+npm --prefix apps/desktop run test:watcher  # the native watcher round trip alone
+npm --prefix apps/desktop run perf:rust     # performance budgets, ignored by default
+npm run perf:board                          # board interaction budgets in WebKit
+```
+
+`npm run verify` must pass before you commit. CI additionally runs
+`npm run build:app` (the full macOS bundle), which the local gate skips.
+
+**If `verify` goes red on the native watcher, suspect the environment before the
+code.** An npm-launched `test:watcher` once timed out while the identical direct
+Cargo command passed, and it closed as *not reproducing* without a fix or an
+explanation — read
+[plan 10's outcome](docs/plans/completed/10-npm-native-watcher-timeout.md) before
+touching the watcher, since two obvious workarounds are already recorded as
+failures. The rule that must survive: `test:watcher` stays on the native adapter.
+Greening the gate with the polling adapter would leave the production watcher
+uncovered.
+
 ## Token discipline
 
 - Prefer `rg` and targeted file ranges over broad file dumps.

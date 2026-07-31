@@ -1,7 +1,7 @@
 ---
 title: "Pilot response memo"
 product: LongClaw
-status: awaiting evidence
+status: "closed by founder decision, without evidence"
 milestone: "M4 — Pilot direction accepted (Step 10)"
 ---
 
@@ -11,40 +11,75 @@ Step 10's job is to turn pilot evidence into backlog decisions. This memo is
 where each piece of evidence is mapped to exactly one decision, so the revised
 backlog can be traced back to something observed rather than something preferred.
 
-**State: awaiting evidence.** The Step 9 pilot has not run. No session notes
-exist under [`sessions/`](sessions/), so the evidence tables below are empty and
-have not been filled with plausible-sounding findings. What is written now is the
-part that is better decided *before* seeing evidence: the rules for what each
-kind of finding obliges us to do.
+**State: closed by founder decision, without evidence.** The Step 9 pilot did not
+run. `sessions/` is empty and will stay empty. The evidence tables below are
+therefore empty, and were never filled with plausible-sounding findings — that
+remains the one thing this document must not do, decision or no decision.
 
-## Direction decision, 2026-07-31
+## Direction decision, 2026-07-31 (superseded the same day)
 
 M4 offered two ways to close: run the pilot, or record a founder decision to
-proceed without it. **The founder chose to run it.** The pilot is not cancelled,
-not deferred past Step 11, and not to be worked around.
+proceed without it. **The founder first chose to run it, then reversed that and
+chose to proceed without it.** Both are recorded, in order, because the first
+decision's consequences were written into four documents and a reader needs to know
+why they changed.
 
-This is a decision about *how M4 closes*, not a closure of M4. Nothing below moves.
-The evidence tables stay empty, the decision rules stay binding, and
-[§ What closing M4 requires](#what-closing-m4-requires) is unchanged — the pilot
-still has to actually happen and produce Step 9's exit artifacts.
+| # | Decision | Effect |
+|---|---|---|
+| 1 | **Run the pilot rather than proceed without it.** The pilot is not cancelled, not deferred past Step 11, not worked around. Wave 0 had just closed, making the pilot the critical path rather than one of two open tracks | Superseded by 2 on the same day, before any work followed from it |
+| 2 | **Proceed without the pilot sessions.** The five recruited real-repository sessions will not happen. M4 closes on this decision rather than on evidence | **Operative.** Step 11 is unblocked |
 
-Two consequences worth stating, because the alternative decision would have
-inverted both:
+**Reason: not recorded.** The decision was taken as a direction, without a stated
+rationale, and one has not been invented here. This is the memo's own rule turned on
+its author, so it is worth filling in: a future reader deciding whether to revisit
+this will have the decision and its cost but not its argument.
 
-- **Waves 1–3 keep their re-rank obligation.** Their order remains a pre-pilot
-  baseline that evidence is expected to reshuffle. It does not harden into the
-  plan of record by default.
-- **The corresponding release risk stays open, not accepted.** *The mid-v0 pilot
-  never runs, and the MVP ships on internal preference* in
-  [the release risks](../release-risks.md) is being mitigated the way its own
-  mitigation column asks, rather than accepted.
+### What this closes, and what it does not
 
-What made this decision live now: Wave 0 of
-[the backlog](../backlog/v0-backlog.md) is closed, so the pilot is the critical
-path rather than one of two open tracks. Recruiting is the next action, and it is
-not an agent's work.
+It closes M4 and unblocks Step 11. It does not make the M4 gate's condition true.
+[The plan](../mvp_plan_order.md) words that gate as *"target users have tried the
+slice and the remaining backlog has been explicitly revised."* The second half
+happened. **The first half did not, and now will not.** M4 is closed by decision
+with half its gate unmet, which is a legitimate founder call and is not the same
+thing as a gate being satisfied.
 
-Reversing this is itself a decision to record here, with its reason and its date.
+### What it costs
+
+Stated plainly, because the point of a pre-registered memo is that the cost cannot
+be renegotiated later:
+
+- **Waves 1–3's order is now the plan of record, and it was never validated.** It
+  came from dependency and from the plan's own acceptance criteria — the backlog
+  calls it "the weakest claim in this document." It stops being a baseline awaiting
+  evidence and becomes simply the order, unchanged and unchallenged.
+- **The `Pilot` column in [the backlog](../backlog/v0-backlog.md) is now inert.**
+  Its `re-rank` and `confirm` markings describe what evidence would have done. No
+  evidence is coming, so `confirm` items ship on their current design by default —
+  including V0-12's markdown editor and V0-13's attribution treatment, the two the
+  column singled out as most wanting a look from a real user.
+- **The release risk is accepted, not mitigated.** *The mid-v0 pilot never runs, and
+  the MVP ships on internal preference* is the exact risk being taken. It is marked
+  accepted in [the release risks](../release-risks.md) rather than quietly retired.
+- **One acceptance criterion is now decided by taste.** The freshness-accent row in
+  [§ Acceptance criteria to update](#acceptance-criteria-to-update) says in its own
+  words to "decide from evidence, not taste." There will be no evidence. It is
+  resolved by default — keep — and that is a judgement call, not a finding.
+- **The first real user session is now a release, not a pilot.** Whatever the pilot
+  would have caught is still there to be caught; the difference is who finds it and
+  when.
+
+### What survives
+
+- **The decision rules above stay binding.** They are what stops the next
+  reasonable-sounding request walking into the MVP, and nothing about skipping the
+  pilot loosens the scope gate.
+- **The empty tables stay empty.** No decision permits back-filling them.
+- **The door stays open.** If sessions ever run — a friendly user, a demo that goes
+  sideways — findings enter through the tables and rules below exactly as written,
+  and they re-rank the waves then. Skipping the pilot is not a decision that
+  evidence no longer counts.
+
+Reversing *this* is a third decision, to record here with its reason and its date.
 
 ## Why the rules are written first
 
@@ -94,8 +129,9 @@ made afterwards.
 ## Blockers and their owners
 
 Every S0 or S1 finding, with the area accountable for it and the check that
-proves it stayed fixed. Empty until the pilot runs; the Wave 0 table in the
-backlog carries the equivalent list for risks already recorded in code.
+proves it stayed fixed. **Permanently empty:** the pilot did not run, so no
+outside-observed blocker was ever recorded. The Wave 0 table in the backlog carries
+the equivalent list for risks found by reading the code, and all seven are closed.
 
 | Blocker | Severity | Owner area | Must-pass verification | State |
 |---|---|---|---|---|
@@ -127,7 +163,7 @@ unmet. Proposed changes land in
 
 | Existing criterion | Evidence gap | Proposed update | State |
 |---|---|---|---|
-| The round-trip scenario acknowledges a *human* file edit with the human accent, an addition beyond the approved prototype that the scenario itself flags for pilot review | Not yet observed. The scenario's own note asks whether the treatment reads as noise in real use | Keep, or remove the one branch in `src/freshness.ts` and its CSS variant. Decide from evidence, not taste | Awaiting evidence |
+| The round-trip scenario acknowledges a *human* file edit with the human accent, an addition beyond the approved prototype that the scenario itself flags for pilot review | Never observed, and now never will be. The scenario's own note asks whether the treatment reads as noise in real use | ~~Decide from evidence, not taste~~ — no evidence is coming. **Resolved as: keep**, by default rather than by finding. The branch in `src/freshness.ts` and its CSS variant stay | Closed by default, 2026-07-31 |
 
 ## Vision register
 
@@ -139,21 +175,31 @@ decision.
 |---|---|---|---|
 | | | | |
 
-## What closing M4 requires
+## How M4 closed
 
-M4 is not closed. It needs, in order:
+**M4 is closed as of 2026-07-31, by founder decision.** This section previously
+listed what closing it would require. That route was not taken, so the requirements
+are kept below, struck, as the record of what was given up:
 
-1. Step 9's exit artifacts: at least five completed real-repository sessions under
-   [`sessions/`](sessions/), a ranked problem list, and an evidence summary.
-2. Every S0 and S1 finding in the blockers table with an owner and a must-pass
-   verification, and every data-integrity blocker cleared.
-3. The re-ranking record and scope decisions filled from the evidence, and the
-   backlog's Waves 1–3 revised accordingly.
-4. An explicit founder acceptance of the revised direction.
+1. ~~Step 9's exit artifacts: at least five completed real-repository sessions under
+   [`sessions/`](sessions/), a ranked problem list, and an evidence summary.~~ Not
+   done. Waived by decision 2.
+2. ~~Every S0 and S1 finding in the blockers table with an owner and a must-pass
+   verification, and every data-integrity blocker cleared.~~ Vacuously satisfied:
+   there are no findings, because there were no sessions. **This is not the same as
+   there being no blockers** — it means none were looked for from the outside.
+3. ~~The re-ranking record and scope decisions filled from the evidence, and the
+   backlog's Waves 1–3 revised accordingly.~~ Not done. The pre-pilot order stands
+   as-is, which is the central cost recorded above.
+4. **An explicit founder acceptance of the revised direction.** Done — this is that
+   acceptance, and with the other three waived it is the *only* thing M4 closed on.
 
-~~Wave 0 of the backlog may proceed before any of this.~~ **Wave 0 closed on
-2026-07-31** — all seven items, plus the ten plans in
-[`docs/plans/`](../plans/completed/). It was blocker work, which Step 10 puts first
-by definition, and it did not depend on what the pilot finds. With it done, step 1
-above is the only thing that can move next, and nothing in this list can be
-satisfied by more code.
+Wave 0 closed on 2026-07-31 as well: all seven items, plus the ten plans in
+[`docs/plans/completed/`](../plans/completed/). That part is evidence-backed work and
+is unaffected by any of the above — it was blocker work justified by the risk
+register, not by the pilot.
+
+Step 11 is unblocked. [The plan's](../mvp_plan_order.md) guardrail — *do not continue
+executing the original breadth backlog after M3 until the pilot feedback in M4 has
+been processed* — is satisfied in the narrow sense that M4 is closed, and not in the
+sense the guardrail was written for.

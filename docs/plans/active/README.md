@@ -2,9 +2,9 @@
 title: "Active plans"
 product: LongClaw
 status: active
-milestone: "M4 — Pilot direction accepted"
+milestone: "M5 — Feature-complete v0 (Steps 11–15)"
 written: 2026-07-31
-applies_to: "main @ 6230240"
+applies_to: "main @ 6a3925a"
 ---
 
 # Active plans
@@ -13,9 +13,21 @@ One file per piece of pending work. Each is self-contained: it carries its own
 working rules, the current behaviour with file and line, what to change, and what
 has to pass before it is done. Pick one and execute it without reading the others.
 
-[The pending-work handoff](pending-work-after-step-10.md) is the orientation
-document — where the project stands and why these items exist. Start there if you
-have no context at all; start here if you just want work.
+**There are no active plans right now, and Step 11 is open.** Every plan below is
+closed, Wave 0 is clear, and M4 closed on 2026-07-31 when the founder decided to
+proceed without the pilot sessions
+([decision](../../pilot/response-memo.md#direction-decision-2026-07-31-superseded-the-same-day)).
+The next work is Step 11, which is [Wave 1 of the backlog](../../backlog/v0-backlog.md)
+in full — V0-08 through V0-19. Write a plan here before starting one of them.
+
+Two things to read first, once, before Step 11 code:
+
+- [`AGENTS.md`](../../../AGENTS.md) § Toolchain and the gate — the shims, the traps,
+  and why a red native watcher is an environment suspect before a code one.
+- [The retired handoff](../completed/pending-work-after-step-10.md) § The one thing
+  worth carrying forward — Wave 1's order was never validated, because the pilot that
+  would have validated it was skipped. Short, and it names the two items most
+  affected.
 
 ## Order
 
@@ -68,24 +80,26 @@ Dependencies worth knowing:
   blocked local `npm run verify` no longer reproduces — closed without a fix, so
   treat a recurrence as an environment question and read
   [10's outcome](../completed/10-npm-native-watcher-timeout.md) before reopening
-  anything. Wave 0 is now clear, which means the only thing standing between this
-  repository and Step 11 is the M4 decision described in
-  [the pending-work handoff](pending-work-after-step-10.md), not any code.
+  anything. Wave 0 is clear and M4 is closed, so no code and no gate stands between
+  this repository and Step 11.
 
-## What is deliberately not planned yet
+## Waves 1–3 are unplanned, and now for a different reason
 
-Waves 1–3 of [the backlog](../../backlog/v0-backlog.md) — 32 of its 39 items — have
-no plans here, on purpose:
+Waves 1–3 of [the backlog](../../backlog/v0-backlog.md) — 32 of its 39 items — still
+have no plans here. The original reason is gone: the guardrail has been satisfied and
+the pilot will not invalidate anything, because it was skipped.
 
-- The plan's guardrail forbids starting Wave 1 breadth before M4 is decided.
-- The order _within_ those waves is a pre-pilot baseline, not observed value. Pilot
-  evidence is expected to reshuffle it.
+What remains is ordinary sequencing. Write a plan when you pick an item up, not 32
+plans in advance — the backlog's Wave 1 rows already carry the must-pass check and
+the reason each exists, which is most of what a plan needs. Take them roughly in
+order; that order is now final rather than provisional, and
+[the retired handoff](../completed/pending-work-after-step-10.md) says what that is
+worth.
 
-Writing 32 detailed plans now would be work the pilot may invalidate, and it would
-make a stale ordering look authoritative. Plan them when M4 closes, or when the
-founder decides to proceed without the pilot. Two Wave 3 items — V0-19 (remove
-assignee from the prototype specs) and V0-30 (index-loss recovery) — are small and
-pilot-independent if you need extra work before then.
+Three items are risk-based rather than breadth, so they are safe to take out of
+order at any time: V0-19 (remove assignee from the prototype specs — do this before
+Step 11 builds the surfaces around it), V0-30 (index-loss recovery), and V0-40
+(scope Dependabot to what ships).
 
 ## When a plan is done
 

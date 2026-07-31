@@ -494,6 +494,7 @@ fn creating_tickets_allocates_keys_from_the_files_and_never_reuses_one() {
             description: "Written by the app.".to_owned(),
             status: Some(Status::Todo),
             priority: Some(Priority::P1),
+            labels: vec!["backend".to_owned(), "reliability".to_owned()],
             checklist: vec!["Parse".to_owned(), "Write".to_owned()],
         })
         .expect("creation should be accepted");
@@ -508,6 +509,7 @@ fn creating_tickets_allocates_keys_from_the_files_and_never_reuses_one() {
     assert_eq!(row.title, "Ship the storage engine");
     assert_eq!(row.checklist_count, 2);
     assert_eq!(row.priority, Priority::P1);
+    assert_eq!(row.labels, vec!["backend", "reliability"]);
 
     // Allocation reads the canonical directories, so the app never reuses a number
     // it issued: v0 has no delete operation. A directory removed outside the app is
