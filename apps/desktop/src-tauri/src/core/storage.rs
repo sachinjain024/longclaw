@@ -736,6 +736,11 @@ pub fn prepare_ticket_edit(
 
 /// A stale edit is never written over a newer file. The context carries who
 /// changed it and when, so the conflict banner can say so.
+///
+/// This reads `last_activity` — the newest record in the file — on purpose, and it
+/// is **not** the mistake `core::attribution` exists to prevent. The question here
+/// is "who is on disk now, so the banner can name them", not "who made the change
+/// we just observed". Leave it alone.
 fn conflict_error(file: &TicketFile, expected_hash: &str) -> AppError {
     let mut error = AppError::new(
         ErrorCode::Conflict,

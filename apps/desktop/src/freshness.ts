@@ -9,13 +9,13 @@
  */
 
 import { actorGlyph } from "./attribution";
-import type { ChecklistItem, TicketRow } from "./types";
+import type { Actor, ChecklistItem } from "./types";
 
 /** How long an unreviewed external change stays acknowledged (states.md). */
 export const FRESH_WINDOW_MS = 120_000;
 
 export interface ExternalMark {
-  /** Taken from the file's newest activity record, never guessed. */
+  /** Taken from a record this change appended, never guessed. */
   actorType: "agent" | "human" | "unknown";
   actorLabel: string;
   /** When the app observed the change, in epoch milliseconds. */
@@ -27,12 +27,16 @@ export type ExternalMarks = Record<string, ExternalMark>;
 /** What the app calls a change whose file named no actor. */
 const UNKNOWN_LABEL = "actor unknown";
 
+/**
+ * `actor` is the one Rust attributed to *this* change — the actor of a record
+ * that was not in the file before. Deliberately not the ticket's newest record:
+ * a person editing in an editor appends nothing, and reading the newest record
+ * would credit them to whichever agent wrote last.
+ */
 export function externalMark(
-  ticket: TicketRow,
+  actor: Actor | undefined,
   observedAt: number,
 ): ExternalMark {
-  const actor =
-    ticket.state === "indexed" ? ticket.lastActivity?.actor : undefined;
   if (actor?.type === "agent") {
     return {
       actorType: "agent",

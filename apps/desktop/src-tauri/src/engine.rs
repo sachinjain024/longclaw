@@ -40,7 +40,7 @@ use crate::core::storage::{
 use crate::core::ticket::TicketEdit;
 use crate::core::{
     AppError, AppResult, ErrorCode, EventSource, ProjectEvent, ProjectReference, ProjectSnapshot,
-    RebuildReason, SearchResult, StreamEnvelope, TicketDetail, TicketIndex, WriteResult,
+    RebuildReason, SearchResult, StreamEnvelope, TicketDetail, TicketIndex, TicketRow, WriteResult,
 };
 
 /// How long a burst of events must go quiet before it is processed.
@@ -349,21 +349,33 @@ impl ProjectEngine {
             {
                 continue;
             }
+            let previous = directory_key(&path).and_then(|key| self.index.row(&key));
             // The same bytes we already hold are not a change, whoever touched the
             // file. This is what keeps a metadata-only event from re-announcing a
             // change the app has already applied.
-            if directory_key(&path)
-                .and_then(|key| self.index.row(&key))
+            if previous
+                .as_ref()
                 .is_some_and(|row| row.content_hash() == hash)
             {
                 continue;
             }
-            if let Ok(ticket) = self.index.ingest(&path) {
+            // The row we are about to replace is the only record of what this file
+            // looked like before, so the newest record we had already seen has to be
+            // read out of it here — after this ingest it is gone.
+            let previously_seen = previous.as_ref().and_then(|row| match row {
+                TicketRow::Indexed(row) => row.last_activity.as_ref().map(|event| event.id.clone()),
+                TicketRow::Degraded(_) => None,
+            });
+            if let Ok((ticket, attribution)) = self
+                .index
+                .ingest_attributing(&path, previously_seen.as_deref())
+            {
                 self.emit(ProjectEvent::TicketChanged {
                     ticket: Box::new(ticket),
                     source: EventSource::External,
                     coalesced_events,
                     detected_in_ms: started.elapsed().as_secs_f64() * 1_000.0,
+                    attribution,
                 });
             }
         }

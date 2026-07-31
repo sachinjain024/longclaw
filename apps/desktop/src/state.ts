@@ -173,7 +173,7 @@ export const useLongClawStore = create<LongClawState>((set, get) => ({
         ].sort(byKey),
         externalMarks: {
           ...pruneMarks(state.externalMarks, observedAt),
-          [ticket.key]: externalMark(ticket, observedAt),
+          [ticket.key]: externalMark(event.data.attribution?.actor, observedAt),
         },
         lastEvent: envelope,
         lastSequence: envelope.sequence,

@@ -15,8 +15,9 @@ use std::time::Instant;
 
 use parking_lot::RwLock;
 
+use super::attribution::attribute_change;
 use super::error::AppResult;
-use super::model::{IndexSnapshot, SearchResult, TicketRow};
+use super::model::{ActivitySummary, IndexSnapshot, SearchResult, TicketRow};
 use super::storage::{collapse_whitespace, read_ticket_file, scan_ticket_paths};
 
 /// How many rows a search returns before it stops looking.
@@ -110,7 +111,28 @@ impl TicketIndex {
 
     /// Reads one ticket file into the index and returns the row it produced.
     pub fn ingest(&self, path: &Path) -> AppResult<TicketRow> {
+        Ok(self.ingest_attributing(path, None)?.0)
+    }
+
+    /// Ingests, and also says which record explains the change that brought us
+    /// here, given the id of the newest record the app had already seen.
+    ///
+    /// The two are one call because the parsed document is the only place both
+    /// answers exist, and reading the file twice to ask separately would be a
+    /// second chance for the file to move underneath us. The rule itself lives in
+    /// `core::attribution`, not here — the index stores rows, it does not decide
+    /// who did what.
+    pub fn ingest_attributing(
+        &self,
+        path: &Path,
+        previously_seen: Option<&str>,
+    ) -> AppResult<(TicketRow, Option<ActivitySummary>)> {
         let file = read_ticket_file(path)?;
+        let attribution = match &file.parsed {
+            Ok(document) => attribute_change(previously_seen, &document.ticket().activity),
+            // A file this build cannot parse has no records to attribute from.
+            Err(_) => None,
+        };
         let row = file.row();
         let record = Record {
             row: row.clone(),
@@ -118,7 +140,7 @@ impl TicketIndex {
             search_text: file.search_text(),
         };
         self.state.write().insert(file.key, record);
-        Ok(row)
+        Ok((row, attribution))
     }
 
     /// Drops the record for a path that is gone, returning the key it held.

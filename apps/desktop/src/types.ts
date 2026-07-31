@@ -251,6 +251,16 @@ export type ProjectEvent =
         source: "external";
         coalescedEvents: number;
         detectedInMs: number;
+        /**
+         * The record that explains this change. Absent means actor unknown —
+         * nothing in the file describes what just happened, which is what a hand
+         * edit in an editor looks like.
+         *
+         * Not the same as `ticket.lastActivity`, which is only the newest record
+         * in the file and belongs to whoever wrote last. Reading that one is how
+         * an agent gets credit for a person's edit.
+         */
+        attribution?: ActivitySummary;
       };
     }
   | {

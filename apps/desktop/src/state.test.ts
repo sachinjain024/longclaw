@@ -19,10 +19,11 @@ const changedEnvelope = ipcContract.projectEventEnvelopes.ticketChanged;
 /** A fixed observation time, so acknowledgement decay is asserted, not timed. */
 const OBSERVED_AT = 1_800_000_000_000;
 
-if (changedEnvelope.event.type !== "ticketChanged") {
+const changedEvent = changedEnvelope.event;
+if (changedEvent.type !== "ticketChanged") {
   throw new Error("IPC fixture ticketChanged envelope has the wrong variant");
 }
-const initialTicket = changedEnvelope.event.data.ticket;
+const initialTicket = changedEvent.data.ticket;
 
 /**
  * Applies an envelope as though every event before it had already arrived.
@@ -119,6 +120,33 @@ describe("Rust project-event JSON applied to visible state", () => {
     useLongClawStore.getState().reviewTicket("LC-3");
 
     expect(useLongClawStore.getState().externalMarks).toEqual({});
+  });
+
+  it("does not borrow the file's newest actor for a change that appended nothing", () => {
+    // The fixture row's newest record is Claude Code's. This event carries no
+    // attribution, which is what a hand edit in an editor produces — and the
+    // acknowledgement must not put the agent's name on it.
+    useLongClawStore.setState({ tickets: [] });
+    const withoutAttribution: StreamEnvelope = {
+      ...changedEnvelope,
+      event: {
+        type: "ticketChanged",
+        data: { ...changedEvent.data, attribution: undefined },
+      },
+    };
+    applyInSequence(withoutAttribution, OBSERVED_AT);
+
+    const [ticket] = useLongClawStore.getState().tickets;
+    expect(ticket.state === "indexed" && ticket.lastActivity?.actor.type).toBe(
+      "agent",
+    );
+    expect(useLongClawStore.getState().externalMarks).toEqual({
+      "LC-3": {
+        actorType: "unknown",
+        actorLabel: "actor unknown",
+        at: OBSERVED_AT,
+      },
+    });
   });
 
   it("drops the acknowledgement when the ticket file goes away", () => {

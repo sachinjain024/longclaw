@@ -15,9 +15,9 @@ use common::{
     copy_representative_project, editor_atomic_replace, replace_title, serially, start_engine,
     start_engine_with, ticket_path,
 };
-use longclaw_desktop_lib::core::ticket::{Status, TicketEdit};
+use longclaw_desktop_lib::core::ticket::{ActorType, Status, TicketEdit};
 use longclaw_desktop_lib::core::{
-    EventSource, ProjectEvent, RebuildReason, StreamEnvelope, TicketRow,
+    ActivitySummary, EventSource, ProjectEvent, RebuildReason, StreamEnvelope, TicketRow,
 };
 use longclaw_desktop_lib::engine::WatcherAdapter;
 
@@ -43,20 +43,45 @@ fn expect_no_event(events: &Receiver<StreamEnvelope>, why: &str) {
 }
 
 fn changed(event: ProjectEvent) -> (TicketRow, usize, f64) {
+    let (ticket, coalesced_events, detected_in_ms, _) = changed_with_attribution(event);
+    (ticket, coalesced_events, detected_in_ms)
+}
+
+fn changed_with_attribution(
+    event: ProjectEvent,
+) -> (TicketRow, usize, f64, Option<ActivitySummary>) {
     match event {
         ProjectEvent::TicketChanged {
             ticket,
             source,
             coalesced_events,
             detected_in_ms,
+            attribution,
         } => {
             assert_eq!(source, EventSource::External);
-            (*ticket, coalesced_events, detected_in_ms)
+            (*ticket, coalesced_events, detected_in_ms, attribution)
         }
         other => panic!(
             "expected a ticket change, got {}",
             serde_json::to_string(&other).unwrap_or_default()
         ),
+    }
+}
+
+/// Who the app says made a change, in the form the surfaces read: an agent's
+/// name, `a person`, or the honest `actor unknown`.
+fn attributed_to(attribution: Option<ActivitySummary>) -> String {
+    let Some(record) = attribution else {
+        return "actor unknown".to_owned();
+    };
+    match record.actor.actor_type {
+        ActorType::Agent => record
+            .actor
+            .name
+            .or(record.actor.id)
+            .unwrap_or_else(|| "an agent".to_owned()),
+        ActorType::Human => "a person".to_owned(),
+        ActorType::Unknown => "actor unknown".to_owned(),
     }
 }
 
@@ -93,6 +118,92 @@ fn an_external_save_reaches_the_index_without_a_manual_refresh() {
             .map(title_of),
         Some("An agent renamed this")
     );
+}
+
+/// The failure the whole item is about: a person edits a file in an editor and
+/// appends nothing, and the app credits it to whichever agent happened to write
+/// the newest record.
+///
+/// LC-2's newest record belongs to Fixture Agent. Nothing here appends a record,
+/// so nothing in the file describes this change, and the honest answer is that
+/// nobody knows who made it.
+#[test]
+fn an_external_write_that_appended_no_record_is_actor_unknown() {
+    let _serial = serially();
+    let (_temp, root) = copy_representative_project();
+    let (_engine, events) = start_engine(&root);
+
+    let path = ticket_path(&root, "LC-2");
+    let raw = fs::read_to_string(&path).expect("ticket.md");
+    assert!(
+        raw.contains("name: Fixture Agent"),
+        "this test is only meaningful while the newest record is an agent's",
+    );
+    editor_atomic_replace(
+        &path,
+        &replace_title(&raw, "Edited by hand in an editor"),
+        1,
+    );
+
+    let (row, _, _, attribution) = changed_with_attribution(next_event(&events));
+    assert_eq!(title_of(&row), "Edited by hand in an editor");
+    assert_eq!(attributed_to(attribution), "actor unknown");
+}
+
+/// The normal path, which must not regress into over-caution: a record that was
+/// not there before *is* the actor of this change.
+#[test]
+fn a_newly_appended_record_is_credited_to_the_actor_who_wrote_it() {
+    let _serial = serially();
+    let (_temp, root) = copy_representative_project();
+    let (_engine, events) = start_engine(&root);
+
+    let path = ticket_path(&root, "LC-2");
+    let raw = fs::read_to_string(&path).expect("ticket.md");
+    editor_atomic_replace(&path, &with_appended_agent_record(&raw), 1);
+
+    let (_, _, _, attribution) = changed_with_attribution(next_event(&events));
+    assert_eq!(attributed_to(attribution), "Second Agent");
+}
+
+/// Reordered or rewritten history leaves no position from which "appended" means
+/// anything, so the app says so instead of picking the last line.
+#[test]
+fn rewritten_history_is_actor_unknown_rather_than_a_guess() {
+    let _serial = serially();
+    let (_temp, root) = copy_representative_project();
+    let (_engine, events) = start_engine(&root);
+
+    let path = ticket_path(&root, "LC-2");
+    let raw = fs::read_to_string(&path).expect("ticket.md");
+    // The record the index holds is gone, replaced by a different one.
+    let rewritten = raw
+        .replace("id: evt_9d0c4471", "id: evt_rewritten")
+        .replace("name: Fixture Agent", "name: Second Agent");
+    editor_atomic_replace(&path, &rewritten, 1);
+
+    let (_, _, _, attribution) = changed_with_attribution(next_event(&events));
+    assert_eq!(attributed_to(attribution), "actor unknown");
+}
+
+/// Appends a second activity record from a different agent, the way an agent
+/// writing to the file would.
+fn with_appended_agent_record(raw: &str) -> String {
+    format!(
+        "{}\n<!-- longclaw:event\n\
+         id: evt_appended1\n\
+         kind: comment\n\
+         occurred_at: 2026-07-31T09:00:00Z\n\
+         actor:\n  \
+         type: agent\n  \
+         id: second-agent\n  \
+         name: Second Agent\n\
+         -->\n\
+         ### Second Agent commented\n\n\
+         I picked this up after the fixture agent.\n\
+         <!-- /longclaw:event -->\n",
+        raw.trim_end(),
+    )
 }
 
 #[test]

@@ -37,7 +37,17 @@
           },
           "source": "external",
           "coalescedEvents": 4,
-          "detectedInMs": 186.96
+          "detectedInMs": 186.96,
+          "attribution": {
+            "id": "evt_f83f615b",
+            "kind": "comment",
+            "occurredAt": "2026-07-29T09:00:00Z",
+            "actor": {
+              "type": "agent",
+              "id": "claude-code",
+              "name": "Claude Code"
+            }
+          }
         }
       }
     },

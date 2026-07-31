@@ -281,6 +281,15 @@ pub enum ProjectEvent {
         source: EventSource,
         coalesced_events: usize,
         detected_in_ms: f64,
+        /// The record that explains *this* change, or absent for actor unknown.
+        ///
+        /// Deliberately not the row's `last_activity`, which is only "the newest
+        /// record in the file" and belongs to whoever wrote last rather than to
+        /// whoever caused this event. Attribution is a property of the transition,
+        /// so it rides on the event; a snapshot has no transition and carries none.
+        /// See `core::attribution`.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        attribution: Option<ActivitySummary>,
     },
     TicketRemoved {
         ticket_key: String,
@@ -452,6 +461,19 @@ mod json_contract_tests {
                 source: EventSource::External,
                 coalesced_events: 4,
                 detected_in_ms: 186.96,
+                // The record this change appended, which here happens to be the
+                // file's newest one. The two agree often and are not the same
+                // thing: see `core::attribution`.
+                attribution: Some(ActivitySummary {
+                    id: "evt_f83f615b".to_owned(),
+                    kind: "comment".to_owned(),
+                    occurred_at: "2026-07-29T09:00:00Z".to_owned(),
+                    actor: Actor {
+                        actor_type: ActorType::Agent,
+                        id: Some("claude-code".to_owned()),
+                        name: Some("Claude Code".to_owned()),
+                    },
+                }),
             },
         );
     }

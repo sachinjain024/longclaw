@@ -1,7 +1,8 @@
 ---
 title: "Attribute a change from newly appended records only"
 product: LongClaw
-status: ready
+status: done
+completed: 2026-07-31
 backlog_id: V0-07
 order: 3
 owner_area: Domain
@@ -146,3 +147,106 @@ an agent."_
   changed the file under a stale write. That use is legitimate and different: it is
   "who is on disk now", not "who made this change". Leave it, and say so in a comment
   so the next reader does not "fix" it.
+
+## Outcome
+
+Closed on 2026-07-31.
+
+### The choice the plan asked to be recorded
+
+**Option one: compare against the previous last-activity id.** No new index state,
+no measurement needed, and it answers the question the register actually asked.
+
+Option two — carrying the full record identity set on every row — buys fidelity
+only in cases option one already refuses to guess about. If records are reordered
+or an id is rewritten, a full set would let you say "these three are new", but the
+history has been rewritten and any claim about which one caused *this* change is
+still a guess. So the extra index cost per ticket, forever, buys a better answer to
+a question we would refuse to answer either way. Option one it is.
+
+### Attribution is a property of the change, not of the ticket
+
+The important decision, and the one that stops this defect coming back: the actor
+does **not** go on the row. `ProjectEvent::TicketChanged` gained
+`attribution: Option<ActivitySummary>`.
+
+`IndexedRow::last_activity` still means what it always meant — the newest record in
+the file — and stays untouched, because that is a real and useful thing for a
+timeline preview. The bug was one caller reading it as though it meant something
+else. A snapshot has no transition and therefore carries no attribution at all,
+which is the type system saying the same thing.
+
+`core::attribution::attribute_change(previously_seen, now_present)` is the rule, as
+a pure function with its own unit tests:
+
+- `previously_seen` absent → everything in the file is new to us; the newest record
+  is this change.
+- `previously_seen` found → the records after it are the appended ones; the last of
+  those is the actor, or `None` if there are none.
+- `previously_seen` not found → history was rewritten; `None`.
+
+`TicketIndex::ingest_attributing` wires it, because the parsed document is the only
+place both the row and the records exist and reading the file twice would be a
+second chance for it to move underneath us. The policy stays out of the index: the
+index stores rows, it does not decide who did what.
+
+In `process_burst`, the previous row is now read once and used twice — for the
+existing same-bytes check and for the id to compare against. It has to be read
+before the ingest, because after it that row is gone.
+
+### The frontend
+
+`externalMark` used to take a `TicketRow` and reach into `ticket.lastActivity`.
+It now takes the `Actor | undefined` that Rust attributed, and `state.ts` passes
+`event.data.attribution?.actor`. The signature change is the point: it is no longer
+*possible* to hand this function a ticket and have it find an actor to blame.
+
+Nothing else needed changing. `attribution.ts` already treated `unknown` as a
+first-class state, `wearsAgentAccent` already gives it the agent accent, and
+`Board.test.tsx` already asserted the `⚠ file changed on disk — actor unknown` copy.
+The frontend was right; Rust was handing it a confident wrong answer.
+
+The conflict path was left exactly as the plan asked, and now has a comment saying
+why: `conflict_error` reads `last_activity` to answer "who is on disk now", which is
+a different and legitimate question.
+
+### How it was proved
+
+Six unit tests beside the rule in `core/attribution.rs`, three watcher-integration
+tests, and one store test:
+
+| Case | Test |
+|---|---|
+| A record-less external write is unknown | `an_external_write_that_appended_no_record_is_actor_unknown` |
+| A newly appended record is credited | `a_newly_appended_record_is_credited_to_the_actor_who_wrote_it` |
+| Rewritten history is unknown | `rewritten_history_is_actor_unknown_rather_than_a_guess` |
+| The app's own write never reaches attribution | `an_app_write_is_not_echoed_back_as_an_external_change` (existing; the receipt suppresses it first) |
+| The store does not borrow the row's newest actor | `does not borrow the file's newest actor for a change that appended nothing` |
+
+The watcher tests use LC-2, whose newest record belongs to Fixture Agent, and one of
+them asserts that precondition so the test cannot quietly stop being meaningful if
+the fixture changes.
+
+**The red half was verified.** With `attribute_change` reduced to "the newest record
+in the file" — the old behaviour — the tests that are about the defect fail and the
+rest pass:
+
+```
+test an_external_write_that_appended_no_record_is_actor_unknown ... FAILED
+test rewritten_history_is_actor_unknown_rather_than_a_guess ... FAILED
+test result: FAILED. 11 passed; 2 failed; 1 ignored
+
+core::attribution::tests::a_change_that_appended_nothing_is_unknown ... FAILED
+core::attribution::tests::rewritten_history_is_unknown_rather_than_guessed ... FAILED
+test result: FAILED. 4 passed; 2 failed
+```
+
+`npm run verify` passes, including `npm run test:watcher`.
+
+### Still open
+
+[The round-trip scenario](../../acceptance/agent-round-trip.md) § 4 has not been
+walked by hand. Its pass condition — a hand edit reading `⚠ file changed on disk —
+actor unknown` rather than crediting an agent — is now what the code does and what
+the automated tests assert, but the scenario is a human walkthrough and nobody has
+done it.

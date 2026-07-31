@@ -8,46 +8,22 @@ import {
   isFresh,
   pruneMarks,
 } from "./freshness";
-import type { ChecklistItem, IndexedTicket, TicketRow } from "./types";
+import type { Actor, ChecklistItem } from "./types";
 
 const AT = 1_800_000_000_000;
 
-function row(actor?: IndexedTicket["lastActivity"]): TicketRow {
-  return {
-    state: "indexed",
-    key: "LC-1",
-    id: "id",
-    title: "Load canonical ticket files",
-    status: "todo",
-    priority: "p2",
-    labels: [],
-    createdAt: "2026-07-29T00:00:00Z",
-    updatedAt: "2026-07-29T09:12:31Z",
-    checkedCount: 1,
-    checklistCount: 2,
-    commentCount: 0,
-    attachmentCount: 0,
-    lastActivity: actor,
-    contentHash: "hash",
-    relativePath: ".longclaw/tickets/LC-1/ticket.md",
-  };
-}
-
-function activity(
-  type: "agent" | "human" | "unknown",
-  name?: string,
-): IndexedTicket["lastActivity"] {
-  return {
-    id: "evt_1",
-    kind: "update",
-    occurredAt: "2026-07-29T09:12:31Z",
-    actor: { type, name },
-  };
+/**
+ * The actor Rust attributed to an observed change. `undefined` is the shape of
+ * "this change appended no record", which is what a hand edit in an editor looks
+ * like — and the case the mark must not fill in.
+ */
+function attributed(type: Actor["type"], name?: string): Actor {
+  return { type, name };
 }
 
 describe("acknowledging an external change", () => {
   it("names the agent the file said made the change", () => {
-    const mark = externalMark(row(activity("agent", "Claude Code")), AT);
+    const mark = externalMark(attributed("agent", "Claude Code"), AT);
 
     expect(mark).toEqual({
       actorType: "agent",
@@ -60,8 +36,8 @@ describe("acknowledging an external change", () => {
   });
 
   it("never invents attribution for a change that carries none", () => {
-    const unattributed = externalMark(row(), AT);
-    const unknown = externalMark(row(activity("unknown")), AT);
+    const unattributed = externalMark(undefined, AT);
+    const unknown = externalMark(attributed("unknown"), AT);
 
     expect(unattributed).toMatchObject({ actorType: "unknown" });
     expect(unknown).toMatchObject({ actorType: "unknown" });
@@ -71,7 +47,7 @@ describe("acknowledging an external change", () => {
   });
 
   it("keeps a human file edit out of the agent treatment", () => {
-    const mark = externalMark(row(activity("human")), AT);
+    const mark = externalMark(attributed("human"), AT);
 
     expect(mark).toMatchObject({ actorType: "human" });
     expect(acknowledgement(mark, AT + 3_000)).toBe(
@@ -79,25 +55,16 @@ describe("acknowledging an external change", () => {
     );
   });
 
-  it("acknowledges a degraded file without claiming who wrote it", () => {
-    const mark = externalMark(
-      {
-        state: "degraded",
-        key: "LC-98",
-        contentHash: "hash",
-        relativePath: ".longclaw/tickets/LC-98/ticket.md",
-        byteLength: 12,
-        readOnly: false,
-        diagnostic: { code: "parse_failed", message: "bad" },
-      },
-      AT,
-    );
+  it("acknowledges a file it cannot read without claiming who wrote it", () => {
+    // A file this build cannot parse has no records to attribute from, so Rust
+    // sends no attribution at all.
+    const mark = externalMark(undefined, AT);
 
     expect(mark).toMatchObject({ actorType: "unknown" });
   });
 
   it("decays two minutes after the last write, and never before", () => {
-    const mark = externalMark(row(activity("agent", "Claude Code")), AT);
+    const mark = externalMark(attributed("agent", "Claude Code"), AT);
 
     expect(isFresh(mark, AT + FRESH_WINDOW_MS - 1)).toBe(true);
     expect(isFresh(mark, AT + FRESH_WINDOW_MS)).toBe(false);
@@ -105,8 +72,8 @@ describe("acknowledging an external change", () => {
 
   it("drops decayed marks so the board stops paying for them", () => {
     const marks = {
-      "LC-1": externalMark(row(activity("agent", "Claude Code")), AT),
-      "LC-2": externalMark(row(activity("agent", "Claude Code")), AT - 200_000),
+      "LC-1": externalMark(attributed("agent", "Claude Code"), AT),
+      "LC-2": externalMark(attributed("agent", "Claude Code"), AT - 200_000),
     };
 
     expect(Object.keys(pruneMarks(marks, AT))).toEqual(["LC-1"]);
