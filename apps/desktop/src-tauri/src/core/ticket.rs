@@ -323,7 +323,11 @@ pub struct TicketEdit {
     pub status: Option<Status>,
     pub priority: Option<Priority>,
     pub labels: Option<Vec<String>>,
-    pub rank: Option<String>,
+    /// Absent leaves the rank alone; `null` clears it. A rank is written only by
+    /// manual reordering (ADR 0003), so leaving Manual has to be able to put one
+    /// back to absent rather than to some placeholder value.
+    #[serde(default, deserialize_with = "nullable")]
+    pub rank: Option<Option<String>>,
     pub archived: Option<bool>,
     pub description: Option<String>,
     #[serde(default)]
@@ -331,6 +335,17 @@ pub struct TicketEdit {
     #[serde(default)]
     pub add_checklist_items: Vec<String>,
     pub comment: Option<String>,
+}
+
+/// Reads a field that may be absent or explicitly null as two distinct answers.
+/// Plain `Option<Option<T>>` collapses both onto the outer `None`, which would
+/// turn "clear this" into "leave this alone".
+fn nullable<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Deserialize::deserialize(deserializer).map(Some)
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -606,14 +621,17 @@ impl TicketDocument {
             }
         }
         if let Some(rank) = &edit.rank {
-            if Some(rank) != current.rank.as_ref() {
-                next.frontmatter
-                    .set_scalar_after("rank", rank, &["labels", "priority"]);
-                changes.push(FieldChange::new(
-                    "rank",
-                    current.rank.clone(),
-                    Some(rank.clone()),
-                ));
+            match (rank.as_deref(), current.rank.clone()) {
+                (Some(rank), previous) if Some(rank) != previous.as_deref() => {
+                    next.frontmatter
+                        .set_scalar_after("rank", rank, &["labels", "priority"]);
+                    changes.push(FieldChange::new("rank", previous, Some(rank.to_owned())));
+                }
+                (None, Some(previous)) => {
+                    next.frontmatter.remove("rank");
+                    changes.push(FieldChange::new("rank", Some(previous), None));
+                }
+                _ => {}
             }
         }
         if let Some(archived) = edit.archived {
@@ -1667,6 +1685,60 @@ mod tests {
             restored.document.ticket().unknown_keys,
             document().ticket().unknown_keys
         );
+    }
+
+    #[test]
+    fn setting_and_clearing_a_rank_leave_the_other_keys_alone() {
+        let ranked = document()
+            .apply(
+                &TicketEdit {
+                    rank: Some(Some("a0V".to_owned())),
+                    ..TicketEdit::default()
+                },
+                NOW,
+            )
+            .expect("setting a rank should be accepted");
+        let rendered = String::from_utf8(ranked.bytes).expect("UTF-8");
+        assert!(rendered.contains("priority: p2\nrank: a0V\nlabels:\n  - storage\n"));
+        assert_eq!(ranked.document.ticket().rank.as_deref(), Some("a0V"));
+
+        let cleared = ranked
+            .document
+            .apply(
+                &TicketEdit {
+                    rank: Some(None),
+                    ..TicketEdit::default()
+                },
+                NOW,
+            )
+            .expect("clearing a rank should be accepted");
+        let rendered = String::from_utf8(cleared.bytes).expect("UTF-8");
+        assert!(!rendered.contains("rank:"));
+        assert_eq!(cleared.document.ticket().rank, None);
+        assert_eq!(
+            cleared.document.ticket().unknown_keys,
+            document().ticket().unknown_keys
+        );
+        // Recorded the way `archived_at` removal is: the value that went, and no
+        // replacement.
+        assert_eq!(cleared.changes.len(), 1);
+        assert_eq!(cleared.changes[0].field, "rank");
+        assert_eq!(cleared.changes[0].from.as_deref(), Some("a0V"));
+        assert_eq!(cleared.changes[0].to, None);
+    }
+
+    #[test]
+    fn clearing_a_rank_that_is_already_absent_changes_nothing() {
+        let error = document()
+            .apply(
+                &TicketEdit {
+                    rank: Some(None),
+                    ..TicketEdit::default()
+                },
+                NOW,
+            )
+            .expect_err("there is no rank to clear");
+        assert!(error.message.contains("already matches"), "{error}");
     }
 
     #[test]

@@ -153,7 +153,9 @@ chip, which own the soft-fill register.
 - **Agent:** square tile, 26px, radius `--lc-radius-tile` (4px), bg
   `--lc-tile` (near-black in both appearances — a terminal window in
   miniature), `❯` in mono 11px/600 `accent-agent`, ring 1.5px
-  `accent-agent-avatar-ring`. **Never appears in the assignee slot.**
+  `accent-agent-avatar-ring`. **Never stands in for a person** — and v0 has
+  no assignee slot for it to stand in at all (ADR 0001); the rule returns
+  with team projects.
 
 ## Board card
 
@@ -161,8 +163,9 @@ Width min `--lc-size-card-width-min` (240px), padding 10px 12px, radius 8px,
 bg `surface`, border 1px `line`, shadow `--lc-shadow-card` (none in dark).
 Rows: mono ID (11px, `ink-3`) + spacer + priority glyph · title (13px/500
 `ink`, 1.35, max 2 lines) · footer: status glyph, labels, checklist `3/7`
-(mono 10.5px) + 44×3px progress track (`wash` track, fill see below), spacer,
-assignee avatar 20px.
+(mono 10.5px) + 44×3px progress track (`wash` track, fill see below). No
+assignee avatar and no trailing avatar slot — v0 is local mode and has no
+assignee (ADR 0001).
 
 | State | Treatment |
 |---|---|
@@ -256,9 +259,10 @@ crossfade of accent surfaces only; nothing moves.
 Modal 560px, radius `--lc-radius-modal` (14px), shadow `--lc-shadow-modal`,
 scrim backdrop. Input row 44px (15px type); result rows 36px: glyph 14px,
 name 13px `ink`, kbd hint right-aligned. Selected row `accent-human-soft`.
-v0 commands: create ticket · go to project · change status · assign · search
-tickets · star project · toggle appearance · change project theme · new
-terminal *(Phase 2 slot, present but disabled)*.
+v0 commands: create ticket · go to project · change status · search tickets ·
+star project · toggle appearance · change project theme · new terminal
+*(Phase 2 slot, present but disabled)*. No **assign** command — v0 is local
+mode and has no assignee (ADR 0001).
 
 ## Shortcuts (v0 set)
 
@@ -267,7 +271,6 @@ terminal *(Phase 2 slot, present but disabled)*.
 | `⌘K` | Command palette |
 | `C` | Create ticket (quick create) |
 | `S` | Change status of focused ticket |
-| `A` | Assign focused ticket |
 | `P` | Set priority of focused ticket |
 | `↑↓` / `J K` | Move focus in lists and columns |
 | `←→` / `H L` | Move focus across board columns |
@@ -278,7 +281,8 @@ terminal *(Phase 2 slot, present but disabled)*.
 
 Single-key shortcuts suspend while any input has focus. Every shortcut is
 discoverable in the palette; kbd chips render in primary buttons and palette
-rows.
+rows. `A` is reserved, not bound — assignment does not exist in local mode
+(ADR 0001); the key returns with team projects.
 
 ## Empty & first-run states
 

@@ -59,6 +59,7 @@ describe("recovering from a lost project event", () => {
     theme: "indigo",
     starred: false,
     reachable: true,
+    labels: {},
   };
 
   it("fetches one snapshot, says it is reconciling, and resumes", async () => {

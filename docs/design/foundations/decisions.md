@@ -121,12 +121,16 @@ timestamps, counts, kbd hints, agent names all run mono).
 26px tile, 4px radius, near-black `--lc-tile` in both appearances, mono `❯`
 in agent accent, 1.5px agent ring. Of the three wired treatments (squircle ·
 sharp tile · dashed circle) the reference's default stands. Reads "process,
-not person" at 20px; never appears in the assignee slot. The shape channel is
-also the CVD fallback (D11).
+not person" at 20px; ~~never appears in the assignee slot~~. The shape channel
+is also the CVD fallback (D11).
+
+> **ADR 0001 (2026-07-28):** there is no assignee slot in v0 for the tile to
+> stay out of — local mode has no assignee. The rule returns with team
+> projects.
 
 ## D8 — Shortcut set · accepted
 
-`⌘K` palette · `C` create · `S` status · `A` assign · `P` priority ·
+`⌘K` palette · `C` create · `S` status · ~~`A` assign~~ · `P` priority ·
 `↑↓`/`J K` and `←→`/`H L` navigation · `Enter` open · `Esc` close · `⌘Z`
 undo · `⌘F` filter. Exactly the brief's proposed single-key set plus the
 non-negotiable navigation/undo basics; no chords in v0. Full table in
@@ -197,7 +201,7 @@ marketing moments, never in-app chrome. Master: `assets/owl-mark.svg`.
 
 ## D14 — Command palette v0 command set · accepted
 
-create ticket · go to project · change status · assign · search tickets ·
+create ticket · go to project · change status · ~~assign~~ · search tickets ·
 star project · toggle appearance · change project theme · new terminal
 (Phase 2 slot, visible but disabled). "Change project theme" ships in the
 palette per the brief's proposal.

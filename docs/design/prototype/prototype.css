@@ -762,7 +762,7 @@ svg.glyph { flex: none; }
 .fp-row .note { margin-left: auto; font-size: 10px; color: var(--lc-ink-3); }
 .fp-foot { display: flex; gap: 10px; padding: 10px 16px 14px; border-top: 1px solid var(--lc-line-soft); }
 
-/* dropdown menu (status / priority / assignee / labels pickers) */
+/* dropdown menu (status / priority / labels pickers) */
 .menu {
   position: fixed; z-index: 60; min-width: 220px;
   background: var(--lc-raised); border: 1px solid var(--lc-line);

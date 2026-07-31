@@ -154,6 +154,117 @@ impl ProjectDocument {
         self.project.name = name.to_owned();
         Ok(self.render().into_bytes())
     }
+
+    /// Defines a label. Only the definition is written: a ticket carries the slug,
+    /// so there is nothing on a ticket for this to create.
+    pub fn add_label(
+        &mut self,
+        slug: &str,
+        name: &str,
+        color: &str,
+    ) -> Result<Vec<u8>, Diagnostic> {
+        if !is_label_slug(slug) {
+            return Err(Diagnostic::parse(format!(
+                "{LABEL_SLUG_RULE}; found {slug:?}"
+            )));
+        }
+        if self.project.labels.contains_key(slug) {
+            return Err(Diagnostic::parse(format!(
+                "The label {slug} is already defined in this project"
+            )));
+        }
+        let name = validated_label_name(name)?;
+        validate_label_color(color)?;
+        self.write_label(slug, Some(&name), Some(color));
+        self.project.labels.insert(
+            slug.to_owned(),
+            Label {
+                name,
+                color: color.to_owned(),
+            },
+        );
+        Ok(self.render().into_bytes())
+    }
+
+    /// Renames a label, recolours it, or both.
+    ///
+    /// The slug never moves: it is what every ticket carrying this label stores,
+    /// so renaming a definition rewrites no ticket at all. Absent means "leave
+    /// this alone", matching how a ticket edit reads its fields.
+    pub fn update_label(
+        &mut self,
+        slug: &str,
+        name: Option<&str>,
+        color: Option<&str>,
+    ) -> Result<Vec<u8>, Diagnostic> {
+        let Some(mut label) = self.project.labels.get(slug).cloned() else {
+            return Err(unknown_label(slug));
+        };
+        if name.is_none() && color.is_none() {
+            return Err(Diagnostic::parse("A label edit has to change something"));
+        }
+        let name = name.map(validated_label_name).transpose()?;
+        if let Some(color) = color {
+            validate_label_color(color)?;
+        }
+        self.write_label(slug, name.as_deref(), color);
+        if let Some(name) = name {
+            label.name = name;
+        }
+        if let Some(color) = color {
+            label.color = color.to_owned();
+        }
+        self.project.labels.insert(slug.to_owned(), label);
+        Ok(self.render().into_bytes())
+    }
+
+    /// Removes a label definition, and only the definition.
+    ///
+    /// Tickets keep the slug. An undefined slug is preserved and rendered as
+    /// itself, so losing a definition is never a reason to rewrite the tickets
+    /// that carry it.
+    pub fn remove_label(&mut self, slug: &str) -> Result<Vec<u8>, Diagnostic> {
+        if self.project.labels.remove(slug).is_none() {
+            return Err(unknown_label(slug));
+        }
+        self.mapping.remove_nested("labels", slug);
+        Ok(self.render().into_bytes())
+    }
+
+    fn write_label(&mut self, slug: &str, name: Option<&str>, color: Option<&str>) {
+        for (field, value) in [("name", name), ("color", color)] {
+            if let Some(value) = value {
+                self.mapping.set_nested_scalar(
+                    "labels",
+                    slug,
+                    field,
+                    value,
+                    &["created_at", "people"],
+                );
+            }
+        }
+    }
+}
+
+fn unknown_label(slug: &str) -> Diagnostic {
+    Diagnostic::parse(format!("This project defines no label {slug}"))
+}
+
+fn validated_label_name(name: &str) -> Result<String, Diagnostic> {
+    let name = name.trim();
+    if !is_label_name(name) {
+        return Err(Diagnostic::parse(LABEL_NAME_RULE));
+    }
+    Ok(name.to_owned())
+}
+
+fn validate_label_color(color: &str) -> Result<(), Diagnostic> {
+    if !is_label_color(color) {
+        return Err(Diagnostic::parse(format!(
+            "A label color is a preset id without whitespace; found {color:?}"
+        )));
+    }
+    Ok(())
 }
 
 const KNOWN_KEYS: [&str; 8] = [
@@ -211,8 +322,10 @@ impl<'de> Deserialize<'de> for Label {
     }
 }
 
+pub const DEFAULT_LABEL_COLOR: &str = "slate";
+
 fn default_label_color() -> String {
-    "slate".to_owned()
+    DEFAULT_LABEL_COLOR.to_owned()
 }
 
 pub const PROJECT_NAME_RULE: &str = "A project name is a single line of 1 to 120 characters";
@@ -221,6 +334,40 @@ pub const PROJECT_NAME_RULE: &str = "A project name is a single line of 1 to 120
 /// disagree about what a name is. Callers trim first.
 pub fn is_project_name(name: &str) -> bool {
     !name.is_empty() && name.chars().count() <= 120 && !name.contains('\n')
+}
+
+pub const LABEL_NAME_RULE: &str = "A label name is a single line of 1 to 60 characters";
+pub const LABEL_SLUG_RULE: &str = "A label slug is lowercase letters and digits, \
+                                   optionally separated by - or _, starting with a letter";
+
+/// The one label-slug grammar.
+///
+/// A slug is a key in `longclaw.yaml` and a value in the `labels` list of every
+/// ticket that carries the label, so it has to stay a plain YAML scalar in both
+/// places, and it has to be typeable in a label menu. Only new definitions are
+/// held to it: a slug an agent already wrote is preserved and rendered as itself.
+pub fn is_label_slug(slug: &str) -> bool {
+    let mut characters = slug.chars();
+    characters
+        .next()
+        .is_some_and(|first| first.is_ascii_lowercase())
+        && characters.all(|character| {
+            character.is_ascii_lowercase()
+                || character.is_ascii_digit()
+                || matches!(character, '-' | '_')
+        })
+}
+
+/// The display name of a label. Shorter than a project name, because it renders
+/// as a chip on a card rather than as a heading.
+pub fn is_label_name(name: &str) -> bool {
+    !name.is_empty() && name.chars().count() <= 60 && !name.contains('\n')
+}
+
+/// A preset id, like the project theme: the frontend owns the palette and falls
+/// back for a value it does not recognize, instead of the file being rewritten.
+pub fn is_label_color(color: &str) -> bool {
+    is_theme_id(color)
 }
 
 /// A preset id. The frontend owns the preset list, so an unfamiliar-but-well-formed
@@ -474,6 +621,157 @@ mod tests {
         assert!(rendered.contains("name: Renamed Project\n"));
         assert!(rendered.contains("key: LC\n"));
         assert_eq!(document.project().key, "LC");
+    }
+
+    #[test]
+    fn defining_a_label_adds_only_its_own_lines() {
+        let mut document = ProjectDocument::parse(PROJECT).expect("the project should parse");
+        let bytes = document
+            .add_label("backend", "Backend", "amber")
+            .expect("a well-formed definition");
+        let rendered = String::from_utf8(bytes).expect("UTF-8");
+        // Appended rather than sorted in: the file keeps the order its author
+        // chose, and no existing line moves.
+        assert_eq!(
+            rendered,
+            PROJECT.replace(
+                "    color: blue\n",
+                "    color: blue\n  backend:\n    name: Backend\n    color: amber\n",
+            )
+        );
+        assert_eq!(document.project().labels["backend"].name, "Backend");
+        assert_eq!(document.project().labels["backend"].color, "amber");
+    }
+
+    #[test]
+    fn defining_a_label_twice_is_refused_rather_than_overwriting_it() {
+        let mut document = ProjectDocument::parse(PROJECT).expect("the project should parse");
+        let diagnostic = document
+            .add_label("storage", "Something else", "amber")
+            .expect_err("storage is already defined");
+        assert!(diagnostic.message.contains("storage"), "{diagnostic}");
+        assert_eq!(document.render(), PROJECT);
+    }
+
+    #[test]
+    fn renaming_a_label_changes_the_display_name_and_leaves_the_slug_alone() {
+        let mut document = ProjectDocument::parse(PROJECT).expect("the project should parse");
+        let bytes = document
+            .update_label("storage", Some("Persistence"), None)
+            .expect("a well-formed name");
+        let rendered = String::from_utf8(bytes).expect("UTF-8");
+        assert_eq!(
+            rendered,
+            PROJECT.replace("    name: Storage\n", "    name: Persistence\n")
+        );
+        assert_eq!(document.project().labels["storage"].name, "Persistence");
+        assert_eq!(document.project().labels["storage"].color, "blue");
+    }
+
+    #[test]
+    fn recolouring_a_label_touches_only_the_colour() {
+        let mut document = ProjectDocument::parse(PROJECT).expect("the project should parse");
+        let bytes = document
+            .update_label("storage", None, Some("amber"))
+            .expect("a preset colour id");
+        let rendered = String::from_utf8(bytes).expect("UTF-8");
+        assert_eq!(
+            rendered,
+            PROJECT.replace("    color: blue\n", "    color: amber\n")
+        );
+    }
+
+    /// A definition may carry keys a newer writer added. Renaming the label must
+    /// leave them where their author put them.
+    #[test]
+    fn a_key_inside_a_definition_that_this_build_does_not_read_survives_a_rename() {
+        let raw = PROJECT.replace(
+            "    color: blue\n",
+            "    color: blue\n    x_owner: future-version\n",
+        );
+        let mut document = ProjectDocument::parse(&raw).expect("the project should parse");
+        let bytes = document
+            .update_label("storage", Some("Persistence"), None)
+            .expect("a well-formed name");
+        let rendered = String::from_utf8(bytes).expect("UTF-8");
+        assert!(rendered.contains("    x_owner: future-version\n"));
+        assert_eq!(
+            rendered,
+            raw.replace("    name: Storage\n", "    name: Persistence\n")
+        );
+    }
+
+    #[test]
+    fn removing_a_definition_removes_its_lines_and_nothing_else() {
+        let mut document = ProjectDocument::parse(PROJECT).expect("the project should parse");
+        let bytes = document.remove_label("storage").expect("a known slug");
+        let rendered = String::from_utf8(bytes).expect("UTF-8");
+        assert_eq!(
+            rendered,
+            PROJECT.replace(
+                "labels:\n  storage:\n    name: Storage\n    color: blue\n",
+                "labels: {}\n",
+            )
+        );
+        assert!(document.project().labels.is_empty());
+        // The emptied registry still parses: a bare `labels:` would read as null.
+        ProjectDocument::parse(&rendered).expect("an emptied registry should still parse");
+    }
+
+    #[test]
+    fn a_project_without_a_labels_key_gains_one_in_the_documented_place() {
+        let raw = concat!(
+            "format: longclaw.project/v1\n",
+            "id: minimal\n",
+            "name: Minimal\n",
+            "key: MIN\n",
+            "created_at: 2026-07-29T00:00:00Z\n",
+        );
+        let mut document = ProjectDocument::parse(raw).expect("the project should parse");
+        let bytes = document
+            .add_label("backend", "Backend", "amber")
+            .expect("a well-formed definition");
+        let rendered = String::from_utf8(bytes).expect("UTF-8");
+        assert_eq!(
+            rendered,
+            format!("{raw}labels:\n  backend:\n    name: Backend\n    color: amber\n")
+        );
+        ProjectDocument::parse(&rendered).expect("the written file should parse back");
+    }
+
+    #[test]
+    fn a_malformed_label_definition_is_refused_before_anything_is_written() {
+        let cases = [
+            ("Has Space", "Spaced", "amber", "slug"),
+            ("", "Empty", "amber", "slug"),
+            ("UPPER", "Upper", "amber", "slug"),
+            ("backend", "", "amber", "label name"),
+            ("backend", "Backend", "two words", "color"),
+            ("backend", "Backend", "", "color"),
+        ];
+        for (slug, name, color, fragment) in cases {
+            let mut document = ProjectDocument::parse(PROJECT).expect("the project should parse");
+            let diagnostic = document
+                .add_label(slug, name, color)
+                .expect_err(&format!("{slug:?}/{name:?}/{color:?} should be refused"));
+            assert!(
+                diagnostic.message.contains(fragment),
+                "{:?} should mention {fragment}",
+                diagnostic.message
+            );
+            assert_eq!(document.render(), PROJECT);
+        }
+    }
+
+    #[test]
+    fn editing_or_removing_a_label_that_is_not_defined_is_refused() {
+        let mut document = ProjectDocument::parse(PROJECT).expect("the project should parse");
+        assert!(document
+            .update_label("absent", Some("Absent"), None)
+            .is_err());
+        assert!(document.remove_label("absent").is_err());
+        assert!(document.update_label("storage", None, None).is_err());
+        assert_eq!(document.render(), PROJECT);
     }
 
     #[test]

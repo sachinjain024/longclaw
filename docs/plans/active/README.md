@@ -13,12 +13,13 @@ One file per piece of pending work. Each is self-contained: it carries its own
 working rules, the current behaviour with file and line, what to change, and what
 has to pass before it is done. Pick one and execute it without reading the others.
 
-**There are no active plans right now, and Step 11 is open.** Every plan below is
-closed, Wave 0 is clear, and M4 closed on 2026-07-31 when the founder decided to
+**There are no active plans right now, and Step 11 is under way.** Every plan below
+is closed, Wave 0 is clear, and M4 closed on 2026-07-31 when the founder decided to
 proceed without the pilot sessions
 ([decision](../../pilot/response-memo.md#direction-decision-2026-07-31-superseded-the-same-day)).
-The next work is Step 11, which is [Wave 1 of the backlog](../../backlog/v0-backlog.md)
-in full — V0-08 through V0-19. Write a plan here before starting one of them.
+Step 11 is [Wave 1 of the backlog](../../backlog/v0-backlog.md) — V0-08 through
+V0-19 — and one of them, V0-19, is now closed as plan 11. The rest are open. Write
+a plan here before starting one of them.
 
 Two things to read first, once, before Step 11 code:
 
@@ -47,6 +48,8 @@ marked independent can be done at any time by anyone.
 | ~~08~~ | ~~Triage the dependabot advisories~~ — **done 2026-07-31**, [outcome](../completed/08-dependabot-triage.md) | V0-40 | Closed. All three advisories are unreachable, with the argument recorded. It produced V0-40: the alert list itself is the problem, not any advisory in it. |
 | ~~09~~ | ~~Stop treating a vanished path as a watcher overflow~~ — **done 2026-07-31**, [outcome](../completed/09-rename-is-not-an-overflow.md) | —       | Closed. `collect_event` now drops only transient `Io(NotFound)` watcher errors and still escalates other errors to overflow recovery. |
 | ~~10~~ | ~~Stop npm from breaking the native watcher check~~ — **closed 2026-07-31, not reproducing**, [outcome](../completed/10-npm-native-watcher-timeout.md) | — | Closed without a fix. Eight consecutive npm-launched native watcher runs, `npm run verify` at exit 0, and CI run 30629158530 are all green on the same tree that timed out. The mechanism was never found; the outcome says what to do if it returns. |
+| ~~11~~ | ~~Remove assignee from the prototype specs~~ — **done 2026-07-31**, [outcome](../completed/11-remove-assignee-from-specs.md) | V0-19 | Closed, docs only. The Step-1 foundations were the gap: ADR 0001's propagation pass never opened `components.md`. Read its outcome before V0-14 or V0-16 — the two `proof/` HTML files still render assignee slots, and it says why they were left. |
+| ~~12~~ | ~~The Rust backend Wave 1 is missing~~ — **done 2026-07-31**, [outcome](../completed/12-rust-backend-for-wave-1.md) | V0-18, and the backend halves of V0-09 and V0-10 | Closed. V0-18 is done outright. The other two are backend-only: label definitions now cross IPC on `ProjectReference` with `add_project_label`/`update_project_label`/`remove_project_label` behind them, and `TicketEdit.rank` accepts `null` to clear. Read its outcome before V0-09 or V0-10 — it is the API handoff. |
 
 Dependencies worth knowing:
 
@@ -75,6 +78,13 @@ Dependencies worth knowing:
   `boardGeometry.ts` and is what the list surface should be built on; its sticky
   group headers and archived group are the part 07 did not have to solve. The
   board's keyboard navigation is new and is the model the list should follow.
+- **11 is done, and V0-14 and V0-16 inherit an open edge.** `components.md` and
+  `decisions.md` no longer show an assignee, so the board and card anatomy can be
+  built straight from the spec. The Step-1 proof pages under
+  `docs/design/foundations/proof/` still do show one — including the list-row and
+  create-form specimens those two items would build from — because correcting them
+  means regenerating ten committed PNGs with a pipeline that was never committed.
+  [11's outcome](../completed/11-remove-assignee-from-specs.md) names every spot.
 - **09 and 10 are both closed, and no plan is open.** The vanished-path overflow bug
   is fixed in `collect_event`, and the npm-launched native watcher timeout that
   blocked local `npm run verify` no longer reproduces — closed without a fix, so
@@ -85,9 +95,10 @@ Dependencies worth knowing:
 
 ## Waves 1–3 are unplanned, and now for a different reason
 
-Waves 1–3 of [the backlog](../../backlog/v0-backlog.md) — 32 of its 39 items — still
-have no plans here. The original reason is gone: the guardrail has been satisfied and
-the pilot will not invalidate anything, because it was skipped.
+Waves 1–3 of [the backlog](../../backlog/v0-backlog.md) — 31 of its 39 items, now
+that V0-19 is closed — still have no plans here. The original reason is gone: the
+guardrail has been satisfied and the pilot will not invalidate anything, because it
+was skipped.
 
 What remains is ordinary sequencing. Write a plan when you pick an item up, not 32
 plans in advance — the backlog's Wave 1 rows already carry the must-pass check and
@@ -96,10 +107,11 @@ order; that order is now final rather than provisional, and
 [the retired handoff](../completed/pending-work-after-step-10.md) says what that is
 worth.
 
-Three items are risk-based rather than breadth, so they are safe to take out of
-order at any time: V0-19 (remove assignee from the prototype specs — do this before
-Step 11 builds the surfaces around it), V0-30 (index-loss recovery), and V0-40
-(scope Dependabot to what ships).
+Three items were risk-based rather than breadth, so they are safe to take out of
+order at any time: ~~V0-19~~ (remove assignee from the prototype specs — taken
+first, exactly as this said, and [closed](../completed/11-remove-assignee-from-specs.md)
+before Step 11 built the surfaces around it), V0-30 (index-loss recovery), and
+V0-40 (scope Dependabot to what ships).
 
 ## When a plan is done
 

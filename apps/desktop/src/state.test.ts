@@ -338,6 +338,7 @@ describe("Rust project-event JSON applied to visible state", () => {
       theme: "indigo",
       starred: false,
       reachable: true,
+      labels: {},
     };
 
     useLongClawStore.getState().upsertProject(project);
@@ -374,6 +375,7 @@ describe("Rust project-event JSON applied to visible state", () => {
           theme: "indigo",
           starred: false,
           reachable: false,
+          labels: {},
         },
       ],
       activeProjectId: changedEnvelope.projectId,
@@ -405,6 +407,7 @@ describe("Rust project-event JSON applied to visible state", () => {
           theme: "indigo",
           starred: true,
           reachable: true,
+          labels: {},
         },
       ],
     });
@@ -420,6 +423,7 @@ describe("Rust project-event JSON applied to visible state", () => {
         theme: "indigo",
         starred: true,
         reachable: false,
+        labels: {},
       },
     ]);
   });

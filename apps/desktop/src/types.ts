@@ -37,6 +37,13 @@ export interface Diagnostic {
   line?: number;
 }
 
+/** A project-scoped label definition. Tickets store the slug, never this. */
+export interface Label {
+  name: string;
+  /** A preset id. Fall back to the default palette entry for an unknown one. */
+  color: string;
+}
+
 export interface ProjectReference {
   id: string;
   name: string;
@@ -47,6 +54,12 @@ export interface ProjectReference {
   starred: boolean;
   /** False when the folder has moved or gone. The project stays listed. */
   reachable: boolean;
+  /**
+   * Label definitions from `longclaw.yaml`, keyed by slug. Read fresh from the
+   * project file on every list, find, and open. A slug a ticket carries that is
+   * not defined here is preserved on disk and rendered as itself.
+   */
+  labels: Record<string, Label>;
 }
 
 export type ActorType = "human" | "agent" | "unknown";
@@ -212,7 +225,11 @@ export interface TicketEdit {
   status?: TicketStatus;
   priority?: TicketPriority;
   labels?: string[];
-  rank?: string;
+  /**
+   * Absent leaves the rank alone; `null` clears it. A rank is written only by
+   * manual reordering (ADR 0003), so leaving Manual mode sends `null`.
+   */
+  rank?: string | null;
   archived?: boolean;
   description?: string;
   checklist?: { itemId: string; checked: boolean }[];

@@ -40,18 +40,15 @@ impl RegistryStore {
         })
     }
 
-    /// Every registered project, with reachability probed. An entry whose folder
-    /// has moved stays listed with its cached name so it can be relocated rather
-    /// than lost.
+    /// Every registered project, refreshed from its own files. An entry whose
+    /// folder has moved stays listed with its cached name so it can be relocated
+    /// rather than lost.
     pub fn list(&self) -> Vec<ProjectReference> {
         self.projects
             .read()
             .iter()
             .cloned()
-            .map(|mut project| {
-                project.reachable = project_is_reachable(Path::new(&project.root_path));
-                project
-            })
+            .map(refreshed)
             .collect()
     }
 
@@ -61,13 +58,8 @@ impl RegistryStore {
             .iter()
             .find(|project| project.id == project_id)
             .cloned()
-            .ok_or_else(|| {
-                AppError::new(
-                    ErrorCode::InvalidProject,
-                    format!("Unknown project id: {project_id}"),
-                    true,
-                )
-            })
+            .map(refreshed)
+            .ok_or_else(|| unknown_project(project_id))
     }
 
     /// Validates a chosen folder and records a reference to it. Registering never
@@ -130,7 +122,7 @@ impl RegistryStore {
         let updated = next[index].clone();
         self.persist(&next)?;
         *projects = next;
-        Ok(updated)
+        Ok(refreshed(updated))
     }
 
     pub fn update_theme(&self, project_id: &str, theme: &str) -> AppResult<ProjectReference> {
@@ -139,6 +131,32 @@ impl RegistryStore {
 
     pub fn update_name(&self, project_id: &str, name: &str) -> AppResult<ProjectReference> {
         self.update_project_file(project_id, |document| document.set_name(name))
+    }
+
+    pub fn add_label(
+        &self,
+        project_id: &str,
+        slug: &str,
+        name: &str,
+        color: &str,
+    ) -> AppResult<ProjectReference> {
+        self.update_project_file(project_id, |document| document.add_label(slug, name, color))
+    }
+
+    pub fn update_label(
+        &self,
+        project_id: &str,
+        slug: &str,
+        name: Option<&str>,
+        color: Option<&str>,
+    ) -> AppResult<ProjectReference> {
+        self.update_project_file(project_id, |document| {
+            document.update_label(slug, name, color)
+        })
+    }
+
+    pub fn remove_label(&self, project_id: &str, slug: &str) -> AppResult<ProjectReference> {
+        self.update_project_file(project_id, |document| document.remove_label(slug))
     }
 
     fn update_project_file(
@@ -204,8 +222,27 @@ impl RegistryStore {
     }
 }
 
-fn project_is_reachable(root: &Path) -> bool {
-    read_project(root).is_ok() && fs::read_dir(tickets_root(root)).is_ok()
+/// A cached entry brought back up to date from the project's own files.
+///
+/// `longclaw.yaml` is the source of truth for the name, theme, and label
+/// definitions; the registry caches them only so a folder that has moved or gone
+/// stays listed with something to show rather than disappearing.
+fn refreshed(project: ProjectReference) -> ProjectReference {
+    let root = Path::new(&project.root_path);
+    let Ok(document) = read_project(root) else {
+        return unreachable(project);
+    };
+    if fs::read_dir(tickets_root(root)).is_err() {
+        return unreachable(project);
+    }
+    let mut current = ProjectReference::from_project(document.project(), project.root_path.clone());
+    current.starred = project.starred;
+    current
+}
+
+fn unreachable(mut project: ProjectReference) -> ProjectReference {
+    project.reachable = false;
+    project
 }
 
 fn unknown_project(project_id: &str) -> AppError {
@@ -272,6 +309,102 @@ mod tests {
         store.remove(&reference.id).unwrap();
         assert!(store.list().is_empty());
         assert!(project.join(".longclaw/longclaw.yaml").is_file());
+    }
+
+    const LABELLED_PROJECT: &str = concat!(
+        "format: longclaw.project/v1\n",
+        "id: label-proof\n",
+        "name: Label Proof\n",
+        "key: LB\n",
+        "theme: indigo\n",
+        "created_at: 2026-07-29T00:00:00Z\n",
+        "people: {}\n",
+        "labels:\n",
+        "  storage:\n",
+        "    name: Storage\n",
+        "    color: blue\n",
+    );
+
+    const LABELLED_TICKET: &str = concat!(
+        "---\n",
+        "format: longclaw.ticket/v1\n",
+        "id: 019c8ca0-0000-7000-8000-000000000001\n",
+        "key: LB-1\n",
+        "title: Carries a slug\n",
+        "status: todo\n",
+        "priority: p2\n",
+        "labels:\n",
+        "  - storage\n",
+        "  - never-defined\n",
+        "created_at: 2026-07-29T00:00:00Z\n",
+        "updated_at: 2026-07-29T00:00:00Z\n",
+        "---\n",
+        "\n",
+        "A ticket that carries a defined slug and an undefined one.\n",
+    );
+
+    fn labelled_project() -> (tempfile::TempDir, RegistryStore, super::ProjectReference) {
+        let temp = tempfile::tempdir().unwrap();
+        let project = temp.path().join("project");
+        fs::create_dir_all(project.join(".longclaw/tickets/LB-1")).unwrap();
+        fs::write(project.join(".longclaw/longclaw.yaml"), LABELLED_PROJECT).unwrap();
+        fs::write(
+            project.join(".longclaw/tickets/LB-1/ticket.md"),
+            LABELLED_TICKET,
+        )
+        .unwrap();
+        let store = RegistryStore::load(&temp.path().join("app-support")).unwrap();
+        let reference = store.register(&project).unwrap();
+        (temp, store, reference)
+    }
+
+    /// V0-10's hard invariant. A ticket stores slugs, so what a slug is *called*
+    /// is project state: renaming it, recolouring it, or dropping the definition
+    /// entirely rewrites `longclaw.yaml` and not one ticket byte.
+    #[test]
+    fn changing_a_label_definition_never_rewrites_a_ticket() {
+        let (temp, store, reference) = labelled_project();
+        let ticket = temp.path().join("project/.longclaw/tickets/LB-1/ticket.md");
+        let before = fs::read(&ticket).unwrap();
+        assert_eq!(reference.labels["storage"].name, "Storage");
+
+        let renamed = store
+            .update_label(&reference.id, "storage", Some("Persistence"), Some("amber"))
+            .unwrap();
+        assert_eq!(renamed.labels["storage"].name, "Persistence");
+        assert_eq!(renamed.labels["storage"].color, "amber");
+        assert_eq!(fs::read(&ticket).unwrap(), before);
+
+        let added = store
+            .add_label(&reference.id, "backend", "Backend", "teal")
+            .unwrap();
+        assert_eq!(added.labels["backend"].name, "Backend");
+        assert_eq!(fs::read(&ticket).unwrap(), before);
+
+        let removed = store.remove_label(&reference.id, "storage").unwrap();
+        assert!(!removed.labels.contains_key("storage"));
+        assert_eq!(fs::read(&ticket).unwrap(), before);
+    }
+
+    /// `longclaw.yaml` is the source of truth for label definitions. The registry
+    /// entry only caches them so an unreachable project still has something to
+    /// render, so an edit made outside the app shows up without a command.
+    #[test]
+    fn label_definitions_are_re_read_from_the_project_file() {
+        let (temp, store, reference) = labelled_project();
+        let file = temp.path().join("project/.longclaw/longclaw.yaml");
+        fs::write(
+            &file,
+            LABELLED_PROJECT.replace("    name: Storage\n", "    name: Edited By Hand\n"),
+        )
+        .unwrap();
+
+        let [listed] = store.list().try_into().unwrap();
+        assert_eq!(listed.labels["storage"].name, "Edited By Hand");
+        assert_eq!(
+            store.find(&reference.id).unwrap().labels["storage"].name,
+            "Edited By Hand"
+        );
     }
 
     #[test]

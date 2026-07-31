@@ -80,7 +80,10 @@
               "key": "LC",
               "theme": "indigo",
               "starred": false,
-              "reachable": true
+              "reachable": true,
+              "labels": {
+                "reliability": { "name": "Reliability", "color": "amber" }
+              }
             },
             "tickets": [
               {

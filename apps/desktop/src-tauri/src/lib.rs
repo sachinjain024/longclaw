@@ -9,6 +9,7 @@ use std::sync::{Arc, OnceLock};
 use std::time::Instant;
 
 use app_state::AppState;
+use core::project::DEFAULT_LABEL_COLOR;
 use core::{
     AppResult, CreateTicketRequest, EditTicketRequest, ProjectReference, ProjectSnapshot,
     RebuildReason, SearchResult, StreamEnvelope, StreamFrame, StreamKind, TicketDetail,
@@ -94,6 +95,47 @@ fn update_project_name(
     state: State<'_, AppState>,
 ) -> AppResult<ProjectReference> {
     state.update_project_name(&project_id, &name)
+}
+
+/// Defines a label. `color` is optional so a caller that has no palette yet gets
+/// the same default the parser applies to a definition that omits one.
+#[tauri::command]
+fn add_project_label(
+    project_id: String,
+    slug: String,
+    name: String,
+    color: Option<String>,
+    state: State<'_, AppState>,
+) -> AppResult<ProjectReference> {
+    state.add_project_label(
+        &project_id,
+        &slug,
+        &name,
+        color.as_deref().unwrap_or(DEFAULT_LABEL_COLOR),
+    )
+}
+
+/// Renames a label, recolours it, or both. The slug is not editable: tickets
+/// store it, so changing it would mean rewriting every ticket that carries it.
+#[tauri::command]
+fn update_project_label(
+    project_id: String,
+    slug: String,
+    name: Option<String>,
+    color: Option<String>,
+    state: State<'_, AppState>,
+) -> AppResult<ProjectReference> {
+    state.update_project_label(&project_id, &slug, name.as_deref(), color.as_deref())
+}
+
+/// Removes a definition. Tickets keep the slug and render it as itself.
+#[tauri::command]
+fn remove_project_label(
+    project_id: String,
+    slug: String,
+    state: State<'_, AppState>,
+) -> AppResult<ProjectReference> {
+    state.remove_project_label(&project_id, &slug)
 }
 
 #[tauri::command]
@@ -255,6 +297,9 @@ pub fn run() {
             set_project_starred,
             update_project_theme,
             update_project_name,
+            add_project_label,
+            update_project_label,
+            remove_project_label,
             remove_project,
             open_project,
             rebuild_index,

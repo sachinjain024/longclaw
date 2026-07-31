@@ -1,0 +1,45 @@
+{
+  "summary": "An attachment registry the app cannot render: a media type outside the v0 image/text/video set, and a record carrying fields this build does not interpret. All of it is read, none of it is rewritten (V0-18, ADR 0005).",
+  "key": "LC-77",
+  "outcome": "valid",
+  "ticket": {
+    "id": "019c8d10-1a2b-7c3d-9e4f-5a6b7c8d9e01",
+    "title": "An agent registered attachments this build cannot render",
+    "status": "todo",
+    "priority": "p3",
+    "labels": ["storage"],
+    "rank": null,
+    "archivedAt": null,
+    "attachments": [
+      {
+        "id": "att_1001",
+        "file": "attachments/att_1001-screenshot.png",
+        "name": "screenshot.png",
+        "mediaType": "image/png",
+        "size": 51200,
+        "addedByType": "human",
+        "addedById": "sachin"
+      },
+      {
+        "id": "att_1002",
+        "file": "attachments/att_1002-trace-bundle.lcarchive",
+        "name": "trace-bundle.lcarchive",
+        "mediaType": "application/x-longclaw-archive",
+        "size": 8388608,
+        "addedByType": "agent",
+        "addedById": "claude-code"
+      },
+      {
+        "id": "att_1003",
+        "file": "attachments/att_1003-capture.avif",
+        "name": "capture.avif",
+        "mediaType": "image/avif",
+        "size": 12048,
+        "addedByType": "agent",
+        "addedById": "some-future-tool"
+      }
+    ],
+    "unknownKeys": [],
+    "recordDiagnostics": []
+  }
+}

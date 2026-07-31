@@ -11,7 +11,9 @@ use std::path::{Path, PathBuf};
 
 use longclaw_desktop_lib::core::error::Diagnostic;
 use longclaw_desktop_lib::core::storage::{belongs_to_project, foreign_project_diagnostic};
-use longclaw_desktop_lib::core::ticket::{TicketDocument, TicketEdit};
+use longclaw_desktop_lib::core::ticket::{
+    ChecklistToggle, Priority, Status, TicketDocument, TicketEdit,
+};
 use serde::{Deserialize, Deserializer};
 
 const NOW: &str = "2026-07-30T10:00:00.000Z";
@@ -566,6 +568,181 @@ fn check_edit_preserves_everything_else(
     report.check(name, next != raw, || {
         "a title edit produced no change at all".to_owned()
     });
+}
+
+/// The exact bytes of the `## Attachments` section, heading included, up to the
+/// next reserved heading.
+///
+/// Comparing the region rather than the parsed `Vec<Attachment>` is the whole
+/// point of V0-18: records that parse the same have still lost a field this build
+/// does not read, or a line break their author chose.
+fn attachment_region(raw: &str) -> &str {
+    let start = raw
+        .find("\n## Attachments\n")
+        .expect("the fixture has an attachments section");
+    let region = &raw[start..];
+    match region[1..].find("\n## Activity\n") {
+        Some(offset) => &region[..offset + 1],
+        None => region,
+    }
+}
+
+/// V0-18's must-pass, stated as it is written: a ticket carrying attachment
+/// records survives every app mutation byte-identically in those records.
+///
+/// The app renders no attachment UI and creates no registry entries (ADR 0005),
+/// so nothing here should touch them — but "should" is what this test replaces.
+/// It runs every mutation a `TicketEdit` can make against a registry holding a
+/// media type outside the v0 `image/*`, `text/*`, `video/*` set and a record with
+/// fields this build never reads.
+#[test]
+fn attachment_records_survive_every_mutation_byte_identically() {
+    let case =
+        repository_root().join("fixtures/format-contract/valid-attachment-records-preserved");
+    let raw = fs::read_to_string(case.join("ticket.md")).expect("the fixture should be readable");
+    let document = TicketDocument::parse(&raw, "LC-77").expect("the fixture should parse");
+    let before = attachment_region(&raw);
+    assert!(
+        before.contains("media_type: application/x-longclaw-archive"),
+        "the fixture must carry a media type outside the v0 supported set"
+    );
+    assert!(
+        before.contains("checksum: sha256:") && before.contains("capture_mode: lossless"),
+        "the fixture must carry attachment fields this build does not interpret"
+    );
+
+    let mut report = Report::default();
+    let mutations = [
+        (
+            "title",
+            TicketEdit {
+                title: Some("A title the app wrote".to_owned()),
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "status",
+            TicketEdit {
+                status: Some(Status::InProgress),
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "priority",
+            TicketEdit {
+                priority: Some(Priority::Urgent),
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "labels replace",
+            TicketEdit {
+                labels: Some(vec!["reliability".to_owned(), "backend".to_owned()]),
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "rank set",
+            TicketEdit {
+                rank: Some(Some("a0V".to_owned())),
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "archive",
+            TicketEdit {
+                archived: Some(true),
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "description",
+            TicketEdit {
+                description: Some("Rewritten in the panel.".to_owned()),
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "checklist toggle",
+            TicketEdit {
+                checklist: vec![ChecklistToggle {
+                    item_id: "ck_5501".to_owned(),
+                    checked: true,
+                }],
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "checklist append",
+            TicketEdit {
+                add_checklist_items: vec!["One more task".to_owned()],
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "comment",
+            TicketEdit {
+                comment: Some("Leaving a note.".to_owned()),
+                ..TicketEdit::default()
+            },
+        ),
+    ];
+
+    for (name, edit) in mutations {
+        check_attachments_survive(&mut report, name, &document, &edit, before);
+    }
+    // Unarchiving needs an archived ticket, so it runs against the result of the
+    // archive above rather than against the fixture.
+    let archived = document
+        .apply(
+            &TicketEdit {
+                archived: Some(true),
+                ..TicketEdit::default()
+            },
+            NOW,
+        )
+        .expect("archiving should be accepted");
+    check_attachments_survive(
+        &mut report,
+        "unarchive",
+        &archived.document,
+        &TicketEdit {
+            archived: Some(false),
+            ..TicketEdit::default()
+        },
+        before,
+    );
+    report.finish();
+}
+
+fn check_attachments_survive(
+    report: &mut Report,
+    name: &str,
+    document: &TicketDocument,
+    edit: &TicketEdit,
+    before: &str,
+) {
+    let applied = match document.apply(edit, NOW) {
+        Ok(applied) => applied,
+        Err(diagnostic) => {
+            report
+                .failures
+                .push(format!("{name}: the edit was refused: {diagnostic}"));
+            return;
+        }
+    };
+    let next = String::from_utf8(applied.bytes).expect("app output should be UTF-8");
+    let after = attachment_region(&next);
+    report.check(name, after == before, || {
+        format!("the attachment records changed:\n--- before\n{before}\n--- after\n{after}")
+    });
+    // The app registers nothing of its own either (ADR 0005).
+    report.equal(
+        name,
+        "attachment count",
+        applied.document.ticket().attachments.len(),
+        document.ticket().attachments.len(),
+    );
 }
 
 #[test]

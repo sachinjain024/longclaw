@@ -69,6 +69,52 @@ impl AppState {
         Ok(project)
     }
 
+    pub fn add_project_label(
+        &self,
+        project_id: &str,
+        slug: &str,
+        name: &str,
+        color: &str,
+    ) -> AppResult<ProjectReference> {
+        self.reopened(
+            project_id,
+            self.registry.add_label(project_id, slug, name, color),
+        )
+    }
+
+    pub fn update_project_label(
+        &self,
+        project_id: &str,
+        slug: &str,
+        name: Option<&str>,
+        color: Option<&str>,
+    ) -> AppResult<ProjectReference> {
+        self.reopened(
+            project_id,
+            self.registry.update_label(project_id, slug, name, color),
+        )
+    }
+
+    pub fn remove_project_label(
+        &self,
+        project_id: &str,
+        slug: &str,
+    ) -> AppResult<ProjectReference> {
+        self.reopened(project_id, self.registry.remove_label(project_id, slug))
+    }
+
+    /// Drops the cached engine so the next open reads the changed project file,
+    /// the way a theme or name change already does.
+    fn reopened(
+        &self,
+        project_id: &str,
+        result: AppResult<ProjectReference>,
+    ) -> AppResult<ProjectReference> {
+        let project = result?;
+        self.engines.write().remove(project_id);
+        Ok(project)
+    }
+
     pub fn remove_project(&self, project_id: &str) -> AppResult<()> {
         self.registry.remove(project_id)?;
         self.engines.write().remove(project_id);
