@@ -32,7 +32,7 @@ marked independent can be done at any time by anyone.
 | ~~05~~ | ~~Recover the watcher over sleep, wake, and overflow~~ — **done 2026-07-31**, [outcome](../completed/05-watcher-recovery.md) | V0-04 | Closed. It added native macOS wake recovery, overflow recovery, coalescing, and explicit unavailable reporting. |
 | 06  | [Move heavy work off the command thread](06-blocking-workers.md)               | V0-05   | Restructures engine orchestration, so it goes after the correctness fixes rather than moving code out from under them. |
 | 07  | [Virtualize the board and list](07-board-virtualization.md)                    | V0-06   | Independent. Must land before Wave 1's list surface, which is what renders 5,000 rows.                                 |
-| 08  | [Triage the dependabot advisories](08-dependabot-triage.md)                    | —       | Independent. Do it whenever; it may turn out to be nothing.                                                            |
+| ~~08~~ | ~~Triage the dependabot advisories~~ — **done 2026-07-31**, [outcome](../completed/08-dependabot-triage.md) | V0-40 | Closed. All three advisories are unreachable, with the argument recorded. It produced V0-40: the alert list itself is the problem, not any advisory in it. |
 
 Dependencies worth knowing:
 
