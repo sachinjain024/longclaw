@@ -693,6 +693,30 @@ fn attachment_records_survive_every_mutation_byte_identically() {
     for (name, edit) in mutations {
         check_attachments_survive(&mut report, name, &document, &edit, before);
     }
+    // Clearing a rank needs a ranked ticket, so — like unarchive below — it runs
+    // against the result of the set above. `rank: Some(None)` is its own arm of
+    // `apply` and its own wire value, and it is a live path rather than a
+    // hypothetical one: it is what undoing the drop that gave a card its first
+    // rank sends (V0-09). "Every app mutation" has to include it.
+    let ranked = document
+        .apply(
+            &TicketEdit {
+                rank: Some(Some("a0V".to_owned())),
+                ..TicketEdit::default()
+            },
+            NOW,
+        )
+        .expect("setting a rank should be accepted");
+    check_attachments_survive(
+        &mut report,
+        "rank clear",
+        &ranked.document,
+        &TicketEdit {
+            rank: Some(None),
+            ..TicketEdit::default()
+        },
+        before,
+    );
     // Unarchiving needs an archived ticket, so it runs against the result of the
     // archive above rather than against the fixture.
     let archived = document
@@ -1370,6 +1394,193 @@ fn a_ticket_created_with_every_field_matches_one_assembled_by_edits() {
             )
         },
     );
+    report.finish();
+}
+
+/// V0-09's negative clause: **`rank` is written only by manual reordering.**
+///
+/// `CreatedState` above compares the two creation paths' ranks, but both are
+/// `None`, so that comparison holds no matter how wrong they are — a create that
+/// started allocating a rank would agree with an edit path that did too. This is
+/// the side that does not pass by accident.
+///
+/// It matters because a rank is the one field on a ticket that means "a human
+/// dragged this here". ADR 0003 keeps board order out of ticket data except when
+/// a person put it there, so a create, a panel save, or a comment that quietly
+/// wrote one would put an ordering nobody chose into a file an agent also reads.
+#[test]
+fn nothing_but_a_manual_reordering_ever_writes_a_rank() {
+    let temp = tempfile::tempdir().expect("temporary folder");
+    let root = temp.path();
+    let later = "2026-07-30T10:05:00.000Z";
+    let mut report = Report::default();
+
+    // Both create surfaces, each with every field it can set. `NewTicket` has no
+    // rank field, so what is pinned here is that the writer invents none.
+    let creates = [
+        (
+            "quick create",
+            NewTicket {
+                title: "A title and nothing else".to_owned(),
+                description: String::new(),
+                status: None,
+                priority: None,
+                labels: Vec::new(),
+                checklist: Vec::new(),
+            },
+        ),
+        (
+            "full create",
+            NewTicket {
+                title: "Every field the create surface can set".to_owned(),
+                description: "Written in the create panel.".to_owned(),
+                status: Some(Status::InReview),
+                priority: Some(Priority::P1),
+                labels: vec!["backend".to_owned()],
+                checklist: vec!["Read the file".to_owned()],
+            },
+        ),
+    ];
+    let mut base = None;
+    for (name, new) in &creates {
+        let written = prepare_new_ticket(root, "LC", new, NOW).expect("the create should land");
+        let raw = std::str::from_utf8(&written.bytes).expect("app output should be UTF-8");
+        report.check(name, !raw.contains("\nrank:"), || {
+            format!("the create wrote a rank nobody dragged:\n{raw}")
+        });
+        let document = parse_written(&written.bytes, &written.key);
+        report.check(name, document.ticket().rank.is_none(), || {
+            format!("the created ticket has rank {:?}", document.ticket().rank)
+        });
+        base = Some((written.key.clone(), document));
+    }
+    let (key, base) = base.expect("the creates should have produced a document");
+    let item = base.ticket().checklist[0]
+        .id
+        .clone()
+        .expect("the create should have marked its checklist item");
+
+    // And every other mutation a `TicketEdit` can carry. Any of these reaching a
+    // rank would be the panel writing board order on the human's behalf.
+    let mutations = [
+        (
+            "title",
+            TicketEdit {
+                title: Some("Renamed in the panel".to_owned()),
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "status",
+            TicketEdit {
+                status: Some(Status::Done),
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "priority",
+            TicketEdit {
+                priority: Some(Priority::Urgent),
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "labels",
+            TicketEdit {
+                labels: Some(vec!["storage".to_owned()]),
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "archive",
+            TicketEdit {
+                archived: Some(true),
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "description",
+            TicketEdit {
+                description: Some("Rewritten in the panel.".to_owned()),
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "checklist toggle",
+            TicketEdit {
+                checklist: vec![ChecklistToggle {
+                    item_id: item.clone(),
+                    checked: true,
+                }],
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "checklist append",
+            TicketEdit {
+                add_checklist_items: vec!["One more task".to_owned()],
+                ..TicketEdit::default()
+            },
+        ),
+        (
+            "comment",
+            TicketEdit {
+                comment: Some("Leaving a note.".to_owned()),
+                ..TicketEdit::default()
+            },
+        ),
+    ];
+    for (name, edit) in &mutations {
+        let applied = match base.apply(edit, later) {
+            Ok(applied) => applied,
+            Err(diagnostic) => {
+                report
+                    .failures
+                    .push(format!("{name}: the edit was refused: {diagnostic}"));
+                continue;
+            }
+        };
+        let raw = std::str::from_utf8(&applied.bytes).expect("app output should be UTF-8");
+        report.check(name, !raw.contains("\nrank:"), || {
+            format!("this edit wrote a rank into the file:\n{raw}")
+        });
+        report.check(
+            name,
+            !applied.changes.iter().any(|change| change.field == "rank"),
+            || "this edit recorded a rank change in the activity history".to_owned(),
+        );
+        // Read back the way the app will read it, so an in-memory `None` over a
+        // rank the bytes do carry cannot hide the write.
+        report.check(
+            name,
+            parse_written(&applied.bytes, &key).ticket().rank.is_none(),
+            || "the re-read ticket carries a rank".to_owned(),
+        );
+    }
+
+    // The control. Without it every claim above would also hold for a build in
+    // which nothing whatsoever can write a rank. It reports rather than panics,
+    // so an injected regression shows up beside the claims it broke.
+    match base.apply(
+        &TicketEdit {
+            rank: Some(Some("a0V".to_owned())),
+            ..TicketEdit::default()
+        },
+        later,
+    ) {
+        Ok(reordered) => report.equal(
+            "manual reorder",
+            "rank",
+            parse_written(&reordered.bytes, &key)
+                .ticket()
+                .rank
+                .as_deref(),
+            Some("a0V"),
+        ),
+        Err(diagnostic) => report
+            .failures
+            .push(format!("manual reorder: was refused: {diagnostic}")),
+    }
     report.finish();
 }
 

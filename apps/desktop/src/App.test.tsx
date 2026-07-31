@@ -830,8 +830,8 @@ describe("the list and the board agree (V0-14)", () => {
     ticket("LC-3", { status: "canceled" }),
   ];
 
-  function snapshot(tickets: TicketRow[], sequence = 1) {
-    return { project, tickets, generation: 1, rebuiltInMs: 1, sequence };
+  function snapshot(tickets: TicketRow[], sequence = 1, generation = 1) {
+    return { project, tickets, generation, rebuiltInMs: 1, sequence };
   }
 
   /** The keys each surface has on screen, in the order it drew them. */
@@ -845,7 +845,7 @@ describe("the list and the board agree (V0-14)", () => {
     fireEvent.click(screen.getByRole("button", { name: view }));
 
   /** Renders, waits for the board, and returns the event listener Rust would use. */
-  async function open(tickets: TicketRow[] = SEED) {
+  async function open(tickets: TicketRow[] = SEED, generation = 1) {
     let deliver: (envelope: StreamEnvelope) => void = () => {};
     vi.mocked(api.listenForProjectEvents).mockImplementation(
       async (handler) => {
@@ -854,7 +854,9 @@ describe("the list and the board agree (V0-14)", () => {
       },
     );
     vi.mocked(api.listProjects).mockResolvedValue([project]);
-    vi.mocked(api.openProject).mockResolvedValue(snapshot(tickets));
+    vi.mocked(api.openProject).mockResolvedValue(
+      snapshot(tickets, 1, generation),
+    );
     render(<App />);
     await screen.findByRole("heading", { name: "Board" });
     // The board draws the live tickets: an archived one is the list's (ADR 0004).
@@ -980,17 +982,40 @@ describe("the list and the board agree (V0-14)", () => {
   });
 
   it("agrees after a restart", async () => {
-    await open();
+    // Its own set rather than `SEED`: two tickets share a status, so the order
+    // inside a group is derived from the tickets rather than handed over by the
+    // one-per-status layout.
+    const files = () => [
+      ticket("LC-1", { status: "todo", priority: "p2" }),
+      ticket("LC-2", { status: "todo", priority: "urgent" }),
+      ticket("LC-3", { status: "in_progress" }),
+    ];
+    await open(files());
     toggleTo("List");
     const before = shownKeys();
+    expect(before).toEqual(["LC-2", "LC-1", "LC-3"]);
     cleanup();
 
-    // A restart is a fresh mount over a fresh snapshot: the surfaces hold no
-    // rows of their own, so neither can carry anything across it.
-    useLongClawStore.setState({ projects: [], activeProjectId: undefined });
-    await open();
+    // A restart is a cold process, so nothing of the last run may be reachable:
+    // the store starts empty, and `openProject` answers with the index built
+    // from the files again. Deliberately not the same objects and deliberately
+    // not in the same order — a directory scan has no reason to hand back what
+    // the last session held, so anything the surfaces still agreed about would
+    // have to have been re-derived here rather than carried across.
+    useLongClawStore.setState({
+      projects: [],
+      activeProjectId: undefined,
+      tickets: [],
+      generation: 0,
+      lastSequence: 0,
+      externalMarks: {},
+    });
+    const reindexed = files().reverse();
+    await open(reindexed, 2);
     toggleTo("List");
 
+    // The new index is the one on screen, not a survivor of the last mount.
+    expect(useLongClawStore.getState().generation).toBe(2);
     expect(shownKeys()).toEqual(before);
     const { board, list } = bothSurfaces();
     expect(new Set(list)).toEqual(new Set(board));

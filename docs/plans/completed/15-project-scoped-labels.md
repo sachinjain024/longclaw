@@ -150,3 +150,37 @@ One overlap left open: `QuickCreate.tsx` still takes labels as a comma-separated
 free-text field. V0-16 owns that surface and will narrow quick create to title
 and status (`screen-specs.md:198-207`); `LabelMenuButton` is what its full create
 surface should use.
+
+## Amendment 2026-08-01 — the label editor's scope, recorded
+
+A spec-axis review flagged the label-definition editor in Project settings as
+scope creep, and it is right that this plan never argued for it in writing.
+`screen-specs.md:251-258` enumerates the settings modal's sections — Name + Key,
+Folder, Theme, Appearance, danger zone — and Labels is not among them. Removal of
+a definition is asked for nowhere in the prototype at all.
+
+The editor stays. The reasoning, which should have been here from the start:
+
+- **Rename is not optional.** V0-10's must-pass includes *a renamed label
+  definition rewrites no ticket*. There is no way to demonstrate that without an
+  affordance that renames one, and the spec is silent on where such a thing
+  lives. Settings is where the project's own data already is.
+- **Add follows rename.** A project whose `longclaw.yaml` has no definitions has
+  nothing to rename, and typing YAML by hand is not a v0 flow.
+- **Removal was the judgement call.** It is kept for two reasons. An editor that
+  can only add strands a mistyped slug in `longclaw.yaml` permanently, because
+  the app offers no other way to edit that file. And removal is provably
+  harmless rather than merely believed to be: the state it produces — a ticket
+  carrying a slug with no definition — is the exact state V0-10's third clause
+  already requires the app to handle, rendered as itself.
+  `registry::tests::changing_a_label_definition_never_rewrites_a_ticket`
+  compares the ticket bytes across a rename, an add and a remove and finds them
+  identical; `App.test.tsx` asserts a slug outlives its definition on screen. It
+  writes one project file and no ticket, and re-adding the definition restores
+  the name and the colour.
+
+What that does *not* excuse is the location. Where a project's label definitions
+are edited is a design decision this plan took by default, and if the founder
+puts it elsewhere the affordance is one section of the settings modal and three
+Tauri commands (`add_project_label`, `update_project_label`,
+`remove_project_label`).

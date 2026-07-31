@@ -223,3 +223,26 @@ Every median is within 4 ms of the 600-ticket floor. The harness gained
 heavier comparator, because the fixture writes no ranks and every comparison
 falls through to priority. Run it from `apps/desktop`; at the repository root the
 flag goes to npm.
+
+## Amendment 2026-08-01 — the negative half of the rank clause
+
+V0-09's must-pass includes *`rank` is written only by manual reordering*. The
+positive half was well covered: the App round trip asserts a drag's edit is
+`{ rank }` and nothing else. The negative half — that nothing *but* a drag writes
+one — was not tested anywhere, and the place it looked tested is worse than the
+place it looked absent. `CreatedState` in the V0-16 contract test compares the
+two creation paths' `rank` fields, but both are `None`, so the comparison would
+have held just as well if both paths had started allocating one.
+
+`nothing_but_a_manual_reordering_ever_writes_a_rank` in
+`tests/file_format_contract.rs` is the side that cannot pass by accident. Neither
+create surface, and none of the nine other mutations a `TicketEdit` can carry,
+may put a `rank:` in the bytes, record a `rank` change in the history, or leave
+one on the ticket re-read from those bytes. A manual reorder runs at the end as
+the control, so none of it can be passing because this build cannot write a rank
+at all.
+
+Confirmed red twice: against a create writer that emits `rank: a0V`, and against
+a priority edit that allocates one. The first is the case worth having — a rank a
+human never dragged, written into a file an agent also reads, is board order
+pretending to be ticket data, which is what ADR 0003 exists to prevent.

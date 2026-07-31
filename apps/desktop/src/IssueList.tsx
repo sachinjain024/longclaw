@@ -8,7 +8,8 @@
  * get their own collapsed group at the bottom.
  *
  * It is one scroller rather than six, so its geometry is `listGeometry.ts` over the
- * same windowing arithmetic the board uses (`boardGeometry.ts`). Group headers are
+ * same windowing arithmetic the board uses (`boardGeometry.ts`), and its tab stop is
+ * the same `useRovingFocus` (`rovingFocus.ts`) — a move here is one dimension. Group headers are
  * `position: sticky`, which is why the groups are laid out in the scroller's normal
  * flow at stated heights and only the rows inside a body are placed absolutely — a
  * sticky element has nothing to stick to inside an absolutely positioned parent.
@@ -22,17 +23,11 @@
  * user how big a group is when only twenty of its rows exist.
  */
 
-import {
-  memo,
-  useCallback,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { memo, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { windowFor } from "./boardGeometry";
-import { isFresh, isPulsing } from "./freshness";
+import { classes } from "./classes";
+import { isFresh } from "./freshness";
 import type { ExternalMark, ExternalMarks } from "./freshness";
 import {
   groupByStatus,
@@ -45,9 +40,12 @@ import { groupBodyHeight, listGeometry, rowTop } from "./listGeometry";
 import { presentRow } from "./listRow";
 import { comparatorFor, orderColumn, type OrderingMode } from "./ordering";
 import { PriorityGlyph } from "./PriorityGlyph";
+import { PulseDot } from "./PulseDot";
+import { moveFor, useRovingFocus } from "./rovingFocus";
 import { StatusDot } from "./StatusDot";
 import { isArchived } from "./tickets";
 import type { Label, TicketRow } from "./types";
+import { useViewportHeight } from "./viewportHeight";
 
 /** Rows rendered beyond each edge of the viewport, so a scroll shows no gap. */
 const OVERSCAN = 6;
@@ -62,10 +60,6 @@ const MOVES: Record<string, number> = {
   j: 1,
   k: -1,
 };
-
-function moveFor(key: string): number | undefined {
-  return MOVES[key] ?? MOVES[key.toLowerCase()];
-}
 
 /**
  * The row a move lands on, or undefined at either end. Groups are a visual
@@ -91,12 +85,8 @@ function moveTo(
   return undefined;
 }
 
-/** Finds a mounted row by key without building a selector out of one. */
-function rowFor(root: HTMLElement | null, key: string) {
-  return Array.from(
-    root?.querySelectorAll<HTMLElement>(".list-row") ?? [],
-  ).find((element) => element.dataset.ticketKey === key);
-}
+/** The class a row wears, which is also how the roving focus finds one. */
+const ROW = ".list-row";
 
 export function IssueList(props: {
   tickets: TicketRow[];
@@ -115,10 +105,7 @@ export function IssueList(props: {
   const [archiveOpen, setArchiveOpen] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
-  const [viewport, setViewport] = useState(0);
-  const [focusedKey, setFocusedKey] = useState<string>();
-  /** Bumped only by a key press, so focus follows the arrows and nothing else. */
-  const [focusRequest, setFocusRequest] = useState(0);
+  const viewport = useViewportHeight(scroller);
 
   const archived = useMemo(
     () => props.tickets.filter(isArchived),
@@ -146,24 +133,16 @@ export function IssueList(props: {
   const seats = useMemo(() => seatsFor(groups), [groups]);
   const { slots, offsets } = useMemo(() => listGeometry(groups), [groups]);
 
-  useLayoutEffect(() => {
-    const element = scroller.current;
-    if (!element) return;
-    const measure = () => setViewport(element.clientHeight);
-    measure();
-    if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(measure);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-
-  // A row that was deleted, or that changed status, cannot hold the tab stop.
-  const firstKey = groups.find((group) => group.tickets.length > 0)?.tickets[0]
-    ?.key;
-  const rovingKey =
-    focusedKey !== undefined && seats.has(focusedKey) ? focusedKey : firstKey;
-
-  const onFocusRow = useCallback((key: string) => setFocusedKey(key), []);
+  const {
+    rovingKey,
+    onFocusItem: onFocusRow,
+    requestFocus,
+  } = useRovingFocus({
+    seats,
+    firstKey: groups.find((group) => group.tickets.length > 0)?.tickets[0]?.key,
+    root: scroller,
+    selector: ROW,
+  });
 
   const range = windowFor(offsets, scrollTop, viewport, OVERSCAN);
   const shown = new Map<number, number[]>();
@@ -193,11 +172,11 @@ export function IssueList(props: {
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
     if (event.defaultPrevented) return;
-    const step = moveFor(event.key);
+    const step = moveFor(MOVES, event.key);
     if (step === undefined) return;
     // The row the key was pressed on, not the one the last render believed was
     // focused: the Archived toggle is a tab stop of its own and is not a row.
-    const on = (event.target as HTMLElement).closest?.(".list-row");
+    const on = (event.target as HTMLElement).closest?.(ROW);
     const fromKey = (on as HTMLElement | null)?.dataset.ticketKey;
     const from = fromKey === undefined ? undefined : seats.get(fromKey);
     if (!from) return;
@@ -205,22 +184,8 @@ export function IssueList(props: {
     event.preventDefault();
     const next = moveTo(groups, from, step);
     if (next === undefined || next === fromKey) return;
-    setFocusedKey(next);
-    setFocusRequest((request) => request + 1);
+    requestFocus(next);
   }
-
-  // Only a new request moves focus; see the same effect in `Board.tsx`. A query
-  // in the header can change `rovingKey` under a human who is still typing, and
-  // the list must not answer that by grabbing focus off the filter field.
-  const answered = useRef(0);
-  useLayoutEffect(() => {
-    if (focusRequest === 0 || focusRequest === answered.current) return;
-    if (rovingKey === undefined) return;
-    answered.current = focusRequest;
-    const row = rowFor(scroller.current, rovingKey);
-    row?.focus();
-    row?.scrollIntoView?.({ block: "nearest" });
-  }, [focusRequest, rovingKey]);
 
   return (
     <div
@@ -275,7 +240,7 @@ function ListGroup(props: {
   const count = props.archived ? props.archivedCount : group.tickets.length;
 
   return (
-    <section className={props.archived ? "list-group archived" : "list-group"}>
+    <section className={classes("list-group", props.archived && "archived")}>
       {props.archived ? (
         // A real button with expanded state, which is the keyboard path archive
         // has (`keyboard-focus-map.md:110`); there is no single-key binding.
@@ -356,16 +321,14 @@ const ListRow = memo(function ListRow(props: {
   const fresh = isFresh(mark, props.now);
   return (
     <button
-      className={[
+      className={classes(
         "list-row",
-        props.divided ? "divided" : "",
-        props.selected ? "selected" : "",
-        row.degraded ? "degraded" : "",
-        fresh ? "fresh" : "",
-        fresh && mark?.actorType === "human" ? "human-fresh" : "",
-      ]
-        .filter(Boolean)
-        .join(" ")}
+        props.divided && "divided",
+        props.selected && "selected",
+        row.degraded && "degraded",
+        fresh && "fresh",
+        fresh && mark?.actorType === "human" && "human-fresh",
+      )}
       style={{ top: props.top }}
       data-ticket-key={ticket.key}
       tabIndex={props.tabStop ? 0 : -1}
@@ -382,14 +345,7 @@ const ListRow = memo(function ListRow(props: {
       <span className="list-row-key">{ticket.key}</span>
       {row.priority && <PriorityGlyph priority={row.priority} small />}
       <strong>{row.title}</strong>
-      {fresh && (
-        <span
-          className={
-            isPulsing(mark, props.now) ? "pulse-dot pulsing" : "pulse-dot"
-          }
-          aria-hidden="true"
-        />
-      )}
+      {fresh && <PulseDot mark={mark} now={props.now} />}
       {row.checklist && (
         <span className="list-row-checklist">{row.checklist}</span>
       )}

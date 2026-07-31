@@ -27,20 +27,28 @@ export const ORDERINGS: { id: OrderingMode; label: string }[] = [
   { id: "manual", label: "Manual" },
 ];
 
-const RANK = new Map(PRIORITIES.map((option, index) => [option.id, index]));
+/**
+ * Where each priority sits in the order `PRIORITIES` lists them in. Not a
+ * `rank`: that word is taken, and it means the manual-order string on the
+ * ticket (ADR 0003, `docs/file_format.md`) — which this file also sorts by, ten
+ * lines down.
+ */
+const PRIORITY_ORDER = new Map(
+  PRIORITIES.map((option, index) => [option.id, index]),
+);
 
 /**
  * A file that would not parse has no priority anyone could read, so it sorts as
  * if it had none rather than being given one it never claimed.
  */
-function rankOf(ticket: TicketRow): number {
+function priorityIndex(ticket: TicketRow): number {
   const priority = ticket.state === "indexed" ? ticket.priority : "none";
-  return RANK.get(priority) ?? RANK.size;
+  return PRIORITY_ORDER.get(priority) ?? PRIORITY_ORDER.size;
 }
 
 /** Urgent → P1 → P2 → P3 → P4 → None (ADR 0003). */
 export const byPriority: TicketOrdering = (left, right) =>
-  rankOf(left) - rankOf(right);
+  priorityIndex(left) - priorityIndex(right);
 
 /** The rank on a row, if it has one. A file that would not parse has none. */
 function manualRank(ticket: TicketRow): string | undefined {

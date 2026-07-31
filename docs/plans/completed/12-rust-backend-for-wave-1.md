@@ -225,3 +225,20 @@ frontend files that build project literals: `perf/fixture.ts`, `src/App.test.tsx
 and `src/state.test.ts`. Each got exactly one added line, `labels: {},`. The
 alternative was to declare the field optional, which would have been a lie about
 the wire shape and would have pushed `?? {}` into every consumer.
+
+## Amendment 2026-08-01 — one mutation the matrix was missing
+
+V0-18's must-pass is that attachment records survive *every* app mutation
+byte-identically, and `attachment_records_survive_every_mutation_byte_identically`
+enumerated eleven of them. It omitted `rank: Some(None)`.
+
+That is not a gap in coverage of a field already covered. `TicketEdit.rank` is
+`Option<Option<String>>` — absent leaves the rank alone, `null` clears it — and
+clearing takes its own arm of `apply`, reached by its own wire value. It is what
+the board sends when a human undoes the drop that gave a card its first rank, so
+it is a live path and not a hypothetical one. The matrix now runs it against the
+result of the rank set, the way unarchive runs against the archive, because
+clearing a rank a ticket does not have is refused.
+
+Confirmed red on its own rather than as part of the whole: an attachments rewrite
+injected into the clear arm alone fails `rank clear` and nothing else.

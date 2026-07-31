@@ -35,3 +35,46 @@ jobs:
 
       - name: Build desktop application
         run: npm run build:app
+
+  # V0-06 and V0-14 both state an interaction budget as a must-pass, and until
+  # this job existed both were backed by a run somebody remembered to do. It is
+  # deliberately not in `npm run verify`: the two traces are minutes of WebKit on
+  # 5,000 tickets, and a pre-commit gate that costs that gets skipped. It runs
+  # beside the quality gate instead of after it, because a slow board and a
+  # broken build are separate answers and waiting for one to learn the other
+  # helps nobody.
+  perf:
+    name: Interaction budgets
+    runs-on: macos-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+
+      # `npm ci` and not a bare install: `playwright-core` is a devDependency and
+      # the harness cannot launch WebKit without it.
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: apps/desktop
+
+      # The package ships the driver, not the browser. WebKit specifically,
+      # because it is the engine the Tauri webview actually uses — a Chromium
+      # number would not be evidence about this product.
+      - name: Install WebKit
+        run: npx playwright-core install webkit
+        working-directory: apps/desktop
+
+      # Each asserts its own budget and exits non-zero over it
+      # (`perf/board-trace.mjs`). Both surfaces run: they share the windowing
+      # arithmetic but not the row, so one can regress without the other.
+      - name: Board interaction budget
+        run: npm run perf:board
+
+      - name: List interaction budget
+        run: npm run perf:list

@@ -61,7 +61,7 @@ marked independent can be done at any time by anyone.
 | ~~08~~ | ~~Triage the dependabot advisories~~ — **done 2026-07-31**, [outcome](../completed/08-dependabot-triage.md) | V0-40 | Closed. All three advisories are unreachable, with the argument recorded. It produced V0-40: the alert list itself is the problem, not any advisory in it. |
 | ~~09~~ | ~~Stop treating a vanished path as a watcher overflow~~ — **done 2026-07-31**, [outcome](../completed/09-rename-is-not-an-overflow.md) | —       | Closed. `collect_event` now drops only transient `Io(NotFound)` watcher errors and still escalates other errors to overflow recovery. |
 | ~~10~~ | ~~Stop npm from breaking the native watcher check~~ — **closed 2026-07-31, not reproducing**, [outcome](../completed/10-npm-native-watcher-timeout.md) | — | Closed without a fix. Eight consecutive npm-launched native watcher runs, `npm run verify` at exit 0, and CI run 30629158530 are all green on the same tree that timed out. The mechanism was never found; the outcome says what to do if it returns. |
-| ~~11~~ | ~~Remove assignee from the prototype specs~~ — **done 2026-07-31**, [outcome](../completed/11-remove-assignee-from-specs.md) | V0-19 | Closed, docs only. The Step-1 foundations were the gap: ADR 0001's propagation pass never opened `components.md`. Read its outcome before V0-14 or V0-16 — the two `proof/` HTML files still render assignee slots, and it says why they were left. |
+| ~~11~~ | ~~Remove assignee from the prototype specs~~ — **done 2026-07-31**, [outcome](../completed/11-remove-assignee-from-specs.md) | V0-19 | Closed for the text, not for the screens. The Step-1 foundations were the gap: ADR 0001's propagation pass never opened `components.md`. The two `proof/` HTML files were corrected here; the ten PNGs in `proof/renders/` were not, because the pipeline that made them is not in the repo, so every committed render still shows an assignee. That is **V0-41**, filed 2026-08-01 — see the plan's amendment. |
 | ~~12~~ | ~~The Rust backend Wave 1 is missing~~ — **done 2026-07-31**, [outcome](../completed/12-rust-backend-for-wave-1.md) | V0-18, and the backend halves of V0-09 and V0-10 | Closed. V0-18 is done outright. The other two are backend-only: label definitions now cross IPC on `ProjectReference` with `add_project_label`/`update_project_label`/`remove_project_label` behind them, and `TicketEdit.rank` accepts `null` to clear. Read its outcome before V0-09 or V0-10 — it is the API handoff. |
 | ~~13~~ | ~~Optimistic create, per-mutation write feedback, and undo~~ — **done 2026-07-31**, [outcome](../completed/13-optimistic-create-toasts-and-undo.md) | V0-17 | Closed, and it is the frontend handoff. Every mutation the rest of Wave 1 adds should go through `mutate()` in `src/mutations.ts` rather than calling `editTicket` directly. Read its outcome before V0-08, V0-11, or V0-16 — it names two places where the approved spec and the ADRs disagree. |
 | ~~14~~ | ~~Priority end to end~~ — **done 2026-07-31**, [outcome](../completed/14-priority-end-to-end.md) | V0-08 | Closed, and it hands three later items a shared popover and an ordering seam. Read its outcome before V0-09, V0-10, or the status menu: `src/Menu.tsx` is the one menu all four fields use, and `src/ordering.ts` is where a Manual comparator goes. |
@@ -309,8 +309,10 @@ Two items were risk-based rather than breadth, so they are safe to take out of
 order at any time: V0-30 (index-loss recovery) and V0-40 (scope Dependabot to what
 ships). The third, ~~V0-19~~, was taken first exactly as this said and
 [closed](../completed/11-remove-assignee-from-specs.md) before Step 11 built the
-surfaces around it — though the `proof/` pages it names are still uncorrected, and
-V0-14 and V0-16 both shipped past them.
+surfaces around it — for the specs and the `proof/` HTML. The committed renders
+were not regenerated and still show an assignee, which V0-19's must-pass counts as
+a screen that shows one; that half is now **V0-41** in Wave 3, beside V0-37, which
+needs the same missing pipeline.
 
 ## When a plan is done
 

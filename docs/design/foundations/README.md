@@ -61,6 +61,11 @@ revision — they still show assignee avatars, the assignee field, and the
 assignee control in the ticket panel. The render pipeline that produced
 them is not committed, so they have not been regenerated and remain
 historical evidence of the pre-ADR-0001 anatomy, not the current HTML.
+**Read them as history, not as the spec.** Committing that pipeline and
+re-rendering the set is
+[V0-41](../../backlog/v0-backlog.md) in Wave 3; until it lands, the exit-gate
+row above is evidence about the token system and not about the card anatomy,
+and V0-19's screen clause is open.
 
 ## Regenerating
 

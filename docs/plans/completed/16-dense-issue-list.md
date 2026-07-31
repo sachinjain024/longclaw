@@ -269,3 +269,25 @@ and the Vite build.
   to the board and to the filter, which is V0-15.
 - **The trace runs on a current Mac, not the oldest supported one** — the same gap
   plan 07 left open, and the same wide margin.
+
+## Amendment 2026-08-01 — the budget gates something now
+
+V0-14's must-pass includes *the list renders inside the interaction budget with
+V0-06 in place*, and this plan closed it with a number: 15/18/16 ms p95 from a
+run of `npm run perf:list`. `perf:list` does assert its own budget and does exit
+non-zero over it — but it was wired into neither `npm run verify` nor CI, so the
+clause was backed by a trace somebody remembered to run. Nothing would have gone
+red if the list got slower.
+
+Both traces now run as a second CI job, `perf` in `.github/workflows/ci.yml`, on
+every pull request and every push to `main`. Deliberately *not* in `npm run
+verify`: two WebKit runs over 5,000 tickets are minutes, and a pre-commit gate
+that costs minutes is a pre-commit gate people learn to skip — which would have
+cost more than it caught. `AGENTS.md` § Toolchain says where the traces live and
+when to run them by hand.
+
+The job needs two things a bare checkout does not have, both of which V0-14's own
+run already discovered: `npm ci` in `apps/desktop`, because `playwright-core` is
+a devDependency, and `npx playwright-core install webkit`, because the package
+ships the driver and not the browser. WebKit specifically — a Chromium number
+would not be evidence about a Tauri webview.

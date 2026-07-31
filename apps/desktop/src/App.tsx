@@ -34,7 +34,7 @@ import { filterTickets, isFiltering } from "./filtering";
 import { IssueList } from "./IssueList";
 import { LABEL_COLORS } from "./labels";
 import { MenuButton } from "./Menu";
-import { mutate } from "./mutations";
+import { mutate, type Mutation } from "./mutations";
 import { ORDERINGS, type OrderingMode } from "./ordering";
 import { QuickCreate } from "./QuickCreate";
 import { useLongClawStore } from "./state";
@@ -51,6 +51,7 @@ import type {
   IndexedTicket,
   Label,
   ProjectReference,
+  TicketEdit,
   TicketPriority,
   TicketStatus,
 } from "./types";
@@ -660,6 +661,65 @@ export function App() {
   }
 
   /**
+   * One edit to one ticket, raised outside the panel: the board's `P` menu, a
+   * drop, an archive. All three are the same shape — show it now, write it, and
+   * offer the inverse — so they are built here rather than written out three
+   * times with three chances to disagree about the hash or the conflict offer.
+   *
+   * The inverse is an ordinary mutation with no `undo` of its own, which is the
+   * scope `data-requirements.md:121` sets: the inverse of the last mutation, not
+   * a history stack. `Mutation.undo` returning a `Mutation` is what enforces it,
+   * and this must not be tempted into recursing to build the inverse.
+   *
+   * The panel's own edits do not come through here: `save()` in `TicketPanel`
+   * carries a conflict banner, a draft, and a reload this knows nothing about.
+   */
+  function editMutation(options: {
+    /** Captured by the caller, because a mutation outlives its render. */
+    projectId: string;
+    ticket: IndexedTicket;
+    /** How the row reads before the write returns. */
+    optimistic: Partial<IndexedTicket>;
+    edit: TicketEdit;
+    inverse: TicketEdit;
+    toast: string;
+    inverseToast: string;
+    failure?: (error: AppError) => string;
+  }): Mutation {
+    const { projectId, ticket } = options;
+    const write = (expectedHash: string, edit: TicketEdit) => () =>
+      editTicket({ projectId, ticketKey: ticket.key, expectedHash, edit });
+
+    return {
+      path: ticket.relativePath,
+      // The row shows the change at once; a failed write puts it back exactly as
+      // it was read.
+      apply: () => {
+        applyLocalWrite({ ...ticket, ...options.optimistic }, generation);
+        return () => applyLocalWrite(ticket, generation);
+      },
+      write: write(ticket.contentHash, options.edit),
+      onWritten: (result) => applyLocalWrite(result.ticket, result.generation),
+      toast: () => options.toast,
+      undo: (result) => ({
+        path: result.ticket.relativePath,
+        // The hash the first write left, so the inverse is not refused as stale
+        // by its own predecessor.
+        write: write(result.ticket.contentHash, options.inverse),
+        onWritten: (undone) =>
+          applyLocalWrite(undone.ticket, undone.generation),
+        toast: () => options.inverseToast,
+        review: () => openTicket(ticket.key),
+      }),
+      failure: options.failure,
+      // A conflict here cannot reach the panel's banner — these writes outlive
+      // any panel — so the offer is to open the ticket and read the file as it
+      // now is.
+      review: () => openTicket(ticket.key),
+    };
+  }
+
+  /**
    * The `P` menu on a focused card. The panel has `save()` over the same seam;
    * a card on the board is outside it, so this goes to `mutate()` directly.
    */
@@ -667,41 +727,17 @@ export function App() {
     const projectId = activeProjectId;
     if (!projectId || next === ticket.priority) return;
 
-    void mutate({
-      path: ticket.relativePath,
-      // The card re-sorts into its new place at once; a failed write puts the
-      // row back exactly as it was read.
-      apply: () => {
-        applyLocalWrite({ ...ticket, priority: next }, generation);
-        return () => applyLocalWrite(ticket, generation);
-      },
-      write: () =>
-        editTicket({
-          projectId,
-          ticketKey: ticket.key,
-          expectedHash: ticket.contentHash,
-          edit: { priority: next },
-        }),
-      onWritten: (result) => applyLocalWrite(result.ticket, result.generation),
-      toast: () => `${ticket.key} → ${priorityLabel(next)}`,
-      undo: (result) => ({
-        path: result.ticket.relativePath,
-        write: () =>
-          editTicket({
-            projectId,
-            ticketKey: ticket.key,
-            // The hash the first write left, so the inverse is not refused as
-            // stale by its own predecessor.
-            expectedHash: result.ticket.contentHash,
-            edit: { priority: ticket.priority },
-          }),
-        onWritten: (undone) =>
-          applyLocalWrite(undone.ticket, undone.generation),
-        toast: () => `${ticket.key} back to ${priorityLabel(ticket.priority)}`,
-        review: () => openTicket(ticket.key),
+    void mutate(
+      editMutation({
+        projectId,
+        ticket,
+        optimistic: { priority: next },
+        edit: { priority: next },
+        inverse: { priority: ticket.priority },
+        toast: `${ticket.key} → ${priorityLabel(next)}`,
+        inverseToast: `${ticket.key} back to ${priorityLabel(ticket.priority)}`,
       }),
-      review: () => openTicket(ticket.key),
-    });
+    );
   }
 
   /**
@@ -718,40 +754,19 @@ export function App() {
     const projectId = activeProjectId;
     if (!projectId || rank === ticket.rank) return;
 
-    void mutate({
-      path: ticket.relativePath,
-      apply: () => {
-        applyLocalWrite({ ...ticket, rank }, generation);
-        return () => applyLocalWrite(ticket, generation);
-      },
-      write: () =>
-        editTicket({
-          projectId,
-          ticketKey: ticket.key,
-          expectedHash: ticket.contentHash,
-          edit: { rank },
-        }),
-      onWritten: (result) => applyLocalWrite(result.ticket, result.generation),
-      toast: () => `${ticket.key} moved`,
-      undo: (result) => ({
-        path: result.ticket.relativePath,
-        write: () =>
-          editTicket({
-            projectId,
-            ticketKey: ticket.key,
-            // The hash the first write left, so the inverse is not refused as
-            // stale by its own predecessor.
-            expectedHash: result.ticket.contentHash,
-            edit: { rank: ticket.rank ?? null },
-          }),
-        onWritten: (undone) =>
-          applyLocalWrite(undone.ticket, undone.generation),
-        toast: () => `${ticket.key} back where it was`,
-        review: () => openTicket(ticket.key),
+    void mutate(
+      editMutation({
+        projectId,
+        ticket,
+        optimistic: { rank },
+        edit: { rank },
+        inverse: { rank: ticket.rank ?? null },
+        toast: `${ticket.key} moved`,
+        inverseToast: `${ticket.key} back where it was`,
+        failure: (error) =>
+          `${ticket.key} could not be moved. ${error.message}`,
       }),
-      failure: (error) => `${ticket.key} could not be moved. ${error.message}`,
-      review: () => openTicket(ticket.key),
-    });
+    );
   }
 
   /**
@@ -773,54 +788,25 @@ export function App() {
       focusSurface();
     }
 
-    void mutate({
-      path: ticket.relativePath,
-      // The card leaves the board now. The timestamp is a guess only until the
-      // write returns with the one Rust actually recorded.
-      apply: () => {
-        applyLocalWrite(
-          {
-            ...ticket,
-            archivedAt: archived ? new Date().toISOString() : undefined,
-          },
-          generation,
-        );
-        return () => applyLocalWrite(ticket, generation);
-      },
-      write: () =>
-        editTicket({
-          projectId,
-          ticketKey: ticket.key,
-          expectedHash: ticket.contentHash,
-          edit: { archived },
-        }),
-      onWritten: (result) => applyLocalWrite(result.ticket, result.generation),
-      toast: () => `${ticket.key} ${archived ? "archived" : "unarchived"}`,
-      // Genuinely clean, unlike undoing a create: the inverse of an archive is
-      // an unarchive, and the file ends where it started.
-      undo: (result) => ({
-        path: result.ticket.relativePath,
-        write: () =>
-          editTicket({
-            projectId,
-            ticketKey: ticket.key,
-            // The hash the first write left, so the inverse is not refused as
-            // stale by its own predecessor.
-            expectedHash: result.ticket.contentHash,
-            edit: { archived: !archived },
-          }),
-        onWritten: (undone) =>
-          applyLocalWrite(undone.ticket, undone.generation),
-        toast: () => `${ticket.key} ${archived ? "unarchived" : "archived"}`,
-        review: () => openTicket(ticket.key),
+    void mutate(
+      editMutation({
+        projectId,
+        ticket,
+        // The card leaves the board now. The timestamp is a guess only until the
+        // write returns with the one Rust actually recorded.
+        optimistic: {
+          archivedAt: archived ? new Date().toISOString() : undefined,
+        },
+        edit: { archived },
+        // Genuinely clean, unlike undoing a create: the inverse of an archive is
+        // an unarchive, and the file ends where it started.
+        inverse: { archived: !archived },
+        toast: `${ticket.key} ${archived ? "archived" : "unarchived"}`,
+        inverseToast: `${ticket.key} ${archived ? "unarchived" : "archived"}`,
+        failure: (error) =>
+          `${ticket.key} could not be ${archived ? "archived" : "unarchived"}. ${error.message}`,
       }),
-      failure: (error) =>
-        `${ticket.key} could not be ${archived ? "archived" : "unarchived"}. ${error.message}`,
-      // A conflict here cannot reach the panel's banner — the banner is the
-      // panel's own state and this write outlives it — so the offer is to open
-      // the ticket and read the file as it is now.
-      review: () => openTicket(ticket.key),
-    });
+    );
   }
 
   return (

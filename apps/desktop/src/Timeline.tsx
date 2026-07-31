@@ -9,10 +9,20 @@
  * one line, with the actor's name in its own accent colour and no avatar.
  *
  * `states.md:169` describes an agent's external mutation as carrying the tile
- * avatar too, which the compact form does not. The reading taken here is that
- * `components.md` is the layout and `states.md` is the provenance rule, so a
- * change entry keeps the rail and the `via file edit` meta and drops the tile.
- * That is why every kind still satisfies V0-13's must-pass.
+ * avatar, the rail, the `AGENT` badge and the `via file edit` meta, which the
+ * compact form does not. The reading taken here is that `components.md` is the
+ * layout and `states.md` is the provenance rule, so a change entry keeps the
+ * rail and the meta and drops the 26px tile. That is why every kind still
+ * satisfies V0-13's must-pass.
+ *
+ * **The badge stays on a change entry** even though `components.md:207` says
+ * "one line". It costs no line — it sits inline beside the actor — and it is
+ * the only channel on a change entry that says *agent* in words. The rail and
+ * the accent name are colour, which D11's CVD policy will not let carry a
+ * distinction alone, and the name itself is a name: `sachin` and `Claude Code`
+ * are both just strings until something states the role. A run of agent status
+ * changes is exactly where "distinguish agent activity from human activity" has
+ * to land, so it lands there. See plan 19's amendment for the argument.
  *
  * Nothing here decides who an actor is; `attribution.ts` does. Nothing here
  * decides what a field change says; `timelineEvents.ts` does.
@@ -143,6 +153,9 @@ function TimelineEntry({
                 subject. A warn line already names the absence of one. */}
             {index === 0 && !line.warn && (
               <strong className="change-actor">{actorName(event)}</strong>
+            )}
+            {index === 0 && !line.warn && actorType === "agent" && (
+              <span className="agent-badge">AGENT</span>
             )}
             {line.code && <code>{line.code}</code>}
             <span>{line.text}</span>

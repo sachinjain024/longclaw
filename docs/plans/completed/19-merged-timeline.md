@@ -242,3 +242,56 @@ have settled the question faster than an argument.
 `--lc-accent-agent-text`, `--lc-accent-agent-soft` and `--lc-warn` all already
 existed, and every colour added to `styles.css` is a `var(--lc-*)`.
 `npm run verify` was not run, as instructed.
+
+## Amendment 2026-08-01 — the `AGENT` badge on a change entry
+
+This plan resolved a genuine conflict between two approved specs, and recorded
+the resolution. What it did not do is examine one of the resolution's
+consequences on its own, and a review was right to ask for that separately.
+
+The resolution stands: `components.md:207` owns layout, `states.md:169` owns
+provenance, a change entry is compact and keeps the rail and the `via file edit`
+meta. But "compact" was taken to mean the badge went too, and the badge is not a
+layout decision. It is 33 pixels of inline text that costs no line.
+
+**The badge is back on change entries.** The argument for it:
+
+- It is the only channel on a change entry that says *agent* in words. The rail
+  and the accent-coloured name are both colour, and D11's CVD policy is explicit
+  that a distinction may not rest on colour alone. `Timeline.tsx` already applies
+  that rule one level down — every change glyph is paired with a sentence
+  precisely so the glyph is never the only channel — and the entry as a whole was
+  not held to it.
+- The actor's name is a name, not a role. `sachin` and `Claude Code` are both
+  just strings; nothing in the entry states which one is an agent. On a comment
+  the badge says it. On the status change the same agent made a second earlier,
+  nothing did.
+- A run of agent status changes is *the* moment the MVP finish line's
+  "distinguish agent activity from human activity" has to land. It is also the
+  common case: an agent working a ticket writes many changes and few comments.
+- `states.md:169` asks for the badge on every external mutation by name. Reading
+  `components.md` as owning layout does not require dropping a content element
+  the other spec names.
+
+Against it: `components.md:207` says "single 12px glyph + one line". The badge
+does not add a line — it sits inline after the actor's name on the first change
+line, and the entry is still one glyph and one line per change with no 26px tile.
+That is the narrowest reading of :207 that keeps :169's content, which is the
+same trade the original resolution made.
+
+`Timeline.test.tsx` § "an update" now asserts exactly one badge on an agent's
+change entry, two `.entry-changes > li` for two changes, and no `.actor-tile` —
+so a future compaction that removes the badge, and a future expansion that brings
+back the tile, both fail. A human's own change asserts neither badge nor
+provenance. Confirmed red against the badge-less component.
+
+**The provenance clause got the tests it was claimed to have.** V0-13's must-pass
+is that every kind renders with the right actor type *and* `via file edit`
+provenance, and the provenance was asserted only for agent actors. The rule in
+`Timeline.tsx` is *not a human, or an `external_change` whoever wrote it* — two
+of its three branches were untested, which is to say the `external_change` half
+of the rule was untested. Both are covered now: the unattributed external change
+(which was checking its warn line and not its meta) and a human's own edit to
+`ticket.md` outside the app. The behaviour was already right, so both were
+confirmed red by mutation instead: narrowing the rule to `actorType === "human"`
+fails the human case, and narrowing it to agents alone fails both.

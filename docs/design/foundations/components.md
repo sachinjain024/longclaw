@@ -208,8 +208,24 @@ viewed. Checking animates at `--lc-motion-state`.
 - **Change events** (status, checklist, description edits): single 12px glyph
   + one line 12px `ink-2`, actor name in its accent text color. Agent
   description edits log as events ("edited the description"); expandable
-  diff later.
+  diff later. An agent's change also carries the rail and the `AGENT` badge
+  inline after the name, and the `via file edit` meta — see the note below.
 - Composer: standard input foundations; posting is optimistic.
+
+**Note (V0-13, 2026-08-01) — this section and `states.md:169` disagree, and
+here is how the build reads them.** `states.md:169` says every external
+mutation lands with "tile avatar, rail, AGENT badge, `via file edit` meta",
+which is not the compact change entry specified above. The reading taken is
+that this file owns *layout* and `states.md` owns *provenance*: a change entry
+has no 26px tile, and it does keep the rail, the badge and the provenance meta.
+The badge is content rather than layout and costs no second line — it sits
+inline after the actor's name. It stays because it is the only channel on a
+change entry that states the actor's **role** in words; the rail and the accent
+name are colour, and D11 does not let a distinction rest on colour alone, while
+the name itself is just a string. A run of agent status changes is where
+"distinguish agent activity from human activity" has to be legible, and it is
+the common case for an agent working a ticket. Full reasoning in
+[plan 19](../../plans/completed/19-merged-timeline.md).
 
 ## Toast & banners
 

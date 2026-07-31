@@ -15,6 +15,9 @@
  * wherever it has been scrolled to, so a scroll can never silently drop focus
  * onto the body.
  *
+ * The tab stop itself is `useRovingFocus` (`rovingFocus.ts`), shared with the
+ * list. What is the board's own is that a move here has two dimensions.
+ *
  * ## Dragging over a windowed column
  *
  * Drag-and-drop is available only in Manual (ADR 0003), and it is native HTML5
@@ -38,14 +41,7 @@
  * as the keyboard path that exists.
  */
 
-import {
-  memo,
-  useCallback,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import type { DragEvent, KeyboardEvent } from "react";
 import { presentCard } from "./boardCard";
 import {
@@ -55,7 +51,8 @@ import {
   runningOffsets,
   windowFor,
 } from "./boardGeometry";
-import { acknowledgement, isFresh, isPulsing } from "./freshness";
+import { classes } from "./classes";
+import { acknowledgement, isFresh } from "./freshness";
 import type { ExternalMark, ExternalMarks } from "./freshness";
 import {
   groupByStatus,
@@ -65,10 +62,12 @@ import {
 } from "./grouping";
 import { LabelChip } from "./LabelChip";
 import { Menu } from "./Menu";
+import { PRIORITY_OPTIONS } from "./metaOptions";
 import { comparatorFor, rankForDrop, type OrderingMode } from "./ordering";
 import { PriorityGlyph } from "./PriorityGlyph";
+import { PulseDot } from "./PulseDot";
+import { itemFor, moveFor, useRovingFocus } from "./rovingFocus";
 import { StatusDot } from "./StatusDot";
-import { PRIORITIES } from "./tickets";
 import type {
   IndexedTicket,
   Label,
@@ -76,6 +75,7 @@ import type {
   TicketRow,
   TicketStatus,
 } from "./types";
+import { useViewportHeight } from "./viewportHeight";
 
 /** Cards rendered beyond each edge of the viewport, so a scroll shows no gap. */
 const OVERSCAN = 4;
@@ -129,10 +129,6 @@ const MOVES: Record<string, Move> = {
   h: { columns: -1, cards: 0 },
 };
 
-function moveFor(key: string): Move | undefined {
-  return MOVES[key] ?? MOVES[key.toLowerCase()];
-}
-
 /** The card a move lands on, or undefined when the move runs off the board. */
 function moveTo(
   columns: StatusGroup[],
@@ -156,21 +152,8 @@ function moveTo(
   return undefined;
 }
 
-/** Finds a mounted card by key without building a selector out of one. */
-function cardFor(root: HTMLElement | null, key: string) {
-  // A degraded row is keyed by its directory name, which nothing has vetted as
-  // CSS, so the key is compared rather than interpolated.
-  return Array.from(
-    root?.querySelectorAll<HTMLElement>(".ticket-row") ?? [],
-  ).find((element) => element.dataset.ticketKey === key);
-}
-
-/** The rows of the priority menu, built once: they never differ per card. */
-const PRIORITY_OPTIONS = PRIORITIES.map((option) => ({
-  id: option.id,
-  label: option.label,
-  glyph: <PriorityGlyph priority={option.id} decorative />,
-}));
+/** The class a card wears, which is also how the roving focus finds one. */
+const CARD = ".ticket-row";
 
 export function Board(props: {
   tickets: TicketRow[];
@@ -199,9 +182,6 @@ export function Board(props: {
     () => layOutColumns(props.tickets, props.ordering, scaffold),
     [props.tickets, props.ordering, scaffold],
   );
-  const [focusedKey, setFocusedKey] = useState<string>();
-  /** Bumped only by a key press, so focus follows the arrows and nothing else. */
-  const [focusRequest, setFocusRequest] = useState(0);
   /** The card whose priority menu is open, if one is. */
   const [priorityFor, setPriorityFor] = useState<string>();
   /** The card being dragged, and where letting go would put it. */
@@ -209,13 +189,17 @@ export function Board(props: {
   const [dropGap, setDropGap] = useState<number>();
   const grid = useRef<HTMLDivElement>(null);
 
-  // A card that was deleted, or that changed status, cannot hold the tab stop.
-  const firstKey = columns.find((column) => column.tickets.length > 0)
-    ?.tickets[0]?.key;
-  const rovingKey =
-    focusedKey !== undefined && seats.has(focusedKey) ? focusedKey : firstKey;
-
-  const onFocusCard = useCallback((key: string) => setFocusedKey(key), []);
+  const {
+    rovingKey,
+    onFocusItem: onFocusCard,
+    requestFocus,
+  } = useRovingFocus({
+    seats,
+    firstKey: columns.find((column) => column.tickets.length > 0)?.tickets[0]
+      ?.key,
+    root: grid,
+    selector: CARD,
+  });
 
   // Stable, so `draggable` and its two handlers cost the memoized cards nothing:
   // a card re-renders during a drag only because it is the one being dragged.
@@ -253,7 +237,7 @@ export function Board(props: {
     // The card the key was pressed on, not the one the last render believed was
     // focused: a click that has not been committed yet would otherwise move the
     // human off a card they are already standing on.
-    const on = (event.target as HTMLElement).closest?.(".ticket-row");
+    const on = (event.target as HTMLElement).closest?.(CARD);
     const fromKey = (on as HTMLElement | null)?.dataset.ticketKey ?? rovingKey;
     const from = fromKey === undefined ? undefined : seats.get(fromKey);
     if (!from || fromKey === undefined) return;
@@ -267,33 +251,14 @@ export function Board(props: {
       return;
     }
 
-    const move = moveFor(event.key);
+    const move = moveFor(MOVES, event.key);
     if (!move) return;
 
     event.preventDefault();
     const next = moveTo(columns, from, move);
     if (next === undefined || next === fromKey) return;
-    setFocusedKey(next);
-    setFocusRequest((request) => request + 1);
+    requestFocus(next);
   }
-
-  // The column keeps its focused card mounted wherever it is, so the card the
-  // arrows just moved to is always here to be focused and scrolled to.
-  //
-  // Only a new request moves focus. `rovingKey` is a dependency because the
-  // effect reads it, not because a change to it is a reason to grab focus: the
-  // filter can move the tab stop onto a different card while the human is typing
-  // in the header, and taking focus off the field mid-query is not a thing a
-  // board is allowed to do.
-  const answered = useRef(0);
-  useLayoutEffect(() => {
-    if (focusRequest === 0 || focusRequest === answered.current) return;
-    if (rovingKey === undefined) return;
-    answered.current = focusRequest;
-    const card = cardFor(grid.current, rovingKey);
-    card?.focus();
-    card?.scrollIntoView?.({ block: "nearest" });
-  }, [focusRequest, rovingKey]);
 
   const focusSeat = rovingKey === undefined ? undefined : seats.get(rovingKey);
   const openSeat =
@@ -307,7 +272,7 @@ export function Board(props: {
     setPriorityFor(undefined);
     // A pick re-sorts the column, so the card is asked for by key again rather
     // than left to whatever node the menu was hanging off.
-    setFocusRequest((request) => request + 1);
+    requestFocus();
   }
 
   /**
@@ -364,7 +329,7 @@ export function Board(props: {
           label="Priority"
           options={PRIORITY_OPTIONS}
           selected={[menuTicket.priority]}
-          anchor={cardFor(grid.current, menuTicket.key) ?? null}
+          anchor={itemFor(grid.current, CARD, menuTicket.key) ?? null}
           onPick={(next) => props.onChangePriority(menuTicket, next)}
           onClose={closePriorityMenu}
         />
@@ -408,21 +373,10 @@ function BoardColumn(props: {
   const stack = useRef<HTMLDivElement>(null);
   const sizer = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
-  const [viewport, setViewport] = useState(0);
+  const viewport = useViewportHeight(stack);
   /** Which way the column is drifting under a drag, and the frame doing it. */
   const drift = useRef(0);
   const frame = useRef(0);
-
-  useLayoutEffect(() => {
-    const element = stack.current;
-    if (!element) return;
-    const measure = () => setViewport(element.clientHeight);
-    measure();
-    if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(measure);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
 
   const offsets = useMemo(
     () => runningOffsets(cardStrides(props.tickets, props.marks, props.now)),
@@ -584,17 +538,15 @@ const BoardCard = memo(function BoardCard(props: {
   const fresh = isFresh(mark, props.now);
   return (
     <button
-      className={[
+      className={classes(
         "ticket-row",
-        props.selected ? "selected" : "",
-        ticket.state === "degraded" ? "degraded" : "",
-        fresh ? "fresh" : "",
-        fresh && mark?.actorType === "human" ? "human-fresh" : "",
-        props.draggable ? "draggable" : "",
-        props.dragging ? "dragging" : "",
-      ]
-        .filter(Boolean)
-        .join(" ")}
+        props.selected && "selected",
+        ticket.state === "degraded" && "degraded",
+        fresh && "fresh",
+        fresh && mark?.actorType === "human" && "human-fresh",
+        props.draggable && "draggable",
+        props.dragging && "dragging",
+      )}
       style={{ top: props.top }}
       data-ticket-key={ticket.key}
       draggable={props.draggable}
@@ -604,14 +556,7 @@ const BoardCard = memo(function BoardCard(props: {
     >
       <span className="ticket-key">
         {ticket.key}
-        {fresh && (
-          <span
-            className={
-              isPulsing(mark, props.now) ? "pulse-dot pulsing" : "pulse-dot"
-            }
-            aria-hidden="true"
-          />
-        )}
+        {fresh && <PulseDot mark={mark} now={props.now} />}
       </span>
       <strong>{row.title}</strong>
       <span className="ticket-meta">

@@ -9,6 +9,7 @@
  */
 
 import { resolveLabels, type ResolvedLabel } from "./labels";
+import { checklistFraction } from "./tickets";
 import type { Label, TicketPriority, TicketRow } from "./types";
 
 export interface CardCopy {
@@ -39,12 +40,12 @@ export function presentCard(
       labels: [],
     };
   }
-  // The fraction surfaces only when a checklist exists (`components.md:180`),
-  // which is also what decides how many chips fit beside it.
-  const fraction = ticket.checklistCount > 0;
+  // Whether there is a fraction is also what decides how many chips fit beside
+  // it: the footer never wraps, so the fraction costs a chip.
+  const fraction = checklistFraction(ticket);
   return {
     title: ticket.title,
-    meta: fraction ? `${ticket.checkedCount}/${ticket.checklistCount}` : "",
+    meta: fraction,
     priority: ticket.priority,
     labels: resolveLabels(
       ticket.labels,

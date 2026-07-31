@@ -572,10 +572,6 @@ button:disabled {
   background: var(--lc-surface);
 }
 
-.ticket-row.fresh {
-  height: var(--lc-size-board-card-fresh);
-}
-
 .ticket-row.selected {
   border-color: var(--lc-accent-human-border);
   box-shadow: 0 0 0 2px var(--lc-accent-human-soft);
@@ -652,8 +648,14 @@ button:disabled {
 }
 
 /* The acknowledgement of a change that arrived from disk: ring, pulse, and a
-   footer naming the actor the file recorded. Never a silent re-render. */
+   footer naming the actor the file recorded. Never a silent re-render.
+
+   The footer is why a fresh card is taller, and the height is stated here with
+   the rest of the treatment rather than beside `.ticket-row`: `cardStrides` in
+   boardGeometry.ts places cards from these two heights, so a card that wore the
+   ring without the extra room would be placed wrong by exactly the footer. */
 .ticket-row.fresh {
+  height: var(--lc-size-board-card-fresh);
   border-color: var(--lc-accent-agent-fresh-border);
   box-shadow: 0 0 0 3px var(--lc-accent-agent-fresh-ring);
 }

@@ -24,8 +24,8 @@ export const STATUSES: { id: TicketStatus; label: string }[] = [
 
 /**
  * Listed most urgent first, which is also the board's default column order
- * (ADR 0003). `ordering.ts` reads the rank off this list rather than keeping a
- * second copy of it.
+ * (ADR 0003). `ordering.ts` reads each priority's place off this list rather
+ * than keeping a second copy of it.
  */
 export const PRIORITIES: { id: TicketPriority; label: string }[] = [
   { id: "urgent", label: "Urgent" },
@@ -52,6 +52,18 @@ export function statusLabel(status: TicketStatus): string {
  */
 export function isArchived(ticket: TicketRow): boolean {
   return ticket.state === "indexed" && ticket.archivedAt !== undefined;
+}
+
+/**
+ * `1/3`, and empty for a ticket with no checklist: the fraction surfaces only
+ * when there is a checklist to count (`components.md:180`). Shared by the card
+ * and the row, which must not be able to disagree about when it appears — the
+ * board card also spends a label chip on it whenever it does.
+ */
+export function checklistFraction(ticket: IndexedTicket): string {
+  return ticket.checklistCount > 0
+    ? `${ticket.checkedCount}/${ticket.checklistCount}`
+    : "";
 }
 
 /**

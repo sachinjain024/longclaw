@@ -181,3 +181,20 @@ stays optional in the format, no v0 surface reads or writes it. That matches ADR
   import in the same class as the ADR itself.
 
 No code changed, so `npm run verify` was not run.
+
+## Amendment 2026-08-01 — the follow-up is filed, and the backlog row corrected
+
+The Outcome above asked for a follow-up item covering the two HTML files and the
+renders. The HTML half landed in this pass; the follow-up for the renders was
+never filed, and V0-19's backlog row closed reporting *"passed for every spec and
+data requirement"* — which is the must-pass sentence with the failing clause
+removed. The criterion the item was measured against reads *no spec, **screen**,
+or data requirement in `docs/design/` shows an assignee in local mode*, and the
+ten PNGs in `proof/renders/` are screens that do.
+
+Both are fixed rather than argued. The renders are now **V0-41** in Wave 3, next
+to V0-37, which needs the same uncommitted pipeline to exist before it can
+produce a matrix at all. V0-19's row states the screen clause as not passed and
+says why. The verdict is unchanged — the specs and the data requirements really
+were cleared, and the HTML really was revised — but the row no longer reads as a
+clean pass, because it was not one.

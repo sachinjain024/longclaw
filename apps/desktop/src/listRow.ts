@@ -14,6 +14,7 @@
 
 import { describeAge } from "./freshness";
 import { resolveLabels, type ResolvedLabel } from "./labels";
+import { checklistFraction } from "./tickets";
 import type { Label, TicketPriority, TicketRow, TicketStatus } from "./types";
 
 export interface RowCopy {
@@ -55,10 +56,7 @@ export function presentRow(
     status: ticket.status,
     priority: ticket.priority,
     labels: resolveLabels(ticket.labels, definitions, ROW_LABEL_LIMIT),
-    checklist:
-      ticket.checklistCount > 0
-        ? `${ticket.checkedCount}/${ticket.checklistCount}`
-        : "",
+    checklist: checklistFraction(ticket),
     // A date the file wrote in a shape this build cannot read is left blank
     // rather than shown as an invented age.
     updated: Number.isNaN(updatedAt) ? "" : describeAge(updatedAt, now),

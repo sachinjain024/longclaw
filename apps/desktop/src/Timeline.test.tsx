@@ -192,6 +192,40 @@ describe("an update", () => {
 
     expect(entry().textContent).toContain("updated this ticket");
   });
+
+  it("carries the badge on a change the same way a comment does", () => {
+    draw([
+      event({
+        kind: "update",
+        actor: AGENT,
+        changes: [
+          { field: "status", from: "todo", to: "done" },
+          { field: "priority", from: "p3", to: "urgent" },
+        ],
+      }),
+    ]);
+
+    // `states.md:169` asks for the badge on every external mutation, and it is
+    // the only channel that says *agent* in words: the rail and the accent name
+    // are colour, and the name itself is a name, not a role.
+    expect(screen.getAllByText("AGENT")).toHaveLength(1);
+    // Still one line per change — the badge rides the first line beside the
+    // actor, so `components.md:207`'s compact shape is intact.
+    expect(document.querySelectorAll(".entry-changes > li")).toHaveLength(2);
+    expect(document.querySelector(".actor-tile")).toBeNull();
+  });
+
+  it("gives a human's own change no badge and no provenance", () => {
+    draw([
+      event({
+        kind: "update",
+        changes: [{ field: "status", from: "todo", to: "done" }],
+      }),
+    ]);
+
+    expect(entry().textContent).not.toContain("AGENT");
+    expect(entry().textContent).not.toContain("via file edit");
+  });
 });
 
 describe("an external change", () => {
@@ -210,6 +244,9 @@ describe("an external change", () => {
       "file changed on disk — actor unknown",
     );
     expect(entry().textContent).toContain("renamed this to “New”");
+    // Unclaimed is not unprovenanced: the file is still the only place it can
+    // have come from, and the meta has to keep saying so.
+    expect(entry().textContent).toContain("via file edit");
     // An unattributed change is not an agent's.
     expect(entry().textContent).not.toContain("AGENT");
   });
@@ -219,6 +256,25 @@ describe("an external change", () => {
 
     expect(entry().className).toContain("agent");
     expect(entry().textContent).toContain("via file edit");
+    expect(entry().textContent).not.toContain("actor unknown");
+    expect(screen.getByText("AGENT")).toBeTruthy();
+  });
+
+  it("keeps the provenance when the human's own editor wrote the file", () => {
+    draw([
+      event({
+        kind: "external_change",
+        changes: [{ field: "status", from: "todo", to: "done" }],
+      }),
+    ]);
+
+    // The local human editing `ticket.md` in vim is not the app writing it, and
+    // the entry says which one it was. Nothing else marks it: no rail, no
+    // badge, no warn.
+    expect(entry().className).not.toContain("agent");
+    expect(entry().className).not.toContain("unattributed");
+    expect(entry().textContent).toContain("via file edit");
+    expect(entry().textContent).not.toContain("AGENT");
     expect(entry().textContent).not.toContain("actor unknown");
   });
 });

@@ -59,6 +59,27 @@ export interface SaveFeedback {
 }
 
 /**
+ * What the human has changed that the disk has not confirmed yet. The panel
+ * renders these over the file's own values, which is what keeps a pick or a tick
+ * from waiting on IPC.
+ *
+ * One object rather than four states because they are one claim — "this is not
+ * on disk yet" — and they end together every time: a load, a save the conflict
+ * banner blocked, a conflict raised by the write. Four separate resets is four
+ * chances to leave one behind, rendering a value no file holds.
+ */
+interface Pending {
+  /** Checkbox states the human set. Keyed by item id; other items may differ. */
+  checks: Record<string, boolean>;
+  status?: TicketStatus;
+  priority?: TicketPriority;
+  /** The whole list, because a label edit replaces it whole. */
+  labels?: string[];
+}
+
+const NOTHING_PENDING: Pending = { checks: {} };
+
+/**
  * Why the panel is reading the file.
  *
  * `open` starts fresh. `external` came from the watcher, so it is the only mode
@@ -121,19 +142,33 @@ export function TicketPanel(props: TicketPanelProps) {
   }>();
   /** Checklist ids an external write ticked, for the agent treatment. */
   const [agentChecked, setAgentChecked] = useState<string[]>([]);
-  /**
-   * Checkbox states the human set that are still being written. Rendering these
-   * over the file's own values is what keeps a tick from waiting on the disk.
-   */
-  const [pendingChecks, setPendingChecks] = useState<Record<string, boolean>>(
-    {},
-  );
-  /** The status the human just picked, rendered over the file's until it lands. */
-  const [pendingStatus, setPendingStatus] = useState<TicketStatus>();
-  /** Same, for priority. */
-  const [pendingPriority, setPendingPriority] = useState<TicketPriority>();
-  /** Same, for labels — the whole list, because a label edit replaces it whole. */
-  const [pendingLabels, setPendingLabels] = useState<string[]>();
+  const [pending, setPending] = useState<Pending>(NOTHING_PENDING);
+
+  /** Every field the disk has not confirmed goes back to the file's own value. */
+  const clearPending = () => setPending(NOTHING_PENDING);
+
+  /** Shows one picked value now, and returns the function that takes it back. */
+  function hold<Field extends "status" | "priority" | "labels">(
+    field: Field,
+    value: Pending[Field],
+  ): () => void {
+    setPending((current) => ({ ...current, [field]: value }));
+    return () => setPending((current) => ({ ...current, [field]: undefined }));
+  }
+
+  /** The same, for one checkbox: the others may have writes of their own out. */
+  function holdCheck(itemId: string, checked: boolean): () => void {
+    setPending((current) => ({
+      ...current,
+      checks: { ...current.checks, [itemId]: checked },
+    }));
+    return () =>
+      setPending((current) => {
+        const checks = { ...current.checks };
+        delete checks[itemId];
+        return { ...current, checks };
+      });
+  }
 
   /** The checklist as last read, so an external tick can be told from a stale one. */
   const loadedChecklist = useRef<ChecklistItem[]>([]);
@@ -185,10 +220,7 @@ export function TicketPanel(props: TicketPanelProps) {
           : [],
       );
       loadedChecklist.current = checklist;
-      setPendingChecks({});
-      setPendingStatus(undefined);
-      setPendingPriority(undefined);
-      setPendingLabels(undefined);
+      clearPending();
       setPendingComment(undefined);
       setDetail(next);
 
@@ -252,10 +284,7 @@ export function TicketPanel(props: TicketPanelProps) {
     if (conflict && !options?.resolvesConflict) {
       // The banner stays up and the optimistic tick snaps back, so nothing
       // pretends to have been written while the conflict is open.
-      setPendingChecks({});
-      setPendingStatus(undefined);
-      setPendingPriority(undefined);
-      setPendingLabels(undefined);
+      clearPending();
       return;
     }
     const hash = detail?.contentHash;
@@ -297,10 +326,7 @@ export function TicketPanel(props: TicketPanelProps) {
       handles: (error) => {
         if (error.code !== "conflict") return false;
         setConflict({ error, pending: edit });
-        setPendingChecks({});
-        setPendingStatus(undefined);
-        setPendingPriority(undefined);
-        setPendingLabels(undefined);
+        clearPending();
         // A conflict never reverts, so the composer has to be given its text
         // back by hand — the comment was not written and must not vanish.
         setPendingComment(undefined);
@@ -322,9 +348,11 @@ export function TicketPanel(props: TicketPanelProps) {
 
   /** Keeps the human's edit by re-applying it on top of the file as it is now. */
   async function keepMine() {
-    const pending = conflict?.pending;
-    if (!pending) return;
-    await save(pending, { resolvesConflict: true });
+    // The edit the conflict refused, not the panel's `pending` — that was
+    // cleared when the banner went up.
+    const refused = conflict?.pending;
+    if (!refused) return;
+    await save(refused, { resolvesConflict: true });
   }
 
   /**
@@ -356,8 +384,8 @@ export function TicketPanel(props: TicketPanelProps) {
 
   /** The file's value, unless the human just clicked and the write is in flight. */
   function isChecked(item: ChecklistItem): boolean {
-    const pending = item.id === undefined ? undefined : pendingChecks[item.id];
-    return pending ?? item.checked;
+    const held = item.id === undefined ? undefined : pending.checks[item.id];
+    return held ?? item.checked;
   }
 
   const ticket = detail?.ticket;
@@ -466,17 +494,14 @@ export function TicketPanel(props: TicketPanelProps) {
             <MenuButton
               label="Status"
               options={STATUS_OPTIONS}
-              value={pendingStatus ?? ticket.status}
+              value={pending.status ?? ticket.status}
               onPick={(next) => {
                 const previous = ticket.status;
                 if (next === previous) return;
                 void save(
                   { status: next },
                   {
-                    apply: () => {
-                      setPendingStatus(next);
-                      return () => setPendingStatus(undefined);
-                    },
+                    apply: () => hold("status", next),
                     toast: `${ticketKey} → ${statusLabel(next)}`,
                     inverse: { status: previous },
                     inverseToast: `${ticketKey} back to ${statusLabel(previous)}`,
@@ -488,17 +513,14 @@ export function TicketPanel(props: TicketPanelProps) {
             <MenuButton
               label="Priority"
               options={PRIORITY_OPTIONS}
-              value={pendingPriority ?? ticket.priority}
+              value={pending.priority ?? ticket.priority}
               onPick={(next) => {
                 const previous = ticket.priority;
                 if (next === previous) return;
                 void save(
                   { priority: next },
                   {
-                    apply: () => {
-                      setPendingPriority(next);
-                      return () => setPendingPriority(undefined);
-                    },
+                    apply: () => hold("priority", next),
                     toast: `${ticketKey} → ${priorityLabel(next)}`,
                     inverse: { priority: previous },
                     inverseToast: `${ticketKey} back to ${priorityLabel(previous)}`,
@@ -508,20 +530,17 @@ export function TicketPanel(props: TicketPanelProps) {
             />
             <span>Labels</span>
             <LabelMenuButton
-              slugs={pendingLabels ?? ticket.labels}
+              slugs={pending.labels ?? ticket.labels}
               definitions={props.labels}
               onToggle={(next, toggled) => {
-                const previous = pendingLabels ?? ticket.labels;
+                const previous = pending.labels ?? ticket.labels;
                 // `TicketDocument::apply` refuses an edit that changes nothing.
                 if (sameLabels(next, previous)) return;
                 const added = next.includes(toggled.slug);
                 void save(
                   { labels: next },
                   {
-                    apply: () => {
-                      setPendingLabels(next);
-                      return () => setPendingLabels(undefined);
-                    },
+                    apply: () => hold("labels", next),
                     toast: `${ticketKey} ${added ? "labeled" : "unlabeled"} ${toggled.name}`,
                     // A label edit replaces the list, so its inverse is the
                     // whole list as it was — not the one slug that moved.
@@ -626,18 +645,7 @@ export function TicketPanel(props: TicketPanelProps) {
                             { checklist: [{ itemId, checked: next }] },
                             {
                               // Show the tick now; the file catches up.
-                              apply: () => {
-                                setPendingChecks((current) => ({
-                                  ...current,
-                                  [itemId]: next,
-                                }));
-                                return () =>
-                                  setPendingChecks((current) => {
-                                    const reverted = { ...current };
-                                    delete reverted[itemId];
-                                    return reverted;
-                                  });
-                              },
+                              apply: () => holdCheck(itemId, next),
                               toast: `${ticketKey} ${next ? "checked" : "unchecked"} · ${item.text}`,
                               inverse: {
                                 checklist: [{ itemId, checked: !next }],
