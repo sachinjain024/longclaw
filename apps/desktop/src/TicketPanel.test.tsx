@@ -138,7 +138,12 @@ const DEFINITIONS: Record<string, Label> = {
   reliability: { name: "Reliability", color: "amber" },
 };
 
-function panel(props?: { reloadSignal?: number; onClose?: () => void }) {
+function panel(props?: {
+  reloadSignal?: number;
+  onClose?: () => void;
+  archived?: boolean;
+  onArchive?: (archived: boolean) => void;
+}) {
   return (
     <TicketPanel
       projectId="project-1"
@@ -146,7 +151,9 @@ function panel(props?: { reloadSignal?: number; onClose?: () => void }) {
       labels={DEFINITIONS}
       reloadSignal={props?.reloadSignal ?? 0}
       now={NOW}
+      archived={props?.archived ?? false}
       onClose={props?.onClose ?? noop}
+      onArchive={props?.onArchive ?? noop}
       onWrite={noop}
       onError={failOnError}
     />
@@ -780,5 +787,48 @@ describe("the labels menu while it stays open (V0-10)", () => {
         .getByRole("menuitemcheckbox", { name: "legacy-thing" })
         .getAttribute("aria-checked"),
     ).toBe("false");
+  });
+});
+
+describe("the archive button in the header (V0-11)", () => {
+  it("names the action it would take and asks for the flip", async () => {
+    // The panel never writes this one: archiving closes the panel, so the
+    // mutation is raised by whatever outlives it.
+    const onArchive = vi.fn();
+    render(panel({ onArchive }));
+    await ready();
+
+    fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+
+    expect(onArchive).toHaveBeenCalledWith(true);
+    expect(editTicketMock).not.toHaveBeenCalled();
+  });
+
+  it("says Unarchive, and wears the chip, on a ticket that is archived", async () => {
+    const onArchive = vi.fn();
+    render(panel({ archived: true, onArchive }));
+    await ready();
+
+    expect(screen.getByText("archived")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Unarchive" }));
+
+    expect(onArchive).toHaveBeenCalledWith(false);
+  });
+
+  it("offers nothing on a file this build could not read", async () => {
+    readTicketMock.mockResolvedValue({
+      ...detail(),
+      ticket: undefined,
+      diagnostic: {
+        code: "parse_failed",
+        message: "mapping values are not allowed here",
+        line: 4,
+      },
+      raw: "title: [",
+    });
+    render(panel());
+
+    await screen.findByText(/Shown without repair/);
+    expect(screen.queryByRole("button", { name: "Archive" })).toBeNull();
   });
 });

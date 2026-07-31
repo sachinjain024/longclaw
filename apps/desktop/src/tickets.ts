@@ -46,9 +46,9 @@ export function statusLabel(status: TicketStatus): string {
 
 /**
  * Archived is a date on the ticket, not a status (ADR 0004): the file stays
- * where it is and keeps whatever workflow status it had. Only the list's
- * archived group reads this today — V0-11 adds the mutation and takes archived
- * tickets off the board.
+ * where it is and keeps whatever workflow status it had. `groupByStatus` reads
+ * this to leave an archived ticket out of every status group, which is what
+ * keeps it off the board; the list reads it to fill its own archived group.
  */
 export function isArchived(ticket: TicketRow): boolean {
   return ticket.state === "indexed" && ticket.archivedAt !== undefined;

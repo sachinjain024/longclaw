@@ -29,6 +29,7 @@ import { QuickCreate } from "./QuickCreate";
 import { useLongClawStore } from "./state";
 import { TicketPanel } from "./TicketPanel";
 import {
+  isArchived,
   priorityLabel,
   provisionalTicket,
   provisionalTicketKey,
@@ -64,6 +65,22 @@ const ROW = "[data-ticket-key]";
 function focusCard(key: string) {
   requestAnimationFrame(() => {
     document.querySelector<HTMLElement>(`[data-ticket-key="${key}"]`)?.focus();
+  });
+}
+
+/**
+ * Where focus goes when the row it came from is not there to go back to, which
+ * is what archiving does to it. Both surfaces carry exactly one tab stop — the
+ * card or row the arrows move from — so that is the sensible landing place, and
+ * the create button is the fallback when nothing is left to stand on.
+ */
+function focusSurface() {
+  requestAnimationFrame(() => {
+    const row = document.querySelector<HTMLElement>(`${ROW}[tabindex="0"]`);
+    const fallback = document.querySelector<HTMLElement>(
+      ".board-heading .primary",
+    );
+    (row ?? fallback)?.focus();
   });
 }
 
@@ -123,6 +140,8 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const project = projects.find((item) => item.id === activeProjectId);
+  /** The row the panel is open on, read from the store both surfaces read. */
+  const openRow = tickets.find((ticket) => ticket.key === selectedKey);
   const openTicket = useCallback(
     (key: string) => {
       setSelectedKey(key);
@@ -494,6 +513,70 @@ export function App() {
     });
   }
 
+  /**
+   * Archive and unarchive (ADR 0004): a date in the frontmatter, never a move
+   * and never a delete. It is raised here rather than through the panel's
+   * `save()` because archiving closes the panel — the toast, its Undo, the
+   * revert a failed write owes, and the conflict a stale hash would raise all
+   * have to outlive the component that asked for them, and this one does.
+   */
+  function setArchived(ticket: IndexedTicket, archived: boolean) {
+    const projectId = activeProjectId;
+    // `TicketDocument::apply` refuses an edit that changes nothing.
+    if (!projectId || archived === isArchived(ticket)) return;
+    // Archiving hides the ticket, so the panel it was raised from goes with it;
+    // unarchiving puts it back on the board and leaves the panel open
+    // (`screen-specs.md:164-168`).
+    if (archived) {
+      closeTicket();
+      focusSurface();
+    }
+
+    void mutate({
+      path: ticket.relativePath,
+      // The card leaves the board now. The timestamp is a guess only until the
+      // write returns with the one Rust actually recorded.
+      apply: () => {
+        applyLocalWrite(
+          {
+            ...ticket,
+            archivedAt: archived ? new Date().toISOString() : undefined,
+          },
+          generation,
+        );
+        return () => applyLocalWrite(ticket, generation);
+      },
+      write: () =>
+        editTicket({
+          projectId,
+          ticketKey: ticket.key,
+          expectedHash: ticket.contentHash,
+          edit: { archived },
+        }),
+      onWritten: (result) => applyLocalWrite(result.ticket, result.generation),
+      toast: () => `${ticket.key} ${archived ? "archived" : "unarchived"}`,
+      // Genuinely clean, unlike undoing a create: the inverse of an archive is
+      // an unarchive, and the file ends where it started.
+      undo: (result) => ({
+        path: result.ticket.relativePath,
+        write: () =>
+          editTicket({
+            projectId,
+            ticketKey: ticket.key,
+            // The hash the first write left, so the inverse is not refused as
+            // stale by its own predecessor.
+            expectedHash: result.ticket.contentHash,
+            edit: { archived: !archived },
+          }),
+        onWritten: (undone) =>
+          applyLocalWrite(undone.ticket, undone.generation),
+        toast: () => `${ticket.key} ${archived ? "unarchived" : "archived"}`,
+      }),
+      failure: (error) =>
+        `${ticket.key} could not be ${archived ? "archived" : "unarchived"}. ${error.message}`,
+    });
+  }
+
   return (
     <main className="app-shell">
       <aside className="side-panel">
@@ -748,7 +831,11 @@ export function App() {
           mark={externalMarks[selectedKey]}
           reloadSignal={panelReload}
           now={now}
+          archived={openRow !== undefined && isArchived(openRow)}
           onClose={() => closeTicket(selectedKey)}
+          onArchive={(archived) => {
+            if (openRow?.state === "indexed") setArchived(openRow, archived);
+          }}
           onWrite={(result) =>
             applyLocalWrite(result.ticket, result.generation)
           }

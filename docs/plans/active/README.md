@@ -18,9 +18,9 @@ is closed, Wave 0 is clear, and M4 closed on 2026-07-31 when the founder decided
 proceed without the pilot sessions
 ([decision](../../pilot/response-memo.md#direction-decision-2026-07-31-superseded-the-same-day)).
 Step 11 is [Wave 1 of the backlog](../../backlog/v0-backlog.md) — V0-08 through
-V0-19 — and six of them are now closed: V0-19 as plan 11, V0-18 as plan 12,
-V0-17 as plan 13, V0-08 as plan 14, V0-10 as plan 15, and V0-14 as plan 16. The rest
-are open. Write a plan here before starting one of them.
+V0-19 — and seven of them are now closed: V0-19 as plan 11, V0-18 as plan 12,
+V0-17 as plan 13, V0-08 as plan 14, V0-10 as plan 15, V0-14 as plan 16, and V0-11
+as plan 17. The rest are open. Write a plan here before starting one of them.
 
 Two things to read first, once, before Step 11 code:
 
@@ -55,6 +55,7 @@ marked independent can be done at any time by anyone.
 | ~~14~~ | ~~Priority end to end~~ — **done 2026-07-31**, [outcome](../completed/14-priority-end-to-end.md) | V0-08 | Closed, and it hands three later items a shared popover and an ordering seam. Read its outcome before V0-09, V0-10, or the status menu: `src/Menu.tsx` is the one menu all four fields use, and `src/ordering.ts` is where a Manual comparator goes. |
 | ~~15~~ | ~~Project-scoped labels~~ — **done 2026-07-31**, [outcome](../completed/15-project-scoped-labels.md) | V0-10 | Closed. It is the frontend half of what plan 12 built: definitions are managed in project settings and a ticket still carries slugs and nothing else. Read its outcome before V0-14 or V0-16 — `src/labels.ts` and `src/LabelChip.tsx` are the chip both of them need, and `src/LabelMenu.tsx` is the meta row a create surface reuses. |
 | ~~16~~ | ~~The dense issue list~~ — **done 2026-07-31**, [outcome](../completed/16-dense-issue-list.md) | V0-14 | Closed, and it is the second surface. Read its outcome before V0-09, V0-11 or V0-15 — the board's bucketing moved to `src/grouping.ts`, `boardGeometry.ts`'s `columnOffsets` is now `runningOffsets`, and the status dot the whole app was missing now exists. |
+| ~~17~~ | ~~Archive and unarchive~~ — **done 2026-07-31**, [outcome](../completed/17-archive-and-unarchive.md) | V0-11 | Closed. Archived tickets now leave `groupByStatus` rather than leaving the board, and the write is raised in `App.tsx` because archiving closes the panel. Read its outcome before V0-15 (the exclusion is in the shared bucketing) and before V0-24 (the `· archived` tag on a search result is still open). |
 
 Dependencies worth knowing:
 
@@ -133,6 +134,21 @@ Dependencies worth knowing:
   `src/tickets.ts` has `isArchived`, which is the predicate V0-11 should take the
   board's archived tickets off with. The perf harness drives either surface:
   `npm run perf:board` and `npm run perf:list`.
+- **17 is done, and V0-15 and V0-24 each inherit one edge of it.** Archived is a
+  date and not a status (ADR 0004), so an archived ticket now has no status bucket
+  at all: `groupByStatus` in `apps/desktop/src/grouping.ts` drops it, which is what
+  keeps it off the board without either surface owning a rule of its own, and the
+  list still fills its own archived group by asking `isArchived` directly.
+  **V0-15's filtering sits on top of that** — if a filter ever wants archived
+  tickets inline, it is a new argument to `groupByStatus`, not a filter in a
+  surface. The write itself is `setArchived` in `src/App.tsx`, raised there rather
+  than through the panel's `save()` because archiving closes the panel and the
+  panel's revert, toast, undo and conflict all live in component state; the panel
+  holds a ghost button, an `archived` chip, and no write. **V0-24 inherits the
+  other half:** `search_tickets` already returns archived tickets and a Rust test
+  pins it, but the `· archived` tag on a result (`screen-specs.md:154`, `:236`) is
+  unbuilt, because there is no search UI in the app to hang it on. The row carries
+  `archivedAt`; rendering the tag is V0-24's.
 - **09 and 10 are both closed, and no plan is open.** The vanished-path overflow bug
   is fixed in `collect_event`, and the npm-launched native watcher timeout that
   blocked local `npm run verify` no longer reproduces — closed without a fix, so
@@ -143,8 +159,8 @@ Dependencies worth knowing:
 
 ## Waves 1–3 are unplanned, and now for a different reason
 
-Waves 1–3 of [the backlog](../../backlog/v0-backlog.md) — 26 of its 39 items, now
-that V0-08, V0-10, V0-14, V0-17, V0-18, and V0-19 are closed — still have no plans here. The original reason is gone: the
+Waves 1–3 of [the backlog](../../backlog/v0-backlog.md) — 25 of its 39 items, now
+that V0-08, V0-10, V0-11, V0-14, V0-17, V0-18, and V0-19 are closed — still have no plans here. The original reason is gone: the
 guardrail has been satisfied and the pilot will not invalidate anything, because it
 was skipped.
 

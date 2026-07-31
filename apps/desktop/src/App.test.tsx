@@ -13,7 +13,14 @@ import { App } from "./App";
 import * as api from "./api";
 import { resetMutations } from "./mutations";
 import { useLongClawStore } from "./state";
-import type { StreamEnvelope, TicketRow, WriteResult } from "./types";
+import { isArchived } from "./tickets";
+import type {
+  IndexedTicket,
+  StreamEnvelope,
+  TicketDetail,
+  TicketRow,
+  WriteResult,
+} from "./types";
 
 vi.mock("./api", () => ({
   chooseAndCreateProject: vi.fn(),
@@ -650,7 +657,9 @@ describe("the list and the board agree (V0-14)", () => {
     vi.mocked(api.openProject).mockResolvedValue(snapshot(tickets));
     render(<App />);
     await screen.findByRole("heading", { name: "Board" });
-    await waitFor(() => expect(shownKeys().length).toBe(tickets.length));
+    // The board draws the live tickets: an archived one is the list's (ADR 0004).
+    const live = tickets.filter((ticket) => !isArchived(ticket)).length;
+    await waitFor(() => expect(shownKeys().length).toBe(live));
     return {
       deliver: (envelope: StreamEnvelope) => act(() => deliver(envelope)),
     };
@@ -793,9 +802,242 @@ describe("the list and the board agree (V0-14)", () => {
       ticket("LC-9", { status: "done", archivedAt: "2026-07-20T09:00:00Z" }),
     ]);
 
+    // The one place the two surfaces are allowed to disagree (ADR 0004).
+    expect(shownKeys()).not.toContain("LC-9");
+
     toggleTo("List");
     fireEvent.click(screen.getByRole("button", { name: /Archived/ }));
 
     expect(shownKeys()).toContain("LC-9");
+  });
+});
+
+describe("archive and unarchive (V0-11)", () => {
+  const project = {
+    id: "project-fixture",
+    name: "Fixture Project",
+    rootPath: "/tmp/LongClaw Fixture",
+    key: "LC",
+    theme: "indigo",
+    starred: false,
+    reachable: true,
+    labels: {},
+  };
+
+  function row(key: string, overrides?: Partial<IndexedTicket>): TicketRow {
+    return {
+      state: "indexed",
+      key,
+      id: `id-${key}`,
+      title: `Ticket ${key}`,
+      status: "todo",
+      priority: "none",
+      labels: [],
+      createdAt: "2026-07-31T09:00:00Z",
+      updatedAt: "2026-07-31T09:00:00Z",
+      checkedCount: 0,
+      checklistCount: 0,
+      commentCount: 0,
+      attachmentCount: 0,
+      contentHash: `hash-${key}`,
+      relativePath: `.longclaw/tickets/${key}/ticket.md`,
+      ...overrides,
+    };
+  }
+
+  function detail(key: string, archivedAt?: string): TicketDetail {
+    return {
+      key,
+      relativePath: `.longclaw/tickets/${key}/ticket.md`,
+      contentHash: `hash-${key}`,
+      byteLength: 300,
+      readOnly: false,
+      raw: "",
+      rawTruncated: false,
+      missingAttachments: [],
+      orphanAttachments: [],
+      ticket: {
+        id: `id-${key}`,
+        key,
+        title: `Ticket ${key}`,
+        status: "todo",
+        priority: "none",
+        labels: [],
+        createdAt: "2026-07-31T09:00:00Z",
+        updatedAt: "2026-07-31T09:00:00Z",
+        archivedAt,
+        description: "",
+        checklist: [],
+        attachments: [],
+        activity: [],
+        historyIncomplete: false,
+        unknownKeys: [],
+        recordDiagnostics: [],
+      },
+    };
+  }
+
+  /** What the write returns: the row as the file now reads, with a new hash. */
+  function written(
+    key: string,
+    overrides?: Partial<IndexedTicket>,
+  ): WriteResult {
+    return {
+      ticket: row(key, { contentHash: `hash-${key}-written`, ...overrides }),
+      generation: 2,
+      changes: [],
+    };
+  }
+
+  /**
+   * Renders, opens the named ticket's panel, and waits for the file to arrive.
+   * An archived ticket has no card, so it is opened where it does appear: the
+   * list's archived group.
+   */
+  async function openPanel(
+    tickets: TicketRow[],
+    key: string,
+    from: "board" | "the archived group" = "board",
+  ) {
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project,
+      tickets,
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    render(<App />);
+    await screen.findByRole("heading", { name: "Board" });
+    if (from !== "board") {
+      fireEvent.click(screen.getByRole("button", { name: "List" }));
+      fireEvent.click(screen.getByRole("button", { name: /Archived/ }));
+    }
+    fireEvent.click(
+      document.querySelector<HTMLElement>(`[data-ticket-key="${key}"]`)!,
+    );
+    await screen.findByRole("complementary", { name: `Ticket ${key}` });
+  }
+
+  const card = (key: string) =>
+    document.querySelector(`[data-ticket-key="${key}"]`);
+
+  it("must-pass: archiving flips the frontmatter, empties the board, and can be taken back", async () => {
+    vi.mocked(api.readTicket).mockResolvedValue(detail("LC-1"));
+    vi.mocked(api.editTicket).mockResolvedValue(
+      written("LC-1", { archivedAt: "2026-07-31T10:00:00Z" }),
+    );
+    await openPanel([row("LC-1"), row("LC-2")], "LC-1");
+
+    fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+
+    // The panel is gone and the card with it, before the write returns.
+    expect(screen.queryByRole("complementary", { name: "Ticket LC-1" })).toBe(
+      null,
+    );
+    expect(card("LC-1")).toBeNull();
+    expect(card("LC-2")).toBeTruthy();
+    await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(1));
+    // Nothing but the flag: archiving is not a status change and not a move.
+    expect(api.editTicket).toHaveBeenCalledWith({
+      projectId: project.id,
+      ticketKey: "LC-1",
+      expectedHash: "hash-LC-1",
+      edit: { archived: true },
+    });
+    await screen.findByText("LC-1 archived");
+
+    vi.mocked(api.editTicket).mockResolvedValue(written("LC-1"));
+    fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+
+    await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(2));
+    expect(api.editTicket).toHaveBeenLastCalledWith({
+      projectId: project.id,
+      ticketKey: "LC-1",
+      expectedHash: "hash-LC-1-written",
+      edit: { archived: false },
+    });
+    await screen.findByText("LC-1 unarchived");
+    await waitFor(() => expect(card("LC-1")).toBeTruthy());
+  });
+
+  it("puts the card back and says so when the write fails", async () => {
+    vi.mocked(api.readTicket).mockResolvedValue(detail("LC-1"));
+    vi.mocked(api.editTicket).mockRejectedValue({
+      code: "io",
+      message: "No space left on device",
+      recoverable: true,
+    });
+    await openPanel([row("LC-1")], "LC-1");
+
+    fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+
+    expect(card("LC-1")).toBeNull();
+    await waitFor(() => expect(card("LC-1")).toBeTruthy());
+    expect(screen.getByText(/could not be archived/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();
+  });
+
+  it("leaves focus on the board rather than dropping it on the body", async () => {
+    vi.mocked(api.readTicket).mockResolvedValue(detail("LC-1"));
+    vi.mocked(api.editTicket).mockResolvedValue(
+      written("LC-1", { archivedAt: "2026-07-31T10:00:00Z" }),
+    );
+    await openPanel([row("LC-1"), row("LC-2")], "LC-1");
+
+    fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+
+    // The card the panel was opened from is not there to go back to, so focus
+    // lands on the surface's tab stop instead.
+    await waitFor(() => expect(document.activeElement).toBe(card("LC-2")));
+  });
+
+  it("unarchives from the panel and keeps it open", async () => {
+    const archived = row("LC-1", { archivedAt: "2026-07-20T09:00:00Z" });
+    vi.mocked(api.readTicket).mockResolvedValue(
+      detail("LC-1", "2026-07-20T09:00:00Z"),
+    );
+    vi.mocked(api.editTicket).mockResolvedValue(written("LC-1"));
+    await openPanel([archived], "LC-1", "the archived group");
+
+    fireEvent.click(screen.getByRole("button", { name: "Unarchive" }));
+
+    // The panel stays: only archiving closes it (`screen-specs.md:166`).
+    expect(screen.getByRole("complementary", { name: "Ticket LC-1" }));
+    // Back among the statuses, and out of the archived group it was opened in.
+    expect(screen.getByRole("heading", { name: /^Todo/ })).toBeTruthy();
+    await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(1));
+    expect(api.editTicket).toHaveBeenCalledWith({
+      projectId: project.id,
+      ticketKey: "LC-1",
+      expectedHash: "hash-LC-1",
+      edit: { archived: false },
+    });
+    // The button now names the action the ticket's new state offers.
+    expect(await screen.findByRole("button", { name: "Archive" })).toBeTruthy();
+  });
+
+  it("archives a canceled ticket without making it any less canceled", async () => {
+    // Canceled is a workflow outcome and archiving is tidying
+    // (`file_format.md:345-347`); one must not stand in for the other.
+    vi.mocked(api.readTicket).mockResolvedValue(detail("LC-3"));
+    vi.mocked(api.editTicket).mockResolvedValue(
+      written("LC-3", {
+        status: "canceled",
+        archivedAt: "2026-07-31T10:00:00Z",
+      }),
+    );
+    await openPanel([row("LC-3", { status: "canceled" })], "LC-3");
+
+    fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+    await screen.findByText("LC-3 archived");
+
+    fireEvent.click(screen.getByRole("button", { name: "List" }));
+    fireEvent.click(screen.getByRole("button", { name: /Archived/ }));
+    const listed = document.querySelector(`.list-row[data-ticket-key="LC-3"]`);
+    expect(
+      listed?.querySelector('[aria-label="Status: Canceled"]'),
+    ).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: /^Canceled/ })).toBeNull();
   });
 });

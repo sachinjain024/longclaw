@@ -690,3 +690,57 @@ describe("label chips on a card (V0-10)", () => {
     expect(chips("LC-2")).toEqual(["Backend"]);
   });
 });
+
+describe("archived tickets never reach the board (V0-11)", () => {
+  const ARCHIVED = "2026-07-20T09:00:00Z";
+
+  it("draws no card, and does not count one, for an archived ticket", () => {
+    render(
+      board({
+        tickets: [
+          row({ key: "LC-1", status: "todo" }),
+          row({ key: "LC-2", status: "todo", archivedAt: ARCHIVED }),
+        ],
+      }),
+    );
+
+    expect(card("LC-1")).toBeTruthy();
+    expect(document.querySelector('[data-ticket-key="LC-2"]')).toBeNull();
+    expect(screen.getByRole("heading", { name: /^Todo/ }).textContent).toBe(
+      "Todo1",
+    );
+  });
+
+  it("leaves the arrows nothing to land on there", () => {
+    // The seats are built from what was drawn, so a hidden card must not be one.
+    render(
+      board({
+        tickets: [
+          row({ key: "LC-1", status: "todo" }),
+          row({ key: "LC-2", status: "todo", archivedAt: ARCHIVED }),
+          row({ key: "LC-3", status: "todo" }),
+        ],
+      }),
+    );
+
+    card("LC-1").focus();
+    fireEvent.keyDown(card("LC-1"), { key: "ArrowDown" });
+
+    expect(document.activeElement).toBe(card("LC-3"));
+  });
+
+  it("keeps a canceled ticket, which is an outcome and not tidying", () => {
+    // `file_format.md:345-347`: Canceled stays visible; only `archived_at` hides.
+    render(
+      board({
+        tickets: [
+          row({ key: "LC-4", status: "canceled" }),
+          row({ key: "LC-5", status: "canceled", archivedAt: ARCHIVED }),
+        ],
+      }),
+    );
+
+    expect(card("LC-4")).toBeTruthy();
+    expect(document.querySelector('[data-ticket-key="LC-5"]')).toBeNull();
+  });
+});

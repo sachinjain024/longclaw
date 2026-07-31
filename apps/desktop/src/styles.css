@@ -912,12 +912,35 @@ button:disabled {
 }
 
 .panel-header {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  display: flex;
   gap: var(--lc-space-3);
   align-items: center;
   border-bottom: 1px solid var(--lc-line);
   padding-bottom: var(--lc-space-3);
+}
+
+/* Held to the right whether or not the path between them is there to push. */
+.panel-header-actions {
+  display: flex;
+  gap: var(--lc-space-2);
+  align-items: center;
+  margin-left: auto;
+}
+
+.panel-header .disk-path {
+  min-width: 0;
+  flex: 1;
+}
+
+/* The `archived` mark (`screen-specs.md:164`): kbd-styled, and deliberately
+   without an accent — an archived ticket is a quiet one, not a flagged one. */
+.archived-chip {
+  border: 1px solid var(--lc-line-strong);
+  border-radius: var(--lc-radius-kbd);
+  padding: 0 var(--lc-space-2);
+  color: var(--lc-ink-3);
+  font: 650 var(--lc-type-kbd-size) var(--lc-type-code-font);
+  letter-spacing: var(--lc-type-kbd-tracking);
 }
 
 .disk-path {

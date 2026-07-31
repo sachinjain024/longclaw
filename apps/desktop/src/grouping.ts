@@ -12,10 +12,16 @@
  *
  * Ordering happens here, once, because the seats every surface's arrows read
  * have to agree with what it drew (`screen-specs.md:115`).
+ *
+ * An archived ticket is in none of these groups. Archived is a date and not a
+ * status (ADR 0004), so a ticket carrying one has no status bucket to sit in:
+ * that is what keeps it off the board (`screen-specs.md:116`) without either
+ * surface owning a rule of its own. The list still sees every archived ticket —
+ * it asks `isArchived` directly and appends its own group.
  */
 
 import { byPriority, orderColumn, type TicketOrdering } from "./ordering";
-import { STATUSES } from "./tickets";
+import { isArchived, STATUSES } from "./tickets";
 import type { TicketRow, TicketStatus } from "./types";
 
 /**
@@ -59,6 +65,7 @@ export function groupByStatus(
   );
   const unreadable: TicketRow[] = [];
   for (const ticket of tickets) {
+    if (isArchived(ticket)) continue;
     const status = ticketStatus(ticket);
     if (status === "unreadable") unreadable.push(ticket);
     else byStatus.get(status)?.push(ticket);

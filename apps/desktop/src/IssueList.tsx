@@ -119,9 +119,9 @@ export function IssueList(props: {
     [props.tickets],
   );
   const groups = useMemo(() => {
-    const live = groupByStatus(
-      props.tickets.filter((ticket) => !isArchived(ticket)),
-    );
+    // `groupByStatus` buckets by status, and archived is not one (ADR 0004), so
+    // what comes back is the live tickets whatever is handed in.
+    const live = groupByStatus(props.tickets);
     if (archived.length === 0) return live;
     // Always present, so the header keeps its place and its count; empty while
     // collapsed, which is what makes the geometry and the seats agree with what

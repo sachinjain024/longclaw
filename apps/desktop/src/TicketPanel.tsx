@@ -93,7 +93,17 @@ interface TicketPanelProps {
   /** Bumped when an external change to this ticket lands, to re-read the file. */
   reloadSignal: number;
   now: number;
+  /**
+   * Whether the ticket carries an `archived_at` (ADR 0004), taken from the same
+   * store row the board and the list read rather than from the file this panel
+   * last read. Archiving is the one action here whose write is raised outside
+   * the panel — it closes the panel — so this is what lets the optimistic flip
+   * and a failed write's revert reach all three surfaces at once.
+   */
+  archived: boolean;
   onClose: () => void;
+  /** Asks for the flip. The panel writes nothing here; see `archived`. */
+  onArchive: (archived: boolean) => void;
   onWrite: (result: WriteResult) => void;
   onError: (error: AppError) => void;
 }
@@ -351,13 +361,27 @@ export function TicketPanel(props: TicketPanelProps) {
       <header className="panel-header">
         <span className="ticket-key">{ticketKey}</span>
         <WriteIndicator idle={detail?.relativePath} />
-        <button
-          className="ghost"
-          onClick={props.onClose}
-          aria-label="Close ticket"
-        >
-          ✕
-        </button>
+        <div className="panel-header-actions">
+          {props.archived && <span className="archived-chip">archived</span>}
+          {/* A file this build cannot read has no frontmatter to flip. The
+              label is the action, not the state, so it is also the name
+              assistive technology reads. */}
+          {ticket && (
+            <button
+              className="ghost"
+              onClick={() => props.onArchive(!props.archived)}
+            >
+              {props.archived ? "Unarchive" : "Archive"}
+            </button>
+          )}
+          <button
+            className="ghost"
+            onClick={props.onClose}
+            aria-label="Close ticket"
+          >
+            ✕
+          </button>
+        </div>
       </header>
 
       {props.mark && (
