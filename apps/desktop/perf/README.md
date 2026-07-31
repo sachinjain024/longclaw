@@ -16,7 +16,14 @@ npx playwright@1.62.1 install webkit   # once per machine
 npm run perf:board                     # the shipped board
 npm run perf:list                      # the shipped issue list
 npm run perf:board -- --nav=Tab        # the pre-roving-focus baseline
+npm run perf:board -- --order=manual   # the Manual comparator (ADR 0003)
 ```
+
+`--order=manual` clicks the real ordering control before measuring. Manual is the
+heavier comparator — the fixture writes no ranks, so every comparison falls
+through to priority — and it is the one to run after touching the sort. Run these
+two from `apps/desktop`: at the repository root, `npm run perf:board -- --x` hands
+the flag to npm rather than to the harness.
 
 It prints a `PERF-UI` line next to the Rust harness's `PERF` line, a p50/p95/max
 table for the three interactions, and the same numbers as JSON.

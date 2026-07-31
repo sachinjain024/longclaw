@@ -15,6 +15,7 @@ import {
   groupBodyHeight,
 } from "./listGeometry";
 import type * as ListRow from "./listRow";
+import type { OrderingMode } from "./ordering";
 import type { Label, TicketRow } from "./types";
 
 /** Every row presents itself once, so this is what the memoization is judged on. */
@@ -67,6 +68,7 @@ function list(props?: {
   tickets?: TicketRow[];
   selectedKey?: string;
   marks?: ExternalMarks;
+  ordering?: OrderingMode;
   onSelect?: (key: string) => void;
 }) {
   return (
@@ -75,9 +77,17 @@ function list(props?: {
       selectedKey={props?.selectedKey}
       marks={props?.marks ?? {}}
       labels={DEFINITIONS}
+      ordering={props?.ordering ?? "priority"}
       now={NOW}
       onSelect={props?.onSelect ?? noop}
     />
+  );
+}
+
+/** The keys of every drawn row, in the order the list drew them. */
+function rowKeys(): string[] {
+  return Array.from(document.querySelectorAll<HTMLElement>(".list-row")).map(
+    (element) => element.dataset.ticketKey ?? "",
   );
 }
 
@@ -527,5 +537,29 @@ describe("what a change to one ticket costs", () => {
     );
 
     expect(presented).toEqual(["LC-2"]);
+  });
+});
+
+describe("the list follows the board's ordering preference (V0-09)", () => {
+  it("orders the rows inside a group by rank in Manual", () => {
+    // `screen-specs.md:146`. One preference, two surfaces; the drag affordance
+    // is the board's alone.
+    const tickets = [
+      row({ key: "LC-1", status: "todo", priority: "urgent", rank: "a2" }),
+      row({ key: "LC-2", status: "todo", priority: "p4", rank: "a0" }),
+      row({ key: "LC-3", status: "todo", priority: "p2", rank: "a1" }),
+    ];
+
+    const { rerender } = render(list({ tickets, ordering: "priority" }));
+    expect(rowKeys()).toEqual(["LC-1", "LC-3", "LC-2"]);
+
+    rerender(list({ tickets, ordering: "manual" }));
+    expect(rowKeys()).toEqual(["LC-2", "LC-3", "LC-1"]);
+  });
+
+  it("gives no row a drag handle", () => {
+    render(list({ ordering: "manual" }));
+
+    expect(document.querySelector(".list-row[draggable=true]")).toBeNull();
   });
 });

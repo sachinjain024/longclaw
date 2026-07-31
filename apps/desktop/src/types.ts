@@ -227,7 +227,10 @@ export interface TicketEdit {
   labels?: string[];
   /**
    * Absent leaves the rank alone; `null` clears it. A rank is written only by
-   * manual reordering (ADR 0003), so leaving Manual mode sends `null`.
+   * manual reordering (ADR 0003), and `null` has exactly one caller: taking
+   * back a drop that gave a card its first rank. **Switching the board out of
+   * Manual sends nothing** — the ordering choice is a view preference and never
+   * rewrites a file.
    */
   rank?: string | null;
   archived?: boolean;

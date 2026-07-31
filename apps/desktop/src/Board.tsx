@@ -14,6 +14,28 @@
  * the first card of the first non-empty column. The focused card stays mounted
  * wherever it has been scrolled to, so a scroll can never silently drop focus
  * onto the body.
+ *
+ * ## Dragging over a windowed column
+ *
+ * Drag-and-drop is available only in Manual (ADR 0003), and it is native HTML5
+ * drag events rather than a library: the whole of it is the four handlers below,
+ * and a drag library would be a new transitive dependency for a feature whose
+ * hard part it does not solve anyway.
+ *
+ * The hard part is that most of the column is not in the document. So a drop is
+ * never read off the element under the pointer — `gapAt` in `boardGeometry.ts`
+ * turns the pointer's offset into the sizer into a gap index over the same
+ * offsets the window is cut from, which answers for a card 3,000 rows below the
+ * viewport exactly as it answers for the one under the pointer. Reaching that
+ * position is the other half: hanging the drag near either edge of the column
+ * scrolls it, on an animation frame, for as long as the pointer stays there.
+ *
+ * A drop is a mutation and the board holds no project id, so it is raised as
+ * `onReorder` and written in `App.tsx`, beside `changePriority`.
+ *
+ * There is no keyboard equivalent, deliberately: `keyboard-focus-map.md:158-161`
+ * puts reordering within a column outside v0 and names `S` — the status move —
+ * as the keyboard path that exists.
  */
 
 import {
@@ -24,9 +46,15 @@ import {
   useRef,
   useState,
 } from "react";
-import type { KeyboardEvent } from "react";
+import type { DragEvent, KeyboardEvent } from "react";
 import { presentCard } from "./boardCard";
-import { cardStrides, runningOffsets, windowFor } from "./boardGeometry";
+import {
+  CARD_GAP,
+  cardStrides,
+  gapAt,
+  runningOffsets,
+  windowFor,
+} from "./boardGeometry";
 import { acknowledgement, isFresh, isPulsing } from "./freshness";
 import type { ExternalMark, ExternalMarks } from "./freshness";
 import {
@@ -37,6 +65,7 @@ import {
 } from "./grouping";
 import { LabelChip } from "./LabelChip";
 import { Menu } from "./Menu";
+import { comparatorFor, rankForDrop, type OrderingMode } from "./ordering";
 import { PriorityGlyph } from "./PriorityGlyph";
 import { StatusDot } from "./StatusDot";
 import { PRIORITIES } from "./tickets";
@@ -51,6 +80,13 @@ import type {
 /** Cards rendered beyond each edge of the viewport, so a scroll shows no gap. */
 const OVERSCAN = 4;
 
+/**
+ * How close to a column's edge a drag has to hang before the column scrolls, and
+ * how far it travels each frame. A drop position off screen has to be reachable.
+ */
+const AUTO_SCROLL_EDGE = 44;
+const AUTO_SCROLL_STEP = 14;
+
 /** How far one key press travels. Steps, not positions. */
 interface Move {
   columns: number;
@@ -62,11 +98,17 @@ interface Move {
  * (`grouping.ts`); what is the board's own is that every status keeps a column
  * whether or not it holds anything — the fixed v0 set is the scaffold (ADR 0002).
  */
-function layOutColumns(tickets: TicketRow[]): {
+function layOutColumns(
+  tickets: TicketRow[],
+  ordering: OrderingMode,
+): {
   columns: StatusGroup[];
   seats: Map<string, Seat>;
 } {
-  const columns = groupByStatus(tickets, { keepEmpty: true });
+  const columns = groupByStatus(tickets, {
+    compare: comparatorFor(ordering),
+    keepEmpty: true,
+  });
   return { columns, seats: seatsFor(columns) };
 }
 
@@ -135,20 +177,27 @@ export function Board(props: {
   marks: ExternalMarks;
   /** The project's label definitions, for the chips a card's slugs resolve to. */
   labels: Record<string, Label>;
+  /** Priority or Manual: a device-local view preference, never project data. */
+  ordering: OrderingMode;
   now: number;
   onSelect: (key: string) => void;
   /** Raised by the `P` menu. The board holds no project id and writes nothing. */
   onChangePriority: (ticket: IndexedTicket, next: TicketPriority) => void;
+  /** Raised by a drop in Manual. The rank is allocated; the write is App's. */
+  onReorder: (ticket: IndexedTicket, rank: string) => void;
 }) {
   const { columns, seats } = useMemo(
-    () => layOutColumns(props.tickets),
-    [props.tickets],
+    () => layOutColumns(props.tickets, props.ordering),
+    [props.tickets, props.ordering],
   );
   const [focusedKey, setFocusedKey] = useState<string>();
   /** Bumped only by a key press, so focus follows the arrows and nothing else. */
   const [focusRequest, setFocusRequest] = useState(0);
   /** The card whose priority menu is open, if one is. */
   const [priorityFor, setPriorityFor] = useState<string>();
+  /** The card being dragged, and where letting go would put it. */
+  const [dragKey, setDragKey] = useState<string>();
+  const [dropGap, setDropGap] = useState<number>();
   const grid = useRef<HTMLDivElement>(null);
 
   // A card that was deleted, or that changed status, cannot hold the tab stop.
@@ -159,8 +208,32 @@ export function Board(props: {
 
   const onFocusCard = useCallback((key: string) => setFocusedKey(key), []);
 
+  // Stable, so `draggable` and its two handlers cost the memoized cards nothing:
+  // a card re-renders during a drag only because it is the one being dragged.
+  const onDragCard = useCallback((key?: string) => {
+    setDragKey(key);
+    if (key === undefined) setDropGap(undefined);
+  }, []);
+
   function ticketAt(seat: Seat): TicketRow {
     return columns[seat.group].tickets[seat.index];
+  }
+
+  /**
+   * Where the card would land. The drop is refused — no gap, no line, no write
+   * — unless the card being dragged belongs to the column under the pointer:
+   * moving between columns is a status change and `S` owns that, not this.
+   */
+  const dragColumn =
+    dragKey === undefined ? undefined : seats.get(dragKey)?.group;
+
+  function onDrop(columnIndex: number, gap: number) {
+    const tickets = columns[columnIndex].tickets;
+    const moving = tickets.find((ticket) => ticket.key === dragKey);
+    onDragCard(undefined);
+    if (!moving || moving.state !== "indexed") return;
+    const rank = rankForDrop(tickets, moving.key, gap);
+    if (rank !== undefined) props.onReorder(moving, rank);
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -219,8 +292,29 @@ export function Board(props: {
     setFocusRequest((request) => request + 1);
   }
 
+  /**
+   * `dragstart` bubbles, so the board picks the dragged card up once here rather
+   * than handing every card a callback of its own — which is what keeps the card
+   * memoized on nothing but its ticket and two booleans.
+   */
+  function onDragStart(event: DragEvent<HTMLDivElement>) {
+    const on = (event.target as HTMLElement).closest?.(".ticket-row");
+    const key = (on as HTMLElement | null)?.dataset.ticketKey;
+    if (props.ordering !== "manual" || key === undefined) return;
+    if (!seats.has(key)) return;
+    // WebKit will not start a drag with an empty data transfer.
+    event.dataTransfer?.setData("text/plain", key);
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+    setDragKey(key);
+  }
+
   return (
-    <div className="board-grid" ref={grid} onKeyDown={onKeyDown}>
+    <div
+      className="board-grid"
+      ref={grid}
+      onKeyDown={onKeyDown}
+      onDragStart={onDragStart}
+    >
       {columns.map((column, columnIndex) => (
         <BoardColumn
           key={column.id}
@@ -235,8 +329,16 @@ export function Board(props: {
           marks={props.marks}
           labels={props.labels}
           now={props.now}
+          // Only the column the dragged card came from is a drop target, and
+          // only while Manual is the order (ADR 0003).
+          dragKey={dragColumn === columnIndex ? dragKey : undefined}
+          dropGap={dragColumn === columnIndex ? dropGap : undefined}
+          draggable={props.ordering === "manual"}
           onSelect={props.onSelect}
           onFocusCard={onFocusCard}
+          onDragCard={onDragCard}
+          onDragOverGap={setDropGap}
+          onDropCard={(gap) => onDrop(columnIndex, gap)}
         />
       ))}
       {menuTicket?.state === "indexed" && (
@@ -273,12 +375,25 @@ function BoardColumn(props: {
   marks: ExternalMarks;
   labels: Record<string, Label>;
   now: number;
+  /** The card being dragged, when it is one of this column's. */
+  dragKey?: string;
+  /** Where letting go would put it, as a gap index. */
+  dropGap?: number;
+  /** True in Manual, which is the only order a card can be dragged in. */
+  draggable: boolean;
   onSelect: (key: string) => void;
   onFocusCard: (key: string) => void;
+  onDragCard: (key?: string) => void;
+  onDragOverGap: (gap: number) => void;
+  onDropCard: (gap: number) => void;
 }) {
   const stack = useRef<HTMLDivElement>(null);
+  const sizer = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewport, setViewport] = useState(0);
+  /** Which way the column is drifting under a drag, and the frame doing it. */
+  const drift = useRef(0);
+  const frame = useRef(0);
 
   useLayoutEffect(() => {
     const element = stack.current;
@@ -296,6 +411,44 @@ function BoardColumn(props: {
     [props.tickets, props.marks, props.now],
   );
   const range = windowFor(offsets, scrollTop, viewport, OVERSCAN);
+
+  // A drag that hangs near an edge keeps scrolling, which is how a drop position
+  // outside the window is reached at all. Stepping once here rather than waiting
+  // for the first frame is also what makes the edge feel like it responded.
+  function driftBy(next: number) {
+    drift.current = next;
+    if (next === 0 || frame.current !== 0) return;
+    step();
+  }
+
+  function step() {
+    frame.current = 0;
+    const element = stack.current;
+    if (!element || drift.current === 0) return;
+    element.scrollTop += drift.current * AUTO_SCROLL_STEP;
+    setScrollTop(element.scrollTop);
+    frame.current = requestAnimationFrame(step);
+  }
+
+  /** The gap under the pointer, measured against the sizer the cards sit in. */
+  function gapUnder(event: DragEvent<HTMLDivElement>): number {
+    const top = sizer.current?.getBoundingClientRect().top ?? 0;
+    return gapAt(offsets, event.clientY - top);
+  }
+
+  function onDragOver(event: DragEvent<HTMLDivElement>) {
+    if (props.dragKey === undefined) return;
+    // Accepting the drop, which is what `preventDefault` means here.
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+    props.onDragOverGap(gapUnder(event));
+
+    const box = stack.current?.getBoundingClientRect();
+    if (!box) return;
+    if (event.clientY > box.bottom - AUTO_SCROLL_EDGE) driftBy(1);
+    else if (event.clientY < box.top + AUTO_SCROLL_EDGE) driftBy(-1);
+    else driftBy(0);
+  }
 
   const shown: number[] = [];
   for (const index of props.anchors) {
@@ -320,11 +473,37 @@ function BoardColumn(props: {
         className="board-stack"
         ref={stack}
         onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+        onDragOver={onDragOver}
+        onDragLeave={() => driftBy(0)}
+        // `dragend` bubbles from the card, which is why the card itself carries
+        // no handler: a per-card callback would change identity on every scroll
+        // and un-memoize the whole column.
+        onDragEnd={() => {
+          driftBy(0);
+          props.onDragCard(undefined);
+        }}
+        onDrop={(event) => {
+          if (props.dragKey === undefined) return;
+          event.preventDefault();
+          const gap = gapUnder(event);
+          driftBy(0);
+          props.onDropCard(gap);
+        }}
       >
         <div
           className="board-sizer"
+          ref={sizer}
           style={{ height: offsets[offsets.length - 1] }}
         >
+          {props.dropGap !== undefined && (
+            <div
+              className="drop-line"
+              aria-hidden="true"
+              style={{
+                top: Math.max(0, offsets[props.dropGap] - CARD_GAP / 2),
+              }}
+            />
+          )}
           {shown.map((index) => {
             const ticket = props.tickets[index];
             const mark = props.marks[ticket.key];
@@ -341,6 +520,11 @@ function BoardColumn(props: {
                 // card with nothing to acknowledge would re-render the column once
                 // a second for a number none of those cards read.
                 now={mark ? props.now : 0}
+                // A file this build cannot read has no frontmatter to write a
+                // rank into, so it is not draggable — the same reason `P` is
+                // inert on one (`keyboard-focus-map.md:48`).
+                draggable={props.draggable && ticket.state === "indexed"}
+                dragging={ticket.key === props.dragKey}
                 onSelect={props.onSelect}
                 onFocusCard={props.onFocusCard}
               />
@@ -371,6 +555,9 @@ const BoardCard = memo(function BoardCard(props: {
   mark?: ExternalMark;
   labels: Record<string, Label>;
   now: number;
+  /** True in Manual, on a card with frontmatter to write a rank into. */
+  draggable: boolean;
+  dragging: boolean;
   onSelect: (key: string) => void;
   onFocusCard: (key: string) => void;
 }) {
@@ -385,11 +572,14 @@ const BoardCard = memo(function BoardCard(props: {
         ticket.state === "degraded" ? "degraded" : "",
         fresh ? "fresh" : "",
         fresh && mark?.actorType === "human" ? "human-fresh" : "",
+        props.draggable ? "draggable" : "",
+        props.dragging ? "dragging" : "",
       ]
         .filter(Boolean)
         .join(" ")}
       style={{ top: props.top }}
       data-ticket-key={ticket.key}
+      draggable={props.draggable}
       tabIndex={props.tabStop ? 0 : -1}
       onClick={() => props.onSelect(ticket.key)}
       onFocus={() => props.onFocusCard(ticket.key)}

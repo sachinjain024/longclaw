@@ -18,10 +18,10 @@ is closed, Wave 0 is clear, and M4 closed on 2026-07-31 when the founder decided
 proceed without the pilot sessions
 ([decision](../../pilot/response-memo.md#direction-decision-2026-07-31-superseded-the-same-day)).
 Step 11 is [Wave 1 of the backlog](../../backlog/v0-backlog.md) — V0-08 through
-V0-19 — and nine of them are now closed: V0-19 as plan 11, V0-18 as plan 12,
+V0-19 — and ten of them are now closed: V0-19 as plan 11, V0-18 as plan 12,
 V0-17 as plan 13, V0-08 as plan 14, V0-10 as plan 15, V0-14 as plan 16, V0-11
-as plan 17, V0-12 as plan 18, and V0-13 as plan 19. Three are open — V0-09,
-V0-15 and V0-16. Write a plan here before starting one of them.
+as plan 17, V0-12 as plan 18, V0-13 as plan 19, and V0-09 as plan 20. Two are
+open — V0-15 and V0-16. Write a plan here before starting one of them.
 
 Two things to read first, once, before Step 11 code:
 
@@ -59,6 +59,7 @@ marked independent can be done at any time by anyone.
 | ~~17~~ | ~~Archive and unarchive~~ — **done 2026-07-31**, [outcome](../completed/17-archive-and-unarchive.md) | V0-11 | Closed. Archived tickets now leave `groupByStatus` rather than leaving the board, and the write is raised in `App.tsx` because archiving closes the panel. Read its outcome before V0-15 (the exclusion is in the shared bucketing) and before V0-24 (the `· archived` tag on a search result is still open). |
 | ~~18~~ | ~~Markdown write/preview editor~~ — **done 2026-07-31**, [outcome](../completed/18-markdown-editor.md) | V0-12 | Closed, and it is the renderer the rest of the product reads markdown through. Read its outcome before V0-13 (comment bodies want `MarkdownView`) and before V0-27 (a relative attachment link deliberately does not become a link yet). |
 | ~~19~~ | ~~Complete the merged timeline~~ — **done 2026-08-01**, [outcome](../completed/19-merged-timeline.md) | V0-13 | Closed. `Timeline.tsx` reads `event.kind` now, and what a kind and a field mean lives in `src/timelineEvents.ts` rather than in JSX. It also extended the markdown subset with ordered lists and block quotes, and added a cross-language pin on the set of fields an edit can write. Read its outcome before V0-09 or V0-16 — a new `FieldChange.field` needs a sentence, and the fixture will say so. |
+| ~~20~~ | ~~Board ordering, Manual mode, and drag-and-drop~~ — **done 2026-08-01**, [outcome](../completed/20-board-ordering-and-drag.md) | V0-09 | Closed, and it is the second comparator the board was built to take. Rank allocation is fractional indexing in `src/rank.ts`; the drop position is arithmetic over `boardGeometry.ts` rather than the element under the pointer. Read its outcome before V0-15 — the mixed ranked/unranked rule and its one limitation are decided there, not in a surface. |
 
 Dependencies worth knowing:
 
@@ -188,6 +189,28 @@ Dependencies worth knowing:
   **V0-27 inherits one more thing:** 18's subset grew ordered lists and block
   quotes here, so the constructs left outside it are now thematic breaks, setext
   headings, tables and raw HTML, and `markdown.ts`'s header says so.
+- **20 is done, and V0-15 inherits the ordering seam whole.** There are two
+  comparators now and `comparatorFor(mode)` in `apps/desktop/src/ordering.ts` is
+  the only place a mode becomes one: the board and the list both pass it into
+  `groupByStatus`, so a third order is a comparator and a menu row rather than a
+  sort inside a surface. **Rank allocation is `src/rank.ts` and nothing else may
+  allocate one** — LongClaw owns it in v0 (ADR 0003), agents preserve what they
+  find, and a rank outside its alphabet is preserved and ordered by but never
+  repaired. The mixed case is decided: ranked cards first in rank order,
+  unranked after in the priority order they had, which is what makes switching
+  mode move nothing and write nothing. Its limitation is decided too — a drop
+  that cannot be expressed as a rank on the dragged card alone writes nothing,
+  because the alternative is a rank in every file in the column — so **do not
+  "fix" it in a surface**; it is `rankForDrop`'s, and changing it is changing the
+  trade the plan argues. The board's drop position is `gapAt` in
+  `boardGeometry.ts` over the offsets the window is already cut from, which is
+  the only reason a drop works past the rendered window; do not reach for the
+  element under the pointer. The ordering preference is device-local app state in
+  `localStorage` beside `appearance`, keyed by project — **not** in
+  `registry.rs`, deliberately, because V0-31 is open on registry recovery. And
+  reordering has no keyboard path on purpose:
+  `keyboard-focus-map.md:158-161` puts it outside v0, so **V0-23 should not add
+  one** without reopening that line.
 - **09 and 10 are both closed, and no plan is open.** The vanished-path overflow bug
   is fixed in `collect_event`, and the npm-launched native watcher timeout that
   blocked local `npm run verify` no longer reproduces — closed without a fix, so
@@ -198,8 +221,8 @@ Dependencies worth knowing:
 
 ## Waves 1–3 are unplanned, and now for a different reason
 
-Waves 1–3 of [the backlog](../../backlog/v0-backlog.md) — 23 of its 39 items, now
-that V0-08, V0-10, V0-11, V0-12, V0-13, V0-14, V0-17, V0-18, and V0-19 are closed — still have no plans here. The original reason is gone: the
+Waves 1–3 of [the backlog](../../backlog/v0-backlog.md) — 22 of its 39 items, now
+that V0-08, V0-09, V0-10, V0-11, V0-12, V0-13, V0-14, V0-17, V0-18, and V0-19 are closed — still have no plans here. The original reason is gone: the
 guardrail has been satisfied and the pilot will not invalidate anything, because it
 was skipped.
 

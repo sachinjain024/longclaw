@@ -43,7 +43,7 @@ import {
 import { LabelChip } from "./LabelChip";
 import { groupBodyHeight, listGeometry, rowTop } from "./listGeometry";
 import { presentRow } from "./listRow";
-import { orderColumn } from "./ordering";
+import { comparatorFor, orderColumn, type OrderingMode } from "./ordering";
 import { PriorityGlyph } from "./PriorityGlyph";
 import { StatusDot } from "./StatusDot";
 import { isArchived } from "./tickets";
@@ -103,6 +103,12 @@ export function IssueList(props: {
   selectedKey?: string;
   marks: ExternalMarks;
   labels: Record<string, Label>;
+  /**
+   * The board's ordering preference, which the rows inside a group follow too
+   * (`screen-specs.md:146`). Dragging is the board's alone: the spec gives the
+   * list no drag affordance, and a dense 36px row is not one.
+   */
+  ordering: OrderingMode;
   now: number;
   onSelect: (key: string) => void;
 }) {
@@ -118,10 +124,11 @@ export function IssueList(props: {
     () => props.tickets.filter(isArchived),
     [props.tickets],
   );
+  const compare = comparatorFor(props.ordering);
   const groups = useMemo(() => {
     // `groupByStatus` buckets by status, and archived is not one (ADR 0004), so
     // what comes back is the live tickets whatever is handed in.
-    const live = groupByStatus(props.tickets);
+    const live = groupByStatus(props.tickets, { compare });
     if (archived.length === 0) return live;
     // Always present, so the header keeps its place and its count; empty while
     // collapsed, which is what makes the geometry and the seats agree with what
@@ -131,10 +138,10 @@ export function IssueList(props: {
       {
         id: ARCHIVED,
         title: "Archived",
-        tickets: archiveOpen ? orderColumn(archived) : [],
+        tickets: archiveOpen ? orderColumn(archived, compare) : [],
       } as StatusGroup,
     ];
-  }, [props.tickets, archived, archiveOpen]);
+  }, [props.tickets, archived, archiveOpen, compare]);
 
   const seats = useMemo(() => seatsFor(groups), [groups]);
   const { slots, offsets } = useMemo(() => listGeometry(groups), [groups]);

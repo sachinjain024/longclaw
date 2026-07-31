@@ -12,6 +12,7 @@ import {
   FRESH_CARD_HEIGHT,
   FRESH_CARD_STRIDE,
   cardStrides,
+  gapAt,
   runningOffsets,
   windowFor,
 } from "./boardGeometry";
@@ -152,5 +153,34 @@ describe("the card heights the stylesheet pins", () => {
   it("agrees with the tokens the board is laid out from", () => {
     expect(tokens.size["board-card"]).toBe(CARD_HEIGHT);
     expect(tokens.size["board-card-fresh"]).toBe(FRESH_CARD_HEIGHT);
+  });
+});
+
+describe("the gap a drop falls in", () => {
+  const offsets = runningOffsets(Array(5).fill(CARD_STRIDE));
+
+  it("answers with a gap index, not a card index", () => {
+    // Five cards have six gaps, and the drop has to be able to name the last.
+    expect(gapAt(offsets, 0)).toBe(0);
+    expect(gapAt(offsets, 5 * CARD_STRIDE)).toBe(5);
+  });
+
+  it("takes the card's midpoint as the line between two gaps", () => {
+    expect(gapAt(offsets, CARD_STRIDE + 1)).toBe(1);
+    expect(gapAt(offsets, CARD_STRIDE * 1.6)).toBe(2);
+  });
+
+  it("answers for a position no card is rendered at", () => {
+    // The whole point: a column renders a window, and a drop far below it still
+    // has to name a real gap (`Board.tsx` § dragging over a windowed column).
+    const tall = runningOffsets(Array(4_000).fill(CARD_STRIDE));
+
+    expect(gapAt(tall, 3_500 * CARD_STRIDE + 4)).toBe(3_500);
+  });
+
+  it("clamps a position outside the column", () => {
+    expect(gapAt(offsets, -400)).toBe(0);
+    expect(gapAt(offsets, 99_999)).toBe(5);
+    expect(gapAt(runningOffsets([]), 40)).toBe(0);
   });
 });

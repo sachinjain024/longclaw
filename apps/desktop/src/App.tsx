@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   addProjectLabel,
   chooseAndCreateProject,
@@ -24,7 +30,9 @@ import { CreateProjectForm, type ProjectDraft } from "./CreateProjectForm";
 import { normalizeError } from "./errors";
 import { IssueList } from "./IssueList";
 import { LABEL_COLORS } from "./labels";
+import { MenuButton } from "./Menu";
 import { mutate } from "./mutations";
+import { ORDERINGS, type OrderingMode } from "./ordering";
 import { QuickCreate } from "./QuickCreate";
 import { useLongClawStore } from "./state";
 import { TicketPanel } from "./TicketPanel";
@@ -52,6 +60,35 @@ const THEMES = [
 ];
 
 const APPEARANCE_KEY = "longclaw.appearance";
+
+/**
+ * The board ordering preference, per project (ADR 0003). Device-local app state
+ * and never project data, so it goes exactly where `appearance` goes: a webview
+ * origin's `localStorage`, which in the packaged app is a file inside the OS
+ * app-support container (`data-requirements.md:19`). It must never reach
+ * `longclaw.yaml` or a ticket file, and this is the only place it is written.
+ */
+const ORDERING_KEY = "longclaw.boardOrdering";
+
+/** The note `screen-specs.md:246-247` puts under the ordering menu, verbatim. */
+const ORDERING_FOOTNOTE =
+  "Ordering is a view preference on this board — it never rewrites files.";
+
+function readOrderings(): Record<string, OrderingMode> {
+  try {
+    const saved: unknown = JSON.parse(localStorage.getItem(ORDERING_KEY) ?? "");
+    if (!saved || typeof saved !== "object") return {};
+    // A stored value this build does not know is dropped rather than trusted:
+    // the preference is disposable, so the safe reading is the default one.
+    return Object.fromEntries(
+      Object.entries(saved as Record<string, unknown>).filter(
+        (entry): entry is [string, OrderingMode] => entry[1] === "manual",
+      ),
+    );
+  } catch {
+    return {};
+  }
+}
 
 /**
  * Every row on every surface carries its ticket key, which is what lets one
@@ -113,6 +150,8 @@ export function App() {
     (state) => state.setActiveProjectId,
   );
   const setAppearance = useLongClawStore((state) => state.setAppearance);
+  const boardOrdering = useLongClawStore((state) => state.boardOrdering);
+  const setBoardOrdering = useLongClawStore((state) => state.setBoardOrdering);
   const applySnapshot = useLongClawStore((state) => state.applySnapshot);
   const applyEvent = useLongClawStore((state) => state.applyEvent);
   const applyLocalWrite = useLongClawStore((state) => state.applyLocalWrite);
@@ -140,6 +179,9 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const project = projects.find((item) => item.id === activeProjectId);
+  /** Priority until this project has been switched (ADR 0003's default). */
+  const ordering: OrderingMode =
+    (activeProjectId && boardOrdering[activeProjectId]) || "priority";
   /** The row the panel is open on, read from the store both surfaces read. */
   const openRow = tickets.find((ticket) => ticket.key === selectedKey);
   const openTicket = useCallback(
@@ -198,6 +240,30 @@ export function App() {
       setAppearance("system");
     }
   }, [setAppearance]);
+
+  // The ordering preference is hydrated once and written back whenever it
+  // changes, exactly as appearance is. Neither ever crosses IPC.
+  useEffect(() => {
+    const saved = readOrderings();
+    for (const [projectId, ordering] of Object.entries(saved)) {
+      setBoardOrdering(projectId, ordering);
+    }
+  }, [setBoardOrdering]);
+
+  const hydrated = useRef(false);
+  useEffect(() => {
+    // Not on the first pass, or an empty store would erase what is on disk
+    // before the hydration above has read it.
+    if (!hydrated.current) {
+      hydrated.current = true;
+      return;
+    }
+    try {
+      localStorage.setItem(ORDERING_KEY, JSON.stringify(boardOrdering));
+    } catch {
+      // The board still orders. Nothing here is a fact about a file.
+    }
+  }, [boardOrdering]);
 
   useEffect(() => {
     try {
@@ -514,6 +580,54 @@ export function App() {
   }
 
   /**
+   * A card dropped somewhere else in its column (ADR 0003). The board allocates
+   * the rank — LongClaw owns rank allocation in v0 — and this writes it, the
+   * same way the `P` menu's pick is written.
+   *
+   * The inverse is the rank the card had, and a card that had none is put back
+   * to having none: `TicketEdit.rank` takes `null` to clear the key. Nothing
+   * else in the app ever sends that, because leaving Manual mode is a view
+   * preference and must not rewrite a file.
+   */
+  function reorderTicket(ticket: IndexedTicket, rank: string) {
+    const projectId = activeProjectId;
+    if (!projectId || rank === ticket.rank) return;
+
+    void mutate({
+      path: ticket.relativePath,
+      apply: () => {
+        applyLocalWrite({ ...ticket, rank }, generation);
+        return () => applyLocalWrite(ticket, generation);
+      },
+      write: () =>
+        editTicket({
+          projectId,
+          ticketKey: ticket.key,
+          expectedHash: ticket.contentHash,
+          edit: { rank },
+        }),
+      onWritten: (result) => applyLocalWrite(result.ticket, result.generation),
+      toast: () => `${ticket.key} moved`,
+      undo: (result) => ({
+        path: result.ticket.relativePath,
+        write: () =>
+          editTicket({
+            projectId,
+            ticketKey: ticket.key,
+            // The hash the first write left, so the inverse is not refused as
+            // stale by its own predecessor.
+            expectedHash: result.ticket.contentHash,
+            edit: { rank: ticket.rank ?? null },
+          }),
+        onWritten: (undone) =>
+          applyLocalWrite(undone.ticket, undone.generation),
+        toast: () => `${ticket.key} back where it was`,
+      }),
+      failure: (error) => `${ticket.key} could not be moved. ${error.message}`,
+    });
+  }
+
+  /**
    * Archive and unarchive (ADR 0004): a date in the frontmatter, never a move
    * and never a delete. It is raised here rather than through the panel's
    * `save()` because archiving closes the panel — the toast, its Undo, the
@@ -754,6 +868,18 @@ export function App() {
                     <h2>{view === "board" ? "Board" : "List"}</h2>
                   </div>
                   <div className="toolbar-actions">
+                    {/* `screen-specs.md:47-48`: the ordering control sits in the
+                        content header, beside the view segment. */}
+                    <div className="ordering-control">
+                      <span>Order</span>
+                      <MenuButton
+                        label="Order"
+                        options={ORDERINGS}
+                        value={ordering}
+                        footnote={ORDERING_FOOTNOTE}
+                        onPick={(next) => setBoardOrdering(project.id, next)}
+                      />
+                    </div>
                     <ViewSegment view={view} onChange={setView} />
                     <WriteIndicator />
                     <span
@@ -800,9 +926,11 @@ export function App() {
                     selectedKey={selectedKey}
                     marks={externalMarks}
                     labels={project.labels}
+                    ordering={ordering}
                     now={now}
                     onSelect={openTicket}
                     onChangePriority={changePriority}
+                    onReorder={reorderTicket}
                   />
                 ) : (
                   // Both surfaces are projections of the same store state and
@@ -813,6 +941,7 @@ export function App() {
                     selectedKey={selectedKey}
                     marks={externalMarks}
                     labels={project.labels}
+                    ordering={ordering}
                     now={now}
                     onSelect={openTicket}
                   />

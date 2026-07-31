@@ -86,6 +86,25 @@ function indexAt(offsets: number[], position: number): number {
 }
 
 /**
+ * Which gap between slots a position falls in: 0 above the first, `count` below
+ * the last, and the slot's own midpoint as the line between its two gaps.
+ *
+ * This is what makes dragging over a windowed column work at all. A drop cannot
+ * be read off the element under the pointer, because most of the column's cards
+ * are not in the document — so the drop position is arithmetic over the same
+ * offsets the window is cut from, and a gap 3,000 cards below the viewport is as
+ * answerable as the one under the pointer.
+ */
+export function gapAt(offsets: number[], position: number): number {
+  const count = offsets.length - 1;
+  if (count <= 0) return 0;
+  const within = Math.max(0, Math.min(position, offsets[count]));
+  const slot = indexAt(offsets, within);
+  const middle = (offsets[slot] + offsets[slot + 1]) / 2;
+  return within < middle ? slot : slot + 1;
+}
+
+/**
  * The half-open range of slots a scroller renders: everything touching the
  * viewport, plus `overscan` slots each side so a scroll does not expose a gap
  * before React has caught up.

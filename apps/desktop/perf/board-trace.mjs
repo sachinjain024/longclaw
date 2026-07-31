@@ -57,6 +57,12 @@ const BOARD_SIZE = Number(argument("tickets", String(TICKETS)));
 const FLOOR_SIZE = Number(argument("floor", "600"));
 /** Which surface to drive: `board` or `list`. */
 const SURFACE = argument("surface", "board");
+/**
+ * Which order the surface is in (ADR 0003). Manual is the heavier comparator —
+ * it falls through to priority for every card with no rank, and the fixture has
+ * no ranks — so `--order=manual` is the one to run after touching the sort.
+ */
+const ORDER = argument("order", "priority");
 
 /**
  * What each surface calls its parts. Only the selectors differ — the scenarios
@@ -356,6 +362,11 @@ async function measure(browser, size) {
     { timeout: 60_000 },
   );
   await UI.open(page);
+  if (ORDER === "manual") {
+    await page.click('button[aria-label^="Order:"]');
+    await page.click('[role="menuitemradio"]:has-text("Manual")');
+    await page.waitForSelector(UI.row, { timeout: 30_000 });
+  }
   const firstPaintMs = Date.now() - openedAt;
   const renderedRows = await page.evaluate(
     (selector) => document.querySelectorAll(selector).length,
@@ -398,7 +409,7 @@ async function main() {
     const full = await measure(browser, BOARD_SIZE);
 
     console.log(
-      `\nPERF-UI surface=${UI.label} tickets=${full.size} rendered_rows=${full.renderedRows} first_paint_ms=${full.firstPaintMs} nav_key=${NAV_KEY}`,
+      `\nPERF-UI surface=${UI.label} order=${ORDER} tickets=${full.size} rendered_rows=${full.renderedRows} first_paint_ms=${full.firstPaintMs} nav_key=${NAV_KEY}`,
     );
     if (floor) {
       console.log(

@@ -324,8 +324,9 @@ pub struct TicketEdit {
     pub priority: Option<Priority>,
     pub labels: Option<Vec<String>>,
     /// Absent leaves the rank alone; `null` clears it. A rank is written only by
-    /// manual reordering (ADR 0003), so leaving Manual has to be able to put one
-    /// back to absent rather than to some placeholder value.
+    /// manual reordering (ADR 0003), and `null` is how undoing the drop that
+    /// allocated a card's first rank puts it back to absent rather than to some
+    /// placeholder value. Switching the board out of Manual sends nothing.
     #[serde(default, deserialize_with = "nullable")]
     pub rank: Option<Option<String>>,
     pub archived: Option<bool>,

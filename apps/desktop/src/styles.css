@@ -570,6 +570,29 @@ button:disabled {
   box-shadow: 0 0 0 2px var(--lc-accent-human-soft);
 }
 
+/* Manual only (ADR 0003): a card that can be picked up says so with the cursor,
+   and the one in the air is dimmed so the drop line reads as its destination. */
+.ticket-row.draggable {
+  cursor: grab;
+}
+
+.ticket-row.dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+
+/* Where letting go would put the card. Placed in the 8px gap between two cards
+   from the same offsets the window is cut from, so it is drawn correctly for a
+   gap whose neighbours are not rendered. */
+.drop-line {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 2px;
+  border-radius: var(--lc-radius-full);
+  background: var(--lc-accent-human);
+}
+
 .ticket-row.degraded {
   border-color: var(--lc-danger-border);
 }
@@ -688,6 +711,25 @@ button:disabled {
 /* ------------------------------------------------------- the issue list */
 
 /* Board | List (screen-specs.md:49). */
+/* `Order: Priority|Manual` (screen-specs.md:47-48). The word is drawn beside the
+   trigger rather than inside it, so the trigger keeps saying only the value —
+   which is what every other menu trigger in the app says. */
+.ordering-control {
+  display: inline-flex;
+  gap: var(--lc-space-2);
+  align-items: center;
+  color: var(--lc-ink-3);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.ordering-control .menu-trigger {
+  height: var(--lc-size-control-sm);
+  border-color: var(--lc-line);
+  font-size: 12px;
+  font-weight: 400;
+}
+
 .view-segment {
   display: inline-flex;
   border: 1px solid var(--lc-line);

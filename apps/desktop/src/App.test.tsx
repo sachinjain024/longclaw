@@ -3,6 +3,7 @@
 import {
   act,
   cleanup,
+  createEvent,
   fireEvent,
   render,
   screen,
@@ -60,6 +61,7 @@ beforeEach(() => {
   useLongClawStore.setState({
     projects: [],
     activeProjectId: undefined,
+    boardOrdering: {},
     tickets: [],
     generation: 0,
     lastSequence: 0,
@@ -1039,5 +1041,229 @@ describe("archive and unarchive (V0-11)", () => {
       listed?.querySelector('[aria-label="Status: Canceled"]'),
     ).toBeTruthy();
     expect(screen.queryByRole("heading", { name: /^Canceled/ })).toBeNull();
+  });
+});
+
+describe("board ordering and manual reordering (V0-09)", () => {
+  const project = {
+    id: "project-fixture",
+    name: "Fixture Project",
+    rootPath: "/tmp/LongClaw Fixture",
+    key: "LC",
+    theme: "indigo",
+    starred: false,
+    reachable: true,
+    labels: {},
+  };
+
+  function row(key: string, overrides?: Partial<IndexedTicket>): TicketRow {
+    return {
+      state: "indexed",
+      key,
+      id: `id-${key}`,
+      title: `Ticket ${key}`,
+      status: "todo",
+      priority: "none",
+      labels: [],
+      createdAt: "2026-07-31T09:00:00Z",
+      updatedAt: "2026-07-31T09:00:00Z",
+      checkedCount: 0,
+      checklistCount: 0,
+      commentCount: 0,
+      attachmentCount: 0,
+      contentHash: `hash-${key}`,
+      relativePath: `.longclaw/tickets/${key}/ticket.md`,
+      ...overrides,
+    };
+  }
+
+  function written(key: string, rank?: string): WriteResult {
+    return {
+      ticket: row(key, { contentHash: `hash-${key}-written`, rank }),
+      generation: 2,
+      changes: [],
+    };
+  }
+
+  async function openBoard(tickets: TicketRow[]) {
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project,
+      tickets,
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    render(<App />);
+    await screen.findByRole("heading", { name: "Board" });
+  }
+
+  /** Switches the header control, which is a real menu with a real footnote. */
+  function chooseOrdering(name: "Priority" | "Manual") {
+    fireEvent.click(screen.getByRole("button", { name: /^Order:/ }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name }));
+  }
+
+  /** A drop at a stated position in the Todo column. */
+  function dropAt(key: string, clientY: number) {
+    const stack = screen
+      .getByRole("heading", { name: /^Todo/ })
+      .closest(".board-column")!
+      .querySelector<HTMLElement>(".board-stack")!;
+    const sizer = stack.querySelector<HTMLElement>(".board-sizer")!;
+    sizer.getBoundingClientRect = () => ({ top: 0 }) as DOMRect;
+    fireEvent.dragStart(
+      document.querySelector<HTMLElement>(`[data-ticket-key="${key}"]`)!,
+    );
+    for (const type of ["dragOver", "drop"] as const) {
+      const event = createEvent[type](stack);
+      Object.defineProperty(event, "clientY", { value: clientY });
+      fireEvent(stack, event);
+    }
+  }
+
+  // jsdom under vitest exposes no `localStorage`, and the app treats a missing
+  // one as "this preference does not survive the session". The claim here is
+  // that it does survive, so the store it survives in has to exist.
+  beforeEach(() => {
+    const held = new Map<string, string>();
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: (key: string) => held.get(key) ?? null,
+        setItem: (key: string, value: string) => held.set(key, value),
+        removeItem: (key: string) => held.delete(key),
+        clear: () => held.clear(),
+      },
+    });
+  });
+
+  it("must-pass: switching the order rewrites no file", async () => {
+    await openBoard([row("LC-1"), row("LC-2")]);
+
+    chooseOrdering("Manual");
+    chooseOrdering("Priority");
+    chooseOrdering("Manual");
+
+    expect(api.editTicket).not.toHaveBeenCalled();
+    expect(api.updateProjectTheme).not.toHaveBeenCalled();
+    expect(api.updateProjectName).not.toHaveBeenCalled();
+  });
+
+  it("says in the menu that the choice never rewrites files", async () => {
+    await openBoard([row("LC-1")]);
+
+    fireEvent.click(screen.getByRole("button", { name: /^Order:/ }));
+
+    expect(
+      screen.getByText(
+        "Ordering is a view preference on this board — it never rewrites files.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("keeps the choice for this project, and only this project", async () => {
+    await openBoard([row("LC-1")]);
+    chooseOrdering("Manual");
+
+    expect(JSON.parse(localStorage.getItem("longclaw.boardOrdering")!)).toEqual(
+      {
+        "project-fixture": "manual",
+      },
+    );
+  });
+
+  it("must-pass: Priority mode writes no rank however the board is dragged", async () => {
+    await openBoard([row("LC-1", { rank: "a0" }), row("LC-2", { rank: "a1" })]);
+
+    dropAt("LC-2", 0);
+
+    expect(api.editTicket).not.toHaveBeenCalled();
+  });
+
+  it("must-pass: a manual drop writes a rank, and only a rank, and takes it back", async () => {
+    vi.mocked(api.editTicket).mockResolvedValue(written("LC-3", "a0V"));
+    await openBoard([
+      row("LC-1", { rank: "a0" }),
+      row("LC-2", { rank: "a1" }),
+      row("LC-3", { rank: "a2" }),
+    ]);
+    chooseOrdering("Manual");
+
+    // Into the gap between LC-1 and LC-2.
+    dropAt("LC-3", 63);
+
+    await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(1));
+    expect(api.editTicket).toHaveBeenCalledWith({
+      projectId: project.id,
+      ticketKey: "LC-3",
+      expectedHash: "hash-LC-3",
+      edit: { rank: "a0V" },
+    });
+    await screen.findByText("LC-3 moved");
+
+    vi.mocked(api.editTicket).mockResolvedValue(written("LC-3", "a2"));
+    fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+
+    await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(2));
+    expect(api.editTicket).toHaveBeenLastCalledWith({
+      projectId: project.id,
+      ticketKey: "LC-3",
+      expectedHash: "hash-LC-3-written",
+      edit: { rank: "a2" },
+    });
+  });
+
+  it("takes back a first-ever rank by clearing the key, not by inventing one", async () => {
+    vi.mocked(api.editTicket).mockResolvedValue(written("LC-3", "a0"));
+    await openBoard([row("LC-1"), row("LC-2"), row("LC-3")]);
+    chooseOrdering("Manual");
+
+    dropAt("LC-3", 0);
+
+    await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(1));
+    expect(api.editTicket).toHaveBeenCalledWith({
+      projectId: project.id,
+      ticketKey: "LC-3",
+      expectedHash: "hash-LC-3",
+      edit: { rank: "a0" },
+    });
+
+    vi.mocked(api.editTicket).mockResolvedValue(written("LC-3"));
+    fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+
+    await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(2));
+    expect(api.editTicket).toHaveBeenLastCalledWith({
+      projectId: project.id,
+      ticketKey: "LC-3",
+      expectedHash: "hash-LC-3-written",
+      // `null` clears the key. Nothing else in the app ever sends it.
+      edit: { rank: null },
+    });
+  });
+
+  it("moves the card before the write leaves, and puts it back if it fails", async () => {
+    vi.mocked(api.editTicket).mockRejectedValue({
+      code: "io",
+      message: "Disk is full",
+      recoverable: true,
+    });
+    await openBoard([
+      row("LC-1", { rank: "a0" }),
+      row("LC-2", { rank: "a1" }),
+      row("LC-3", { rank: "a2" }),
+    ]);
+    chooseOrdering("Manual");
+
+    dropAt("LC-3", 63);
+
+    expect(useLongClawStore.getState().tickets[2].state === "indexed").toBe(
+      true,
+    );
+    await screen.findByText("LC-3 could not be moved. Disk is full");
+    const back = useLongClawStore
+      .getState()
+      .tickets.find((ticket) => ticket.key === "LC-3");
+    expect(back?.state === "indexed" && back.rank).toBe("a2");
   });
 });
