@@ -4,7 +4,7 @@ product: LongClaw
 status: active
 milestone: "M4 — Pilot direction accepted"
 written: 2026-07-31
-applies_to: "main @ b773a7a"
+applies_to: "main @ 6230240"
 ---
 
 # Active plans
@@ -34,7 +34,7 @@ marked independent can be done at any time by anyone.
 | ~~07~~ | ~~Virtualize the board and list~~ — **done 2026-07-31**, [outcome](../completed/07-board-virtualization.md) | V0-06 | Closed for the board. Columns are windowed scroll containers over `boardGeometry.ts`, and the board carries roving arrow/`j`-`k` focus because WebKit never had the cards in the Tab order. Wave 1's list surface (V0-14) inherits that geometry and re-traces with `npm run perf:board`. |
 | ~~08~~ | ~~Triage the dependabot advisories~~ — **done 2026-07-31**, [outcome](../completed/08-dependabot-triage.md) | V0-40 | Closed. All three advisories are unreachable, with the argument recorded. It produced V0-40: the alert list itself is the problem, not any advisory in it. |
 | ~~09~~ | ~~Stop treating a vanished path as a watcher overflow~~ — **done 2026-07-31**, [outcome](../completed/09-rename-is-not-an-overflow.md) | —       | Closed. `collect_event` now drops only transient `Io(NotFound)` watcher errors and still escalates other errors to overflow recovery. |
-| 10  | [Stop npm from breaking the native watcher check](10-npm-native-watcher-timeout.md) | —       | Found while validating 09. Direct Cargo native watcher passes; npm-launched native watcher times out, so local `npm run verify` is not trustworthy yet. |
+| ~~10~~ | ~~Stop npm from breaking the native watcher check~~ — **closed 2026-07-31, not reproducing**, [outcome](../completed/10-npm-native-watcher-timeout.md) | — | Closed without a fix. Eight consecutive npm-launched native watcher runs, `npm run verify` at exit 0, and CI run 30629158530 are all green on the same tree that timed out. The mechanism was never found; the outcome says what to do if it returns. |
 
 Dependencies worth knowing:
 
@@ -63,9 +63,14 @@ Dependencies worth knowing:
   `boardGeometry.ts` and is what the list surface should be built on; its sticky
   group headers and archived group are the part 07 did not have to solve. The
   board's keyboard navigation is new and is the model the list should follow.
-- **09 is done, and 10 is the remaining gate issue.** The vanished-path overflow
-  bug is fixed in `collect_event`; local `npm run verify` is still blocked by the
-  npm-launched native watcher timeout tracked in 10.
+- **09 and 10 are both closed, and no plan is open.** The vanished-path overflow bug
+  is fixed in `collect_event`, and the npm-launched native watcher timeout that
+  blocked local `npm run verify` no longer reproduces — closed without a fix, so
+  treat a recurrence as an environment question and read
+  [10's outcome](../completed/10-npm-native-watcher-timeout.md) before reopening
+  anything. Wave 0 is now clear, which means the only thing standing between this
+  repository and Step 11 is the M4 decision described in
+  [the pending-work handoff](pending-work-after-step-10.md), not any code.
 
 ## What is deliberately not planned yet
 

@@ -352,6 +352,12 @@ Phase 0 is deliberately human-led. Its purpose is to remove expensive ambiguity 
 
 ### Step 9 — Run the mandatory mid-v0 pilot
 
+**Status: not started, and it is the critical path.** No sessions have run and
+[`pilot/sessions/`](pilot/sessions/) is empty. On 2026-07-31 the founder decided to
+run this step rather than proceed without it
+([decision](pilot/response-memo.md#direction-decision-2026-07-31)), so M4 closes
+only through here. Recruiting is the open action and it is not an agent's task.
+
 **Goal:** Test whether the vertical slice solves the planning/execution split for the intended users.
 
 **Work:**
@@ -384,6 +390,24 @@ Phase 0 is deliberately human-led. Its purpose is to remove expensive ambiguity 
 - There is enough evidence to revise the remaining plan rather than relying on internal preference.
 
 ### Step 10 — Re-plan the remaining v0 backlog
+
+**Status: complete as of 2026-07-31 — the re-plan pass, not the evidence pass.**
+
+What is done: all four artifacts below exist and are current, every backlog item
+carries a user- or risk-based reason, and the blocker work this step front-loaded is
+finished — Wave 0's seven items and all ten plans in
+[`plans/completed/`](plans/completed/) are closed, with `npm run verify` and CI green
+on `6230240`.
+
+What is still owed, and returns here after Step 9: this step's *goal* is absorbing
+pilot evidence, and there is none. So the re-ranking record and scope decisions in
+[the memo](pilot/response-memo.md) are empty, and the § Work item "re-rank Steps
+11–15 by observed user value and risk" has been done from dependency and risk only.
+That ordering is a baseline, not a finding. **Step 10 gets a second pass** once the
+pilot produces evidence; nothing here is a substitute for it.
+
+Consequently M4 remains open, and Step 11 does not start. See
+[the handoff](plans/active/pending-work-after-step-10.md).
 
 **Goal:** Absorb pilot evidence into execution while keeping the product vision stable.
 

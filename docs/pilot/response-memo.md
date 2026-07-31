@@ -17,6 +17,35 @@ have not been filled with plausible-sounding findings. What is written now is th
 part that is better decided *before* seeing evidence: the rules for what each
 kind of finding obliges us to do.
 
+## Direction decision, 2026-07-31
+
+M4 offered two ways to close: run the pilot, or record a founder decision to
+proceed without it. **The founder chose to run it.** The pilot is not cancelled,
+not deferred past Step 11, and not to be worked around.
+
+This is a decision about *how M4 closes*, not a closure of M4. Nothing below moves.
+The evidence tables stay empty, the decision rules stay binding, and
+[§ What closing M4 requires](#what-closing-m4-requires) is unchanged — the pilot
+still has to actually happen and produce Step 9's exit artifacts.
+
+Two consequences worth stating, because the alternative decision would have
+inverted both:
+
+- **Waves 1–3 keep their re-rank obligation.** Their order remains a pre-pilot
+  baseline that evidence is expected to reshuffle. It does not harden into the
+  plan of record by default.
+- **The corresponding release risk stays open, not accepted.** *The mid-v0 pilot
+  never runs, and the MVP ships on internal preference* in
+  [the release risks](../release-risks.md) is being mitigated the way its own
+  mitigation column asks, rather than accepted.
+
+What made this decision live now: Wave 0 of
+[the backlog](../backlog/v0-backlog.md) is closed, so the pilot is the critical
+path rather than one of two open tracks. Recruiting is the next action, and it is
+not an agent's work.
+
+Reversing this is itself a decision to record here, with its reason and its date.
+
 ## Why the rules are written first
 
 A decision rule chosen after seeing the evidence is a rule chosen to fit the
@@ -122,5 +151,9 @@ M4 is not closed. It needs, in order:
    backlog's Waves 1–3 revised accordingly.
 4. An explicit founder acceptance of the revised direction.
 
-Wave 0 of the backlog may proceed before any of this. It is blocker work, which
-Step 10 puts first by definition, and it does not depend on what the pilot finds.
+~~Wave 0 of the backlog may proceed before any of this.~~ **Wave 0 closed on
+2026-07-31** — all seven items, plus the ten plans in
+[`docs/plans/`](../plans/completed/). It was blocker work, which Step 10 puts first
+by definition, and it did not depend on what the pilot finds. With it done, step 1
+above is the only thing that can move next, and nothing in this list can be
+satisfied by more code.
