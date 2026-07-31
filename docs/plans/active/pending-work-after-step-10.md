@@ -96,12 +96,20 @@ polling adapter would leave the production watcher uncovered.
 
 ## Where things stand
 
-`main` is at `6230240`. Steps 1–10 of [the plan](../../mvp_plan_order.md) are done.
-Step 10 produced [the v0 backlog](../../backlog/v0-backlog.md) (39 items in four
-waves), [the pilot response memo](../../pilot/response-memo.md),
+`main` is at `6230240`. Steps 1–8 of [the plan](../../mvp_plan_order.md) are done, and
+**Step 10 was marked complete on 2026-07-31 for its re-plan pass** — it produced
+[the v0 backlog](../../backlog/v0-backlog.md) (39 items in four waves),
+[the pilot response memo](../../pilot/response-memo.md),
 [the release risks](../../release-risks.md), and
-[the acceptance index](../../acceptance/README.md). It also fixed the one reported
+[the acceptance index](../../acceptance/README.md), and it fixed the one reported
 onboarding blocker ([report](../completed/project-key-derivation-bug.md)).
+
+Read that completion precisely, because the step numbers are out of order here.
+**Step 9 has not run, and Step 10 owes a second pass.** Step 10's actual goal is
+absorbing pilot evidence; with none in hand, its re-ranking record and scope
+decisions are empty and the Waves 1–3 order is derived from dependency and risk
+alone. That ordering is a baseline, not a finding, and it returns to Step 10 for
+revision once the pilot delivers.
 
 **Wave 0 is closed.** All seven of its items — V0-01 through V0-07 — are done, which
 satisfies the backlog's own precondition for breadth: *clear before any more
