@@ -493,18 +493,23 @@ button:disabled {
   padding: 18px;
 }
 
+/* The lane's own padding is split between the section and the scroll container
+   inside it, so a card sits exactly where it sat before the lane could scroll
+   and the fresh card's 3px ring has room instead of being clipped by the
+   scroll container's edge. 6 + 4 is the 10px the section used to carry. */
 .board-column {
   min-height: 270px;
   border: 1px solid var(--lc-line);
   border-radius: 8px;
-  padding: 10px;
+  padding: 10px 6px;
   background: color-mix(in oklab, var(--lc-wash) 36%, var(--lc-surface));
 }
 
 .board-column h3 {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 7px;
+  padding: 0 4px;
   color: var(--lc-ink-2);
   font-size: 12px;
 }
@@ -514,18 +519,41 @@ button:disabled {
   font-family: var(--lc-type-code-font);
 }
 
+/* Each lane scrolls independently (screen-specs.md § Board). Bounding it here is
+   also what lets the lane render only the cards this box can show. */
+.board-stack {
+  max-height: var(--lc-size-board-stack);
+  padding: 3px 4px 0;
+  overflow-y: auto;
+}
+
+/* Sized to the whole lane, so the scrollbar tells the truth about a lane whose
+   cards are not all rendered. */
+.board-sizer {
+  position: relative;
+}
+
+/* Cards are placed by the lane rather than stacked by flow: the lane knows every
+   card's offset (boardGeometry.ts), including the ones it is not rendering.
+   The pinned height is what makes those offsets exact. */
 .ticket-row {
+  position: absolute;
+  right: 0;
+  left: 0;
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
   gap: 5px 8px;
-  width: 100%;
+  height: var(--lc-size-board-card);
   border: 1px solid var(--lc-line);
   border-radius: 8px;
-  margin-bottom: 8px;
   padding: 10px;
   color: var(--lc-ink);
   text-align: left;
   background: var(--lc-surface);
+}
+
+.ticket-row.fresh {
+  height: var(--lc-size-board-card-fresh);
 }
 
 .ticket-row.selected {
@@ -560,12 +588,17 @@ button:disabled {
   grid-column: 2;
 }
 
+/* The footer never wraps (screen-specs.md § Board), which is also what keeps a
+   fresh card to one known height for the lane to place cards by. */
 .actor {
   grid-column: 1 / -1;
+  overflow: hidden;
   border-top: 1px solid var(--lc-line-soft);
   padding-top: 6px;
   color: var(--lc-accent-agent-text);
   font-size: 10.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ticket-row.human-fresh .actor {

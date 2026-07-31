@@ -1,4 +1,5 @@
 dist
+dist-perf
 src-tauri/target
 src-tauri/Cargo.lock
 package-lock.json

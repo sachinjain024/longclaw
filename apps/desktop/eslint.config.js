@@ -3,7 +3,7 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["dist", "src-tauri/target"],
+    ignores: ["dist", "dist-perf", "src-tauri/target"],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -25,6 +25,24 @@ export default tseslint.config(
     languageOptions: {
       globals: {
         console: "readonly",
+      },
+    },
+  },
+  {
+    // The performance harness is a Node script that also carries code across to
+    // the browser inside `page.evaluate`, so both sets of globals are real here.
+    files: ["perf/**/*.mjs"],
+    languageOptions: {
+      globals: {
+        HTMLElement: "readonly",
+        document: "readonly",
+        fetch: "readonly",
+        navigator: "readonly",
+        performance: "readonly",
+        process: "readonly",
+        requestAnimationFrame: "readonly",
+        setTimeout: "readonly",
+        window: "readonly",
       },
     },
   },

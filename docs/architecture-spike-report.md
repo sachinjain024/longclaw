@@ -77,14 +77,15 @@ Budgets are p95 on the oldest supported production Mac unless stated otherwise.
 | Warm start → first interactive paint | ≤ 750 ms | **560.37–693.34 ms** across two observed warm instrumented launches. |
 | Project load, 1,000 tickets | ≤ 750 ms | Covered by the stricter 5,000-ticket harness below. |
 | Large project load, 5,000 tickets | ≤ 2,500 ms | **711.49 ms** latest; **640.66 ms** earlier, both in an unoptimized Rust test build. |
-| Large-board keyboard/input → paint | ≤ 50 ms p95; ≤ 16 ms p50 | Phase 1 must add virtualization and a WebKit trace; the spike intentionally does not render 5,000 rows. |
+| Large-board keyboard/input → paint | ≤ 50 ms p95; ≤ 16 ms p50 | **18 ms p95** keyboard, **21 ms p95** scroll, **18 ms p95** external write, on a 5,000-ticket board in WebKit 26.5 (`npm run perf:board`, V0-06). Before lane windowing: 74 ms p95 scroll, 47 ms p95 write, and no keyboard navigation at all — WebKit does not put `<button>` cards in the Tab order. The p50s (17–20 ms) sit on the one-frame floor: 16.7 ms at 60 Hz is the least an input → paint measurement can report, and the same three interactions measure the same on a 600-ticket board, so the median is the frame rather than the board. |
 | Search, 5,000 tickets | ≤ 50 ms | **2.35 ms** latest; **2.37 ms** earlier in the unoptimized Rust harness. |
 | Stable external save → visible paint | ≤ 500 ms | **197.27 ms** in the latest `npm run verify` through coalescing, stable read, parse, index, and Rust event; the release probe confirmed the title on the next animation frame. Phase 1 adds percentile telemetry stored locally. |
 
-Measured command:
+Measured commands:
 
 ```sh
-npm run perf:rust
+npm run perf:rust    # storage: load, search, write, create
+npm run perf:board   # render: input → paint on a 5,000-ticket board
 ```
 
 ## Reproducible verification gate

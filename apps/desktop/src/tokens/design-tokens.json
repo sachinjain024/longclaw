@@ -118,6 +118,9 @@
     "card-width-min": 240,
     "card-pad-x": 12,
     "card-pad-y": 10,
+    "board-card": 55,
+    "board-card-fresh": 79.33,
+    "board-stack": "calc(100vh - 360px)",
     "panel-gutter": 16,
     "panel-gutter-lg": 24
   },

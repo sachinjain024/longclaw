@@ -29,7 +29,8 @@ automated/manual boundary; this index does not duplicate it.
 npm run check         # tokens, format, lint, typecheck, tests, build
 npm run test:watcher  # the native FSEvents test, ignored by default
 npm run verify        # both of the above
-npm run perf:rust     # the performance budgets, ignored by default
+npm run perf:rust     # the storage performance budgets, ignored by default
+npm run perf:board    # the 5,000-ticket board trace (needs a WebKit build)
 ```
 
 ## Acceptance changes accepted in Step 10
@@ -54,7 +55,7 @@ should land together.
 | Index loss: delete the index, corrupt the index, reopen, rebuild twice | The "index is disposable" promise, including that rebuild is idempotent | V0-30 |
 | Keyboard-only ticket lifecycle: create, find, open, update, and navigate without a pointer | The product's speed claim, and that focus is never lost behind a panel, modal, menu, or the palette | V0-20 – V0-25 |
 | Theme × appearance visual matrix across the core screens and states | Contrast and human/agent distinction in every preset, in both appearances | V0-37 |
-| Large-project performance: small, medium, and a 5,000-ticket project against the Step 4 budgets | Board and list interaction at a size where the product should start paying off | V0-06, V0-05 |
+| Large-project performance: small, medium, and a 5,000-ticket project against the Step 4 budgets — **partly covered**: `npm run perf:board` traces the board at 5,000 tickets and at 600 on every Step 4 interaction. Still required: the list surface (V0-14, which does not exist yet), a medium project, and a run on the oldest supported Mac rather than a current one | Board and list interaction at a size where the product should start paying off | V0-06, V0-05 |
 | Offline and no-account audit on a clean machine | The local-first claim, and that nothing in the binary phones home | Step 16 |
 | Clean install, upgrade, restart, and folder-move on a machine that has never run the app | The first-run path, which every participant hits and no automated test can reach | Step 17 |
 

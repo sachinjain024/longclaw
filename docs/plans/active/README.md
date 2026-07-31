@@ -31,7 +31,7 @@ marked independent can be done at any time by anyone.
 | ~~04~~ | ~~Validate the project prefix on ingest~~ — **done 2026-07-31**, [outcome](../completed/04-project-prefix-validation.md) | V0-03 | Closed. It changed the signatures 05 and 06 will be holding: `read_ticket_file`, `TicketIndex::rebuild`, and both `ingest` methods now take the project key. |
 | ~~05~~ | ~~Recover the watcher over sleep, wake, and overflow~~ — **done 2026-07-31**, [outcome](../completed/05-watcher-recovery.md) | V0-04 | Closed. It added native macOS wake recovery, overflow recovery, coalescing, and explicit unavailable reporting. |
 | 06  | [Move heavy work off the command thread](06-blocking-workers.md)               | V0-05   | Restructures engine orchestration, so it goes after the correctness fixes rather than moving code out from under them. |
-| 07  | [Virtualize the board and list](07-board-virtualization.md)                    | V0-06   | Independent. Must land before Wave 1's list surface, which is what renders 5,000 rows.                                 |
+| ~~07~~ | ~~Virtualize the board and list~~ — **done 2026-07-31**, [outcome](../completed/07-board-virtualization.md) | V0-06 | Closed for the board. Columns are windowed scroll containers over `boardGeometry.ts`, and the board carries roving arrow/`j`-`k` focus because WebKit never had the cards in the Tab order. Wave 1's list surface (V0-14) inherits that geometry and re-traces with `npm run perf:board`. |
 | ~~08~~ | ~~Triage the dependabot advisories~~ — **done 2026-07-31**, [outcome](../completed/08-dependabot-triage.md) | V0-40 | Closed. All three advisories are unreachable, with the argument recorded. It produced V0-40: the alert list itself is the problem, not any advisory in it. |
 
 Dependencies worth knowing:
@@ -58,8 +58,10 @@ Dependencies worth knowing:
   test seam 01 added, lives in a `thread_local!` that is only correct while a write
   runs on the thread that asked for it — moving writes to a worker means the seam
   installer moves with them, or the race test silently stops driving anything.
-- **07 is genuinely independent** of everything else. It is the one to hand to a
-  second person working at the same time.
+- **07 is done, and V0-14 inherits it.** The board's lane geometry lives in
+  `boardGeometry.ts` and is what the list surface should be built on; its sticky
+  group headers and archived group are the part 07 did not have to solve. The
+  board's keyboard navigation is new and is the model the list should follow.
 
 ## What is deliberately not planned yet
 

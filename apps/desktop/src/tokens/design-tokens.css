@@ -83,6 +83,9 @@
   --lc-size-card-width-min: 240px;
   --lc-size-card-pad-x: 12px;
   --lc-size-card-pad-y: 10px;
+  --lc-size-board-card: 55px;
+  --lc-size-board-card-fresh: 79.33px;
+  --lc-size-board-stack: calc(100vh - 360px);
   --lc-size-panel-gutter: 16px;
   --lc-size-panel-gutter-lg: 24px;
   --lc-radius-kbd: 3px;
