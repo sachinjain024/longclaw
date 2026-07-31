@@ -10,12 +10,7 @@ describe("creating a ticket", () => {
   it("sends the title, description, checklist, and status the human typed", () => {
     const onCreate = vi.fn();
     render(
-      <QuickCreate
-        projectKey="RT"
-        submitting={false}
-        onCancel={() => {}}
-        onCreate={onCreate}
-      />,
+      <QuickCreate projectKey="RT" onCancel={() => {}} onCreate={onCreate} />,
     );
 
     fireEvent.change(screen.getByLabelText("Title"), {
@@ -45,12 +40,7 @@ describe("creating a ticket", () => {
   it("sends priority and project label slugs when creating a ticket", () => {
     const onCreate = vi.fn();
     render(
-      <QuickCreate
-        projectKey="RT"
-        submitting={false}
-        onCancel={() => {}}
-        onCreate={onCreate}
-      />,
+      <QuickCreate projectKey="RT" onCancel={() => {}} onCreate={onCreate} />,
     );
 
     fireEvent.change(screen.getByLabelText("Title"), {
@@ -74,12 +64,7 @@ describe("creating a ticket", () => {
 
   it("says where the ticket will land before it is created", () => {
     render(
-      <QuickCreate
-        projectKey="RT"
-        submitting={false}
-        onCancel={() => {}}
-        onCreate={() => {}}
-      />,
+      <QuickCreate projectKey="RT" onCancel={() => {}} onCreate={() => {}} />,
     );
 
     expect(
@@ -90,12 +75,7 @@ describe("creating a ticket", () => {
   it("will not create a ticket with no title", () => {
     const onCreate = vi.fn();
     render(
-      <QuickCreate
-        projectKey="RT"
-        submitting={false}
-        onCancel={() => {}}
-        onCreate={onCreate}
-      />,
+      <QuickCreate projectKey="RT" onCancel={() => {}} onCreate={onCreate} />,
     );
 
     fireEvent.click(screen.getByText("Create ticket"));
@@ -107,12 +87,7 @@ describe("creating a ticket", () => {
     const onCancel = vi.fn();
     const onCreate = vi.fn();
     render(
-      <QuickCreate
-        projectKey="RT"
-        submitting={false}
-        onCancel={onCancel}
-        onCreate={onCreate}
-      />,
+      <QuickCreate projectKey="RT" onCancel={onCancel} onCreate={onCreate} />,
     );
 
     fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Escape" });

@@ -18,8 +18,8 @@ is closed, Wave 0 is clear, and M4 closed on 2026-07-31 when the founder decided
 proceed without the pilot sessions
 ([decision](../../pilot/response-memo.md#direction-decision-2026-07-31-superseded-the-same-day)).
 Step 11 is [Wave 1 of the backlog](../../backlog/v0-backlog.md) — V0-08 through
-V0-19 — and one of them, V0-19, is now closed as plan 11. The rest are open. Write
-a plan here before starting one of them.
+V0-19 — and three of them are now closed: V0-19 as plan 11, V0-18 as plan 12, and
+V0-17 as plan 13. The rest are open. Write a plan here before starting one of them.
 
 Two things to read first, once, before Step 11 code:
 
@@ -50,6 +50,7 @@ marked independent can be done at any time by anyone.
 | ~~10~~ | ~~Stop npm from breaking the native watcher check~~ — **closed 2026-07-31, not reproducing**, [outcome](../completed/10-npm-native-watcher-timeout.md) | — | Closed without a fix. Eight consecutive npm-launched native watcher runs, `npm run verify` at exit 0, and CI run 30629158530 are all green on the same tree that timed out. The mechanism was never found; the outcome says what to do if it returns. |
 | ~~11~~ | ~~Remove assignee from the prototype specs~~ — **done 2026-07-31**, [outcome](../completed/11-remove-assignee-from-specs.md) | V0-19 | Closed, docs only. The Step-1 foundations were the gap: ADR 0001's propagation pass never opened `components.md`. Read its outcome before V0-14 or V0-16 — the two `proof/` HTML files still render assignee slots, and it says why they were left. |
 | ~~12~~ | ~~The Rust backend Wave 1 is missing~~ — **done 2026-07-31**, [outcome](../completed/12-rust-backend-for-wave-1.md) | V0-18, and the backend halves of V0-09 and V0-10 | Closed. V0-18 is done outright. The other two are backend-only: label definitions now cross IPC on `ProjectReference` with `add_project_label`/`update_project_label`/`remove_project_label` behind them, and `TicketEdit.rank` accepts `null` to clear. Read its outcome before V0-09 or V0-10 — it is the API handoff. |
+| ~~13~~ | ~~Optimistic create, per-mutation write feedback, and undo~~ — **done 2026-07-31**, [outcome](../completed/13-optimistic-create-toasts-and-undo.md) | V0-17 | Closed, and it is the frontend handoff. Every mutation the rest of Wave 1 adds should go through `mutate()` in `src/mutations.ts` rather than calling `editTicket` directly. Read its outcome before V0-08, V0-11, or V0-16 — it names two places where the approved spec and the ADRs disagree. |
 
 Dependencies worth knowing:
 
@@ -85,6 +86,15 @@ Dependencies worth knowing:
   create-form specimens those two items would build from — because correcting them
   means regenerating ten committed PNGs with a pipeline that was never committed.
   [11's outcome](../completed/11-remove-assignee-from-specs.md) names every spot.
+- **13 is done, and every remaining Wave 1 frontend item hangs off it.** One
+  seam runs a ticket mutation: `mutate()` in `apps/desktop/src/mutations.ts`
+  applies the change optimistically, writes in the background, reverts and says
+  so if the write fails, and takes it back through an ordinary `edit_ticket`.
+  Undo is itself a `Mutation`, so a surface that wants Undo writes the inverse
+  and nothing else. The ticket panel exposes the same thing one level up as
+  `save(edit, SaveFeedback)`, which is what V0-08's priority menu and V0-11's
+  archive should call. Do not add a second write path or a second toast: the
+  toast is a single stack and `⌘Z` is already wired to it.
 - **09 and 10 are both closed, and no plan is open.** The vanished-path overflow bug
   is fixed in `collect_event`, and the npm-launched native watcher timeout that
   blocked local `npm run verify` no longer reproduces — closed without a fix, so
@@ -95,8 +105,8 @@ Dependencies worth knowing:
 
 ## Waves 1–3 are unplanned, and now for a different reason
 
-Waves 1–3 of [the backlog](../../backlog/v0-backlog.md) — 31 of its 39 items, now
-that V0-19 is closed — still have no plans here. The original reason is gone: the
+Waves 1–3 of [the backlog](../../backlog/v0-backlog.md) — 29 of its 39 items, now
+that V0-17, V0-18, and V0-19 are closed — still have no plans here. The original reason is gone: the
 guardrail has been satisfied and the pilot will not invalidate anything, because it
 was skipped.
 

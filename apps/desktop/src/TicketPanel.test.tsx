@@ -17,7 +17,9 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { resetMutations } from "./mutations";
 import { TicketPanel } from "./TicketPanel";
+import { ToastStack } from "./WriteFeedback";
 import type {
   ActivityEvent,
   ChecklistItem,
@@ -142,6 +144,16 @@ function panel(props?: { reloadSignal?: number; onClose?: () => void }) {
   );
 }
 
+/** The panel plus the toast surface its destructive-adjacent writes raise. */
+function surface(props?: { reloadSignal?: number }) {
+  return (
+    <>
+      {panel(props)}
+      <ToastStack />
+    </>
+  );
+}
+
 function checklistRow(text: string): HTMLElement {
   const row = screen.getByText(text).closest("li");
   if (!row) throw new Error(`no checklist row for ${text}`);
@@ -149,6 +161,7 @@ function checklistRow(text: string): HTMLElement {
 }
 
 beforeEach(() => {
+  resetMutations();
   readTicketMock.mockReset();
   editTicketMock.mockReset();
   readTicketMock.mockResolvedValue(detail());
@@ -295,7 +308,7 @@ describe("a change that lands while a draft is open", () => {
 });
 
 describe("the panel's honesty about the file", () => {
-  it("says it is writing, then that it wrote", async () => {
+  it("must-pass 1: a tick appears before the write returns, and the indicator says so", async () => {
     let settle: (result: WriteResult) => void = () => {};
     readTicketMock.mockResolvedValue(detail({ contentHash: "hash-1" }));
     editTicketMock.mockReturnValue(
@@ -310,7 +323,7 @@ describe("the panel's honesty about the file", () => {
 
     // The tick shows before the write lands, and the header says what is happening.
     expect(box).toHaveProperty("checked", true);
-    await screen.findByText(/⟳ writing .longclaw\/tickets\/LC-1\/ticket.md/);
+    await screen.findByText(/writing .longclaw\/tickets\/LC-1\/ticket.md/);
 
     settle(writeResult());
 
@@ -346,5 +359,116 @@ describe("the panel's honesty about the file", () => {
     fireEvent.keyDown(document, { key: "Escape" });
 
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("a destructive-adjacent change and taking it back", () => {
+  it("shows the new status and raises a toast with Undo before the write lands", async () => {
+    let settle: (result: WriteResult) => void = () => {};
+    editTicketMock.mockReturnValue(
+      new Promise<WriteResult>((resolve) => {
+        settle = resolve;
+      }),
+    );
+    render(surface());
+    const status = await screen.findByLabelText("Status");
+
+    fireEvent.change(status, { target: { value: "in_progress" } });
+
+    expect(status).toHaveProperty("value", "in_progress");
+    settle(writeResult());
+    await screen.findByText("LC-1 → In Progress");
+    expect(screen.getByRole("button", { name: /Undo/ })).toBeTruthy();
+  });
+
+  it("must-pass 3: undo restores the previous file content through the ordinary write path", async () => {
+    editTicketMock.mockResolvedValue(writeResult());
+    render(surface());
+    const status = await screen.findByLabelText("Status");
+
+    fireEvent.change(status, { target: { value: "in_progress" } });
+    await screen.findByText("LC-1 → In Progress");
+    fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
+    // An ordinary edit_ticket against the hash the first write returned — there
+    // is no undo IPC command and there must not be one.
+    expect(editTicketMock.mock.calls[1][0]).toEqual({
+      projectId: "project-1",
+      ticketKey: "LC-1",
+      expectedHash: "hash-2",
+      edit: { status: "todo" },
+    });
+    await screen.findByText("LC-1 back to Todo");
+  });
+
+  it("runs undo from ⌘Z as well as the toast button", async () => {
+    editTicketMock.mockResolvedValue(writeResult());
+    render(surface());
+    const status = await screen.findByLabelText("Status");
+
+    fireEvent.change(status, { target: { value: "in_progress" } });
+    await screen.findByText("LC-1 → In Progress");
+    fireEvent.keyDown(document.body, { key: "z", metaKey: true });
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
+    expect(editTicketMock.mock.calls[1][0]).toMatchObject({
+      edit: { status: "todo" },
+    });
+  });
+
+  it("must-pass 2: a failed write reverts the optimistic state and says so", async () => {
+    editTicketMock.mockRejectedValue({
+      code: "io",
+      message: "No space left on device",
+      recoverable: true,
+    });
+    render(surface());
+    const status = await screen.findByLabelText("Status");
+
+    fireEvent.change(status, { target: { value: "in_progress" } });
+
+    expect(status).toHaveProperty("value", "in_progress");
+    await waitFor(() => expect(status).toHaveProperty("value", "todo"));
+    expect(screen.getByText(/No space left on device/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();
+    // A reverted write offers no Undo: there is nothing on disk to take back.
+    expect(screen.queryByRole("button", { name: /Undo/ })).toBeNull();
+  });
+
+  it("keeps a conflict on the conflict banner rather than the failure toast", async () => {
+    editTicketMock.mockRejectedValue({
+      code: "conflict",
+      message: "The file changed on disk",
+      recoverable: true,
+      context: {
+        conflictingActorType: "agent",
+        conflictingActorName: "Claude",
+      },
+    });
+    render(surface());
+    const status = await screen.findByLabelText("Status");
+
+    fireEvent.change(status, { target: { value: "in_progress" } });
+
+    await screen.findByText("⚠ Changed on disk while you were editing");
+    expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
+    expect(screen.getByText("Keep mine")).toBeTruthy();
+  });
+
+  it("offers undo for a checklist tick", async () => {
+    editTicketMock.mockResolvedValue(writeResult());
+    render(surface());
+    const box = await screen.findByLabelText("Review what it changed");
+
+    fireEvent.click(box);
+
+    await screen.findByText("LC-1 checked · Review what it changed");
+    fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
+    expect(editTicketMock.mock.calls[1][0]).toMatchObject({
+      edit: { checklist: [{ itemId: "ck_2", checked: false }] },
+    });
   });
 });

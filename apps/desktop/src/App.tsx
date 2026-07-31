@@ -4,6 +4,7 @@ import {
   chooseAndRegisterProject,
   chooseAndRelocateProject,
   createTicket,
+  editTicket,
   listProjects,
   listenForProjectEvents,
   openProject,
@@ -18,10 +19,13 @@ import {
 import { Board } from "./Board";
 import { CreateProjectForm, type ProjectDraft } from "./CreateProjectForm";
 import { normalizeError } from "./errors";
+import { mutate } from "./mutations";
 import { QuickCreate } from "./QuickCreate";
 import { useLongClawStore } from "./state";
 import { TicketPanel } from "./TicketPanel";
+import { provisionalTicket, provisionalTicketKey } from "./tickets";
 import type { CreateTicketRequest, ProjectReference } from "./types";
+import { ToastStack, WriteIndicator } from "./WriteFeedback";
 
 const THEMES = [
   { id: "indigo", label: "Indigo" },
@@ -31,6 +35,15 @@ const THEMES = [
 ];
 
 const APPEARANCE_KEY = "longclaw.appearance";
+
+/** Moves focus onto a board card once it has been painted. */
+function focusCard(key: string) {
+  requestAnimationFrame(() => {
+    document
+      .querySelector<HTMLElement>(`.ticket-row[data-ticket-key="${key}"]`)
+      ?.focus();
+  });
+}
 
 function sortedProjects(projects: ProjectReference[]) {
   return [...projects].sort((left, right) =>
@@ -64,6 +77,10 @@ export function App() {
   const applySnapshot = useLongClawStore((state) => state.applySnapshot);
   const applyEvent = useLongClawStore((state) => state.applyEvent);
   const applyLocalWrite = useLongClawStore((state) => state.applyLocalWrite);
+  const addProvisionalTicket = useLongClawStore(
+    (state) => state.addProvisionalTicket,
+  );
+  const removeTicket = useLongClawStore((state) => state.removeTicket);
   const reconcileFailed = useLongClawStore((state) => state.reconcileFailed);
   const externalMarks = useLongClawStore((state) => state.externalMarks);
   const reviewTicket = useLongClawStore((state) => state.reviewTicket);
@@ -73,7 +90,6 @@ export function App() {
 
   const [selectedKey, setSelectedKey] = useState<string>();
   const [ticketFormOpen, setTicketFormOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
   /** Bumped when an external change lands for the open ticket. */
   const [panelReload, setPanelReload] = useState(0);
   /** Drives the acknowledgement age text and its decay. */
@@ -94,12 +110,7 @@ export function App() {
   /** Closing returns focus to the card that opened the panel. */
   const closeTicket = useCallback((key?: string) => {
     setSelectedKey(undefined);
-    if (!key) return;
-    requestAnimationFrame(() => {
-      document
-        .querySelector<HTMLElement>(`.ticket-row[data-ticket-key="${key}"]`)
-        ?.focus();
-    });
+    if (key) focusCard(key);
   }, []);
   const localProjects = sortedProjects(projects);
   const starredProjects = sortedProjects(
@@ -372,24 +383,50 @@ export function App() {
     }
   }
 
-  async function submitNewTicket(
-    request: Omit<CreateTicketRequest, "projectId">,
-  ) {
-    if (!activeProjectId) return;
-    setCreating(true);
-    try {
-      const result = await createTicket({
-        projectId: activeProjectId,
-        ...request,
-      });
-      applyLocalWrite(result.ticket, result.generation);
-      setTicketFormOpen(false);
-      openTicket(result.ticket.key);
-    } catch (error) {
-      setError(normalizeError(error));
-    } finally {
-      setCreating(false);
-    }
+  /**
+   * Creating never blocks on the disk write (`screen-specs.md:204-207`): the
+   * card appears at once under a key guessed from the board, the modal closes,
+   * and whatever key Rust allocated replaces the guess when the write lands.
+   */
+  function submitNewTicket(request: Omit<CreateTicketRequest, "projectId">) {
+    const projectId = activeProjectId;
+    if (!projectId || !project) return;
+    const guessKey = provisionalTicketKey(project.key, tickets);
+    setTicketFormOpen(false);
+
+    void mutate({
+      apply: () => {
+        addProvisionalTicket(
+          provisionalTicket(guessKey, request, new Date().toISOString()),
+        );
+        focusCard(guessKey);
+        return () => removeTicket(guessKey);
+      },
+      write: () => createTicket({ projectId, ...request }),
+      onWritten: (written) => {
+        removeTicket(guessKey);
+        applyLocalWrite(written.ticket, written.generation);
+        focusCard(written.ticket.key);
+      },
+      toast: (written) => `${written.ticket.key} created`,
+      // v0 has no ticket deletion (ADR 0004), so the inverse of a create is an
+      // archive. The copy says so rather than implying the file went away.
+      undo: (written) => ({
+        path: written.ticket.relativePath,
+        write: () =>
+          editTicket({
+            projectId,
+            ticketKey: written.ticket.key,
+            expectedHash: written.ticket.contentHash,
+            edit: { archived: true },
+          }),
+        onWritten: (result) =>
+          applyLocalWrite(result.ticket, result.generation),
+        toast: () =>
+          `${written.ticket.key} archived — v0 never deletes a ticket file`,
+      }),
+      failure: (error) => `The ticket could not be created. ${error.message}`,
+    });
   }
 
   return (
@@ -564,6 +601,7 @@ export function App() {
                     <h2>Board</h2>
                   </div>
                   <div className="toolbar-actions">
+                    <WriteIndicator />
                     <span
                       className={
                         loading || reconciling
@@ -635,11 +673,12 @@ export function App() {
       {project && activeProjectId && ticketFormOpen && (
         <QuickCreate
           projectKey={project.key}
-          submitting={creating}
           onCancel={() => setTicketFormOpen(false)}
-          onCreate={(request) => void submitNewTicket(request)}
+          onCreate={submitNewTicket}
         />
       )}
+
+      <ToastStack />
     </main>
   );
 }

@@ -12,6 +12,12 @@
      Every color below routes through a --lc-* token. There is not
      a single hex value in this stylesheet; switching data-theme or
      data-appearance on <html> swaps tokens and nothing else.
+
+     2026-07-31 — revised for ADR 0001 (no assignee in local mode):
+     removed the seven card-footer assignee avatars and their push
+     spacers. The screenshots in proof/renders/ predate this revision
+     and still show assignee avatars; the render pipeline isn't
+     committed, so they have not been regenerated (see README.md).
      ============================================================ */
 
   * { margin: 0; box-sizing: border-box; }
@@ -304,8 +310,6 @@
               <div class="title">Empty board illustration for first launch</div>
               <div class="foot">
                 <span class="label-chip" style="--label: var(--lc-label-pink)"><i></i>design</span>
-                <span class="spacer"></span>
-                <span class="avatar" style="--tint: var(--lc-label-purple)">MK</span>
               </div>
             </div>
             <div class="card" tabindex="0">
@@ -315,8 +319,6 @@
               <div class="title">Watcher drops events when folder is renamed while app is closed</div>
               <div class="foot">
                 <span class="label-chip" style="--label: var(--lc-label-orange)"><i></i>watcher</span>
-                <span class="spacer"></span>
-                <span class="avatar" style="--tint: var(--lc-label-cyan)">JT</span>
               </div>
             </div>
             <div class="card degraded" tabindex="0">
@@ -353,8 +355,6 @@
                 <span class="fraction">3/7</span>
                 <span class="progress"><i style="width: 43%"></i></span>
                 <span class="label-chip" style="--label: var(--lc-label-orange)"><i></i>watcher</span>
-                <span class="spacer"></span>
-                <span class="avatar" style="--tint: var(--lc-label-amber)">AR</span>
               </div>
               <div class="agent-foot"><b>❯</b> updated by agent · <span id="fresh-ago">12s</span></div>
             </div>
@@ -366,8 +366,6 @@
               <div class="foot">
                 <span class="fraction">1/4</span>
                 <span class="progress"><i style="width: 25%"></i></span>
-                <span class="spacer"></span>
-                <span class="avatar" style="--tint: var(--lc-label-purple)">MK</span>
               </div>
             </div>
           </div>
@@ -387,8 +385,6 @@
               <div class="title">File format: frontmatter schema for checklists</div>
               <div class="foot">
                 <span class="label-chip" style="--label: var(--lc-label-blue)"><i></i>infra</span>
-                <span class="spacer"></span>
-                <span class="avatar" style="--tint: var(--lc-label-cyan)">JT</span>
               </div>
             </div>
           </div>
@@ -409,8 +405,6 @@
               <div class="foot">
                 <span class="fraction">5/5</span>
                 <span class="progress"><i style="width: 100%"></i></span>
-                <span class="spacer"></span>
-                <span class="avatar" style="--tint: var(--lc-label-amber)">AR</span>
               </div>
             </div>
             <div class="card" tabindex="0">
@@ -420,8 +414,6 @@
               <div class="title">Side panel: starred section ordering</div>
               <div class="foot">
                 <span class="label-chip" style="--label: var(--lc-label-pink)"><i></i>design</span>
-                <span class="spacer"></span>
-                <span class="avatar" style="--tint: var(--lc-label-purple)">MK</span>
               </div>
             </div>
           </div>

@@ -689,8 +689,26 @@ button:disabled {
   white-space: nowrap;
 }
 
-.disk-path.flashed {
-  color: var(--lc-accent-agent-text);
+.disk-path.writing {
+  color: var(--lc-ink-3);
+}
+
+.disk-path.settled {
+  color: var(--lc-ink-disabled);
+}
+
+/* Only after 500ms of an unsettled write, and only here (states.md:56-58). */
+.write-spinner {
+  display: inline-block;
+  margin-right: var(--lc-space-1);
+  font-size: 9px;
+  animation: lc-write-spin 900ms linear infinite;
+}
+
+@keyframes lc-write-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .panel-acknowledgement {
@@ -1068,6 +1086,58 @@ button:disabled {
 .quick-create-modal textarea {
   padding: var(--lc-space-2);
   resize: vertical;
+}
+
+/* ------------------------------------------------------------------- toasts */
+
+/* Bottom-center, single stack (components.md:213-215). */
+.toast-stack {
+  position: fixed;
+  bottom: var(--lc-space-6);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+}
+
+.toast {
+  display: flex;
+  gap: var(--lc-space-3);
+  align-items: center;
+  border-radius: var(--lc-radius-card);
+  padding: var(--lc-space-2) var(--lc-space-4);
+  color: var(--lc-inverse-ink);
+  background: var(--lc-inverse-surface);
+  box-shadow: var(--lc-shadow-overlay);
+  font-size: 12.5px;
+}
+
+.toast.danger {
+  color: var(--lc-ink);
+  background: var(--lc-danger-surface);
+  border: 1px solid var(--lc-danger-border);
+}
+
+.toast-action,
+.toast-dismiss {
+  border: 0;
+  padding: 0;
+  color: var(--lc-inverse-ink-2);
+  background: none;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.toast.danger .toast-action,
+.toast.danger .toast-dismiss {
+  color: var(--lc-danger);
+}
+
+.toast-action kbd {
+  margin-left: var(--lc-space-1);
+  border-radius: var(--lc-radius-kbd);
+  padding: 1px 4px;
+  background: color-mix(in oklab, var(--lc-inverse-ink) 14%, transparent);
+  font: 500 10.5px var(--lc-type-code-font);
 }
 
 @media (prefers-reduced-motion: reduce) {

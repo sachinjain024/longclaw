@@ -16,8 +16,8 @@ import type {
 
 interface QuickCreateProps {
   projectKey: string;
-  submitting: boolean;
   onCancel: () => void;
+  /** Fires and forgets: the create is optimistic, so the modal never waits. */
   onCreate: (request: Omit<CreateTicketRequest, "projectId">) => void;
 }
 
@@ -120,11 +120,7 @@ export function QuickCreate(props: QuickCreateProps) {
           <button className="ghost" type="button" onClick={props.onCancel}>
             Cancel
           </button>
-          <button
-            className="primary"
-            type="submit"
-            disabled={props.submitting || !title.trim()}
-          >
+          <button className="primary" type="submit" disabled={!title.trim()}>
             Create ticket
           </button>
         </div>

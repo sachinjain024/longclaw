@@ -50,6 +50,18 @@ swap and nothing else.
   `decisions.md` (particularly D1 new presets, D9 theme marker, D10
   accessibility adjustments).
 
+**2026-07-31 revision note (ADR 0001):** `proof/board.html` and
+`proof/components-library.html` were revised to remove the assignee —
+`docs/adr/0001-no-assignee-in-local-mode.md` established that a local
+project has exactly one human and no assignee concept, and this pass
+closed the remaining gap for these two Step 1 proof pages (the markdown
+specs were already brought into line). The committed screenshots in
+`proof/renders/` are the exit-gate evidence above and predate this
+revision — they still show assignee avatars, the assignee field, and the
+assignee control in the ticket panel. The render pipeline that produced
+them is not committed, so they have not been regenerated and remain
+historical evidence of the pre-ADR-0001 anatomy, not the current HTML.
+
 ## Regenerating
 
 ```sh

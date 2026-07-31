@@ -22,6 +22,7 @@ import { ConflictBanner } from "./ConflictBanner";
 import { normalizeError } from "./errors";
 import type { ExternalMark } from "./freshness";
 import { acknowledgement, freshlyChecked } from "./freshness";
+import { mutate } from "./mutations";
 import { STATUSES } from "./tickets";
 import { Timeline } from "./Timeline";
 import type {
@@ -32,9 +33,26 @@ import type {
   TicketStatus,
   WriteResult,
 } from "./types";
+import { WriteIndicator } from "./WriteFeedback";
 
-/** How long the header confirms which bytes the panel is showing. */
-const DISK_FLASH_MS = 1_600;
+function statusLabel(status: TicketStatus): string {
+  return STATUSES.find((option) => option.id === status)?.label ?? status;
+}
+
+/**
+ * What a destructive-adjacent change adds to a save: the state it shows before
+ * the write returns, the toast copy, and the edit that takes it back
+ * (`states.md:62-63`). Status and check use it today; priority, archive, and
+ * unarchive are the same shape.
+ */
+export interface SaveFeedback {
+  /** Renders the change now; the returned function puts it back on failure. */
+  apply?: () => () => void;
+  toast?: string;
+  /** The inverse, written the ordinary way against the hash the write returned. */
+  inverse?: TicketEdit;
+  inverseToast?: string;
+}
 
 /**
  * Why the panel is reading the file.
@@ -87,7 +105,8 @@ export function TicketPanel(props: TicketPanelProps) {
   const [pendingChecks, setPendingChecks] = useState<Record<string, boolean>>(
     {},
   );
-  const [diskFlash, setDiskFlash] = useState(false);
+  /** The status the human just picked, rendered over the file's until it lands. */
+  const [pendingStatus, setPendingStatus] = useState<TicketStatus>();
 
   /** The checklist as last read, so an external tick can be told from a stale one. */
   const loadedChecklist = useRef<ChecklistItem[]>([]);
@@ -140,6 +159,7 @@ export function TicketPanel(props: TicketPanelProps) {
       );
       loadedChecklist.current = checklist;
       setPendingChecks({});
+      setPendingStatus(undefined);
       setDetail(next);
 
       const unsaved = mode === "external" ? draftEdit() : undefined;
@@ -189,9 +209,6 @@ export function TicketPanel(props: TicketPanelProps) {
   useEffect(() => {
     if (props.reloadSignal === firstSignal.current) return;
     void load("external");
-    setDiskFlash(true);
-    const timer = setTimeout(() => setDiskFlash(false), DISK_FLASH_MS);
-    return () => clearTimeout(timer);
   }, [props.reloadSignal, load]);
 
   /**
@@ -200,40 +217,61 @@ export function TicketPanel(props: TicketPanelProps) {
    */
   async function save(
     edit: TicketEdit,
-    options?: { resolvesConflict: boolean },
+    options?: { resolvesConflict?: boolean } & SaveFeedback,
   ) {
     if (conflict && !options?.resolvesConflict) {
       // The banner stays up and the optimistic tick snaps back, so nothing
       // pretends to have been written while the conflict is open.
       setPendingChecks({});
+      setPendingStatus(undefined);
       return;
     }
     const hash = detail?.contentHash;
     if (!hash || saving) return;
     setSaving(true);
-    try {
-      const result = await editTicket({
-        projectId,
-        ticketKey,
-        expectedHash: hash,
-        edit,
-      });
-      props.onWrite(result);
-      setConflict(undefined);
-      await load("local");
-      setDiskFlash(true);
-      setTimeout(() => setDiskFlash(false), DISK_FLASH_MS);
-    } catch (error) {
-      const normalized = normalizeError(error);
-      // Rust refuses a stale write the app never saw an event for. Same choice.
-      if (normalized.code === "conflict") {
-        setConflict({ error: normalized, pending: edit });
-      } else {
-        onErrorRef.current(normalized);
-      }
-    } finally {
-      setSaving(false);
-    }
+    const written = await mutate({
+      path: detail?.relativePath,
+      apply: options?.apply,
+      write: () =>
+        editTicket({ projectId, ticketKey, expectedHash: hash, edit }),
+      onWritten: (result) => {
+        props.onWrite(result);
+        setConflict(undefined);
+      },
+      toast: options?.toast === undefined ? undefined : () => options.toast!,
+      undo:
+        options?.inverse === undefined
+          ? undefined
+          : (result) => ({
+              path: result.ticket.relativePath,
+              write: () =>
+                editTicket({
+                  projectId,
+                  ticketKey,
+                  // The hash the first write left behind, so the inverse is not
+                  // refused as stale by its own predecessor.
+                  expectedHash: result.ticket.contentHash,
+                  edit: options.inverse!,
+                }),
+              onWritten: (undone) => {
+                props.onWrite(undone);
+                void load("local");
+              },
+              toast: () => options.inverseToast ?? `${ticketKey} restored`,
+            }),
+      // Rust refuses a stale write the app never saw an event for. That is a
+      // decision for the human, not a failed write, so it never reverts and
+      // never becomes a danger toast.
+      handles: (error) => {
+        if (error.code !== "conflict") return false;
+        setConflict({ error, pending: edit });
+        setPendingChecks({});
+        setPendingStatus(undefined);
+        return true;
+      },
+    });
+    if (written) await load("local");
+    setSaving(false);
   }
 
   /** Takes the newer file, discarding the drafts that lost. */
@@ -270,11 +308,6 @@ export function TicketPanel(props: TicketPanelProps) {
   }
 
   const ticket = detail?.ticket;
-  const diskState = saving
-    ? `⟳ writing ${detail?.relativePath ?? "ticket.md"}…`
-    : diskFlash
-      ? `✓ ${detail?.relativePath ?? ""}`
-      : detail?.relativePath;
 
   return (
     <aside
@@ -285,11 +318,7 @@ export function TicketPanel(props: TicketPanelProps) {
     >
       <header className="panel-header">
         <span className="ticket-key">{ticketKey}</span>
-        <code
-          className={saving || diskFlash ? "disk-path flashed" : "disk-path"}
-        >
-          {diskState}
-        </code>
+        <WriteIndicator idle={detail?.relativePath} />
         <button
           className="ghost"
           onClick={props.onClose}
@@ -368,11 +397,24 @@ export function TicketPanel(props: TicketPanelProps) {
           <div className="meta-grid">
             <span>Status</span>
             <select
-              value={ticket.status}
+              value={pendingStatus ?? ticket.status}
               aria-label="Status"
-              onChange={(event) =>
-                void save({ status: event.target.value as TicketStatus })
-              }
+              onChange={(event) => {
+                const next = event.target.value as TicketStatus;
+                const previous = ticket.status;
+                void save(
+                  { status: next },
+                  {
+                    apply: () => {
+                      setPendingStatus(next);
+                      return () => setPendingStatus(undefined);
+                    },
+                    toast: `${ticketKey} → ${statusLabel(next)}`,
+                    inverse: { status: previous },
+                    inverseToast: `${ticketKey} back to ${statusLabel(previous)}`,
+                  },
+                );
+              }}
             >
               {STATUSES.map((option) => (
                 <option key={option.id} value={option.id}>
@@ -468,16 +510,30 @@ export function TicketPanel(props: TicketPanelProps) {
                         onChange={(event) => {
                           const itemId = item.id;
                           if (!itemId) return;
-                          // Show the tick now; the file catches up.
-                          setPendingChecks((current) => ({
-                            ...current,
-                            [itemId]: event.target.checked,
-                          }));
-                          void save({
-                            checklist: [
-                              { itemId, checked: event.target.checked },
-                            ],
-                          });
+                          const next = event.target.checked;
+                          void save(
+                            { checklist: [{ itemId, checked: next }] },
+                            {
+                              // Show the tick now; the file catches up.
+                              apply: () => {
+                                setPendingChecks((current) => ({
+                                  ...current,
+                                  [itemId]: next,
+                                }));
+                                return () =>
+                                  setPendingChecks((current) => {
+                                    const reverted = { ...current };
+                                    delete reverted[itemId];
+                                    return reverted;
+                                  });
+                              },
+                              toast: `${ticketKey} ${next ? "checked" : "unchecked"} · ${item.text}`,
+                              inverse: {
+                                checklist: [{ itemId, checked: !next }],
+                              },
+                              inverseToast: `${ticketKey} ${next ? "unchecked" : "checked"} · ${item.text}`,
+                            },
+                          );
                         }}
                       />
                       <span>{item.text}</span>

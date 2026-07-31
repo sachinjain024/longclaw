@@ -52,6 +52,17 @@ interface LongClawState {
    */
   reconcileFailed: () => void;
   applyLocalWrite: (ticket: TicketRow, generation: number) => void;
+  /**
+   * Shows a row the app is about to write. Not a disk fact, so it carries no
+   * generation: the write that follows either replaces it with what Rust
+   * allocated or `removeTicket` takes it back.
+   */
+  addProvisionalTicket: (ticket: TicketRow) => void;
+  /**
+   * Takes a row off the board. Reverting an optimistic create is the only caller
+   * today; a real removal still arrives as a `ticketRemoved` event.
+   */
+  removeTicket: (ticketKey: string) => void;
   /** Opening a ticket is the review that decays its acknowledgement. */
   reviewTicket: (ticketKey: string) => void;
   sweepMarks: (now: number) => void;
@@ -228,6 +239,18 @@ export const useLongClawStore = create<LongClawState>((set, get) => ({
       // been seen by definition.
       externalMarks: without(state.externalMarks, ticket.key),
       error: undefined,
+    })),
+  addProvisionalTicket: (ticket) =>
+    set((state) => ({
+      tickets: [
+        ...state.tickets.filter((item) => item.key !== ticket.key),
+        ticket,
+      ].sort(byKey),
+    })),
+  removeTicket: (ticketKey) =>
+    set((state) => ({
+      tickets: state.tickets.filter((ticket) => ticket.key !== ticketKey),
+      externalMarks: without(state.externalMarks, ticketKey),
     })),
   reviewTicket: (ticketKey) =>
     set((state) => ({
