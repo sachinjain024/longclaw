@@ -91,184 +91,37 @@ findings were invented to stand in for it, and none may be.
 
 ---
 
-## Wave 0 — fix these; they need no pilot evidence
+## The work itself
 
-Every item is a recorded, open risk with a named failure mode. Work them in this
-order. Each one is release-blocking unless stated otherwise.
+Every pending item now has its own plan in this directory. Each one is
+self-contained — its own working rules, the current behaviour with file and line,
+what to change, and what has to pass — so you can pick one up without reading the
+others or re-deriving anything.
 
-### V0-01 — an external write can be silently overwritten
+**Start with [the plan index](README.md).** It carries the recommended order and
+the few real dependencies between items.
 
-**The most severe untested path in the product.** It destroys a user's work with
-no conflict, no error, and no trace.
+| #   | Plan                                                                           | Backlog | What it fixes                                                              |
+| --- | ------------------------------------------------------------------------------ | ------- | -------------------------------------------------------------------------- |
+| 00  | [Confirm CI on main](00-confirm-ci-on-main.md)                                 | —       | Nobody has checked whether the tree is green. Five minutes.                |
+| 01  | [Close the atomic-replace race](01-atomic-replace-race.md)                     | V0-01   | An external write during a save is destroyed, and the app reports success. |
+| 02  | [Recover from an event-sequence gap](02-event-sequence-gap.md)                 | V0-02   | One dropped event leaves the board silently stale.                         |
+| 03  | [Attribute a change from new records only](03-attribution-from-new-records.md) | V0-07   | The app can credit an agent for a person's edit, or the reverse.           |
+| 04  | [Validate the project prefix on ingest](04-project-prefix-validation.md)       | V0-03   | A foreign ticket key is indexed as this project's.                         |
+| 05  | [Recover the watcher over sleep and wake](05-watcher-recovery.md)              | V0-04   | A closed laptop lid can leave the app confidently wrong.                   |
+| 06  | [Move heavy work off the command thread](06-blocking-workers.md)               | V0-05   | A large rebuild blocks the command it runs on.                             |
+| 07  | [Virtualize the board and list](07-board-virtualization.md)                    | V0-06   | The one Step 4 budget with no measurement behind it.                       |
+| 08  | [Triage the dependabot advisories](08-dependabot-triage.md)                    | —       | 1 high and 2 moderate, unread.                                             |
 
-**Mechanism, end to end.**
+Items 01–07 are Wave 0 of [the backlog](../../backlog/v0-backlog.md): recorded,
+open risk. **None of them needs pilot evidence**, and all of them should be cleared
+whatever the pilot finds.
 
-1. `ProjectEngine::edit_ticket` (`apps/desktop/src-tauri/src/engine.rs:239`) calls
-   `prepare_ticket_edit`, then `commit`.
-2. `prepare_ticket_edit`
-   (`apps/desktop/src-tauri/src/core/storage.rs:471`) reads the file, compares
-   `file.content_hash != expected_hash`, and returns `conflict_error` on
-   mismatch. **This is the only check, and it happens before any write.**
-3. `commit` (`engine.rs:259`) records a self-write receipt for
-   `(path, hash-of-new-bytes)` _before_ writing, so the watcher can recognise the
-   change as the app's own.
-4. `atomic_write` (`storage.rs:428`) writes a sibling temporary file, fsyncs it,
-   then `fs::rename(&temporary, path)` at `storage.rs:455`. **That rename replaces
-   the destination unconditionally.**
-
-So an external write landing between step 2's read and step 4's rename is
-destroyed. Worse, it is destroyed _quietly_: the receipt from step 3 matches the
-bytes the app wrote, so when the watcher reports the change, the receipt consumes
-it and no external-change event reaches the UI. The user sees a successful save.
-
-**Do not just add a second hash check.** The risk register says so explicitly, and
-it is right: a second check narrows the window, it does not close it. Two
-processes can still interleave between the check and the rename.
-
-**The register's approach.** Evaluate `renamex_np(RENAME_SWAP)` on macOS after
-checking volume support: swap the temporary and the destination, so the bytes that
-were on disk end up at the temporary path where you can hash them. Compare that
-hash to the one validation saw. If it differs, an external write happened inside
-the window — preserve those bytes and return a typed conflict rather than
-reporting success. Define an explicit no-silent-loss fallback for filesystems
-without swap support (refusing the write is acceptable; losing it is not).
-
-**Must pass.** A deterministic barrier-based race test — not a sleep, not a timing
-race that passes by luck. Drive the interleaving with a barrier or channel so the
-external write provably lands between validation and replacement, then assert:
-the external bytes still exist somewhere recoverable, the caller got
-`ErrorCode::Conflict`, and the UI would have been told.
-
-**Where to put it.** `apps/desktop/src-tauri/tests/storage_integration.rs`.
-Reusable helpers in `tests/common/mod.rs`: `copy_representative_project()`,
-`start_engine()`, `ticket_path()`, `editor_atomic_replace()`, `replace_title()`,
-and `serially()` for tests that must not run concurrently. The existing
-`a_stale_write_is_a_conflict_that_names_who_changed_the_file` test shows the
-conflict-assertion shape, including the `conflictingActorType` context key.
-
-### V0-02 — a dropped event leaves the board silently stale
-
-**Mechanism.** `applyEvent` in `apps/desktop/src/state.ts:119` starts with:
-
-```ts
-if (envelope.sequence <= state.lastSequence) return;
-```
-
-It correctly ignores an older or duplicate sequence. It then accepts _any_ later
-sequence without asking whether it skipped one, and each branch
-(`ticketChanged`, `ticketRemoved`, `indexRebuilt`, project-unavailable) sets
-`lastSequence: envelope.sequence`. One lost event therefore leaves the board
-missing that change permanently, while everything about the UI still says it is
-live. Silent staleness is worse than a visible error in a product whose whole
-claim is that external changes appear.
-
-**The fix.** Detect `envelope.sequence > state.lastSequence + 1`. On a gap:
-suspend incremental application, request one full snapshot, and resume from that
-snapshot's generation and sequence boundary. Do not apply the event you were
-handed and then reconcile — that reorders history.
-
-`reconcileProject` (`apps/desktop/src/api.ts:124`) is the existing snapshot
-request; `App.tsx:211-226` already calls it from `focus` and `visibilitychange`
-handlers, which is the pattern to follow. `openProject` and `rebuildIndex` also
-return a `ProjectSnapshot`.
-
-**Must pass.** Loss and reordering tests in `apps/desktop/src/state.test.ts`: a
-gap suspends application and asks for exactly one snapshot; a reordered event is
-still ignored; state after recovery equals state as if no event had been lost.
-
-### V0-03 — a foreign ticket key can be indexed as this project's
-
-Step 10 made the key _grammar_ shared, so `valid_ticket_key`
-(`apps/desktop/src-tauri/src/core/storage.rs:75`) and `is_project_key` agree.
-Nothing yet checks that a ticket directory's prefix is _this project's_ key. A
-stale or copied directory named `OTHER-3` therefore satisfies the grammar and gets
-indexed as a ticket of this project.
-
-**Where.** `scan_ticket_paths` (`storage.rs:315`) collects the paths;
-`TicketIndex::rebuild` (`apps/desktop/src-tauri/src/core/index.rs:72`) and
-`TicketIndex::ingest` (`index.rs:112`) turn them into records. The project's own
-key is on `ProjectDocument::project().key`. Degrade a mismatch with a diagnostic —
-per ADR 0009 and the format contract, never rewrite or delete the file.
-
-**Must pass.** Prefix-mismatch and rename coverage: a mismatched directory
-degrades rather than indexing, the file is untouched, and the rest of the project
-still loads. `fixtures/format-contract/invalid-key-directory-mismatch/` is the
-existing sibling case for directory/frontmatter disagreement.
-
-### V0-04 — the watcher loses history over sleep, wake, and overflow
-
-FSEvents drops events over sleep, wake, overflow, and a removed root. Tao 0.35.3
-documents macOS lifecycle `Resumed` as unsupported, and a tagged 30-second release
-session observed zero `RunEvent::Resumed` callbacks — so today the _only_ recovery
-trigger is the frontend `focus`/`visibilitychange` handler at
-`apps/desktop/src/App.tsx:211`. A laptop lid closing is an ordinary event, and it
-can currently leave the app confidently wrong.
-
-**The work.** Add `NSWorkspaceDidWakeNotification` behind a `platform/macos`
-module, coalesce it with the existing focus recovery so a wake plus a focus does
-not rebuild twice, add overflow diagnostics, and give the UI an explicit
-watcher-unavailable state instead of a live-looking board.
-
-**Where.** `WatcherAdapter` (`apps/desktop/src-tauri/src/engine.rs:61`) already
-has `Native` and `Polling { interval_ms }` variants, and
-`ProjectEngine::start_with_adapter` (`engine.rs:159`) is the seam — tests use the
-polling adapter for determinism via `common::start_engine_with`.
-
-**Must pass.** A real sleep/wake soak with the window focused, and an overflow
-injection: both reconcile to disk state. Plus the unavailable state rendering.
-
-### V0-05 — a large rebuild blocks the command it runs on
-
-Orchestration is deliberately synchronous from the spike. Scans, parsing, and
-fsync work should move onto bounded blocking workers, publishing one final
-snapshot back on the Tauri handle. Never mutate webview state from a worker (ADR
-0009). Must pass: a rebuild on a large project keeps commands responsive and the
-Step 4 load budget still holds.
-
-### V0-06 — the board is unproven above a few hundred cards
-
-The spike proved data flow, not 5,000 rendered cards. Virtualize board and list
-lanes, subscribe through selectors (ADR 0006), and enforce an input-to-paint
-budget with a 5,000-ticket browser trace. Do this **before** the Wave 1 list
-surface, which is the thing that renders them.
-
-### V0-07 — attribution can credit the wrong actor
-
-Attribution currently reports the newest explicit actor in the file
-(`last_activity`, built at `apps/desktop/src-tauri/src/core/storage.rs:210`), which
-can disagree with the change that actually triggered the watcher. Crediting an
-agent for a human's edit, or the reverse, breaks the shared record the product
-exists for.
-
-**The fix.** Diff the stable before/after activity records and associate only
-newly appended event IDs with the observed change. If nothing new is attributable,
-report actor unknown — never guess. The frontend already refuses to guess:
-`apps/desktop/src/attribution.ts` treats an unattributed change as `unknown`, and
-`freshness.ts:35` reads the actor from `lastActivity` only. The Rust side is what
-needs to stop handing it a stale actor.
-
-**Must pass.** The actor assertions in
-[the round-trip scenario](../../acceptance/agent-round-trip.md) step 4, plus unit
-coverage for the diff.
-
----
-
-## Then
-
-**Verify CI on `6f838bc`.** `npm run verify` passed locally, but CI also runs
-`npm run build:app`. That run is **unconfirmed** — `gh` was unauthenticated in the
-session that pushed. `gh auth login`, then `gh run list`.
-
-**Triage three dependabot advisories.** GitHub reports 1 high and 2 moderate on
-the default branch. They are in neither the backlog nor the release risks, because
-nobody has looked at what they are. Triage, then either add a ranked backlog item
-or record why one is not needed. Step 16's audit is where they land otherwise.
-
-**Wave 3 has cheap wins if you need them.** V0-19 (remove assignee from the
-prototype specs, per ADR 0001) and V0-30 (index-loss recovery) are small and
-independent of the pilot.
-
----
+Waves 1–3 — the other 32 backlog items — deliberately have no plans yet. The plan's
+guardrail forbids starting Wave 1 breadth before M4 is decided, and their internal
+order is a pre-pilot baseline the pilot is expected to reshuffle. Planning them now
+would be work the evidence may invalidate. [The index](README.md) says the same, and
+names the two pilot-independent Wave 3 items if you want extra work before then.
 
 ## Not an agent's work
 
