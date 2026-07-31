@@ -15,11 +15,15 @@
  * the six-button toolbar writes: ATX headings, fenced code, bullet and task
  * lists, paragraphs, strong, emphasis, code spans, links, hard line breaks.
  *
- * Everything else — ordered lists, block quotes, thematic breaks, setext
- * headings, tables, raw HTML, HTML comments — is neither dropped nor executed.
- * It comes back out as the paragraph text its author typed. The editor never
- * writes this tree back to disk, so an unsupported construct is a rendering gap
- * and can never be data loss.
+ * V0-13 added ordered lists and block quotes, which V0-12 left out only because
+ * `file_format.md` happens to show neither. A timeline comment is where that
+ * stopped being academic: an agent narrating a change writes numbered steps and
+ * quotes the error it saw, and both were rendering as literal `1.` and `>`.
+ *
+ * Everything else — thematic breaks, setext headings, tables, raw HTML, HTML
+ * comments — is neither dropped nor executed. It comes back out as the paragraph
+ * text its author typed. The editor never writes this tree back to disk, so an
+ * unsupported construct is a rendering gap and can never be data loss.
  */
 
 export interface TextNode {
@@ -85,13 +89,26 @@ export interface ListItem {
 export interface ListBlock {
   type: "list";
   items: ListItem[];
+  /** True for `1.` / `1)` markers. The renderer picks `<ol>` or `<ul>` from it. */
+  ordered: boolean;
+  /** The first marker's own number, so a list starting at 7 still starts at 7. */
+  start?: number;
 }
 
-export type Block = HeadingBlock | ParagraphBlock | CodeBlock | ListBlock;
+/** Quoted blocks, parsed the same way: a quote may hold a list or a fence. */
+export interface BlockquoteBlock {
+  type: "blockquote";
+  children: Block[];
+}
+
+export type Block =
+  HeadingBlock | ParagraphBlock | CodeBlock | ListBlock | BlockquoteBlock;
 
 const FENCE = /^ {0,3}(`{3,}|~{3,})(.*)$/;
 const ATX = /^ {0,3}(#{1,6})(?:[ \t]+(.*?))?[ \t]*$/;
 const BULLET = /^ {0,3}[-*+][ \t]+(.*)$/;
+const ORDERED = /^ {0,3}(\d{1,9})[.)][ \t]+(.*)$/;
+const QUOTE = /^ {0,3}>[ \t]?(.*)$/;
 const TASK = /^\[([ xX])\][ \t]+(.*)$/;
 const CLOSING_HASHES = /[ \t]+#+$/;
 const ESCAPABLE = /[!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]/;
@@ -126,9 +143,14 @@ export function parseMarkdown(source: string): Block[] {
       index += 1;
       continue;
     }
-    index = BULLET.test(line)
-      ? readList(lines, index, blocks)
-      : readParagraph(lines, index, blocks);
+    if (QUOTE.test(line)) {
+      index = readQuote(lines, index, blocks);
+      continue;
+    }
+    index =
+      BULLET.test(line) || ORDERED.test(line)
+        ? readList(lines, index, blocks)
+        : readParagraph(lines, index, blocks);
   }
   return blocks;
 }
@@ -161,16 +183,25 @@ function readFence(
 }
 
 /**
- * A run of bullet lines, flat. An indented sub-list keeps its own text and its
- * own marker in the item; it is not nested, and nothing is lost.
+ * A run of list lines, flat, all of one kind: a bullet run ends where a numbered
+ * one begins and the other way round, so the two never merge into one list. An
+ * indented sub-list keeps its own text and its own marker in the item; it is not
+ * nested, and nothing is lost.
  */
 function readList(lines: string[], start: number, blocks: Block[]): number {
+  const ordered = ORDERED.test(lines[start]) && !BULLET.test(lines[start]);
+  const marker = ordered ? ORDERED : BULLET;
+  /** The ordered marker captures its number first, so the text shifts along. */
+  const textGroup = ordered ? 2 : 1;
   const items: ListItem[] = [];
   let index = start;
+  let first: string | undefined;
   while (index < lines.length) {
-    const bullet = BULLET.exec(lines[index]);
-    if (!bullet) break;
-    const task = TASK.exec(bullet[1]);
+    const item = marker.exec(lines[index]);
+    if (!item) break;
+    first ??= ordered ? item[1] : undefined;
+    const text = item[textGroup];
+    const task = TASK.exec(text);
     items.push(
       task
         ? {
@@ -178,11 +209,38 @@ function readList(lines: string[], start: number, blocks: Block[]): number {
             checked: task[1].toLowerCase() === "x",
             children: parseInline(task[2]),
           }
-        : { task: false, checked: false, children: parseInline(bullet[1]) },
+        : { task: false, checked: false, children: parseInline(text) },
     );
     index += 1;
   }
-  blocks.push({ type: "list", items });
+  blocks.push({
+    type: "list",
+    items,
+    ordered,
+    ...(first === undefined ? {} : { start: Number(first) }),
+  });
+  return index;
+}
+
+/**
+ * A run of `>` lines, with the marker stripped and the interior parsed as blocks
+ * — so a quoted list is a list. A line without the marker ends the quote:
+ * CommonMark's lazy continuation would absorb it, and under-quoting one line is
+ * a smaller lie than quoting a line its author did not mark.
+ */
+function readQuote(lines: string[], start: number, blocks: Block[]): number {
+  const inner: string[] = [];
+  let index = start;
+  while (index < lines.length) {
+    const quote = QUOTE.exec(lines[index]);
+    if (!quote) break;
+    inner.push(quote[1]);
+    index += 1;
+  }
+  blocks.push({
+    type: "blockquote",
+    children: parseMarkdown(inner.join("\n")),
+  });
   return index;
 }
 
@@ -195,11 +253,16 @@ function readParagraph(
   let index = start;
   while (index < lines.length) {
     const line = lines[index];
+    const numbered = ORDERED.exec(line);
     const interrupted =
       line.trim() === "" ||
       FENCE.test(line) ||
       ATX.test(line) ||
-      BULLET.test(line);
+      QUOTE.test(line) ||
+      BULLET.test(line) ||
+      // Only a `1.` may interrupt a paragraph, which is what keeps "shipped in
+      // 1985. A good year." prose rather than a list numbered 1985.
+      (numbered !== null && Number(numbered[1]) === 1);
     if (interrupted) break;
     body.push(line);
     index += 1;

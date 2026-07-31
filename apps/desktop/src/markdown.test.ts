@@ -36,13 +36,20 @@ function shownText(block: Block): string {
   if (block.type === "list") {
     return block.items.map((item) => textOf(item.children)).join("\n");
   }
+  if (block.type === "blockquote") {
+    return block.children.map(shownText).join("\n");
+  }
   return textOf(block.children);
 }
 
 function shapeOf(block: Block): string {
   if (block.type === "heading") return `heading${block.level}`;
   if (block.type === "list") {
+    if (block.ordered) return "ordered";
     return block.items.every((item) => item.task) ? "tasks" : "list";
+  }
+  if (block.type === "blockquote") {
+    return `blockquote(${block.children.map(shapeOf).join(" ")})`;
   }
   return block.type;
 }
@@ -58,6 +65,10 @@ describe("the constructs the format documents", () => {
     ["star bullets", "* one\n* two", "list"],
     ["plus bullets", "+ one\n+ two", "list"],
     ["task list", "- [x] Add retry policy\n- [ ] Add metrics", "tasks"],
+    ["ordered list", "1. first\n2. second", "ordered"],
+    ["paren-marked ordered list", "1) first\n2) second", "ordered"],
+    ["block quote", "> quoted", "blockquote(paragraph)"],
+    ["multi-line block quote", "> one\n> two", "blockquote(paragraph)"],
     ["fenced code", "```md\n## Activity\n```", "codeBlock"],
     ["tilde fence", "~~~\nliteral\n~~~", "codeBlock"],
     ["strong", "A **bold** claim.", "paragraph"],
@@ -93,6 +104,41 @@ describe("the constructs the format documents", () => {
     ]);
   });
 
+  /**
+   * V0-13 added these two. An agent narrating a change writes numbered steps and
+   * quotes the error it saw, and both were showing as literal `1.` and `>`.
+   */
+  it("keeps an ordered list's own starting number", () => {
+    const [list] = parseMarkdown("7. seventh\n8. eighth");
+    if (list.type !== "list") throw new Error("expected a list");
+    expect(list.ordered).toBe(true);
+    expect(list.start).toBe(7);
+    expect(list.items.map((item) => textOf(item.children))).toEqual([
+      "seventh",
+      "eighth",
+    ]);
+  });
+
+  it("does not let a year at the start of a line interrupt a paragraph", () => {
+    // CommonMark's rule: only a `1.` may interrupt. Otherwise "…shipped in\n1985.
+    // A good year." becomes a list numbered 1985.
+    const blocks = parseMarkdown("It shipped in\n1985. A good year.");
+    expect(blocks.map(shapeOf)).toEqual(["paragraph"]);
+  });
+
+  it("parses a block quote's interior as blocks, not as one string", () => {
+    const [quote] = parseMarkdown("> ## Heading\n>\n> - one\n> - two");
+    if (quote.type !== "blockquote") throw new Error("expected a blockquote");
+    expect(quote.children.map(shapeOf)).toEqual(["heading2", "list"]);
+  });
+
+  it("does not read a lazy continuation line into a quote", () => {
+    // A `>`-less line ends the quote here. CommonMark would absorb it; the
+    // subset would rather under-quote than swallow a line that follows one.
+    const blocks = parseMarkdown("> quoted\nnot quoted");
+    expect(blocks.map(shapeOf)).toEqual(["blockquote(paragraph)", "paragraph"]);
+  });
+
   it("keeps a fence's interior exactly, spacing and all", () => {
     const [fence] = parseMarkdown("```js\nconst a = '  keep   this  ';\n```");
     if (fence.type !== "codeBlock") throw new Error("expected a fence");
@@ -124,8 +170,6 @@ describe("what happens to everything else", () => {
    * trip is unaffected.
    */
   const outside: [string, string][] = [
-    ["ordered list", "1. first\n2. second"],
-    ["block quote", "> quoted"],
     ["thematic break", "---"],
     ["setext heading", "Title\n====="],
     ["table", "| a | b |\n| - | - |"],

@@ -12,7 +12,7 @@
  */
 
 import { useMemo } from "react";
-import type { Inline } from "./markdown";
+import type { Block, Inline } from "./markdown";
 import { parseMarkdown } from "./markdown";
 
 interface MarkdownViewProps {
@@ -28,9 +28,17 @@ interface MarkdownViewProps {
 
 export function MarkdownView(props: MarkdownViewProps) {
   const blocks = useMemo(() => parseMarkdown(props.source), [props.source]);
-  const offset = props.headingOffset ?? 0;
   return (
     <div className={props.className ?? "markdown"}>
+      <Blocks blocks={blocks} offset={props.headingOffset ?? 0} />
+    </div>
+  );
+}
+
+/** Recursive, because a block quote's interior is blocks like any other. */
+function Blocks({ blocks, offset }: { blocks: Block[]; offset: number }) {
+  return (
+    <>
       {blocks.map((block, index) => {
         const key = `${block.type}-${index}`;
         if (block.type === "heading") {
@@ -49,9 +57,23 @@ export function MarkdownView(props: MarkdownViewProps) {
             </pre>
           );
         }
-        if (block.type === "list") {
+        if (block.type === "blockquote") {
           return (
-            <ul key={key} className="markdown-list">
+            <blockquote key={key} className="markdown-quote">
+              <Blocks blocks={block.children} offset={offset} />
+            </blockquote>
+          );
+        }
+        if (block.type === "list") {
+          // `<ol>` carries the author's own first number, so a list that starts
+          // at 7 is not silently renumbered to 1.
+          const List = block.ordered ? "ol" : "ul";
+          return (
+            <List
+              key={key}
+              className="markdown-list"
+              start={block.ordered ? block.start : undefined}
+            >
               {block.items.map((item, itemIndex) => (
                 <li
                   key={itemIndex}
@@ -70,7 +92,7 @@ export function MarkdownView(props: MarkdownViewProps) {
                   </span>
                 </li>
               ))}
-            </ul>
+            </List>
           );
         }
         return (
@@ -79,7 +101,7 @@ export function MarkdownView(props: MarkdownViewProps) {
           </p>
         );
       })}
-    </div>
+    </>
   );
 }
 

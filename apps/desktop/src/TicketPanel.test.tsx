@@ -376,18 +376,90 @@ describe("the panel's honesty about the file", () => {
     );
     render(panel());
 
-    const agentEntry = (await screen.findByText("Claude Code")).closest("li");
+    // The agent's record is an `update`, so it is a change entry: the rail and
+    // the provenance, its status change as a sentence, and its note below.
+    const agentEntry = (await screen.findByText("Claude Code")).closest(
+      ".timeline-entry",
+    );
     expect(agentEntry?.className).toContain("agent");
-    expect(agentEntry?.textContent).toContain("AGENT");
     expect(agentEntry?.textContent).toContain("via file edit");
+    expect(agentEntry?.textContent).toContain("moved this to In Progress");
     expect(agentEntry?.textContent).toContain("Ticked the first task.");
     // The record's own heading is not repeated as prose.
     expect(agentEntry?.textContent).not.toContain("### Claude Code");
 
-    const humanEntry = screen.getByText("You").closest("li");
+    const humanEntry = screen.getByText("You").closest(".timeline-entry");
     expect(humanEntry?.className).not.toContain("agent");
     expect(humanEntry?.textContent).not.toContain("AGENT");
     expect(humanEntry?.textContent).not.toContain("via file edit");
+  });
+
+  /**
+   * ADR 0001's clause, pinned so a future change cannot quietly reintroduce an
+   * assignee by way of the timeline. Agents are actors on entries and nothing
+   * else; the human avatars in the stream and the composer are actor identity
+   * and are the spec's own anatomy.
+   */
+  it("must-pass: an agent is an actor and never an assignee", async () => {
+    readTicketMock.mockResolvedValue(
+      detail({ activity: [humanEvent(), agentEvent()] }),
+    );
+    render(panel());
+    await ready();
+
+    // The panel offers no assignee anywhere: not as a meta row, not as a
+    // control, not as a word.
+    const aside = document.querySelector(".ticket-panel");
+    expect(aside?.textContent).not.toMatch(/assign/i);
+    expect(screen.queryByRole("button", { name: /assign/i })).toBeNull();
+
+    // The meta grid is exactly the four rows v0 has, and the agent is in none
+    // of them — it exists only inside the timeline.
+    const meta = document.querySelector(".meta-grid");
+    expect(
+      [...(meta?.querySelectorAll(":scope > span") ?? [])].map(
+        (cell) => cell.textContent,
+      ),
+    ).toEqual(["Status", "Priority", "Labels", "Updated"]);
+    expect(meta?.textContent).not.toContain("Claude Code");
+    expect(screen.getByText("Claude Code").closest(".timeline")).toBeTruthy();
+
+    // And the avatars that are correct are still there.
+    expect(document.querySelectorAll(".composer .actor-tile")).toHaveLength(1);
+  });
+
+  it("posts a comment optimistically, and puts it back if the write fails", async () => {
+    let reject: (error: unknown) => void = () => {};
+    readTicketMock.mockResolvedValue(detail());
+    editTicketMock.mockReturnValue(
+      new Promise<WriteResult>((_resolve, settle) => {
+        reject = settle;
+      }),
+    );
+    render(surface());
+    await ready();
+
+    const field = screen.getByLabelText("Comment");
+    fireEvent.change(field, { target: { value: "Looks right to me." } });
+    fireEvent.keyDown(field, { key: "Enter", metaKey: true });
+
+    // On screen before the write returns, and honest that it is not a record.
+    const pending = document.querySelector(".timeline-entry.pending");
+    expect(pending?.textContent).toContain("Looks right to me.");
+    expect(pending?.textContent).toContain("posting");
+    expect(field).toHaveProperty("value", "");
+
+    reject({ code: "io", message: "Disk full", recoverable: true });
+
+    // The entry goes, the text comes back, and the failure is said out loud.
+    await waitFor(() =>
+      expect(document.querySelector(".timeline-entry.pending")).toBeNull(),
+    );
+    expect(screen.getByLabelText("Comment")).toHaveProperty(
+      "value",
+      "Looks right to me.",
+    );
+    expect(screen.getByText("Disk full")).toBeTruthy();
   });
 
   it("closes on Escape from anywhere in the window", async () => {

@@ -8,7 +8,11 @@
  * is why an unattributed change reads as "actor unknown" rather than as an agent.
  */
 
-import { actorGlyph } from "./attribution";
+import {
+  actorGlyph,
+  UNATTRIBUTED_CHANGE,
+  UNKNOWN_ACTOR_LABEL,
+} from "./attribution";
 import type { Actor, ChecklistItem } from "./types";
 
 /** How long an unreviewed external change stays acknowledged (states.md). */
@@ -23,9 +27,6 @@ export interface ExternalMark {
 }
 
 export type ExternalMarks = Record<string, ExternalMark>;
-
-/** What the app calls a change whose file named no actor. */
-const UNKNOWN_LABEL = "actor unknown";
 
 /**
  * `actor` is the one Rust attributed to *this* change — the actor of a record
@@ -47,7 +48,11 @@ export function externalMark(
   if (actor?.type === "human") {
     return { actorType: "human", actorLabel: "a person", at: observedAt };
   }
-  return { actorType: "unknown", actorLabel: UNKNOWN_LABEL, at: observedAt };
+  return {
+    actorType: "unknown",
+    actorLabel: UNKNOWN_ACTOR_LABEL,
+    at: observedAt,
+  };
 }
 
 /** True while the change still deserves the acknowledgement treatment. */
@@ -85,7 +90,7 @@ export function isPulsing(
 export function acknowledgement(mark: ExternalMark, now: number): string {
   const glyph = actorGlyph(mark.actorType);
   if (mark.actorType === "unknown") {
-    return `${glyph} file changed on disk — ${UNKNOWN_LABEL}`;
+    return `${glyph} ${UNATTRIBUTED_CHANGE}`;
   }
   const age = describeAge(mark.at, now);
   if (mark.actorType === "human") {

@@ -1263,7 +1263,8 @@ button:disabled {
   line-height: 1.55;
 }
 
-.markdown > * {
+.markdown > *,
+.markdown-quote > * {
   margin: 0 0 var(--lc-space-2);
 }
 
@@ -1307,6 +1308,17 @@ button:disabled {
   display: grid;
   gap: 2px;
   padding-left: var(--lc-space-4);
+}
+
+/* A quoted block an agent pasted an error into: marked by a rule, not a tint. */
+.markdown-quote {
+  border-left: 2px solid var(--lc-line-strong);
+  padding-left: var(--lc-space-3);
+  color: var(--lc-ink-2);
+}
+
+.markdown-quote > *:last-child {
+  margin-bottom: 0;
 }
 
 .markdown-list .markdown-task {
@@ -1429,6 +1441,11 @@ button:disabled {
   background: var(--lc-accent-agent);
 }
 
+.actor-tile.unknown {
+  border-color: var(--lc-warn);
+  color: var(--lc-warn);
+}
+
 .agent-badge {
   border-radius: var(--lc-radius-kbd);
   padding: 2px 5px;
@@ -1443,19 +1460,62 @@ button:disabled {
   font: 400 10.5px var(--lc-type-code-font);
 }
 
+/* A change event is a glyph and a line, not an avatar and a block
+   (`components.md:207`). The rail still marks an agent's. */
 .entry-changes {
   display: grid;
   gap: 2px;
-  margin: var(--lc-space-1) 0 0;
-  padding-left: calc(var(--lc-size-avatar) + var(--lc-space-2));
+  margin: 0;
+  padding: 0;
   color: var(--lc-ink-2);
   font-size: 12px;
   list-style: none;
 }
 
+.entry-changes > li {
+  display: flex;
+  gap: var(--lc-space-2);
+  align-items: baseline;
+}
+
+.change-glyph {
+  width: 12px;
+  color: var(--lc-ink-3);
+  font-size: 12px;
+  text-align: center;
+}
+
+.entry-changes > li.warn,
+.entry-changes > li.warn .change-glyph {
+  color: var(--lc-warn);
+}
+
+.change-actor {
+  color: var(--lc-ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.timeline-entry.agent .change-actor {
+  color: var(--lc-accent-agent-text);
+  font-family: var(--lc-type-code-font);
+}
+
+.timeline-entry.unattributed .change-actor {
+  color: var(--lc-warn);
+}
+
 .entry-changes code {
   color: var(--lc-ink-3);
-  font-size: 11px;
+  border-radius: 4px;
+  padding: 1px 4px;
+  background: var(--lc-wash);
+  font: var(--lc-type-code-weight) 11px var(--lc-type-code-font);
+}
+
+.change-meta {
+  margin: 2px 0 0;
+  padding-left: calc(12px + var(--lc-space-2));
 }
 
 .entry-body {
@@ -1464,13 +1524,32 @@ button:disabled {
   color: var(--lc-ink);
   font-size: 13px;
   line-height: 1.5;
-  white-space: pre-wrap;
 }
 
+.timeline-entry.change .entry-body {
+  padding-left: calc(12px + var(--lc-space-2));
+}
+
+/* On screen before the file has it, and saying so rather than looking settled. */
+.timeline-entry.pending {
+  opacity: 0.62;
+}
+
+/* Avatar left, field and action stacked beside it (`screen-specs.md:193`). */
 .composer {
   display: grid;
+  grid-template-columns: auto 1fr;
   gap: var(--lc-space-2);
-  justify-items: start;
+  align-items: start;
+}
+
+.composer .actor-tile {
+  grid-row: 1;
+}
+
+.composer button {
+  grid-column: 2;
+  justify-self: start;
 }
 
 .raw-file {

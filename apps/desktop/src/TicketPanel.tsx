@@ -125,6 +125,13 @@ export function TicketPanel(props: TicketPanelProps) {
   const [editingDescription, setEditingDescription] = useState(false);
   const [newItem, setNewItem] = useState("");
   const [commentDraft, setCommentDraft] = useState("");
+  /**
+   * A comment already on screen whose write has not returned. Posting is
+   * optimistic (`screen-specs.md:193`), and this is the whole of it: the
+   * timeline draws it as an entry that says it is still posting, and `load`
+   * clears it when the file comes back carrying the real record.
+   */
+  const [pendingComment, setPendingComment] = useState<string>();
   const [saving, setSaving] = useState(false);
   const [conflict, setConflict] = useState<{
     error: AppError;
@@ -200,6 +207,7 @@ export function TicketPanel(props: TicketPanelProps) {
       setPendingStatus(undefined);
       setPendingPriority(undefined);
       setPendingLabels(undefined);
+      setPendingComment(undefined);
       setDetail(next);
 
       const unsaved = mode === "external" ? draftEdit() : undefined;
@@ -311,6 +319,10 @@ export function TicketPanel(props: TicketPanelProps) {
         setPendingStatus(undefined);
         setPendingPriority(undefined);
         setPendingLabels(undefined);
+        // A conflict never reverts, so the composer has to be given its text
+        // back by hand — the comment was not written and must not vanish.
+        setPendingComment(undefined);
+        if (edit.comment !== undefined) setCommentDraft(edit.comment);
         return true;
       },
     });
@@ -687,20 +699,51 @@ export function TicketPanel(props: TicketPanelProps) {
                 stands; the history is incomplete.
               </p>
             )}
-            <Timeline events={ticket.activity} now={props.now} />
+            <Timeline
+              events={ticket.activity}
+              now={props.now}
+              // So a change event names a label and a checklist item rather
+              // than the slug and the id the record carries.
+              labels={props.labels}
+              checklist={ticket.checklist}
+              pendingComment={pendingComment}
+            />
             <form
               className="composer"
               onSubmit={(event) => {
                 event.preventDefault();
                 const comment = commentDraft.trim();
                 if (!comment) return;
-                setCommentDraft("");
-                void save({ comment });
+                void save(
+                  { comment },
+                  {
+                    // Clearing the field is part of the optimistic step, so a
+                    // save the conflict banner refuses leaves the draft typed.
+                    apply: () => {
+                      setCommentDraft("");
+                      setPendingComment(comment);
+                      return () => {
+                        setPendingComment(undefined);
+                        setCommentDraft(comment);
+                      };
+                    },
+                  },
+                );
               }}
             >
+              {/* Actor identity, which ADR 0001 permits and `screen-specs.md:193`
+                  asks for. It is not an assignee and there is no assignee. */}
+              <span className="actor-tile" aria-hidden="true">
+                •
+              </span>
               <textarea
                 value={commentDraft}
-                rows={2}
+                // Auto-growing, within reason: the panel scrolls, so a long
+                // comment should not push the timeline off screen entirely.
+                rows={Math.min(
+                  10,
+                  Math.max(2, commentDraft.split("\n").length),
+                )}
                 placeholder="Comment"
                 aria-label="Comment"
                 onChange={(event) => setCommentDraft(event.target.value)}

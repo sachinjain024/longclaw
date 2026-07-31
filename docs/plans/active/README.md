@@ -18,10 +18,10 @@ is closed, Wave 0 is clear, and M4 closed on 2026-07-31 when the founder decided
 proceed without the pilot sessions
 ([decision](../../pilot/response-memo.md#direction-decision-2026-07-31-superseded-the-same-day)).
 Step 11 is [Wave 1 of the backlog](../../backlog/v0-backlog.md) — V0-08 through
-V0-19 — and eight of them are now closed: V0-19 as plan 11, V0-18 as plan 12,
+V0-19 — and nine of them are now closed: V0-19 as plan 11, V0-18 as plan 12,
 V0-17 as plan 13, V0-08 as plan 14, V0-10 as plan 15, V0-14 as plan 16, V0-11
-as plan 17, and V0-12 as plan 18. The rest are open. Write a plan here before
-starting one of them.
+as plan 17, V0-12 as plan 18, and V0-13 as plan 19. Three are open — V0-09,
+V0-15 and V0-16. Write a plan here before starting one of them.
 
 Two things to read first, once, before Step 11 code:
 
@@ -58,6 +58,7 @@ marked independent can be done at any time by anyone.
 | ~~16~~ | ~~The dense issue list~~ — **done 2026-07-31**, [outcome](../completed/16-dense-issue-list.md) | V0-14 | Closed, and it is the second surface. Read its outcome before V0-09, V0-11 or V0-15 — the board's bucketing moved to `src/grouping.ts`, `boardGeometry.ts`'s `columnOffsets` is now `runningOffsets`, and the status dot the whole app was missing now exists. |
 | ~~17~~ | ~~Archive and unarchive~~ — **done 2026-07-31**, [outcome](../completed/17-archive-and-unarchive.md) | V0-11 | Closed. Archived tickets now leave `groupByStatus` rather than leaving the board, and the write is raised in `App.tsx` because archiving closes the panel. Read its outcome before V0-15 (the exclusion is in the shared bucketing) and before V0-24 (the `· archived` tag on a search result is still open). |
 | ~~18~~ | ~~Markdown write/preview editor~~ — **done 2026-07-31**, [outcome](../completed/18-markdown-editor.md) | V0-12 | Closed, and it is the renderer the rest of the product reads markdown through. Read its outcome before V0-13 (comment bodies want `MarkdownView`) and before V0-27 (a relative attachment link deliberately does not become a link yet). |
+| ~~19~~ | ~~Complete the merged timeline~~ — **done 2026-08-01**, [outcome](../completed/19-merged-timeline.md) | V0-13 | Closed. `Timeline.tsx` reads `event.kind` now, and what a kind and a field mean lives in `src/timelineEvents.ts` rather than in JSX. It also extended the markdown subset with ordered lists and block quotes, and added a cross-language pin on the set of fields an edit can write. Read its outcome before V0-09 or V0-16 — a new `FieldChange.field` needs a sentence, and the fixture will say so. |
 
 Dependencies worth knowing:
 
@@ -169,6 +170,24 @@ Dependencies worth knowing:
   pure string transforms in `src/markdownToolbar.ts`, which is what lets the
   no-reformatting claim be a unit test rather than a DOM one; a seventh button
   would be a row there, not a new component.
+- **19 is done, and V0-09 and V0-16 each inherit an obligation from it.** The
+  timeline is complete, and the way it stays complete is that **a new
+  `FieldChange.field` needs a sentence**. Turning a wire value into something a
+  human reads lives in `apps/desktop/src/timelineEvents.ts` — `describeChange`
+  is one branch per field, and `entryShape`/`unfamiliarKind` decide the two
+  entry shapes — and it is pinned across the language boundary:
+  `src-tauri/tests/fixtures/ipc-contract.json` carries `appliedFieldChanges`,
+  Rust asserts its own serialized output equals it in
+  `core::ticket::tests::json_contract_applied_field_changes`, and
+  `src/timelineEvents.test.ts` reads the same array and asserts each entry has a
+  sentence. **So V0-09's Manual mode, which writes `rank`, and V0-16's create
+  surface both go red on both sides if they add a field and stop there** — which
+  is the point. Do not describe a field inside `Timeline.tsx`, and do not
+  re-describe a status, a priority or a label in words: `StatusDot`,
+  `PriorityGlyph` and `LabelDot` are the change line's glyph vocabulary.
+  **V0-27 inherits one more thing:** 18's subset grew ordered lists and block
+  quotes here, so the constructs left outside it are now thematic breaks, setext
+  headings, tables and raw HTML, and `markdown.ts`'s header says so.
 - **09 and 10 are both closed, and no plan is open.** The vanished-path overflow bug
   is fixed in `collect_event`, and the npm-launched native watcher timeout that
   blocked local `npm run verify` no longer reproduces — closed without a fix, so
@@ -179,8 +198,8 @@ Dependencies worth knowing:
 
 ## Waves 1–3 are unplanned, and now for a different reason
 
-Waves 1–3 of [the backlog](../../backlog/v0-backlog.md) — 24 of its 39 items, now
-that V0-08, V0-10, V0-11, V0-12, V0-14, V0-17, V0-18, and V0-19 are closed — still have no plans here. The original reason is gone: the
+Waves 1–3 of [the backlog](../../backlog/v0-backlog.md) — 23 of its 39 items, now
+that V0-08, V0-10, V0-11, V0-12, V0-13, V0-14, V0-17, V0-18, and V0-19 are closed — still have no plans here. The original reason is gone: the
 guardrail has been satisfied and the pilot will not invalidate anything, because it
 was skipped.
 

@@ -177,15 +177,20 @@ describe("must-pass 2: the raw string is never normalized", () => {
     const preview = screen.getByRole("tabpanel", { name: "Preview" });
     // The constructs the subset does not render are still legible, and the
     // fence's interior spacing is intact.
-    expect(preview.textContent).toContain("> a block quote");
-    expect(preview.textContent).toContain("1. an ordered item");
+    expect(preview.textContent).toContain("Setext heading");
     expect(preview.textContent).toContain(
       "const spacing = '  load   bearing  ';",
     );
     expect(preview.textContent).toContain("A tab-indented line.");
-    // And the constructs it does render are elements.
+    // And the constructs it does render are elements. V0-13 moved the block
+    // quote and the ordered list into the subset, so these two are no longer
+    // literal text — a timeline comment is full of both.
     expect(preview.querySelectorAll("li").length).toBeGreaterThan(0);
     expect(preview.querySelector("pre code")).toBeTruthy();
+    expect(preview.querySelector("blockquote")?.textContent).toBe(
+      "a block quote",
+    );
+    expect(preview.querySelector("ol li")?.textContent).toBe("an ordered item");
   });
 
   it("never turns markup into DOM", () => {

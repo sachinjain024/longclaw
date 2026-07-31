@@ -10,6 +10,17 @@
 
 import type { ActivityEvent, ActorType, AppError, TicketDetail } from "./types";
 
+/** What the app calls a change whose file named no actor. */
+export const UNKNOWN_ACTOR_LABEL = "actor unknown";
+
+/**
+ * The one sentence for an observed change nothing in the file claims
+ * (`states.md:172`). The board footer and the timeline both say it, and they say
+ * it identically because saying it twice differently is how a surface starts
+ * implying it knows more than another one does.
+ */
+export const UNATTRIBUTED_CHANGE = `file changed on disk — ${UNKNOWN_ACTOR_LABEL}`;
+
 /** Agent and unattributed changes wear the agent accent; a person's do not. */
 export function wearsAgentAccent(actorType: ActorType): boolean {
   return actorType !== "human";
