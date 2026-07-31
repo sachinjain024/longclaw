@@ -1,7 +1,7 @@
 ---
 title: "Stop treating a vanished path as a watcher overflow"
 product: LongClaw
-status: ready
+status: completed
 backlog_id: "—"
 order: 9
 owner_area: Platform
@@ -164,3 +164,35 @@ exposed by the same race.
   Push and read CI, and rerun the job once to see whether it is stable rather than
   merely lucky.
 - **`gh` works on this machine.** Item 00 was written believing it did not.
+
+## Outcome
+
+Implemented in `apps/desktop/src-tauri/src/engine.rs`: `collect_event` now drops
+only `notify::ErrorKind::Io` values whose underlying `io::ErrorKind` is
+`NotFound`. Other watcher errors still report `RebuildReason::Overflow`, so real
+overflow recovery keeps the old behaviour.
+
+Pinned with unit coverage over `collect_event`:
+
+- `a_missing_path_watcher_error_does_not_force_an_overflow_rebuild`
+- `non_missing_watcher_errors_still_force_an_overflow_rebuild`
+
+Validation performed locally:
+
+- `cargo test engine::tests::a_missing_path_watcher_error_does_not_force_an_overflow_rebuild`
+- `cargo test engine::tests::non_missing_watcher_errors_still_force_an_overflow_rebuild`
+- `cargo test --test watcher_integration an_overflow_recovery_converges_on_disk_state`
+- Ten consecutive `cargo test --test watcher_integration` runs under twelve CPU
+  spinners: all green.
+- `cargo test --test watcher_integration filesystem_round_trip -- --ignored --nocapture`
+  directly from `apps/desktop/src-tauri`: green.
+- `npm --prefix apps/desktop run check`: green.
+
+`npm run verify` did not go green locally, but not because of this fix. Its final
+npm-launched native watcher target repeatedly timed out waiting for the first
+FSEvents update, while the exact cargo watcher command passed when run directly
+from `apps/desktop/src-tauri`. That is tracked separately as
+[item 10](../active/10-npm-native-watcher-timeout.md). Until item 10 is fixed,
+local `npm run verify` remains an unreliable validator for this branch.
+
+CI has not been recorded for this branch yet.
