@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -28,6 +29,7 @@ import {
 import { Board } from "./Board";
 import { CreateProjectForm, type ProjectDraft } from "./CreateProjectForm";
 import { normalizeError } from "./errors";
+import { filterTickets, isFiltering } from "./filtering";
 import { IssueList } from "./IssueList";
 import { LABEL_COLORS } from "./labels";
 import { MenuButton } from "./Menu";
@@ -177,6 +179,14 @@ export function App() {
   const [view, setView] = useState<"board" | "list">("board");
   const [settingsName, setSettingsName] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  /**
+   * The content header's filter (`screen-specs.md:47`). Session-only app state
+   * (`data-requirements.md:41`): plain component state, deliberately not beside
+   * `appearance` and the ordering preference in `localStorage`, and never a
+   * field on anything that crosses IPC.
+   */
+  const [filterQuery, setFilterQuery] = useState("");
+  const filterField = useRef<HTMLInputElement>(null);
 
   const project = projects.find((item) => item.id === activeProjectId);
   /** Priority until this project has been switched (ADR 0003's default). */
@@ -184,6 +194,39 @@ export function App() {
     (activeProjectId && boardOrdering[activeProjectId]) || "priority";
   /** The row the panel is open on, read from the store both surfaces read. */
   const openRow = tickets.find((ticket) => ticket.key === selectedKey);
+
+  /**
+   * The rows the surface draws. Narrowed once, here, so the board and the list
+   * cannot disagree about what a query means — and before grouping rather than
+   * inside it, because a filter says nothing about status (`filtering.ts`).
+   */
+  const visibleTickets = useMemo(
+    () => filterTickets(tickets, filterQuery),
+    [tickets, filterQuery],
+  );
+  const filtering = isFiltering(filterQuery);
+  /**
+   * Whether the query left the surface in front of you with nothing to draw.
+   *
+   * The board never draws an archived ticket (ADR 0004), so a query that matches
+   * only archived ones is still "no matches" there while the list has a row for
+   * it. Unreadable files are not an answer to a query either — they are exempt
+   * from the filter, not matched by it.
+   */
+  const noMatches =
+    filtering &&
+    !visibleTickets.some(
+      (row) => row.state === "indexed" && (view === "list" || !isArchived(row)),
+    );
+  const unreadableShown = noMatches
+    ? visibleTickets.filter((row) => row.state === "degraded").length
+    : 0;
+
+  const clearFilter = useCallback(() => {
+    setFilterQuery("");
+    // Rule 3 of the focus map: closing a layer never drops focus on the floor.
+    filterField.current?.focus();
+  }, []);
   const openTicket = useCallback(
     (key: string) => {
       setSelectedKey(key);
@@ -229,6 +272,44 @@ export function App() {
       setLoading(false);
     }
   }
+
+  // A query about one project means nothing in the next one.
+  useEffect(() => setFilterQuery(""), [activeProjectId]);
+
+  /**
+   * `⌘F` and the filter's rung of the `Esc` ladder (`keyboard-focus-map.md:19-31`).
+   *
+   * `⌘F` takes the chord from the webview's own find deliberately: WebKit would
+   * search the windowed DOM and report one hit in a column of four hundred. It
+   * stands down when there is no field to focus, so a webview with no project
+   * open keeps its default behaviour.
+   *
+   * `Esc` clears the filter **last**, after menu → modal → description edit →
+   * ticket panel. The first three stop the event themselves — `Menu` and
+   * `DescriptionEditor` both call `stopPropagation`, so it never reaches this
+   * listener — and the panel and the create modal are checked by state, because
+   * the panel closes on `Esc` without preventing anything.
+   */
+  useEffect(() => {
+    const layerOpen = selectedKey !== undefined || ticketFormOpen;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "f") {
+        const field = filterField.current;
+        if (!field || ticketFormOpen) return;
+        event.preventDefault();
+        field.focus();
+        // "Selects existing query" (`keyboard-focus-map.md:31`), so the next
+        // keystroke replaces it rather than appending to it.
+        field.select();
+        return;
+      }
+      if (event.key !== "Escape" || layerOpen || !filtering) return;
+      clearFilter();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [clearFilter, filtering, selectedKey, ticketFormOpen]);
 
   useEffect(() => {
     try {
@@ -868,8 +949,17 @@ export function App() {
                     <h2>{view === "board" ? "Board" : "List"}</h2>
                   </div>
                   <div className="toolbar-actions">
-                    {/* `screen-specs.md:47-48`: the ordering control sits in the
-                        content header, beside the view segment. */}
+                    {/* `screen-specs.md:47-48` orders the content header:
+                        filter field, then ordering control, then view segment. */}
+                    <input
+                      ref={filterField}
+                      className="filter-field"
+                      type="text"
+                      value={filterQuery}
+                      aria-label="Filter tickets"
+                      placeholder="Filter tickets"
+                      onChange={(event) => setFilterQuery(event.target.value)}
+                    />
                     <div className="ordering-control">
                       <span>Order</span>
                       <MenuButton
@@ -916,35 +1006,52 @@ export function App() {
                 </div>
 
                 {tickets.length === 0 ? (
+                  // A project with no tickets is the empty-project state, not a
+                  // filter state, whatever is in the field.
                   <EmptyBoard
                     project={project}
                     onCreate={() => setTicketFormOpen(true)}
                   />
-                ) : view === "board" ? (
-                  <Board
-                    tickets={tickets}
-                    selectedKey={selectedKey}
-                    marks={externalMarks}
-                    labels={project.labels}
-                    ordering={ordering}
-                    now={now}
-                    onSelect={openTicket}
-                    onChangePriority={changePriority}
-                    onReorder={reorderTicket}
-                  />
                 ) : (
-                  // Both surfaces are projections of the same store state and
-                  // hold no rows of their own, which is what makes them agree
-                  // after an app edit, a file edit, a restart, or a rebuild.
-                  <IssueList
-                    tickets={tickets}
-                    selectedKey={selectedKey}
-                    marks={externalMarks}
-                    labels={project.labels}
-                    ordering={ordering}
-                    now={now}
-                    onSelect={openTicket}
-                  />
+                  <>
+                    {noMatches && (
+                      <NoMatches
+                        query={filterQuery}
+                        unreadable={unreadableShown}
+                        onClear={clearFilter}
+                      />
+                    )}
+                    {view === "board" ? (
+                      <Board
+                        tickets={visibleTickets}
+                        selectedKey={selectedKey}
+                        marks={externalMarks}
+                        labels={project.labels}
+                        ordering={ordering}
+                        // Six empty columns beside a "No matches" panel is the
+                        // empty board the designed state exists to replace.
+                        scaffold={!noMatches}
+                        now={now}
+                        onSelect={openTicket}
+                        onChangePriority={changePriority}
+                        onReorder={reorderTicket}
+                      />
+                    ) : (
+                      // Both surfaces are projections of the same store state
+                      // and hold no rows of their own, which is what makes them
+                      // agree after an app edit, a file edit, a restart, or a
+                      // rebuild — and now after a query.
+                      <IssueList
+                        tickets={visibleTickets}
+                        selectedKey={selectedKey}
+                        marks={externalMarks}
+                        labels={project.labels}
+                        ordering={ordering}
+                        now={now}
+                        onSelect={openTicket}
+                      />
+                    )}
+                  </>
                 )}
               </section>
             )}
@@ -1279,6 +1386,44 @@ function EmptyBoard(props: {
       </p>
       <button className="primary" onClick={props.onCreate}>
         New ticket
+      </button>
+    </div>
+  );
+}
+
+/**
+ * The no-match state (`states.md:37-41`, `screen-specs.md:130-131`): a centered
+ * panel, the query echoed back, and a secondary Clear filter that `Esc` also
+ * reaches. Built beside `EmptyBoard` and wearing its treatment, because both
+ * answer the same question — why is there nothing here?
+ *
+ * `role="status"` because a filter that empties the screen without saying so is
+ * hostile to a screen-reader user; it is named, so it is distinguishable from the
+ * toast stack, which is a live region too.
+ */
+function NoMatches(props: {
+  query: string;
+  /** Unreadable files still on screen, which the filter never hides. */
+  unreadable: number;
+  onClear: () => void;
+}) {
+  return (
+    <div className="no-matches" role="status" aria-label="No matches">
+      <strong>No matches</strong>
+      <p>
+        Nothing here matches <code>{props.query}</code>.
+      </p>
+      {props.unreadable > 0 && (
+        <p>
+          {props.unreadable === 1
+            ? "1 unreadable file is"
+            : `${props.unreadable} unreadable files are`}{" "}
+          still shown: a file this build cannot parse has no text to match, so
+          the filter never hides one.
+        </p>
+      )}
+      <button className="secondary" onClick={props.onClear}>
+        Clear filter
       </button>
     </div>
   );

@@ -462,6 +462,7 @@ button:disabled {
 }
 
 .empty-board,
+.no-matches,
 .unreachable-panel {
   margin: 18px;
   border: 1px dashed var(--lc-line-strong);
@@ -472,9 +473,19 @@ button:disabled {
 }
 
 .empty-board p,
+.no-matches p,
 .unreachable-panel p {
   margin-bottom: 0;
   color: var(--lc-ink-2);
+}
+
+.no-matches code {
+  color: var(--lc-ink);
+  font-size: 12px;
+}
+
+.no-matches .secondary {
+  margin-top: var(--lc-space-4);
 }
 
 .empty-board .primary {
@@ -714,6 +725,23 @@ button:disabled {
 /* `Order: Priority|Manual` (screen-specs.md:47-48). The word is drawn beside the
    trigger rather than inside it, so the trigger keeps saying only the value —
    which is what every other menu trigger in the app says. */
+/* 190×28px (`screen-specs.md:47`). The one control in the header that is a text
+   field, so it states its own box rather than borrowing a control token. */
+.filter-field {
+  width: 190px;
+  height: 28px;
+  border: 1px solid var(--lc-line);
+  border-radius: 7px;
+  padding: 0 9px;
+  color: var(--lc-ink);
+  background: var(--lc-surface);
+  font-size: 12px;
+}
+
+.filter-field::placeholder {
+  color: var(--lc-ink-3);
+}
+
 .ordering-control {
   display: inline-flex;
   gap: var(--lc-space-2);

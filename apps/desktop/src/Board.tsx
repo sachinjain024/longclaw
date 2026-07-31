@@ -101,13 +101,14 @@ interface Move {
 function layOutColumns(
   tickets: TicketRow[],
   ordering: OrderingMode,
+  scaffold: boolean,
 ): {
   columns: StatusGroup[];
   seats: Map<string, Seat>;
 } {
   const columns = groupByStatus(tickets, {
     compare: comparatorFor(ordering),
-    keepEmpty: true,
+    keepEmpty: scaffold,
   });
   return { columns, seats: seatsFor(columns) };
 }
@@ -179,6 +180,13 @@ export function Board(props: {
   labels: Record<string, Label>;
   /** Priority or Manual: a device-local view preference, never project data. */
   ordering: OrderingMode;
+  /**
+   * Whether to keep a column for a status holding nothing — the fixed v0 set as
+   * a scaffold (ADR 0002), which is the board's default and the point of it.
+   * `App.tsx` drops it in exactly one case: a filter that matched nothing, where
+   * six empty columns would be the empty board the designed state replaces.
+   */
+  scaffold?: boolean;
   now: number;
   onSelect: (key: string) => void;
   /** Raised by the `P` menu. The board holds no project id and writes nothing. */
@@ -186,9 +194,10 @@ export function Board(props: {
   /** Raised by a drop in Manual. The rank is allocated; the write is App's. */
   onReorder: (ticket: IndexedTicket, rank: string) => void;
 }) {
+  const scaffold = props.scaffold ?? true;
   const { columns, seats } = useMemo(
-    () => layOutColumns(props.tickets, props.ordering),
-    [props.tickets, props.ordering],
+    () => layOutColumns(props.tickets, props.ordering, scaffold),
+    [props.tickets, props.ordering, scaffold],
   );
   const [focusedKey, setFocusedKey] = useState<string>();
   /** Bumped only by a key press, so focus follows the arrows and nothing else. */
@@ -270,8 +279,17 @@ export function Board(props: {
 
   // The column keeps its focused card mounted wherever it is, so the card the
   // arrows just moved to is always here to be focused and scrolled to.
+  //
+  // Only a new request moves focus. `rovingKey` is a dependency because the
+  // effect reads it, not because a change to it is a reason to grab focus: the
+  // filter can move the tab stop onto a different card while the human is typing
+  // in the header, and taking focus off the field mid-query is not a thing a
+  // board is allowed to do.
+  const answered = useRef(0);
   useLayoutEffect(() => {
-    if (focusRequest === 0 || rovingKey === undefined) return;
+    if (focusRequest === 0 || focusRequest === answered.current) return;
+    if (rovingKey === undefined) return;
+    answered.current = focusRequest;
     const card = cardFor(grid.current, rovingKey);
     card?.focus();
     card?.scrollIntoView?.({ block: "nearest" });

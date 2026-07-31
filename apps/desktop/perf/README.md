@@ -17,6 +17,7 @@ npm run perf:board                     # the shipped board
 npm run perf:list                      # the shipped issue list
 npm run perf:board -- --nav=Tab        # the pre-roving-focus baseline
 npm run perf:board -- --order=manual   # the Manual comparator (ADR 0003)
+npm run perf:board -- --filter="storage"  # a different query in the filter trace
 ```
 
 `--order=manual` clicks the real ordering control before measuring. Manual is the
@@ -26,7 +27,15 @@ two from `apps/desktop`: at the repository root, `npm run perf:board -- --x` han
 the flag to npm rather than to the harness.
 
 It prints a `PERF-UI` line next to the Rust harness's `PERF` line, a p50/p95/max
-table for the three interactions, and the same numbers as JSON.
+table for the four interactions, and the same numbers as JSON.
+
+The filter scenario (V0-15) types a query in one character at a time and deletes
+it again, once per keystroke. The default query is the worst shape the fixture
+allows: every ticket is titled `Searchable storage ticket N`, so the leading
+characters match all 5,000 rows — a full pass that removes nothing — and only the
+last few narrow it to one. Deleting is the heavier half, because it puts every row
+back. Watch the floor column here rather than the absolute number: if filtering
+ever starts scaling with the project, this is the row that shows it.
 
 The external-write scenario writes to a different ticket per surface, named in
 `SURFACES`: it has to land on a row the surface is already drawing, or the number
@@ -77,6 +86,11 @@ That is the animation-frame boundary the app's own `reportVisibleUi` probe
 (`lib.rs:213`, `api.ts:153`) reports on, which is why the harness reuses the
 probe rather than inventing a second definition of "painted": the external-write
 scenario fails unless the probe fires and names the row that was just written.
+
+The filter scenario fails unless the field comes back empty and the rows return,
+which is what caught a real defect: both surfaces re-focus their roving row when
+it changes, and a query changes it, so typing pulled focus off the header field
+and onto a card. WebKit then read the next backspace as "go back".
 
 The keyboard scenario fails unless focus actually moves to a different card, so
 a key that has become a no-op reads as a broken run rather than as a fast one.

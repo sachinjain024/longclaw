@@ -1267,3 +1267,331 @@ describe("board ordering and manual reordering (V0-09)", () => {
     expect(back?.state === "indexed" && back.rank).toBe("a2");
   });
 });
+
+describe("the header filter (V0-15)", () => {
+  const project = {
+    id: "project-fixture",
+    name: "Fixture Project",
+    rootPath: "/tmp/LongClaw Fixture",
+    key: "LC",
+    theme: "indigo",
+    starred: false,
+    reachable: true,
+    labels: {},
+  };
+
+  function row(
+    key: string,
+    title: string,
+    overrides?: Partial<IndexedTicket>,
+  ): TicketRow {
+    return {
+      state: "indexed",
+      key,
+      id: `id-${key}`,
+      title,
+      status: "todo",
+      priority: "none",
+      labels: [],
+      createdAt: "2026-08-01T09:00:00Z",
+      updatedAt: "2026-08-01T09:00:00Z",
+      checkedCount: 0,
+      checklistCount: 0,
+      commentCount: 0,
+      attachmentCount: 0,
+      contentHash: `hash-${key}`,
+      relativePath: `.longclaw/tickets/${key}/ticket.md`,
+      ...overrides,
+    };
+  }
+
+  function unreadable(key: string): TicketRow {
+    return {
+      state: "degraded",
+      key,
+      contentHash: `hash-${key}`,
+      relativePath: `.longclaw/tickets/${key}/ticket.md`,
+      byteLength: 12,
+      readOnly: false,
+      diagnostic: { code: "parse_failed", message: "no frontmatter" },
+    };
+  }
+
+  function detail(key: string): TicketDetail {
+    return {
+      key,
+      relativePath: `.longclaw/tickets/${key}/ticket.md`,
+      contentHash: `hash-${key}`,
+      byteLength: 300,
+      readOnly: false,
+      raw: "",
+      rawTruncated: false,
+      missingAttachments: [],
+      orphanAttachments: [],
+      ticket: {
+        id: `id-${key}`,
+        key,
+        title: `Ticket ${key}`,
+        status: "todo",
+        priority: "none",
+        labels: [],
+        createdAt: "2026-08-01T09:00:00Z",
+        updatedAt: "2026-08-01T09:00:00Z",
+        description: "",
+        checklist: [],
+        attachments: [],
+        activity: [],
+        historyIncomplete: false,
+        unknownKeys: [],
+        recordDiagnostics: [],
+      },
+    };
+  }
+
+  const SEED = [
+    row("LC-1", "Atomic replace race", { labels: ["storage"] }),
+    row("LC-2", "Watcher recovery", { status: "in_progress" }),
+    row("LC-3", "Rebuild the index", { status: "done" }),
+  ];
+
+  async function openBoard(tickets: TicketRow[] = SEED) {
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project,
+      tickets,
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    render(<App />);
+    await screen.findByRole("heading", { name: "Board" });
+  }
+
+  const field = () =>
+    screen.getByRole("textbox", { name: "Filter tickets" }) as HTMLInputElement;
+
+  const shownKeys = () =>
+    Array.from(document.querySelectorAll<HTMLElement>("[data-ticket-key]")).map(
+      (element) => element.dataset.ticketKey ?? "",
+    );
+
+  /** Named, because the toast stack is a `status` region too. */
+  const noMatch = () => screen.getByRole("status", { name: "No matches" });
+
+  function type(query: string) {
+    fireEvent.change(field(), { target: { value: query } });
+  }
+
+  const toggleTo = (view: "Board" | "List") =>
+    fireEvent.click(screen.getByRole("button", { name: view }));
+
+  it("narrows the board to the rows a query matches", async () => {
+    await openBoard();
+
+    type("recovery");
+
+    expect(shownKeys()).toEqual(["LC-2"]);
+  });
+
+  it("narrows the list to exactly the same rows", async () => {
+    await openBoard();
+
+    type("storage");
+    toggleTo("List");
+
+    expect(shownKeys()).toEqual(["LC-1"]);
+  });
+
+  it("must-pass: a query that matches nothing shows the designed state, not an empty board", async () => {
+    await openBoard();
+
+    type("nothing here");
+
+    const panel = noMatch();
+    expect(panel.textContent).toContain("No matches");
+    // The query is echoed back, so the human can see what was asked.
+    expect(panel.textContent).toContain("nothing here");
+    expect(screen.getByRole("button", { name: "Clear filter" })).toBeTruthy();
+    // Not an empty board: the fixed status scaffold stands down rather than
+    // drawing six columns with nothing in them.
+    expect(document.querySelectorAll(".board-column")).toHaveLength(0);
+  });
+
+  it("must-pass: the list shows the same designed state", async () => {
+    await openBoard();
+    toggleTo("List");
+
+    type("nothing here");
+
+    expect(noMatch().textContent).toContain("No matches");
+    expect(document.querySelectorAll(".list-group")).toHaveLength(0);
+  });
+
+  it("puts the board back when the filter is cleared, and keeps focus", async () => {
+    await openBoard();
+    type("nothing here");
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear filter" }));
+
+    expect(shownKeys()).toEqual(["LC-1", "LC-2", "LC-3"]);
+    expect(screen.queryByRole("status", { name: "No matches" })).toBeNull();
+    expect(document.activeElement).toBe(field());
+  });
+
+  it("focuses the field on ⌘F and selects what is already typed", async () => {
+    await openBoard();
+    type("recovery");
+    field().blur();
+
+    fireEvent.keyDown(document, { key: "f", metaKey: true });
+
+    expect(document.activeElement).toBe(field());
+    expect(field().selectionStart).toBe(0);
+    expect(field().selectionEnd).toBe("recovery".length);
+  });
+
+  it("clears an active filter on Escape", async () => {
+    await openBoard();
+    type("recovery");
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(field().value).toBe("");
+    expect(shownKeys()).toEqual(["LC-1", "LC-2", "LC-3"]);
+  });
+
+  it("does not take Escape from an open ticket panel", async () => {
+    vi.mocked(api.readTicket).mockResolvedValue(detail("LC-2"));
+    await openBoard();
+    type("recovery");
+    fireEvent.click(document.querySelector('[data-ticket-key="LC-2"]')!);
+    await screen.findByRole("complementary", { name: "Ticket LC-2" });
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    // The panel is the rung above the filter (`keyboard-focus-map.md:19-21`).
+    expect(screen.queryByRole("complementary", { name: "Ticket LC-2" })).toBe(
+      null,
+    );
+    expect(field().value).toBe("recovery");
+  });
+
+  it("does not take Escape from an open menu", async () => {
+    await openBoard();
+    type("recovery");
+
+    fireEvent.click(screen.getByRole("button", { name: /^Order:/ }));
+    const rows = screen.getAllByRole("menuitemradio");
+    fireEvent.keyDown(rows[0], { key: "Escape" });
+
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(field().value).toBe("recovery");
+  });
+
+  it("does not take Escape from the create modal", async () => {
+    await openBoard();
+    type("recovery");
+    fireEvent.click(screen.getByRole("button", { name: "New ticket" }));
+
+    fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Escape" });
+
+    expect(screen.queryByLabelText("Title")).toBeNull();
+    expect(field().value).toBe("recovery");
+  });
+
+  it("keeps every unreadable file on screen, whatever the query", async () => {
+    await openBoard([...SEED, unreadable("LC-4")]);
+
+    type("nothing here");
+
+    // A file this build cannot parse has no text to match, so the app never
+    // claims the query failed against it.
+    expect(shownKeys()).toEqual(["LC-4"]);
+    expect(noMatch().textContent).toContain("unreadable");
+  });
+
+  it("must-pass: filtering, ordering and switching view rewrite no file", async () => {
+    await openBoard();
+
+    type("recovery");
+    fireEvent.click(screen.getByRole("button", { name: /^Order:/ }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Manual/ }));
+    toggleTo("List");
+    type("storage");
+    toggleTo("Board");
+    type("");
+
+    expect(api.editTicket).not.toHaveBeenCalled();
+    expect(api.createTicket).not.toHaveBeenCalled();
+    expect(api.updateProjectName).not.toHaveBeenCalled();
+    expect(api.updateProjectTheme).not.toHaveBeenCalled();
+  });
+
+  it("keeps the query out of every persisted preference", async () => {
+    const held = new Map<string, string>();
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: (key: string) => held.get(key) ?? null,
+        setItem: (key: string, value: string) => held.set(key, value),
+        removeItem: (key: string) => held.delete(key),
+        clear: () => held.clear(),
+      },
+    });
+    await openBoard();
+
+    type("recovery");
+
+    // `data-requirements.md:41` calls the query session-only app state.
+    for (const value of held.values()) expect(value).not.toContain("recovery");
+    for (const key of held.keys()) expect(key).not.toContain("filter");
+  });
+
+  // Found by `npm run perf:board`, not by reading the code: both surfaces
+  // re-focus their roving row when it changes, and a query changes it.
+  it("keeps focus in the field while the query is being typed", async () => {
+    await openBoard();
+    // The arrows have run, so the board holds a focus request of its own, and
+    // the query below removes the very row that request landed on.
+    const card = document.querySelector<HTMLElement>(
+      '[data-ticket-key="LC-1"]',
+    );
+    fireEvent.keyDown(card!, { key: "ArrowRight" });
+    field().focus();
+
+    type("storage");
+
+    expect(shownKeys()).toEqual(["LC-1"]);
+    expect(document.activeElement).toBe(field());
+  });
+
+  it("keeps focus in the field while the list is the surface", async () => {
+    await openBoard();
+    toggleTo("List");
+    const row = document.querySelector<HTMLElement>('[data-ticket-key="LC-1"]');
+    fireEvent.keyDown(row!, { key: "ArrowDown" });
+    field().focus();
+
+    type("storage");
+
+    expect(shownKeys()).toEqual(["LC-1"]);
+    expect(document.activeElement).toBe(field());
+  });
+
+  it("never leaves focus on a row the filter removed", async () => {
+    await openBoard();
+    const card = document.querySelector<HTMLElement>(
+      '[data-ticket-key="LC-1"]',
+    );
+    card!.focus();
+
+    type("recovery");
+
+    expect(shownKeys()).toEqual(["LC-2"]);
+    expect(
+      document
+        .querySelector('[data-ticket-key="LC-2"]')!
+        .getAttribute("tabindex"),
+    ).toBe("0");
+  });
+});

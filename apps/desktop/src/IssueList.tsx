@@ -209,8 +209,14 @@ export function IssueList(props: {
     setFocusRequest((request) => request + 1);
   }
 
+  // Only a new request moves focus; see the same effect in `Board.tsx`. A query
+  // in the header can change `rovingKey` under a human who is still typing, and
+  // the list must not answer that by grabbing focus off the filter field.
+  const answered = useRef(0);
   useLayoutEffect(() => {
-    if (focusRequest === 0 || rovingKey === undefined) return;
+    if (focusRequest === 0 || focusRequest === answered.current) return;
+    if (rovingKey === undefined) return;
+    answered.current = focusRequest;
     const row = rowFor(scroller.current, rovingKey);
     row?.focus();
     row?.scrollIntoView?.({ block: "nearest" });

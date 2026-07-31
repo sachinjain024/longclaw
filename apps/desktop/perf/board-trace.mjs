@@ -50,7 +50,16 @@ const argument = (name, fallback) => {
 
 const NAV_KEY = argument("nav", "ArrowDown");
 /** `--only=scroll,write` narrows a run while an interaction is being built. */
-const ONLY = argument("only", "keyboard,scroll,write").split(",");
+const ONLY = argument("only", "keyboard,scroll,filter,write").split(",");
+/**
+ * The query the filter trace types (V0-15). The default is the worst shape there
+ * is against `perf/fixture.ts`: every ticket is titled `Searchable storage ticket
+ * N`, so the first characters match all 5,000 rows — a full pass over the project
+ * that removes nothing — and only the last few narrow it to one.
+ */
+const FILTER_QUERY = argument("filter", "ticket 4999");
+/** How many times the query is typed in and deleted again. */
+const FILTER_CYCLES = 3;
 /** `--tickets=200` shows whether a number scales with the board or not. */
 const BOARD_SIZE = Number(argument("tickets", String(TICKETS)));
 /** The small-board control every full-board number is judged against; 0 skips it. */
@@ -269,6 +278,40 @@ async function traceScroll(page) {
   return samples;
 }
 
+/**
+ * Typing in the header filter, one sample per keystroke (V0-15).
+ *
+ * This is the interaction the filter puts at risk: every keystroke re-tests
+ * every ticket in the project and re-lays out the surface underneath. The query
+ * is typed in and deleted again, so the run covers both the narrowing frames and
+ * the widening ones — restoring 5,000 rows is the heavier half.
+ */
+async function traceFilter(page) {
+  await rewind(page);
+  const field = await page.$(".filter-field");
+  if (!field) throw new Error("the content header rendered no filter field");
+  await field.click();
+
+  const samples = [];
+  for (let cycle = 0; cycle < FILTER_CYCLES; cycle += 1) {
+    for (const character of FILTER_QUERY) {
+      await arm(page, "keydown");
+      await page.keyboard.type(character);
+      samples.push(await collect(page));
+    }
+    for (let index = 0; index < FILTER_QUERY.length; index += 1) {
+      await arm(page, "keydown");
+      await page.keyboard.press("Backspace");
+      samples.push(await collect(page));
+    }
+  }
+  if ((await page.inputValue(".filter-field")) !== "") {
+    throw new Error("the filter field did not come back empty");
+  }
+  await page.waitForSelector(UI.row, { timeout: 30_000 });
+  return samples.slice(WARM_UP);
+}
+
 /** One external write landing while the surface is open, repeated. */
 async function traceExternalWrite(page) {
   await rewind(page);
@@ -347,6 +390,7 @@ async function traceExternalWrite(page) {
 const SCENARIOS = [
   ["keyboard", (key) => `keyboard ${key} down the ${UI.label}`, traceKeyboard],
   ["scroll", () => `scroll the ${UI.label}`, traceScroll],
+  ["filter", () => `filter the ${UI.label}`, traceFilter],
   ["write", () => "external write → paint", traceExternalWrite],
 ];
 
