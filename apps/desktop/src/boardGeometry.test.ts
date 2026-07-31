@@ -12,7 +12,7 @@ import {
   FRESH_CARD_HEIGHT,
   FRESH_CARD_STRIDE,
   cardStrides,
-  columnOffsets,
+  runningOffsets,
   windowFor,
 } from "./boardGeometry";
 import type { ExternalMarks } from "./freshness";
@@ -84,20 +84,20 @@ describe("a column's card strides", () => {
   });
 });
 
-describe("a column's offsets", () => {
+describe("running offsets over a scroller's slots", () => {
   it("runs one entry longer than the column, so the last entry is its height", () => {
-    const offsets = columnOffsets([10, 20, 30]);
+    const offsets = runningOffsets([10, 20, 30]);
 
     expect(offsets).toEqual([0, 10, 30, 60]);
   });
 
   it("is a single zero for an empty column", () => {
-    expect(columnOffsets([])).toEqual([0]);
+    expect(runningOffsets([])).toEqual([0]);
   });
 });
 
 describe("the window a column renders", () => {
-  const offsets = columnOffsets(Array.from({ length: 1_000 }, () => 60));
+  const offsets = runningOffsets(Array.from({ length: 1_000 }, () => 60));
 
   it("covers the viewport plus the overscan on both sides", () => {
     // 300px of viewport is five cards; two more each side is the overscan.
@@ -113,14 +113,14 @@ describe("the window a column renders", () => {
   });
 
   it("renders the whole column when it is shorter than the viewport", () => {
-    expect(windowFor(columnOffsets([60, 60]), 0, 900, 4)).toEqual({
+    expect(windowFor(runningOffsets([60, 60]), 0, 900, 4)).toEqual({
       start: 0,
       end: 2,
     });
   });
 
   it("renders nothing for an empty column", () => {
-    expect(windowFor(columnOffsets([]), 0, 900, 4)).toEqual({
+    expect(windowFor(runningOffsets([]), 0, 900, 4)).toEqual({
       start: 0,
       end: 0,
     });

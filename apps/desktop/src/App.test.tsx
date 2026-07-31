@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -12,7 +13,7 @@ import { App } from "./App";
 import * as api from "./api";
 import { resetMutations } from "./mutations";
 import { useLongClawStore } from "./state";
-import type { WriteResult } from "./types";
+import type { StreamEnvelope, TicketRow, WriteResult } from "./types";
 
 vi.mock("./api", () => ({
   chooseAndCreateProject: vi.fn(),
@@ -179,7 +180,7 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
       sequence: 1,
     });
     render(<App />);
-    await screen.findByText("Board");
+    await screen.findByRole("heading", { name: "Board" });
   }
 
   function submitNewTicket(title: string) {
@@ -302,7 +303,7 @@ describe("priority from the board (V0-08)", () => {
       sequence: 1,
     });
     render(<App />);
-    await screen.findByText("Board");
+    await screen.findByRole("heading", { name: "Board" });
   }
 
   function pressPAndPick(option: RegExp) {
@@ -465,7 +466,7 @@ describe("label definitions in project settings (V0-10)", () => {
       sequence: 1,
     });
     render(<App />);
-    await screen.findByText("Board");
+    await screen.findByRole("heading", { name: "Board" });
     fireEvent.click(screen.getByRole("button", { name: "Settings" }));
   }
 
@@ -577,5 +578,224 @@ describe("label definitions in project settings (V0-10)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add label" }));
 
     expect(await screen.findByText(/found "9lives"/)).toBeTruthy();
+  });
+});
+
+describe("the list and the board agree (V0-14)", () => {
+  const project = {
+    id: "project-fixture",
+    name: "Fixture Project",
+    rootPath: "/tmp/LongClaw Fixture",
+    key: "LC",
+    theme: "indigo",
+    starred: false,
+    reachable: true,
+    labels: {},
+  };
+
+  function ticket(
+    key: string,
+    overrides?: Partial<Extract<TicketRow, { state: "indexed" }>>,
+  ): TicketRow {
+    return {
+      state: "indexed",
+      key,
+      id: `id-${key}`,
+      title: `Ticket ${key}`,
+      status: "todo",
+      priority: "none",
+      labels: [],
+      createdAt: "2026-07-30T09:00:00Z",
+      updatedAt: "2026-07-30T09:00:00Z",
+      checkedCount: 0,
+      checklistCount: 0,
+      commentCount: 0,
+      attachmentCount: 0,
+      contentHash: `hash-${key}`,
+      relativePath: `.longclaw/tickets/${key}/ticket.md`,
+      ...overrides,
+    };
+  }
+
+  const SEED = [
+    ticket("LC-1", { status: "todo", priority: "p2" }),
+    ticket("LC-2", { status: "in_progress" }),
+    ticket("LC-3", { status: "canceled" }),
+  ];
+
+  function snapshot(tickets: TicketRow[], sequence = 1) {
+    return { project, tickets, generation: 1, rebuiltInMs: 1, sequence };
+  }
+
+  /** The keys each surface has on screen, in the order it drew them. */
+  function shownKeys(): string[] {
+    return Array.from(
+      document.querySelectorAll<HTMLElement>("[data-ticket-key]"),
+    ).map((element) => element.dataset.ticketKey ?? "");
+  }
+
+  const toggleTo = (view: "Board" | "List") =>
+    fireEvent.click(screen.getByRole("button", { name: view }));
+
+  /** Renders, waits for the board, and returns the event listener Rust would use. */
+  async function open(tickets: TicketRow[] = SEED) {
+    let deliver: (envelope: StreamEnvelope) => void = () => {};
+    vi.mocked(api.listenForProjectEvents).mockImplementation(
+      async (handler) => {
+        deliver = handler;
+        return () => {};
+      },
+    );
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.openProject).mockResolvedValue(snapshot(tickets));
+    render(<App />);
+    await screen.findByRole("heading", { name: "Board" });
+    await waitFor(() => expect(shownKeys().length).toBe(tickets.length));
+    return {
+      deliver: (envelope: StreamEnvelope) => act(() => deliver(envelope)),
+    };
+  }
+
+  /** What both surfaces say, taken one after the other from the same state. */
+  function bothSurfaces(): { board: string[]; list: string[] } {
+    toggleTo("Board");
+    const board = shownKeys();
+    toggleTo("List");
+    const list = shownKeys();
+    toggleTo("Board");
+    return { board, list };
+  }
+
+  it("shows the same tickets on the list as on the board", async () => {
+    await open();
+
+    const { board, list } = bothSurfaces();
+
+    expect(new Set(list)).toEqual(new Set(board));
+    expect(list).toHaveLength(3);
+    // The board keeps every column of the fixed set; the list keeps only the
+    // statuses that hold something. The tickets are the same either way.
+    expect(list).toEqual(["LC-1", "LC-2", "LC-3"]);
+  });
+
+  it("agrees after an app edit", async () => {
+    vi.mocked(api.editTicket).mockResolvedValue({
+      ticket: ticket("LC-2", { status: "in_progress", priority: "urgent" }),
+      generation: 2,
+      changes: [],
+    });
+    await open();
+
+    const card = document.querySelector<HTMLElement>(
+      '.ticket-row[data-ticket-key="LC-2"]',
+    );
+    card?.focus();
+    fireEvent.keyDown(card as HTMLElement, { key: "p" });
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Urgent/ }));
+    await waitFor(() => expect(api.editTicket).toHaveBeenCalled());
+
+    toggleTo("List");
+    expect(
+      document
+        .querySelector('.list-row[data-ticket-key="LC-2"]')
+        ?.querySelector('[aria-label="Priority: Urgent"]'),
+    ).toBeTruthy();
+    const { board, list } = bothSurfaces();
+    expect(new Set(list)).toEqual(new Set(board));
+  });
+
+  it("agrees after an external edit lands from disk", async () => {
+    const { deliver } = await open();
+
+    deliver({
+      contractVersion: 1,
+      sequence: 2,
+      projectId: project.id,
+      emittedAt: "2026-07-31T10:00:00Z",
+      event: {
+        type: "ticketChanged",
+        data: {
+          source: "external",
+          coalescedEvents: 1,
+          detectedInMs: 1,
+          attribution: {
+            id: "evt-1",
+            kind: "update",
+            occurredAt: "2026-07-31T10:00:00Z",
+            actor: { type: "agent", name: "Claude Code" },
+          },
+          // The agent moved it to Done, which is a column the board draws
+          // empty and a group the list did not have at all.
+          ticket: ticket("LC-1", {
+            status: "done",
+            title: "Moved by an agent",
+          }),
+        },
+      },
+    });
+
+    const { board, list } = bothSurfaces();
+    expect(new Set(list)).toEqual(new Set(board));
+    toggleTo("List");
+    expect(
+      document.querySelector('.list-row[data-ticket-key="LC-1"]')?.textContent,
+    ).toContain("Moved by an agent");
+    expect(screen.getByRole("heading", { name: /Done/ }).textContent).toBe(
+      "Done1",
+    );
+  });
+
+  it("agrees after a rebuild", async () => {
+    const { deliver } = await open();
+
+    deliver({
+      contractVersion: 1,
+      sequence: 2,
+      projectId: project.id,
+      emittedAt: "2026-07-31T10:00:00Z",
+      event: {
+        type: "indexRebuilt",
+        data: {
+          reason: "manual",
+          snapshot: snapshot(
+            [...SEED, ticket("LC-4", { status: "in_review" })],
+            2,
+          ),
+        },
+      },
+    });
+
+    const { board, list } = bothSurfaces();
+    expect(new Set(list)).toEqual(new Set(board));
+    expect(list).toContain("LC-4");
+  });
+
+  it("agrees after a restart", async () => {
+    await open();
+    toggleTo("List");
+    const before = shownKeys();
+    cleanup();
+
+    // A restart is a fresh mount over a fresh snapshot: the surfaces hold no
+    // rows of their own, so neither can carry anything across it.
+    useLongClawStore.setState({ projects: [], activeProjectId: undefined });
+    await open();
+    toggleTo("List");
+
+    expect(shownKeys()).toEqual(before);
+    const { board, list } = bothSurfaces();
+    expect(new Set(list)).toEqual(new Set(board));
+  });
+
+  it("shows the archived tickets the board does not", async () => {
+    await open([
+      ...SEED,
+      ticket("LC-9", { status: "done", archivedAt: "2026-07-20T09:00:00Z" }),
+    ]);
+
+    toggleTo("List");
+    fireEvent.click(screen.getByRole("button", { name: /Archived/ }));
+
+    expect(shownKeys()).toContain("LC-9");
   });
 });

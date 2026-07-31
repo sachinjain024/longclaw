@@ -40,6 +40,20 @@ export function priorityLabel(priority: TicketPriority): string {
   return PRIORITIES.find((option) => option.id === priority)?.label ?? priority;
 }
 
+export function statusLabel(status: TicketStatus): string {
+  return STATUSES.find((option) => option.id === status)?.label ?? status;
+}
+
+/**
+ * Archived is a date on the ticket, not a status (ADR 0004): the file stays
+ * where it is and keeps whatever workflow status it had. Only the list's
+ * archived group reads this today — V0-11 adds the mutation and takes archived
+ * tickets off the board.
+ */
+export function isArchived(ticket: TicketRow): boolean {
+  return ticket.state === "indexed" && ticket.archivedAt !== undefined;
+}
+
 /**
  * The key a create is about to be given, read off the rows already on screen.
  *

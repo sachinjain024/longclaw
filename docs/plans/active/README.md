@@ -18,9 +18,9 @@ is closed, Wave 0 is clear, and M4 closed on 2026-07-31 when the founder decided
 proceed without the pilot sessions
 ([decision](../../pilot/response-memo.md#direction-decision-2026-07-31-superseded-the-same-day)).
 Step 11 is [Wave 1 of the backlog](../../backlog/v0-backlog.md) — V0-08 through
-V0-19 — and five of them are now closed: V0-19 as plan 11, V0-18 as plan 12,
-V0-17 as plan 13, V0-08 as plan 14, and V0-10 as plan 15. The rest are open. Write a plan here before
-starting one of them.
+V0-19 — and six of them are now closed: V0-19 as plan 11, V0-18 as plan 12,
+V0-17 as plan 13, V0-08 as plan 14, V0-10 as plan 15, and V0-14 as plan 16. The rest
+are open. Write a plan here before starting one of them.
 
 Two things to read first, once, before Step 11 code:
 
@@ -54,6 +54,7 @@ marked independent can be done at any time by anyone.
 | ~~13~~ | ~~Optimistic create, per-mutation write feedback, and undo~~ — **done 2026-07-31**, [outcome](../completed/13-optimistic-create-toasts-and-undo.md) | V0-17 | Closed, and it is the frontend handoff. Every mutation the rest of Wave 1 adds should go through `mutate()` in `src/mutations.ts` rather than calling `editTicket` directly. Read its outcome before V0-08, V0-11, or V0-16 — it names two places where the approved spec and the ADRs disagree. |
 | ~~14~~ | ~~Priority end to end~~ — **done 2026-07-31**, [outcome](../completed/14-priority-end-to-end.md) | V0-08 | Closed, and it hands three later items a shared popover and an ordering seam. Read its outcome before V0-09, V0-10, or the status menu: `src/Menu.tsx` is the one menu all four fields use, and `src/ordering.ts` is where a Manual comparator goes. |
 | ~~15~~ | ~~Project-scoped labels~~ — **done 2026-07-31**, [outcome](../completed/15-project-scoped-labels.md) | V0-10 | Closed. It is the frontend half of what plan 12 built: definitions are managed in project settings and a ticket still carries slugs and nothing else. Read its outcome before V0-14 or V0-16 — `src/labels.ts` and `src/LabelChip.tsx` are the chip both of them need, and `src/LabelMenu.tsx` is the meta row a create surface reuses. |
+| ~~16~~ | ~~The dense issue list~~ — **done 2026-07-31**, [outcome](../completed/16-dense-issue-list.md) | V0-14 | Closed, and it is the second surface. Read its outcome before V0-09, V0-11 or V0-15 — the board's bucketing moved to `src/grouping.ts`, `boardGeometry.ts`'s `columnOffsets` is now `runningOffsets`, and the status dot the whole app was missing now exists. |
 
 Dependencies worth knowing:
 
@@ -78,10 +79,9 @@ Dependencies worth knowing:
   `commit` → `storage::atomic_replace`, not `atomic_write`. And `ReplaceSeams`, the
   test seam 01 added, lives in a `thread_local!`; the engine now captures it before
   submitting the worker write, so the race test still drives the swap window.
-- **07 is done, and V0-14 inherits it.** The board's column geometry lives in
-  `boardGeometry.ts` and is what the list surface should be built on; its sticky
-  group headers and archived group are the part 07 did not have to solve. The
-  board's keyboard navigation is new and is the model the list should follow.
+- **07 is done, and V0-14 inherited it, as intended.** The board's geometry in
+  `boardGeometry.ts` is what the list was built on; the sticky group headers and
+  the archived group 07 warned about and did not have to solve are solved in 16.
 - **11 is done, and V0-14 and V0-16 inherit an open edge.** `components.md` and
   `decisions.md` no longer show an assignee, so the board and card anatomy can be
   built straight from the spec. The Step-1 proof pages under
@@ -119,6 +119,20 @@ Dependencies worth knowing:
   comma-separated text field `QuickCreate.tsx` still carries. Definition
   management lives in project settings, because `screen-specs.md` § Project
   settings never mentions labels; a slug is immutable there, deliberately.
+- **16 is done, and V0-09, V0-11 and V0-15 all sit on it.** There are two surfaces
+  now, and they are both projections of the same store array — do not give either
+  one a cache. Bucketing by status lives in `apps/desktop/src/grouping.ts`:
+  `groupByStatus(tickets, { compare, keepEmpty })` is called by the board with
+  `keepEmpty` and by the list without it, and `seatsFor` builds the seat map both
+  keyboard models navigate by, so V0-15's grouping is an argument rather than a
+  third layout. The windowing arithmetic is still one function in
+  `boardGeometry.ts` — `columnOffsets` was renamed `runningOffsets`, because it
+  was never about columns — and `src/listGeometry.ts` composes the list's slots
+  and strides without repeating any of it. Do not write a second binary search.
+  `src/StatusDot.tsx` is the dot every surface and the status menu now share, and
+  `src/tickets.ts` has `isArchived`, which is the predicate V0-11 should take the
+  board's archived tickets off with. The perf harness drives either surface:
+  `npm run perf:board` and `npm run perf:list`.
 - **09 and 10 are both closed, and no plan is open.** The vanished-path overflow bug
   is fixed in `collect_event`, and the npm-launched native watcher timeout that
   blocked local `npm run verify` no longer reproduces — closed without a fix, so
@@ -129,8 +143,8 @@ Dependencies worth knowing:
 
 ## Waves 1–3 are unplanned, and now for a different reason
 
-Waves 1–3 of [the backlog](../../backlog/v0-backlog.md) — 27 of its 39 items, now
-that V0-08, V0-10, V0-17, V0-18, and V0-19 are closed — still have no plans here. The original reason is gone: the
+Waves 1–3 of [the backlog](../../backlog/v0-backlog.md) — 26 of its 39 items, now
+that V0-08, V0-10, V0-14, V0-17, V0-18, and V0-19 are closed — still have no plans here. The original reason is gone: the
 guardrail has been satisfied and the pilot will not invalidate anything, because it
 was skipped.
 

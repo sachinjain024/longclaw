@@ -505,9 +505,12 @@ button:disabled {
   background: color-mix(in oklab, var(--lc-wash) 36%, var(--lc-surface));
 }
 
+/* Dot, then name, then the count pushed to the far edge — the dot belongs to the
+   name beside it, not to the row (screen-specs.md:103). */
 .board-column h3 {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 7px;
   padding: 0 4px;
   color: var(--lc-ink-2);
@@ -515,6 +518,7 @@ button:disabled {
 }
 
 .board-column h3 span {
+  margin-left: auto;
   color: var(--lc-ink-3);
   font-family: var(--lc-type-code-font);
 }
@@ -646,6 +650,239 @@ button:disabled {
 
 .ticket-row.human-fresh .pulse-dot {
   background: var(--lc-accent-human);
+}
+
+/* ----------------------------------------------------- the status dot (D3) */
+
+/* One geometry, six colours, and the colours are system tokens rather than
+   themed ones — except Done, which routes to the human accent (D5). The shape
+   carries the colour through `currentColor`, so the SVG holds no hue at all. */
+.status-dot {
+  flex: none;
+}
+
+.status-dot.status-backlog {
+  color: var(--lc-status-backlog);
+}
+
+.status-dot.status-todo {
+  color: var(--lc-status-todo);
+}
+
+.status-dot.status-in-progress {
+  color: var(--lc-status-in-progress);
+}
+
+.status-dot.status-in-review {
+  color: var(--lc-status-in-review);
+}
+
+.status-dot.status-done {
+  color: var(--lc-status-done);
+}
+
+.status-dot.status-canceled {
+  color: var(--lc-status-canceled);
+}
+
+/* ------------------------------------------------------- the issue list */
+
+/* Board | List (screen-specs.md:49). */
+.view-segment {
+  display: inline-flex;
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-control);
+  overflow: hidden;
+}
+
+.view-segment button {
+  height: var(--lc-size-control-sm);
+  border: 0;
+  padding: 0 10px;
+  color: var(--lc-ink-3);
+  background: transparent;
+  font-size: 12px;
+}
+
+.view-segment button:hover {
+  background: var(--lc-wash);
+}
+
+.view-segment button.selected {
+  color: var(--lc-accent-human-text);
+  background: var(--lc-accent-human-soft);
+  font-weight: 500;
+}
+
+/* One scroller for every group, unlike the board's six (screen-specs.md:135).
+   The reserve matches the board's, because the chrome above and below is the
+   same chrome. */
+.issue-list {
+  max-height: var(--lc-size-board-stack);
+  padding: 0 24px 20px;
+  overflow-y: auto;
+}
+
+.list-group {
+  margin-bottom: 12px;
+}
+
+/* Sticky, with a fill so the rows do not read through it as it passes over
+   them. The spec names --lc-bg because it describes the list sitting on the app
+   background; here it sits inside the workspace card, so the fill is the surface
+   it is actually on. */
+.list-group-header {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  display: flex;
+  width: 100%;
+  height: var(--lc-space-7);
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  margin: 0;
+  padding: 0 4px;
+  color: var(--lc-ink-2);
+  background: var(--lc-surface);
+  font-size: 12.5px;
+  font-weight: 500;
+  text-align: left;
+}
+
+.list-group-count {
+  color: var(--lc-ink-3);
+  font-family: var(--lc-type-code-font);
+  font-size: 11px;
+}
+
+.list-group-reveal {
+  margin-left: auto;
+  color: var(--lc-ink-3);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.list-group.archived .list-group-header:hover {
+  background: var(--lc-wash);
+}
+
+.folder-glyph {
+  color: var(--lc-ink-3);
+}
+
+/* The group's card. Its height is stated rather than grown, because the rows
+   inside it are placed by the list and most of them are not drawn
+   (listGeometry.ts). */
+.list-group-body {
+  position: relative;
+  border: 1px solid var(--lc-line);
+  border-radius: 8px;
+  background: var(--lc-surface);
+}
+
+.list-row {
+  position: absolute;
+  right: 0;
+  left: 0;
+  display: flex;
+  height: var(--lc-size-row);
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  padding: 0 12px;
+  color: var(--lc-ink);
+  text-align: left;
+  background: transparent;
+}
+
+/* Drawn on the row's own top edge rather than between siblings: the group holds
+   only the rows the scroll position touches, so "the next row" is not always the
+   next node. */
+.list-row.divided {
+  border-top: 1px solid var(--lc-line-soft);
+}
+
+.list-row:hover {
+  background: var(--lc-wash);
+}
+
+/* Inset, because a 36px row has no room outside itself for the 3px ring the
+   rest of the app wears. */
+.list-row:focus-visible {
+  outline: var(--lc-border-focus) solid var(--lc-accent-human-ring);
+  outline-offset: -3px;
+}
+
+.list-row.selected {
+  background: var(--lc-accent-human-wash);
+  box-shadow: inset var(--lc-border-rail) 0 0 var(--lc-accent-human);
+}
+
+.list-row strong {
+  overflow: hidden;
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.list-row-key {
+  flex: none;
+  width: 58px;
+  color: var(--lc-ink-3);
+  font-family: var(--lc-type-code-font);
+  font-size: 11px;
+}
+
+.list-row-checklist {
+  flex: none;
+  color: var(--lc-ink-3);
+  font-family: var(--lc-type-code-font);
+  font-size: 10.5px;
+}
+
+.list-row-updated {
+  flex: none;
+  width: 46px;
+  color: var(--lc-ink-3);
+  font-family: var(--lc-type-code-font);
+  font-size: 10.5px;
+  text-align: right;
+}
+
+.list-row-raw {
+  flex: none;
+  color: var(--lc-ink-3);
+  font-size: 11px;
+  text-decoration: underline;
+}
+
+.list-row.degraded strong {
+  color: var(--lc-ink-2);
+  font-family: var(--lc-type-code-font);
+  font-size: 11.5px;
+  font-weight: 400;
+}
+
+.row-warn {
+  flex: none;
+  color: var(--lc-warn);
+  font-size: 11px;
+}
+
+.list-row .pulse-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-left: 0;
+}
+
+/* Still legible, still openable, and plainly set aside (ADR 0004). */
+.list-group.archived .list-row {
+  opacity: 0.8;
 }
 
 /* --------------------------------------------------------- the ticket panel */

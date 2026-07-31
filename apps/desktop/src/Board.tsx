@@ -26,14 +26,20 @@ import {
 } from "react";
 import type { KeyboardEvent } from "react";
 import { presentCard } from "./boardCard";
-import { cardStrides, columnOffsets, windowFor } from "./boardGeometry";
+import { cardStrides, runningOffsets, windowFor } from "./boardGeometry";
 import { acknowledgement, isFresh, isPulsing } from "./freshness";
 import type { ExternalMark, ExternalMarks } from "./freshness";
+import {
+  groupByStatus,
+  seatsFor,
+  type Seat,
+  type StatusGroup,
+} from "./grouping";
 import { LabelChip } from "./LabelChip";
 import { Menu } from "./Menu";
-import { orderColumn } from "./ordering";
 import { PriorityGlyph } from "./PriorityGlyph";
-import { PRIORITIES, STATUSES } from "./tickets";
+import { StatusDot } from "./StatusDot";
+import { PRIORITIES } from "./tickets";
 import type {
   IndexedTicket,
   Label,
@@ -45,65 +51,23 @@ import type {
 /** Cards rendered beyond each edge of the viewport, so a scroll shows no gap. */
 const OVERSCAN = 4;
 
-export function ticketStatus(ticket: TicketRow): TicketStatus | "unreadable" {
-  return ticket.state === "indexed" ? ticket.status : "unreadable";
-}
-
-interface Column {
-  id: string;
-  title: string;
-  tickets: TicketRow[];
-}
-
-/** Where a card sits in the visual order, which is what the arrows follow. */
-interface Seat {
-  column: number;
-  index: number;
-}
-
 /** How far one key press travels. Steps, not positions. */
 interface Move {
   columns: number;
   cards: number;
 }
 
-/** One pass over the tickets rather than one filter per status. */
+/**
+ * The board's columns. Bucketing and ordering are shared with the list
+ * (`grouping.ts`); what is the board's own is that every status keeps a column
+ * whether or not it holds anything — the fixed v0 set is the scaffold (ADR 0002).
+ */
 function layOutColumns(tickets: TicketRow[]): {
-  columns: Column[];
+  columns: StatusGroup[];
   seats: Map<string, Seat>;
 } {
-  const byStatus = new Map<string, TicketRow[]>(
-    STATUSES.map((status) => [status.id, []]),
-  );
-  const unreadable: TicketRow[] = [];
-  for (const ticket of tickets) {
-    const status = ticketStatus(ticket);
-    if (status === "unreadable") unreadable.push(ticket);
-    else byStatus.get(status)?.push(ticket);
-  }
-
-  // Ordered here, once, because the seats below and the arrows that read them
-  // have to agree with what the column draws (`screen-specs.md:115`).
-  const columns: Column[] = STATUSES.map((status) => ({
-    id: status.id,
-    title: status.label,
-    tickets: orderColumn(byStatus.get(status.id) ?? []),
-  }));
-  if (unreadable.length > 0) {
-    columns.push({
-      id: "unreadable",
-      title: "Unreadable",
-      tickets: unreadable,
-    });
-  }
-
-  const seats = new Map<string, Seat>();
-  columns.forEach((column, columnIndex) =>
-    column.tickets.forEach((ticket, index) =>
-      seats.set(ticket.key, { column: columnIndex, index }),
-    ),
-  );
-  return { columns, seats };
+  const columns = groupByStatus(tickets, { keepEmpty: true });
+  return { columns, seats: seatsFor(columns) };
 }
 
 /**
@@ -127,14 +91,18 @@ function moveFor(key: string): Move | undefined {
 }
 
 /** The card a move lands on, or undefined when the move runs off the board. */
-function moveTo(columns: Column[], from: Seat, move: Move): string | undefined {
+function moveTo(
+  columns: StatusGroup[],
+  from: Seat,
+  move: Move,
+): string | undefined {
   if (move.columns === 0) {
-    return columns[from.column].tickets[from.index + move.cards]?.key;
+    return columns[from.group].tickets[from.index + move.cards]?.key;
   }
   // Sideways skips empty columns, because an empty one holds nothing to focus,
   // and clamps into the column it lands in (keyboard-focus-map.md § Board).
   for (
-    let column = from.column + move.columns;
+    let column = from.group + move.columns;
     column >= 0 && column < columns.length;
     column += move.columns
   ) {
@@ -192,7 +160,7 @@ export function Board(props: {
   const onFocusCard = useCallback((key: string) => setFocusedKey(key), []);
 
   function ticketAt(seat: Seat): TicketRow {
-    return columns[seat.column].tickets[seat.index];
+    return columns[seat.group].tickets[seat.index];
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -257,11 +225,12 @@ export function Board(props: {
         <BoardColumn
           key={column.id}
           title={column.title}
+          status={column.status}
           tickets={column.tickets}
           selectedKey={props.selectedKey}
           rovingKey={rovingKey}
           anchors={[focusSeat, openSeat]
-            .filter((seat) => seat?.column === columnIndex)
+            .filter((seat) => seat?.group === columnIndex)
             .map((seat) => (seat as Seat).index)}
           marks={props.marks}
           labels={props.labels}
@@ -290,6 +259,8 @@ export function Board(props: {
  */
 function BoardColumn(props: {
   title: string;
+  /** Absent on the synthetic unreadable column, which no status names. */
+  status?: TicketStatus;
   tickets: TicketRow[];
   selectedKey?: string;
   rovingKey?: string;
@@ -321,7 +292,7 @@ function BoardColumn(props: {
   }, []);
 
   const offsets = useMemo(
-    () => columnOffsets(cardStrides(props.tickets, props.marks, props.now)),
+    () => runningOffsets(cardStrides(props.tickets, props.marks, props.now)),
     [props.tickets, props.marks, props.now],
   );
   const range = windowFor(offsets, scrollTop, viewport, OVERSCAN);
@@ -339,6 +310,9 @@ function BoardColumn(props: {
   return (
     <section className="board-column">
       <h3>
+        {/* The dot the status wears everywhere; the header beside it names it,
+            which is the one place the dot is allowed to go unlabelled. */}
+        {props.status && <StatusDot status={props.status} decorative />}
         {props.title}
         <span>{props.tickets.length}</span>
       </h3>

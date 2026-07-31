@@ -27,7 +27,8 @@ import { sameLabels } from "./labels";
 import { MenuButton } from "./Menu";
 import { mutate } from "./mutations";
 import { PriorityGlyph } from "./PriorityGlyph";
-import { PRIORITIES, priorityLabel, STATUSES } from "./tickets";
+import { StatusDot } from "./StatusDot";
+import { PRIORITIES, priorityLabel, statusLabel, STATUSES } from "./tickets";
 import { Timeline } from "./Timeline";
 import type {
   AppError,
@@ -41,9 +42,16 @@ import type {
 } from "./types";
 import { WriteIndicator } from "./WriteFeedback";
 
-function statusLabel(status: TicketStatus): string {
-  return STATUSES.find((option) => option.id === status)?.label ?? status;
-}
+/**
+ * Every menu row carries the option's own glyph (`screen-specs.md:240`), and the
+ * status menu's glyph is the coloured dot. Built once: the rows never differ per
+ * ticket.
+ */
+const STATUS_OPTIONS = STATUSES.map((option) => ({
+  id: option.id,
+  label: option.label,
+  glyph: <StatusDot status={option.id} decorative />,
+}));
 
 const PRIORITY_OPTIONS = PRIORITIES.map((option) => ({
   id: option.id,
@@ -422,7 +430,7 @@ export function TicketPanel(props: TicketPanelProps) {
             <span>Status</span>
             <MenuButton
               label="Status"
-              options={STATUSES}
+              options={STATUS_OPTIONS}
               value={pendingStatus ?? ticket.status}
               onPick={(next) => {
                 const previous = ticket.status;

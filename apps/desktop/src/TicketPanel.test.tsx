@@ -395,6 +395,42 @@ describe("the panel's honesty about the file", () => {
   });
 });
 
+describe("the status menu (V0-14 closed V0-08's open edge)", () => {
+  it("gives every row the status dot the status wears everywhere", async () => {
+    render(surface());
+    await ready();
+
+    fireEvent.click(metaTrigger("Status"));
+
+    // `screen-specs.md:240` — every menu row carries the option's own glyph, and
+    // the status menu's glyph is the coloured dot. V0-08 shipped without one
+    // because the app had no status dot at all.
+    const rows = screen.getAllByRole("menuitemradio");
+    expect(rows).toHaveLength(6);
+    expect(
+      rows.map((row) =>
+        row.querySelector(".status-dot")?.getAttribute("class"),
+      ),
+    ).toEqual([
+      "status-dot status-backlog",
+      "status-dot status-todo",
+      "status-dot status-in-progress",
+      "status-dot status-in-review",
+      "status-dot status-done",
+      "status-dot status-canceled",
+    ]);
+  });
+
+  it("shows the dot on the trigger, beside the value it names", async () => {
+    render(surface());
+    await ready();
+
+    expect(
+      metaTrigger("Status").querySelector(".status-dot.status-todo"),
+    ).toBeTruthy();
+  });
+});
+
 describe("a destructive-adjacent change and taking it back", () => {
   it("shows the new status and raises a toast with Undo before the write lands", async () => {
     let settle: (result: WriteResult) => void = () => {};

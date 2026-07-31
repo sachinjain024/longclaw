@@ -22,6 +22,7 @@ import {
 import { Board } from "./Board";
 import { CreateProjectForm, type ProjectDraft } from "./CreateProjectForm";
 import { normalizeError } from "./errors";
+import { IssueList } from "./IssueList";
 import { LABEL_COLORS } from "./labels";
 import { mutate } from "./mutations";
 import { QuickCreate } from "./QuickCreate";
@@ -51,12 +52,18 @@ const THEMES = [
 
 const APPEARANCE_KEY = "longclaw.appearance";
 
-/** Moves focus onto a board card once it has been painted. */
+/**
+ * Every row on every surface carries its ticket key, which is what lets one
+ * selector serve the board's cards and the list's rows: the two never render at
+ * once, and neither the focus call below nor the visible-UI probe cares which one
+ * it found.
+ */
+const ROW = "[data-ticket-key]";
+
+/** Moves focus onto a card or a row once it has been painted. */
 function focusCard(key: string) {
   requestAnimationFrame(() => {
-    document
-      .querySelector<HTMLElement>(`.ticket-row[data-ticket-key="${key}"]`)
-      ?.focus();
+    document.querySelector<HTMLElement>(`[data-ticket-key="${key}"]`)?.focus();
   });
 }
 
@@ -110,6 +117,8 @@ export function App() {
   /** Drives the acknowledgement age text and its decay. */
   const [now, setNow] = useState(() => Date.now());
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+  /** Board or list (`screen-specs.md:49`). View state, and it writes nothing. */
+  const [view, setView] = useState<"board" | "list">("board");
   const [settingsName, setSettingsName] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -304,9 +313,7 @@ export function App() {
   useLayoutEffect(() => {
     if (!activeProjectId) return;
     const frame = requestAnimationFrame(() => {
-      const rows = Array.from(
-        document.querySelectorAll<HTMLElement>(".ticket-row"),
-      );
+      const rows = Array.from(document.querySelectorAll<HTMLElement>(ROW));
       const trace =
         document.querySelector<HTMLElement>(".trace-status")?.innerText ?? "";
       void reportVisibleUi({
@@ -661,9 +668,10 @@ export function App() {
                 <div className="board-heading">
                   <div>
                     <p className="eyebrow">GENERATION {generation}</p>
-                    <h2>Board</h2>
+                    <h2>{view === "board" ? "Board" : "List"}</h2>
                   </div>
                   <div className="toolbar-actions">
+                    <ViewSegment view={view} onChange={setView} />
                     <WriteIndicator />
                     <span
                       className={
@@ -703,7 +711,7 @@ export function App() {
                     project={project}
                     onCreate={() => setTicketFormOpen(true)}
                   />
-                ) : (
+                ) : view === "board" ? (
                   <Board
                     tickets={tickets}
                     selectedKey={selectedKey}
@@ -712,6 +720,18 @@ export function App() {
                     now={now}
                     onSelect={openTicket}
                     onChangePriority={changePriority}
+                  />
+                ) : (
+                  // Both surfaces are projections of the same store state and
+                  // hold no rows of their own, which is what makes them agree
+                  // after an app edit, a file edit, a restart, or a rebuild.
+                  <IssueList
+                    tickets={tickets}
+                    selectedKey={selectedKey}
+                    marks={externalMarks}
+                    labels={project.labels}
+                    now={now}
+                    onSelect={openTicket}
                   />
                 )}
               </section>
@@ -746,6 +766,31 @@ export function App() {
 
       <ToastStack />
     </main>
+  );
+}
+
+/**
+ * The Board | List segment in the content header (`screen-specs.md:49`). A pair
+ * of buttons rather than a radio group: each one is a place to go, and `pressed`
+ * is what says which one you are standing in.
+ */
+function ViewSegment(props: {
+  view: "board" | "list";
+  onChange: (view: "board" | "list") => void;
+}) {
+  return (
+    <div className="view-segment" role="group" aria-label="View">
+      {(["board", "list"] as const).map((id) => (
+        <button
+          key={id}
+          className={props.view === id ? "selected" : ""}
+          aria-pressed={props.view === id}
+          onClick={() => props.onChange(id)}
+        >
+          {id === "board" ? "Board" : "List"}
+        </button>
+      ))}
+    </div>
   );
 }
 
