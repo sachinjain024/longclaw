@@ -63,8 +63,9 @@ export function ToastStack() {
   const toast = useMutationStore((state) => state.toast);
   const dismiss = useMutationStore((state) => state.dismiss);
 
-  // A danger toast carries the only Retry and reports state that was taken back
-  // under the user, so it waits to be read rather than expiring on its own.
+  // A danger toast carries the only Retry — or, on a conflict, the only way to
+  // go and look — and reports state that was taken back under the user, so it
+  // waits to be read rather than expiring on its own.
   const expires = toast && toast.tone !== "danger";
   useEffect(() => {
     if (!toast || !expires) return;
@@ -116,6 +117,17 @@ export function ToastStack() {
               }}
             >
               Retry
+            </button>
+          )}
+          {toast.review && (
+            <button
+              className="toast-action"
+              onClick={() => {
+                dismiss(toast.id);
+                toast.review?.();
+              }}
+            >
+              Open ticket
             </button>
           )}
           {toast.tone === "danger" && (

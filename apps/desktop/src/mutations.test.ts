@@ -117,6 +117,59 @@ describe("running a mutation", () => {
     expect(useMutationStore.getState().toast).toBeUndefined();
   });
 
+  it("never offers Retry for a conflict, because the hash it would re-send is stale", async () => {
+    const revert = vi.fn();
+    const review = vi.fn();
+    const write = vi.fn().mockRejectedValue({
+      code: "conflict",
+      message:
+        "This ticket changed on disk while you were editing. Reload it or keep your version, then save again.",
+      recoverable: true,
+      context: {
+        ticketKey: "LC-1",
+        expectedHash: "hash-1",
+        actualHash: "hash-2",
+        conflictingActorType: "agent",
+        conflictingActorName: "Claude",
+      },
+    });
+
+    await mutate({ apply: () => revert, write, review });
+
+    // Unhandled, so it is still a refused write: the optimistic state goes back.
+    expect(revert).toHaveBeenCalledTimes(1);
+    const toast = useMutationStore.getState().toast;
+    expect(toast?.tone).toBe("danger");
+    expect(toast?.retry).toBeUndefined();
+    expect(toast?.message).toContain("LC-1 changed on disk");
+    expect(toast?.message).toContain("Claude (agent)");
+
+    toast?.review?.();
+    expect(review).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "conflict" }),
+    );
+    // And it never re-sent anything.
+    expect(write).toHaveBeenCalledTimes(1);
+  });
+
+  it("says a conflict plainly when the error names no actor and no key", async () => {
+    await mutate({
+      write: () =>
+        Promise.reject({
+          code: "conflict",
+          message: "This ticket's file was removed while you were saving.",
+          recoverable: true,
+        }),
+    });
+
+    const toast = useMutationStore.getState().toast;
+    expect(toast?.retry).toBeUndefined();
+    // No `review`, so the toast offers nothing but dismissal rather than a
+    // button that goes nowhere.
+    expect(toast?.review).toBeUndefined();
+    expect(toast?.message).toContain("The file changed on disk");
+  });
+
   it("raises no toast for a mutation that is not destructive-adjacent", async () => {
     await mutate({ write: () => Promise.resolve(written()) });
 

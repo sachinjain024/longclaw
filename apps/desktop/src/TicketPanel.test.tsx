@@ -143,6 +143,7 @@ function panel(props?: {
   onClose?: () => void;
   archived?: boolean;
   onArchive?: (archived: boolean) => void;
+  onWrite?: (result: WriteResult) => void;
 }) {
   return (
     <TicketPanel
@@ -154,14 +155,17 @@ function panel(props?: {
       archived={props?.archived ?? false}
       onClose={props?.onClose ?? noop}
       onArchive={props?.onArchive ?? noop}
-      onWrite={noop}
+      onWrite={props?.onWrite ?? noop}
       onError={failOnError}
     />
   );
 }
 
 /** The panel plus the toast surface its destructive-adjacent writes raise. */
-function surface(props?: { reloadSignal?: number }) {
+function surface(props?: {
+  reloadSignal?: number;
+  onWrite?: (result: WriteResult) => void;
+}) {
   return (
     <>
       {panel(props)}
@@ -602,7 +606,8 @@ describe("a destructive-adjacent change and taking it back", () => {
         conflictingActorName: "Claude",
       },
     });
-    render(surface());
+    const onWrite = vi.fn();
+    render(surface({ onWrite }));
     await ready();
 
     pick("Status", "In Progress");
@@ -610,6 +615,10 @@ describe("a destructive-adjacent change and taking it back", () => {
     await screen.findByText("⚠ Changed on disk while you were editing");
     expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
     expect(screen.getByText("Keep mine")).toBeTruthy();
+    // Plan 23 gave a conflict raised outside the panel an Open ticket offer.
+    // In here the banner is the offer, and nothing was reverted or toasted.
+    expect(screen.queryByRole("button", { name: "Open ticket" })).toBeNull();
+    expect(onWrite).not.toHaveBeenCalled();
   });
 
   it("offers undo for a checklist tick", async () => {

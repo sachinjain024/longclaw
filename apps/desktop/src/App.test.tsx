@@ -1178,6 +1178,41 @@ describe("archive and unarchive (V0-11)", () => {
     expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();
   });
 
+  // Plan 23. A board-raised mutation carries the hash it was built from, so a
+  // conflict is the one failure re-sending cannot fix.
+  it("offers no Retry on a conflict, and opens the ticket instead", async () => {
+    vi.mocked(api.readTicket).mockResolvedValue(detail("LC-1"));
+    vi.mocked(api.editTicket).mockRejectedValue({
+      code: "conflict",
+      message:
+        "This ticket changed on disk while you were editing. Reload it or keep your version, then save again.",
+      recoverable: true,
+      context: {
+        ticketKey: "LC-1",
+        expectedHash: "hash-LC-1",
+        actualHash: "hash-LC-1-newer",
+        conflictingActorType: "agent",
+        conflictingActorName: "Claude",
+      },
+    });
+    await openPanel([row("LC-1"), row("LC-2")], "LC-1");
+
+    fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+
+    // The card comes back, as it does for any refused write.
+    await waitFor(() => expect(card("LC-1")).toBeTruthy());
+    expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
+    // It says what happened and who did it, not "reload or keep your version":
+    // there is no banner out here to reload from.
+    expect(screen.getByText(/LC-1 changed on disk/)).toBeTruthy();
+    expect(screen.getByText(/Claude \(agent\)/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open ticket" }));
+
+    // The honest next action: the file as it now reads, so the human can decide.
+    await screen.findByRole("complementary", { name: "Ticket LC-1" });
+  });
+
   it("leaves focus on the board rather than dropping it on the body", async () => {
     vi.mocked(api.readTicket).mockResolvedValue(detail("LC-1"));
     vi.mocked(api.editTicket).mockResolvedValue(

@@ -21,7 +21,9 @@ Step 11 is [Wave 1 of the backlog](../../backlog/v0-backlog.md) — V0-08 throug
 V0-19 — and all twelve are now closed: V0-19 as plan 11, V0-18 as plan 12, V0-17
 as plan 13, V0-08 as plan 14, V0-10 as plan 15, V0-14 as plan 16, V0-11 as plan 17,
 V0-12 as plan 18, V0-13 as plan 19, V0-09 as plan 20, V0-15 as plan 21, and V0-16
-as plan 22.
+as plan 22. Plan 23 is not a thirteenth item: it is a **defect found while Wave 1
+was being built** — Retry on a conflict re-sent a hash the disk had already moved
+past — and it is closed too. Wave 1 does not reopen for it.
 
 Be careful what that is taken to mean. Wave 1 is closed against its own must-pass
 checks and nothing more: **the order those twelve were built in was never
@@ -71,6 +73,7 @@ marked independent can be done at any time by anyone.
 | ~~20~~ | ~~Board ordering, Manual mode, and drag-and-drop~~ — **done 2026-08-01**, [outcome](../completed/20-board-ordering-and-drag.md) | V0-09 | Closed, and it is the second comparator the board was built to take. Rank allocation is fractional indexing in `src/rank.ts`; the drop position is arithmetic over `boardGeometry.ts` rather than the element under the pointer. Read its outcome before V0-15 — the mixed ranked/unranked rule and its one limitation are decided there, not in a surface. |
 | ~~21~~ | ~~Filter, sort, and grouping behaviour~~ — **done 2026-08-01**, [outcome](../completed/21-filter-and-grouping.md) | V0-15 | Closed, and it is the last narrowing seam the surfaces get. The filter is `src/filtering.ts`, called once in `App.tsx` before grouping, so both surfaces receive one already-narrowed array. Read its outcome before V0-23 (the `Esc` ladder now has its last rung) and before V0-24 (the header filter and search deliberately match different things). |
 | ~~22~~ | ~~Full ticket create surface~~ — **done 2026-08-01**, [outcome](../completed/22-full-create-surface.md) | V0-16 | Closed, and it closes Wave 1. There are two create surfaces now: quick create is title + status, and `src/CreatePanel.tsx` is the panel in create mode with every approved field. Read its outcome before V0-23 — the create panel takes its own `Esc` and `⌘↵` rung, and it found that a `<button>` in a `<form>` submits it. |
+| ~~23~~ | ~~Retry must not re-send a stale hash~~ — **done 2026-08-01**, [outcome](../completed/23-retry-must-not-resend-a-stale-hash.md) | —       | Closed. A defect found while Wave 1 was being built, not a backlog row: `mutate()` offered a Retry on every failed write, and on a conflict the `expectedHash` that Retry re-sends is stale by definition, so the button could never succeed. A conflict now says what changed and who changed it and offers **Open ticket** instead. Read its outcome before V0-29 — it names four things it deliberately left there, including the fact that a board-raised conflict still cannot reach `ConflictBanner`. |
 
 Dependencies worth knowing:
 
@@ -244,7 +247,7 @@ Dependencies worth knowing:
   move focus only for a *new* focus request — a change to the roving key is not
   a licence to grab focus, because a query changes it while a human is typing.
 
-- **22 is done, and it is the last one.** There are two create surfaces and the
+- **22 is done, and it is the last Wave 1 item.** There are two create surfaces and the
   split is the spec's (`screen-specs.md:198-216`): quick create is title and
   status, and everything else is `apps/desktop/src/CreatePanel.tsx`, the panel in
   create mode. It sits **beside** `TicketPanel.tsx` rather than inside it because
@@ -262,6 +265,24 @@ Dependencies worth knowing:
   `submit`, and `Menu.tsx` had no `type` — putting the status menu in quick
   create's form fired a create per click. Every menu button is `type="button"`
   now; keep it that way.
+- **23 is done, and V0-29 inherits what it left.** It is a defect fix rather than
+  a backlog row, and the rule it settles belongs to the one write path: **a
+  conflict never carries a Retry.** `mutate()` in `apps/desktop/src/mutations.ts`
+  splits its danger toast on `code === "conflict"` now, because a mutation
+  re-sends the `expectedHash` it was built from and a conflict is proof that hash
+  is stale — so **do not "fix" a conflict by re-reading the hash and writing
+  again**, which is the silent overwrite ADR 0010 and `mvp_plan_order.md` § Step
+  14 both forbid. A conflict raised outside the panel gets `conflictMessage`'s own
+  copy (the key, the actor from `context`, and the fact that nothing was written)
+  plus an **Open ticket** action, wired from a mutation's new optional `review`.
+  **Open ticket is not the conflict banner:** `ConflictBanner` is `TicketPanel`
+  state and a board-raised conflict cannot reach it, so Open ticket shows the file
+  as it now reads and no more. Giving a mutation raised outside the panel a real
+  two-way resolution — holding the refused edit, offering to write it over a newer
+  file — **is V0-29's**, along with three other things
+  [23's outcome](../completed/23-retry-must-not-resend-a-stale-hash.md) names.
+  `handles` is unchanged and still wins over all of this: a surface that owns its
+  own conflicts keeps owning them.
 - **09 and 10 are both closed, and no plan is open.** The vanished-path overflow bug
   is fixed in `collect_event`, and the npm-launched native watcher timeout that
   blocked local `npm run verify` no longer reproduces — closed without a fix, so

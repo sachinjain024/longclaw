@@ -652,7 +652,9 @@ export function App() {
           applyLocalWrite(result.ticket, result.generation),
         toast: () =>
           `${written.ticket.key} archived — v0 never deletes a ticket file`,
+        review: () => openTicket(written.ticket.key),
       }),
+      // The create itself sends no hash, so it cannot conflict; its inverse can.
       failure: (error) => `The ticket could not be created. ${error.message}`,
     });
   }
@@ -696,7 +698,9 @@ export function App() {
         onWritten: (undone) =>
           applyLocalWrite(undone.ticket, undone.generation),
         toast: () => `${ticket.key} back to ${priorityLabel(ticket.priority)}`,
+        review: () => openTicket(ticket.key),
       }),
+      review: () => openTicket(ticket.key),
     });
   }
 
@@ -743,8 +747,10 @@ export function App() {
         onWritten: (undone) =>
           applyLocalWrite(undone.ticket, undone.generation),
         toast: () => `${ticket.key} back where it was`,
+        review: () => openTicket(ticket.key),
       }),
       failure: (error) => `${ticket.key} could not be moved. ${error.message}`,
+      review: () => openTicket(ticket.key),
     });
   }
 
@@ -806,9 +812,14 @@ export function App() {
         onWritten: (undone) =>
           applyLocalWrite(undone.ticket, undone.generation),
         toast: () => `${ticket.key} ${archived ? "unarchived" : "archived"}`,
+        review: () => openTicket(ticket.key),
       }),
       failure: (error) =>
         `${ticket.key} could not be ${archived ? "archived" : "unarchived"}. ${error.message}`,
+      // A conflict here cannot reach the panel's banner — the banner is the
+      // panel's own state and this write outlives it — so the offer is to open
+      // the ticket and read the file as it is now.
+      review: () => openTicket(ticket.key),
     });
   }
 

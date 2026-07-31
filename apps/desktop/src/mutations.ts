@@ -8,7 +8,8 @@
  *   and returns the function that puts it back. Nothing in the UI waits on IPC.
  * - A failed write reverts. `states.md:64-67` would keep the optimistic value
  *   visible and mark it unsaved; V0-17's gate says revert and say so, and the
- *   gate wins. The danger toast names the failure and offers Retry.
+ *   gate wins. The danger toast names the failure and offers Retry — except on
+ *   a conflict, where the hash the retry would re-send is stale by definition.
  * - Undo is a mutation. The inverse goes out through the ordinary write path
  *   (`edit_ticket`), so there is no undo IPC call and no second write path to
  *   keep honest. Undo mutations carry no `undo` of their own: the scope is the
@@ -31,8 +32,15 @@ export interface Toast {
   tone: "default" | "danger";
   /** Present while the mutation can still be taken back. `⌘Z` runs this. */
   undo?: () => void;
-  /** Present on a failed write, alongside the reverted state. */
+  /**
+   * Present on a failed write, alongside the reverted state — but never on a
+   * conflict. A mutation re-sends the `expectedHash` it was built from, which a
+   * conflict has already proved stale, so Retry there is a button that cannot
+   * succeed.
+   */
   retry?: () => void;
+  /** A conflict's honest offer instead: look at the file as it now reads. */
+  review?: () => void;
 }
 
 export interface Mutation {
@@ -70,6 +78,32 @@ export interface Mutation {
   handles?: (error: AppError) => boolean;
   /** What the danger toast says. Defaults to the error's own message. */
   failure?: (error: AppError) => string;
+  /**
+   * Where an unhandled conflict sends the human. `handles` is for a surface that
+   * resolves conflicts itself; this is for a mutation raised outside one — a
+   * card's priority, an archive, a reorder — where the only honest next action
+   * is to show the ticket as the file now reads it and let them decide. Omit and
+   * the conflict toast states the fact and offers nothing but dismissal.
+   */
+  review?: (error: AppError) => void;
+}
+
+/**
+ * What a conflict says outside the panel. The error's own message is the
+ * banner's vocabulary — "reload it or keep your version" — and there is no
+ * banner here, so this states the fact instead: the bytes moved, nothing was
+ * written, and who moved them when the context knows (ADR 0010).
+ */
+function conflictMessage(error: AppError): string {
+  const key = error.context?.ticketKey;
+  const name = error.context?.conflictingActorName;
+  const type = error.context?.conflictingActorType;
+  const actor = name ? `${name}${type ? ` (${type})` : ""}` : undefined;
+  return [
+    key ? `${key} changed on disk` : "The file changed on disk",
+    actor ? `, last edited by ${actor}` : "",
+    ". Your change was not written.",
+  ].join("");
 }
 
 interface MutationState {
@@ -150,10 +184,22 @@ export async function mutate(
     useMutationStore.getState().endWrite();
     if (mutation.handles?.(normalized)) return undefined;
     revert?.();
+    // A conflict is the one failure re-sending cannot fix: the mutation holds
+    // the hash it was built from, and a conflict means the disk has already
+    // moved past it. Re-reading the hash here would write over whatever changed
+    // the file, which is the loss the check exists to prevent
+    // (`mvp_plan_order.md` § Step 14), so the offer is to go and look instead.
+    const conflict = normalized.code === "conflict";
     store.raise({
-      message: mutation.failure?.(normalized) ?? normalized.message,
+      message: conflict
+        ? conflictMessage(normalized)
+        : (mutation.failure?.(normalized) ?? normalized.message),
       tone: "danger",
-      retry: () => void mutate(mutation),
+      retry: conflict ? undefined : () => void mutate(mutation),
+      review:
+        conflict && mutation.review
+          ? () => mutation.review?.(normalized)
+          : undefined,
     });
     return undefined;
   }

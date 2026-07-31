@@ -136,6 +136,17 @@ wart**: Retry re-sends the hash captured when the mutation was built, so retryin
 a conflict fails the same way. It is not new and it is not archive-specific;
 fixing it means teaching `mutate` to re-read the hash, which is its own item.
 
+**Fixed 2026-08-01 by [plan 23](23-retry-must-not-resend-a-stale-hash.md), and
+not the way this paragraph guessed.** Re-reading the hash was the wrong fix —
+it would write over whatever changed the file, which is the loss the check
+exists to prevent. Instead `mutate()` no longer offers a Retry on a conflict at
+all: it says the file changed and who changed it, and offers **Open ticket**,
+which `setArchived` wires to `openTicket(ticket.key)`. Two things that paragraph
+did not know are worth carrying forward. Opening the ticket does **not** reach
+`ConflictBanner` — the banner is the panel's own state, so a board-raised
+conflict shows the current file and nothing more — and a full two-way resolution
+for a mutation raised outside the panel is left to V0-29.
+
 ### Search, and the `· archived` tag
 
 `core::index.rs`'s `search` filters on the search text alone and has never looked
