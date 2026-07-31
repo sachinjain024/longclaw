@@ -32,5 +32,10 @@ thiserror = "2"
 uuid = { version = "1", features = ["v4"] }
 walkdir = "2"
 
+[target.'cfg(target_os = "macos")'.dependencies]
+# `renamex_np(RENAME_SWAP)`: the only way to replace a file and still hold the
+# bytes it displaced. See `core::storage::atomic_replace`.
+libc = "0.2"
+
 [dev-dependencies]
 tempfile = "3"

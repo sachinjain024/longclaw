@@ -25,7 +25,7 @@ marked independent can be done at any time by anyone.
 | #   | Plan                                                                           | Backlog | Why here in the order                                                                                                  |
 | --- | ------------------------------------------------------------------------------ | ------- | ---------------------------------------------------------------------------------------------------------------------- |
 | 00  | [Confirm CI on main](00-confirm-ci-on-main.md)                                 | —       | Five minutes, and it tells you whether the tree you are about to build on is green. Do it first.                       |
-| 01  | [Close the atomic-replace race](01-atomic-replace-race.md)                     | V0-01   | The only item that destroys a user's work silently. Nothing else competes for first.                                   |
+| ~~01~~ | ~~Close the atomic-replace race~~ — **done 2026-07-31**, [outcome](../completed/01-atomic-replace-race.md) | V0-01 | Closed. Read its outcome before starting 06: the write path moved, and the test seam it added assumes writes stay on the calling thread. |
 | 02  | [Recover from an event-sequence gap](02-event-sequence-gap.md)                 | V0-02   | Silent staleness, frontend-only, self-contained. Cheapest severe fix on the list.                                      |
 | 03  | [Attribute a change from new records only](03-attribution-from-new-records.md) | V0-07   | Wrong-actor credit breaks the shared record. Touches the same burst loop as 05, so do it while that code is fresh.     |
 | 04  | [Validate the project prefix on ingest](04-project-prefix-validation.md)       | V0-03   | Small and isolated. Completes the key work Step 10 started.                                                            |
@@ -40,9 +40,11 @@ Dependencies worth knowing:
   builds it. Doing 05 first means building it twice.
 - **03 and 05 and 06 all touch `process_burst`** in
   `apps/desktop/src-tauri/src/engine.rs`. Sequential is easier than parallel here.
-- **01 and 06 both touch the write path.** 01 changes what the rename does; 06
-  changes what thread it runs on. Do 01 first — the correctness question should be
-  settled before the concurrency one.
+- **06 inherits two things from 01.** The write path an edit takes is now
+  `commit` → `storage::atomic_replace`, not `atomic_write`. And `ReplaceSeams`, the
+  test seam 01 added, lives in a `thread_local!` that is only correct while a write
+  runs on the thread that asked for it — moving writes to a worker means the seam
+  installer moves with them, or the race test silently stops driving anything.
 - **07 is genuinely independent** of everything else. It is the one to hand to a
   second person working at the same time.
 

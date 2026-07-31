@@ -4,11 +4,17 @@
 mod common;
 
 use std::fs;
+use std::path::Path;
+use std::sync::mpsc::Receiver;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use common::{copy_representative_project, project_reference, start_engine, ticket_path};
 use longclaw_desktop_lib::core::storage::{self, NewTicket};
 use longclaw_desktop_lib::core::ticket::{ChecklistToggle, Priority, Status, TicketEdit};
-use longclaw_desktop_lib::core::{ErrorCode, RebuildReason, TicketRow};
+use longclaw_desktop_lib::core::{
+    ErrorCode, ProjectEvent, RebuildReason, StreamEnvelope, TicketRow,
+};
 
 fn indexed<'a>(tickets: &'a [TicketRow], key: &str) -> &'a longclaw_desktop_lib::core::IndexedRow {
     match tickets
@@ -174,6 +180,173 @@ fn a_stale_write_is_a_conflict_that_names_who_changed_the_file() {
     assert_eq!(error.context["conflictingActorType"], "agent");
     assert_eq!(error.context["conflictingActorName"], "Fixture Agent");
     assert_eq!(fs::read(&path).expect("untouched"), before);
+}
+
+/// The race the pre-write hash check cannot see.
+///
+/// Validation reads the file and approves the edit; the replacement happens some
+/// microseconds later. A write that lands in between is displaced by a plain
+/// `fs::rename` with nothing left to report, and the app's own self-write receipt
+/// then swallows the watcher event, so the save looks clean.
+///
+/// The interleaving is driven, not waited for: `before_swap` runs after the
+/// temporary file is durable and immediately before the replacement, so the
+/// external write provably lands inside the window. A version of this test that
+/// could pass by scheduling accident would be no evidence at all.
+#[test]
+fn an_external_write_inside_the_save_window_is_a_conflict_and_survives_it() {
+    let _serial = common::serially();
+    let (_temp, root) = copy_representative_project();
+    let (engine, events) = start_engine(&root);
+    let validated_hash = indexed(&engine.snapshot().tickets, "LC-2")
+        .content_hash
+        .clone();
+
+    let path = ticket_path(&root, "LC-2");
+    let external = common::replace_title(
+        &fs::read_to_string(&path).expect("ticket.md"),
+        "An external edit landed inside the window",
+    );
+
+    let interleaved = external.clone();
+    storage::install_replace_seams(storage::ReplaceSeams {
+        before_swap: Some(Arc::new(move |target: &Path| {
+            common::editor_atomic_replace(target, &interleaved, 1);
+        })),
+        ..storage::ReplaceSeams::default()
+    });
+    let outcome = engine.edit_ticket(
+        "LC-2",
+        &TicketEdit {
+            title: Some("A local edit built on the version validation saw".to_owned()),
+            ..TicketEdit::default()
+        },
+        &validated_hash,
+    );
+    storage::clear_replace_seams();
+
+    let error = outcome.expect_err("a write that displaced someone else's bytes is not a success");
+    assert_eq!(error.code, ErrorCode::Conflict);
+    assert!(error.recoverable);
+    assert_eq!(error.context["expectedHash"], validated_hash);
+    assert_ne!(error.context["actualHash"], validated_hash);
+    assert_eq!(error.context["conflictingActorType"], "agent");
+    assert_eq!(error.context["conflictingActorName"], "Fixture Agent");
+
+    // The external write is still there. This is the assertion the whole plan is
+    // for: before the fix, these bytes were gone and nothing said so.
+    assert_eq!(
+        fs::read_to_string(&path).expect("the external version"),
+        external,
+    );
+    assert!(
+        !fs::read_to_string(&path)
+            .expect("ticket.md")
+            .contains("built on the version validation saw"),
+        "the refused local edit must not be on disk",
+    );
+    assert_eq!(
+        leftover_temporaries(&path),
+        Vec::<String>::new(),
+        "a refused write leaves no debris in the user's repository",
+    );
+
+    // And the UI is not left believing the save was clean: the receipt for the
+    // app's own bytes must not swallow the event carrying the external change.
+    let changed = expect_ticket_changed(&events, "LC-2");
+    assert_eq!(changed.title, "An external edit landed inside the window");
+}
+
+/// Where the volume cannot exchange two paths atomically there is no way to learn
+/// what a replacement displaced, so LongClaw refuses the write. Refusing costs the
+/// user a save they can retry elsewhere; guessing costs them someone else's work.
+#[test]
+fn a_volume_without_an_atomic_swap_refuses_the_write_rather_than_risking_it() {
+    let _serial = common::serially();
+    let (_temp, root) = copy_representative_project();
+    let (engine, _events) = start_engine(&root);
+    let validated_hash = indexed(&engine.snapshot().tickets, "LC-2")
+        .content_hash
+        .clone();
+    let path = ticket_path(&root, "LC-2");
+    let before = fs::read(&path).expect("ticket.md");
+
+    storage::install_replace_seams(storage::ReplaceSeams {
+        force_swap_unsupported: true,
+        ..storage::ReplaceSeams::default()
+    });
+    let outcome = engine.edit_ticket(
+        "LC-2",
+        &TicketEdit {
+            title: Some("A save this volume cannot make safely".to_owned()),
+            ..TicketEdit::default()
+        },
+        &validated_hash,
+    );
+    storage::clear_replace_seams();
+
+    let error = outcome.expect_err("an unsafe replace is refused, not attempted");
+    assert_eq!(error.code, ErrorCode::Io);
+    assert!(error.recoverable, "moving the project is a way out");
+    assert!(
+        error.message.contains("left as it was"),
+        "the message has to say the ticket is intact: {}",
+        error.message,
+    );
+    assert_eq!(fs::read(&path).expect("untouched"), before);
+    assert_eq!(leftover_temporaries(&path), Vec::<String>::new());
+
+    // The next write on a volume that can swap still works, so the refusal is about
+    // the volume and not a latch the app gets stuck behind.
+    engine
+        .edit_ticket(
+            "LC-2",
+            &TicketEdit {
+                title: Some("A save on a volume that can swap".to_owned()),
+                ..TicketEdit::default()
+            },
+            &validated_hash,
+        )
+        .expect("the refusal must not outlive the condition that caused it");
+}
+
+/// Every file left in a ticket directory that is not the ticket itself.
+fn leftover_temporaries(ticket: &Path) -> Vec<String> {
+    let directory = ticket.parent().expect("a ticket lives in a directory");
+    let mut names: Vec<String> = fs::read_dir(directory)
+        .expect("the ticket directory")
+        .flatten()
+        .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_file()))
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .filter(|name| name != "ticket.md")
+        .collect();
+    names.sort();
+    names
+}
+
+/// Waits for the watcher to report `key` changing, ignoring anything else the
+/// engine says on the way.
+fn expect_ticket_changed(
+    events: &Receiver<StreamEnvelope>,
+    key: &str,
+) -> longclaw_desktop_lib::core::IndexedRow {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while let Some(remaining) = deadline.checked_duration_since(Instant::now()) {
+        let Ok(envelope) = events.recv_timeout(remaining) else {
+            break;
+        };
+        if let ProjectEvent::TicketChanged { ticket, .. } = envelope.event {
+            if ticket.key() == key {
+                match *ticket {
+                    TicketRow::Indexed(row) => return row,
+                    TicketRow::Degraded(row) => {
+                        panic!("{key} should be readable: {}", row.diagnostic.message)
+                    }
+                }
+            }
+        }
+    }
+    panic!("the external change to {key} never reached the UI");
 }
 
 #[test]

@@ -29,6 +29,23 @@ wake callback."_
 **Do items 01 and 03 first.** Both change the write and burst paths this item moves
 around. Settling correctness before concurrency is cheaper than the reverse.
 
+**Item 01 is done, and it left you two things.** Read
+[its outcome](../completed/01-atomic-replace-race.md) before you start:
+
+- An edit no longer writes through `atomic_write`. `commit` dispatches on
+  `TicketWrite::expected_hash` and an edit goes to `storage::atomic_replace`, which
+  swaps, hashes what it displaced, and can return a conflict *after* the bytes have
+  moved. Whatever thread that ends up on has to be able to return that conflict to
+  the caller — it is not a fire-and-forget write.
+- `storage::ReplaceSeams` lives in a `thread_local!`. That is only sound while a
+  write runs on the thread that asked for it. **Move the write to a worker and the
+  race test stops driving anything, silently, while still passing** — the seam
+  simply will not be installed on the thread that swaps. Move the installer with
+  the write, or make the seam shared and locked. Then re-run the red half: point
+  `commit` back at `atomic_write` and confirm
+  `an_external_write_inside_the_save_window_is_a_conflict_and_survives_it` still
+  fails. A race test that cannot fail is not protecting anything.
+
 ## Working rules
 
 - Topic branch off updated `main`. Never commit to `main`; never merge without being

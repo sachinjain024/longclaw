@@ -7,15 +7,19 @@
 //! Three rules shape the write path:
 //!
 //! - Writes are atomic: a sibling temporary file, then a rename.
-//! - A write carries the content hash the edit started from. A newer file on disk
-//!   is a conflict, never an overwrite.
+//! - A write carries the content hash the edit started from, and it is checked
+//!   twice — once before the write, and again *as* the write happens, against the
+//!   bytes the replacement actually displaced. A newer file on disk is a conflict,
+//!   never an overwrite, however late it arrived. See [`atomic_replace`].
 //! - A file this build cannot parse, or one from a newer format version, is never
 //!   rewritten at all.
 
+use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
@@ -425,6 +429,11 @@ fn attachment_state(ticket_path: &Path, ticket: &Ticket) -> (Vec<String>, Vec<St
 
 /// Writes `bytes` to `path` by writing a sibling temporary file and renaming it,
 /// so a reader sees either the old file or the new one and never a partial write.
+///
+/// The rename replaces the destination unconditionally, which is right for a file
+/// this process owns — project metadata, the agent contract, the registry, a
+/// brand-new ticket. It is *not* right for replacing a ticket the user and an agent
+/// can both write: use [`atomic_replace`] there.
 pub fn atomic_write(path: &Path, bytes: &[u8]) -> AppResult<()> {
     let parent = path.parent().ok_or_else(|| {
         AppError::new(
@@ -439,30 +448,242 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> AppResult<()> {
         .unwrap_or(TICKET_FILE);
     let temporary = parent.join(format!(".{name}.longclaw-{}.tmp", Uuid::new_v4()));
     let result = (|| -> AppResult<()> {
-        let mut file = OpenOptions::new()
-            .create_new(true)
-            .write(true)
-            .open(&temporary)
-            .map_err(|error| AppError::io("Creating sibling temporary file", &temporary, error))?;
-        file.write_all(bytes)
-            .map_err(|error| AppError::io("Writing sibling temporary file", &temporary, error))?;
-        file.sync_all()
-            .map_err(|error| AppError::io("Syncing sibling temporary file", &temporary, error))?;
-        if let Ok(metadata) = fs::metadata(path) {
-            fs::set_permissions(&temporary, metadata.permissions())
-                .map_err(|error| AppError::io("Preserving file permissions", &temporary, error))?;
-        }
+        write_durable_sibling(&temporary, path, bytes)?;
         fs::rename(&temporary, path)
             .map_err(|error| AppError::io("Atomically replacing file", path, error))?;
-        File::open(parent)
-            .and_then(|directory| directory.sync_all())
-            .map_err(|error| AppError::io("Syncing directory", parent, error))?;
-        Ok(())
+        sync_directory(parent)
     })();
     if result.is_err() {
         let _ = fs::remove_file(&temporary);
     }
     result
+}
+
+// ------------------------------------------------- replacing a file we validated
+
+/// Hooks that let a test drive the replace window. Production never installs any:
+/// `replace_seams()` returns the default until a test calls `install_replace_seams`.
+///
+/// This is a public seam for the same reason `WatcherAdapter::Polling` is one — the
+/// behaviour under test is an interleaving, and a test that waits for it to happen
+/// by luck is not evidence that it was handled.
+///
+/// The seams are **per-thread**, so installing them in one test cannot reach a test
+/// running beside it. That holds because a write runs on the thread that asked for
+/// it: `edit_ticket` calls `commit` calls `atomic_replace`, all synchronously. Move
+/// the write onto a worker and the installer has to move with it.
+/// What runs inside the replace window, given the path being replaced.
+pub type BeforeSwap = Arc<dyn Fn(&Path)>;
+
+#[derive(Clone, Default)]
+pub struct ReplaceSeams {
+    /// Runs after the temporary file is durable and immediately before the swap,
+    /// so a write it performs provably lands inside the validate-to-replace window.
+    pub before_swap: Option<BeforeSwap>,
+    /// Forces the no-swap path, for volumes that do not support `RENAME_SWAP`.
+    pub force_swap_unsupported: bool,
+}
+
+thread_local! {
+    static REPLACE_SEAMS: RefCell<Option<ReplaceSeams>> = const { RefCell::new(None) };
+}
+
+pub fn install_replace_seams(seams: ReplaceSeams) {
+    REPLACE_SEAMS.with(|cell| *cell.borrow_mut() = Some(seams));
+}
+
+pub fn clear_replace_seams() {
+    REPLACE_SEAMS.with(|cell| *cell.borrow_mut() = None);
+}
+
+fn replace_seams() -> ReplaceSeams {
+    REPLACE_SEAMS.with(|cell| cell.borrow().clone().unwrap_or_default())
+}
+
+/// Whether this build can exchange two paths atomically.
+///
+/// macOS gives us `renamex_np(RENAME_SWAP)`. Nothing else does, and rather than
+/// pretend, the caller refuses the write — see `swap_unsupported_error`.
+#[cfg(target_os = "macos")]
+const SWAP_SUPPORTED: bool = true;
+#[cfg(not(target_os = "macos"))]
+const SWAP_SUPPORTED: bool = false;
+
+/// Exchanges the contents of two existing paths in one atomic step. After it
+/// returns, each path holds what the other held.
+#[cfg(target_os = "macos")]
+fn swap_paths(left: &Path, right: &Path) -> std::io::Result<()> {
+    use std::ffi::CString;
+    use std::os::unix::ffi::OsStrExt;
+
+    /// `<sys/stdio.h>`. Not re-exported by every `libc` release, so it is named here.
+    const RENAME_SWAP: libc::c_uint = 0x0002;
+
+    let left = CString::new(left.as_os_str().as_bytes())?;
+    let right = CString::new(right.as_os_str().as_bytes())?;
+    // SAFETY: both pointers are valid, NUL-terminated, and live for the call.
+    let outcome = unsafe { libc::renamex_np(left.as_ptr(), right.as_ptr(), RENAME_SWAP) };
+    if outcome == 0 {
+        Ok(())
+    } else {
+        Err(std::io::Error::last_os_error())
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn swap_paths(_left: &Path, _right: &Path) -> std::io::Result<()> {
+    Err(std::io::Error::from(std::io::ErrorKind::Unsupported))
+}
+
+/// Why a swap failed, in the app's own error vocabulary.
+///
+/// Only two outcomes are interesting: the volume cannot do it, or the destination
+/// went away while we were saving. Everything else is an ordinary I/O failure, and
+/// in every case the file is left holding whatever it held.
+fn classify_swap_error(path: &Path, error: std::io::Error) -> AppError {
+    if is_unsupported(&error) {
+        return swap_unsupported_error(path);
+    }
+    if error.kind() == std::io::ErrorKind::NotFound {
+        return AppError::new(
+            ErrorCode::Conflict,
+            "This ticket's file was removed while you were saving. Your version was \
+             not written over whatever replaced it.",
+            true,
+        )
+        .with_context("path", path.display().to_string());
+    }
+    AppError::io("Atomically replacing file", path, error)
+}
+
+#[cfg(target_os = "macos")]
+fn is_unsupported(error: &std::io::Error) -> bool {
+    // `EINVAL` is what a filesystem without `RENAME_SWAP` returns for the flag.
+    matches!(
+        error.raw_os_error(),
+        Some(libc::ENOTSUP) | Some(libc::EINVAL)
+    )
+}
+
+#[cfg(not(target_os = "macos"))]
+fn is_unsupported(error: &std::io::Error) -> bool {
+    error.kind() == std::io::ErrorKind::Unsupported
+}
+
+fn swap_unsupported_error(path: &Path) -> AppError {
+    AppError::new(
+        ErrorCode::Io,
+        "This volume cannot exchange two files atomically, so LongClaw cannot \
+         guarantee that a save will not overwrite someone else's edit. The ticket \
+         was left as it was. Move the project to an APFS or HFS+ volume to edit it \
+         in the app.",
+        true,
+    )
+    .with_context("path", path.display().to_string())
+}
+
+/// Replaces `path` with `bytes`, but only if the bytes it displaces are the ones
+/// validation saw.
+///
+/// `atomic_write` cannot express that: `fs::rename` replaces the destination
+/// unconditionally, so an external write landing between the caller's hash check
+/// and the rename is destroyed with nothing left to report. Re-reading just before
+/// the rename narrows that window rather than closing it — two processes can still
+/// interleave after the re-read.
+///
+/// So this does not check and then replace. It swaps, which puts the displaced
+/// bytes in our hands at the temporary path, and *then* asks what they were:
+///
+/// - `expected_hash` — nothing external happened inside the window. Done.
+/// - anything else — an external write landed inside the window. Swap back so the
+///   external bytes are the file again, and return `ErrorCode::Conflict` with the
+///   context the conflict banner already reads.
+///
+/// The external write is never lost. In the worst case — the restoring swap itself
+/// fails — its bytes are preserved beside the ticket and the error names where.
+pub fn atomic_replace(path: &Path, bytes: &[u8], expected_hash: &str) -> AppResult<()> {
+    let seams = replace_seams();
+    if !SWAP_SUPPORTED || seams.force_swap_unsupported {
+        return Err(swap_unsupported_error(path));
+    }
+    let parent = path.parent().ok_or_else(|| {
+        AppError::new(
+            ErrorCode::PermissionDenied,
+            "Atomic writes need a sibling temporary file",
+            false,
+        )
+    })?;
+    let name = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or(TICKET_FILE);
+    let temporary = parent.join(format!(".{name}.longclaw-{}.tmp", Uuid::new_v4()));
+
+    if let Err(error) = write_durable_sibling(&temporary, path, bytes) {
+        let _ = fs::remove_file(&temporary);
+        return Err(error);
+    }
+
+    if let Some(before_swap) = &seams.before_swap {
+        before_swap(path);
+    }
+
+    if let Err(error) = swap_paths(&temporary, path) {
+        let _ = fs::remove_file(&temporary);
+        return Err(classify_swap_error(path, error));
+    }
+
+    // The swap succeeded, so `path` holds the new bytes and `temporary` holds
+    // whatever `path` held a moment ago.
+    let displaced = fs::read(&temporary).map_err(|error| {
+        AppError::io("Reading the bytes this save displaced", &temporary, error)
+    })?;
+    if content_hash(&displaced) == expected_hash {
+        let _ = fs::remove_file(&temporary);
+        sync_directory(parent)?;
+        return Ok(());
+    }
+
+    // Someone else wrote inside the window. Their bytes win: this save was built on
+    // a version that no longer exists, which is the same answer the pre-write check
+    // gives, just discovered later.
+    if let Err(error) = swap_paths(&temporary, path) {
+        let preserved = parent.join(format!(".{name}.longclaw-conflict-{}.bak", Uuid::new_v4()));
+        let _ = fs::rename(&temporary, &preserved);
+        let _ = sync_directory(parent);
+        return Err(AppError::io("Restoring the displaced file", path, error)
+            .with_context("preservedPath", preserved.display().to_string()));
+    }
+    let _ = fs::remove_file(&temporary);
+    sync_directory(parent)?;
+
+    let file = read_ticket_file(path)?;
+    Err(conflict_error(&file, expected_hash).with_context("racedInsideWrite", "true".to_owned()))
+}
+
+/// Writes `bytes` to `temporary` and makes them durable, carrying over `model`'s
+/// permissions so a replace does not silently widen them.
+fn write_durable_sibling(temporary: &Path, model: &Path, bytes: &[u8]) -> AppResult<()> {
+    let mut file = OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(temporary)
+        .map_err(|error| AppError::io("Creating sibling temporary file", temporary, error))?;
+    file.write_all(bytes)
+        .map_err(|error| AppError::io("Writing sibling temporary file", temporary, error))?;
+    file.sync_all()
+        .map_err(|error| AppError::io("Syncing sibling temporary file", temporary, error))?;
+    if let Ok(metadata) = fs::metadata(model) {
+        fs::set_permissions(temporary, metadata.permissions())
+            .map_err(|error| AppError::io("Preserving file permissions", temporary, error))?;
+    }
+    Ok(())
+}
+
+fn sync_directory(parent: &Path) -> AppResult<()> {
+    File::open(parent)
+        .and_then(|directory| directory.sync_all())
+        .map_err(|error| AppError::io("Syncing directory", parent, error))
 }
 
 /// Reads a ticket, applies `edit`, and returns the bytes to write. Nothing is
@@ -509,6 +730,7 @@ pub fn prepare_ticket_edit(
         path,
         bytes: applied.bytes,
         changes: applied.changes,
+        expected_hash: Some(expected_hash.to_owned()),
     })
 }
 
@@ -630,6 +852,9 @@ pub fn prepare_new_ticket(
                     path,
                     bytes: rendered.into_bytes(),
                     changes: Vec::new(),
+                    // A create claims a directory nobody else holds, so there is no
+                    // predecessor for the write to displace.
+                    expected_hash: None,
                 });
             }
             Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => sequence += 1,

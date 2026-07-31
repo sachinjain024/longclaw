@@ -15,6 +15,8 @@
 //!   into place, the engine records `(path, hash)`. A watcher event is suppressed
 //!   only when both match. A different hash is always someone else's edit, even
 //!   within the receipt window — the app never goes blind for a period of time.
+//!   A write that does not land forgets its receipt, so suppression never outlives
+//!   the bytes it was recorded for.
 //! - **A rename is a removal and an arrival.** Every event path is normalized to
 //!   the canonical `ticket.md` it concerns, so a directory rename removes one row
 //!   and adds another without the watcher needing to understand rename semantics.
@@ -32,8 +34,8 @@ use notify::{Config, Event, PollWatcher, RecursiveMode, Watcher};
 use parking_lot::Mutex;
 
 use crate::core::storage::{
-    self, atomic_write, content_hash, directory_key, prepare_new_ticket, prepare_ticket_edit,
-    read_project, ticket_file_path, NewTicket,
+    self, atomic_replace, atomic_write, content_hash, directory_key, prepare_new_ticket,
+    prepare_ticket_edit, read_project, ticket_file_path, NewTicket,
 };
 use crate::core::ticket::TicketEdit;
 use crate::core::{
@@ -256,12 +258,23 @@ impl ProjectEngine {
     }
 
     /// Records the receipt, places the bytes, and updates the index exactly once.
+    ///
+    /// An edit goes through `atomic_replace`, which refuses to displace bytes other
+    /// than the ones its validation saw. A create goes through `atomic_write`: it
+    /// has claimed a directory nobody else holds, so there is nothing to displace.
     fn commit(&self, write: crate::core::TicketWrite, created: bool) -> AppResult<WriteResult> {
         let hash = content_hash(&write.bytes);
         self.receipts
             .lock()
             .remember(write.path.clone(), hash.clone(), Instant::now());
-        if let Err(error) = atomic_write(&write.path, &write.bytes) {
+        let placed = match &write.expected_hash {
+            Some(expected) => atomic_replace(&write.path, &write.bytes, expected),
+            None => atomic_write(&write.path, &write.bytes),
+        };
+        if let Err(error) = placed {
+            // Our bytes are not on disk, so the receipt must go too. Left behind, it
+            // would suppress the watcher event carrying whoever's write did land —
+            // and the UI would learn nothing about a save it was just told failed.
             self.receipts.lock().forget(&write.path, &hash);
             if created {
                 storage::discard_claimed_ticket_directory(&write.path);

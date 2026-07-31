@@ -1,7 +1,8 @@
 ---
 title: "Close the atomic-replace race"
 product: LongClaw
-status: ready
+status: done
+completed: 2026-07-31
 backlog_id: V0-01
 order: 1
 owner_area: Storage
@@ -149,3 +150,118 @@ through a seam rather than a real filesystem.
   this test easier; that trades one silent path for another.
 - **Do not weaken the existing `expected_hash` check.** It catches the common case —
   a stale edit — long before this race matters.
+
+## Outcome
+
+Closed on 2026-07-31. The race is gone, and the test that proves it was confirmed
+to fail against the old code first.
+
+### What shipped
+
+`core::storage::atomic_replace` — a second write primitive beside `atomic_write`,
+used only for replacing a ticket the user and an agent can both write. It does not
+check and then replace. It swaps:
+
+1. Write the sibling temporary file and make it durable.
+2. `renamex_np(temporary, path, RENAME_SWAP)`. After it returns, `path` holds the
+   new bytes and `temporary` holds whatever `path` held a moment ago.
+3. Hash the displaced bytes. Equal to the hash validation saw → remove the
+   temporary, sync the directory, success.
+4. Different → an external write landed inside the window. Swap back so the
+   external bytes are the file again, and return `ErrorCode::Conflict` built by the
+   existing `conflict_error`, so the conflict banner works unchanged. One extra
+   context key, `racedInsideWrite`, distinguishes it from a stale-edit conflict for
+   anyone reading logs.
+
+`TicketWrite` now carries `expected_hash: Option<String>` — `Some` for an edit,
+`None` for a create. `ProjectEngine::commit` dispatches on it: an edit goes through
+`atomic_replace`, a create through `atomic_write`, because a create has claimed a
+directory nobody else holds and has no predecessor to displace. This also means
+`RENAME_SWAP`'s requirement that both paths exist is never violated.
+
+The suppression half is fixed in the same place: `commit` already called
+`receipts.forget` on a failed write, and that is now load-bearing rather than
+incidental. Its comment says so. With the receipt gone and the external bytes on
+disk, `process_burst` sees a hash matching neither the receipt nor the index row,
+ingests, and emits `TicketChanged` — so the UI learns about the write it was just
+told did not happen.
+
+### The fallback, and what it costs
+
+**Where the volume cannot swap, the write is refused.** `atomic_replace` returns a
+recoverable `ErrorCode::Io` naming the volume and saying the ticket was left as it
+was. `EINVAL` and `ENOTSUP` from `renamex_np` are both treated as unsupported, and
+non-macOS builds take the same path unconditionally.
+
+This is the plan's stated preference ("refusing the write is acceptable. Losing it
+is not") and it is the right trade, but the cost should be recorded plainly rather
+than discovered later: **a project on exFAT, SMB, or NFS cannot be edited in the
+app at all.** APFS and HFS+ support `RENAME_SWAP`, so this does not affect an
+ordinary repository on an internal disk — but a repository on a USB drive or a
+network share is a real thing people have. If that turns out to matter, the answer
+is a lock file or an advisory-lock adapter for those volumes, not a narrower race
+window. Worth a backlog item if a pilot participant hits it.
+
+### Decisions not in the plan
+
+- **The displaced bytes are restored, not filed away.** The plan offered "restore
+  the file to those bytes or surface both". Restoring is what makes them
+  recoverable, and it matches what the pre-write conflict check already does: the
+  file is left holding the newer version and the caller is told to reconcile. A
+  `.bak` beside every raced write would be residue in the user's repository, which
+  V0-32 is separately trying to avoid. A preserved copy is written **only** if the
+  restoring swap itself fails, and the error then carries `preservedPath`.
+- **The test seam is per-thread, not global.** `ReplaceSeams` lives in a
+  `thread_local!`, so a test installing a hook cannot reach a test running beside
+  it in the same binary. This is sound only because a write runs on the thread that
+  asked for it — `edit_ticket` → `commit` → `atomic_replace`, all synchronous.
+  **Plan 06 moves writes onto blocking workers and will break this.** The installer
+  has to move with the write; the type carries a comment saying so.
+- **`atomic_write` was refactored, not left alone.** Both primitives now share
+  `write_durable_sibling` and `sync_directory`. Its doc comment now says which
+  callers it is still right for (project metadata, the agent contract, the
+  registry, a new ticket) and points edits at `atomic_replace`.
+- **A file removed mid-save** — `renamex_np` returning `ENOENT` — returns a
+  conflict saying so, and does not recreate the file. Reinstating a ticket the user
+  or an agent just deleted would be its own kind of silent loss. V0-28 owns what
+  the panel does about it.
+
+### How it was proved
+
+Two tests in `apps/desktop/src-tauri/tests/storage_integration.rs`:
+
+- `an_external_write_inside_the_save_window_is_a_conflict_and_survives_it` — the
+  `before_swap` seam performs an editor-style atomic replace after the temporary
+  file is durable and immediately before the swap, so the external write provably
+  lands inside the window. It asserts all four things the plan asked for: the
+  external bytes are still on disk, the caller got a recoverable
+  `ErrorCode::Conflict`, the conflict carries `conflictingActorType` and
+  `conflictingActorName`, and a `TicketChanged` event carrying the external title
+  reaches the sink. It also asserts the ticket directory is left with no debris.
+- `a_volume_without_an_atomic_swap_refuses_the_write_rather_than_risking_it` —
+  drives `force_swap_unsupported`, asserts the refusal is typed and recoverable,
+  the file is byte-identical, nothing is left behind, and the *next* write on a
+  swap-capable volume still succeeds, so the refusal is about the volume rather
+  than a latch the app gets stuck behind.
+
+**The red half was verified.** With `commit` temporarily pointed back at
+`atomic_write`, the race test fails on its first assertion — and it fails in the
+worst possible way, which is the point:
+
+```
+a write that displaced someone else's bytes is not a success:
+WriteResult { ticket: Indexed(IndexedRow { key: "LC-2",
+  title: "A local edit built on the version validation saw", … }), generation: 2, … }
+```
+
+The external edit is gone, and the app returned a clean `WriteResult`.
+
+`npm run verify` passes, including `npm run test:watcher`. `npm run build:app` — the
+release bundle CI runs and the local gate skips — also passes.
+
+### Still open
+
+- [The round-trip scenario](../../acceptance/agent-round-trip.md) § 7 has **not**
+  been re-walked by hand. It needs a person driving the app. The automated conflict
+  coverage is green, but the plan asks for the human path too.
+- One new dependency: `libc`, macOS-only, for `renamex_np`.

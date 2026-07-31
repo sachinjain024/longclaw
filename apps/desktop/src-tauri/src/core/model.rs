@@ -168,6 +168,13 @@ pub struct TicketWrite {
     pub path: PathBuf,
     pub bytes: Vec<u8>,
     pub changes: Vec<FieldChange>,
+    /// The hash of the file this write was built from, for an edit; `None` for a
+    /// create, which has no predecessor to displace.
+    ///
+    /// It is carried this far because validating it before the write is not enough:
+    /// the write itself has to confirm that the bytes it displaced were still these
+    /// ones. See `storage::atomic_replace`.
+    pub expected_hash: Option<String>,
 }
 
 #[derive(Debug, Clone)]

@@ -32,7 +32,6 @@ is release-blocking.
 
 | Risk | Owner | Retired by | Must pass before release |
 |---|---|---|---|
-| An external write between expected-hash validation and atomic replacement is silently overwritten, and its watcher notification is consumed by the self-write receipt | Storage | V0-01 | A deterministic barrier-based race test: the interleaved external write is never lost and surfaces as a conflict |
 | A dropped project event leaves the UI silently stale while still looking live | Frontend | V0-02 | Loss and reordering tests: a sequence gap suspends incremental application and recovers by snapshot |
 | A change is attributed to the wrong actor, or an agent is presented as a human | Domain | V0-07 | Only newly appended event IDs are attributed; an unattributable change reads as actor unknown; the round-trip scenario's actor assertions pass |
 | FSEvents drops history over sleep, wake, overflow, or a removed root, and macOS gives no `Resumed` callback while the window stays focused | Platform | V0-04 | A real sleep/wake soak with the window focused, plus an overflow injection, both reconciling to disk state; an unavailable watcher says so |
@@ -68,6 +67,15 @@ are the ones most likely to be waved through.
 | The deferred register leaks into the MVP one reasonable-sounding request at a time | Product | The scope gate: promotion requires an evidence row, a founder decision, a must-pass verification, and a named acceptance change | Every re-plan |
 | LongClaw's own defects are tracked in Markdown files because the repository has no ticket-creation surface, so a finding can be lost in a directory nobody reads | Product | [`docs/plans/`](plans/) is the interim store, with resolved reports kept rather than deleted. The CLI caveat in the backlog records the underlying gap | Post-MVP decision |
 | Accessibility and reduced-motion work is postponed to Step 16 and then compressed | Design | Audit keyboard access, focus order, labels, screen-reader semantics, contrast, reduced motion, and zoom in Step 16 against the criteria fixed in Step 1 | M6 |
+
+## Retired
+
+Closed by shipped work, with the test that keeps them closed. They stay listed so
+a later change that removes the test is visibly removing a release gate.
+
+| Risk | Owner | Retired by | Test that holds it |
+|---|---|---|---|
+| An external write between expected-hash validation and atomic replacement is silently overwritten, and its watcher notification is consumed by the self-write receipt | Storage | V0-01, [plan 01](plans/completed/01-atomic-replace-race.md) | `an_external_write_inside_the_save_window_is_a_conflict_and_survives_it` and `a_volume_without_an_atomic_swap_refuses_the_write_rather_than_risking_it`, in `apps/desktop/src-tauri/tests/storage_integration.rs`. The interleaving is driven through the `ReplaceSeams::before_swap` seam, so the test cannot pass by scheduling accident; it was confirmed to fail against the previous `fs::rename` path |
 
 ## Accepted
 
