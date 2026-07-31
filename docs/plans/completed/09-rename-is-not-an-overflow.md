@@ -191,8 +191,11 @@ Validation performed locally:
 `npm run verify` did not go green locally, but not because of this fix. Its final
 npm-launched native watcher target repeatedly timed out waiting for the first
 FSEvents update, while the exact cargo watcher command passed when run directly
-from `apps/desktop/src-tauri`. That is tracked separately as
-[item 10](../active/10-npm-native-watcher-timeout.md). Until item 10 is fixed,
-local `npm run verify` remains an unreliable validator for this branch.
+from `apps/desktop/src-tauri`. That was tracked separately as item 10.
 
-CI has not been recorded for this branch yet.
+**Both of those are settled as of 2026-07-31, after this fix merged.** CI run
+`30629158530` on `6230240` — the merge that carried this fix to `main` — is green
+through `npm run build:app`. Local `npm run verify` is green too, and item 10 is
+[closed as not reproducing](10-npm-native-watcher-timeout.md) on the same tree
+that timed out: nothing was changed and no mechanism was found, so a recurrence is
+an environment question rather than a fault in this fix.
