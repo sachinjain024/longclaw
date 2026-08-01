@@ -47,7 +47,7 @@ because it is short and every clause is load-bearing:
 >   change project theme… · archive/unarchive ticket (ADR 0004) · change board
 >   ordering… (ADR 0003) · switch board/list view · **new terminal** — present,
 >   disabled, tagged `PHASE 2`. This is D14 minus "assign…" (no assignee in v0,
->   ADR 0001) plus the additions staged in README § Proposals.
+>   ADR 0001) plus the four commands from Proposal P1, accepted on 2026-08-01.
 
 Twelve rows. Keys — `keyboard-focus-map.md:96-110`:
 
@@ -69,9 +69,15 @@ table, `:148`: "Palette | Whatever held focus before `⌘K`". Motion: rises on
 `prefers-reduced-motion` (`:291-293`). Disabled treatment is `components.md:32` —
 text/glyphs `--lc-ink-disabled`, fills `--lc-wash`, no hover, `cursor: default`.
 
-## Three spec conflicts. Resolve them this way, and say so in the Outcome
+## Three spec conflicts. Two are settled; the third is yours
 
-**1. `mvp_plan_order.md` § Step 12 is stale — do not build from it.**
+Conflict 2 was settled on 2026-08-01 when the founder accepted P1, and conflict 1
+is real but is **plan 30's to fix, not yours to work around** — build from the
+design docs and leave the stale document alone. Only conflict 3 needs a decision
+from you. All three are recorded here so the reasoning survives.
+
+**1. `mvp_plan_order.md` § Step 12 is stale — do not build from it, and do not
+fix it here.**
 `docs/mvp_plan_order.md:498-506` still lists `assign` as a palette command, and
 `:507` says "Reserve but do not expose or implement the Phase 2 terminal command."
 Both are contradicted by every later document: `decisions.md:209-213`,
@@ -79,18 +85,19 @@ Both are contradicted by every later document: `decisions.md:209-213`,
 `adr/0001:3`, and the backlog must-pass itself, which requires the terminal row to
 be **visible**. The step plan was never ADR-propagated. **Design docs + ADR + the
 must-pass win.** No assign command; a visible, disabled, tagged terminal row.
+Reconciling the document itself is [plan 30](30-reconcile-step-12-command-set.md),
+which is documentation debt and can run independently of this one. If you touch
+`mvp_plan_order.md` at all, you are in plan 30's territory.
 
 **2. `components.md` and `screen-specs.md` disagree on the command set.**
-`components.md:278-280` lists the original eight-command D14 set; `screen-specs.md`
-lists twelve. `components.md` is Step 1 and was only ever patched for the assignee
-removal (V0-19) — it never took proposal P1. **`screen-specs.md` governs**: it is
-later, ADR-propagated, and explains its own derivation.
+`components.md` previously listed the original eight-command D14 set while
+`screen-specs.md` listed twelve. The component foundation now includes all twelve;
+`screen-specs.md` remains the detailed authority for the root set and explains its
+derivation.
 
-**But flag this honestly.** The four extra commands come from proposal P1
-(`prototype/README.md:79`), and `README.md:71-72` still calls the proposals "staged
-for founder sign-off (M0)" with the gate marked ⏳ at `:126`. You are shipping P1
-as approved-by-default, which is the same posture the rest of Wave 1 took. Say it
-in the Outcome rather than letting a reader assume the twelve-row set was ratified.
+**P1 is now ratified.** The four extra commands come from Proposal P1
+(`prototype/README.md:79`), which the founder accepted on 2026-08-01. The remaining
+P2–P10 proposals and the broader M0 experience gate remain open.
 
 Minor, pick one and be consistent: glyph 14px (`components.md:276`) vs a 16px glyph
 slot (`screen-specs.md:221`); "Selected row" vs "Active row".
@@ -247,6 +254,6 @@ no-result states are plan 27's problem, and it inherits the same gap.
 4. Opening the palette does not close the ticket panel, and `Esc` with the palette
    open does not reach the panel or the filter.
 5. `npm run verify` passes and the perf traces are still within budget.
-6. Outcome written naming the three conflict resolutions and the P1 ratification
-   posture, plan moved to `completed/`, V0-20's backlog row and the README Order
-   table updated.
+6. Outcome written naming the appearance-toggle and star-target decisions (conflict
+   3) and confirming `mvp_plan_order.md` was left to plan 30, plan moved to
+   `completed/`, V0-20's backlog row and the README Order table updated.

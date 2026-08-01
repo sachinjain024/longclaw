@@ -275,10 +275,12 @@ crossfade of accent surfaces only; nothing moves.
 Modal 560px, radius `--lc-radius-modal` (14px), shadow `--lc-shadow-modal`,
 scrim backdrop. Input row 44px (15px type); result rows 36px: glyph 14px,
 name 13px `ink`, kbd hint right-aligned. Selected row `accent-human-soft`.
-v0 commands: create ticket · go to project · change status · search tickets ·
-star project · toggle appearance · change project theme · new terminal
-*(Phase 2 slot, present but disabled)*. No **assign** command — v0 is local
-mode and has no assignee (ADR 0001).
+v0 commands: create ticket · go to project · change status · set priority ·
+search tickets · star project · toggle appearance · change project theme ·
+archive/unarchive ticket · change board ordering · switch board/list view · new
+terminal *(Phase 2 slot, present but disabled)*. No **assign** command — v0 is
+local mode and has no assignee (ADR 0001). The four commands added beyond the
+original D14 set are Proposal P1, accepted on 2026-08-01.
 
 ## Shortcuts (v0 set)
 

@@ -54,7 +54,7 @@ decisive lines:
 > `⌘Z`, `⌘↵`) stay live everywhere except where the OS owns them (e.g. `⌘Z` inside
 > a focused text field is the field's undo).
 
-Restated at `components.md:298`.
+Restated at `components.md:300`.
 
 **Global** — `:29-33`: `⌘K` palette · `⌘Z` undo · `⌘F` filter · **`C` quick create
 in the current project** · `Esc` ladder.

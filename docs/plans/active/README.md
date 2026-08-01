@@ -52,13 +52,25 @@ Three things to read first, once, before Step 12 code:
 - [The retired handoff](../completed/pending-work-after-step-10.md) § The one thing
   worth carrying forward — the unvalidated order above, in its original words.
 
-**One trap that costs an hour if you find it the hard way.**
+**One trap that costs an hour if you find it the hard way, and it has an owner.**
 [`docs/mvp_plan_order.md` § Step 12](../../mvp_plan_order.md) was never
 ADR-propagated: it still lists an `assign` palette command (removed by ADR 0001)
 and still says to "reserve but do not expose" the terminal command, which the
 backlog must-pass and three design docs all contradict. The design docs, the ADRs
 and the backlog's must-pass column govern; the step plan describes intent and is
-stale on both points. Plan 25 says so at length.
+stale on both points. **Build from the design docs and leave the stale one alone**
+— reconciling it is [plan 30](30-reconcile-step-12-command-set.md), which is
+documentation debt and runs independently of the six implementation plans.
+**Step 12's documentation is not complete until 30 closes**, whatever the code
+does.
+
+The command set itself is no longer in question. **Proposal P1 was accepted by the
+founder on 2026-08-01**, so the root set is twelve: the original D14 eight, plus
+set priority, archive/unarchive, change board ordering and switch board/list view.
+`assign` stays out under ADR 0001. The terminal row is visible, disabled and tagged
+`PHASE 2`, and **no terminal behaviour is in v0 scope** — the Phase 2 guardrail is
+unchanged. `screen-specs.md`, `components.md`, `prototype/README.md` and plan 25
+are synchronised on all of that.
 
 ## Order
 
@@ -92,11 +104,12 @@ marked independent can be done at any time by anyone.
 | ~~22~~ | ~~Full ticket create surface~~ — **done 2026-08-01**, [outcome](../completed/22-full-create-surface.md) | V0-16 | Closed, and it closes Wave 1. There are two create surfaces now: quick create is title + status, and `src/CreatePanel.tsx` is the panel in create mode with every approved field. Read its outcome before V0-23 — the create panel takes its own `Esc` and `⌘↵` rung, and it found that a `<button>` in a `<form>` submits it. |
 | ~~23~~ | ~~Retry must not re-send a stale hash~~ — **done 2026-08-01**, [outcome](../completed/23-retry-must-not-resend-a-stale-hash.md) | —       | Closed. A defect found while Wave 1 was being built, not a backlog row: `mutate()` offered a Retry on every failed write, and on a conflict the `expectedHash` that Retry re-sends is stale by definition, so the button could never succeed. A conflict now says what changed and who changed it and offers **Open ticket** instead. Read its outcome before V0-29 — it names four things it deliberately left there, including the fact that a board-raised conflict still cannot reach `ConflictBanner`. |
 | **24** | [Single-key actions on the focused ticket](24-single-key-actions.md) | V0-22 | **Open. Do this one first.** Wave 1 shipped exactly one single-key action — `P`, scoped to `.board-grid` — and the map specifies four across two surfaces. `S` and `C` are bound nowhere and the list has no `P`. More importantly it builds the rule the rest of the wave rests on: single-key shortcuts suspend while an input has focus, chords do not. Read its note on the must-pass before starting — taken literally that clause cannot be met. |
-| **25** | [The `⌘K` palette shell and the root command set](25-command-palette-shell.md) | V0-20 | Open. The twelve root commands, the visible-but-disabled `PHASE 2` terminal row, and the palette's rung in the `Esc` ladder. It resolves three spec conflicts in writing, including that `mvp_plan_order.md` § Step 12 is stale and that shipping twelve commands rather than eight executes proposal P1 as approved-by-default. |
+| **25** | [The `⌘K` palette shell and the root command set](25-command-palette-shell.md) | V0-20 | Open. The twelve root commands, the visible-but-disabled `PHASE 2` terminal row, and the palette's rung in the `Esc` ladder. P1's four additional commands were accepted on 2026-08-01; the remaining Step 12 documentation debt is plan 30. |
 | **26** | [Palette sub-modes](26-palette-sub-modes.md) | V0-21 | Open. Five of the six sub-modes — status, priority, ordering, theme, project — the crumb, and `Esc` stepping back to root rather than out. Search is 27; leave it the seam. The status and priority option lists already exist in `src/metaOptions.tsx`; do not build a third. |
 | **27** | [The search surface over the existing index](27-search-surface.md) | V0-24 | Open, and it closes Wave 1's last open edge. `search_tickets` has been registered and tested since Step 6 and **has never had a caller**. Search is the sixth sub-mode, not a screen. Three gaps it has to decide: the palette's missing empty and no-result states, the silent 100-result cap, and what a degraded ticket looks like in a result row. |
 | **28** | [Navigation, focus return, and the escape contract](28-focus-and-the-escape-contract.md) | V0-23 | Open. Most of this already works; what does not exist is a test that would notice it breaking, which is what the must-pass actually asks for. It also unifies the two mechanisms the `Esc` ladder currently runs on and fixes the two holes named below. Read its § One thing not to add before touching reordering. |
-| **29** | [The shortcut reference](29-shortcut-reference.md) | V0-25 | Open, and last — its must-pass is a two-way check and every earlier item changes what it checks. **Owner is Design, and there is no design**: no trigger, no placement, no anatomy anywhere in the bundle. Its first deliverable is a decision about what the reference even is; `components.md:298-299` implies the palette already is one. |
+| **29** | [The shortcut reference](29-shortcut-reference.md) | V0-25 | Open, and last — its must-pass is a two-way check and every earlier item changes what it checks. **Owner is Design, and there is no design**: no trigger, no placement, no anatomy anywhere in the bundle. Its first deliverable is a decision about what the reference even is; `components.md:300-301` implies the palette already is one. |
+| **30** | [Reconcile Step 12 command-set documentation](30-reconcile-step-12-command-set.md) | — | Open documentation debt. Propagate P1's acceptance and the visible terminal-row rule into `mvp_plan_order.md` and any remaining stale references, then close the contradiction without changing product scope. |
 
 Dependencies worth knowing:
 

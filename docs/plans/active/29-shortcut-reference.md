@@ -40,7 +40,7 @@ The only two mentions in the repo are the backlog row itself and one bullet in t
 plan (`docs/mvp_plan_order.md:516`, "Keyboard navigation system and shortcut
 reference").
 
-**What the docs do imply** — `components.md:298-299`:
+**What the docs do imply** — `components.md:300-301`:
 
 > Single-key shortcuts suspend while any input has focus. **Every shortcut is
 > discoverable in the palette; kbd chips render in primary buttons and palette
@@ -65,7 +65,7 @@ an undesigned surface is the thing Wave 1's plans were careful not to do.
 The must-pass needs one list of "the shortcuts the app implements". Today that
 lives in two documents that do not agree:
 
-- `components.md:283-301` — a flat ten-row table: `⌘K`, `C`, `S`, `P`, `↑↓`/`J K`,
+- `components.md:285-303` — a flat ten-row table: `⌘K`, `C`, `S`, `P`, `↑↓`/`J K`,
   `←→`/`H L`, `Enter`, `Esc`, `⌘Z`, `⌘F`.
 - `keyboard-focus-map.md:25-152` — per-context and richer. It adds `⌘↵` (save /
   post / create), `Space` on checklist rows, several `Tab` orders, and the rule

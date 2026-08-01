@@ -226,8 +226,8 @@ movement. No custom-color affordance exists anywhere.
   toggle appearance · change project theme… · archive/unarchive ticket
   (ADR 0004) · change board ordering… (ADR 0003) · switch board/list
   view · **new terminal** — present, disabled, tagged `PHASE 2`.
-  This is D14 minus "assign…" (no assignee in v0, ADR 0001) plus the
-  additions staged in README § Proposals.
+  This is D14 minus "assign…" (no assignee in v0, ADR 0001) plus the four
+  commands from Proposal P1, accepted on 2026-08-01.
 - **Sub-modes** (status, priority, ordering, theme, project, search)
   replace the list and show a crumb chip in the input row; `Esc` steps
   back to root, not out. Status/priority/archive target the open or
