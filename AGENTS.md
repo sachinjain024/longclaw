@@ -52,13 +52,17 @@ npm run perf:list                           # the same, for the list surface
 ```
 
 `npm run verify` must pass before you commit. CI additionally runs
-`npm run build:app` (the full macOS bundle) and, in a second job, `perf:board`
-and `perf:list` — both of which the local gate skips.
+`npm run build:app` (the full macOS bundle), which the local gate skips.
 
-The interaction budgets are **enforced in CI, not in `verify`**. Each trace is
-minutes of WebKit over 5,000 tickets, which is the wrong price for a pre-commit
-gate and the right one for a pull request. Run them locally when you touch a
-lane, a row, a comparator, or a selector; CI is what catches the rest.
+The interaction budgets are **enforced locally and nowhere else.** They are not in
+`verify` — each trace is minutes of WebKit over 5,000 tickets, the wrong price for
+a pre-commit gate — and a CI job that ran them was removed on 2026-08-01, the first
+time it ever ran on a runner: a shared macOS runner is roughly 6x slower than a
+developer Mac and misses the ≤50ms p95 budget even at the harness's 600-ticket
+floor size. Raising the number to fit the runner would have been greening the gate.
+So **run `perf:board` and `perf:list` yourself when you touch a lane, a row, a
+comparator, or a selector**, and quote the numbers — nothing else will catch it.
+V0-42 is the open item for a gate that works on a runner.
 
 **If `verify` goes red on the native watcher, suspect the environment before the
 code.** An npm-launched `test:watcher` once timed out while the identical direct
