@@ -36,6 +36,43 @@ jobs:
       - name: Build desktop application
         run: npm run build:app
 
+  theme-matrix:
+    # The V0-37 visual regression matrix: every theme preset × appearance over
+    # the core screens, checking rendered contrast and actor distinction from
+    # computed styles. Unlike the removed interaction-budget job below, nothing
+    # here measures time, so a shared runner's speed cannot fail it.
+    name: Theme matrix
+    runs-on: macos-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: apps/desktop
+
+      - name: Install WebKit
+        run: npx playwright-core install webkit
+        working-directory: apps/desktop
+
+      - name: Run the matrix
+        run: npm run matrix
+        working-directory: apps/desktop
+
+      - name: Upload renders
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: theme-matrix-renders
+          path: apps/desktop/dist-matrix/
+
 # There was an `Interaction budgets` job here that ran `perf:board` and
 # `perf:list`. It was removed on 2026-08-01, the first time it ever ran on a
 # runner, because it asserts a budget the runner cannot meet at any project size.

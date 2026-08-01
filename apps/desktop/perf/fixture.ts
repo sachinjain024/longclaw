@@ -9,6 +9,7 @@
 import type {
   ProjectReference,
   ProjectSnapshot,
+  TicketDetail,
   TicketRow,
   TicketStatus,
 } from "../src/types";
@@ -57,6 +58,93 @@ export function ticket(sequence: number): TicketRow {
     attachmentCount: 0,
     contentHash: `hash-${sequence}`,
     relativePath: `.longclaw/tickets/PF-${sequence}/ticket.md`,
+  };
+}
+
+/**
+ * The detail behind the ticket panel, for the theme matrix (V0-37): its
+ * activity holds every timeline voice the attribution treatment distinguishes
+ * — a human comment, an agent comment, agent field changes, and an
+ * unattributed external change — so one open panel renders every actor state
+ * the matrix has to check.
+ */
+export function detail(key: string): TicketDetail {
+  const human = { type: "human" as const, id: "sachin", name: "Sachin" };
+  const agent = { type: "agent" as const, name: "Claude Code" };
+  return {
+    key,
+    relativePath: `.longclaw/tickets/${key}/ticket.md`,
+    contentHash: "hash-detail",
+    byteLength: 1_024,
+    readOnly: false,
+    raw: "",
+    rawTruncated: false,
+    missingAttachments: [],
+    orphanAttachments: [],
+    ticket: {
+      id: `perf-detail-${key}`,
+      key,
+      title: `Searchable storage ticket ${key}`,
+      status: "in_progress",
+      priority: "p2",
+      labels: ["storage"],
+      createdAt: "2026-07-29T00:00:00Z",
+      updatedAt: "2026-07-31T10:00:00Z",
+      description: "Prove the debounce holds under a rename storm.",
+      checklist: [
+        { id: "ck_1", text: "Reproduce the storm", checked: true },
+        { id: "ck_2", text: "Pin it in a test", checked: false },
+      ],
+      attachments: [],
+      activity: [
+        {
+          id: "evt_1",
+          kind: "create",
+          occurredAt: "2026-07-29T00:00:00Z",
+          actor: human,
+          changes: [],
+          body: "",
+        },
+        {
+          id: "evt_2",
+          kind: "comment",
+          occurredAt: "2026-07-29T09:00:00Z",
+          actor: human,
+          changes: [],
+          body: "Plan:\n\n1. reproduce\n2. pin it down",
+        },
+        {
+          id: "evt_3",
+          kind: "update",
+          occurredAt: "2026-07-30T09:00:00Z",
+          actor: agent,
+          changes: [
+            { field: "status", from: "todo", to: "in_progress" },
+            { field: "checklist.ck_1.checked", from: "false", to: "true" },
+          ],
+          body: "",
+        },
+        {
+          id: "evt_4",
+          kind: "comment",
+          occurredAt: "2026-07-30T09:01:00Z",
+          actor: agent,
+          changes: [],
+          body: "Reproduced; the storm is the editor's rename pattern.",
+        },
+        {
+          id: "evt_5",
+          kind: "external_change",
+          occurredAt: "2026-07-31T10:00:00Z",
+          actor: { type: "unknown" },
+          changes: [{ field: "description" }],
+          body: "",
+        },
+      ],
+      historyIncomplete: false,
+      unknownKeys: [],
+      recordDiagnostics: [],
+    },
   };
 }
 
