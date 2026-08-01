@@ -169,10 +169,17 @@ Wave 0 items, which fail silently.
 
 ## Wave 4 — Conditional
 
+**Both items parked 2026-08-01 by founder decision.** Step 15 is parked, so this
+entire wave is out of the MVP — neither item is a release gate and neither has an
+owner actively holding it. They are kept rather than moved to the deferred register
+because parking is not the same as deferring on evidence: the work is still wanted
+and still specified, it is simply not MVP work. Unpark them with Step 15. M5 is
+reached after Waves 0–3, and no MVP milestone waits on either row.
+
 | ID | Item | Step | Why it exists | Must-pass | Owner | Pilot |
 |---|---|---|---|---|---|---|
-| V0-38 | Decide the waitlist endpoint and privacy handling, or decide to omit the waitlist | 15 | The plan's own instruction: if no reviewed endpoint exists, omit the feature from the binary rather than ship a form that silently fails. This is a decision, not an implementation. | A recorded decision naming the endpoint and the data collected, or a recorded decision to omit | Release | fixed |
-| V0-39 | Waitlist UI, consent copy, success, offline, and error states | 15 | Only if V0-38 lands with an endpoint. Interest in the paid layer is worth measuring; a broken form is not. | Signup is optional and quiet, gates no local feature, introduces no telemetry, and a failure never touches local projects | Frontend | confirm |
+| V0-38 | **Parked 2026-08-01** — Decide the waitlist endpoint and privacy handling, or decide to omit the waitlist | 15 (parked) | The plan's own instruction: if no reviewed endpoint exists, omit the feature from the binary rather than ship a form that silently fails. This is a decision, not an implementation. Parking is not that decision — it postpones it, and the MVP ships with no waitlist either way. | Not an MVP gate while parked. On unparking: a recorded decision naming the endpoint and the data collected, or a recorded decision to omit | Release (parked) | fixed |
+| V0-39 | **Parked 2026-08-01** — Waitlist UI, consent copy, success, offline, and error states | 15 (parked) | Only if V0-38 lands with an endpoint. Interest in the paid layer is worth measuring; a broken form is not. Parked ahead of both. | Not an MVP gate while parked. On unparking: signup is optional and quiet, gates no local feature, introduces no telemetry, and a failure never touches local projects | Frontend (parked) | confirm |
 
 ---
 
@@ -191,7 +198,7 @@ backlog by accumulating enthusiasm.
 | Ticket deletion | Rejected for v0 | ADR 0004: archival covers tidying without introducing a destructive operation. |
 | Custom theme colors or a theme builder | Rejected | Vision guardrail: fixed presets only, no custom-color affordance anywhere. |
 | Embedded terminal, PTY, ticket-linked sessions | Phase 2 | Plan guardrail. v0 reserves the collapsed geometry and a typed streaming path, nothing more. |
-| Cloud sync, teams, accounts, billing | Phase 3 | Plan guardrail. The waitlist (V0-38/39) measures interest without building any of it. |
+| Cloud sync, teams, accounts, billing | Phase 3 | Plan guardrail. The waitlist (V0-38/39) would have measured interest without building any of it; both rows are parked as of 2026-08-01, so the MVP ships with no demand signal for this layer. |
 | Comprehensive canonical conformance-fixture corpus | Post-MVP product v1 | Step 3 records this deferral; focused real-file compatibility tests cover the v0 contract. |
 | CLI or JSON projection of the ticket store | Useful after MVP, with one caveat | Step 3 left it optional and told us not to let it delay the file round trip, which it did not. The caveat is below. |
 
