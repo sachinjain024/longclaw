@@ -774,6 +774,118 @@ fn search_matches_keys_titles_labels_and_descriptions() {
     assert!(engine.search("nothing here matches").tickets.is_empty());
 }
 
+/// Everything in the ticket's directory, so a write can be asked whether it
+/// moved, added, or removed a file rather than only whether one still exists.
+fn directory_listing(directory: &Path) -> Vec<String> {
+    let mut names: Vec<String> = fs::read_dir(directory)
+        .expect("the ticket directory")
+        .map(|entry| {
+            entry
+                .expect("an entry")
+                .file_name()
+                .to_string_lossy()
+                .into()
+        })
+        .collect();
+    names.sort();
+    names
+}
+
+/// The V0-11 gate: archiving is a frontmatter flip and nothing else. The
+/// directory never moves and never goes away (ADR 0004), and the workflow status
+/// it had is still the status it has — Canceled and archived are distinct
+/// (`file_format.md:345-347`).
+#[test]
+fn archiving_sets_archived_at_and_leaves_the_directory_where_it_is() {
+    let (_temp, root) = copy_representative_project();
+    let (engine, _events) = start_engine(&root);
+    let path = ticket_path(&root, "LC-1");
+    let directory = path.parent().expect("a ticket directory").to_owned();
+    let before = indexed(&engine.snapshot().tickets, "LC-1").clone();
+    let listed = directory_listing(&directory);
+
+    let archived = engine
+        .edit_ticket(
+            "LC-1",
+            &TicketEdit {
+                archived: Some(true),
+                ..TicketEdit::default()
+            },
+            &before.content_hash,
+        )
+        .expect("archiving should be accepted");
+
+    let raw = fs::read_to_string(&path).expect("ticket.md is where it was");
+    assert!(raw.contains("archived_at: "));
+    assert_eq!(directory_listing(&directory), listed);
+    let snapshot = engine.snapshot();
+    let row = indexed(&snapshot.tickets, "LC-1");
+    assert!(row.archived_at.is_some());
+    assert_eq!(row.status, before.status);
+    assert_eq!(row.title, before.title);
+    // One flip, one activity event, and the history it already had is intact.
+    assert_eq!(archived.changes.len(), 1);
+    assert_eq!(raw.matches("kind: create").count(), 1);
+
+    let restored = engine
+        .edit_ticket(
+            "LC-1",
+            &TicketEdit {
+                archived: Some(false),
+                ..TicketEdit::default()
+            },
+            &row.content_hash,
+        )
+        .expect("unarchiving should be accepted");
+    assert_eq!(restored.changes.len(), 1);
+
+    let raw = fs::read_to_string(&path).expect("ticket.md is still where it was");
+    assert!(!raw.contains("archived_at:"));
+    assert_eq!(directory_listing(&directory), listed);
+    let snapshot = engine.snapshot();
+    let row = indexed(&snapshot.tickets, "LC-1");
+    assert_eq!(row.archived_at, None);
+    assert_eq!(row.status, before.status);
+}
+
+/// The other half of the gate: archived tickets "stay findable". `archived_at`
+/// hides a ticket from ordinary views, and search is not one of them
+/// (`file_format.md:345-347`). The `· archived` tag on a result belongs to the
+/// search surface, which is V0-24.
+#[test]
+fn an_archived_ticket_is_still_found_by_search() {
+    let (_temp, root) = copy_representative_project();
+    let (engine, _events) = start_engine(&root);
+    let hash = indexed(&engine.snapshot().tickets, "LC-2")
+        .content_hash
+        .clone();
+
+    engine
+        .edit_ticket(
+            "LC-2",
+            &TicketEdit {
+                archived: Some(true),
+                ..TicketEdit::default()
+            },
+            &hash,
+        )
+        .expect("archiving should be accepted");
+
+    let by_title = engine.search("unknown frontmatter");
+    assert_eq!(
+        by_title
+            .tickets
+            .iter()
+            .map(TicketRow::key)
+            .collect::<Vec<_>>(),
+        vec!["LC-2"]
+    );
+    // The row carries the date, so the surface that renders the tag has it.
+    assert!(indexed(&by_title.tickets, "LC-2").archived_at.is_some());
+    assert_eq!(engine.search("lc-2").tickets.len(), 1);
+    assert_eq!(engine.search("").tickets.len(), 6);
+}
+
 #[test]
 fn a_missing_project_folder_is_reported_and_its_files_are_left_alone() {
     let (temp, root) = copy_representative_project();

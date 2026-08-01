@@ -5,14 +5,21 @@
  * moment the whole slice exists to prove.
  */
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  createEvent,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Board } from "./Board";
 import type * as BoardCard from "./boardCard";
 import { ASSUMED_VIEWPORT, CARD_STRIDE } from "./boardGeometry";
+import type { OrderingMode } from "./ordering";
 import { FRESH_WINDOW_MS } from "./freshness";
 import type { ExternalMark, ExternalMarks } from "./freshness";
-import type { TicketRow } from "./types";
+import type { IndexedTicket, Label, TicketPriority, TicketRow } from "./types";
 
 /**
  * Every card render presents itself exactly once, so this is the render count
@@ -23,9 +30,9 @@ const { presented } = vi.hoisted(() => ({ presented: [] as string[] }));
 vi.mock("./boardCard", async (importOriginal) => {
   const actual = await importOriginal<typeof BoardCard>();
   return {
-    presentCard: (ticket: TicketRow) => {
-      presented.push(ticket.key);
-      return actual.presentCard(ticket);
+    presentCard: (...args: Parameters<typeof actual.presentCard>) => {
+      presented.push(args[0].key);
+      return actual.presentCard(...args);
     },
   };
 });
@@ -72,13 +79,30 @@ function mark(overrides?: Partial<ExternalMark>): ExternalMarks {
  */
 const noop = () => {};
 
-function board(props?: { tickets?: TicketRow[]; marks?: ExternalMarks }) {
+const DEFINITIONS: Record<string, Label> = {
+  backend: { name: "Backend", color: "blue" },
+  reliability: { name: "Reliability", color: "amber" },
+  docs: { name: "Docs", color: "cyan" },
+};
+
+function board(props?: {
+  tickets?: TicketRow[];
+  marks?: ExternalMarks;
+  labels?: Record<string, Label>;
+  ordering?: OrderingMode;
+  onChangePriority?: (ticket: IndexedTicket, next: TicketPriority) => void;
+  onReorder?: (ticket: IndexedTicket, rank: string) => void;
+}) {
   return (
     <Board
       tickets={props?.tickets ?? [row()]}
       marks={props?.marks ?? {}}
+      labels={props?.labels ?? DEFINITIONS}
+      ordering={props?.ordering ?? "priority"}
       now={NOW}
       onSelect={noop}
+      onChangePriority={props?.onChangePriority ?? noop}
+      onReorder={props?.onReorder ?? noop}
     />
   );
 }
@@ -221,7 +245,16 @@ describe("the pulse, which says a change just landed", () => {
       },
     };
     render(
-      <Board tickets={columnOf(400)} marks={marks} now={NOW} onSelect={noop} />,
+      <Board
+        tickets={columnOf(400)}
+        marks={marks}
+        labels={DEFINITIONS}
+        now={NOW}
+        onSelect={noop}
+        ordering="priority"
+        onChangePriority={noop}
+        onReorder={noop}
+      />,
     );
     scrollTo(stack(), 49 * CARD_STRIDE);
     expect(card("LC-50").className).toContain("fresh");
@@ -293,7 +326,16 @@ describe("the board's own shape", () => {
   it("opens the ticket a card belongs to", () => {
     const onSelect = vi.fn();
     render(
-      <Board tickets={[row()]} marks={{}} now={NOW} onSelect={onSelect} />,
+      <Board
+        tickets={[row()]}
+        marks={{}}
+        labels={DEFINITIONS}
+        now={NOW}
+        onSelect={onSelect}
+        ordering="priority"
+        onChangePriority={noop}
+        onReorder={noop}
+      />,
     );
 
     fireEvent.click(card("LC-1"));
@@ -357,8 +399,12 @@ describe("focus on a column that is being scrolled", () => {
         tickets={columnOf(400)}
         selectedKey="LC-200"
         marks={{}}
+        labels={DEFINITIONS}
         now={NOW}
         onSelect={() => {}}
+        ordering="priority"
+        onChangePriority={noop}
+        onReorder={noop}
       />,
     );
 
@@ -475,16 +521,439 @@ describe("what a change to one ticket costs", () => {
     // LC-1 wears an acknowledgement; LC-2 and LC-3 do not.
     const marks = mark({ at: NOW - 12_000 });
     const { rerender } = render(
-      <Board tickets={three} marks={marks} now={NOW} onSelect={noop} />,
+      <Board
+        tickets={three}
+        marks={marks}
+        labels={DEFINITIONS}
+        now={NOW}
+        onSelect={noop}
+        ordering="priority"
+        onChangePriority={noop}
+        onReorder={noop}
+      />,
     );
     presented.length = 0;
 
     // The clock behind the acknowledgement's age moves every second, and it
     // moves for the whole board. Only the card with an age to show reads it.
     rerender(
-      <Board tickets={three} marks={marks} now={NOW + 1_000} onSelect={noop} />,
+      <Board
+        tickets={three}
+        marks={marks}
+        labels={DEFINITIONS}
+        now={NOW + 1_000}
+        onSelect={noop}
+        ordering="priority"
+        onChangePriority={noop}
+        onReorder={noop}
+      />,
     );
 
     expect(presented).toEqual(["LC-1"]);
+  });
+});
+
+describe("priority on the board", () => {
+  // Handed in deliberately out of key order: "stable within a level" is about
+  // the order the tickets arrived in, and LC-4 arrives before LC-2.
+  const column = [
+    row({ key: "LC-1", title: "None", status: "todo", priority: "none" }),
+    row({ key: "LC-4", title: "First p2", status: "todo", priority: "p2" }),
+    row({ key: "LC-3", title: "Urgent", status: "todo", priority: "urgent" }),
+    row({ key: "LC-2", title: "Second p2", status: "todo", priority: "p2" }),
+    row({ key: "LC-5", title: "P4", status: "todo", priority: "p4" }),
+  ];
+
+  /** The keys of one column, in the order the column renders them. */
+  function columnKeys(title = "Todo"): string[] {
+    return Array.from(
+      stack(title).querySelectorAll<HTMLElement>(".ticket-row"),
+    ).map((element) => element.dataset.ticketKey ?? "");
+  }
+
+  it("orders a column by priority, stable within a level (ADR 0003)", () => {
+    render(board({ tickets: column }));
+
+    expect(columnKeys()).toEqual(["LC-3", "LC-4", "LC-2", "LC-5", "LC-1"]);
+  });
+
+  it("moves down the column in the order it is looking at", () => {
+    // `screen-specs.md:115`: keyboard navigation follows the visual order, so
+    // the second card down is the second card drawn, not the next key.
+    render(board({ tickets: column }));
+    card("LC-3").focus();
+
+    fireEvent.keyDown(card("LC-3"), { key: "ArrowDown" });
+
+    expect(document.activeElement).toBe(card("LC-4"));
+  });
+
+  it("draws the priority with a name rather than printing the slug", () => {
+    render(board({ tickets: [row({ priority: "urgent" })] }));
+
+    const element = card("LC-1");
+    expect(element.textContent).not.toContain("urgent");
+    expect(
+      element.querySelector('[aria-label="Priority: Urgent"]'),
+    ).toBeTruthy();
+  });
+
+  it("opens the priority menu on the focused card when P is pressed", () => {
+    const onChangePriority = vi.fn();
+    render(board({ tickets: column, onChangePriority }));
+    card("LC-2").focus();
+
+    fireEvent.keyDown(card("LC-2"), { key: "p" });
+
+    expect(screen.getByRole("menu", { name: "Priority" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Urgent/ }));
+
+    expect(onChangePriority).toHaveBeenCalledWith(
+      expect.objectContaining({ key: "LC-2" }),
+      "urgent",
+    );
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("leaves the card holding the tab stop after the menu closes", () => {
+    render(board({ tickets: column }));
+    card("LC-2").focus();
+
+    fireEvent.keyDown(card("LC-2"), { key: "p" });
+    fireEvent.keyDown(screen.getAllByRole("menuitemradio")[0], {
+      key: "Escape",
+    });
+
+    expect(document.activeElement).toBe(card("LC-2"));
+  });
+
+  it("is inert on a file it could not read", () => {
+    // keyboard-focus-map.md:48 — a degraded card takes focus, but S and P have
+    // nothing to write to.
+    render(
+      board({
+        tickets: [
+          {
+            state: "degraded",
+            key: "LC-98",
+            contentHash: "hash-98",
+            relativePath: ".longclaw/tickets/LC-98/ticket.md",
+            byteLength: 220,
+            readOnly: false,
+            diagnostic: { code: "parse_failed", message: "no frontmatter" },
+          },
+        ],
+      }),
+    );
+    card("LC-98").focus();
+
+    fireEvent.keyDown(card("LC-98"), { key: "p" });
+
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("leaves a modified P to the window", () => {
+    render(board({ tickets: column }));
+    card("LC-2").focus();
+
+    fireEvent.keyDown(card("LC-2"), { key: "p", metaKey: true });
+
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+});
+
+describe("label chips on a card (V0-10)", () => {
+  const chips = (key: string) =>
+    Array.from(card(key).querySelectorAll(".label-chip")).map(
+      (chip) => chip.textContent,
+    );
+
+  it("draws one chip per slug, under the definition's display name", () => {
+    render(
+      board({
+        tickets: [
+          row({ labels: ["backend", "reliability"], checklistCount: 0 }),
+        ],
+      }),
+    );
+
+    expect(chips("LC-1")).toEqual(["Backend", "Reliability"]);
+  });
+
+  it("must-pass 3: draws an undefined slug as itself", () => {
+    render(
+      board({
+        tickets: [row({ labels: ["legacy-thing"], checklistCount: 0 })],
+      }),
+    );
+
+    expect(chips("LC-1")).toEqual(["legacy-thing"]);
+  });
+
+  it("stops at two chips, and at one beside a checklist fraction", () => {
+    // The footer never wraps (`screen-specs.md:121-122`).
+    const carrying = ["backend", "reliability", "docs"];
+    render(
+      board({
+        tickets: [
+          row({ key: "LC-1", labels: carrying, checklistCount: 0 }),
+          row({
+            key: "LC-2",
+            labels: carrying,
+            checkedCount: 1,
+            checklistCount: 3,
+          }),
+        ],
+      }),
+    );
+
+    expect(chips("LC-1")).toEqual(["Backend", "Reliability"]);
+    expect(chips("LC-2")).toEqual(["Backend"]);
+  });
+});
+
+describe("archived tickets never reach the board (V0-11)", () => {
+  const ARCHIVED = "2026-07-20T09:00:00Z";
+
+  it("draws no card, and does not count one, for an archived ticket", () => {
+    render(
+      board({
+        tickets: [
+          row({ key: "LC-1", status: "todo" }),
+          row({ key: "LC-2", status: "todo", archivedAt: ARCHIVED }),
+        ],
+      }),
+    );
+
+    expect(card("LC-1")).toBeTruthy();
+    expect(document.querySelector('[data-ticket-key="LC-2"]')).toBeNull();
+    expect(screen.getByRole("heading", { name: /^Todo/ }).textContent).toBe(
+      "Todo1",
+    );
+  });
+
+  it("leaves the arrows nothing to land on there", () => {
+    // The seats are built from what was drawn, so a hidden card must not be one.
+    render(
+      board({
+        tickets: [
+          row({ key: "LC-1", status: "todo" }),
+          row({ key: "LC-2", status: "todo", archivedAt: ARCHIVED }),
+          row({ key: "LC-3", status: "todo" }),
+        ],
+      }),
+    );
+
+    card("LC-1").focus();
+    fireEvent.keyDown(card("LC-1"), { key: "ArrowDown" });
+
+    expect(document.activeElement).toBe(card("LC-3"));
+  });
+
+  it("keeps a canceled ticket, which is an outcome and not tidying", () => {
+    // `file_format.md:345-347`: Canceled stays visible; only `archived_at` hides.
+    render(
+      board({
+        tickets: [
+          row({ key: "LC-4", status: "canceled" }),
+          row({ key: "LC-5", status: "canceled", archivedAt: ARCHIVED }),
+        ],
+      }),
+    );
+
+    expect(card("LC-4")).toBeTruthy();
+    expect(document.querySelector('[data-ticket-key="LC-5"]')).toBeNull();
+  });
+});
+
+describe("board ordering and drag-and-drop (V0-09)", () => {
+  /** A column already carrying a manual order. */
+  const ranked = [
+    row({ key: "LC-1", status: "todo", priority: "none", rank: "a0" }),
+    row({ key: "LC-2", status: "todo", priority: "urgent", rank: "a1" }),
+    row({ key: "LC-3", status: "todo", priority: "p1", rank: "a2" }),
+  ];
+
+  function columnKeys(title = "Todo"): string[] {
+    return Array.from(
+      stack(title).querySelectorAll<HTMLElement>(".ticket-row"),
+    ).map((element) => element.dataset.ticketKey ?? "");
+  }
+
+  /** jsdom lays nothing out, so the sizer's box has to be stated. */
+  function layOut(title = "Todo") {
+    const element = sizer(title);
+    element.getBoundingClientRect = () =>
+      ({
+        top: 0,
+        left: 0,
+        bottom: 0,
+        right: 0,
+        width: 240,
+        height: 0,
+      }) as DOMRect;
+    return element;
+  }
+
+  /**
+   * A drag event at a stated pointer position. `fireEvent`'s own init does not
+   * reach a drag event in jsdom, which has no `DragEvent`, so the coordinate is
+   * put on the event itself.
+   */
+  function dragAt(
+    element: HTMLElement,
+    type: "dragOver" | "drop",
+    clientY: number,
+  ) {
+    const event = createEvent[type](element);
+    Object.defineProperty(event, "clientY", { value: clientY });
+    fireEvent(element, event);
+  }
+
+  /** Drags a card and lets go `clientY` pixels down the column's own box. */
+  function dragTo(key: string, clientY: number, title = "Todo") {
+    layOut(title);
+    fireEvent.dragStart(card(key));
+    dragAt(stack(title), "dragOver", clientY);
+    dragAt(stack(title), "drop", clientY);
+  }
+
+  it("orders a column by rank in Manual, and by priority in Priority", () => {
+    const { rerender } = render(board({ tickets: ranked, ordering: "manual" }));
+    expect(columnKeys()).toEqual(["LC-1", "LC-2", "LC-3"]);
+
+    rerender(board({ tickets: ranked, ordering: "priority" }));
+    expect(columnKeys()).toEqual(["LC-2", "LC-3", "LC-1"]);
+  });
+
+  it("must-pass: a card is draggable only in Manual", () => {
+    const { rerender } = render(
+      board({ tickets: ranked, ordering: "priority" }),
+    );
+    expect(card("LC-1").draggable).toBe(false);
+
+    rerender(board({ tickets: ranked, ordering: "manual" }));
+    expect(card("LC-1").draggable).toBe(true);
+  });
+
+  it("must-pass: Priority mode writes no rank, however hard it is dragged", () => {
+    const onReorder = vi.fn();
+    render(board({ tickets: ranked, ordering: "priority", onReorder }));
+
+    dragTo("LC-3", 4);
+
+    expect(onReorder).not.toHaveBeenCalled();
+    expect(document.querySelector(".drop-line")).toBeNull();
+  });
+
+  it("writes a rank between the two cards the drop landed between", () => {
+    const onReorder = vi.fn();
+    render(board({ tickets: ranked, ordering: "manual", onReorder }));
+
+    // Past the middle of the first card and short of the middle of the second:
+    // the gap between LC-1 and LC-2.
+    dragTo("LC-3", CARD_STRIDE);
+
+    expect(onReorder).toHaveBeenCalledTimes(1);
+    const [ticket, rank] = onReorder.mock.calls[0];
+    expect(ticket.key).toBe("LC-3");
+    expect(rank > "a0" && rank < "a1").toBe(true);
+  });
+
+  it("takes a drop at a position the column is not rendering", () => {
+    // The virtualized case, which is the whole difficulty: the card at the drop
+    // position is not in the document, so the gap is arithmetic and not a node.
+    const onReorder = vi.fn();
+    const long = Array.from({ length: 400 }, (_, index) =>
+      row({
+        key: `LC-${index + 1}`,
+        title: `Ticket ${index + 1}`,
+        status: "todo",
+        rank: `a0${index.toString().padStart(3, "0")}1`,
+      }),
+    );
+    render(board({ tickets: long, ordering: "manual", onReorder }));
+
+    expect(columnKeys().length).toBeLessThan(60);
+    dragTo("LC-1", 300 * CARD_STRIDE);
+
+    expect(onReorder).toHaveBeenCalledTimes(1);
+    const [ticket, rank] = onReorder.mock.calls[0];
+    expect(ticket.key).toBe("LC-1");
+    expect(rank > "a02991" && rank < "a03001").toBe(true);
+  });
+
+  it("writes nothing when the card is dropped back where it was", () => {
+    const onReorder = vi.fn();
+    render(board({ tickets: ranked, ordering: "manual", onReorder }));
+
+    dragTo("LC-2", CARD_STRIDE + 4);
+
+    expect(onReorder).not.toHaveBeenCalled();
+  });
+
+  it("shows where the card would land, and stops showing it on the way out", () => {
+    render(board({ tickets: ranked, ordering: "manual" }));
+    layOut();
+
+    fireEvent.dragStart(card("LC-3"));
+    dragAt(stack(), "dragOver", CARD_STRIDE);
+    expect(document.querySelector(".drop-line")).toBeTruthy();
+
+    fireEvent.dragEnd(card("LC-3"));
+    expect(document.querySelector(".drop-line")).toBeNull();
+  });
+
+  it("leaves a file it cannot read undraggable, having nothing to write to", () => {
+    render(
+      board({
+        tickets: [
+          ...ranked,
+          {
+            state: "degraded",
+            key: "LC-99",
+            contentHash: "hash-99",
+            relativePath: ".longclaw/tickets/LC-99/ticket.md",
+            byteLength: 220,
+            readOnly: false,
+            diagnostic: { code: "parse_failed", message: "no frontmatter" },
+          },
+        ],
+        ordering: "manual",
+      }),
+    );
+
+    expect(card("LC-99").draggable).toBe(false);
+  });
+
+  it("scrolls the column when the drag hangs at its bottom edge", () => {
+    const long = Array.from({ length: 400 }, (_, index) =>
+      row({ key: `LC-${index + 1}`, status: "todo", rank: `a0${index}1` }),
+    );
+    render(board({ tickets: long, ordering: "manual" }));
+    const element = stack();
+    element.getBoundingClientRect = () =>
+      ({
+        top: 0,
+        bottom: 600,
+        height: 600,
+        left: 0,
+        right: 240,
+        width: 240,
+      }) as DOMRect;
+    let scrolled = 0;
+    Object.defineProperty(element, "scrollTop", {
+      get: () => scrolled,
+      set: (value: number) => {
+        scrolled = value;
+      },
+      configurable: true,
+    });
+    layOut();
+
+    fireEvent.dragStart(card("LC-1"));
+    dragAt(element, "dragOver", 596);
+
+    expect(scrolled).toBeGreaterThan(0);
   });
 });

@@ -68,7 +68,7 @@ Every Step 2 work item maps to a place in this bundle:
   § Motion inventory.
 - **Clay spot-check** — `renders/` + live theme swatches.
 
-## Proposals staged for founder sign-off (M0)
+## Proposals and founder sign-off (M0)
 
 None of these diverge from settled decisions; they are the Step 2-level
 choices the brief left open, resolved in the prototype and flagged here
@@ -76,7 +76,7 @@ rather than silently:
 
 | # | Proposal | Rationale |
 |---|---|---|
-| P1 | Palette gains **set priority…**, **switch board/list view**, **archive/unarchive ticket**, and **change board ordering…** beyond the fixed D14 set (which also loses *assign…* per ADR 0001) | D8 ships `P` as a shortcut and components.md requires every shortcut be palette-discoverable; the view toggle, archive (ADR 0004) and ordering (ADR 0003) otherwise have no keyboard path |
+| **P1 — accepted 2026-08-01** | Palette gains **set priority…**, **switch board/list view**, **archive/unarchive ticket**, and **change board ordering…** beyond the fixed D14 set (which also loses *assign…* per ADR 0001) | D8 ships `P` as a shortcut and components.md requires every shortcut be palette-discoverable; the view toggle, archive (ADR 0004) and ordering (ADR 0003) otherwise have no keyboard path |
 | P2 | Quick create = title + status only | The brief's "title + status, enter, done"; everything else lives in full create |
 | P3 | Ticket panel is a 560px right overlay; board stays live behind it | Density + context; Esc returns focus to the originating card |
 | P4 | Freshness decays on open or after 2 minutes | components.md said "opened or after 2 minutes"; confirmed as the rule for list + board |
@@ -123,7 +123,7 @@ prototype and every spec in this bundle:
 - ✅ Zero hardcoded hues: `grep -cE '#[0-9a-fA-F]{3}\b|#[0-9a-fA-F]{6}\b'`
   over `prototype.css`/`prototype.js` markup styles hits nothing —
   theme/appearance switching is a token swap on `<html>`.
-- ⏳ Founder review of the experience, the P1–P10 proposals, and this
+- ⏳ Founder review of the experience, the remaining P2–P10 proposals, and this
   bundle — the M0 gate. The file format (Step 3) stays open until then.
 
 ## Regenerating renders

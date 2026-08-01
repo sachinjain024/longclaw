@@ -82,6 +82,40 @@ export async function updateProjectName(
   return invoke("update_project_name", { projectId, name });
 }
 
+/**
+ * Defines a label. Only the definition is written — a ticket carries the slug —
+ * so this never touches a ticket file. `color` defaults to Rust's own preset.
+ */
+export async function addProjectLabel(request: {
+  projectId: string;
+  slug: string;
+  name: string;
+  color?: string;
+}): Promise<ProjectReference> {
+  return invoke("add_project_label", request);
+}
+
+/**
+ * Renames a label, recolours it, or both. There is no slug edit: the slug is
+ * what every ticket carrying the label stores.
+ */
+export async function updateProjectLabel(request: {
+  projectId: string;
+  slug: string;
+  name?: string;
+  color?: string;
+}): Promise<ProjectReference> {
+  return invoke("update_project_label", request);
+}
+
+/** Removes a definition. Tickets keep the slug and render it as itself. */
+export async function removeProjectLabel(request: {
+  projectId: string;
+  slug: string;
+}): Promise<ProjectReference> {
+  return invoke("remove_project_label", request);
+}
+
 export async function removeProject(projectId: string): Promise<void> {
   return invoke("remove_project", { projectId });
 }

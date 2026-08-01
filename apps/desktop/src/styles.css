@@ -462,6 +462,7 @@ button:disabled {
 }
 
 .empty-board,
+.no-matches,
 .unreachable-panel {
   margin: 18px;
   border: 1px dashed var(--lc-line-strong);
@@ -472,9 +473,19 @@ button:disabled {
 }
 
 .empty-board p,
+.no-matches p,
 .unreachable-panel p {
   margin-bottom: 0;
   color: var(--lc-ink-2);
+}
+
+.no-matches code {
+  color: var(--lc-ink);
+  font-size: 12px;
+}
+
+.no-matches .secondary {
+  margin-top: var(--lc-space-4);
 }
 
 .empty-board .primary {
@@ -505,9 +516,12 @@ button:disabled {
   background: color-mix(in oklab, var(--lc-wash) 36%, var(--lc-surface));
 }
 
+/* Dot, then name, then the count pushed to the far edge — the dot belongs to the
+   name beside it, not to the row (screen-specs.md:103). */
 .board-column h3 {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 7px;
   padding: 0 4px;
   color: var(--lc-ink-2);
@@ -515,6 +529,7 @@ button:disabled {
 }
 
 .board-column h3 span {
+  margin-left: auto;
   color: var(--lc-ink-3);
   font-family: var(--lc-type-code-font);
 }
@@ -557,13 +572,32 @@ button:disabled {
   background: var(--lc-surface);
 }
 
-.ticket-row.fresh {
-  height: var(--lc-size-board-card-fresh);
-}
-
 .ticket-row.selected {
   border-color: var(--lc-accent-human-border);
   box-shadow: 0 0 0 2px var(--lc-accent-human-soft);
+}
+
+/* Manual only (ADR 0003): a card that can be picked up says so with the cursor,
+   and the one in the air is dimmed so the drop line reads as its destination. */
+.ticket-row.draggable {
+  cursor: grab;
+}
+
+.ticket-row.dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+
+/* Where letting go would put the card. Placed in the 8px gap between two cards
+   from the same offsets the window is cut from, so it is drawn correctly for a
+   gap whose neighbours are not rendered. */
+.drop-line {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 2px;
+  border-radius: var(--lc-radius-full);
+  background: var(--lc-accent-human);
 }
 
 .ticket-row.degraded {
@@ -590,6 +624,9 @@ button:disabled {
 }
 
 .ticket-meta {
+  display: flex;
+  gap: 5px;
+  align-items: center;
   grid-column: 2;
 }
 
@@ -611,8 +648,14 @@ button:disabled {
 }
 
 /* The acknowledgement of a change that arrived from disk: ring, pulse, and a
-   footer naming the actor the file recorded. Never a silent re-render. */
+   footer naming the actor the file recorded. Never a silent re-render.
+
+   The footer is why a fresh card is taller, and the height is stated here with
+   the rest of the treatment rather than beside `.ticket-row`: `cardStrides` in
+   boardGeometry.ts places cards from these two heights, so a card that wore the
+   ring without the extra room would be placed wrong by exactly the footer. */
 .ticket-row.fresh {
+  height: var(--lc-size-board-card-fresh);
   border-color: var(--lc-accent-agent-fresh-border);
   box-shadow: 0 0 0 3px var(--lc-accent-agent-fresh-ring);
 }
@@ -645,6 +688,275 @@ button:disabled {
   background: var(--lc-accent-human);
 }
 
+/* ----------------------------------------------------- the status dot (D3) */
+
+/* One geometry, six colours, and the colours are system tokens rather than
+   themed ones — except Done, which routes to the human accent (D5). The shape
+   carries the colour through `currentColor`, so the SVG holds no hue at all. */
+.status-dot {
+  flex: none;
+}
+
+.status-dot.status-backlog {
+  color: var(--lc-status-backlog);
+}
+
+.status-dot.status-todo {
+  color: var(--lc-status-todo);
+}
+
+.status-dot.status-in-progress {
+  color: var(--lc-status-in-progress);
+}
+
+.status-dot.status-in-review {
+  color: var(--lc-status-in-review);
+}
+
+.status-dot.status-done {
+  color: var(--lc-status-done);
+}
+
+.status-dot.status-canceled {
+  color: var(--lc-status-canceled);
+}
+
+/* ------------------------------------------------------- the issue list */
+
+/* Board | List (screen-specs.md:49). */
+/* `Order: Priority|Manual` (screen-specs.md:47-48). The word is drawn beside the
+   trigger rather than inside it, so the trigger keeps saying only the value —
+   which is what every other menu trigger in the app says. */
+/* 190×28px (`screen-specs.md:47`). The one control in the header that is a text
+   field, so it states its own box rather than borrowing a control token. */
+.filter-field {
+  width: 190px;
+  height: 28px;
+  border: 1px solid var(--lc-line);
+  border-radius: 7px;
+  padding: 0 9px;
+  color: var(--lc-ink);
+  background: var(--lc-surface);
+  font-size: 12px;
+}
+
+.filter-field::placeholder {
+  color: var(--lc-ink-3);
+}
+
+.ordering-control {
+  display: inline-flex;
+  gap: var(--lc-space-2);
+  align-items: center;
+  color: var(--lc-ink-3);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.ordering-control .menu-trigger {
+  height: var(--lc-size-control-sm);
+  border-color: var(--lc-line);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.view-segment {
+  display: inline-flex;
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-control);
+  overflow: hidden;
+}
+
+.view-segment button {
+  height: var(--lc-size-control-sm);
+  border: 0;
+  padding: 0 10px;
+  color: var(--lc-ink-3);
+  background: transparent;
+  font-size: 12px;
+}
+
+.view-segment button:hover {
+  background: var(--lc-wash);
+}
+
+.view-segment button.selected {
+  color: var(--lc-accent-human-text);
+  background: var(--lc-accent-human-soft);
+  font-weight: 500;
+}
+
+/* One scroller for every group, unlike the board's six (screen-specs.md:135).
+   The reserve matches the board's, because the chrome above and below is the
+   same chrome. */
+.issue-list {
+  max-height: var(--lc-size-board-stack);
+  padding: 0 24px 20px;
+  overflow-y: auto;
+}
+
+.list-group {
+  margin-bottom: 12px;
+}
+
+/* Sticky, with a fill so the rows do not read through it as it passes over
+   them. The spec names --lc-bg because it describes the list sitting on the app
+   background; here it sits inside the workspace card, so the fill is the surface
+   it is actually on. */
+.list-group-header {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  display: flex;
+  width: 100%;
+  height: var(--lc-space-7);
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  margin: 0;
+  padding: 0 4px;
+  color: var(--lc-ink-2);
+  background: var(--lc-surface);
+  font-size: 12.5px;
+  font-weight: 500;
+  text-align: left;
+}
+
+.list-group-count {
+  color: var(--lc-ink-3);
+  font-family: var(--lc-type-code-font);
+  font-size: 11px;
+}
+
+.list-group-reveal {
+  margin-left: auto;
+  color: var(--lc-ink-3);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.list-group.archived .list-group-header:hover {
+  background: var(--lc-wash);
+}
+
+.folder-glyph {
+  color: var(--lc-ink-3);
+}
+
+/* The group's card. Its height is stated rather than grown, because the rows
+   inside it are placed by the list and most of them are not drawn
+   (listGeometry.ts). */
+.list-group-body {
+  position: relative;
+  border: 1px solid var(--lc-line);
+  border-radius: 8px;
+  background: var(--lc-surface);
+}
+
+.list-row {
+  position: absolute;
+  right: 0;
+  left: 0;
+  display: flex;
+  height: var(--lc-size-row);
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  padding: 0 12px;
+  color: var(--lc-ink);
+  text-align: left;
+  background: transparent;
+}
+
+/* Drawn on the row's own top edge rather than between siblings: the group holds
+   only the rows the scroll position touches, so "the next row" is not always the
+   next node. */
+.list-row.divided {
+  border-top: 1px solid var(--lc-line-soft);
+}
+
+.list-row:hover {
+  background: var(--lc-wash);
+}
+
+/* Inset, because a 36px row has no room outside itself for the 3px ring the
+   rest of the app wears. */
+.list-row:focus-visible {
+  outline: var(--lc-border-focus) solid var(--lc-accent-human-ring);
+  outline-offset: -3px;
+}
+
+.list-row.selected {
+  background: var(--lc-accent-human-wash);
+  box-shadow: inset var(--lc-border-rail) 0 0 var(--lc-accent-human);
+}
+
+.list-row strong {
+  overflow: hidden;
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.list-row-key {
+  flex: none;
+  width: 58px;
+  color: var(--lc-ink-3);
+  font-family: var(--lc-type-code-font);
+  font-size: 11px;
+}
+
+.list-row-checklist {
+  flex: none;
+  color: var(--lc-ink-3);
+  font-family: var(--lc-type-code-font);
+  font-size: 10.5px;
+}
+
+.list-row-updated {
+  flex: none;
+  width: 46px;
+  color: var(--lc-ink-3);
+  font-family: var(--lc-type-code-font);
+  font-size: 10.5px;
+  text-align: right;
+}
+
+.list-row-raw {
+  flex: none;
+  color: var(--lc-ink-3);
+  font-size: 11px;
+  text-decoration: underline;
+}
+
+.list-row.degraded strong {
+  color: var(--lc-ink-2);
+  font-family: var(--lc-type-code-font);
+  font-size: 11.5px;
+  font-weight: 400;
+}
+
+.row-warn {
+  flex: none;
+  color: var(--lc-warn);
+  font-size: 11px;
+}
+
+.list-row .pulse-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-left: 0;
+}
+
+/* Still legible, still openable, and plainly set aside (ADR 0004). */
+.list-group.archived .list-row {
+  opacity: 0.8;
+}
+
 /* --------------------------------------------------------- the ticket panel */
 
 .ticket-panel {
@@ -672,12 +984,35 @@ button:disabled {
 }
 
 .panel-header {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  display: flex;
   gap: var(--lc-space-3);
   align-items: center;
   border-bottom: 1px solid var(--lc-line);
   padding-bottom: var(--lc-space-3);
+}
+
+/* Held to the right whether or not the path between them is there to push. */
+.panel-header-actions {
+  display: flex;
+  gap: var(--lc-space-2);
+  align-items: center;
+  margin-left: auto;
+}
+
+.panel-header .disk-path {
+  min-width: 0;
+  flex: 1;
+}
+
+/* The `archived` mark (`screen-specs.md:164`): kbd-styled, and deliberately
+   without an accent — an archived ticket is a quiet one, not a flagged one. */
+.archived-chip {
+  border: 1px solid var(--lc-line-strong);
+  border-radius: var(--lc-radius-kbd);
+  padding: 0 var(--lc-space-2);
+  color: var(--lc-ink-3);
+  font: 650 var(--lc-type-kbd-size) var(--lc-type-code-font);
+  letter-spacing: var(--lc-type-kbd-tracking);
 }
 
 .disk-path {
@@ -689,8 +1024,26 @@ button:disabled {
   white-space: nowrap;
 }
 
-.disk-path.flashed {
-  color: var(--lc-accent-agent-text);
+.disk-path.writing {
+  color: var(--lc-ink-3);
+}
+
+.disk-path.settled {
+  color: var(--lc-ink-disabled);
+}
+
+/* Only after 500ms of an unsettled write, and only here (states.md:56-58). */
+.write-spinner {
+  display: inline-block;
+  margin-right: var(--lc-space-1);
+  font-size: 9px;
+  animation: lc-write-spin 900ms linear infinite;
+}
+
+@keyframes lc-write-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .panel-acknowledgement {
@@ -775,13 +1128,8 @@ button:disabled {
   font-weight: 700;
 }
 
-.meta-grid select {
-  height: var(--lc-size-control);
-  border: 1px solid var(--lc-line-strong);
-  border-radius: 7px;
-  padding: 0 var(--lc-space-2);
-  color: var(--lc-ink);
-  background: var(--lc-surface);
+.meta-grid .menu-trigger {
+  justify-self: start;
 }
 
 .meta-grid code {
@@ -817,6 +1165,7 @@ button:disabled {
 }
 
 .description-view {
+  position: relative;
   display: block;
   width: 100%;
   border: 1px solid transparent;
@@ -827,11 +1176,27 @@ button:disabled {
   background: transparent;
   font-size: 13px;
   line-height: 1.55;
-  white-space: pre-wrap;
+}
+
+.description-view.empty {
+  color: var(--lc-ink-3);
 }
 
 .description-view:hover {
   background: var(--lc-wash);
+}
+
+/* The Edit affordance appears on hover, and whenever it is the focused thing. */
+.description-edit {
+  position: absolute;
+  top: var(--lc-space-1);
+  right: var(--lc-space-1);
+  opacity: 0;
+}
+
+.description-view:hover .description-edit,
+.description-edit:focus-visible {
+  opacity: 1;
 }
 
 .description-editor textarea,
@@ -841,7 +1206,6 @@ button:disabled {
   width: 100%;
 }
 
-.description-editor textarea,
 .composer textarea {
   border: 1px solid var(--lc-line-strong);
   border-radius: 7px;
@@ -853,17 +1217,192 @@ button:disabled {
   resize: vertical;
 }
 
+.description-editor {
+  border: 1px solid var(--lc-line-strong);
+  border-radius: 7px;
+  background: var(--lc-surface);
+}
+
+/* Tabs left, formatting right, both on the wash (`screen-specs.md:178-180`). */
+.editor-tabstrip {
+  display: flex;
+  gap: var(--lc-space-2);
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--lc-line);
+  border-radius: 7px 7px 0 0;
+  padding: 0 var(--lc-space-2);
+  background: var(--lc-wash);
+}
+
+.editor-tabstrip [role="tablist"] {
+  display: flex;
+  gap: var(--lc-space-1);
+}
+
+.editor-tab {
+  height: 24px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 0 var(--lc-space-2);
+  color: var(--lc-ink-3);
+  background: transparent;
+  font-size: 11px;
+}
+
+.editor-tab.active {
+  color: var(--lc-ink);
+  border-bottom-color: var(--lc-accent-human);
+}
+
+.editor-toolbar {
+  display: flex;
+  gap: 2px;
+  padding: 2px 0;
+}
+
+.editor-toolbar button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: var(--lc-radius-control);
+  color: var(--lc-ink-2);
+  background: transparent;
+  font: 600 11px var(--lc-type-code-font);
+}
+
+.editor-toolbar button:hover:not(:disabled) {
+  color: var(--lc-ink);
+  background: var(--lc-surface);
+}
+
+.editor-toolbar button:disabled {
+  color: var(--lc-ink-disabled);
+}
+
+.description-editor textarea {
+  min-height: 132px;
+  border: 0;
+  padding: var(--lc-space-2);
+  color: var(--lc-ink);
+  background: transparent;
+  font: var(--lc-type-code-weight) var(--lc-type-code-size) /
+    var(--lc-type-code-leading) var(--lc-type-code-font);
+  resize: vertical;
+}
+
+.description-preview {
+  min-height: 132px;
+  padding: var(--lc-space-2);
+}
+
+.editor-empty {
+  margin: 0;
+  padding: var(--lc-space-2);
+  color: var(--lc-ink-3);
+  font-size: 12px;
+}
+
 .editor-footer {
   display: flex;
   gap: var(--lc-space-2);
   align-items: center;
-  margin-top: var(--lc-space-2);
+  border-top: 1px solid var(--lc-line);
+  padding: var(--lc-space-2);
 }
 
 .editor-footer code {
   margin-right: auto;
   color: var(--lc-ink-3);
   font-size: 10px;
+}
+
+.editor-footer kbd {
+  margin-left: 4px;
+  color: var(--lc-ink-3);
+  font: 500 var(--lc-type-kbd-size) var(--lc-type-code-font);
+}
+
+.editor-footer .primary kbd {
+  color: var(--lc-inverse-ink-2);
+}
+
+/* The rendered subset. 13px/1.55 per `screen-specs.md:184`. */
+.markdown {
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.markdown > *,
+.markdown-quote > * {
+  margin: 0 0 var(--lc-space-2);
+}
+
+.markdown > *:last-child {
+  margin-bottom: 0;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4,
+.markdown h5,
+.markdown h6 {
+  margin-top: var(--lc-space-3);
+  color: var(--lc-ink);
+  font-size: 13px;
+  font-weight: 620;
+}
+
+.markdown code {
+  border-radius: 4px;
+  padding: 1px 4px;
+  background: var(--lc-tile);
+  font: var(--lc-type-code-weight) 12px var(--lc-type-code-font);
+}
+
+.markdown-code {
+  overflow-x: auto;
+  border: 1px solid var(--lc-line);
+  border-radius: 6px;
+  padding: var(--lc-space-2);
+  background: var(--lc-tile);
+}
+
+.markdown-code code {
+  padding: 0;
+  background: transparent;
+}
+
+.markdown-list {
+  display: grid;
+  gap: 2px;
+  padding-left: var(--lc-space-4);
+}
+
+/* A quoted block an agent pasted an error into: marked by a rule, not a tint. */
+.markdown-quote {
+  border-left: 2px solid var(--lc-line-strong);
+  padding-left: var(--lc-space-3);
+  color: var(--lc-ink-2);
+}
+
+.markdown-quote > *:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-list .markdown-task {
+  display: flex;
+  gap: var(--lc-space-2);
+  align-items: baseline;
+  list-style: none;
+  margin-left: calc(-1 * var(--lc-space-4));
+}
+
+.markdown a {
+  color: var(--lc-accent-human-text);
 }
 
 .checklist {
@@ -974,6 +1513,11 @@ button:disabled {
   background: var(--lc-accent-agent);
 }
 
+.actor-tile.unknown {
+  border-color: var(--lc-warn);
+  color: var(--lc-warn);
+}
+
 .agent-badge {
   border-radius: var(--lc-radius-kbd);
   padding: 2px 5px;
@@ -988,19 +1532,62 @@ button:disabled {
   font: 400 10.5px var(--lc-type-code-font);
 }
 
+/* A change event is a glyph and a line, not an avatar and a block
+   (`components.md:207`). The rail still marks an agent's. */
 .entry-changes {
   display: grid;
   gap: 2px;
-  margin: var(--lc-space-1) 0 0;
-  padding-left: calc(var(--lc-size-avatar) + var(--lc-space-2));
+  margin: 0;
+  padding: 0;
   color: var(--lc-ink-2);
   font-size: 12px;
   list-style: none;
 }
 
+.entry-changes > li {
+  display: flex;
+  gap: var(--lc-space-2);
+  align-items: baseline;
+}
+
+.change-glyph {
+  width: 12px;
+  color: var(--lc-ink-3);
+  font-size: 12px;
+  text-align: center;
+}
+
+.entry-changes > li.warn,
+.entry-changes > li.warn .change-glyph {
+  color: var(--lc-warn);
+}
+
+.change-actor {
+  color: var(--lc-ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.timeline-entry.agent .change-actor {
+  color: var(--lc-accent-agent-text);
+  font-family: var(--lc-type-code-font);
+}
+
+.timeline-entry.unattributed .change-actor {
+  color: var(--lc-warn);
+}
+
 .entry-changes code {
   color: var(--lc-ink-3);
-  font-size: 11px;
+  border-radius: 4px;
+  padding: 1px 4px;
+  background: var(--lc-wash);
+  font: var(--lc-type-code-weight) 11px var(--lc-type-code-font);
+}
+
+.change-meta {
+  margin: 2px 0 0;
+  padding-left: calc(12px + var(--lc-space-2));
 }
 
 .entry-body {
@@ -1009,13 +1596,32 @@ button:disabled {
   color: var(--lc-ink);
   font-size: 13px;
   line-height: 1.5;
-  white-space: pre-wrap;
 }
 
+.timeline-entry.change .entry-body {
+  padding-left: calc(12px + var(--lc-space-2));
+}
+
+/* On screen before the file has it, and saying so rather than looking settled. */
+.timeline-entry.pending {
+  opacity: 0.62;
+}
+
+/* Avatar left, field and action stacked beside it (`screen-specs.md:193`). */
 .composer {
   display: grid;
+  grid-template-columns: auto 1fr;
   gap: var(--lc-space-2);
-  justify-items: start;
+  align-items: start;
+}
+
+.composer .actor-tile {
+  grid-row: 1;
+}
+
+.composer button {
+  grid-column: 2;
+  justify-self: start;
 }
 
 .raw-file {
@@ -1038,6 +1644,40 @@ button:disabled {
   color: var(--lc-ink-3);
   font-size: 11px;
   line-height: 1.55;
+}
+
+/* ------------------------------------------------------------ create mode */
+
+/* Full create wears the panel (`screen-specs.md:209`); the footer is pinned to
+   the bottom so Create ticket is reachable without scrolling a long draft. */
+.create-panel .editor-footer {
+  position: sticky;
+  bottom: 0;
+  margin-top: auto;
+  background: var(--lc-surface);
+}
+
+/* `KEY-n · new`, and it says which half is the guess. */
+.provisional-mark {
+  color: var(--lc-ink-3);
+  font-weight: 400;
+}
+
+/* A draft row's box cannot be ticked: a created checklist item is always open,
+   so an enabled checkbox would offer something the create cannot carry. */
+.checklist-row.draft input {
+  opacity: 0.5;
+}
+
+.checklist-row .row-remove {
+  margin-left: auto;
+  padding: 0 var(--lc-space-1);
+  color: var(--lc-ink-3);
+}
+
+.checklist-row .row-remove:hover,
+.checklist-row .row-remove:focus-visible {
+  color: var(--lc-ink);
 }
 
 /* ----------------------------------------------------------- quick creation */
@@ -1065,9 +1705,308 @@ button:disabled {
   box-shadow: var(--lc-shadow-overlay);
 }
 
-.quick-create-modal textarea {
-  padding: var(--lc-space-2);
-  resize: vertical;
+/* Borderless 15px title (`screen-specs.md:200`): the modal is two fields, so a
+   box around the first one is a frame around nothing. */
+.quick-create-title {
+  border: none;
+  padding: 0;
+  color: var(--lc-ink);
+  background: none;
+  font-size: 15px;
+}
+
+.quick-create-meta {
+  display: flex;
+}
+
+.quick-create-modal .editor-footer {
+  padding: var(--lc-space-2) 0 0;
+}
+
+/* The hints sit between the two actions, so `code` cannot take the whole gap
+   the panel's own footer gives it. */
+.quick-create-modal .editor-footer code {
+  margin: 0 auto;
+}
+
+/* ------------------------------------------------------------------- toasts */
+
+/* Bottom-center, single stack (components.md:213-215). */
+.toast-stack {
+  position: fixed;
+  bottom: var(--lc-space-6);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+}
+
+.toast {
+  display: flex;
+  gap: var(--lc-space-3);
+  align-items: center;
+  border-radius: var(--lc-radius-card);
+  padding: var(--lc-space-2) var(--lc-space-4);
+  color: var(--lc-inverse-ink);
+  background: var(--lc-inverse-surface);
+  box-shadow: var(--lc-shadow-overlay);
+  font-size: 12.5px;
+}
+
+.toast.danger {
+  color: var(--lc-ink);
+  background: var(--lc-danger-surface);
+  border: 1px solid var(--lc-danger-border);
+}
+
+.toast-action,
+.toast-dismiss {
+  border: 0;
+  padding: 0;
+  color: var(--lc-inverse-ink-2);
+  background: none;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.toast.danger .toast-action,
+.toast.danger .toast-dismiss {
+  color: var(--lc-danger);
+}
+
+.toast-action kbd {
+  margin-left: var(--lc-space-1);
+  border-radius: var(--lc-radius-kbd);
+  padding: 1px 4px;
+  background: color-mix(in oklab, var(--lc-inverse-ink) 14%, transparent);
+  font: 500 10.5px var(--lc-type-code-font);
+}
+
+/* ------------------------------------------------------ priority and menus */
+
+/* Monochrome except Urgent (components.md:134-144). The exclamation is the
+   mark colour so it reads on the filled square in both appearances. */
+.priority-glyph {
+  flex: none;
+  fill: var(--lc-priority-urgent);
+}
+
+.priority-glyph .mark {
+  fill: var(--lc-priority-urgent-mark);
+}
+
+.priority-glyph.none {
+  fill: var(--lc-priority-none);
+}
+
+/* A bordered container around real text: the number carries the level, so the
+   chip never gains a fill and never takes the theme accent. */
+.priority-chip {
+  display: inline-flex;
+  flex: none;
+  min-width: 21px;
+  height: 14px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--lc-priority-chip-border);
+  border-radius: var(--lc-radius-kbd);
+  padding: 0 3px;
+  color: var(--lc-priority-chip-text);
+  background: transparent;
+  font: 500 9px / 1 var(--lc-type-code-font);
+  letter-spacing: var(--lc-type-kbd-tracking);
+  text-transform: uppercase;
+}
+
+.priority-chip.small {
+  height: 13px;
+  font-size: 8.5px;
+}
+
+/* One popover behind status, priority, ordering and labels
+   (screen-specs.md:239-247). Fixed to the viewport, so a scrolling column
+   cannot carry it away from the card it is anchored to. */
+.menu-popover {
+  position: fixed;
+  z-index: 3;
+  display: flex;
+  min-width: 220px;
+  flex-direction: column;
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-panel);
+  padding: 5px;
+  background: var(--lc-raised);
+  box-shadow: var(--lc-shadow-overlay);
+}
+
+.menu-row {
+  display: flex;
+  height: var(--lc-size-control);
+  gap: var(--lc-space-2);
+  align-items: center;
+  border: 0;
+  border-radius: var(--lc-radius-control);
+  padding: 0 var(--lc-space-2);
+  color: var(--lc-ink);
+  background: none;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-row:hover,
+.menu-row:focus-visible {
+  background: var(--lc-wash);
+}
+
+.menu-glyph {
+  display: inline-flex;
+  align-items: center;
+}
+
+.menu-label {
+  flex: 1;
+}
+
+/* The value that is set, in the human accent: this is a person's own choice. */
+.menu-check {
+  color: var(--lc-accent-human-text);
+}
+
+.menu-footnote {
+  padding: var(--lc-space-1) var(--lc-space-2) 0;
+  color: var(--lc-ink-3);
+  font: 400 10.5px var(--lc-type-code-font);
+}
+
+.menu-trigger {
+  display: inline-flex;
+  height: var(--lc-size-control);
+  gap: var(--lc-space-2);
+  align-items: center;
+  border: 1px solid var(--lc-line-strong);
+  border-radius: 7px;
+  padding: 0 var(--lc-space-2);
+  color: var(--lc-ink);
+  background: var(--lc-surface);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+/* Label chip — components.md:75-80. The dot is reinforcement; the text is the
+   identifier, so it is always drawn. */
+.label-chip {
+  display: inline-flex;
+  height: 22px;
+  gap: 5px;
+  align-items: center;
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-full);
+  padding: 0 8px;
+  color: var(--lc-ink-2);
+  background: var(--lc-surface);
+  font-family: var(--lc-font-ui);
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.label-chip.small {
+  height: 19px;
+  padding: 0 6px;
+}
+
+[data-appearance="dark"] .label-chip {
+  background: var(--lc-raised);
+}
+
+/* A slug the project defines no label for. It is still the ticket's own data,
+   so it is drawn in full and only marked as undefined. */
+.label-chip.undefined-slug {
+  border-style: dashed;
+  color: var(--lc-ink-3);
+}
+
+.label-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--lc-radius-full);
+  background: var(--lc-label-gray);
+}
+
+.label-dot.small {
+  width: 6px;
+  height: 6px;
+}
+
+.label-dot.label-blue {
+  background: var(--lc-label-blue);
+}
+
+.label-dot.label-cyan {
+  background: var(--lc-label-cyan);
+}
+
+.label-dot.label-purple {
+  background: var(--lc-label-purple);
+}
+
+.label-dot.label-pink {
+  background: var(--lc-label-pink);
+}
+
+.label-dot.label-red {
+  background: var(--lc-label-red);
+}
+
+.label-dot.label-orange {
+  background: var(--lc-label-orange);
+}
+
+.label-dot.label-amber {
+  background: var(--lc-label-amber);
+}
+
+.label-dot.label-gray {
+  background: var(--lc-label-gray);
+}
+
+.label-empty {
+  color: var(--lc-ink-3);
+}
+
+/* Definition management, which is project data and so lives in settings. */
+.label-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lc-space-2);
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--lc-line);
+  padding-top: var(--lc-space-3);
+}
+
+.label-settings h3 {
+  color: var(--lc-ink-3);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.label-settings p {
+  color: var(--lc-ink-3);
+  font-size: 11.5px;
+}
+
+.label-row {
+  display: grid;
+  gap: var(--lc-space-2);
+  grid-template-columns: 120px minmax(120px, 1fr) 110px max-content max-content;
+  align-items: center;
+}
+
+.label-row code {
+  overflow: hidden;
+  color: var(--lc-ink-3);
+  font-size: 11px;
+  text-overflow: ellipsis;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -13,6 +13,15 @@
      file; switching data-theme / data-appearance swaps tokens only.
      Color values shown under swatches are read back from the
      rendered pixels by JS, so they are always the shipped values.
+
+     2026-07-31 — revised for ADR 0001 (no assignee in local mode):
+     removed the disabled assignee field (§05), the assignee control
+     in the ticket-panel header (§14), and assignee avatars from three
+     card specimens (§11) and five list rows (§12); reworded the §09,
+     §12 and §14 blurbs to state the v0 position. The screenshots in
+     proof/renders/ predate this revision and still show the old
+     anatomy; the render pipeline isn't committed, so they have not
+     been regenerated (see README.md).
      ============================================================ */
 
   * { margin: 0; box-sizing: border-box; }
@@ -606,7 +615,6 @@
             IDs are generated — this field only takes a title.
           </div>
         </div>
-        <div class="field" aria-disabled="true">Assignee (project has no members yet)</div>
       </div>
     </div>
   </section>
@@ -697,7 +705,8 @@
     <h2>Humans are circles, agents are not</h2>
     <p class="blurb">Human tints hash into the label ramp — which contains no green, so no human can ever wear the
       agent's color. The agent is a terminal tile: near-black in both appearances, mono ❯, agent-green ring.
-      Never in the assignee slot.</p>
+      Never stands in for a person — and v0 has no assignee slot for it to stand in at all (ADR 0001); the rule
+      returns with team projects.</p>
     <div class="panel">
       <div class="flexrow" style="gap: 12px;">
         <span class="avatar lg" style="--tint: var(--lc-label-purple)">MK</span>
@@ -762,8 +771,6 @@
           <div class="foot">
             <svg class="glyph" width="13" height="13" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="none" stroke="var(--lc-status-todo)" stroke-width="1.6"/></svg>
             <span class="label-chip" style="--label: var(--lc-label-pink)"><i></i>design</span>
-            <span class="spacer"></span>
-            <span class="avatar sm" style="--tint: var(--lc-label-purple)">MK</span>
           </div>
         </div>
         <div class="card fresh">
@@ -776,8 +783,6 @@
             <svg class="glyph" width="13" height="13" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="var(--lc-status-in-progress)" stroke="var(--lc-status-in-progress)" stroke-width="1.6"/></svg>
             <span class="fraction">3/7</span>
             <span class="progress"><i style="width: 43%"></i></span>
-            <span class="spacer"></span>
-            <span class="avatar sm" style="--tint: var(--lc-label-amber)">AR</span>
           </div>
           <div class="agent-foot"><b>❯</b> updated by agent · 12s</div>
         </div>
@@ -789,8 +794,6 @@
           <div class="foot">
             <svg class="glyph" width="13" height="13" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="var(--lc-status-in-review)" stroke="var(--lc-status-in-review)" stroke-width="1.6"/></svg>
             <span class="label-chip" style="--label: var(--lc-label-blue)"><i></i>infra</span>
-            <span class="spacer"></span>
-            <span class="avatar sm" style="--tint: var(--lc-label-cyan)">JT</span>
           </div>
         </div>
         <div class="card degraded">
@@ -811,8 +814,9 @@
   <section id="list">
     <div class="kicker"><span class="hash">## </span>12 · list view</div>
     <h2>Dense rows, grouped by status</h2>
-    <p class="blurb">36px keyboard-navigable rows: priority, ID, title, labels, checklist progress, assignee,
-      updated-at. The group header carries the status dot and name, so rows don't repeat it. <span class="m">↑↓</span>/<span class="m">J K</span> move focus (inset accent border);
+    <p class="blurb">36px keyboard-navigable rows: priority, ID, title, labels, checklist progress, updated-at —
+      no assignee column, v0 is local mode and has no assignee (ADR 0001). The group header carries the status
+      dot and name, so rows don't repeat it. <span class="m">↑↓</span>/<span class="m">J K</span> move focus (inset accent border);
       selection is the soft human wash. An agent-fresh row gets the pulse dot and mono agent timestamp — same
       grammar as the board card.</p>
     <div class="panel">
@@ -828,7 +832,6 @@
           <span class="label-chip" style="--label: var(--lc-label-orange)"><i></i>watcher</span>
           <span class="fraction" style="color: var(--lc-accent-agent-text)">3/7</span>
           <span class="dot8 pulsing" style="width:8px;height:8px;border-radius:50%;background:var(--lc-accent-agent);"></span>
-          <span class="avatar sm" style="--tint: var(--lc-label-amber)">AR</span>
           <span class="updated agent">12s</span>
         </div>
         <div class="lrow">
@@ -836,7 +839,6 @@
           <span class="id">LC-122</span>
           <span class="ltitle">Ticket panel: markdown editor write/preview toggle</span>
           <span class="fraction">1/4</span>
-          <span class="avatar sm" style="--tint: var(--lc-label-purple)">MK</span>
           <span class="updated">1h</span>
         </div>
         <div class="lgroup">
@@ -848,7 +850,6 @@
           <span class="id">LC-131</span>
           <span class="ltitle">Watcher drops events when folder is renamed while app is closed</span>
           <span class="label-chip" style="--label: var(--lc-label-orange)"><i></i>watcher</span>
-          <span class="avatar sm" style="--tint: var(--lc-label-cyan)">JT</span>
           <span class="updated">2d</span>
         </div>
         <div class="lrow focused">
@@ -856,14 +857,12 @@
           <span class="id">LC-114</span>
           <span class="ltitle">Empty board illustration for first launch</span>
           <span class="label-chip" style="--label: var(--lc-label-pink)"><i></i>design</span>
-          <span class="avatar sm" style="--tint: var(--lc-label-purple)">MK</span>
           <span class="updated">3d</span>
         </div>
         <div class="lrow">
           <span class="p-chip">P4</span>
           <span class="id">LC-109</span>
           <span class="ltitle">Waitlist modal copy pass</span>
-          <span class="avatar sm" style="--tint: var(--lc-label-cyan)">JT</span>
           <span class="updated">5d</span>
         </div>
       </div>
@@ -915,9 +914,10 @@
   <section id="ticket">
     <div class="kicker"><span class="hash">## </span>14 · ticket panel</div>
     <h2>The whole ticket, one calm column</h2>
-    <p class="blurb">Header (ID, title, status, priority, assignee, labels), in-app markdown editor with
-      write/preview, the checklist block, and the merged activity stream with its composer. Every piece is the
-      primitive specified above — the panel is composition, not new chrome.</p>
+    <p class="blurb">Header (ID, title, status, priority, labels), in-app markdown editor with write/preview, the
+      checklist block, and the merged activity stream with its composer — no assignee control; v0 is local mode
+      and has no assignee (ADR 0001). Every piece is the primitive specified above — the panel is composition,
+      not new chrome.</p>
     <div class="ticket">
       <div class="trow">
         <span class="id-chip">LC-128</span>
@@ -931,7 +931,6 @@
           In Progress
         </button>
         <button class="meta-ctl"><span class="p-chip" style="border:none; padding:0; min-width:auto;">P1</span> Priority</button>
-        <button class="meta-ctl"><span class="avatar sm" style="--tint: var(--lc-label-amber)">AR</span><span class="who">Aria Rowe</span></button>
         <span class="label-chip" style="--label: var(--lc-label-orange)"><i></i>watcher</span>
         <span class="label-chip" style="--label: var(--lc-label-blue)"><i></i>infra</span>
       </div>

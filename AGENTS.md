@@ -48,10 +48,17 @@ npm --prefix apps/desktop run test:frontend # vitest alone
 npm --prefix apps/desktop run test:watcher  # the native watcher round trip alone
 npm --prefix apps/desktop run perf:rust     # performance budgets, ignored by default
 npm run perf:board                          # board interaction budgets in WebKit
+npm run perf:list                           # the same, for the list surface
 ```
 
 `npm run verify` must pass before you commit. CI additionally runs
-`npm run build:app` (the full macOS bundle), which the local gate skips.
+`npm run build:app` (the full macOS bundle) and, in a second job, `perf:board`
+and `perf:list` — both of which the local gate skips.
+
+The interaction budgets are **enforced in CI, not in `verify`**. Each trace is
+minutes of WebKit over 5,000 tickets, which is the wrong price for a pre-commit
+gate and the right one for a pull request. Run them locally when you touch a
+lane, a row, a comparator, or a selector; CI is what catches the rest.
 
 **If `verify` goes red on the native watcher, suspect the environment before the
 code.** An npm-launched `test:watcher` once timed out while the identical direct

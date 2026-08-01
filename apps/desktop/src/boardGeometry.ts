@@ -1,6 +1,14 @@
 /**
- * Where the cards in one board column sit, so a column can render only the ones
- * on screen.
+ * Where the things in one scroller sit, so it can render only the ones on screen.
+ *
+ * `runningOffsets`, `indexAt` and `windowFor` know nothing about cards: hand them
+ * strides and they answer which slots a viewport touches. A board column's slots
+ * are its cards; the issue list's are its group headers and its rows
+ * (`listGeometry.ts`). Both surfaces window through this one piece of arithmetic
+ * deliberately — a second copy would drift, and the drift shows up as jitter
+ * rather than as a failing test.
+ *
+ * The card constants below are the board's own, because only the board has cards.
  *
  * A 5,000-ticket board scrolls at roughly 71 ms a frame in WebKit and at roughly
  * 21 ms when only the visible cards exist — the whole cost is the nodes, not the
@@ -55,17 +63,17 @@ export function cardStrides(
 }
 
 /**
- * Running tops, one entry longer than the column. The last entry is the column's
- * full height, which is what the scroll container is sized to.
+ * Running tops, one entry longer than the strides it was given. The last entry is
+ * the whole run's height, which is what a scroll container is sized to.
  */
-export function columnOffsets(strides: number[]): number[] {
+export function runningOffsets(strides: number[]): number[] {
   const offsets = [0];
   for (const stride of strides)
     offsets.push(offsets[offsets.length - 1] + stride);
   return offsets;
 }
 
-/** The first index at or before `position`, by binary search over the offsets. */
+/** The first slot at or before `position`, by binary search over the offsets. */
 function indexAt(offsets: number[], position: number): number {
   let low = 0;
   let high = offsets.length - 2;
@@ -78,8 +86,27 @@ function indexAt(offsets: number[], position: number): number {
 }
 
 /**
- * The half-open range of cards a column renders: everything touching the
- * viewport, plus `overscan` cards each side so a scroll does not expose a gap
+ * Which gap between slots a position falls in: 0 above the first, `count` below
+ * the last, and the slot's own midpoint as the line between its two gaps.
+ *
+ * This is what makes dragging over a windowed column work at all. A drop cannot
+ * be read off the element under the pointer, because most of the column's cards
+ * are not in the document — so the drop position is arithmetic over the same
+ * offsets the window is cut from, and a gap 3,000 cards below the viewport is as
+ * answerable as the one under the pointer.
+ */
+export function gapAt(offsets: number[], position: number): number {
+  const count = offsets.length - 1;
+  if (count <= 0) return 0;
+  const within = Math.max(0, Math.min(position, offsets[count]));
+  const slot = indexAt(offsets, within);
+  const middle = (offsets[slot] + offsets[slot + 1]) / 2;
+  return within < middle ? slot : slot + 1;
+}
+
+/**
+ * The half-open range of slots a scroller renders: everything touching the
+ * viewport, plus `overscan` slots each side so a scroll does not expose a gap
  * before React has caught up.
  */
 export function windowFor(

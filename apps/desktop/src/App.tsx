@@ -1,27 +1,61 @@
-import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  addProjectLabel,
   chooseAndCreateProject,
   chooseAndRegisterProject,
   chooseAndRelocateProject,
   createTicket,
+  editTicket,
   listProjects,
   listenForProjectEvents,
   openProject,
   rebuildIndex,
   reconcileProject,
   removeProject,
+  removeProjectLabel,
   reportVisibleUi,
   setProjectStarred,
+  updateProjectLabel,
   updateProjectName,
   updateProjectTheme,
 } from "./api";
 import { Board } from "./Board";
+import { CreatePanel } from "./CreatePanel";
 import { CreateProjectForm, type ProjectDraft } from "./CreateProjectForm";
 import { normalizeError } from "./errors";
+import { filterTickets, isFiltering } from "./filtering";
+import { IssueList } from "./IssueList";
+import { LABEL_COLORS } from "./labels";
+import { MenuButton } from "./Menu";
+import { mutate, type Mutation } from "./mutations";
+import { ORDERINGS, type OrderingMode } from "./ordering";
 import { QuickCreate } from "./QuickCreate";
 import { useLongClawStore } from "./state";
 import { TicketPanel } from "./TicketPanel";
-import type { CreateTicketRequest, ProjectReference } from "./types";
+import {
+  isArchived,
+  priorityLabel,
+  provisionalTicket,
+  provisionalTicketKey,
+} from "./tickets";
+import type {
+  AppError,
+  CreateTicketRequest,
+  IndexedTicket,
+  Label,
+  ProjectReference,
+  TicketEdit,
+  TicketPriority,
+  TicketStatus,
+} from "./types";
+import { ToastStack, WriteIndicator } from "./WriteFeedback";
 
 const THEMES = [
   { id: "indigo", label: "Indigo" },
@@ -31,6 +65,66 @@ const THEMES = [
 ];
 
 const APPEARANCE_KEY = "longclaw.appearance";
+
+/**
+ * The board ordering preference, per project (ADR 0003). Device-local app state
+ * and never project data, so it goes exactly where `appearance` goes: a webview
+ * origin's `localStorage`, which in the packaged app is a file inside the OS
+ * app-support container (`data-requirements.md:19`). It must never reach
+ * `longclaw.yaml` or a ticket file, and this is the only place it is written.
+ */
+const ORDERING_KEY = "longclaw.boardOrdering";
+
+/** The note `screen-specs.md:246-247` puts under the ordering menu, verbatim. */
+const ORDERING_FOOTNOTE =
+  "Ordering is a view preference on this board — it never rewrites files.";
+
+function readOrderings(): Record<string, OrderingMode> {
+  try {
+    const saved: unknown = JSON.parse(localStorage.getItem(ORDERING_KEY) ?? "");
+    if (!saved || typeof saved !== "object") return {};
+    // A stored value this build does not know is dropped rather than trusted:
+    // the preference is disposable, so the safe reading is the default one.
+    return Object.fromEntries(
+      Object.entries(saved as Record<string, unknown>).filter(
+        (entry): entry is [string, OrderingMode] => entry[1] === "manual",
+      ),
+    );
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Every row on every surface carries its ticket key, which is what lets one
+ * selector serve the board's cards and the list's rows: the two never render at
+ * once, and neither the focus call below nor the visible-UI probe cares which one
+ * it found.
+ */
+const ROW = "[data-ticket-key]";
+
+/** Moves focus onto a card or a row once it has been painted. */
+function focusCard(key: string) {
+  requestAnimationFrame(() => {
+    document.querySelector<HTMLElement>(`[data-ticket-key="${key}"]`)?.focus();
+  });
+}
+
+/**
+ * Where focus goes when the row it came from is not there to go back to, which
+ * is what archiving does to it. Both surfaces carry exactly one tab stop — the
+ * card or row the arrows move from — so that is the sensible landing place, and
+ * the create button is the fallback when nothing is left to stand on.
+ */
+function focusSurface() {
+  requestAnimationFrame(() => {
+    const row = document.querySelector<HTMLElement>(`${ROW}[tabindex="0"]`);
+    const fallback = document.querySelector<HTMLElement>(
+      ".board-heading .primary",
+    );
+    (row ?? fallback)?.focus();
+  });
+}
 
 function sortedProjects(projects: ProjectReference[]) {
   return [...projects].sort((left, right) =>
@@ -61,9 +155,15 @@ export function App() {
     (state) => state.setActiveProjectId,
   );
   const setAppearance = useLongClawStore((state) => state.setAppearance);
+  const boardOrdering = useLongClawStore((state) => state.boardOrdering);
+  const setBoardOrdering = useLongClawStore((state) => state.setBoardOrdering);
   const applySnapshot = useLongClawStore((state) => state.applySnapshot);
   const applyEvent = useLongClawStore((state) => state.applyEvent);
   const applyLocalWrite = useLongClawStore((state) => state.applyLocalWrite);
+  const addProvisionalTicket = useLongClawStore(
+    (state) => state.addProvisionalTicket,
+  );
+  const removeTicket = useLongClawStore((state) => state.removeTicket);
   const reconcileFailed = useLongClawStore((state) => state.reconcileFailed);
   const externalMarks = useLongClawStore((state) => state.externalMarks);
   const reviewTicket = useLongClawStore((state) => state.reviewTicket);
@@ -72,17 +172,91 @@ export function App() {
   const setError = useLongClawStore((state) => state.setError);
 
   const [selectedKey, setSelectedKey] = useState<string>();
-  const [ticketFormOpen, setTicketFormOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
+  /**
+   * Which create surface is up, if either (`screen-specs.md:198-216`). One at a
+   * time: quick create's **Open full editor →** is a move between them, carrying
+   * what has been typed rather than throwing it away.
+   */
+  const [createSurface, setCreateSurface] = useState<"quick" | "full">();
+  const [carriedDraft, setCarriedDraft] = useState<{
+    title: string;
+    status: TicketStatus;
+  }>();
   /** Bumped when an external change lands for the open ticket. */
   const [panelReload, setPanelReload] = useState(0);
   /** Drives the acknowledgement age text and its decay. */
   const [now, setNow] = useState(() => Date.now());
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+  /** Board or list (`screen-specs.md:49`). View state, and it writes nothing. */
+  const [view, setView] = useState<"board" | "list">("board");
   const [settingsName, setSettingsName] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  /**
+   * The content header's filter (`screen-specs.md:47`). Session-only app state
+   * (`data-requirements.md:41`): plain component state, deliberately not beside
+   * `appearance` and the ordering preference in `localStorage`, and never a
+   * field on anything that crosses IPC.
+   */
+  const [filterQuery, setFilterQuery] = useState("");
+  const filterField = useRef<HTMLInputElement>(null);
 
   const project = projects.find((item) => item.id === activeProjectId);
+  /** Priority until this project has been switched (ADR 0003's default). */
+  const ordering: OrderingMode =
+    (activeProjectId && boardOrdering[activeProjectId]) || "priority";
+  /** The row the panel is open on, read from the store both surfaces read. */
+  const openRow = tickets.find((ticket) => ticket.key === selectedKey);
+
+  /**
+   * The rows the surface draws. Narrowed once, here, so the board and the list
+   * cannot disagree about what a query means — and before grouping rather than
+   * inside it, because a filter says nothing about status (`filtering.ts`).
+   */
+  const visibleTickets = useMemo(
+    () => filterTickets(tickets, filterQuery),
+    [tickets, filterQuery],
+  );
+  const filtering = isFiltering(filterQuery);
+  /**
+   * Whether the query left the surface in front of you with nothing to draw.
+   *
+   * The board never draws an archived ticket (ADR 0004), so a query that matches
+   * only archived ones is still "no matches" there while the list has a row for
+   * it. Unreadable files are not an answer to a query either — they are exempt
+   * from the filter, not matched by it.
+   */
+  const noMatches =
+    filtering &&
+    !visibleTickets.some(
+      (row) => row.state === "indexed" && (view === "list" || !isArchived(row)),
+    );
+  const unreadableShown = noMatches
+    ? visibleTickets.filter((row) => row.state === "degraded").length
+    : 0;
+
+  /**
+   * The key the next create will probably claim, shown by both create surfaces
+   * as the provisional ID. A guess off the rows on screen: Rust allocates the
+   * real one from the project's own directory names.
+   */
+  const nextKey = project ? provisionalTicketKey(project.key, tickets) : "";
+
+  /**
+   * Leaving create without creating. Focus goes back to the surface behind it —
+   * its roving row, or the New ticket button that opened this — because rule 3
+   * of the focus map is that closing a layer never drops focus on the floor.
+   */
+  function closeCreateSurface() {
+    setCreateSurface(undefined);
+    setCarriedDraft(undefined);
+    focusSurface();
+  }
+
+  const clearFilter = useCallback(() => {
+    setFilterQuery("");
+    // Rule 3 of the focus map: closing a layer never drops focus on the floor.
+    filterField.current?.focus();
+  }, []);
   const openTicket = useCallback(
     (key: string) => {
       setSelectedKey(key);
@@ -94,12 +268,7 @@ export function App() {
   /** Closing returns focus to the card that opened the panel. */
   const closeTicket = useCallback((key?: string) => {
     setSelectedKey(undefined);
-    if (!key) return;
-    requestAnimationFrame(() => {
-      document
-        .querySelector<HTMLElement>(`.ticket-row[data-ticket-key="${key}"]`)
-        ?.focus();
-    });
+    if (key) focusCard(key);
   }, []);
   const localProjects = sortedProjects(projects);
   const starredProjects = sortedProjects(
@@ -134,6 +303,44 @@ export function App() {
     }
   }
 
+  // A query about one project means nothing in the next one.
+  useEffect(() => setFilterQuery(""), [activeProjectId]);
+
+  /**
+   * `⌘F` and the filter's rung of the `Esc` ladder (`keyboard-focus-map.md:19-31`).
+   *
+   * `⌘F` takes the chord from the webview's own find deliberately: WebKit would
+   * search the windowed DOM and report one hit in a column of four hundred. It
+   * stands down when there is no field to focus, so a webview with no project
+   * open keeps its default behaviour.
+   *
+   * `Esc` clears the filter **last**, after menu → modal → description edit →
+   * ticket panel. The first three stop the event themselves — `Menu` and
+   * `DescriptionEditor` both call `stopPropagation`, so it never reaches this
+   * listener — and the panel and the create modal are checked by state, because
+   * the panel closes on `Esc` without preventing anything.
+   */
+  useEffect(() => {
+    const layerOpen = selectedKey !== undefined || createSurface !== undefined;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "f") {
+        const field = filterField.current;
+        if (!field || createSurface !== undefined) return;
+        event.preventDefault();
+        field.focus();
+        // "Selects existing query" (`keyboard-focus-map.md:31`), so the next
+        // keystroke replaces it rather than appending to it.
+        field.select();
+        return;
+      }
+      if (event.key !== "Escape" || layerOpen || !filtering) return;
+      clearFilter();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [clearFilter, createSurface, filtering, selectedKey]);
+
   useEffect(() => {
     try {
       const saved = localStorage.getItem(APPEARANCE_KEY);
@@ -144,6 +351,30 @@ export function App() {
       setAppearance("system");
     }
   }, [setAppearance]);
+
+  // The ordering preference is hydrated once and written back whenever it
+  // changes, exactly as appearance is. Neither ever crosses IPC.
+  useEffect(() => {
+    const saved = readOrderings();
+    for (const [projectId, ordering] of Object.entries(saved)) {
+      setBoardOrdering(projectId, ordering);
+    }
+  }, [setBoardOrdering]);
+
+  const hydrated = useRef(false);
+  useEffect(() => {
+    // Not on the first pass, or an empty store would erase what is on disk
+    // before the hydration above has read it.
+    if (!hydrated.current) {
+      hydrated.current = true;
+      return;
+    }
+    try {
+      localStorage.setItem(ORDERING_KEY, JSON.stringify(boardOrdering));
+    } catch {
+      // The board still orders. Nothing here is a fact about a file.
+    }
+  }, [boardOrdering]);
 
   useEffect(() => {
     try {
@@ -278,9 +509,7 @@ export function App() {
   useLayoutEffect(() => {
     if (!activeProjectId) return;
     const frame = requestAnimationFrame(() => {
-      const rows = Array.from(
-        document.querySelectorAll<HTMLElement>(".ticket-row"),
-      );
+      const rows = Array.from(document.querySelectorAll<HTMLElement>(ROW));
       const trace =
         document.querySelector<HTMLElement>(".trace-status")?.innerText ?? "";
       void reportVisibleUi({
@@ -372,24 +601,212 @@ export function App() {
     }
   }
 
-  async function submitNewTicket(
+  /**
+   * Creating never blocks on the disk write (`screen-specs.md:204-207`): the
+   * card appears at once under a key guessed from the board, the surface closes,
+   * and whatever key Rust allocated replaces the guess when the write lands.
+   *
+   * `openPanel` is full create's ending (`screen-specs.md:214`): the panel swaps
+   * to view mode of **the real ticket**, so it can only open once the write has
+   * returned a key — view mode reads the file, and there is no file to read
+   * before then. The card is still optimistic, and focus rides it in the
+   * meantime, so nothing waits and focus never lands on the floor.
+   */
+  function submitNewTicket(
     request: Omit<CreateTicketRequest, "projectId">,
+    options?: { openPanel?: boolean },
   ) {
-    if (!activeProjectId) return;
-    setCreating(true);
-    try {
-      const result = await createTicket({
-        projectId: activeProjectId,
-        ...request,
-      });
-      applyLocalWrite(result.ticket, result.generation);
-      setTicketFormOpen(false);
-      openTicket(result.ticket.key);
-    } catch (error) {
-      setError(normalizeError(error));
-    } finally {
-      setCreating(false);
+    const projectId = activeProjectId;
+    if (!projectId || !project) return;
+    const guessKey = provisionalTicketKey(project.key, tickets);
+    setCreateSurface(undefined);
+    setCarriedDraft(undefined);
+
+    void mutate({
+      apply: () => {
+        addProvisionalTicket(
+          provisionalTicket(guessKey, request, new Date().toISOString()),
+        );
+        focusCard(guessKey);
+        return () => removeTicket(guessKey);
+      },
+      write: () => createTicket({ projectId, ...request }),
+      onWritten: (written) => {
+        removeTicket(guessKey);
+        applyLocalWrite(written.ticket, written.generation);
+        if (options?.openPanel) openTicket(written.ticket.key);
+        else focusCard(written.ticket.key);
+      },
+      toast: (written) => `${written.ticket.key} created`,
+      // v0 has no ticket deletion (ADR 0004), so the inverse of a create is an
+      // archive. The copy says so rather than implying the file went away.
+      undo: (written) => ({
+        path: written.ticket.relativePath,
+        write: () =>
+          editTicket({
+            projectId,
+            ticketKey: written.ticket.key,
+            expectedHash: written.ticket.contentHash,
+            edit: { archived: true },
+          }),
+        onWritten: (result) =>
+          applyLocalWrite(result.ticket, result.generation),
+        toast: () =>
+          `${written.ticket.key} archived — v0 never deletes a ticket file`,
+        review: () => openTicket(written.ticket.key),
+      }),
+      // The create itself sends no hash, so it cannot conflict; its inverse can.
+      failure: (error) => `The ticket could not be created. ${error.message}`,
+    });
+  }
+
+  /**
+   * One edit to one ticket, raised outside the panel: the board's `P` menu, a
+   * drop, an archive. All three are the same shape — show it now, write it, and
+   * offer the inverse — so they are built here rather than written out three
+   * times with three chances to disagree about the hash or the conflict offer.
+   *
+   * The inverse is an ordinary mutation with no `undo` of its own, which is the
+   * scope `data-requirements.md:121` sets: the inverse of the last mutation, not
+   * a history stack. `Mutation.undo` returning a `Mutation` is what enforces it,
+   * and this must not be tempted into recursing to build the inverse.
+   *
+   * The panel's own edits do not come through here: `save()` in `TicketPanel`
+   * carries a conflict banner, a draft, and a reload this knows nothing about.
+   */
+  function editMutation(options: {
+    /** Captured by the caller, because a mutation outlives its render. */
+    projectId: string;
+    ticket: IndexedTicket;
+    /** How the row reads before the write returns. */
+    optimistic: Partial<IndexedTicket>;
+    edit: TicketEdit;
+    inverse: TicketEdit;
+    toast: string;
+    inverseToast: string;
+    failure?: (error: AppError) => string;
+  }): Mutation {
+    const { projectId, ticket } = options;
+    const write = (expectedHash: string, edit: TicketEdit) => () =>
+      editTicket({ projectId, ticketKey: ticket.key, expectedHash, edit });
+
+    return {
+      path: ticket.relativePath,
+      // The row shows the change at once; a failed write puts it back exactly as
+      // it was read.
+      apply: () => {
+        applyLocalWrite({ ...ticket, ...options.optimistic }, generation);
+        return () => applyLocalWrite(ticket, generation);
+      },
+      write: write(ticket.contentHash, options.edit),
+      onWritten: (result) => applyLocalWrite(result.ticket, result.generation),
+      toast: () => options.toast,
+      undo: (result) => ({
+        path: result.ticket.relativePath,
+        // The hash the first write left, so the inverse is not refused as stale
+        // by its own predecessor.
+        write: write(result.ticket.contentHash, options.inverse),
+        onWritten: (undone) =>
+          applyLocalWrite(undone.ticket, undone.generation),
+        toast: () => options.inverseToast,
+        review: () => openTicket(ticket.key),
+      }),
+      failure: options.failure,
+      // A conflict here cannot reach the panel's banner — these writes outlive
+      // any panel — so the offer is to open the ticket and read the file as it
+      // now is.
+      review: () => openTicket(ticket.key),
+    };
+  }
+
+  /**
+   * The `P` menu on a focused card. The panel has `save()` over the same seam;
+   * a card on the board is outside it, so this goes to `mutate()` directly.
+   */
+  function changePriority(ticket: IndexedTicket, next: TicketPriority) {
+    const projectId = activeProjectId;
+    if (!projectId || next === ticket.priority) return;
+
+    void mutate(
+      editMutation({
+        projectId,
+        ticket,
+        optimistic: { priority: next },
+        edit: { priority: next },
+        inverse: { priority: ticket.priority },
+        toast: `${ticket.key} → ${priorityLabel(next)}`,
+        inverseToast: `${ticket.key} back to ${priorityLabel(ticket.priority)}`,
+      }),
+    );
+  }
+
+  /**
+   * A card dropped somewhere else in its column (ADR 0003). The board allocates
+   * the rank — LongClaw owns rank allocation in v0 — and this writes it, the
+   * same way the `P` menu's pick is written.
+   *
+   * The inverse is the rank the card had, and a card that had none is put back
+   * to having none: `TicketEdit.rank` takes `null` to clear the key. Nothing
+   * else in the app ever sends that, because leaving Manual mode is a view
+   * preference and must not rewrite a file.
+   */
+  function reorderTicket(ticket: IndexedTicket, rank: string) {
+    const projectId = activeProjectId;
+    if (!projectId || rank === ticket.rank) return;
+
+    void mutate(
+      editMutation({
+        projectId,
+        ticket,
+        optimistic: { rank },
+        edit: { rank },
+        inverse: { rank: ticket.rank ?? null },
+        toast: `${ticket.key} moved`,
+        inverseToast: `${ticket.key} back where it was`,
+        failure: (error) =>
+          `${ticket.key} could not be moved. ${error.message}`,
+      }),
+    );
+  }
+
+  /**
+   * Archive and unarchive (ADR 0004): a date in the frontmatter, never a move
+   * and never a delete. It is raised here rather than through the panel's
+   * `save()` because archiving closes the panel — the toast, its Undo, the
+   * revert a failed write owes, and the conflict a stale hash would raise all
+   * have to outlive the component that asked for them, and this one does.
+   */
+  function setArchived(ticket: IndexedTicket, archived: boolean) {
+    const projectId = activeProjectId;
+    // `TicketDocument::apply` refuses an edit that changes nothing.
+    if (!projectId || archived === isArchived(ticket)) return;
+    // Archiving hides the ticket, so the panel it was raised from goes with it;
+    // unarchiving puts it back on the board and leaves the panel open
+    // (`screen-specs.md:164-168`).
+    if (archived) {
+      closeTicket();
+      focusSurface();
     }
+
+    void mutate(
+      editMutation({
+        projectId,
+        ticket,
+        // The card leaves the board now. The timestamp is a guess only until the
+        // write returns with the one Rust actually recorded.
+        optimistic: {
+          archivedAt: archived ? new Date().toISOString() : undefined,
+        },
+        edit: { archived },
+        // Genuinely clean, unlike undoing a create: the inverse of an archive is
+        // an unarchive, and the file ends where it started.
+        inverse: { archived: !archived },
+        toast: `${ticket.key} ${archived ? "archived" : "unarchived"}`,
+        inverseToast: `${ticket.key} ${archived ? "unarchived" : "archived"}`,
+        failure: (error) =>
+          `${ticket.key} could not be ${archived ? "archived" : "unarchived"}. ${error.message}`,
+      }),
+    );
   }
 
   return (
@@ -525,6 +942,11 @@ export function App() {
                 >
                   Locate folder
                 </button>
+                <ProjectLabels
+                  project={project}
+                  onUpdated={upsertProject}
+                  onError={setError}
+                />
                 <button
                   className="danger"
                   onClick={() => void forgetProject(project.id)}
@@ -561,9 +983,32 @@ export function App() {
                 <div className="board-heading">
                   <div>
                     <p className="eyebrow">GENERATION {generation}</p>
-                    <h2>Board</h2>
+                    <h2>{view === "board" ? "Board" : "List"}</h2>
                   </div>
                   <div className="toolbar-actions">
+                    {/* `screen-specs.md:47-48` orders the content header:
+                        filter field, then ordering control, then view segment. */}
+                    <input
+                      ref={filterField}
+                      className="filter-field"
+                      type="text"
+                      value={filterQuery}
+                      aria-label="Filter tickets"
+                      placeholder="Filter tickets"
+                      onChange={(event) => setFilterQuery(event.target.value)}
+                    />
+                    <div className="ordering-control">
+                      <span>Order</span>
+                      <MenuButton
+                        label="Order"
+                        options={ORDERINGS}
+                        value={ordering}
+                        footnote={ORDERING_FOOTNOTE}
+                        onPick={(next) => setBoardOrdering(project.id, next)}
+                      />
+                    </div>
+                    <ViewSegment view={view} onChange={setView} />
+                    <WriteIndicator />
                     <span
                       className={
                         loading || reconciling
@@ -590,7 +1035,7 @@ export function App() {
                     </button>
                     <button
                       className="primary"
-                      onClick={() => setTicketFormOpen(true)}
+                      onClick={() => setCreateSurface("quick")}
                     >
                       New ticket
                     </button>
@@ -598,18 +1043,52 @@ export function App() {
                 </div>
 
                 {tickets.length === 0 ? (
+                  // A project with no tickets is the empty-project state, not a
+                  // filter state, whatever is in the field.
                   <EmptyBoard
                     project={project}
-                    onCreate={() => setTicketFormOpen(true)}
+                    onCreate={() => setCreateSurface("quick")}
                   />
                 ) : (
-                  <Board
-                    tickets={tickets}
-                    selectedKey={selectedKey}
-                    marks={externalMarks}
-                    now={now}
-                    onSelect={openTicket}
-                  />
+                  <>
+                    {noMatches && (
+                      <NoMatches
+                        query={filterQuery}
+                        unreadable={unreadableShown}
+                        onClear={clearFilter}
+                      />
+                    )}
+                    {view === "board" ? (
+                      <Board
+                        tickets={visibleTickets}
+                        selectedKey={selectedKey}
+                        marks={externalMarks}
+                        labels={project.labels}
+                        ordering={ordering}
+                        // Six empty columns beside a "No matches" panel is the
+                        // empty board the designed state exists to replace.
+                        scaffold={!noMatches}
+                        now={now}
+                        onSelect={openTicket}
+                        onChangePriority={changePriority}
+                        onReorder={reorderTicket}
+                      />
+                    ) : (
+                      // Both surfaces are projections of the same store state
+                      // and hold no rows of their own, which is what makes them
+                      // agree after an app edit, a file edit, a restart, or a
+                      // rebuild — and now after a query.
+                      <IssueList
+                        tickets={visibleTickets}
+                        selectedKey={selectedKey}
+                        marks={externalMarks}
+                        labels={project.labels}
+                        ordering={ordering}
+                        now={now}
+                        onSelect={openTicket}
+                      />
+                    )}
+                  </>
                 )}
               </section>
             )}
@@ -617,30 +1096,83 @@ export function App() {
         )}
       </section>
 
-      {project && activeProjectId && selectedKey && project.reachable && (
-        <TicketPanel
-          projectId={activeProjectId}
-          ticketKey={selectedKey}
-          mark={externalMarks[selectedKey]}
-          reloadSignal={panelReload}
-          now={now}
-          onClose={() => closeTicket(selectedKey)}
-          onWrite={(result) =>
-            applyLocalWrite(result.ticket, result.generation)
-          }
-          onError={setError}
+      {/* Create mode takes the panel's place rather than stacking on it: they
+          are the same surface in two modes, not two overlays. */}
+      {project &&
+        activeProjectId &&
+        selectedKey &&
+        project.reachable &&
+        createSurface !== "full" && (
+          <TicketPanel
+            projectId={activeProjectId}
+            ticketKey={selectedKey}
+            labels={project.labels}
+            mark={externalMarks[selectedKey]}
+            reloadSignal={panelReload}
+            now={now}
+            archived={openRow !== undefined && isArchived(openRow)}
+            onClose={() => closeTicket(selectedKey)}
+            onArchive={(archived) => {
+              if (openRow?.state === "indexed") setArchived(openRow, archived);
+            }}
+            onWrite={(result) =>
+              applyLocalWrite(result.ticket, result.generation)
+            }
+            onError={setError}
+          />
+        )}
+
+      {project && activeProjectId && createSurface === "quick" && (
+        <QuickCreate
+          projectName={project.name}
+          provisionalKey={nextKey}
+          onCancel={closeCreateSurface}
+          onCreate={submitNewTicket}
+          onOpenFullEditor={(draft) => {
+            setCarriedDraft(draft);
+            setCreateSurface("full");
+          }}
         />
       )}
 
-      {project && activeProjectId && ticketFormOpen && (
-        <QuickCreate
-          projectKey={project.key}
-          submitting={creating}
-          onCancel={() => setTicketFormOpen(false)}
-          onCreate={(request) => void submitNewTicket(request)}
+      {project && activeProjectId && createSurface === "full" && (
+        <CreatePanel
+          provisionalKey={nextKey}
+          labels={project.labels}
+          initialTitle={carriedDraft?.title}
+          initialStatus={carriedDraft?.status}
+          onCancel={closeCreateSurface}
+          onCreate={(request) => submitNewTicket(request, { openPanel: true })}
         />
       )}
+
+      <ToastStack />
     </main>
+  );
+}
+
+/**
+ * The Board | List segment in the content header (`screen-specs.md:49`). A pair
+ * of buttons rather than a radio group: each one is a place to go, and `pressed`
+ * is what says which one you are standing in.
+ */
+function ViewSegment(props: {
+  view: "board" | "list";
+  onChange: (view: "board" | "list") => void;
+}) {
+  return (
+    <div className="view-segment" role="group" aria-label="View">
+      {(["board", "list"] as const).map((id) => (
+        <button
+          key={id}
+          className={props.view === id ? "selected" : ""}
+          aria-pressed={props.view === id}
+          onClick={() => props.onChange(id)}
+        >
+          {id === "board" ? "Board" : "List"}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -699,6 +1231,179 @@ function ProjectSection(props: {
   );
 }
 
+/**
+ * Label definitions, which are project data rather than ticket data
+ * (`file_format.md:213-231`). `screen-specs.md` § Project settings never
+ * mentions them, so they sit in the panel that already owns the project file's
+ * other fields: the name, the theme, and the folder.
+ *
+ * Nothing here writes a ticket. A slug is not editable — it is what every ticket
+ * carrying the label stores — and removing a definition leaves the slug where it
+ * is, to be rendered as itself.
+ */
+function ProjectLabels(props: {
+  project: ProjectReference;
+  onUpdated: (project: ProjectReference) => void;
+  onError: (error: AppError) => void;
+}) {
+  const [slug, setSlug] = useState("");
+  const [name, setName] = useState("");
+  const [color, setColor] = useState<string>(LABEL_COLORS[0]);
+  const definitions = Object.entries(props.project.labels);
+
+  /** Every write here returns the project as the file now reads. */
+  async function run(write: () => Promise<ProjectReference>) {
+    try {
+      props.onUpdated(await write());
+      return true;
+    } catch (error) {
+      // Rust owns the slug grammar and the name and colour rules, so its
+      // refusal is the message — this never guesses at one of its own.
+      props.onError(normalizeError(error));
+      return false;
+    }
+  }
+
+  return (
+    <section className="label-settings" aria-label="Labels">
+      <h3>Labels</h3>
+      {definitions.length === 0 && (
+        <p>No labels are defined in this project&apos;s longclaw.yaml yet.</p>
+      )}
+      {definitions.map(([definedSlug, label]) => (
+        <LabelDefinition
+          // Keyed by its values, so a row's drafts follow what landed on disk.
+          key={`${definedSlug}:${label.name}:${label.color}`}
+          slug={definedSlug}
+          label={label}
+          onSave={(next) =>
+            void run(() =>
+              updateProjectLabel({
+                projectId: props.project.id,
+                slug: definedSlug,
+                ...next,
+              }),
+            )
+          }
+          onRemove={() =>
+            void run(() =>
+              removeProjectLabel({
+                projectId: props.project.id,
+                slug: definedSlug,
+              }),
+            )
+          }
+        />
+      ))}
+      <form
+        className="label-row"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!slug.trim() || !name.trim()) return;
+          void (async () => {
+            const added = await run(() =>
+              addProjectLabel({
+                projectId: props.project.id,
+                slug: slug.trim(),
+                name: name.trim(),
+                color,
+              }),
+            );
+            if (!added) return;
+            setSlug("");
+            setName("");
+          })();
+        }}
+      >
+        <input
+          value={slug}
+          aria-label="New label slug"
+          placeholder="slug"
+          onChange={(event) => setSlug(event.target.value)}
+        />
+        <input
+          value={name}
+          aria-label="New label name"
+          placeholder="Display name"
+          onChange={(event) => setName(event.target.value)}
+        />
+        <ColorSelect
+          label="New label color"
+          value={color}
+          onChange={setColor}
+        />
+        <button className="secondary" type="submit">
+          Add label
+        </button>
+      </form>
+    </section>
+  );
+}
+
+/** One definition. The slug is shown as what it is: a key, not a field. */
+function LabelDefinition(props: {
+  slug: string;
+  label: Label;
+  onSave: (next: { name: string; color: string }) => void;
+  onRemove: () => void;
+}) {
+  const [name, setName] = useState(props.label.name);
+  const [color, setColor] = useState(props.label.color);
+  const unchanged =
+    name.trim() === props.label.name && color === props.label.color;
+  return (
+    <div className="label-row">
+      <code>{props.slug}</code>
+      <input
+        value={name}
+        aria-label={`Name of label ${props.slug}`}
+        onChange={(event) => setName(event.target.value)}
+      />
+      <ColorSelect
+        label={`Color of label ${props.slug}`}
+        value={color}
+        onChange={setColor}
+      />
+      <button
+        className="secondary"
+        disabled={unchanged}
+        onClick={() => props.onSave({ name: name.trim(), color })}
+      >
+        {`Save label ${props.slug}`}
+      </button>
+      <button className="danger" onClick={props.onRemove}>
+        {`Remove label ${props.slug}`}
+      </button>
+    </div>
+  );
+}
+
+/** The eight ramp hues (D12), which are the only colours a label may take. */
+function ColorSelect(props: {
+  label: string;
+  value: string;
+  onChange: (color: string) => void;
+}) {
+  return (
+    <select
+      aria-label={props.label}
+      value={props.value}
+      onChange={(event) => props.onChange(event.target.value)}
+    >
+      {/* A colour the ramp does not hold still has to be selectable, or saving
+          an unrelated rename would silently recolour the label. */}
+      {!LABEL_COLORS.includes(props.value as (typeof LABEL_COLORS)[number]) && (
+        <option value={props.value}>{props.value}</option>
+      )}
+      {LABEL_COLORS.map((color) => (
+        <option key={color} value={color}>
+          {color}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 function Welcome(props: {
   onCreate: (draft: ProjectDraft) => void;
   onOpen: () => void;
@@ -740,6 +1445,44 @@ function EmptyBoard(props: {
       </p>
       <button className="primary" onClick={props.onCreate}>
         New ticket
+      </button>
+    </div>
+  );
+}
+
+/**
+ * The no-match state (`states.md:37-41`, `screen-specs.md:130-131`): a centered
+ * panel, the query echoed back, and a secondary Clear filter that `Esc` also
+ * reaches. Built beside `EmptyBoard` and wearing its treatment, because both
+ * answer the same question — why is there nothing here?
+ *
+ * `role="status"` because a filter that empties the screen without saying so is
+ * hostile to a screen-reader user; it is named, so it is distinguishable from the
+ * toast stack, which is a live region too.
+ */
+function NoMatches(props: {
+  query: string;
+  /** Unreadable files still on screen, which the filter never hides. */
+  unreadable: number;
+  onClear: () => void;
+}) {
+  return (
+    <div className="no-matches" role="status" aria-label="No matches">
+      <strong>No matches</strong>
+      <p>
+        Nothing here matches <code>{props.query}</code>.
+      </p>
+      {props.unreadable > 0 && (
+        <p>
+          {props.unreadable === 1
+            ? "1 unreadable file is"
+            : `${props.unreadable} unreadable files are`}{" "}
+          still shown: a file this build cannot parse has no text to match, so
+          the filter never hides one.
+        </p>
+      )}
+      <button className="secondary" onClick={props.onClear}>
+        Clear filter
       </button>
     </div>
   );

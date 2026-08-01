@@ -5,12 +5,13 @@
 //! matter: fields are camelCase, and a ticket row says whether it is readable
 //! instead of faking a title and status for a file that is not.
 
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
 use super::error::Diagnostic;
-use super::project::Project;
+use super::project::{Label, Project};
 use super::storage::NewTicket;
 use super::ticket::{Actor, FieldChange, Priority, Status, Ticket, TicketEdit};
 
@@ -28,6 +29,15 @@ pub struct ProjectReference {
     #[serde(default)]
     pub starred: bool,
     pub reachable: bool,
+    /// Label definitions keyed by slug, so every surface holding a project
+    /// reference can render a chip for a slug a ticket carries.
+    ///
+    /// `longclaw.yaml` is the source of truth: the registry rebuilds this from the
+    /// file whenever the folder is readable, and the persisted copy only has to
+    /// carry an unreachable project. `default` is what lets a registry file
+    /// written before this field existed still load.
+    #[serde(default)]
+    pub labels: BTreeMap<String, Label>,
 }
 
 impl ProjectReference {
@@ -40,6 +50,7 @@ impl ProjectReference {
             theme: project.theme.clone(),
             starred: false,
             reachable: true,
+            labels: project.labels.clone(),
         }
     }
 }
@@ -345,8 +356,9 @@ mod json_contract_tests {
     use serde_json::Value;
 
     use super::{
-        ActivitySummary, DegradedRow, EventSource, IndexedRow, ProjectEvent, ProjectReference,
-        ProjectSnapshot, RebuildReason, StreamEnvelope, StreamFrame, StreamKind, TicketRow,
+        ActivitySummary, BTreeMap, DegradedRow, EventSource, IndexedRow, Label, ProjectEvent,
+        ProjectReference, ProjectSnapshot, RebuildReason, StreamEnvelope, StreamFrame, StreamKind,
+        TicketRow,
     };
     use crate::core::ticket::{Actor, ActorType, Priority, Status};
     use crate::core::{Diagnostic, ErrorCode};
@@ -416,6 +428,13 @@ mod json_contract_tests {
             theme: "indigo".to_owned(),
             starred: false,
             reachable: true,
+            labels: BTreeMap::from([(
+                "reliability".to_owned(),
+                Label {
+                    name: "Reliability".to_owned(),
+                    color: "amber".to_owned(),
+                },
+            )]),
         }
     }
 

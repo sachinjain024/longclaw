@@ -153,7 +153,9 @@ chip, which own the soft-fill register.
 - **Agent:** square tile, 26px, radius `--lc-radius-tile` (4px), bg
   `--lc-tile` (near-black in both appearances — a terminal window in
   miniature), `❯` in mono 11px/600 `accent-agent`, ring 1.5px
-  `accent-agent-avatar-ring`. **Never appears in the assignee slot.**
+  `accent-agent-avatar-ring`. **Never stands in for a person** — and v0 has
+  no assignee slot for it to stand in at all (ADR 0001); the rule returns
+  with team projects.
 
 ## Board card
 
@@ -161,8 +163,9 @@ Width min `--lc-size-card-width-min` (240px), padding 10px 12px, radius 8px,
 bg `surface`, border 1px `line`, shadow `--lc-shadow-card` (none in dark).
 Rows: mono ID (11px, `ink-3`) + spacer + priority glyph · title (13px/500
 `ink`, 1.35, max 2 lines) · footer: status glyph, labels, checklist `3/7`
-(mono 10.5px) + 44×3px progress track (`wash` track, fill see below), spacer,
-assignee avatar 20px.
+(mono 10.5px) + 44×3px progress track (`wash` track, fill see below). No
+assignee avatar and no trailing avatar slot — v0 is local mode and has no
+assignee (ADR 0001).
 
 | State | Treatment |
 |---|---|
@@ -205,8 +208,24 @@ viewed. Checking animates at `--lc-motion-state`.
 - **Change events** (status, checklist, description edits): single 12px glyph
   + one line 12px `ink-2`, actor name in its accent text color. Agent
   description edits log as events ("edited the description"); expandable
-  diff later.
+  diff later. An agent's change also carries the rail and the `AGENT` badge
+  inline after the name, and the `via file edit` meta — see the note below.
 - Composer: standard input foundations; posting is optimistic.
+
+**Note (V0-13, 2026-08-01) — this section and `states.md:169` disagree, and
+here is how the build reads them.** `states.md:169` says every external
+mutation lands with "tile avatar, rail, AGENT badge, `via file edit` meta",
+which is not the compact change entry specified above. The reading taken is
+that this file owns *layout* and `states.md` owns *provenance*: a change entry
+has no 26px tile, and it does keep the rail, the badge and the provenance meta.
+The badge is content rather than layout and costs no second line — it sits
+inline after the actor's name. It stays because it is the only channel on a
+change entry that states the actor's **role** in words; the rail and the accent
+name are colour, and D11 does not let a distinction rest on colour alone, while
+the name itself is just a string. A run of agent status changes is where
+"distinguish agent activity from human activity" has to be legible, and it is
+the common case for an agent working a ticket. Full reasoning in
+[plan 19](../../plans/completed/19-merged-timeline.md).
 
 ## Toast & banners
 
@@ -256,9 +275,12 @@ crossfade of accent surfaces only; nothing moves.
 Modal 560px, radius `--lc-radius-modal` (14px), shadow `--lc-shadow-modal`,
 scrim backdrop. Input row 44px (15px type); result rows 36px: glyph 14px,
 name 13px `ink`, kbd hint right-aligned. Selected row `accent-human-soft`.
-v0 commands: create ticket · go to project · change status · assign · search
-tickets · star project · toggle appearance · change project theme · new
-terminal *(Phase 2 slot, present but disabled)*.
+v0 commands: create ticket · go to project · change status · set priority ·
+search tickets · star project · toggle appearance · change project theme ·
+archive/unarchive ticket · change board ordering · switch board/list view · new
+terminal *(Phase 2 slot, present but disabled)*. No **assign** command — v0 is
+local mode and has no assignee (ADR 0001). The four commands added beyond the
+original D14 set are Proposal P1, accepted on 2026-08-01.
 
 ## Shortcuts (v0 set)
 
@@ -267,7 +289,6 @@ terminal *(Phase 2 slot, present but disabled)*.
 | `⌘K` | Command palette |
 | `C` | Create ticket (quick create) |
 | `S` | Change status of focused ticket |
-| `A` | Assign focused ticket |
 | `P` | Set priority of focused ticket |
 | `↑↓` / `J K` | Move focus in lists and columns |
 | `←→` / `H L` | Move focus across board columns |
@@ -278,7 +299,8 @@ terminal *(Phase 2 slot, present but disabled)*.
 
 Single-key shortcuts suspend while any input has focus. Every shortcut is
 discoverable in the palette; kbd chips render in primary buttons and palette
-rows.
+rows. `A` is reserved, not bound — assignment does not exist in local mode
+(ADR 0001); the key returns with team projects.
 
 ## Empty & first-run states
 

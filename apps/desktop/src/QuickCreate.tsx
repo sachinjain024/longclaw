@@ -1,33 +1,36 @@
 /**
- * Creating a ticket: the smallest path that defines a title, description,
- * checklist, and status, and writes one `ticket.md` for it.
+ * Quick create: title and status, and nothing else (`screen-specs.md:198-207`).
+ *
+ * It used to ask for six fields, which made it the only create surface and made
+ * it the wrong one — labels in particular were a comma-separated text box, typed
+ * against definitions the project keeps in `longclaw.yaml` and the app has had a
+ * real menu for since V0-10. Everything past title and status now lives in full
+ * create, and **Open full editor →** carries the typed title there.
  *
  * The key is not asked for. Rust allocates it from the project's own directory
- * names, so two creations cannot claim the same one.
+ * names, so two creations cannot claim the same one; the context line shows the
+ * next one as a guess.
  */
 
 import { useState } from "react";
-import { STATUSES, checklistFromLines } from "./tickets";
-import type {
-  CreateTicketRequest,
-  TicketPriority,
-  TicketStatus,
-} from "./types";
+import { MenuButton } from "./Menu";
+import { STATUS_OPTIONS } from "./metaOptions";
+import type { CreateTicketRequest, TicketStatus } from "./types";
 
 interface QuickCreateProps {
-  projectKey: string;
-  submitting: boolean;
+  projectName: string;
+  /** The key the create is about to be given, read off the rows on screen. */
+  provisionalKey: string;
   onCancel: () => void;
+  /** Fires and forgets: the create is optimistic, so the modal never waits. */
   onCreate: (request: Omit<CreateTicketRequest, "projectId">) => void;
+  /** Hands what has been typed to full create, rather than throwing it away. */
+  onOpenFullEditor: (draft: { title: string; status: TicketStatus }) => void;
 }
 
 export function QuickCreate(props: QuickCreateProps) {
   const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [checklistText, setChecklistText] = useState("");
   const [status, setStatus] = useState<TicketStatus>("todo");
-  const [priority, setPriority] = useState<TicketPriority>("none");
-  const [labelsText, setLabelsText] = useState("");
 
   return (
     <div className="modal-scrim" role="presentation">
@@ -40,92 +43,43 @@ export function QuickCreate(props: QuickCreateProps) {
         onSubmit={(event) => {
           event.preventDefault();
           if (!title.trim()) return;
-          props.onCreate({
-            title: title.trim(),
-            description: description.trim(),
-            status,
-            priority,
-            labels: labelsText
-              .split(",")
-              .map((label) => label.trim())
-              .filter(Boolean),
-            checklist: checklistFromLines(checklistText),
-          });
+          props.onCreate({ title: title.trim(), status });
         }}
       >
-        <p className="eyebrow">NEW TICKET IN {props.projectKey}</p>
-        <label>
-          <span>Title</span>
-          <input
-            autoFocus
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-          />
-        </label>
-        <label>
-          <span>Description</span>
-          <textarea
-            value={description}
-            rows={5}
-            onChange={(event) => setDescription(event.target.value)}
-          />
-        </label>
-        <label>
-          <span>Checklist — one item per line</span>
-          <textarea
-            value={checklistText}
-            rows={3}
-            onChange={(event) => setChecklistText(event.target.value)}
-          />
-        </label>
-        <label>
-          <span>Status</span>
-          <select
+        <p className="eyebrow">
+          {props.projectName} · {props.provisionalKey}
+        </p>
+        {/* Borderless, and its own label: the modal has no visible field
+            names, so the accessible name is the only one there is. */}
+        <input
+          className="quick-create-title"
+          autoFocus
+          value={title}
+          aria-label="Title"
+          placeholder="Ticket title"
+          onChange={(event) => setTitle(event.target.value)}
+        />
+        <div className="quick-create-meta">
+          <MenuButton
+            label="Status"
+            options={STATUS_OPTIONS}
             value={status}
-            onChange={(event) => setStatus(event.target.value as TicketStatus)}
-          >
-            {STATUSES.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Priority</span>
-          <select
-            value={priority}
-            onChange={(event) =>
-              setPriority(event.target.value as TicketPriority)
+            onPick={setStatus}
+          />
+        </div>
+        <div className="editor-footer">
+          <button
+            className="ghost"
+            type="button"
+            onClick={() =>
+              props.onOpenFullEditor({ title: title.trim(), status })
             }
           >
-            <option value="urgent">Urgent</option>
-            <option value="p1">P1</option>
-            <option value="p2">P2</option>
-            <option value="p3">P3</option>
-            <option value="p4">P4</option>
-            <option value="none">None</option>
-          </select>
-        </label>
-        <label>
-          <span>Labels — comma separated</span>
-          <input
-            value={labelsText}
-            placeholder="backend, reliability"
-            onChange={(event) => setLabelsText(event.target.value)}
-          />
-        </label>
-        <div className="editor-footer">
-          <code>writes .longclaw/tickets/{props.projectKey}-n/ticket.md</code>
-          <button className="ghost" type="button" onClick={props.onCancel}>
-            Cancel
+            Open full editor →
           </button>
-          <button
-            className="primary"
-            type="submit"
-            disabled={props.submitting || !title.trim()}
-          >
-            Create ticket
+          <code>↵ create · esc cancel</code>
+          <button className="primary" type="submit" disabled={!title.trim()}>
+            Create
           </button>
         </div>
       </form>

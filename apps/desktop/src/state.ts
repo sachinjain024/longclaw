@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { ExternalMarks } from "./freshness";
 import { externalMark, pruneMarks } from "./freshness";
+import type { OrderingMode } from "./ordering";
 import type {
   AppError,
   ProjectReference,
@@ -14,6 +15,12 @@ interface LongClawState {
   projects: ProjectReference[];
   activeProjectId?: string;
   appearance: "light" | "dark" | "system";
+  /**
+   * Priority or Manual per project (ADR 0003). A view preference and never
+   * project data, so it is keyed by project id and lives beside `appearance`
+   * rather than anywhere near a file: switching it writes nothing.
+   */
+  boardOrdering: Record<string, OrderingMode>;
   tickets: TicketRow[];
   generation: number;
   lastSequence: number;
@@ -43,6 +50,7 @@ interface LongClawState {
   markProjectReachable: (projectId: string, reachable: boolean) => void;
   setActiveProjectId: (projectId?: string) => void;
   setAppearance: (appearance: "light" | "dark" | "system") => void;
+  setBoardOrdering: (projectId: string, ordering: OrderingMode) => void;
   applySnapshot: (snapshot: ProjectSnapshot) => void;
   applyEvent: (envelope: StreamEnvelope, observedAt?: number) => void;
   /**
@@ -52,6 +60,17 @@ interface LongClawState {
    */
   reconcileFailed: () => void;
   applyLocalWrite: (ticket: TicketRow, generation: number) => void;
+  /**
+   * Shows a row the app is about to write. Not a disk fact, so it carries no
+   * generation: the write that follows either replaces it with what Rust
+   * allocated or `removeTicket` takes it back.
+   */
+  addProvisionalTicket: (ticket: TicketRow) => void;
+  /**
+   * Takes a row off the board. Reverting an optimistic create is the only caller
+   * today; a real removal still arrives as a `ticketRemoved` event.
+   */
+  removeTicket: (ticketKey: string) => void;
   /** Opening a ticket is the review that decays its acknowledgement. */
   reviewTicket: (ticketKey: string) => void;
   sweepMarks: (now: number) => void;
@@ -74,6 +93,7 @@ function without(marks: ExternalMarks, ticketKey: string): ExternalMarks {
 export const useLongClawStore = create<LongClawState>((set, get) => ({
   projects: [],
   appearance: "system",
+  boardOrdering: {},
   tickets: [],
   generation: 0,
   lastSequence: 0,
@@ -119,6 +139,10 @@ export const useLongClawStore = create<LongClawState>((set, get) => ({
       error: undefined,
     }),
   setAppearance: (appearance) => set({ appearance }),
+  setBoardOrdering: (projectId, ordering) =>
+    set((state) => ({
+      boardOrdering: { ...state.boardOrdering, [projectId]: ordering },
+    })),
   applySnapshot: (snapshot) =>
     set((state) => {
       const switchingProject = state.activeProjectId !== snapshot.project.id;
@@ -228,6 +252,18 @@ export const useLongClawStore = create<LongClawState>((set, get) => ({
       // been seen by definition.
       externalMarks: without(state.externalMarks, ticket.key),
       error: undefined,
+    })),
+  addProvisionalTicket: (ticket) =>
+    set((state) => ({
+      tickets: [
+        ...state.tickets.filter((item) => item.key !== ticket.key),
+        ticket,
+      ].sort(byKey),
+    })),
+  removeTicket: (ticketKey) =>
+    set((state) => ({
+      tickets: state.tickets.filter((ticket) => ticket.key !== ticketKey),
+      externalMarks: without(state.externalMarks, ticketKey),
     })),
   reviewTicket: (ticketKey) =>
     set((state) => ({

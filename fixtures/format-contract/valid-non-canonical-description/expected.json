@@ -1,0 +1,12 @@
+{
+  "summary": "A description written in styles the app never emits — setext, mixed bullet markers, a tab indent, trailing-space hard breaks, and constructs the preview does not render — reads whole and is never rewritten.",
+  "key": "LC-99",
+  "outcome": "valid",
+  "ticket": {
+    "title": "A description nobody canonicalized",
+    "status": "todo",
+    "priority": "p2",
+    "historyIncomplete": false,
+    "recordDiagnostics": []
+  }
+}

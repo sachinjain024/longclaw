@@ -99,6 +99,44 @@ impl Mapping {
         });
     }
 
+    /// Sets one field of one child of a nested mapping — `labels` → `storage` →
+    /// `name` — creating the child, or the mapping itself, when it is not there
+    /// yet. Every other child keeps its bytes, and so does every other line of
+    /// the edited child, which is what lets a label rename leave a key this build
+    /// does not interpret exactly where its author put it.
+    pub fn set_nested_scalar(
+        &mut self,
+        key: &str,
+        child: &str,
+        field: &str,
+        value: &str,
+        after: &[&str],
+    ) {
+        let mut nested = self.nested(key);
+        nested.set_field(child, field, value);
+        self.set_block(key, nested.render(key), after);
+    }
+
+    /// Removes one child of a nested mapping. An emptied mapping collapses to
+    /// flow style rather than losing its key, because a bare `key:` reads back as
+    /// null and would stop the file parsing.
+    pub fn remove_nested(&mut self, key: &str, child: &str) {
+        let mut nested = self.nested(key);
+        if nested.remove_child(child) {
+            self.set_block(key, nested.render(key), &[]);
+        }
+    }
+
+    fn nested(&self, key: &str) -> NestedMapping {
+        self.blocks
+            .iter()
+            .find_map(|block| match block {
+                Block::Entry { key: name, raw } if name == key => Some(NestedMapping::parse(raw)),
+                _ => None,
+            })
+            .unwrap_or_default()
+    }
+
     fn set_block(&mut self, key: &str, rendered: String, after: &[&str]) {
         let existing = self.blocks.iter_mut().find(|block| match block {
             Block::Entry { key: name, .. } => name == key,
@@ -123,6 +161,123 @@ impl Mapping {
             None => self.blocks.push(block),
         }
     }
+}
+
+/// The children of one top-level entry whose value is a mapping, such as
+/// `labels:`. Each child owns the exact bytes of its own block, so an edit to one
+/// of them is the only thing that changes.
+#[derive(Debug, Default)]
+struct NestedMapping {
+    /// Comments and blank lines between the key and its first child.
+    preamble: String,
+    children: Vec<(String, String)>,
+    /// The indentation the file already uses, so an edit matches the surrounding
+    /// file rather than imposing its own.
+    child_indent: Option<usize>,
+    field_indent: Option<usize>,
+}
+
+impl NestedMapping {
+    /// Splits a whole entry block, header line included, into its children.
+    fn parse(raw: &str) -> Self {
+        let mut nested = Self::default();
+        for (_, line) in lines_with_endings(raw).into_iter().skip(1) {
+            let indent = indent_of(line);
+            let opens_child = !is_ignorable(line)
+                && nested
+                    .child_indent
+                    .is_none_or(|expected| indent == expected)
+                && line.trim_start().split_once(':').is_some();
+            if opens_child {
+                nested.child_indent.get_or_insert(indent);
+                let key = line
+                    .trim()
+                    .split_once(':')
+                    .map_or_else(String::new, |(key, _)| key.trim_end().to_owned());
+                nested.children.push((key, line.to_owned()));
+                continue;
+            }
+            if !is_ignorable(line) && !nested.children.is_empty() {
+                nested.field_indent.get_or_insert(indent);
+            }
+            match nested.children.last_mut() {
+                Some((_, block)) => block.push_str(line),
+                None => nested.preamble.push_str(line),
+            }
+        }
+        nested
+    }
+
+    fn render(&self, key: &str) -> String {
+        let mut rendered = if self.children.is_empty() {
+            format!("{key}: {{}}\n")
+        } else {
+            format!("{key}:\n")
+        };
+        rendered.push_str(&self.preamble);
+        for (_, block) in &self.children {
+            rendered.push_str(block);
+        }
+        rendered
+    }
+
+    fn set_field(&mut self, child: &str, field: &str, value: &str) {
+        let child_indent = self.child_indent.unwrap_or(2);
+        let field_indent = self.field_indent.unwrap_or(child_indent + 2);
+        let line = format!(
+            "{:field_indent$}{field}: {}\n",
+            "",
+            encode_scalar(value),
+            field_indent = field_indent
+        );
+        match self.children.iter_mut().find(|(name, _)| name == child) {
+            Some((_, block)) => *block = set_child_field(block, field, &line),
+            None => self.children.push((
+                child.to_owned(),
+                format!(
+                    "{:child_indent$}{child}:\n{line}",
+                    "",
+                    child_indent = child_indent
+                ),
+            )),
+        }
+    }
+
+    fn remove_child(&mut self, child: &str) -> bool {
+        let before = self.children.len();
+        self.children.retain(|(name, _)| name != child);
+        self.children.len() != before
+    }
+}
+
+/// Rewrites one field line inside a child's block, or adds it after the last line
+/// that carries content so a new field lands with the fields rather than below a
+/// trailing comment.
+fn set_child_field(block: &str, field: &str, rendered_line: &str) -> String {
+    let lines = lines_with_endings(block);
+    // From index 1: index 0 is the child's own key line, which is not a field.
+    let existing = lines.iter().skip(1).position(|(_, line)| {
+        line.trim_start()
+            .split_once(':')
+            .is_some_and(|(key, _)| key.trim_end() == field)
+    });
+    let last_content = lines.iter().rposition(|(_, line)| !is_ignorable(line));
+    let mut rendered = String::with_capacity(block.len() + rendered_line.len());
+    for (index, (_, line)) in lines.iter().enumerate() {
+        if existing.map(|found| found + 1) == Some(index) {
+            rendered.push_str(rendered_line);
+        } else {
+            rendered.push_str(line);
+        }
+        if existing.is_none() && Some(index) == last_content {
+            rendered.push_str(rendered_line);
+        }
+    }
+    rendered
+}
+
+fn indent_of(line: &str) -> usize {
+    line.len() - line.trim_start_matches(' ').len()
 }
 
 fn render_sequence(key: &str, values: &[String]) -> String {
@@ -427,6 +582,89 @@ mod tests {
                 "  owner: future-version\n",
             )
         );
+    }
+
+    const NESTED: &str = concat!(
+        "name: Representative Project\n",
+        "labels:\n",
+        "  storage:\n",
+        "    name: Storage\n",
+        "    color: blue\n",
+        "    x_note: a key this build does not read\n",
+        "  reliability:\n",
+        "    name: Reliability\n",
+        "people: {}\n",
+    );
+
+    #[test]
+    fn setting_a_nested_field_leaves_every_sibling_untouched() {
+        let mut mapping = Mapping::parse(NESTED).unwrap();
+        mapping.set_nested_scalar("labels", "storage", "name", "Persistence", &["people"]);
+        assert_eq!(
+            mapping.render(),
+            NESTED.replace("    name: Storage\n", "    name: Persistence\n")
+        );
+    }
+
+    #[test]
+    fn a_nested_field_the_child_lacks_joins_the_ones_it_has() {
+        let mut mapping = Mapping::parse(NESTED).unwrap();
+        mapping.set_nested_scalar("labels", "reliability", "color", "amber", &["people"]);
+        assert!(mapping
+            .render()
+            .contains("  reliability:\n    name: Reliability\n    color: amber\npeople: {}\n"));
+    }
+
+    #[test]
+    fn a_nested_child_that_is_not_there_yet_is_appended() {
+        let mut mapping = Mapping::parse(NESTED).unwrap();
+        mapping.set_nested_scalar("labels", "backend", "name", "Backend", &["people"]);
+        assert!(mapping
+            .render()
+            .contains("  backend:\n    name: Backend\npeople: {}\n"));
+    }
+
+    #[test]
+    fn a_nested_mapping_that_is_not_there_yet_lands_after_its_predecessor() {
+        let mut mapping = Mapping::parse("name: Minimal\npeople: {}\n").unwrap();
+        mapping.set_nested_scalar("labels", "backend", "name", "Backend", &["name", "people"]);
+        assert_eq!(
+            mapping.render(),
+            "name: Minimal\npeople: {}\nlabels:\n  backend:\n    name: Backend\n"
+        );
+    }
+
+    #[test]
+    fn a_flow_style_empty_mapping_becomes_a_block_when_it_gains_a_child() {
+        let mut mapping = Mapping::parse("labels: {}\n").unwrap();
+        mapping.set_nested_scalar("labels", "backend", "name", "Backend", &[]);
+        assert_eq!(mapping.render(), "labels:\n  backend:\n    name: Backend\n");
+    }
+
+    #[test]
+    fn removing_a_nested_child_removes_only_that_child() {
+        let mut mapping = Mapping::parse(NESTED).unwrap();
+        mapping.remove_nested("labels", "storage");
+        assert_eq!(
+            mapping.render(),
+            "name: Representative Project\nlabels:\n  reliability:\n    name: Reliability\npeople: {}\n"
+        );
+    }
+
+    /// A bare `labels:` reads back as null rather than as an empty mapping, so the
+    /// last child leaving has to collapse the key to flow style.
+    #[test]
+    fn removing_the_last_nested_child_collapses_to_an_empty_mapping() {
+        let mut mapping = Mapping::parse("labels:\n  storage:\n    name: Storage\n").unwrap();
+        mapping.remove_nested("labels", "storage");
+        assert_eq!(mapping.render(), "labels: {}\n");
+    }
+
+    #[test]
+    fn removing_a_nested_child_that_is_not_there_changes_nothing() {
+        let mut mapping = Mapping::parse(NESTED).unwrap();
+        mapping.remove_nested("labels", "absent");
+        assert_eq!(mapping.render(), NESTED);
     }
 
     #[test]

@@ -7,8 +7,11 @@
 use longclaw_desktop_lib::core::ticket::{Priority, Status};
 use longclaw_desktop_lib::core::{CreateTicketRequest, EditTicketRequest};
 
+/// Full create sends the whole shape (V0-16): every field the design approved,
+/// in one write. This used to be named for quick create, which sent the same
+/// six fields until V0-16 narrowed it to the two below.
 #[test]
-fn the_create_request_the_quick_create_form_sends() {
+fn the_create_request_the_full_create_surface_sends() {
     let json = r#"{
         "projectId": "019c8c31-4d7e-71ad-8997-e67700962b55",
         "title": "Prove the agent round trip",
@@ -29,6 +32,27 @@ fn the_create_request_the_quick_create_form_sends() {
     assert_eq!(request.ticket.checklist.len(), 2);
 }
 
+/// Quick create is title and status and nothing else (`screen-specs.md:198-207`),
+/// so the fields it leaves out have to be genuinely optional on the wire rather
+/// than merely always sent.
+#[test]
+fn the_create_request_quick_create_sends() {
+    let json = r#"{
+        "projectId": "019c8c31-4d7e-71ad-8997-e67700962b55",
+        "title": "Prove the agent round trip",
+        "status": "in_progress"
+    }"#;
+
+    let request: CreateTicketRequest = serde_json::from_str(json).expect("a create request");
+
+    assert_eq!(request.ticket.status, Some(Status::InProgress));
+    // Absent, not empty-and-sent: the defaults are Rust's to apply.
+    assert_eq!(request.ticket.priority, None);
+    assert!(request.ticket.description.is_empty());
+    assert!(request.ticket.labels.is_empty());
+    assert!(request.ticket.checklist.is_empty());
+}
+
 #[test]
 fn every_edit_the_ticket_panel_can_send() {
     for (name, edit) in [
@@ -39,6 +63,10 @@ fn every_edit_the_ticket_panel_can_send() {
             "description",
             r#"{"description":"Rewritten in the panel."}"#,
         ),
+        ("rank", r#"{"rank":"a0V"}"#),
+        // Leaving Manual mode has to be able to put a rank back to absent, and an
+        // absent `rank` already means "leave it alone", so `null` is the clear.
+        ("rank clear", r#"{"rank":null}"#),
         (
             "checklist toggle",
             r#"{"checklist":[{"itemId":"ck_7d2a","checked":true}]}"#,
@@ -60,6 +88,25 @@ fn every_edit_the_ticket_panel_can_send() {
         assert_eq!(request.ticket_key, "LC-1");
         assert_eq!(request.expected_hash, "abc123");
     }
+}
+
+/// `null` and absent are different requests for `rank`, and serde collapses them
+/// into the same `None` unless the field is read as a nested option.
+#[test]
+fn an_absent_rank_leaves_the_rank_alone_and_a_null_rank_clears_it() {
+    let edit = |body: &str| {
+        let json = format!(
+            r#"{{"projectId":"p","ticketKey":"LC-1","expectedHash":"abc123","edit":{body}}}"#
+        );
+        serde_json::from_str::<EditTicketRequest>(&json)
+            .unwrap_or_else(|error| panic!("{body} should deserialize: {error}"))
+            .edit
+            .rank
+    };
+
+    assert_eq!(edit(r#"{"title":"Untouched rank"}"#), None);
+    assert_eq!(edit(r#"{"rank":null}"#), Some(None));
+    assert_eq!(edit(r#"{"rank":"a0V"}"#), Some(Some("a0V".to_owned())));
 }
 
 #[test]

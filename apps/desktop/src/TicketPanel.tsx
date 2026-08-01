@@ -19,22 +19,65 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { editTicket, readTicket } from "./api";
 import { externalEditConflict } from "./attribution";
 import { ConflictBanner } from "./ConflictBanner";
+import { DescriptionEditor } from "./DescriptionEditor";
 import { normalizeError } from "./errors";
 import type { ExternalMark } from "./freshness";
 import { acknowledgement, freshlyChecked } from "./freshness";
-import { STATUSES } from "./tickets";
+import { LabelMenuButton } from "./LabelMenu";
+import { sameLabels } from "./labels";
+import { MarkdownView } from "./MarkdownView";
+import { MenuButton } from "./Menu";
+import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "./metaOptions";
+import { mutate } from "./mutations";
+import { priorityLabel, statusLabel } from "./tickets";
 import { Timeline } from "./Timeline";
 import type {
   AppError,
   ChecklistItem,
+  Label,
   TicketDetail,
   TicketEdit,
+  TicketPriority,
   TicketStatus,
   WriteResult,
 } from "./types";
+import { WriteIndicator } from "./WriteFeedback";
 
-/** How long the header confirms which bytes the panel is showing. */
-const DISK_FLASH_MS = 1_600;
+/**
+ * What a destructive-adjacent change adds to a save: the state it shows before
+ * the write returns, the toast copy, and the edit that takes it back
+ * (`states.md:62-63`). Status and check use it today; priority, archive, and
+ * unarchive are the same shape.
+ */
+export interface SaveFeedback {
+  /** Renders the change now; the returned function puts it back on failure. */
+  apply?: () => () => void;
+  toast?: string;
+  /** The inverse, written the ordinary way against the hash the write returned. */
+  inverse?: TicketEdit;
+  inverseToast?: string;
+}
+
+/**
+ * What the human has changed that the disk has not confirmed yet. The panel
+ * renders these over the file's own values, which is what keeps a pick or a tick
+ * from waiting on IPC.
+ *
+ * One object rather than four states because they are one claim — "this is not
+ * on disk yet" — and they end together every time: a load, a save the conflict
+ * banner blocked, a conflict raised by the write. Four separate resets is four
+ * chances to leave one behind, rendering a value no file holds.
+ */
+interface Pending {
+  /** Checkbox states the human set. Keyed by item id; other items may differ. */
+  checks: Record<string, boolean>;
+  status?: TicketStatus;
+  priority?: TicketPriority;
+  /** The whole list, because a label edit replaces it whole. */
+  labels?: string[];
+}
+
+const NOTHING_PENDING: Pending = { checks: {} };
 
 /**
  * Why the panel is reading the file.
@@ -48,12 +91,24 @@ type LoadMode = "open" | "external" | "local";
 interface TicketPanelProps {
   projectId: string;
   ticketKey: string;
+  /** The project's label definitions. A ticket carries slugs and nothing else. */
+  labels: Record<string, Label>;
   /** An unreviewed external change to this ticket, if there is one. */
   mark?: ExternalMark;
   /** Bumped when an external change to this ticket lands, to re-read the file. */
   reloadSignal: number;
   now: number;
+  /**
+   * Whether the ticket carries an `archived_at` (ADR 0004), taken from the same
+   * store row the board and the list read rather than from the file this panel
+   * last read. Archiving is the one action here whose write is raised outside
+   * the panel — it closes the panel — so this is what lets the optimistic flip
+   * and a failed write's revert reach all three surfaces at once.
+   */
+  archived: boolean;
   onClose: () => void;
+  /** Asks for the flip. The panel writes nothing here; see `archived`. */
+  onArchive: (archived: boolean) => void;
   onWrite: (result: WriteResult) => void;
   onError: (error: AppError) => void;
 }
@@ -73,6 +128,13 @@ export function TicketPanel(props: TicketPanelProps) {
   const [editingDescription, setEditingDescription] = useState(false);
   const [newItem, setNewItem] = useState("");
   const [commentDraft, setCommentDraft] = useState("");
+  /**
+   * A comment already on screen whose write has not returned. Posting is
+   * optimistic (`screen-specs.md:193`), and this is the whole of it: the
+   * timeline draws it as an entry that says it is still posting, and `load`
+   * clears it when the file comes back carrying the real record.
+   */
+  const [pendingComment, setPendingComment] = useState<string>();
   const [saving, setSaving] = useState(false);
   const [conflict, setConflict] = useState<{
     error: AppError;
@@ -80,14 +142,33 @@ export function TicketPanel(props: TicketPanelProps) {
   }>();
   /** Checklist ids an external write ticked, for the agent treatment. */
   const [agentChecked, setAgentChecked] = useState<string[]>([]);
-  /**
-   * Checkbox states the human set that are still being written. Rendering these
-   * over the file's own values is what keeps a tick from waiting on the disk.
-   */
-  const [pendingChecks, setPendingChecks] = useState<Record<string, boolean>>(
-    {},
-  );
-  const [diskFlash, setDiskFlash] = useState(false);
+  const [pending, setPending] = useState<Pending>(NOTHING_PENDING);
+
+  /** Every field the disk has not confirmed goes back to the file's own value. */
+  const clearPending = () => setPending(NOTHING_PENDING);
+
+  /** Shows one picked value now, and returns the function that takes it back. */
+  function hold<Field extends "status" | "priority" | "labels">(
+    field: Field,
+    value: Pending[Field],
+  ): () => void {
+    setPending((current) => ({ ...current, [field]: value }));
+    return () => setPending((current) => ({ ...current, [field]: undefined }));
+  }
+
+  /** The same, for one checkbox: the others may have writes of their own out. */
+  function holdCheck(itemId: string, checked: boolean): () => void {
+    setPending((current) => ({
+      ...current,
+      checks: { ...current.checks, [itemId]: checked },
+    }));
+    return () =>
+      setPending((current) => {
+        const checks = { ...current.checks };
+        delete checks[itemId];
+        return { ...current, checks };
+      });
+  }
 
   /** The checklist as last read, so an external tick can be told from a stale one. */
   const loadedChecklist = useRef<ChecklistItem[]>([]);
@@ -139,7 +220,8 @@ export function TicketPanel(props: TicketPanelProps) {
           : [],
       );
       loadedChecklist.current = checklist;
-      setPendingChecks({});
+      clearPending();
+      setPendingComment(undefined);
       setDetail(next);
 
       const unsaved = mode === "external" ? draftEdit() : undefined;
@@ -189,9 +271,6 @@ export function TicketPanel(props: TicketPanelProps) {
   useEffect(() => {
     if (props.reloadSignal === firstSignal.current) return;
     void load("external");
-    setDiskFlash(true);
-    const timer = setTimeout(() => setDiskFlash(false), DISK_FLASH_MS);
-    return () => clearTimeout(timer);
   }, [props.reloadSignal, load]);
 
   /**
@@ -200,40 +279,63 @@ export function TicketPanel(props: TicketPanelProps) {
    */
   async function save(
     edit: TicketEdit,
-    options?: { resolvesConflict: boolean },
+    options?: { resolvesConflict?: boolean } & SaveFeedback,
   ) {
     if (conflict && !options?.resolvesConflict) {
       // The banner stays up and the optimistic tick snaps back, so nothing
       // pretends to have been written while the conflict is open.
-      setPendingChecks({});
+      clearPending();
       return;
     }
     const hash = detail?.contentHash;
     if (!hash || saving) return;
     setSaving(true);
-    try {
-      const result = await editTicket({
-        projectId,
-        ticketKey,
-        expectedHash: hash,
-        edit,
-      });
-      props.onWrite(result);
-      setConflict(undefined);
-      await load("local");
-      setDiskFlash(true);
-      setTimeout(() => setDiskFlash(false), DISK_FLASH_MS);
-    } catch (error) {
-      const normalized = normalizeError(error);
-      // Rust refuses a stale write the app never saw an event for. Same choice.
-      if (normalized.code === "conflict") {
-        setConflict({ error: normalized, pending: edit });
-      } else {
-        onErrorRef.current(normalized);
-      }
-    } finally {
-      setSaving(false);
-    }
+    const written = await mutate({
+      path: detail?.relativePath,
+      apply: options?.apply,
+      write: () =>
+        editTicket({ projectId, ticketKey, expectedHash: hash, edit }),
+      onWritten: (result) => {
+        props.onWrite(result);
+        setConflict(undefined);
+      },
+      toast: options?.toast === undefined ? undefined : () => options.toast!,
+      undo:
+        options?.inverse === undefined
+          ? undefined
+          : (result) => ({
+              path: result.ticket.relativePath,
+              write: () =>
+                editTicket({
+                  projectId,
+                  ticketKey,
+                  // The hash the first write left behind, so the inverse is not
+                  // refused as stale by its own predecessor.
+                  expectedHash: result.ticket.contentHash,
+                  edit: options.inverse!,
+                }),
+              onWritten: (undone) => {
+                props.onWrite(undone);
+                void load("local");
+              },
+              toast: () => options.inverseToast ?? `${ticketKey} restored`,
+            }),
+      // Rust refuses a stale write the app never saw an event for. That is a
+      // decision for the human, not a failed write, so it never reverts and
+      // never becomes a danger toast.
+      handles: (error) => {
+        if (error.code !== "conflict") return false;
+        setConflict({ error, pending: edit });
+        clearPending();
+        // A conflict never reverts, so the composer has to be given its text
+        // back by hand — the comment was not written and must not vanish.
+        setPendingComment(undefined);
+        if (edit.comment !== undefined) setCommentDraft(edit.comment);
+        return true;
+      },
+    });
+    if (written) await load("local");
+    setSaving(false);
   }
 
   /** Takes the newer file, discarding the drafts that lost. */
@@ -246,10 +348,26 @@ export function TicketPanel(props: TicketPanelProps) {
 
   /** Keeps the human's edit by re-applying it on top of the file as it is now. */
   async function keepMine() {
-    const pending = conflict?.pending;
-    if (!pending) return;
-    await save(pending, { resolvesConflict: true });
+    // The edit the conflict refused, not the panel's `pending` — that was
+    // cleared when the banner went up.
+    const refused = conflict?.pending;
+    if (!refused) return;
+    await save(refused, { resolvesConflict: true });
   }
+
+  /**
+   * Where focus goes when the editor closes: back to the description block
+   * (`keyboard-focus-map.md:86`), but only when the human closed it themselves.
+   * A reload that drops the editor should not steal focus from wherever they
+   * are.
+   */
+  const editButton = useRef<HTMLButtonElement>(null);
+  const returnFocus = useRef(false);
+  useEffect(() => {
+    if (editingDescription || !returnFocus.current) return;
+    returnFocus.current = false;
+    editButton.current?.focus();
+  }, [editingDescription]);
 
   function openDescriptionEditor(description: string) {
     drafts.current.description = description;
@@ -259,22 +377,18 @@ export function TicketPanel(props: TicketPanelProps) {
   }
 
   function closeDescriptionEditor() {
+    returnFocus.current = true;
     drafts.current.editing = false;
     setEditingDescription(false);
   }
 
   /** The file's value, unless the human just clicked and the write is in flight. */
   function isChecked(item: ChecklistItem): boolean {
-    const pending = item.id === undefined ? undefined : pendingChecks[item.id];
-    return pending ?? item.checked;
+    const held = item.id === undefined ? undefined : pending.checks[item.id];
+    return held ?? item.checked;
   }
 
   const ticket = detail?.ticket;
-  const diskState = saving
-    ? `⟳ writing ${detail?.relativePath ?? "ticket.md"}…`
-    : diskFlash
-      ? `✓ ${detail?.relativePath ?? ""}`
-      : detail?.relativePath;
 
   return (
     <aside
@@ -285,18 +399,28 @@ export function TicketPanel(props: TicketPanelProps) {
     >
       <header className="panel-header">
         <span className="ticket-key">{ticketKey}</span>
-        <code
-          className={saving || diskFlash ? "disk-path flashed" : "disk-path"}
-        >
-          {diskState}
-        </code>
-        <button
-          className="ghost"
-          onClick={props.onClose}
-          aria-label="Close ticket"
-        >
-          ✕
-        </button>
+        <WriteIndicator idle={detail?.relativePath} />
+        <div className="panel-header-actions">
+          {props.archived && <span className="archived-chip">archived</span>}
+          {/* A file this build cannot read has no frontmatter to flip. The
+              label is the action, not the state, so it is also the name
+              assistive technology reads. */}
+          {ticket && (
+            <button
+              className="ghost"
+              onClick={() => props.onArchive(!props.archived)}
+            >
+              {props.archived ? "Unarchive" : "Archive"}
+            </button>
+          )}
+          <button
+            className="ghost"
+            onClick={props.onClose}
+            aria-label="Close ticket"
+          >
+            ✕
+          </button>
+        </div>
       </header>
 
       {props.mark && (
@@ -367,19 +491,65 @@ export function TicketPanel(props: TicketPanelProps) {
 
           <div className="meta-grid">
             <span>Status</span>
-            <select
-              value={ticket.status}
-              aria-label="Status"
-              onChange={(event) =>
-                void save({ status: event.target.value as TicketStatus })
-              }
-            >
-              {STATUSES.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <MenuButton
+              label="Status"
+              options={STATUS_OPTIONS}
+              value={pending.status ?? ticket.status}
+              onPick={(next) => {
+                const previous = ticket.status;
+                if (next === previous) return;
+                void save(
+                  { status: next },
+                  {
+                    apply: () => hold("status", next),
+                    toast: `${ticketKey} → ${statusLabel(next)}`,
+                    inverse: { status: previous },
+                    inverseToast: `${ticketKey} back to ${statusLabel(previous)}`,
+                  },
+                );
+              }}
+            />
+            <span>Priority</span>
+            <MenuButton
+              label="Priority"
+              options={PRIORITY_OPTIONS}
+              value={pending.priority ?? ticket.priority}
+              onPick={(next) => {
+                const previous = ticket.priority;
+                if (next === previous) return;
+                void save(
+                  { priority: next },
+                  {
+                    apply: () => hold("priority", next),
+                    toast: `${ticketKey} → ${priorityLabel(next)}`,
+                    inverse: { priority: previous },
+                    inverseToast: `${ticketKey} back to ${priorityLabel(previous)}`,
+                  },
+                );
+              }}
+            />
+            <span>Labels</span>
+            <LabelMenuButton
+              slugs={pending.labels ?? ticket.labels}
+              definitions={props.labels}
+              onToggle={(next, toggled) => {
+                const previous = pending.labels ?? ticket.labels;
+                // `TicketDocument::apply` refuses an edit that changes nothing.
+                if (sameLabels(next, previous)) return;
+                const added = next.includes(toggled.slug);
+                void save(
+                  { labels: next },
+                  {
+                    apply: () => hold("labels", next),
+                    toast: `${ticketKey} ${added ? "labeled" : "unlabeled"} ${toggled.name}`,
+                    // A label edit replaces the list, so its inverse is the
+                    // whole list as it was — not the one slug that moved.
+                    inverse: { labels: [...previous] },
+                    inverseToast: `${ticketKey} ${added ? "unlabeled" : "labeled"} ${toggled.name}`,
+                  },
+                );
+              }}
+            />
             <span>Updated</span>
             <code>{ticket.updatedAt}</code>
           </div>
@@ -387,46 +557,48 @@ export function TicketPanel(props: TicketPanelProps) {
           <section className="panel-section">
             <h3>Description</h3>
             {editingDescription ? (
-              <div className="description-editor">
-                <textarea
-                  value={descriptionDraft}
-                  rows={8}
-                  aria-label="Description"
-                  onChange={(event) => {
-                    drafts.current.description = event.target.value;
-                    setDescriptionDraft(event.target.value);
-                  }}
+              <DescriptionEditor
+                value={descriptionDraft}
+                // `TicketDocument::apply` refuses an edit that changes nothing.
+                canSave={descriptionDraft.trim() !== ticket.description}
+                onChange={(next) => {
+                  drafts.current.description = next;
+                  setDescriptionDraft(next);
+                }}
+                onCancel={() => {
+                  drafts.current.description = ticket.description;
+                  setDescriptionDraft(ticket.description);
+                  closeDescriptionEditor();
+                }}
+                onSave={() => {
+                  closeDescriptionEditor();
+                  // The draft, not a re-render of the parsed tree: the bytes the
+                  // human typed are the bytes that reach the file.
+                  void save({ description: descriptionDraft });
+                }}
+              />
+            ) : ticket.description ? (
+              <div className="description-view">
+                <MarkdownView
+                  source={ticket.description}
+                  headingOffset={3}
+                  className="markdown"
                 />
-                <div className="editor-footer">
-                  <code>writes to ticket.md on save</code>
-                  <button
-                    className="ghost"
-                    onClick={() => {
-                      drafts.current.description = ticket.description;
-                      setDescriptionDraft(ticket.description);
-                      closeDescriptionEditor();
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    className="primary"
-                    disabled={descriptionDraft.trim() === ticket.description}
-                    onClick={() => {
-                      closeDescriptionEditor();
-                      void save({ description: descriptionDraft });
-                    }}
-                  >
-                    Save
-                  </button>
-                </div>
+                <button
+                  className="ghost description-edit"
+                  ref={editButton}
+                  onClick={() => openDescriptionEditor(ticket.description)}
+                >
+                  Edit description
+                </button>
               </div>
             ) : (
               <button
-                className="description-view"
-                onClick={() => openDescriptionEditor(ticket.description)}
+                className="description-view empty"
+                ref={editButton}
+                onClick={() => openDescriptionEditor("")}
               >
-                {ticket.description || "Add a description"}
+                Add a description
               </button>
             )}
           </section>
@@ -468,16 +640,19 @@ export function TicketPanel(props: TicketPanelProps) {
                         onChange={(event) => {
                           const itemId = item.id;
                           if (!itemId) return;
-                          // Show the tick now; the file catches up.
-                          setPendingChecks((current) => ({
-                            ...current,
-                            [itemId]: event.target.checked,
-                          }));
-                          void save({
-                            checklist: [
-                              { itemId, checked: event.target.checked },
-                            ],
-                          });
+                          const next = event.target.checked;
+                          void save(
+                            { checklist: [{ itemId, checked: next }] },
+                            {
+                              // Show the tick now; the file catches up.
+                              apply: () => holdCheck(itemId, next),
+                              toast: `${ticketKey} ${next ? "checked" : "unchecked"} · ${item.text}`,
+                              inverse: {
+                                checklist: [{ itemId, checked: !next }],
+                              },
+                              inverseToast: `${ticketKey} ${next ? "unchecked" : "checked"} · ${item.text}`,
+                            },
+                          );
                         }}
                       />
                       <span>{item.text}</span>
@@ -514,20 +689,51 @@ export function TicketPanel(props: TicketPanelProps) {
                 stands; the history is incomplete.
               </p>
             )}
-            <Timeline events={ticket.activity} now={props.now} />
+            <Timeline
+              events={ticket.activity}
+              now={props.now}
+              // So a change event names a label and a checklist item rather
+              // than the slug and the id the record carries.
+              labels={props.labels}
+              checklist={ticket.checklist}
+              pendingComment={pendingComment}
+            />
             <form
               className="composer"
               onSubmit={(event) => {
                 event.preventDefault();
                 const comment = commentDraft.trim();
                 if (!comment) return;
-                setCommentDraft("");
-                void save({ comment });
+                void save(
+                  { comment },
+                  {
+                    // Clearing the field is part of the optimistic step, so a
+                    // save the conflict banner refuses leaves the draft typed.
+                    apply: () => {
+                      setCommentDraft("");
+                      setPendingComment(comment);
+                      return () => {
+                        setPendingComment(undefined);
+                        setCommentDraft(comment);
+                      };
+                    },
+                  },
+                );
               }}
             >
+              {/* Actor identity, which ADR 0001 permits and `screen-specs.md:193`
+                  asks for. It is not an assignee and there is no assignee. */}
+              <span className="actor-tile" aria-hidden="true">
+                •
+              </span>
               <textarea
                 value={commentDraft}
-                rows={2}
+                // Auto-growing, within reason: the panel scrolls, so a long
+                // comment should not push the timeline off screen entirely.
+                rows={Math.min(
+                  10,
+                  Math.max(2, commentDraft.split("\n").length),
+                )}
                 placeholder="Comment"
                 aria-label="Comment"
                 onChange={(event) => setCommentDraft(event.target.value)}

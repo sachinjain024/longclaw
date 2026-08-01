@@ -323,7 +323,12 @@ pub struct TicketEdit {
     pub status: Option<Status>,
     pub priority: Option<Priority>,
     pub labels: Option<Vec<String>>,
-    pub rank: Option<String>,
+    /// Absent leaves the rank alone; `null` clears it. A rank is written only by
+    /// manual reordering (ADR 0003), and `null` is how undoing the drop that
+    /// allocated a card's first rank puts it back to absent rather than to some
+    /// placeholder value. Switching the board out of Manual sends nothing.
+    #[serde(default, deserialize_with = "nullable")]
+    pub rank: Option<Option<String>>,
     pub archived: Option<bool>,
     pub description: Option<String>,
     #[serde(default)]
@@ -331,6 +336,17 @@ pub struct TicketEdit {
     #[serde(default)]
     pub add_checklist_items: Vec<String>,
     pub comment: Option<String>,
+}
+
+/// Reads a field that may be absent or explicitly null as two distinct answers.
+/// Plain `Option<Option<T>>` collapses both onto the outer `None`, which would
+/// turn "clear this" into "leave this alone".
+fn nullable<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Deserialize::deserialize(deserializer).map(Some)
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -606,14 +622,17 @@ impl TicketDocument {
             }
         }
         if let Some(rank) = &edit.rank {
-            if Some(rank) != current.rank.as_ref() {
-                next.frontmatter
-                    .set_scalar_after("rank", rank, &["labels", "priority"]);
-                changes.push(FieldChange::new(
-                    "rank",
-                    current.rank.clone(),
-                    Some(rank.clone()),
-                ));
+            match (rank.as_deref(), current.rank.clone()) {
+                (Some(rank), previous) if Some(rank) != previous.as_deref() => {
+                    next.frontmatter
+                        .set_scalar_after("rank", rank, &["labels", "priority"]);
+                    changes.push(FieldChange::new("rank", previous, Some(rank.to_owned())));
+                }
+                (None, Some(previous)) => {
+                    next.frontmatter.remove("rank");
+                    changes.push(FieldChange::new("rank", Some(previous), None));
+                }
+                _ => {}
             }
         }
         if let Some(archived) = edit.archived {
@@ -1554,6 +1573,59 @@ mod tests {
         assert_eq!(ticket.ticket().activity.len(), 1);
     }
 
+    /// Every `field` value `apply` can write, pinned against the fixture the
+    /// frontend reads.
+    ///
+    /// The timeline turns each of these into a sentence a human reads
+    /// (`src/timelineEvents.ts`), and it can only do that for a field it knows —
+    /// an unrecognised one falls back to showing its own path. So the list is
+    /// written down once, in `tests/fixtures/ipc-contract.json`, and both sides
+    /// assert against it: adding a field here goes red in
+    /// `src/timelineEvents.test.ts` as well, rather than reaching a human as a
+    /// raw wire value.
+    #[test]
+    fn json_contract_applied_field_changes() {
+        let applied = document()
+            .apply(
+                &TicketEdit {
+                    title: Some("Renamed by the fixture".to_owned()),
+                    status: Some(Status::InReview),
+                    priority: Some(Priority::Urgent),
+                    labels: Some(vec!["storage".to_owned(), "reliability".to_owned()]),
+                    rank: Some(Some("0|hzzzzz:".to_owned())),
+                    archived: Some(true),
+                    description: Some("A new description.".to_owned()),
+                    checklist: vec![ChecklistToggle {
+                        item_id: "ck_0001".to_owned(),
+                        checked: true,
+                    }],
+                    add_checklist_items: vec!["Write the migration".to_owned()],
+                    comment: None,
+                },
+                NOW,
+            )
+            .expect("the every-field edit should be accepted");
+
+        let mut actual =
+            serde_json::to_value(&applied.changes).expect("field changes must serialize");
+        // An appended item's id is minted per write, so the fixture pins the
+        // shape of the dotted path rather than the id inside it.
+        for change in actual.as_array_mut().expect("an array of changes") {
+            let field = change["field"].as_str().expect("a field name").to_owned();
+            if field.ends_with(".added") {
+                change["field"] = serde_json::json!("checklist.ck_minted.added");
+            }
+        }
+
+        let fixture: serde_json::Value =
+            serde_json::from_str(include_str!("../../tests/fixtures/ipc-contract.json"))
+                .expect("IPC contract fixture must be valid JSON");
+        assert_eq!(
+            actual, fixture["appliedFieldChanges"],
+            "the set of fields an edit can write changed"
+        );
+    }
+
     #[test]
     fn a_status_change_rewrites_one_line_and_appends_one_event() {
         let (rendered, next) = apply(TicketEdit {
@@ -1667,6 +1739,60 @@ mod tests {
             restored.document.ticket().unknown_keys,
             document().ticket().unknown_keys
         );
+    }
+
+    #[test]
+    fn setting_and_clearing_a_rank_leave_the_other_keys_alone() {
+        let ranked = document()
+            .apply(
+                &TicketEdit {
+                    rank: Some(Some("a0V".to_owned())),
+                    ..TicketEdit::default()
+                },
+                NOW,
+            )
+            .expect("setting a rank should be accepted");
+        let rendered = String::from_utf8(ranked.bytes).expect("UTF-8");
+        assert!(rendered.contains("priority: p2\nrank: a0V\nlabels:\n  - storage\n"));
+        assert_eq!(ranked.document.ticket().rank.as_deref(), Some("a0V"));
+
+        let cleared = ranked
+            .document
+            .apply(
+                &TicketEdit {
+                    rank: Some(None),
+                    ..TicketEdit::default()
+                },
+                NOW,
+            )
+            .expect("clearing a rank should be accepted");
+        let rendered = String::from_utf8(cleared.bytes).expect("UTF-8");
+        assert!(!rendered.contains("rank:"));
+        assert_eq!(cleared.document.ticket().rank, None);
+        assert_eq!(
+            cleared.document.ticket().unknown_keys,
+            document().ticket().unknown_keys
+        );
+        // Recorded the way `archived_at` removal is: the value that went, and no
+        // replacement.
+        assert_eq!(cleared.changes.len(), 1);
+        assert_eq!(cleared.changes[0].field, "rank");
+        assert_eq!(cleared.changes[0].from.as_deref(), Some("a0V"));
+        assert_eq!(cleared.changes[0].to, None);
+    }
+
+    #[test]
+    fn clearing_a_rank_that_is_already_absent_changes_nothing() {
+        let error = document()
+            .apply(
+                &TicketEdit {
+                    rank: Some(None),
+                    ..TicketEdit::default()
+                },
+                NOW,
+            )
+            .expect_err("there is no rank to clear");
+        assert!(error.message.contains("already matches"), "{error}");
     }
 
     #[test]

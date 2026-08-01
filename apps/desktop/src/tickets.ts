@@ -5,7 +5,13 @@
  * surface uses.
  */
 
-import type { TicketStatus } from "./types";
+import type {
+  CreateTicketRequest,
+  IndexedTicket,
+  TicketPriority,
+  TicketRow,
+  TicketStatus,
+} from "./types";
 
 export const STATUSES: { id: TicketStatus; label: string }[] = [
   { id: "backlog", label: "Backlog" },
@@ -17,12 +23,90 @@ export const STATUSES: { id: TicketStatus; label: string }[] = [
 ];
 
 /**
- * One checklist item per typed line, with an optional Markdown task prefix
- * accepted so pasting a list from anywhere works.
+ * Listed most urgent first, which is also the board's default column order
+ * (ADR 0003). `ordering.ts` reads each priority's place off this list rather
+ * than keeping a second copy of it.
  */
-export function checklistFromLines(text: string): string[] {
-  return text
-    .split("\n")
-    .map((line) => line.replace(/^\s*[-*]\s*(\[[ xX]\]\s*)?/, "").trim())
-    .filter(Boolean);
+export const PRIORITIES: { id: TicketPriority; label: string }[] = [
+  { id: "urgent", label: "Urgent" },
+  { id: "p1", label: "P1" },
+  { id: "p2", label: "P2" },
+  { id: "p3", label: "P3" },
+  { id: "p4", label: "P4" },
+  { id: "none", label: "None" },
+];
+
+export function priorityLabel(priority: TicketPriority): string {
+  return PRIORITIES.find((option) => option.id === priority)?.label ?? priority;
+}
+
+export function statusLabel(status: TicketStatus): string {
+  return STATUSES.find((option) => option.id === status)?.label ?? status;
+}
+
+/**
+ * Archived is a date on the ticket, not a status (ADR 0004): the file stays
+ * where it is and keeps whatever workflow status it had. `groupByStatus` reads
+ * this to leave an archived ticket out of every status group, which is what
+ * keeps it off the board; the list reads it to fill its own archived group.
+ */
+export function isArchived(ticket: TicketRow): boolean {
+  return ticket.state === "indexed" && ticket.archivedAt !== undefined;
+}
+
+/**
+ * `1/3`, and empty for a ticket with no checklist: the fraction surfaces only
+ * when there is a checklist to count (`components.md:180`). Shared by the card
+ * and the row, which must not be able to disagree about when it appears — the
+ * board card also spends a label chip on it whenever it does.
+ */
+export function checklistFraction(ticket: IndexedTicket): string {
+  return ticket.checklistCount > 0
+    ? `${ticket.checkedCount}/${ticket.checklistCount}`
+    : "";
+}
+
+/**
+ * The key a create is about to be given, read off the rows already on screen.
+ *
+ * Rust allocates the real key from the project's own directory names, and that
+ * is the one that lasts — this exists only so the card can appear before the
+ * write returns, and it is replaced by whatever comes back.
+ */
+export function provisionalTicketKey(
+  projectKey: string,
+  tickets: TicketRow[],
+): string {
+  const highest = tickets.reduce((max, ticket) => {
+    const match = /^(.+)-(\d+)$/.exec(ticket.key);
+    if (!match || match[1] !== projectKey) return max;
+    return Math.max(max, Number(match[2]));
+  }, 0);
+  return `${projectKey}-${highest + 1}`;
+}
+
+/** The row an optimistic create shows while its file is being written. */
+export function provisionalTicket(
+  key: string,
+  request: Omit<CreateTicketRequest, "projectId">,
+  createdAt: string,
+): IndexedTicket {
+  return {
+    state: "indexed",
+    key,
+    id: "",
+    title: request.title,
+    status: request.status ?? "todo",
+    priority: request.priority ?? "none",
+    labels: request.labels ?? [],
+    createdAt,
+    updatedAt: createdAt,
+    checkedCount: 0,
+    checklistCount: request.checklist?.length ?? 0,
+    commentCount: 0,
+    attachmentCount: 0,
+    // No hash: nothing has been written, so nothing may be edited against it.
+    contentHash: "",
+    relativePath: `.longclaw/tickets/${key}/ticket.md`,
+  };
 }

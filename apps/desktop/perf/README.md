@@ -1,18 +1,46 @@
-# The 5,000-ticket board trace
+# The 5,000-ticket surface trace
 
 `npm run perf:board` builds the app's own bundle as a plain web page, serves it,
 and drives it in WebKit while measuring input → paint. It exists because the
 Step 4 budget for _large-board keyboard/input → paint_ was the one line in the
 spike's budget table with no number against it.
 
+`npm run perf:list` is the same run against the issue list (V0-14). The scenarios
+are written once and parameterised by selector, so the two numbers are comparable:
+nothing but the surface changes between them. The list is the harder case — every
+ticket in the project on one axis, rather than spread over six independent column
+scrollers — so it is the one to run when the render path changes.
+
 ```sh
 npx playwright@1.62.1 install webkit   # once per machine
 npm run perf:board                     # the shipped board
+npm run perf:list                      # the shipped issue list
 npm run perf:board -- --nav=Tab        # the pre-roving-focus baseline
+npm run perf:board -- --order=manual   # the Manual comparator (ADR 0003)
+npm run perf:board -- --filter="storage"  # a different query in the filter trace
 ```
 
+`--order=manual` clicks the real ordering control before measuring. Manual is the
+heavier comparator — the fixture writes no ranks, so every comparison falls
+through to priority — and it is the one to run after touching the sort. Run these
+two from `apps/desktop`: at the repository root, `npm run perf:board -- --x` hands
+the flag to npm rather than to the harness.
+
 It prints a `PERF-UI` line next to the Rust harness's `PERF` line, a p50/p95/max
-table for the three interactions, and the same numbers as JSON.
+table for the four interactions, and the same numbers as JSON.
+
+The filter scenario (V0-15) types a query in one character at a time and deletes
+it again, once per keystroke. The default query is the worst shape the fixture
+allows: every ticket is titled `Searchable storage ticket N`, so the leading
+characters match all 5,000 rows — a full pass that removes nothing — and only the
+last few narrow it to one. Deleting is the heavier half, because it puts every row
+back. Watch the floor column here rather than the absolute number: if filtering
+ever starts scaling with the project, this is the row that shows it.
+
+The external-write scenario writes to a different ticket per surface, named in
+`SURFACES`: it has to land on a row the surface is already drawing, or the number
+would describe a write the window was free not to paint. The probe assertion is
+what catches getting that wrong — it did, for the list, before the target moved.
 
 It also runs every scenario against a small board first — `--floor=600`, 0 to skip
 — and reports that beside the full one, because the budget's p50 line cannot be
@@ -25,8 +53,9 @@ same interaction on the small board.
 ## What is real and what is stubbed
 
 Everything above the IPC boundary is the shipping code: `src/main.tsx`'s mount,
-the real `App` with its store subscriptions, the real `Board`, the real
-stylesheet. Only the three Tauri modules are swapped, in `perf/vite.config.ts`:
+the real `App` with its store subscriptions, the real `Board` or `IssueList`
+(reached by clicking the real view toggle), the real stylesheet. Only the three
+Tauri modules are swapped, in `perf/vite.config.ts`:
 
 | Module                      | Stub              | Serves                               |
 | --------------------------- | ----------------- | ------------------------------------ |
@@ -57,6 +86,11 @@ That is the animation-frame boundary the app's own `reportVisibleUi` probe
 (`lib.rs:213`, `api.ts:153`) reports on, which is why the harness reuses the
 probe rather than inventing a second definition of "painted": the external-write
 scenario fails unless the probe fires and names the row that was just written.
+
+The filter scenario fails unless the field comes back empty and the rows return,
+which is what caught a real defect: both surfaces re-focus their roving row when
+it changes, and a query changes it, so typing pulled focus off the header field
+and onto a card. WebKit then read the next backspace as "go back".
 
 The keyboard scenario fails unless focus actually moves to a different card, so
 a key that has become a no-op reads as a broken run rather than as a fast one.

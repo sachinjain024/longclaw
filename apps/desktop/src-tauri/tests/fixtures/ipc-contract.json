@@ -80,7 +80,13 @@
               "key": "LC",
               "theme": "indigo",
               "starred": false,
-              "reachable": true
+              "reachable": true,
+              "labels": {
+                "reliability": {
+                  "name": "Reliability",
+                  "color": "amber"
+                }
+              }
             },
             "tickets": [
               {
@@ -168,5 +174,47 @@
         "exitCode": 0
       }
     }
-  }
+  },
+  "appliedFieldChanges": [
+    {
+      "field": "title",
+      "from": "Load canonical ticket files",
+      "to": "Renamed by the fixture"
+    },
+    {
+      "field": "status",
+      "from": "todo",
+      "to": "in_review"
+    },
+    {
+      "field": "priority",
+      "from": "p2",
+      "to": "urgent"
+    },
+    {
+      "field": "labels",
+      "from": "storage",
+      "to": "storage, reliability"
+    },
+    {
+      "field": "rank",
+      "to": "0|hzzzzz:"
+    },
+    {
+      "field": "archived_at",
+      "to": "2026-07-30T10:00:00.000Z"
+    },
+    {
+      "field": "description"
+    },
+    {
+      "field": "checklist.ck_0001.checked",
+      "from": "false",
+      "to": "true"
+    },
+    {
+      "field": "checklist.ck_minted.added",
+      "to": "Write the migration"
+    }
+  ]
 }

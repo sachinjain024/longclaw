@@ -3,9 +3,16 @@
  * The 5,000-ticket WebKit trace the risk register asks for by name.
  *
  * Measures input → paint for the three interactions plan 07 lists — keyboard
- * navigation down a column, scrolling a column, and one external write landing
- * while the board is open — and reports p50 and p95 for each, because a single
- * median is not evidence for a p95 budget.
+ * navigation down the surface, scrolling it, and one external write landing while
+ * it is open — and reports p50 and p95 for each, because a single median is not
+ * evidence for a p95 budget.
+ *
+ * It drives both surfaces. The board is six independent column scrollers; the
+ * issue list (V0-14) is one scroller of sticky groups, and it is the surface that
+ * puts every ticket in the project on one axis, so it is the one the budget is
+ * hardest on. `--surface` picks; everything else about the run is identical, which
+ * is the point — the two numbers are comparable because nothing but the surface
+ * changed.
  *
  * The clock is entirely inside the page. Each sample starts at the `timeStamp`
  * the browser stamped on the trusted input event and ends in a timer scheduled
@@ -16,6 +23,7 @@
  *
  * Usage:
  *   npm run perf:board                 # ArrowDown, the board's own navigation
+ *   npm run perf:list                  # the same three, on the issue list
  *   npm run perf:board -- --nav=Tab    # the pre-roving-focus baseline
  */
 
@@ -42,11 +50,72 @@ const argument = (name, fallback) => {
 
 const NAV_KEY = argument("nav", "ArrowDown");
 /** `--only=scroll,write` narrows a run while an interaction is being built. */
-const ONLY = argument("only", "keyboard,scroll,write").split(",");
+const ONLY = argument("only", "keyboard,scroll,filter,write").split(",");
+/**
+ * The query the filter trace types (V0-15). The default is the worst shape there
+ * is against `perf/fixture.ts`: every ticket is titled `Searchable storage ticket
+ * N`, so the first characters match all 5,000 rows — a full pass over the project
+ * that removes nothing — and only the last few narrow it to one.
+ */
+const FILTER_QUERY = argument("filter", "ticket 4999");
+/** How many times the query is typed in and deleted again. */
+const FILTER_CYCLES = 3;
 /** `--tickets=200` shows whether a number scales with the board or not. */
 const BOARD_SIZE = Number(argument("tickets", String(TICKETS)));
 /** The small-board control every full-board number is judged against; 0 skips it. */
 const FLOOR_SIZE = Number(argument("floor", "600"));
+/** Which surface to drive: `board` or `list`. */
+const SURFACE = argument("surface", "board");
+/**
+ * Which order the surface is in (ADR 0003). Manual is the heavier comparator —
+ * it falls through to priority for every card with no rank, and the fixture has
+ * no ranks — so `--order=manual` is the one to run after touching the sort.
+ */
+const ORDER = argument("order", "priority");
+
+/**
+ * What each surface calls its parts. Only the selectors differ — the scenarios
+ * below are written once and run against whichever surface is up, so a number
+ * from one is comparable with a number from the other.
+ */
+const SURFACES = {
+  board: {
+    label: "board",
+    row: ".ticket-row",
+    scroller: ".board-stack",
+    /** The heading whose count says how far navigation can travel. */
+    count: ".board-column h3 span",
+    lane: ".board-column",
+    /**
+     * The row an external write lands on. It has to be one the surface is
+     * already drawing, or the measurement would be of a write the surface is
+     * free to leave unrendered. Each column scrolls on its own, so the first
+     * card of the In Review column is always inside the window.
+     */
+    write: { key: "PF-3", id: "perf-3", status: "in_review" },
+    open: async () => {},
+  },
+  list: {
+    label: "list",
+    row: ".list-row",
+    scroller: ".issue-list",
+    count: ".list-group-count",
+    lane: ".issue-list",
+    /**
+     * One scroller, so "already drawn" means the very top of it: the first row
+     * of the first group. Backlog leads the status order and `PF-6` is its
+     * lowest key — the fixture spreads statuses round-robin from `PF-1`.
+     */
+    write: { key: "PF-6", id: "perf-6", status: "backlog" },
+    open: async (page) => {
+      await page.click('button[aria-pressed="false"]:has-text("List")');
+      await page.waitForSelector(".list-row", { timeout: 30_000 });
+    },
+  },
+};
+
+const UI = SURFACES[SURFACE];
+if (!UI) throw new Error(`--surface must be board or list, not ${SURFACE}`);
 
 function percentile(samples, fraction) {
   const sorted = [...samples].sort((a, b) => a - b);
@@ -118,12 +187,12 @@ const collect = (page) => page.evaluate(() => window.__measure);
 
 /** Every scenario starts at the top, whatever the one before it left behind. */
 async function rewind(page) {
-  await page.evaluate(() => {
-    for (const stack of document.querySelectorAll(".board-stack")) {
+  await page.evaluate((selector) => {
+    for (const stack of document.querySelectorAll(selector)) {
       stack.scrollTop = 0;
     }
     window.scrollTo(0, 0);
-  });
+  }, UI.scroller);
   await page.waitForTimeout(100);
 }
 
@@ -133,23 +202,24 @@ async function focusedKey(page) {
   );
 }
 
-/** Keyboard navigation down a column, one sample per press. */
+/** Keyboard navigation down the surface, one sample per press. */
 async function traceKeyboard(page) {
   await rewind(page);
-  const started = await page.evaluate(() => {
-    const first = document.querySelector(".ticket-row");
+  const started = await page.evaluate((selector) => {
+    const first = document.querySelector(selector);
     if (!(first instanceof HTMLElement)) return null;
     first.focus();
     return first.getAttribute("data-ticket-key");
-  });
-  if (!started) throw new Error("the board rendered no cards to navigate");
+  }, UI.row);
+  if (!started) throw new Error(`the ${UI.label} rendered no rows to navigate`);
 
-  // Never more presses than the column has cards; running off the end would read
-  // as a broken run rather than as the end of the column.
-  const column = await page.evaluate(() =>
-    Number(document.querySelector(".board-column h3 span")?.textContent ?? 0),
+  // Never more presses than the first group holds; running off the end would read
+  // as a broken run rather than as the end of the group.
+  const lane = await page.evaluate(
+    (selector) => Number(document.querySelector(selector)?.textContent ?? 0),
+    UI.count,
   );
-  const presses = Math.min(NAV_SAMPLES, column - 1);
+  const presses = Math.min(NAV_SAMPLES, lane - 1);
 
   const samples = [];
   let previous = started;
@@ -169,26 +239,26 @@ async function traceKeyboard(page) {
   return samples;
 }
 
-/** Scrolling one full column, one sample per wheel notch. */
+/** Scrolling the surface, one sample per wheel notch. */
 async function traceScroll(page) {
   await rewind(page);
-  const box = await page.evaluate(() => {
-    const column = document.querySelector(".board-column");
-    if (!column) return null;
-    const rect = column.getBoundingClientRect();
+  const box = await page.evaluate((selector) => {
+    const lane = document.querySelector(selector);
+    if (!lane) return null;
+    const rect = lane.getBoundingClientRect();
     return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
-  });
-  if (!box) throw new Error("the board rendered no column to scroll");
+  }, UI.lane);
+  if (!box) throw new Error(`the ${UI.label} rendered nothing to scroll`);
   await page.mouse.move(
     Math.min(box.x, 1_200),
     Math.min(Math.max(box.y, 40), 700),
   );
 
   const offset = () =>
-    page.evaluate(() => {
-      const stack = document.querySelector(".board-stack");
+    page.evaluate((selector) => {
+      const stack = document.querySelector(selector);
       return stack ? stack.scrollTop : window.scrollY;
-    });
+    }, UI.scroller);
 
   const samples = [];
   let last = await offset();
@@ -201,73 +271,111 @@ async function traceScroll(page) {
     last = now;
   }
   if (samples.length < 10) {
-    throw new Error(`the column only produced ${samples.length} scroll frames`);
+    throw new Error(
+      `the ${UI.label} only produced ${samples.length} scroll frames`,
+    );
   }
   return samples;
 }
 
-/** One external write landing while the board is open, repeated. */
+/**
+ * Typing in the header filter, one sample per keystroke (V0-15).
+ *
+ * This is the interaction the filter puts at risk: every keystroke re-tests
+ * every ticket in the project and re-lays out the surface underneath. The query
+ * is typed in and deleted again, so the run covers both the narrowing frames and
+ * the widening ones — restoring 5,000 rows is the heavier half.
+ */
+async function traceFilter(page) {
+  await rewind(page);
+  const field = await page.$(".filter-field");
+  if (!field) throw new Error("the content header rendered no filter field");
+  await field.click();
+
+  const samples = [];
+  for (let cycle = 0; cycle < FILTER_CYCLES; cycle += 1) {
+    for (const character of FILTER_QUERY) {
+      await arm(page, "keydown");
+      await page.keyboard.type(character);
+      samples.push(await collect(page));
+    }
+    for (let index = 0; index < FILTER_QUERY.length; index += 1) {
+      await arm(page, "keydown");
+      await page.keyboard.press("Backspace");
+      samples.push(await collect(page));
+    }
+  }
+  if ((await page.inputValue(".filter-field")) !== "") {
+    throw new Error("the filter field did not come back empty");
+  }
+  await page.waitForSelector(UI.row, { timeout: 30_000 });
+  return samples.slice(WARM_UP);
+}
+
+/** One external write landing while the surface is open, repeated. */
 async function traceExternalWrite(page) {
   await rewind(page);
   const samples = [];
   for (let index = 0; index < WRITE_SAMPLES; index += 1) {
-    const result = await page.evaluate(async (revision) => {
-      const bridge = window.__longclawPerf;
-      const before = bridge.probes.length;
-      const title = `External write ${revision}`;
-      const envelope = {
-        contractVersion: 1,
-        sequence: revision,
-        projectId: "019c8ca0-0000-7000-8000-0000000000ff",
-        emittedAt: "2026-07-31T00:00:00Z",
-        event: {
-          type: "ticketChanged",
-          data: {
-            source: "external",
-            coalescedEvents: 1,
-            detectedInMs: 1,
-            attribution: {
-              id: `evt_${revision}`,
-              kind: "update",
-              occurredAt: "2026-07-31T00:00:00Z",
-              actor: { type: "agent", name: "Claude Code" },
-            },
-            ticket: {
-              state: "indexed",
-              // The first card of the In Review column, so it is always inside
-              // the window: this measures a write that has to paint, not one the
-              // column is free to leave unrendered.
-              key: "PF-3",
-              id: "perf-3",
-              title,
-              status: "in_review",
-              priority: "none",
-              labels: ["storage"],
-              createdAt: "2026-07-29T00:00:00Z",
-              updatedAt: "2026-07-31T00:00:00Z",
-              checkedCount: 1,
-              checklistCount: 1,
-              commentCount: 0,
-              attachmentCount: 0,
-              contentHash: `hash-3-${revision}`,
-              relativePath: ".longclaw/tickets/PF-3/ticket.md",
+    const result = await page.evaluate(
+      async ({ revision, target }) => {
+        const bridge = window.__longclawPerf;
+        const before = bridge.probes.length;
+        const title = `External write ${revision}`;
+        const envelope = {
+          contractVersion: 1,
+          sequence: revision,
+          projectId: "019c8ca0-0000-7000-8000-0000000000ff",
+          emittedAt: "2026-07-31T00:00:00Z",
+          event: {
+            type: "ticketChanged",
+            data: {
+              source: "external",
+              coalescedEvents: 1,
+              detectedInMs: 1,
+              attribution: {
+                id: `evt_${revision}`,
+                kind: "update",
+                occurredAt: "2026-07-31T00:00:00Z",
+                actor: { type: "agent", name: "Claude Code" },
+              },
+              ticket: {
+                state: "indexed",
+                key: target.key,
+                id: target.id,
+                title,
+                // Unchanged, so the write repaints a row rather than moving it to
+                // another column or group.
+                status: target.status,
+                priority: "none",
+                labels: ["storage"],
+                createdAt: "2026-07-29T00:00:00Z",
+                updatedAt: "2026-07-31T00:00:00Z",
+                checkedCount: 1,
+                checklistCount: 1,
+                commentCount: 0,
+                attachmentCount: 0,
+                contentHash: `hash-${target.key}-${revision}`,
+                relativePath: `.longclaw/tickets/${target.key}/ticket.md`,
+              },
             },
           },
-        },
-      };
+        };
 
-      const startedAt = performance.now();
-      bridge.emit(envelope);
-      const paintedAt = await bridge.afterPaint();
-      const probe = bridge.probes[bridge.probes.length - 1];
-      return {
-        elapsed: paintedAt - startedAt,
-        // The app's own probe has to agree that the new title is on screen.
-        probed: bridge.probes.length > before,
-        sawTitle: probe?.probe.rowTitles.includes(title) ?? false,
-        rowCount: probe?.probe.rowCount ?? 0,
-      };
-    }, index + 1);
+        const startedAt = performance.now();
+        bridge.emit(envelope);
+        const paintedAt = await bridge.afterPaint();
+        const probe = bridge.probes[bridge.probes.length - 1];
+        return {
+          elapsed: paintedAt - startedAt,
+          // The app's own probe has to agree that the new title is on screen.
+          probed: bridge.probes.length > before,
+          sawTitle: probe?.probe.rowTitles.includes(title) ?? false,
+          rowCount: probe?.probe.rowCount ?? 0,
+        };
+      },
+      { revision: index + 1, target: UI.write },
+    );
 
     if (!result.probed || !result.sawTitle) {
       throw new Error(
@@ -280,8 +388,9 @@ async function traceExternalWrite(page) {
 }
 
 const SCENARIOS = [
-  ["keyboard", (key) => `keyboard ${key} down a column`, traceKeyboard],
-  ["scroll", () => "scroll a full column", traceScroll],
+  ["keyboard", (key) => `keyboard ${key} down the ${UI.label}`, traceKeyboard],
+  ["scroll", () => `scroll the ${UI.label}`, traceScroll],
+  ["filter", () => `filter the ${UI.label}`, traceFilter],
   ["write", () => "external write → paint", traceExternalWrite],
 ];
 
@@ -292,13 +401,20 @@ async function measure(browser, size) {
   const openedAt = Date.now();
   await page.goto(`${ORIGIN}/?tickets=${size}`, { waitUntil: "load" });
   await page.waitForFunction(
-    () => document.querySelectorAll(".ticket-row").length > 0,
+    () => document.querySelectorAll("[data-ticket-key]").length > 0,
     undefined,
     { timeout: 60_000 },
   );
+  await UI.open(page);
+  if (ORDER === "manual") {
+    await page.click('button[aria-label^="Order:"]');
+    await page.click('[role="menuitemradio"]:has-text("Manual")');
+    await page.waitForSelector(UI.row, { timeout: 30_000 });
+  }
   const firstPaintMs = Date.now() - openedAt;
   const renderedRows = await page.evaluate(
-    () => document.querySelectorAll(".ticket-row").length,
+    (selector) => document.querySelectorAll(selector).length,
+    UI.row,
   );
 
   const rows = [];
@@ -337,11 +453,11 @@ async function main() {
     const full = await measure(browser, BOARD_SIZE);
 
     console.log(
-      `\nPERF-UI tickets=${full.size} rendered_rows=${full.renderedRows} first_paint_ms=${full.firstPaintMs} nav_key=${NAV_KEY}`,
+      `\nPERF-UI surface=${UI.label} order=${ORDER} tickets=${full.size} rendered_rows=${full.renderedRows} first_paint_ms=${full.firstPaintMs} nav_key=${NAV_KEY}`,
     );
     if (floor) {
       console.log(
-        `PERF-UI-FLOOR tickets=${floor.size} rendered_rows=${floor.renderedRows} first_paint_ms=${floor.firstPaintMs}`,
+        `PERF-UI-FLOOR surface=${UI.label} tickets=${floor.size} rendered_rows=${floor.renderedRows} first_paint_ms=${floor.firstPaintMs}`,
       );
     }
     console.log(`engine=${full.engine}\n`);
