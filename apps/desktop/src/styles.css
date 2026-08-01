@@ -346,8 +346,10 @@ h1 {
   background: var(--lc-line-soft);
 }
 
+/* No border (`components.md:51`): the fill is the whole control, and a hairline
+   in the accent it is already filled with only shifts the label by a pixel. */
 .primary {
-  border: var(--lc-border-hairline) solid var(--lc-accent-human);
+  border: 0;
   color: var(--lc-on-accent-human);
   background: var(--lc-accent-human);
 }
@@ -356,12 +358,10 @@ h1 {
    component read (components.md:51). No scale transform: an accent that is
    only a step darker is the whole feedback. */
 .primary:hover:not(:disabled) {
-  border-color: var(--lc-accent-human-hover);
   background: var(--lc-accent-human-hover);
 }
 
 .primary:active:not(:disabled) {
-  border-color: var(--lc-accent-human-active);
   background: var(--lc-accent-human-active);
 }
 
@@ -1031,11 +1031,11 @@ button:disabled {
   font-weight: 700;
 }
 
+/* The header's ordering trigger is the small variant of the same control; it
+   states its height and its quieter border and borrows the type. */
 .ordering-control .menu-trigger {
   height: var(--lc-size-control-sm);
   border-color: var(--lc-line);
-  font-size: 12px;
-  font-weight: 400;
 }
 
 .view-segment {
@@ -2468,7 +2468,8 @@ html.theme-transition *::after {
   padding: 0 var(--lc-space-2);
   color: var(--lc-ink);
   background: var(--lc-surface);
-  font-size: var(--lc-type-small-size);
+  font: var(--lc-type-ui-weight) var(--lc-type-ui-size) /
+    var(--lc-type-ui-leading) var(--lc-type-ui-font);
   cursor: pointer;
 }
 

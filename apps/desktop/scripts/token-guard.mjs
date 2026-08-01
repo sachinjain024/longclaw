@@ -47,22 +47,50 @@ const RADIUS = {
       ),
 };
 
-/** A duration or delay that is not a motion token. `0.01ms` is reduced motion. */
+/** A duration or delay that is not a motion token. */
 const MOTION = {
   label: "motion",
   pattern: /(?:transition|animation)(?:-duration|-delay)?:\s*([^;]+);/g,
-  offending: (value) =>
-    (value.match(/(?<![\w.])[\d.]+m?s(?![\w])/g) ?? []).filter(
-      (part) => part !== "0.01ms",
-    ),
+  offending: (value) => value.match(/(?<![\w.])[\d.]+m?s(?![\w])/g) ?? [],
 };
+
+/**
+ * The byte ranges of `@media (prefers-reduced-motion: reduce)` blocks.
+ *
+ * That block is the one place a literal duration is right: `0.01ms` is how the
+ * "collapse every transition" idiom is written, and it cannot be a token
+ * because it is the value that *replaces* the tokens. Exempting the literal
+ * everywhere — which this guard first did — means a production
+ * `transition: opacity 0.01ms` sails through, so the exemption is a place
+ * rather than a value.
+ */
+function reducedMotionRanges(text) {
+  const ranges = [];
+  const opener = /@media[^{]*prefers-reduced-motion[^{]*\{/g;
+  for (const hit of text.matchAll(opener)) {
+    let depth = 1;
+    let index = hit.index + hit[0].length;
+    while (index < text.length && depth > 0) {
+      if (text[index] === "{") depth += 1;
+      else if (text[index] === "}") depth -= 1;
+      index += 1;
+    }
+    ranges.push([hit.index, index]);
+  }
+  return ranges;
+}
 
 const files = sourceFiles();
 const findings = [];
 for (const file of files) {
   const { path, text, lines } = readSource(file);
+  const exemptRanges = reducedMotionRanges(text);
   for (const rule of [RADIUS, MOTION]) {
     for (const hit of text.matchAll(rule.pattern)) {
+      if (
+        exemptRanges.some(([from, to]) => hit.index >= from && hit.index < to)
+      )
+        continue;
       const offenders = rule.offending(hit[1]);
       if (offenders.length === 0) continue;
       const line = text.slice(0, hit.index).split("\n").length;

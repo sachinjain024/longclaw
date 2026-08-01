@@ -684,11 +684,14 @@ does for hues. Three defects surfaced during the pass and were fixed: a
 flex-shrunk ticket-panel title, a settings theme picker overflowing under the
 Locate folder button, and a matrix contrast probe that had been passing only
 because the sampler cannot see `opacity`. Verified: `verify` green, the theme
-matrix clean over 4 presets × 2 appearances × 9 states, board p95 16/19/28/24 ms
-and list p95 19/19/21/16 ms. Six discrepancies are recorded as deliberately
-deferred in the plan's outcome — the settings modal, the merged content header,
-the welcome column, the Phase 2 terminal reservation, off-scale component type
-sizes, and the human avatar's missing initials.
+matrix clean over 4 presets × 2 appearances × 9 states — plus a new interaction
+axis of seven hover, press and focus probes that assert visible feedback rather
+than a token value, which is what the dark-mode hover bug taught — and board p95
+15/18/26/16 ms, list p95 22/19/21/16 ms. Seven discrepancies are recorded as
+deliberately deferred in the plan's outcome — the settings modal, the merged
+content header, the welcome column, the Phase 2 terminal reservation, off-scale
+component type sizes, spacing and border literals, and the human avatar's
+missing initials.
 
 ### Step 16b — Complete quality hardening and release preparation
 

@@ -112,15 +112,15 @@ distinction resting on hue alone, which D11 forbids.
 
 **Shipped.** `npm run verify` green (502 frontend tests, 161 Rust tests, both
 guards clean, native watcher round-trip). `npm run matrix` clean over 4 presets
-× 2 appearances × 9 states. The lanes were touched, so both traces were re-run:
-board p95 **16/19/28/24 ms** and list p95 **19/19/21/16 ms**
+× 2 appearances × 9 states, plus the seven-probe interaction axis. The lanes were touched, so both traces were re-run:
+board p95 **15/18/26/16 ms** and list p95 **22/19/21/16 ms**
 (keyboard/scroll/filter/external-write), all under the ≤50 ms ceiling and every
 median within 4 ms of the 600-ticket floor.
 
 ### What the audit turned into
 
-Everything in § What to change landed. Six things were found while doing it
-that the plan did not predict — the last four by the review pass, after the
+Everything in § What to change landed. Eight things were found while doing it
+that the plan did not predict — the last six by two review passes, after the
 first commit, which is why they read as corrections rather than discoveries:
 
 1. **The ticket panel's title was being sliced in half.** `.ticket-panel` is a
@@ -156,7 +156,17 @@ first commit, which is why they read as corrections rather than discoveries:
    any future one — silently escaped it, which would have made `token-guard`'s
    own stated rationale false. The block is derived from the motion group now:
    every token whose value is a duration is zeroed.
-6. **The matrix was passing a contrast check it could not actually see.** The
+6. **The guard exempted `0.01ms` everywhere.** That literal is right in one
+   place — the reduced-motion block, where it is the value that *replaces* the
+   tokens — and a blanket exemption meant a production
+   `transition: opacity 0.01ms` sailed through the guard built to catch exactly
+   that. The exemption is a place now, not a value: the guard finds the byte
+   range of each `prefers-reduced-motion` block and skips only inside it.
+7. **The primary button carried a border** where `components.md:51` says none,
+   and the menu trigger was set in `--lc-type-small` where a control takes
+   `--lc-type-ui` — with the ordering trigger overriding that to a literal
+   `12px` on top.
+8. **The matrix was passing a contrast check it could not actually see.** The
    old disabled treatment was `opacity: 0.42`, and the sampler does not
    composite opacity, so it measured white-on-accent and passed. Replacing the
    opacity with the designed `ink-disabled`-on-`wash` made the real ratio
@@ -166,18 +176,43 @@ first commit, which is why they read as corrections rather than discoveries:
    exemption rather than skipping quietly: a probe that goes disabled when it
    should not be is a finding too, and a silent skip would hide it.
 
-### What "validate the interaction states" did and did not mean
+### The interaction axis, added after the review said the states were unheld
 
 The step's work list asks to "validate keyboard focus, hover, pressed,
 disabled, selected, optimistic, and external-update states as part of the
-visual polish pass." That was done by reading each state against
+visual polish pass." The first pass did that by reading each state against
 `components.md` § Global interaction model and fixing what was missing — which
-was most of it, since primary had no hover or press at all. It was **not** done
-by adding automated probes: the matrix still renders the same nine surface
-states, and none of them is a hover or a press. Its coverage did not move
-upward — the disabled exemption above removes a check that had been passing for
-the wrong reason. A hover/focus/press axis on the matrix is the honest next
-step and is not in this change.
+was most of them, since primary had no hover or press at all — and recorded the
+absence of automated probes as a gap. It was a fair complaint, so the matrix now
+has an **interaction axis**: seven probes over hover, press and focus on the
+board's primary, a secondary, a resting card, the filter field, a list row, and
+a popover row, run on all eight axes.
+
+It asserts **difference, not a token value**, deliberately. Every hover and
+press fill is a `color-mix` derivation, and `getPropertyValue` hands those back
+unresolved, so a token probe cannot read one. Difference is also the property
+that actually matters, and the one that was broken: a token probe would have
+happily confirmed that `.secondary:hover` rendered `--lc-wash` in dark while
+that was exactly the bug. Reintroducing that bug now fails four axes — the four
+dark ones — and passes the four light ones, which is the right discrimination.
+
+Three things had to be fixed in the harness before any of it worked, and each
+was a latent hole in the existing sampler:
+
+- `getComputedStyle(el)[property]` returns `undefined` for a dashed name, so
+  every probe on `border-top-color` read as unparseable. It is
+  `getPropertyValue` now.
+- `color-mix()` serializes as `oklab()` in WebKit and the sampler parsed only
+  `rgb()` and `color(srgb …)`, so **every accent derivation in the system** —
+  soft, wash, hover, press, ring — was unreadable to it. `oklab()` is parsed
+  now, which widens what any future probe can assert, not just these.
+- Reduced motion collapses transitions to `0.01ms` rather than removing them,
+  so a sample taken in the same turn as the hover reads the *resting* colour.
+  The probe waits two frames.
+
+What it still does not cover: `selected` and `optimistic`, and focus only
+through the accent border half of the focus treatment — the 3px ring is an
+`outline`, and the sampler reads colours rather than widths.
 
 ### Deferred discrepancies
 

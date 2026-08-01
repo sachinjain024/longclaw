@@ -2167,7 +2167,7 @@ describe("the side panel against its spec (Step 16a)", () => {
     labels: {},
   };
 
-  const missing = {
+  const unreachable = {
     id: "project-b",
     name: "Moved Project",
     rootPath: "/tmp/LongClaw B",
@@ -2189,7 +2189,7 @@ describe("the side panel against its spec (Step 16a)", () => {
   }
 
   async function renderPanel() {
-    vi.mocked(api.listProjects).mockResolvedValue([reachable, missing]);
+    vi.mocked(api.listProjects).mockResolvedValue([reachable, unreachable]);
     render(<App />);
     await screen.findAllByText("Reachable Project");
   }
@@ -2239,7 +2239,7 @@ describe("the side panel against its spec (Step 16a)", () => {
     // reaching for a folder that is not there — relocating starts here.
     fireEvent.click(link);
     expect(await screen.findByText("UNREACHABLE")).toBeDefined();
-    expect(api.openProject).not.toHaveBeenCalledWith(missing.id);
+    expect(api.openProject).not.toHaveBeenCalledWith(unreachable.id);
   });
 
   it("keeps a starred project's star visible when the row is not hovered", async () => {
