@@ -142,6 +142,7 @@ function panel(props?: {
   reloadSignal?: number;
   onClose?: () => void;
   archived?: boolean;
+  shortcutsActive?: boolean;
   onArchive?: (archived: boolean) => void;
   onWrite?: (result: WriteResult) => void;
 }) {
@@ -153,6 +154,7 @@ function panel(props?: {
       reloadSignal={props?.reloadSignal ?? 0}
       now={NOW}
       archived={props?.archived ?? false}
+      shortcutsActive={props?.shortcutsActive ?? true}
       onClose={props?.onClose ?? noop}
       onArchive={props?.onArchive ?? noop}
       onWrite={props?.onWrite ?? noop}
@@ -475,6 +477,40 @@ describe("the panel's honesty about the file", () => {
     fireEvent.keyDown(document, { key: "Escape" });
 
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  // `keyboard-focus-map.md:66-69`: "`S`/`P` still work (they target the open
+  // ticket)". Focus is in the panel, so neither surface's own binding sees them.
+  it("opens the status and priority menus on S and P", async () => {
+    render(panel());
+    await ready();
+
+    fireEvent.keyDown(document, { key: "s" });
+    expect(screen.getAllByRole("menuitemradio")).toHaveLength(6);
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    fireEvent.keyDown(document, { key: "p" });
+    expect(screen.getByRole("menu", { name: "Priority" })).toBeTruthy();
+  });
+
+  it("suspends S and P while a field has focus", async () => {
+    render(panel());
+    await ready();
+    const title = screen.getByLabelText("Title");
+    title.focus();
+
+    fireEvent.keyDown(title, { key: "s" });
+
+    expect(screen.queryAllByRole("menuitemradio")).toHaveLength(0);
+  });
+
+  it("stands S and P down while a modal is above the panel", async () => {
+    render(panel({ shortcutsActive: false }));
+    await ready();
+
+    fireEvent.keyDown(document, { key: "s" });
+
+    expect(screen.queryAllByRole("menuitemradio")).toHaveLength(0);
   });
 });
 

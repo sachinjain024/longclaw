@@ -21,17 +21,20 @@ import {
   removeProject,
   removeProjectLabel,
   reportVisibleUi,
+  searchTickets,
   setProjectStarred,
   updateProjectLabel,
   updateProjectName,
   updateProjectTheme,
 } from "./api";
 import { Board } from "./Board";
+import { CommandPalette } from "./CommandPalette";
 import { CreatePanel } from "./CreatePanel";
 import { CreateProjectForm, type ProjectDraft } from "./CreateProjectForm";
 import { normalizeError } from "./errors";
 import { filterTickets, isFiltering } from "./filtering";
 import { IssueList } from "./IssueList";
+import { isChord, singleKeyShortcutAllowed } from "./keyContext";
 import { LABEL_COLORS } from "./labels";
 import { MenuButton } from "./Menu";
 import { mutate, type Mutation } from "./mutations";
@@ -44,6 +47,7 @@ import {
   priorityLabel,
   provisionalTicket,
   provisionalTicketKey,
+  statusLabel,
 } from "./tickets";
 import type {
   AppError,
@@ -54,6 +58,7 @@ import type {
   TicketEdit,
   TicketPriority,
   TicketStatus,
+  TicketRow,
 } from "./types";
 import { ToastStack, WriteIndicator } from "./WriteFeedback";
 
@@ -198,6 +203,11 @@ export function App() {
    * field on anything that crosses IPC.
    */
   const [filterQuery, setFilterQuery] = useState("");
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [paletteTicketKey, setPaletteTicketKey] = useState<string>();
+  const [paletteSearchResults, setPaletteSearchResults] =
+    useState<TicketRow[]>();
+  const paletteReturnFocus = useRef<HTMLElement | undefined>(undefined);
   const filterField = useRef<HTMLInputElement>(null);
 
   const project = projects.find((item) => item.id === activeProjectId);
@@ -206,6 +216,15 @@ export function App() {
     (activeProjectId && boardOrdering[activeProjectId]) || "priority";
   /** The row the panel is open on, read from the store both surfaces read. */
   const openRow = tickets.find((ticket) => ticket.key === selectedKey);
+  const paletteTicket = tickets.find(
+    (ticket) => ticket.key === paletteTicketKey,
+  );
+  const commandTarget =
+    paletteTicket?.state === "indexed"
+      ? paletteTicket
+      : openRow?.state === "indexed"
+        ? openRow
+        : undefined;
 
   /**
    * The rows the surface draws. Narrowed once, here, so the board and the list
@@ -321,12 +340,44 @@ export function App() {
    * the panel closes on `Esc` without preventing anything.
    */
   useEffect(() => {
-    const layerOpen = selectedKey !== undefined || createSurface !== undefined;
+    const layerOpen =
+      selectedKey !== undefined || createSurface !== undefined || paletteOpen;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "f") {
+      if (isChord(event, "k")) {
+        event.preventDefault();
+        if (paletteOpen) return;
+        paletteReturnFocus.current =
+          document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : undefined;
+        setPaletteTicketKey(
+          (document.activeElement as HTMLElement | null)?.dataset.ticketKey,
+        );
+        setPaletteOpen(true);
+        return;
+      }
+      // `C` is global (`keyboard-focus-map.md:32`) but not *above* a modal: a
+      // palette row and a create surface's buttons are focusable and are not
+      // text inputs, so the suspension rule alone would let `C` open quick
+      // create underneath whatever is already up.
+      if (
+        project &&
+        !paletteOpen &&
+        createSurface === undefined &&
+        singleKeyShortcutAllowed(event.target) &&
+        event.key.toLowerCase() === "c" &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey
+      ) {
+        event.preventDefault();
+        setCreateSurface("quick");
+        return;
+      }
+      if (isChord(event, "f")) {
         const field = filterField.current;
-        if (!field || createSurface !== undefined) return;
+        if (!field || createSurface !== undefined || paletteOpen) return;
         event.preventDefault();
         field.focus();
         // "Selects existing query" (`keyboard-focus-map.md:31`), so the next
@@ -339,7 +390,23 @@ export function App() {
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [clearFilter, createSurface, filtering, selectedKey]);
+  }, [clearFilter, createSurface, filtering, paletteOpen, selectedKey]);
+
+  /**
+   * Takes the palette down. The results belong to a query that is gone — kept,
+   * they would be the first thing the next `⌘K` → search showed, under somebody
+   * else's query.
+   */
+  function dismissPalette() {
+    setPaletteOpen(false);
+    setPaletteSearchResults(undefined);
+  }
+
+  /** Dismiss plus the focus return the map owes an ordinary close (`:148`). */
+  function closePalette() {
+    dismissPalette();
+    requestAnimationFrame(() => paletteReturnFocus.current?.focus());
+  }
 
   useEffect(() => {
     try {
@@ -740,6 +807,22 @@ export function App() {
     );
   }
 
+  function changeStatus(ticket: IndexedTicket, next: TicketStatus) {
+    const projectId = activeProjectId;
+    if (!projectId || next === ticket.status) return;
+    void mutate(
+      editMutation({
+        projectId,
+        ticket,
+        optimistic: { status: next },
+        edit: { status: next },
+        inverse: { status: ticket.status },
+        toast: `${ticket.key} → ${statusLabel(next)}`,
+        inverseToast: `${ticket.key} status restored`,
+      }),
+    );
+  }
+
   /**
    * A card dropped somewhere else in its column (ADR 0003). The board allocates
    * the rank — LongClaw owns rank allocation in v0 — and this writes it, the
@@ -1071,6 +1154,7 @@ export function App() {
                         now={now}
                         onSelect={openTicket}
                         onChangePriority={changePriority}
+                        onChangeStatus={changeStatus}
                         onReorder={reorderTicket}
                       />
                     ) : (
@@ -1086,6 +1170,8 @@ export function App() {
                         ordering={ordering}
                         now={now}
                         onSelect={openTicket}
+                        onChangePriority={changePriority}
+                        onChangeStatus={changeStatus}
                       />
                     )}
                   </>
@@ -1111,6 +1197,7 @@ export function App() {
             reloadSignal={panelReload}
             now={now}
             archived={openRow !== undefined && isArchived(openRow)}
+            shortcutsActive={!paletteOpen && createSurface === undefined}
             onClose={() => closeTicket(selectedKey)}
             onArchive={(archived) => {
               if (openRow?.state === "indexed") setArchived(openRow, archived);
@@ -1143,6 +1230,61 @@ export function App() {
           initialStatus={carriedDraft?.status}
           onCancel={closeCreateSurface}
           onCreate={(request) => submitNewTicket(request, { openPanel: true })}
+        />
+      )}
+
+      {paletteOpen && project && (
+        <CommandPalette
+          project={project}
+          ticket={commandTarget}
+          projects={localProjects}
+          appearance={appearance}
+          themes={THEMES}
+          ordering={ordering}
+          onClose={closePalette}
+          // Both of these hand focus somewhere specific — the new card, the
+          // panel — so they dismiss the palette without the focus return
+          // `closePalette` owes an ordinary close.
+          onCreate={() => {
+            dismissPalette();
+            setCreateSurface("quick");
+          }}
+          onOpenTicket={(key) => {
+            dismissPalette();
+            openTicket(key);
+          }}
+          onProject={(projectId) => void loadProject(projectId)}
+          onChangeStatus={(next) => {
+            if (commandTarget) changeStatus(commandTarget, next);
+          }}
+          onChangePriority={(next) => {
+            if (commandTarget) changePriority(commandTarget, next);
+          }}
+          onToggleStar={() => void toggleStar(project)}
+          onToggleAppearance={() =>
+            setAppearance(
+              appearance === "system"
+                ? "light"
+                : appearance === "light"
+                  ? "dark"
+                  : "system",
+            )
+          }
+          onTheme={(theme) => void changeTheme(theme)}
+          onView={(next) => setView(next)}
+          view={view}
+          onArchive={() => {
+            if (commandTarget)
+              setArchived(commandTarget, !isArchived(commandTarget));
+          }}
+          onOrdering={(next) => setBoardOrdering(project.id, next)}
+          searchResults={paletteSearchResults}
+          onSearch={(query) => {
+            if (!activeProjectId) return;
+            void searchTickets(activeProjectId, query)
+              .then((result) => setPaletteSearchResults(result.tickets))
+              .catch((error) => setError(normalizeError(error)));
+          }}
         />
       )}
 

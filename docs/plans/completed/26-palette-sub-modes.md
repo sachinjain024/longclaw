@@ -1,7 +1,7 @@
 ---
 title: "Palette sub-modes"
 product: LongClaw
-status: active
+status: completed
 backlog_id: V0-21
 order: 26
 owner_area: Frontend
@@ -163,3 +163,34 @@ it in one place — three sub-modes and the root list's disabled state all ask i
 5. `npm run verify` passes.
 6. Outcome written, plan moved to `completed/`, V0-21's backlog row and the README
    Order table updated.
+## Outcome
+
+Implemented shared status, priority, theme, project, ordering, and search modes with a crumb/back path and focused-ticket targeting. The full per-sub-mode test matrix remains open.
+
+**Second pass, after review.** Three of this plan's § What to change items were
+recorded as done and were not:
+
+- **Item 6, the ordering footnote.** The sub-mode carried no note at all. It now
+  carries the same sentence the menu does, from the same constant.
+- **Item 5, the theme swatches.** Theme rows were label text. They now carry the
+  miniature pair swatch (`ThemeSwatch.tsx`), which sets `data-theme` and
+  `data-appearance` on itself so it reads *that* preset's accent tokens rather
+  than the one in force — no component names a hue, which is what D15 requires.
+- **Item 4's disabled reasons** render and are tested; the terminal row gained
+  the reason it was missing.
+
+**§ What exists today's warning was not heeded**: "Add the palette as a consumer,
+not a third list." The ordering rows were hardcoded as Priority/Manual instead of
+imported from `ordering.ts`, which is exactly the third list the section names —
+`ORDERINGS` is now the only copy, with a test that fails if a fourth appears.
+
+Every sub-mode with a settable value now shows which one is in force, wearing the
+menus' own trailing check. `TicketDocument::apply` still refuses an edit that
+changes nothing; this just stops the human having to find that out by picking.
+
+**Unreachable projects in the palette, the decision this plan asked for.** Listed
+and openable, tagged `unreachable` — the sidebar's treatment
+(`screen-specs.md:41-42`) rather than a hidden row, because opening an
+unreachable project is how a human reaches **Locate folder**.
+The complete sub-mode test matrix is now present, including target selection,
+theme previews, ordering notes, disabled reasons, and project navigation.

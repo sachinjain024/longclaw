@@ -1,0 +1,540 @@
+/**
+ * The `⌘K` command palette (`screen-specs.md:218-237`).
+ *
+ * A combobox over a listbox, not a menu: the input is what the human types into
+ * and the rows are what it filters, so the input keeps DOM focus throughout and
+ * the active row is published with `aria-activedescendant` rather than by moving
+ * focus. That is also why `↑↓` and `Enter` are handled here rather than by the
+ * rows — a row never holds focus, so it never sees the key.
+ *
+ * The palette is one screen in seven modes: a root command list and six
+ * sub-modes (`:231`). Every mode is declared once, in `MODES` below — its rows,
+ * its crumb, what a pick does, and any note under the list — because when the
+ * mode was branched on at each of those four points, adding one meant editing
+ * four places and forgetting the fourth was silent.
+ *
+ * It writes nothing. Every command is raised to `App`, which owns `mutate()`
+ * and is therefore the only place a ticket file is written from.
+ */
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { STATUS_OPTIONS, PRIORITY_OPTIONS } from "./metaOptions";
+import { ORDERINGS, type OrderingMode } from "./ordering";
+import { StatusDot } from "./StatusDot";
+import { ThemeSwatch } from "./ThemeSwatch";
+import type {
+  IndexedTicket,
+  ProjectReference,
+  TicketRow,
+  TicketPriority,
+  TicketStatus,
+} from "./types";
+
+/** The root list, and the six sub-modes it opens (`screen-specs.md:231`). */
+type Mode =
+  "root" | "status" | "priority" | "theme" | "project" | "search" | "ordering";
+
+/** One row of whichever mode is in force. Never a ticket, and never a command. */
+type PaletteRow = {
+  id: string;
+  label: string;
+  /** The option's own glyph: a status dot, a priority mark, a pair swatch. */
+  glyph?: ReactNode;
+  /** Mono ticket key before the label. Search rows only (`screen-specs.md:236`). */
+  monoKey?: string;
+  /** Quiet trailing note on the row itself, e.g. `· archived` (`:154`). */
+  tag?: string;
+  /** The value already in force. Wears the menus' trailing check (`Menu.tsx`). */
+  current?: boolean;
+  /** Right-aligned single-key hint, so the palette is where shortcuts are found. */
+  hint?: string;
+  disabled?: boolean;
+  /** Why it is disabled. Disabled rows stay visible *with their reason* (`:106-107`). */
+  reason?: string;
+  /** A root row that opens a sub-mode instead of running. */
+  opens?: Mode;
+  /** What a root row does, including whether it closes the palette. */
+  run?: () => void;
+};
+
+/** How long typing settles before the search sub-mode asks Rust (`plan 27`). */
+const SEARCH_DEBOUNCE_MS = 150;
+
+/**
+ * `TicketIndex::search` truncates at this many rows (`core/index.rs:24`) and
+ * says nothing about having done it, so the surface has to. Kept in step with
+ * the Rust constant by hand: a result set of exactly this size is reported as
+ * capped, which is the honest reading of a silent truncation.
+ */
+const SEARCH_LIMIT = 100;
+
+/**
+ * What search reads that the header filter does not (`filtering.ts:20-28`).
+ * Plan 21 asked for this to be said on screen rather than discovered.
+ */
+const SEARCH_SCOPE_NOTE =
+  "Searches keys, titles, labels, and descriptions in the index — more than the header filter, which reads the rows on screen.";
+
+/** The ordering menu's note, and the sub-mode carries it too (`:246-247`). */
+const ORDERING_FOOTNOTE =
+  "Ordering is a view preference on this board — it never rewrites files.";
+
+/** Shown on a disabled row that needs a ticket and has none (`:233-235`). */
+const NO_TARGET = "Open or focus a ticket";
+
+export function CommandPalette(props: {
+  /** The project every command runs against: the active one, never another. */
+  project: ProjectReference;
+  /**
+   * The open or focused ticket (`:233`). Absent is a real state — it is what
+   * disables status, priority and archive rather than letting them fail.
+   */
+  ticket?: IndexedTicket;
+  /**
+   * What Rust returned for the current query. `undefined` means no answer has
+   * come back yet, which is not the same as "no tickets" and must not be drawn
+   * as the whole project.
+   */
+  searchResults?: TicketRow[];
+  /** The registry, for the go-to-project sub-mode. */
+  projects: ProjectReference[];
+  /** The stored preference, so the toggle row can name what it will leave. */
+  appearance: "system" | "light" | "dark";
+  /** The four fixed presets (D1). No custom colour exists to offer. */
+  themes: Array<{ id: string; label: string }>;
+  /** The board's current ordering, so the sub-mode can tick it. */
+  ordering: OrderingMode;
+  /** The surface in force, so the view row can name the one it will switch to. */
+  view: "board" | "list";
+  /** Closes and returns focus to whatever held it before `⌘K`. */
+  onClose: () => void;
+  onCreate: () => void;
+  onOpenTicket: (key: string) => void;
+  onProject: (projectId: string) => void;
+  onChangeStatus: (status: TicketStatus) => void;
+  onChangePriority: (priority: TicketPriority) => void;
+  onToggleStar: () => void;
+  onToggleAppearance: () => void;
+  onTheme: (theme: string) => void;
+  onView: (view: "board" | "list") => void;
+  onArchive: () => void;
+  onOrdering: (mode: OrderingMode) => void;
+  /** Debounced. The palette holds no results of its own. */
+  onSearch: (query: string) => void;
+  /** Opens straight into a sub-mode. Tests use it; `⌘K` always opens at root. */
+  initialMode?: Mode;
+}) {
+  const targetTicket = props.ticket;
+  const [mode, setMode] = useState<Mode>(props.initialMode ?? "root");
+  const [query, setQuery] = useState("");
+  const [active, setActive] = useState(0);
+  const input = useRef<HTMLInputElement>(null);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+  // Two palettes never coexist, but a test renders several in one document and
+  // `aria-activedescendant` points at an id, which has to be unique to work.
+  const rowId = useId();
+  useEffect(() => input.current?.focus(), []);
+  useEffect(() => () => clearTimeout(searchTimer.current), []);
+
+  /** Entering a mode resets what the input filters and what `Enter` would run. */
+  function enter(next: Mode) {
+    setMode(next);
+    setQuery("");
+    setActive(0);
+    // The empty query is a real query: Rust answers it with the first page of
+    // the project, which is the search mode's opening state.
+    if (next === "search") props.onSearch("");
+  }
+
+  const root: PaletteRow[] = [
+    { id: "create", label: "Create ticket", hint: "C", run: props.onCreate },
+    { id: "project", label: "Go to project…", opens: "project" },
+    {
+      id: "status",
+      label: "Change status…",
+      hint: "S",
+      opens: "status",
+      disabled: !targetTicket,
+      reason: targetTicket ? undefined : NO_TARGET,
+    },
+    {
+      id: "priority",
+      label: "Set priority…",
+      hint: "P",
+      opens: "priority",
+      disabled: !targetTicket,
+      reason: targetTicket ? undefined : NO_TARGET,
+    },
+    { id: "search", label: "Search tickets…", opens: "search" },
+    {
+      id: "star",
+      label: props.project.starred ? "Unstar project" : "Star project",
+      run: () => {
+        props.onToggleStar();
+        props.onClose();
+      },
+    },
+    {
+      id: "appearance",
+      label: `Toggle appearance (${props.appearance})`,
+      run: () => {
+        props.onToggleAppearance();
+        props.onClose();
+      },
+    },
+    { id: "theme", label: "Change project theme…", opens: "theme" },
+    {
+      id: "archive",
+      label: targetTicket?.archivedAt ? "Unarchive ticket" : "Archive ticket",
+      disabled: !targetTicket,
+      reason: targetTicket ? undefined : NO_TARGET,
+      run: () => {
+        props.onArchive();
+        props.onClose();
+      },
+    },
+    { id: "ordering", label: "Change board ordering…", opens: "ordering" },
+    {
+      id: "view",
+      label: `Switch to ${props.view === "list" ? "board" : "list"} view`,
+      run: () => {
+        props.onView(props.view === "list" ? "board" : "list");
+        props.onClose();
+      },
+    },
+    {
+      id: "terminal",
+      label: "New terminal",
+      disabled: true,
+      hint: "PHASE 2",
+      reason: "Terminals arrive in Phase 2",
+    },
+  ];
+
+  /**
+   * Every sub-mode, declared once: its crumb, its rows, what a pick does, and
+   * the note that belongs under it. A pick always closes — a sub-mode is the
+   * second half of one command, not a place to stand.
+   */
+  const MODES: Record<
+    Exclude<Mode, "root">,
+    {
+      crumb: string;
+      rows: PaletteRow[];
+      run: (row: PaletteRow) => void;
+      /** Rendered under the list. A claim about the mode, not a hint. */
+      note?: string;
+      /** Whether typing narrows the rows here. Search is answered by Rust. */
+      filterLocally?: boolean;
+    }
+  > = {
+    status: {
+      crumb: "status",
+      rows: STATUS_OPTIONS.map((option) => ({
+        id: option.id,
+        label: option.label,
+        glyph: option.glyph,
+        current: targetTicket?.status === option.id,
+      })),
+      run: (row) => {
+        props.onChangeStatus(row.id as TicketStatus);
+        props.onClose();
+      },
+      filterLocally: true,
+    },
+    priority: {
+      crumb: "priority",
+      rows: PRIORITY_OPTIONS.map((option) => ({
+        id: option.id,
+        label: option.label,
+        glyph: option.glyph,
+        current: targetTicket?.priority === option.id,
+      })),
+      run: (row) => {
+        props.onChangePriority(row.id as TicketPriority);
+        props.onClose();
+      },
+      filterLocally: true,
+    },
+    theme: {
+      crumb: "theme",
+      // The swatch is the point: a preset is a pair of accents, and naming it
+      // in words is the one channel that cannot show which pair.
+      rows: props.themes.map((theme) => ({
+        id: theme.id,
+        label: theme.label,
+        glyph: <ThemeSwatch theme={theme.id} />,
+        current: props.project.theme === theme.id,
+      })),
+      run: (row) => {
+        props.onTheme(row.id);
+        props.onClose();
+      },
+      filterLocally: true,
+    },
+    project: {
+      crumb: "project",
+      rows: props.projects.map((project) => ({
+        id: project.id,
+        label: project.name,
+        // The sidebar's treatment for an unreachable project
+        // (`screen-specs.md:41-42`), which the palette had no rule of its own
+        // for: still listed, still openable — opening it is how a human reaches
+        // the Locate folder action.
+        tag: project.reachable ? undefined : "unreachable",
+      })),
+      run: (row) => {
+        props.onProject(row.id);
+        props.onClose();
+      },
+      filterLocally: true,
+    },
+    ordering: {
+      // Read from `ordering.ts` rather than restated here: the control, the
+      // board and this row list are one list or they will disagree.
+      crumb: "ordering",
+      rows: ORDERINGS.map((option) => ({
+        id: option.id,
+        label: option.label,
+        current: props.ordering === option.id,
+      })),
+      run: (row) => {
+        props.onOrdering(row.id as OrderingMode);
+        props.onClose();
+      },
+      note: ORDERING_FOOTNOTE,
+      filterLocally: true,
+    },
+    search: {
+      crumb: "search",
+      rows: (props.searchResults ?? []).map((ticket) => ({
+        id: ticket.key,
+        monoKey: ticket.key,
+        glyph:
+          ticket.state === "indexed" ? (
+            <StatusDot status={ticket.status} decorative />
+          ) : (
+            <span className="search-degraded" aria-hidden="true">
+              !
+            </span>
+          ),
+        label: ticket.state === "indexed" ? ticket.title : "unreadable file",
+        tag:
+          ticket.state === "indexed" && ticket.archivedAt
+            ? "archived"
+            : undefined,
+      })),
+      run: (row) => props.onOpenTicket(row.id),
+      note: SEARCH_SCOPE_NOTE,
+      // Rust answered this query; re-filtering here would hide the description
+      // and label matches that are the reason to use search at all.
+      filterLocally: false,
+    },
+  };
+
+  const subMode = mode === "root" ? undefined : MODES[mode];
+  const rows = subMode ? subMode.rows : root;
+  const visibleRows =
+    subMode && !subMode.filterLocally
+      ? rows
+      : rows.filter(
+          (row) =>
+            !query || row.label.toLowerCase().includes(query.toLowerCase()),
+        );
+
+  function activate(row: PaletteRow) {
+    if (row.disabled) return;
+    if (row.opens) {
+      enter(row.opens);
+      return;
+    }
+    if (row.run) {
+      row.run();
+      return;
+    }
+    subMode?.run(row);
+  }
+
+  function keyDown(event: React.KeyboardEvent) {
+    if (event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey)) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    if (event.key === "Tab") {
+      const focusable = Array.from(
+        event.currentTarget.querySelectorAll<HTMLElement>(
+          "button:not(:disabled), input, [href], [tabindex]:not([tabindex='-1'])",
+        ),
+      );
+      if (focusable.length > 0) {
+        event.preventDefault();
+        const current = focusable.indexOf(
+          document.activeElement as HTMLElement,
+        );
+        focusable[
+          (current + (event.shiftKey ? -1 : 1) + focusable.length) %
+            focusable.length
+        ]?.focus();
+      }
+      return;
+    }
+    if (event.key === "Escape") {
+      event.stopPropagation();
+      if (mode === "root") props.onClose();
+      else {
+        setMode("root");
+        setQuery("");
+        setActive(0);
+      }
+    } else if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActive((x) => (x + 1) % Math.max(visibleRows.length, 1));
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActive(
+        (x) =>
+          (x - 1 + Math.max(visibleRows.length, 1)) %
+          Math.max(visibleRows.length, 1),
+      );
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      const row = visibleRows[active];
+      if (row) activate(row);
+    }
+  }
+
+  const capped =
+    mode === "search" && props.searchResults?.length === SEARCH_LIMIT;
+  const awaitingResults =
+    mode === "search" && props.searchResults === undefined;
+
+  return (
+    <div className="modal-scrim" role="presentation">
+      <section
+        className="command-palette"
+        role="dialog"
+        aria-label="Command palette"
+        onKeyDown={keyDown}
+      >
+        {/* `screen-specs.md:221`, `:232`: one 44px row carrying the crumb chip,
+            the input, and the `esc` chip. */}
+        <div className="palette-input-row">
+          {subMode && (
+            <button
+              type="button"
+              className="palette-crumb"
+              aria-label={`Back to commands from ${subMode.crumb}`}
+              onClick={() => {
+                setMode("root");
+                setQuery("");
+                setActive(0);
+              }}
+            >
+              {subMode.crumb}
+            </button>
+          )}
+          <input
+            ref={input}
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setActive(0);
+              if (mode === "search") {
+                clearTimeout(searchTimer.current);
+                searchTimer.current = setTimeout(
+                  () => props.onSearch(e.target.value),
+                  SEARCH_DEBOUNCE_MS,
+                );
+              }
+            }}
+            placeholder={mode === "root" ? "Type a command…" : "Search…"}
+            aria-label="Command palette input"
+            role="combobox"
+            aria-controls="command-palette-options"
+            aria-expanded="true"
+            aria-activedescendant={
+              visibleRows[active] ? `${rowId}-${active}` : undefined
+            }
+          />
+          <kbd className="palette-esc">esc</kbd>
+        </div>
+        <div
+          id="command-palette-options"
+          role="listbox"
+          aria-label={subMode ? `${subMode.crumb} options` : "Commands"}
+        >
+          {visibleRows.map((row, index) => (
+            <button
+              key={row.id}
+              id={`${rowId}-${index}`}
+              role="option"
+              aria-selected={index === active}
+              disabled={row.disabled}
+              className={index === active ? "active" : ""}
+              onClick={() => activate(row)}
+            >
+              {row.glyph}
+              {row.monoKey && <span className="search-key">{row.monoKey}</span>}
+              <span className="palette-label">{row.label}</span>
+              {row.tag && <small className="palette-tag">· {row.tag}</small>}
+              {row.reason && <small>{row.reason}</small>}
+              {row.hint && <kbd>{row.hint}</kbd>}
+              {row.current && (
+                <span className="palette-check" aria-hidden="true">
+                  ✓
+                </span>
+              )}
+            </button>
+          ))}
+          {visibleRows.length === 0 && (
+            // Derived from the header filter's no-match state
+            // (`states.md:38-42`) — the palette has none of its own designed —
+            // minus its Clear filter button, which becomes clearing the query.
+            <div className="palette-empty" role="status">
+              <strong>{awaitingResults ? "Searching…" : "No matches"}</strong>
+              {!awaitingResults && (
+                <p>
+                  {query ? (
+                    <>
+                      Nothing here matches <code>{query}</code>.
+                    </>
+                  ) : mode === "search" ? (
+                    "This project has no tickets to find yet."
+                  ) : (
+                    "No commands are available."
+                  )}
+                </p>
+              )}
+              {query && (
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => {
+                    setQuery("");
+                    setActive(0);
+                    if (mode === "search") {
+                      clearTimeout(searchTimer.current);
+                      props.onSearch("");
+                    }
+                    input.current?.focus();
+                  }}
+                >
+                  Clear query
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+        {subMode?.note && <p className="palette-note">{subMode.note}</p>}
+        {capped && (
+          <p className="palette-note" role="status">
+            {`Showing the first ${SEARCH_LIMIT} matches. Narrow the query to see the rest.`}
+          </p>
+        )}
+        <footer>↑↓ navigate · ↵ run · esc close/back</footer>
+      </section>
+    </div>
+  );
+}

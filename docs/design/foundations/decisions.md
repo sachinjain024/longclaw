@@ -201,16 +201,30 @@ marketing moments, never in-app chrome. Master: `assets/owl-mark.svg`.
 
 ## D14 — Command palette v0 command set · accepted
 
-create ticket · go to project · change status · ~~assign~~ · search tickets ·
+**Current:** create ticket · go to project · change status · ~~assign~~ · set
+priority · search tickets · star project · toggle appearance · change project
+theme · archive/unarchive ticket · change board ordering · switch board/list
+view · new terminal (Phase 2 slot, visible but disabled). "Change project theme"
+ships in the palette per the brief's proposal.
+
+> **ADR 0001 (2026-07-28):** "assign" is dropped from the v0 palette —
+> no assignee in local mode.
+
+> **P1 accepted (2026-08-01):** ~~The Step 2 bundle additionally stages
+> set-priority, view-toggle, archive (ADR 0004) and board-ordering
+> (ADR 0003) commands for sign-off~~ — the founder accepted those four on
+> 2026-08-01, so they are v0 commands rather than proposals. See
+> `../prototype/README.md` § Proposals. The M0 gate itself is still open, so
+> this file's opening note about founder sign-off stands.
+
+<details><summary>Superseded original (accepted at Step 1)</summary>
+
+create ticket · go to project · change status · assign · search tickets ·
 star project · toggle appearance · change project theme · new terminal
 (Phase 2 slot, visible but disabled). "Change project theme" ships in the
 palette per the brief's proposal.
 
-> **ADR 0001 (2026-07-28):** "assign" is dropped from the v0 palette —
-> no assignee in local mode. The Step 2 bundle additionally stages
-> set-priority, view-toggle, archive (ADR 0004) and board-ordering
-> (ADR 0003) commands for sign-off; see
-> `../prototype/README.md` § Proposals.
+</details>
 
 ## D15 — Token architecture · accepted (hard requirement, verified)
 

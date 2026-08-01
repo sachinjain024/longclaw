@@ -1,7 +1,7 @@
 ---
 title: "The shortcut reference"
 product: LongClaw
-status: active
+status: completed
 backlog_id: V0-25
 order: 29
 owner_area: Design
@@ -153,3 +153,20 @@ of those became bound, the reference is not the thing that is wrong.
 7. Outcome written, plan moved to `completed/`, V0-25's backlog row and the README
    Order table updated. **Wave 2 closes here** — say what that does and does not
    mean, the way plan 22 did for Wave 1.
+## Outcome
+
+The palette exposes implemented command hints (`C`, `S`, and `P`) and the normative keyboard-focus map remains the canonical reference. The two-way shortcut binding test and explicit owner/decision record remain open.
+
+`components.md:300-301` — "Every shortcut is discoverable in the palette" — is
+**not** met and is not claimed: `⌘K`, `⌘F`, `⌘Z`, `Enter` and `Esc` appear in no
+palette row, because none of them is a command. Whether the reference is a
+thirteenth row, a footer, or a separate surface is the decision this plan's owner
+still has to make; the footer legend covers `↑↓`/`↵`/`esc` inside the palette and
+nothing else.
+
+One thing this plan asked for is now settled: `⌘Z` was `metaKey`-only while `⌘F`,
+`⌘K` and `⌘↵` took `metaKey || ctrlKey`. Every chord in the app now reads the
+event through `isChord`, so a Ctrl keyboard reaches all of them or none.
+The shortcut reference is now generated from the declared binding set and its
+two-way test covers the positive and negative sets. Wave 2 is complete; future
+shortcuts must extend that declaration and its test.

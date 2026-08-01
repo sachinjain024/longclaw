@@ -35,16 +35,28 @@ import {
   type Seat,
   type StatusGroup,
 } from "./grouping";
+import { singleKeyShortcutAllowed } from "./keyContext";
 import { LabelChip } from "./LabelChip";
 import { groupBodyHeight, listGeometry, rowTop } from "./listGeometry";
 import { presentRow } from "./listRow";
 import { comparatorFor, orderColumn, type OrderingMode } from "./ordering";
 import { PriorityGlyph } from "./PriorityGlyph";
 import { PulseDot } from "./PulseDot";
-import { moveFor, useRovingFocus } from "./rovingFocus";
+import { itemFor, moveFor, useRovingFocus } from "./rovingFocus";
 import { StatusDot } from "./StatusDot";
 import { isArchived } from "./tickets";
-import type { Label, TicketRow } from "./types";
+import {
+  metaFieldFor,
+  TicketMetaMenu,
+  type MetaMenuTarget,
+} from "./TicketMetaMenu";
+import type {
+  IndexedTicket,
+  Label,
+  TicketPriority,
+  TicketRow,
+  TicketStatus,
+} from "./types";
 import { useViewportHeight } from "./viewportHeight";
 
 /** Rows rendered beyond each edge of the viewport, so a scroll shows no gap. */
@@ -101,8 +113,14 @@ export function IssueList(props: {
   ordering: OrderingMode;
   now: number;
   onSelect: (key: string) => void;
+  /** Raised by the `P` menu. The list holds no project id and writes nothing. */
+  onChangePriority: (ticket: IndexedTicket, next: TicketPriority) => void;
+  /** Raised by the `S` menu, on the same terms. */
+  onChangeStatus: (ticket: IndexedTicket, next: TicketStatus) => void;
 }) {
   const [archiveOpen, setArchiveOpen] = useState(false);
+  /** The row whose `S`/`P` menu is open, and which of the two it is. */
+  const [metaMenu, setMetaMenu] = useState<MetaMenuTarget>();
   const scroller = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const viewport = useViewportHeight(scroller);
@@ -172,14 +190,27 @@ export function IssueList(props: {
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
     if (event.defaultPrevented) return;
-    const step = moveFor(MOVES, event.key);
-    if (step === undefined) return;
+    if (!singleKeyShortcutAllowed(event.target)) return;
     // The row the key was pressed on, not the one the last render believed was
     // focused: the Archived toggle is a tab stop of its own and is not a row.
     const on = (event.target as HTMLElement).closest?.(ROW);
     const fromKey = (on as HTMLElement | null)?.dataset.ticketKey;
     const from = fromKey === undefined ? undefined : seats.get(fromKey);
     if (!from) return;
+
+    const field = metaFieldFor(event.key);
+    if (field) {
+      // Inert on a file that would not read: there is no field to write to
+      // (`keyboard-focus-map.md:48`).
+      const row = groups[from.group].tickets[from.index];
+      if (row.state !== "indexed") return;
+      event.preventDefault();
+      setMetaMenu({ key: row.key, field });
+      return;
+    }
+
+    const step = moveFor(MOVES, event.key);
+    if (step === undefined) return;
 
     event.preventDefault();
     const next = moveTo(groups, from, step);
@@ -212,6 +243,21 @@ export function IssueList(props: {
           onFocusRow={onFocusRow}
         />
       ))}
+      {metaMenu && (
+        <TicketMetaMenu
+          target={metaMenu}
+          tickets={props.tickets}
+          anchor={itemFor(scroller.current, ROW, metaMenu.key) ?? null}
+          onChangeStatus={props.onChangeStatus}
+          onChangePriority={props.onChangePriority}
+          onClose={() => {
+            setMetaMenu(undefined);
+            // A pick re-buckets the row, so it is asked for by key again rather
+            // than left to whatever node the menu was hanging off.
+            requestFocus(metaMenu.key);
+          }}
+        />
+      )}
     </div>
   );
 }

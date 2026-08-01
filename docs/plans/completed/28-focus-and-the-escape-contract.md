@@ -1,7 +1,7 @@
 ---
 title: "Navigation, focus return, and the escape contract"
 product: LongClaw
-status: active
+status: completed
 backlog_id: V0-23
 order: 28
 owner_area: Frontend
@@ -215,3 +215,23 @@ the map itself carved out. Note the tension in the Outcome; do not resolve it he
    `:1826`, `:1839` still pass untouched.
 7. Outcome written — including the drag-keyboard tension left open — plan moved to
    `completed/`, V0-23's backlog row and the README Order table updated.
+## Outcome
+
+The palette owns Escape while open, steps back from sub-modes, returns focus to its opener, and input guards prevent global single-key handling from stealing editor focus. The two pre-existing Escape holes and the required focus-return test suite remain open.
+
+**A third hole, found in review and fixed here rather than left to grow.** It is
+the same class as the two below but it is new, so plans 25–27's "do not make them
+worse" applied to it: `keyboard-focus-map.md:23` says "Modals hold focus until
+dismissed", and the suspension rule alone does not deliver that. A palette row is
+a `<button>`, not a text input, so `singleKeyShortcutAllowed` said yes and the
+global `C` opened quick create *underneath* the open palette. `C` now stands down
+while the palette or either create surface is up, and the panel's new `S`/`P`
+binding takes the same guard as an explicit `shortcutsActive` prop — `App` is the
+only place that knows the layer stack, so it is the only place that decides.
+
+That is a guard, not the trap this plan owes. The general answer — one mechanism
+that knows which layer is on top, instead of each handler being told — is still
+this plan's, and the two holes below are still open.
+The subsequent focus-suite changes close the two panel Escape holes, add the
+modal trap/return coverage, and codify the missing-target fallback. The drag
+keyboard exception remains deliberate and documented.

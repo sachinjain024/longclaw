@@ -19,7 +19,13 @@ import { ASSUMED_VIEWPORT, CARD_STRIDE } from "./boardGeometry";
 import type { OrderingMode } from "./ordering";
 import { FRESH_WINDOW_MS } from "./freshness";
 import type { ExternalMark, ExternalMarks } from "./freshness";
-import type { IndexedTicket, Label, TicketPriority, TicketRow } from "./types";
+import type {
+  IndexedTicket,
+  Label,
+  TicketPriority,
+  TicketRow,
+  TicketStatus,
+} from "./types";
 
 /**
  * Every card render presents itself exactly once, so this is the render count
@@ -91,6 +97,7 @@ function board(props?: {
   labels?: Record<string, Label>;
   ordering?: OrderingMode;
   onChangePriority?: (ticket: IndexedTicket, next: TicketPriority) => void;
+  onChangeStatus?: (ticket: IndexedTicket, next: TicketStatus) => void;
   onReorder?: (ticket: IndexedTicket, rank: string) => void;
 }) {
   return (
@@ -102,6 +109,7 @@ function board(props?: {
       now={NOW}
       onSelect={noop}
       onChangePriority={props?.onChangePriority ?? noop}
+      onChangeStatus={props?.onChangeStatus ?? noop}
       onReorder={props?.onReorder ?? noop}
     />
   );
@@ -253,6 +261,7 @@ describe("the pulse, which says a change just landed", () => {
         onSelect={noop}
         ordering="priority"
         onChangePriority={noop}
+        onChangeStatus={noop}
         onReorder={noop}
       />,
     );
@@ -334,6 +343,7 @@ describe("the board's own shape", () => {
         onSelect={onSelect}
         ordering="priority"
         onChangePriority={noop}
+        onChangeStatus={noop}
         onReorder={noop}
       />,
     );
@@ -404,6 +414,7 @@ describe("focus on a column that is being scrolled", () => {
         onSelect={() => {}}
         ordering="priority"
         onChangePriority={noop}
+        onChangeStatus={noop}
         onReorder={noop}
       />,
     );
@@ -529,6 +540,7 @@ describe("what a change to one ticket costs", () => {
         onSelect={noop}
         ordering="priority"
         onChangePriority={noop}
+        onChangeStatus={noop}
         onReorder={noop}
       />,
     );
@@ -545,6 +557,7 @@ describe("what a change to one ticket costs", () => {
         onSelect={noop}
         ordering="priority"
         onChangePriority={noop}
+        onChangeStatus={noop}
         onReorder={noop}
       />,
     );

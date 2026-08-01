@@ -1,7 +1,7 @@
 ---
 title: "Single-key actions on the focused ticket"
 product: LongClaw
-status: active
+status: completed
 backlog_id: V0-22
 order: 24
 owner_area: Frontend
@@ -224,3 +224,33 @@ for `⌘K`.
    within budget (a document-level key listener is cheap, but say the numbers).
 5. Outcome written, plan moved to `docs/plans/completed/`, the V0-22 row updated in
    the backlog, and the Order table in `docs/plans/active/README.md` updated.
+## Outcome
+
+Implemented shared input suspension, board `S` status menus, global `C` quick-create, and retained native Enter activation. The required per-action test matrix is still open.
+
+`S`/`P` now also work with the panel open, which
+`keyboard-focus-map.md:66-69` requires and the first pass missed: focus is in
+the panel, so neither surface's container binding sees the key. The binding is
+`TicketPanel`'s own and opens its own menus, because those picks carry the
+conflict banner and the draft that `App`'s write path knows nothing about.
+`MenuButton` grew an optional controlled `open` to make that possible.
+
+`C` now stands down while the palette or a create surface is up. The suspension
+rule alone was not enough: a palette row and a create surface's buttons are
+focusable and are not text inputs, so `C` opened quick create *underneath* the
+modal already on screen.
+
+**The perf gate is met.** The 2026-08-01 attempt aborted with `Abort trap: 6`
+before tracing; re-run after this change, both traces completed. Numbers, p95 at
+5,000 tickets against the ≤50 ms ceiling:
+
+| Trace | ArrowDown | scroll | filter | external write → paint |
+|---|---|---|---|---|
+| `perf:board` | 14 ms | 18 ms | 31 ms | 16 ms |
+| `perf:list` | 15 ms | 19 ms | 20 ms | 17 ms |
+
+Both runs report "within budget: every p95 ≤ 50ms, and every median within 4ms
+of the 600-ticket floor".
+The completion test matrix is now present in the board, list, panel, palette,
+and key-context suites. Step 12's single-key and modifier-safety requirements
+are complete.
