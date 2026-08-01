@@ -15,6 +15,7 @@ iteration). Everything here is the deliverable set for MVP plan Step 1.
 | `decisions.md` | Decision log — every **[proposed]** brief item resolved (D1–D15) |
 | `accessibility.md` | Generated WCAG AA + color-vision-deficiency results (204 checks) |
 | `scripts/a11y-check.mjs` | The checker (`node scripts/a11y-check.mjs --write`); exits non-zero on any failure |
+| `scripts/render.mjs` | The render pipeline (`node scripts/render.mjs`); regenerates `proof/renders/` from the two proof pages |
 | `assets/owl-mark.svg` | Original geometric owl mark, variant A "talon" |
 | `assets/glyphs.svg` | Status / priority / checkbox / agent / folder / warn glyph masters |
 | `proof/board.html` | **Board proof** — open in a browser; switch 4 themes × 2 appearances live |
@@ -56,24 +57,24 @@ swap and nothing else.
 project has exactly one human and no assignee concept, and this pass
 closed the remaining gap for these two Step 1 proof pages (the markdown
 specs were already brought into line). The committed screenshots in
-`proof/renders/` are the exit-gate evidence above and predate this
-revision — they still show assignee avatars, the assignee field, and the
-assignee control in the ticket panel. The render pipeline that produced
-them is not committed, so they have not been regenerated and remain
-historical evidence of the pre-ADR-0001 anatomy, not the current HTML.
-**Read them as history, not as the spec.** Committing that pipeline and
-re-rendering the set is
-[V0-41](../../backlog/v0-backlog.md) in Wave 3; until it lands, the exit-gate
-row above is evidence about the token system and not about the card anatomy,
-and V0-19's screen clause is open.
+`proof/renders/` predated that revision and still showed the assignee
+anatomy, because the pipeline that produced them was never committed.
+**Resolved 2026-08-01 (V0-41):** `scripts/render.mjs` is that pipeline,
+committed, and `proof/renders/` is regenerated from the current HTML — no
+assignee avatar, field, or control appears anywhere in the set, which
+closes V0-19's screen clause. The renders are current evidence again, not
+history.
 
 ## Regenerating
 
 ```sh
 node tokens/build.mjs               # JSON → CSS
 node scripts/a11y-check.mjs --write # verify + regenerate accessibility.md
+node scripts/render.mjs             # proof pages → proof/renders/
 ```
 
-Any token change: edit `tokens/design-tokens.json`, run both commands, and
-re-open `proof/board.html`. If a screen breaks under a preset, fix the
-tokens, never the screen.
+Any token change: edit `tokens/design-tokens.json`, run all three commands,
+and re-open `proof/board.html`. If a screen breaks under a preset, fix the
+tokens, never the screen. The render script drives WebKit through
+`playwright-core`, resolved from `apps/desktop`; a first run may need
+`npx playwright-core install webkit` there.
