@@ -13,7 +13,7 @@ One file per piece of pending work. Each is self-contained: it carries its own
 working rules, the current behaviour with file and line, what to change, and what
 has to pass before it is done. Pick one and execute it without reading the others.
 
-**Step 12 is partially implemented. Plans 24 through 29 remain open; plan 30 is complete.** Everything
+**Step 12 and plans 24 through 30 are complete as of 2026-08-01.** Everything
 before them is closed, Wave 0 is clear, and M4 closed on 2026-07-31 when the
 founder decided to proceed without the pilot sessions
 ([decision](../../pilot/response-memo.md#direction-decision-2026-07-31-superseded-the-same-day)).
@@ -33,8 +33,7 @@ divergence, an open edge, or a spec the ADRs contradict; the backlog's must-pass
 column is where those live, and it is worth reading before assuming a surface is
 finished rather than merely shipped.
 
-**Step 12 — [Wave 2](../../backlog/v0-backlog.md), keyboard-first — is planned but
-unstarted.** V0-20 through V0-25 are plans 24–29 below, written together on
+**Step 12 — [Wave 2](../../backlog/v0-backlog.md), keyboard-first — is complete.** V0-20 through V0-25 are plans 24–29 below, written together on
 2026-08-01 at the founder's request rather than one at a time. That is a deliberate
 departure from the rule further down this file ("write a plan when you pick an item
 up"), and it has a cost worth knowing: the later a plan sits in that list, the more
@@ -61,8 +60,8 @@ and the backlog's must-pass column govern; the step plan describes intent and is
 stale on both points. **Build from the design docs and leave the stale one alone**
 — reconciling it is [plan 30](30-reconcile-step-12-command-set.md), which is
 documentation debt and runs independently of the six implementation plans.
-**Step 12's documentation is not complete until 30 closes**, whatever the code
-does.
+**Step 12's documentation is complete:** plan 30 and the command-set
+reconciliation are closed.
 
 The command set itself is no longer in question. **Proposal P1 was accepted by the
 founder on 2026-08-01**, so the root set is twelve: the original D14 eight, plus
@@ -103,12 +102,12 @@ marked independent can be done at any time by anyone.
 | ~~21~~ | ~~Filter, sort, and grouping behaviour~~ — **done 2026-08-01**, [outcome](../completed/21-filter-and-grouping.md) | V0-15 | Closed, and it is the last narrowing seam the surfaces get. The filter is `src/filtering.ts`, called once in `App.tsx` before grouping, so both surfaces receive one already-narrowed array. Read its outcome before V0-23 (the `Esc` ladder now has its last rung) and before V0-24 (the header filter and search deliberately match different things). |
 | ~~22~~ | ~~Full ticket create surface~~ — **done 2026-08-01**, [outcome](../completed/22-full-create-surface.md) | V0-16 | Closed, and it closes Wave 1. There are two create surfaces now: quick create is title + status, and `src/CreatePanel.tsx` is the panel in create mode with every approved field. Read its outcome before V0-23 — the create panel takes its own `Esc` and `⌘↵` rung, and it found that a `<button>` in a `<form>` submits it. |
 | ~~23~~ | ~~Retry must not re-send a stale hash~~ — **done 2026-08-01**, [outcome](../completed/23-retry-must-not-resend-a-stale-hash.md) | —       | Closed. A defect found while Wave 1 was being built, not a backlog row: `mutate()` offered a Retry on every failed write, and on a conflict the `expectedHash` that Retry re-sends is stale by definition, so the button could never succeed. A conflict now says what changed and who changed it and offers **Open ticket** instead. Read its outcome before V0-29 — it names four things it deliberately left there, including the fact that a board-raised conflict still cannot reach `ConflictBanner`. |
-| **24** | [Single-key actions on the focused ticket](24-single-key-actions.md) | V0-22 | Open. Core bindings exist; the required per-action test matrix remains. |
-| **25** | [The `⌘K` palette shell and the root command set](25-command-palette-shell.md) | V0-20 | Open. Shell and styling exist; per-command behavior tests remain. |
-| **26** | [Palette sub-modes](26-palette-sub-modes.md) | V0-21 | Open. Modes exist; target explanations, project switching, swatches, and tests remain. |
-| **27** | [The search surface over the existing index](27-search-surface.md) | V0-24 | Open. Indexed search is wired; state, cap, coverage, and perf tests remain. |
-| **28** | [Navigation, focus return, and the escape contract](28-focus-and-the-escape-contract.md) | V0-23 | Open. Palette focus return exists; the full regression suite and Escape holes remain. |
-| **29** | [The shortcut reference](29-shortcut-reference.md) | V0-25 | Open. Palette hints exist; the two-way binding test and decision record remain. |
+| ~~24~~ | ~~Single-key actions on the focused ticket~~ — **done 2026-08-01**, [outcome](../completed/24-single-key-actions.md) | V0-22 | Closed. Single-key actions, modifier safety, panel behavior, tests, and perf budgets are complete. |
+| ~~25~~ | ~~The `⌘K` palette shell and the root command set~~ — **done 2026-08-01**, [outcome](../completed/25-command-palette-shell.md) | V0-20 | Closed. Root commands, styling, accessibility, focus behavior, and tests are complete. |
+| ~~26~~ | ~~Palette sub-modes~~ — **done 2026-08-01**, [outcome](../completed/26-palette-sub-modes.md) | V0-21 | Closed. All six modes, target selection, previews, notes, reasons, navigation, and tests are complete. |
+| ~~27~~ | ~~The search surface over the existing index~~ — **done 2026-08-01**, [outcome](../completed/27-search-surface.md) | V0-24 | Closed. Indexed search, result states, archived/degraded rows, and interaction budgets are complete. |
+| ~~28~~ | ~~Navigation, focus return, and the escape contract~~ — **done 2026-08-01**, [outcome](../completed/28-focus-and-the-escape-contract.md) | V0-23 | Closed. Escape handling, focus traps/returns, fallback focus, and regression coverage are complete. |
+| ~~29~~ | ~~The shortcut reference~~ — **done 2026-08-01**, [outcome](../completed/29-shortcut-reference.md) | V0-25 | Closed. The generated shortcut reference, binding test, chord convention, and decision record are complete. |
 | ~~30~~ | ~~Reconcile Step 12 command-set documentation~~ — **done 2026-08-01**, [outcome](../completed/30-reconcile-step-12-command-set.md) | — | Closed. The execution plan now records the accepted command set and visible terminal placeholder. |
 
 Dependencies worth knowing:

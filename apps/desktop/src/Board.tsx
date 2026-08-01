@@ -60,16 +60,18 @@ import {
   type Seat,
   type StatusGroup,
 } from "./grouping";
+import { singleKeyShortcutAllowed } from "./keyContext";
 import { LabelChip } from "./LabelChip";
-import { Menu } from "./Menu";
-import { PRIORITY_OPTIONS } from "./metaOptions";
 import { comparatorFor, rankForDrop, type OrderingMode } from "./ordering";
 import { PriorityGlyph } from "./PriorityGlyph";
 import { PulseDot } from "./PulseDot";
 import { itemFor, moveFor, useRovingFocus } from "./rovingFocus";
-import { singleKeyShortcutAllowed } from "./keyContext";
-import { STATUS_OPTIONS } from "./metaOptions";
 import { StatusDot } from "./StatusDot";
+import {
+  metaFieldFor,
+  TicketMetaMenu,
+  type MetaMenuTarget,
+} from "./TicketMetaMenu";
 import type {
   IndexedTicket,
   Label,
@@ -176,7 +178,8 @@ export function Board(props: {
   onSelect: (key: string) => void;
   /** Raised by the `P` menu. The board holds no project id and writes nothing. */
   onChangePriority: (ticket: IndexedTicket, next: TicketPriority) => void;
-  onChangeStatus?: (ticket: IndexedTicket, next: TicketStatus) => void;
+  /** Raised by the `S` menu, on the same terms. */
+  onChangeStatus: (ticket: IndexedTicket, next: TicketStatus) => void;
   /** Raised by a drop in Manual. The rank is allocated; the write is App's. */
   onReorder: (ticket: IndexedTicket, rank: string) => void;
 }) {
@@ -185,9 +188,8 @@ export function Board(props: {
     () => layOutColumns(props.tickets, props.ordering, scaffold),
     [props.tickets, props.ordering, scaffold],
   );
-  /** The card whose priority menu is open, if one is. */
-  const [priorityFor, setPriorityFor] = useState<string>();
-  const [statusFor, setStatusFor] = useState<string>();
+  /** The card whose `S`/`P` menu is open, and which of the two it is. */
+  const [metaMenu, setMetaMenu] = useState<MetaMenuTarget>();
   /** The card being dragged, and where letting go would put it. */
   const [dragKey, setDragKey] = useState<string>();
   const [dropGap, setDropGap] = useState<number>();
@@ -247,18 +249,13 @@ export function Board(props: {
     const from = fromKey === undefined ? undefined : seats.get(fromKey);
     if (!from || fromKey === undefined) return;
 
-    if (event.key.toLowerCase() === "p") {
+    const field = metaFieldFor(event.key);
+    if (field) {
       // Inert on a file that would not read: there is no field to write to
       // (`keyboard-focus-map.md:48`).
       if (ticketAt(from).state !== "indexed") return;
       event.preventDefault();
-      setPriorityFor(fromKey);
-      return;
-    }
-    if (event.key.toLowerCase() === "s") {
-      if (ticketAt(from).state !== "indexed") return;
-      event.preventDefault();
-      setStatusFor(fromKey);
+      setMetaMenu({ key: fromKey, field });
       return;
     }
 
@@ -274,21 +271,6 @@ export function Board(props: {
   const focusSeat = rovingKey === undefined ? undefined : seats.get(rovingKey);
   const openSeat =
     props.selectedKey === undefined ? undefined : seats.get(props.selectedKey);
-
-  const menuSeat =
-    priorityFor === undefined ? undefined : seats.get(priorityFor);
-  const menuTicket = menuSeat && ticketAt(menuSeat);
-
-  function closePriorityMenu() {
-    setPriorityFor(undefined);
-    // A pick re-sorts the column, so the card is asked for by key again rather
-    // than left to whatever node the menu was hanging off.
-    requestFocus();
-  }
-  function closeStatusMenu() {
-    setStatusFor(undefined);
-    requestFocus();
-  }
 
   /**
    * `dragstart` bubbles, so the board picks the dragged card up once here rather
@@ -339,30 +321,21 @@ export function Board(props: {
           onDropCard={(gap) => onDrop(columnIndex, gap)}
         />
       ))}
-      {menuTicket?.state === "indexed" && (
-        <Menu
-          label="Priority"
-          options={PRIORITY_OPTIONS}
-          selected={[menuTicket.priority]}
-          anchor={itemFor(grid.current, CARD, menuTicket.key) ?? null}
-          onPick={(next) => props.onChangePriority(menuTicket, next)}
-          onClose={closePriorityMenu}
+      {metaMenu && (
+        <TicketMetaMenu
+          target={metaMenu}
+          tickets={props.tickets}
+          anchor={itemFor(grid.current, CARD, metaMenu.key) ?? null}
+          onChangeStatus={props.onChangeStatus}
+          onChangePriority={props.onChangePriority}
+          onClose={() => {
+            setMetaMenu(undefined);
+            // A pick re-sorts the column, so the card is asked for by key again
+            // rather than left to whatever node the menu was hanging off.
+            requestFocus();
+          }}
         />
       )}
-      {(() => {
-        const seat = statusFor === undefined ? undefined : seats.get(statusFor);
-        const ticket = seat && ticketAt(seat);
-        return ticket?.state === "indexed" ? (
-          <Menu
-            label="Status"
-            options={STATUS_OPTIONS}
-            selected={[ticket.status]}
-            anchor={itemFor(grid.current, CARD, ticket.key) ?? null}
-            onPick={(next) => props.onChangeStatus?.(ticket, next)}
-            onClose={closeStatusMenu}
-          />
-        ) : null;
-      })()}
     </div>
   );
 }

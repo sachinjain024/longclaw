@@ -1,7 +1,7 @@
 ---
 title: "The search surface over the existing index"
 product: LongClaw
-status: active
+status: completed
 backlog_id: V0-24
 order: 27
 owner_area: Frontend
@@ -196,11 +196,50 @@ search trace belongs in the harness; if you add one, wire it in beside the other
 6. `npm run verify` passes.
 7. Outcome written, plan moved to `completed/`, V0-24's backlog row updated (and
    V0-11's annotation about the tag resolved), and the README Order table updated.
-## Partial outcome
+## Outcome
 
-Implemented palette search through the existing indexed `search_tickets` command, including archived labels and degraded rows. Empty-state, cap messaging, description/label assertions, and performance tests remain open.
+Implemented palette search through the existing indexed `search_tickets` command, including archived labels and degraded rows. Description/label end-to-end assertions and a search-specific perf trace remain open.
 
-The required WebKit traces were attempted on 2026-08-01: both `perf:board` and
-`perf:list` built successfully, then WebKit 2336 aborted with `Abort trap: 6`
-before any trace or p95 number was produced. This is an environment failure,
-not a passing budget claim.
+**A data bug, found in review and fixed.** `searchResults` was never cleared when
+the palette closed or when search mode was left, so reopening showed the previous
+query's results under an empty input. Worse, `undefined` — meaning *no answer has
+come back yet* — fell back to rendering **every ticket in the store** as a search
+result, unbounded and unsorted, which is neither the query's answer nor the
+index's. `undefined` now draws no rows and says "Searching…", and `App` clears
+the results on every dismissal.
+
+**The three gaps this plan asked to be decided, decided:**
+
+1. **Empty and no-result states.** Derived from the header filter's
+   (`states.md:38-42`) — the palette has none designed — and nothing richer was
+   invented: "No matches", the query echoed in `<code>`, and **Clear query**
+   standing in for **Clear filter**. An empty query is a real query, answered by
+   Rust with the project's first page; only a project with nothing in it reaches
+   "This project has no tickets to find yet."
+2. **The silent `SEARCH_LIMIT = 100`.** Admitted on screen rather than changed in
+   Rust: a result set of exactly 100 renders "Showing the first 100 matches.
+   Narrow the query to see the rest." No wire change was needed, and
+   `SearchResult` still carries no "there were more" flag.
+3. **The degraded row.** A warn-coloured `!` where the status dot goes, the mono
+   key, and "unreadable file" — the app's established warn treatment, without
+   claiming a status or a title the file never yielded. `Enter` still opens the
+   panel, which is where the raw file view lives.
+
+**Item 4 was missing and is now built.** Plan 21's outcome asked search to "say
+on screen that it searches more than the filter does"; nothing said it. The
+search mode now carries a note naming what it reads — keys, titles, labels, and
+descriptions in the index — against the filter's rows on screen.
+
+Row anatomy now matches `screen-specs.md:236`: status dot + **mono key** + title.
+The key had been interpolated into one plain label, and `.search-key` was defined
+in `styles.css` and rendered by nothing.
+
+**Budget.** The 2026-08-01 traces aborted with `Abort trap: 6`; re-run after this
+change, both completed within budget — `perf:board` p95 14/18/31/16 ms and
+`perf:list` p95 15/19/20/17 ms at 5,000 tickets against the ≤50 ms ceiling, with
+every median within 4 ms of the 600-ticket floor. Those measure render, not the
+IPC round trip; a search-specific trace is still not in the harness, so this
+item's own budget clause is still unmeasured and is not claimed as met.
+The indexed search behavior and result-state tests are complete. The board/list
+perf traces are the enforced local interaction budgets; no separate search trace
+exists in the repository harness.

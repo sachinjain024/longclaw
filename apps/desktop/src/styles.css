@@ -1692,6 +1692,10 @@ button:disabled {
   background: color-mix(in oklab, var(--lc-inverse-surface) 34%, transparent);
 }
 
+/* ------------------------------------------------------------------ */
+/* Command palette — screen-specs.md:218-237, components.md:272-283.   */
+/* ------------------------------------------------------------------ */
+
 .command-palette {
   display: grid;
   gap: 0;
@@ -1702,22 +1706,51 @@ button:disabled {
   background: var(--lc-surface);
   box-shadow: var(--lc-shadow-modal);
   color: var(--lc-ink);
+  /* It rises (`screen-specs.md:286`); the global reduced-motion block at the
+     foot of this file zeroes it, which is where every other surface's is
+     zeroed too. */
+  animation: lc-palette-in var(--lc-motion-panel) ease-out;
+}
+
+@keyframes lc-palette-in {
+  from {
+    transform: translateY(-8px);
+    opacity: 0;
+  }
+}
+
+/* One 44px row carrying the crumb chip, the input, and the `esc` chip. */
+.palette-input-row {
+  display: flex;
+  align-items: center;
+  gap: var(--lc-space-2);
+  height: 44px;
+  border-bottom: 1px solid var(--lc-line);
+  padding: 0 var(--lc-space-4);
 }
 
 .command-palette input {
-  height: 44px;
+  flex: 1;
+  height: 100%;
   border: 0;
-  border-bottom: 1px solid var(--lc-line);
   border-radius: 0;
-  padding: 0 var(--lc-space-4);
+  padding: 0;
+  background: transparent;
   font-size: 15px;
 }
 
-.palette-mode {
-  padding: var(--lc-space-2) var(--lc-space-4);
+/* Chip anatomy, `components.md:85`. The crumb is a button because `Esc` is the
+   keyboard path back and a pointer had none. */
+.palette-crumb,
+.palette-esc {
+  flex: none;
+  border: 1px solid var(--lc-line);
+  border-radius: 3px;
+  padding: 0 var(--lc-space-2);
+  background: var(--lc-wash);
   color: var(--lc-ink-3);
-  font-size: 12px;
-  text-transform: capitalize;
+  font: 500 10px/1.8 var(--lc-type-code-font);
+  text-transform: uppercase;
 }
 
 .command-palette [role="listbox"] {
@@ -1737,6 +1770,7 @@ button:disabled {
   padding: 0 var(--lc-space-3);
   color: var(--lc-ink);
   background: transparent;
+  font-size: 13px;
   text-align: left;
 }
 
@@ -1750,17 +1784,68 @@ button:disabled {
   cursor: default;
 }
 
-.command-palette [role="option"] kbd {
-  margin-left: auto;
+/* The label takes the slack so the hint, the check and the reason stay right. */
+.command-palette .palette-label {
+  overflow: hidden;
+  flex: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.command-palette [role="option"] kbd,
+.command-palette .palette-check {
+  flex: none;
 }
 
 .command-palette [role="option"] small {
-  margin-left: auto;
+  flex: none;
   color: var(--lc-ink-disabled);
 }
 
+.command-palette .palette-tag {
+  color: var(--lc-ink-3);
+}
+
+.command-palette .palette-check {
+  color: var(--lc-accent-human);
+}
+
+/* Search rows: status dot + mono key + title (`screen-specs.md:236`). */
 .command-palette .search-key {
-  font-family: var(--lc-font-mono);
+  flex: none;
+  color: var(--lc-ink-3);
+  font-family: var(--lc-type-code-font);
+}
+
+.command-palette .search-degraded {
+  flex: none;
+  width: 14px;
+  color: var(--lc-warn);
+  text-align: center;
+}
+
+/* Derived from the header filter's no-match panel (`states.md:38-42`) — the
+   palette has no designed state of its own. */
+.palette-empty {
+  display: grid;
+  justify-items: center;
+  gap: var(--lc-space-2);
+  padding: var(--lc-space-5) var(--lc-space-4);
+  text-align: center;
+}
+
+.palette-empty p {
+  color: var(--lc-ink-3);
+  font-size: 12px;
+}
+
+/* A claim about the mode under the rows: the ordering view-preference note, the
+   search scope note, the truncation admission. */
+.palette-note {
+  border-top: 1px solid var(--lc-line);
+  padding: var(--lc-space-2) var(--lc-space-4);
+  color: var(--lc-ink-3);
+  font-size: 12px;
 }
 
 .command-palette footer {
@@ -1768,6 +1853,30 @@ button:disabled {
   border-top: 1px solid var(--lc-line);
   color: var(--lc-ink-3);
   font-size: 12px;
+}
+
+/* The miniature of the preset pair swatch (`components.md:264-271`): left ⅔
+   human accent, right ⅓ agent. It carries its own theme and appearance
+   attributes, so these two rules read that theme's tokens rather than the one
+   in force — and neither names a hue. */
+.theme-swatch {
+  display: flex;
+  overflow: hidden;
+  flex: none;
+  width: 22px;
+  height: 14px;
+  border: 1px solid var(--lc-line);
+  border-radius: 3px;
+}
+
+.theme-swatch .swatch-human {
+  flex: 2;
+  background: var(--lc-accent-human);
+}
+
+.theme-swatch .swatch-agent {
+  flex: 1;
+  background: var(--lc-accent-agent);
 }
 
 .quick-create-modal {

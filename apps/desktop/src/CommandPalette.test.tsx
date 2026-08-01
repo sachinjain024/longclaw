@@ -3,6 +3,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CommandPalette } from "./CommandPalette";
+import { ORDERINGS } from "./ordering";
 import type { IndexedTicket, ProjectReference } from "./types";
 
 afterEach(cleanup);
@@ -44,8 +45,8 @@ function renderPalette(
       project={project}
       projects={[project]}
       ticket={ticket}
-      tickets={[ticket]}
       appearance="system"
+      ordering="priority"
       themes={[{ id: "indigo", label: "Indigo" }]}
       onClose={vi.fn()}
       onCreate={vi.fn()}
@@ -93,5 +94,72 @@ describe("command palette", () => {
     expect(
       screen.getByRole("option", { name: /Description-only match/ }),
     ).toBeTruthy();
+  });
+
+  it("draws no rows before the first search result comes back", () => {
+    // The whole project is not the answer to a query nobody has answered yet.
+    renderPalette({ initialMode: "search", searchResults: undefined });
+    expect(screen.queryAllByRole("option")).toHaveLength(0);
+    expect(screen.getByText("Searching…")).toBeTruthy();
+  });
+
+  it("publishes the active row rather than moving focus to it", () => {
+    renderPalette();
+    const input = screen.getByRole("combobox");
+    const first = input.getAttribute("aria-activedescendant");
+    expect(first).toBeTruthy();
+    expect(screen.getByRole("option", { name: /Create ticket/ }).id).toBe(
+      first,
+    );
+
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    expect(input.getAttribute("aria-activedescendant")).not.toBe(first);
+    expect(document.activeElement).toBe(input);
+  });
+
+  it("takes its ordering rows from the one ordering list", () => {
+    renderPalette({ initialMode: "ordering" });
+    // Not a third copy of the list (`ordering.ts` is the first, the header
+    // control the second).
+    for (const option of ORDERINGS) {
+      expect(screen.getByRole("option", { name: option.label })).toBeTruthy();
+    }
+    // The footnote is the reason the mode is safe (`screen-specs.md:246-247`).
+    expect(screen.getByText(/never rewrites files/)).toBeTruthy();
+  });
+
+  it("says what search reads that the header filter does not", () => {
+    renderPalette({ initialMode: "search", searchResults: [] });
+    expect(screen.getByText(/more than the header filter/)).toBeTruthy();
+  });
+
+  it("admits the silent 100-result cap", () => {
+    renderPalette({
+      initialMode: "search",
+      searchResults: Array.from({ length: 100 }, (_, index) => ({
+        ...ticket,
+        key: `LC-${index + 1}`,
+      })),
+    });
+    expect(screen.getByText(/Showing the first 100 matches/)).toBeTruthy();
+  });
+
+  it("keeps a disabled row visible with its reason", () => {
+    renderPalette({ ticket: undefined });
+    const status = screen.getByRole("option", { name: /Change status/ });
+    expect((status as HTMLButtonElement).disabled).toBe(true);
+    expect(status.textContent).toContain("Open or focus a ticket");
+
+    const terminal = screen.getByRole("option", { name: /New terminal/ });
+    expect((terminal as HTMLButtonElement).disabled).toBe(true);
+    expect(terminal.textContent).toContain("Phase 2");
+  });
+
+  it("carries a pair swatch on every theme row", () => {
+    const { container } = renderPalette({ initialMode: "theme" });
+    expect(container.querySelectorAll(".theme-swatch")).toHaveLength(1);
+    expect(
+      container.querySelector<HTMLElement>(".theme-swatch")?.dataset.theme,
+    ).toBe("indigo");
   });
 });

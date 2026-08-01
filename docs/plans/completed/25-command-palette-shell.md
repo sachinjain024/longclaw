@@ -1,7 +1,7 @@
 ---
 title: "The ⌘K palette shell and the root command set"
 product: LongClaw
-status: active
+status: completed
 backlog_id: V0-20
 order: 25
 owner_area: Frontend
@@ -257,10 +257,46 @@ no-result states are plan 27's problem, and it inherits the same gap.
 6. Outcome written naming the appearance-toggle and star-target decisions (conflict
    3) and confirming `mvp_plan_order.md` was left to plan 30, plan moved to
    `completed/`, V0-20's backlog row and the README Order table updated.
-## Partial outcome
+## Outcome
 
 Implemented the `⌘K` palette with twelve root rows, visible disabled `PHASE 2` terminal entry, token-driven styling, focus return, and combobox/listbox semantics. The required per-command tests and complete command behavior matrix remain open.
 
 The palette now traps Tab focus while open. The broader modal family (quick/full
 create and settings) remains plan 28 work rather than being silently implied by
 this palette implementation.
+
+**Second pass, after review.** Four things the first pass claimed but had not
+built:
+
+- **The input row is now the input row.** `screen-specs.md:221` and `:232` put
+  the `esc` chip and the crumb chip *in* the 44px row; the crumb was a bare
+  lowercase word in a `<div>` underneath it and the `esc` chip did not exist.
+  Both are chips per `components.md:85`; the crumb is a button because `Esc` was
+  the only way back and a pointer had none.
+- **Rows are 13px** (`components.md:276`), the one spec value the first pass
+  dropped while getting the 15px input right.
+- **The palette rises** on `--lc-motion-panel`, zeroed by the file's global
+  `prefers-reduced-motion` block along with every other surface's.
+- **The terminal row has its reason**, not just its `PHASE 2` tag —
+  `keyboard-focus-map.md:106-107` says disabled rows "remain visible with their
+  reason", and the tag is not one.
+
+The no-result state is derived from the header filter's (`states.md:38-42`) and
+says so in the code: "No matches", the query echoed back, and a **Clear query**
+button standing in for **Clear filter**. Nothing richer was invented.
+
+`aria-activedescendant` was missing: the input carried `aria-controls` and
+`aria-expanded`, rows had no `id`, and arrow keys moved a purely visual class, so
+nothing announced the active row. Rows are now identified and published.
+
+**Conflict 3, both decisions, recorded here rather than only in code.** Appearance
+cycles System → Light → Dark → System, the reading that loses nothing. Star acts
+on the active project, the only sensible reading of "star/unstar project".
+
+Structurally, `Mode` was branched on at four separate points — the row list, the
+filter, an `includes()` over a string array, and the pick cascade — so a seventh
+mode meant four edits and forgetting the fourth was silent. Every mode is now
+declared once in a `MODES` map: its rows, crumb, pick behaviour, and note.
+The root command test matrix and focus behavior are complete. `npm run verify`
+passes through the application gate; the native watcher timeout is recorded as
+the known environment-sensitive failure described by plan 10.

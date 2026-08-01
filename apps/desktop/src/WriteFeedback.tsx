@@ -9,7 +9,7 @@
 
 import { useEffect, useState } from "react";
 import { useMutationStore } from "./mutations";
-import { isTextInput } from "./keyContext";
+import { isChord, singleKeyShortcutAllowed } from "./keyContext";
 
 /**
  * How long a write may stay unsettled before it may spin. Below this the text
@@ -79,9 +79,10 @@ export function ToastStack() {
   useEffect(() => {
     if (!undo || toastId === undefined) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!event.metaKey || event.key.toLowerCase() !== "z") return;
+      // `⌘`/`Ctrl` alike, the convention plan 24 picked for every chord.
+      if (!isChord(event, "z")) return;
       // ⌘Z inside a field is the field's own undo, not the app's.
-      if (isTextInput(event.target)) return;
+      if (!singleKeyShortcutAllowed(event.target)) return;
       event.preventDefault();
       dismiss(toastId);
       undo();

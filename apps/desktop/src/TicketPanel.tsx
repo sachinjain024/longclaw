@@ -23,6 +23,7 @@ import { DescriptionEditor } from "./DescriptionEditor";
 import { normalizeError } from "./errors";
 import type { ExternalMark } from "./freshness";
 import { acknowledgement, freshlyChecked } from "./freshness";
+import { singleKeyShortcutAllowed } from "./keyContext";
 import { LabelMenuButton } from "./LabelMenu";
 import { sameLabels } from "./labels";
 import { MarkdownView } from "./MarkdownView";
@@ -30,6 +31,7 @@ import { MenuButton } from "./Menu";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "./metaOptions";
 import { mutate } from "./mutations";
 import { priorityLabel, statusLabel } from "./tickets";
+import { metaFieldFor } from "./TicketMetaMenu";
 import { Timeline } from "./Timeline";
 import type {
   AppError,
@@ -106,6 +108,12 @@ interface TicketPanelProps {
    * and a failed write's revert reach all three surfaces at once.
    */
   archived: boolean;
+  /**
+   * Whether the panel is the top layer. `App` is the only place that knows the
+   * stack, and a modal above the panel — the palette, either create surface —
+   * must not have its rows answer `S`/`P` down here (`keyboard-focus-map.md:23`).
+   */
+  shortcutsActive: boolean;
   onClose: () => void;
   /** Asks for the flip. The panel writes nothing here; see `archived`. */
   onArchive: (archived: boolean) => void;
@@ -266,6 +274,30 @@ export function TicketPanel(props: TicketPanelProps) {
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
+
+  /**
+   * `S`/`P` with the panel open (`keyboard-focus-map.md:66-69`): "they target
+   * the open ticket". The board and the list bind them on their own containers,
+   * and focus is in neither while the panel is up, so the binding is here — and
+   * it opens the panel's *own* menus, because their picks carry the conflict
+   * banner, the draft, and the reload that `App`'s write path knows nothing of.
+   */
+  const [metaMenu, setMetaMenu] = useState<"status" | "priority">();
+  const shortcutsActive = props.shortcutsActive;
+  useEffect(() => {
+    if (!shortcutsActive) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (event.defaultPrevented) return;
+      if (!singleKeyShortcutAllowed(event.target)) return;
+      const field = metaFieldFor(event.key);
+      if (!field) return;
+      event.preventDefault();
+      setMetaMenu(field);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [shortcutsActive]);
 
   const firstSignal = useRef(props.reloadSignal);
   useEffect(() => {
@@ -495,6 +527,8 @@ export function TicketPanel(props: TicketPanelProps) {
               label="Status"
               options={STATUS_OPTIONS}
               value={pending.status ?? ticket.status}
+              open={metaMenu === "status"}
+              onOpenChange={(open) => setMetaMenu(open ? "status" : undefined)}
               onPick={(next) => {
                 const previous = ticket.status;
                 if (next === previous) return;
@@ -514,6 +548,10 @@ export function TicketPanel(props: TicketPanelProps) {
               label="Priority"
               options={PRIORITY_OPTIONS}
               value={pending.priority ?? ticket.priority}
+              open={metaMenu === "priority"}
+              onOpenChange={(open) =>
+                setMetaMenu(open ? "priority" : undefined)
+              }
               onPick={(next) => {
                 const previous = ticket.priority;
                 if (next === previous) return;

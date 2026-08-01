@@ -179,9 +179,22 @@ export function MenuButton<T extends string>(props: {
   value: T;
   footnote?: string;
   onPick: (id: T) => void;
+  /**
+   * Opened from outside the trigger: the `S`/`P` single-key path, which acts on
+   * the open ticket while focus is somewhere else in the panel entirely
+   * (`keyboard-focus-map.md:66-69`). Omitted, the trigger owns its own state —
+   * every other caller wants that and should not have to hold one.
+   */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const trigger = useRef<HTMLButtonElement>(null);
-  const [open, setOpen] = useState(false);
+  const [ownOpen, setOwnOpen] = useState(false);
+  const open = props.open ?? ownOpen;
+  const setOpen = (next: boolean) => {
+    setOwnOpen(next);
+    props.onOpenChange?.(next);
+  };
   const current = props.options.find((option) => option.id === props.value);
   return (
     <>
@@ -192,7 +205,7 @@ export function MenuButton<T extends string>(props: {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`${props.label}: ${current?.label ?? props.value}`}
-        onClick={() => setOpen((was) => !was)}
+        onClick={() => setOpen(!open)}
       >
         {current?.glyph && <span className="menu-glyph">{current.glyph}</span>}
         <span>{current?.label ?? props.value}</span>

@@ -16,7 +16,13 @@ import {
 } from "./listGeometry";
 import type * as ListRow from "./listRow";
 import type { OrderingMode } from "./ordering";
-import type { Label, TicketRow } from "./types";
+import type {
+  IndexedTicket,
+  Label,
+  TicketPriority,
+  TicketRow,
+  TicketStatus,
+} from "./types";
 
 /** Every row presents itself once, so this is what the memoization is judged on. */
 const { presented } = vi.hoisted(() => ({ presented: [] as string[] }));
@@ -70,6 +76,8 @@ function list(props?: {
   marks?: ExternalMarks;
   ordering?: OrderingMode;
   onSelect?: (key: string) => void;
+  onChangePriority?: (ticket: IndexedTicket, next: TicketPriority) => void;
+  onChangeStatus?: (ticket: IndexedTicket, next: TicketStatus) => void;
 }) {
   return (
     <IssueList
@@ -80,6 +88,8 @@ function list(props?: {
       ordering={props?.ordering ?? "priority"}
       now={NOW}
       onSelect={props?.onSelect ?? noop}
+      onChangePriority={props?.onChangePriority ?? noop}
+      onChangeStatus={props?.onChangeStatus ?? noop}
     />
   );
 }

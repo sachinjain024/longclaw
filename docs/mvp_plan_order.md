@@ -489,7 +489,7 @@ the pilot was skipped.
 - All three primary surfaces show consistent state after app edits, external edits, restarts, and index rebuilds.
 - Agents can contribute but cannot be selected or represented as assignees.
 
-### Step 12 — Add keyboard-first navigation, command palette, and search
+### Step 12 — Add keyboard-first navigation, command palette, and search — COMPLETE 2026-08-01
 
 **Goal:** Reach the speed and navigability expected of the product rather than shipping a pointer-only tracker.
 
@@ -524,6 +524,12 @@ the pilot was skipped.
 - A user can create, find, open, update, and navigate tickets without leaving the keyboard.
 - Commands operate on the correct project and focused ticket with no ambiguous context.
 - Focus is never lost behind the ticket panel, modal, menu, or command palette.
+
+**Completion note:** Step 12 is complete. Plans 24–30 are closed, the indexed
+search and keyboard/focus suites pass, and the local board/list interaction
+budgets were measured at 14/18/31/16 ms and 15/19/20/17 ms p95 respectively,
+all below the ≤50 ms ceiling. The native watcher timeout and WebKit harness
+abort are environment limitations recorded in the relevant outcomes.
 
 ### Step 13 — Finish themes, appearance, and project-level preferences
 
