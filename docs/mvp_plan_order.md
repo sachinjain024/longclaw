@@ -41,7 +41,8 @@ The MVP is **not** complete merely because the screens work with mock data. The 
 The following stay outside this plan:
 
 - Embedded terminals, PTY integration, and ticket-linked terminal sessions. The shell only reserves room for the Phase 2 terminal panel.
-- Cloud sync, accounts beyond the optional waitlist, teams, billing, and team navigation stubs.
+- Cloud sync, accounts, teams, billing, and team navigation stubs.
+- The sync-waitlist signup, its modal, and any submission endpoint — parked, see Step 15.
 - Custom theme colors or a theme builder.
 - Windows, Linux, web, or mobile clients.
 - Git hosting, code review, chat, integrations, and automations.
@@ -55,7 +56,7 @@ The following stay outside this plan:
 | M2 — Architecture proven | Step 4 | The Tauri spike proves the riskiest filesystem, watcher, index, and IPC paths on macOS. |
 | M3 — Vertical slice ready | Steps 5–8 | One real project and ticket complete a human → disk → agent → disk → UI round-trip. |
 | M4 — Pilot direction accepted | Steps 9–10 | Target users have tried the slice and the remaining backlog has been explicitly revised. **Closed 2026-07-31 by founder decision with the first half unmet** — the backlog was revised, no target user tried the slice ([decision](pilot/response-memo.md#direction-decision-2026-07-31-superseded-the-same-day)). |
-| M5 — Feature-complete v0 | Steps 11–15 | All in-scope workflows and trust states work against real files. |
+| M5 — Feature-complete v0 | Steps 11–14 | All in-scope workflows and trust states work against real files. |
 | M6 — MVP release | Steps 16–17 | Release quality, packaging, documentation, and final acceptance checks pass. |
 
 Do not start mass feature implementation before M2. Do not continue executing the original breadth backlog after M3 until the pilot feedback in M4 has been processed.
@@ -412,7 +413,7 @@ risk only. ~~Step 10 gets a second pass once the pilot produces evidence.~~ **No
 second pass is coming** — Step 9 was skipped on 2026-07-31, so that ordering is
 final without ever having been a finding.
 
-M4 closed on the same decision and Step 11 is open. Steps 11–15 execute against the
+M4 closed on the same decision and Step 11 is open. Steps 11–14 execute against the
 unvalidated order in [the backlog](backlog/v0-backlog.md); its § How to read an entry
 says which of its markings that makes inert.
 
@@ -605,7 +606,22 @@ than the designed centered modal — settings debt, recorded in
 - Index loss never causes project data loss.
 - Concurrent changes produce an explicit, understandable resolution path.
 
-### Step 15 — Add the optional sync-waitlist signup
+### Step 15 — *(parked)* Add the optional sync-waitlist signup
+
+**Parked, 2026-08-01 by founder decision. Out of MVP scope; not cancelled.** The
+quiet side-panel signup entry, the waitlist modal, and any submission endpoint are
+not built for the MVP. Nothing in Phase 1 depends on them, and the local product
+must never require an account, so parking this costs the MVP no capability. Unpark
+it when the collaboration layer is being built, or earlier if measuring demand
+becomes urgent — the work list below is still how to do it.
+
+The step keeps its number so Step 16 and Step 17 stay stable; both are referenced
+by number from other documents.
+
+Because this step is parked rather than deleted, the other documents still describe
+the waitlist — [the vision](vision.md), [the design brief](design_brief.md), the
+prototype specs, and V0-38/V0-39 in [the backlog](backlog/v0-backlog.md). Those
+are intentionally untouched and now describe parked work, not MVP work.
 
 **Goal:** Measure interest in the paid collaboration layer without putting an account wall in front of the local product.
 
@@ -724,7 +740,7 @@ These are unresolved or explicitly proposed in the source documents. They should
 | Comment/activity representation and actor attribution | Step 3 | Required for the core human/agent shared record. |
 | Conflict and unknown-field preservation rules | Step 3 | Required to prevent destructive app/external edit behavior. |
 | Index technology and rebuild/performance budgets | Step 4 | Determines implementation structure but must not change the source-of-truth contract. |
-| Waitlist collection endpoint and privacy handling | Before Step 15 | The waitlist must not become an accidental account or telemetry system. |
+| Waitlist collection endpoint and privacy handling | Before Step 15 — parked with it | The waitlist must not become an accidental account or telemetry system. Not an MVP decision while Step 15 is parked. |
 
 ## Post-MVP handoff
 
