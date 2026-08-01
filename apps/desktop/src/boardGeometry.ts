@@ -28,16 +28,17 @@ import type { TicketRow } from "./types";
 
 /**
  * `--lc-size-board-card`, the height `.ticket-row` is pinned to. Exactly what
- * the card's three lines measure, so pinning it moves nothing.
+ * the card's three rows measure — top 16 + 6, title 18 + 8, foot 20, plus
+ * 10px padding and a 1px border each side — so pinning it moves nothing.
  */
-export const CARD_HEIGHT = 55;
+export const CARD_HEIGHT = 90;
 /**
  * `--lc-size-board-card-fresh`: the same card with the acknowledgement footer
- * under it. Not a round number because it is not a chosen one — it is what the
- * footer's 10.5px line already measured, pinned so the column can place the cards
- * below it without measuring anything.
+ * under it. The footer adds its 7px margin, 1px rule, 6px padding and one
+ * 14px mono line, pinned so the column can place the cards below it without
+ * measuring anything.
  */
-export const FRESH_CARD_HEIGHT = 79.33;
+export const FRESH_CARD_HEIGHT = 118;
 /** `.ticket-row`'s margin-bottom: the gap between cards in a stack. */
 export const CARD_GAP = 8;
 

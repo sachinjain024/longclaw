@@ -31,6 +31,7 @@ import { Board } from "./Board";
 import { CommandPalette } from "./CommandPalette";
 import { CreatePanel } from "./CreatePanel";
 import { CreateProjectForm, type ProjectDraft } from "./CreateProjectForm";
+import { DEV_CHROME } from "./devChrome";
 import { normalizeError } from "./errors";
 import { filterTickets, isFiltering } from "./filtering";
 import { IssueList } from "./IssueList";
@@ -1089,25 +1090,29 @@ export function App() {
               />
             ) : (
               <section className="workspace">
-                <div
-                  className="trace-strip"
-                  aria-label="Project source of truth"
-                >
-                  <span className="trace-node">FOLDER</span>
-                  <span className="trace-arrow">/</span>
-                  <span className="trace-node">.longclaw</span>
-                  <span className="trace-arrow">/</span>
-                  <span className="trace-node active">tickets</span>
-                  <span className="trace-status">
-                    {lastEvent
-                      ? `event ${lastEvent.sequence} - ${lastEvent.event.type}`
-                      : "project files are the source of truth"}
-                  </span>
-                </div>
+                {DEV_CHROME && (
+                  <div
+                    className="trace-strip"
+                    aria-label="Project source of truth"
+                  >
+                    <span className="trace-node">FOLDER</span>
+                    <span className="trace-arrow">/</span>
+                    <span className="trace-node">.longclaw</span>
+                    <span className="trace-arrow">/</span>
+                    <span className="trace-node active">tickets</span>
+                    <span className="trace-status">
+                      {lastEvent
+                        ? `event ${lastEvent.sequence} - ${lastEvent.event.type}`
+                        : "project files are the source of truth"}
+                    </span>
+                  </div>
+                )}
 
                 <div className="board-heading">
                   <div>
-                    <p className="eyebrow">GENERATION {generation}</p>
+                    {DEV_CHROME && (
+                      <p className="eyebrow">GENERATION {generation}</p>
+                    )}
                     <h2>{view === "board" ? "Board" : "List"}</h2>
                   </div>
                   <div className="toolbar-actions">
@@ -1147,17 +1152,19 @@ export function App() {
                           ? "reading"
                           : "watching"}
                     </span>
-                    <button
-                      className="secondary"
-                      onClick={() => {
-                        if (!activeProjectId) return;
-                        void rebuildIndex(activeProjectId)
-                          .then(applySnapshot)
-                          .catch((error) => setError(normalizeError(error)));
-                      }}
-                    >
-                      Rebuild index
-                    </button>
+                    {DEV_CHROME && (
+                      <button
+                        className="secondary"
+                        onClick={() => {
+                          if (!activeProjectId) return;
+                          void rebuildIndex(activeProjectId)
+                            .then(applySnapshot)
+                            .catch((error) => setError(normalizeError(error)));
+                        }}
+                      >
+                        Rebuild index
+                      </button>
+                    )}
                     <button
                       className="primary"
                       onClick={() => setCreateSurface("quick")}
