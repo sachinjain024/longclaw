@@ -54,7 +54,11 @@ beforeEach(() => {
   resetMutations();
   Object.defineProperty(window, "matchMedia", {
     writable: true,
-    value: vi.fn().mockImplementation(() => ({ matches: false })),
+    value: vi.fn().mockImplementation(() => ({
+      matches: false,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })),
   });
   vi.mocked(api.listProjects).mockResolvedValue([]);
   vi.mocked(api.listenForProjectEvents).mockResolvedValue(() => {});
@@ -630,6 +634,281 @@ describe("project creation", () => {
       key: "MP",
       theme: "indigo",
     });
+  });
+});
+
+describe("system-matched appearance (V0-35)", () => {
+  type MediaListener = (event: { matches: boolean }) => void;
+
+  /**
+   * A stateful stand-in for `matchMedia("(prefers-color-scheme: dark)")`:
+   * `flip()` is macOS switching appearance while the app is open.
+   */
+  function mockSystem(initialDark: boolean) {
+    let dark = initialDark;
+    const listeners = new Set<MediaListener>();
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      value: vi.fn().mockImplementation(() => ({
+        get matches() {
+          return dark;
+        },
+        addEventListener: (_: string, listener: MediaListener) => {
+          listeners.add(listener);
+        },
+        removeEventListener: (_: string, listener: MediaListener) => {
+          listeners.delete(listener);
+        },
+      })),
+    });
+    return {
+      flip(next: boolean) {
+        dark = next;
+        for (const listener of listeners) listener({ matches: next });
+      },
+    };
+  }
+
+  // Vitest's jsdom leaves `window.localStorage` as `undefined` (Node's
+  // experimental storage without `--localstorage-file`), which the app's
+  // try/catch turns into "appearance works for this session only". The
+  // persistence clause needs a store that actually stores.
+  beforeEach(() => {
+    const stored = new Map<string, string>();
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: (key: string) => stored.get(key) ?? null,
+        setItem: (key: string, value: string) => stored.set(key, value),
+        removeItem: (key: string) => stored.delete(key),
+      },
+    });
+    useLongClawStore.setState({ appearance: "system" });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      value: undefined,
+    });
+    useLongClawStore.setState({ appearance: "system" });
+    delete document.documentElement.dataset.appearance;
+  });
+
+  it("resolves the system appearance when nothing is stored", async () => {
+    mockSystem(true);
+    render(<App />);
+
+    await waitFor(() =>
+      expect(document.documentElement.dataset.appearance).toBe("dark"),
+    );
+  });
+
+  it("follows a system change live while the preference is system", async () => {
+    const system = mockSystem(false);
+    render(<App />);
+    await waitFor(() =>
+      expect(document.documentElement.dataset.appearance).toBe("light"),
+    );
+
+    act(() => system.flip(true));
+
+    expect(document.documentElement.dataset.appearance).toBe("dark");
+  });
+
+  it("an explicit override wins over the system and ignores its changes", async () => {
+    const system = mockSystem(true);
+    render(<App />);
+    const control = await screen.findByLabelText<HTMLSelectElement>(
+      "Appearance",
+    );
+
+    fireEvent.change(control, { target: { value: "light" } });
+    await waitFor(() =>
+      expect(document.documentElement.dataset.appearance).toBe("light"),
+    );
+
+    act(() => system.flip(false));
+    act(() => system.flip(true));
+
+    expect(document.documentElement.dataset.appearance).toBe("light");
+    expect(window.localStorage.getItem("longclaw.appearance")).toBe("light");
+  });
+
+  it("persists the preference and rehydrates it on the next launch", async () => {
+    mockSystem(true);
+    const first = render(<App />);
+    fireEvent.change(
+      await screen.findByLabelText<HTMLSelectElement>("Appearance"),
+      { target: { value: "light" } },
+    );
+    await waitFor(() =>
+      expect(window.localStorage.getItem("longclaw.appearance")).toBe("light"),
+    );
+    first.unmount();
+    // A restart begins from the store default; only localStorage survives.
+    useLongClawStore.setState({ appearance: "system" });
+
+    render(<App />);
+
+    await waitFor(() =>
+      expect(document.documentElement.dataset.appearance).toBe("light"),
+    );
+    expect(
+      (await screen.findByLabelText<HTMLSelectElement>("Appearance")).value,
+    ).toBe("light");
+  });
+
+  it("changing appearance touches no project data", async () => {
+    mockSystem(false);
+    render(<App />);
+
+    fireEvent.change(
+      await screen.findByLabelText<HTMLSelectElement>("Appearance"),
+      { target: { value: "dark" } },
+    );
+    await waitFor(() =>
+      expect(document.documentElement.dataset.appearance).toBe("dark"),
+    );
+
+    expect(api.updateProjectTheme).not.toHaveBeenCalled();
+    expect(api.editTicket).not.toHaveBeenCalled();
+    expect(api.updateProjectName).not.toHaveBeenCalled();
+  });
+});
+
+describe("instant per-project theme selection (V0-36)", () => {
+  const project = {
+    id: "project-fixture",
+    name: "Fixture Project",
+    rootPath: "/tmp/LongClaw Fixture",
+    key: "LC",
+    theme: "indigo",
+    starred: false,
+    reachable: true,
+    labels: {},
+  };
+
+  const ticket = {
+    state: "indexed" as const,
+    key: "LC-1",
+    id: "019c8c7e",
+    title: "Prove the round trip",
+    status: "todo" as const,
+    priority: "p3" as const,
+    labels: [],
+    createdAt: "2026-07-31T09:00:00Z",
+    updatedAt: "2026-07-31T09:00:00Z",
+    checkedCount: 0,
+    checklistCount: 0,
+    commentCount: 0,
+    attachmentCount: 0,
+    contentHash: "hash-1",
+    relativePath: ".longclaw/tickets/LC-1/ticket.md",
+  };
+
+  beforeEach(() => {
+    // The stamp from a previous test is not this launch's first stamp.
+    delete document.documentElement.dataset.theme;
+    document.documentElement.classList.remove("theme-transition");
+  });
+
+  async function openSettings() {
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project,
+      tickets: [ticket],
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    render(<App />);
+    await screen.findByRole("heading", { name: "Board" });
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+  }
+
+  it("must-pass: a preset applies instantly and writes only the project file", async () => {
+    let resolveWrite!: (reference: typeof project) => void;
+    vi.mocked(api.updateProjectTheme).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveWrite = resolve;
+        }),
+    );
+    await openSettings();
+    expect(document.documentElement.dataset.theme).toBe("indigo");
+
+    fireEvent.click(screen.getByRole("radio", { name: "Plum" }));
+
+    // Optimistic: the accent flips before the write returns.
+    expect(document.documentElement.dataset.theme).toBe("plum");
+    expect(api.updateProjectTheme).toHaveBeenCalledTimes(1);
+    expect(api.updateProjectTheme).toHaveBeenCalledWith(project.id, "plum");
+
+    await act(async () => {
+      resolveWrite({ ...project, theme: "plum" });
+    });
+
+    expect(document.documentElement.dataset.theme).toBe("plum");
+    // No snapshot re-fetch and no ticket write: the theme is project metadata.
+    expect(api.openProject).toHaveBeenCalledTimes(1);
+    expect(api.editTicket).not.toHaveBeenCalled();
+    expect(api.createTicket).not.toHaveBeenCalled();
+  });
+
+  it("crossfades on a change and never on the first stamp", async () => {
+    vi.mocked(api.updateProjectTheme).mockResolvedValue({
+      ...project,
+      theme: "clay",
+    });
+    await openSettings();
+    expect(
+      document.documentElement.classList.contains("theme-transition"),
+    ).toBe(false);
+
+    fireEvent.click(screen.getByRole("radio", { name: "Clay" }));
+
+    expect(
+      document.documentElement.classList.contains("theme-transition"),
+    ).toBe(true);
+    // The class is transient — the crossfade ends and the rule leaves with it.
+    await waitFor(
+      () =>
+        expect(
+          document.documentElement.classList.contains("theme-transition"),
+        ).toBe(false),
+      { timeout: 1_000 },
+    );
+  });
+
+  it("a refused write flips the theme back and says so", async () => {
+    vi.mocked(api.updateProjectTheme).mockRejectedValue({
+      code: "permission_denied",
+      message: "Project file is read-only",
+      recoverable: true,
+    });
+    await openSettings();
+
+    fireEvent.click(screen.getByRole("radio", { name: "Slate" }));
+    expect(document.documentElement.dataset.theme).toBe("slate");
+
+    await waitFor(() =>
+      expect(document.documentElement.dataset.theme).toBe("indigo"),
+    );
+    expect(screen.getByRole("alert").textContent).toMatch(/read-only/);
+  });
+
+  it("offers exactly the fixed presets and no custom-color affordance", async () => {
+    await openSettings();
+
+    const radios = screen.getAllByRole("radio") as HTMLInputElement[];
+    expect(radios.map((radio) => radio.value)).toEqual([
+      "indigo",
+      "clay",
+      "slate",
+      "plum",
+    ]);
+    expect(document.querySelector('input[type="color"]')).toBeNull();
   });
 });
 

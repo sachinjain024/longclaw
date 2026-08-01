@@ -1,4 +1,5 @@
 import { useId, useState } from "react";
+import { ThemePicker } from "./ThemePicker";
 import {
   PROJECT_KEY_MAX_LENGTH,
   PROJECT_KEY_RULE,
@@ -94,19 +95,7 @@ export function CreateProjectForm(props: {
           </small>
         )}
       </div>
-      <label>
-        <span>Theme</span>
-        <select
-          value={theme}
-          onChange={(event) => setTheme(event.target.value)}
-        >
-          {props.themes.map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
+      <ThemePicker themes={props.themes} value={theme} onPick={setTheme} />
       <button className="primary" type="submit" disabled={Boolean(problem)}>
         {props.submitLabel}
       </button>

@@ -17,7 +17,7 @@
     "format:check": "prettier --check . && cargo fmt --manifest-path src-tauri/Cargo.toml --check",
     "lint": "eslint . --max-warnings=0 && cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings",
     "tokens:build": "node src/tokens/build.mjs",
-    "tokens:check": "node src/tokens/build.mjs && prettier --write src/tokens/design-tokens.css && git diff --exit-code -- src/tokens/design-tokens.css",
+    "tokens:check": "node src/tokens/build.mjs && prettier --write src/tokens/design-tokens.css && git diff --exit-code -- src/tokens/design-tokens.css && node scripts/color-guard.mjs",
     "typecheck": "tsc --noEmit",
     "test": "npm run test:frontend && npm run test:rust",
     "tauri": "tauri",

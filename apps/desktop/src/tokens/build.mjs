@@ -21,6 +21,62 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const t = JSON.parse(readFileSync(join(here, "design-tokens.json"), "utf8"));
 
+/* ---------- validation (V0-34) ----------
+ * A theme missing a value used to emit the literal string "undefined" into
+ * the CSS and ship. A gap is a build failure naming the token instead. */
+
+const missing = [];
+const requireAppearances = (path, value) => {
+  for (const app of ["light", "dark"]) {
+    if (typeof value?.[app] !== "string" || value[app] === "") {
+      missing.push(`${path}.${app}`);
+    }
+  }
+};
+
+for (const [k, v] of Object.entries(t.color.neutral))
+  requireAppearances(`color.neutral.${k}`, v);
+for (const [k, v] of Object.entries(t.color.status)) {
+  if (k === "note" || k === "done") continue; /* done derives from the accent */
+  requireAppearances(`color.status.${k}`, v);
+}
+for (const [k, v] of Object.entries(t.color.priority)) {
+  if (k === "note") continue;
+  requireAppearances(`color.priority.${k}`, v);
+}
+for (const [k, v] of Object.entries(t.color.feedback)) {
+  if (k === "note") continue;
+  requireAppearances(`color.feedback.${k}`, v);
+}
+for (const [k, v] of Object.entries(t.color.label)) {
+  if (k === "note") continue;
+  requireAppearances(`color.label.${k}`, v);
+}
+const ACCENT_ROLES = [
+  "human",
+  "human-text",
+  "on-human",
+  "agent",
+  "agent-text",
+  "on-agent",
+];
+for (const [theme, preset] of Object.entries(t.themes)) {
+  if (theme === "note") continue;
+  for (const role of ACCENT_ROLES) {
+    requireAppearances(`themes.${theme}.${role}`, preset[role]);
+  }
+}
+for (const app of ["light", "dark"]) {
+  for (const group of ["elevation", "mix"]) {
+    if (!t[group]?.[app]) missing.push(`${group}.${app}`);
+  }
+}
+if (missing.length > 0) {
+  throw new Error(
+    `design-tokens.json is missing theme values:\n  ${missing.join("\n  ")}`,
+  );
+}
+
 const P = "--lc-";
 const px = (v) => (typeof v === "number" ? `${v}px` : v);
 const line = (name, value) => `  ${P}${name}: ${value};`;

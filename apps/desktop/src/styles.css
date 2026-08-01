@@ -1879,6 +1879,86 @@ button:disabled {
   background: var(--lc-accent-agent);
 }
 
+/* The theme picker (`screen-specs.md:92-98`): 44×28 pair swatches, radius 5,
+   preset name in micro type below, selected = human-accent border + ring.
+   The radio itself is visually hidden; the label is the target. */
+.theme-picker {
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.theme-picker legend {
+  margin-bottom: 6px;
+  padding: 0;
+  color: var(--lc-ink-2);
+  font: var(--lc-type-ui-weight) var(--lc-type-ui-size) /
+    var(--lc-type-ui-leading) var(--lc-type-ui-font);
+}
+
+.theme-picker-options {
+  display: flex;
+  gap: 10px;
+}
+
+.theme-option {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.theme-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.theme-option .theme-swatch {
+  width: 44px;
+  height: 28px;
+  border-radius: 5px;
+}
+
+.theme-option.selected .theme-swatch {
+  border-color: var(--lc-accent-human);
+  box-shadow: var(--lc-focus-ring);
+}
+
+.theme-option input:focus-visible + .theme-swatch {
+  box-shadow: var(--lc-focus-ring);
+}
+
+.theme-option-name {
+  color: var(--lc-ink-3);
+  font: var(--lc-type-micro-weight) var(--lc-type-micro-size) /
+    var(--lc-type-micro-leading) var(--lc-type-micro-font);
+}
+
+.theme-option.selected .theme-option-name {
+  color: var(--lc-ink);
+}
+
+/* The 150ms theme/appearance crossfade (`screen-specs.md:286`): while the root
+   wears this class, color-bearing properties transition and nothing else does —
+   "theme/appearance transition colors only; nothing moves." The class is
+   transient: `App` applies it around a `data-theme`/`data-appearance` change
+   and removes it after the motion window, so it never competes with the
+   component-level hover and state transitions. Reduced motion zeroes
+   `--lc-motion-panel` and the crossfade collapses with it. */
+html.theme-transition,
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+  transition-property: background-color, border-color, color, fill, stroke,
+    box-shadow;
+  transition-duration: var(--lc-motion-panel);
+  transition-timing-function: var(--lc-motion-ease);
+}
+
 .quick-create-modal {
   display: grid;
   gap: var(--lc-space-3);

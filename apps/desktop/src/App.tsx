@@ -41,6 +41,7 @@ import { mutate, type Mutation } from "./mutations";
 import { ORDERINGS, type OrderingMode } from "./ordering";
 import { QuickCreate } from "./QuickCreate";
 import { useLongClawStore } from "./state";
+import { ThemePicker } from "./ThemePicker";
 import { TicketPanel } from "./TicketPanel";
 import {
   isArchived,
@@ -136,6 +137,24 @@ function sortedProjects(projects: ProjectReference[]) {
     left.name.localeCompare(right.name),
   );
 }
+
+/**
+ * The 150ms crossfade a theme or appearance change wears
+ * (`screen-specs.md:286`): the root briefly carries `theme-transition`, under
+ * which `styles.css` transitions color-bearing properties only. The timeout
+ * outlives the class by a little so the transition finishes before the rule
+ * disappears; back-to-back changes just extend the window.
+ */
+const crossfade = (() => {
+  let timer: number | undefined;
+  return () => {
+    document.documentElement.classList.add("theme-transition");
+    window.clearTimeout(timer);
+    timer = window.setTimeout(() => {
+      document.documentElement.classList.remove("theme-transition");
+    }, 220);
+  };
+})();
 
 export function App() {
   const projects = useLongClawStore((state) => state.projects);
@@ -449,15 +468,36 @@ export function App() {
     } catch {
       // Appearance still works for this session.
     }
-    const system = window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light";
-    document.documentElement.dataset.appearance =
-      appearance === "system" ? system : appearance;
+    const query = window.matchMedia("(prefers-color-scheme: dark)");
+    const stamp = () => {
+      const root = document.documentElement;
+      const next =
+        appearance === "system"
+          ? query.matches
+            ? "dark"
+            : "light"
+          : appearance;
+      // The first stamp is the launch value; only a *change* crossfades.
+      if (root.dataset.appearance && root.dataset.appearance !== next) {
+        crossfade();
+      }
+      root.dataset.appearance = next;
+    };
+    stamp();
+    // "System" is a live preference, not a launch-time read: macOS switching
+    // appearance while the app is open re-stamps the root. An explicit
+    // override subscribes too but keeps stamping its own value, so the
+    // listener's lifetime is simply the effect's.
+    query.addEventListener("change", stamp);
+    return () => query.removeEventListener("change", stamp);
   }, [appearance]);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = project?.theme || "indigo";
+    const root = document.documentElement;
+    const theme = project?.theme || "indigo";
+    // The first stamp is the launch value; only a *change* crossfades.
+    if (root.dataset.theme && root.dataset.theme !== theme) crossfade();
+    root.dataset.theme = theme;
     setSettingsName(project?.name ?? "");
   }, [project?.name, project?.theme]);
 
@@ -637,13 +677,22 @@ export function App() {
     }
   }
 
+  /**
+   * Theme applies instantly (`screen-specs.md:96-98`): the reference flips
+   * before the write returns — the crossfade is the acknowledgement — and a
+   * refused write flips it back and says so. No snapshot re-fetch: the theme
+   * is a fact about `longclaw.yaml`, not about tickets, so re-loading the
+   * project would only put a skeleton where the spec puts a color transition.
+   */
   async function changeTheme(theme: string) {
-    if (!project) return;
+    if (!project || project.theme === theme) return;
+    const previous = project;
+    upsertProject({ ...project, theme });
     try {
       const updated = await updateProjectTheme(project.id, theme);
       upsertProject(updated);
-      await loadProject(updated.id);
     } catch (error) {
+      upsertProject(previous);
       setError(normalizeError(error));
     }
   }
@@ -941,6 +990,7 @@ export function App() {
         <div className="appearance-control">
           <span>Appearance</span>
           <select
+            aria-label="Appearance"
             value={appearance}
             onChange={(event) =>
               setAppearance(event.target.value as "light" | "dark" | "system")
@@ -1006,19 +1056,11 @@ export function App() {
                 >
                   Rename
                 </button>
-                <label>
-                  <span>Theme</span>
-                  <select
-                    value={project.theme}
-                    onChange={(event) => void changeTheme(event.target.value)}
-                  >
-                    {THEMES.map((theme) => (
-                      <option key={theme.id} value={theme.id}>
-                        {theme.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <ThemePicker
+                  themes={THEMES}
+                  value={project.theme}
+                  onPick={(theme) => void changeTheme(theme)}
+                />
                 <button
                   className="secondary"
                   onClick={() => void relocateActiveProject(project.id)}
