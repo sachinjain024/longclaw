@@ -199,3 +199,8 @@ search trace belongs in the harness; if you add one, wire it in beside the other
 ## Partial outcome
 
 Implemented palette search through the existing indexed `search_tickets` command, including archived labels and degraded rows. Empty-state, cap messaging, description/label assertions, and performance tests remain open.
+
+The required WebKit traces were attempted on 2026-08-01: both `perf:board` and
+`perf:list` built successfully, then WebKit 2336 aborted with `Abort trap: 6`
+before any trace or p95 number was produced. This is an environment failure,
+not a passing budget claim.

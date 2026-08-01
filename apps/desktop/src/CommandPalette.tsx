@@ -1,6 +1,7 @@
 /** Keyboard-first command palette: a combobox over the current command mode. */
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { STATUS_OPTIONS, PRIORITY_OPTIONS } from "./metaOptions";
+import { StatusDot } from "./StatusDot";
 import type {
   IndexedTicket,
   ProjectReference,
@@ -26,12 +27,13 @@ export function CommandPalette(props: {
   ticket?: IndexedTicket;
   tickets: TicketRow[];
   searchResults?: TicketRow[];
-  focusedTicket?: IndexedTicket;
+  projects: ProjectReference[];
   appearance: "system" | "light" | "dark";
   themes: Array<{ id: string; label: string }>;
   onClose: () => void;
   onCreate: () => void;
   onOpenTicket: (key: string) => void;
+  onProject: (projectId: string) => void;
   onChangeStatus: (status: TicketStatus) => void;
   onChangePriority: (priority: TicketPriority) => void;
   onToggleStar: () => void;
@@ -44,12 +46,16 @@ export function CommandPalette(props: {
   initialMode?: Mode;
   onSearch: (query: string) => void;
 }) {
-  const targetTicket = props.ticket ?? props.focusedTicket;
+  const targetTicket = props.ticket;
   const [mode, setMode] = useState<Mode>(props.initialMode ?? "root");
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const input = useRef<HTMLInputElement>(null);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
   useEffect(() => input.current?.focus(), []);
+  useEffect(() => () => clearTimeout(searchTimer.current), []);
   const root: Row[] = [
     { id: "create", label: "Create ticket", hint: "C" },
     { id: "project", label: "Go to project…" },
@@ -108,33 +114,33 @@ export function CommandPalette(props: {
                 label: theme.label,
               }))
             : mode === "project"
-              ? [{ id: props.project.id, label: props.project.name }]
+              ? props.projects.map((project) => ({
+                  id: project.id,
+                  label: project.name,
+                }))
               : mode === "search"
-                ? (props.searchResults ?? props.tickets)
-                    .filter(
-                      (ticket) =>
-                        ticket.key
-                          .toLowerCase()
-                          .includes(query.toLowerCase()) ||
-                        (ticket.state === "indexed" &&
-                          ticket.title
-                            .toLowerCase()
-                            .includes(query.toLowerCase())),
-                    )
-                    .map((ticket) => ({
-                      id: ticket.key,
-                      label:
-                        ticket.state === "indexed"
-                          ? `${ticket.key} — ${ticket.title}${ticket.archivedAt ? " · archived" : ""}`
-                          : `${ticket.key} — unreadable`,
-                    }))
+                ? (props.searchResults ?? props.tickets).map((ticket) => ({
+                    id: ticket.key,
+                    glyph:
+                      ticket.state === "indexed" ? (
+                        <StatusDot status={ticket.status} decorative />
+                      ) : undefined,
+                    label:
+                      ticket.state === "indexed"
+                        ? `${ticket.key} — ${ticket.title}${ticket.archivedAt ? " · archived" : ""}`
+                        : `${ticket.key} — unreadable`,
+                  }))
                 : [
                     { id: "priority", label: "Priority" },
                     { id: "manual", label: "Manual" },
                   ];
-  const filtered = rows.filter(
-    (row) => !query || row.label.toLowerCase().includes(query.toLowerCase()),
-  );
+  const filtered =
+    mode === "search"
+      ? rows
+      : rows.filter(
+          (row) =>
+            !query || row.label.toLowerCase().includes(query.toLowerCase()),
+        );
   const select = (row: Row) => {
     if (row.disabled) return;
     if (mode === "root") {
@@ -152,6 +158,7 @@ export function CommandPalette(props: {
         setMode(row.id as Mode);
         setQuery("");
         setActive(0);
+        if (row.id === "search") props.onSearch("");
       } else if (row.id === "star") {
         props.onToggleStar();
         props.onClose();
@@ -178,10 +185,34 @@ export function CommandPalette(props: {
       props.onOrdering(row.id as OrderingMode);
       props.onClose();
     } else if (mode === "project") {
+      props.onProject(row.id);
       props.onClose();
     } else if (mode === "search") props.onOpenTicket(row.id);
   };
   function keyDown(event: React.KeyboardEvent) {
+    if (event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey)) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    if (event.key === "Tab") {
+      const focusable = Array.from(
+        event.currentTarget.querySelectorAll<HTMLElement>(
+          "button:not(:disabled), input, [href], [tabindex]:not([tabindex='-1'])",
+        ),
+      );
+      if (focusable.length > 0) {
+        event.preventDefault();
+        const current = focusable.indexOf(
+          document.activeElement as HTMLElement,
+        );
+        focusable[
+          (current + (event.shiftKey ? -1 : 1) + focusable.length) %
+            focusable.length
+        ]?.focus();
+      }
+      return;
+    }
     if (event.key === "Escape") {
       event.stopPropagation();
       if (mode === "root") props.onClose();
@@ -217,7 +248,13 @@ export function CommandPalette(props: {
           onChange={(e) => {
             setQuery(e.target.value);
             setActive(0);
-            if (mode === "search") props.onSearch(e.target.value);
+            if (mode === "search") {
+              clearTimeout(searchTimer.current);
+              searchTimer.current = setTimeout(
+                () => props.onSearch(e.target.value),
+                150,
+              );
+            }
           }}
           placeholder={mode === "root" ? "Type a command…" : "Search…"}
           aria-label="Command palette input"
@@ -252,6 +289,9 @@ export function CommandPalette(props: {
             </button>
           ))}
           {filtered.length === 0 && <p role="status">No matches</p>}
+          {mode === "search" && props.searchResults?.length === 100 && (
+            <p role="status">Showing the first 100 indexed results.</p>
+          )}
         </div>
         <footer>↑↓ navigate · ↵ run · esc close/back</footer>
       </section>

@@ -227,3 +227,8 @@ for `⌘K`.
 ## Partial outcome
 
 Implemented shared input suspension, board `S` status menus, global `C` quick-create, and retained native Enter activation. The required per-action test matrix is still open.
+
+The required `perf:board` and `perf:list` runs were attempted on 2026-08-01.
+Both built the perf bundle successfully, then WebKit 2336 aborted with
+`Abort trap: 6` before tracing; no p95 number was produced and neither run is
+claimed as passing.

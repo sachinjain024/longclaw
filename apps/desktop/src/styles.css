@@ -1759,6 +1759,10 @@ button:disabled {
   color: var(--lc-ink-disabled);
 }
 
+.command-palette .search-key {
+  font-family: var(--lc-font-mono);
+}
+
 .command-palette footer {
   padding: var(--lc-space-3) var(--lc-space-4);
   border-top: 1px solid var(--lc-line);

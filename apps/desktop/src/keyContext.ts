@@ -6,6 +6,10 @@ export function singleKeyShortcutAllowed(target: EventTarget | null): boolean {
   );
 }
 
+export function isTextInput(target: EventTarget | null): boolean {
+  return !singleKeyShortcutAllowed(target);
+}
+
 export function isChord(event: KeyboardEvent, key: string): boolean {
   return (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === key;
 }

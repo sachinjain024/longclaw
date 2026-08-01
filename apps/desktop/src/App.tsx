@@ -43,6 +43,7 @@ import { TicketPanel } from "./TicketPanel";
 import {
   isArchived,
   priorityLabel,
+  statusLabel,
   provisionalTicket,
   provisionalTicketKey,
 } from "./tickets";
@@ -59,7 +60,6 @@ import type {
 } from "./types";
 import { ToastStack, WriteIndicator } from "./WriteFeedback";
 import { singleKeyShortcutAllowed, isChord } from "./keyContext";
-import { STATUS_OPTIONS } from "./metaOptions";
 import { CommandPalette } from "./CommandPalette";
 
 const THEMES = [
@@ -222,6 +222,12 @@ export function App() {
   const paletteTicket = tickets.find(
     (ticket) => ticket.key === paletteTicketKey,
   );
+  const commandTarget =
+    paletteTicket?.state === "indexed"
+      ? paletteTicket
+      : openRow?.state === "indexed"
+        ? openRow
+        : undefined;
 
   /**
    * The rows the surface draws. Narrowed once, here, so the board and the list
@@ -343,6 +349,7 @@ export function App() {
       if (event.defaultPrevented) return;
       if (isChord(event, "k")) {
         event.preventDefault();
+        if (paletteOpen) return;
         paletteReturnFocus.current =
           document.activeElement instanceof HTMLElement
             ? document.activeElement
@@ -357,13 +364,16 @@ export function App() {
       if (
         project &&
         singleKeyShortcutAllowed(event.target) &&
-        event.key.toLowerCase() === "c"
+        event.key.toLowerCase() === "c" &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey
       ) {
         event.preventDefault();
         setCreateSurface("quick");
         return;
       }
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "f") {
+      if (isChord(event, "f")) {
         const field = filterField.current;
         if (!field || createSurface !== undefined || paletteOpen) return;
         event.preventDefault();
@@ -794,7 +804,7 @@ export function App() {
         optimistic: { status: next },
         edit: { status: next },
         inverse: { status: ticket.status },
-        toast: `${ticket.key} → ${STATUS_OPTIONS.find((item) => item.id === next)?.label ?? next}`,
+        toast: `${ticket.key} → ${statusLabel(next)}`,
         inverseToast: `${ticket.key} status restored`,
       }),
     );
@@ -1147,16 +1157,8 @@ export function App() {
                         ordering={ordering}
                         now={now}
                         onSelect={openTicket}
-                        onChangePriority={(ticket) => {
-                          setPaletteTicketKey(ticket.key);
-                          setPaletteMode("priority");
-                          setPaletteOpen(true);
-                        }}
-                        onChangeStatus={(ticket) => {
-                          setPaletteTicketKey(ticket.key);
-                          setPaletteMode("status");
-                          setPaletteOpen(true);
-                        }}
+                        onChangePriority={changePriority}
+                        onChangeStatus={changeStatus}
                       />
                     )}
                   </>
@@ -1220,14 +1222,9 @@ export function App() {
       {paletteOpen && project && (
         <CommandPalette
           project={project}
-          ticket={
-            openRow?.state === "indexed"
-              ? openRow
-              : paletteTicket?.state === "indexed"
-                ? paletteTicket
-                : undefined
-          }
+          ticket={commandTarget}
           tickets={tickets}
+          projects={localProjects}
           appearance={appearance}
           themes={THEMES}
           onClose={closePalette}
@@ -1239,23 +1236,12 @@ export function App() {
             setPaletteOpen(false);
             openTicket(key);
           }}
+          onProject={(projectId) => void loadProject(projectId)}
           onChangeStatus={(next) => {
-            const target =
-              openRow?.state === "indexed"
-                ? openRow
-                : paletteTicket?.state === "indexed"
-                  ? paletteTicket
-                  : undefined;
-            if (target) changeStatus(target, next);
+            if (commandTarget) changeStatus(commandTarget, next);
           }}
           onChangePriority={(next) => {
-            const target =
-              openRow?.state === "indexed"
-                ? openRow
-                : paletteTicket?.state === "indexed"
-                  ? paletteTicket
-                  : undefined;
-            if (target) changePriority(target, next);
+            if (commandTarget) changePriority(commandTarget, next);
           }}
           onToggleStar={() => void toggleStar(project)}
           onToggleAppearance={() =>
@@ -1271,18 +1257,10 @@ export function App() {
           onView={(next) => setView(next)}
           view={view}
           onArchive={() => {
-            const target =
-              openRow?.state === "indexed"
-                ? openRow
-                : paletteTicket?.state === "indexed"
-                  ? paletteTicket
-                  : undefined;
-            if (target) setArchived(target, !isArchived(target));
+            if (commandTarget)
+              setArchived(commandTarget, !isArchived(commandTarget));
           }}
           onOrdering={(next) => setBoardOrdering(project.id, next)}
-          focusedTicket={
-            paletteTicket?.state === "indexed" ? paletteTicket : undefined
-          }
           initialMode={paletteMode}
           searchResults={paletteSearchResults}
           onSearch={(query) => {

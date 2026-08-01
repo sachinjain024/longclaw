@@ -36,12 +36,15 @@ import {
   type StatusGroup,
 } from "./grouping";
 import { LabelChip } from "./LabelChip";
+import { Menu } from "./Menu";
 import { groupBodyHeight, listGeometry, rowTop } from "./listGeometry";
 import { presentRow } from "./listRow";
 import { comparatorFor, orderColumn, type OrderingMode } from "./ordering";
 import { PriorityGlyph } from "./PriorityGlyph";
 import { PulseDot } from "./PulseDot";
 import { moveFor, useRovingFocus } from "./rovingFocus";
+import { itemFor } from "./rovingFocus";
+import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "./metaOptions";
 import { StatusDot } from "./StatusDot";
 import { isArchived } from "./tickets";
 import { singleKeyShortcutAllowed } from "./keyContext";
@@ -107,6 +110,9 @@ export function IssueList(props: {
   onChangeStatus?: (ticket: IndexedTicket, next: TicketStatus) => void;
 }) {
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [menuFor, setMenuFor] = useState<
+    { key: string; field: "status" | "priority" } | undefined
+  >();
   const scroller = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const viewport = useViewportHeight(scroller);
@@ -190,11 +196,10 @@ export function IssueList(props: {
       (event.key.toLowerCase() === "p" || event.key.toLowerCase() === "s")
     ) {
       event.preventDefault();
-      // The list intentionally delegates these actions to the application. The
-      // focused row remains the source of truth even when a group is virtualized.
-      if (event.key.toLowerCase() === "p")
-        props.onChangePriority?.(row, row.priority);
-      else props.onChangeStatus?.(row, row.status);
+      setMenuFor({
+        key: row.key,
+        field: event.key.toLowerCase() === "p" ? "priority" : "status",
+      });
       return;
     }
 
@@ -232,6 +237,32 @@ export function IssueList(props: {
           onFocusRow={onFocusRow}
         />
       ))}
+      {menuFor &&
+        (() => {
+          const ticket = groups
+            .flatMap((group) => group.tickets)
+            .find((candidate) => candidate.key === menuFor.key);
+          if (ticket?.state !== "indexed") return null;
+          const options =
+            menuFor.field === "status" ? STATUS_OPTIONS : PRIORITY_OPTIONS;
+          return (
+            <Menu
+              label={menuFor.field === "status" ? "Status" : "Priority"}
+              options={options}
+              selected={[ticket[menuFor.field]]}
+              anchor={itemFor(scroller.current, ROW, ticket.key) ?? null}
+              onPick={(next) => {
+                if (menuFor.field === "status")
+                  props.onChangeStatus?.(ticket, next as TicketStatus);
+                else props.onChangePriority?.(ticket, next as TicketPriority);
+              }}
+              onClose={() => {
+                setMenuFor(undefined);
+                requestFocus(ticket.key);
+              }}
+            />
+          );
+        })()}
     </div>
   );
 }

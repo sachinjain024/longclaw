@@ -260,3 +260,7 @@ no-result states are plan 27's problem, and it inherits the same gap.
 ## Partial outcome
 
 Implemented the `⌘K` palette with twelve root rows, visible disabled `PHASE 2` terminal entry, token-driven styling, focus return, and combobox/listbox semantics. The required per-command tests and complete command behavior matrix remain open.
+
+The palette now traps Tab focus while open. The broader modal family (quick/full
+create and settings) remains plan 28 work rather than being silently implied by
+this palette implementation.
