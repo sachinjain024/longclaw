@@ -40,6 +40,7 @@ import { LABEL_COLORS } from "./labels";
 import { MenuButton } from "./Menu";
 import { mutate, type Mutation } from "./mutations";
 import { ORDERINGS, type OrderingMode } from "./ordering";
+import { OwlMark } from "./OwlMark";
 import { QuickCreate } from "./QuickCreate";
 import { useLongClawStore } from "./state";
 import { ThemePicker } from "./ThemePicker";
@@ -946,7 +947,7 @@ export function App() {
     <main className="app-shell">
       <aside className="side-panel">
         <div className="brand-lockup">
-          <span className="brand-mark">LC</span>
+          <OwlMark size={22} />
           <strong>LongClaw</strong>
         </div>
 
@@ -988,19 +989,24 @@ export function App() {
           />
         </nav>
 
-        <div className="appearance-control">
-          <span>Appearance</span>
-          <select
-            aria-label="Appearance"
-            value={appearance}
-            onChange={(event) =>
-              setAppearance(event.target.value as "light" | "dark" | "system")
-            }
-          >
-            <option value="system">System</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </select>
+        <div className="side-panel-footer">
+          <div className="appearance-control">
+            <span>Appearance</span>
+            <select
+              aria-label="Appearance"
+              value={appearance}
+              onChange={(event) =>
+                setAppearance(event.target.value as "light" | "dark" | "system")
+              }
+            >
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </div>
+          {/* The claim the whole product rests on, stated where the shell can
+              always show it (`screen-specs.md:34`). */}
+          <p className="trust-line">v0 · local · no account</p>
         </div>
       </aside>
 
@@ -1391,17 +1397,33 @@ function ProjectSection(props: {
             ]
               .filter(Boolean)
               .join(" ")}
+            // The path is the row's whole subject and does not fit on it; the
+            // content header and settings show it in full.
+            title={
+              project.reachable
+                ? project.rootPath
+                : `Unreachable · ${project.rootPath}`
+            }
             onClick={() => props.onOpen(project.id)}
           >
-            <span className="theme-dot" />
+            {/* The dot carries the project's own preset, so a row can show a
+                theme this window is not currently wearing. Unreachable swaps it
+                for the warn triangle (`screen-specs.md:40`) — said in words too,
+                because a glyph is never the only channel. */}
+            {project.reachable ? (
+              <span className="theme-dot" data-theme={project.theme} />
+            ) : (
+              <span className="project-warn" aria-label="Unreachable">
+                ⚠
+              </span>
+            )}
             <strong>{project.name}</strong>
-            <small>
-              {project.reachable ? project.rootPath : "Unreachable"}
-            </small>
             <span
               role="button"
               tabIndex={0}
-              className="star-button"
+              className={
+                project.starred ? "star-button starred" : "star-button"
+              }
               onClick={(event) => {
                 event.stopPropagation();
                 props.onStar(project);
@@ -1602,15 +1624,23 @@ function Welcome(props: {
   return (
     <section className="welcome-panel">
       <div className="welcome-copy">
-        <p className="eyebrow">FIRST LAUNCH</p>
-        <h1>Choose a folder and start local.</h1>
+        {/* 52px mark, display greeting, and the trust line the spec closes this
+            screen with (`screen-specs.md:69-74`). This is also the no-projects
+            state — there is no separate empty app screen and no account step
+            anywhere in the flow. */}
+        <OwlMark size={52} />
+        <h1>Plan with your agents.</h1>
         <p>
-          LongClaw writes project data into `.longclaw/` inside the selected
-          folder. No account is required.
+          LongClaw writes project data into <code>.longclaw/</code> inside the
+          folder you choose. Every ticket is a file you can read, edit, and
+          commit.
         </p>
         <button className="secondary" onClick={props.onOpen}>
           Open existing folder
         </button>
+        <p className="trust-line">
+          no account · no cloud · your files, on your disk
+        </p>
       </div>
 
       <CreateProjectForm

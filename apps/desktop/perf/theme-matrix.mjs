@@ -137,11 +137,18 @@ const STATES = [
       ".entry-meta",
       ".change-actor",
       ".checklist label",
+      // The prompt glyph is the agent accent's only appearance on the tile now
+      // that the tile is `--lc-tile` rather than a fill (components.md:152), so
+      // it has to clear AA against that near-black in every preset.
+      ".timeline .actor-tile.agent",
     ],
     token: [
       {
+        // Was the tile's `background-color` while the tile was a fill; the
+        // accent moved to the glyph, so the probe follows it rather than
+        // being dropped.
         selector: ".timeline .actor-tile.agent",
-        property: "background-color",
+        property: "color",
         token: "--lc-accent-agent",
       },
       {
@@ -155,7 +162,7 @@ const STATES = [
         label: "agent tile vs human primary",
         a: {
           selector: ".timeline .actor-tile.agent",
-          property: "background-color",
+          property: "color",
         },
         b: { selector: ".composer .primary", property: "background-color" },
       },
@@ -258,6 +265,7 @@ const SAMPLER = `(() => {
       background: effectiveBackground(
         property === "background-color" ? element.parentElement ?? element : element,
       ),
+      disabled: element.matches(":disabled, [aria-disabled='true']"),
     };
   };
   window.__matrixToken = (token) => {
@@ -286,6 +294,8 @@ for (let attempt = 0; attempt < 150; attempt += 1) {
 }
 
 const failures = [];
+/** Probes exempted from the AA gate, reported so the exemption is never silent. */
+const exempt = [];
 const rgb = (c) => [Math.round(c.r), Math.round(c.g), Math.round(c.b)];
 
 const browser = await webkit.launch();
@@ -373,6 +383,18 @@ try {
             continue;
           }
           const ratio = contrast(rgb(sample.value), rgb(sample.background));
+          // WCAG 1.4.3 exempts an inactive component, and `--lc-ink-disabled`
+          // on `--lc-wash` is the designed unavailable state (components.md:32)
+          // — it is below AA on purpose, because that is what "you cannot use
+          // this" looks like. The exemption is reported rather than silent: a
+          // probe that goes disabled when it should not is a finding too, and a
+          // quiet skip would hide it.
+          if (sample.disabled) {
+            exempt.push(
+              `${axis} ${state.name}: ${selector} is disabled — contrast ${ratio.toFixed(2)} not held to AA`,
+            );
+            continue;
+          }
           if (ratio < AA_TEXT) {
             failures.push(
               `${axis} ${state.name}: ${selector} contrast ${ratio.toFixed(2)} < ${AA_TEXT}`,
@@ -486,6 +508,12 @@ try {
   server.kill();
 }
 
+if (exempt.length > 0) {
+  console.log(
+    `\ntheme matrix: ${exempt.length} probe(s) exempt from the AA gate`,
+  );
+  for (const note of exempt) console.log(`  ${note}`);
+}
 if (failures.length > 0) {
   console.error(`\ntheme matrix: ${failures.length} failure(s)`);
   for (const failure of failures) console.error(`  ${failure}`);

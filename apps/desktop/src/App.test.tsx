@@ -2154,3 +2154,90 @@ describe("the header filter (V0-15)", () => {
     ).toBe("0");
   });
 });
+
+describe("the side panel against its spec (Step 16a)", () => {
+  const reachable = {
+    id: "project-a",
+    name: "Reachable Project",
+    rootPath: "/tmp/LongClaw A",
+    key: "LA",
+    theme: "plum",
+    starred: true,
+    reachable: true,
+    labels: {},
+  };
+
+  const missing = {
+    id: "project-b",
+    name: "Moved Project",
+    rootPath: "/tmp/LongClaw B",
+    key: "LB",
+    theme: "clay",
+    starred: false,
+    reachable: false,
+    labels: {},
+  };
+
+  /**
+   * A starred project appears in both sections, so every assertion here is
+   * scoped to Local — which lists every project exactly once.
+   */
+  function localSection() {
+    return [...document.querySelectorAll<HTMLElement>(".project-section")].find(
+      (section) => section.querySelector("h2")?.textContent === "Local",
+    )!;
+  }
+
+  async function renderPanel() {
+    vi.mocked(api.listProjects).mockResolvedValue([reachable, missing]);
+    render(<App />);
+    await screen.findAllByText("Reachable Project");
+  }
+
+  it("scopes each theme dot to that project's own preset", async () => {
+    await renderPanel();
+
+    // `--lc-accent-human` resolves per `data-theme`, so a row can show a preset
+    // this window is not wearing (`components.md:251`). Without the attribute
+    // every dot would silently be the active project's accent.
+    const dots = localSection().querySelectorAll<HTMLElement>(".theme-dot");
+    expect([...dots].map((dot) => dot.dataset.theme)).toEqual(["plum"]);
+  });
+
+  it("marks an unreachable project without hiding or disabling it", async () => {
+    await renderPanel();
+
+    // The row keeps its place and stays clickable (`screen-specs.md:40-42`):
+    // relocating a project starts by opening it.
+    const link = [
+      ...localSection().querySelectorAll<HTMLElement>(".project-link"),
+    ].find((element) => element.textContent?.includes("Moved Project"))!;
+    expect(link.className).toContain("unreachable");
+    expect(link.hasAttribute("disabled")).toBe(false);
+
+    // Marked in words as well as by the glyph, and it never wears a theme dot:
+    // a folder that cannot be read cannot vouch for its own preset.
+    expect(link.querySelector(".theme-dot")).toBeNull();
+    expect(link.querySelector('[aria-label="Unreachable"]')).not.toBeNull();
+
+    // Clicking it selects it and lands on the recovery panel rather than
+    // reaching for a folder that is not there — relocating starts here.
+    fireEvent.click(link);
+    expect(await screen.findByText("UNREACHABLE")).toBeDefined();
+    expect(api.openProject).not.toHaveBeenCalledWith(missing.id);
+  });
+
+  it("keeps a starred project's star visible when the row is not hovered", async () => {
+    await renderPanel();
+
+    const star = (name: string) =>
+      [...localSection().querySelectorAll<HTMLElement>(".project-link")]
+        .find((link) => link.textContent?.includes(name))!
+        .querySelector<HTMLElement>(".star-button")!;
+
+    // Hover reveals the affordance; starred state is persistent, so the class
+    // that opts out of the reveal has to be on the row that is starred.
+    expect(star("Reachable Project").className).toContain("starred");
+    expect(star("Moved Project").className).not.toContain("starred");
+  });
+});

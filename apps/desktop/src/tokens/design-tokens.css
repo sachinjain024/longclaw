@@ -105,6 +105,7 @@
   --lc-motion-ease: cubic-bezier(0.2, 0, 0, 1);
   --lc-motion-pulse-duration: 900ms;
   --lc-motion-pulse-iterations: 2;
+  --lc-motion-spinner: 900ms;
 }
 
 /* Fallbacks so a bare document renders as light Indigo (the defaults). */
