@@ -326,6 +326,33 @@ describe("a file the build cannot read", () => {
     // Nothing claims a status the file never stated.
     expect(element.querySelector(".status-dot")).toBeNull();
   });
+
+  it("labels a newer-version row as newer format instead of repair work", () => {
+    render(
+      list({
+        tickets: [
+          {
+            state: "degraded",
+            key: "LC-99",
+            contentHash: "hash-99",
+            relativePath: ".longclaw/tickets/LC-99/ticket.md",
+            byteLength: 260,
+            readOnly: true,
+            diagnostic: {
+              code: "unsupported_version",
+              message: "schema version 99 is newer than this build supports",
+            },
+          },
+        ],
+      }),
+    );
+
+    const element = listRow("LC-99");
+    expect(element.className).toContain("degraded");
+    expect(element.textContent).toContain(".longclaw/tickets/LC-99/ticket.md");
+    expect(element.textContent).toContain("Newer format");
+    expect(element.textContent).not.toContain("needs repair");
+  });
 });
 
 describe("the archived group (ADR 0004)", () => {

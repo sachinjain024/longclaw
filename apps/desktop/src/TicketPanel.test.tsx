@@ -103,6 +103,36 @@ function detail(options?: {
   };
 }
 
+function degradedDetail(options?: {
+  readOnly?: boolean;
+  raw?: string;
+  message?: string;
+  line?: number;
+}): TicketDetail {
+  return {
+    key: "LC-1",
+    relativePath: ".longclaw/tickets/LC-1/ticket.md",
+    contentHash: "hash-degraded",
+    byteLength: options?.raw?.length ?? 120,
+    readOnly: options?.readOnly ?? false,
+    raw:
+      options?.raw ??
+      "---\nkey: LC-1\nschema_version: 99\n---\n# Future ticket\n",
+    rawTruncated: false,
+    missingAttachments: [],
+    orphanAttachments: [],
+    diagnostic: {
+      code: options?.readOnly ? "unsupported_version" : "parse_failed",
+      message:
+        options?.message ??
+        (options?.readOnly
+          ? "Ticket schema version 99 is newer than this build supports"
+          : "Frontmatter is missing a required title"),
+      line: options?.line,
+    },
+  };
+}
+
 function writeResult(): WriteResult {
   return {
     ticket: {
@@ -354,6 +384,47 @@ describe("a change that lands while a draft is open", () => {
 });
 
 describe("the panel's honesty about the file", () => {
+  it("V0-26: shows a newer-version ticket as read-only raw content with no mutation controls", async () => {
+    readTicketMock.mockResolvedValue(
+      degradedDetail({
+        readOnly: true,
+        line: 3,
+        raw: "---\nkey: LC-1\nschema_version: 99\n---\n# Future ticket\n",
+      }),
+    );
+    const onArchive = vi.fn();
+    render(panel({ onArchive }));
+
+    await screen.findByText("Newer format, shown read-only");
+
+    expect(screen.getByText(/schema version 99/)).toBeTruthy();
+    expect(screen.getByText(/will not rewrite it/i)).toBeTruthy();
+    expect(screen.getByText(/schema_version: 99/)).toBeTruthy();
+    expect(screen.queryByLabelText("Title")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Archive" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Status: / })).toBeNull();
+    expect(editTicketMock).not.toHaveBeenCalled();
+    expect(onArchive).not.toHaveBeenCalled();
+  });
+
+  it("V0-26: keeps ordinary parse failures in the repairable degraded state", async () => {
+    readTicketMock.mockResolvedValue(
+      degradedDetail({
+        raw: "---\nkey: LC-1\nstatus: blocked\n---\n# Broken ticket\n",
+        message: "status must be one of the supported values",
+        line: 3,
+      }),
+    );
+    render(panel());
+
+    await screen.findByText("Shown without repair");
+
+    expect(screen.getByText(/Fix it in an editor/)).toBeTruthy();
+    expect(screen.queryByText(/will not rewrite it/i)).toBeNull();
+    expect(screen.getByText(/status: blocked/)).toBeTruthy();
+    expect(editTicketMock).not.toHaveBeenCalled();
+  });
+
   it("must-pass 1: a tick appears before the write returns, and the indicator says so", async () => {
     let settle: (result: WriteResult) => void = () => {};
     readTicketMock.mockResolvedValue(detail({ contentHash: "hash-1" }));
