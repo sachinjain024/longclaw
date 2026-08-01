@@ -97,7 +97,10 @@ const STATES = [
         token: "--lc-accent-human",
       },
       {
-        selector: ".trace-node.active",
+        // The trace strip is dev-only chrome (devChrome.ts) and this build is
+        // a release build, so the agent-accent contract is proven on the
+        // designed element instead: the fresh card's acknowledgement footer.
+        selector: ".ticket-row.fresh .actor",
         property: "color",
         token: "--lc-accent-agent-text",
       },
@@ -292,6 +295,10 @@ try {
       const axis = `${theme}-${appearance}`;
       const page = await browser.newPage({
         viewport: { width: 1_440, height: 900 },
+        // The matrix checks colors, not motion, and it flips theme/appearance
+        // from script: reduced motion zeroes the --lc-motion-* tokens, so a
+        // transition can never be mid-flight when a probe samples it.
+        reducedMotion: "reduce",
       });
       await page.goto(`${ORIGIN}/?tickets=${TICKETS}`);
       await page.waitForFunction(

@@ -15,6 +15,8 @@ import type { Label, TicketPriority, TicketRow } from "./types";
 export interface CardCopy {
   title: string;
   meta: string;
+  /** The checklist as a 0–1 ratio, for the meter drawn beside the fraction. */
+  progress?: number;
   /** Drawn as its glyph. A file that would not parse has none to draw. */
   priority?: TicketPriority;
   /** Already capped to what the footer holds; a degraded file has none. */
@@ -46,6 +48,9 @@ export function presentCard(
   return {
     title: ticket.title,
     meta: fraction,
+    progress: fraction
+      ? ticket.checkedCount / ticket.checklistCount
+      : undefined,
     priority: ticket.priority,
     labels: resolveLabels(
       ticket.labels,

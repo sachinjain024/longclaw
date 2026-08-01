@@ -1,3 +1,4 @@
+@import "./fonts.css";
 @import "./tokens/design-tokens.css";
 
 :root {
@@ -393,19 +394,24 @@ button:disabled {
   background: var(--lc-surface);
 }
 
+/* No box of its own: the board and list sit directly on --lc-bg, and the cards
+   and rows carry the surface (prototype.css § Board). */
 .workspace {
-  border: 1px solid var(--lc-line);
-  border-radius: 8px;
-  background: var(--lc-surface);
+  min-width: 0;
 }
 
+/* Dev builds only (devChrome.ts): its own box, because the workspace it sits
+   in has none — deliberately harness chrome, not the app's language. */
 .trace-strip {
   display: flex;
   align-items: center;
   gap: 8px;
   min-height: 44px;
-  border-bottom: 1px solid var(--lc-line);
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-card);
+  margin-bottom: 10px;
   padding: 8px 12px;
+  background: var(--lc-surface);
 }
 
 .trace-node,
@@ -436,7 +442,7 @@ button:disabled {
 }
 
 .board-heading {
-  padding: 18px 18px 8px;
+  padding: 10px 0 8px;
 }
 
 .board-heading h2 {
@@ -464,7 +470,7 @@ button:disabled {
 .empty-board,
 .no-matches,
 .unreachable-panel {
-  margin: 18px;
+  margin: 18px 0;
   border: 1px dashed var(--lc-line-strong);
   border-radius: 8px;
   padding: 38px;
@@ -497,50 +503,49 @@ button:disabled {
   margin-top: 18px;
 }
 
+/* The prototype's board: fixed-width columns in one horizontal row that scrolls
+   sideways, never wraps (prototype.css § Board). The columns are transparent —
+   the cards carry the surface and float on --lc-bg. */
 .board-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(180px, 1fr));
-  gap: 12px;
-  padding: 18px;
+  display: flex;
+  gap: var(--lc-space-3);
+  align-items: flex-start;
+  padding: var(--lc-space-2) 0 var(--lc-space-5);
+  overflow-x: auto;
 }
 
-/* The column's own padding is split between the section and the scroll container
-   inside it, so a card sits exactly where it sat before the column could scroll,
-   and the fresh card's 3px ring has room instead of being clipped by the scroll
-   container's edge. 6 + 4 is the 10px the section used to carry. */
 .board-column {
-  min-height: 270px;
-  border: 1px solid var(--lc-line);
-  border-radius: 8px;
-  padding: 10px 6px;
-  background: color-mix(in oklab, var(--lc-wash) 36%, var(--lc-surface));
+  width: 264px;
+  flex: none;
 }
 
-/* Dot, then name, then the count pushed to the far edge — the dot belongs to the
-   name beside it, not to the row (screen-specs.md:103). */
+/* Dot, then name, then the count beside it (screen-specs.md:103); the far edge
+   is reserved for the column's own controls, as in prototype.css `.col-head`. */
 .board-column h3 {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 7px;
-  padding: 0 4px;
+  gap: 7px;
+  margin-bottom: 0;
+  padding: 6px 4px 10px;
   color: var(--lc-ink-2);
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .board-column h3 span {
-  margin-left: auto;
   color: var(--lc-ink-3);
   font-family: var(--lc-type-code-font);
+  font-size: 11px;
 }
 
 /* Each column scrolls independently (screen-specs.md § Board). Bounding it here
    is also what lets the column render only the cards this box can show.
 
    The reserve in --lc-size-board-stack is the chrome above and below a column at
-   the default window: toolbar, trace strip, board heading, and the grid's own
-   padding. Under a short board the cap never binds and nothing moves; over a tall
-   one the column scrolls inside it instead of stretching the page. */
+   the default window: toolbar, board heading, the grid's own padding, and the
+   dev-only trace strip — sized to the dev build, so a release column just runs
+   a little short. Under a short board the cap never binds and nothing moves;
+   over a tall one the column scrolls inside it instead of stretching the page. */
 .board-stack {
   max-height: var(--lc-size-board-stack);
   padding: 3px 4px 0;
@@ -555,26 +560,62 @@ button:disabled {
 
 /* Cards are placed by the column rather than stacked by flow: the column knows
    every card's offset (boardGeometry.ts), including for the cards it is not
-   rendering. The pinned height is what makes those offsets exact. */
+   rendering. The pinned height is what makes those offsets exact, so every row
+   inside the card states its own height rather than letting a line box decide.
+
+   The treatment is prototype.css `.card`: surface on --lc-bg, hairline border,
+   card shadow, and the hover/selected states the prototype defines. */
 .ticket-row {
   position: absolute;
   right: 0;
   left: 0;
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: 5px 8px;
+  display: flex;
+  flex-direction: column;
   height: var(--lc-size-board-card);
   border: 1px solid var(--lc-line);
-  border-radius: 8px;
-  padding: 10px;
+  border-radius: var(--lc-radius-card);
+  padding: var(--lc-size-card-pad-y) var(--lc-size-card-pad-x);
   color: var(--lc-ink);
   text-align: left;
   background: var(--lc-surface);
+  box-shadow: var(--lc-shadow-card);
+  transition:
+    border-color var(--lc-motion-fast) var(--lc-motion-ease),
+    background var(--lc-motion-fast) var(--lc-motion-ease),
+    box-shadow var(--lc-motion-fast) var(--lc-motion-ease);
+}
+
+.ticket-row:hover {
+  border-color: var(--lc-line-strong);
+}
+
+[data-appearance="dark"] .ticket-row:hover {
+  background: var(--lc-raised);
 }
 
 .ticket-row.selected {
-  border-color: var(--lc-accent-human-border);
-  box-shadow: 0 0 0 2px var(--lc-accent-human-soft);
+  border-color: var(--lc-accent-human);
+  background: var(--lc-accent-human-wash);
+}
+
+/* Key and pulse at one edge, the priority glyph at the other. */
+.card-top {
+  display: flex;
+  height: 16px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.card-top .ticket-key {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+}
+
+.card-top .priority-glyph,
+.card-top .priority-chip {
+  margin-left: auto;
 }
 
 /* Manual only (ADR 0003): a card that can be picked up says so with the cursor,
@@ -604,9 +645,27 @@ button:disabled {
   border-color: var(--lc-danger-border);
 }
 
+/* A path, not a title, so it reads as one (prototype.css `.card.degraded`). */
+.ticket-row.degraded .ticket-key {
+  color: var(--lc-danger);
+}
+
+.ticket-row.degraded strong {
+  color: var(--lc-ink-2);
+  font-family: var(--lc-type-code-font);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+/* One line, 18px, ellipsized: the pinned card height owns the room a second
+   line would take (prototype clamps at two; the window needs one height). */
 .ticket-row strong {
   overflow: hidden;
+  height: 18px;
+  margin-bottom: 8px;
   font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -623,22 +682,56 @@ button:disabled {
   font-size: 10px;
 }
 
+/* The card's foot: fraction, meter, then chips, never wrapping
+   (screen-specs.md:121-122). */
 .ticket-meta {
   display: flex;
-  gap: 5px;
+  height: 20px;
+  gap: 8px;
   align-items: center;
-  grid-column: 2;
+  overflow: hidden;
+}
+
+.fraction {
+  flex: none;
+  color: var(--lc-ink-3);
+  font-family: var(--lc-type-code-font);
+  font-size: 10.5px;
+  font-weight: 500;
+}
+
+/* The checklist meter (prototype.css `.progress`). */
+.progress {
+  flex: none;
+  width: 44px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--lc-wash);
+  overflow: hidden;
+}
+
+[data-appearance="dark"] .progress {
+  background: var(--lc-line);
+}
+
+.progress i {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--lc-ink-3);
+  transition: width var(--lc-motion-state) var(--lc-motion-ease);
 }
 
 /* The footer never wraps (screen-specs.md § Board), which is also what keeps a
    fresh card to one known height for the column to place cards by. */
 .actor {
-  grid-column: 1 / -1;
   overflow: hidden;
+  margin-top: 7px;
   border-top: 1px solid var(--lc-line-soft);
   padding-top: 6px;
   color: var(--lc-accent-agent-text);
   font-size: 10.5px;
+  line-height: 14px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -663,6 +756,24 @@ button:disabled {
 .ticket-row.fresh.human-fresh {
   border-color: var(--lc-accent-human-border);
   box-shadow: 0 0 0 3px var(--lc-accent-human-soft);
+}
+
+/* The change the acknowledgement is about is usually the checklist, so the
+   meter wears the actor's accent while the card is fresh (prototype.css). */
+.ticket-row.fresh .fraction {
+  color: var(--lc-accent-agent-text);
+}
+
+.ticket-row.fresh .progress i {
+  background: var(--lc-accent-agent);
+}
+
+.ticket-row.fresh.human-fresh .fraction {
+  color: var(--lc-accent-human-text);
+}
+
+.ticket-row.fresh.human-fresh .progress i {
+  background: var(--lc-accent-human);
 }
 
 .pulse-dot {
@@ -2296,10 +2407,6 @@ html.theme-transition *::after {
 
   .welcome-panel,
   .settings-panel {
-    grid-template-columns: 1fr;
-  }
-
-  .board-grid {
     grid-template-columns: 1fr;
   }
 }

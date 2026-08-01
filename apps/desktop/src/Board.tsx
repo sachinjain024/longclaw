@@ -556,17 +556,24 @@ const BoardCard = memo(function BoardCard(props: {
       onClick={() => props.onSelect(ticket.key)}
       onFocus={() => props.onFocusCard(ticket.key)}
     >
-      <span className="ticket-key">
-        {ticket.key}
-        {fresh && <PulseDot mark={mark} now={props.now} />}
+      <span className="card-top">
+        <span className="ticket-key">
+          {ticket.key}
+          {fresh && <PulseDot mark={mark} now={props.now} />}
+        </span>
+        {row.priority && <PriorityGlyph priority={row.priority} small />}
       </span>
       <strong>{row.title}</strong>
       <span className="ticket-meta">
-        {row.priority && <PriorityGlyph priority={row.priority} small />}
+        {row.meta && <span className="fraction">{row.meta}</span>}
+        {row.progress !== undefined && (
+          <span className="progress" aria-hidden="true">
+            <i style={{ width: `${Math.round(row.progress * 100)}%` }} />
+          </span>
+        )}
         {row.labels.map((label) => (
           <LabelChip key={label.slug} label={label} small />
         ))}
-        {row.meta}
       </span>
       {fresh && mark && (
         <span className="actor">{acknowledgement(mark, props.now)}</span>
