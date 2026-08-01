@@ -2197,11 +2197,21 @@ describe("the side panel against its spec (Step 16a)", () => {
   it("scopes each theme dot to that project's own preset", async () => {
     await renderPanel();
 
-    // `--lc-accent-human` resolves per `data-theme`, so a row can show a preset
-    // this window is not wearing (`components.md:251`). Without the attribute
-    // every dot would silently be the active project's accent.
-    const dots = localSection().querySelectorAll<HTMLElement>(".theme-dot");
-    expect([...dots].map((dot) => dot.dataset.theme)).toEqual(["plum"]);
+    // The accent blocks are compound — `[data-appearance][data-theme]`
+    // (`design-tokens.css:294+`) — so a dot needs **both** axes or it matches no
+    // block and silently inherits the active project's accent, which looks
+    // exactly like working until two projects differ. Asserting `data-theme`
+    // alone would pass on the broken version, so this asserts the pair.
+    const dots = [
+      ...localSection().querySelectorAll<HTMLElement>(".theme-dot"),
+    ];
+    expect(dots.map((dot) => dot.dataset.theme)).toEqual(["plum"]);
+    for (const dot of dots) {
+      expect(dot.dataset.appearance).toBe(
+        document.documentElement.dataset.appearance,
+      );
+      expect(dot.dataset.appearance).toBeTruthy();
+    }
   });
 
   it("marks an unreachable project without hiding or disabling it", async () => {
@@ -2218,7 +2228,12 @@ describe("the side panel against its spec (Step 16a)", () => {
     // Marked in words as well as by the glyph, and it never wears a theme dot:
     // a folder that cannot be read cannot vouch for its own preset.
     expect(link.querySelector(".theme-dot")).toBeNull();
-    expect(link.querySelector('[aria-label="Unreachable"]')).not.toBeNull();
+    // Real text rather than an `aria-label` on a bare span, which is not
+    // reliably exposed: the row's accessible name has to say the word.
+    expect(link.textContent).toContain("Unreachable");
+    expect(
+      link.querySelector(".project-warn")?.getAttribute("aria-hidden"),
+    ).toBe("true");
 
     // Clicking it selects it and lands on the recovery panel rather than
     // reaching for a folder that is not there — relocating starts here.

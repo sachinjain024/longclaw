@@ -301,6 +301,7 @@ h1 {
 }
 
 .welcome-copy h1 {
+  margin: 0;
   font: var(--lc-type-display-weight) var(--lc-type-display-size) /
     var(--lc-type-display-leading) var(--lc-type-display-font);
   letter-spacing: var(--lc-type-display-tracking);
@@ -375,8 +376,11 @@ h1 {
   background: var(--lc-raised);
 }
 
+/* `--lc-raised-hover`, not `--lc-wash`: in dark, `wash` and `raised` are the
+   same value, so a secondary button resting on `raised` that hovered to `wash`
+   moved to its own resting colour and gave no feedback at all. */
 .secondary:hover:not(:disabled) {
-  background: var(--lc-wash);
+  background: var(--lc-raised-hover);
 }
 
 .secondary:active:not(:disabled) {
@@ -444,10 +448,6 @@ h1 {
   color: var(--lc-ink-2);
   font: var(--lc-type-body-weight) var(--lc-type-body-size) /
     var(--lc-type-body-leading) var(--lc-type-body-font);
-}
-
-.welcome-copy h1 {
-  margin: 0;
 }
 
 .welcome-copy code {
@@ -2214,6 +2214,18 @@ button:disabled {
   white-space: nowrap;
 }
 
+/* Text that exists for assistive technology and not for the eye — the word
+   beside a glyph that carries meaning. Same recipe as the visually hidden theme
+   radio above; kept as a class because a second caller now needs it. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 .theme-option .theme-swatch {
   width: 44px;
   height: 28px;
@@ -2419,9 +2431,11 @@ html.theme-transition *::after {
   cursor: pointer;
 }
 
+/* The popover is `raised`, so its rows hover to the raised step for the same
+   reason the secondary button does. */
 .menu-row:hover,
 .menu-row:focus-visible {
-  background: var(--lc-wash);
+  background: var(--lc-raised-hover);
 }
 
 .menu-glyph {

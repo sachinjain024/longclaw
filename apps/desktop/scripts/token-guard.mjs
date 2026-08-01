@@ -16,10 +16,12 @@
  *             are geometry rather than scale values and are allowed: a circle
  *             is a circle at any size, and `0` is a reset.
  *   motion  — every duration and delay (`--lc-motion-*`). The generated CSS
- *             zeroes these under `prefers-reduced-motion`, so a literal is not
- *             merely off-system: it is motion that survives a user's request
- *             for no motion. `0.01ms` in the reduced-motion block itself is the
- *             one exception, and it is what that block is for.
+ *             zeroes each of these under `prefers-reduced-motion` — derived
+ *             from the token group, so a new one cannot miss the block — which
+ *             makes a literal not merely off-system: it is motion that survives
+ *             a user's request for no motion. `0.01ms` in the reduced-motion
+ *             block itself is the one exception, and it is what that block is
+ *             for.
  *
  * Deliberately **not** checked: spacing, type sizes, and one-off widths and
  * heights. `components.md` specifies real component anatomy off the scales —
@@ -30,15 +32,7 @@
  * Usage: node scripts/token-guard.mjs   (exits non-zero on any finding)
  */
 
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const here = dirname(fileURLToPath(import.meta.url));
-const root = resolve(here, "../src");
-const allowed = resolve(root, "tokens");
-
-const SOURCE = /\.(ts|tsx|css)$/;
+import { readSource, report, sourceFiles } from "./guard.mjs";
 
 /** A radius value that is neither a token, a circle, nor a reset. */
 const RADIUS = {
@@ -63,41 +57,27 @@ const MOTION = {
     ),
 };
 
-const files = [];
-const walk = (dir) => {
-  for (const entry of readdirSync(dir)) {
-    const path = join(dir, entry);
-    if (path === allowed) continue;
-    if (statSync(path).isDirectory()) walk(path);
-    else if (SOURCE.test(entry)) files.push(path);
-  }
-};
-walk(root);
-
+const files = sourceFiles();
 const findings = [];
 for (const file of files) {
-  const source = readFileSync(file, "utf8");
-  const lines = source.split("\n");
+  const { path, text, lines } = readSource(file);
   for (const rule of [RADIUS, MOTION]) {
-    for (const hit of source.matchAll(rule.pattern)) {
+    for (const hit of text.matchAll(rule.pattern)) {
       const offenders = rule.offending(hit[1]);
       if (offenders.length === 0) continue;
-      const line = source.slice(0, hit.index).split("\n").length;
+      const line = text.slice(0, hit.index).split("\n").length;
       findings.push(
-        `${relative(process.cwd(), file)}:${line} — ${rule.label} ${offenders.join(" ")} in: ${lines[line - 1].trim()}`,
+        `${path}:${line} — ${rule.label} ${offenders.join(" ")} in: ${lines[line - 1].trim()}`,
       );
     }
   }
 }
 
-if (findings.length > 0) {
-  console.error(
-    `token-guard: ${findings.length} literal value(s) outside src/tokens/ — use a --lc-radius-* or --lc-motion-* token:\n` +
-      findings.map((finding) => `  ${finding}`).join("\n"),
-  );
-  process.exit(1);
-}
-
-console.log(
-  `token-guard: ${files.length} files clean — every radius and duration is a token`,
-);
+report({
+  name: "token-guard",
+  findings,
+  checked: files.length,
+  remedy:
+    "literal value(s) outside src/tokens/ — use a --lc-radius-* or --lc-motion-* token:",
+  clean: "every radius and duration is a token",
+});

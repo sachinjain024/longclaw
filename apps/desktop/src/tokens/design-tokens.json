@@ -208,6 +208,11 @@
         "dark": "#1C1E27",
         "role": "inline code chips, quiet fills, progress track"
       },
+      "raised-hover": {
+        "light": "#EEF0F5",
+        "dark": "#262935",
+        "role": "hover fill for anything already sitting on `raised` — secondary buttons and popover rows. In dark, `raised` and `wash` are the same value, so a control resting on `raised` that hovered to `wash` gave no feedback at all; this is the step components.md:52 calls the raised hover overlay."
+      },
       "ink": {
         "light": "#171923",
         "dark": "#E9EAF2",

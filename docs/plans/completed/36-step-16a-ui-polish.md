@@ -113,14 +113,15 @@ distinction resting on hue alone, which D11 forbids.
 **Shipped.** `npm run verify` green (502 frontend tests, 161 Rust tests, both
 guards clean, native watcher round-trip). `npm run matrix` clean over 4 presets
 × 2 appearances × 9 states. The lanes were touched, so both traces were re-run:
-board p95 **15/19/28/16 ms** and list p95 **20/20/22/17 ms**
+board p95 **16/19/28/24 ms** and list p95 **19/19/21/16 ms**
 (keyboard/scroll/filter/external-write), all under the ≤50 ms ceiling and every
 median within 4 ms of the 600-ticket floor.
 
 ### What the audit turned into
 
-Everything in § What to change landed. Three things were found while doing it
-that the plan did not predict:
+Everything in § What to change landed. Six things were found while doing it
+that the plan did not predict — the last four by the review pass, after the
+first commit, which is why they read as corrections rather than discoveries:
 
 1. **The ticket panel's title was being sliced in half.** `.ticket-panel` is a
    flex column that scrolls, and a flex column shrinks its children to fit
@@ -134,7 +135,28 @@ that the plan did not predict:
    rendered *underneath* the Locate folder button in every preset. The column
    is `max-content` now — it is the one column whose width is a component's
    anatomy rather than the panel's choice.
-3. **The matrix was passing a contrast check it could not actually see.** The
+3. **The theme dot did not work, and the first test written for it passed
+   anyway.** The accent blocks are compound — `[data-appearance][data-theme]` on
+   the same element — so `<span data-theme="plum">` alone matches no block and
+   silently inherits the active project's accent, which is indistinguishable
+   from working until two projects have different presets. `ThemeSwatch` had
+   already solved exactly this and documented the trick; the dot ignored it. The
+   subscription is now `appearance.ts`, shared by both, and the dot is a
+   `ThemeDot` component beside the swatch. The test that missed it asserted
+   `dot.dataset.theme` and nothing else; it asserts the pair now, and fails on
+   the broken version.
+4. **Two hover states were invisible in dark.** `--lc-wash` and `--lc-raised`
+   are the same value in dark, so a secondary button and a popover row — both
+   resting on `raised` — hovered to their own resting colour. `components.md:52`
+   asks for "lighten via `raised` hover overlay (dark)" and there was no token
+   for it, so `--lc-raised-hover` is new: `wash` in light, a real step up in
+   dark, one rule for both.
+5. **`--lc-motion-spinner` would have survived reduced motion.** `build.mjs`
+   emitted a hardcoded three-token reduced-motion block, so the new token — and
+   any future one — silently escaped it, which would have made `token-guard`'s
+   own stated rationale false. The block is derived from the motion group now:
+   every token whose value is a duration is zeroed.
+6. **The matrix was passing a contrast check it could not actually see.** The
    old disabled treatment was `opacity: 0.42`, and the sampler does not
    composite opacity, so it measured white-on-accent and passed. Replacing the
    opacity with the designed `ink-disabled`-on-`wash` made the real ratio
@@ -143,6 +165,19 @@ that the plan did not predict:
    purpose*, so the checker now exempts a disabled probe. It **reports** each
    exemption rather than skipping quietly: a probe that goes disabled when it
    should not be is a finding too, and a silent skip would hide it.
+
+### What "validate the interaction states" did and did not mean
+
+The step's work list asks to "validate keyboard focus, hover, pressed,
+disabled, selected, optimistic, and external-update states as part of the
+visual polish pass." That was done by reading each state against
+`components.md` § Global interaction model and fixing what was missing — which
+was most of it, since primary had no hover or press at all. It was **not** done
+by adding automated probes: the matrix still renders the same nine surface
+states, and none of them is a hover or a press. Its coverage did not move
+upward — the disabled exemption above removes a check that had been passing for
+the wrong reason. A hover/focus/press axis on the matrix is the honest next
+step and is not in this change.
 
 ### Deferred discrepancies
 
@@ -166,6 +201,15 @@ which is the line this step drew.
   subtitle and the trust line are in; the flow's shape is not.
 - **The terminal region reservation** (`screen-specs.md:55-64`) is unbuilt. It
   is geometry for a Phase 2 slot and adding it is new surface.
+- **Spacing and border literals stay.** `styles.css` still carries ~114 literal
+  `padding`/`gap`/`margin` declarations and ~37 literal `1px solid` borders
+  against 11 uses of `--lc-border-hairline`. Only some are on the
+  4/8/12/16/20/24/32/40 scale; the rest are component anatomy (`padding: 8px
+  12px` on a card foot, 9px on a small button). Routing the on-scale ones and
+  leaving the rest would produce a file where a token and a literal mean the
+  same thing in adjacent rules, which is worse than either — so this is one
+  decision, not a hundred, and it wants a spacing scale that admits half-steps
+  first.
 - **Font sizes stay literal** where `components.md` specifies component anatomy
   off the type scale — 10.5px mono meta, the 9.5px `AGENT` badge, 11px labels,
   the 15px palette input. `token-guard.mjs` deliberately does not check type or

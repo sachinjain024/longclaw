@@ -44,6 +44,7 @@ import { OwlMark } from "./OwlMark";
 import { QuickCreate } from "./QuickCreate";
 import { useLongClawStore } from "./state";
 import { ThemePicker } from "./ThemePicker";
+import { ThemeDot } from "./ThemeSwatch";
 import { TicketPanel } from "./TicketPanel";
 import {
   isArchived,
@@ -1411,11 +1412,17 @@ function ProjectSection(props: {
                 for the warn triangle (`screen-specs.md:40`) — said in words too,
                 because a glyph is never the only channel. */}
             {project.reachable ? (
-              <span className="theme-dot" data-theme={project.theme} />
+              <ThemeDot theme={project.theme} />
             ) : (
-              <span className="project-warn" aria-label="Unreachable">
-                ⚠
-              </span>
+              <>
+                <span className="project-warn" aria-hidden="true">
+                  ⚠
+                </span>
+                {/* The glyph is decoration; this is the channel that actually
+                    reaches a screen reader. `aria-label` on a bare span is not
+                    reliably exposed, so the word is real text. */}
+                <span className="visually-hidden">Unreachable</span>
+              </>
             )}
             <strong>{project.name}</strong>
             <span
