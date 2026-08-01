@@ -26,7 +26,8 @@ function renderForm(onSubmit = vi.fn()) {
     onSubmit,
     name: screen.getByLabelText("Name") as HTMLInputElement,
     key: screen.getByLabelText("Key") as HTMLInputElement,
-    theme: screen.getByLabelText("Theme") as HTMLSelectElement,
+    pickTheme: (label: string) =>
+      fireEvent.click(screen.getByRole("radio", { name: label })),
     submit,
     form: submit.closest("form") as HTMLFormElement,
   };
@@ -36,7 +37,7 @@ describe("the create-project form", () => {
   it("sends the name, key, and theme the human chose", () => {
     const form = renderForm();
     fireEvent.change(form.name, { target: { value: "My Project" } });
-    fireEvent.change(form.theme, { target: { value: "slate" } });
+    form.pickTheme("Slate");
 
     fireEvent.click(form.submit);
 

@@ -109,6 +109,11 @@ marked independent can be done at any time by anyone.
 | ~~28~~ | ~~Navigation, focus return, and the escape contract~~ — **done 2026-08-01**, [outcome](../completed/28-focus-and-the-escape-contract.md) | V0-23 | Closed. Escape handling, focus traps/returns, fallback focus, and regression coverage are complete. |
 | ~~29~~ | ~~The shortcut reference~~ — **done 2026-08-01**, [outcome](../completed/29-shortcut-reference.md) | V0-25 | Closed. The generated shortcut reference, binding test, chord convention, and decision record are complete. |
 | ~~30~~ | ~~Reconcile Step 12 command-set documentation~~ — **done 2026-08-01**, [outcome](../completed/30-reconcile-step-12-command-set.md) | — | Closed. The execution plan now records the accepted command set and visible terminal placeholder. |
+| ~~31~~ | ~~System-matched appearance, persisted~~ — **done 2026-08-01**, [outcome](../completed/31-system-matched-appearance.md) | V0-35 | Closed. `system` now tracks live OS appearance changes through a `matchMedia` listener; persistence and override behavior are pinned by five App tests. |
+| ~~32~~ | ~~Instant per-project theme selection~~ — **done 2026-08-01**, [outcome](../completed/32-instant-theme-selection.md) | V0-36 | Closed. The specified swatch picker is `src/ThemePicker.tsx` (creation + settings; the palette already had rows), the 150ms crossfade is one transient class transitioning colors only, and `changeTheme` is optimistic with no snapshot re-fetch. |
+| ~~33~~ | ~~The token guard~~ — **done 2026-08-01**, [outcome](../completed/33-token-guard.md) | V0-34 | Closed. `tokens/build.mjs` refuses a missing theme value naming the token, and `scripts/color-guard.mjs` fails `tokens:check` on any color literal outside `src/tokens/` — both confirmed red first. |
+| ~~34~~ | ~~The proof render pipeline~~ — **done 2026-08-01**, [outcome](../completed/34-proof-render-pipeline.md) | V0-41 | Closed. `docs/design/foundations/scripts/render.mjs` is committed and `proof/renders/` is regenerated from the corrected HTML — no assignee anywhere, which closes V0-19's screen clause. |
+| ~~35~~ | ~~The theme matrix~~ — **done 2026-08-01**, [outcome](../completed/35-theme-matrix.md) | V0-37 | Closed. `npm run matrix` drives the real App through nine states × 4 presets × 2 appearances in WebKit, failing on rendered contrast or actor-distinction; a CI job runs it and uploads the renders. |
 
 Dependencies worth knowing:
 
@@ -361,12 +366,15 @@ Wave 2's own dependencies, which are tighter than Wave 1's were:
   anything. Wave 0 is clear and M4 is closed, so no code and no gate stood between
   this repository and Step 11, which is now behind it.
 
-## Wave 3 is unplanned, and Waves 1–2 no longer are
+## Wave 3 is partly done, and Waves 1–2 no longer are open at all
 
-Wave 1 is closed and Wave 2 is planned above. Wave 3 of
-[the backlog](../../backlog/v0-backlog.md) — 13 of its 41 items — still has no
-plans here, and the original reason is long gone: the guardrail was satisfied and
-the pilot will not invalidate anything, because it was skipped.
+Wave 1 and Wave 2 are closed above. **Wave 3's five Step-13 rows — V0-34,
+V0-35, V0-36, V0-37 and V0-41 — closed on 2026-08-01 as plans 31–35**, written
+one at a time as each was picked up, which is the rule below working as
+intended. What remains of Wave 3 is the Step-14 recovery work (V0-26 through
+V0-33, plus V0-40 and V0-42), and the original reason it was unplanned is long
+gone: the guardrail was satisfied and the pilot will not invalidate anything,
+because it was skipped.
 
 What remains is ordinary sequencing. Wave 2 was written all at once on 2026-08-01
 because the founder asked for it; **that is the exception, and the § Step 12 note

@@ -1,4 +1,5 @@
 import { useId, useState } from "react";
+import { ThemePicker, type ThemeOption } from "./ThemePicker";
 import {
   PROJECT_KEY_MAX_LENGTH,
   PROJECT_KEY_RULE,
@@ -25,7 +26,7 @@ export type ProjectDraft = {
  * opens. Nothing is created in the user's folder by a form they can still fix.
  */
 export function CreateProjectForm(props: {
-  themes: { id: string; label: string }[];
+  themes: ThemeOption[];
   submitLabel: string;
   className?: string;
   onSubmit: (draft: ProjectDraft) => void;
@@ -94,19 +95,7 @@ export function CreateProjectForm(props: {
           </small>
         )}
       </div>
-      <label>
-        <span>Theme</span>
-        <select
-          value={theme}
-          onChange={(event) => setTheme(event.target.value)}
-        >
-          {props.themes.map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
+      <ThemePicker themes={props.themes} value={theme} onPick={setTheme} />
       <button className="primary" type="submit" disabled={Boolean(problem)}>
         {props.submitLabel}
       </button>
