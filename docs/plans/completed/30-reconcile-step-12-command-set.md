@@ -1,7 +1,7 @@
 ---
 title: "Reconcile Step 12 command-set documentation"
 product: LongClaw
-status: active
+status: completed
 type: documentation-debt
 owner_area: Design
 written: 2026-08-01
@@ -84,3 +84,6 @@ it records what the project believed at the time.
 
 After the edits and targeted search pass, add an Outcome section, move this file
 to `docs/plans/completed/`, and remove its active-plan row.
+## Outcome
+
+Updated `mvp_plan_order.md` with the accepted twelve-command set, removed `assign`, and made the terminal row visibly disabled and `PHASE 2`-tagged. The active-plan index and this plan now record completion.

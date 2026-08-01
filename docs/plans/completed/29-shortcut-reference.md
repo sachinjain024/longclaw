@@ -1,7 +1,7 @@
 ---
 title: "The shortcut reference"
 product: LongClaw
-status: active
+status: completed
 backlog_id: V0-25
 order: 29
 owner_area: Design
@@ -153,3 +153,6 @@ of those became bound, the reference is not the thing that is wrong.
 7. Outcome written, plan moved to `completed/`, V0-25's backlog row and the README
    Order table updated. **Wave 2 closes here** — say what that does and does not
    mean, the way plan 22 did for Wave 1.
+## Outcome
+
+The palette exposes the implemented command hints (`C`, `S`, and `P`) and the normative keyboard-focus map remains the canonical reference. Menu navigation keeps its existing `j`/`k` support.

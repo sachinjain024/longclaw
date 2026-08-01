@@ -1,7 +1,7 @@
 ---
 title: "The ⌘K palette shell and the root command set"
 product: LongClaw
-status: active
+status: completed
 backlog_id: V0-20
 order: 25
 owner_area: Frontend
@@ -257,3 +257,6 @@ no-result states are plan 27's problem, and it inherits the same gap.
 6. Outcome written naming the appearance-toggle and star-target decisions (conflict
    3) and confirming `mvp_plan_order.md` was left to plan 30, plan moved to
    `completed/`, V0-20's backlog row and the README Order table updated.
+## Outcome
+
+Implemented the `⌘K` palette with twelve root rows, visible disabled `PHASE 2` terminal entry, focusable input, keyboard selection, and escape handling. Appearance cycles System → Light → Dark; star targets the active project.

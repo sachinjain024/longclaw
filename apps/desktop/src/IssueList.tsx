@@ -44,6 +44,8 @@ import { PulseDot } from "./PulseDot";
 import { moveFor, useRovingFocus } from "./rovingFocus";
 import { StatusDot } from "./StatusDot";
 import { isArchived } from "./tickets";
+import { singleKeyShortcutAllowed } from "./keyContext";
+import type { IndexedTicket, TicketStatus, TicketPriority } from "./types";
 import type { Label, TicketRow } from "./types";
 import { useViewportHeight } from "./viewportHeight";
 
@@ -101,6 +103,8 @@ export function IssueList(props: {
   ordering: OrderingMode;
   now: number;
   onSelect: (key: string) => void;
+  onChangePriority?: (ticket: IndexedTicket, next: TicketPriority) => void;
+  onChangeStatus?: (ticket: IndexedTicket, next: TicketStatus) => void;
 }) {
   const [archiveOpen, setArchiveOpen] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
@@ -172,14 +176,30 @@ export function IssueList(props: {
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
     if (event.defaultPrevented) return;
-    const step = moveFor(MOVES, event.key);
-    if (step === undefined) return;
+    if (!singleKeyShortcutAllowed(event.target)) return;
     // The row the key was pressed on, not the one the last render believed was
     // focused: the Archived toggle is a tab stop of its own and is not a row.
     const on = (event.target as HTMLElement).closest?.(ROW);
     const fromKey = (on as HTMLElement | null)?.dataset.ticketKey;
     const from = fromKey === undefined ? undefined : seats.get(fromKey);
     if (!from) return;
+
+    const row = groups[from.group].tickets[from.index];
+    if (
+      row.state === "indexed" &&
+      (event.key.toLowerCase() === "p" || event.key.toLowerCase() === "s")
+    ) {
+      event.preventDefault();
+      // The list intentionally delegates these actions to the application. The
+      // focused row remains the source of truth even when a group is virtualized.
+      if (event.key.toLowerCase() === "p")
+        props.onChangePriority?.(row, row.priority);
+      else props.onChangeStatus?.(row, row.status);
+      return;
+    }
+
+    const step = moveFor(MOVES, event.key);
+    if (step === undefined) return;
 
     event.preventDefault();
     const next = moveTo(groups, from, step);

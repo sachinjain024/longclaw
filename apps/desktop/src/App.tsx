@@ -56,6 +56,9 @@ import type {
   TicketStatus,
 } from "./types";
 import { ToastStack, WriteIndicator } from "./WriteFeedback";
+import { singleKeyShortcutAllowed, isChord } from "./keyContext";
+import { STATUS_OPTIONS } from "./metaOptions";
+import { CommandPalette } from "./CommandPalette";
 
 const THEMES = [
   { id: "indigo", label: "Indigo" },
@@ -198,6 +201,7 @@ export function App() {
    * field on anything that crosses IPC.
    */
   const [filterQuery, setFilterQuery] = useState("");
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const filterField = useRef<HTMLInputElement>(null);
 
   const project = projects.find((item) => item.id === activeProjectId);
@@ -321,12 +325,27 @@ export function App() {
    * the panel closes on `Esc` without preventing anything.
    */
   useEffect(() => {
-    const layerOpen = selectedKey !== undefined || createSurface !== undefined;
+    const layerOpen =
+      selectedKey !== undefined || createSurface !== undefined || paletteOpen;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
+      if (isChord(event, "k")) {
+        event.preventDefault();
+        setPaletteOpen(true);
+        return;
+      }
+      if (
+        project &&
+        singleKeyShortcutAllowed(event.target) &&
+        event.key.toLowerCase() === "c"
+      ) {
+        event.preventDefault();
+        setCreateSurface("quick");
+        return;
+      }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "f") {
         const field = filterField.current;
-        if (!field || createSurface !== undefined) return;
+        if (!field || createSurface !== undefined || paletteOpen) return;
         event.preventDefault();
         field.focus();
         // "Selects existing query" (`keyboard-focus-map.md:31`), so the next
@@ -339,7 +358,7 @@ export function App() {
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [clearFilter, createSurface, filtering, selectedKey]);
+  }, [clearFilter, createSurface, filtering, paletteOpen, selectedKey]);
 
   useEffect(() => {
     try {
@@ -740,6 +759,22 @@ export function App() {
     );
   }
 
+  function changeStatus(ticket: IndexedTicket, next: TicketStatus) {
+    const projectId = activeProjectId;
+    if (!projectId || next === ticket.status) return;
+    void mutate(
+      editMutation({
+        projectId,
+        ticket,
+        optimistic: { status: next },
+        edit: { status: next },
+        inverse: { status: ticket.status },
+        toast: `${ticket.key} → ${STATUS_OPTIONS.find((item) => item.id === next)?.label ?? next}`,
+        inverseToast: `${ticket.key} status restored`,
+      }),
+    );
+  }
+
   /**
    * A card dropped somewhere else in its column (ADR 0003). The board allocates
    * the rank — LongClaw owns rank allocation in v0 — and this writes it, the
@@ -1071,6 +1106,7 @@ export function App() {
                         now={now}
                         onSelect={openTicket}
                         onChangePriority={changePriority}
+                        onChangeStatus={changeStatus}
                         onReorder={reorderTicket}
                       />
                     ) : (
@@ -1086,6 +1122,8 @@ export function App() {
                         ordering={ordering}
                         now={now}
                         onSelect={openTicket}
+                        onChangePriority={() => setPaletteOpen(true)}
+                        onChangeStatus={() => setPaletteOpen(true)}
                       />
                     )}
                   </>
@@ -1143,6 +1181,49 @@ export function App() {
           initialStatus={carriedDraft?.status}
           onCancel={closeCreateSurface}
           onCreate={(request) => submitNewTicket(request, { openPanel: true })}
+        />
+      )}
+
+      {paletteOpen && project && (
+        <CommandPalette
+          project={project}
+          ticket={openRow?.state === "indexed" ? openRow : undefined}
+          tickets={tickets}
+          appearance={appearance}
+          themes={THEMES}
+          onClose={() => setPaletteOpen(false)}
+          onCreate={() => {
+            setPaletteOpen(false);
+            setCreateSurface("quick");
+          }}
+          onOpenTicket={(key) => {
+            setPaletteOpen(false);
+            openTicket(key);
+          }}
+          onChangeStatus={(next) => {
+            if (openRow?.state === "indexed") changeStatus(openRow, next);
+          }}
+          onChangePriority={(next) => {
+            if (openRow?.state === "indexed") changePriority(openRow, next);
+          }}
+          onToggleStar={() => void toggleStar(project)}
+          onToggleAppearance={() =>
+            setAppearance(
+              appearance === "system"
+                ? "light"
+                : appearance === "light"
+                  ? "dark"
+                  : "system",
+            )
+          }
+          onTheme={(theme) => void changeTheme(theme)}
+          onView={(next) => setView(next)}
+          view={view}
+          onArchive={() => {
+            if (openRow?.state === "indexed")
+              setArchived(openRow, !isArchived(openRow));
+          }}
+          onOrdering={(next) => setBoardOrdering(project.id, next)}
         />
       )}
 

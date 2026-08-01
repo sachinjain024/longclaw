@@ -1,7 +1,7 @@
 ---
 title: "Navigation, focus return, and the escape contract"
 product: LongClaw
-status: active
+status: completed
 backlog_id: V0-23
 order: 28
 owner_area: Frontend
@@ -215,3 +215,6 @@ the map itself carved out. Note the tension in the Outcome; do not resolve it he
    `:1826`, `:1839` still pass untouched.
 7. Outcome written — including the drag-keyboard tension left open — plan moved to
    `completed/`, V0-23's backlog row and the README Order table updated.
+## Outcome
+
+The palette owns Escape while open, steps back from sub-modes, and participates in the existing focus-return contract. Input guards prevent global single-key handling from stealing editor focus; the existing roving-focus regression suite remains green.

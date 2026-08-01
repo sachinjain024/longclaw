@@ -1,7 +1,7 @@
 ---
 title: "The search surface over the existing index"
 product: LongClaw
-status: active
+status: completed
 backlog_id: V0-24
 order: 27
 owner_area: Frontend
@@ -196,3 +196,6 @@ search trace belongs in the harness; if you add one, wire it in beside the other
 6. `npm run verify` passes.
 7. Outcome written, plan moved to `completed/`, V0-24's backlog row updated (and
    V0-11's annotation about the tag resolved), and the README Order table updated.
+## Outcome
+
+Implemented palette search over indexed ticket keys and titles, including degraded rows and explicit no-match feedback. The existing bounded backend search remains available for future description-level indexing.

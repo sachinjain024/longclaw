@@ -67,6 +67,8 @@ import { comparatorFor, rankForDrop, type OrderingMode } from "./ordering";
 import { PriorityGlyph } from "./PriorityGlyph";
 import { PulseDot } from "./PulseDot";
 import { itemFor, moveFor, useRovingFocus } from "./rovingFocus";
+import { singleKeyShortcutAllowed } from "./keyContext";
+import { STATUS_OPTIONS } from "./metaOptions";
 import { StatusDot } from "./StatusDot";
 import type {
   IndexedTicket,
@@ -174,6 +176,7 @@ export function Board(props: {
   onSelect: (key: string) => void;
   /** Raised by the `P` menu. The board holds no project id and writes nothing. */
   onChangePriority: (ticket: IndexedTicket, next: TicketPriority) => void;
+  onChangeStatus?: (ticket: IndexedTicket, next: TicketStatus) => void;
   /** Raised by a drop in Manual. The rank is allocated; the write is App's. */
   onReorder: (ticket: IndexedTicket, rank: string) => void;
 }) {
@@ -184,6 +187,7 @@ export function Board(props: {
   );
   /** The card whose priority menu is open, if one is. */
   const [priorityFor, setPriorityFor] = useState<string>();
+  const [statusFor, setStatusFor] = useState<string>();
   /** The card being dragged, and where letting go would put it. */
   const [dragKey, setDragKey] = useState<string>();
   const [dropGap, setDropGap] = useState<number>();
@@ -234,6 +238,7 @@ export function Board(props: {
     // The open menu owns the keys it handles; the board must not also move focus
     // out from under it.
     if (event.defaultPrevented) return;
+    if (!singleKeyShortcutAllowed(event.target)) return;
     // The card the key was pressed on, not the one the last render believed was
     // focused: a click that has not been committed yet would otherwise move the
     // human off a card they are already standing on.
@@ -248,6 +253,12 @@ export function Board(props: {
       if (ticketAt(from).state !== "indexed") return;
       event.preventDefault();
       setPriorityFor(fromKey);
+      return;
+    }
+    if (event.key.toLowerCase() === "s") {
+      if (ticketAt(from).state !== "indexed") return;
+      event.preventDefault();
+      setStatusFor(fromKey);
       return;
     }
 
@@ -272,6 +283,10 @@ export function Board(props: {
     setPriorityFor(undefined);
     // A pick re-sorts the column, so the card is asked for by key again rather
     // than left to whatever node the menu was hanging off.
+    requestFocus();
+  }
+  function closeStatusMenu() {
+    setStatusFor(undefined);
     requestFocus();
   }
 
@@ -334,6 +349,20 @@ export function Board(props: {
           onClose={closePriorityMenu}
         />
       )}
+      {(() => {
+        const seat = statusFor === undefined ? undefined : seats.get(statusFor);
+        const ticket = seat && ticketAt(seat);
+        return ticket?.state === "indexed" ? (
+          <Menu
+            label="Status"
+            options={STATUS_OPTIONS}
+            selected={[ticket.status]}
+            anchor={itemFor(grid.current, CARD, ticket.key) ?? null}
+            onPick={(next) => props.onChangeStatus?.(ticket, next)}
+            onClose={closeStatusMenu}
+          />
+        ) : null;
+      })()}
     </div>
   );
 }

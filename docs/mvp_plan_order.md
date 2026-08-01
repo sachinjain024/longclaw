@@ -495,16 +495,19 @@ the pilot was skipped.
 
 **Work:**
 
-- Implement `Cmd+K` and the approved command set:
+- Implement `Cmd+K` and the approved command set (amended 2026-08-01 after P1 acceptance and ADR 0001):
   - create ticket;
   - go to project;
   - change status;
-  - assign;
+  - set priority;
   - search tickets;
   - star project;
   - toggle appearance;
-  - change project theme.
-- Reserve but do not expose or implement the Phase 2 terminal command.
+  - change project theme;
+  - archive/unarchive ticket;
+  - change board ordering;
+  - switch board/list view;
+  - expose `new terminal` as a visible, disabled `PHASE 2` row; do not implement terminal behavior in v0.
 - Implement approved single-key actions on focused tickets.
 - Add arrow and/or j/k navigation, predictable focus return, escape behavior, and visible focus states.
 - Ensure every pointer action in the core workflow has a keyboard path.
