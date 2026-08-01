@@ -1,6 +1,9 @@
 import { useId } from "react";
 import { ThemeSwatch } from "./ThemeSwatch";
 
+/** A preset the picker (and any theme menu) offers: id is the token axis value. */
+export type ThemeOption = { id: string; label: string };
+
 /**
  * The theme picker `screen-specs.md:92-98` specifies for creation, settings,
  * and the palette's theme rows: 44×28px pair swatches, the preset name in
@@ -12,7 +15,7 @@ import { ThemeSwatch } from "./ThemeSwatch";
  * and the roving tab stop are the platform's rather than re-implemented.
  */
 export function ThemePicker(props: {
-  themes: { id: string; label: string }[];
+  themes: ThemeOption[];
   value: string;
   onPick: (theme: string) => void;
 }) {

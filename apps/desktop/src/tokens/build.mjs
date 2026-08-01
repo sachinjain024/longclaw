@@ -34,23 +34,12 @@ const requireAppearances = (path, value) => {
   }
 };
 
-for (const [k, v] of Object.entries(t.color.neutral))
-  requireAppearances(`color.neutral.${k}`, v);
-for (const [k, v] of Object.entries(t.color.status)) {
-  if (k === "note" || k === "done") continue; /* done derives from the accent */
-  requireAppearances(`color.status.${k}`, v);
-}
-for (const [k, v] of Object.entries(t.color.priority)) {
-  if (k === "note") continue;
-  requireAppearances(`color.priority.${k}`, v);
-}
-for (const [k, v] of Object.entries(t.color.feedback)) {
-  if (k === "note") continue;
-  requireAppearances(`color.feedback.${k}`, v);
-}
-for (const [k, v] of Object.entries(t.color.label)) {
-  if (k === "note") continue;
-  requireAppearances(`color.label.${k}`, v);
+/* `note` keys are prose; `status.done` derives from the human accent. */
+for (const group of ["neutral", "status", "priority", "feedback", "label"]) {
+  for (const [k, v] of Object.entries(t.color[group])) {
+    if (k === "note" || (group === "status" && k === "done")) continue;
+    requireAppearances(`color.${group}.${k}`, v);
+  }
 }
 const ACCENT_ROLES = [
   "human",

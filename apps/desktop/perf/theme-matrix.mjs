@@ -165,6 +165,22 @@ const STATES = [
     distinct: [],
   },
   {
+    name: "ordering-menu",
+    contrast: [".menu-popover .menu-label", ".menu-footnote"],
+    token: [],
+    distinct: [],
+  },
+  {
+    name: "palette",
+    contrast: [
+      ".command-palette input",
+      ".palette-label",
+      ".command-palette footer",
+    ],
+    token: [],
+    distinct: [],
+  },
+  {
     name: "quick-create",
     contrast: [".quick-create-modal .eyebrow", ".quick-create-modal .primary"],
     token: [],
@@ -429,6 +445,16 @@ try {
       await check(state("menu"));
       await page.keyboard.press("Escape");
       await page.keyboard.press("Escape"); // and the panel
+
+      await page.click(".ordering-control .menu-trigger");
+      await page.waitForSelector(".menu-popover");
+      await check(state("ordering-menu"));
+      await page.keyboard.press("Escape");
+
+      await page.keyboard.press("Meta+KeyK");
+      await page.waitForSelector(".command-palette");
+      await check(state("palette"));
+      await page.keyboard.press("Escape");
 
       await page.click('button:has-text("New ticket")');
       await page.waitForSelector(".quick-create-modal");

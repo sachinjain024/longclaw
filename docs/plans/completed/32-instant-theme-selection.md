@@ -98,6 +98,14 @@ raises the error on failure. The write path is unchanged —
 `update_project_theme` → `registry.rs` → `longclaw.yaml`, the location the
 format specifies.
 
+The crossfade rule sits under a universal selector (`html.theme-transition *`),
+which is inert while the class is absent but is still a selector touched, so
+both interaction traces were re-run with it in place: board 15/18/31/16 ms and
+list 17/19/19/12 ms p95 (keyboard/scroll/filter/write) against the ≤50 ms
+ceiling. `box-shadow` was removed from the transition list on review — shadow
+tokens carry offset and blur geometry, and the motion inventory's rule is
+"colors only; nothing moves" — so a ring's color change snaps.
+
 Four claims in `App.test.tsx` § "instant per-project theme selection (V0-36)"
 — instant apply with only the project file written, crossfade on change and
 never on first stamp, revert + error on a refused write, and exactly the four
@@ -108,5 +116,9 @@ radios.
 **One thing worth a look:** the settings panel is still the inline section
 Wave 0 built, not the centered modal `screen-specs.md:251-258` describes, and
 this plan deliberately did not rebuild it — only the theme control inside it
-now matches the spec. The modal shape (and its Appearance segment) is settings
-debt, not theme debt.
+now matches the spec. That gap has two halves, and both are settings debt
+rather than theme debt: the modal shape itself, and the **Appearance segment
+the spec places inside settings** ("System / Light / Dark — explicitly
+labeled an app preference"), which today is a select in the sidebar instead.
+V0-35's behavior is complete wherever the control lives; moving it belongs to
+whichever item rebuilds the settings surface.

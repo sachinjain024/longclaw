@@ -45,9 +45,7 @@ for (const file of files) {
   const lines = readFileSync(file, "utf8").split("\n");
   lines.forEach((text, index) => {
     for (const pattern of [HEX, FUNCTIONAL]) {
-      pattern.lastIndex = 0;
-      const hit = pattern.exec(text);
-      if (hit) {
+      for (const hit of text.matchAll(pattern)) {
         findings.push(
           `${relative(process.cwd(), file)}:${index + 1} — ${hit[0]}… in: ${text.trim()}`,
         );

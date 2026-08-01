@@ -1953,8 +1953,10 @@ html.theme-transition,
 html.theme-transition *,
 html.theme-transition *::before,
 html.theme-transition *::after {
-  transition-property:
-    background-color, border-color, color, fill, stroke, box-shadow;
+  /* box-shadow is deliberately absent: shadow tokens carry offset and blur
+     geometry, and the inventory's rule is "colors only — nothing moves". A
+     ring's color change snaps rather than risking animated geometry. */
+  transition-property: background-color, border-color, color, fill, stroke;
   transition-duration: var(--lc-motion-panel);
   transition-timing-function: var(--lc-motion-ease);
 }

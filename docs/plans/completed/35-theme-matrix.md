@@ -69,10 +69,11 @@ time, so the shared-runner problem that removed the perf job (V0-42, run
 ## Outcome
 
 Done 2026-08-01. `perf/theme-matrix.mjs` drives the real `App` (perf harness,
-stubbed IPC) through seven states — board with the external-update
-acknowledgement, list, panel with the full timeline, status menu, quick
-create, settings with the theme picker, and the error banner — in all four
-presets × both appearances, and checks rendered styles: WCAG AA 4.5:1 text
+stubbed IPC) through nine states — board with the external-update
+acknowledgement, list, panel with the full timeline, status menu, the
+ordering menu with its footnote, the command palette, quick create, settings
+with the theme picker, and the error banner — in all four presets × both
+appearances, and checks rendered styles: WCAG AA 4.5:1 text
 contrast against the composited effective background, token-equality probes
 for accent-bearing elements, and ΔE ≥ 10 between the rendered human and agent
 accents. A probe that matches nothing fails, which caught two wrong selectors
@@ -84,14 +85,19 @@ rejecting `update_project_name` for the error state.
 
 The mutation check: pointing `.actor-tile.agent` at the human accent failed
 all eight axes twice over — the token probe named the element and the drift,
-and the distinction pair reported ΔE 0.0. Clean tree: 8 axes × 7 states, no
+and the distinction pair reported ΔE 0.0. Clean tree: 8 axes × 9 states, no
 failures.
 
-**Two things worth knowing.** The mutation run leaves its build behind:
+**One thing worth knowing.** The mutation run leaves its build behind:
 `dist-perf/` and `dist-matrix/` are whatever the last `npm run matrix` built,
 so a screenshot examined after a mutation run shows the mutation — rebuild
 before reading artifacts (an hour was nearly lost to a "pink agent tile"
-that was this plan's own injected defect). And the palette is the one core
-surface the matrix does not drive — its rendering is pinned by
-`CommandPalette.test.tsx` and its rows are the same tokens the settings
-picker probes, but a future pass could add it as an eighth state.
+that was this plan's own injected defect).
+
+**Amended 2026-08-01, on review.** The review read the step's "board, list,
+panel, menus, dialogs, errors, timeline, and external-update states" against
+the seven states this first shipped and called the plurals partial: one menu,
+one dialog, no palette. Both gaps are closed — the ordering menu (with its
+mono footnote, the smallest text the app renders) and the command palette are
+the eighth and ninth states, and the palette exclusion this outcome used to
+argue is withdrawn rather than defended.

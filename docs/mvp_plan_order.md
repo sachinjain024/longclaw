@@ -563,7 +563,10 @@ color-only crossfade and no project re-load; `tokens:check` fails the build on
 a hardcoded color or a missing theme value; the Step-1 proof render pipeline is
 committed and the renders regenerated (closing V0-19's screen clause); and the
 `Theme matrix` CI job checks rendered contrast and actor distinction across
-all four presets × both appearances on seven core states. The one adjacent gap
+all four presets × both appearances on nine core states. The crossfade rule
+touches a universal selector, so the interaction budgets were re-traced:
+board 15/18/31/16 ms and list 17/19/19/12 ms p95
+(keyboard/scroll/filter/write), all under the ≤50 ms ceiling. The one adjacent gap
 left open deliberately: the settings surface is still the inline panel rather
 than the designed centered modal — settings debt, recorded in
 [plan 32's outcome](plans/completed/32-instant-theme-selection.md#outcome).

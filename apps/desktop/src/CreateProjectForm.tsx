@@ -1,5 +1,5 @@
 import { useId, useState } from "react";
-import { ThemePicker } from "./ThemePicker";
+import { ThemePicker, type ThemeOption } from "./ThemePicker";
 import {
   PROJECT_KEY_MAX_LENGTH,
   PROJECT_KEY_RULE,
@@ -26,7 +26,7 @@ export type ProjectDraft = {
  * opens. Nothing is created in the user's folder by a form they can still fix.
  */
 export function CreateProjectForm(props: {
-  themes: { id: string; label: string }[];
+  themes: ThemeOption[];
   submitLabel: string;
   className?: string;
   onSubmit: (draft: ProjectDraft) => void;
