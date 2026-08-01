@@ -1692,6 +1692,80 @@ button:disabled {
   background: color-mix(in oklab, var(--lc-inverse-surface) 34%, transparent);
 }
 
+.command-palette {
+  display: grid;
+  gap: 0;
+  width: min(560px, 92vw);
+  max-height: 76vh;
+  overflow: hidden;
+  border-radius: var(--lc-radius-modal);
+  background: var(--lc-surface);
+  box-shadow: var(--lc-shadow-modal);
+  color: var(--lc-ink);
+}
+
+.command-palette input {
+  height: 44px;
+  border: 0;
+  border-bottom: 1px solid var(--lc-line);
+  border-radius: 0;
+  padding: 0 var(--lc-space-4);
+  font-size: 15px;
+}
+
+.palette-mode {
+  padding: var(--lc-space-2) var(--lc-space-4);
+  color: var(--lc-ink-3);
+  font-size: 12px;
+  text-transform: capitalize;
+}
+
+.command-palette [role="listbox"] {
+  display: grid;
+  max-height: 52vh;
+  overflow-y: auto;
+  padding: var(--lc-space-1);
+}
+
+.command-palette [role="option"] {
+  display: flex;
+  align-items: center;
+  gap: var(--lc-space-2);
+  min-height: 36px;
+  border: 0;
+  border-radius: var(--lc-radius-control);
+  padding: 0 var(--lc-space-3);
+  color: var(--lc-ink);
+  background: transparent;
+  text-align: left;
+}
+
+.command-palette [role="option"][aria-selected="true"] {
+  background: var(--lc-accent-human-soft);
+}
+
+.command-palette [role="option"]:disabled {
+  color: var(--lc-ink-disabled);
+  background: var(--lc-wash);
+  cursor: default;
+}
+
+.command-palette [role="option"] kbd {
+  margin-left: auto;
+}
+
+.command-palette [role="option"] small {
+  margin-left: auto;
+  color: var(--lc-ink-disabled);
+}
+
+.command-palette footer {
+  padding: var(--lc-space-3) var(--lc-space-4);
+  border-top: 1px solid var(--lc-line);
+  color: var(--lc-ink-3);
+  font-size: 12px;
+}
+
 .quick-create-modal {
   display: grid;
   gap: var(--lc-space-3);

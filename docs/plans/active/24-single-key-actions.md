@@ -1,7 +1,7 @@
 ---
 title: "Single-key actions on the focused ticket"
 product: LongClaw
-status: completed
+status: active
 backlog_id: V0-22
 order: 24
 owner_area: Frontend
@@ -224,6 +224,6 @@ for `⌘K`.
    within budget (a document-level key listener is cheap, but say the numbers).
 5. Outcome written, plan moved to `docs/plans/completed/`, the V0-22 row updated in
    the backlog, and the Order table in `docs/plans/active/README.md` updated.
-## Outcome
+## Partial outcome
 
-Implemented shared input suspension, board `S` status menus, global `C` quick-create, and retained native Enter activation. Focused board tests and the existing board/list/App suites pass.
+Implemented shared input suspension, board `S` status menus, global `C` quick-create, and retained native Enter activation. The required per-action test matrix is still open.

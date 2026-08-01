@@ -1,7 +1,7 @@
 ---
 title: "Palette sub-modes"
 product: LongClaw
-status: completed
+status: active
 backlog_id: V0-21
 order: 26
 owner_area: Frontend
@@ -163,6 +163,6 @@ it in one place — three sub-modes and the root list's disabled state all ask i
 5. `npm run verify` passes.
 6. Outcome written, plan moved to `completed/`, V0-21's backlog row and the README
    Order table updated.
-## Outcome
+## Partial outcome
 
-Implemented shared status, priority, theme, project, ordering, and search modes with a crumb/back path and disabled target-dependent rows.
+Implemented shared status, priority, theme, project, ordering, and search modes with a crumb/back path and focused-ticket targeting. Project switching, disabled-row explanations, theme swatches, and sub-mode tests remain open.

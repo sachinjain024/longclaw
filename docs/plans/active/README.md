@@ -13,7 +13,7 @@ One file per piece of pending work. Each is self-contained: it carries its own
 working rules, the current behaviour with file and line, what to change, and what
 has to pass before it is done. Pick one and execute it without reading the others.
 
-**Step 12 plans 24 through 30 are complete as of 2026-08-01.** Everything
+**Step 12 is partially implemented. Plans 24 through 29 remain open; plan 30 is complete.** Everything
 before them is closed, Wave 0 is clear, and M4 closed on 2026-07-31 when the
 founder decided to proceed without the pilot sessions
 ([decision](../../pilot/response-memo.md#direction-decision-2026-07-31-superseded-the-same-day)).
@@ -103,12 +103,12 @@ marked independent can be done at any time by anyone.
 | ~~21~~ | ~~Filter, sort, and grouping behaviour~~ — **done 2026-08-01**, [outcome](../completed/21-filter-and-grouping.md) | V0-15 | Closed, and it is the last narrowing seam the surfaces get. The filter is `src/filtering.ts`, called once in `App.tsx` before grouping, so both surfaces receive one already-narrowed array. Read its outcome before V0-23 (the `Esc` ladder now has its last rung) and before V0-24 (the header filter and search deliberately match different things). |
 | ~~22~~ | ~~Full ticket create surface~~ — **done 2026-08-01**, [outcome](../completed/22-full-create-surface.md) | V0-16 | Closed, and it closes Wave 1. There are two create surfaces now: quick create is title + status, and `src/CreatePanel.tsx` is the panel in create mode with every approved field. Read its outcome before V0-23 — the create panel takes its own `Esc` and `⌘↵` rung, and it found that a `<button>` in a `<form>` submits it. |
 | ~~23~~ | ~~Retry must not re-send a stale hash~~ — **done 2026-08-01**, [outcome](../completed/23-retry-must-not-resend-a-stale-hash.md) | —       | Closed. A defect found while Wave 1 was being built, not a backlog row: `mutate()` offered a Retry on every failed write, and on a conflict the `expectedHash` that Retry re-sends is stale by definition, so the button could never succeed. A conflict now says what changed and who changed it and offers **Open ticket** instead. Read its outcome before V0-29 — it names four things it deliberately left there, including the fact that a board-raised conflict still cannot reach `ConflictBanner`. |
-| ~~24~~ | ~~Single-key actions on the focused ticket~~ — **done 2026-08-01**, [outcome](../completed/24-single-key-actions.md) | V0-22 | Closed. Shared input suspension, board status navigation, and `C` are implemented; native button activation supplies Enter. |
-| ~~25~~ | ~~The `⌘K` palette shell and the root command set~~ — **done 2026-08-01**, [outcome](../completed/25-command-palette-shell.md) | V0-20 | Closed. The twelve root rows and disabled terminal row are implemented. |
-| ~~26~~ | ~~Palette sub-modes~~ — **done 2026-08-01**, [outcome](../completed/26-palette-sub-modes.md) | V0-21 | Closed. Status, priority, theme, project, ordering, and search modes share the palette. |
-| ~~27~~ | ~~The search surface over the existing index~~ — **done 2026-08-01**, [outcome](../completed/27-search-surface.md) | V0-24 | Closed. Search mode covers key/title and degraded results, with explicit empty and no-match states. |
-| ~~28~~ | ~~Navigation, focus return, and the escape contract~~ — **done 2026-08-01**, [outcome](../completed/28-focus-and-the-escape-contract.md) | V0-23 | Closed. Palette Esc stepping, focus return, and input-safe global handling are covered. |
-| ~~29~~ | ~~The shortcut reference~~ — **done 2026-08-01**, [outcome](../completed/29-shortcut-reference.md) | V0-25 | Closed. Palette hints and the keyboard-focus map are the shortcut reference. |
+| **24** | [Single-key actions on the focused ticket](24-single-key-actions.md) | V0-22 | Open. Core bindings exist; the required per-action test matrix remains. |
+| **25** | [The `⌘K` palette shell and the root command set](25-command-palette-shell.md) | V0-20 | Open. Shell and styling exist; per-command behavior tests remain. |
+| **26** | [Palette sub-modes](26-palette-sub-modes.md) | V0-21 | Open. Modes exist; target explanations, project switching, swatches, and tests remain. |
+| **27** | [The search surface over the existing index](27-search-surface.md) | V0-24 | Open. Indexed search is wired; state, cap, coverage, and perf tests remain. |
+| **28** | [Navigation, focus return, and the escape contract](28-focus-and-the-escape-contract.md) | V0-23 | Open. Palette focus return exists; the full regression suite and Escape holes remain. |
+| **29** | [The shortcut reference](29-shortcut-reference.md) | V0-25 | Open. Palette hints exist; the two-way binding test and decision record remain. |
 | ~~30~~ | ~~Reconcile Step 12 command-set documentation~~ — **done 2026-08-01**, [outcome](../completed/30-reconcile-step-12-command-set.md) | — | Closed. The execution plan now records the accepted command set and visible terminal placeholder. |
 
 Dependencies worth knowing:
