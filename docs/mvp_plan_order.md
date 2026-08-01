@@ -531,7 +531,7 @@ budgets were measured at 14/18/31/16 ms and 15/19/20/17 ms p95 respectively,
 all below the ≤50 ms ceiling. The native watcher timeout and WebKit harness
 abort are environment limitations recorded in the relevant outcomes.
 
-### Step 13 — Finish themes, appearance, and project-level preferences
+### Step 13 — Finish themes, appearance, and project-level preferences — COMPLETE 2026-08-01
 
 **Goal:** Make project identity and light/dark appearance complete across the real application.
 
@@ -555,6 +555,18 @@ abort are environment limitations recorded in the relevant outcomes.
 - Changing project theme causes a soft accent transition and no layout movement.
 - All themes meet the approved contrast and actor-distinction criteria in light and dark appearance.
 - No custom-color affordance or hardcoded component accent exists.
+
+**Completion note:** Step 13 is complete. Plans 31–35 are closed: appearance
+follows the system live with a persisted override; theme selection uses the
+specified swatch picker at creation, settings, and the palette, with a 150ms
+color-only crossfade and no project re-load; `tokens:check` fails the build on
+a hardcoded color or a missing theme value; the Step-1 proof render pipeline is
+committed and the renders regenerated (closing V0-19's screen clause); and the
+`Theme matrix` CI job checks rendered contrast and actor distinction across
+all four presets × both appearances on seven core states. The one adjacent gap
+left open deliberately: the settings surface is still the inline panel rather
+than the designed centered modal — settings debt, recorded in
+[plan 32's outcome](plans/completed/32-instant-theme-selection.md#outcome).
 
 ### Step 14 — Complete trust, conflict, and recovery behavior
 

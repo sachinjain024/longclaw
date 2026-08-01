@@ -1,7 +1,7 @@
 ---
 title: "System-matched appearance with an explicit override, persisted"
 product: LongClaw
-status: active
+status: completed
 backlog_id: V0-35
 order: 31
 owner_area: Frontend
@@ -68,4 +68,23 @@ moment it has finished launching.
 
 ## Outcome
 
-_To be written on completion._
+Done 2026-08-01. The appearance effect now holds the `MediaQueryList` and
+subscribes to `change`, so macOS switching appearance re-stamps
+`data-appearance` while the preference is `system`; an override subscribes too
+but keeps stamping its own value, which keeps the listener's lifetime the
+effect's. The sidebar select gained `aria-label="Appearance"`.
+
+Five claims in `App.test.tsx` § "system-matched appearance (V0-35)": system
+resolution with nothing stored, the live `change` re-stamp, an override
+ignoring system flips and persisting, rehydration across a simulated restart,
+and no project data touched. The live-change claim was confirmed red by
+removing the subscription.
+
+**Two things found on the way.** (1) Vitest's jsdom leaves
+`window.localStorage` as an own property set to `undefined` (Node's
+experimental storage without `--localstorage-file`), so the app's persistence
+path silently no-ops in every test that does not stub a store — the V0-35
+suite installs an in-memory one, and any future test asserting persistence
+must do the same. (2) The stamp itself now routes through the same first-stamp
+guard plan 32's crossfade uses, so an appearance switch crossfades and a
+launch never does.

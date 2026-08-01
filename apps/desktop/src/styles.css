@@ -1953,8 +1953,8 @@ html.theme-transition,
 html.theme-transition *,
 html.theme-transition *::before,
 html.theme-transition *::after {
-  transition-property: background-color, border-color, color, fill, stroke,
-    box-shadow;
+  transition-property:
+    background-color, border-color, color, fill, stroke, box-shadow;
   transition-duration: var(--lc-motion-panel);
   transition-timing-function: var(--lc-motion-ease);
 }

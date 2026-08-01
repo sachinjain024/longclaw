@@ -150,7 +150,10 @@ const STATES = [
     distinct: [
       {
         label: "agent tile vs human primary",
-        a: { selector: ".timeline .actor-tile.agent", property: "background-color" },
+        a: {
+          selector: ".timeline .actor-tile.agent",
+          property: "background-color",
+        },
         b: { selector: ".composer .primary", property: "background-color" },
       },
     ],

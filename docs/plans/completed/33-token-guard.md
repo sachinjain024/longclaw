@@ -1,7 +1,7 @@
 ---
 title: "Every token on every component, and a guard that keeps it that way"
 product: LongClaw
-status: active
+status: completed
 backlog_id: V0-34
 order: 33
 owner_area: Design
@@ -66,4 +66,20 @@ depends_on: "nothing"
 
 ## Outcome
 
-_To be written on completion._
+Done 2026-08-01. `tokens/build.mjs` validates before it writes: every
+appearance-varying color group needs both `light` and `dark`, every theme all
+six accent roles × both appearances, and a gap is a thrown error naming every
+missing token — confirmed red by deleting `themes.plum.agent.dark`, which
+failed `tokens:check` with `themes.plum.agent.dark` named.
+`scripts/color-guard.mjs` scans `src/**` minus `src/tokens/` for hex and
+functional color notations and is the fourth step of `tokens:check`, so
+`check` and CI inherit it — confirmed red by injecting `#ff0000` into
+`styles.css`, reported with file, line and the offending value. The clean
+tree passes: 79 files, zero literals.
+
+The audit half of the row was already true — Waves 1–2 built everything from
+tokens — so this plan is almost entirely the check that keeps it that way.
+Named CSS colors stay out of the guard's scope, deliberately: the false-positive
+rate over 148 names is the whole cost and the functional forms are how a hue
+arrives in practice. The rendered half of the must-pass ("every component in
+all four presets") is plan 35's matrix.

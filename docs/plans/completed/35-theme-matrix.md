@@ -1,7 +1,7 @@
 ---
 title: "The visual regression matrix: every preset × appearance on the core screens"
 product: LongClaw
-status: active
+status: completed
 backlog_id: V0-37
 order: 35
 owner_area: Design
@@ -68,4 +68,30 @@ time, so the shared-runner problem that removed the perf job (V0-42, run
 
 ## Outcome
 
-_To be written on completion._
+Done 2026-08-01. `perf/theme-matrix.mjs` drives the real `App` (perf harness,
+stubbed IPC) through seven states — board with the external-update
+acknowledgement, list, panel with the full timeline, status menu, quick
+create, settings with the theme picker, and the error banner — in all four
+presets × both appearances, and checks rendered styles: WCAG AA 4.5:1 text
+contrast against the composited effective background, token-equality probes
+for accent-bearing elements, and ΔE ≥ 10 between the rendered human and agent
+accents. A probe that matches nothing fails, which caught two wrong selectors
+on the first run. `npm run matrix`; the `Theme matrix` CI job installs
+WebKit, runs it, and uploads `dist-matrix/` as the visual record. The stubs
+gained `read_ticket` (a detail whose activity holds a human comment, an agent
+comment, agent field changes, and an unattributed external change) and a
+rejecting `update_project_name` for the error state.
+
+The mutation check: pointing `.actor-tile.agent` at the human accent failed
+all eight axes twice over — the token probe named the element and the drift,
+and the distinction pair reported ΔE 0.0. Clean tree: 8 axes × 7 states, no
+failures.
+
+**Two things worth knowing.** The mutation run leaves its build behind:
+`dist-perf/` and `dist-matrix/` are whatever the last `npm run matrix` built,
+so a screenshot examined after a mutation run shows the mutation — rebuild
+before reading artifacts (an hour was nearly lost to a "pink agent tile"
+that was this plan's own injected defect). And the palette is the one core
+surface the matrix does not drive — its rendering is pinned by
+`CommandPalette.test.tsx` and its rows are the same tokens the settings
+picker probes, but a future pass could add it as an eighth state.

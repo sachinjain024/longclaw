@@ -1,7 +1,7 @@
 ---
 title: "Instant per-project theme selection at creation, in settings, and from the palette"
 product: LongClaw
-status: active
+status: completed
 backlog_id: V0-36
 order: 32
 owner_area: Frontend
@@ -82,4 +82,31 @@ moves."
 
 ## Outcome
 
-_To be written on completion._
+Done 2026-08-01. `src/ThemePicker.tsx` is the specified picker — native radios
+in a fieldset wrapping the existing `ThemeSwatch` at 44×28, preset name in
+micro type, selected = human-accent border + ring — used by the create form
+and the settings panel; the palette keeps its rows. The crossfade is one
+transient `theme-transition` class on `<html>` (a module-level `crossfade()`
+in `App.tsx`, 220ms so the 150ms transition finishes before the rule leaves),
+under which `styles.css` transitions background-color, border-color, color,
+fill, stroke and box-shadow only. Both the theme effect and the appearance
+stamp call it, and both skip the first stamp, so launch never animates.
+
+`changeTheme` is optimistic and no longer re-loads the project: the reference
+flips before the write, adopts the returned reference on success, reverts and
+raises the error on failure. The write path is unchanged —
+`update_project_theme` → `registry.rs` → `longclaw.yaml`, the location the
+format specifies.
+
+Four claims in `App.test.tsx` § "instant per-project theme selection (V0-36)"
+— instant apply with only the project file written, crossfade on change and
+never on first stamp, revert + error on a refused write, and exactly the four
+fixed presets with no custom-color affordance — three confirmed red against
+the previous `changeTheme`. `CreateProjectForm.test.tsx` drives the picker as
+radios.
+
+**One thing worth a look:** the settings panel is still the inline section
+Wave 0 built, not the centered modal `screen-specs.md:251-258` describes, and
+this plan deliberately did not rebuild it — only the theme control inside it
+now matches the spec. The modal shape (and its Appearance segment) is settings
+debt, not theme debt.

@@ -719,9 +719,8 @@ describe("system-matched appearance (V0-35)", () => {
   it("an explicit override wins over the system and ignores its changes", async () => {
     const system = mockSystem(true);
     render(<App />);
-    const control = await screen.findByLabelText<HTMLSelectElement>(
-      "Appearance",
-    );
+    const control =
+      await screen.findByLabelText<HTMLSelectElement>("Appearance");
 
     fireEvent.change(control, { target: { value: "light" } });
     await waitFor(() =>

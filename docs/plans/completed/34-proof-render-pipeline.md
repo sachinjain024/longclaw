@@ -1,7 +1,7 @@
 ---
 title: "Commit the screenshot pipeline and regenerate the Step-1 proof renders"
 product: LongClaw
-status: active
+status: completed
 backlog_id: V0-41
 order: 34
 owner_area: Design
@@ -61,4 +61,23 @@ depends_on: "nothing — the corrected HTML has been waiting since plan 11"
 
 ## Outcome
 
-_To be written on completion._
+Done 2026-08-01. `docs/design/foundations/scripts/render.mjs` renders the ten
+PNGs from the two proof pages — board at 1400×860 across all four presets ×
+two appearances, library full-page at 1200 wide in its two spot-checks —
+setting the two root attributes exactly as the token contract says a theme
+changes. It drives WebKit through `playwright-core` resolved out of
+`apps/desktop` via `createRequire`, so the docs tree gains no dependency
+manifest. `proof/renders/` is regenerated; the board renders show no assignee
+avatar and the library shows no assignee field or control (verified visually
+and by the HTML staying `assign`-free outside its explanatory prose), which
+closes V0-19's screen clause. `foundations/README.md` § Regenerating gains
+the command and the revision note now records the resolution instead of the
+gap.
+
+**Two things worth knowing.** The renders are WebKit now, not whatever
+uncommitted browser produced the originals — sizes and rasterization differ
+from the stale set, which is fine because the set's job is to show the
+current HTML, and WebKit is the engine the product ships in. And the library
+page has grown since the originals (10115px tall against 9600), so the
+regenerated set is not pixel-comparable with the old one; nothing should try
+to be.
