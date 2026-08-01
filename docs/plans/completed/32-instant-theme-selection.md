@@ -113,6 +113,17 @@ fixed presets with no custom-color affordance — three confirmed red against
 the previous `changeTheme`. `CreateProjectForm.test.tsx` drives the picker as
 radios.
 
+**Amended 2026-08-01, on review.** The swatch had a staleness defect at the
+seam between this plan and plan 31: `ThemeSwatch` captured the resolved
+appearance during render, but a live macOS appearance switch restamps only
+the root attribute without a React render, so mounted swatches (an open
+picker, the palette's theme rows) kept showing the previous appearance while
+the app around them changed. The swatch now subscribes —
+`useSyncExternalStore` over a `MutationObserver` on the root's
+`data-appearance` — so any writer restamping the root re-renders every
+mounted swatch. Pinned by "swatches follow a live system appearance change"
+in `App.test.tsx` § V0-36, confirmed red against the capturing version.
+
 **One thing worth a look:** the settings panel is still the inline section
 Wave 0 built, not the centered modal `screen-specs.md:251-258` describes, and
 this plan deliberately did not rebuild it — only the theme control inside it

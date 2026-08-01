@@ -637,38 +637,38 @@ describe("project creation", () => {
   });
 });
 
-describe("system-matched appearance (V0-35)", () => {
-  type MediaListener = (event: { matches: boolean }) => void;
+type MediaListener = (event: { matches: boolean }) => void;
 
-  /**
-   * A stateful stand-in for `matchMedia("(prefers-color-scheme: dark)")`:
-   * `flip()` is macOS switching appearance while the app is open.
-   */
-  function mockSystem(initialDark: boolean) {
-    let dark = initialDark;
-    const listeners = new Set<MediaListener>();
-    Object.defineProperty(window, "matchMedia", {
-      writable: true,
-      value: vi.fn().mockImplementation(() => ({
-        get matches() {
-          return dark;
-        },
-        addEventListener: (_: string, listener: MediaListener) => {
-          listeners.add(listener);
-        },
-        removeEventListener: (_: string, listener: MediaListener) => {
-          listeners.delete(listener);
-        },
-      })),
-    });
-    return {
-      flip(next: boolean) {
-        dark = next;
-        for (const listener of listeners) listener({ matches: next });
+/**
+ * A stateful stand-in for `matchMedia("(prefers-color-scheme: dark)")`:
+ * `flip()` is macOS switching appearance while the app is open.
+ */
+function mockSystem(initialDark: boolean) {
+  let dark = initialDark;
+  const listeners = new Set<MediaListener>();
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: vi.fn().mockImplementation(() => ({
+      get matches() {
+        return dark;
       },
-    };
-  }
+      addEventListener: (_: string, listener: MediaListener) => {
+        listeners.add(listener);
+      },
+      removeEventListener: (_: string, listener: MediaListener) => {
+        listeners.delete(listener);
+      },
+    })),
+  });
+  return {
+    flip(next: boolean) {
+      dark = next;
+      for (const listener of listeners) listener({ matches: next });
+    },
+  };
+}
 
+describe("system-matched appearance (V0-35)", () => {
   // Vitest's jsdom leaves `window.localStorage` as `undefined` (Node's
   // experimental storage without `--localstorage-file`), which the app's
   // try/catch turns into "appearance works for this session only". The
@@ -895,6 +895,29 @@ describe("instant per-project theme selection (V0-36)", () => {
       expect(document.documentElement.dataset.theme).toBe("indigo"),
     );
     expect(screen.getByRole("alert").textContent).toMatch(/read-only/);
+  });
+
+  it("swatches follow a live system appearance change", async () => {
+    // The swatch carries its own data-appearance so it can show a theme that
+    // is not in force; a live OS switch must restamp mounted swatches, not
+    // just the root, or the picker shows yesterday's appearance.
+    const system = mockSystem(false);
+    await openSettings();
+    await waitFor(() =>
+      expect(
+        document.querySelector<HTMLElement>(".theme-option .theme-swatch")
+          ?.dataset.appearance,
+      ).toBe("light"),
+    );
+
+    act(() => system.flip(true));
+
+    await waitFor(() =>
+      expect(
+        document.querySelector<HTMLElement>(".theme-option .theme-swatch")
+          ?.dataset.appearance,
+      ).toBe("dark"),
+    );
   });
 
   it("offers exactly the fixed presets and no custom-color affordance", async () => {

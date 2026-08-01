@@ -113,7 +113,7 @@ marked independent can be done at any time by anyone.
 | ~~32~~ | ~~Instant per-project theme selection~~ — **done 2026-08-01**, [outcome](../completed/32-instant-theme-selection.md) | V0-36 | Closed. The specified swatch picker is `src/ThemePicker.tsx` (creation + settings; the palette already had rows), the 150ms crossfade is one transient class transitioning colors only, and `changeTheme` is optimistic with no snapshot re-fetch. |
 | ~~33~~ | ~~The token guard~~ — **done 2026-08-01**, [outcome](../completed/33-token-guard.md) | V0-34 | Closed. `tokens/build.mjs` refuses a missing theme value naming the token, and `scripts/color-guard.mjs` fails `tokens:check` on any color literal outside `src/tokens/` — both confirmed red first. |
 | ~~34~~ | ~~The proof render pipeline~~ — **done 2026-08-01**, [outcome](../completed/34-proof-render-pipeline.md) | V0-41 | Closed. `docs/design/foundations/scripts/render.mjs` is committed and `proof/renders/` is regenerated from the corrected HTML — no assignee anywhere, which closes V0-19's screen clause. |
-| ~~35~~ | ~~The theme matrix~~ — **done 2026-08-01**, [outcome](../completed/35-theme-matrix.md) | V0-37 | Closed. `npm run matrix` drives the real App through seven states × 4 presets × 2 appearances in WebKit, failing on rendered contrast or actor-distinction; a CI job runs it and uploads the renders. |
+| ~~35~~ | ~~The theme matrix~~ — **done 2026-08-01**, [outcome](../completed/35-theme-matrix.md) | V0-37 | Closed. `npm run matrix` drives the real App through nine states × 4 presets × 2 appearances in WebKit, failing on rendered contrast or actor-distinction; a CI job runs it and uploads the renders. |
 
 Dependencies worth knowing:
 
