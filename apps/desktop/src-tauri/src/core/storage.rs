@@ -1000,6 +1000,24 @@ pub fn initialize_project(
     theme: Option<&str>,
     now: &str,
 ) -> AppResult<ProjectDocument> {
+    initialize_project_with_contract_writer(
+        project_root,
+        name,
+        key,
+        theme,
+        now,
+        write_agent_contract,
+    )
+}
+
+fn initialize_project_with_contract_writer(
+    project_root: &Path,
+    name: &str,
+    key: &str,
+    theme: Option<&str>,
+    now: &str,
+    write_contract: impl FnOnce(&Path, &ProjectDocument) -> AppResult<()>,
+) -> AppResult<ProjectDocument> {
     let project_path = project_file_path(project_root);
     if project_path.exists() {
         return Err(AppError::new(
@@ -1045,12 +1063,20 @@ pub fn initialize_project(
     let document = ProjectDocument::parse(&rendered)
         .map_err(|diagnostic| AppError::new(ErrorCode::Internal, diagnostic.message, false))?;
 
-    let tickets = tickets_root(project_root);
-    fs::create_dir_all(&tickets)
-        .map_err(|error| AppError::io("Creating the project folder", &tickets, error))?;
-    atomic_write(&project_path, rendered.as_bytes())?;
-    write_agent_contract(project_root, &document)?;
-    Ok(document)
+    let longclaw_dir = project_root.join(PROJECT_DIRECTORY);
+    let created_longclaw = !longclaw_dir.exists();
+    let result = (|| {
+        let tickets = tickets_root(project_root);
+        fs::create_dir_all(&tickets)
+            .map_err(|error| AppError::io("Creating the project folder", &tickets, error))?;
+        atomic_write(&project_path, rendered.as_bytes())?;
+        write_contract(project_root, &document)?;
+        Ok(document)
+    })();
+    if result.is_err() && created_longclaw {
+        cleanup_failed_project_initialization(project_root);
+    }
+    result
 }
 
 /// Writes the generated agent-facing contract. LongClaw owns
@@ -1060,13 +1086,21 @@ pub fn write_agent_contract(project_root: &Path, document: &ProjectDocument) -> 
     atomic_write(&agent_contract_path(project_root), contract.as_bytes())
 }
 
+fn cleanup_failed_project_initialization(project_root: &Path) {
+    let _ = fs::remove_file(agent_contract_path(project_root));
+    let _ = fs::remove_file(project_file_path(project_root));
+    let _ = fs::remove_dir(tickets_root(project_root));
+    let _ = fs::remove_dir(project_root.join(PROJECT_DIRECTORY));
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs;
 
     use super::{
-        belongs_to_project, foreign_project_diagnostic, prepare_new_ticket, read_ticket_detail,
-        read_ticket_file, resolve_ticket_path, scan_ticket_paths, valid_ticket_key, NewTicket,
+        belongs_to_project, foreign_project_diagnostic, initialize_project_with_contract_writer,
+        prepare_new_ticket, read_ticket_detail, read_ticket_file, resolve_ticket_path,
+        scan_ticket_paths, valid_ticket_key, NewTicket,
     };
     use crate::core::ErrorCode;
 
@@ -1114,6 +1148,36 @@ mod tests {
         let unshaped = foreign_project_diagnostic("LC", "notes").message;
         assert!(unshaped.contains("notes"));
         assert!(unshaped.contains("LC-<number>"));
+    }
+
+    #[test]
+    fn a_late_project_creation_failure_removes_the_directory_it_claimed() {
+        let temp = tempfile::tempdir().unwrap();
+        let project = temp.path().join("project");
+        fs::create_dir(&project).unwrap();
+
+        let error = match initialize_project_with_contract_writer(
+            &project,
+            "Residue Proof",
+            "RP",
+            Some("indigo"),
+            "2026-08-02T00:00:00Z",
+            |_root, _document| {
+                Err(crate::core::AppError::new(
+                    ErrorCode::Io,
+                    "injected agent-contract write failure",
+                    true,
+                ))
+            },
+        ) {
+            Ok(_) => panic!("the injected contract write should fail"),
+            Err(error) => error,
+        };
+
+        assert_eq!(error.code, ErrorCode::Io);
+        assert!(!project.join(".longclaw/longclaw.yaml").exists());
+        assert!(!project.join(".longclaw/tickets").exists());
+        assert!(!project.join(".longclaw").exists());
     }
 
     #[test]
