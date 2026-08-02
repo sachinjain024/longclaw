@@ -261,8 +261,8 @@ Dependencies worth knowing:
   the only reason a drop works past the rendered window; do not reach for the
   element under the pointer. The ordering preference is device-local app state in
   `localStorage` beside `appearance`, keyed by project — **not** in
-  `registry.rs`, deliberately, because V0-31 is open on registry recovery. And
-  reordering has no keyboard path on purpose:
+  `registry.rs`, deliberately; V0-31 later added registry recovery without
+  changing that ownership. And reordering has no keyboard path on purpose:
   `keyboard-focus-map.md:158-161` puts it outside v0, so **V0-23 should not add
   one** without reopening that line.
 - **21 is done, and V0-23 and V0-24 each inherit one edge of it.** There is one
@@ -381,10 +381,12 @@ left: a literal radius or motion duration outside `src/tokens/` now fails
 Wave 1 and Wave 2 are closed above. **Wave 3's five Step-13 rows — V0-34,
 V0-35, V0-36, V0-37 and V0-41 — closed on 2026-08-01 as plans 31–35**, written
 one at a time as each was picked up, which is the rule below working as
-intended. The Step-14 recovery work (V0-26 through V0-33, plus V0-40) closed on
-2026-08-02 in [plan 38](../completed/38-complete-step-14-recovery.md). V0-42 is
-still open, but it belongs to Step 16 because it is the runner-stable
-interaction-budget gate, not recovery behavior.
+intended. Most Step-14 recovery work closed on 2026-08-02 in
+[plan 38](../completed/38-complete-step-14-recovery.md): V0-26, V0-27, V0-28,
+V0-30, V0-31, V0-32, V0-33, and V0-40. **V0-29 is still open** for the full
+write-failure/conflict-state treatment that plan 23 explicitly left behind.
+V0-42 is also still open, but it belongs to Step 16 because it is the
+runner-stable interaction-budget gate, not recovery behavior.
 
 What remains is ordinary sequencing. Wave 2 was written all at once on 2026-08-01
 because the founder asked for it; **that is the exception, and the § Step 12 note

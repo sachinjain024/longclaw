@@ -167,7 +167,9 @@ Do not split the five `project/` files into public crates on day one. They are o
 **M2 result:** accepted on 2026-07-29. The reviewer reported that every step below completed correctly. The scenario remains here for future Tauri upgrades and regression reviews.
 
 1. Ensure Node 22+ and Rust 1.93+ are active.
-2. Run `cd spikes/tauri-v2-architecture && npm install && npm run verify && npm run spike`.
+2. Restore the spike's archived manifests as described in
+   `spikes/tauri-v2-architecture/README.md`, then run
+   `cd spikes/tauri-v2-architecture && npm install && npm run verify && npm run spike`.
 3. Choose `fixtures/representative-project`.
 4. Edit `LC-1/ticket.md` in a normal editor and confirm the green trace and updated title appear without refresh.
 5. Externally remove `LC-3/ticket.md` by renaming it to `ticket.md.m2-backup`. Confirm the `LC-3` row disappears, the trace reports `ticketRemoved`, and no duplicate event appears. Rename it back to `ticket.md` and confirm the row returns.

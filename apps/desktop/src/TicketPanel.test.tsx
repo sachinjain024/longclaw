@@ -396,6 +396,12 @@ describe("a ticket that disappears while the panel is open", () => {
     const view = render(panel({ onClose }));
     const title = await screen.findByLabelText("Title");
     fireEvent.change(title, { target: { value: "My unsaved title" } });
+    fireEvent.change(screen.getByLabelText("Comment"), {
+      target: { value: "Do not lose this comment." },
+    });
+    fireEvent.change(screen.getByLabelText("Add a checklist item"), {
+      target: { value: "Remember this checklist line" },
+    });
 
     view.rerender(panel({ removedSignal: 4, onClose }));
 
@@ -403,12 +409,33 @@ describe("a ticket that disappears while the panel is open", () => {
     expect(screen.getByText(/deleted or renamed on disk/)).toBeTruthy();
     expect(screen.getByText("Unsaved draft kept in this panel")).toBeTruthy();
     expect(screen.getByText("Title: My unsaved title")).toBeTruthy();
+    expect(screen.getByText("Comment: Do not lose this comment.")).toBeTruthy();
+    expect(
+      screen.getByText("Checklist item: Remember this checklist line"),
+    ).toBeTruthy();
     expect(
       screen.getByRole("button", { name: "Try reading again" }),
     ).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Close panel" }));
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(editTicketMock).not.toHaveBeenCalled();
+  });
+
+  it("V0-28: keeps an in-flight comment visible when the file disappears", async () => {
+    readTicketMock.mockResolvedValue(detail());
+    editTicketMock.mockReturnValue(new Promise<WriteResult>(() => {}));
+    const view = render(panel());
+    const field = await screen.findByLabelText("Comment");
+    fireEvent.change(field, { target: { value: "Already submitted." } });
+    fireEvent.keyDown(field, { key: "Enter", metaKey: true });
+
+    view.rerender(panel({ removedSignal: 4 }));
+
+    await screen.findByText("Ticket file is no longer available");
+    expect(
+      screen.getByText("Posting comment: Already submitted."),
+    ).toBeTruthy();
+    expect(editTicketMock).toHaveBeenCalledTimes(1);
   });
 
   it("V0-28: retrying adopts the file again if it reappears", async () => {

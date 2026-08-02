@@ -606,13 +606,11 @@ than the designed centered modal — settings debt, recorded in
 - Index loss never causes project data loss.
 - Concurrent changes produce an explicit, understandable resolution path.
 
-**Completion note:** Step 14 is complete. V0-26 through V0-33 and V0-40 are
-closed: newer-version files are read-only, partial writes settle before ingest,
-open panels are told when their ticket disappears, conflicts and write failures
-stay typed and non-destructive, index rebuilds are idempotent, registry backup
-recovery exists, failed project creation cleans up claimed `.longclaw` residue,
-and the fault/concurrency suite covers the recovery matrix. See
-[plan 38](plans/completed/38-complete-step-14-recovery.md) for the evidence.
+**Progress note:** Step 14 is not complete yet. V0-26, V0-27, V0-28, V0-30,
+V0-31, V0-32, V0-33, and V0-40 are closed; V0-29 remains open for the full
+write-failure/conflict-state treatment that plan 23 explicitly left behind. See
+[plan 38](plans/completed/38-complete-step-14-recovery.md) for the closed-row
+evidence and the review correction.
 
 ### Step 15 — *(parked)* Add the optional sync-waitlist signup
 

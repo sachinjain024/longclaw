@@ -234,7 +234,6 @@ export function TicketPanel(props: TicketPanelProps) {
         if (normalized.code === "ticket_not_found") {
           setUnavailable(normalized);
           clearPending();
-          setPendingComment(undefined);
           return undefined;
         }
         onErrorRef.current(normalized);
@@ -349,7 +348,6 @@ export function TicketPanel(props: TicketPanelProps) {
     });
     setConflict(undefined);
     clearPending();
-    setPendingComment(undefined);
   }, [props.removedSignal, ticketKey]);
 
   /**
@@ -526,13 +524,19 @@ export function TicketPanel(props: TicketPanelProps) {
         <section className="missing-ticket-panel" role="alert">
           <h3>Ticket file is no longer available</h3>
           <p>{unavailable.message}</p>
-          {draftEdit() && (
+          {(draftEdit() ||
+            newItem.trim() ||
+            commentDraft.trim() ||
+            pendingComment) && (
             <div className="missing-draft">
               <strong>Unsaved draft kept in this panel</strong>
               {titleDraft.trim() && <p>Title: {titleDraft.trim()}</p>}
               {drafts.current.editing && descriptionDraft.trim() && (
                 <pre>{descriptionDraft}</pre>
               )}
+              {newItem.trim() && <p>Checklist item: {newItem.trim()}</p>}
+              {commentDraft.trim() && <p>Comment: {commentDraft.trim()}</p>}
+              {pendingComment && <p>Posting comment: {pendingComment}</p>}
             </div>
           )}
           <div className="toolbar-actions">

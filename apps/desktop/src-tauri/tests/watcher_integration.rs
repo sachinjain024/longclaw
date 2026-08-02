@@ -229,6 +229,28 @@ fn one_burst_of_saves_produces_one_update_holding_the_final_content() {
 }
 
 #[test]
+fn repeated_rapid_external_bursts_converge_to_final_content() {
+    let _serial = serially();
+    for run in 1..=5 {
+        let (_temp, root) = copy_representative_project();
+        let (_engine, events) = start_engine(&root);
+        let path = ticket_path(&root, "LC-1");
+        let raw = fs::read_to_string(&path).expect("ticket.md");
+        for sequence in 1..=6 {
+            editor_atomic_replace(
+                &path,
+                &replace_title(&raw, &format!("Stress run {run} edit {sequence}")),
+                sequence,
+            );
+        }
+
+        let (row, _, _) = changed(next_event(&events));
+        assert_eq!(title_of(&row), &format!("Stress run {run} edit 6"));
+        expect_no_event(&events, "one repeated burst should produce one update");
+    }
+}
+
+#[test]
 fn an_overflow_recovery_converges_on_disk_state() {
     let _serial = serially();
     let (_temp, root) = copy_representative_project();

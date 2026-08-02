@@ -35,7 +35,7 @@ impl RegistryStore {
                     .with_context("path", path.display().to_string())
                     .with_context("backupPath", backup_path.display().to_string())
                 })?;
-                atomic_write(&backup_path, &bytes)?;
+                preserve_registry_backup(&backup_path, &bytes)?;
                 projects
             }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Vec::new(),
@@ -227,11 +227,18 @@ impl RegistryStore {
             )
         })?;
         if let Ok(current) = fs::read(&self.path) {
-            atomic_write(&self.backup_path, &current)?;
+            preserve_registry_backup(&self.backup_path, &current)?;
         }
         atomic_write(&self.path, &bytes)?;
-        atomic_write(&self.backup_path, &bytes)
+        preserve_registry_backup(&self.backup_path, &bytes)
     }
+}
+
+fn preserve_registry_backup(backup_path: &Path, bytes: &[u8]) -> AppResult<()> {
+    if backup_path.exists() {
+        return Ok(());
+    }
+    atomic_write(backup_path, bytes)
 }
 
 /// A cached entry brought back up to date from the project's own files.
@@ -339,6 +346,42 @@ mod tests {
         let [project] = restored.list().try_into().unwrap();
         assert_eq!(project.id, "backup-proof");
         assert!(project.reachable);
+    }
+
+    #[test]
+    fn a_registry_backup_is_not_overwritten_by_later_saves() {
+        let temp = tempfile::tempdir().unwrap();
+        let app_data = temp.path().join("app-support");
+        let first = temp.path().join("first");
+        let second = temp.path().join("second");
+        for (root, id, key) in [
+            (&first, "first-project", "FP"),
+            (&second, "second-project", "SP"),
+        ] {
+            fs::create_dir_all(root.join(".longclaw/tickets")).unwrap();
+            fs::write(
+                root.join(".longclaw/longclaw.yaml"),
+                format!(
+                    "format: longclaw.project/v1\nid: {id}\nname: {id}\nkey: {key}\ntheme: indigo\ncreated_at: 2026-07-29T00:00:00Z\n"
+                ),
+            )
+            .unwrap();
+        }
+
+        let store = RegistryStore::load(&app_data).unwrap();
+        store.register(&first).unwrap();
+        let backup = app_data.join("project-registry.backup.json");
+        let first_backup = fs::read(&backup).unwrap();
+
+        store.register(&second).unwrap();
+
+        assert_eq!(fs::read(&backup).unwrap(), first_backup);
+        assert!(String::from_utf8(first_backup)
+            .unwrap()
+            .contains("first-project"));
+        assert!(fs::read_to_string(app_data.join("project-registry.json"))
+            .unwrap()
+            .contains("second-project"));
     }
 
     #[test]

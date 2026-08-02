@@ -1065,18 +1065,40 @@ fn initialize_project_with_contract_writer(
 
     let longclaw_dir = project_root.join(PROJECT_DIRECTORY);
     let created_longclaw = !longclaw_dir.exists();
-    let result = (|| {
+    let result: AppResult<()> = (|| {
         let tickets = tickets_root(project_root);
         fs::create_dir_all(&tickets)
             .map_err(|error| AppError::io("Creating the project folder", &tickets, error))?;
         atomic_write(&project_path, rendered.as_bytes())?;
         write_contract(project_root, &document)?;
-        Ok(document)
+        Ok(())
     })();
-    if result.is_err() && created_longclaw {
-        cleanup_failed_project_initialization(project_root);
+    if let Err(error) = result {
+        let leftovers = if created_longclaw {
+            cleanup_failed_project_initialization(project_root)
+        } else {
+            project_initialization_paths(project_root)
+                .into_iter()
+                .filter(|path| path.exists())
+                .collect()
+        };
+        let error = if leftovers.is_empty() {
+            error
+        } else {
+            error
+                .with_context("leftBehindPaths", display_paths(&leftovers))
+                .with_context(
+                    "leftBehindReason",
+                    if created_longclaw {
+                        "Cleanup was attempted, but these claimed paths remained"
+                    } else {
+                        "Cleanup was skipped because .longclaw existed before this create attempt"
+                    },
+                )
+        };
+        return Err(error);
     }
-    result
+    Ok(document)
 }
 
 /// Writes the generated agent-facing contract. LongClaw owns
@@ -1086,11 +1108,32 @@ pub fn write_agent_contract(project_root: &Path, document: &ProjectDocument) -> 
     atomic_write(&agent_contract_path(project_root), contract.as_bytes())
 }
 
-fn cleanup_failed_project_initialization(project_root: &Path) {
+fn project_initialization_paths(project_root: &Path) -> Vec<PathBuf> {
+    vec![
+        agent_contract_path(project_root),
+        project_file_path(project_root),
+        tickets_root(project_root),
+        project_root.join(PROJECT_DIRECTORY),
+    ]
+}
+
+fn cleanup_failed_project_initialization(project_root: &Path) -> Vec<PathBuf> {
     let _ = fs::remove_file(agent_contract_path(project_root));
     let _ = fs::remove_file(project_file_path(project_root));
     let _ = fs::remove_dir(tickets_root(project_root));
     let _ = fs::remove_dir(project_root.join(PROJECT_DIRECTORY));
+    project_initialization_paths(project_root)
+        .into_iter()
+        .filter(|path| path.exists())
+        .collect()
+}
+
+fn display_paths(paths: &[PathBuf]) -> String {
+    paths
+        .iter()
+        .map(|path| path.display().to_string())
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 #[cfg(test)]
@@ -1178,6 +1221,40 @@ mod tests {
         assert!(!project.join(".longclaw/longclaw.yaml").exists());
         assert!(!project.join(".longclaw/tickets").exists());
         assert!(!project.join(".longclaw").exists());
+    }
+
+    #[test]
+    fn a_late_project_creation_failure_names_pre_existing_residue() {
+        let temp = tempfile::tempdir().unwrap();
+        let project = temp.path().join("project");
+        fs::create_dir_all(project.join(".longclaw/keep-me")).unwrap();
+
+        let error = match initialize_project_with_contract_writer(
+            &project,
+            "Residue Naming",
+            "RN",
+            Some("indigo"),
+            "2026-08-02T00:00:00Z",
+            |_root, _document| {
+                Err(crate::core::AppError::new(
+                    ErrorCode::Io,
+                    "injected agent-contract write failure",
+                    true,
+                ))
+            },
+        ) {
+            Ok(_) => panic!("the injected contract write should fail"),
+            Err(error) => error,
+        };
+
+        assert_eq!(
+            error.context["leftBehindReason"],
+            "Cleanup was skipped because .longclaw existed before this create attempt"
+        );
+        assert!(error.context["leftBehindPaths"].contains(".longclaw"));
+        assert!(project.join(".longclaw/keep-me").is_dir());
+        assert!(project.join(".longclaw/longclaw.yaml").is_file());
+        assert!(project.join(".longclaw/tickets").is_dir());
     }
 
     #[test]
