@@ -112,6 +112,8 @@ interface TicketPanelProps {
   mark?: ExternalMark;
   /** Bumped when an external change to this ticket lands, to re-read the file. */
   reloadSignal: number;
+  /** Bumped when the watched ticket file disappeared while the panel is open. */
+  removedSignal: number;
   now: number;
   /**
    * Whether the ticket carries an `archived_at` (ADR 0004), taken from the same
@@ -161,6 +163,7 @@ export function TicketPanel(props: TicketPanelProps) {
     error: AppError;
     pending: TicketEdit;
   }>();
+  const [unavailable, setUnavailable] = useState<AppError>();
   /** Checklist ids an external write ticked, for the agent treatment. */
   const [agentChecked, setAgentChecked] = useState<string[]>([]);
   const [pending, setPending] = useState<Pending>(NOTHING_PENDING);
@@ -227,9 +230,17 @@ export function TicketPanel(props: TicketPanelProps) {
       try {
         next = await readTicket(projectId, ticketKey);
       } catch (error) {
-        onErrorRef.current(normalizeError(error));
+        const normalized = normalizeError(error);
+        if (normalized.code === "ticket_not_found") {
+          setUnavailable(normalized);
+          clearPending();
+          setPendingComment(undefined);
+          return undefined;
+        }
+        onErrorRef.current(normalized);
         return undefined;
       }
+      setUnavailable(undefined);
       const checklist = next.ticket?.checklist ?? [];
       const title = next.ticket?.title ?? "";
       const description = next.ticket?.description ?? "";
@@ -317,6 +328,29 @@ export function TicketPanel(props: TicketPanelProps) {
     if (props.reloadSignal === firstSignal.current) return;
     void load("external");
   }, [props.reloadSignal, load]);
+
+  const lastRemovalSignal = useRef({
+    ticketKey,
+    signal: props.removedSignal,
+  });
+  useEffect(() => {
+    if (ticketKey !== lastRemovalSignal.current.ticketKey) {
+      lastRemovalSignal.current = { ticketKey, signal: props.removedSignal };
+      return;
+    }
+    if (props.removedSignal === lastRemovalSignal.current.signal) return;
+    lastRemovalSignal.current = { ticketKey, signal: props.removedSignal };
+    setUnavailable({
+      code: "ticket_not_found",
+      message:
+        "This ticket file was deleted or renamed on disk. LongClaw kept your panel state and did not write anything.",
+      recoverable: true,
+      context: { ticketKey },
+    });
+    setConflict(undefined);
+    clearPending();
+    setPendingComment(undefined);
+  }, [props.removedSignal, ticketKey]);
 
   /**
    * Writes one edit. An unresolved conflict blocks every save except the one
@@ -488,7 +522,31 @@ export function TicketPanel(props: TicketPanelProps) {
         />
       )}
 
-      {!detail ? (
+      {unavailable && (
+        <section className="missing-ticket-panel" role="alert">
+          <h3>Ticket file is no longer available</h3>
+          <p>{unavailable.message}</p>
+          {draftEdit() && (
+            <div className="missing-draft">
+              <strong>Unsaved draft kept in this panel</strong>
+              {titleDraft.trim() && <p>Title: {titleDraft.trim()}</p>}
+              {drafts.current.editing && descriptionDraft.trim() && (
+                <pre>{descriptionDraft}</pre>
+              )}
+            </div>
+          )}
+          <div className="toolbar-actions">
+            <button className="secondary" onClick={() => void load("open")}>
+              Try reading again
+            </button>
+            <button className="ghost" onClick={props.onClose}>
+              Close panel
+            </button>
+          </div>
+        </section>
+      )}
+
+      {unavailable ? null : !detail ? (
         <p className="panel-loading">Reading {ticketKey} from disk…</p>
       ) : !ticket ? (
         <section className="degraded-copy">

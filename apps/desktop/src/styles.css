@@ -1380,6 +1380,48 @@ button:disabled {
   font-size: 11px;
 }
 
+.missing-ticket-panel {
+  border: 1px solid var(--lc-warn-border);
+  border-radius: var(--lc-radius-card);
+  padding: var(--lc-space-4);
+  color: var(--lc-ink);
+  background: var(--lc-warn-surface);
+}
+
+.missing-ticket-panel h3 {
+  margin-bottom: var(--lc-space-2);
+  color: var(--lc-warn-ink);
+  font-size: 13px;
+}
+
+.missing-ticket-panel p {
+  margin: 0 0 var(--lc-space-3);
+  color: var(--lc-warn-ink);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.missing-draft {
+  margin: var(--lc-space-3) 0;
+  border-top: 1px solid var(--lc-warn-border);
+  border-bottom: 1px solid var(--lc-warn-border);
+  padding: var(--lc-space-3) 0;
+}
+
+.missing-draft strong {
+  display: block;
+  margin-bottom: var(--lc-space-2);
+  font-size: 12px;
+}
+
+.missing-draft pre {
+  overflow: auto;
+  max-height: 180px;
+  margin: 0;
+  color: var(--lc-warn-ink);
+  white-space: pre-wrap;
+}
+
 .panel-loading {
   color: var(--lc-ink-3);
   font-size: 12px;

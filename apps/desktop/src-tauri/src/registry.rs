@@ -13,6 +13,7 @@ use crate::core::{AppError, AppResult, ErrorCode, ProjectReference};
 
 pub struct RegistryStore {
     path: PathBuf,
+    backup_path: PathBuf,
     projects: RwLock<Vec<ProjectReference>>,
 }
 
@@ -22,20 +23,27 @@ impl RegistryStore {
             AppError::io("Creating application support folder", app_data_dir, error)
         })?;
         let path = app_data_dir.join("project-registry.json");
+        let backup_path = app_data_dir.join("project-registry.backup.json");
         let projects = match fs::read(&path) {
-            Ok(bytes) => serde_json::from_slice(&bytes).map_err(|error| {
-                AppError::new(
-                    ErrorCode::ParseFailed,
-                    format!("Project registry is invalid and was left untouched: {error}"),
-                    true,
-                )
-                .with_context("path", path.display().to_string())
-            })?,
+            Ok(bytes) => {
+                let projects = serde_json::from_slice(&bytes).map_err(|error| {
+                    AppError::new(
+                        ErrorCode::ParseFailed,
+                        format!("Project registry is invalid and was left untouched: {error}"),
+                        true,
+                    )
+                    .with_context("path", path.display().to_string())
+                    .with_context("backupPath", backup_path.display().to_string())
+                })?;
+                atomic_write(&backup_path, &bytes)?;
+                projects
+            }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Vec::new(),
             Err(error) => return Err(AppError::io("Reading project registry", &path, error)),
         };
         Ok(Self {
             path,
+            backup_path,
             projects: RwLock::new(projects),
         })
     }
@@ -218,7 +226,11 @@ impl RegistryStore {
                 false,
             )
         })?;
-        atomic_write(&self.path, &bytes)
+        if let Ok(current) = fs::read(&self.path) {
+            atomic_write(&self.backup_path, &current)?;
+        }
+        atomic_write(&self.path, &bytes)?;
+        atomic_write(&self.backup_path, &bytes)
     }
 }
 
@@ -289,6 +301,44 @@ mod tests {
         assert!(!missing[0].reachable);
         assert_eq!(missing[0].root_path, registered_path);
         assert!(moved.join(".longclaw/longclaw.yaml").is_file());
+    }
+
+    #[test]
+    fn a_corrupt_registry_fails_closed_and_can_be_restored_from_backup() {
+        let temp = tempfile::tempdir().unwrap();
+        let app_data = temp.path().join("app-support");
+        let project = temp.path().join("project");
+        fs::create_dir_all(project.join(".longclaw/tickets")).unwrap();
+        fs::write(
+            project.join(".longclaw/longclaw.yaml"),
+            "format: longclaw.project/v1\nid: backup-proof\nname: Backup Proof\nkey: BP\ntheme: indigo\ncreated_at: 2026-07-29T00:00:00Z\n",
+        )
+        .unwrap();
+
+        let store = RegistryStore::load(&app_data).unwrap();
+        store.register(&project).unwrap();
+        drop(store);
+
+        let registry = app_data.join("project-registry.json");
+        let backup = app_data.join("project-registry.backup.json");
+        assert!(backup.is_file());
+        let backup_bytes = fs::read(&backup).unwrap();
+        fs::write(&registry, b"{ not valid json").unwrap();
+
+        let error = match RegistryStore::load(&app_data) {
+            Ok(_) => panic!("corruption must fail closed"),
+            Err(error) => error,
+        };
+        assert_eq!(error.code, crate::core::ErrorCode::ParseFailed);
+        assert_eq!(error.context["path"], registry.display().to_string());
+        assert_eq!(error.context["backupPath"], backup.display().to_string());
+        assert_eq!(fs::read(&registry).unwrap(), b"{ not valid json");
+
+        fs::write(&registry, backup_bytes).unwrap();
+        let restored = RegistryStore::load(&app_data).unwrap();
+        let [project] = restored.list().try_into().unwrap();
+        assert_eq!(project.id, "backup-proof");
+        assert!(project.reachable);
     }
 
     #[test]

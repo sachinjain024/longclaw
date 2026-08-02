@@ -211,6 +211,8 @@ export function App() {
   }>();
   /** Bumped when an external change lands for the open ticket. */
   const [panelReload, setPanelReload] = useState(0);
+  /** Bumped when the open ticket disappears from disk. */
+  const [panelRemoved, setPanelRemoved] = useState(0);
   /** Drives the acknowledgement age text and its decay. */
   const [now, setNow] = useState(() => Date.now());
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
@@ -533,9 +535,20 @@ export function App() {
   // An external change to the open ticket makes the panel re-read the file, so
   // the description, checklist, and timeline it shows are the ones on disk.
   useEffect(() => {
-    if (!selectedKey || lastEvent?.event.type !== "ticketChanged") return;
-    if (lastEvent.event.data.ticket.key !== selectedKey) return;
-    setPanelReload(lastEvent.sequence);
+    if (!selectedKey || !lastEvent) return;
+    if (
+      lastEvent.event.type === "ticketChanged" &&
+      lastEvent.event.data.ticket.key === selectedKey
+    ) {
+      setPanelReload(lastEvent.sequence);
+      return;
+    }
+    if (
+      lastEvent.event.type === "ticketRemoved" &&
+      lastEvent.event.data.ticketKey === selectedKey
+    ) {
+      setPanelRemoved(lastEvent.sequence);
+    }
   }, [lastEvent, selectedKey]);
 
   // Acknowledgements age visibly and then decay on their own.
@@ -1251,6 +1264,7 @@ export function App() {
             labels={project.labels}
             mark={externalMarks[selectedKey]}
             reloadSignal={panelReload}
+            removedSignal={panelRemoved}
             now={now}
             archived={openRow !== undefined && isArchived(openRow)}
             shortcutsActive={!paletteOpen && createSurface === undefined}

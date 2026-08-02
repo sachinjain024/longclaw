@@ -62,6 +62,7 @@ function humanEvent(): ActivityEvent {
 }
 
 function detail(options?: {
+  key?: string;
   contentHash?: string;
   title?: string;
   description?: string;
@@ -69,9 +70,10 @@ function detail(options?: {
   checklist?: ChecklistItem[];
   activity?: ActivityEvent[];
 }): TicketDetail {
+  const key = options?.key ?? "LC-1";
   return {
-    key: "LC-1",
-    relativePath: ".longclaw/tickets/LC-1/ticket.md",
+    key,
+    relativePath: `.longclaw/tickets/${key}/ticket.md`,
     contentHash: options?.contentHash ?? "hash-1",
     byteLength: 400,
     readOnly: false,
@@ -81,7 +83,7 @@ function detail(options?: {
     orphanAttachments: [],
     ticket: {
       id: "019c8c7e",
-      key: "LC-1",
+      key,
       title: options?.title ?? "Prove the agent round trip",
       status: "todo",
       priority: "p2",
@@ -169,7 +171,9 @@ const DEFINITIONS: Record<string, Label> = {
 };
 
 function panel(props?: {
+  ticketKey?: string;
   reloadSignal?: number;
+  removedSignal?: number;
   onClose?: () => void;
   archived?: boolean;
   shortcutsActive?: boolean;
@@ -179,9 +183,10 @@ function panel(props?: {
   return (
     <TicketPanel
       projectId="project-1"
-      ticketKey="LC-1"
+      ticketKey={props?.ticketKey ?? "LC-1"}
       labels={DEFINITIONS}
       reloadSignal={props?.reloadSignal ?? 0}
+      removedSignal={props?.removedSignal ?? 0}
       now={NOW}
       archived={props?.archived ?? false}
       shortcutsActive={props?.shortcutsActive ?? true}
@@ -196,6 +201,7 @@ function panel(props?: {
 /** The panel plus the toast surface its destructive-adjacent writes raise. */
 function surface(props?: {
   reloadSignal?: number;
+  removedSignal?: number;
   onWrite?: (result: WriteResult) => void;
 }) {
   return (
@@ -380,6 +386,77 @@ describe("a change that lands while a draft is open", () => {
     ).toBeNull();
     expect(editTicketMock).not.toHaveBeenCalled();
     view.unmount();
+  });
+});
+
+describe("a ticket that disappears while the panel is open", () => {
+  it("V0-28: preserves an unsaved draft and offers explicit next actions", async () => {
+    readTicketMock.mockResolvedValue(detail());
+    const onClose = vi.fn();
+    const view = render(panel({ onClose }));
+    const title = await screen.findByLabelText("Title");
+    fireEvent.change(title, { target: { value: "My unsaved title" } });
+
+    view.rerender(panel({ removedSignal: 4, onClose }));
+
+    await screen.findByText("Ticket file is no longer available");
+    expect(screen.getByText(/deleted or renamed on disk/)).toBeTruthy();
+    expect(screen.getByText("Unsaved draft kept in this panel")).toBeTruthy();
+    expect(screen.getByText("Title: My unsaved title")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Try reading again" }),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Close panel" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(editTicketMock).not.toHaveBeenCalled();
+  });
+
+  it("V0-28: retrying adopts the file again if it reappears", async () => {
+    readTicketMock.mockResolvedValueOnce(detail()).mockResolvedValueOnce(
+      detail({
+        contentHash: "hash-restored",
+        title: "Restored on disk",
+      }),
+    );
+    const view = render(panel());
+    await screen.findByLabelText("Title");
+    view.rerender(panel({ removedSignal: 5 }));
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Try reading again" }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("Title")).toHaveProperty(
+        "value",
+        "Restored on disk",
+      ),
+    );
+    expect(screen.queryByText("Ticket file is no longer available")).toBeNull();
+  });
+
+  it("V0-28: does not carry one ticket's removal signal into another ticket", async () => {
+    readTicketMock.mockResolvedValueOnce(detail()).mockResolvedValueOnce(
+      detail({
+        key: "LC-2",
+        contentHash: "hash-lc-2",
+        title: "Second ticket",
+      }),
+    );
+    const view = render(panel());
+    await screen.findByLabelText("Title");
+    view.rerender(panel({ removedSignal: 6 }));
+    await screen.findByText("Ticket file is no longer available");
+
+    view.rerender(panel({ ticketKey: "LC-2", removedSignal: 6 }));
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("Title")).toHaveProperty(
+        "value",
+        "Second ticket",
+      ),
+    );
+    expect(screen.queryByText("Ticket file is no longer available")).toBeNull();
   });
 });
 

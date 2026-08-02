@@ -381,10 +381,10 @@ left: a literal radius or motion duration outside `src/tokens/` now fails
 Wave 1 and Wave 2 are closed above. **Wave 3's five Step-13 rows — V0-34,
 V0-35, V0-36, V0-37 and V0-41 — closed on 2026-08-01 as plans 31–35**, written
 one at a time as each was picked up, which is the rule below working as
-intended. What remains of Wave 3 is the Step-14 recovery work (V0-26 through
-V0-33, plus V0-40 and V0-42), and the original reason it was unplanned is long
-gone: the guardrail was satisfied and the pilot will not invalidate anything,
-because it was skipped.
+intended. The Step-14 recovery work (V0-26 through V0-33, plus V0-40) closed on
+2026-08-02 in [plan 38](../completed/38-complete-step-14-recovery.md). V0-42 is
+still open, but it belongs to Step 16 because it is the runner-stable
+interaction-budget gate, not recovery behavior.
 
 What remains is ordinary sequencing. Wave 2 was written all at once on 2026-08-01
 because the founder asked for it; **that is the exception, and the § Step 12 note
@@ -395,9 +395,10 @@ in order; that order is final rather than provisional, and
 [the retired handoff](../completed/pending-work-after-step-10.md) says what that
 is worth, which is not much: it was never tested against a user.
 
-Two items were risk-based rather than breadth, so they are safe to take out of
-order at any time: V0-30 (index-loss recovery) and V0-40 (scope Dependabot to what
-ships). The third, ~~V0-19~~, was taken first exactly as this said and
+Two risk-based items were taken out of order and are now closed by
+[plan 38](../completed/38-complete-step-14-recovery.md): V0-30 (index-loss
+recovery) and V0-40 (scope Dependabot to what ships). The third, ~~V0-19~~, was
+taken first exactly as this said and
 [closed](../completed/11-remove-assignee-from-specs.md) before Step 11 built the
 surfaces around it — for the specs and the `proof/` HTML. The committed renders
 were not regenerated and still show an assignee, which V0-19's must-pass counts as

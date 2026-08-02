@@ -1125,6 +1125,37 @@ describe("the list and the board agree (V0-14)", () => {
     };
   }
 
+  function detail(key: string): TicketDetail {
+    return {
+      key,
+      relativePath: `.longclaw/tickets/${key}/ticket.md`,
+      contentHash: `hash-${key}`,
+      byteLength: 320,
+      readOnly: false,
+      raw: "",
+      rawTruncated: false,
+      missingAttachments: [],
+      orphanAttachments: [],
+      ticket: {
+        id: `id-${key}`,
+        key,
+        title: `Ticket ${key}`,
+        status: "todo",
+        priority: "none",
+        labels: [],
+        createdAt: "2026-07-30T09:00:00Z",
+        updatedAt: "2026-07-30T09:00:00Z",
+        description: "",
+        checklist: [],
+        attachments: [],
+        activity: [],
+        historyIncomplete: false,
+        unknownKeys: [],
+        recordDiagnostics: [],
+      },
+    };
+  }
+
   const SEED = [
     ticket("LC-1", { status: "todo", priority: "p2" }),
     ticket("LC-2", { status: "in_progress" }),
@@ -1255,6 +1286,33 @@ describe("the list and the board agree (V0-14)", () => {
     expect(screen.getByRole("heading", { name: /Done/ }).textContent).toBe(
       "Done1",
     );
+  });
+
+  it("V0-28: tells the open panel when its ticket was removed on disk", async () => {
+    vi.mocked(api.readTicket).mockResolvedValue(detail("LC-1"));
+    const { deliver } = await open();
+
+    fireEvent.click(
+      document.querySelector<HTMLElement>(
+        '.ticket-row[data-ticket-key="LC-1"]',
+      )!,
+    );
+    await screen.findByLabelText("Title");
+
+    deliver({
+      contractVersion: 1,
+      sequence: 2,
+      projectId: project.id,
+      emittedAt: "2026-07-31T10:00:00Z",
+      event: {
+        type: "ticketRemoved",
+        data: { ticketKey: "LC-1", source: "external" },
+      },
+    });
+
+    await screen.findByText("Ticket file is no longer available");
+    expect(screen.getByText(/deleted or renamed on disk/)).toBeTruthy();
+    expect(shownKeys()).not.toContain("LC-1");
   });
 
   it("agrees after a rebuild", async () => {
