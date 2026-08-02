@@ -58,10 +58,10 @@ What changed:
   tickets. It stops rendering stale ticket content as current, keeps unsaved
   title, description, checklist, unsent comment, and in-flight comment text
   visible in memory, and offers `Try reading again` or `Close panel`.
-- V0-31: `RegistryStore` now preserves `project-registry.backup.json` rather
-  than overwriting it on every save, still fails closed on invalid registry JSON,
-  and reports both `path` and `backupPath` in the typed error. Recovery is
-  documented in `apps/desktop/README.md`.
+- V0-31: `RegistryStore` now writes `project-registry.backup.json` from the
+  current live registry before each later save, still fails closed on invalid
+  registry JSON, and reports both `path` and `backupPath` in the typed error.
+  Recovery is documented in `apps/desktop/README.md`.
 - V0-32: `initialize_project` now cleans up only the `.longclaw` files and
   directories it claimed when a later project-initialization write fails; if the
   chosen folder already had `.longclaw`, cleanup is skipped and the error names
@@ -91,7 +91,7 @@ Verification evidence:
   - `App.test.tsx` — event-stream `ticketRemoved` reaches the open panel.
 - New V0-31 test:
   - `registry::tests::a_corrupt_registry_fails_closed_and_can_be_restored_from_backup`
-  - `registry::tests::a_registry_backup_is_not_overwritten_by_later_saves`
+  - `registry::tests::a_registry_backup_holds_the_state_before_the_latest_save`
 - New V0-32 test:
   - `core::storage::tests::a_late_project_creation_failure_removes_the_directory_it_claimed`
   - `core::storage::tests::a_late_project_creation_failure_names_pre_existing_residue`
