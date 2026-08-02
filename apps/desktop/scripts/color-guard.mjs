@@ -17,49 +17,28 @@
  * Usage: node scripts/color-guard.mjs   (exits non-zero on any finding)
  */
 
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readSource, report, sourceFiles } from "./guard.mjs";
 
-const here = dirname(fileURLToPath(import.meta.url));
-const root = resolve(here, "../src");
-const allowed = resolve(root, "tokens");
-
-const SOURCE = /\.(ts|tsx|css)$/;
 const HEX = /#[0-9a-fA-F]{3,8}\b/g;
 const FUNCTIONAL = /(?<![\w-])(?:rgba?|hsla?|hwb|oklch|oklab|lab|lch|color)\(/g;
 
-const files = [];
-const walk = (dir) => {
-  for (const entry of readdirSync(dir)) {
-    const path = join(dir, entry);
-    if (path === allowed) continue;
-    if (statSync(path).isDirectory()) walk(path);
-    else if (SOURCE.test(entry)) files.push(path);
-  }
-};
-walk(root);
-
+const files = sourceFiles();
 const findings = [];
 for (const file of files) {
-  const lines = readFileSync(file, "utf8").split("\n");
+  const { path, lines } = readSource(file);
   lines.forEach((text, index) => {
     for (const pattern of [HEX, FUNCTIONAL]) {
       for (const hit of text.matchAll(pattern)) {
-        findings.push(
-          `${relative(process.cwd(), file)}:${index + 1} — ${hit[0]}… in: ${text.trim()}`,
-        );
+        findings.push(`${path}:${index + 1} — ${hit[0]}… in: ${text.trim()}`);
       }
     }
   });
 }
 
-if (findings.length > 0) {
-  console.error(
-    `color-guard: ${findings.length} hardcoded color(s) outside src/tokens/ — use a --lc-* token:\n` +
-      findings.map((finding) => `  ${finding}`).join("\n"),
-  );
-  process.exit(1);
-}
-
-console.log(`color-guard: ${files.length} files clean — every hue is a token`);
+report({
+  name: "color-guard",
+  findings,
+  checked: files.length,
+  remedy: "hardcoded color(s) outside src/tokens/ — use a --lc-* token:",
+  clean: "every hue is a token",
+});

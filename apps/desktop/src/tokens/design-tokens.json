@@ -144,7 +144,8 @@
     "ease": "cubic-bezier(0.2, 0, 0, 1)",
     "pulse-duration": "900ms",
     "pulse-iterations": 2,
-    "note": "Motion communicates state, never decorates. The agent pulse (900ms ease-out, two beats) is the one exception to the sub-150ms rule: it is the designed acknowledgement of an external file edit."
+    "spinner": "900ms",
+    "note": "Motion communicates state, never decorates. The agent pulse (900ms ease-out, two beats) is the one exception to the sub-150ms rule: it is the designed acknowledgement of an external file edit. `spinner` is the delayed write indicator's rotation — the same period as the pulse but a separate token, because reusing the pulse's would tie a loading spin to the agent's acknowledgement and neither could then be retuned alone."
   },
 
   "elevation": {
@@ -206,6 +207,11 @@
         "light": "#EEF0F5",
         "dark": "#1C1E27",
         "role": "inline code chips, quiet fills, progress track"
+      },
+      "raised-hover": {
+        "light": "#EEF0F5",
+        "dark": "#262935",
+        "role": "hover fill for anything already sitting on `raised` — secondary buttons and popover rows. In dark, `raised` and `wash` are the same value, so a control resting on `raised` that hovered to `wash` gave no feedback at all; this is the step components.md:52 calls the raised hover overlay."
       },
       "ink": {
         "light": "#171923",

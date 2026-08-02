@@ -105,6 +105,7 @@
   --lc-motion-ease: cubic-bezier(0.2, 0, 0, 1);
   --lc-motion-pulse-duration: 900ms;
   --lc-motion-pulse-iterations: 2;
+  --lc-motion-spinner: 900ms;
 }
 
 /* Fallbacks so a bare document renders as light Indigo (the defaults). */
@@ -114,6 +115,7 @@
   --lc-surface: #ffffff;
   --lc-raised: #ffffff;
   --lc-wash: #eef0f5;
+  --lc-raised-hover: #eef0f5;
   --lc-ink: #171923;
   --lc-ink-2: #4c5165;
   --lc-ink-3: #666b80;
@@ -179,6 +181,7 @@
   --lc-surface: #ffffff;
   --lc-raised: #ffffff;
   --lc-wash: #eef0f5;
+  --lc-raised-hover: #eef0f5;
   --lc-ink: #171923;
   --lc-ink-2: #4c5165;
   --lc-ink-3: #666b80;
@@ -238,6 +241,7 @@
   --lc-surface: #16171e;
   --lc-raised: #1c1e27;
   --lc-wash: #1c1e27;
+  --lc-raised-hover: #262935;
   --lc-ink: #e9eaf2;
   --lc-ink-2: #a6aabc;
   --lc-ink-3: #8a8fa3;
@@ -484,5 +488,7 @@
     --lc-motion-fast: 0ms;
     --lc-motion-state: 0ms;
     --lc-motion-panel: 0ms;
+    --lc-motion-pulse-duration: 0ms;
+    --lc-motion-spinner: 0ms;
   }
 }

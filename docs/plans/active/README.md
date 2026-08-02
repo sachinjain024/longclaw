@@ -368,6 +368,16 @@ Wave 2's own dependencies, which are tighter than Wave 1's were:
 
 ## Wave 3 is partly done, and Waves 1–2 no longer are open at all
 
+**Step 16a is also closed, out of order, as
+[plan 37](../completed/37-step-16a-ui-polish.md).** It was taken before Step 14
+because the founder asked for it, and nothing in it depends on the recovery
+work: it is a pass over the surfaces that already exist. Read its § Deferred
+discrepancies before assuming a surface matches the design bundle — six real
+gaps are recorded there as deliberately open, and Step 14 will build trust
+states onto some of them. `scripts/token-guard.mjs` is the durable thing it
+left: a literal radius or motion duration outside `src/tokens/` now fails
+`tokens:check`, the way a literal hue already did.
+
 Wave 1 and Wave 2 are closed above. **Wave 3's five Step-13 rows — V0-34,
 V0-35, V0-36, V0-37 and V0-41 — closed on 2026-08-01 as plans 31–35**, written
 one at a time as each was picked up, which is the rule below working as

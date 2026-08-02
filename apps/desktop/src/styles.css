@@ -39,166 +39,235 @@ textarea:focus-visible,
   outline-offset: 2px;
 }
 
+/* 240px side panel and a flexible main region (`screen-specs.md:20-30`). */
 .app-shell {
   display: grid;
-  grid-template-columns: 268px minmax(0, 1fr);
+  grid-template-columns: 240px minmax(0, 1fr);
   min-height: 100vh;
 }
 
+/* The panel is the app background, not a tinted surface of its own: the main
+   region carries the surfaces and the hairline is what separates them
+   (`screen-specs.md:30`). */
 .side-panel {
   display: flex;
   flex-direction: column;
-  gap: 22px;
-  border-right: 1px solid var(--lc-line);
-  padding: 18px 14px;
-  background: color-mix(in oklab, var(--lc-wash) 72%, var(--lc-surface));
+  gap: var(--lc-space-5);
+  border-right: var(--lc-border-hairline) solid var(--lc-line);
+  padding: var(--lc-space-4) var(--lc-space-3);
+  background: var(--lc-bg);
 }
 
+/* 22px mark + the wordmark in Familjen Grotesk 14.5/600 — the heading role
+   (`screen-specs.md:32`). */
 .brand-lockup {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 4px 6px 10px;
+  gap: var(--lc-space-2);
+  padding: 0 var(--lc-space-1);
+  color: var(--lc-ink);
 }
 
-.brand-mark {
-  display: grid;
-  width: 28px;
-  height: 28px;
-  place-items: center;
-  border: 1px solid var(--lc-accent-human-border);
-  border-radius: 7px;
-  color: var(--lc-on-accent-human);
-  background: var(--lc-accent-human);
-  font: 750 10px / 1 var(--lc-type-code-font);
+.brand-lockup strong {
+  font: var(--lc-type-heading-weight) var(--lc-type-heading-size) /
+    var(--lc-type-heading-leading) var(--lc-font-display);
+}
+
+.owl-mark {
+  flex: none;
 }
 
 .project-nav {
   display: grid;
-  gap: 20px;
+  gap: var(--lc-space-5);
   min-height: 0;
 }
 
 .project-actions,
 .quick-create {
   display: grid;
-  gap: 8px;
+  gap: var(--lc-space-2);
 }
 
 .project-actions {
-  border-bottom: 1px solid var(--lc-line);
-  padding-bottom: 16px;
+  border-bottom: var(--lc-border-hairline) solid var(--lc-line);
+  padding-bottom: var(--lc-space-4);
 }
 
 .quick-create {
-  border: 1px solid var(--lc-line);
-  border-radius: 8px;
+  border: var(--lc-border-hairline) solid var(--lc-line);
+  border-radius: var(--lc-radius-card);
   padding: 10px;
   background: var(--lc-surface);
 }
 
+/* Mono, uppercase, ink-3, on the label type role (`screen-specs.md:33`). */
 .project-section h2 {
-  margin: 0 0 8px;
+  margin: 0;
+  padding: var(--lc-space-3) var(--lc-space-2) 6px;
   color: var(--lc-ink-3);
   font: var(--lc-type-label-weight) var(--lc-type-label-size) /
     var(--lc-type-label-leading) var(--lc-type-label-font);
-  letter-spacing: 0.08em;
+  letter-spacing: var(--lc-type-label-tracking);
   text-transform: uppercase;
 }
 
 .project-section p {
   margin: 0;
-  padding: 8px 10px;
+  padding: var(--lc-space-2) 10px;
   color: var(--lc-ink-3);
   font-size: 12px;
 }
 
+/* One 28px line: theme dot, name, star (`screen-specs.md:37-43`). The path is
+   not on the row — the content header and settings both show it in full, and a
+   truncated second line of it was telling the truth about nothing. It stays
+   reachable as the row's title. */
 .project-link {
-  display: grid;
-  grid-template-columns: 8px minmax(0, 1fr) 22px;
-  gap: 4px 8px;
+  display: flex;
+  gap: var(--lc-space-2);
+  align-items: center;
   width: 100%;
-  min-height: 54px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  padding: 9px;
-  color: var(--lc-ink);
+  height: 28px;
+  border: var(--lc-border-hairline) solid transparent;
+  border-radius: var(--lc-radius-control);
+  padding: 0 var(--lc-space-2);
+  color: var(--lc-ink-2);
   text-align: left;
   background: transparent;
+  transition: background var(--lc-motion-fast) var(--lc-motion-ease);
 }
 
-.project-link:hover,
+.project-link:hover {
+  background: var(--lc-wash);
+}
+
+/* The active project, in the human accent — opening a project is a planning
+   act (`components.md:249`). */
 .project-link.selected {
-  border-color: var(--lc-line);
-  background: var(--lc-surface);
+  color: var(--lc-ink);
+  background: var(--lc-accent-human-soft);
+  font-weight: 500;
 }
 
-.project-link.unreachable {
-  color: var(--lc-danger);
-}
-
-.project-link strong,
-.project-link small {
+.project-link strong {
   overflow: hidden;
+  flex: 1;
+  min-width: 0;
+  font-size: var(--lc-type-ui-size);
+  font-weight: inherit;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.project-link strong {
-  font-size: 13px;
-}
-
-.project-link small {
-  grid-column: 2;
+/* An unreachable project is dimmed and marked, not painted danger: the row
+   stays in place and stays clickable (`screen-specs.md:40-42`). */
+.project-link.unreachable strong {
   color: var(--lc-ink-3);
-  font: 10px / 1.4 var(--lc-type-code-font);
 }
 
+.project-warn {
+  flex: none;
+  width: var(--lc-size-theme-dot);
+  color: var(--lc-warn);
+  font-size: 12px;
+  line-height: 1;
+  text-align: center;
+}
+
+/* The project's *own* accent, which is the only place another project's theme
+   reaches this window (`components.md:251`). The element carries that
+   project's `data-theme`, so `--lc-accent-human` here resolves to its preset
+   rather than the one in force. */
 .theme-dot {
-  width: 7px;
-  height: 7px;
-  margin-top: 5px;
+  flex: none;
+  width: var(--lc-size-theme-dot);
+  height: var(--lc-size-theme-dot);
   border-radius: 50%;
   background: var(--lc-accent-human);
 }
 
+/* Revealed on hover, persistent once starred (`screen-specs.md:38-39`). */
 .star-button {
   display: grid;
-  grid-column: 3;
-  grid-row: 1 / span 2;
-  width: 22px;
-  height: 22px;
+  width: var(--lc-size-control-sm);
+  height: var(--lc-size-control-sm);
+  flex: none;
   place-items: center;
-  border-radius: 6px;
-  color: var(--lc-accent-human-text);
+  border-radius: var(--lc-radius-control);
+  color: var(--lc-ink-3);
   font-size: 14px;
+  opacity: 0;
+}
+
+.star-button.starred,
+.project-link:hover .star-button,
+.star-button:focus-visible {
+  opacity: 1;
+}
+
+.star-button.starred {
+  color: var(--lc-accent-human-text);
+}
+
+/* Pinned to the foot with the trust line (`screen-specs.md:34`). The waitlist
+   button the spec puts beside it is Step 15, parked on 2026-08-01. */
+.side-panel-footer {
+  display: grid;
+  gap: var(--lc-space-2);
+  margin-top: auto;
+}
+
+.trust-line {
+  padding: 0 var(--lc-space-2);
+  color: var(--lc-ink-disabled);
+  font: var(--lc-type-kbd-weight) var(--lc-type-kbd-size) /
+    var(--lc-type-kbd-leading) var(--lc-type-kbd-font);
+  letter-spacing: var(--lc-type-kbd-tracking);
 }
 
 .appearance-control {
   display: grid;
-  gap: 7px;
-  margin-top: auto;
+  gap: 6px;
   color: var(--lc-ink-3);
   font-size: 11px;
   font-weight: 700;
 }
 
+/* Field foundations — components.md:59-72. One box for every text control in
+   the app: 30px, 5px radius, 10px of padding, UI type, hairline `line-strong`. */
 .appearance-control select,
 label input,
 label select,
 label textarea {
   width: 100%;
-  border: 1px solid var(--lc-line-strong);
-  border-radius: 7px;
+  border: var(--lc-border-hairline) solid var(--lc-line-strong);
+  border-radius: var(--lc-radius-control);
   color: var(--lc-ink);
   background: var(--lc-surface);
+  font: var(--lc-type-ui-weight) var(--lc-type-ui-size) /
+    var(--lc-type-ui-leading) var(--lc-type-ui-font);
 }
 
 .appearance-control select,
 label input,
 label select {
-  height: 34px;
+  height: var(--lc-size-control);
   padding: 0 10px;
+}
+
+/* The focus treatment is the ring *and* an accent border on the control itself
+   (components.md:30) — the ring says where focus is, the border says what it
+   is on. */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  border-color: var(--lc-accent-human);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--lc-ink-3);
 }
 
 .main-panel {
@@ -221,53 +290,121 @@ p {
   margin-top: 0;
 }
 
+/* Display type is the greeting and nothing else (`components.md:307`) — it is
+   the one place Familjen Grotesk appears at size, and spending it on a heading
+   the user sees on every launch is what makes it stop meaning anything. */
 h1 {
-  margin-bottom: 8px;
-  font-size: 30px;
-  line-height: 1.05;
+  margin-bottom: var(--lc-space-2);
+  font: var(--lc-type-title-weight) var(--lc-type-title-size) /
+    var(--lc-type-title-leading) var(--lc-type-title-font);
+  letter-spacing: var(--lc-type-title-tracking);
 }
 
+.welcome-copy h1 {
+  margin: 0;
+  font: var(--lc-type-display-weight) var(--lc-type-display-size) /
+    var(--lc-type-display-leading) var(--lc-type-display-font);
+  letter-spacing: var(--lc-type-display-tracking);
+}
+
+/* Button foundations — components.md:42-57. 30px tall, 5px radius, UI type at
+   13px/500, 12px of horizontal padding, and never pill-shaped. */
 .primary,
 .secondary,
 .danger,
 .ghost {
-  min-height: 34px;
+  min-height: var(--lc-size-control);
   border-radius: var(--lc-radius-control);
-  padding: 0 var(--lc-space-4);
-  font-weight: 650;
+  padding: 0 var(--lc-space-3);
+  font: var(--lc-type-ui-weight) var(--lc-type-ui-size) /
+    var(--lc-type-ui-leading) var(--lc-type-ui-font);
+  transition:
+    background var(--lc-motion-fast) var(--lc-motion-ease),
+    border-color var(--lc-motion-fast) var(--lc-motion-ease);
+}
+
+/* The small variant, for banner and toolbar actions (components.md:44). */
+.primary.small,
+.secondary.small,
+.danger.small,
+.ghost.small {
+  min-height: var(--lc-size-control-sm);
+  padding: 0 9px;
 }
 
 .ghost {
-  border: 1px solid transparent;
+  border: var(--lc-border-hairline) solid transparent;
   color: var(--lc-ink-2);
   background: transparent;
 }
 
-.ghost:hover {
+.ghost:hover:not(:disabled) {
   background: var(--lc-wash);
 }
 
+.ghost:active:not(:disabled) {
+  background: var(--lc-line-soft);
+}
+
+/* No border (`components.md:51`): the fill is the whole control, and a hairline
+   in the accent it is already filled with only shifts the label by a pixel. */
 .primary {
-  border: 1px solid var(--lc-accent-human);
+  border: 0;
   color: var(--lc-on-accent-human);
   background: var(--lc-accent-human);
 }
 
+/* The hover and press fills the token set has always generated and no
+   component read (components.md:51). No scale transform: an accent that is
+   only a step darker is the whole feedback. */
+.primary:hover:not(:disabled) {
+  background: var(--lc-accent-human-hover);
+}
+
+.primary:active:not(:disabled) {
+  background: var(--lc-accent-human-active);
+}
+
+/* Light sits on the surface, dark on the raised step (components.md:52). */
 .secondary {
-  border: 1px solid var(--lc-line-strong);
-  color: var(--lc-ink-2);
+  border: var(--lc-border-hairline) solid var(--lc-line-strong);
+  color: var(--lc-ink);
+  background: var(--lc-surface);
+}
+
+[data-appearance="dark"] .secondary {
   background: var(--lc-raised);
 }
 
+/* `--lc-raised-hover`, not `--lc-wash`: in dark, `wash` and `raised` are the
+   same value, so a secondary button resting on `raised` that hovered to `wash`
+   moved to its own resting colour and gave no feedback at all. */
+.secondary:hover:not(:disabled) {
+  background: var(--lc-raised-hover);
+}
+
+.secondary:active:not(:disabled) {
+  border-color: var(--lc-ink-3);
+}
+
+/* Danger is a bordered quiet button until it is touched; the tinted fill is
+   the hover, not the resting state (components.md:54). */
 .danger {
-  border: 1px solid var(--lc-danger-border);
+  border: var(--lc-border-hairline) solid var(--lc-danger-border);
   color: var(--lc-danger);
+  background: var(--lc-surface);
+}
+
+[data-appearance="dark"] .danger {
+  background: var(--lc-raised);
+}
+
+.danger:hover:not(:disabled) {
   background: var(--lc-danger-surface);
 }
 
-.primary:disabled {
-  cursor: not-allowed;
-  opacity: 0.42;
+.danger:active:not(:disabled) {
+  border-color: var(--lc-danger);
 }
 
 .error-banner {
@@ -296,17 +433,34 @@ h1 {
   padding-top: 56px;
 }
 
+.welcome-copy {
+  display: grid;
+  justify-items: start;
+  gap: var(--lc-space-3);
+  color: var(--lc-ink);
+}
+
+/* The subtitle that names the folder-on-disk model, at 420px so it reads as
+   one paragraph rather than a wall (`screen-specs.md:71`). */
 .welcome-copy p {
-  max-width: 530px;
+  max-width: 420px;
+  margin: 0;
   color: var(--lc-ink-2);
-  line-height: 1.55;
+  font: var(--lc-type-body-weight) var(--lc-type-body-size) /
+    var(--lc-type-body-leading) var(--lc-type-body-font);
+}
+
+.welcome-copy code {
+  color: var(--lc-ink);
+  font: var(--lc-type-code-weight) var(--lc-type-code-size) /
+    var(--lc-type-code-leading) var(--lc-type-code-font);
 }
 
 .create-card {
   display: grid;
   gap: 14px;
   border: 1px solid var(--lc-line);
-  border-radius: 8px;
+  border-radius: var(--lc-radius-card);
   padding: 18px;
   background: var(--lc-surface);
 }
@@ -344,9 +498,15 @@ input[aria-invalid="true"] {
   border-color: var(--lc-danger-border);
 }
 
+/* Disabled is a colour, not a dimming (components.md:32): ink-disabled text on
+   the wash, no hover response, and the default cursor — `not-allowed` reads as
+   a refusal, and a control that is merely unavailable has not refused
+   anything. */
 button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  border-color: var(--lc-line);
+  color: var(--lc-ink-disabled);
+  background: var(--lc-wash);
+  cursor: default;
 }
 
 .project-toolbar,
@@ -380,17 +540,22 @@ button:disabled {
   flex-wrap: wrap;
 }
 
+/* The theme picker's column was a fixed 160px and the picker is four 44px
+   swatches plus gaps — roughly 206px — so the fourth preset rendered *under*
+   the Locate folder button. `max-content` lets the picker state its own width,
+   which is the only column here whose width is a component's anatomy rather
+   than this panel's choice. */
 .settings-panel {
   display: grid;
   grid-template-columns:
     minmax(180px, 1fr)
-    max-content 160px max-content max-content;
+    max-content max-content max-content;
   gap: 10px;
   align-items: end;
   margin-bottom: 14px;
-  border: 1px solid var(--lc-line);
-  border-radius: 8px;
-  padding: 12px;
+  border: var(--lc-border-hairline) solid var(--lc-line);
+  border-radius: var(--lc-radius-card);
+  padding: var(--lc-space-3);
   background: var(--lc-surface);
 }
 
@@ -447,11 +612,13 @@ button:disabled {
 
 .board-heading h2 {
   margin-bottom: 0;
-  font-size: 19px;
+  font: var(--lc-type-title-weight) var(--lc-type-title-size) /
+    var(--lc-type-title-leading) var(--lc-type-title-font);
+  letter-spacing: var(--lc-type-title-tracking);
 }
 
 .disk-state {
-  border-radius: 999px;
+  border-radius: var(--lc-radius-full);
   padding: 6px 9px;
   color: var(--lc-accent-agent-text);
   background: var(--lc-accent-agent-soft);
@@ -472,7 +639,7 @@ button:disabled {
 .unreachable-panel {
   margin: 18px 0;
   border: 1px dashed var(--lc-line-strong);
-  border-radius: 8px;
+  border-radius: var(--lc-radius-card);
   padding: 38px;
   text-align: center;
   background: color-mix(in oklab, var(--lc-wash) 44%, var(--lc-surface));
@@ -528,7 +695,7 @@ button:disabled {
   margin-bottom: 0;
   padding: 6px 4px 10px;
   color: var(--lc-ink-2);
-  font-size: 13px;
+  font-size: var(--lc-type-ui-size);
   font-weight: 500;
 }
 
@@ -663,7 +830,7 @@ button:disabled {
   overflow: hidden;
   height: 18px;
   margin-bottom: 8px;
-  font-size: 13px;
+  font-size: var(--lc-type-ui-size);
   font-weight: 500;
   line-height: 18px;
   text-overflow: ellipsis;
@@ -705,7 +872,7 @@ button:disabled {
   flex: none;
   width: 44px;
   height: 3px;
-  border-radius: 2px;
+  border-radius: var(--lc-radius-full);
   background: var(--lc-wash);
   overflow: hidden;
 }
@@ -717,7 +884,7 @@ button:disabled {
 .progress i {
   display: block;
   height: 100%;
-  border-radius: 2px;
+  border-radius: var(--lc-radius-full);
   background: var(--lc-ink-3);
   transition: width var(--lc-motion-state) var(--lc-motion-ease);
 }
@@ -844,7 +1011,7 @@ button:disabled {
   width: 190px;
   height: 28px;
   border: 1px solid var(--lc-line);
-  border-radius: 7px;
+  border-radius: var(--lc-radius-control);
   padding: 0 9px;
   color: var(--lc-ink);
   background: var(--lc-surface);
@@ -864,11 +1031,11 @@ button:disabled {
   font-weight: 700;
 }
 
+/* The header's ordering trigger is the small variant of the same control; it
+   states its height and its quieter border and borrows the type. */
 .ordering-control .menu-trigger {
   height: var(--lc-size-control-sm);
   border-color: var(--lc-line);
-  font-size: 12px;
-  font-weight: 400;
 }
 
 .view-segment {
@@ -928,7 +1095,7 @@ button:disabled {
   padding: 0 4px;
   color: var(--lc-ink-2);
   background: var(--lc-surface);
-  font-size: 12.5px;
+  font-size: var(--lc-type-small-size);
   font-weight: 500;
   text-align: left;
 }
@@ -960,7 +1127,7 @@ button:disabled {
 .list-group-body {
   position: relative;
   border: 1px solid var(--lc-line);
-  border-radius: 8px;
+  border-radius: var(--lc-radius-card);
   background: var(--lc-surface);
 }
 
@@ -1006,7 +1173,7 @@ button:disabled {
   overflow: hidden;
   flex: 1;
   min-width: 0;
-  font-size: 13px;
+  font-size: var(--lc-type-ui-size);
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1046,7 +1213,7 @@ button:disabled {
 .list-row.degraded strong {
   color: var(--lc-ink-2);
   font-family: var(--lc-type-code-font);
-  font-size: 11.5px;
+  font-size: var(--lc-type-micro-size);
   font-weight: 400;
 }
 
@@ -1085,6 +1252,14 @@ button:disabled {
   background: var(--lc-surface);
   box-shadow: var(--lc-shadow-overlay);
   animation: lc-panel-in var(--lc-motion-panel) ease-out;
+}
+
+/* The panel is a scrolling column, and a flex column shrinks its children to
+   fit before it agrees to scroll. That compressed the title textarea below its
+   two rows on any ticket with a full timeline — the first line of the title was
+   sliced in half. Nothing in the panel is elastic: it scrolls instead. */
+.ticket-panel > * {
+  flex: none;
 }
 
 @keyframes lc-panel-in {
@@ -1148,7 +1323,7 @@ button:disabled {
   display: inline-block;
   margin-right: var(--lc-space-1);
   font-size: 9px;
-  animation: lc-write-spin 900ms linear infinite;
+  animation: lc-write-spin var(--lc-motion-spinner) linear infinite;
 }
 
 @keyframes lc-write-spin {
@@ -1213,7 +1388,7 @@ button:disabled {
 .panel-title {
   width: 100%;
   border: 1px solid transparent;
-  border-radius: 7px;
+  border-radius: var(--lc-radius-control);
   padding: var(--lc-space-2);
   color: var(--lc-ink);
   background: transparent;
@@ -1280,12 +1455,12 @@ button:disabled {
   display: block;
   width: 100%;
   border: 1px solid transparent;
-  border-radius: 7px;
+  border-radius: var(--lc-radius-control);
   padding: var(--lc-space-2);
   color: var(--lc-ink);
   text-align: left;
   background: transparent;
-  font-size: 13px;
+  font-size: var(--lc-type-ui-size);
   line-height: 1.55;
 }
 
@@ -1319,7 +1494,7 @@ button:disabled {
 
 .composer textarea {
   border: 1px solid var(--lc-line-strong);
-  border-radius: 7px;
+  border-radius: var(--lc-radius-control);
   padding: var(--lc-space-2);
   color: var(--lc-ink);
   background: var(--lc-surface);
@@ -1330,7 +1505,7 @@ button:disabled {
 
 .description-editor {
   border: 1px solid var(--lc-line-strong);
-  border-radius: 7px;
+  border-radius: var(--lc-radius-control);
   background: var(--lc-surface);
 }
 
@@ -1341,7 +1516,7 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--lc-line);
-  border-radius: 7px 7px 0 0;
+  border-radius: var(--lc-radius-control) var(--lc-radius-control) 0 0;
   padding: 0 var(--lc-space-2);
   background: var(--lc-wash);
 }
@@ -1442,7 +1617,7 @@ button:disabled {
 
 /* The rendered subset. 13px/1.55 per `screen-specs.md:184`. */
 .markdown {
-  font-size: 13px;
+  font-size: var(--lc-type-ui-size);
   line-height: 1.55;
 }
 
@@ -1463,12 +1638,12 @@ button:disabled {
 .markdown h6 {
   margin-top: var(--lc-space-3);
   color: var(--lc-ink);
-  font-size: 13px;
+  font-size: var(--lc-type-ui-size);
   font-weight: 620;
 }
 
 .markdown code {
-  border-radius: 4px;
+  border-radius: var(--lc-radius-tile);
   padding: 1px 4px;
   background: var(--lc-tile);
   font: var(--lc-type-code-weight) 12px var(--lc-type-code-font);
@@ -1477,7 +1652,7 @@ button:disabled {
 .markdown-code {
   overflow-x: auto;
   border: 1px solid var(--lc-line);
-  border-radius: 6px;
+  border-radius: var(--lc-radius-control);
   padding: var(--lc-space-2);
   background: var(--lc-tile);
 }
@@ -1528,7 +1703,7 @@ button:disabled {
   display: flex;
   gap: var(--lc-space-2);
   align-items: center;
-  border-radius: 6px;
+  border-radius: var(--lc-radius-control);
   padding: var(--lc-space-1) var(--lc-space-2);
 }
 
@@ -1537,7 +1712,7 @@ button:disabled {
   gap: var(--lc-space-2);
   align-items: center;
   color: var(--lc-ink);
-  font-size: 13px;
+  font-size: var(--lc-type-ui-size);
   font-weight: 400;
 }
 
@@ -1566,7 +1741,7 @@ button:disabled {
 .checklist-add input {
   height: var(--lc-size-control);
   border: 1px solid var(--lc-line-strong);
-  border-radius: 7px;
+  border-radius: var(--lc-radius-control);
   padding: 0 var(--lc-space-2);
   color: var(--lc-ink);
   background: var(--lc-surface);
@@ -1598,7 +1773,7 @@ button:disabled {
 }
 
 .entry-heading strong {
-  font-size: 12.5px;
+  font-size: var(--lc-type-small-size);
 }
 
 .timeline-entry.agent .entry-heading strong {
@@ -1606,22 +1781,33 @@ button:disabled {
   font-family: var(--lc-type-code-font);
 }
 
+/* Humans are circles (components.md:147). */
 .actor-tile {
   display: grid;
   width: var(--lc-size-avatar);
   height: var(--lc-size-avatar);
+  flex: none;
   place-items: center;
-  border: 1px solid var(--lc-line-strong);
+  border: var(--lc-border-hairline) solid var(--lc-line-strong);
   border-radius: 50%;
   color: var(--lc-ink-3);
   font-size: 11px;
 }
 
+/* Agents are not: a square terminal tile on `--lc-tile` — near-black in both
+   appearances, "a terminal window in miniature" — with the prompt glyph in the
+   agent accent and a 1.5px accent ring (components.md:152-157).
+
+   This is not decoration. `components.md:20` makes the redundancy load-bearing:
+   hue is never the only channel separating the two actors, and the agent's
+   second channel is darkness and shape. A tile filled with the accent instead
+   would leave the distinction resting on hue, which D11 forbids. */
 .actor-tile.agent {
-  border-color: var(--lc-accent-agent-border);
+  border: var(--lc-border-ring) solid var(--lc-accent-agent-avatar-ring);
   border-radius: var(--lc-radius-tile);
-  color: var(--lc-on-accent-agent);
-  background: var(--lc-accent-agent);
+  color: var(--lc-accent-agent);
+  background: var(--lc-tile);
+  font: 600 11px var(--lc-type-code-font);
 }
 
 .actor-tile.unknown {
@@ -1690,7 +1876,7 @@ button:disabled {
 
 .entry-changes code {
   color: var(--lc-ink-3);
-  border-radius: 4px;
+  border-radius: var(--lc-radius-tile);
   padding: 1px 4px;
   background: var(--lc-wash);
   font: var(--lc-type-code-weight) 11px var(--lc-type-code-font);
@@ -1705,7 +1891,7 @@ button:disabled {
   margin: var(--lc-space-1) 0 0;
   padding-left: calc(var(--lc-size-avatar) + var(--lc-space-2));
   color: var(--lc-ink);
-  font-size: 13px;
+  font-size: var(--lc-type-ui-size);
   line-height: 1.5;
 }
 
@@ -1856,7 +2042,7 @@ button:disabled {
 .palette-esc {
   flex: none;
   border: 1px solid var(--lc-line);
-  border-radius: 3px;
+  border-radius: var(--lc-radius-kbd);
   padding: 0 var(--lc-space-2);
   background: var(--lc-wash);
   color: var(--lc-ink-3);
@@ -1881,7 +2067,7 @@ button:disabled {
   padding: 0 var(--lc-space-3);
   color: var(--lc-ink);
   background: transparent;
-  font-size: 13px;
+  font-size: var(--lc-type-ui-size);
   text-align: left;
 }
 
@@ -1977,7 +2163,7 @@ button:disabled {
   width: 22px;
   height: 14px;
   border: 1px solid var(--lc-line);
-  border-radius: 3px;
+  border-radius: var(--lc-radius-kbd);
 }
 
 .theme-swatch .swatch-human {
@@ -2028,10 +2214,22 @@ button:disabled {
   white-space: nowrap;
 }
 
+/* Text that exists for assistive technology and not for the eye — the word
+   beside a glyph that carries meaning. Same recipe as the visually hidden theme
+   radio above; kept as a class because a second caller now needs it. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 .theme-option .theme-swatch {
   width: 44px;
   height: 28px;
-  border-radius: 5px;
+  border-radius: var(--lc-radius-control);
 }
 
 .theme-option.selected .theme-swatch {
@@ -2129,7 +2327,7 @@ html.theme-transition *::after {
   color: var(--lc-inverse-ink);
   background: var(--lc-inverse-surface);
   box-shadow: var(--lc-shadow-overlay);
-  font-size: 12.5px;
+  font-size: var(--lc-type-small-size);
 }
 
 .toast.danger {
@@ -2144,7 +2342,7 @@ html.theme-transition *::after {
   padding: 0;
   color: var(--lc-inverse-ink-2);
   background: none;
-  font-size: 12.5px;
+  font-size: var(--lc-type-small-size);
   cursor: pointer;
 }
 
@@ -2228,14 +2426,16 @@ html.theme-transition *::after {
   padding: 0 var(--lc-space-2);
   color: var(--lc-ink);
   background: none;
-  font-size: 12.5px;
+  font-size: var(--lc-type-small-size);
   text-align: left;
   cursor: pointer;
 }
 
+/* The popover is `raised`, so its rows hover to the raised step for the same
+   reason the secondary button does. */
 .menu-row:hover,
 .menu-row:focus-visible {
-  background: var(--lc-wash);
+  background: var(--lc-raised-hover);
 }
 
 .menu-glyph {
@@ -2264,11 +2464,12 @@ html.theme-transition *::after {
   gap: var(--lc-space-2);
   align-items: center;
   border: 1px solid var(--lc-line-strong);
-  border-radius: 7px;
+  border-radius: var(--lc-radius-control);
   padding: 0 var(--lc-space-2);
   color: var(--lc-ink);
   background: var(--lc-surface);
-  font-size: 12.5px;
+  font: var(--lc-type-ui-weight) var(--lc-type-ui-size) /
+    var(--lc-type-ui-leading) var(--lc-type-ui-font);
   cursor: pointer;
 }
 
@@ -2285,7 +2486,7 @@ html.theme-transition *::after {
   color: var(--lc-ink-2);
   background: var(--lc-surface);
   font-family: var(--lc-font-ui);
-  font-size: 11.5px;
+  font-size: var(--lc-type-micro-size);
   font-weight: 500;
   white-space: nowrap;
 }
@@ -2372,7 +2573,7 @@ html.theme-transition *::after {
 
 .label-settings p {
   color: var(--lc-ink-3);
-  font-size: 11.5px;
+  font-size: var(--lc-type-micro-size);
 }
 
 .label-row {

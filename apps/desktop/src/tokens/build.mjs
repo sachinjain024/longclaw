@@ -282,10 +282,15 @@ out.push("  70% { box-shadow: 0 0 0 9px transparent; }");
 out.push("  100% { box-shadow: 0 0 0 0 transparent; }");
 out.push("}");
 out.push("");
+/* Every motion token that names a duration is zeroed, derived from the group
+   rather than listed here: a hardcoded list silently exempts the next token
+   anyone adds, which is exactly what happened to `motion.spinner`. Counts and
+   easing curves are not durations and are left alone. */
+const zeroed = Object.entries(t.motion)
+  .filter(([, value]) => typeof value === "string" && /^[\d.]+m?s$/.test(value))
+  .map(([name]) => `${P}motion-${name}: 0ms;`);
 out.push("@media (prefers-reduced-motion: reduce) {");
-out.push(
-  `  :root { ${P}motion-fast: 0ms; ${P}motion-state: 0ms; ${P}motion-panel: 0ms; }`,
-);
+out.push(`  :root { ${zeroed.join(" ")} }`);
 out.push("}");
 out.push("");
 

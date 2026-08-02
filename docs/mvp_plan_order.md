@@ -57,7 +57,7 @@ The following stay outside this plan:
 | M3 — Vertical slice ready | Steps 5–8 | One real project and ticket complete a human → disk → agent → disk → UI round-trip. |
 | M4 — Pilot direction accepted | Steps 9–10 | Target users have tried the slice and the remaining backlog has been explicitly revised. **Closed 2026-07-31 by founder decision with the first half unmet** — the backlog was revised, no target user tried the slice ([decision](pilot/response-memo.md#direction-decision-2026-07-31-superseded-the-same-day)). |
 | M5 — Feature-complete v0 | Steps 11–14 | All in-scope workflows and trust states work against real files. |
-| M6 — MVP release | Steps 16–17 | Release quality, packaging, documentation, and final acceptance checks pass. |
+| M6 — MVP release | Steps 16a–17 | Release quality, packaging, documentation, and final acceptance checks pass. |
 
 Do not start mass feature implementation before M2. Do not continue executing the original breadth backlog after M3 until the pilot feedback in M4 has been processed.
 
@@ -615,8 +615,8 @@ must never require an account, so parking this costs the MVP no capability. Unpa
 it when the collaboration layer is being built, or earlier if measuring demand
 becomes urgent — the work list below is still how to do it.
 
-The step keeps its number so Step 16 and Step 17 stay stable; both are referenced
-by number from other documents.
+The step keeps its number so Steps 16a, 16b, and 17 remain easy to locate; they are
+referenced by number from other documents.
 
 Because this step is parked rather than deleted, the other documents still describe
 the waitlist — [the vision](vision.md), [the design brief](design_brief.md), the
@@ -644,9 +644,58 @@ are intentionally untouched and now describe parked work, not MVP work.
 - Failure or offline state never interferes with local projects.
 - No telemetry or broader account system is introduced through the waitlist.
 
-### Step 16 — Polish, performance, accessibility, and release hardening
+### Step 16a — Polish the UI against the design system — COMPLETE 2026-08-01
 
-**Goal:** Meet the Linear-grade quality bar on supported macOS hardware and realistic projects.
+**Goal:** Bring the implemented product UI into alignment with the approved design system before release hardening begins.
+
+**Work:**
+
+- Review every implemented MVP surface against the approved tokens, component foundations, layout specifications, and interaction states.
+- Remove one-off visual values and route typography, spacing, radii, borders, elevation, colors, icons, and motion through the design-token and component systems.
+- Polish the shell, first-launch flow, project settings, board, issue list, ticket panel, markdown editor, checklist, comments/activity timeline, search, command palette, and empty/loading/error/conflict states.
+- Verify the human/agent distinction and selected project theme remain visually clear in every supported theme and appearance.
+- Validate keyboard focus, hover, pressed, disabled, selected, optimistic, and external-update states as part of the visual polish pass.
+- Compare the default Indigo implementation with Clay and the remaining fixed presets across light and dark appearance.
+- Capture and resolve visual regressions before handing the build to Step 16b.
+
+**Deliverables:**
+
+- Design-system-aligned MVP UI across all implemented surfaces.
+- Updated visual regression coverage and theme/appearance review notes.
+- Resolved polish backlog with any intentionally deferred discrepancies recorded.
+
+**Expected outcome / exit gate:**
+
+- The implemented MVP surfaces consistently use the approved design system without component-specific styling exceptions that are not documented.
+- Core flows and trust states look and behave coherently across supported themes and appearances.
+- The founder can pick up this step independently and review a polished UI before release hardening continues.
+
+**Completion note:** Step 16a is complete as [plan 37](plans/completed/37-step-16a-ui-polish.md).
+The audit found colour already solved by V0-34's guard and every other axis
+unguarded: 31 literal radii in `styles.css`, ten of them `7px`, a value that is
+not on the radius scale at all. Controls now take the size, radius and type
+tokens and carry the hover, pressed and disabled states `components.md` defines
+and the build never had; the side panel is the spec's 240px shell with the owl
+mark, 28px project rows, project-scoped theme dots and the trust line; and the
+agent avatar is the terminal tile rather than a second saturated fill, which
+restores the shape-and-darkness channel D11 requires. `scripts/token-guard.mjs`
+now fails the build on a literal radius or motion duration, as `color-guard.mjs`
+does for hues. Three defects surfaced during the pass and were fixed: a
+flex-shrunk ticket-panel title, a settings theme picker overflowing under the
+Locate folder button, and a matrix contrast probe that had been passing only
+because the sampler cannot see `opacity`. Verified: `verify` green, the theme
+matrix clean over 4 presets × 2 appearances × 9 states — plus a new interaction
+axis of seven hover, press and focus probes that assert visible feedback rather
+than a token value, which is what the dark-mode hover bug taught — and board p95
+15/18/26/16 ms, list p95 22/19/21/16 ms. Seven discrepancies are recorded as
+deliberately deferred in the plan's outcome — the settings modal, the merged
+content header, the welcome column, the Phase 2 terminal reservation, off-scale
+component type sizes, spacing and border literals, and the human avatar's
+missing initials.
+
+### Step 16b — Complete quality hardening and release preparation
+
+**Goal:** Meet the Linear-grade quality bar on supported macOS hardware and realistic projects, and prepare a release candidate.
 
 **Work:**
 
@@ -713,7 +762,7 @@ are intentionally untouched and now describe parked work, not MVP work.
 
 ## Quality strategy across the plan
 
-Testing should follow the architecture rather than being postponed to Step 16:
+Testing should follow the architecture rather than being postponed to Step 16b:
 
 | Layer | Required proof |
 |---|---|

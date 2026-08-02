@@ -2154,3 +2154,105 @@ describe("the header filter (V0-15)", () => {
     ).toBe("0");
   });
 });
+
+describe("the side panel against its spec (Step 16a)", () => {
+  const reachable = {
+    id: "project-a",
+    name: "Reachable Project",
+    rootPath: "/tmp/LongClaw A",
+    key: "LA",
+    theme: "plum",
+    starred: true,
+    reachable: true,
+    labels: {},
+  };
+
+  const unreachable = {
+    id: "project-b",
+    name: "Moved Project",
+    rootPath: "/tmp/LongClaw B",
+    key: "LB",
+    theme: "clay",
+    starred: false,
+    reachable: false,
+    labels: {},
+  };
+
+  /**
+   * A starred project appears in both sections, so every assertion here is
+   * scoped to Local — which lists every project exactly once.
+   */
+  function localSection() {
+    return [...document.querySelectorAll<HTMLElement>(".project-section")].find(
+      (section) => section.querySelector("h2")?.textContent === "Local",
+    )!;
+  }
+
+  async function renderPanel() {
+    vi.mocked(api.listProjects).mockResolvedValue([reachable, unreachable]);
+    render(<App />);
+    await screen.findAllByText("Reachable Project");
+  }
+
+  it("scopes each theme dot to that project's own preset", async () => {
+    await renderPanel();
+
+    // The accent blocks are compound — `[data-appearance][data-theme]`
+    // (`design-tokens.css:294+`) — so a dot needs **both** axes or it matches no
+    // block and silently inherits the active project's accent, which looks
+    // exactly like working until two projects differ. Asserting `data-theme`
+    // alone would pass on the broken version, so this asserts the pair.
+    const dots = [
+      ...localSection().querySelectorAll<HTMLElement>(".theme-dot"),
+    ];
+    expect(dots.map((dot) => dot.dataset.theme)).toEqual(["plum"]);
+    for (const dot of dots) {
+      expect(dot.dataset.appearance).toBe(
+        document.documentElement.dataset.appearance,
+      );
+      expect(dot.dataset.appearance).toBeTruthy();
+    }
+  });
+
+  it("marks an unreachable project without hiding or disabling it", async () => {
+    await renderPanel();
+
+    // The row keeps its place and stays clickable (`screen-specs.md:40-42`):
+    // relocating a project starts by opening it.
+    const link = [
+      ...localSection().querySelectorAll<HTMLElement>(".project-link"),
+    ].find((element) => element.textContent?.includes("Moved Project"))!;
+    expect(link.className).toContain("unreachable");
+    expect(link.hasAttribute("disabled")).toBe(false);
+
+    // Marked in words as well as by the glyph, and it never wears a theme dot:
+    // a folder that cannot be read cannot vouch for its own preset.
+    expect(link.querySelector(".theme-dot")).toBeNull();
+    // Real text rather than an `aria-label` on a bare span, which is not
+    // reliably exposed: the row's accessible name has to say the word.
+    expect(link.textContent).toContain("Unreachable");
+    expect(
+      link.querySelector(".project-warn")?.getAttribute("aria-hidden"),
+    ).toBe("true");
+
+    // Clicking it selects it and lands on the recovery panel rather than
+    // reaching for a folder that is not there — relocating starts here.
+    fireEvent.click(link);
+    expect(await screen.findByText("UNREACHABLE")).toBeDefined();
+    expect(api.openProject).not.toHaveBeenCalledWith(unreachable.id);
+  });
+
+  it("keeps a starred project's star visible when the row is not hovered", async () => {
+    await renderPanel();
+
+    const star = (name: string) =>
+      [...localSection().querySelectorAll<HTMLElement>(".project-link")]
+        .find((link) => link.textContent?.includes(name))!
+        .querySelector<HTMLElement>(".star-button")!;
+
+    // Hover reveals the affordance; starred state is persistent, so the class
+    // that opts out of the reveal has to be on the row that is starred.
+    expect(star("Reachable Project").className).toContain("starred");
+    expect(star("Moved Project").className).not.toContain("starred");
+  });
+});
