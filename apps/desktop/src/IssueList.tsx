@@ -401,7 +401,11 @@ const ListRow = memo(function ListRow(props: {
       {/* The row is a single focusable unit, so this names what opening it shows
           — the panel renders the raw file for a ticket that would not parse —
           rather than being a second control nested inside a button. */}
-      {row.degraded && <span className="list-row-raw">View raw file</span>}
+      {row.degraded && (
+        <span className="list-row-raw">
+          {row.degraded.readOnly ? "Newer format" : "View raw file"}
+        </span>
+      )}
       <span className="list-row-updated">{row.updated}</span>
     </button>
   );

@@ -90,6 +90,19 @@ const NOTHING_PENDING: Pending = { checks: {} };
  */
 type LoadMode = "open" | "external" | "local";
 
+function degradedHeading(detail: TicketDetail): string {
+  return detail.readOnly
+    ? "Newer format, shown read-only"
+    : "Shown without repair";
+}
+
+function degradedNote(detail: TicketDetail): string {
+  if (detail.readOnly) {
+    return "This ticket was written by a newer LongClaw format. The file is shown exactly as it exists on disk, and this build will not rewrite it.";
+  }
+  return "The file is shown exactly as it exists on disk. Fix it in an editor, then reload or wait for the watcher to read it again.";
+}
+
 interface TicketPanelProps {
   projectId: string;
   ticketKey: string;
@@ -479,14 +492,13 @@ export function TicketPanel(props: TicketPanelProps) {
         <p className="panel-loading">Reading {ticketKey} from disk…</p>
       ) : !ticket ? (
         <section className="degraded-copy">
-          <h3>
-            {detail.readOnly ? "Shown read-only" : "Shown without repair"}
-          </h3>
+          <h3>{degradedHeading(detail)}</h3>
           <p>
             {detail.diagnostic?.line
               ? `${detail.relativePath}:${detail.diagnostic.line} — ${detail.diagnostic.message}`
               : detail.diagnostic?.message}
           </p>
+          <p>{degradedNote(detail)}</p>
           <pre className="raw-file">{detail.raw}</pre>
         </section>
       ) : (

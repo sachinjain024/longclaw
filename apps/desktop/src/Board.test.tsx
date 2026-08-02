@@ -332,6 +332,33 @@ describe("the board's own shape", () => {
     expect(screen.getByRole("heading", { name: /Unreadable/ })).toBeTruthy();
   });
 
+  it("labels a newer-version file as newer format, not repair work", () => {
+    render(
+      board({
+        tickets: [
+          {
+            state: "degraded",
+            key: "LC-99",
+            contentHash: "hash-99",
+            relativePath: ".longclaw/tickets/LC-99/ticket.md",
+            byteLength: 260,
+            readOnly: true,
+            diagnostic: {
+              code: "unsupported_version",
+              message: "schema version 99 is newer than this build supports",
+            },
+          },
+        ],
+      }),
+    );
+
+    const degraded = card("LC-99");
+    expect(degraded.className).toContain("degraded");
+    expect(degraded.textContent).toContain(".longclaw/tickets/LC-99/ticket.md");
+    expect(degraded.textContent).toContain("newer format");
+    expect(degraded.textContent).not.toContain("needs repair");
+  });
+
   it("opens the ticket a card belongs to", () => {
     const onSelect = vi.fn();
     render(
