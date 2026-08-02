@@ -1144,6 +1144,7 @@ fn display_paths(paths: &[PathBuf]) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
     use std::fs;
 
     use super::{
@@ -1257,9 +1258,13 @@ mod tests {
             error.context["leftBehindReason"],
             "Cleanup was skipped because .longclaw existed before this create attempt"
         );
-        assert!(error.context["leftBehindPaths"].contains("longclaw.yaml"));
-        assert!(error.context["leftBehindPaths"].contains("tickets"));
-        assert!(!error.context["leftBehindPaths"].contains("keep-me"));
+        let left_behind_paths: BTreeSet<&str> = error.context["leftBehindPaths"].lines().collect();
+        assert!(
+            left_behind_paths.contains(project.join(".longclaw/longclaw.yaml").to_str().unwrap())
+        );
+        assert!(left_behind_paths.contains(project.join(".longclaw/tickets").to_str().unwrap()));
+        assert!(!left_behind_paths.contains(project.join(".longclaw").to_str().unwrap()));
+        assert!(!left_behind_paths.contains(project.join(".longclaw/keep-me").to_str().unwrap()));
         assert!(project.join(".longclaw/keep-me").is_dir());
         assert!(project.join(".longclaw/longclaw.yaml").is_file());
         assert!(project.join(".longclaw/tickets").is_dir());
