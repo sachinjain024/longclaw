@@ -8,6 +8,24 @@ Can a small Tauri v2 architecture keep LongClaw project files authoritative whil
 
 The answer from this spike is **yes for the exercised direct-distribution macOS path**. M1 human review accepted the v1 file-format contract and M2 human review accepted the architecture on 2026-07-29. Focused real-file compatibility tests protect the v0 contract; a comprehensive canonical conformance-fixture corpus is deferred to the post-MVP product v1.
 
+## Archived dependency manifests
+
+The npm and Cargo manifests in this archived spike are stored with an
+`.archived` suffix so GitHub does not treat the spike as a live dependency
+surface. The reviewed, directly runnable snapshot is preserved by the annotated
+Phase 0 spike tag. To replay the spike from this directory, copy the archived
+manifest names back first:
+
+```sh
+cp package.json.archived package.json
+cp package-lock.json.archived package-lock.json
+cp src-tauri/Cargo.toml.archived src-tauri/Cargo.toml
+cp src-tauri/Cargo.lock.archived src-tauri/Cargo.lock
+```
+
+Do not commit the restored manifest names on `main`; they would re-enable
+dependency alerts for this non-shipping evidence.
+
 ## One command
 
 Prerequisites: macOS, Node 22+, npm, Rust 1.93+.

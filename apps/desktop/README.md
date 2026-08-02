@@ -26,3 +26,15 @@ build.
 
 Local diagnostics print to stdout with the `LONGCLAW_LOCAL_DIAGNOSTIC` prefix.
 The app does not transmit analytics, telemetry, crash reports, or project data.
+
+## Registry recovery
+
+LongClaw stores the local project list in the operating system application
+support directory as `project-registry.json`. A preserved valid copy is kept next
+to it as `project-registry.backup.json`.
+
+If the registry JSON is corrupt, LongClaw fails closed: it does not reset the
+file or forget project paths automatically. Quit the app, copy
+`project-registry.backup.json` over `project-registry.json`, and restart. If the
+backup is also unusable, register the project folders again from the app; project
+files in the repositories are not deleted by registry recovery.
