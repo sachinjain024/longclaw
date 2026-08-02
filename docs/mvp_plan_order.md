@@ -670,7 +670,7 @@ are intentionally untouched and now describe parked work, not MVP work.
 - Core flows and trust states look and behave coherently across supported themes and appearances.
 - The founder can pick up this step independently and review a polished UI before release hardening continues.
 
-**Completion note:** Step 16a is complete as [plan 36](plans/completed/36-step-16a-ui-polish.md).
+**Completion note:** Step 16a is complete as [plan 37](plans/completed/37-step-16a-ui-polish.md).
 The audit found colour already solved by V0-34's guard and every other axis
 unguarded: 31 literal radii in `styles.css`, ten of them `7px`, a value that is
 not on the radius scale at all. Controls now take the size, radius and type

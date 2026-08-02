@@ -369,7 +369,7 @@ Wave 2's own dependencies, which are tighter than Wave 1's were:
 ## Wave 3 is partly done, and Waves 1–2 no longer are open at all
 
 **Step 16a is also closed, out of order, as
-[plan 36](../completed/36-step-16a-ui-polish.md).** It was taken before Step 14
+[plan 37](../completed/37-step-16a-ui-polish.md).** It was taken before Step 14
 because the founder asked for it, and nothing in it depends on the recovery
 work: it is a pass over the surfaces that already exist. Read its § Deferred
 discrepancies before assuming a surface matches the design bundle — six real

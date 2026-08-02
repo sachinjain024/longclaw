@@ -3,7 +3,7 @@ title: "Step 16a: the implemented UI against the design system"
 product: LongClaw
 status: completed
 backlog_id: "none — Step 16a is a plan step, not a backlog row"
-order: 36
+order: 37
 owner_area: Design
 release_blocking: false
 written: 2026-08-01
