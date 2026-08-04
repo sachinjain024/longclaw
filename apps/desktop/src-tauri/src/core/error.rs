@@ -76,30 +76,17 @@ impl AppError {
             ErrorCode::Io
         };
         let name = file_label(path);
-        // `cause` is the typed half of the same answer: the frontend offers the
-        // recovery for a known cause and stays quiet for one it cannot name,
-        // rather than pattern-matching the system's prose (ADR 0010).
-        let (cause, why) = match error.kind() {
-            io::ErrorKind::PermissionDenied => (
-                Some("readOnly"),
-                "The file or the folder it is in is read-only.".to_owned(),
-            ),
-            io::ErrorKind::StorageFull => (
-                Some("noSpace"),
-                "The volume it is on has no space left.".to_owned(),
-            ),
-            io::ErrorKind::NotFound => (
-                Some("missing"),
-                "It is no longer where LongClaw expected to find it.".to_owned(),
-            ),
-            _ => (None, format!("{error}.")),
+        let cause = IoCause::of(&error);
+        let why = match cause {
+            Some(cause) => cause.describe().to_owned(),
+            None => format!("{error}."),
         };
         let reported = Self::new(code, format!("{action} failed for {name}. {why}"), true)
             .with_context("path", path.display().to_string())
             .with_context("fileName", name)
             .with_context("systemError", error.to_string());
         match cause {
-            Some(cause) => reported.with_context("cause", cause),
+            Some(cause) => reported.with_context("cause", cause.as_str()),
             None => reported,
         }
     }
@@ -107,6 +94,54 @@ impl AppError {
     pub fn parse(path: &std::path::Path, message: impl Into<String>) -> Self {
         Self::new(ErrorCode::ParseFailed, message, true)
             .with_context("path", path.display().to_string())
+    }
+}
+
+/// Why a filesystem operation failed, in the only terms the app acts on.
+///
+/// A closed set, like `ErrorCode` and for the same reason (ADR 0010): the
+/// frontend switches on it to offer a recovery, so it is behavior rather than
+/// prose, and the two languages must not drift. `tests/fixtures/ipc-contract.json`
+/// § `writeFailureCauses` pins the set, and both sides assert against it.
+///
+/// An `io::ErrorKind` this does not name is deliberately *not* a variant. The
+/// error keeps the system's own words and the surfaces offer no recovery, which
+/// is better than sending somebody to check permissions on an ejected volume.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IoCause {
+    ReadOnly,
+    NoSpace,
+    Missing,
+}
+
+impl IoCause {
+    /// Every cause, in wire order, for the contract pin.
+    pub const ALL: [Self; 3] = [Self::Missing, Self::NoSpace, Self::ReadOnly];
+
+    fn of(error: &io::Error) -> Option<Self> {
+        match error.kind() {
+            io::ErrorKind::PermissionDenied => Some(Self::ReadOnly),
+            io::ErrorKind::StorageFull => Some(Self::NoSpace),
+            io::ErrorKind::NotFound => Some(Self::Missing),
+            _ => None,
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::ReadOnly => "readOnly",
+            Self::NoSpace => "noSpace",
+            Self::Missing => "missing",
+        }
+    }
+
+    /// The clause that goes in the message, for a human rather than a log.
+    fn describe(self) -> &'static str {
+        match self {
+            Self::ReadOnly => "The file or the folder it is in is read-only.",
+            Self::NoSpace => "The volume it is on has no space left.",
+            Self::Missing => "It is no longer where LongClaw expected to find it.",
+        }
     }
 }
 
@@ -287,6 +322,20 @@ mod tests {
         );
         // No cause the app can name, so it claims none and offers no recovery.
         assert!(!error.context.contains_key("cause"));
+    }
+
+    #[test]
+    fn the_cause_set_is_the_one_the_ipc_contract_pins() {
+        let fixture: serde_json::Value =
+            serde_json::from_str(include_str!("../../tests/fixtures/ipc-contract.json"))
+                .expect("IPC contract fixture must be valid JSON");
+        let emitted: Vec<&str> = IoCause::ALL.iter().map(|cause| cause.as_str()).collect();
+
+        assert_eq!(
+            serde_json::to_value(&emitted).expect("causes must serialize"),
+            fixture["writeFailureCauses"],
+            "the set of write-failure causes changed; `src/failure.ts` switches on it"
+        );
     }
 
     #[test]

@@ -36,6 +36,7 @@ import { Timeline } from "./Timeline";
 import type {
   AppError,
   ChecklistItem,
+  HeldConflict,
   Label,
   TicketDetail,
   TicketEdit,
@@ -136,7 +137,7 @@ interface TicketPanelProps {
    * mine choice they would have got had they made the change in the panel
    * (V0-29).
    */
-  heldConflict?: { ticketKey: string; error: AppError; edit: TicketEdit };
+  heldConflict?: HeldConflict;
   onClose: () => void;
   /** Asks for the flip. The panel writes nothing here; see `archived`. */
   onArchive: (archived: boolean) => void;
@@ -205,6 +206,23 @@ export function TicketPanel(props: TicketPanelProps) {
   /** The checklist as last read, so an external tick can be told from a stale one. */
   const loadedChecklist = useRef<ChecklistItem[]>([]);
   /**
+   * The file as last read, for `save()` to take its `expectedHash` from.
+   *
+   * `detail` is the same value and is what the panel renders; this exists
+   * because a save can be waiting on a read that has already landed but not yet
+   * re-rendered, and the hash it sends has to be the one that came back.
+   */
+  const lastRead = useRef<TicketDetail>(undefined);
+  /**
+   * The re-read a conflict started, so Keep mine can wait for it.
+   *
+   * `takeConflict` raises the banner at once — an unresolved conflict is true
+   * the moment the write is refused — but the read that makes Keep mine safe is
+   * a round trip behind it. Without this the button is live in between, and it
+   * would write against the hash the refusal already proved stale (V0-29).
+   */
+  const refreshing = useRef<Promise<unknown> | undefined>(undefined);
+  /**
    * What the loader needs to know about drafts, as a ref: it must not overwrite
    * what the human is typing, and it must not be rebuilt every keystroke.
    */
@@ -262,6 +280,7 @@ export function TicketPanel(props: TicketPanelProps) {
       clearPending();
       setPendingComment(undefined);
       setDetail(next);
+      lastRead.current = next;
 
       const unsaved = mode === "external" ? draftEdit() : undefined;
       if (unsaved) {
@@ -310,7 +329,7 @@ export function TicketPanel(props: TicketPanelProps) {
    * over content the human can read, which is what makes Keep mine a decision
    * rather than a blind overwrite.
    */
-  const seededHandOff = useRef<TicketPanelProps["heldConflict"]>(undefined);
+  const seededHandOff = useRef<HeldConflict | undefined>(undefined);
   const heldConflict = props.heldConflict;
   useEffect(() => {
     if (!detail || !heldConflict || heldConflict.ticketKey !== ticketKey)
@@ -319,8 +338,9 @@ export function TicketPanel(props: TicketPanelProps) {
     seededHandOff.current = heldConflict;
     setConflict({ error: heldConflict.error, pending: heldConflict.edit });
     // The panel may have been open and idle when the write was refused, in
-    // which case what it is showing is older than the refusal.
-    void load("external");
+    // which case what it is showing is older than the refusal. Keep mine waits
+    // on this read rather than racing it.
+    refreshing.current = load("external");
   }, [detail, heldConflict, ticketKey, load]);
 
   // The panel is an overlay, so Escape has to close it from anywhere, and opening
@@ -415,7 +435,7 @@ export function TicketPanel(props: TicketPanelProps) {
       //
       // `external` is the mode for exactly this: the file moved, so drafts are
       // preserved rather than overwritten with what is now on disk.
-      void load("external");
+      refreshing.current = load("external");
       return true;
     };
   }
@@ -434,11 +454,14 @@ export function TicketPanel(props: TicketPanelProps) {
       clearPending();
       return;
     }
-    const hash = detail?.contentHash;
+    // The last read rather than the last render: a save that waited on a read —
+    // Keep mine does — must send the hash that came back, not the one that was
+    // on screen when the button was pressed.
+    const hash = lastRead.current?.contentHash;
     if (!hash || saving) return;
     setSaving(true);
     const written = await mutate({
-      path: detail?.relativePath,
+      path: lastRead.current?.relativePath,
       apply: options?.apply,
       write: () =>
         editTicket({ projectId, ticketKey, expectedHash: hash, edit }),
@@ -487,7 +510,9 @@ export function TicketPanel(props: TicketPanelProps) {
     // The edit the conflict refused, not the panel's `pending` — that was
     // cleared when the banner went up.
     const refused = conflict?.pending;
-    if (!refused) return;
+    if (!refused || saving) return;
+    // "As it is now" is a promise, and the read that keeps it may still be out.
+    await refreshing.current;
     await save(refused, { resolvesConflict: true });
   }
 

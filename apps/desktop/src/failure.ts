@@ -14,7 +14,15 @@
  * on the system's prose.
  */
 
-import type { AppError } from "./types";
+import type { AppError, FailureCause } from "./types";
+
+/** The cause the error carries, if it carries one this build knows. */
+function causeOf(error: AppError): FailureCause | undefined {
+  const cause = error.context?.cause;
+  return cause === "readOnly" || cause === "noSpace" || cause === "missing"
+    ? cause
+    : undefined;
+}
 
 /** A human title, so no surface has to fall back to printing the code. */
 export function failureTitle(error: AppError): string {
@@ -49,16 +57,15 @@ export function failureTitle(error: AppError): string {
  * unplugged. Silence leaves Retry, which is honest.
  */
 export function failureRecovery(error: AppError): string | undefined {
-  switch (error.context?.cause) {
-    case "readOnly":
-      return "Give yourself write access to it and to its folder, then try again.";
-    case "noSpace":
-      return "Free some space on the volume, then try again.";
-    case "missing":
-      return "Check whether it was moved or renamed, then try again.";
-    default:
-      return undefined;
-  }
+  const cause = causeOf(error);
+  if (cause === undefined) return undefined;
+  const recovery: Record<FailureCause, string> = {
+    readOnly:
+      "Give yourself write access to it and to its folder, then try again.",
+    noSpace: "Free some space on the volume, then try again.",
+    missing: "Check whether it was moved or renamed, then try again.",
+  };
+  return recovery[cause];
 }
 
 /** The file this failure is about, when the error names one. */

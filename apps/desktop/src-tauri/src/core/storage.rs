@@ -523,7 +523,7 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> AppResult<()> {
     let result = (|| -> AppResult<()> {
         write_durable_sibling(&temporary, path, bytes)?;
         fs::rename(&temporary, path).map_err(|error| AppError::io("Saving ticket", path, error))?;
-        sync_directory(parent)
+        sync_directory(parent, path)
     })();
     if result.is_err() {
         let _ = fs::remove_file(&temporary);
@@ -720,7 +720,7 @@ pub fn atomic_replace_with_seams(
     })?;
     if content_hash(&displaced) == expected_hash {
         let _ = fs::remove_file(&temporary);
-        sync_directory(parent)?;
+        sync_directory(parent, path)?;
         return Ok(());
     }
 
@@ -730,12 +730,12 @@ pub fn atomic_replace_with_seams(
     if let Err(error) = swap_paths(&temporary, path) {
         let preserved = parent.join(format!(".{name}.longclaw-conflict-{}.bak", Uuid::new_v4()));
         let _ = fs::rename(&temporary, &preserved);
-        let _ = sync_directory(parent);
+        let _ = sync_directory(parent, path);
         return Err(AppError::io("Restoring the displaced file", path, error)
             .with_context("preservedPath", preserved.display().to_string()));
     }
     let _ = fs::remove_file(&temporary);
-    sync_directory(parent)?;
+    sync_directory(parent, path)?;
 
     let file = read_ticket_file_unowned(path)?;
     Err(conflict_error(&file, expected_hash)
@@ -770,10 +770,19 @@ fn write_durable_sibling(temporary: &Path, model: &Path, bytes: &[u8]) -> AppRes
     Ok(())
 }
 
-fn sync_directory(parent: &Path) -> AppResult<()> {
+/// Makes the directory entry durable, and reports a failure as what it is: the
+/// last step of saving `subject`.
+///
+/// The error names the ticket rather than the folder. Every other step of the
+/// save reports `ticket.md`, and one step reporting `LC-1` would have the same
+/// failure describe itself two ways depending on how far it got (V0-29).
+fn sync_directory(parent: &Path, subject: &Path) -> AppResult<()> {
     File::open(parent)
         .and_then(|directory| directory.sync_all())
-        .map_err(|error| AppError::io("Saving ticket", parent, error))
+        .map_err(|error| {
+            AppError::io("Saving ticket", subject, error)
+                .with_context("directory", parent.display().to_string())
+        })
 }
 
 /// Reads a ticket, applies `edit`, and returns the bytes to write. Nothing is
@@ -1225,6 +1234,24 @@ mod tests {
         assert_eq!(
             error.context.get("path").map(std::path::PathBuf::from),
             Some(write.path.canonicalize().unwrap())
+        );
+    }
+
+    #[test]
+    fn a_directory_sync_failure_still_names_the_ticket_file() {
+        let temp = tempfile::tempdir().unwrap();
+        let (_project, write) = project_with_a_ticket(temp.path());
+        let gone = temp.path().join("a-folder-that-is-not-there");
+
+        let error = super::sync_directory(&gone, &write.path).unwrap_err();
+
+        // The last step of a save is a directory sync, and the human's file is
+        // still `ticket.md` — naming the folder here would make one write path
+        // report a different thing from the rest of it (V0-29).
+        assert!(error.message.contains("ticket.md"));
+        assert_eq!(
+            error.context.get("fileName").map(String::as_str),
+            Some("ticket.md")
         );
     }
 

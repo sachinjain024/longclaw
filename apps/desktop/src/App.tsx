@@ -62,6 +62,7 @@ import {
 import type {
   AppError,
   CreateTicketRequest,
+  HeldConflict,
   IndexedTicket,
   Label,
   ProjectReference,
@@ -336,11 +337,7 @@ export function App() {
    * It is deliberately short-lived: opening any ticket or closing the panel
    * drops it, so a choice left behind is left behind.
    */
-  const [heldConflict, setHeldConflict] = useState<{
-    ticketKey: string;
-    error: AppError;
-    edit: TicketEdit;
-  }>();
+  const [heldConflict, setHeldConflict] = useState<HeldConflict>();
 
   /** Where an unresolved conflict goes: to the panel, holding its edit. */
   function handToPanel(ticketKey: string, edit: TicketEdit) {

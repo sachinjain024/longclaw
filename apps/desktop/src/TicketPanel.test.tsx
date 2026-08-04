@@ -896,6 +896,44 @@ describe("a destructive-adjacent change and taking it back", () => {
   });
 
   /**
+   * V0-29, review follow-up. Re-reading on refusal is not enough on its own:
+   * the banner goes up while the read is still in flight, so a fast hand could
+   * press Keep mine against the hash that was just refused.
+   */
+  it("waits for the re-read before keeping mine, rather than racing it", async () => {
+    let arrive: () => void = () => {};
+    readTicketMock.mockResolvedValueOnce(detail()).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          arrive = () => resolve(detail({ contentHash: "hash-agent" }));
+        }),
+    );
+    editTicketMock.mockRejectedValueOnce({
+      code: "conflict",
+      message: "LC-1 changed on disk. Your version was not written over it.",
+      recoverable: true,
+      context: { ticketKey: "LC-1" },
+    });
+    render(surface());
+    await ready();
+
+    pick("Status", "In Progress");
+    await screen.findByText("⚠ Changed on disk while you were editing");
+
+    // The read has not come back yet, and the human is already clicking.
+    editTicketMock.mockResolvedValue(writeResult());
+    fireEvent.click(screen.getByText("Keep mine"));
+    expect(editTicketMock).toHaveBeenCalledTimes(1);
+
+    arrive();
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
+    expect(editTicketMock.mock.calls[1][0]).toMatchObject({
+      expectedHash: "hash-agent",
+    });
+  });
+
+  /**
    * V0-29. The inverse mutation carried no `handles`, so a conflict on Undo
    * fell through to the ordinary danger toast — a fact and a dismissal — while
    * the same conflict on the forward save got the banner and a choice.
