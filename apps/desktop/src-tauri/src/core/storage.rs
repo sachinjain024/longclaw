@@ -522,8 +522,7 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> AppResult<()> {
     let temporary = parent.join(format!(".{name}.longclaw-{}.tmp", Uuid::new_v4()));
     let result = (|| -> AppResult<()> {
         write_durable_sibling(&temporary, path, bytes)?;
-        fs::rename(&temporary, path)
-            .map_err(|error| AppError::io("Saving ticket", path, error))?;
+        fs::rename(&temporary, path).map_err(|error| AppError::io("Saving ticket", path, error))?;
         sync_directory(parent)
     })();
     if result.is_err() {

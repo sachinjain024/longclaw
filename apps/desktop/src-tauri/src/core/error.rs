@@ -57,7 +57,9 @@ impl AppError {
         key: impl Into<String>,
         value: impl Into<String>,
     ) -> Self {
-        self.context.entry(key.into()).or_insert_with(|| value.into());
+        self.context
+            .entry(key.into())
+            .or_insert_with(|| value.into());
         self
     }
 
@@ -201,6 +203,20 @@ impl Display for Diagnostic {
     }
 }
 
+impl From<Diagnostic> for AppError {
+    fn from(diagnostic: Diagnostic) -> Self {
+        let error = Self::new(
+            diagnostic.code,
+            diagnostic.message,
+            diagnostic.code != ErrorCode::UnsupportedVersion,
+        );
+        match diagnostic.line {
+            Some(line) => error.with_context("line", line.to_string()),
+            None => error,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -288,19 +304,5 @@ mod tests {
             error.context.get("path").map(String::as_str),
             Some("/projects/app/ticket.md")
         );
-    }
-}
-
-impl From<Diagnostic> for AppError {
-    fn from(diagnostic: Diagnostic) -> Self {
-        let error = Self::new(
-            diagnostic.code,
-            diagnostic.message,
-            diagnostic.code != ErrorCode::UnsupportedVersion,
-        );
-        match diagnostic.line {
-            Some(line) => error.with_context("line", line.to_string()),
-            None => error,
-        }
     }
 }

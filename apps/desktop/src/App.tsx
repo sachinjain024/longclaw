@@ -1073,7 +1073,9 @@ export function App() {
                 <code className="failure-path">{failurePath(error)}</code>
               )}
             </span>
-            {failureGuarantee(error) && <small>{failureGuarantee(error)}</small>}
+            {failureGuarantee(error) && (
+              <small>{failureGuarantee(error)}</small>
+            )}
           </section>
         )}
 

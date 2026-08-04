@@ -313,7 +313,8 @@ export function TicketPanel(props: TicketPanelProps) {
   const seededHandOff = useRef<TicketPanelProps["heldConflict"]>(undefined);
   const heldConflict = props.heldConflict;
   useEffect(() => {
-    if (!detail || !heldConflict || heldConflict.ticketKey !== ticketKey) return;
+    if (!detail || !heldConflict || heldConflict.ticketKey !== ticketKey)
+      return;
     if (seededHandOff.current === heldConflict) return;
     seededHandOff.current = heldConflict;
     setConflict({ error: heldConflict.error, pending: heldConflict.edit });

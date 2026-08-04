@@ -245,7 +245,8 @@ describe("running a mutation", () => {
       write: () =>
         Promise.reject({
           code: "io",
-          message: "Saving ticket failed for ticket.md. the volume was ejected.",
+          message:
+            "Saving ticket failed for ticket.md. the volume was ejected.",
           recoverable: true,
           context: { path: "/projects/app/.longclaw/tickets/LC-1/ticket.md" },
         }),

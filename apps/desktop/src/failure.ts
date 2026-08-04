@@ -73,7 +73,8 @@ export function failurePath(error: AppError): string | undefined {
  */
 export function failureGuarantee(error: AppError): string | undefined {
   const preserved = error.context?.preservedPath;
-  if (preserved) return `The bytes this save displaced were kept at ${preserved}.`;
+  if (preserved)
+    return `The bytes this save displaced were kept at ${preserved}.`;
   if (!error.recoverable) return undefined;
   return "The file was left as it was.";
 }
