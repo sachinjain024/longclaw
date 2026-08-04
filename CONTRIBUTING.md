@@ -42,9 +42,10 @@ Run the full local gate before committing:
 npm run verify
 ```
 
-The gate covers formatting, linting, TypeScript type checking, frontend unit and
-component tests, Rust unit/integration tests, watcher integration coverage,
-Clippy, and the Vite production build.
+The gate covers token generation, archived-spike manifest scope, the release
+privacy/filesystem audit, formatting, linting, TypeScript type checking,
+frontend unit and component tests, Rust unit/integration tests, watcher
+integration coverage, Clippy, and the Vite production build.
 
 Component tests run in jsdom and opt in per file with a
 `// @vitest-environment jsdom` docblock, so pure logic tests stay on the fast
@@ -72,6 +73,7 @@ Test suites worth knowing about:
 | `npm run test:watcher` | the production FSEvents watcher end to end (ignored by default)                                         |
 | `npm run perf:rust`    | index rebuild, search, read, and write budgets against a 5,000-ticket project                           |
 | `npm run perf:board`   | input → paint on a 5,000-ticket board, traced in WebKit (see `apps/desktop/perf/README.md`)             |
+| `npm run perf:list`    | the same input → paint trace against the shipped list surface                                           |
 
 `perf:board` needs a WebKit build, once per machine:
 

@@ -18,9 +18,10 @@ local project registry and native folder selection only.
 
 ## Quality gate
 
-`npm run verify` checks formatting, linting, TypeScript types, frontend tests,
-Rust tests, Clippy, watcher integration coverage, and the Vite production
-build.
+`npm run verify` checks token generation, archived-spike manifest scope, the
+release privacy/filesystem audit, formatting, linting, TypeScript types,
+frontend tests, Rust tests, Clippy, watcher integration coverage, and the Vite
+production build.
 
 ## Privacy boundary
 

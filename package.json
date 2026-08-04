@@ -17,6 +17,7 @@
     "lint": "npm --prefix apps/desktop run lint",
     "test": "npm --prefix apps/desktop run test",
     "verify": "npm --prefix apps/desktop run verify",
+    "perf:rust": "npm --prefix apps/desktop run perf:rust",
     "perf:board": "npm --prefix apps/desktop run perf:board",
     "perf:list": "npm --prefix apps/desktop run perf:list"
   }
