@@ -91,9 +91,14 @@ first board paint.
 
 `perf:startup` redirects `HOME` to a throwaway directory and copies the fixture
 project, so it never reads or writes the real registry in
-`~/Library/Application Support/io.longclaw.desktop`. It reports warm launches;
-a true cold number needs the page cache dropped (`sudo purge`, or a reboot),
-which it will not do for you.
+`~/Library/Application Support/io.longclaw.desktop`. It reports warm launches by
+default. For the cold budget, drop the page cache first and say so — only the
+first launch of that run is cold, and the flag is an assertion the harness cannot
+check:
+
+```sh
+sudo purge && npm run perf:startup -- --cold
+```
 
 ## Diagnostics and privacy
 

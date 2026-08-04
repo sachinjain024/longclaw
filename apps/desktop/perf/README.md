@@ -24,6 +24,7 @@ npm run perf:list                      # the shipped issue list
 npm run perf:startup                   # process start → first painted board
 npm run perf:startup -- --launches=9   # more samples
 npm run perf:startup -- --project=/a/real/project
+sudo purge && npm run perf:startup -- --cold   # the cold budget, one sample only
 npm run perf:board -- --nav=Tab        # the pre-roving-focus baseline
 npm run perf:board -- --order=manual   # the Manual comparator (ADR 0003)
 npm run perf:board -- --filter="storage"  # a different query in the filter trace

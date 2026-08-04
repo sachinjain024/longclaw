@@ -23,9 +23,15 @@
  *
  * **On cold and warm.** Warm is what repeated launches measure and it is what
  * this reports. A true cold launch needs the page cache dropped — `sudo purge`,
- * or a reboot — which this cannot do unprivileged, so the first launch is
- * reported separately and labelled for what it is: the first of this run, not a
- * cold-boot number. Do not file it as one.
+ * or a reboot — which this cannot do unprivileged and cannot detect afterwards.
+ * So the first launch is reported separately and, by default, labelled for what
+ * it is: the first of this run, not a cold-boot number. Do not file it as one.
+ *
+ * `--cold` says you have just dropped the cache and that the first sample is
+ * therefore a real cold launch. It is an assertion by the operator, not a
+ * measurement — the harness has no way to check it, and labels the number as
+ * asserted so a reader of the record knows which it is. Only the first sample
+ * of such a run is cold; every launch after it has paged the binary back in.
  *
  * Usage, from `apps/desktop` — the repo-root wrapper is
  * `npm --prefix apps/desktop run perf:startup`, and npm swallows arguments
@@ -34,6 +40,7 @@
  *   npm run perf:startup                  # 5 launches against the small fixture
  *   npm run perf:startup -- --launches=9
  *   npm run perf:startup -- --project=/path/to/a/real/project
+ *   sudo purge && npm run perf:startup -- --cold   # the cold budget
  */
 
 import { spawn } from "node:child_process";
@@ -70,6 +77,8 @@ const argument = (name, fallback) => {
 };
 
 const LAUNCHES = Number(argument("launches", "5"));
+/** The operator asserting they dropped the page cache immediately before this run. */
+const COLD = process.argv.includes("--cold");
 const PROJECT = resolve(
   argument("project", join(repoRoot, "fixtures/representative-project")),
 );
@@ -211,7 +220,9 @@ async function main() {
   );
   console.log(`samples ms: ${samples.map(round).join(", ")}`);
   console.log(
-    `first launch of this run: ${round(first)} ms  (NOT a cold-boot number — see the docblock)`,
+    COLD
+      ? `cold: ${round(first)} ms  (first launch, page cache asserted dropped via --cold; budget ≤ ${COLD_BUDGET_MS}ms)`
+      : `first launch of this run: ${round(first)} ms  (NOT a cold-boot number — see the docblock)`,
   );
   if (warm.length > 0) {
     console.log(
@@ -231,7 +242,9 @@ async function main() {
     process.exitCode = 1;
   } else {
     console.log(
-      `\nwithin budget: warm ≤ ${WARM_BUDGET_MS}ms, first launch ≤ ${COLD_BUDGET_MS}ms (cold budget, measured warm — an upper bound only)`,
+      COLD
+        ? `\nwithin budget: cold ≤ ${COLD_BUDGET_MS}ms, warm ≤ ${WARM_BUDGET_MS}ms`
+        : `\nwithin budget: warm ≤ ${WARM_BUDGET_MS}ms, first launch ≤ ${COLD_BUDGET_MS}ms (cold budget, measured warm — an upper bound only)`,
     );
   }
 }

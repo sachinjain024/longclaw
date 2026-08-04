@@ -570,10 +570,16 @@ of the fixture project, which also keeps it away from the real registry.
 **Warm: p50 458.69 ms, p95 481.13 ms, min 447.57, max 481.13 over 9 launches**,
 against the ≤ 750 ms budget — faster than the Step 4 spike's own 560–693 ms.
 
-**Cold is still not measured**, and this is the honest gap: a real cold launch
-needs the page cache dropped, which needs `sudo purge` or a reboot. The warm
-numbers bound the ≤ 1,500 ms cold budget comfortably but do not measure it. It is
-recorded as a release blocker in the candidate record rather than waved through.
+**Cold: 1090.98 ms**, against the ≤ 1,500 ms budget, taken as the first launch
+after `sudo purge`; the next launch was `488.08 ms`, so the split is real rather
+than noise, and the number sits between the spike's own two cold observations
+(843.97 and 1367.64 ms). Both startup budgets now have a number against them,
+which is what finding 1 asked for.
+
+Only one cold sample exists per cache drop, so there is no cold percentile — a
+single observation is all this measurement can be without repeated privileged
+purges. `--cold` labels the sample and nothing more: the harness cannot verify
+the cache was dropped, and the output says the claim is the operator's.
 
 **A defect found while measuring.** `LONGCLAW_EXIT_AFTER_FIRST_PROBE` — the
 affordance built for this exact job — can report a startup time for an empty

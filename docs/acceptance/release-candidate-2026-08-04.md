@@ -64,8 +64,8 @@ below were re-taken at `52565d1` with Low Power Mode off, verified at
 
 | Area | Result | Evidence |
 |---|---|---|
+| Startup, cold | `1090.98 ms`, budget ≤ 1,500 ms — first launch after `sudo purge`; the next launch was `488.08 ms` | `sudo purge && npm run perf:startup -- --cold` |
 | Startup, warm | p50 `458.69 ms`, p95 `481.13 ms`, min `447.57 ms`, max `481.13 ms` over 9 launches of the packaged app; budget ≤ 750 ms | `npm run perf:startup` |
-| Startup, cold | **not measured** — a true cold launch needs the page cache dropped, which needs `sudo purge` or a reboot. The 9 warm launches are an upper bound well inside the ≤ 1,500 ms cold budget, but they are not the measurement. Step 17 blocker | — |
 | Folder open | Rust 5,000-ticket open `1464.80 ms`, budget ≤ 2,500 ms | `npm run perf:rust` |
 | Index build, 5,000 tickets | rebuild `1172.13 ms`, concurrent request `60.61 ms` | `npm run perf:rust` |
 | Board interaction, 5,000 tickets | p95 keyboard `15 ms`, scroll `18 ms`, filter `26 ms`, external write `17 ms`; p50 `14`/`17`/`16`/`16 ms`; first paint `146 ms`; `frame_ms=17` | `npm run perf:board` |
@@ -96,6 +96,15 @@ because the budget is on the release bundle — opening
 `HOME` to a throwaway directory holding a copy of the project and a one-row
 registry, so the run cannot read or disturb the real registry at
 `~/Library/Application Support/io.longclaw.desktop`.
+
+Cold was taken as the first launch after `sudo purge`, which is the only launch
+in a run that is cold — the binary is paged in by the time the second starts, and
+the `488.08 ms` that followed it confirms the split is real rather than noise.
+`--cold` only labels the sample; the harness cannot verify the cache was dropped
+and says so in the output, so the claim rests on the operator having run `purge`
+immediately before. One cold sample per purge is all that is available, so there
+is no cold percentile here, only a single observation. It sits between the Step 4
+spike's own two cold launches, `843.97 ms` and `1367.64 ms`.
 
 Nothing was instrumented for this. The app has carried the probe since Step 4:
 `run()` stamps `PROCESS_STARTED`, the board reports `reportVisibleUi` from
@@ -207,7 +216,6 @@ notes do not exist yet.
 |---|---|---|---|---|
 | Release blocker | Clean-machine packaged-app pass is not complete | Fresh install, upgrade, restart, folder move, and offline behavior are not yet proven on a machine/profile that has never run LongClaw | Run the install/upgrade/offline table in Step 17 before release | Do not release until complete |
 | Release blocker | Manual accessibility pass is not complete | Keyboard-only and VoiceOver completion of the core ticket lifecycle is not yet proven against the packaged app | Run the accessibility table in Step 17 before release | Do not release until complete |
-| Release blocker | Cold startup is not measured | The ≤ 1,500 ms cold budget has no number against it; only warm launches (p50 `458.69 ms`) were taken, which bound it but do not measure it | Drop the page cache with `sudo purge` or reboot, then run `npm run perf:startup` and take the first sample | Do not release until measured |
 | Accepted for this candidate | `LONGCLAW_EXIT_AFTER_FIRST_PROBE` can report a startup time for an empty board | The affordance built for measuring startup exits on the first visible-UI probe, which races the project load (`src/App.tsx:353`) and sometimes fires with `rowCount: 0`. A measurement taken with it is silently wrong some fraction of the time | Use `npm run perf:startup`, which waits for a probe reporting rows; do not use the env var directly | Diagnostics-only, not user-facing; accept for v0 and fix with the probe |
 | Release blocker | Runtime network audit is not complete | Static audit proves source/config boundaries, but runtime process connections were not observed during packaged-app use | Run offline and online process-monitor passes before release | Do not release until complete |
 | Accepted for this candidate | Build is unsigned and not notarized | Gatekeeper will warn on first launch | Publish release-note opening instructions; prefer right-click Open for this candidate | Accept only if release notes include the warning |
