@@ -14,14 +14,19 @@
  * on the system's prose.
  */
 
-import type { AppError, FailureCause } from "./types";
+import { FAILURE_CAUSES, type AppError, type FailureCause } from "./types";
 
-/** The cause the error carries, if it carries one this build knows. */
+/**
+ * The cause the error carries, if it carries one this build knows.
+ *
+ * Derived from `FAILURE_CAUSES` rather than repeating its members, so a cause
+ * added on the Rust side is a one-line change here and not a silent gap: the
+ * fixture pin catches the list, and `failureRecovery`'s exhaustive record
+ * refuses to compile until the new cause has copy.
+ */
 function causeOf(error: AppError): FailureCause | undefined {
   const cause = error.context?.cause;
-  return cause === "readOnly" || cause === "noSpace" || cause === "missing"
-    ? cause
-    : undefined;
+  return FAILURE_CAUSES.find((known) => known === cause);
 }
 
 /** A human title, so no surface has to fall back to printing the code. */

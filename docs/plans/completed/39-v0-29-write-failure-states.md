@@ -344,7 +344,13 @@ the last **read** rather than the last render, so a save that waited sends what
 came back rather than what was on screen when the button was pressed. The held
 board conflict starts the same read and is covered by the same await.
 Pinned by `TicketPanel.test.tsx` § "waits for the re-read before keeping mine,
-rather than racing it", **red on the write going out immediately**.
+rather than racing it" and — after a second review asked for the board path to be
+pinned in its own right rather than by shared mechanism — `App.test.tsx` § "waits
+for the panel's own read before keeping a held conflict". Both **red on the write
+going out immediately**, confirmed by removing the `await` with the tests in
+place. The board path is the longer window of the two: the panel raises the
+handed-over banner as soon as it has *a* file, and only then goes back for the
+current one.
 
 **`sync_directory` named the folder.** The last step of a save reported `LC-1`
 where every other step reports `ticket.md`. It now names the ticket and keeps the
@@ -358,13 +364,19 @@ from both languages, exactly as `appliedFieldChanges` pins what an edit can
 write. `src/failure.test.ts` also pins the degrade: a cause this build does not
 know offers no recovery rather than a guess.
 
+On the TS side the list exists **once**: `FAILURE_CAUSES` is a const tuple,
+`FailureCause` is derived from it, and the guard in `failure.ts` derives from it
+too, so a cause added in Rust is one line here rather than three that can drift
+apart. `failureRecovery`'s exhaustive `Record<FailureCause, string>` then refuses
+to compile until the new cause has copy.
+
 **The hand-off was a data clump.** `{ ticketKey, error, edit }` is `HeldConflict`
 in `types.ts` now, shared rather than written out in both `App` and `TicketPanel`.
 
 ### Validation
 
 - `npm run verify` — green end to end: tokens, format, lint (eslint + clippy),
-  typecheck, 525 frontend tests, 196 Rust tests, vite build, and the native
+  typecheck, 526 frontend tests, 196 Rust tests, vite build, and the native
   watcher round trip. Re-run green after the review follow-up.
 - `npm --prefix apps/desktop run test:stress` — green.
 

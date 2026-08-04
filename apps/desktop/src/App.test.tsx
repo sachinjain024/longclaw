@@ -1685,6 +1685,61 @@ describe("archive and unarchive (V0-11)", () => {
     });
   });
 
+  /**
+   * V0-29, review follow-up. The panel raises the handed-over banner as soon as
+   * it has *a* file, and only then goes back for the current one — so between
+   * those two reads Keep mine is on screen with an older hash behind it. The
+   * panel-local case is pinned in `TicketPanel.test.tsx`; this is the same
+   * window on the way in from the board, which is the longer of the two.
+   */
+  it("waits for the panel's own read before keeping a held conflict", async () => {
+    vi.mocked(api.readTicket).mockResolvedValue(detail("LC-1"));
+    vi.mocked(api.editTicket).mockRejectedValue({
+      code: "conflict",
+      message: "LC-1 changed on disk. Your version was not written over it.",
+      recoverable: true,
+      context: { ticketKey: "LC-1" },
+    });
+    await openPanel([row("LC-1"), row("LC-2")], "LC-1");
+
+    fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+    await waitFor(() => expect(card("LC-1")).toBeTruthy());
+
+    // The panel opens on the file it had, and the read that fetches the current
+    // one is held open.
+    let arrive: () => void = () => {};
+    vi.mocked(api.readTicket)
+      .mockResolvedValueOnce(detail("LC-1"))
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            arrive = () =>
+              resolve(detail("LC-1", undefined, "hash-LC-1-newer"));
+          }),
+      );
+
+    fireEvent.click(screen.getByRole("button", { name: "Open ticket" }));
+    await screen.findByText("⚠ Changed on disk while you were editing");
+
+    vi.mocked(api.editTicket).mockResolvedValue(
+      written("LC-1", { archivedAt: "2026-07-31T10:00:00Z" }),
+    );
+    fireEvent.click(screen.getByText("Keep mine"));
+
+    // Nothing goes out over a file nobody has seen.
+    expect(api.editTicket).toHaveBeenCalledTimes(1);
+
+    arrive();
+
+    await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(2));
+    expect(api.editTicket).toHaveBeenLastCalledWith({
+      projectId: project.id,
+      ticketKey: "LC-1",
+      expectedHash: "hash-LC-1-newer",
+      edit: { archived: true },
+    });
+  });
+
   it("does not carry a refused edit onto the next ticket, or back after a close", async () => {
     vi.mocked(api.readTicket).mockResolvedValue(detail("LC-1"));
     vi.mocked(api.editTicket).mockRejectedValue({

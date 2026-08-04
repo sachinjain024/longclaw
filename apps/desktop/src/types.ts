@@ -27,15 +27,14 @@ export type ErrorCode =
  * together. A cause absent from `context` means nobody classified the failure,
  * and no recovery is offered — better than sending somebody to check
  * permissions on an ejected volume.
+ *
+ * The tuple is the source: the type is derived from it and so is the guard in
+ * `failure.ts`, so there is one list to keep in step with Rust rather than
+ * three to keep in step with each other. Wire order, to match the fixture.
  */
-export type FailureCause = "missing" | "noSpace" | "readOnly";
+export const FAILURE_CAUSES = ["missing", "noSpace", "readOnly"] as const;
 
-/** Every cause, for the contract pin. Keep in wire order. */
-export const FAILURE_CAUSES: FailureCause[] = [
-  "missing",
-  "noSpace",
-  "readOnly",
-];
+export type FailureCause = (typeof FAILURE_CAUSES)[number];
 
 /** Expected failures cross IPC as a closed tagged shape (ADR 0010). */
 export interface AppError {
