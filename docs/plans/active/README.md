@@ -71,6 +71,21 @@ set priority, archive/unarchive, change board ordering and switch board/list vie
 unchanged. `screen-specs.md`, `components.md`, `prototype/README.md` and plan 25
 are synchronised on all of that.
 
+## The one open plan
+
+Everything numbered below is closed, and so are 36–39, which the Order table
+predates. The only pending work in this directory is:
+
+**[40 — Step 16b: close the eight spec gaps in the release candidate](40-step-16b-spec-gaps.md)**,
+written 2026-08-04, release-blocking. Step 16b built the release gate in
+`1ff010b` and passed its standards review in `27ec329`; a spec review of the same
+commit found eight gaps, seven of which are evidence the step asked to be
+measured, tested, or written and that the candidate recorded as "not run".
+Startup is unmeasured, interaction p95 roughly doubled since Step 16a while
+staying under budget, the accessibility pass is seven-eighths blank, no
+user-facing documentation was written, and the unsigned build has no release
+notes to carry its Gatekeeper rationale. Read it before Step 17.
+
 ## Order
 
 The numbers are a recommended sequence, not a hard dependency chain. Anything
