@@ -23,20 +23,8 @@
 
 import { create } from "zustand";
 import { normalizeError } from "./errors";
-import { failureMessage, failureRecovery } from "./failure";
+import { failureMessage } from "./failure";
 import type { AppError, WriteResult } from "./types";
-
-/**
- * A failed write says what to do about it, whether or not the caller wrote its
- * own copy. A caller's `failure` is about *this* mutation — "the ticket could
- * not be created" — and the recovery is about the file underneath it, so the
- * two compose rather than one replacing the other.
- */
-function withRecovery(error: AppError, own?: string): string {
-  if (own === undefined) return failureMessage(error);
-  const recovery = failureRecovery(error);
-  return recovery ? `${own} ${recovery}` : own;
-}
 
 /** The single toast stack: a new mutation supersedes the last one. */
 export interface Toast {
@@ -127,6 +115,16 @@ export function conflictMessage(error: AppError): string {
   return `${fact} Last edited by ${name}${type ? ` (${type})` : ""}.`;
 }
 
+/**
+ * What the toast adds when the refused edit survived the refusal.
+ *
+ * Not part of `conflictMessage`: the panel's banner renders that same sentence,
+ * and telling somebody to open the ticket they are looking at is nonsense. The
+ * fact belongs to the error, the offer belongs to the surface (V0-29).
+ */
+const HELD_FOR_REVIEW =
+  "Your change is held — open the ticket to keep it or take theirs.";
+
 interface MutationState {
   toast?: Toast;
   /** The file a write is in flight for. Undefined means nothing is unsettled. */
@@ -213,8 +211,13 @@ export async function mutate(
     const conflict = normalized.code === "conflict";
     store.raise({
       message: conflict
-        ? conflictMessage(normalized)
-        : withRecovery(normalized, mutation.failure?.(normalized)),
+        ? // The fact from the shared composer, then the offer — which is this
+          // surface's to make, and only exists when the mutation gave the panel
+          // somewhere to take the refused edit.
+          [conflictMessage(normalized), mutation.review && HELD_FOR_REVIEW]
+            .filter(Boolean)
+            .join(" ")
+        : failureMessage(normalized, mutation.failure?.(normalized)),
       tone: "danger",
       retry: conflict ? undefined : () => void mutate(mutation),
       review:

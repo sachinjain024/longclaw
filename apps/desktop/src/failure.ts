@@ -91,8 +91,17 @@ export function failureGuarantee(error: AppError): string | undefined {
   return "The file was left as it was.";
 }
 
-/** The message a surface shows: what happened, and what to do about it. */
-export function failureMessage(error: AppError): string {
-  const recovery = failureRecovery(error);
-  return recovery ? `${error.message} ${recovery}` : error.message;
+/**
+ * The message a surface shows: what happened, what to do about it, and what is
+ * safe — the three sentences in that order.
+ *
+ * `own` replaces the first when the caller has better words for it than the
+ * error does ("The ticket could not be created"). It replaces only that
+ * sentence: the recovery and the guarantee are facts about the file underneath,
+ * and no caller knows them better than the error does.
+ */
+export function failureMessage(error: AppError, own?: string): string {
+  return [own ?? error.message, failureRecovery(error), failureGuarantee(error)]
+    .filter(Boolean)
+    .join(" ");
 }

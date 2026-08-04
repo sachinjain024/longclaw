@@ -45,6 +45,8 @@ const AGENT_CONTRACT_FILE: &str = "AGENTS.md";
 const SEARCH_TEXT_LIMIT: usize = 4_096;
 /// Bounds how much of an unreadable file the raw view carries across IPC.
 const RAW_VIEW_LIMIT: usize = 256 * 1024;
+/// What a failure on the ticket write path says the human was doing.
+pub const SAVING_TICKET: &str = "Saving ticket";
 
 pub fn content_hash(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
@@ -507,7 +509,13 @@ fn attachment_state(ticket_path: &Path, ticket: &Ticket) -> (Vec<String>, Vec<St
 /// this process owns — project metadata, the agent contract, the registry, a
 /// brand-new ticket. It is *not* right for replacing a ticket the user and an agent
 /// can both write: use [`atomic_replace`] there.
-pub fn atomic_write(path: &Path, bytes: &[u8]) -> AppResult<()> {
+///
+/// `action` is what the human was doing, and every failure inside carries it.
+/// This function writes tickets, the registry, `longclaw.yaml` and the agent
+/// contract, so it cannot name the operation itself: a read-only application
+/// support folder reporting "Saving ticket failed for project-registry.json" is
+/// a sentence that is precisely wrong about what happened (V0-29).
+pub fn atomic_write(action: &str, path: &Path, bytes: &[u8]) -> AppResult<()> {
     let parent = path.parent().ok_or_else(|| {
         AppError::new(
             ErrorCode::PermissionDenied,
@@ -521,9 +529,9 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> AppResult<()> {
         .unwrap_or(TICKET_FILE);
     let temporary = parent.join(format!(".{name}.longclaw-{}.tmp", Uuid::new_v4()));
     let result = (|| -> AppResult<()> {
-        write_durable_sibling(&temporary, path, bytes)?;
-        fs::rename(&temporary, path).map_err(|error| AppError::io("Saving ticket", path, error))?;
-        sync_directory(parent, path)
+        write_durable_sibling(action, &temporary, path, bytes)?;
+        fs::rename(&temporary, path).map_err(|error| AppError::io(action, path, error))?;
+        sync_directory(action, parent, path)
     })();
     if result.is_err() {
         let _ = fs::remove_file(&temporary);
@@ -698,7 +706,7 @@ pub fn atomic_replace_with_seams(
         .unwrap_or(TICKET_FILE);
     let temporary = parent.join(format!(".{name}.longclaw-{}.tmp", Uuid::new_v4()));
 
-    if let Err(error) = write_durable_sibling(&temporary, path, bytes) {
+    if let Err(error) = write_durable_sibling(SAVING_TICKET, &temporary, path, bytes) {
         let _ = fs::remove_file(&temporary);
         return Err(error);
     }
@@ -720,7 +728,7 @@ pub fn atomic_replace_with_seams(
     })?;
     if content_hash(&displaced) == expected_hash {
         let _ = fs::remove_file(&temporary);
-        sync_directory(parent, path)?;
+        sync_directory(SAVING_TICKET, parent, path)?;
         return Ok(());
     }
 
@@ -730,12 +738,12 @@ pub fn atomic_replace_with_seams(
     if let Err(error) = swap_paths(&temporary, path) {
         let preserved = parent.join(format!(".{name}.longclaw-conflict-{}.bak", Uuid::new_v4()));
         let _ = fs::rename(&temporary, &preserved);
-        let _ = sync_directory(parent, path);
+        let _ = sync_directory(SAVING_TICKET, parent, path);
         return Err(AppError::io("Restoring the displaced file", path, error)
             .with_context("preservedPath", preserved.display().to_string()));
     }
     let _ = fs::remove_file(&temporary);
-    sync_directory(parent, path)?;
+    sync_directory(SAVING_TICKET, parent, path)?;
 
     let file = read_ticket_file_unowned(path)?;
     Err(conflict_error(&file, expected_hash)
@@ -745,42 +753,46 @@ pub fn atomic_replace_with_seams(
 
 /// Writes `bytes` to `temporary` and makes them durable, carrying over `model`'s
 /// permissions so a replace does not silently widen them.
-fn write_durable_sibling(temporary: &Path, model: &Path, bytes: &[u8]) -> AppResult<()> {
+fn write_durable_sibling(
+    action: &str,
+    temporary: &Path,
+    model: &Path,
+    bytes: &[u8],
+) -> AppResult<()> {
     // Every failure here reports `model`, not `temporary`. The human's file is
     // `ticket.md`; `.ticket.md.longclaw-9f2e….tmp` is this function's business,
     // and "that file is read-only" is not a sentence anyone can act on when the
     // file it names did not exist a moment ago and will not exist a moment later
     // (V0-29). The path is kept in context for a bug report.
-    let failed = |action: &'static str| {
-        move |error: std::io::Error| {
-            AppError::io(action, model, error)
-                .with_context("temporaryPath", temporary.display().to_string())
-        }
+    let failed = |error: std::io::Error| {
+        AppError::io(action, model, error)
+            .with_context("temporaryPath", temporary.display().to_string())
     };
     let mut file = OpenOptions::new()
         .create_new(true)
         .write(true)
         .open(temporary)
-        .map_err(failed("Saving ticket"))?;
-    file.write_all(bytes).map_err(failed("Saving ticket"))?;
-    file.sync_all().map_err(failed("Saving ticket"))?;
+        .map_err(failed)?;
+    file.write_all(bytes).map_err(failed)?;
+    file.sync_all().map_err(failed)?;
     if let Ok(metadata) = fs::metadata(model) {
-        fs::set_permissions(temporary, metadata.permissions()).map_err(failed("Saving ticket"))?;
+        fs::set_permissions(temporary, metadata.permissions()).map_err(failed)?;
     }
     Ok(())
 }
 
-/// Makes the directory entry durable, and reports a failure as what it is: the
-/// last step of saving `subject`.
+/// Makes the directory entry durable, and reports a failure against `subject`
+/// rather than the folder it lives in.
 ///
-/// The error names the ticket rather than the folder. Every other step of the
-/// save reports `ticket.md`, and one step reporting `LC-1` would have the same
-/// failure describe itself two ways depending on how far it got (V0-29).
-fn sync_directory(parent: &Path, subject: &Path) -> AppResult<()> {
+/// Every step of a write names the file the human was working on. This step is
+/// the only one whose syscall takes the *directory*, and reporting `LC-1` here
+/// would have one failure describe itself two ways depending on how far it got
+/// (V0-29). The folder is kept in context.
+fn sync_directory(action: &str, parent: &Path, subject: &Path) -> AppResult<()> {
     File::open(parent)
         .and_then(|directory| directory.sync_all())
         .map_err(|error| {
-            AppError::io("Saving ticket", subject, error)
+            AppError::io(action, subject, error)
                 .with_context("directory", parent.display().to_string())
         })
 }
@@ -1103,7 +1115,7 @@ fn initialize_project_with_contract_writer(
         let tickets = tickets_root(project_root);
         fs::create_dir_all(&tickets)
             .map_err(|error| AppError::io("Creating the project folder", &tickets, error))?;
-        atomic_write(&project_path, rendered.as_bytes())?;
+        atomic_write("Creating the project", &project_path, rendered.as_bytes())?;
         write_contract(project_root, &document)?;
         Ok(())
     })();
@@ -1139,7 +1151,11 @@ fn initialize_project_with_contract_writer(
 /// `.longclaw/AGENTS.md` and never touches a repository-root `AGENTS.md`.
 pub fn write_agent_contract(project_root: &Path, document: &ProjectDocument) -> AppResult<()> {
     let contract = render_agent_contract(document.project());
-    atomic_write(&agent_contract_path(project_root), contract.as_bytes())
+    atomic_write(
+        "Creating the project",
+        &agent_contract_path(project_root),
+        contract.as_bytes(),
+    )
 }
 
 fn project_initialization_paths(project_root: &Path) -> Vec<PathBuf> {
@@ -1179,7 +1195,7 @@ mod tests {
         atomic_replace, belongs_to_project, content_hash, foreign_project_diagnostic,
         initialize_project_with_contract_writer, prepare_new_ticket, prepare_ticket_edit,
         read_ticket_detail, read_ticket_file, resolve_ticket_path, scan_ticket_paths,
-        valid_ticket_key, NewTicket, TicketEdit,
+        valid_ticket_key, NewTicket, TicketEdit, SAVING_TICKET,
     };
     use crate::core::ErrorCode;
 
@@ -1238,12 +1254,36 @@ mod tests {
     }
 
     #[test]
+    fn a_file_removed_mid_save_is_a_conflict_that_names_the_file() {
+        let temp = tempfile::tempdir().unwrap();
+        let (_project, write) = project_with_a_ticket(temp.path());
+        let original = fs::read(&write.path).unwrap();
+        // Somebody deletes or renames the ticket while the save is in flight.
+        fs::remove_file(&write.path).unwrap();
+
+        let error = atomic_replace(&write.path, b"mine", &content_hash(&original)).unwrap_err();
+
+        // A conflict, not an I/O failure: the bytes this save was built on are
+        // gone, and writing over whatever replaced them is the loss the hash
+        // check exists to prevent.
+        assert_eq!(error.code, ErrorCode::Conflict);
+        assert!(error.recoverable);
+        assert_eq!(
+            error.context.get("path").map(String::as_str),
+            Some(write.path.display().to_string().as_str())
+        );
+        // `ticketKey` is filled by `Engine::commit`, which is the only layer
+        // that knows it — see `with_context_if_absent`.
+        assert!(!write.path.exists());
+    }
+
+    #[test]
     fn a_directory_sync_failure_still_names_the_ticket_file() {
         let temp = tempfile::tempdir().unwrap();
         let (_project, write) = project_with_a_ticket(temp.path());
         let gone = temp.path().join("a-folder-that-is-not-there");
 
-        let error = super::sync_directory(&gone, &write.path).unwrap_err();
+        let error = super::sync_directory(SAVING_TICKET, &gone, &write.path).unwrap_err();
 
         // The last step of a save is a directory sync, and the human's file is
         // still `ticket.md` — naming the folder here would make one write path

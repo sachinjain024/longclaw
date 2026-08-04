@@ -29,7 +29,7 @@ import { sameLabels } from "./labels";
 import { MarkdownView } from "./MarkdownView";
 import { MenuButton } from "./Menu";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "./metaOptions";
-import { mutate } from "./mutations";
+import { mutate, type Mutation } from "./mutations";
 import { priorityLabel, statusLabel } from "./tickets";
 import { metaFieldFor } from "./TicketMetaMenu";
 import { Timeline } from "./Timeline";
@@ -441,6 +441,38 @@ export function TicketPanel(props: TicketPanelProps) {
   }
 
   /**
+   * The mutation that takes a save back, when the caller supplied an inverse.
+   *
+   * Taking `inverse` as a parameter is what proves it defined once, for both the
+   * write and the conflict handler, rather than asserting it twice inside a
+   * branch that already checked.
+   */
+  function undoing(
+    inverse: TicketEdit | undefined,
+    inverseToast: string | undefined,
+  ): ((written: WriteResult) => Mutation) | undefined {
+    if (inverse === undefined) return undefined;
+    return (result) => ({
+      path: result.ticket.relativePath,
+      write: () =>
+        editTicket({
+          projectId,
+          ticketKey,
+          // The hash the first write left behind, so the inverse is not refused
+          // as stale by its own predecessor.
+          expectedHash: result.ticket.contentHash,
+          edit: inverse,
+        }),
+      onWritten: (undone) => {
+        props.onWrite(undone);
+        void load("local");
+      },
+      toast: () => inverseToast ?? `${ticketKey} restored`,
+      handles: takeConflict(inverse),
+    });
+  }
+
+  /**
    * Writes one edit. An unresolved conflict blocks every save except the one
    * that resolves it, so a draft can never slip past the banner.
    */
@@ -470,27 +502,7 @@ export function TicketPanel(props: TicketPanelProps) {
         setConflict(undefined);
       },
       toast: options?.toast === undefined ? undefined : () => options.toast!,
-      undo:
-        options?.inverse === undefined
-          ? undefined
-          : (result) => ({
-              path: result.ticket.relativePath,
-              write: () =>
-                editTicket({
-                  projectId,
-                  ticketKey,
-                  // The hash the first write left behind, so the inverse is not
-                  // refused as stale by its own predecessor.
-                  expectedHash: result.ticket.contentHash,
-                  edit: options.inverse!,
-                }),
-              onWritten: (undone) => {
-                props.onWrite(undone);
-                void load("local");
-              },
-              toast: () => options.inverseToast ?? `${ticketKey} restored`,
-              handles: takeConflict(options.inverse!),
-            }),
+      undo: undoing(options?.inverse, options?.inverseToast),
       handles: takeConflict(edit),
     });
     if (written) await load("local");

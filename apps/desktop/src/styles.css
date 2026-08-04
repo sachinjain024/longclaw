@@ -420,9 +420,9 @@ h1 {
   background: var(--lc-danger-surface);
 }
 
-.error-banner strong {
-  text-transform: capitalize;
-}
+/* No `text-transform` here. The heading used to be `error.code` with the
+   underscores stripped, and capitalizing it made `permission denied` presentable;
+   it is a written sentence now, and capitalizing that gives Title Case (V0-29). */
 
 /* The file the failure is about, on its own line and selectable: naming it is
    half of what makes a write failure recoverable (V0-29). */

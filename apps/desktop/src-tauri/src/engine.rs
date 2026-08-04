@@ -435,7 +435,7 @@ impl ProjectEngine {
             Some(expected) => {
                 storage::atomic_replace_with_seams(&path, &bytes, &expected, replace_seams)
             }
-            None => atomic_write(&path, &bytes),
+            None => atomic_write(storage::SAVING_TICKET, &path, &bytes),
         });
         if let Err(error) = placed {
             // Our bytes are not on disk, so the receipt must go too. Left behind, it

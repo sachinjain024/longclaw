@@ -1630,6 +1630,9 @@ describe("archive and unarchive (V0-11)", () => {
     // there is no banner out here to reload from.
     expect(screen.getByText(/LC-1 changed on disk/)).toBeTruthy();
     expect(screen.getByText(/Claude \(agent\)/)).toBeTruthy();
+    // V0-29: and it says the change survived, because it now does. A toast that
+    // reports a refusal without saying the edit is held reads as a dead end.
+    expect(screen.getByText(/Your change is held/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Open ticket" }));
 
@@ -2054,7 +2057,9 @@ describe("board ordering and manual reordering (V0-09)", () => {
     expect(useLongClawStore.getState().tickets[2].state === "indexed").toBe(
       true,
     );
-    await screen.findByText("LC-3 could not be moved. Disk is full");
+    await screen.findByText(
+      "LC-3 could not be moved. Disk is full The file was left as it was.",
+    );
     const back = useLongClawStore
       .getState()
       .tickets.find((ticket) => ticket.key === "LC-3");

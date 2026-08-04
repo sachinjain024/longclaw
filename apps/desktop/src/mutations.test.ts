@@ -85,7 +85,9 @@ describe("running a mutation", () => {
     const toast = useMutationStore.getState().toast;
     expect(toast).toMatchObject({
       tone: "danger",
-      message: "No space left on device",
+      // The error's own words, then the guarantee — the claim the product rests
+      // on, on the surface a failed write actually reaches (V0-29).
+      message: "No space left on device The file was left as it was.",
     });
     // Nothing landed, so the settled `✓` must not claim a file.
     expect(useMutationStore.getState().settled).toBeUndefined();
@@ -254,7 +256,8 @@ describe("running a mutation", () => {
 
     const toast = useMutationStore.getState().toast;
     expect(toast?.message).toBe(
-      "Saving ticket failed for ticket.md. the volume was ejected.",
+      "Saving ticket failed for ticket.md. the volume was ejected. " +
+        "The file was left as it was.",
     );
     expect(toast?.retry).toBeTruthy();
   });

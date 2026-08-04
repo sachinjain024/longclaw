@@ -95,6 +95,41 @@ describe("the toast", () => {
     expect(screen.getByRole("button", { name: "Dismiss" })).toBeTruthy();
   });
 
+  /**
+   * V0-29. The toast is the surface a failed write actually reaches — `mutate`
+   * raises toasts; the error banner is the load path — so what it says about a
+   * write failure is what most people will ever read about one.
+   */
+  it("says what failed, which file, what to do, and what is safe", async () => {
+    const { mutate } = await import("./mutations");
+    await mutate({
+      write: () =>
+        Promise.reject({
+          code: "permission_denied",
+          message:
+            "Saving ticket failed for ticket.md. The file or the folder it is in is read-only.",
+          recoverable: true,
+          context: {
+            path: "/projects/app/.longclaw/tickets/LC-1/ticket.md",
+            fileName: "ticket.md",
+            cause: "readOnly",
+          },
+        }),
+    });
+    render(<ToastStack />);
+
+    const toast = screen.getByRole("status");
+    expect(toast.textContent).toContain("ticket.md");
+    expect(toast.textContent).toContain("read-only");
+    expect(toast.textContent).toContain("Give yourself write access");
+    expect(toast.textContent).toContain("The file was left as it was.");
+    // Nothing about the file changed, so re-sending the same edit is right.
+    expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();
+    // The full path belongs to the banner, which has room for it. A toast is
+    // one line at the bottom of the window.
+    expect(toast.textContent).not.toContain("/projects/app");
+  });
+
   it("runs undo on ⌘Z, but never over a field's own undo", () => {
     const undo = vi.fn();
     useMutationStore

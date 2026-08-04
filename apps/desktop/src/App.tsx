@@ -33,12 +33,7 @@ import { CreatePanel } from "./CreatePanel";
 import { CreateProjectForm, type ProjectDraft } from "./CreateProjectForm";
 import { DEV_CHROME } from "./devChrome";
 import { normalizeError } from "./errors";
-import {
-  failureGuarantee,
-  failureMessage,
-  failurePath,
-  failureTitle,
-} from "./failure";
+import { failureMessage, failurePath, failureTitle } from "./failure";
 import { filterTickets, isFiltering } from "./filtering";
 import { IssueList } from "./IssueList";
 import { isChord, singleKeyShortcutAllowed } from "./keyContext";
@@ -1066,13 +1061,11 @@ export function App() {
             <strong>{failureTitle(error)}</strong>
             <span>
               {failureMessage(error)}
+              {/* The one thing the banner has room for that a toast does not. */}
               {failurePath(error) && (
                 <code className="failure-path">{failurePath(error)}</code>
               )}
             </span>
-            {failureGuarantee(error) && (
-              <small>{failureGuarantee(error)}</small>
-            )}
           </section>
         )}
 

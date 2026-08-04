@@ -17,7 +17,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { conflictMessage, resetMutations } from "./mutations";
+import { resetMutations } from "./mutations";
 import { TicketPanel } from "./TicketPanel";
 import { ToastStack } from "./WriteFeedback";
 import type {
@@ -344,18 +344,13 @@ describe("a change that lands while a draft is open", () => {
     // V0-29: one composer for one typed error. The banner used to render Rust's
     // own copy while the board composed its own, so the same conflict read two
     // ways depending on where it surfaced.
+    //
+    // Written out rather than computed from `conflictMessage`: an expectation
+    // built by calling the function it pins passes for any implementation of it.
     expect(
       screen.getByText(
-        conflictMessage({
-          code: "conflict",
-          message:
-            "LC-1 changed on disk while you were editing. Your unsaved edit is preserved either way.",
-          recoverable: true,
-          context: {
-            conflictingActorName: "Claude Code",
-            conflictingActorType: "agent",
-          },
-        }),
+        "LC-1 changed on disk while you were editing. Your unsaved edit is " +
+          "preserved either way. Last edited by Claude Code (agent).",
       ),
     ).toBeTruthy();
   });
@@ -662,7 +657,9 @@ describe("the panel's honesty about the file", () => {
       "value",
       "Looks right to me.",
     );
-    expect(screen.getByText("Disk full")).toBeTruthy();
+    expect(
+      screen.getByText("Disk full The file was left as it was."),
+    ).toBeTruthy();
   });
 
   it("closes on Escape from anywhere in the window", async () => {
