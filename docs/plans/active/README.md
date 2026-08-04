@@ -101,7 +101,7 @@ marked independent can be done at any time by anyone.
 | ~~20~~ | ~~Board ordering, Manual mode, and drag-and-drop~~ — **done 2026-08-01**, [outcome](../completed/20-board-ordering-and-drag.md) | V0-09 | Closed, and it is the second comparator the board was built to take. Rank allocation is fractional indexing in `src/rank.ts`; the drop position is arithmetic over `boardGeometry.ts` rather than the element under the pointer. Read its outcome before V0-15 — the mixed ranked/unranked rule and its one limitation are decided there, not in a surface. |
 | ~~21~~ | ~~Filter, sort, and grouping behaviour~~ — **done 2026-08-01**, [outcome](../completed/21-filter-and-grouping.md) | V0-15 | Closed, and it is the last narrowing seam the surfaces get. The filter is `src/filtering.ts`, called once in `App.tsx` before grouping, so both surfaces receive one already-narrowed array. Read its outcome before V0-23 (the `Esc` ladder now has its last rung) and before V0-24 (the header filter and search deliberately match different things). |
 | ~~22~~ | ~~Full ticket create surface~~ — **done 2026-08-01**, [outcome](../completed/22-full-create-surface.md) | V0-16 | Closed, and it closes Wave 1. There are two create surfaces now: quick create is title + status, and `src/CreatePanel.tsx` is the panel in create mode with every approved field. Read its outcome before V0-23 — the create panel takes its own `Esc` and `⌘↵` rung, and it found that a `<button>` in a `<form>` submits it. |
-| ~~23~~ | ~~Retry must not re-send a stale hash~~ — **done 2026-08-01**, [outcome](../completed/23-retry-must-not-resend-a-stale-hash.md) | —       | Closed. A defect found while Wave 1 was being built, not a backlog row: `mutate()` offered a Retry on every failed write, and on a conflict the `expectedHash` that Retry re-sends is stale by definition, so the button could never succeed. A conflict now says what changed and who changed it and offers **Open ticket** instead. Read its outcome before V0-29 — it names four things it deliberately left there, including the fact that a board-raised conflict still cannot reach `ConflictBanner`. |
+| ~~23~~ | ~~Retry must not re-send a stale hash~~ — **done 2026-08-01**, [outcome](../completed/23-retry-must-not-resend-a-stale-hash.md) | —       | Closed. A defect found while Wave 1 was being built, not a backlog row: `mutate()` offered a Retry on every failed write, and on a conflict the `expectedHash` that Retry re-sends is stale by definition, so the button could never succeed. A conflict now says what changed and who changed it and offers **Open ticket** instead. The four things it deliberately left are closed by [plan 39](../completed/39-v0-29-write-failure-states.md), which is where a board-raised conflict finally reaches a resolution: the refused edit travels to the panel and is re-applied over the file the panel read. |
 | ~~24~~ | ~~Single-key actions on the focused ticket~~ — **done 2026-08-01**, [outcome](../completed/24-single-key-actions.md) | V0-22 | Closed. Single-key actions, modifier safety, panel behavior, tests, and perf budgets are complete. |
 | ~~25~~ | ~~The `⌘K` palette shell and the root command set~~ — **done 2026-08-01**, [outcome](../completed/25-command-palette-shell.md) | V0-20 | Closed. Root commands, styling, accessibility, focus behavior, and tests are complete. |
 | ~~26~~ | ~~Palette sub-modes~~ — **done 2026-08-01**, [outcome](../completed/26-palette-sub-modes.md) | V0-21 | Closed. All six modes, target selection, previews, notes, reasons, navigation, and tests are complete. |
@@ -315,12 +315,16 @@ Dependencies worth knowing:
   14 both forbid. A conflict raised outside the panel gets `conflictMessage`'s own
   copy (the key, the actor from `context`, and the fact that nothing was written)
   plus an **Open ticket** action, wired from a mutation's new optional `review`.
-  **Open ticket is not the conflict banner:** `ConflictBanner` is `TicketPanel`
-  state and a board-raised conflict cannot reach it, so Open ticket shows the file
-  as it now reads and no more. Giving a mutation raised outside the panel a real
-  two-way resolution — holding the refused edit, offering to write it over a newer
-  file — **is V0-29's**, along with three other things
-  [23's outcome](../completed/23-retry-must-not-resend-a-stale-hash.md) names.
+  **Open ticket was not the conflict banner:** `ConflictBanner` is `TicketPanel`
+  state and a board-raised conflict could not reach it, so Open ticket showed the
+  file as it now reads and no more. Giving a mutation raised outside the panel a
+  real two-way resolution — holding the refused edit, offering to write it over a
+  newer file — was left to V0-29, and
+  [plan 39](../completed/39-v0-29-write-failure-states.md) settles it: **yes, but
+  only inside the panel, over content the human has been shown.** `App` holds the
+  refused edit, the panel seeds its own banner once it has read the file, and Keep
+  mine writes against the hash it rendered. The rule above is unchanged and is
+  what makes that safe — nobody re-reads a hash and writes blind.
   `handles` is unchanged and still wins over all of this: a surface that owns its
   own conflicts keeps owning them.
 
@@ -383,9 +387,15 @@ V0-35, V0-36, V0-37 and V0-41 — closed on 2026-08-01 as plans 31–35**, writt
 one at a time as each was picked up, which is the rule below working as
 intended. Most Step-14 recovery work closed on 2026-08-02 in
 [plan 38](../completed/38-complete-step-14-recovery.md): V0-26, V0-27, V0-28,
-V0-30, V0-31, V0-32, V0-33, and V0-40. **V0-29 is still open** for the full
-write-failure/conflict-state treatment that plan 23 explicitly left behind.
-V0-42 is also still open, but it belongs to Step 16 because it is the
+V0-30, V0-31, V0-32, V0-33, and V0-40. **V0-29 closed on 2026-08-04 as
+[plan 39](../completed/39-v0-29-write-failure-states.md), which completes Step
+14** — the four clauses plan 23 left behind, plus a fifth the planning turned up:
+Keep mine re-sent the hash Rust had just refused, and only worked when the
+watcher's event won a race. Read plan 39's outcome before touching the write
+path: `conflictMessage` in `src/mutations.ts` is the one composer for a conflict,
+`src/failure.ts` is the one presentation for a failed write, and the panel is the
+only place a refused edit may be re-applied — over a file the human has been
+shown. V0-42 is still open, but it belongs to Step 16 because it is the
 runner-stable interaction-budget gate, not recovery behavior.
 
 What remains is ordinary sequencing. Wave 2 was written all at once on 2026-08-01
