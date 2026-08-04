@@ -71,9 +71,11 @@ export function externalEditConflict(detail: TicketDetail): AppError {
   }
   return {
     code: "conflict",
-    message:
-      "This ticket changed on disk while you were editing. Reload it or keep " +
-      "your version, then save again.",
+    // The fact, not the offer. `ConflictBanner` renders the choice, and this
+    // same error reaches surfaces that have no such choice to render (V0-29).
+    // Nothing was refused here — the save has not been attempted — so this says
+    // what is true of a draft that is still in hand.
+    message: `${detail.key} changed on disk while you were editing. Your unsaved edit is preserved either way.`,
     recoverable: true,
     context,
   };

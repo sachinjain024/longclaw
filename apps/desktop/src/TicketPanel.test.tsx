@@ -338,6 +338,23 @@ describe("a change that lands while a draft is open", () => {
     expect(editTicketMock).not.toHaveBeenCalled();
   });
 
+  it("states the conflict in the same words any other surface would", async () => {
+    await withDirtyTitleDraft();
+
+    // V0-29: one composer for one typed error. The banner used to render Rust's
+    // own copy while the board composed its own, so the same conflict read two
+    // ways depending on where it surfaced.
+    //
+    // Written out rather than computed from `conflictMessage`: an expectation
+    // built by calling the function it pins passes for any implementation of it.
+    expect(
+      screen.getByText(
+        "LC-1 changed on disk while you were editing. Your unsaved edit is " +
+          "preserved either way. Last edited by Claude Code (agent).",
+      ),
+    ).toBeTruthy();
+  });
+
   it("refuses other saves until the human chooses", async () => {
     await withDirtyTitleDraft();
 
@@ -640,7 +657,9 @@ describe("the panel's honesty about the file", () => {
       "value",
       "Looks right to me.",
     );
-    expect(screen.getByText("Disk full")).toBeTruthy();
+    expect(
+      screen.getByText("Disk full The file was left as it was."),
+    ).toBeTruthy();
   });
 
   it("closes on Escape from anywhere in the window", async () => {
@@ -830,6 +849,124 @@ describe("a destructive-adjacent change and taking it back", () => {
     // In here the banner is the offer, and nothing was reverted or toasted.
     expect(screen.queryByRole("button", { name: "Open ticket" })).toBeNull();
     expect(onWrite).not.toHaveBeenCalled();
+  });
+
+  /**
+   * V0-29. A refused write left `detail` holding the hash Rust had just
+   * rejected, so Keep mine re-sent it and was refused identically — unless the
+   * watcher's own event happened to land first and reload the panel. The offer
+   * worked by race.
+   */
+  it("keeps mine against the file it re-read, not the hash that was just refused", async () => {
+    readTicketMock.mockResolvedValueOnce(detail());
+    editTicketMock.mockRejectedValueOnce({
+      code: "conflict",
+      message: "LC-1 changed on disk. Your version was not written over it.",
+      recoverable: true,
+      context: {
+        ticketKey: "LC-1",
+        conflictingActorType: "agent",
+        conflictingActorName: "Claude",
+      },
+    });
+    render(surface());
+    await ready();
+    // What the panel finds when it goes back to the file the write was refused
+    // for: somebody else's newer bytes.
+    readTicketMock.mockResolvedValue(
+      detail({ contentHash: "hash-agent", title: "Renamed by the agent" }),
+    );
+
+    pick("Status", "In Progress");
+    await screen.findByText("⚠ Changed on disk while you were editing");
+    await waitFor(() => expect(readTicketMock).toHaveBeenCalledTimes(2));
+
+    editTicketMock.mockResolvedValue(writeResult());
+    fireEvent.click(screen.getByText("Keep mine"));
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
+    expect(editTicketMock.mock.calls[1][0]).toMatchObject({
+      // The hash of the content the human was shown when they chose.
+      expectedHash: "hash-agent",
+      edit: { status: "in_progress" },
+    });
+  });
+
+  /**
+   * V0-29, review follow-up. Re-reading on refusal is not enough on its own:
+   * the banner goes up while the read is still in flight, so a fast hand could
+   * press Keep mine against the hash that was just refused.
+   */
+  it("waits for the re-read before keeping mine, rather than racing it", async () => {
+    let arrive: () => void = () => {};
+    readTicketMock.mockResolvedValueOnce(detail()).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          arrive = () => resolve(detail({ contentHash: "hash-agent" }));
+        }),
+    );
+    editTicketMock.mockRejectedValueOnce({
+      code: "conflict",
+      message: "LC-1 changed on disk. Your version was not written over it.",
+      recoverable: true,
+      context: { ticketKey: "LC-1" },
+    });
+    render(surface());
+    await ready();
+
+    pick("Status", "In Progress");
+    await screen.findByText("⚠ Changed on disk while you were editing");
+
+    // The read has not come back yet, and the human is already clicking.
+    editTicketMock.mockResolvedValue(writeResult());
+    fireEvent.click(screen.getByText("Keep mine"));
+    expect(editTicketMock).toHaveBeenCalledTimes(1);
+
+    arrive();
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
+    expect(editTicketMock.mock.calls[1][0]).toMatchObject({
+      expectedHash: "hash-agent",
+    });
+  });
+
+  /**
+   * V0-29. The inverse mutation carried no `handles`, so a conflict on Undo
+   * fell through to the ordinary danger toast — a fact and a dismissal — while
+   * the same conflict on the forward save got the banner and a choice.
+   */
+  it("takes a conflict on Undo to the banner, like any other refused write", async () => {
+    readTicketMock
+      .mockResolvedValueOnce(detail())
+      .mockResolvedValueOnce(detail())
+      .mockResolvedValue(detail({ contentHash: "hash-agent" }));
+    editTicketMock.mockResolvedValueOnce(writeResult()).mockRejectedValueOnce({
+      code: "conflict",
+      message: "LC-1 changed on disk. Your version was not written over it.",
+      recoverable: true,
+      context: { ticketKey: "LC-1" },
+    });
+    render(surface());
+    const box = await screen.findByLabelText("Review what it changed");
+
+    fireEvent.click(box);
+    await screen.findByText("LC-1 checked · Review what it changed");
+    fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+
+    await screen.findByText("⚠ Changed on disk while you were editing");
+    // The panel resolves its own conflicts, in both directions.
+    expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Open ticket" })).toBeNull();
+
+    editTicketMock.mockResolvedValue(writeResult());
+    fireEvent.click(screen.getByText("Keep mine"));
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(3));
+    expect(editTicketMock.mock.calls[2][0]).toMatchObject({
+      expectedHash: "hash-agent",
+      // The edit Undo was refused for, re-applied over the newer file.
+      edit: { checklist: [{ itemId: "ck_2", checked: false }] },
+    });
   });
 
   it("offers undo for a checklist tick", async () => {

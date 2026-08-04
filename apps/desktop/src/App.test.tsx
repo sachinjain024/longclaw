@@ -145,6 +145,43 @@ describe("recovering from a lost project event", () => {
     // than papered over by a failed recovery.
     expect(useLongClawStore.getState().lastSequence).toBe(4);
   });
+
+  /**
+   * V0-29. The banner's heading was `error.code.replaceAll("_", " ")`, so an
+   * ordinary read-only folder announced itself as *permission denied* over a
+   * sentence Rust had written for a log.
+   */
+  it("names the file and the recovery rather than the error code", async () => {
+    vi.mocked(api.reconcileProject).mockRejectedValue({
+      code: "permission_denied",
+      message:
+        "Saving ticket failed for ticket.md. The file or the folder it is in is read-only.",
+      recoverable: true,
+      context: {
+        path: "/tmp/LongClaw Fixture/.longclaw/tickets/LC-1/ticket.md",
+        fileName: "ticket.md",
+        cause: "readOnly",
+      },
+    });
+    useLongClawStore.setState({
+      projects: [project],
+      activeProjectId: project.id,
+      lastSequence: 4,
+      reconciling: true,
+      loading: true,
+    });
+
+    render(<App />);
+
+    const banner = await screen.findByRole("alert");
+    expect(banner.textContent).toContain("That file could not be written");
+    expect(banner.textContent).toContain(
+      "/tmp/LongClaw Fixture/.longclaw/tickets/LC-1/ticket.md",
+    );
+    expect(banner.textContent).toContain("Give yourself write access");
+    expect(banner.textContent).toContain("The file was left as it was.");
+    expect(banner.textContent).not.toContain("permission denied");
+  });
 });
 
 describe("optimistic create, write feedback, and undo (V0-17)", () => {
@@ -1429,11 +1466,15 @@ describe("archive and unarchive (V0-11)", () => {
     };
   }
 
-  function detail(key: string, archivedAt?: string): TicketDetail {
+  function detail(
+    key: string,
+    archivedAt?: string,
+    contentHash = `hash-${key}`,
+  ): TicketDetail {
     return {
       key,
       relativePath: `.longclaw/tickets/${key}/ticket.md`,
-      contentHash: `hash-${key}`,
+      contentHash,
       byteLength: 300,
       readOnly: false,
       raw: "",
@@ -1568,8 +1609,7 @@ describe("archive and unarchive (V0-11)", () => {
     vi.mocked(api.readTicket).mockResolvedValue(detail("LC-1"));
     vi.mocked(api.editTicket).mockRejectedValue({
       code: "conflict",
-      message:
-        "This ticket changed on disk while you were editing. Reload it or keep your version, then save again.",
+      message: "LC-1 changed on disk. Your version was not written over it.",
       recoverable: true,
       context: {
         ticketKey: "LC-1",
@@ -1590,11 +1630,151 @@ describe("archive and unarchive (V0-11)", () => {
     // there is no banner out here to reload from.
     expect(screen.getByText(/LC-1 changed on disk/)).toBeTruthy();
     expect(screen.getByText(/Claude \(agent\)/)).toBeTruthy();
+    // V0-29: and it says the change survived, because it now does. A toast that
+    // reports a refusal without saying the edit is held reads as a dead end.
+    expect(screen.getByText(/Your change is held/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Open ticket" }));
 
     // The honest next action: the file as it now reads, so the human can decide.
     await screen.findByRole("complementary", { name: "Ticket LC-1" });
+  });
+
+  /**
+   * V0-29, and the question plan 23 left open: may a mutation raised outside the
+   * panel hold its edit and re-apply it over a newer file? Yes — but only inside
+   * the panel, over content the human has been shown. Open ticket used to throw
+   * the refused edit away in the revert, so the trip cost the human their change.
+   */
+  it("hands the refused edit to the panel, and keeps it against the file the panel read", async () => {
+    vi.mocked(api.readTicket).mockResolvedValue(detail("LC-1"));
+    vi.mocked(api.editTicket).mockRejectedValue({
+      code: "conflict",
+      message: "LC-1 changed on disk. Your version was not written over it.",
+      recoverable: true,
+      context: {
+        ticketKey: "LC-1",
+        conflictingActorType: "agent",
+        conflictingActorName: "Claude",
+      },
+    });
+    await openPanel([row("LC-1"), row("LC-2")], "LC-1");
+
+    fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+    await waitFor(() => expect(card("LC-1")).toBeTruthy());
+
+    // What the panel finds when it goes and looks: somebody else's newer bytes.
+    vi.mocked(api.readTicket).mockResolvedValue(
+      detail("LC-1", undefined, "hash-LC-1-newer"),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Open ticket" }));
+
+    // The banner, over the file as it now reads — not a dead end.
+    await screen.findByText("⚠ Changed on disk while you were editing");
+    vi.mocked(api.editTicket).mockResolvedValue(
+      written("LC-1", { archivedAt: "2026-07-31T10:00:00Z" }),
+    );
+    fireEvent.click(screen.getByText("Keep mine"));
+
+    await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(2));
+    expect(api.editTicket).toHaveBeenLastCalledWith({
+      projectId: project.id,
+      ticketKey: "LC-1",
+      // The hash the panel read and rendered, so this is a decision taken over
+      // the newer file rather than a blind overwrite of an unseen one.
+      expectedHash: "hash-LC-1-newer",
+      // The archive the board raised, still intact after the trip.
+      edit: { archived: true },
+    });
+  });
+
+  /**
+   * V0-29, review follow-up. The panel raises the handed-over banner as soon as
+   * it has *a* file, and only then goes back for the current one — so between
+   * those two reads Keep mine is on screen with an older hash behind it. The
+   * panel-local case is pinned in `TicketPanel.test.tsx`; this is the same
+   * window on the way in from the board, which is the longer of the two.
+   */
+  it("waits for the panel's own read before keeping a held conflict", async () => {
+    vi.mocked(api.readTicket).mockResolvedValue(detail("LC-1"));
+    vi.mocked(api.editTicket).mockRejectedValue({
+      code: "conflict",
+      message: "LC-1 changed on disk. Your version was not written over it.",
+      recoverable: true,
+      context: { ticketKey: "LC-1" },
+    });
+    await openPanel([row("LC-1"), row("LC-2")], "LC-1");
+
+    fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+    await waitFor(() => expect(card("LC-1")).toBeTruthy());
+
+    // The panel opens on the file it had, and the read that fetches the current
+    // one is held open.
+    let arrive: () => void = () => {};
+    vi.mocked(api.readTicket)
+      .mockResolvedValueOnce(detail("LC-1"))
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            arrive = () =>
+              resolve(detail("LC-1", undefined, "hash-LC-1-newer"));
+          }),
+      );
+
+    fireEvent.click(screen.getByRole("button", { name: "Open ticket" }));
+    await screen.findByText("⚠ Changed on disk while you were editing");
+
+    vi.mocked(api.editTicket).mockResolvedValue(
+      written("LC-1", { archivedAt: "2026-07-31T10:00:00Z" }),
+    );
+    fireEvent.click(screen.getByText("Keep mine"));
+
+    // Nothing goes out over a file nobody has seen.
+    expect(api.editTicket).toHaveBeenCalledTimes(1);
+
+    arrive();
+
+    await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(2));
+    expect(api.editTicket).toHaveBeenLastCalledWith({
+      projectId: project.id,
+      ticketKey: "LC-1",
+      expectedHash: "hash-LC-1-newer",
+      edit: { archived: true },
+    });
+  });
+
+  it("does not carry a refused edit onto the next ticket, or back after a close", async () => {
+    vi.mocked(api.readTicket).mockResolvedValue(detail("LC-1"));
+    vi.mocked(api.editTicket).mockRejectedValue({
+      code: "conflict",
+      message: "LC-1 changed on disk. Your version was not written over it.",
+      recoverable: true,
+      context: { ticketKey: "LC-1" },
+    });
+    await openPanel([row("LC-1"), row("LC-2")], "LC-1");
+
+    fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+    await waitFor(() => expect(card("LC-1")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Open ticket" }));
+    await screen.findByText("⚠ Changed on disk while you were editing");
+
+    // A different ticket is a different file, and never inherits the choice.
+    vi.mocked(api.readTicket).mockResolvedValue(detail("LC-2"));
+    fireEvent.click(screen.getByRole("button", { name: "Close ticket" }));
+    fireEvent.click(card("LC-2") as HTMLElement);
+    await screen.findByRole("complementary", { name: "Ticket LC-2" });
+    expect(
+      screen.queryByText("⚠ Changed on disk while you were editing"),
+    ).toBeNull();
+
+    // Nor does closing and coming back re-raise a choice already left behind.
+    vi.mocked(api.readTicket).mockResolvedValue(detail("LC-1"));
+    fireEvent.click(screen.getByRole("button", { name: "Close ticket" }));
+    fireEvent.click(card("LC-1") as HTMLElement);
+    await screen.findByRole("complementary", { name: "Ticket LC-1" });
+    expect(
+      screen.queryByText("⚠ Changed on disk while you were editing"),
+    ).toBeNull();
   });
 
   it("leaves focus on the board rather than dropping it on the body", async () => {
@@ -1877,7 +2057,9 @@ describe("board ordering and manual reordering (V0-09)", () => {
     expect(useLongClawStore.getState().tickets[2].state === "indexed").toBe(
       true,
     );
-    await screen.findByText("LC-3 could not be moved. Disk is full");
+    await screen.findByText(
+      "LC-3 could not be moved. Disk is full The file was left as it was.",
+    );
     const back = useLongClawStore
       .getState()
       .tickets.find((ticket) => ticket.key === "LC-3");

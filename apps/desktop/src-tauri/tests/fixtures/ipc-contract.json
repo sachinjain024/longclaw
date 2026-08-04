@@ -216,5 +216,6 @@
       "field": "checklist.ck_minted.added",
       "to": "Write the migration"
     }
-  ]
+  ],
+  "writeFailureCauses": ["missing", "noSpace", "readOnly"]
 }

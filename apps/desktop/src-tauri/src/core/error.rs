@@ -46,24 +46,112 @@ impl AppError {
         self
     }
 
+    /// Fills a key the error did not already carry.
+    ///
+    /// For a seam that knows more about a failure than the layer that raised it —
+    /// `Engine::commit` knows the ticket key and the file every write was aimed
+    /// at, and the filesystem underneath it only ever knew a path. It fills gaps
+    /// and never corrects: whoever raised the error was closer to it.
+    pub fn with_context_if_absent(
+        mut self,
+        key: impl Into<String>,
+        value: impl Into<String>,
+    ) -> Self {
+        self.context
+            .entry(key.into())
+            .or_insert_with(|| value.into());
+        self
+    }
+
+    /// A filesystem failure as something the human can act on.
+    ///
+    /// The raw `io::Error` is diagnostic detail and goes to `context`; ADR 0010's
+    /// `message` is presentation text, so it names the file and the two causes
+    /// worth naming — a read-only file or folder, and a full volume. Anything
+    /// else keeps the system's own words rather than guessing at a cause.
     pub fn io(action: &str, path: &std::path::Path, error: io::Error) -> Self {
         let code = if error.kind() == io::ErrorKind::PermissionDenied {
             ErrorCode::PermissionDenied
         } else {
             ErrorCode::Io
         };
-        Self::new(
-            code,
-            format!("{action} failed for {}: {error}", path.display()),
-            true,
-        )
-        .with_context("path", path.display().to_string())
+        let name = file_label(path);
+        let cause = IoCause::of(&error);
+        let why = match cause {
+            Some(cause) => cause.describe().to_owned(),
+            None => format!("{error}."),
+        };
+        let reported = Self::new(code, format!("{action} failed for {name}. {why}"), true)
+            .with_context("path", path.display().to_string())
+            .with_context("fileName", name)
+            .with_context("systemError", error.to_string());
+        match cause {
+            Some(cause) => reported.with_context("cause", cause.as_str()),
+            None => reported,
+        }
     }
 
     pub fn parse(path: &std::path::Path, message: impl Into<String>) -> Self {
         Self::new(ErrorCode::ParseFailed, message, true)
             .with_context("path", path.display().to_string())
     }
+}
+
+/// Why a filesystem operation failed, in the only terms the app acts on.
+///
+/// A closed set, like `ErrorCode` and for the same reason (ADR 0010): the
+/// frontend switches on it to offer a recovery, so it is behavior rather than
+/// prose, and the two languages must not drift. `tests/fixtures/ipc-contract.json`
+/// § `writeFailureCauses` pins the set, and both sides assert against it.
+///
+/// An `io::ErrorKind` this does not name is deliberately *not* a variant. The
+/// error keeps the system's own words and the surfaces offer no recovery, which
+/// is better than sending somebody to check permissions on an ejected volume.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IoCause {
+    ReadOnly,
+    NoSpace,
+    Missing,
+}
+
+impl IoCause {
+    /// Every cause, in wire order, for the contract pin.
+    pub const ALL: [Self; 3] = [Self::Missing, Self::NoSpace, Self::ReadOnly];
+
+    fn of(error: &io::Error) -> Option<Self> {
+        match error.kind() {
+            io::ErrorKind::PermissionDenied => Some(Self::ReadOnly),
+            io::ErrorKind::StorageFull => Some(Self::NoSpace),
+            io::ErrorKind::NotFound => Some(Self::Missing),
+            _ => None,
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::ReadOnly => "readOnly",
+            Self::NoSpace => "noSpace",
+            Self::Missing => "missing",
+        }
+    }
+
+    /// The clause that goes in the message, for a human rather than a log.
+    fn describe(self) -> &'static str {
+        match self {
+            Self::ReadOnly => "The file or the folder it is in is read-only.",
+            Self::NoSpace => "The volume it is on has no space left.",
+            Self::Missing => "It is no longer where LongClaw expected to find it.",
+        }
+    }
+}
+
+/// What to call a file in a sentence a human reads: its own name, and the whole
+/// path only when it has no name to give.
+fn file_label(path: &std::path::Path) -> String {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .map(str::to_owned)
+        .unwrap_or_else(|| path.display().to_string())
 }
 
 impl Display for AppError {
@@ -161,5 +249,109 @@ impl From<Diagnostic> for AppError {
             Some(line) => error.with_context("line", line.to_string()),
             None => error,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+
+    #[test]
+    fn a_permission_failure_names_the_file_and_the_cause_rather_than_the_os_error() {
+        let error = AppError::io(
+            "Saving ticket",
+            Path::new("/projects/app/.longclaw/tickets/LC-1/ticket.md"),
+            io::Error::from(io::ErrorKind::PermissionDenied),
+        );
+
+        assert_eq!(error.code, ErrorCode::PermissionDenied);
+        assert!(error.recoverable);
+        assert!(error.message.contains("ticket.md"));
+        assert!(error.message.contains("read-only"));
+        // The raw `io::Error` is diagnostic detail, not presentation text.
+        assert!(!error.message.contains("os error"));
+        assert_eq!(
+            error.context.get("path").map(String::as_str),
+            Some("/projects/app/.longclaw/tickets/LC-1/ticket.md")
+        );
+        assert_eq!(
+            error.context.get("fileName").map(String::as_str),
+            Some("ticket.md")
+        );
+        assert!(error.context.contains_key("systemError"));
+        assert_eq!(
+            error.context.get("cause").map(String::as_str),
+            Some("readOnly")
+        );
+    }
+
+    #[test]
+    fn a_full_volume_says_so_and_stays_recoverable() {
+        let error = AppError::io(
+            "Saving ticket",
+            Path::new("/projects/app/.longclaw/tickets/LC-1/ticket.md"),
+            io::Error::from(io::ErrorKind::StorageFull),
+        );
+
+        assert_eq!(error.code, ErrorCode::Io);
+        assert!(error.recoverable);
+        assert!(error.message.contains("ticket.md"));
+        assert!(error.message.contains("no space left"));
+        assert!(!error.message.contains("os error"));
+        assert_eq!(
+            error.context.get("cause").map(String::as_str),
+            Some("noSpace")
+        );
+    }
+
+    #[test]
+    fn an_unclassified_io_failure_still_names_the_file_and_keeps_the_detail() {
+        let error = AppError::io(
+            "Reading ticket",
+            Path::new("/projects/app/.longclaw/tickets/LC-1/ticket.md"),
+            io::Error::other("the volume was ejected"),
+        );
+
+        assert_eq!(error.code, ErrorCode::Io);
+        assert!(error.message.contains("ticket.md"));
+        assert!(error.message.contains("the volume was ejected"));
+        assert_eq!(
+            error.context.get("systemError").map(String::as_str),
+            Some("the volume was ejected")
+        );
+        // No cause the app can name, so it claims none and offers no recovery.
+        assert!(!error.context.contains_key("cause"));
+    }
+
+    #[test]
+    fn the_cause_set_is_the_one_the_ipc_contract_pins() {
+        let fixture: serde_json::Value =
+            serde_json::from_str(include_str!("../../tests/fixtures/ipc-contract.json"))
+                .expect("IPC contract fixture must be valid JSON");
+        let emitted: Vec<&str> = IoCause::ALL.iter().map(|cause| cause.as_str()).collect();
+
+        assert_eq!(
+            serde_json::to_value(&emitted).expect("causes must serialize"),
+            fixture["writeFailureCauses"],
+            "the set of write-failure causes changed; `src/failure.ts` switches on it"
+        );
+    }
+
+    #[test]
+    fn context_already_set_is_not_overwritten_by_a_later_seam() {
+        let error = AppError::new(ErrorCode::Conflict, "changed on disk", true)
+            .with_context("ticketKey", "LC-1")
+            .with_context_if_absent("ticketKey", "LC-9")
+            .with_context_if_absent("path", "/projects/app/ticket.md");
+
+        assert_eq!(
+            error.context.get("ticketKey").map(String::as_str),
+            Some("LC-1")
+        );
+        assert_eq!(
+            error.context.get("path").map(String::as_str),
+            Some("/projects/app/ticket.md")
+        );
     }
 }

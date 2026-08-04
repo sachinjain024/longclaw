@@ -11,6 +11,11 @@ use crate::core::storage::{
 };
 use crate::core::{AppError, AppResult, ErrorCode, ProjectReference};
 
+/// What a failure writing the registry or its backup says the human was doing.
+/// The registry lives in application support, so "saving a ticket" would name a
+/// file in a folder they have never opened (V0-29).
+const REGISTRY_ACTION: &str = "Saving the project list";
+
 pub struct RegistryStore {
     path: PathBuf,
     backup_path: PathBuf,
@@ -178,7 +183,7 @@ impl RegistryStore {
         let root = Path::new(&current.root_path);
         let mut document = read_project(root)?;
         let bytes = edit(&mut document).map_err(AppError::from)?;
-        atomic_write(&project_file_path(root), &bytes)?;
+        atomic_write("Saving project settings", &project_file_path(root), &bytes)?;
         write_agent_contract(root, &document)?;
         let mut project =
             ProjectReference::from_project(document.project(), current.root_path.clone());
@@ -227,10 +232,10 @@ impl RegistryStore {
             )
         })?;
         if let Ok(current) = fs::read(&self.path) {
-            atomic_write(&self.backup_path, &current)?;
-            atomic_write(&self.path, &bytes)
+            atomic_write(REGISTRY_ACTION, &self.backup_path, &current)?;
+            atomic_write(REGISTRY_ACTION, &self.path, &bytes)
         } else {
-            atomic_write(&self.path, &bytes)?;
+            atomic_write(REGISTRY_ACTION, &self.path, &bytes)?;
             preserve_registry_backup(&self.backup_path, &bytes)
         }
     }
@@ -240,7 +245,7 @@ fn preserve_registry_backup(backup_path: &Path, bytes: &[u8]) -> AppResult<()> {
     if backup_path.exists() {
         return Ok(());
     }
-    atomic_write(backup_path, bytes)
+    atomic_write(REGISTRY_ACTION, backup_path, bytes)
 }
 
 /// A cached entry brought back up to date from the project's own files.
@@ -279,6 +284,42 @@ mod tests {
     use std::fs;
 
     use super::RegistryStore;
+    use crate::core::{ErrorCode, ProjectReference};
+
+    /// V0-29, review follow-up. `atomic_write` writes tickets, the registry,
+    /// `longclaw.yaml` and the agent contract, so naming the operation inside it
+    /// made a read-only application support folder report *"Saving ticket failed
+    /// for project-registry.json"* — right about the file, wrong about
+    /// everything else.
+    #[cfg(unix)]
+    #[test]
+    fn a_registry_write_failure_does_not_call_itself_a_ticket_save() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temp = tempfile::tempdir().unwrap();
+        let app_data = temp.path().join("app-support");
+        let store = RegistryStore::load(&app_data).unwrap();
+
+        fs::set_permissions(&app_data, fs::Permissions::from_mode(0o555)).unwrap();
+        let error = store
+            .remember(&ProjectReference {
+                id: "registry-copy-proof".to_owned(),
+                name: "Registry Copy Proof".to_owned(),
+                root_path: temp.path().join("project").display().to_string(),
+                key: "RP".to_owned(),
+                theme: "indigo".to_owned(),
+                starred: false,
+                reachable: true,
+                labels: Default::default(),
+            })
+            .unwrap_err();
+        fs::set_permissions(&app_data, fs::Permissions::from_mode(0o755)).unwrap();
+
+        assert_eq!(error.code, ErrorCode::PermissionDenied);
+        assert!(!error.message.contains("ticket"));
+        assert!(error.message.contains("project list"));
+        assert!(error.message.contains("project-registry.json"));
+    }
 
     #[test]
     fn project_references_survive_restart_and_missing_folders_remain_listed() {

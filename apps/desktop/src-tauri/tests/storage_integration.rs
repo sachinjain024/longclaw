@@ -576,7 +576,8 @@ fn a_theme_change_rewrites_one_line_of_the_project_file() {
 
     let mut document = storage::read_project(&root).expect("the project should be readable");
     let bytes = document.set_theme("clay").expect("clay is a preset id");
-    storage::atomic_write(&path, &bytes).expect("the project file should be written");
+    storage::atomic_write("Saving project settings", &path, &bytes)
+        .expect("the project file should be written");
 
     let after = fs::read_to_string(&path).expect("longclaw.yaml");
     assert_eq!(after, before.replace("theme: indigo", "theme: clay"));

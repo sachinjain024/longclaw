@@ -85,7 +85,9 @@ describe("running a mutation", () => {
     const toast = useMutationStore.getState().toast;
     expect(toast).toMatchObject({
       tone: "danger",
-      message: "No space left on device",
+      // The error's own words, then the guarantee — the claim the product rests
+      // on, on the surface a failed write actually reaches (V0-29).
+      message: "No space left on device The file was left as it was.",
     });
     // Nothing landed, so the settled `✓` must not claim a file.
     expect(useMutationStore.getState().settled).toBeUndefined();
@@ -122,8 +124,8 @@ describe("running a mutation", () => {
     const review = vi.fn();
     const write = vi.fn().mockRejectedValue({
       code: "conflict",
-      message:
-        "This ticket changed on disk while you were editing. Reload it or keep your version, then save again.",
+      // What Rust actually sends now: the fact, and no button it cannot show.
+      message: "LC-1 changed on disk. Your version was not written over it.",
       recoverable: true,
       context: {
         ticketKey: "LC-1",
@@ -143,6 +145,10 @@ describe("running a mutation", () => {
     expect(toast?.retry).toBeUndefined();
     expect(toast?.message).toContain("LC-1 changed on disk");
     expect(toast?.message).toContain("Claude (agent)");
+    // The banner's buttons are not on screen out here, so the copy must not
+    // send anybody looking for them (V0-29).
+    expect(toast?.message).not.toContain("Reload");
+    expect(toast?.message).not.toContain("keep your version");
 
     toast?.review?.();
     expect(review).toHaveBeenCalledWith(
@@ -167,7 +173,12 @@ describe("running a mutation", () => {
     // No `review`, so the toast offers nothing but dismissal rather than a
     // button that goes nowhere.
     expect(toast?.review).toBeUndefined();
-    expect(toast?.message).toContain("The file changed on disk");
+    // The error knew something the frontend does not — the file was *removed*,
+    // not edited — so the composer keeps its sentence rather than flattening it
+    // into a generic one.
+    expect(toast?.message).toBe(
+      "This ticket's file was removed while you were saving.",
+    );
   });
 
   it("raises no toast for a mutation that is not destructive-adjacent", async () => {
@@ -199,6 +210,56 @@ describe("running a mutation", () => {
     expect(inverse).toHaveBeenCalledWith("hash-1");
     // Undo is the last step, not a stack: there is nothing to redo.
     expect(useMutationStore.getState().toast?.undo).toBeUndefined();
+  });
+
+  /**
+   * V0-29. `permission_denied` and `io` kept Retry, correctly, and said only
+   * what Rust said. A read-only folder is an ordinary thing to happen, and the
+   * toast has to say what to do about it.
+   */
+  it("tells a write failure what to do about itself, and keeps Retry", async () => {
+    await mutate({
+      write: () =>
+        Promise.reject({
+          code: "permission_denied",
+          message:
+            "Saving ticket failed for ticket.md. The file or the folder it is in is read-only.",
+          recoverable: true,
+          context: {
+            path: "/projects/app/.longclaw/tickets/LC-1/ticket.md",
+            fileName: "ticket.md",
+            cause: "readOnly",
+          },
+        }),
+    });
+
+    const toast = useMutationStore.getState().toast;
+    expect(toast?.tone).toBe("danger");
+    expect(toast?.message).toContain("ticket.md");
+    expect(toast?.message).toContain("read-only");
+    expect(toast?.message).toContain("Give yourself write access");
+    // Nothing about the file changed, so re-sending the same edit is right.
+    expect(toast?.retry).toBeTruthy();
+  });
+
+  it("offers no recovery for a failure nothing classified", async () => {
+    await mutate({
+      write: () =>
+        Promise.reject({
+          code: "io",
+          message:
+            "Saving ticket failed for ticket.md. the volume was ejected.",
+          recoverable: true,
+          context: { path: "/projects/app/.longclaw/tickets/LC-1/ticket.md" },
+        }),
+    });
+
+    const toast = useMutationStore.getState().toast;
+    expect(toast?.message).toBe(
+      "Saving ticket failed for ticket.md. the volume was ejected. " +
+        "The file was left as it was.",
+    );
+    expect(toast?.retry).toBeTruthy();
   });
 
   it("keeps the indicator busy until the last concurrent write settles", async () => {

@@ -435,7 +435,7 @@ impl ProjectEngine {
             Some(expected) => {
                 storage::atomic_replace_with_seams(&path, &bytes, &expected, replace_seams)
             }
-            None => atomic_write(&path, &bytes),
+            None => atomic_write(storage::SAVING_TICKET, &path, &bytes),
         });
         if let Err(error) = placed {
             // Our bytes are not on disk, so the receipt must go too. Left behind, it
@@ -445,7 +445,14 @@ impl ProjectEngine {
             if created {
                 storage::discard_claimed_ticket_directory(&write.path);
             }
-            return Err(error);
+            // Every write failure leaves here knowing which ticket and which file
+            // it was, whatever raised it: the filesystem underneath only ever
+            // knew a path, and a swap that finds the file gone knows neither
+            // (V0-29's must-pass). Existing context wins — whoever raised the
+            // error was closer to it.
+            return Err(error
+                .with_context_if_absent("ticketKey", write.key.clone())
+                .with_context_if_absent("path", write.path.display().to_string()));
         }
         let ticket = self.index.ingest(&write.path, &self.project().key)?;
         Ok(WriteResult {

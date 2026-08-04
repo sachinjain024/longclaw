@@ -606,11 +606,22 @@ than the designed centered modal — settings debt, recorded in
 - Index loss never causes project data loss.
 - Concurrent changes produce an explicit, understandable resolution path.
 
-**Progress note:** Step 14 is not complete yet. V0-26, V0-27, V0-28, V0-30,
-V0-31, V0-32, V0-33, and V0-40 are closed; V0-29 remains open for the full
-write-failure/conflict-state treatment that plan 23 explicitly left behind. See
-[plan 38](plans/completed/38-complete-step-14-recovery.md) for the closed-row
-evidence and the review correction.
+**Step 14 is complete as of 2026-08-04.** All nine rows are closed: V0-26,
+V0-27, V0-28, V0-30, V0-31, V0-32, V0-33 and V0-40 in
+[plan 38](plans/completed/38-complete-step-14-recovery.md), and V0-29 — the full
+write-failure and conflict-state treatment plan 23 deliberately left behind — in
+[plan 39](plans/completed/39-v0-29-write-failure-states.md).
+
+Two things about that closure are worth carrying forward. The first 2026-08-02
+closeout marked V0-29 done without implementing it, and the review reversed it;
+the row is closed now against the four clauses plan 23 named, one at a time, each
+test confirmed failing first. And planning V0-29 turned up a fifth defect nobody
+had recorded — **Keep mine re-sent the hash Rust had just refused, and worked only
+when the watcher's event won a race** — which is the kind of thing this step
+exists to find.
+
+Step 16's CI-runner interaction-budget gate, V0-42, is a separate open row and
+does not belong to this step.
 
 ### Step 15 — *(parked)* Add the optional sync-waitlist signup
 

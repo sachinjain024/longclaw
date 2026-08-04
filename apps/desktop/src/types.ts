@@ -17,16 +17,52 @@ export type ErrorCode =
   | "io"
   | "internal";
 
+/**
+ * Why a filesystem operation failed, in the only terms the app acts on.
+ *
+ * A closed set like `ErrorCode`, and closed for the same reason: `failure.ts`
+ * switches on it to offer a recovery, so it is behavior rather than prose.
+ * `core::error::IoCause` is the Rust half and
+ * `tests/fixtures/ipc-contract.json` § `writeFailureCauses` pins the two
+ * together. A cause absent from `context` means nobody classified the failure,
+ * and no recovery is offered — better than sending somebody to check
+ * permissions on an ejected volume.
+ *
+ * The tuple is the source: the type is derived from it and so is the guard in
+ * `failure.ts`, so there is one list to keep in step with Rust rather than
+ * three to keep in step with each other. Wire order, to match the fixture.
+ */
+export const FAILURE_CAUSES = ["missing", "noSpace", "readOnly"] as const;
+
+export type FailureCause = (typeof FAILURE_CAUSES)[number];
+
 /** Expected failures cross IPC as a closed tagged shape (ADR 0010). */
 export interface AppError {
   code: ErrorCode;
   message: string;
   recoverable: boolean;
   /**
-   * Small string values for recovery UI: `ticketKey`, `path`, `expectedHash`,
-   * `actualHash`, `conflictingActorType`, `conflictingActorName`, `conflictingAt`.
+   * Small string values for recovery UI: `ticketKey`, `path`, `fileName`,
+   * `cause` (a `FailureCause`), `systemError`, `directory`, `temporaryPath`,
+   * `preservedPath`, `expectedHash`, `actualHash`, `conflictingActorType`,
+   * `conflictingActorName`, `conflictingAt`.
    */
   context?: Record<string, string>;
+}
+
+/**
+ * A conflict travelling from the surface that raised it to the one that can
+ * resolve it, with the edit the write was refused for.
+ *
+ * `ConflictBanner` is `TicketPanel` state, so a conflict raised on the board
+ * cannot render it. `App` holds this instead and the panel seeds its banner from
+ * it — the whole of what lets a board-raised conflict reach a two-way choice
+ * (V0-29).
+ */
+export interface HeldConflict {
+  ticketKey: string;
+  error: AppError;
+  edit: TicketEdit;
 }
 
 /** Why a file, or one record inside it, could not be read. */

@@ -33,6 +33,7 @@ import { CreatePanel } from "./CreatePanel";
 import { CreateProjectForm, type ProjectDraft } from "./CreateProjectForm";
 import { DEV_CHROME } from "./devChrome";
 import { normalizeError } from "./errors";
+import { failureMessage, failurePath, failureTitle } from "./failure";
 import { filterTickets, isFiltering } from "./filtering";
 import { IssueList } from "./IssueList";
 import { isChord, singleKeyShortcutAllowed } from "./keyContext";
@@ -56,6 +57,7 @@ import {
 import type {
   AppError,
   CreateTicketRequest,
+  HeldConflict,
   IndexedTicket,
   Label,
   ProjectReference,
@@ -303,6 +305,7 @@ export function App() {
   const openTicket = useCallback(
     (key: string) => {
       setSelectedKey(key);
+      setHeldConflict(undefined);
       // Opening a ticket is the review that decays its acknowledgement.
       reviewTicket(key);
     },
@@ -311,8 +314,33 @@ export function App() {
   /** Closing returns focus to the card that opened the panel. */
   const closeTicket = useCallback((key?: string) => {
     setSelectedKey(undefined);
+    setHeldConflict(undefined);
     if (key) focusCard(key);
   }, []);
+
+  /**
+   * The edit a board-raised write was refused for, on its way to the panel.
+   *
+   * A conflict outside the panel used to offer **Open ticket** and nothing else:
+   * the refused edit went back in the revert, so a human who still wanted their
+   * change had to remember it and redo it against whatever they found. Holding
+   * it here is what lets the panel put the ordinary two-way choice on screen —
+   * and the panel is the only place it can go, because Keep mine must write
+   * against a file the human has been shown rather than one nobody looked at
+   * (V0-29; the question [plan 23](docs/plans/completed/23-…) left open).
+   *
+   * It is deliberately short-lived: opening any ticket or closing the panel
+   * drops it, so a choice left behind is left behind.
+   */
+  const [heldConflict, setHeldConflict] = useState<HeldConflict>();
+
+  /** Where an unresolved conflict goes: to the panel, holding its edit. */
+  function handToPanel(ticketKey: string, edit: TicketEdit) {
+    return (error: AppError) => {
+      openTicket(ticketKey);
+      setHeldConflict({ ticketKey, error, edit });
+    };
+  }
   const localProjects = sortedProjects(projects);
   const starredProjects = sortedProjects(
     projects.filter((candidate) => candidate.starred),
@@ -785,7 +813,7 @@ export function App() {
           applyLocalWrite(result.ticket, result.generation),
         toast: () =>
           `${written.ticket.key} archived — v0 never deletes a ticket file`,
-        review: () => openTicket(written.ticket.key),
+        review: handToPanel(written.ticket.key, { archived: true }),
       }),
       // The create itself sends no hash, so it cannot conflict; its inverse can.
       failure: (error) => `The ticket could not be created. ${error.message}`,
@@ -841,13 +869,14 @@ export function App() {
         onWritten: (undone) =>
           applyLocalWrite(undone.ticket, undone.generation),
         toast: () => options.inverseToast,
-        review: () => openTicket(ticket.key),
+        review: handToPanel(ticket.key, options.inverse),
       }),
       failure: options.failure,
-      // A conflict here cannot reach the panel's banner — these writes outlive
-      // any panel — so the offer is to open the ticket and read the file as it
-      // now is.
-      review: () => openTicket(ticket.key),
+      // A conflict here cannot reach the panel's banner while the write is in
+      // flight — these writes outlive any panel — so the refused edit travels
+      // to the panel instead, where it gets the same two-way choice a save made
+      // in the panel would have got.
+      review: handToPanel(ticket.key, options.edit),
     };
   }
 
@@ -1025,11 +1054,18 @@ export function App() {
       </aside>
 
       <section className="main-panel">
+        {/* The code used to be the heading here, so an ordinary read-only
+            folder announced itself as `permission denied` (V0-29). */}
         {error && (
           <section className="error-banner" role="alert">
-            <strong>{error.code.replaceAll("_", " ")}</strong>
-            <span>{error.message}</span>
-            {error.recoverable && <small>Files were not rewritten.</small>}
+            <strong>{failureTitle(error)}</strong>
+            <span>
+              {failureMessage(error)}
+              {/* The one thing the banner has room for that a toast does not. */}
+              {failurePath(error) && (
+                <code className="failure-path">{failurePath(error)}</code>
+              )}
+            </span>
           </section>
         )}
 
@@ -1265,6 +1301,9 @@ export function App() {
             mark={externalMarks[selectedKey]}
             reloadSignal={panelReload}
             removedSignal={panelRemoved}
+            heldConflict={
+              heldConflict?.ticketKey === selectedKey ? heldConflict : undefined
+            }
             now={now}
             archived={openRow !== undefined && isArchived(openRow)}
             shortcutsActive={!paletteOpen && createSurface === undefined}
