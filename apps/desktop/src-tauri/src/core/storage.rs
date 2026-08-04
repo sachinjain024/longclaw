@@ -1064,6 +1064,12 @@ fn initialize_project_with_contract_writer(
         .map_err(|diagnostic| AppError::new(ErrorCode::Internal, diagnostic.message, false))?;
 
     let longclaw_dir = project_root.join(PROJECT_DIRECTORY);
+    let initialization_paths = project_initialization_paths(project_root);
+    let pre_existing: BTreeSet<PathBuf> = initialization_paths
+        .iter()
+        .filter(|path| path.exists())
+        .cloned()
+        .collect();
     let created_longclaw = !longclaw_dir.exists();
     let result: AppResult<()> = (|| {
         let tickets = tickets_root(project_root);
@@ -1077,9 +1083,9 @@ fn initialize_project_with_contract_writer(
         let leftovers = if created_longclaw {
             cleanup_failed_project_initialization(project_root)
         } else {
-            project_initialization_paths(project_root)
+            initialization_paths
                 .into_iter()
-                .filter(|path| path.exists())
+                .filter(|path| path.exists() && !pre_existing.contains(path))
                 .collect()
         };
         let error = if leftovers.is_empty() {
@@ -1138,6 +1144,7 @@ fn display_paths(paths: &[PathBuf]) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
     use std::fs;
 
     use super::{
@@ -1251,7 +1258,13 @@ mod tests {
             error.context["leftBehindReason"],
             "Cleanup was skipped because .longclaw existed before this create attempt"
         );
-        assert!(error.context["leftBehindPaths"].contains(".longclaw"));
+        let left_behind_paths: BTreeSet<&str> = error.context["leftBehindPaths"].lines().collect();
+        assert!(
+            left_behind_paths.contains(project.join(".longclaw/longclaw.yaml").to_str().unwrap())
+        );
+        assert!(left_behind_paths.contains(project.join(".longclaw/tickets").to_str().unwrap()));
+        assert!(!left_behind_paths.contains(project.join(".longclaw").to_str().unwrap()));
+        assert!(!left_behind_paths.contains(project.join(".longclaw/keep-me").to_str().unwrap()));
         assert!(project.join(".longclaw/keep-me").is_dir());
         assert!(project.join(".longclaw/longclaw.yaml").is_file());
         assert!(project.join(".longclaw/tickets").is_dir());

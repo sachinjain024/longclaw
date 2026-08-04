@@ -30,8 +30,8 @@ The app does not transmit analytics, telemetry, crash reports, or project data.
 ## Registry recovery
 
 LongClaw stores the local project list in the operating system application
-support directory as `project-registry.json`. A preserved valid copy is kept next
-to it as `project-registry.backup.json`.
+support directory as `project-registry.json`. The previous valid registry is
+kept next to it as `project-registry.backup.json` before each later save.
 
 If the registry JSON is corrupt, LongClaw fails closed: it does not reset the
 file or forget project paths automatically. Quit the app, copy

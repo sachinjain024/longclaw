@@ -227,10 +227,12 @@ impl RegistryStore {
             )
         })?;
         if let Ok(current) = fs::read(&self.path) {
-            preserve_registry_backup(&self.backup_path, &current)?;
+            atomic_write(&self.backup_path, &current)?;
+            atomic_write(&self.path, &bytes)
+        } else {
+            atomic_write(&self.path, &bytes)?;
+            preserve_registry_backup(&self.backup_path, &bytes)
         }
-        atomic_write(&self.path, &bytes)?;
-        preserve_registry_backup(&self.backup_path, &bytes)
     }
 }
 
@@ -349,14 +351,16 @@ mod tests {
     }
 
     #[test]
-    fn a_registry_backup_is_not_overwritten_by_later_saves() {
+    fn a_registry_backup_holds_the_state_before_the_latest_save() {
         let temp = tempfile::tempdir().unwrap();
         let app_data = temp.path().join("app-support");
         let first = temp.path().join("first");
         let second = temp.path().join("second");
+        let third = temp.path().join("third");
         for (root, id, key) in [
             (&first, "first-project", "FP"),
             (&second, "second-project", "SP"),
+            (&third, "third-project", "TP"),
         ] {
             fs::create_dir_all(root.join(".longclaw/tickets")).unwrap();
             fs::write(
@@ -371,17 +375,19 @@ mod tests {
         let store = RegistryStore::load(&app_data).unwrap();
         store.register(&first).unwrap();
         let backup = app_data.join("project-registry.backup.json");
-        let first_backup = fs::read(&backup).unwrap();
-
         store.register(&second).unwrap();
+        fs::write(&backup, b"{ truncated backup").unwrap();
+        store.register(&third).unwrap();
 
-        assert_eq!(fs::read(&backup).unwrap(), first_backup);
-        assert!(String::from_utf8(first_backup)
-            .unwrap()
-            .contains("first-project"));
-        assert!(fs::read_to_string(app_data.join("project-registry.json"))
-            .unwrap()
-            .contains("second-project"));
+        let backup = fs::read_to_string(&backup).unwrap();
+        assert!(backup.contains("first-project"));
+        assert!(backup.contains("second-project"));
+        assert!(!backup.contains("third-project"));
+
+        let live = fs::read_to_string(app_data.join("project-registry.json")).unwrap();
+        assert!(live.contains("first-project"));
+        assert!(live.contains("second-project"));
+        assert!(live.contains("third-project"));
     }
 
     #[test]
