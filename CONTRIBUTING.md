@@ -47,6 +47,11 @@ privacy/filesystem audit, formatting, linting, TypeScript type checking,
 frontend unit and component tests, Rust unit/integration tests, watcher
 integration coverage, Clippy, and the Vite production build.
 
+`npm run release:binary-audit` is deliberately outside that gate: it reads the
+compiled binary's symbols and linked libraries, so it needs a bundle that only
+`npm run build:app` produces. Run it when you change a dependency or touch the
+capability file.
+
 Component tests run in jsdom and opt in per file with a
 `// @vitest-environment jsdom` docblock, so pure logic tests stay on the fast
 node environment. A component test stubs `src/api.ts` rather than reaching for

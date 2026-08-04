@@ -55,11 +55,16 @@ export function readSource(file) {
 }
 
 /**
- * The exit contract both guards share: name every offender and fail, or say
+ * The exit contract these scripts share: name every offender and fail, or say
  * how much was checked and pass. A guard that passes silently is one nobody
  * can tell is still running.
+ *
+ * `noun` is what `checked` counts. It defaults to files because most of these
+ * read a tree of them, but `binary-audit.mjs` counts symbols, and a pass line
+ * that says "files" about something else is a small lie in the one sentence a
+ * reader actually sees.
  */
-export function report({ name, findings, checked, remedy, clean }) {
+export function report({ name, findings, checked, remedy, clean, noun }) {
   if (findings.length > 0) {
     console.error(
       `${name}: ${findings.length} ${remedy}\n` +
@@ -67,5 +72,5 @@ export function report({ name, findings, checked, remedy, clean }) {
     );
     process.exit(1);
   }
-  console.log(`${name}: ${checked} files clean — ${clean}`);
+  console.log(`${name}: ${checked} ${noun ?? "files"} clean — ${clean}`);
 }

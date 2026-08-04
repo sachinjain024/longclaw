@@ -239,11 +239,41 @@ budget, so this is not a release blocker; it is an unaudited 1.6×.
 | Check | Evidence |
 |---|---|
 | Runtime network audit | not run with a process monitor; Step 17 blocker |
-| Binary/package audit | pass: `npm --prefix apps/desktop run release:audit`, for _directly_ configured dependencies; transitive ones are what the runtime pass above covers |
+| Package audit | pass: `npm run release:audit` — no network-capable crate in the **macOS host graph**, direct or transitive, checked with `cargo tree` rather than against the target-agnostic `Cargo.lock` |
+| Binary audit | pass: `npm run release:binary-audit` on the shipped 10.2 MB binary — 325 imported symbols and 13 linked libraries, no `reqwest`/`hyper`/`rustls`/`native_tls`/`sentry` symbol, no `_connect`/`_socket`/`_sendto`/`_getaddrinfo` import, no `CFNetwork`/`Network`/`Security` framework. Controls passed |
 | Tauri capability audit | pass: `apps/desktop/src-tauri/capabilities/main.json`; guarded by `release:audit` |
-| Filesystem scope | covered by storage/registry tests and `release:audit`; packaged-app manual pass still required |
+| Filesystem scope | covered by storage/registry tests and `release:audit`; packaged-app manual pass still required. See § The filesystem plugin is in the binary |
 | Crash diagnostics | pass: no crash reporter configured; docs in `apps/desktop/README.md` |
 | Account boundary | pass by source/config audit and shipped dependency audit; clean-machine offline pass still required |
+
+### The filesystem plugin is in the binary
+
+`tauri-plugin-fs` is compiled into the shipped build. It is not declared anywhere
+in `Cargo.toml`; it arrives as a dependency of `tauri-plugin-dialog`, which is
+the native folder picker the product needs, so it cannot be removed without
+removing folder selection.
+
+The earlier wording — "no filesystem plugin is *directly* configured" — was true,
+and is why the row passed, but it described the dependency list rather than the
+binary. What actually keeps the plugin unreachable is the capability file: the
+webview holds `core:default`, `core:event:default` and `dialog:allow-open`, and
+no `fs:` permission, so none of its commands can be invoked. `release:audit`
+asserts that permission set exactly, which is the reason it is pinned as an exact
+set rather than a minimum.
+
+**So the filesystem boundary is the permission set, not the dependency graph.**
+Anyone loosening that assertion opens the plugin without adding a dependency, and
+every dependency-shaped check would still pass.
+
+### What the audits do not cover
+
+WebKit is linked and is network-capable by construction. No symbol table or
+dependency graph says anything about what the webview does: the CSP
+`connect-src ipc: http://ipc.localhost` restriction is what bounds it, and the
+runtime process-monitor pass is what verifies it. That pass is still not run and
+remains a release blocker. A green package and binary audit means the Rust side
+links no HTTP client and calls no socket API — not that the app made no
+connection.
 
 ## Signing choice
 

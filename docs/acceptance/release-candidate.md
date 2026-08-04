@@ -46,6 +46,7 @@ Run from the repository root:
 ```sh
 npm run verify
 npm run build:app
+npm run release:binary-audit
 npm run perf:rust
 npm run perf:board
 npm run perf:list
@@ -66,9 +67,26 @@ hold:
 - the CSP limits `connect-src` to Tauri IPC;
 - the macOS bundle metadata and v0 support floor are present.
 
-It reads declared configuration and shipped source, not the built binary, so it
-cannot see what a transitive dependency does at runtime. The runtime network
-audit below is what covers that, and it stays manual for that reason.
+It also reads the **macOS host dependency graph** via `cargo tree`, so a
+network-capable crate arriving transitively fails the gate. `Cargo.lock` is not
+the right file for this: it is target-agnostic and lists crates macOS never
+compiles, `reqwest` and `hyper` among them.
+
+`npm run release:binary-audit` is the other half and needs a bundle, so it runs
+after `build:app` rather than in `verify`. It reads the shipped binary's symbols
+and linked libraries, and asserts controls — symbols that must be *present* —
+before believing any absence, so a probe that reads the wrong file fails instead
+of passing.
+
+Neither can see the **webview**, which is network-capable by construction. The
+CSP bounds it and the runtime network audit below verifies it; that pass stays
+manual for that reason, and a green audit is not a substitute for it.
+
+One dependency deserves naming: **`tauri-plugin-fs` is compiled into the binary**
+and cannot be removed, because `tauri-plugin-dialog` — the native folder picker —
+depends on it. Nothing grants it a permission, so no `fs:` command is reachable
+from the webview. The capability set below is therefore the filesystem boundary,
+not the dependency list, which is why it is pinned exactly rather than loosely.
 
 ## Performance report
 

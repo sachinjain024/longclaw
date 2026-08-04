@@ -249,6 +249,10 @@ generated.
 
 ## Task 4 — Make the binary audit audit the binary (finding 8)
 
+> **Done.** See [§ Outcome](#task-4--done-and-the-filesystem-plugin-is-in-the-binary).
+> The correction below stands, and measuring it turned up something neither the
+> review nor this plan predicted: `tauri-plugin-fs` *is* compiled in.
+
 ### What the spec says
 
 > Audit the **binary** and runtime for accidental telemetry, unnecessary network
@@ -640,3 +644,49 @@ to scroll is the honest answer, not a gap.
 about 11% apart between the Task 1 session and this sweep (open 1464.80 vs
 1632.65 ms), both far inside budget. Every perf number in the record is a single
 unrepeated sample, and that is roughly what one is worth.
+
+### Task 4 — done, and the filesystem plugin is in the binary
+
+The gate now asks both questions the checklist claimed. `release:audit` reads the
+**macOS host dependency graph** through `cargo tree --locked` (0.15 s, offline,
+292 crates), so a network-capable crate arriving transitively fails the build —
+which the old `Cargo.toml` regex could not see. `Cargo.lock` was the wrong file
+to read, as the plan said: it is target-agnostic, and failing on it would fail on
+`reqwest` and `hyper`, which macOS never compiles.
+
+`scripts/binary-audit.mjs` is the other half, wired as
+`npm run release:binary-audit` and deliberately **not** in `check`, because it
+needs a bundle only `build:app` produces and a check that skips whenever the
+artefact is missing is a check that never runs. On the shipped binary: 325
+imported symbols, 13 linked libraries, no `reqwest`/`hyper`/`rustls`/
+`native_tls`/`sentry` symbol, no `_connect`/`_socket`/`_sendto`/`_getaddrinfo`
+import, no `CFNetwork`/`Network`/`Security` framework.
+
+**Both checks were proved to bind.** Adding `ureq` to `Cargo.toml` produced the
+host-graph finding *and* a transitive one alongside it. Pointing the binary probe
+at `/bin/echo` fired all five controls. The controls exist because an absence
+claim is worth exactly what the reading is worth — the same failure mode as the
+Step 16a matrix passing a contrast check it could not see.
+
+**The finding neither the review nor this plan predicted.**
+`tauri-plugin-fs` **is compiled into the shipped binary**. It is declared
+nowhere; it arrives under `tauri-plugin-dialog`, the native folder picker, so it
+cannot be removed without removing folder selection. Every dependency-shaped
+check passed and would keep passing, because the old row's claim — no filesystem
+plugin *directly* configured — was true and beside the point.
+
+What keeps it unreachable is the capability file: no `fs:` permission is granted,
+so none of its commands can be invoked. **The filesystem boundary is the
+permission set, not the dependency graph**, and `release:audit` pins that set
+exactly — which is now the load-bearing assertion in this gate rather than a
+tidiness check. Loosening it would open the plugin without adding a dependency.
+
+**The review's specific alarm stays refuted** — `reqwest`/`hyper` are not in the
+macOS build — but its structural point was right twice over: the gate proved
+nothing about the artefact, and the thing it should have been watching was not a
+dependency at all.
+
+**Still not covered, by either audit.** WebKit is linked and network-capable by
+construction. The CSP bounds it; the runtime process-monitor pass verifies it;
+that pass is still not run and stays a release blocker. A green audit means the
+Rust side links no HTTP client — not that the app made no connection.

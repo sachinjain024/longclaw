@@ -8,12 +8,31 @@
  * the app is built from, the capability and CSP the webview runs under, and the
  * calls the shipped source makes.
  *
- * The fourth part it cannot see is what the *binary* does at runtime, through
- * transitive dependencies it never names. `src-tauri/Cargo.lock` carries
- * `reqwest` and `hyper` transitively today — pulled in below Tauri, not by us —
- * and nothing here would notice one of them opening a connection. The
- * process-monitor pass in `docs/acceptance/release-candidate.md` is what covers
- * that, it is manual on purpose, and a pass here is not a substitute for it.
+ * Dependencies are checked twice, because "we did not ask for it" and "it is not
+ * in the build" are different claims. `Cargo.toml` and `package.json` say what
+ * was asked for. `cargo tree` says what the **macOS host target** actually
+ * compiles, which is the one that ships — and it is the check that matters,
+ * because `Cargo.lock` is target-agnostic and lists crates this platform never
+ * builds. `reqwest` and `hyper` are in the lockfile today, arriving under Tauri,
+ * and are absent from the host graph. Failing on the lockfile would fail on a
+ * dependency macOS does not compile; failing on the host graph fails on one it
+ * does.
+ *
+ * **`tauri-plugin-fs` is in the host graph and cannot be removed.** It is a
+ * dependency of `tauri-plugin-dialog`, which is how the user picks a folder, so
+ * filesystem-plugin code is compiled into the binary whether or not we want it.
+ * What keeps it unreachable is the capability file: the webview is granted
+ * `core:default`, `core:event:default` and `dialog:allow-open` and nothing else,
+ * so no `fs:` command can be invoked. That permission set is pinned exactly
+ * below, and it — not the dependency list — is the filesystem boundary. Deleting
+ * that assertion would open the plugin without adding a dependency.
+ *
+ * What none of this sees is the compiled artefact. `scripts/binary-audit.mjs`
+ * reads the built binary's symbols and linked frameworks; run it after
+ * `build:app`. And neither can see the **webview**, which is network-capable by
+ * construction — that is what the CSP `connect-src` restriction is for, and why
+ * the process-monitor pass in `docs/acceptance/release-candidate.md` stays
+ * manual and stays required.
  *
  * Config lists are compared as sets: a permission list means the same thing
  * shuffled, and failing a release build on key order is noise, not a finding.
@@ -21,6 +40,7 @@
  * Usage: node scripts/release-audit.mjs   (exits non-zero on any finding)
  */
 
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -93,6 +113,52 @@ for (const dep of [
   const directDependency = new RegExp(`^${dep}\\s*=`, "m");
   if (directDependency.test(cargoToml))
     fail(`forbidden direct Cargo dependency: ${dep}`);
+}
+
+/**
+ * Every crate the macOS host target compiles, names only.
+ *
+ * `--locked` so an audit cannot quietly re-resolve the lockfile it is auditing.
+ * A cargo that will not run is a finding rather than a skip: an audit that
+ * passes because it could not look is worse than one that fails.
+ */
+function hostGraphCrates() {
+  try {
+    const output = execFileSync(
+      "cargo",
+      ["tree", "--locked", "--edges", "normal", "--prefix", "none"],
+      { cwd: join(appRoot, "src-tauri"), encoding: "utf8", stdio: "pipe" },
+    );
+    return new Set(
+      output
+        .split("\n")
+        .map((line) => line.trim().split(" ")[0])
+        .filter(Boolean),
+    );
+  } catch (error) {
+    fail(`could not read the host dependency graph via cargo tree: ${error}`);
+    return null;
+  }
+}
+
+const hostGraph = hostGraphCrates();
+if (hostGraph) {
+  for (const crate of [
+    "reqwest",
+    "ureq",
+    "hyper",
+    "h2",
+    "rustls",
+    "native-tls",
+    "sentry",
+    "tauri-plugin-http",
+    "tauri-plugin-shell",
+    "tauri-plugin-updater",
+  ]) {
+    if (hostGraph.has(crate)) {
+      fail(`network-capable crate compiled into the macOS build: ${crate}`);
+    }
+  }
 }
 
 const tauriConfig = readJson(join(appRoot, "src-tauri/tauri.conf.json"));
