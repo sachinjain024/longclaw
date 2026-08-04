@@ -60,6 +60,12 @@ behind them.
 
 ## Task 1 — Explain the interaction and storage regressions (findings 6 and 7)
 
+> **Done — and this section's premise was wrong. Read
+> [§ Outcome](#task-1--done-and-the-plans-premise-was-wrong) before acting on
+> anything below.** There was no regression to bisect: the candidate was measured
+> with macOS Low Power Mode on. The bisect steps are left as written because the
+> reasoning that led to the answer started here.
+
 **Release-blocking.** This is first because it may invalidate every other
 number, and because it is the only finding where the recorded result contradicts
 an earlier recorded result.
@@ -490,4 +496,50 @@ exists so that a second candidate does not overwrite the first.
 
 ## Outcome
 
-*To be filled when the tasks land.*
+### Task 1 — done, and the plan's premise was wrong
+
+**Findings 6 and 7 were one environmental cause, not a code regression.** This
+task was written as a bisect: find the commit that doubled interaction latency.
+There was none to find. macOS **Low Power Mode was on** for the candidate's
+measurement session, and it halves the animation-frame cadence every WebKit
+sample is quantized to — 33 ms rather than 16.7 ms at 60 Hz — as well as
+throttling the CPU the Rust harness runs on.
+
+Re-measured with Low Power Mode off (`frame_ms=17`, 58.8 Hz):
+
+| Surface, p95 keyboard/scroll/filter/write | Step 16a | Candidate (throttled) | Re-measured |
+|---|---|---|---|
+| Board | 15/18/26/16 | 31/35/38/33 | **15/18/26/17** |
+| List | 22/19/21/16 | 31/35/39/31 | **15/18/23/17** |
+
+The board is exactly where Step 16a left it; the list improved on keyboard,
+22 → 15 ms. Corroborating evidence gathered before the re-measurement: no
+render-path file changed between `389b551` and `1ff010b`; the 600- and
+5,000-ticket results were byte-identical; and the sample distribution was
+quantized (p50 30, p95 31, max 32) rather than workload-shaped.
+
+Storage decomposed to Low Power Mode (~22%), a fixture that was never comparable
+to the spike's (~21%), and a **~1.6× residual that is real and unexplained** —
+1153.23 ms against the spike's 711.49 ms on a like-for-like fixture, both inside
+the ≤ 2,500 ms budget. The full table is in
+[the candidate record](../../acceptance/release-candidate-2026-08-04.md#the-low-power-mode-correction).
+That residual is the one piece of finding 7 that survives, and it is carried
+forward as an open question rather than closed.
+
+**What changed, beyond the numbers.** `perf/board-trace.mjs` now measures the
+frame cadence, reports it as `frame_ms`, and exits non-zero with `NOT COMPARABLE`
+instead of printing "within budget" when the cadence is not the 60 Hz the
+budgets assume. The 600-ticket floor could never have caught this: when the frame
+moves, the floor and the full board move together and the comparison stays green.
+The gate now also requires p50 and `frame_ms` to be quoted, and
+`release-candidate.md` carries the real `≤ 16 ms p50` budget again instead of the
+floor-relative paraphrase that replaced it.
+
+**Still open from this task:** the run on the oldest supported Mac (macOS 13.0
+floor). No such machine is available here, so it stays a Step 17 blocker, and the
+candidate record says so rather than implying the current-Mac numbers cover it.
+
+**Worth carrying forward:** every number in the candidate record was taken in the
+same throttled session, so the correction is not limited to the two findings the
+review raised. Any measurement in that record predating this task should be
+treated as void until re-taken.

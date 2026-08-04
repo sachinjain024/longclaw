@@ -76,10 +76,24 @@ audit below is what covers that, and it stays manual for that reason.
 | Startup | Step 4 startup budget | clean-machine launch pass |
 | Folder open | Step 4 folder-open budget | `npm run perf:rust` |
 | Index build, 5,000 tickets | Step 4 Rust budget | `npm run perf:rust` |
-| Board interaction, 5,000 tickets | p95 ≤ 50 ms and median within 4 ms of the 600-ticket floor | `npm run perf:board` |
-| List interaction, 5,000 tickets | p95 ≤ 50 ms and median within 4 ms of the 600-ticket floor | `npm run perf:list` |
+| Board interaction, 5,000 tickets | p95 ≤ 50 ms **and** p50 ≤ 16 ms, and median within 4 ms of the 600-ticket floor | `npm run perf:board` |
+| List interaction, 5,000 tickets | p95 ≤ 50 ms **and** p50 ≤ 16 ms, and median within 4 ms of the 600-ticket floor | `npm run perf:list` |
 | Search/filter | p95 ≤ 50 ms during the WebKit trace | `npm run perf:board`, `npm run perf:list`, `npm run perf:rust` |
 | External-change visibility | Step 4 external write → visible paint budget | `npm run verify`, `npm --prefix apps/desktop run test:watcher`, WebKit traces |
+
+Record **p50 as well as p95**. The p50 line is a Step 4 budget in its own right
+(`docs/architecture-spike-report.md:80`) and it is the one that says whether an
+interaction costs more than a frame; a candidate that quotes only p95 has not
+reported against the budget.
+
+**Quote `frame_ms` with any WebKit trace.** Both traces end in a timer scheduled
+inside a `requestAnimationFrame` callback, so every number is quantized to the
+animation-frame interval, and the budgets assume 16.7 ms at 60 Hz. A machine
+that throttles the cadence — macOS Low Power Mode halves it — doubles every
+number without a line of product code changing, and the 600-ticket floor
+comparison will not catch it, because the floor moves with it. The harness
+refuses to certify such a run, but read the number rather than trusting the
+exit code.
 
 Test at least one small project, one medium real project, and one 5,000-ticket
 fixture. If a number is not collected, the candidate must name why it is not a
