@@ -1429,11 +1429,15 @@ describe("archive and unarchive (V0-11)", () => {
     };
   }
 
-  function detail(key: string, archivedAt?: string): TicketDetail {
+  function detail(
+    key: string,
+    archivedAt?: string,
+    contentHash = `hash-${key}`,
+  ): TicketDetail {
     return {
       key,
       relativePath: `.longclaw/tickets/${key}/ticket.md`,
-      contentHash: `hash-${key}`,
+      contentHash,
       byteLength: 300,
       readOnly: false,
       raw: "",
@@ -1594,6 +1598,88 @@ describe("archive and unarchive (V0-11)", () => {
 
     // The honest next action: the file as it now reads, so the human can decide.
     await screen.findByRole("complementary", { name: "Ticket LC-1" });
+  });
+
+  /**
+   * V0-29, and the question plan 23 left open: may a mutation raised outside the
+   * panel hold its edit and re-apply it over a newer file? Yes — but only inside
+   * the panel, over content the human has been shown. Open ticket used to throw
+   * the refused edit away in the revert, so the trip cost the human their change.
+   */
+  it("hands the refused edit to the panel, and keeps it against the file the panel read", async () => {
+    vi.mocked(api.readTicket).mockResolvedValue(detail("LC-1"));
+    vi.mocked(api.editTicket).mockRejectedValue({
+      code: "conflict",
+      message: "LC-1 changed on disk. Your version was not written over it.",
+      recoverable: true,
+      context: {
+        ticketKey: "LC-1",
+        conflictingActorType: "agent",
+        conflictingActorName: "Claude",
+      },
+    });
+    await openPanel([row("LC-1"), row("LC-2")], "LC-1");
+
+    fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+    await waitFor(() => expect(card("LC-1")).toBeTruthy());
+
+    // What the panel finds when it goes and looks: somebody else's newer bytes.
+    vi.mocked(api.readTicket).mockResolvedValue(
+      detail("LC-1", undefined, "hash-LC-1-newer"),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Open ticket" }));
+
+    // The banner, over the file as it now reads — not a dead end.
+    await screen.findByText("⚠ Changed on disk while you were editing");
+    vi.mocked(api.editTicket).mockResolvedValue(
+      written("LC-1", { archivedAt: "2026-07-31T10:00:00Z" }),
+    );
+    fireEvent.click(screen.getByText("Keep mine"));
+
+    await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(2));
+    expect(api.editTicket).toHaveBeenLastCalledWith({
+      projectId: project.id,
+      ticketKey: "LC-1",
+      // The hash the panel read and rendered, so this is a decision taken over
+      // the newer file rather than a blind overwrite of an unseen one.
+      expectedHash: "hash-LC-1-newer",
+      // The archive the board raised, still intact after the trip.
+      edit: { archived: true },
+    });
+  });
+
+  it("does not carry a refused edit onto the next ticket, or back after a close", async () => {
+    vi.mocked(api.readTicket).mockResolvedValue(detail("LC-1"));
+    vi.mocked(api.editTicket).mockRejectedValue({
+      code: "conflict",
+      message: "LC-1 changed on disk. Your version was not written over it.",
+      recoverable: true,
+      context: { ticketKey: "LC-1" },
+    });
+    await openPanel([row("LC-1"), row("LC-2")], "LC-1");
+
+    fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+    await waitFor(() => expect(card("LC-1")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Open ticket" }));
+    await screen.findByText("⚠ Changed on disk while you were editing");
+
+    // A different ticket is a different file, and never inherits the choice.
+    vi.mocked(api.readTicket).mockResolvedValue(detail("LC-2"));
+    fireEvent.click(screen.getByRole("button", { name: "Close ticket" }));
+    fireEvent.click(card("LC-2") as HTMLElement);
+    await screen.findByRole("complementary", { name: "Ticket LC-2" });
+    expect(
+      screen.queryByText("⚠ Changed on disk while you were editing"),
+    ).toBeNull();
+
+    // Nor does closing and coming back re-raise a choice already left behind.
+    vi.mocked(api.readTicket).mockResolvedValue(detail("LC-1"));
+    fireEvent.click(screen.getByRole("button", { name: "Close ticket" }));
+    fireEvent.click(card("LC-1") as HTMLElement);
+    await screen.findByRole("complementary", { name: "Ticket LC-1" });
+    expect(
+      screen.queryByText("⚠ Changed on disk while you were editing"),
+    ).toBeNull();
   });
 
   it("leaves focus on the board rather than dropping it on the body", async () => {

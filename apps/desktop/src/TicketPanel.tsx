@@ -129,6 +129,14 @@ interface TicketPanelProps {
    * must not have its rows answer `S`/`P` down here (`keyboard-focus-map.md:23`).
    */
   shortcutsActive: boolean;
+  /**
+   * A conflict a write raised outside the panel, with the edit it was refused
+   * for. `App` cannot render the banner — it is this panel's state — so it sends
+   * the refused edit here instead, and the human gets the same Reload / Keep
+   * mine choice they would have got had they made the change in the panel
+   * (V0-29).
+   */
+  heldConflict?: { ticketKey: string; error: AppError; edit: TicketEdit };
   onClose: () => void;
   /** Asks for the flip. The panel writes nothing here; see `archived`. */
   onArchive: (archived: boolean) => void;
@@ -291,6 +299,28 @@ export function TicketPanel(props: TicketPanelProps) {
   useEffect(() => {
     void load("open");
   }, [load]);
+
+  /**
+   * Raises a conflict handed over from outside, once the panel is showing the
+   * file it applies to.
+   *
+   * The gate on `detail` is the whole of the ordering: `load("open")` ends by
+   * clearing the conflict, so seeding before it resolves would seed into a
+   * banner about to be dismissed. Waiting for the file means the banner appears
+   * over content the human can read, which is what makes Keep mine a decision
+   * rather than a blind overwrite.
+   */
+  const seededHandOff = useRef<TicketPanelProps["heldConflict"]>(undefined);
+  const heldConflict = props.heldConflict;
+  useEffect(() => {
+    if (!detail || !heldConflict || heldConflict.ticketKey !== ticketKey) return;
+    if (seededHandOff.current === heldConflict) return;
+    seededHandOff.current = heldConflict;
+    setConflict({ error: heldConflict.error, pending: heldConflict.edit });
+    // The panel may have been open and idle when the write was refused, in
+    // which case what it is showing is older than the refusal.
+    void load("external");
+  }, [detail, heldConflict, ticketKey, load]);
 
   // The panel is an overlay, so Escape has to close it from anywhere, and opening
   // it has to move focus into it.
