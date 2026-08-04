@@ -160,11 +160,17 @@ prevent, one interaction removed.
   the folder or volume is in, and that the file was left as it was.
 - Distinguish the two ordinary cases so the copy can be concrete — a read-only
   file or folder, and a volume with no space left. Anything else stays generic
-  rather than guessing.
+  rather than guessing. **Amended during implementation:** a third, `missing`,
+  earned its place — `NotFound` is what an external rename mid-save produces, it
+  is common with editors that write by replacing, and the generic branch would
+  have shown `io::Error`'s "entity not found".
 - The frontend renders write failures through one presentation used by both the
-  danger toast and the global banner: the file name, the full path in mono, the
-  guarantee, Retry, and the recovery sentence. `error.code` stops being a
-  heading (`src/App.tsx:1030`).
+  danger toast and the global banner: the file name, the guarantee, Retry, and
+  the recovery sentence. `error.code` stops being a heading (`src/App.tsx:1030`).
+  **Amended after review:** the *message* is one composer both surfaces call, but
+  the full path in mono belongs to the banner alone — a toast is one line at the
+  bottom of the window, and a wrapped absolute path in it is Step 16's problem,
+  not this row's.
 - `recoverable` still selects whether Retry appears at all (ADR 0010).
 
 ### 4 — The panel's Undo reaches the banner (defect 4)
@@ -373,11 +379,58 @@ to compile until the new cause has copy.
 **The hand-off was a data clump.** `{ ticketKey, error, edit }` is `HeldConflict`
 in `types.ts` now, shared rather than written out in both `App` and `TicketPanel`.
 
+### Third review pass, 2026-08-04
+
+A review pinned at `main` rather than at the branch point, so it also read the
+two V0-31/V0-32 commits for the first time. Five findings, fixed in `66f81fb`.
+The worst was mine, and it landed on V0-32's own path.
+
+**`atomic_write` is not the ticket writer.** The previous pass renamed the save
+path's action to `"Saving ticket"` *inside* `atomic_write` — which also writes
+`project-registry.json` and its backup, `longclaw.yaml`, and `.longclaw/AGENTS.md`.
+A read-only application support folder reported *"Saving ticket failed for
+project-registry.json"*, and a failed project creation reported *"Saving ticket
+failed for longclaw.yaml"*: right about the file, wrong about everything else,
+and precisely the class of defect this row exists to remove. The action is now a
+parameter every caller names — `SAVING_TICKET`, `"Saving the project list"`,
+`"Saving project settings"`, `"Creating the project"` — and
+`registry::tests::a_registry_write_failure_does_not_call_itself_a_ticket_save`
+pins it.
+
+**The banner heading was still `text-transform: capitalize`**, left from when it
+rendered `error.code` with the underscores stripped. Against a written sentence
+that produced **"That File Could Not Be Written"** — the change visibly undoing
+its own stated goal, in the one place a reviewer looks last.
+
+**`failureMessage(error, own?)` is now the single composer** — what happened,
+what to do, what is safe — replacing the near-duplicate `withRecovery`. The toast
+carries the guarantee it used to leave to the banner, which matters because the
+toast is the surface a failed write actually reaches; `mutate` raises toasts, and
+the banner is the load path. Pinned by `WriteFeedback.test.tsx` § "says what
+failed, which file, what to do, and what is safe", which the plan's test list had
+named and nobody had written.
+
+**The conflict toast now says the edit is held.** § Do this promised *"the toast
+copy changes from stating a dead end to naming the choice waiting in the panel"*
+and the implementation had not. It is a surface-owned clause, not part of
+`conflictMessage`: the banner renders that same sentence, and telling somebody to
+open the ticket they are looking at is nonsense.
+
+**Two smaller ones.** The banner test's expectation was built by calling
+`conflictMessage`, so it passed for any implementation of the function it pinned;
+it is written out now. And `undoing()` takes the inverse as a parameter rather
+than asserting it non-null twice inside a branch that already checked.
+
+Also filed rather than fixed: `RegistryStore::persist` copies the live registry
+into the backup without validating it, so a registry corrupted externally between
+load and save could overwrite the last good backup. Bounded — `load` fails closed
+and reports both paths — and it is V0-31's territory, not this row's.
+
 ### Validation
 
 - `npm run verify` — green end to end: tokens, format, lint (eslint + clippy),
-  typecheck, 526 frontend tests, 196 Rust tests, vite build, and the native
-  watcher round trip. Re-run green after the review follow-up.
+  typecheck, 527 frontend tests, 199 Rust tests, vite build, and the native
+  watcher round trip. Re-run green after each of the three review passes.
 - `npm --prefix apps/desktop run test:stress` — green.
 
 ### What this deliberately did not do
