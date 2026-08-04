@@ -1,13 +1,13 @@
 ---
 title: "Step 16b: close the eight spec gaps in the release candidate"
 product: LongClaw
-status: active
+status: completed
 backlog_id: "none — Step 16b is a plan step, not a backlog row"
 order: 40
 owner_area: Release
 release_blocking: true
 written: 2026-08-04
-applies_to: "implement/step-16b-release-hardening @ 27ec329"
+applies_to: "implement/step-16b-release-hardening @ 1a3194a"
 depends_on: "nothing — 1ff010b built the gate, 27ec329 fixed its standards findings"
 ---
 
@@ -524,6 +524,38 @@ exists so that a second candidate does not overwrite the first.
   each one carries a severity here.
 
 ## Outcome
+
+**Closed 2026-08-04.** Seven of the eight findings are resolved here; the eighth,
+the accessibility pass, is [plan 41](../active/41-accessibility-audit.md), split
+out because it is the only one that cannot be automated.
+
+Three of the eight turned out to rest on a premise that was wrong, and the
+corrections matter more than the fixes:
+
+- **Findings 6 and 7 were not regressions.** The candidate was measured with
+  macOS Low Power Mode on, which halves the animation-frame cadence every WebKit
+  sample is quantized to. Re-measured, the board is exactly where Step 16a left
+  it.
+- **Finding 1's probe was never missing.** It has been in the shipped app since
+  Step 4 under a different name. Nobody had run it.
+- **Finding 8's alarm was misdirected.** `reqwest`/`hyper` are not in the macOS
+  build — but the audit had indeed proved nothing about the artefact, and the
+  thing it should have been watching was `tauri-plugin-fs`, which *is* compiled
+  in and is held back by the permission set rather than the dependency graph.
+
+Every Step 4 performance budget now has a number against it, including two that
+never had one: startup, and the 1,000-ticket load budget that had stood since
+Step 4 as "covered by the stricter harness".
+
+Three harness defects were found by using the harnesses, and each is now guarded
+rather than noted: a trace that could not tell it was measuring a throttled
+machine, a startup probe that could report an empty board, and an audit that
+could pass a binary it had never opened.
+
+**What this plan did not close, carried to Step 17 and plan 41:** the
+accessibility pass, the runtime process-monitor audit, the clean-machine
+packaged-app pass, and a run on the oldest supported Mac. All four are in the
+candidate record's § Known issues with a severity and a release decision.
 
 ### Task 1 — done, and the plan's premise was wrong
 

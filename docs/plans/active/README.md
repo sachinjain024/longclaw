@@ -71,21 +71,16 @@ set priority, archive/unarchive, change board ordering and switch board/list vie
 unchanged. `screen-specs.md`, `components.md`, `prototype/README.md` and plan 25
 are synchronised on all of that.
 
-## The open plans
+## The one open plan
 
-Everything numbered below is closed, and so are 36–39, which the Order table
-predates. Two files are pending:
-
-**[40 — Step 16b: close the eight spec gaps in the release candidate](40-step-16b-spec-gaps.md)**,
-written 2026-08-04, release-blocking. Step 16b built the release gate in
-`1ff010b` and passed its standards review in `27ec329`; a spec review of the same
-commit found eight gaps, seven of which are evidence the step asked to be
-measured, tested, or written and that the candidate recorded as "not run".
-Startup is unmeasured, interaction p95 roughly doubled since Step 16a while
-staying under budget, the accessibility pass is seven-eighths blank, no
-user-facing documentation was written, and the unsigned build has no release
-notes to carry its Gatekeeper rationale. **Seven of the eight are now closed**;
-the eighth is plan 41.
+Everything numbered below is closed, and so are 36–40. **Plan 40 closed on
+2026-08-04** ([outcome](../completed/40-step-16b-spec-gaps.md#outcome)): seven of
+Step 16b's eight spec gaps are resolved, every Step 4 performance budget now has
+a number against it, and three of the eight turned out to rest on a premise that
+was wrong — the perf "regressions" were macOS Low Power Mode, the "missing"
+startup probe had shipped since Step 4, and the transitive-`reqwest` alarm was
+misdirected at a dependency macOS never compiles. Its eighth task is the only
+pending work in this directory:
 
 **[41 — The accessibility audit against the packaged app](41-accessibility-audit.md)**,
 written 2026-08-04, partly release-blocking. Split out of plan 40 because it is
