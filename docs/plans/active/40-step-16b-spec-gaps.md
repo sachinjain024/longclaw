@@ -148,6 +148,12 @@ Two further problems in the same rows:
 
 ## Task 2 — Measure startup (finding 1)
 
+> **Done — and step 1 below was wrong.** The probe was never missing. It has been
+> in the shipped app since Step 4 under different names (`report_visible_ui`,
+> `startup_to_rendered_ms`); this plan searched for the spike's literal
+> `VISIBLE_UI_PROBE` string and concluded absence. Nothing needed porting. See
+> [§ Outcome](#task-2--done-the-probe-was-already-there).
+
 **Release-blocking.** Startup is the first Step 4 budget and the only one with
 no harness at all.
 
@@ -543,3 +549,44 @@ candidate record says so rather than implying the current-Mac numbers cover it.
 same throttled session, so the correction is not limited to the two findings the
 review raised. Any measurement in that record predating this task should be
 treated as void until re-taken.
+
+### Task 2 — done; the probe was already there
+
+**The plan's premise was wrong twice over.** It claimed the spike's startup probe
+"was never ported into the shipped app", on the strength of a grep for
+`VISIBLE_UI_PROBE`. The app has carried it since Step 4 under different names:
+`run()` stamps `PROCESS_STARTED`, the board calls `reportVisibleUi` from inside a
+`requestAnimationFrame` callback, and `report_visible_ui` prints
+`LONGCLAW_LOCAL_DIAGNOSTIC startup_to_rendered_ms` (`src-tauri/src/lib.rs`).
+There was even an env var, `LONGCLAW_EXIT_AFTER_FIRST_PROBE`, built to make the
+app quit as soon as it had reported. **No instrumentation was needed. Step 16b's
+actual gap was that nobody ran it.**
+
+`npm run perf:startup` (`perf/startup-trace.mjs`) now does, against the packaged
+bundle — `LONGCLAW_DEV_PROJECT` is `#[cfg(debug_assertions)]` and useless for a
+release build, so it stages a throwaway `HOME` with a one-row registry and a copy
+of the fixture project, which also keeps it away from the real registry.
+
+**Warm: p50 458.69 ms, p95 481.13 ms, min 447.57, max 481.13 over 9 launches**,
+against the ≤ 750 ms budget — faster than the Step 4 spike's own 560–693 ms.
+
+**Cold is still not measured**, and this is the honest gap: a real cold launch
+needs the page cache dropped, which needs `sudo purge` or a reboot. The warm
+numbers bound the ≤ 1,500 ms cold budget comfortably but do not measure it. It is
+recorded as a release blocker in the candidate record rather than waved through.
+
+**A defect found while measuring.** `LONGCLAW_EXIT_AFTER_FIRST_PROBE` — the
+affordance built for this exact job — can report a startup time for an empty
+board. `loadProject` sets the active project id before awaiting `openProject`
+(`src/App.tsx:353`), so the app can paint with a project selected and no tickets;
+the probe fires on that frame with `rowCount: 0` and the env var exits on it. It
+is a race, so a run of five can look clean with one bad number in it. The harness
+ignores the affordance and waits for a probe reporting rows, and refuses the run
+if none arrives — a guard proved by pointing it at a zero-ticket project. The
+underlying probe order is left alone (the board trace depends on when it fires)
+and recorded as a known issue instead.
+
+**Also:** arguments do not survive the repo-root perf wrappers —
+`npm run perf:startup -- --launches=9` at the root is silently ignored, because
+npm swallows flags passed through `npm --prefix apps/desktop run …`. This is true
+of the existing `perf:board` flags too. The usage docblock says so.

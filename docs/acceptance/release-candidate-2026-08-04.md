@@ -44,6 +44,7 @@ from its own revision regardless.
 | `npm run perf:rust` | pass |
 | `npm run perf:board` | pass outside the sandbox |
 | `npm run perf:list` | pass outside the sandbox |
+| `npm run perf:startup` | pass, 9 launches of the packaged app; warm p50 `458.69 ms` |
 
 The first `npm run verify`, `build:app`, `perf:board`, and `perf:list` attempts
 reached their app builds or native watcher step but failed inside sandboxed
@@ -63,7 +64,8 @@ below were re-taken at `52565d1` with Low Power Mode off, verified at
 
 | Area | Result | Evidence |
 |---|---|---|
-| Startup | not measured on a clean app launch; Step 17 blocker | clean-machine launch pass |
+| Startup, warm | p50 `458.69 ms`, p95 `481.13 ms`, min `447.57 ms`, max `481.13 ms` over 9 launches of the packaged app; budget ≤ 750 ms | `npm run perf:startup` |
+| Startup, cold | **not measured** — a true cold launch needs the page cache dropped, which needs `sudo purge` or a reboot. The 9 warm launches are an upper bound well inside the ≤ 1,500 ms cold budget, but they are not the measurement. Step 17 blocker | — |
 | Folder open | Rust 5,000-ticket open `1464.80 ms`, budget ≤ 2,500 ms | `npm run perf:rust` |
 | Index build, 5,000 tickets | rebuild `1172.13 ms`, concurrent request `60.61 ms` | `npm run perf:rust` |
 | Board interaction, 5,000 tickets | p95 keyboard `15 ms`, scroll `18 ms`, filter `26 ms`, external write `17 ms`; p50 `14`/`17`/`16`/`16 ms`; first paint `146 ms`; `frame_ms=17` | `npm run perf:board` |
@@ -82,8 +84,35 @@ other across all four interactions, and each matches its own 600-ticket floor,
 which is the harness's evidence that 5,000 tickets cost nothing the small board
 does not.
 
-Only the 5,000-ticket fixture was run. The small and medium real projects the
-gate asks for were not.
+The interaction and storage rows used only the 5,000-ticket fixture. The small
+and medium real projects the gate asks for were not run for those.
+
+### How startup was measured
+
+Against the packaged `LongClaw.app` built at `1ff010b` — not `npm run dev`,
+because the budget is on the release bundle — opening
+`fixtures/representative-project` (6 tickets, of which 5 render; `LC-98` and
+`LC-99` are the deliberately broken pair). `npm run perf:startup` redirects
+`HOME` to a throwaway directory holding a copy of the project and a one-row
+registry, so the run cannot read or disturb the real registry at
+`~/Library/Application Support/io.longclaw.desktop`.
+
+Nothing was instrumented for this. The app has carried the probe since Step 4:
+`run()` stamps `PROCESS_STARTED`, the board reports `reportVisibleUi` from
+inside a `requestAnimationFrame` callback, and `report_visible_ui` prints
+`startup_to_rendered_ms`. Step 16b's gap was that nobody drove it.
+
+**The probe fires before the board has rows, and it is a race.**
+`loadProject` sets the active project id *before* it awaits `openProject`
+(`src/App.tsx:353`), so the app can paint once with a project selected and an
+empty board. The probe reports that frame with `rowCount: 0`, and the
+`LONGCLAW_EXIT_AFTER_FIRST_PROBE` affordance — which exists to make exactly this
+measurement — takes the app down on it, yielding a startup time for a board with
+nothing on it. It does not happen on every launch. `perf:startup` therefore
+ignores that affordance, reads the app's stdout until a probe reports rows, and
+takes the `startup_to_rendered_ms` that follows *that* probe. Anyone measuring
+startup with `LONGCLAW_EXIT_AFTER_FIRST_PROBE` will get silently wrong numbers
+some fraction of the time; see § Known issues.
 
 ### The Low Power Mode correction
 
@@ -178,5 +207,7 @@ notes do not exist yet.
 |---|---|---|---|---|
 | Release blocker | Clean-machine packaged-app pass is not complete | Fresh install, upgrade, restart, folder move, and offline behavior are not yet proven on a machine/profile that has never run LongClaw | Run the install/upgrade/offline table in Step 17 before release | Do not release until complete |
 | Release blocker | Manual accessibility pass is not complete | Keyboard-only and VoiceOver completion of the core ticket lifecycle is not yet proven against the packaged app | Run the accessibility table in Step 17 before release | Do not release until complete |
+| Release blocker | Cold startup is not measured | The ≤ 1,500 ms cold budget has no number against it; only warm launches (p50 `458.69 ms`) were taken, which bound it but do not measure it | Drop the page cache with `sudo purge` or reboot, then run `npm run perf:startup` and take the first sample | Do not release until measured |
+| Accepted for this candidate | `LONGCLAW_EXIT_AFTER_FIRST_PROBE` can report a startup time for an empty board | The affordance built for measuring startup exits on the first visible-UI probe, which races the project load (`src/App.tsx:353`) and sometimes fires with `rowCount: 0`. A measurement taken with it is silently wrong some fraction of the time | Use `npm run perf:startup`, which waits for a probe reporting rows; do not use the env var directly | Diagnostics-only, not user-facing; accept for v0 and fix with the probe |
 | Release blocker | Runtime network audit is not complete | Static audit proves source/config boundaries, but runtime process connections were not observed during packaged-app use | Run offline and online process-monitor passes before release | Do not release until complete |
 | Accepted for this candidate | Build is unsigned and not notarized | Gatekeeper will warn on first launch | Publish release-note opening instructions; prefer right-click Open for this candidate | Accept only if release notes include the warning |

@@ -74,6 +74,7 @@ Test suites worth knowing about:
 | `npm run perf:rust`    | index rebuild, search, read, and write budgets against a 5,000-ticket project                           |
 | `npm run perf:board`   | input → paint on a 5,000-ticket board, traced in WebKit (see `apps/desktop/perf/README.md`)             |
 | `npm run perf:list`    | the same input → paint trace against the shipped list surface                                           |
+| `npm run perf:startup` | process start → first painted board, against the packaged app (needs `npm run build:app` first)         |
 
 `perf:board` and `perf:list` need a WebKit build, once per machine:
 
@@ -81,10 +82,18 @@ Test suites worth knowing about:
 npx playwright@1.62.1 install webkit
 ```
 
-None of the three performance harnesses is part of `npm run verify`: each takes
-minutes, and the two WebKit traces download a browser. Run `perf:rust` when you
-change what storage does per ticket, and `perf:board` or `perf:list` when you
-change what that surface renders.
+None of the four performance harnesses is part of `npm run verify`: each takes
+minutes, the two WebKit traces download a browser, and `perf:startup` needs a
+release bundle that only `build:app` produces. Run `perf:rust` when you change
+what storage does per ticket, `perf:board` or `perf:list` when you change what
+that surface renders, and `perf:startup` when you change what happens before the
+first board paint.
+
+`perf:startup` redirects `HOME` to a throwaway directory and copies the fixture
+project, so it never reads or writes the real registry in
+`~/Library/Application Support/io.longclaw.desktop`. It reports warm launches;
+a true cold number needs the page cache dropped (`sudo purge`, or a reboot),
+which it will not do for you.
 
 ## Diagnostics and privacy
 

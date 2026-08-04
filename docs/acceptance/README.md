@@ -33,6 +33,7 @@ npm run verify        # both of the above
 npm run perf:rust     # the storage performance budgets, ignored by default
 npm run perf:board    # the 5,000-ticket board trace (needs a WebKit build)
 npm run perf:list     # the 5,000-ticket list trace (needs the same WebKit build)
+npm run perf:startup  # startup budgets against the packaged app (needs build:app)
 ```
 
 ## Acceptance changes accepted in Step 10

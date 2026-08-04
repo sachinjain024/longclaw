@@ -11,10 +11,19 @@ nothing but the surface changes between them. The list is the harder case — ev
 ticket in the project on one axis, rather than spread over six independent column
 scrollers — so it is the one to run when the render path changes.
 
+`npm run perf:startup` is the third harness here and the odd one out: it drives
+the **packaged app**, not a web page, because the Step 4 startup budget is on the
+release bundle. It reads the app's own `startup_to_rendered_ms` diagnostic rather
+than timing anything itself. Run `npm run build:app` first, or it will tell you
+to.
+
 ```sh
 npx playwright@1.62.1 install webkit   # once per machine
 npm run perf:board                     # the shipped board
 npm run perf:list                      # the shipped issue list
+npm run perf:startup                   # process start → first painted board
+npm run perf:startup -- --launches=9   # more samples
+npm run perf:startup -- --project=/a/real/project
 npm run perf:board -- --nav=Tab        # the pre-roving-focus baseline
 npm run perf:board -- --order=manual   # the Manual comparator (ADR 0003)
 npm run perf:board -- --filter="storage"  # a different query in the filter trace

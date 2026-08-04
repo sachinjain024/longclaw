@@ -36,6 +36,7 @@ export default tseslint.config(
     languageOptions: {
       globals: {
         HTMLElement: "readonly",
+        clearTimeout: "readonly",
         document: "readonly",
         fetch: "readonly",
         navigator: "readonly",

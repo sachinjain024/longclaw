@@ -49,6 +49,7 @@ npm run build:app
 npm run perf:rust
 npm run perf:board
 npm run perf:list
+npm run perf:startup
 ```
 
 `npm run verify` includes `npm --prefix apps/desktop run release:audit`, which
@@ -73,7 +74,7 @@ audit below is what covers that, and it stays manual for that reason.
 
 | Area | Budget / expectation | Evidence |
 |---|---|---|
-| Startup | Step 4 startup budget | clean-machine launch pass |
+| Startup | cold ≤ 1,500 ms, warm ≤ 750 ms, process start → first painted board | `npm run perf:startup`, plus a clean-machine cold launch |
 | Folder open | Step 4 folder-open budget | `npm run perf:rust` |
 | Index build, 5,000 tickets | Step 4 Rust budget | `npm run perf:rust` |
 | Board interaction, 5,000 tickets | p95 ≤ 50 ms **and** p50 ≤ 16 ms, and median within 4 ms of the 600-ticket floor | `npm run perf:board` |

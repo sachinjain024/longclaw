@@ -48,6 +48,7 @@ npm --prefix apps/desktop run test:rust     # cargo test alone
 npm --prefix apps/desktop run test:frontend # vitest alone
 npm --prefix apps/desktop run test:watcher  # the native watcher round trip alone
 npm --prefix apps/desktop run perf:rust     # performance budgets, ignored by default
+npm --prefix apps/desktop run perf:startup  # startup budgets, needs a built app
 npm run perf:board                          # board interaction budgets in WebKit
 npm run perf:list                           # the same, for the list surface
 ```

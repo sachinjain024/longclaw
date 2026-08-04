@@ -31,6 +31,7 @@
     "test:watcher": "cargo test --manifest-path src-tauri/Cargo.toml filesystem_round_trip -- --ignored --nocapture",
     "lint:rust": "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings",
     "perf:rust": "cargo test --manifest-path src-tauri/Cargo.toml performance_budgets -- --ignored --nocapture",
+    "perf:startup": "node perf/startup-trace.mjs",
     "matrix": "vite build --config perf/vite.config.ts && node perf/theme-matrix.mjs",
     "perf:board": "vite build --config perf/vite.config.ts && node perf/board-trace.mjs",
     "perf:list": "vite build --config perf/vite.config.ts && node perf/board-trace.mjs --surface=list",
