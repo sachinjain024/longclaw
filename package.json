@@ -17,7 +17,10 @@
     "lint": "npm --prefix apps/desktop run lint",
     "test": "npm --prefix apps/desktop run test",
     "verify": "npm --prefix apps/desktop run verify",
+    "perf:rust": "npm --prefix apps/desktop run perf:rust",
+    "perf:startup": "npm --prefix apps/desktop run perf:startup",
     "perf:board": "npm --prefix apps/desktop run perf:board",
-    "perf:list": "npm --prefix apps/desktop run perf:list"
+    "perf:list": "npm --prefix apps/desktop run perf:list",
+    "release:binary-audit": "npm --prefix apps/desktop run release:binary-audit"
   }
 }

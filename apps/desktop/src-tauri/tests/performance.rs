@@ -13,12 +13,41 @@ use longclaw_desktop_lib::core::ticket::TicketEdit;
 use longclaw_desktop_lib::core::{ProjectEvent, RebuildReason, TicketRow};
 
 /// A project size well past what a solo builder is likely to reach.
-const TICKETS: usize = 5_000;
-const LOAD_BUDGET_MS: f64 = 2_500.0;
+const LARGE_TICKETS: usize = 5_000;
 const SEARCH_BUDGET_MS: f64 = 50.0;
 const WRITE_BUDGET_MS: f64 = 250.0;
 
-fn write_large_project(root: &Path) {
+/// How many tickets the fixture gets.
+///
+/// Step 16b has to report small, medium and large project sizes, and Step 4
+/// states a load budget at two of them. `LONGCLAW_PERF_TICKETS` picks the size;
+/// the default is the large one, so `npm run perf:rust` alone still measures
+/// exactly what it always measured.
+fn ticket_count() -> usize {
+    std::env::var("LONGCLAW_PERF_TICKETS")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|count| *count >= 2)
+        .unwrap_or(LARGE_TICKETS)
+}
+
+/// The Step 4 load budget for a project of `tickets`.
+///
+/// The spike states two and only two (`docs/architecture-spike-report.md`
+/// § Performance budgets): 1,000 tickets in 750 ms, 5,000 in 2,500 ms. The
+/// 1,000 row was never measured directly — it was recorded as "covered by the
+/// stricter 5,000-ticket harness", which is an argument rather than a number,
+/// and is the gap this parameter exists to close. Any other size is held to the
+/// nearest stated ceiling at or above it.
+fn load_budget_ms(tickets: usize) -> f64 {
+    if tickets <= 1_000 {
+        750.0
+    } else {
+        2_500.0
+    }
+}
+
+fn write_large_project(root: &Path, ticket_total: usize) {
     let tickets = root.join(".longclaw/tickets");
     fs::create_dir_all(&tickets).expect("create the tickets folder");
     fs::write(
@@ -34,7 +63,7 @@ fn write_large_project(root: &Path) {
     )
     .expect("write the project file");
 
-    for sequence in 1..=TICKETS {
+    for sequence in 1..=ticket_total {
         let directory = tickets.join(format!("PF-{sequence}"));
         fs::create_dir(&directory).expect("create a ticket directory");
         fs::write(
@@ -80,9 +109,15 @@ fn write_large_project(root: &Path) {
 #[test]
 #[ignore = "explicit performance harness; run through npm run perf:rust"]
 fn performance_budgets_for_project_load_search_and_write() {
+    let tickets = ticket_count();
+    let load_budget_ms = load_budget_ms(tickets);
+    // The last ticket is the one probed: it is the deepest into the index, and
+    // its number is long enough that the search query matches it alone.
+    let probe = tickets - 1;
+    let probe_key = format!("PF-{probe}");
     let temp = tempfile::tempdir().expect("temporary folder");
     let root = temp.path().join("large-project");
-    write_large_project(&root);
+    write_large_project(&root, tickets);
 
     let started = Instant::now();
     let (engine, _events) =
@@ -126,16 +161,16 @@ fn performance_budgets_for_project_load_search_and_write() {
     let rebuilt = engine
         .rebuild(RebuildReason::Manual, false)
         .expect("the index should rebuild");
-    let search = engine.search("ticket 4999");
+    let search = engine.search(&format!("ticket {probe}"));
     let detail_started = Instant::now();
-    let detail = engine.detail("PF-4999").expect("a ticket should read");
+    let detail = engine.detail(&probe_key).expect("a ticket should read");
     let detail_ms = detail_started.elapsed().as_secs_f64() * 1_000.0;
 
     let hash = match rebuilt
         .tickets
         .iter()
-        .find(|row| row.key() == "PF-4999")
-        .expect("PF-4999")
+        .find(|row| row.key() == probe_key)
+        .expect("the probed ticket")
     {
         TicketRow::Indexed(row) => row.content_hash.clone(),
         TicketRow::Degraded(row) => panic!("unreadable: {}", row.diagnostic.message),
@@ -143,7 +178,7 @@ fn performance_budgets_for_project_load_search_and_write() {
     let write_started = Instant::now();
     engine
         .edit_ticket(
-            "PF-4999",
+            &probe_key,
             &TicketEdit {
                 title: Some("Measured write".to_owned()),
                 ..TicketEdit::default()
@@ -163,18 +198,18 @@ fn performance_budgets_for_project_load_search_and_write() {
     let create_ms = create_started.elapsed().as_secs_f64() * 1_000.0;
 
     println!(
-        "PERF tickets={TICKETS} open_ms={open_ms:.2} rebuild_ms={:.2} search_ms={:.2} \
+        "PERF tickets={tickets} open_ms={open_ms:.2} rebuild_ms={:.2} search_ms={:.2} \
          detail_ms={detail_ms:.2} write_ms={write_ms:.2} create_ms={create_ms:.2} \
          concurrent_request_ms={request_ms:.2}",
         rebuilt.rebuilt_in_ms, search.elapsed_ms
     );
 
-    assert_eq!(rebuilt.tickets.len(), TICKETS);
-    assert_eq!(created.ticket.key(), format!("PF-{}", TICKETS + 1));
+    assert_eq!(rebuilt.tickets.len(), tickets);
+    assert_eq!(created.ticket.key(), format!("PF-{}", tickets + 1));
     assert_eq!(search.tickets.len(), 1);
     assert!(detail.ticket.is_some());
     assert!(
-        rebuilt.rebuilt_in_ms <= LOAD_BUDGET_MS,
+        rebuilt.rebuilt_in_ms <= load_budget_ms,
         "index rebuild budget exceeded: {:.2}ms",
         rebuilt.rebuilt_in_ms
     );

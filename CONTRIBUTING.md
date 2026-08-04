@@ -42,9 +42,15 @@ Run the full local gate before committing:
 npm run verify
 ```
 
-The gate covers formatting, linting, TypeScript type checking, frontend unit and
-component tests, Rust unit/integration tests, watcher integration coverage,
-Clippy, and the Vite production build.
+The gate covers token generation, archived-spike manifest scope, the release
+privacy/filesystem audit, formatting, linting, TypeScript type checking,
+frontend unit and component tests, Rust unit/integration tests, watcher
+integration coverage, Clippy, and the Vite production build.
+
+`npm run release:binary-audit` is deliberately outside that gate: it reads the
+compiled binary's symbols and linked libraries, so it needs a bundle that only
+`npm run build:app` produces. Run it when you change a dependency or touch the
+capability file.
 
 Component tests run in jsdom and opt in per file with a
 `// @vitest-environment jsdom` docblock, so pure logic tests stay on the fast
@@ -70,18 +76,34 @@ Test suites worth knowing about:
 | ---------------------- | ------------------------------------------------------------------------------------------------------- |
 | `npm test`             | frontend unit and component tests, Rust unit tests, the fixture corpus, storage and watcher integration |
 | `npm run test:watcher` | the production FSEvents watcher end to end (ignored by default)                                         |
-| `npm run perf:rust`    | index rebuild, search, read, and write budgets against a 5,000-ticket project                           |
+| `npm run perf:rust`    | index rebuild, search, read, and write budgets against a 5,000-ticket project; `LONGCLAW_PERF_TICKETS=<n>` picks another size |
 | `npm run perf:board`   | input → paint on a 5,000-ticket board, traced in WebKit (see `apps/desktop/perf/README.md`)             |
+| `npm run perf:list`    | the same input → paint trace against the shipped list surface                                           |
+| `npm run perf:startup` | process start → first painted board, against the packaged app (needs `npm run build:app` first)         |
 
-`perf:board` needs a WebKit build, once per machine:
+`perf:board` and `perf:list` need a WebKit build, once per machine:
 
 ```sh
 npx playwright@1.62.1 install webkit
 ```
 
-Neither performance harness is part of `npm run verify`: both take minutes, and
-`perf:board` downloads a browser. Run them when you change what the board renders
-or what storage does per ticket.
+None of the four performance harnesses is part of `npm run verify`: each takes
+minutes, the two WebKit traces download a browser, and `perf:startup` needs a
+release bundle that only `build:app` produces. Run `perf:rust` when you change
+what storage does per ticket, `perf:board` or `perf:list` when you change what
+that surface renders, and `perf:startup` when you change what happens before the
+first board paint.
+
+`perf:startup` redirects `HOME` to a throwaway directory and copies the fixture
+project, so it never reads or writes the real registry in
+`~/Library/Application Support/io.longclaw.desktop`. It reports warm launches by
+default. For the cold budget, drop the page cache first and say so — only the
+first launch of that run is cold, and the flag is an assertion the harness cannot
+check:
+
+```sh
+sudo purge && npm run perf:startup -- --cold
+```
 
 ## Diagnostics and privacy
 

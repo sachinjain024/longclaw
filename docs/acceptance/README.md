@@ -18,6 +18,7 @@ unchanged acceptance criteria is a re-ranked backlog nobody can check.
 |---|---|---|
 | [The real agent round trip](agent-round-trip.md) | The central claim: a human plans, a real external agent executes against the same files, and the result returns to the board and panel without a refresh | Before every pilot session and every release build |
 | [The pilot macOS build](pilot-build.md) | A build a participant can install and run, with its limitations stated up front so feedback separates missing breadth from a broken thesis | Before handing a build to anyone |
+| [The release-candidate build](release-candidate.md) | The Step 16b quality, accessibility, privacy/filesystem, packaging, documentation, and known-issues gate | Before Step 17 final acceptance |
 
 The round-trip document also carries the current map of what the automated suite
 covers and what only a human can prove. That table is the authority on the
@@ -26,11 +27,13 @@ automated/manual boundary; this index does not duplicate it.
 ## Running the checks
 
 ```sh
-npm run check         # tokens, format, lint, typecheck, tests, build
+npm run check         # tokens, archived-spike scope, release audit, format, lint, typecheck, tests, build
 npm run test:watcher  # the native FSEvents test, ignored by default
 npm run verify        # both of the above
 npm run perf:rust     # the storage performance budgets, ignored by default
 npm run perf:board    # the 5,000-ticket board trace (needs a WebKit build)
+npm run perf:list     # the 5,000-ticket list trace (needs the same WebKit build)
+npm run perf:startup  # startup budgets against the packaged app (needs build:app)
 ```
 
 ## Acceptance changes accepted in Step 10
@@ -55,9 +58,9 @@ should land together.
 | Index loss: delete the index, corrupt the index, reopen, rebuild twice | The "index is disposable" promise, including that rebuild is idempotent | V0-30 |
 | Keyboard-only ticket lifecycle: create, find, open, update, and navigate without a pointer | The product's speed claim, and that focus is never lost behind a panel, modal, menu, or the palette | V0-20 – V0-25 |
 | Theme × appearance visual matrix across the core screens and states | Contrast and human/agent distinction in every preset, in both appearances | V0-37 |
-| Large-project performance: small, medium, and a 5,000-ticket project against the Step 4 budgets — **partly covered**: `npm run perf:board` traces the board at 5,000 tickets and at 600 on every Step 4 interaction. Still required: the list surface (V0-14, which does not exist yet), a medium project, and a run on the oldest supported Mac rather than a current one | Board and list interaction at a size where the product should start paying off | V0-06, V0-05 |
-| Offline and no-account audit on a clean machine | The local-first claim, and that nothing in the binary phones home | Step 16 |
-| Clean install, upgrade, restart, and folder-move on a machine that has never run the app | The first-run path, which every participant hits and no automated test can reach | Step 17 |
+| Large-project performance: small, medium, and a 5,000-ticket project against the Step 4 budgets — **partly covered**: `npm run perf:board` and `npm run perf:list` trace the two shipped surfaces at 5,000 tickets and at 600 on every Step 4 interaction. Still required for each release candidate: a medium real project and a run on the oldest supported Mac rather than only a current one | Board and list interaction at a size where the product should start paying off | V0-06, V0-05, Step 16b |
+| Offline and no-account audit on a clean machine | The local-first claim, and that nothing in the binary phones home | [Step 16b release-candidate build](release-candidate.md) |
+| Clean install, upgrade, restart, and folder-move on a machine that has never run the app | The first-run path, which every participant hits and no automated test can reach | [Step 16b release-candidate build](release-candidate.md), then Step 17 |
 
 ## What acceptance still cannot tell us
 

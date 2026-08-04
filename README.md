@@ -63,8 +63,9 @@ npm run build
 npm run build:app
 ```
 
-`npm run verify` rejects formatting, lint, type, unit-test, integration-test,
-Clippy, watcher-integration, and Vite production-build failures.
+`npm run verify` rejects token, archived-spike manifest, release-audit,
+formatting, lint, type, unit-test, integration-test, Clippy,
+watcher-integration, and Vite production-build failures.
 
 Local diagnostics are stdout-only and prefixed with
 `LONGCLAW_LOCAL_DIAGNOSTIC`; no telemetry or analytics are sent.

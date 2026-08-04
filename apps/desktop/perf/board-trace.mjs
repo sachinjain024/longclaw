@@ -394,6 +394,41 @@ const SCENARIOS = [
   ["write", () => "external write → paint", traceExternalWrite],
 ];
 
+/**
+ * The page's actual animation-frame interval, as a median over 30 frames.
+ *
+ * Every sample this harness reports ends in a timer scheduled from inside a
+ * `requestAnimationFrame` callback, so the frame interval is the floor of the
+ * measurement — and the Step 4 budgets were set against 16.7 ms at 60 Hz
+ * (`docs/architecture-spike-report.md` § Performance budgets, which says so:
+ * "16.7 ms at 60 Hz is the least an input → paint measurement can report").
+ *
+ * A machine that throttles rAF halves that cadence and doubles every number
+ * below without a line of product code changing. macOS Low Power Mode does
+ * exactly this, and it is why the Step 16b candidate recorded interaction p95s
+ * at roughly twice Step 16a's three days earlier, on an untouched board. So the
+ * cadence is measured and reported: these numbers must never be read without it.
+ */
+async function frameIntervalMs(page) {
+  return page.evaluate(async () => {
+    const stamps = [];
+    await new Promise((done) => {
+      const tick = (at) => {
+        stamps.push(at);
+        if (stamps.length <= 30) requestAnimationFrame(tick);
+        else done();
+      };
+      requestAnimationFrame(tick);
+    });
+    const deltas = [];
+    for (let index = 1; index < stamps.length; index += 1) {
+      deltas.push(stamps[index] - stamps[index - 1]);
+    }
+    deltas.sort((left, right) => left - right);
+    return Math.round(deltas[Math.floor(deltas.length / 2)] * 10) / 10;
+  });
+}
+
 async function measure(browser, size) {
   const page = await browser.newPage({
     viewport: { width: 1_440, height: 900 },
@@ -417,6 +452,8 @@ async function measure(browser, size) {
     UI.row,
   );
 
+  const frameMs = await frameIntervalMs(page);
+
   const rows = [];
   for (const [id, name, trace] of SCENARIOS) {
     if (ONLY.includes(id))
@@ -424,7 +461,7 @@ async function measure(browser, size) {
   }
   const engine = await page.evaluate(() => navigator.userAgent);
   await page.close();
-  return { size, firstPaintMs, renderedRows, rows, engine };
+  return { size, firstPaintMs, renderedRows, frameMs, rows, engine };
 }
 
 function table(rows, floor) {
@@ -449,11 +486,19 @@ async function main() {
     // frame is 16.7 ms at 60 Hz, so no input → paint measurement can come in
     // under the 16 ms p50 line, and the question worth asking is whether 5,000
     // tickets cost anything the small board does not.
+    //
+    // Note what this floor cannot tell you on its own. When the full board and
+    // the floor agree exactly, the frame is the measurement and the board costs
+    // nothing — which reads as a pass, and is one. But if the frame itself has
+    // changed, both numbers move together and still agree, so the comparison
+    // stays green while every number in it has shifted. That is what
+    // `frameIntervalMs` is for, and why the check below is on the cadence rather
+    // than on the gap between these two runs.
     const floor = FLOOR_SIZE > 0 ? await measure(browser, FLOOR_SIZE) : null;
     const full = await measure(browser, BOARD_SIZE);
 
     console.log(
-      `\nPERF-UI surface=${UI.label} order=${ORDER} tickets=${full.size} rendered_rows=${full.renderedRows} first_paint_ms=${full.firstPaintMs} nav_key=${NAV_KEY}`,
+      `\nPERF-UI surface=${UI.label} order=${ORDER} tickets=${full.size} rendered_rows=${full.renderedRows} first_paint_ms=${full.firstPaintMs} frame_ms=${full.frameMs} nav_key=${NAV_KEY}`,
     );
     if (floor) {
       console.log(
@@ -463,6 +508,23 @@ async function main() {
     console.log(`engine=${full.engine}\n`);
     console.log(table(full.rows, floor?.rows));
     console.log(`\n${JSON.stringify({ full, floor })}\n`);
+
+    /** The cadence the Step 4 budgets were measured at: 60 Hz, one frame 16.7 ms. */
+    const BUDGET_FRAME_MS = 16.7;
+    /** Enough to cover jitter in the median, not enough to cover a halved rate. */
+    const FRAME_SLACK_MS = 2;
+    const comparable =
+      Math.abs(full.frameMs - BUDGET_FRAME_MS) <= FRAME_SLACK_MS;
+    if (!comparable) {
+      const hz = (1000 / full.frameMs).toFixed(1);
+      console.log(
+        `NOT COMPARABLE: animation frames are ${full.frameMs}ms (${hz} Hz), not the ` +
+          `${BUDGET_FRAME_MS}ms (60 Hz) the Step 4 budgets were set at. Every number above is\n` +
+          `quantized to the frame, so this run is not evidence for or against a budget.\n` +
+          `On macOS check Low Power Mode first: pmset -g | grep lowpowermode`,
+      );
+      process.exitCode = 1;
+    }
 
     /** How much slower than the floor the median may run and still be noise. */
     const SLACK_MS = 4;
@@ -478,7 +540,7 @@ async function main() {
           .join(", ")}`,
       );
       process.exitCode = 1;
-    } else {
+    } else if (comparable) {
       console.log(
         `within budget: every p95 ≤ 50ms, and every median within ${SLACK_MS}ms of the ${FLOOR_SIZE}-ticket floor`,
       );

@@ -710,7 +710,7 @@ content header, the welcome column, the Phase 2 terminal reservation, off-scale
 component type sizes, spacing and border literals, and the human avatar's
 missing initials.
 
-### Step 16b — Complete quality hardening and release preparation
+### Step 16b — Complete quality hardening and release preparation — COMPLETE 2026-08-04, with four named exceptions
 
 **Goal:** Meet the Linear-grade quality bar on supported macOS hardware and realistic projects, and prepare a release candidate.
 
@@ -739,6 +739,42 @@ missing initials.
 - It works locally without an account or network connection.
 - Filesystem access is limited to the user-selected project scope and required app state.
 - No release-blocking data-integrity, privacy, onboarding, or core-round-trip defect remains.
+
+**Completion note:** Step 16b's work is complete as
+[plan 40](plans/completed/40-step-16b-spec-gaps.md), which closed seven of the
+eight gaps a spec review found in the first pass. The release candidate, its
+evidence, and its known issues are
+[the 2026-08-04 record](acceptance/release-candidate-2026-08-04.md); the reusable
+gate is [release-candidate.md](acceptance/release-candidate.md).
+
+Every Step 4 performance budget now has a number against it, including two that
+never had one — startup, and the 1,000-ticket load budget that had stood since
+Step 4 as "covered by the stricter harness". Three of the eight findings rested
+on a premise that was wrong: the interaction and storage "regressions" were macOS
+Low Power Mode halving the frame cadence the traces are quantized to, the
+"missing" startup probe had shipped since Step 4 under another name, and the
+transitive-`reqwest` alarm pointed at a crate macOS never compiles — while the
+crate that *is* compiled in, `tauri-plugin-fs`, is held back by the permission set
+rather than by the dependency graph.
+
+**The exit gate above is not yet met, and four things are carried rather than
+closed.** Each has a severity and a release decision in the candidate record's
+§ Known issues; none may be waved through at Step 17.
+
+1. **The accessibility pass** — [plan 41](plans/active/41-accessibility-audit.md).
+   Its Part A is release-blocking under this document's own definition: an
+   accessibility failure that prevents keyboard completion of the core ticket
+   lifecycle. Part B, the VoiceOver semantic audit, may be dated and deferred.
+   Until Part A runs, "accessible" in the gate above is unproven.
+2. **The runtime network audit.** The static and binary audits prove the Rust
+   side links no HTTP client and calls no socket API; neither can see the
+   webview, which is network-capable by construction. Only a process-monitor pass
+   verifies "works locally without a network connection".
+3. **The clean-machine packaged-app pass** — fresh install, upgrade, restart,
+   folder move, and offline, on a profile that has never run LongClaw.
+4. **A run on the oldest supported Mac.** Every number recorded is from a current
+   Apple Silicon machine, and `architecture-spike-report.md:72` sets the budgets
+   on the oldest supported production Mac.
 
 ### Step 17 — Run final MVP acceptance and release
 

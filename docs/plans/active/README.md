@@ -58,7 +58,7 @@ and still says to "reserve but do not expose" the terminal command, which the
 backlog must-pass and three design docs all contradict. The design docs, the ADRs
 and the backlog's must-pass column govern; the step plan describes intent and is
 stale on both points. **Build from the design docs and leave the stale one alone**
-— reconciling it is [plan 30](30-reconcile-step-12-command-set.md), which is
+— reconciling it is [plan 30](../completed/30-reconcile-step-12-command-set.md), which is
 documentation debt and runs independently of the six implementation plans.
 **Step 12's documentation is complete:** plan 30 and the command-set
 reconciliation are closed.
@@ -70,6 +70,30 @@ set priority, archive/unarchive, change board ordering and switch board/list vie
 `PHASE 2`, and **no terminal behaviour is in v0 scope** — the Phase 2 guardrail is
 unchanged. `screen-specs.md`, `components.md`, `prototype/README.md` and plan 25
 are synchronised on all of that.
+
+## The one open plan
+
+Everything numbered below is closed, and so are 36–40. **Plan 40 closed on
+2026-08-04** ([outcome](../completed/40-step-16b-spec-gaps.md#outcome)): seven of
+Step 16b's eight spec gaps are resolved, every Step 4 performance budget now has
+a number against it, and three of the eight turned out to rest on a premise that
+was wrong — the perf "regressions" were macOS Low Power Mode, the "missing"
+startup probe had shipped since Step 4, and the transitive-`reqwest` alarm was
+misdirected at a dependency macOS never compiles. Its eighth task is the only
+pending work in this directory:
+
+**[41 — The accessibility audit against the packaged app](41-accessibility-audit.md)**,
+written 2026-08-04, partly release-blocking. Split out of plan 40 because it is
+the only one of the eight that cannot be automated: it needs a human at a
+keyboard with VoiceOver on. It is deliberately in two halves. **Part A —
+keyboard-only lifecycle, focus order and return, visible focus, reduced motion,
+zoom — blocks the MVP**, because `release-candidate.md` already defines "an
+accessibility failure that prevents keyboard completion of the core ticket
+lifecycle" as a release blocker. Part A is verification rather than discovery:
+the semantics are built, the keyboard map is normative, and Wave 2 closed the
+escape contract with tests. **Part B — the VoiceOver semantic audit — can wait**,
+with a date and an owner, because `release-risks.md:65` already registers
+"postponed to Step 16 and then compressed" as the risk.
 
 ## Order
 
