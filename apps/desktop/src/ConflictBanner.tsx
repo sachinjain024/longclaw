@@ -4,6 +4,7 @@
  * a ticket with an open draft, not only after a save is refused.
  */
 
+import { conflictMessage } from "./mutations";
 import type { AppError } from "./types";
 
 export function ConflictBanner(props: {
@@ -11,17 +12,13 @@ export function ConflictBanner(props: {
   onReload: () => void;
   onKeepMine: () => void;
 }) {
-  const context = props.error.context;
   return (
     <section className="conflict-banner" role="alert">
       <strong>⚠ Changed on disk while you were editing</strong>
-      <p>{props.error.message}</p>
-      {context?.conflictingActorName && (
-        <p className="conflict-actor">
-          Last change on disk: {context.conflictingActorName} (
-          {context.conflictingActorType})
-        </p>
-      )}
+      {/* The same composer the toast uses, so one conflict does not read two
+          ways depending on where it surfaced (V0-29). What the banner owns is
+          the choice below, which is the part the board cannot offer. */}
+      <p>{conflictMessage(props.error)}</p>
       <div className="toolbar-actions">
         <button className="secondary" onClick={props.onReload}>
           Reload file

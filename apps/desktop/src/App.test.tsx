@@ -1568,8 +1568,7 @@ describe("archive and unarchive (V0-11)", () => {
     vi.mocked(api.readTicket).mockResolvedValue(detail("LC-1"));
     vi.mocked(api.editTicket).mockRejectedValue({
       code: "conflict",
-      message:
-        "This ticket changed on disk while you were editing. Reload it or keep your version, then save again.",
+      message: "LC-1 changed on disk. Your version was not written over it.",
       recoverable: true,
       context: {
         ticketKey: "LC-1",

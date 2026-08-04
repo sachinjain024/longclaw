@@ -122,8 +122,8 @@ describe("running a mutation", () => {
     const review = vi.fn();
     const write = vi.fn().mockRejectedValue({
       code: "conflict",
-      message:
-        "This ticket changed on disk while you were editing. Reload it or keep your version, then save again.",
+      // What Rust actually sends now: the fact, and no button it cannot show.
+      message: "LC-1 changed on disk. Your version was not written over it.",
       recoverable: true,
       context: {
         ticketKey: "LC-1",
@@ -143,6 +143,10 @@ describe("running a mutation", () => {
     expect(toast?.retry).toBeUndefined();
     expect(toast?.message).toContain("LC-1 changed on disk");
     expect(toast?.message).toContain("Claude (agent)");
+    // The banner's buttons are not on screen out here, so the copy must not
+    // send anybody looking for them (V0-29).
+    expect(toast?.message).not.toContain("Reload");
+    expect(toast?.message).not.toContain("keep your version");
 
     toast?.review?.();
     expect(review).toHaveBeenCalledWith(
@@ -167,7 +171,12 @@ describe("running a mutation", () => {
     // No `review`, so the toast offers nothing but dismissal rather than a
     // button that goes nowhere.
     expect(toast?.review).toBeUndefined();
-    expect(toast?.message).toContain("The file changed on disk");
+    // The error knew something the frontend does not — the file was *removed*,
+    // not edited — so the composer keeps its sentence rather than flattening it
+    // into a generic one.
+    expect(toast?.message).toBe(
+      "This ticket's file was removed while you were saving.",
+    );
   });
 
   it("raises no toast for a mutation that is not destructive-adjacent", async () => {

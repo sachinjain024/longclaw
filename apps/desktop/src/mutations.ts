@@ -89,21 +89,29 @@ export interface Mutation {
 }
 
 /**
- * What a conflict says outside the panel. The error's own message is the
- * banner's vocabulary — "reload it or keep your version" — and there is no
- * banner here, so this states the fact instead: the bytes moved, nothing was
- * written, and who moved them when the context knows (ADR 0010).
+ * What a conflict says, wherever it landed.
+ *
+ * One composer, because the same typed error used to read two ways: Rust wrote
+ * banner-shaped copy naming Reload and Keep mine, and the board — which has
+ * neither button — had to invent its own wording (V0-29). Now the error states
+ * the fact, this adds the actor when the context names one, and the *actions*
+ * are the surface's: the panel's banner offers the choice, the toast offers
+ * Open ticket.
+ *
+ * It reads `message` rather than rebuilding a sentence from `context`, because
+ * whoever raised the error knows what happened to the file — "removed while you
+ * were saving" is not "changed on disk", and a composer working from context
+ * alone would flatten one into the other.
  */
-function conflictMessage(error: AppError): string {
+export function conflictMessage(error: AppError): string {
   const key = error.context?.ticketKey;
   const name = error.context?.conflictingActorName;
   const type = error.context?.conflictingActorType;
-  const actor = name ? `${name}${type ? ` (${type})` : ""}` : undefined;
-  return [
-    key ? `${key} changed on disk` : "The file changed on disk",
-    actor ? `, last edited by ${actor}` : "",
-    ". Your change was not written.",
-  ].join("");
+  const fact =
+    error.message.trim() ||
+    `${key ?? "The file"} changed on disk. Your version was not written over it.`;
+  if (!name) return fact;
+  return `${fact} Last edited by ${name}${type ? ` (${type})` : ""}.`;
 }
 
 interface MutationState {

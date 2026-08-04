@@ -17,7 +17,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { resetMutations } from "./mutations";
+import { conflictMessage, resetMutations } from "./mutations";
 import { TicketPanel } from "./TicketPanel";
 import { ToastStack } from "./WriteFeedback";
 import type {
@@ -336,6 +336,28 @@ describe("a change that lands while a draft is open", () => {
     // The banner names who changed the file, from the file's own record.
     expect(screen.getByText(/Claude Code \(agent\)/)).toBeTruthy();
     expect(editTicketMock).not.toHaveBeenCalled();
+  });
+
+  it("states the conflict in the same words any other surface would", async () => {
+    await withDirtyTitleDraft();
+
+    // V0-29: one composer for one typed error. The banner used to render Rust's
+    // own copy while the board composed its own, so the same conflict read two
+    // ways depending on where it surfaced.
+    expect(
+      screen.getByText(
+        conflictMessage({
+          code: "conflict",
+          message:
+            "LC-1 changed on disk while you were editing. Your unsaved edit is preserved either way.",
+          recoverable: true,
+          context: {
+            conflictingActorName: "Claude Code",
+            conflictingActorType: "agent",
+          },
+        }),
+      ),
+    ).toBeTruthy();
   });
 
   it("refuses other saves until the human chooses", async () => {
