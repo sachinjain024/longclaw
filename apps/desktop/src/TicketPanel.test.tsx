@@ -895,6 +895,45 @@ describe("a destructive-adjacent change and taking it back", () => {
     });
   });
 
+  /**
+   * V0-29. The inverse mutation carried no `handles`, so a conflict on Undo
+   * fell through to the ordinary danger toast — a fact and a dismissal — while
+   * the same conflict on the forward save got the banner and a choice.
+   */
+  it("takes a conflict on Undo to the banner, like any other refused write", async () => {
+    readTicketMock
+      .mockResolvedValueOnce(detail())
+      .mockResolvedValueOnce(detail())
+      .mockResolvedValue(detail({ contentHash: "hash-agent" }));
+    editTicketMock.mockResolvedValueOnce(writeResult()).mockRejectedValueOnce({
+      code: "conflict",
+      message: "LC-1 changed on disk. Your version was not written over it.",
+      recoverable: true,
+      context: { ticketKey: "LC-1" },
+    });
+    render(surface());
+    const box = await screen.findByLabelText("Review what it changed");
+
+    fireEvent.click(box);
+    await screen.findByText("LC-1 checked · Review what it changed");
+    fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+
+    await screen.findByText("⚠ Changed on disk while you were editing");
+    // The panel resolves its own conflicts, in both directions.
+    expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Open ticket" })).toBeNull();
+
+    editTicketMock.mockResolvedValue(writeResult());
+    fireEvent.click(screen.getByText("Keep mine"));
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(3));
+    expect(editTicketMock.mock.calls[2][0]).toMatchObject({
+      expectedHash: "hash-agent",
+      // The edit Undo was refused for, re-applied over the newer file.
+      edit: { checklist: [{ itemId: "ck_2", checked: false }] },
+    });
+  });
+
   it("offers undo for a checklist tick", async () => {
     editTicketMock.mockResolvedValue(writeResult());
     render(surface());

@@ -358,6 +358,38 @@ export function TicketPanel(props: TicketPanelProps) {
   }, [props.removedSignal, ticketKey]);
 
   /**
+   * Hands a refused write to the banner instead of the failure toast.
+   *
+   * Rust refuses a stale write the app never saw an event for. That is a
+   * decision for the human, not a failed write, so it never reverts and never
+   * becomes a danger toast. Both directions get it — the save and the inverse
+   * that Undo builds — because a conflict on the way back is the same situation
+   * as a conflict on the way out, and it used to get a toast that stated the
+   * fact and offered nothing (V0-29).
+   */
+  function takeConflict(edit: TicketEdit): (error: AppError) => boolean {
+    return (error) => {
+      if (error.code !== "conflict") return false;
+      setConflict({ error, pending: edit });
+      clearPending();
+      // A conflict never reverts, so the composer has to be given its text
+      // back by hand — the comment was not written and must not vanish.
+      setPendingComment(undefined);
+      if (edit.comment !== undefined) setCommentDraft(edit.comment);
+      // Go back to the file. Rust refused this write because the bytes moved,
+      // and until the panel re-reads them `detail` holds the hash that was just
+      // rejected — so Keep mine would re-send it and be refused identically. It
+      // worked at all only when the watcher's event happened to arrive first,
+      // which is a race, not an offer.
+      //
+      // `external` is the mode for exactly this: the file moved, so drafts are
+      // preserved rather than overwritten with what is now on disk.
+      void load("external");
+      return true;
+    };
+  }
+
+  /**
    * Writes one edit. An unresolved conflict blocks every save except the one
    * that resolves it, so a draft can never slip past the banner.
    */
@@ -403,29 +435,9 @@ export function TicketPanel(props: TicketPanelProps) {
                 void load("local");
               },
               toast: () => options.inverseToast ?? `${ticketKey} restored`,
+              handles: takeConflict(options.inverse!),
             }),
-      // Rust refuses a stale write the app never saw an event for. That is a
-      // decision for the human, not a failed write, so it never reverts and
-      // never becomes a danger toast.
-      handles: (error) => {
-        if (error.code !== "conflict") return false;
-        setConflict({ error, pending: edit });
-        clearPending();
-        // A conflict never reverts, so the composer has to be given its text
-        // back by hand — the comment was not written and must not vanish.
-        setPendingComment(undefined);
-        if (edit.comment !== undefined) setCommentDraft(edit.comment);
-        // Go back to the file. Rust refused this write because the bytes moved,
-        // and until the panel re-reads them `detail` holds the hash that was
-        // just rejected — so Keep mine would re-send it and be refused
-        // identically. It worked at all only when the watcher's event happened
-        // to arrive first, which is a race, not an offer (V0-29).
-        //
-        // `external` is the mode for exactly this: the file moved, so drafts
-        // are preserved rather than overwritten with what is now on disk.
-        void load("external");
-        return true;
-      },
+      handles: takeConflict(edit),
     });
     if (written) await load("local");
     setSaving(false);
