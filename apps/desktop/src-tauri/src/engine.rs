@@ -445,7 +445,14 @@ impl ProjectEngine {
             if created {
                 storage::discard_claimed_ticket_directory(&write.path);
             }
-            return Err(error);
+            // Every write failure leaves here knowing which ticket and which file
+            // it was, whatever raised it: the filesystem underneath only ever
+            // knew a path, and a swap that finds the file gone knows neither
+            // (V0-29's must-pass). Existing context wins — whoever raised the
+            // error was closer to it.
+            return Err(error
+                .with_context_if_absent("ticketKey", write.key.clone())
+                .with_context_if_absent("path", write.path.display().to_string()));
         }
         let ticket = self.index.ingest(&write.path, &self.project().key)?;
         Ok(WriteResult {
