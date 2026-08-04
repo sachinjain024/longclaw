@@ -200,13 +200,24 @@ and stale-bookmark refresh for user-selected project folders.
 
 The release candidate must ship or link the following user-facing material:
 
-| Topic | Source |
-|---|---|
-| Project folder layout and owned files | [File format](../file_format.md) |
-| Backups and version control | [File format](../file_format.md), `apps/desktop/README.md` registry recovery |
-| Agent editing contract | [Agent context example](../../examples/agent-context/README.md) |
-| Recovery from degraded files, conflicts, unavailable folders, and corrupt registry | `apps/desktop/README.md`, [agent round trip](agent-round-trip.md) |
-| Privacy boundary and local diagnostics | `apps/desktop/README.md`, this checklist |
+[**The user guide**](../user-guide.md) is the user-facing document and covers all
+five topics. The rows below name where each is specified in full, for a reader
+who needs the detail behind it.
+
+| Topic | User-facing | Specified in |
+|---|---|---|
+| Project folder layout and owned files | [User guide § 1](../user-guide.md) | [File format](../file_format.md) |
+| The ticket file | [User guide § 2](../user-guide.md) | [File format](../file_format.md) |
+| Backups and version control | [User guide § 3](../user-guide.md) | `apps/desktop/README.md` registry recovery |
+| Agent editing contract | [User guide § 4](../user-guide.md) | [Agent context example](../../examples/agent-context/README.md) |
+| Recovery from degraded files, conflicts, unavailable folders, and corrupt registry | [User guide § 5](../user-guide.md) | `apps/desktop/README.md`, [agent round trip](agent-round-trip.md) |
+| Privacy boundary and local diagnostics | [User guide](../user-guide.md), [release notes](../release-notes/v0.1.0.md) | `apps/desktop/README.md`, this checklist |
+
+The release notes carry the local-only boundary, the Phase 2 / Phase 3
+separation, and the Gatekeeper rationale the unsigned branch below requires.
+**A user-facing document is prose addressed to someone who installed the DMG.**
+A link table pointing at specifications does not satisfy this row, which is what
+the first Step 16b pass shipped.
 
 ## Known issues
 

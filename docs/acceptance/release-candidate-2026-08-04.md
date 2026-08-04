@@ -278,9 +278,36 @@ connection.
 ## Signing choice
 
 Unsigned. No Developer ID identity or notarization request was recorded for this
-candidate. Release notes must state the Gatekeeper warning, why it is accepted,
-and how to open the app without weakening system-wide security; those release
-notes do not exist yet.
+candidate.
+
+The unsigned branch of `docs/release-risks.md:51` requires the prompt to be
+documented in the release notes with an explicit rationale. **That is now
+satisfied**: [`docs/release-notes/v0.1.0.md`](../release-notes/v0.1.0.md) states
+what Gatekeeper will say, why the build is unsigned, and how to open it through
+System Settings → Privacy & Security → Open Anyway — explicitly telling the
+reader **not** to disable Gatekeeper system-wide, since a release note that
+recommends `spctl --master-disable` trades a one-app warning for a machine-wide
+hole. The notes are marked draft until Step 17 publishes them.
+
+## User documentation
+
+[`docs/user-guide.md`](../user-guide.md) is the user-facing document Step 16b's
+deliverable asked for, covering the five named topics — project folders, the
+ticket file, backups and version control, agent use, and recovery — addressed to
+someone who installed the DMG rather than someone who cloned the repository.
+
+The first Step 16b pass recorded this row as satisfied by a table of links to
+`docs/file_format.md` and `apps/desktop/README.md`. Those links resolved, and
+they are specifications and a contributor README: correct, and not user
+documentation. The gate now says so explicitly so the row cannot be passed that
+way again.
+
+**Still open:** the guide is not reachable from inside the app. LongClaw ships
+without a shell or URL-opening capability — a direct consequence of the privacy
+boundary `release:audit` enforces — so it cannot open a browser, and a Help
+surface would be new UI. The deliverable says the candidate must "ship or link"
+the material; it currently ships in the repository and is linked from the release
+notes. See § Known issues.
 
 ## Known issues
 
@@ -290,4 +317,5 @@ notes do not exist yet.
 | Release blocker | Manual accessibility pass is not complete | Keyboard-only and VoiceOver completion of the core ticket lifecycle is not yet proven against the packaged app | Run the accessibility table in Step 17 before release | Do not release until complete |
 | Accepted for this candidate | `LONGCLAW_EXIT_AFTER_FIRST_PROBE` can report a startup time for an empty board | The affordance built for measuring startup exits on the first visible-UI probe, which races the project load (`src/App.tsx:353`) and sometimes fires with `rowCount: 0`. A measurement taken with it is silently wrong some fraction of the time | Use `npm run perf:startup`, which waits for a probe reporting rows; do not use the env var directly | Diagnostics-only, not user-facing; accept for v0 and fix with the probe |
 | Release blocker | Runtime network audit is not complete | Static audit proves source/config boundaries, but runtime process connections were not observed during packaged-app use | Run offline and online process-monitor passes before release | Do not release until complete |
-| Accepted for this candidate | Build is unsigned and not notarized | Gatekeeper will warn on first launch | Publish release-note opening instructions; prefer right-click Open for this candidate | Accept only if release notes include the warning |
+| Accepted for this candidate | Build is unsigned and not notarized | Gatekeeper will warn on first launch | [Release notes](../release-notes/v0.1.0.md) carry the warning, the rationale, and the System Settings → Open Anyway route | Accepted; the release-note condition is met |
+| Open decision | The user guide is not reachable from inside the app | A user who installed the DMG has no in-app route to the documentation; the app cannot open a browser, because it ships without a shell or URL-opening capability by design | Read `docs/user-guide.md` in the repository; the release notes link it | Needs a decision: ship the guide into new projects, render it in-app, or accept repository-only for v0 |

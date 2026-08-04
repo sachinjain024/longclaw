@@ -370,6 +370,10 @@ carries severity and a release decision.
 
 ## Task 6 — Write the user documentation (finding 3)
 
+> **Done — the writing.** See [§ Outcome](#task-6--done-as-written-one-decision-left).
+> One decision is left open: the guide is not reachable from inside the app, and
+> the app cannot open a browser.
+
 ### What the spec says
 
 > **Write** user documentation for project folders, file format,
@@ -411,6 +415,8 @@ against a clean project."
 
 ## Task 7 — Write the release notes and the signing rationale (finding 5)
 
+> **Done.** See [§ Outcome](#task-7--done).
+
 ### What the spec says
 
 `docs/release-risks.md:51` must-pass:
@@ -448,6 +454,9 @@ statement, and `docs/release-risks.md:51` can be marked met.
 ---
 
 ## Task 8 — Decide the `release:audit` placement (scope creep)
+
+> **Decided: keep it.** See [§ Outcome](#task-8--decided-keep-it-and-now-with-a-number) —
+> the whole audit costs 0.31s.
 
 The review's only scope-creep finding, and it called it "minor and defensible".
 
@@ -690,3 +699,72 @@ dependency at all.
 construction. The CSP bounds it; the runtime process-monitor pass verifies it;
 that pass is still not run and stays a release blocker. A green audit means the
 Rust side links no HTTP client — not that the app made no connection.
+
+### Task 6 — done as written; one decision left
+
+[`docs/user-guide.md`](../../user-guide.md) covers the five topics the spec names
+— project folders, the ticket file, backups and version control, agent use, and
+recovery — addressed to someone who installed the DMG. Its claims were checked
+against the code rather than written from memory: the strings it quotes
+(*"Changed on disk"*, *"Newer format, shown read-only"*) are the app's, and the
+"writes inside `.longclaw/` and nowhere else" claim is the invariant
+`core/project.rs:421-424` states.
+
+The gate now says what this row requires, because the first pass passed it with a
+table of links to `docs/file_format.md` and `apps/desktop/README.md`. Those links
+resolved. They are a specification and a contributor README, and neither is
+addressed to a user.
+
+**The open decision: the guide is not reachable from inside the app**, and this
+is where Task 4's finding bites. LongClaw ships with no shell or URL-opening
+capability — that is the privacy boundary `release:audit` enforces — so the app
+*cannot* open a browser to documentation. "Ship or link it from the app"
+therefore means one of:
+
+1. **Repository only** (what is there now). The release notes link the guide.
+   Cheapest; a DMG user who never visits the repo has no route to it.
+2. **Write it into new projects**, beside the `.longclaw/AGENTS.md` the app
+   already generates. Uses an existing pattern and no new UI, but puts a copy in
+   every project that then ages.
+3. **Render it in-app** behind a Help item. The app already has `MarkdownView`,
+   so this is small, but it is new product surface in a release candidate.
+
+This is a product call, not a mechanical one, so it is recorded in the candidate
+record's § Known issues as an open decision rather than chosen here.
+
+### Task 7 — done
+
+[`docs/release-notes/v0.1.0.md`](../../release-notes/v0.1.0.md) exists, which
+closes the unsigned branch of `docs/release-risks.md:51` — the choice was made in
+the first pass, but the artefact the must-pass requires did not exist.
+
+It carries the three things that row demands: what Gatekeeper will say, why the
+build is unsigned (no Apple Developer Program membership, a recorded decision
+rather than an oversight), and how to open it — System Settings → Privacy &
+Security → Open Anyway, with Control-click → Open for older macOS. It explicitly
+tells the reader **not** to disable Gatekeeper system-wide, which is the failure
+mode of most unsigned-app instructions: `spctl --master-disable` trades a
+one-app warning for a machine-wide hole, and a release note that recommends it
+has made the user less safe to save them a click.
+
+It also carries what Step 17 separately requires — the local-only boundary, and
+Phase 2 terminals and Phase 3 sync/teams named as absent phases rather than
+missing features — so Step 17's release-notes clause is satisfied by the same
+document. Marked draft until Step 17 publishes.
+
+Two things it states that were verified rather than assumed: the DMG is Apple
+Silicon only (`LongClaw_0.1.0_aarch64.dmg`; no universal binary in this release),
+and the app cannot open links in a browser.
+
+### Task 8 — decided: keep it, and now with a number
+
+`release:audit` stays in `npm run check`. The plan recommended this on the
+argument that a boundary checked only at release time breaks between releases and
+is found late; the measurement supports it. **The whole audit costs 0.31 s**,
+including the `cargo tree --locked` host-graph query Task 4 added, which is 0.15 s
+of it. That is not a meaningful pre-commit cost.
+
+The complementary decision is Task 4's: `release:binary-audit` is deliberately
+**not** in `check`, because it needs an artefact only `build:app` produces, and a
+check that skips whenever its input is missing is a check that never runs. So the
+split is by what each can see without a build, not by how release-y it feels.
