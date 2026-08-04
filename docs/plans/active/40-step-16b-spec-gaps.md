@@ -324,6 +324,12 @@ why the runtime process-monitor pass stays required.
 
 ## Task 5 — Run the accessibility pass (finding 2)
 
+> **Moved to [plan 41](41-accessibility-audit.md)** — the only one of the eight
+> that cannot be automated, so it is split out rather than left blocking a plan
+> whose other seven tasks are done. Plan 41 divides it: the keyboard half blocks
+> the MVP, the VoiceOver half can be dated and deferred. The detail below is
+> superseded by that plan; do not run it from here.
+
 **Release-blocking.** This is the largest remaining manual gap.
 
 ### What the spec says
