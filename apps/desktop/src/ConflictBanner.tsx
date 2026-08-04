@@ -20,10 +20,10 @@ export function ConflictBanner(props: {
           the choice below, which is the part the board cannot offer. */}
       <p>{conflictMessage(props.error)}</p>
       <div className="toolbar-actions">
-        <button className="secondary" onClick={props.onReload}>
+        <button tabIndex={0} className="secondary" onClick={props.onReload}>
           Reload file
         </button>
-        <button className="ghost" onClick={props.onKeepMine}>
+        <button tabIndex={0} className="ghost" onClick={props.onKeepMine}>
           Keep mine
         </button>
       </div>

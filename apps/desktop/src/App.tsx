@@ -43,6 +43,7 @@ import { mutate, type Mutation } from "./mutations";
 import { ORDERINGS, type OrderingMode } from "./ordering";
 import { OwlMark } from "./OwlMark";
 import { QuickCreate } from "./QuickCreate";
+import type { FocusRequest } from "./rovingFocus";
 import { useLongClawStore } from "./state";
 import { ThemePicker } from "./ThemePicker";
 import { ThemeDot } from "./ThemeSwatch";
@@ -113,13 +114,6 @@ function readOrderings(): Record<string, OrderingMode> {
  * it found.
  */
 const ROW = "[data-ticket-key]";
-
-/** Moves focus onto a card or a row once it has been painted. */
-function focusCard(key: string) {
-  requestAnimationFrame(() => {
-    document.querySelector<HTMLElement>(`[data-ticket-key="${key}"]`)?.focus();
-  });
-}
 
 /**
  * Where focus goes when the row it came from is not there to go back to, which
@@ -297,6 +291,21 @@ export function App() {
     focusSurface();
   }
 
+  /**
+   * Focus a card or row by key, through whichever surface is up.
+   *
+   * It used to be a `document.querySelector(…).focus()`, and both surfaces
+   * render only the rows their scroll position touches — so a create that landed
+   * past the window, or a panel closing over a row scrolled out of sight, focused
+   * nothing and left `<body>` holding it. The surfaces answer this by moving
+   * their tab stop first, which mounts the row, and taking focus after. Found by
+   * the Step 17 accessibility audit; `keyboard-focus-map.md:16-18,116,145`.
+   */
+  const [cardFocus, setCardFocus] = useState<FocusRequest>();
+  const focusCard = useCallback((key: string) => {
+    setCardFocus((previous) => ({ key, nonce: (previous?.nonce ?? 0) + 1 }));
+  }, []);
+
   const clearFilter = useCallback(() => {
     setFilterQuery("");
     // Rule 3 of the focus map: closing a layer never drops focus on the floor.
@@ -312,11 +321,14 @@ export function App() {
     [reviewTicket],
   );
   /** Closing returns focus to the card that opened the panel. */
-  const closeTicket = useCallback((key?: string) => {
-    setSelectedKey(undefined);
-    setHeldConflict(undefined);
-    if (key) focusCard(key);
-  }, []);
+  const closeTicket = useCallback(
+    (key?: string) => {
+      setSelectedKey(undefined);
+      setHeldConflict(undefined);
+      if (key) focusCard(key);
+    },
+    [focusCard],
+  );
 
   /**
    * The edit a board-raised write was refused for, on its way to the panel.
@@ -442,7 +454,19 @@ export function App() {
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [clearFilter, createSurface, filtering, paletteOpen, selectedKey]);
+    // `project` is here because the `C` branch reads it. It was missing, and the
+    // listener installed on mount — before any project had loaded — kept an
+    // `undefined` project for as long as none of the others changed, so `C` did
+    // nothing on a board that had just come up. The Step 17 accessibility audit
+    // found it; `keyboard-focus-map.md:32` is the line it was breaking.
+  }, [
+    clearFilter,
+    createSurface,
+    filtering,
+    paletteOpen,
+    project,
+    selectedKey,
+  ]);
 
   /**
    * Takes the palette down. The results belong to a query that is gone — kept,
@@ -996,10 +1020,15 @@ export function App() {
 
         <nav className="project-nav" aria-label="Projects">
           <section className="project-actions">
-            <button className="secondary" onClick={() => void chooseProject()}>
+            <button
+              tabIndex={0}
+              className="secondary"
+              onClick={() => void chooseProject()}
+            >
               Open folder
             </button>
             <button
+              tabIndex={0}
               className="secondary"
               onClick={() => setQuickCreateOpen((open) => !open)}
             >
@@ -1084,12 +1113,14 @@ export function App() {
               </div>
               <div className="toolbar-actions">
                 <button
+                  tabIndex={0}
                   className="secondary"
                   onClick={() => void toggleStar(project)}
                 >
                   {project.starred ? "Starred" : "Star"}
                 </button>
                 <button
+                  tabIndex={0}
                   className="secondary"
                   onClick={() => setSettingsOpen((open) => !open)}
                 >
@@ -1108,6 +1139,7 @@ export function App() {
                   />
                 </label>
                 <button
+                  tabIndex={0}
                   className="secondary"
                   onClick={() => void renameProject()}
                 >
@@ -1119,6 +1151,7 @@ export function App() {
                   onPick={(theme) => void changeTheme(theme)}
                 />
                 <button
+                  tabIndex={0}
                   className="secondary"
                   onClick={() => void relocateActiveProject(project.id)}
                 >
@@ -1130,6 +1163,7 @@ export function App() {
                   onError={setError}
                 />
                 <button
+                  tabIndex={0}
                   className="danger"
                   onClick={() => void forgetProject(project.id)}
                 >
@@ -1210,6 +1244,7 @@ export function App() {
                     </span>
                     {DEV_CHROME && (
                       <button
+                        tabIndex={0}
                         className="secondary"
                         onClick={() => {
                           if (!activeProjectId) return;
@@ -1222,6 +1257,7 @@ export function App() {
                       </button>
                     )}
                     <button
+                      tabIndex={0}
                       className="primary"
                       onClick={() => setCreateSurface("quick")}
                     >
@@ -1257,6 +1293,7 @@ export function App() {
                         // empty board the designed state exists to replace.
                         scaffold={!noMatches}
                         now={now}
+                        focusRequest={cardFocus}
                         onSelect={openTicket}
                         onChangePriority={changePriority}
                         onChangeStatus={changeStatus}
@@ -1274,6 +1311,7 @@ export function App() {
                         labels={project.labels}
                         ordering={ordering}
                         now={now}
+                        focusRequest={cardFocus}
                         onSelect={openTicket}
                         onChangePriority={changePriority}
                         onChangeStatus={changeStatus}
@@ -1415,6 +1453,7 @@ function ViewSegment(props: {
     <div className="view-segment" role="group" aria-label="View">
       {(["board", "list"] as const).map((id) => (
         <button
+          tabIndex={0}
           key={id}
           className={props.view === id ? "selected" : ""}
           aria-pressed={props.view === id}
@@ -1443,6 +1482,7 @@ function ProjectSection(props: {
       ) : (
         props.projects.map((project) => (
           <button
+            tabIndex={0}
             key={project.id}
             className={[
               "project-link",
@@ -1605,7 +1645,7 @@ function ProjectLabels(props: {
           value={color}
           onChange={setColor}
         />
-        <button className="secondary" type="submit">
+        <button tabIndex={0} className="secondary" type="submit">
           Add label
         </button>
       </form>
@@ -1638,13 +1678,14 @@ function LabelDefinition(props: {
         onChange={setColor}
       />
       <button
+        tabIndex={0}
         className="secondary"
         disabled={unchanged}
         onClick={() => props.onSave({ name: name.trim(), color })}
       >
         {`Save label ${props.slug}`}
       </button>
-      <button className="danger" onClick={props.onRemove}>
+      <button tabIndex={0} className="danger" onClick={props.onRemove}>
         {`Remove label ${props.slug}`}
       </button>
     </div>
@@ -1695,7 +1736,7 @@ function Welcome(props: {
           folder you choose. Every ticket is a file you can read, edit, and
           commit.
         </p>
-        <button className="secondary" onClick={props.onOpen}>
+        <button tabIndex={0} className="secondary" onClick={props.onOpen}>
           Open existing folder
         </button>
         <p className="trust-line">
@@ -1724,7 +1765,7 @@ function EmptyBoard(props: {
         Every ticket is one file. This one will live under
         <code> {props.project.rootPath}/.longclaw/tickets/</code>.
       </p>
-      <button className="primary" onClick={props.onCreate}>
+      <button tabIndex={0} className="primary" onClick={props.onCreate}>
         New ticket
       </button>
     </div>
@@ -1762,7 +1803,7 @@ function NoMatches(props: {
           the filter never hides one.
         </p>
       )}
-      <button className="secondary" onClick={props.onClear}>
+      <button tabIndex={0} className="secondary" onClick={props.onClear}>
         Clear filter
       </button>
     </div>
@@ -1784,10 +1825,10 @@ function UnreachableProject(props: {
         path. Select its new location or remove only this app reference.
       </p>
       <div className="toolbar-actions">
-        <button className="primary" onClick={props.onLocate}>
+        <button tabIndex={0} className="primary" onClick={props.onLocate}>
           Locate folder
         </button>
-        <button className="danger" onClick={props.onRemove}>
+        <button tabIndex={0} className="danger" onClick={props.onRemove}>
           Remove from app
         </button>
       </div>

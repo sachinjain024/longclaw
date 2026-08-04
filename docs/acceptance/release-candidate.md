@@ -18,6 +18,14 @@ file, so the checklist and the evidence stop changing for each other's reasons.
 | Candidate | Record |
 |---|---|
 | 2026-08-04, `implement/step-16b-release-hardening` | [release-candidate-2026-08-04.md](release-candidate-2026-08-04.md) |
+| 2026-08-04, `implement/step-17-final-acceptance` — the Step 17 pass over the same gate | [final-acceptance-2026-08-04.md](final-acceptance-2026-08-04.md) |
+
+The § Accessibility report below is no longer entirely a manual pass. Its first,
+second, third, seventh and eighth rows are automated by `npm run a11y:audit`
+against the real `App` in WebKit — see
+[plan 41](../plans/completed/41-accessibility-audit.md) for what that does and
+does not prove. The two VoiceOver rows stay manual, because they are about what a
+screen reader says.
 
 ## Build identity
 
@@ -47,6 +55,8 @@ Run from the repository root:
 npm run verify
 npm run build:app
 npm run release:binary-audit
+npm run matrix
+npm run a11y:audit
 npm run perf:rust
 npm run perf:board
 npm run perf:list

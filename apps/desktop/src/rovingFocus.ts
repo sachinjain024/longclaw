@@ -18,9 +18,32 @@
  * calls it, and `rovingKey` is read by the effect rather than obeyed by it.
  */
 
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import type { RefObject } from "react";
 import type { Seat } from "./grouping";
+
+/**
+ * A focus request raised from outside the surface: which row, and a nonce that
+ * changes every time, so asking twice for the same row asks twice.
+ *
+ * This exists because the surface is windowed. `App` used to focus a card by
+ * reaching for it in the DOM, and a card past the rendered window is not there
+ * to be reached — so creating a ticket into a long column, or closing the panel
+ * over one, dropped focus on `<body>`, which rule 3 of the focus map forbids.
+ * Coming in through the roving focus instead makes the row the tab stop first,
+ * which is what mounts it (the surface anchors its focused row), and only then
+ * takes focus. Found by the Step 17 accessibility audit.
+ */
+export interface FocusRequest {
+  key: string;
+  nonce: number;
+}
 
 /**
  * The move a key press means, or nothing when the surface does not bind the key.
@@ -70,8 +93,10 @@ export function useRovingFocus(options: {
   root: RefObject<HTMLElement | null>;
   /** The row class this surface draws — `.ticket-row` or `.list-row`. */
   selector: string;
+  /** A focus request from outside the surface, if one is outstanding. */
+  request?: FocusRequest;
 }): RovingFocus {
-  const { seats, firstKey, root, selector } = options;
+  const { seats, firstKey, root, selector, request } = options;
   const [focusedKey, setFocusedKey] = useState<string>();
   /** Bumped only by a key press, so focus follows the arrows and nothing else. */
   const [focusRequest, setFocusRequest] = useState(0);
@@ -100,6 +125,24 @@ export function useRovingFocus(options: {
     item?.focus();
     item?.scrollIntoView?.({ block: "nearest" });
   }, [focusRequest, rovingKey, root, selector]);
+
+  // An outside request is answered exactly once, on the nonce — never on the
+  // key, so asking twice for the same row asks twice and a re-render asks
+  // nothing. The caller is responsible for the row existing by then: `App` adds
+  // the provisional ticket to the store before it asks, so the seat is there in
+  // the render this effect runs after.
+  //
+  // Seeded with the current nonce, so a request outstanding when a *new* surface
+  // mounts is swallowed rather than answered. That is deliberate: switching
+  // board↔list would otherwise replay the last create's focus onto the surface
+  // you just arrived at.
+  const answeredNonce = useRef(request?.nonce);
+  useEffect(() => {
+    if (request === undefined || request.nonce === answeredNonce.current)
+      return;
+    answeredNonce.current = request.nonce;
+    requestFocus(request.key);
+  }, [request, requestFocus]);
 
   return { rovingKey, onFocusItem, requestFocus };
 }

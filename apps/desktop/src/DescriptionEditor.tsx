@@ -249,10 +249,16 @@ export function DescriptionEditor(props: DescriptionEditorProps) {
       {editing && (
         <div className="editor-footer">
           <code>writes to ticket.md on save</code>
-          <button className="ghost" type="button" onClick={editing.onCancel}>
+          <button
+            tabIndex={0}
+            className="ghost"
+            type="button"
+            onClick={editing.onCancel}
+          >
             Cancel <kbd aria-hidden="true">Esc</kbd>
           </button>
           <button
+            tabIndex={0}
             className="primary"
             type="button"
             disabled={!editing.canSave}

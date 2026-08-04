@@ -1,7 +1,7 @@
 ---
 title: "The accessibility audit against the packaged app"
 product: LongClaw
-status: active
+status: complete
 backlog_id: "none — Step 16b work list, split out of plan 40 Task 5"
 order: 41
 owner_area: Design
@@ -236,4 +236,112 @@ and blocks the release.
 
 ## Outcome
 
-*To be filled when the audit runs.*
+**Part A is done and green; Part B is deferred with a date and an owner. Two
+release-blocking defects were found and fixed, and one of them was not the kind
+of thing this plan expected to find.**
+
+The plan said Part A "needs a human at a keyboard", and that turned out to be
+half right. The keyboard *judgement* — is this order sensible, does this read as
+lost — needs a person. The keyboard *contract* does not: `keyboard-focus-map.md`
+says which key does what and where focus lands afterwards, so it can be executed.
+[`perf/a11y-audit.mjs`](../../../apps/desktop/perf/a11y-audit.mjs) drives the real
+`App` over the perf harness's stubbed IPC in WebKit — the engine the packaged
+app's WKWebView runs — with **no `page.click` anywhere in the file**, and every
+check cites the line of the map it is testing. `npm run a11y:audit`.
+
+What it cannot do is speak, and it is not the packaged bundle. Part B and the
+bundle pass stay manual and stay in
+[the candidate record](../../acceptance/final-acceptance-2026-08-04.md).
+
+### The two defects
+
+**1. `C` did nothing on a board that had just loaded.** The global key handler is
+one effect and `project` was read from its closure without being one of its
+dependencies (`src/App.tsx:445`), so the listener installed on mount — before any
+project had loaded — kept an `undefined` project and the `C` branch could never
+fire. Anything that changed a *declared* dependency renewed the closure and
+quietly fixed it, which is why no existing test caught it: every one of them
+reaches quick create through the New ticket button. The keyboard-only path to
+creating a ticket did not exist from a cold start.
+
+**2. Focus fell to `<body>` when the row it was sent to was outside the rendered
+window.** `focusCard` was `document.querySelector(…).focus()`, and both surfaces
+render only the rows their scroll position touches. So creating a ticket into a
+long column, or closing the panel over a row scrolled out of sight, focused
+nothing — against rule 3, "focus is never lost". The fix routes the request
+through the roving focus both surfaces already share (`FocusRequest` in
+`src/rovingFocus.ts`), which moves the tab stop first — that is what mounts the
+row — and takes focus after. Both defects have a regression test in
+`src/App.test.tsx` that was confirmed red first.
+
+### The finding the plan did not predict
+
+**On a default Mac, Tab does not reach a `<button>`, and most of this app is
+buttons.** WebKit follows the macOS *Keyboard navigation* setting
+(`AppleKeyboardUIMode`), which is off by default — verified unset on the build
+machine — and with it off Tab visits text fields, selects and links and nothing
+else. Plan 07 already knew this for the board and gave the cards roving focus;
+nothing else in the app was ever adjusted. So the ticket panel's controls, the
+toast's **Retry**, and the conflict banner's **Reload file** / **Keep mine** were
+**pointer-only** — which makes editing a description, ticking a checklist item,
+retrying a refused write and resolving a conflict unreachable by keyboard. That is
+the release blocker `release-candidate.md` § Known issues defines, arrived at from
+an angle nobody was looking down.
+
+Every `<button>` now states its place in the tab order, and
+`scripts/tab-order-guard.mjs` fails `npm run check` on one that does not —
+`tabIndex={0}`, or `tabIndex={-1}` where a roving group owns the stop. It was
+confirmed to fail on a button with the attribute removed. This is a divergence
+between the implementation and `keyboard-focus-map.md` § Ticket panel, not a
+matter of taste: the map specifies that Tab order, and on a default Mac it did
+not exist.
+
+### One must-pass is met differently than it was written, and it is worth saying so
+
+§ Must-pass checks asks for "**Part A complete against the packaged bundle**".
+That is not what happened, and the difference should not be buried: Part A ran
+against the app's own bundle served as a page, in the same WebKit the packaged
+app's WKWebView is, rather than inside `LongClaw.app`.
+
+What that costs is real but narrow. It cannot see anything the *native window*
+contributes — the menu bar, the traffic-light chrome, macOS full-keyboard-access
+as the OS applies it to a real window, or the app's own zoom bindings if it ever
+gains any. What it gains is that the rows run on every change instead of once,
+which is the difference between a check and a memory.
+
+Two things reduce the gap to something a reader can judge. The one platform
+behaviour the harness *did* find was confirmed against the machine rather than
+the harness — `AppleKeyboardUIMode` is unset, so the packaged app gets the same
+restricted tab order. And the audit's own claim is bounded in its header: it says
+what it drives and what it does not.
+
+**The packaged-bundle pass is not cancelled.** It rides with the clean-machine
+pass that is still open in
+[the acceptance record](../../acceptance/final-acceptance-2026-08-04.md#where-the-release-stands),
+where a person is already opening the bundle for the install and offline rows.
+
+### Results, against the eight rows
+
+Every row of `release-candidate.md` § Accessibility report now carries a result;
+the five Part A rows are automated and green at 600 tickets in a 1440×900 window,
+and the record holds the numbers. A5's mechanism is **named**, as the plan
+required: the CSS viewport is halved to 720×450 against the same window, which is
+what a 200% display scale or webview zoom does to layout. macOS larger text is a
+third mechanism and was not the one used.
+
+`npm run a11y:audit -- --self-test` injects a break per row — swallow `C`,
+neuter `HTMLElement.prototype.focus`, `outline: none`, a duration that outlives
+the reduced-motion block, every header control pinned to one spot — and **fails
+if any row still passes**. It caught two of its own probes being blind: the first
+A5 break stacked the controls without overlapping them, and two injections called
+a DOM method on a Playwright page and crashed the row instead of breaking the
+build. That is the discipline plan 37 asked for, made permanent.
+
+### Part B, deferred — with the date and owner the plan required
+
+**B1 and B2, the VoiceOver semantic pass. Owner: Design. Due: 2026-09-04**, one
+month after the v0 release. Not release-blocking, per this plan's own split.
+`docs/release-risks.md` is narrowed to Part B rather than retired, so the risk
+stays visible with its date attached. If B2 finds a focus trap rather than a
+naming problem, it is promoted to Part A and blocks — that condition is
+unchanged.

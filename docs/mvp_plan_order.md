@@ -761,7 +761,7 @@ rather than by the dependency graph.
 closed.** Each has a severity and a release decision in the candidate record's
 § Known issues; none may be waved through at Step 17.
 
-1. **The accessibility pass** — [plan 41](plans/active/41-accessibility-audit.md).
+1. **The accessibility pass** — [plan 41](plans/completed/41-accessibility-audit.md).
    Its Part A is release-blocking under this document's own definition: an
    accessibility failure that prevents keyboard completion of the core ticket
    lifecycle. Part B, the VoiceOver semantic audit, may be dated and deferred.
@@ -803,6 +803,49 @@ closed.** Each has a severity and a release decision in the candidate record's
 - Final acceptance record.
 - Release notes and known limitations.
 - Prioritized post-MVP backlog.
+
+**Progress note, 2026-08-04. Step 17 is under way and the release is not cut.**
+The record is [final-acceptance-2026-08-04.md](acceptance/final-acceptance-2026-08-04.md);
+the post-MVP backlog is [post-mvp-backlog.md](backlog/post-mvp-backlog.md); the
+release notes are written and still marked draft, deliberately.
+
+**The largest of Step 16b's four carried items is closed.** The accessibility
+pass is [plan 41](plans/completed/41-accessibility-audit.md), and its Part A —
+the release-blocking half — is now *automated*: `npm run a11y:audit` drives the
+real `App` in WebKit with no pointer input anywhere in it, checking every step
+against the line of `keyboard-focus-map.md` it implements, and
+`--self-test` fails if any row survives a deliberate break. Part B, the VoiceOver
+semantic pass, is deferred to **2026-09-04, owner Design**, with the promotion
+condition intact. `release-risks.md:65` is narrowed to that half rather than
+retired.
+
+Running it found three release blockers, all invisible to a jsdom suite:
+
+1. `C` did nothing on a freshly loaded board — a missing effect dependency meant
+   the keyboard path to creating a ticket did not exist from a cold start.
+2. Focus fell to `<body>` whenever the row it was sent to was outside the
+   rendered window, which is what creating into a long column does.
+3. **WebKit skips `<button>` in the tab order on a default Mac.** The board knew
+   this since plan 07 and nothing else in the app did, so the ticket panel's
+   controls, the toast's Retry and the conflict banner's two choices were
+   pointer-only — no keyboard path to editing a description, ticking a checklist
+   item, retrying a refused write, or resolving a conflict.
+
+All three are fixed, each with a regression test confirmed red first, and
+`scripts/tab-order-guard.mjs` now fails the build on a button that does not state
+its place in the tab order. The agent half of the round-trip scenario was run for
+real — a real external agent editing a ticket from `.longclaw/AGENTS.md` alone,
+with the packaged binary confirming the parse — and the documentation was
+verified against a clean project, which corrected a user-guide instruction about
+local diagnostics that did not work as written.
+
+**Three things still block the release, and one is new:** the runtime network
+audit, the clean-machine packaged-app pass, and a rebuild of the bundle at the
+final commit, because the accessibility fixes landed after the measured one. The
+oldest-supported-Mac run is still open. Two Step 17 measurements could not be
+taken from an agent shell at all — `perf:startup` and the DMG bundling step, both
+because the shell has no foreground GUI session — and the record says which
+single command a human runs for each.
 
 **Expected outcome / exit gate:**
 

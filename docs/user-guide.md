@@ -159,9 +159,18 @@ the backup is unusable too, just open your project folders again — **this list
 is not your data.** Your tickets are in your project, untouched.
 
 **Anything else.** LongClaw says what it was doing, which file it was doing it
-to, and what to try. If you want to see what it is doing in detail, launch it
-from a terminal: it prints local diagnostics to stdout prefixed with
-`LONGCLAW_LOCAL_DIAGNOSTIC`, and it never sends them anywhere.
+to, and what to try. If you want more than the window shows, launch it from a
+terminal:
+
+```sh
+LONGCLAW_LOCAL_DIAGNOSTIC=1 /Applications/LongClaw.app/Contents/MacOS/longclaw-desktop
+```
+
+It prints lines prefixed with `LONGCLAW_LOCAL_DIAGNOSTIC` to stdout and sends
+them nowhere — they go to your terminal and stop there. Expect a small channel
+rather than a log: how long the first board took to appear, and a line if the
+watcher ever loses filesystem events and rebuilds the index. If you are
+reporting a problem, this is the output worth pasting.
 
 ---
 

@@ -423,6 +423,7 @@ export function CommandPalette(props: {
         <div className="palette-input-row">
           {subMode && (
             <button
+              tabIndex={0}
               type="button"
               className="palette-crumb"
               aria-label={`Back to commands from ${subMode.crumb}`}
@@ -467,6 +468,10 @@ export function CommandPalette(props: {
         >
           {visibleRows.map((row, index) => (
             <button
+              // Never a tab stop: the input keeps focus and publishes the active
+              // row through `aria-activedescendant`, so a row in the Tab order
+              // would be a second, contradictory way to move through the list.
+              tabIndex={-1}
               key={row.id}
               id={`${rowId}-${index}`}
               role="option"
@@ -509,6 +514,7 @@ export function CommandPalette(props: {
               )}
               {query && (
                 <button
+                  tabIndex={0}
                   type="button"
                   className="secondary"
                   onClick={() => {

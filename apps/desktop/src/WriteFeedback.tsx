@@ -98,6 +98,7 @@ export function ToastStack() {
           <span className="toast-message">{toast.message}</span>
           {toast.undo && (
             <button
+              tabIndex={0}
               className="toast-action"
               onClick={() => {
                 dismiss(toast.id);
@@ -109,6 +110,7 @@ export function ToastStack() {
           )}
           {toast.retry && (
             <button
+              tabIndex={0}
               className="toast-action"
               onClick={() => {
                 dismiss(toast.id);
@@ -120,6 +122,7 @@ export function ToastStack() {
           )}
           {toast.review && (
             <button
+              tabIndex={0}
               className="toast-action"
               onClick={() => {
                 dismiss(toast.id);
@@ -131,6 +134,7 @@ export function ToastStack() {
           )}
           {toast.tone === "danger" && (
             <button
+              tabIndex={0}
               className="toast-dismiss"
               aria-label="Dismiss"
               onClick={() => dismiss(toast.id)}
