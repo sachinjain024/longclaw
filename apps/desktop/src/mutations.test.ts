@@ -210,6 +210,54 @@ describe("running a mutation", () => {
     expect(useMutationStore.getState().toast?.undo).toBeUndefined();
   });
 
+  /**
+   * V0-29. `permission_denied` and `io` kept Retry, correctly, and said only
+   * what Rust said. A read-only folder is an ordinary thing to happen, and the
+   * toast has to say what to do about it.
+   */
+  it("tells a write failure what to do about itself, and keeps Retry", async () => {
+    await mutate({
+      write: () =>
+        Promise.reject({
+          code: "permission_denied",
+          message:
+            "Saving ticket failed for ticket.md. The file or the folder it is in is read-only.",
+          recoverable: true,
+          context: {
+            path: "/projects/app/.longclaw/tickets/LC-1/ticket.md",
+            fileName: "ticket.md",
+            cause: "readOnly",
+          },
+        }),
+    });
+
+    const toast = useMutationStore.getState().toast;
+    expect(toast?.tone).toBe("danger");
+    expect(toast?.message).toContain("ticket.md");
+    expect(toast?.message).toContain("read-only");
+    expect(toast?.message).toContain("Give yourself write access");
+    // Nothing about the file changed, so re-sending the same edit is right.
+    expect(toast?.retry).toBeTruthy();
+  });
+
+  it("offers no recovery for a failure nothing classified", async () => {
+    await mutate({
+      write: () =>
+        Promise.reject({
+          code: "io",
+          message: "Saving ticket failed for ticket.md. the volume was ejected.",
+          recoverable: true,
+          context: { path: "/projects/app/.longclaw/tickets/LC-1/ticket.md" },
+        }),
+    });
+
+    const toast = useMutationStore.getState().toast;
+    expect(toast?.message).toBe(
+      "Saving ticket failed for ticket.md. the volume was ejected.",
+    );
+    expect(toast?.retry).toBeTruthy();
+  });
+
   it("keeps the indicator busy until the last concurrent write settles", async () => {
     let settleFirst: (result: WriteResult) => void = () => {};
     const first = mutate({

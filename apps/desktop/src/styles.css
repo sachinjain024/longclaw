@@ -424,6 +424,17 @@ h1 {
   text-transform: capitalize;
 }
 
+/* The file the failure is about, on its own line and selectable: naming it is
+   half of what makes a write failure recoverable (V0-29). */
+.failure-path {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--lc-font-mono);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
 .welcome-panel {
   display: grid;
   grid-template-columns: minmax(320px, 1fr) 360px;

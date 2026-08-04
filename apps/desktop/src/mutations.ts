@@ -23,7 +23,20 @@
 
 import { create } from "zustand";
 import { normalizeError } from "./errors";
+import { failureMessage, failureRecovery } from "./failure";
 import type { AppError, WriteResult } from "./types";
+
+/**
+ * A failed write says what to do about it, whether or not the caller wrote its
+ * own copy. A caller's `failure` is about *this* mutation — "the ticket could
+ * not be created" — and the recovery is about the file underneath it, so the
+ * two compose rather than one replacing the other.
+ */
+function withRecovery(error: AppError, own?: string): string {
+  if (own === undefined) return failureMessage(error);
+  const recovery = failureRecovery(error);
+  return recovery ? `${own} ${recovery}` : own;
+}
 
 /** The single toast stack: a new mutation supersedes the last one. */
 export interface Toast {
@@ -201,7 +214,7 @@ export async function mutate(
     store.raise({
       message: conflict
         ? conflictMessage(normalized)
-        : (mutation.failure?.(normalized) ?? normalized.message),
+        : withRecovery(normalized, mutation.failure?.(normalized)),
       tone: "danger",
       retry: conflict ? undefined : () => void mutate(mutation),
       review:

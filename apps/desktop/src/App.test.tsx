@@ -145,6 +145,43 @@ describe("recovering from a lost project event", () => {
     // than papered over by a failed recovery.
     expect(useLongClawStore.getState().lastSequence).toBe(4);
   });
+
+  /**
+   * V0-29. The banner's heading was `error.code.replaceAll("_", " ")`, so an
+   * ordinary read-only folder announced itself as *permission denied* over a
+   * sentence Rust had written for a log.
+   */
+  it("names the file and the recovery rather than the error code", async () => {
+    vi.mocked(api.reconcileProject).mockRejectedValue({
+      code: "permission_denied",
+      message:
+        "Saving ticket failed for ticket.md. The file or the folder it is in is read-only.",
+      recoverable: true,
+      context: {
+        path: "/tmp/LongClaw Fixture/.longclaw/tickets/LC-1/ticket.md",
+        fileName: "ticket.md",
+        cause: "readOnly",
+      },
+    });
+    useLongClawStore.setState({
+      projects: [project],
+      activeProjectId: project.id,
+      lastSequence: 4,
+      reconciling: true,
+      loading: true,
+    });
+
+    render(<App />);
+
+    const banner = await screen.findByRole("alert");
+    expect(banner.textContent).toContain("That file could not be written");
+    expect(banner.textContent).toContain(
+      "/tmp/LongClaw Fixture/.longclaw/tickets/LC-1/ticket.md",
+    );
+    expect(banner.textContent).toContain("Give yourself write access");
+    expect(banner.textContent).toContain("The file was left as it was.");
+    expect(banner.textContent).not.toContain("permission denied");
+  });
 });
 
 describe("optimistic create, write feedback, and undo (V0-17)", () => {

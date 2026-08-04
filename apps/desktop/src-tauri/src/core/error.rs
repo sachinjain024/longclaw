@@ -74,20 +74,32 @@ impl AppError {
             ErrorCode::Io
         };
         let name = file_label(path);
-        let cause = match error.kind() {
-            io::ErrorKind::PermissionDenied => {
-                "The file or the folder it is in is read-only.".to_owned()
-            }
-            io::ErrorKind::StorageFull => "The volume it is on has no space left.".to_owned(),
-            io::ErrorKind::NotFound => {
-                "It is no longer where LongClaw expected to find it.".to_owned()
-            }
-            _ => format!("{error}."),
+        // `cause` is the typed half of the same answer: the frontend offers the
+        // recovery for a known cause and stays quiet for one it cannot name,
+        // rather than pattern-matching the system's prose (ADR 0010).
+        let (cause, why) = match error.kind() {
+            io::ErrorKind::PermissionDenied => (
+                Some("readOnly"),
+                "The file or the folder it is in is read-only.".to_owned(),
+            ),
+            io::ErrorKind::StorageFull => (
+                Some("noSpace"),
+                "The volume it is on has no space left.".to_owned(),
+            ),
+            io::ErrorKind::NotFound => (
+                Some("missing"),
+                "It is no longer where LongClaw expected to find it.".to_owned(),
+            ),
+            _ => (None, format!("{error}.")),
         };
-        Self::new(code, format!("{action} failed for {name}. {cause}"), true)
+        let reported = Self::new(code, format!("{action} failed for {name}. {why}"), true)
             .with_context("path", path.display().to_string())
             .with_context("fileName", name)
-            .with_context("systemError", error.to_string())
+            .with_context("systemError", error.to_string());
+        match cause {
+            Some(cause) => reported.with_context("cause", cause),
+            None => reported,
+        }
     }
 
     pub fn parse(path: &std::path::Path, message: impl Into<String>) -> Self {
@@ -217,6 +229,10 @@ mod tests {
             Some("ticket.md")
         );
         assert!(error.context.contains_key("systemError"));
+        assert_eq!(
+            error.context.get("cause").map(String::as_str),
+            Some("readOnly")
+        );
     }
 
     #[test]
@@ -232,6 +248,10 @@ mod tests {
         assert!(error.message.contains("ticket.md"));
         assert!(error.message.contains("no space left"));
         assert!(!error.message.contains("os error"));
+        assert_eq!(
+            error.context.get("cause").map(String::as_str),
+            Some("noSpace")
+        );
     }
 
     #[test]
@@ -249,6 +269,8 @@ mod tests {
             error.context.get("systemError").map(String::as_str),
             Some("the volume was ejected")
         );
+        // No cause the app can name, so it claims none and offers no recovery.
+        assert!(!error.context.contains_key("cause"));
     }
 
     #[test]

@@ -33,6 +33,12 @@ import { CreatePanel } from "./CreatePanel";
 import { CreateProjectForm, type ProjectDraft } from "./CreateProjectForm";
 import { DEV_CHROME } from "./devChrome";
 import { normalizeError } from "./errors";
+import {
+  failureGuarantee,
+  failureMessage,
+  failurePath,
+  failureTitle,
+} from "./failure";
 import { filterTickets, isFiltering } from "./filtering";
 import { IssueList } from "./IssueList";
 import { isChord, singleKeyShortcutAllowed } from "./keyContext";
@@ -1056,11 +1062,18 @@ export function App() {
       </aside>
 
       <section className="main-panel">
+        {/* The code used to be the heading here, so an ordinary read-only
+            folder announced itself as `permission denied` (V0-29). */}
         {error && (
           <section className="error-banner" role="alert">
-            <strong>{error.code.replaceAll("_", " ")}</strong>
-            <span>{error.message}</span>
-            {error.recoverable && <small>Files were not rewritten.</small>}
+            <strong>{failureTitle(error)}</strong>
+            <span>
+              {failureMessage(error)}
+              {failurePath(error) && (
+                <code className="failure-path">{failurePath(error)}</code>
+              )}
+            </span>
+            {failureGuarantee(error) && <small>{failureGuarantee(error)}</small>}
           </section>
         )}
 
