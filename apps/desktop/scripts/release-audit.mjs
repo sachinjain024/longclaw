@@ -1,37 +1,62 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
+#!/usr/bin/env node
+/**
+ * The release privacy and filesystem audit (Step 16b).
+ *
+ * The v0 promise is that the app works with no account and no network, and
+ * touches nothing outside the folder the user picked. Three parts of that are
+ * declarative, so a gate can hold them instead of a reviewer: the dependencies
+ * the app is built from, the capability and CSP the webview runs under, and the
+ * calls the shipped source makes.
+ *
+ * The fourth part it cannot see is what the *binary* does at runtime, through
+ * transitive dependencies it never names. `src-tauri/Cargo.lock` carries
+ * `reqwest` and `hyper` transitively today — pulled in below Tauri, not by us —
+ * and nothing here would notice one of them opening a connection. The
+ * process-monitor pass in `docs/acceptance/release-candidate.md` is what covers
+ * that, it is manual on purpose, and a pass here is not a substitute for it.
+ *
+ * Config lists are compared as sets: a permission list means the same thing
+ * shuffled, and failing a release build on key order is noise, not a finding.
+ *
+ * Usage: node scripts/release-audit.mjs   (exits non-zero on any finding)
+ */
 
-const repoRoot = resolve(import.meta.dirname, "../../..");
-const appRoot = join(repoRoot, "apps/desktop");
+import { readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const failures = [];
+import { filesUnder, readSource, report } from "./guard.mjs";
+
+const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
+const findings = [];
 
 function fail(message) {
-  failures.push(message);
+  findings.push(message);
 }
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, "utf8"));
 }
 
-function walk(dir, predicate, files = []) {
-  for (const entry of readdirSync(dir)) {
-    if (["node_modules", "dist", "target"].includes(entry)) continue;
-    const path = join(dir, entry);
-    const stat = statSync(path);
-    if (stat.isDirectory()) {
-      walk(path, predicate, files);
-    } else if (predicate(path)) {
-      files.push(path);
-    }
+/** Record a finding unless `actual` holds exactly the `expected` values. */
+function failUnlessSameSet(actual, expected, label) {
+  const canonical = (list) => JSON.stringify([...list].sort());
+  if (canonical(actual ?? []) !== canonical(expected)) {
+    fail(
+      `${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`,
+    );
   }
-  return files;
 }
 
-function assertEqual(actual, expected, label) {
-  const left = JSON.stringify(actual);
-  const right = JSON.stringify(expected);
-  if (left !== right) fail(`${label}: expected ${right}, got ${left}`);
+/** Record a finding for every `[pattern, label]` any of `files` matches. */
+function failOnMatch(files, patterns) {
+  for (const file of files) {
+    const { path, text } = readSource(file);
+    for (const [pattern, label] of patterns) {
+      if (pattern.test(text)) fail(`${path} uses ${label}`);
+    }
+  }
 }
 
 const packageJson = readJson(join(appRoot, "package.json"));
@@ -71,12 +96,16 @@ for (const dep of [
 }
 
 const tauriConfig = readJson(join(appRoot, "src-tauri/tauri.conf.json"));
-assertEqual(
+failUnlessSameSet(
   tauriConfig.app.security.capabilities,
   ["main"],
   "Tauri capabilities",
 );
-assertEqual(tauriConfig.bundle.targets, ["app", "dmg"], "macOS bundle targets");
+failUnlessSameSet(
+  tauriConfig.bundle.targets,
+  ["app", "dmg"],
+  "macOS bundle targets",
+);
 
 if (!tauriConfig.bundle.icon?.includes("icons/icon.png")) {
   fail("bundle icon must include icons/icon.png");
@@ -111,64 +140,42 @@ if (/connect-src[^;]*(https?:\/\/(?!ipc\.localhost)|wss?:)/.test(csp)) {
 }
 
 const capability = readJson(join(appRoot, "src-tauri/capabilities/main.json"));
-assertEqual(capability.windows, ["main"], "capability windows");
-assertEqual(capability.platforms, ["macOS"], "capability platforms");
-assertEqual(
+failUnlessSameSet(capability.windows, ["main"], "capability windows");
+failUnlessSameSet(capability.platforms, ["macOS"], "capability platforms");
+failUnlessSameSet(
   capability.permissions,
   ["core:default", "core:event:default", "dialog:allow-open"],
   "capability permissions",
 );
 
-const shippedFrontendFiles = walk(
-  join(appRoot, "src"),
-  (path) =>
-    /\.(ts|tsx)$/.test(path) &&
-    !path.endsWith(".test.ts") &&
-    !path.endsWith(".test.tsx"),
+/**
+ * No `src/tokens/` exemption here, unlike the token guards: a generated stylesheet
+ * is exempt from the *scale*, not from the network boundary.
+ */
+const shippedFrontendFiles = filesUnder(join(appRoot, "src"), /\.tsx?$/).filter(
+  (path) => !/\.test\.tsx?$/.test(path),
 );
-const shippedRustFiles = walk(join(appRoot, "src-tauri/src"), (path) =>
-  path.endsWith(".rs"),
-);
+const shippedRustFiles = filesUnder(join(appRoot, "src-tauri/src"), /\.rs$/);
 
-const forbiddenFrontendPatterns = [
+failOnMatch(shippedFrontendFiles, [
   [/\bfetch\s*\(/, "fetch"],
   [/\bXMLHttpRequest\b/, "XMLHttpRequest"],
   [/\bWebSocket\b/, "WebSocket"],
   [/\bsendBeacon\b/, "sendBeacon"],
   [/\bEventSource\b/, "EventSource"],
-];
+]);
 
-const forbiddenRustPatterns = [
+failOnMatch(shippedRustFiles, [
   [/\bhttp::|reqwest::|ureq::/, "Rust HTTP client"],
   [/\bCommand::new\s*\(/, "process launch"],
-];
+]);
 
-for (const file of shippedFrontendFiles) {
-  const text = readFileSync(file, "utf8");
-  for (const [pattern, label] of forbiddenFrontendPatterns) {
-    if (pattern.test(text)) {
-      fail(`${relative(repoRoot, file)} uses ${label}`);
-    }
-  }
-}
-
-for (const file of shippedRustFiles) {
-  const text = readFileSync(file, "utf8");
-  for (const [pattern, label] of forbiddenRustPatterns) {
-    if (pattern.test(text)) {
-      fail(`${relative(repoRoot, file)} uses ${label}`);
-    }
-  }
-}
-
-if (failures.length > 0) {
-  console.error("release audit failed:");
-  for (const message of failures) console.error(`- ${message}`);
-  process.exit(1);
-}
-
-console.log(
-  `release audit passed: ${
-    shippedFrontendFiles.length + shippedRustFiles.length
-  } shipped source files, narrow Tauri capabilities, no direct telemetry/network dependencies`,
-);
+report({
+  name: "release-audit",
+  findings,
+  checked: shippedFrontendFiles.length + shippedRustFiles.length,
+  remedy:
+    "release boundary violation(s) — the v0 boundary is docs/acceptance/release-candidate.md:",
+  clean:
+    "narrow Tauri capabilities, no direct telemetry/network dependency, no network or process call in shipped source",
+});

@@ -75,15 +75,16 @@ Test suites worth knowing about:
 | `npm run perf:board`   | input → paint on a 5,000-ticket board, traced in WebKit (see `apps/desktop/perf/README.md`)             |
 | `npm run perf:list`    | the same input → paint trace against the shipped list surface                                           |
 
-`perf:board` needs a WebKit build, once per machine:
+`perf:board` and `perf:list` need a WebKit build, once per machine:
 
 ```sh
 npx playwright@1.62.1 install webkit
 ```
 
-Neither performance harness is part of `npm run verify`: both take minutes, and
-`perf:board` downloads a browser. Run them when you change what the board renders
-or what storage does per ticket.
+None of the three performance harnesses is part of `npm run verify`: each takes
+minutes, and the two WebKit traces download a browser. Run `perf:rust` when you
+change what storage does per ticket, and `perf:board` or `perf:list` when you
+change what that surface renders.
 
 ## Diagnostics and privacy
 

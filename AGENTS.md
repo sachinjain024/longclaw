@@ -41,7 +41,8 @@ Two traps: Homebrew runs under Rosetta on this Mac, so installs need
 `npm --prefix apps/desktop ci` first.
 
 ```sh
-npm run verify   # tokens, format, lint, typecheck, tests, vite build, native watcher
+npm run verify   # tokens, archived-spike scope, release audit, format, lint,
+                 # typecheck, tests, vite build, native watcher
 npm run dev      # launch the app
 npm --prefix apps/desktop run test:rust     # cargo test alone
 npm --prefix apps/desktop run test:frontend # vitest alone
