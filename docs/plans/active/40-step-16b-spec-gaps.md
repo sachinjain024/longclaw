@@ -209,6 +209,10 @@ regardless of whether the measurement lands.
 
 ## Task 3 — Test the project sizes the spec names (finding 4)
 
+> **Done.** See [§ Outcome](#task-3--done-three-sizes-and-a-budget-that-had-never-been-measured).
+> The step below is right that the harnesses were already parameterised — except
+> the Rust one, which was fixed at 5,000 and hid an unmeasured Step 4 budget.
+
 ### What the spec says
 
 > Test representative **small, medium, and large** local projects.
@@ -596,3 +600,43 @@ and recorded as a known issue instead.
 `npm run perf:startup -- --launches=9` at the root is silently ignored, because
 npm swallows flags passed through `npm --prefix apps/desktop run …`. This is true
 of the existing `perf:board` flags too. The usage docblock says so.
+
+### Task 3 — done; three sizes, and a budget that had never been measured
+
+All three sizes are measured and recorded in
+[the candidate record](../../acceptance/release-candidate-2026-08-04.md#small-medium-and-large).
+**Interaction is flat across them** — board and list p95 sit at 15–18 ms for
+keyboard, scroll and external write at 100, 1,000 and 5,000 tickets alike. Only
+filter and the storage load scale, which are the two operations that read every
+ticket, and both stay far inside budget.
+
+`perf:board`/`perf:list` already took `--tickets`, and `perf:startup` already
+took `--project`, so those needed nothing. The Rust harness was fixed at 5,000,
+so `LONGCLAW_PERF_TICKETS` now picks the size and `load_budget_ms()` selects the
+Step 4 ceiling for it. The default is unchanged, so a bare `npm run perf:rust`
+measures exactly what it always did.
+
+**That surfaced a second gap the review had not named.** Step 4 states two load
+budgets — 1,000 tickets in 750 ms, 5,000 in 2,500 ms — and the spike recorded the
+1,000 row as *"Covered by the stricter 5,000-ticket harness below."* That is an
+argument, not a measurement, and it had stood since Step 4. Measured:
+**225.49 ms against ≤ 750 ms.** The assertion was confirmed to bind by forcing
+the ceiling to 100 ms and watching it fail at 235.35 ms.
+
+**What this task could not do honestly.** The spec asks for a *real* medium
+project and there is none: only `fixtures/representative-project` (6 tickets) is
+real, and the repo does not track its own work in LongClaw, so 100/1,000/5,000
+are generated. The record says so per size rather than letting "tested at three
+sizes" imply more than it should — a generated fixture has uniform titles, one
+label and no history, so it exercises size but not shape.
+
+**One limit found by measuring.** The board cannot be scroll-traced at 100
+tickets: across six columns that is about a viewport of content, and the trace
+stops at four scroll frames. The small board run is therefore
+`--only=keyboard,filter,write`, and the record states it — a board with nothing
+to scroll is the honest answer, not a gap.
+
+**Run-to-run spread, now visible.** The 5,000-ticket storage numbers came out
+about 11% apart between the Task 1 session and this sweep (open 1464.80 vs
+1632.65 ms), both far inside budget. Every perf number in the record is a single
+unrepeated sample, and that is roughly what one is worth.

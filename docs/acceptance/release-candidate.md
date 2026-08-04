@@ -76,7 +76,8 @@ audit below is what covers that, and it stays manual for that reason.
 |---|---|---|
 | Startup | cold ≤ 1,500 ms, warm ≤ 750 ms, process start → first painted board | `npm run perf:startup`, plus a clean-machine cold launch |
 | Folder open | Step 4 folder-open budget | `npm run perf:rust` |
-| Index build, 5,000 tickets | Step 4 Rust budget | `npm run perf:rust` |
+| Index build, 1,000 tickets | ≤ 750 ms | `LONGCLAW_PERF_TICKETS=1000 npm run perf:rust` |
+| Index build, 5,000 tickets | ≤ 2,500 ms | `npm run perf:rust` |
 | Board interaction, 5,000 tickets | p95 ≤ 50 ms **and** p50 ≤ 16 ms, and median within 4 ms of the 600-ticket floor | `npm run perf:board` |
 | List interaction, 5,000 tickets | p95 ≤ 50 ms **and** p50 ≤ 16 ms, and median within 4 ms of the 600-ticket floor | `npm run perf:list` |
 | Search/filter | p95 ≤ 50 ms during the WebKit trace | `npm run perf:board`, `npm run perf:list`, `npm run perf:rust` |
@@ -99,6 +100,14 @@ exit code.
 Test at least one small project, one medium real project, and one 5,000-ticket
 fixture. If a number is not collected, the candidate must name why it is not a
 release blocker.
+
+Every harness takes the size, so all three are one flag rather than a new
+fixture: `LONGCLAW_PERF_TICKETS=<n> npm run perf:rust`,
+`npm run perf:board -- --tickets=<n>` (and `perf:list`), and
+`npm run perf:startup -- --project=<path>`. **State for each size whether the
+project was real or generated.** A generated fixture has uniform titles, one
+label and no history; it proves the app survives the size, not that it survives
+what a real project of that size looks like.
 
 ## Accessibility report
 

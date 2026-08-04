@@ -84,8 +84,50 @@ other across all four interactions, and each matches its own 600-ticket floor,
 which is the harness's evidence that 5,000 tickets cost nothing the small board
 does not.
 
-The interaction and storage rows used only the 5,000-ticket fixture. The small
-and medium real projects the gate asks for were not run for those.
+### Small, medium, and large
+
+The table above is the large project. The spec asks for three sizes, so all three
+were measured. Interaction is flat across them; only filter and the storage load
+scale, which are the two things that read every ticket.
+
+| | Small | Medium | Large |
+|---|---|---|---|
+| Tickets | 100 (6 for startup) | 1,000 | 5,000 |
+| Storage open | `313.17 ms` | `512.77 ms` | `1632.65 ms` |
+| Index rebuild | `22.53 ms` | `225.49 ms` | `1216.86 ms` |
+| Search | `0.04 ms` | `0.31 ms` | `1.69 ms` |
+| Load budget | — | **≤ 750 ms** | ≤ 2,500 ms |
+| Board p95 kbd/scroll/filter/write | `16`/—/`19`/`16 ms` | `15`/`18`/`24`/`17 ms` | `15`/`18`/`26`/`17 ms` |
+| List p95 kbd/scroll/filter/write | `15`/`18`/`19`/`16 ms` | `15`/`18`/`22`/`16 ms` | `15`/`18`/`23`/`17 ms` |
+| Startup, warm p50 | `458.69 ms` | `548.45 ms` | — |
+
+Commands: `LONGCLAW_PERF_TICKETS=<n> npm run perf:rust`,
+`npm run perf:board -- --tickets=<n>`, `npm run perf:list -- --tickets=<n>`,
+`npm run perf:startup -- --project=<path>`. All at `frame_ms=17`.
+
+**Only the small project is real.** `fixtures/representative-project` — 6
+tickets, conformant, asserted to round-trip byte-for-byte — is what the startup
+column measures. The 100, 1,000 and 5,000-ticket projects are generated
+fixtures, which is the fallback the gate allows and not what it asks for: no
+real medium project exists to point this at, because LongClaw is not yet used to
+track its own work. A generated project has uniform titles, one label, and no
+history, so it exercises size but not the shape a real project accumulates.
+
+**Two limits worth stating.** The board cannot be scroll-traced at 100 tickets —
+spread across six columns there is roughly a viewport of content and the trace
+stops at four scroll frames, so the run is `--only=keyboard,filter,write`. That
+is the honest answer for a small board rather than a failure: there is nothing to
+scroll. And the 5,000-ticket storage numbers here come from this sweep, while
+§ Performance above quotes `1464.80`/`1172.13`/`1.46` from the Task 1 session —
+about 11% apart run to run, both far inside budget. Neither is more correct; the
+spread is what a single unrepeated sample is worth.
+
+**The medium load budget had never been measured.** Step 4 states two load
+budgets, 1,000 tickets in 750 ms and 5,000 in 2,500 ms, and the spike recorded
+the 1,000 row as "Covered by the stricter 5,000-ticket harness below" — an
+argument, not a number. It now has one: **225.49 ms against ≤ 750 ms**. The
+assertion was confirmed to bind by forcing the ceiling to 100 ms and watching the
+harness fail at 235.35 ms.
 
 ### How startup was measured
 

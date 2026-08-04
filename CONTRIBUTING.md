@@ -71,7 +71,7 @@ Test suites worth knowing about:
 | ---------------------- | ------------------------------------------------------------------------------------------------------- |
 | `npm test`             | frontend unit and component tests, Rust unit tests, the fixture corpus, storage and watcher integration |
 | `npm run test:watcher` | the production FSEvents watcher end to end (ignored by default)                                         |
-| `npm run perf:rust`    | index rebuild, search, read, and write budgets against a 5,000-ticket project                           |
+| `npm run perf:rust`    | index rebuild, search, read, and write budgets against a 5,000-ticket project; `LONGCLAW_PERF_TICKETS=<n>` picks another size |
 | `npm run perf:board`   | input → paint on a 5,000-ticket board, traced in WebKit (see `apps/desktop/perf/README.md`)             |
 | `npm run perf:list`    | the same input → paint trace against the shipped list surface                                           |
 | `npm run perf:startup` | process start → first painted board, against the packaged app (needs `npm run build:app` first)         |
