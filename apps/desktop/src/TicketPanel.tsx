@@ -259,7 +259,14 @@ export function TicketPanel(props: TicketPanelProps) {
       if (unsaved) {
         // Disk moved under an open draft. The file's own state is now visible,
         // the drafts are untouched, and the human chooses.
-        setConflict({ error: externalEditConflict(next), pending: unsaved });
+        //
+        // A conflict already up wins: it is holding the edit a write was
+        // refused for, and this is only a second look at the same divergence.
+        // Replacing it would drop that edit on the floor (V0-29).
+        setConflict(
+          (current) =>
+            current ?? { error: externalEditConflict(next), pending: unsaved },
+        );
       } else {
         drafts.current.title = title;
         drafts.current.description = description;
@@ -408,6 +415,15 @@ export function TicketPanel(props: TicketPanelProps) {
         // back by hand — the comment was not written and must not vanish.
         setPendingComment(undefined);
         if (edit.comment !== undefined) setCommentDraft(edit.comment);
+        // Go back to the file. Rust refused this write because the bytes moved,
+        // and until the panel re-reads them `detail` holds the hash that was
+        // just rejected — so Keep mine would re-send it and be refused
+        // identically. It worked at all only when the watcher's event happened
+        // to arrive first, which is a race, not an offer (V0-29).
+        //
+        // `external` is the mode for exactly this: the file moved, so drafts
+        // are preserved rather than overwritten with what is now on disk.
+        void load("external");
         return true;
       },
     });
