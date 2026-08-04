@@ -329,11 +329,43 @@ and now carry what Rust actually sends. § "says a conflict plainly when the err
 names no actor and no key" now asserts the composer *keeps* the specific sentence
 instead of flattening it, which is the stronger claim.
 
+### Review follow-up, 2026-08-04
+
+A review of the branch found three spec gaps and two smells. All five are fixed
+in `2eb8231`; the first is the one that mattered.
+
+**Keep mine could still race its own re-read.** Re-reading on refusal is not
+enough on its own: `takeConflict` raised the banner immediately and started the
+read behind it, so a press inside that one round trip still sent the hash the
+refusal had just proved stale. The banner still goes up at once — an unresolved
+conflict is true the moment the write is refused, and hiding it would be worse —
+but Keep mine now awaits that read, and `save()` takes its `expectedHash` from
+the last **read** rather than the last render, so a save that waited sends what
+came back rather than what was on screen when the button was pressed. The held
+board conflict starts the same read and is covered by the same await.
+Pinned by `TicketPanel.test.tsx` § "waits for the re-read before keeping mine,
+rather than racing it", **red on the write going out immediately**.
+
+**`sync_directory` named the folder.** The last step of a save reported `LC-1`
+where every other step reports `ticket.md`. It now names the ticket and keeps the
+folder in `context.directory`. Red on `!message.contains("ticket.md")`.
+
+**`context.cause` was a bare string on both sides of the wire.** It is
+behavioral — it decides whether a recovery is offered and which one — so it is
+`core::error::IoCause` in Rust and `FailureCause` in `types.ts`, with the set
+pinned in `tests/fixtures/ipc-contract.json` § `writeFailureCauses` and asserted
+from both languages, exactly as `appliedFieldChanges` pins what an edit can
+write. `src/failure.test.ts` also pins the degrade: a cause this build does not
+know offers no recovery rather than a guess.
+
+**The hand-off was a data clump.** `{ ticketKey, error, edit }` is `HeldConflict`
+in `types.ts` now, shared rather than written out in both `App` and `TicketPanel`.
+
 ### Validation
 
 - `npm run verify` — green end to end: tokens, format, lint (eslint + clippy),
-  typecheck, 519 frontend tests, 194 Rust tests, vite build, and the native
-  watcher round trip.
+  typecheck, 525 frontend tests, 196 Rust tests, vite build, and the native
+  watcher round trip. Re-run green after the review follow-up.
 - `npm --prefix apps/desktop run test:stress` — green.
 
 ### What this deliberately did not do
