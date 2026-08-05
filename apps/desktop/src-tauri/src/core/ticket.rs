@@ -165,6 +165,34 @@ impl Actor {
             name: None,
         }
     }
+
+    /// A named agent, for a writer that is not the person at the keyboard.
+    ///
+    /// The format contract's rule is that actor type is declared and never
+    /// inferred, so this is the only way a record comes out typed `agent`: some
+    /// caller said so. Nothing derives it from a name.
+    pub fn agent(id: &str, name: Option<&str>) -> Self {
+        Self {
+            actor_type: ActorType::Agent,
+            id: Some(id.to_owned()),
+            name: name.map(str::to_owned),
+        }
+    }
+
+    /// What the timeline calls this actor. Mirrors `attribution.ts:actorName`,
+    /// which is the frontend's copy of the same rule; the heading written into
+    /// the file and the name rendered beside it should not disagree.
+    fn display_name(&self) -> String {
+        match self.actor_type {
+            ActorType::Human => "You".to_owned(),
+            ActorType::Unknown => "Unknown actor".to_owned(),
+            ActorType::Agent => self
+                .name
+                .clone()
+                .or_else(|| self.id.clone())
+                .unwrap_or_else(|| "An agent".to_owned()),
+        }
+    }
 }
 
 /// Activity kinds this build understands. An unfamiliar kind is preserved rather
@@ -555,11 +583,24 @@ impl TicketDocument {
         rendered
     }
 
+    /// The app's own edit, attributed to the local human actor (ADR 0001).
+    ///
+    /// A writer that is not the person at the keyboard calls [`Self::apply_as`]
+    /// and names itself. Nothing infers an actor from anything.
+    pub fn apply(&self, edit: &TicketEdit, now: &str) -> Result<AppliedEdit, Diagnostic> {
+        self.apply_as(edit, now, &Actor::local_human())
+    }
+
     /// Applies `edit` and returns the bytes to write, the changes to record, and
     /// the reparsed document. The output is parsed before it is returned, so a
     /// mutation that would produce a file this build cannot read back is refused
     /// rather than written.
-    pub fn apply(&self, edit: &TicketEdit, now: &str) -> Result<AppliedEdit, Diagnostic> {
+    pub fn apply_as(
+        &self,
+        edit: &TicketEdit,
+        now: &str,
+        author: &Actor,
+    ) -> Result<AppliedEdit, Diagnostic> {
         if edit.is_empty() {
             return Err(Diagnostic::parse("An edit has to change something"));
         }
@@ -716,7 +757,8 @@ impl TicketDocument {
                 &EventKind::Comment,
                 now,
                 &[],
-                "### You commented",
+                author,
+                "commented",
                 comment,
             ));
         } else {
@@ -725,7 +767,8 @@ impl TicketDocument {
                 &EventKind::Update,
                 now,
                 &changes,
-                "### You updated this ticket",
+                author,
+                "updated this ticket",
                 comment,
             ));
         }
@@ -886,7 +929,8 @@ fn render_event(
     kind: &EventKind,
     occurred_at: &str,
     changes: &[FieldChange],
-    heading: &str,
+    author: &Actor,
+    sentence: &str,
     body: &str,
 ) -> String {
     let mut record = String::new();
@@ -895,8 +939,13 @@ fn render_event(
     record.push_str(&format!("id: {}\n", mint_id("evt")));
     record.push_str(&format!("kind: {}\n", kind.as_str()));
     record.push_str(&format!("occurred_at: {}\n", encode_scalar(occurred_at)));
-    record.push_str("actor:\n  type: human\n");
-    record.push_str(&format!("  id: {LOCAL_ACTOR_ID}\n"));
+    record.push_str(&format!("actor:\n  type: {}\n", author.actor_type.as_str()));
+    if let Some(id) = &author.id {
+        record.push_str(&format!("  id: {}\n", encode_scalar(id)));
+    }
+    if let Some(name) = &author.name {
+        record.push_str(&format!("  name: {}\n", encode_scalar(name)));
+    }
     if !changes.is_empty() {
         record.push_str("changes:\n");
         for change in changes {
@@ -911,8 +960,7 @@ fn render_event(
     }
     record.push_str(HEADER_TERMINATOR);
     record.push('\n');
-    record.push_str(heading);
-    record.push('\n');
+    record.push_str(&format!("### {} {sentence}\n", author.display_name()));
     if !body.trim().is_empty() {
         record.push('\n');
         record.push_str(body.trim());
@@ -946,6 +994,7 @@ pub fn render_new_ticket(
     )
 }
 
+/// The app's own create, attributed to the local human actor (ADR 0001).
 #[allow(clippy::too_many_arguments)]
 pub fn render_new_ticket_with_labels(
     key: &str,
@@ -956,6 +1005,31 @@ pub fn render_new_ticket_with_labels(
     description: &str,
     checklist: &[String],
     now: &str,
+) -> String {
+    render_new_ticket_as(
+        key,
+        title,
+        status,
+        priority,
+        labels,
+        description,
+        checklist,
+        now,
+        &Actor::local_human(),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn render_new_ticket_as(
+    key: &str,
+    title: &str,
+    status: Status,
+    priority: Priority,
+    labels: &[String],
+    description: &str,
+    checklist: &[String],
+    now: &str,
+    author: &Actor,
 ) -> String {
     let mut rendered = String::from("---\n");
     rendered.push_str(&format!("format: {TICKET_FORMAT}\n"));
@@ -994,7 +1068,8 @@ pub fn render_new_ticket_with_labels(
         &EventKind::Create,
         now,
         &[],
-        "### You created this ticket",
+        author,
+        "created this ticket",
         "",
     ));
     rendered

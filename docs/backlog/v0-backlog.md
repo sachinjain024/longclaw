@@ -203,33 +203,64 @@ backlog by accumulating enthusiasm.
 | Comprehensive canonical conformance-fixture corpus | Post-MVP product v1 | Step 3 records this deferral; focused real-file compatibility tests cover the v0 contract. |
 | CLI or JSON projection of the ticket store | Useful after MVP, with one caveat | Step 3 left it optional and told us not to let it delay the file round trip, which it did not. The caveat is below. |
 
-### The CLI caveat, recorded rather than resolved
+### The CLI caveat, ~~recorded rather than resolved~~ resolved 2026-08-05
 
-This repository cannot file its own tickets. The issue-tracker rules forbid an
-agent minting a ticket key, and there is no creation surface outside the app's
-GUI, so a real defect found while building LongClaw gets written to
-[`docs/plans/`](../plans/) instead of into `.longclaw/`. That is why the
-create-project bug arrived as a Markdown file, and it is why this backlog is a
-document rather than 39 tickets.
+**Resolved 2026-08-05.** The founder took the scope decision this section asked
+for; it is [in the memo](../pilot/response-memo.md#scope-decisions), and
+[ADR 0011](../adr/0011-cli-is-the-creation-surface-agents-use.md) records the
+design. There is now a `longclaw` command-line binary, LongClaw still allocates
+every key, and **this repository tracks its own work in `.longclaw/`**. Both
+backlogs were imported on 2026-08-05; see § These are now tickets.
 
-That is real evidence for a creation surface, but it is evidence about *our*
-workflow, not the pilot user's. It stays deferred. If the founder wants LongClaw
-tracked in LongClaw before the MVP ships, that is a scope decision to record in
-the memo, not a gap to quietly fill here.
+The argument as it stood, kept because it is the reasoning the decision was
+taken against:
+
+> This repository cannot file its own tickets. The issue-tracker rules forbid an
+> agent minting a ticket key, and there is no creation surface outside the app's
+> GUI, so a real defect found while building LongClaw gets written to
+> [`docs/plans/`](../plans/) instead of into `.longclaw/`. That is why the
+> create-project bug arrived as a Markdown file, and it is why this backlog is a
+> document rather than 39 tickets.
+>
+> That is real evidence for a creation surface, but it is evidence about *our*
+> workflow, not the pilot user's. It stays deferred. If the founder wants LongClaw
+> tracked in LongClaw before the MVP ships, that is a scope decision to record in
+> the memo, not a gap to quietly fill here.
+
+What the decision did **not** change: an agent still may not mint a key or create
+a ticket directory by hand. It asks LongClaw for one, and now it has a way to ask
+that is not a mouse.
 
 ---
 
-## These are not tickets yet
+## These are now tickets
 
-`V0-01`-style IDs are references inside this document. They are deliberately not
-LongClaw ticket keys: [the issue-tracker rules](../agents/issue-tracker.md) give
-key allocation to LongClaw, and an agent must not mint one or create
-`.longclaw/tickets/<KEY>/` directly.
+**Imported 2026-08-05.** Every row below is a ticket in this repository's own
+LongClaw project, created through the `longclaw` CLI so that LongClaw allocated
+each key. The import followed the recipe this section used to describe: one
+ticket per row, the "Why it exists" text in the description, the must-pass
+verification in the checklist, and the `V0-nn` reference kept in the body under
+`## Source` so the two can be reconciled.
 
-When this backlog is imported into a LongClaw project, create one ticket per row
-through the app, put the "Why it exists" text in the description, put the
-must-pass verification in the checklist, and keep the `V0-nn` reference in the
-body so this document and the tickets can be reconciled once.
+| | |
+|---|---|
+| This document's rows | `LC-1` … `LC-43` |
+| [The post-MVP backlog](post-mvp-backlog.md)'s rows | `LC-44` … `LC-58` |
+| Status | A row closed here is `done` there. The two parked rows are `backlog` and carry the `parked` label |
+| Priority | The wave, as ranked here: Wave 0 → urgent, Wave 1 → p1, Wave 2 → p2, Wave 3 → p3, Wave 4 → p4 |
+| Labels | The Owner column, plus `v0-backlog` or `post-mvp` for which document a ticket came from |
+| Where a must-pass ran long | The checklist item carries the first 300 characters and the ticket's description carries the whole cell under `## Must-pass`. Nothing was dropped |
+
+`V0-01`-style IDs remain the references this document uses, and they are still
+not ticket keys. They are recorded in each ticket rather than replaced by one, so
+this file stays readable on its own and the mapping survives.
+
+**Which one is authoritative.** For an *open* row, the ticket is: it is what gets
+worked from, and this document is the argument behind it. For a *closed* row,
+this document is: it carries the full closing note, and the ticket carries a
+capped form of it. Neither is a copy that has to be kept in step — the import ran
+once, deliberately, and reconciling again would be a decision to make, not a
+chore to schedule.
 
 ## Vision changes proposed by this backlog
 

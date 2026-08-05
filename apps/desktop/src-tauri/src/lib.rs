@@ -1,4 +1,5 @@
 mod app_state;
+pub mod cli;
 pub mod core;
 pub mod engine;
 mod platform;

@@ -2,7 +2,23 @@
 
 ### Issue tracker
 
-Issues use LongClaw local Markdown under `.longclaw/tickets/<KEY>/`. See `docs/agents/issue-tracker.md`.
+This repository tracks its own work in LongClaw, under `.longclaw/tickets/<KEY>/`.
+Both backlogs were imported on 2026-08-05 as `LC-1`…`LC-58`; file new work as a
+ticket rather than as a Markdown file under `docs/plans/`.
+
+File it with the CLI, which is the one surface allowed to allocate a key — never
+by writing a ticket directory by hand, and always with `--agent-id`, because an
+activity entry without it says a human did the work:
+
+```sh
+cargo build --release --manifest-path apps/desktop/src-tauri/Cargo.toml --bin longclaw
+apps/desktop/src-tauri/target/release/longclaw ticket create \
+  --title "…" --label frontend --agent-id claude-code --agent-name "Claude Code"
+```
+
+See `docs/agents/issue-tracker.md` for the rest of the surface and the editing
+rules, and [ADR 0011](docs/adr/0011-cli-is-the-creation-surface-agents-use.md)
+for why it exists.
 
 ### Triage labels
 

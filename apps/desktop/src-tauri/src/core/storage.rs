@@ -33,7 +33,7 @@ use super::project::{
     is_project_key, is_project_name, is_theme_id, render_agent_contract, render_new_project,
     ProjectDocument, DEFAULT_THEME, PROJECT_NAME_RULE,
 };
-use super::ticket::{Priority, Status, Ticket, TicketDocument, TicketEdit};
+use super::ticket::{Actor, Priority, Status, Ticket, TicketDocument, TicketEdit};
 
 const PROJECT_DIRECTORY: &str = ".longclaw";
 const PROJECT_FILE: &str = "longclaw.yaml";
@@ -813,6 +813,29 @@ pub fn prepare_ticket_edit(
     expected_hash: &str,
     now: &str,
 ) -> AppResult<TicketWrite> {
+    prepare_ticket_edit_as(
+        project_root,
+        project_key,
+        key,
+        edit,
+        expected_hash,
+        now,
+        &Actor::local_human(),
+    )
+}
+
+/// The same edit, authored by a writer that names itself — the CLI carrying an
+/// agent's identity, rather than the person at the keyboard.
+#[allow(clippy::too_many_arguments)]
+pub fn prepare_ticket_edit_as(
+    project_root: &Path,
+    project_key: &str,
+    key: &str,
+    edit: &TicketEdit,
+    expected_hash: &str,
+    now: &str,
+    author: &Actor,
+) -> AppResult<TicketWrite> {
     let path = resolve_ticket_path(project_root, key)?;
     let file = read_ticket_file(&path, project_key)?;
     if file.content_hash != expected_hash {
@@ -847,7 +870,7 @@ pub fn prepare_ticket_edit(
         })
         .with_context("ticketKey", key.to_owned())
     })?;
-    let applied = document.apply(edit, now).map_err(|diagnostic| {
+    let applied = document.apply_as(edit, now, author).map_err(|diagnostic| {
         AppError::from(diagnostic).with_context("ticketKey", key.to_owned())
     })?;
     Ok(TicketWrite {
@@ -925,6 +948,24 @@ pub fn prepare_new_ticket(
     request: &NewTicket,
     now: &str,
 ) -> AppResult<TicketWrite> {
+    prepare_new_ticket_as(
+        project_root,
+        project_key,
+        request,
+        now,
+        &Actor::local_human(),
+    )
+}
+
+/// The same create, authored by a writer that names itself. See
+/// [`prepare_ticket_edit_as`].
+pub fn prepare_new_ticket_as(
+    project_root: &Path,
+    project_key: &str,
+    request: &NewTicket,
+    now: &str,
+    author: &Actor,
+) -> AppResult<TicketWrite> {
     let title = request.title.trim();
     if title.is_empty() || title.chars().count() > 300 || title.contains('\n') {
         return Err(AppError::new(
@@ -955,7 +996,7 @@ pub fn prepare_new_ticket(
         match fs::create_dir(&directory) {
             Ok(()) => {
                 let path = directory.join(TICKET_FILE);
-                let rendered = super::ticket::render_new_ticket_with_labels(
+                let rendered = super::ticket::render_new_ticket_as(
                     &key,
                     title,
                     request.status.unwrap_or(Status::Todo),
@@ -964,6 +1005,7 @@ pub fn prepare_new_ticket(
                     &request.description,
                     &request.checklist,
                     now,
+                    author,
                 );
                 // The claimed directory goes back if the request would produce a
                 // file this build cannot read, or one whose description a reserved

@@ -153,7 +153,7 @@ is not in the MVP, regardless of how often it came up.
 
 | Request | Evidence rows | Founder decision | Must-pass verification | Acceptance criterion changed |
 |---|---|---|---|---|
-| | | | | |
+| **A creation surface outside the app's window, so LongClaw can track LongClaw.** The deferred register's *CLI or JSON projection* (P11), and the workflow gap it leaves (P9) | None from a pilot — the pilot never ran. The evidence is our own workflow: [the CLI caveat](../backlog/v0-backlog.md#the-cli-caveat-recorded-rather-than-resolved) records that a defect found while building LongClaw goes into `docs/plans/` because an agent may not mint a ticket key, and that the backlog is a document rather than tickets for the same reason. The caveat names this decision as the founder's to make | **Accepted 2026-08-05.** Build the CLI, then import both backlogs. Post-MVP, so it changes no release gate — it is a tool the project uses on itself, not a v0 feature | Passed: `tests/cli.rs` — LongClaw allocates every key, an agent-authored write records `type: agent`, an undefined label is refused before a key is spent, a description round-trips, and a write built from bytes that moved is a conflict. `npm run verify` clean | None. This is the caveat's own "scope decision to record in the memo", not a change to what v0 must do |
 
 ## Acceptance criteria to update
 
