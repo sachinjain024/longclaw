@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 1b576886-6e8d-4ceb-b48e-ad025b9194e1
 key: LC-40
 title: Annotate the save that overrode an external edit
-status: todo
+status: backlog
 priority: p3
 labels:
   - frontend
   - v0-backlog
 created_at: 2026-08-05T14:23:16Z
-updated_at: 2026-08-05T14:23:16Z
+updated_at: 2026-08-05T15:14:39.698Z
 ---
 
 Annotate the save that overrode an external edit
@@ -38,4 +38,20 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_2bb7ddc6
+kind: update
+occurred_at: 2026-08-05T15:14:39.698Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: backlog
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->

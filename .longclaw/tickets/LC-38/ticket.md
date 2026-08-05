@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 3dddb804-8b7b-40d4-9131-445710de5173
 key: LC-38
 title: An interaction-budget gate that works on a CI runner
-status: todo
+status: backlog
 priority: p3
 labels:
   - frontend
   - v0-backlog
 created_at: 2026-08-05T14:23:15Z
-updated_at: 2026-08-05T14:23:15Z
+updated_at: 2026-08-05T15:14:39.670Z
 ---
 
 An interaction-budget gate that works on a CI runner
@@ -38,4 +38,20 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_d796a7d6
+kind: update
+occurred_at: 2026-08-05T15:14:39.670Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: backlog
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->

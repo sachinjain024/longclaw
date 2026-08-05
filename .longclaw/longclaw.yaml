@@ -45,3 +45,6 @@ labels:
   parked:
     name: Parked
     color: red
+  prototype-diff:
+    name: Prototype Diff
+    color: pink

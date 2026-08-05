@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 3c62ec71-bd3b-4d6b-b278-b051d8530c73
 key: LC-24
 title: Search UI over the existing index, with empty and no-result states
-status: todo
+status: backlog
 priority: p2
 labels:
   - frontend
   - v0-backlog
 created_at: 2026-08-05T14:23:03Z
-updated_at: 2026-08-05T14:23:03Z
+updated_at: 2026-08-05T15:14:39.637Z
 ---
 
 Search UI over the existing index, with empty and no-result states
@@ -42,4 +42,20 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_18c2135d
+kind: update
+occurred_at: 2026-08-05T15:14:39.637Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: backlog
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->
