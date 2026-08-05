@@ -159,6 +159,49 @@ written, which is the argument for `--self-test` and for controls generally:
    control. It looked like an environment fault for two runs before it was
    traced to the harness.
 
+## The bundle was unopenable, and every candidate before this one shipped it
+
+Found by trying to install the DMG rather than by running it: **macOS refused the
+app outright — "LongClaw is damaged and can't be opened", with *Move to Bin* as
+the only button.** No *Open Anyway*, so the route the release notes document did
+not exist, and a user following the release's own instructions could not open it.
+
+The cause is one missing line. `tauri.conf.json` set no
+`bundle.macOS.signingIdentity`, so Tauri never signed the **bundle**:
+
+| | before | after `signingIdentity: "-"` |
+|---|---|---|
+| `codesign --verify --deep --strict` | *code has no resources but signature indicates they must be present* | **valid on disk**, satisfies its Designated Requirement |
+| `Sealed Resources` | **none** | version=2, 13 rules |
+| `Contents/_CodeSignature` | **absent** | present |
+| Signature | adhoc, **linker-signed** — the linker's mark on the Mach-O, not a signed bundle | adhoc, hardened runtime |
+| `spctl` | invalid signature → **damaged, Move to Bin** | `rejected` → the ordinary unidentified-developer dialog, **with Open Anyway** |
+
+An unsigned release is a recorded decision here; an *unsealed* one was not, and
+the two fail completely differently. `spctl` rejecting an unnotarized app is
+expected and is the case that offers Open Anyway. A broken seal is not.
+
+**Why no earlier candidate caught it, including this record's own automated
+gate.** Gatekeeper only runs on a file carrying `com.apple.quarantine`, which is
+written by whatever downloaded it. A locally built DMG has never been downloaded,
+so on the build machine the app opens with no check at all. Every prior pass ran
+the app from a terminal or a locally built bundle, and the packaged-install path
+was the one row nobody had exercised. The 8d261b7 bundle has the identical
+defect, so this shipped through Step 16b and Step 17 alike.
+
+Reproducing it needs one command — the attribute a browser would set:
+
+```sh
+xattr -w com.apple.quarantine "0081;$(printf '%x' $(date +%s));Safari;$(uuidgen)" <dmg>
+```
+
+**Fixed, and now guarded.** `release:binary-audit` fails on a signature that does
+not verify and on a bundle that seals no resources, confirmed red against a
+bundle with `_CodeSignature` removed and green again on restore. The signed
+bundle was re-measured rather than assumed: `perf:startup` warm p50 498.52 ms
+against the 750 ms budget across five launches, so the hardened runtime that
+comes with signing does not cost the webview its JIT.
+
 ## Where the release stands
 
 **One release blocker remains.** Two of the three are closed.

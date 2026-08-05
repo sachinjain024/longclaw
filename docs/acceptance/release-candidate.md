@@ -243,6 +243,27 @@ The release candidate must make one of these two choices explicit:
 | Signed and notarized | A Developer ID identity and a notarization request are recorded |
 | Unsigned | Release notes must state the Gatekeeper warning, why it is accepted, and how to open the app without weakening system-wide security |
 
+**"Unsigned" means unnotarized, not unsealed, and the difference is the whole
+release.** The bundle must still carry a valid ad-hoc signature —
+`bundle.macOS.signingIdentity: "-"` in `tauri.conf.json`. Without it Tauri leaves
+the bundle unsigned and only the linker's signature on the Mach-O, `Sealed
+Resources` reads `none`, and macOS on Apple Silicon calls a quarantined copy
+**"damaged"** and offers only *Move to Bin* — so the Open Anyway route this table
+requires the release notes to document **does not exist**, and the release is
+unopenable by the person following its own instructions.
+
+`npm run release:binary-audit` now fails on this, in both its forms: a signature
+that does not verify, and a bundle that seals no resources.
+
+This is invisible on a build machine. A locally built app has never been
+downloaded, so it carries no `com.apple.quarantine` attribute and Gatekeeper
+never runs. To test the real first-launch path, give the DMG the attribute a
+browser would:
+
+```sh
+xattr -w com.apple.quarantine "0081;$(printf '%x' $(date +%s));Safari;$(uuidgen)" <dmg>
+```
+
 The v0 bundle metadata lives in
 `apps/desktop/src-tauri/tauri.conf.json`: product name, identifier, category,
 copyright, minimum macOS version, icon, and short/long descriptions.
