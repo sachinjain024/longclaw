@@ -1,0 +1,47 @@
+format: longclaw.project/v1
+id: dbcd4374-b77f-44a5-b926-bfbda808f056
+name: LongClaw
+key: LC
+theme: indigo
+created_at: 2026-08-05T14:15:23Z
+people: {}
+labels:
+  storage:
+    name: Storage
+    color: blue
+  frontend:
+    name: Frontend
+    color: cyan
+  platform:
+    name: Platform
+    color: purple
+  domain:
+    name: Domain
+    color: pink
+  format:
+    name: Format
+    color: amber
+  design:
+    name: Design
+    color: orange
+  release:
+    name: Release
+    color: red
+  product:
+    name: Product
+    color: gray
+  index:
+    name: Index
+    color: blue
+  persistence:
+    name: Persistence
+    color: purple
+  v0-backlog:
+    name: v0 backlog
+    color: gray
+  post-mvp:
+    name: Post-MVP
+    color: gray
+  parked:
+    name: Parked
+    color: red
