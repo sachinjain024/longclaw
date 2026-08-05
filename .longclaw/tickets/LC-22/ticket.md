@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 227d21ce-daf6-4bcf-9a91-05d30cdc254a
 key: LC-22
 title: Single-key actions on the focused ticket
-status: todo
+status: backlog
 priority: p2
 labels:
   - frontend
   - v0-backlog
 created_at: 2026-08-05T14:23:03Z
-updated_at: 2026-08-05T14:23:03Z
+updated_at: 2026-08-05T15:14:39.600Z
 ---
 
 Single-key actions on the focused ticket
@@ -38,4 +38,20 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_82426cb2
+kind: update
+occurred_at: 2026-08-05T15:14:39.600Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: backlog
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->

@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: a9f2c292-eb1d-428d-965a-5bbc1b93cc78
 key: LC-25
 title: Shortcut reference
-status: todo
+status: backlog
 priority: p2
 labels:
   - design
   - v0-backlog
 created_at: 2026-08-05T14:23:03Z
-updated_at: 2026-08-05T14:23:03Z
+updated_at: 2026-08-05T15:14:39.654Z
 ---
 
 Shortcut reference
@@ -38,4 +38,20 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_273d1743
+kind: update
+occurred_at: 2026-08-05T15:14:39.654Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: backlog
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->

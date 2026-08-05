@@ -3,12 +3,12 @@ format: longclaw.ticket/v1
 id: e788ddaf-3113-4b83-95ae-d65dc62e6a29
 key: LC-66
 title: The generated agent contract mints new example ids every time, so any project change dirties it
-status: todo
+status: backlog
 priority: p4
 labels:
   - format
 created_at: 2026-08-05T14:49:04.286Z
-updated_at: 2026-08-05T14:49:04.286Z
+updated_at: 2026-08-05T15:14:39.826Z
 ---
 
 `render_agent_contract` builds its worked example with `Uuid::new_v4` and `mint_id` (`core/project.rs`), and `update_project_file` reprints the contract on every project edit. So changing the theme rewrites the file with a different example `id`, `ck_` and `evt_`:
@@ -46,4 +46,20 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_97a4914a
+kind: update
+occurred_at: 2026-08-05T15:14:39.826Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: backlog
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->

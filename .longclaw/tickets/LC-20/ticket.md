@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: a787caed-df2e-430f-b746-54e2e592a92b
 key: LC-20
 title: ⌘K palette shell and the approved root command set, with the Phase 2 terminal command present and disabled
-status: todo
+status: backlog
 priority: p2
 labels:
   - frontend
   - v0-backlog
 created_at: 2026-08-05T14:23:03Z
-updated_at: 2026-08-05T14:23:03Z
+updated_at: 2026-08-05T15:14:39.554Z
 ---
 
 `⌘K` palette shell and the approved root command set, with the Phase 2 terminal command present and disabled
@@ -38,4 +38,20 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_1b0c574c
+kind: update
+occurred_at: 2026-08-05T15:14:39.554Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: backlog
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->
