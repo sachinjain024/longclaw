@@ -80,6 +80,8 @@ Test suites worth knowing about:
 | `npm run perf:board`   | input → paint on a 5,000-ticket board, traced in WebKit (see `apps/desktop/perf/README.md`)             |
 | `npm run perf:list`    | the same input → paint trace against the shipped list surface                                           |
 | `npm run perf:startup` | process start → first painted board, against the packaged app (needs `npm run build:app` first)         |
+| `npm run a11y:audit`   | accessibility Part A in WebKit: the ticket lifecycle by keyboard alone, focus order and return, visible focus, reduced motion, and 200% zoom |
+| `npm run matrix`       | every theme preset × light and dark over nine core states, checking rendered contrast and actor distinction |
 
 `perf:board` and `perf:list` need a WebKit build, once per machine:
 
@@ -93,6 +95,19 @@ release bundle that only `build:app` produces. Run `perf:rust` when you change
 what storage does per ticket, `perf:board` or `perf:list` when you change what
 that surface renders, and `perf:startup` when you change what happens before the
 first board paint.
+
+`a11y:audit` and `matrix` are not in `verify` for the same reason — both drive
+WebKit — but neither measures time, so both hold on a CI runner and `matrix`
+already runs as one. **Run `a11y:audit` when you touch focus, a key handler, a
+modal, or a control's tab position**, and run `a11y:audit -- --self-test` after
+adding a probe: it breaks the build on purpose and fails if any row still passes,
+which is how two blind probes were caught the day it was written.
+
+**A `<button>` needs an explicit `tabIndex` and `npm run check` enforces it.**
+WebKit follows the macOS *Keyboard navigation* setting, off by default, and with
+it off Tab skips buttons — so an unmarked button is invisible to the keyboard on
+an ordinary Mac. Write `tabIndex={0}`, or `tabIndex={-1}` where a roving group or
+an `aria-activedescendant` list owns the stop.
 
 `perf:startup` redirects `HOME` to a throwaway directory and copies the fixture
 project, so it never reads or writes the real registry in

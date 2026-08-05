@@ -66,6 +66,7 @@ import { comparatorFor, rankForDrop, type OrderingMode } from "./ordering";
 import { PriorityGlyph } from "./PriorityGlyph";
 import { PulseDot } from "./PulseDot";
 import { itemFor, moveFor, useRovingFocus } from "./rovingFocus";
+import type { FocusRequest } from "./rovingFocus";
 import { StatusDot } from "./StatusDot";
 import {
   metaFieldFor,
@@ -182,6 +183,12 @@ export function Board(props: {
   onChangeStatus: (ticket: IndexedTicket, next: TicketStatus) => void;
   /** Raised by a drop in Manual. The rank is allocated; the write is App's. */
   onReorder: (ticket: IndexedTicket, rank: string) => void;
+  /**
+   * Focus a card from outside the board — the new card after a create, the card
+   * behind a closing panel. It goes through the roving focus rather than the DOM
+   * because a card past the window is not in the DOM to be focused.
+   */
+  focusRequest?: FocusRequest;
 }) {
   const scaffold = props.scaffold ?? true;
   const { columns, seats } = useMemo(
@@ -205,6 +212,7 @@ export function Board(props: {
       ?.key,
     root: grid,
     selector: CARD,
+    request: props.focusRequest,
   });
 
   // Stable, so `draggable` and its two handlers cost the memoized cards nothing:

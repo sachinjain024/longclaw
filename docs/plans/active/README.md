@@ -71,7 +71,25 @@ set priority, archive/unarchive, change board ordering and switch board/list vie
 unchanged. `screen-specs.md`, `components.md`, `prototype/README.md` and plan 25
 are synchronised on all of that.
 
-## The one open plan
+## No plan is open
+
+**Plan 41 closed on 2026-08-04** ([outcome](../completed/41-accessibility-audit.md#outcome)),
+and this directory now holds only this file.
+
+The section below is kept as written, because what it predicted is worth
+comparing against what happened. It called Part A "verification, not discovery"
+and said it "needs a human at a keyboard with VoiceOver on". Half of that held:
+the keyboard *contract* is written down, so it could be executed rather than
+performed — `npm run a11y:audit` is the result. The other half did not: Part A
+was **not** only verification. It found three release blockers, one of which is a
+platform behaviour nobody in this repository had looked at (WebKit skips
+`<button>` in the tab order on a default Mac), and which made four core actions
+pointer-only. A plan that expects to find nothing is still worth running.
+
+Part B — the VoiceOver semantic pass — is deferred to **2026-09-04, owner
+Design**, and is P1 in [the post-MVP backlog](../../backlog/post-mvp-backlog.md).
+
+## The one open plan — as written on 2026-08-04, before it was run
 
 Everything numbered below is closed, and so are 36–40. **Plan 40 closed on
 2026-08-04** ([outcome](../completed/40-step-16b-spec-gaps.md#outcome)): seven of
@@ -82,7 +100,7 @@ startup probe had shipped since Step 4, and the transitive-`reqwest` alarm was
 misdirected at a dependency macOS never compiles. Its eighth task is the only
 pending work in this directory:
 
-**[41 — The accessibility audit against the packaged app](41-accessibility-audit.md)**,
+**[41 — The accessibility audit against the packaged app](../completed/41-accessibility-audit.md)**,
 written 2026-08-04, partly release-blocking. Split out of plan 40 because it is
 the only one of the eight that cannot be automated: it needs a human at a
 keyboard with VoiceOver on. It is deliberately in two halves. **Part A —

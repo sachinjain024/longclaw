@@ -43,6 +43,7 @@ import { comparatorFor, orderColumn, type OrderingMode } from "./ordering";
 import { PriorityGlyph } from "./PriorityGlyph";
 import { PulseDot } from "./PulseDot";
 import { itemFor, moveFor, useRovingFocus } from "./rovingFocus";
+import type { FocusRequest } from "./rovingFocus";
 import { StatusDot } from "./StatusDot";
 import { isArchived } from "./tickets";
 import {
@@ -117,6 +118,8 @@ export function IssueList(props: {
   onChangePriority: (ticket: IndexedTicket, next: TicketPriority) => void;
   /** Raised by the `S` menu, on the same terms. */
   onChangeStatus: (ticket: IndexedTicket, next: TicketStatus) => void;
+  /** Focus a row from outside the list; see `Board`'s own, and `rovingFocus.ts`. */
+  focusRequest?: FocusRequest;
 }) {
   const [archiveOpen, setArchiveOpen] = useState(false);
   /** The row whose `S`/`P` menu is open, and which of the two it is. */
@@ -160,6 +163,7 @@ export function IssueList(props: {
     firstKey: groups.find((group) => group.tickets.length > 0)?.tickets[0]?.key,
     root: scroller,
     selector: ROW,
+    request: props.focusRequest,
   });
 
   const range = windowFor(offsets, scrollTop, viewport, OVERSCAN);
@@ -291,6 +295,7 @@ function ListGroup(props: {
         // A real button with expanded state, which is the keyboard path archive
         // has (`keyboard-focus-map.md:110`); there is no single-key binding.
         <button
+          tabIndex={0}
           className="list-group-header"
           aria-expanded={props.archiveOpen}
           onClick={props.onToggleArchive}

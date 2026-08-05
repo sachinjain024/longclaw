@@ -173,6 +173,7 @@ export function CreatePanel(props: CreatePanelProps) {
                 <span>{text}</span>
               </label>
               <button
+                tabIndex={0}
                 className="ghost row-remove"
                 type="button"
                 aria-label={`Remove ${text}`}
@@ -216,10 +217,16 @@ export function CreatePanel(props: CreatePanelProps) {
         {/* The key is a guess, so the note says where the file lands without
             promising which folder it claims. */}
         <code>writes one ticket.md under .longclaw/tickets/</code>
-        <button className="ghost" type="button" onClick={props.onCancel}>
+        <button
+          tabIndex={0}
+          className="ghost"
+          type="button"
+          onClick={props.onCancel}
+        >
           Cancel <kbd aria-hidden="true">Esc</kbd>
         </button>
         <button
+          tabIndex={0}
           className="primary"
           type="button"
           disabled={!canCreate}

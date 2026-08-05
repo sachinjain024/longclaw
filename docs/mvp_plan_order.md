@@ -57,7 +57,7 @@ The following stay outside this plan:
 | M3 — Vertical slice ready | Steps 5–8 | One real project and ticket complete a human → disk → agent → disk → UI round-trip. |
 | M4 — Pilot direction accepted | Steps 9–10 | Target users have tried the slice and the remaining backlog has been explicitly revised. **Closed 2026-07-31 by founder decision with the first half unmet** — the backlog was revised, no target user tried the slice ([decision](pilot/response-memo.md#direction-decision-2026-07-31-superseded-the-same-day)). |
 | M5 — Feature-complete v0 | Steps 11–14 | All in-scope workflows and trust states work against real files. |
-| M6 — MVP release | Steps 16a–17 | Release quality, packaging, documentation, and final acceptance checks pass. |
+| M6 — MVP release | Steps 16a–17 | Release quality, packaging, documentation, and final acceptance checks pass. **Reached 2026-08-05**: acceptance complete, no release blocker open, five items carried and named in § Step 17. Cutting the release is a founder decision, not a gate. |
 
 Do not start mass feature implementation before M2. Do not continue executing the original breadth backlog after M3 until the pilot feedback in M4 has been processed.
 
@@ -761,7 +761,7 @@ rather than by the dependency graph.
 closed.** Each has a severity and a release decision in the candidate record's
 § Known issues; none may be waved through at Step 17.
 
-1. **The accessibility pass** — [plan 41](plans/active/41-accessibility-audit.md).
+1. **The accessibility pass** — [plan 41](plans/completed/41-accessibility-audit.md).
    Its Part A is release-blocking under this document's own definition: an
    accessibility failure that prevents keyboard completion of the core ticket
    lifecycle. Part B, the VoiceOver semantic audit, may be dated and deferred.
@@ -776,9 +776,49 @@ closed.** Each has a severity and a release decision in the candidate record's
    Apple Silicon machine, and `architecture-spike-report.md:72` sets the budgets
    on the oldest supported production Mac.
 
-### Step 17 — Run final MVP acceptance and release
+### Step 17 — Run final MVP acceptance and release — COMPLETE 2026-08-05, with five carried items and one caveat
 
 **Goal:** Confirm the build meets the product thesis and release it as the local-core MVP.
+
+**Completion note, 2026-08-05.** Step 17's acceptance is complete and **no
+release blocker remains**. The records are
+[the 2026-08-04 first pass](acceptance/final-acceptance-2026-08-04.md), partly
+superseded, [the 2026-08-05 pass](acceptance/final-acceptance-2026-08-05.md), and
+[the clean-machine pass](acceptance/clean-machine-2026-08-05.md). The post-MVP
+backlog is [post-mvp-backlog.md](backlog/post-mvp-backlog.md).
+
+All four blockers are closed. Three were named at Step 16b — the accessibility
+pass, the runtime network audit, and the clean-machine packaged-app pass, plus a
+rebuild at the final commit. **The fourth was found by the clean-machine pass and
+was the most serious of them: the app was unopenable for anyone who downloaded
+it.** No automated check could see it, because Gatekeeper only runs on a
+downloaded file and every prior pass ran a locally built one. Two of the three
+release-blocking defects this step found came from *installing and driving the
+packaged app*, not from running the suite.
+
+**Marking this step complete does not mean the release is cut.** It means
+acceptance is complete and the decision is a person's. Five things are carried,
+none of them blocking, and one caveat on the evidence:
+
+1. **The oldest supported Mac.** Every number is from one current Apple Silicon
+   machine; `architecture-spike-report.md:72` sets the budgets on the oldest
+   supported production Mac.
+2. **Accessibility Part B** — VoiceOver semantics. Owner Design, due 2026-09-04,
+   promotion condition intact.
+3. **The round-trip scenario's human halves** (§ 1, 2, 4, 5, 7). The agent half
+   was run for real on 2026-08-04.
+4. **A medium *real* project against the budgets.** Every size measured is
+   generated: uniform titles, one label, no history.
+5. **P5a — relaunch does not restore the project that was open.** The one finding
+   of the clean-machine pass, reported as non-blocking.
+
+**The caveat: CI never ran against the final commit.** Both jobs stopped without
+starting, on an exhausted GitHub Actions allowance — a private repository billing
+macOS runners at 10×, not a signal about the code. The gate's clean-checkout
+requirement was met locally instead, from a fresh clone of the pushed branch, and
+[the record](acceptance/final-acceptance-2026-08-05.md) says so in as many words.
+What is still owed is proof the build works on a *different* machine, which only
+CI or another Mac can give.
 
 **Work:**
 
@@ -803,6 +843,83 @@ closed.** Each has a severity and a release decision in the candidate record's
 - Final acceptance record.
 - Release notes and known limitations.
 - Prioritized post-MVP backlog.
+
+**Progress note, 2026-08-04. Step 17 is under way and the release is not cut.**
+The record is [final-acceptance-2026-08-04.md](acceptance/final-acceptance-2026-08-04.md);
+the post-MVP backlog is [post-mvp-backlog.md](backlog/post-mvp-backlog.md); the
+release notes are written and still marked draft, deliberately.
+
+**The largest of Step 16b's four carried items is closed.** The accessibility
+pass is [plan 41](plans/completed/41-accessibility-audit.md), and its Part A —
+the release-blocking half — is now *automated*: `npm run a11y:audit` drives the
+real `App` in WebKit with no pointer input anywhere in it, checking every step
+against the line of `keyboard-focus-map.md` it implements, and
+`--self-test` fails if any row survives a deliberate break. Part B, the VoiceOver
+semantic pass, is deferred to **2026-09-04, owner Design**, with the promotion
+condition intact. `release-risks.md:65` is narrowed to that half rather than
+retired.
+
+Running it found three release blockers, all invisible to a jsdom suite:
+
+1. `C` did nothing on a freshly loaded board — a missing effect dependency meant
+   the keyboard path to creating a ticket did not exist from a cold start.
+2. Focus fell to `<body>` whenever the row it was sent to was outside the
+   rendered window, which is what creating into a long column does.
+3. **WebKit skips `<button>` in the tab order on a default Mac.** The board knew
+   this since plan 07 and nothing else in the app did, so the ticket panel's
+   controls, the toast's Retry and the conflict banner's two choices were
+   pointer-only — no keyboard path to editing a description, ticking a checklist
+   item, retrying a refused write, or resolving a conflict.
+
+All three are fixed, each with a regression test confirmed red first, and
+`scripts/tab-order-guard.mjs` now fails the build on a button that does not state
+its place in the tab order. The agent half of the round-trip scenario was run for
+real — a real external agent editing a ticket from `.longclaw/AGENTS.md` alone,
+with the packaged binary confirming the parse — and the documentation was
+verified against a clean project, which corrected a user-guide instruction about
+local diagnostics that did not work as written.
+
+**Three things still block the release, and one is new:** the runtime network
+audit, the clean-machine packaged-app pass, and a rebuild of the bundle at the
+final commit, because the accessibility fixes landed after the measured one. The
+oldest-supported-Mac run is still open. Two Step 17 measurements could not be
+taken from an agent shell at all — `perf:startup` and the DMG bundling step, both
+because the shell has no foreground GUI session — and the record says which
+single command a human runs for each.
+
+**Progress note, 2026-08-05. Two of those three are closed**
+([record](acceptance/final-acceptance-2026-08-05.md)):
+
+- **The bundle is rebuilt** at the final commit, DMG included, with the automated
+  gate re-run against it: verify, binary-audit, matrix 8×9, a11y A1–A5, and
+  `perf:startup` at warm p50 459.63 ms against a 750 ms budget.
+- **The runtime network audit is done**, and is now a command —
+  `npm run audit:network`. Driven offline and online through all seven steps of
+  the gate's list: zero connections of any kind, zero bytes on every monitored
+  process, and its five controls green in both runs.
+
+The paragraph above also proved to be wrong about the shell. `perf:startup` and
+the DMG step both run from an agent shell once a foreground GUI session exists;
+neither needed a human. The diagnosis was right and the prescription was not.
+
+**Update, later the same day: the clean-machine pass is done and no release
+blocker remains** ([record](acceptance/clean-machine-2026-08-05.md)). All seven
+rows pass with one non-blocking finding — relaunch does not restore the project
+that was open, filed as P5a.
+
+Running it found a fourth blocker that the automated gate could not see, and it
+was the most serious of the four: **the app was unopenable for anyone who
+downloaded it.** `tauri.conf.json` set no `signingIdentity`, so the bundle was
+never signed — only the linker's mark on the binary, no sealed resources, no
+`_CodeSignature` — and macOS called a quarantined copy *"damaged"* with *Move to
+Bin* as the only option. The Open Anyway route the release notes document did not
+exist. Gatekeeper only runs on a downloaded file, and every prior pass ran a
+locally built one, so nothing had ever exercised it. Fixed, and
+`release:binary-audit` now fails on an unsigned or unsealed bundle.
+
+Open and non-blocking: the oldest-supported-Mac run, accessibility Part B, the
+round-trip scenario's human halves, and a medium real project against the
+budgets.
 
 **Expected outcome / exit gate:**
 

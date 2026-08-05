@@ -38,10 +38,11 @@ import { fileURLToPath } from "node:url";
 import { report } from "./guard.mjs";
 
 const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const BINARY = join(
+const APP_BUNDLE = join(
   appRoot,
-  "src-tauri/target/release/bundle/macos/LongClaw.app/Contents/MacOS/longclaw-desktop",
+  "src-tauri/target/release/bundle/macos/LongClaw.app",
 );
+const BINARY = join(APP_BUNDLE, "Contents/MacOS/longclaw-desktop");
 
 const findings = [];
 const fail = (message) => findings.push(message);
@@ -121,6 +122,55 @@ for (const framework of [
   }
 }
 
+/**
+ * The bundle's signature, which is not a privacy question but ships with the
+ * same artefact and had no check at all until it cost a release.
+ *
+ * Every candidate through Step 17 shipped a `.app` that macOS refuses to open:
+ * Tauri wrote no `signingIdentity`, so the bundle was never signed — only the
+ * Mach-O carried the linker's ad-hoc signature, `Sealed Resources` was `none`,
+ * and there was no `_CodeSignature` at all. On the build machine that is
+ * invisible, because a locally built app has never been downloaded and so has no
+ * quarantine attribute to trigger the check. Give it one, as any browser or
+ * AirDrop would, and Apple Silicon reports **"LongClaw is damaged and can't be
+ * opened"** with no *Open Anyway* button — so the route the release notes
+ * document does not exist, and a user's only offered option is Move to Bin.
+ *
+ * An invalid signature and an absent one fail differently, and only the first is
+ * fatal here: `spctl` rejecting an unnotarized app is expected and correct for
+ * this unsigned release, and is the case that *does* offer Open Anyway.
+ */
+if (existsSync(APP_BUNDLE)) {
+  try {
+    execFileSync("codesign", ["--verify", "--deep", "--strict", APP_BUNDLE], {
+      encoding: "utf8",
+      stdio: "pipe",
+    });
+  } catch (error) {
+    fail(
+      `the app bundle's signature does not verify, so macOS will call it damaged and offer only "Move to Bin": ${String(
+        error.stderr ?? error.message,
+      ).trim()}`,
+    );
+  }
+  const details = execFileSync("codesign", ["-dv", "--verbose=2", APP_BUNDLE], {
+    encoding: "utf8",
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+  // The seal is the part that was missing. A linker-signed Mach-O inside an
+  // unsealed bundle verifies as neither signed nor unsigned — it verifies as
+  // broken, which is the state that produces the damaged dialog.
+  if (/Sealed Resources=none/.test(details)) {
+    fail(
+      "the app bundle seals no resources — it was never signed as a bundle, only linker-signed. Set bundle.macOS.signingIdentity in tauri.conf.json",
+    );
+  }
+} else {
+  fail(
+    `no app bundle at ${APP_BUNDLE} to check the signature of — run npm run build:app first`,
+  );
+}
+
 report({
   name: "binary-audit",
   findings,
@@ -129,5 +179,5 @@ report({
   remedy:
     "finding(s) in the shipped binary — the v0 boundary is docs/acceptance/release-candidate.md:",
   clean:
-    "no HTTP client, telemetry, socket import, or network framework in the shipped binary (controls passed; the webview is out of scope and stays a manual pass)",
+    "no HTTP client, telemetry, socket import, or network framework in the shipped binary, and the bundle's signature verifies and seals its resources (controls passed; the webview is out of scope and stays a manual pass)",
 });

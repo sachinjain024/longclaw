@@ -304,6 +304,82 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
     // The copy is honest about what undo actually did to the file.
     expect(await screen.findByText(/LC-1 archived/)).toBeTruthy();
   });
+
+  /**
+   * Found by the Step 17 accessibility audit (plan 41, A1): `C` did nothing on a
+   * board that had just finished loading.
+   *
+   * The global handler is one effect, and `project` was read from its closure
+   * without being one of its dependencies — so the listener installed on mount,
+   * when no project had loaded yet, stayed installed with `project === undefined`
+   * and the `C` branch could never fire. Anything that *did* change a declared
+   * dependency (opening the palette, typing in the filter, opening a ticket)
+   * renewed the closure and quietly fixed it, which is why every existing test
+   * missed it: they all reach quick create through the New ticket button.
+   *
+   * This is the keyboard-only path to creating a ticket
+   * (`keyboard-focus-map.md:32`), so it fails the release blocker
+   * `release-candidate.md` § Known issues defines by name.
+   */
+  it("opens quick create on `C` as soon as the board is on screen", async () => {
+    await openBoard();
+
+    fireEvent.keyDown(document.body, { key: "c" });
+
+    expect(screen.getByLabelText("Create a ticket")).toBeTruthy();
+  });
+
+  /**
+   * Also found by the Step 17 accessibility audit (A1), at 600 tickets, and
+   * reproduced here at the smallest size a column windows at.
+   *
+   * `focusCard` was a bare `document.querySelector(…).focus()`, and a column
+   * renders only the cards the scroll position touches (plan 07). So a new
+   * ticket that lands past the window is not in the DOM when the focus call goes
+   * looking for it, and focus falls to `<body>` — which the focus map's rule 3
+   * forbids outright, and which leaves a keyboard user with no way back to the
+   * board but Tab from the top of the document.
+   *
+   * The same call is how the ticket panel returns focus to its card, so this
+   * covers `keyboard-focus-map.md:145` at size as well as :116.
+   */
+  it("focuses the new card even when it lands outside the rendered window", async () => {
+    const crowd: TicketRow[] = Array.from({ length: 30 }, (_, index) => ({
+      ...(created().ticket as IndexedTicket),
+      key: `LC-${index + 1}`,
+      id: `crowd-${index + 1}`,
+      title: `Existing ticket ${index + 1}`,
+    }));
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project,
+      tickets: crowd,
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    // Numeric collation puts LC-31 last in the column, which is past the window.
+    vi.mocked(api.createTicket).mockResolvedValue({
+      ...created(),
+      ticket: {
+        ...(created().ticket as IndexedTicket),
+        key: "LC-31",
+        title: "The thirty-first",
+      },
+    });
+    render(<App />);
+    await screen.findByRole("heading", { name: "Board" });
+    expect(document.querySelector('[data-ticket-key="LC-30"]')).toBeNull();
+
+    submitNewTicket("The thirty-first");
+    await screen.findByText("LC-31 created");
+
+    await waitFor(() =>
+      expect(
+        (document.activeElement as HTMLElement | null)?.dataset.ticketKey,
+      ).toBe("LC-31"),
+    );
+  });
 });
 
 describe("the full create surface (V0-16)", () => {

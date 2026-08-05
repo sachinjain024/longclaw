@@ -69,6 +69,7 @@ export function QuickCreate(props: QuickCreateProps) {
         </div>
         <div className="editor-footer">
           <button
+            tabIndex={0}
             className="ghost"
             type="button"
             onClick={() =>
@@ -78,7 +79,12 @@ export function QuickCreate(props: QuickCreateProps) {
             Open full editor →
           </button>
           <code>↵ create · esc cancel</code>
-          <button className="primary" type="submit" disabled={!title.trim()}>
+          <button
+            tabIndex={0}
+            className="primary"
+            type="submit"
+            disabled={!title.trim()}
+          >
             Create
           </button>
         </div>

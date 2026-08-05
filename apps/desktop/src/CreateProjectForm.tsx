@@ -96,7 +96,12 @@ export function CreateProjectForm(props: {
         )}
       </div>
       <ThemePicker themes={props.themes} value={theme} onPick={setTheme} />
-      <button className="primary" type="submit" disabled={Boolean(problem)}>
+      <button
+        tabIndex={0}
+        className="primary"
+        type="submit"
+        disabled={Boolean(problem)}
+      >
         {props.submitLabel}
       </button>
     </form>

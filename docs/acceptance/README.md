@@ -20,9 +20,19 @@ unchanged acceptance criteria is a re-ranked backlog nobody can check.
 | [The pilot macOS build](pilot-build.md) | A build a participant can install and run, with its limitations stated up front so feedback separates missing breadth from a broken thesis | Before handing a build to anyone |
 | [The release-candidate build](release-candidate.md) | The Step 16b quality, accessibility, privacy/filesystem, packaging, documentation, and known-issues gate | Before Step 17 final acceptance |
 
+Records of particular runs live beside the gate they were run against. The
+current one is [final acceptance, 2026-08-04](final-acceptance-2026-08-04.md) —
+Step 17's pass, and the file that says what still blocks the release.
+
 The round-trip document also carries the current map of what the automated suite
 covers and what only a human can prove. That table is the authority on the
-automated/manual boundary; this index does not duplicate it.
+automated/manual boundary; this index does not duplicate it. **One line of it
+moved on 2026-08-04:** the keyboard-only ticket lifecycle is no longer a human
+pass — `npm run a11y:audit` completes create, find, open, edit, move, search,
+archive, undo and retry with no pointer input, in WebKit
+([plan 41](../plans/completed/41-accessibility-audit.md)). What still needs a
+person is what a screen reader says, and what the packaged bundle does on a
+machine that has never run it.
 
 ## Running the checks
 

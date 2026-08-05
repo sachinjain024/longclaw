@@ -580,6 +580,7 @@ export function TicketPanel(props: TicketPanelProps) {
               assistive technology reads. */}
           {ticket && (
             <button
+              tabIndex={0}
               className="ghost"
               onClick={() => props.onArchive(!props.archived)}
             >
@@ -587,6 +588,7 @@ export function TicketPanel(props: TicketPanelProps) {
             </button>
           )}
           <button
+            tabIndex={0}
             className="ghost"
             onClick={props.onClose}
             aria-label="Close ticket"
@@ -636,10 +638,14 @@ export function TicketPanel(props: TicketPanelProps) {
             </div>
           )}
           <div className="toolbar-actions">
-            <button className="secondary" onClick={() => void load("open")}>
+            <button
+              tabIndex={0}
+              className="secondary"
+              onClick={() => void load("open")}
+            >
               Try reading again
             </button>
-            <button className="ghost" onClick={props.onClose}>
+            <button tabIndex={0} className="ghost" onClick={props.onClose}>
               Close panel
             </button>
           </div>
@@ -793,6 +799,7 @@ export function TicketPanel(props: TicketPanelProps) {
                   className="markdown"
                 />
                 <button
+                  tabIndex={0}
                   className="ghost description-edit"
                   ref={editButton}
                   onClick={() => openDescriptionEditor(ticket.description)}
@@ -802,6 +809,7 @@ export function TicketPanel(props: TicketPanelProps) {
               </div>
             ) : (
               <button
+                tabIndex={0}
                 className="description-view empty"
                 ref={editButton}
                 onClick={() => openDescriptionEditor("")}
@@ -956,6 +964,7 @@ export function TicketPanel(props: TicketPanelProps) {
                 }}
               />
               <button
+                tabIndex={0}
                 className="primary"
                 type="submit"
                 disabled={!commentDraft.trim()}

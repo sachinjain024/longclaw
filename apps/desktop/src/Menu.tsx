@@ -199,6 +199,7 @@ export function MenuButton<T extends string>(props: {
   return (
     <>
       <button
+        tabIndex={0}
         type="button"
         className="menu-trigger"
         ref={trigger}

@@ -36,13 +36,17 @@ export default tseslint.config(
     languageOptions: {
       globals: {
         HTMLElement: "readonly",
+        URLSearchParams: "readonly",
+        clearInterval: "readonly",
         clearTimeout: "readonly",
         document: "readonly",
         fetch: "readonly",
+        getComputedStyle: "readonly",
         navigator: "readonly",
         performance: "readonly",
         process: "readonly",
         requestAnimationFrame: "readonly",
+        setInterval: "readonly",
         setTimeout: "readonly",
         window: "readonly",
       },
