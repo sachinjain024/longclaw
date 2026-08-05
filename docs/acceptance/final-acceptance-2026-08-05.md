@@ -68,6 +68,40 @@ read as fresh here. Nothing under `src/` or `src-tauri/` changed between the
 ESLint globals, and documentation — so that record's numbers still describe this
 tree. Quote them from there, not from here.
 
+### Build validity, and CI's absence
+
+The gate requires that `verify` and `build:app` both pass **from a clean checkout
+at the recorded revision**, and CI normally provides that. **It could not run
+here:** both jobs failed in 3 seconds without starting, on a GitHub billing
+condition — *"the job was not started because recent account payments have failed
+or your spending limit needs to be increased"*. Nothing was executed, so this is
+not a signal about the code, and it is not evidence either way.
+
+The requirement was met locally instead, from a fresh clone of the pushed branch
+rather than from the working tree — its own `node_modules`, its own `target/`,
+nothing carried over:
+
+| Check, on a clean clone at `e9ba3c6` | Result |
+|---|---|
+| Working tree at clone | 0 modified files |
+| `npm ci` | pass |
+| `npm run verify` | pass |
+| `npm run build:app` | pass — `.app` and DMG |
+| `codesign --verify --deep --strict` | valid on disk, satisfies its Designated Requirement |
+| `Sealed Resources` | version=2, 13 rules |
+| `npm run release:binary-audit` | pass, signature check included |
+
+That matters most for the signing fix: it proves the bundle signs correctly from
+a clean tree rather than because of anything left on the build machine.
+
+**What is still owed is CI's own run, not the evidence.** `build:app` on
+`macos-latest` is a required check on the pull request, so the merge path stays
+blocked until billing is resolved, and one thing a local clean clone still cannot
+show is that the build works on a *different* machine. Either resolve the billing
+and let the required check run, or record in the release that CI was unavailable
+and the gate was met this way — the first is the better answer, and it is the
+cheaper one to defend later.
+
 ### Startup
 
 Against the rebuilt bundle, five launches:

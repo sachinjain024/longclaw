@@ -57,7 +57,7 @@ The following stay outside this plan:
 | M3 — Vertical slice ready | Steps 5–8 | One real project and ticket complete a human → disk → agent → disk → UI round-trip. |
 | M4 — Pilot direction accepted | Steps 9–10 | Target users have tried the slice and the remaining backlog has been explicitly revised. **Closed 2026-07-31 by founder decision with the first half unmet** — the backlog was revised, no target user tried the slice ([decision](pilot/response-memo.md#direction-decision-2026-07-31-superseded-the-same-day)). |
 | M5 — Feature-complete v0 | Steps 11–14 | All in-scope workflows and trust states work against real files. |
-| M6 — MVP release | Steps 16a–17 | Release quality, packaging, documentation, and final acceptance checks pass. |
+| M6 — MVP release | Steps 16a–17 | Release quality, packaging, documentation, and final acceptance checks pass. **Reached 2026-08-05**: acceptance complete, no release blocker open, five items carried and named in § Step 17. Cutting the release is a founder decision, not a gate. |
 
 Do not start mass feature implementation before M2. Do not continue executing the original breadth backlog after M3 until the pilot feedback in M4 has been processed.
 
@@ -776,9 +776,49 @@ closed.** Each has a severity and a release decision in the candidate record's
    Apple Silicon machine, and `architecture-spike-report.md:72` sets the budgets
    on the oldest supported production Mac.
 
-### Step 17 — Run final MVP acceptance and release
+### Step 17 — Run final MVP acceptance and release — COMPLETE 2026-08-05, with five carried items and one caveat
 
 **Goal:** Confirm the build meets the product thesis and release it as the local-core MVP.
+
+**Completion note, 2026-08-05.** Step 17's acceptance is complete and **no
+release blocker remains**. The records are
+[the 2026-08-04 first pass](acceptance/final-acceptance-2026-08-04.md), partly
+superseded, [the 2026-08-05 pass](acceptance/final-acceptance-2026-08-05.md), and
+[the clean-machine pass](acceptance/clean-machine-2026-08-05.md). The post-MVP
+backlog is [post-mvp-backlog.md](backlog/post-mvp-backlog.md).
+
+All four blockers are closed. Three were named at Step 16b — the accessibility
+pass, the runtime network audit, and the clean-machine packaged-app pass, plus a
+rebuild at the final commit. **The fourth was found by the clean-machine pass and
+was the most serious of them: the app was unopenable for anyone who downloaded
+it.** No automated check could see it, because Gatekeeper only runs on a
+downloaded file and every prior pass ran a locally built one. Two of the three
+release-blocking defects this step found came from *installing and driving the
+packaged app*, not from running the suite.
+
+**Marking this step complete does not mean the release is cut.** It means
+acceptance is complete and the decision is a person's. Five things are carried,
+none of them blocking, and one caveat on the evidence:
+
+1. **The oldest supported Mac.** Every number is from one current Apple Silicon
+   machine; `architecture-spike-report.md:72` sets the budgets on the oldest
+   supported production Mac.
+2. **Accessibility Part B** — VoiceOver semantics. Owner Design, due 2026-09-04,
+   promotion condition intact.
+3. **The round-trip scenario's human halves** (§ 1, 2, 4, 5, 7). The agent half
+   was run for real on 2026-08-04.
+4. **A medium *real* project against the budgets.** Every size measured is
+   generated: uniform titles, one label, no history.
+5. **P5a — relaunch does not restore the project that was open.** The one finding
+   of the clean-machine pass, reported as non-blocking.
+
+**The caveat: CI never ran against the final commit.** Both jobs stopped without
+starting, on an exhausted GitHub Actions allowance — a private repository billing
+macOS runners at 10×, not a signal about the code. The gate's clean-checkout
+requirement was met locally instead, from a fresh clone of the pushed branch, and
+[the record](acceptance/final-acceptance-2026-08-05.md) says so in as many words.
+What is still owed is proof the build works on a *different* machine, which only
+CI or another Mac can give.
 
 **Work:**
 
