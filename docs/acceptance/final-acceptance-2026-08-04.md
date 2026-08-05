@@ -13,10 +13,12 @@ milestone: "M6 — MVP release"
 > once a foreground GUI session is present, from the same shell that failed here.
 > § Startup and § The DMG are kept as written — the reasoning in them is sound
 > and the correction is worth seeing against the original — but do not act on
-> their "a human must run this" conclusions. Two of the three release blockers
-> listed below are also closed: the bundle has been rebuilt at the final commit,
-> and the runtime network audit has been run offline and online. The
-> clean-machine packaged-app pass is the only one left.
+> their "a human must run this" conclusions. **All three release blockers listed
+> below are now closed**: the bundle rebuilt at the final commit, the runtime
+> network audit run offline and online, and
+> [the clean-machine pass](clean-machine-2026-08-05.md) complete. That pass found
+> a fourth and more serious one — the bundle was never signed, so a downloaded
+> copy was unopenable — which is also fixed.
 
 Step 17's record: what was run against the release candidate, what passed, and
 what is still open. It is evidence, not a checklist — the checks live in

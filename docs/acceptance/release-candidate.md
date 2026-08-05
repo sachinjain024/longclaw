@@ -20,6 +20,7 @@ file, so the checklist and the evidence stop changing for each other's reasons.
 | 2026-08-04, `implement/step-16b-release-hardening` | [release-candidate-2026-08-04.md](release-candidate-2026-08-04.md) |
 | 2026-08-04, `implement/step-17-final-acceptance` — the Step 17 pass over the same gate | [final-acceptance-2026-08-04.md](final-acceptance-2026-08-04.md) |
 | 2026-08-05, the same branch rebuilt at the final commit — DMG produced, startup measured, the network audit harnessed | [final-acceptance-2026-08-05.md](final-acceptance-2026-08-05.md) |
+| 2026-08-05, the packaged-install pass against that build — the last blocker, and the signing defect it found | [clean-machine-2026-08-05.md](clean-machine-2026-08-05.md) |
 
 The § Accessibility report below is no longer entirely a manual pass. Its first,
 second, third, seventh and eighth rows are automated by `npm run a11y:audit`

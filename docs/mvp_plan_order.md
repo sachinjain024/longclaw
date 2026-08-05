@@ -862,8 +862,24 @@ The paragraph above also proved to be wrong about the shell. `perf:startup` and
 the DMG step both run from an agent shell once a foreground GUI session exists;
 neither needed a human. The diagnosis was right and the prescription was not.
 
-**The clean-machine packaged-app pass is now the only release blocker.** The
-oldest-supported-Mac run and accessibility Part B remain open and non-blocking.
+**Update, later the same day: the clean-machine pass is done and no release
+blocker remains** ([record](acceptance/clean-machine-2026-08-05.md)). All seven
+rows pass with one non-blocking finding — relaunch does not restore the project
+that was open, filed as P5a.
+
+Running it found a fourth blocker that the automated gate could not see, and it
+was the most serious of the four: **the app was unopenable for anyone who
+downloaded it.** `tauri.conf.json` set no `signingIdentity`, so the bundle was
+never signed — only the linker's mark on the binary, no sealed resources, no
+`_CodeSignature` — and macOS called a quarantined copy *"damaged"* with *Move to
+Bin* as the only option. The Open Anyway route the release notes document did not
+exist. Gatekeeper only runs on a downloaded file, and every prior pass ran a
+locally built one, so nothing had ever exercised it. Fixed, and
+`release:binary-audit` now fails on an unsigned or unsealed bundle.
+
+Open and non-blocking: the oldest-supported-Mac run, accessibility Part B, the
+round-trip scenario's human halves, and a medium real project against the
+budgets.
 
 **Expected outcome / exit gate:**
 

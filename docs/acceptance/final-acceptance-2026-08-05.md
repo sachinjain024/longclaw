@@ -204,32 +204,36 @@ comes with signing does not cost the webview its JIT.
 
 ## Where the release stands
 
-**One release blocker remains.** Two of the three are closed.
+**No release blocker remains open.** All three are closed, and a fourth — found
+while closing the third — is fixed.
 
 | Blocker, as at 2026-08-04 | Now |
 |---|---|
 | The release bundle predates the accessibility fixes | **Cleared.** Rebuilt at the final commit, DMG produced, full automated gate re-run against it |
 | Runtime network audit not complete | **Cleared.** Driven offline and online against the rebuilt bundle, all seven steps, C1–C5 green, zero connections and zero bytes in both |
-| Clean-machine packaged-app pass not complete | **Open, and now the only blocker.** Fresh install, upgrade, restart, folder move, offline, on a profile that has never run LongClaw |
+| Clean-machine packaged-app pass not complete | **Cleared.** [The record](clean-machine-2026-08-05.md): all seven rows pass, one non-blocking finding, no blockers |
+| *Raised and fixed during that pass:* the bundle was unopenable | **Cleared.** `signingIdentity: "-"`, guarded by `release:binary-audit`. See § The bundle was unopenable |
+
+The clean-machine pass ran on the build machine's own reset account rather than
+an untouched Mac — the second M2 rejects the DMG under an install restriction and
+the Intel MacBook is out of scope for an Apple Silicon build. That substitution
+and its four limits are stated in the record rather than implied.
 
 Open and not blocking, all unchanged: the oldest supported Mac, Part B of the
 accessibility pass (VoiceOver semantics, owner Design, due 2026-09-04), and the
 round-trip scenario's human halves (§ 1, 2, 4, 5, 7).
 
-### What a human still has to run
+### What is still open, none of it blocking
 
-The clean-machine table — fresh install from the DMG, first project creation,
-upgrade over the previous build, restart, sleep/wake, folder move, and an offline
-launch and edit — on a macOS profile that has never run LongClaw. The DMG is
-built and waiting at
-`apps/desktop/src-tauri/target/release/bundle/dmg/LongClaw_0.1.0_aarch64.dmg`.
-
-Then the oldest-Mac run and the round-trip scenario's human halves (§ 1, 2, 4, 5,
-7), neither of which blocks.
-
-Note that the network audit above ran on the **build machine**, where the app had
-been launched many times. It says nothing about first-launch behaviour on a
-profile that has never seen it — Gatekeeper, first-run registry creation, and the
-folder picker's first grant all happen there and nowhere else. Running
-`npm run audit:network` once on the clean machine would fold that gap into the
-pass being made there anyway.
+- **The oldest supported Mac.** Every number in this record is from one current
+  Apple Silicon machine, and `architecture-spike-report.md:72` sets the budgets
+  on the oldest supported production Mac.
+- **Accessibility Part B** — VoiceOver semantics, owner Design, due 2026-09-04.
+- **The round-trip scenario's human halves** (§ 1, 2, 4, 5, 7). The agent half
+  was run for real on 2026-08-04.
+- **A medium *real* project against the budgets.** Every size measured is
+  generated.
+- **One question this pass left unanswered:** whether a first-launch folder-access
+  prompt appears exactly where a genuinely new user would see one. The app's TCC
+  grants were reset, so it should, but it was not separately recorded — and a
+  reset account cannot prove it the way an untouched Mac would.
