@@ -7,6 +7,15 @@ milestone: "M6 — MVP release"
 
 # Final MVP acceptance — 2026-08-04
 
+> **Superseded in part by [the 2026-08-05 record](final-acceptance-2026-08-05.md).**
+> Two conclusions below are about this machine rather than the product and are
+> now known to be wrong: `perf:startup` and the DMG bundling step **both run**
+> once a foreground GUI session is present, from the same shell that failed here.
+> § Startup and § The DMG are kept as written — the reasoning in them is sound
+> and the correction is worth seeing against the original — but do not act on
+> their "a human must run this" conclusions. The release bundle has since been
+> rebuilt at the final commit, which closes the third blocker listed below.
+
 Step 17's record: what was run against the release candidate, what passed, and
 what is still open. It is evidence, not a checklist — the checks live in
 [the release-candidate gate](release-candidate.md) and

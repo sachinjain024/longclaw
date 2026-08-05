@@ -37,6 +37,7 @@ export default tseslint.config(
       globals: {
         HTMLElement: "readonly",
         URLSearchParams: "readonly",
+        clearInterval: "readonly",
         clearTimeout: "readonly",
         document: "readonly",
         fetch: "readonly",
@@ -45,6 +46,7 @@ export default tseslint.config(
         performance: "readonly",
         process: "readonly",
         requestAnimationFrame: "readonly",
+        setInterval: "readonly",
         setTimeout: "readonly",
         window: "readonly",
       },

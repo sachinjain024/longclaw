@@ -19,6 +19,7 @@ file, so the checklist and the evidence stop changing for each other's reasons.
 |---|---|
 | 2026-08-04, `implement/step-16b-release-hardening` | [release-candidate-2026-08-04.md](release-candidate-2026-08-04.md) |
 | 2026-08-04, `implement/step-17-final-acceptance` — the Step 17 pass over the same gate | [final-acceptance-2026-08-04.md](final-acceptance-2026-08-04.md) |
+| 2026-08-05, the same branch rebuilt at the final commit — DMG produced, startup measured, the network audit harnessed | [final-acceptance-2026-08-05.md](final-acceptance-2026-08-05.md) |
 
 The § Accessibility report below is no longer entirely a manual pass. Its first,
 second, third, seventh and eighth rows are automated by `npm run a11y:audit`
@@ -61,7 +62,14 @@ npm run perf:rust
 npm run perf:board
 npm run perf:list
 npm run perf:startup
+npm run audit:network -- -- --phase=offline   # then again with --phase=online
 ```
+
+`audit:network` is in this list but is not unattended: it samples while a person
+drives the app through § Security, privacy, and filesystem's step list, and it
+records which steps were actually driven rather than assuming the list. A run
+given `--duration` instead says in its own output that it covers launch and idle
+only and is not the release pass.
 
 `npm run verify` includes `npm --prefix apps/desktop run release:audit`, which
 checks the part of the v0 privacy and filesystem boundary that automation can
@@ -89,8 +97,24 @@ before believing any absence, so a probe that reads the wrong file fails instead
 of passing.
 
 Neither can see the **webview**, which is network-capable by construction. The
-CSP bounds it and the runtime network audit below verifies it; that pass stays
-manual for that reason, and a green audit is not a substitute for it.
+CSP bounds it and the runtime network audit below verifies it, and a green audit
+here is not a substitute for that one.
+
+**That audit is now a run rather than a memory: `npm run audit:network`.** It
+exists because the naive version of it is worthless — on macOS a WKWebView's
+traffic belongs to WebKit XPC services that are reparented to launchd, so
+`lsof -i -p <app-pid>` watches the one process that was never going to make the
+call, finds nothing, and passes. The harness attributes those helpers by launch
+window, proves the attribution by requiring them to die with the app, and reads
+two probes whose blind spots differ: `lsof` names peers but can miss a connection
+between samples, and `nettop` byte counters cannot miss traffic but never name a
+peer. Counters that moved with no peer sampled fail the run rather than passing
+it. Five controls decide whether a silent result is evidence at all, and
+`--self-test` injects a peer the run is required to catch.
+
+What stays with a person: driving the app, and the offline half. The harness
+samples; it does not click, and it says which steps it was actually driven
+through.
 
 One dependency deserves naming: **`tauri-plugin-fs` is compiled into the binary**
 and cannot be removed, because `tauri-plugin-dialog` — the native folder picker —
@@ -176,7 +200,7 @@ Run on a clean macOS user profile or machine:
 
 | Check | Expected result |
 |---|---|
-| Runtime network audit | No non-IPC network connection during launch, project open, create/edit/archive/search, restart, or offline operation |
+| Runtime network audit | No non-IPC network connection during launch, project open, create/edit/archive/search, restart, or offline operation. `npm run audit:network`, offline and online, driven by a person |
 | Binary/package audit | No analytics, telemetry, updater, crash-reporting, shell, HTTP, or filesystem plugin is directly configured |
 | Tauri capability audit | Webview can use typed IPC/events and one native folder picker only |
 | Filesystem scope | App writes project data only under the user-selected `.longclaw/` tree and app state only in OS application support |
@@ -184,9 +208,31 @@ Run on a clean macOS user profile or machine:
 | Account boundary | No local feature requires signup, network, cloud sync, or waitlist state |
 
 For runtime network auditing, run the app with the machine offline first, then
-repeat online while watching process connections with a local tool such as Little
-Snitch, LuLu, or `lsof -i -n -P`. Tauri IPC over `ipc:` and
-`http://ipc.localhost` is expected; external hosts are not.
+repeat online. Tauri IPC over `ipc:` and `http://ipc.localhost` is expected;
+external hosts are not.
+
+```sh
+npm run audit:network -- -- --phase=offline    # Wi-Fi disabled, then
+npm run audit:network -- -- --phase=online
+```
+
+**The doubled `--` is not a typo.** These wrappers delegate with
+`npm --prefix apps/desktop`, which eats the first one, and a `--phase` that never
+arrives is not an error: the run labels itself `unlabelled`, and the second run
+overwrites the first one's record. `startup-trace.mjs` carries the same warning
+for the same reason.
+
+Each run prints its controls, its findings, and the steps it was actually driven
+through, and writes the same as JSON under `apps/desktop/dist-network-audit/`.
+Drive the app through the step list above while it samples; it does not click.
+Run it on a quiet machine — it attributes WebKit processes by launch window, so
+a browser started alongside it lands in the record.
+
+Little Snitch or LuLu remain a legitimate second opinion, and a bare
+`lsof -i -n -P` is the manual form. Neither is required if the harness run is
+recorded, and the harness is preferred for one reason: run by hand against the
+app's own PID, `lsof` reports nothing, because the webview's traffic belongs to
+WebKit XPC services reparented to launchd rather than to the app.
 
 ## macOS signing and packaging
 

@@ -54,7 +54,21 @@ npm run perf:list                           # the same, for the list surface
 npm run matrix                              # theme × appearance visual regression
 npm run a11y:audit                          # accessibility Part A, keyboard-only, in WebKit
 npm run a11y:audit -- --self-test           # the same, expecting every row to go red
+npm run audit:network                       # runtime network audit, needs a built app
+npm run audit:network -- --self-test        # the same, expecting an injected peer to be caught
 ```
+
+`audit:network` is the release gate's process-monitor pass. It needs a person to
+drive the app — it samples, it does not click — and it needs a **quiet machine**,
+because it attributes WebKit helpers by launch window and anything else that
+starts a webview during the run lands in its record. Run it on a bundle, offline
+and then online, with `--phase` naming which.
+
+**Do not point `lsof` at the app's PID and conclude anything.** On macOS the
+webview's traffic belongs to WebKit XPC services that are reparented to launchd,
+so the app's own process shows no connections whether or not one was made. That
+is the trap the harness exists to avoid, and its controls fail the run rather
+than report a silence it cannot back up.
 
 `a11y:audit` is the keyboard contract as a run rather than a memory: it drives the
 real `App` over the perf stubs with **no pointer input anywhere in it**, checking
