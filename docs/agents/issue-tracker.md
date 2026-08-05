@@ -21,12 +21,23 @@ The ticket directory is the unit of context. In v0, `ticket.md` is authoritative
 
 LongClaw owns ticket creation and human-facing key allocation. Agents must not guess a key or create `.longclaw/tickets/<KEY>/` directly.
 
+The creation surface is the `longclaw` CLI ([ADR 0011](../adr/0011-cli-is-the-creation-surface-agents-use.md)). Build it once with `cargo build --release --manifest-path apps/desktop/src-tauri/Cargo.toml --bin longclaw`; it prints JSON and exits non-zero on failure.
+
+```sh
+longclaw ticket create --title "…" --description "…" --label storage \
+  --checklist "…" --agent-id claude-code --agent-name "Claude Code"
+longclaw ticket edit LC-42 --status in_progress --agent-id claude-code
+longclaw ticket show LC-42
+longclaw ticket list
+longclaw                     # the full surface
+```
+
 When a skill says to publish a spec or ticket:
 
-1. Use the LongClaw app or CLI creation surface when available.
-2. Create one LongClaw ticket per requested ticket.
-3. If no creation surface is available, present the prepared ticket content and ask the user to create the ticket before editing its assigned directory.
-4. Apply the appropriate triage label from `triage-labels.md`.
+1. Create the ticket with `longclaw ticket create`, one per requested ticket, and read the allocated key from its output.
+2. **Pass `--agent-id`.** Without it the activity entry says a human did it, and the format contract's rule is that an actor is declared and never inferred.
+3. Apply the appropriate triage label from `triage-labels.md`. A label must be defined in `longclaw.yaml` first — `longclaw label add --slug … --name …` — because the CLI refuses a slug the project does not define.
+4. If the binary is not built and cannot be, present the prepared ticket content and ask the user to create the ticket before editing its assigned directory.
 
 Specs live in the Markdown body of `ticket.md`. Additional headings such as `## Approach`, `## Discoveries`, and `## Blocked by` are ordinary description content.
 
