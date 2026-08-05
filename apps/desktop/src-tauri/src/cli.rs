@@ -479,8 +479,16 @@ fn single_line(option: &str, value: &str) -> AppResult<()> {
     Ok(())
 }
 
+/// Milliseconds, because `engine::now` writes milliseconds.
+///
+/// The timeline sorts by instant and breaks a tie on the event id, which is
+/// random. At second precision two writes a moment apart tie, so their order
+/// comes out of the id rather than out of what happened — the import that
+/// seeded this repository rendered "updated this ticket" above "created this
+/// ticket" on 15 of 33 tickets before this was found. The app never had the
+/// problem; matching it is the whole fix.
 fn now() -> String {
-    Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true)
+    Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)
 }
 
 fn joined<const N: usize>(values: [&str; N]) -> String {
@@ -671,6 +679,28 @@ mod tests {
         )
         .expect("the flag parses");
         assert!(author(&nameless).is_err(), "a name alone declares nothing");
+    }
+
+    /// One writer at second precision beside one at millisecond precision is
+    /// two writers whose events tie, and a tie is decided by a random id. The
+    /// app has always written milliseconds; this pins the CLI to it.
+    #[test]
+    fn a_timestamp_carries_the_precision_the_app_writes() {
+        let stamp = now();
+        assert!(
+            regex_like(&stamp),
+            "{stamp} should be RFC 3339 UTC with milliseconds"
+        );
+    }
+
+    /// `2026-08-05T14:44:30.610Z`, without taking a dependency to say so.
+    fn regex_like(stamp: &str) -> bool {
+        let bytes = stamp.as_bytes();
+        stamp.len() == 24
+            && stamp.ends_with('Z')
+            && bytes[10] == b'T'
+            && bytes[19] == b'.'
+            && stamp[20..23].chars().all(|digit| digit.is_ascii_digit())
     }
 
     #[test]
