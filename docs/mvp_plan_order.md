@@ -847,6 +847,24 @@ taken from an agent shell at all — `perf:startup` and the DMG bundling step, b
 because the shell has no foreground GUI session — and the record says which
 single command a human runs for each.
 
+**Progress note, 2026-08-05. Two of those three are closed**
+([record](acceptance/final-acceptance-2026-08-05.md)):
+
+- **The bundle is rebuilt** at the final commit, DMG included, with the automated
+  gate re-run against it: verify, binary-audit, matrix 8×9, a11y A1–A5, and
+  `perf:startup` at warm p50 459.63 ms against a 750 ms budget.
+- **The runtime network audit is done**, and is now a command —
+  `npm run audit:network`. Driven offline and online through all seven steps of
+  the gate's list: zero connections of any kind, zero bytes on every monitored
+  process, and its five controls green in both runs.
+
+The paragraph above also proved to be wrong about the shell. `perf:startup` and
+the DMG step both run from an agent shell once a foreground GUI session exists;
+neither needed a human. The diagnosis was right and the prescription was not.
+
+**The clean-machine packaged-app pass is now the only release blocker.** The
+oldest-supported-Mac run and accessibility Part B remain open and non-blocking.
+
 **Expected outcome / exit gate:**
 
 - The complete human-plan / agent-execute / shared-ticket-record loop works on the released artifact.

@@ -12,8 +12,9 @@ The second Step 17 pass over [the gate](release-candidate.md), a day after
 record's conclusions were about the machine rather than the product, and both
 turned out to be wrong.
 
-**The release is still not cut, but one of the three blockers is gone and a
-second now has a harness.** What remains needs a clean machine and a person.
+**The release is still not cut, but two of the three blockers are closed and the
+third is the only one left.** What remains needs a machine that has never run
+LongClaw.
 
 ## What the 2026-08-04 record got wrong
 
@@ -59,7 +60,7 @@ below was taken against it.
 | `npm run matrix` | pass — 8 axes × 9 states clean |
 | `npm run a11y:audit` | pass — A1–A5 against the rebuilt tree |
 | `npm run perf:startup` | pass — see below |
-| `npm run audit:network` | **new.** Controls green, no connection observed; **not the release pass**, see § The runtime network audit |
+| `npm run audit:network` | **new.** pass — driven offline and online, 7/7 steps, C1–C5 green, zero connections and zero bytes in both. See § The runtime network audit |
 
 `perf:rust`, `perf:board` and `perf:list` were **not re-run**, and should not be
 read as fresh here. Nothing under `src/` or `src-tauri/` changed between the
@@ -110,9 +111,41 @@ byte counters read real traffic (C3), the helpers died with the app (C4), and th
 app actually painted a board (C5). `--self-test` injects an external peer and
 fails if the run stays green.
 
-**What was run, and what it is worth.** An unattended run against the rebuilt
-bundle: C1–C5 green, zero external, zero loopback, zero listening sockets, zero
-bytes on every monitored process, repeated three times for stability.
+**The blocker's own pass was run, offline and online, driven by a person.** Both
+against the rebuilt bundle, both with all seven of the gate's steps confirmed
+driven rather than assumed:
+
+| | offline | online |
+|---|---|---|
+| Steps driven, of 7 | **7** | **7** |
+| Samples (lsof / nettop, every 500 ms) | 27 / 27 | 43 / 43 |
+| External connections | **0** | **0** |
+| Loopback connections | 0 | 0 |
+| Listening sockets | 0 | 0 |
+| Byte counters, all monitored processes | **0** | **0** |
+| Control bytes proving the counter reads | 2,961,408 | 4,763,648 |
+| WebKit helpers attributed, and reaped | 3 → 0 survived | 3 → 0 survived |
+| Controls | C1–C5 pass | C1–C5 pass |
+| Record | `dist-network-audit/network-audit-offline.json` | `…-online.json` |
+
+Zero sockets of any kind, including loopback: Tauri's IPC is a custom scheme
+handled inside the webview, so the expected number of connections was never one —
+it was none, and that is what both runs found. The counters agreeing with the
+peer list at zero is what makes the absence a reading rather than a gap between
+samples.
+
+Earlier, unattended runs against the same bundle were clean and repeated three
+times for stability; they are superseded by the driven runs above.
+
+**One thing the harness does not check: that the machine was actually offline.**
+`--phase` is a label, not a measurement, and it rests on the operator in the same
+way `perf:startup --cold` does. Read the offline row as: *with the operator
+asserting the network was down*, the app completed all seven steps and opened
+nothing — which is what § Offline launch and edit asks for, on that assertion.
+
+The two runs are worth having separately even so. The finding that carries
+without any assertion about the network is the **online** one: with connectivity
+definitely available, the app still opened nothing.
 
 Three of the harness's own probes were found blind or wrong while it was being
 written, which is the argument for `--self-test` and for controls generally:
@@ -126,18 +159,15 @@ written, which is the argument for `--self-test` and for controls generally:
    control. It looked like an environment fault for two runs before it was
    traced to the harness.
 
-**It is not the release pass and the harness says so in its own output.** Nobody
-drove the app, and the offline half was not run. What is proven is launch and
-idle; what the blocker asks for is the step list, offline and online, with a
-person at the keyboard.
-
 ## Where the release stands
+
+**One release blocker remains.** Two of the three are closed.
 
 | Blocker, as at 2026-08-04 | Now |
 |---|---|
 | The release bundle predates the accessibility fixes | **Cleared.** Rebuilt at the final commit, DMG produced, full automated gate re-run against it |
-| Runtime network audit not complete | **Harnessed, not complete.** `npm run audit:network` exists and is proven against an injected peer; the offline and online driven runs are still owed |
-| Clean-machine packaged-app pass not complete | **Unchanged.** Fresh install, upgrade, restart, folder move, offline, on a profile that has never run LongClaw |
+| Runtime network audit not complete | **Cleared.** Driven offline and online against the rebuilt bundle, all seven steps, C1–C5 green, zero connections and zero bytes in both |
+| Clean-machine packaged-app pass not complete | **Open, and now the only blocker.** Fresh install, upgrade, restart, folder move, offline, on a profile that has never run LongClaw |
 
 Open and not blocking, all unchanged: the oldest supported Mac, Part B of the
 accessibility pass (VoiceOver semantics, owner Design, due 2026-09-04), and the
@@ -145,15 +175,18 @@ round-trip scenario's human halves (§ 1, 2, 4, 5, 7).
 
 ### What a human still has to run
 
-```sh
-npm run audit:network -- -- --phase=offline   # Wi-Fi off, drive the step list
-npm run audit:network -- -- --phase=online    # then again, online
-```
+The clean-machine table — fresh install from the DMG, first project creation,
+upgrade over the previous build, restart, sleep/wake, folder move, and an offline
+launch and edit — on a macOS profile that has never run LongClaw. The DMG is
+built and waiting at
+`apps/desktop/src-tauri/target/release/bundle/dmg/LongClaw_0.1.0_aarch64.dmg`.
 
-The doubled `--` is required from the repository root: the wrapper delegates with
-`npm --prefix apps/desktop`, npm eats the first one, and a dropped `--phase`
-silently labels the run `unlabelled` so the second overwrites the first.
+Then the oldest-Mac run and the round-trip scenario's human halves (§ 1, 2, 4, 5,
+7), neither of which blocks.
 
-Then, by hand: the clean-machine install/upgrade/restart/folder-move/offline
-table on a fresh profile, the oldest-Mac run, and the round-trip scenario's human
-halves. The DMG for the clean-machine pass is built and waiting.
+Note that the network audit above ran on the **build machine**, where the app had
+been launched many times. It says nothing about first-launch behaviour on a
+profile that has never seen it — Gatekeeper, first-run registry creation, and the
+folder picker's first grant all happen there and nowhere else. Running
+`npm run audit:network` once on the clean machine would fold that gap into the
+pass being made there anyway.
