@@ -1,0 +1,544 @@
+# LongClaw v0 — prototype vs. implementation, screen by screen
+
+> A screen-level comparison of the running desktop app against
+> `docs/design/prototype/prototype.html`, with an implementation plan per
+> finding. Produced 2026-08-05 by driving both surfaces side by side.
+>
+> Normative references: `docs/design/prototype/screen-specs.md` (geometry),
+> `docs/design/prototype/states.md` (empty/error/conflict/external states),
+> `docs/design/foundations/components.md` (component anatomy). Where this
+> document and those disagree, those win — this one only records what the build
+> currently does.
+
+---
+
+## How this was produced
+
+**The app.** `apps/desktop` dev build (`tauri dev`, debug binary, WKWebView at
+1180×748 — the shipped default window minus the title bar). Driven with real
+pointer and keyboard input; screenshots taken of the native window.
+
+**The prototype.** `prototype.html` rendered in WebKit (playwright-core 1.62.1,
+the same engine the app ships on) at the same 1180×748 viewport, with the driver
+bar hidden so the app region occupies the identical box. Both in **indigo /
+light** unless noted.
+
+**The data.** The prototype's `seedLongclaw()` demo project was reproduced as a
+real on-disk LongClaw project — same twelve tickets, keys, statuses, priorities,
+labels, checklists, activity, one archived (LC-104), one canceled (LC-136) — so
+every screen below compares the *same* content. The generator lives in the
+session scratchpad; regenerate it from `prototype.js:160-247` if you need it
+again.
+
+**States exercised in the app:** first launch (empty registry), empty project,
+board, list, archived group, ticket panel, description editor, checklist write +
+toast + undo, quick create, full create, command palette (root + theme
+sub-mode), status menu, ordering menu, project settings, filter match, filter
+no-match, unparseable ticket file, raw file view, project folder removed while
+running, external file edit (freshness).
+
+### Read this before filing anything
+
+Three classes of difference appear below and they are **not** the same thing:
+
+| Class | Meaning |
+|---|---|
+| **DEV-ONLY** | Visible only because this was a `tauri dev` build. `DEV_CHROME = import.meta.env.DEV` (`src/devChrome.ts:8`) gates the `FOLDER / .longclaw / tickets` trace strip, the `GENERATION n` eyebrow, and the **Rebuild index** button (`src/App.tsx:1183`, `:1203`, `:1245`). A release bundle drops all three. **Do not file these.** |
+| **BY DESIGN** | The app diverges from the prototype because an ADR moved after the prototype was drawn — chiefly ADR 0001 (no assignee, no identity in v0), so the prototype's named humans and `AR` avatars are correctly replaced by "You" and a neutral mark. **Do not file these either.** |
+| **DIFF** | Everything else. Numbered `D-nn` below. |
+
+Severity: **P0** broken or unreadable · **P1** structural divergence from the
+designed screen · **P2** component/detail divergence · **P3** copy and polish.
+
+---
+
+## Summary
+
+The **primitives are right**. `src/styles.css` is built from the same tokens and
+carries the spec's numbers: 240px side panel (`:45`), 264px board columns
+(`:696`), 560px ticket panel (`:1260`), 620px quick create (`:2329`), 36px list
+rows (`:1150`), 84px meta label column (`:1459`). Board, list, palette, menus,
+toasts, freshness and the archive flow all exist and broadly read correctly.
+
+What diverges is **composition and states**:
+
+1. **Four rendering defects make real content unreadable** (D-01 … D-04) — the
+   ticket panel is painted over by the surface behind it, and every inline and
+   fenced code span renders as a solid black block.
+2. **Three screens are structurally different**, not detail-different: the
+   welcome screen (D-10), project settings (D-40), and the empty-project state
+   (D-20).
+3. **The app shell header is three stacked blocks (~230px)** where the design is
+   one 56px row (D-05) — this is the single change that most alters how every
+   populated screen reads, and it costs the board and list ~170px of height.
+4. **Two designed error behaviours do not happen**: a degraded ticket never
+   appears on the board (D-50), and a project folder that disappears is not
+   noticed until something forces a re-read (D-55).
+
+A prioritized backlog is at the end.
+
+---
+
+## 1 · App shell
+
+**Spec:** `screen-specs.md` § App shell. Side panel 240px; content header one
+row, `padding: 16px 24px 12px`, containing project name · settings gear · path
+chip · disk-state · spacer · filter (190×28) · ordering control · view segment ·
+**New ticket** with a `C` kbd chip. Terminal region reserved at the window's
+bottom edge.
+
+**App:** `src/App.tsx:1106-1256`. Three stacked blocks: a `project-toolbar`
+(eyebrow `LOCAL PROJECT`, `<h1>` project name, `<code>` full absolute path,
+`Star` + `Settings` buttons stacked at the right), then the DEV trace strip, then
+a `board-heading` (`<h2>Board</h2>` + the control row).
+
+| ID | Sev | Prototype | App | Plan |
+|---|---|---|---|---|
+| D-05 | P1 | One 56px header row; project name and controls on the same line | Three stacked blocks totalling ~230px before the first card; board/list start at y≈275 instead of y≈100 | Collapse `project-toolbar` and `board-heading` into a single flex row in `App.tsx:1106-1256`. Drop the `LOCAL PROJECT` eyebrow and the `<h2>Board/List</h2>` heading — the view segment already says which view is active. Move `Star` and `Settings` inline, right of the project name. |
+| D-06 | P2 | Path is a **chip**: mono 12px, folder glyph, `wash` on hover, click copies, truncated to the header | Path is a bare wrapping `<code>` that consumes two lines for a long path | Add a `path-chip` component: folder glyph + `text-overflow: ellipsis`, `max-width`, `title` = full path, click → clipboard + toast. Style per `screen-specs.md:44-47`. |
+| D-07 | P2 | Disk-state indicator: `⟳ writing ticket.md…` while a write is in flight, `✓ ticket.md` when settled, `ink-disabled` | A permanent `● watching` chip (`App.tsx:1237-1250`), plus a `WriteIndicator` that only surfaces in the panel header | Make `disk-state` idle-silent or `✓ ticket.md`; reserve visible text for `writing…` / `reconciling`. The steady-state `watching` chip is dev telemetry, not designed chrome. |
+| D-08 | P2 | Settings is a **ghost gear icon button** next to the project name | Two text buttons `Star` / `Settings`, stacked vertically at the right edge | Gear icon button for settings; keep star as the sidebar row affordance (it already exists there) and drop the header `Star` button. |
+| D-09 | P2 | `New ticket` carries a `C` kbd chip; filter field carries a `⌘F` chip | Neither chip is rendered (no `<kbd>` outside `CommandPalette.tsx:462,488`) | Add `<kbd>` chips to the New-ticket button and the filter field. The keybindings already work. |
+| D-0A | P2 | Sidebar footer: mono `v0 · local · no account` then the waitlist ghost button | Footer has an **Appearance `<select>`** above the trust line; no waitlist button | Appearance belongs in project settings as a 3-up segment (`screen-specs.md:184-187`) — see D-42. Remove the native `<select>` from the sidebar. |
+| D-0B | P2 | Sidebar has **only** section headers and project rows | Sidebar has `Open folder` / `Create project` buttons pinned at the top | These duplicate the palette's `go to project…` and the welcome screen. If they stay, they belong at the *foot* of the project list as one quiet ghost row, not as two filled buttons above the sections. |
+| D-0C | P3 | Terminal region reserved: 24px handle, mono `terminal · reserved · phase 2` | Absent (nothing in `styles.css` or `App.tsx`) | Phase-2 geometry reservation. Low value for v0 — file, don't fix, unless the release wants the promise visible. The palette's disabled `New terminal · PHASE 2` row already ships (`CommandPalette.tsx:207`). |
+| D-0D | P3 | Waitlist "Get early access" → modal | Absent everywhere | Product call, not a UI bug. Confirm it is intentionally cut from v0 and strike it from `screen-specs.md:213-222`, or build it. |
+
+**Not a diff:** `Open folder` / `Create project` labels, the owl mark, the
+STARRED/LOCAL sections, the trust line, the active-row treatment, and the
+per-project theme dot all match.
+
+---
+
+## 2 · Welcome / first launch
+
+**Spec:** `screen-specs.md:66-84`, `states.md:14-20`. Full-window **centered**
+column on `--lc-bg`: 52px owl, display greeting, 13.5px subtitle (max-width
+420px), **two buttons** (primary *Create a project*, secondary *Open a folder*),
+mono trust line. The create form is a separate step reached *after* a folder is
+picked, and it shows the chosen folder as a read-only mono path.
+
+**App:** `src/App.tsx:1721-1755` (`Welcome`) + `src/CreateProjectForm.tsx`.
+
+| ID | Sev | Prototype | App | Plan |
+|---|---|---|---|---|
+| D-10 | P1 | Full-window; no app shell | The 240px sidebar stays visible with `No starred projects` / `No local projects` placeholders | Render `Welcome` above the shell when `projects.length === 0` — the welcome screen *is* the no-projects state, and an empty sidebar is a second, weaker statement of the same thing. |
+| D-11 | P1 | Single centered column | Two columns: copy left, a permanently-visible create-form card right | Restore the two-step flow: welcome → folder picker → create form. The form should not be on screen before a folder exists — it currently asks for a name and key with nowhere to put them. |
+| D-12 | P2 | Two buttons: **Create a project** (primary) + **Open a folder** (secondary) | One `Open existing folder` (secondary); "create" is the form's submit, labelled `Create project in folder` | Two peer buttons, primary = Create. |
+| D-13 | P2 | Create form shows the chosen folder as a read-only mono path with the `/.longclaw` suffix that will be created | No folder row at all | Add the folder row once the picker has run (`CreateProjectForm.tsx`). It is the screen's whole trust argument. |
+| D-14 | P3 | Subtitle: "Tickets live as plain files in a folder you choose — ideally inside your repo. Humans plan, agents execute, and both write to the same record." | "LongClaw writes project data into `.longclaw/` inside the folder you choose. Every ticket is a file you can read, edit, and commit." | Copy call. The app's version explains the mechanism; the prototype's explains the value. Pick one deliberately — currently it reads as a placeholder. |
+| D-15 | P3 | Key hint: "locks after the first ticket" | "Uppercase letters and digits, starting with a letter, such as LC. Locks after the first ticket." | Fine, keep — it's strictly more useful. Trim to one line. |
+| D-16 | P3 | Trust line in mono `--lc-type-micro` | Renders in the UI face, not mono | `.trust-line` should use `--lc-type-code-font`. |
+
+---
+
+## 3 · Board
+
+**Spec:** `screen-specs.md:96-131`. Horizontal scroller, `padding: 8px 24px
+20px`, column gap 12px, columns 264px fixed. Column header: status dot 14 + name
+13/500 + mono count + **hover-revealed `+`** that opens quick create preseeded
+with that column's status.
+
+**App:** `src/Board.tsx`, `styles.css:684-760`. Columns are 264px and the six
+statuses render in order; Canceled correctly hides when empty.
+
+| ID | Sev | Prototype | App | Plan |
+|---|---|---|---|---|
+| D-21 | P2 | Column header reveals a `+` on hover | No `+` anywhere (`Board.tsx:447-453` renders dot + name + count only) | Add a hover/focus-revealed icon button to the column `<h3>`; on activate, `setCreateSurface("quick")` with `status` preseeded. The quick-create modal already accepts a status. |
+| D-22 | P2 | Focused card: human-accent inset border + ring | Focus ring exists but is faint at card scale — the focused card is hard to find after `S`/`P` closes a menu | Verify against `components.md` § Board card focus; the ring should read at a glance, it is the only thing roving focus can point at. |
+| D-23 | P3 | Priority `None` renders as a dash glyph in the ID row | Same, but the dash sits in the chip slot with no chip — reads as a stray hyphen (see LC-108) | Either render the `—` inside the same 22×16 chip frame as `P1`…`P4`, or omit it. |
+
+**Not a diff:** column width, gap, order, card stack gap, the fixed status set,
+priority-default ordering, the ordering control, `Canceled` hiding when empty,
+archived tickets staying off the board.
+
+---
+
+## 4 · Board card
+
+**Spec:** `components.md` § Board card, minus the assignee avatar (ADR 0001).
+Max 2 label chips; max 1 when a checklist fraction is present; footer never
+wraps.
+
+The app's cards are close: ID + priority chip on row 1, title, then fraction +
+progress bar + label chips. Truncation is applied. **No diffs worth filing** at
+this size beyond D-23 above.
+
+---
+
+## 5 · Empty project
+
+**Spec:** `screen-specs.md:127-129`, `states.md:22-30`. **The board scaffold
+stays visible** — all six columns, zero counts — and the Todo column hosts the
+guided card: dashed `line-strong` border, "Create your first ticket", one line of
+copy, a `C` kbd chip. The list view shows a centered equivalent.
+
+**App:** `src/App.tsx:1757-1773` (`EmptyBoard`), reached at `App.tsx:1259`
+(`tickets.length === 0 ? <EmptyBoard/> : …`).
+
+| ID | Sev | Prototype | App | Plan |
+|---|---|---|---|---|
+| D-20 | P1 | Board scaffold stays; guided card sits **inside the Todo column** | The whole board is replaced by one full-width dashed panel; no columns render at all | This is the state the spec is most explicit about — the app never hides the workspace. Keep `<Board/>` mounted when `tickets.length === 0` and render the guide card as the Todo column's only child. Keep `EmptyBoard`'s copy, move it into a 264px card. |
+| D-24 | P2 | Guide card carries a `C` kbd chip and no button | A `New ticket` button, no kbd chip | Swap for the kbd chip (the button is already in the header two rows up). |
+| D-25 | P3 | Copy: "Title it, give it a checklist, point an agent at the folder." | "Every ticket is one file. This one will live under `<full absolute path>`." — the raw path wraps across two lines and a **stray `.` lands alone on a third line** | The stray period comes from `` <code> …</code>. `` at `App.tsx:1766` — the trailing text node wraps after a block-ish `<code>`. Move the period inside, or drop the path (it is already in the header) and use the prototype's copy. |
+| D-26 | P3 | List view shows a *centered equivalent*, sized to the list | List view shows the identical full-width panel | Acceptable, but the panel should sit inside the list's card frame rather than replacing it. |
+
+---
+
+## 6 · Filter states
+
+**Spec:** `states.md:32-36`, `screen-specs.md:130-131`. Centered panel "No
+matches" + the echoed query + secondary **Clear filter** (also `Esc`).
+
+| ID | Sev | Prototype | App | Plan |
+|---|---|---|---|---|
+| D-30 | P0 | — | The filter input triggers **WebKit's native autofill dropdown** (a `Zzzz ×` suggestion popover under the field) | Add `autoComplete="off"`, `autoCorrect="off"`, `spellCheck={false}`, and a `name` the browser will not treat as a saved field, to the filter input at `App.tsx:1210-1219`. A native OS popover inside a local-first app is both off-brand and a small privacy surprise. |
+| D-31 | P2 | Centered in the board region, no container | A bordered rounded container spanning the content width, top-aligned | Drop the frame; centre it in the remaining height. `NoMatches` in `App.tsx:1775+`. |
+| D-32 | P3 | "Nothing matches “zzzz”." (curly quotes) | "Nothing here matches zzzz." (no quotes) | Quote the echoed query so an empty-looking query is still visible. |
+
+---
+
+## 7 · Issue list
+
+**Spec:** `screen-specs.md:133-158`. Sticky 32px group headers, `surface` card
+with hairline and radius 8, 36px rows, row order: dot · mono ID (58px) ·
+priority glyph · title · fresh dot · fraction · ≤2 labels · relative updated
+(46px, right). Archived group last, collapsed, toggleable.
+
+The app's list is the closest surface to the design. Group headers, row anatomy,
+ordering, the archived group with its `Show` toggle, and 80%-opacity archived
+rows all match.
+
+| ID | Sev | Prototype | App | Plan |
+|---|---|---|---|---|
+| D-35 | P2 | Relative time is a fixed 46px right-aligned column: `40m`, `3h`, `2d` | `just now` **wraps onto two lines** inside the 46px slot, making those rows visibly taller than their neighbours | Either widen the slot or shorten the string (`now`). `src/freshness.ts` / `listRow.ts`. |
+| D-36 | P2 | Degraded rows sit **in place**, with the row's own anatomy | Degraded rows are hoisted into a synthetic `Unreadable` group at the bottom (`src/grouping.ts:86-90`) | See D-50 — decide once for both surfaces. |
+| D-37 | P3 | Degraded row: warn triangle, mono filename, `View raw file`, danger treatment | Present, but with no danger tint or border, and a stray **green freshness dot** renders immediately left of `View raw file` | Apply the danger row treatment; suppress the freshness dot on a row that has no parsed content to be fresh about. |
+
+---
+
+## 8 · Ticket panel
+
+**Spec:** `screen-specs.md:160-198`. 560px, anchored right, slides in 24px over
+150ms. Header: **ID chip (click copies)** · mono `tickets/LC-128/ticket.md` with
+folder glyph · `archived` chip when archived · spacer · Archive/Unarchive ghost ·
+close. Meta grid: 84px label column, rows Status / Priority / Labels, each a 26px
+menu trigger. **No other meta rows.**
+
+**App:** `src/TicketPanel.tsx:565-600` (header), `:767-768` (`Updated`).
+
+| ID | Sev | Prototype | App | Plan |
+|---|---|---|---|---|
+| **D-01** | **P0** | The panel is the topmost surface; board/list are behind it | **The list/board paints on top of the panel.** With the list view behind, sticky group headers and rows punch opaque white bands across the panel: LC-119's Labels row is clipped, the `Checklist` heading is sliced in half, a checklist item is fully hidden, and the word `Show` from the Archived group renders *inside* the panel | `.ticket-panel` is `position: fixed` with **no `z-index`** (`styles.css:1251-1265`), while `.list-group-header` is `position: sticky; z-index: 1` (`styles.css:1094-1097`). A positioned element with `z-index: 1` wins over one with `z-index: auto`. Fix: give `.ticket-panel` an explicit `z-index` above the workspace (and below the modal scrim at `:2371` / toast at `:2461`), then add a token-level stacking scale so this cannot recur. Same fix covers the raw-file view (D-52). |
+| **D-02** | **P0** | Inline code renders as `wash`-backed mono | **Inline code renders as a solid black block** — `unlink`, `add`, `watcher/coalesce.rs`, `[ ]`, `[x]` are all unreadable rectangles in light appearance | `.markdown code { background: var(--lc-tile) }` (`styles.css:1698-1703`). `--lc-tile` is `#171923` (`tokens/design-tokens.css:127`) — the near-black *agent terminal tile*, deliberately near-black in both appearances (`styles.css:1850`). Inherited ink then paints dark-on-dark. Fix: use `--lc-wash` (or add a `--lc-code-bg`) and set an explicit `color`. |
+| **D-03** | **P0** | Fenced blocks render as readable code | **Fenced blocks render as a solid black bar with no visible text** (LC-119's ```` ```md ```` example) | Same root cause: `.markdown-code { background: var(--lc-tile) }` (`styles.css:1705-1711`) with `.markdown-code code { background: transparent }` and inherited dark ink. Either give the block a light surface, or keep the dark tile and set `color: var(--lc-on-accent-agent)`/an explicit light ink. Decide once, in tokens. |
+| **D-04** | **P1** | Description hover reveals a pencil + `Edit` at the right of the section header | The `Edit description` affordance is absolutely positioned **over the body text** and overlaps it (`…pairs that the` collides with `Edit description`) | Move the affordance into the `Description` section header row (it has room), or give it an opaque background and reserve the gutter. |
+| D-38 | P2 | ID is a chip (`accent-human-soft`) and **click copies** | Plain `<span className="ticket-key">` (`TicketPanel.tsx:573`), no copy | Make it a chip button with copy + toast, matching the header path chip (D-06). |
+| D-39 | P2 | Path shows as `tickets/LC-128/ticket.md` with a folder glyph, **beside** a separate disk-state line | Path is rendered *by* `WriteIndicator`, so it is the disk-state line, and it shows the full `.longclaw/tickets/…` prefix with no glyph | Split the two: a static path chip plus the transient disk-state. Merging them means the path flickers on every write. |
+| D-3A | P1 | Meta grid rows: **Status, Priority, Labels. Nothing else.** | A fourth row, **`Updated  2026-08-05T17:20:00Z`** — a raw ISO timestamp (`TicketPanel.tsx:767-768`) | Remove it, or render it as the relative time the rest of the app uses. A raw UTC string in the product's most-read surface reads as debug output. |
+| D-3B | P2 | Each value carries a `>` chevron marking it as a menu trigger | No chevron; Status/Priority read as static chips until hovered | Add the chevron per `screen-specs.md:172-176`. |
+| D-3C | P2 | Labels row carries a dashed `+ add` affordance | Shows only existing chips; `None` (a bare button) when empty | Add the `+ add` affordance in both states. |
+| D-3D | P2 | Checklist header: `Checklist` · mono fraction · **56px progress bar** (fill `accent-agent` while fresh) | `Checklist` at the left and `3/7` flush right; no progress bar in the panel (the *cards* have one) | Add the bar per `screen-specs.md:188-190`. |
+| D-3E | P2 | Add-row: ghost checkbox + borderless input, Enter appends and keeps focus | A full-width **bordered** input, `Add a checklist item` | Restyle to the ghost-checkbox + borderless pattern so it reads as the next row rather than a form field. |
+| D-3F | P2 | Composer: avatar + auto-growing borderless field, `⌘↵` posts | Avatar + a bordered textarea with a visible native resize grabber + a separate `Comment` button | Remove the resize handle (`resize: none` + auto-grow), keep `⌘↵`, and demote the button to a quiet primary that appears once there is text. |
+| D-3G | P2 | Title is a borderless textarea; hover `wash`, focus field treatment | Borderless ✓, but the native **resize grabber is visible** at the title's bottom-right corner | `resize: none` on the title textarea. |
+| D-3H | P3 | `Activity` heading carries the entry count | No count | Add it. |
+| D-3I | P3 | Checked checklist items are struck through | Not struck through | Confirm against `components.md` § Checklist and align. |
+
+**Not a diff:** panel width (560px, `styles.css:1260`), slide-in, the Archive /
+Unarchive ghost button, the `archived` chip, Esc-closes, the agent timeline entry
+(green rail, `❯` tile, `AGENT` badge, `via file edit`), the human entries reading
+"You" (ADR 0001).
+
+---
+
+## 9 · Description editor
+
+**Spec:** `screen-specs.md:178-186`. Tab strip on `wash` with **Write** /
+**Preview** (24px) + right-aligned 24×24 icon buttons (bold, italic, code, list,
+task, link); borderless mono textarea, min 132px, vertical resize; footer mono
+`writes to ticket.md on save`, Cancel (`Esc`), primary Save (`⌘↵`).
+
+Structurally this matches — tabs, toolbar, mono textarea, footer note, Cancel/Save
+with their kbd chips are all present (`src/DescriptionEditor.tsx`).
+
+| ID | Sev | Prototype | App | Plan |
+|---|---|---|---|---|
+| D-45 | P2 | Six 24×24 **icon** buttons | Six text glyphs: `B`, `I`, `` ` ``, `•`, a small square, `↗` | Replace with icons from the foundations set. The backtick-as-code and `↗`-as-link substitutions are the weakest — neither reads as its action. |
+| D-46 | P3 | Tabs 24px on a `wash` strip | ~20px, strip tint is lighter than `wash` | Align to the token. |
+
+---
+
+## 10 · Quick create
+
+**Spec:** `screen-specs.md:200-208`. 620px at 12vh. Row 1 mono context line
+`project · KEY-n`; row 2 borderless 15px title input; row 3 status trigger;
+footer ghost **Open full editor →**, mono `↵ create · esc cancel`, primary
+**Create**.
+
+Width (620px) and vertical offset (12vh) both match.
+
+| ID | Sev | Prototype | App | Plan |
+|---|---|---|---|---|
+| D-47 | P2 | Title input is borderless, 15px | A bordered ~13px input with placeholder `Ticket title` | Borderless, 15px; the modal frame is already the field's boundary. |
+| D-48 | P2 | Context line carries the project's theme dot before the name | `longclaw · LC-137`, no dot | Add the dot (the sidebar already renders one). |
+| D-49 | P3 | Status trigger is a bare `○ Todo >` with a chevron | A bordered pill `○ Todo`, no chevron | Match the panel's meta-trigger treatment (see D-3B). |
+
+---
+
+## 11 · Full create
+
+**Spec:** `screen-specs.md:210-216`. The ticket panel in create mode: provisional
+`KEY-n · new` chip, title textarea, the same meta grid, description editor
+(write-only), checklist draft rows with remove affordances and an add-row,
+footer primary **Create ticket** (`⌘↵`) + ghost Cancel.
+
+The app's version is structurally right and arguably better — it pins the footer
+so `Create ticket` is reachable without scrolling a long draft
+(`styles.css:2001-2008`).
+
+| ID | Sev | Prototype | App | Plan |
+|---|---|---|---|---|
+| D-4A | P2 | `LC-137 · new` in a chip | `LC-1 · new` as plain text — **and the number was wrong** when the panel was opened while the project was in the unreachable state (see D-57); it read `LC-1` for a project whose keys run LC-101…LC-136 | Chip the provisional ID; and make sure key allocation is not reachable from a state where the index is empty (D-57 fixes the cause). |
+| D-4B | P2 | Description placeholder: "What should happen? Agents read this before they start." | No placeholder | Add it — it is the one line telling the user what this field is *for*. |
+| D-4C | P3 | Labels row shows `+ add` | Shows a `None` button | Same fix as D-3C. |
+| D-4D | P3 | No checklist counter in create mode | `0/0` | Hide the fraction until there is a first item. |
+
+---
+
+## 12 · Command palette
+
+**Spec:** `screen-specs.md:218-236`. 560px modal, 44px input row with an `esc`
+chip, 36px result rows with a **16px glyph slot**, 13px name, right-aligned kbd
+hint; footer mono legend. Sub-modes replace the list and show a crumb chip.
+
+Width, row height, active-row treatment, keyboard model, sub-modes, the crumb
+chip, and the disabled `New terminal · PHASE 2` row (`CommandPalette.tsx:207`,
+asserted in `CommandPalette.test.tsx:153`) all match. The root command set matches
+the spec's list.
+
+| ID | Sev | Prototype | App | Plan |
+|---|---|---|---|---|
+| D-4E | P2 | Every root row carries its own 16px glyph (`+`, `→`, status dot, priority chip, magnifier, star, moon, theme, folder, list, terminal) | Root rows have **no glyphs**; the `glyph` slot exists (`CommandPalette.tsx:41,483`) but is only populated for sub-mode options (`:237,251,267,314`) | Populate `glyph` on the root command list. The slot and its layout already exist — this is a data change, not a layout one. |
+| D-4F | P2 | Input row opens with a magnifier glyph | No leading glyph | Add it; it also anchors the crumb chip. |
+| D-4G | P3 | Crumb chip is lowercase mono on `accent-human-soft` (`theme`) | Uppercase grey chip (`THEME`) | Match the token. |
+| D-4H | P3 | Sub-mode footer reads `esc back`; root reads `esc close` | Both read `esc close/back` | Make it context-accurate — the palette's back-vs-close behaviour is one of its nicer details and the legend currently hides it. |
+
+**Better than the prototype:** the app marks the current theme with a trailing
+check in the theme sub-mode. Keep it.
+
+---
+
+## 13 · Menus (status · priority · labels · ordering)
+
+**Spec:** `screen-specs.md:238-246`. Anchored popover, min 220px, `raised`,
+hairline, radius 10, 5px padding, 30px rows with the option's glyph, trailing
+human-accent check on the current value. The ordering menu carries the mono
+footnote.
+
+The app matches this well: `S` on a focused card anchors the status menu to the
+card, rows carry status dots, the current value carries a check, arrow keys
+cycle, `Esc` returns focus. The ordering menu carries the footnote verbatim.
+
+| ID | Sev | Prototype | App | Plan |
+|---|---|---|---|---|
+| D-4I | P3 | Ordering menu is min 220px | It renders ~466px wide because the footnote sets the width | Cap the menu width and wrap the footnote. |
+
+---
+
+## 14 · Project settings
+
+**Spec:** `screen-specs.md:248-259`. A **centered modal dialog**: heading, a line
+explaining that everything here lives in `longclaw.yaml`, then Name + Key (key
+disabled once any ticket exists, with the mono note) · Folder (read-only mono
+path + **Locate…**) · Theme picker · **Appearance segment (System / Light /
+Dark)**, explicitly labelled an app preference · danger zone with the
+non-destructive copy. Remove confirms via a dialog naming the path.
+
+**App:** `src/App.tsx:1130-1170` — an inline `<section className="settings-panel">`
+that expands *between* the header and the board, pushing content down.
+
+| ID | Sev | Prototype | App | Plan |
+|---|---|---|---|---|
+| D-40 | P1 | Centered modal dialog with a scrim | Inline expanding section; the board shifts down by ~430px behind it | Convert to a modal. The app already has a modal scrim (`styles.css:2036`) and two dialogs using it. |
+| D-41 | P1 | Key field, disabled once a ticket exists, with `locked after first ticket` | **No Key field at all** | Add it, disabled with the note. It is the one setting a user cannot change later — hiding it is worse than showing it locked. |
+| D-42 | P1 | Appearance segment lives here, labelled "app preference, not stored in the project" | Appearance is a native `<select>` in the sidebar footer (D-0A) | Move it here as a 3-up segment with the label. |
+| D-43 | P1 | Folder shown as a read-only mono path row with `Locate…` beside it | Only a `Locate folder` button; the path is not shown | Add the path row. |
+| D-44 | P1 | Remove from app: danger button + confirm dialog naming the path and repeating "Removing only forgets the project in LongClaw. Files on disk are never touched." | A full-width red-text button; **no explanatory copy** and no confirm dialog observed | Add the copy and the confirm dialog. This is the app's single most destructive-looking action and its guarantee is currently unstated. |
+| D-4J | P2 | No label management in v0 | A `Labels` editor grid: slug · name input · **native `<select>` colour** · Save · Remove, plus an add row | This is real functionality the prototype never drew. It needs a design pass: the eight-hue ramp should be swatches (`labels.ts:21-30`), not an OS dropdown, and the per-row `Save label X` / `Remove label X` buttons should collapse into a single row affordance. |
+| D-4K | P3 | Heading + `longclaw.yaml` explanation | Neither | Add both — the sentence is the reason the modal is trustworthy. |
+| D-4L | P3 | `Done` button closes | No close affordance inside the panel; you re-click `Settings` | Comes free with D-40. |
+
+---
+
+## 15 · Unparseable ticket file
+
+**Spec:** `states.md:100-122`. Board: **degraded card** — danger border, warn
+glyph + `can't parse` in the ID slot, mono filename as title, single action
+**View raw file**. List: degraded row, same anatomy at row height, *in place*.
+Raw file view: 680px modal, warn glyph + full mono path, danger banner with the
+parser error including `file:line`, **line-numbered** raw content with the
+offending line highlighted, footer note + **Open in editor** + **Retry parse**.
+
+**Reproduced** by hand-breaking `LC-133/ticket.md` (bad `status:` value) with the
+app running.
+
+| ID | Sev | Prototype | App | Plan |
+|---|---|---|---|---|
+| **D-50** | **P0** | Degraded card renders in its last-known column | **The ticket vanishes from the board entirely.** Todo went 3 → 2, no card, no warning, no count change to explain it. It survives only in the list, hoisted to a synthetic `Unreadable` group at the very bottom (`grouping.ts:86-90`) — below the fold at the default window size | This violates the "never silent" invariant (`states.md:9-12`). The row exists all the way through (`core/storage.rs:220`, `types.ts:181`, `boardCard.ts:38`) — it is only the *grouping* that drops it. Give a degraded row a placement: keep its directory's last-known status if the index has one, else render an `Unreadable` column at the end of the board. Do not let a file the user can see on disk be invisible in the app. |
+| **D-51** | **P0** | Raw file view is a 680px centered modal | It opens as the 560px right panel, **and the surface behind paints through it** — several lines of the file are covered by opaque white bands from the list rows underneath, so the file is partly unreadable | Same root cause as D-01 (`z-index`). Also decide modal-vs-panel: the spec says modal, and a modal removes the layering problem entirely. |
+| D-52 | P2 | Danger banner shows the parser error in mono **with `file:line`** (`ticket.md:7 — mapping values are not allowed here…`) | Error shown as plain prose with no line reference: "status must be one of backlog, todo, …; found not_a_real_status" | Include the line number — it is the whole point of showing the raw file. |
+| D-53 | P2 | Content is line-numbered, offending line highlighted with `danger-surface` | No line numbers, no highlight | Add both. |
+| D-54 | P2 | Footer: note + **Open in editor** + **Retry parse** | Neither action | `Retry parse` matters most (`states.md:120-122`) — without it the only recovery is to wait for the watcher. |
+| D-58 | P3 | Heading is the file path | Heading is `Shown without repair` | Fine phrase, but the path should be the title and the reassurance the body. |
+
+**Also observed:** a ticket whose file has *no* frontmatter at all (not even a
+`---` fence) is dropped even from the `Unreadable` group — it never reaches the
+degraded path. Worth a Rust-side test in `core/storage.rs`.
+
+---
+
+## 16 · Folder missing / unreachable
+
+**Spec:** `states.md:80-98`. Trigger is "project path unreachable **at launch, on
+watcher signal, or on any failed read**". Sidebar row swaps its dot for a 12px
+warn triangle and dims. Main area: centered state panel — 30px warn triangle,
+**"Folder not found"**, the full path in mono, copy naming the likely causes *and
+the guarantee*, actions **Locate folder…** and **Remove from app** (ghost →
+confirm).
+
+**Reproduced** by renaming the project directory out from under the running app.
+
+| ID | Sev | Prototype | App | Plan |
+|---|---|---|---|---|
+| **D-55** | **P0** | The watcher signal alone raises the state | **Nothing happened.** The board kept showing cached tickets, the sidebar dot stayed normal, and the header still read `● watching`, for as long as nothing forced a re-read. The state only appeared after an explicit index rebuild | `states.md:96` forbids exactly this: "**Never:** … show cached tickets as if they were live." Treat a watcher error / failed read on the project root as the unreachable trigger. |
+| **D-57** | **P1** | The unreachable screen is the whole main area; the panel is closed and nothing is creatable | Quick create still opens over the unreachable screen and offers **`LC-1`** as the next key — a collision waiting to happen once the folder returns | Gate the create surfaces (and the palette's create command) on `project.reachable`. |
+| D-56 | P1 | Once the folder is back, the project recovers | The project stays flagged unreachable after the folder returns — even across an app relaunch, because `reachable: false` is persisted to the registry | Re-probe reachability on launch and on watcher activity; treat the persisted flag as a cache, not a fact. |
+| D-59 | P2 | One centered state panel | A **danger banner at the top** *plus* the state panel — the message is said twice | Keep the panel, drop the banner. |
+| D-5A | P2 | 30px warn triangle, title "Folder not found" | No triangle; an `UNREACHABLE` eyebrow with the project name as the title | Match the spec — the triangle and the plain-language title do the work. |
+| D-5B | P2 | `Locate folder…` secondary, `Remove from app` ghost → confirm | `Locate folder` is the **primary** indigo button; `Remove from app` is a danger-outline button with no confirm | Demote Locate to secondary and put Remove behind the confirm dialog from D-44. |
+| D-5C | P3 | Copy names the causes and the guarantee: "The project folder moved, or its disk isn't mounted. Your tickets are safe in their files — LongClaw never deletes or rewrites them, and this project stays listed until you decide." | "The registry entry was kept, but the folder cannot be opened from this path. Select its new location or remove only this app reference." — registry-speak, and **the banner copy is ungrammatical**: "The selected project folder is no longer available The file was left as it was." (missing sentence break) | Rewrite to the prototype's copy. Fix the run-on sentence regardless. |
+
+**Correct already:** the sidebar row does swap in a warn triangle and dim, and
+the project stays listed and selectable.
+
+---
+
+## 17 · External update / agent freshness
+
+**Spec:** `states.md:126-152`. Card: `accent-agent-fresh-border`, 3px ring, **8px
+pulse dot beside the ID**, footer line `❯ updated by agent · 12s` in
+`accent-agent-text` above a soft divider. Checklist fraction and progress fill
+switch to `accent-agent` while fresh. Decays on open, or 2 minutes after the last
+write.
+
+**Reproduced** by checking a checklist item in `LC-114/ticket.md` from outside the
+app.
+
+The core of this works: green border ring, green fraction, green progress fill, a
+footer attribution line, and it decays.
+
+| ID | Sev | Prototype | App | Plan |
+|---|---|---|---|---|
+| D-60 | P2 | Pulse dot sits **before** the ID | Renders **after** the ID | Move it. |
+| D-61 | P2 | Footer line carries the age: `❯ updated by agent · 12s` | `⚠ file changed on disk — actor unknown` with no age, truncated to `…actor unkn…` at 264px | Add the relative age; shorten the unknown-actor string so it fits the card (`file changed · 12s` + the warn glyph is enough — the panel timeline can carry the full sentence). |
+| D-62 | P3 | Agent green is for agent writes; an unknown actor gets the **warn** treatment (`states.md:150-152`) | An unknown-actor change gets the full agent-green treatment *and* a warn triangle — the two vocabularies are mixed on one line | Pick per attribution: agent → green + `❯`; unknown → warn + triangle. |
+
+---
+
+## 18 · Conflict banner
+
+`src/ConflictBanner.tsx` exists and is wired into the panel
+(`TicketPanel.tsx:21,614`). **It was not exercised in this pass** — reproducing it
+needs an external write to land inside an in-app edit window.
+
+Verify against `states.md:154-182`: pinned above the title, warn triangle + "Changed
+on disk while you were editing." + attribution and age, **Reload file**
+(`warn-border-strong`) and **Keep mine** (`warn-ink` ghost), no focus steal, and a
+save with an unresolved conflict re-raising the banner. File a follow-up ticket
+to walk it.
+
+---
+
+## 19 · Toasts and undo
+
+`states.md:66-72`: optimistic first, toast with **Undo ⌘Z**, 5s, bottom-centre,
+single stack.
+
+**Works.** Checking a checklist item raised
+`LC-128 checked · Suppress self-writes   Undo ⌘Z` bottom-centre, correctly styled.
+
+| ID | Sev | Prototype | App | Plan |
+|---|---|---|---|---|
+| D-65 | P2 | The content header is a fixed row and does not move | While a write was in flight the header control row **reflowed onto two lines** and the ordering control was clipped | The controls row has no minimum width protection; the transient write indicator pushes it over. Give the row `flex-wrap: nowrap` with `min-width: 0` on the filter field, or reserve the indicator's width. |
+
+---
+
+## 20 · Cross-cutting
+
+| ID | Sev | Finding | Plan |
+|---|---|---|---|
+| D-70 | P1 | **Appearance preference is not restored on relaunch.** Set to Light, quit, relaunch → the control reads `System` again. It is written to `localStorage` under `longclaw.appearance` (`App.tsx:79`, `:491`) | Verify on a packaged build before filing as a bug — but if it reproduces there, the webview's storage is not surviving the process, and the ordering preference (stored the same way, `App.tsx:222`) is lost with it. |
+| D-71 | P2 | **The open project is not restored on relaunch** — it always falls back to the first registry entry | Already recorded as a clean-machine finding (`8578f73`). Listed here only because it is visible on every screen. |
+| D-72 | P2 | Native `<select>` elements appear in two places (sidebar appearance, settings label colours) | Neither is in the design system, and both render OS chrome inside an otherwise fully-styled app. Replace with the segment (D-42) and swatches (D-4J). |
+| D-73 | P2 | Native textarea **resize grabbers** are visible on the panel title, the comment composer, and the create-mode title | `resize: none` + auto-grow; the only textarea the spec gives a resize handle to is the description editor. |
+| D-74 | P3 | No stacking-order scale exists | D-01 and D-51 are both the same missing concept. Add `--lc-z-*` tokens (workspace / sticky / panel / modal / toast) and use them everywhere `position` is set. |
+
+---
+
+## Backlog, in the order I would take it
+
+**Ship blockers — the app currently renders content the user cannot read**
+
+1. **D-01 / D-51 / D-74** — give `.ticket-panel` a `z-index` above the workspace
+   and add the stacking scale. One CSS change, fixes the panel *and* the raw-file
+   view. Cheapest, highest-value fix in this document.
+2. **D-02 / D-03** — inline and fenced code render as black blocks. Two
+   background declarations in `styles.css`. Every ticket description with a
+   backtick in it is currently damaged.
+3. **D-50** — a corrupted ticket disappears from the board with no explanation.
+   Contract violation (`states.md` "never silent").
+4. **D-55** — a missing project folder is not noticed; cached tickets keep
+   rendering as if live. Contract violation (`states.md` "Never: … show cached
+   tickets as if they were live").
+5. **D-30** — turn off native autofill on the filter field.
+
+**Structural — the screens that are a different screen, not a different detail**
+
+6. **D-05 / D-06 / D-07 / D-08 / D-09** — collapse the app shell header to one
+   row. This buys ~170px back for the board and list and is the change most
+   visible to a user comparing against the design.
+7. **D-40 → D-44** — project settings as a modal, with Key, Folder, Appearance,
+   and the remove-confirm.
+8. **D-10 / D-11 / D-12 / D-13** — welcome as a full-window centered column with
+   the two-step create flow.
+9. **D-20 / D-24 / D-25** — empty project keeps the board scaffold and puts the
+   guide card in Todo.
+10. **D-56 / D-57 / D-59 → D-5C** — the unreachable-project screen.
+
+**Component detail**
+
+11. **D-3A** (drop the raw `Updated` ISO row), **D-04** (Edit affordance
+    overlap), **D-3D**, **D-3E**, **D-3F**, **D-38**, **D-3B**, **D-3C**,
+    **D-3G** — ticket panel.
+12. **D-4E / D-4F** — palette glyphs (data change; the slot already exists).
+13. **D-45** — real toolbar icons.
+14. **D-21** — column-header `+`.
+15. **D-47 / D-48 / D-49 / D-4A / D-4B** — create surfaces.
+16. **D-60 / D-61 / D-62** — freshness attribution.
+17. **D-35 / D-37 / D-65 / D-72 / D-73** — layout and chrome polish.
+
+**Product decisions, not bugs**
+
+- **D-0C / D-0D** — is the terminal reservation and the waitlist in v0 or not? If
+  not, strike them from `screen-specs.md` so this comparison stops flagging them.
+- **D-4J** — label management shipped without a design. It needs one.
+- **D-14** — welcome subtitle: mechanism or value?
+- **D-3I** — struck-through checked items: keep or drop?
+
+**Follow-up needed**
+
+- **§18 conflict banner** — walk it against `states.md:154-182`; it is built but
+  unexercised here.
+- **D-70** — confirm the appearance/ordering preference loss on a packaged build
+  before treating it as real.
