@@ -89,29 +89,22 @@ textarea:focus-visible,
   gap: var(--lc-space-2);
 }
 
-/* At the foot of the list, not above the sections, and quiet enough that the
-   project rows stay the loudest thing in the sidebar (LC-73). The hairline is
-   on top for the same reason it used to be on the bottom: it separates the
-   actions from the rows, and the rows are now above it. */
+/* Above the sections now, so the hairline separates it from the rows below
+   (LC-73). Stacked rather than side by side: the sidebar is 240px, leaving
+   216px of content, which is not enough for two labelled controls on one line —
+   the old row needed `nowrap` and label-sized buttons to survive it. */
 .project-actions {
-  border-top: var(--lc-border-hairline) solid var(--lc-line);
-  padding-top: var(--lc-space-4);
+  border-bottom: var(--lc-border-hairline) solid var(--lc-line);
+  padding-bottom: var(--lc-space-4);
 }
 
-.project-actions-row {
-  display: flex;
-  gap: var(--lc-space-1);
-}
-
-/* Sized to their labels, never stretched: the sidebar is 240px, so splitting
-   216px of content between two buttons leaves 106px each and wraps
-   `Create project` onto a second line. The padding stays the documented small
-   `0 9px` (`components.md:44`) — `nowrap` and the default flex sizing are what
-   keep the row on one line, so there is nothing for an off-scale value to buy.
-   Colour is `.ghost`'s own `ink-2` (`components.md:49`): "quiet" in the ticket
-   names the variant, and dimming it further to `ink-3` was reading the word
-   rather than the table. */
-.project-actions-row .ghost {
+/* The create CTA fills the panel; `Open folder` is sized to its label and sits
+   left, so it reads as the quieter of the two rather than a second button of
+   equal weight. Both keep the documented full-size 30px control height —
+   `.small` is for banner and toolbar actions (`components.md:44`), which these
+   stopped being when they left the foot of the list. */
+.project-actions .ghost {
+  justify-self: start;
   white-space: nowrap;
 }
 

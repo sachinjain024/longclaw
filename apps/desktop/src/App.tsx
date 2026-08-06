@@ -1019,6 +1019,41 @@ export function App() {
           <strong>LongClaw</strong>
         </div>
 
+        {/* Above the sections, under the lockup: the sidebar is the surface
+            that lists projects, so "add one" belongs on it, and `.project-nav`
+            has no `overflow-y` — at the foot these scroll out of reach once the
+            list is long enough. Founder decision, 2026-08-06; the spec was
+            amended to match (`screen-specs.md` § App shell, LC-73).
+
+            The hierarchy is the point, and it is what makes this not the two
+            filled buttons D-0B flagged: `New ticket` is the app's primary and
+            keeps the only filled accent on screen, so create is `secondary` and
+            open is the quiet `ghost` beneath it (`components.md:49-53`). */}
+        <section className="project-actions">
+          <button
+            tabIndex={0}
+            className="secondary"
+            onClick={() => setQuickCreateOpen((open) => !open)}
+          >
+            Create project
+          </button>
+          <button
+            tabIndex={0}
+            className="ghost"
+            onClick={() => void chooseProject()}
+          >
+            Open folder
+          </button>
+          {quickCreateOpen && (
+            <CreateProjectForm
+              className="quick-create"
+              themes={THEMES}
+              submitLabel="Choose folder"
+              onSubmit={(draft) => void createProject(draft)}
+            />
+          )}
+        </section>
+
         <nav className="project-nav" aria-label="Projects">
           <ProjectSection
             title="Starred"
@@ -1036,39 +1071,6 @@ export function App() {
             onOpen={(id) => void loadProject(id)}
             onStar={(project) => void toggleStar(project)}
           />
-          {/* The spec draws only section headers and project rows here
-              (`screen-specs.md:30-36`), and both actions are reachable from the
-              welcome screen. They stay because the welcome screen is only the
-              no-project state — once a project is open this is the sole way to
-              add another, and the palette has no `open folder` command. So they
-              sit at the *foot* of the list as one quiet ghost row rather than
-              two filled buttons above the sections (LC-73). */}
-          <section className="project-actions">
-            <div className="project-actions-row">
-              <button
-                tabIndex={0}
-                className="ghost small"
-                onClick={() => void chooseProject()}
-              >
-                Open folder
-              </button>
-              <button
-                tabIndex={0}
-                className="ghost small"
-                onClick={() => setQuickCreateOpen((open) => !open)}
-              >
-                Create project
-              </button>
-            </div>
-            {quickCreateOpen && (
-              <CreateProjectForm
-                className="quick-create"
-                themes={THEMES}
-                submitLabel="Choose folder"
-                onSubmit={(draft) => void createProject(draft)}
-              />
-            )}
-          </section>
         </nav>
 
         <div className="side-panel-footer">
