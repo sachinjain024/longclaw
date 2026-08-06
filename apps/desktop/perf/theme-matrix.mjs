@@ -132,9 +132,12 @@ const STATES = [
       ".board-column h3",
       ".project-link strong",
       // Was `.eyebrow` — the `LOCAL PROJECT` one, which the one-row header
-      // dropped. The path is the header's quiet text now, and it is the same
-      // ink-3-on-bg pairing this probe existed to prove.
-      ".content-header .project-path",
+      // dropped — then `.project-path`, until LC-68 made the path a chip. The
+      // path is still the header's quiet text, which is the pairing this probe
+      // exists to prove; the chip carries `ink-2` where the bare `<code>` was
+      // `ink-3`, so the probe now measures a slightly easier pair, not a
+      // different one.
+      ".content-header .path-chip",
       ".content-header .primary",
     ],
     token: [
@@ -169,7 +172,7 @@ const STATES = [
       ".list-row strong",
       ".list-row-key",
       ".list-group-header",
-      ".content-header .project-path",
+      ".content-header .path-chip",
     ],
     token: [],
     distinct: [],
