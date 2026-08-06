@@ -124,6 +124,10 @@ export async function invoke<T>(
   command: string,
   args?: Record<string, unknown>,
 ): Promise<T> {
+  // The real command supplies the native user's home for display-only tilde
+  // abbreviation. This fixture project lives under /tmp, so the concrete stub
+  // value does not alter what the performance surfaces render.
+  if (command === "home_dir") return "/Users/longclaw" as T;
   if (command === "list_projects") return [PROJECT] as T;
   if (command === "open_project" || command === "rebuild_index") {
     return { ...board, tickets: [...rows.values()], generation } as T;

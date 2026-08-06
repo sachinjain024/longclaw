@@ -187,3 +187,8 @@ export async function runStreamProbe(
 export async function reportVisibleUi(probe: VisibleUiProbe): Promise<void> {
   await invoke("report_visible_ui", { probe });
 }
+
+/** The current user's home directory, for tilde-abbreviating paths in the UI. */
+export async function homeDir(): Promise<string | null> {
+  return invoke("home_dir");
+}

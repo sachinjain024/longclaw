@@ -587,26 +587,49 @@ button:disabled {
   margin-left: auto;
 }
 
+/* The project path as a chip (`screen-specs.md:44-47`, D-06): mono 12px, a
+   folder glyph, truncated to the header, and a click that copies. The bare
+   wrapping `<code>` it replaces consumed two lines for a long path; this one
+   never does. Modeled on the prototype's `.path-chip`
+   (`prototype.css:200-207`). It is the only item in the content header that
+   yields width — capped, because an uncapped path is what pushed the control
+   row onto a second line. */
+.path-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 180px;
+  padding: 2px 4px;
+  border: none;
+  border-radius: var(--lc-radius-kbd);
+  background: none;
+  color: var(--lc-ink-2);
+  font: var(--lc-type-code-weight) var(--lc-type-code-size) /
+    var(--lc-type-code-leading) var(--lc-type-code-font);
+  cursor: pointer;
+}
+
+.path-chip:hover {
+  background: var(--lc-wash);
+}
+
+.path-chip:focus-visible {
+  box-shadow: var(--lc-focus-ring);
+  outline: none;
+}
+
+.path-chip .txt {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .unreachable-panel code,
 .empty-board code {
   display: block;
   overflow-wrap: anywhere;
-  color: var(--lc-ink-3);
-  font-size: 11px;
-}
-
-/* The only item in the header that yields width. Capped, because an uncapped
-   path is what pushed the control row onto a second line: bounding it is what
-   the one-row header is bought with, and it is what `screen-specs.md:45-46`
-   asks of the chip anyway. Full path stays reachable as the `title`; the rest
-   of the chip — folder glyph, copy on click, hover wash — is LC-68. */
-.content-header .project-path {
-  flex: 0 1 auto;
-  min-width: 0;
-  max-width: 180px;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
   color: var(--lc-ink-3);
   font-size: 11px;
 }
@@ -1232,6 +1255,7 @@ button:disabled {
 }
 
 .folder-glyph {
+  flex: none;
   color: var(--lc-ink-3);
 }
 
