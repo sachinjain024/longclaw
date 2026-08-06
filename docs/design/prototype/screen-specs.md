@@ -29,11 +29,31 @@
 
 - **Side panel:** 240px fixed, `--lc-bg`, right hairline `--lc-line`.
   Padding 16px 12px. Logo row (22px owl + Familjen Grotesk 14.5/600),
-  section headers mono 10.5px uppercase `ink-3` (12px 8px 6px padding),
-  project rows 28px (spec in components.md § App shell). Footer pinned to
-  bottom: mono micro line `v0 · local · no account` (`ink-disabled`), then
-  the waitlist ghost button (30px) — NOT IN V0. In v0: **Starred**,
-  **Local** — nothing else, no Teams stubs.
+  **project actions** (below), section headers mono 10.5px uppercase `ink-3`
+  (12px 8px 6px padding), project rows 28px (spec in components.md § App
+  shell). Footer pinned to bottom: mono micro line `v0 · local · no account`
+  (`ink-disabled`), then the waitlist ghost button (30px) — NOT IN V0. In v0:
+  **Starred**, **Local** — nothing else, no Teams stubs.
+- **Project actions:** directly under the lockup and above the sections,
+  separated from them by a bottom hairline `--lc-line` (16px padding below).
+  Stacked, not side by side — 216px of panel content does not hold two
+  labelled controls on one line. A `secondary` **Create project** spanning
+  the panel, then a `ghost` **Open folder** beneath it, sized to its label;
+  both at the standard 30px control height. The CTA and the link are
+  **centred on one axis** and sit 4px apart — they are one pair, "add a
+  project" in two halves, and the space that matters is the 16px below them
+  holding the pair off the sections. The lockup above stays **left-aligned**
+  with the section headers and project rows: it is identity, not part of the
+  pair. **The hierarchy is load-bearing:** `Open folder` is quieter than
+  `Create project` on variant alone, not on position, and `New ticket` is the
+  app's primary and keeps the only filled accent on screen — so neither of
+  these is ever `primary`, and they are never two controls of equal weight.
+  *Founder decision, 2026-08-06 (LC-73).* The original prototype drew section
+  headers and project rows only, but `Welcome` is the no-project state alone,
+  so with a project open these are the only way to add a second; and
+  `.project-nav` has no `overflow-y`, so at the foot of the list they leave
+  the viewport once it is long enough. This position is the spec —
+  `cc_screens_diff.md` D-0B records the reversal.
 - **Project row anatomy:** 6px theme dot in the *project's own* human accent
   (rendered by scoping that project's `data-theme` on the dot), name 13px
   `ink-2`, star affordance revealed on hover (persistent when starred, in

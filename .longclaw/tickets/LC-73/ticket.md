@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: b6cce84d-157b-4180-9233-bd5d52e4137f
 key: LC-73
 title: App shell — sidebar has Open folder / Create project buttons pinned at the top
-status: todo
+status: done
 priority: p2
 labels:
   - frontend
   - prototype-diff
 created_at: 2026-08-05T15:16:00.701Z
-updated_at: 2026-08-06T07:23:17.096Z
+updated_at: 2026-08-06T14:19:16.641Z
 ---
 
 **Prototype.** Sidebar has **only** section headers and project rows
@@ -111,4 +111,36 @@ The blocking work is **LC-156**: a palette `Open folder` command, and a create-p
 Also from that review, fixed on this branch: the ghost row was overriding the variant's documented `ink-2` text with `ink-3` (`components.md:49`) — "quiet" in the checklist names the ghost variant, and dimming it further was reading the word rather than the table. The row now uses `.ghost`'s own colour.
 
 The App.test.tsx block covering this is renamed `sidebar project actions — the LC-73 fallback, pending LC-156`, so it reads as "while the actions exist, this is where and how" rather than as a claim that they belong there. LC-156 should delete that block along with the row.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_34703aae
+kind: update
+occurred_at: 2026-08-06T14:19:16.641Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: done
+-->
+### Claude Code updated this ticket
+
+Closing on a spec change, not on the fallback.
+
+Founder decision, 2026-08-06: the actions stay in the sidebar, and they move to the *top* — under the lockup, above the sections. `screen-specs.md` § App shell was amended to draw them, and `cc_screens_diff.md` D-0B is struck through as "not a diff" alongside D-0C/D-0D. The prototype no longer wins this one.
+
+Two things settled it. The sidebar is the surface that lists projects, so "add one" belongs on it — the alternative was inventing a create-project surface that no spec draws (the expensive half of LC-156). And the foot of the list was never a real fix: `.project-nav` has no `overflow-y`, so once the list is long enough the actions leave the viewport entirely. Position at the top is stable regardless of list length.
+
+What the original P2 actually caught was **weight**, not position: two filled buttons of equal weight above the rows. So the hierarchy is now load-bearing and tested — a `secondary` `Create project` spanning the panel, then a `ghost` `Open folder` beneath it, sized to its label and left-aligned. Neither is ever `primary`: `New ticket` keeps the only filled accent on screen (`components.md:51`).
+
+Both moved back to the standard 30px control height — `.small` is for banner and toolbar actions (`components.md:44`), which these stopped being when they left the foot of the list. Stacked rather than side by side, which also retires the wrapping trap recorded earlier on this ticket: 216px of panel content does not hold two labelled controls on one line, and now nothing has to.
+
+Verified in a WebKit render at both appearances: create 215×30 full-width, open 98×30 left-aligned, nothing wrapping. `a11y-audit.mjs` A5 passes with its selector moved to `.project-actions .ghost`. Full `npm run check` green.
+
+The `App.test.tsx` block is renamed off "the LC-73 fallback, pending LC-156" to plain `sidebar project actions`, and now asserts the panel order and the secondary-over-ghost hierarchy rather than the old foot position.
+
+Unrelated, found while verifying and left alone: `npm run matrix` fails on clean `main` at `theme-matrix.mjs:662`, clicking `button:has-text("Settings")` — that control is an icon button with `aria-label="Project settings"` and no text. It is not in the `check` gate, so it has been failing silently.
 <!-- /longclaw:event -->

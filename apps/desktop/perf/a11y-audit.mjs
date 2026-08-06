@@ -869,7 +869,7 @@ async function auditZoom(browser) {
       [".filter-field", "Filter field"],
       ['.view-segment button[aria-pressed="true"]', "View segment"],
       [".ordering-control .menu-trigger", "Ordering"],
-      [".project-actions-row .ghost", "Open folder"],
+      [".project-actions .ghost", "Open folder"],
     ];
     const measured = await page.evaluate((controls) => {
       return controls.map(([selector, name]) => {

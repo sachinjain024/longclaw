@@ -3122,55 +3122,59 @@ describe("the app shell against its spec (LC-71, LC-72, LC-73)", () => {
   });
 
   /**
-   * These pin the **fallback** LC-73 landed, not the state the spec wants.
-   * `screen-specs.md:30-36` and the ticket both say the sidebar carries only
-   * section headers and project rows; these two actions are still here because
-   * removing them today would strand a user — `Welcome` renders only with no
-   * project open (`App.tsx:1102`) and the palette has no `Open folder` command.
+   * These pin the sidebar the spec now draws, not a fallback: the actions live
+   * above the sections by founder decision of 2026-08-06, and `screen-specs.md`
+   * § App shell was amended to match rather than the other way round (LC-73).
    *
-   * So read them as "while the actions exist, this is where and how", not as
-   * "the actions belong here". **LC-156** is the ticket that deletes them, and
-   * it should delete this block with them rather than fight it.
+   * What they guard is the *hierarchy*, which is the whole reason this position
+   * is not the one D-0B flagged. Two controls of equal weight above the rows is
+   * the regression; a `secondary` CTA over a quiet `ghost` is not.
    */
-  describe("sidebar project actions — the LC-73 fallback, pending LC-156", () => {
-    it("puts them below the project sections, not above them", async () => {
+  describe("sidebar project actions", () => {
+    it("puts them above the project sections, under the lockup", async () => {
       await openBoard();
 
-      const nav = document.querySelector(".project-nav")!;
-      const kinds = [...nav.children].map((child) =>
+      const panel = document.querySelector(".side-panel")!;
+      const kinds = [...panel.children].map((child) =>
         child.classList.contains("project-actions")
           ? "actions"
-          : child.classList.contains("project-section")
-            ? "section"
-            : "other",
+          : child.classList.contains("brand-lockup")
+            ? "lockup"
+            : child.classList.contains("project-nav")
+              ? "nav"
+              : "other",
       );
-      // Both sections first, then the actions — the inversion this fixes had
-      // the actions at index 0.
-      expect(kinds).toEqual(["section", "section", "actions"]);
+      // Lockup, then the actions, then the list. `.project-nav` has no
+      // `overflow-y`, so at the foot these leave the viewport once the project
+      // list is long enough — that is what this ordering exists to prevent.
+      expect(kinds.slice(0, 3)).toEqual(["lockup", "actions", "nav"]);
     });
 
-    it("renders them as one quiet ghost row rather than two filled buttons", async () => {
+    it("leads with a secondary create CTA over a quieter ghost, never two of equal weight", async () => {
       await openBoard();
 
       const buttons = [
         ...document.querySelectorAll<HTMLButtonElement>(
-          ".project-actions-row button",
+          ".project-actions > button",
         ),
       ];
       expect(buttons.map((button) => button.textContent)).toEqual([
-        "Open folder",
         "Create project",
+        "Open folder",
       ]);
+      const [create, open] = buttons;
+      expect(create.className).toContain("secondary");
+      expect(open.className).toContain("ghost");
+      // The one filled accent on screen stays `New ticket` (`components.md:51`).
       for (const button of buttons) {
-        expect(button.className).toContain("ghost");
-        expect(button.className).not.toContain("secondary");
+        expect(button.className).not.toContain("primary");
       }
     });
 
     it("still opens a folder and still opens the create form", async () => {
-      // The spec draws neither button, but the welcome screen they duplicate is
-      // only the no-project state — demoting them must not disarm them, or an
-      // open project becomes a dead end for adding a second one.
+      // `Welcome` renders only with no project open (`App.tsx:1102`), so with
+      // one open these are the only way to add a second. Restyling them must
+      // not disarm them.
       vi.mocked(api.chooseAndRegisterProject).mockResolvedValue(null);
       await openBoard();
 
