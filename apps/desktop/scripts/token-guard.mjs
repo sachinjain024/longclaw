@@ -9,8 +9,8 @@
  * at all**. The design system had a control radius of 5px and the app had one
  * of 7px, and nothing said so.
  *
- * Two families are checked, and only two, because they are the two where token
- * coverage is complete and a literal is therefore always a defect:
+ * Three families are checked, and only three, because they are the ones where
+ * token coverage is complete and a literal is therefore always a defect:
  *
  *   radius  — the scale is 3·4·5·8·10·14·999 (`--lc-radius-*`). `50%` and `0`
  *             are geometry rather than scale values and are allowed: a circle
@@ -22,6 +22,16 @@
  *             a user's request for no motion. `0.01ms` in the reduced-motion
  *             block itself is the one exception, and it is what that block is
  *             for.
+ *   z-index — every layer (`--lc-z-*`). A stacking order is the one scale where
+ *             a value read alone says nothing: `1` is only meaningful against
+ *             what the other surfaces claim. LC-96 is what a private number
+ *             costs — the list's sticky header held `z-index: 1` while the
+ *             ticket panel, the topmost surface, held none, so the list painted
+ *             opaque bands across the open panel. What is checked here is a
+ *             layer that is off the scale; a surface that declares none is what
+ *             the workspace and every unpositioned box are, and holding the
+ *             surfaces that *do* need one to having it is `stacking-guard.mjs`,
+ *             which reads the relations between them rather than one value.
  *
  * Deliberately **not** checked: spacing, type sizes, and one-off widths and
  * heights. `components.md` specifies real component anatomy off the scales —
@@ -52,6 +62,14 @@ const MOTION = {
   label: "motion",
   pattern: /(?:transition|animation)(?:-duration|-delay)?:\s*([^;]+);/g,
   offending: (value) => value.match(/(?<![\w.])[\d.]+m?s(?![\w])/g) ?? [],
+};
+
+/** A layer that is not on the stacking scale. */
+const Z_INDEX = {
+  label: "z-index",
+  pattern: /z-index:\s*([^;]+);/g,
+  offending: (value) =>
+    /^var\(--lc-z-[a-z]+\)$/.test(value.trim()) ? [] : [value.trim()],
 };
 
 /**
@@ -85,7 +103,7 @@ const findings = [];
 for (const file of files) {
   const { path, text, lines } = readSource(file);
   const exemptRanges = reducedMotionRanges(text);
-  for (const rule of [RADIUS, MOTION]) {
+  for (const rule of [RADIUS, MOTION, Z_INDEX]) {
     for (const hit of text.matchAll(rule.pattern)) {
       if (
         exemptRanges.some(([from, to]) => hit.index >= from && hit.index < to)
@@ -106,6 +124,6 @@ report({
   findings,
   checked: files.length,
   remedy:
-    "literal value(s) outside src/tokens/ — use a --lc-radius-* or --lc-motion-* token:",
-  clean: "every radius and duration is a token",
+    "literal value(s) outside src/tokens/ — use a --lc-radius-*, --lc-motion-* or --lc-z-* token:",
+  clean: "every radius, duration and layer is a token",
 });

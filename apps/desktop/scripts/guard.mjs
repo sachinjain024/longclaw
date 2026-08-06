@@ -2,16 +2,22 @@
  * What the guards in this directory share: which files they read, and what a
  * finding looks like when they report one.
  *
- * `color-guard.mjs` owns hues; `token-guard.mjs` owns radii and motion. They
- * disagree about *what* is a defect and about nothing else — same tree, same
- * `src/tokens/` exemption, same exit contract — so the scan and the report live
- * here and each guard is only its rules.
+ * `color-guard.mjs` owns hues; `token-guard.mjs` owns radii, motion and layers.
+ * They disagree about *what* is a defect and about nothing else — same tree,
+ * same `src/tokens/` exemption, same exit contract — so the scan and the report
+ * live here and each guard is only its rules.
  *
  * `release-audit.mjs` reads a different tree — shipped `.ts`/`.tsx` *and* the
  * Rust source — with no exemption at all, because `src/tokens/` can call
  * `fetch` as easily as anything else can. So it takes `filesUnder` and
  * `report` and leaves `sourceFiles` alone. That is the seam: the walk and the
  * exit contract are shared, the tree each script cares about is not.
+ *
+ * `stacking-guard.mjs` (LC-96) is the far end of that seam: it reads two named
+ * files rather than a tree — `styles.css` and the token JSON — because its
+ * question is about the relation between a handful of selectors, not about
+ * every file. It takes `report` alone, and the pass line it prints counts
+ * surfaces rather than files.
  *
  * `src/tokens/` is the one place a literal is allowed anywhere: it is where the
  * scale is declared.

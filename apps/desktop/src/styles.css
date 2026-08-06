@@ -1244,7 +1244,7 @@ button:disabled {
    it is actually on. */
 .list-group-header {
   position: sticky;
-  z-index: 1;
+  z-index: var(--lc-z-sticky);
   top: 0;
   display: flex;
   width: 100%;
@@ -1399,8 +1399,12 @@ button:disabled {
 
 /* --------------------------------------------------------- the ticket panel */
 
+/* Over the workspace it is read on top of. Saying nothing was not enough: a
+   layer of `auto` loses to the list's sticky group headers, which carry one of
+   their own, and they painted opaque bands across the open panel (LC-96). */
 .ticket-panel {
   position: fixed;
+  z-index: var(--lc-z-panel);
   top: 0;
   right: 0;
   bottom: 0;
@@ -2183,8 +2187,11 @@ button:disabled {
 
 /* ----------------------------------------------------------- quick creation */
 
+/* Over the panel it was opened from — source order used to settle that, and
+   stopped settling it the moment the panel took a layer (LC-96). */
 .modal-scrim {
   position: fixed;
+  z-index: var(--lc-z-modal);
   inset: 0;
   display: grid;
   align-items: start;
@@ -2515,7 +2522,7 @@ html.theme-transition *::after {
   bottom: var(--lc-space-6);
   left: 50%;
   transform: translateX(-50%);
-  z-index: 2;
+  z-index: var(--lc-z-toast);
 }
 
 .toast {
@@ -2605,7 +2612,7 @@ html.theme-transition *::after {
    cannot carry it away from the card it is anchored to. */
 .menu-popover {
   position: fixed;
-  z-index: 3;
+  z-index: var(--lc-z-popover);
   display: flex;
   min-width: 220px;
   flex-direction: column;

@@ -3,7 +3,8 @@
  * Generates design-tokens.css from design-tokens.json.
  *
  * Output contract (see also $meta.contract in the JSON):
- *   - Static tokens (type, space, size, radius, border, motion) live on :root.
+ *   - Static tokens (type, space, size, radius, border, motion, z) live on
+ *     :root.
  *   - Appearance tokens live on [data-appearance="light|dark"].
  *   - Theme accents live on [data-appearance][data-theme] compound blocks.
  *   - Every soft/hover/ring/rail accent variant is DERIVED once via
@@ -93,6 +94,12 @@ for (const [k, v] of Object.entries(t.border))
 for (const [k, v] of Object.entries(t.motion)) {
   if (k === "note") continue;
   staticLines.push(line(`motion-${k}`, v));
+}
+/* Layers are ordinals, not lengths: `px()` would emit `z-index: 2px`, which is
+   invalid and drops the surface back to `auto` — the LC-96 bug again. */
+for (const [k, v] of Object.entries(t.z)) {
+  if (k === "note") continue;
+  staticLines.push(line(`z-${k}`, v));
 }
 
 /* ---------- appearance tokens ---------- */
