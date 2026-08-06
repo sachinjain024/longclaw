@@ -13,6 +13,7 @@ import {
   chooseAndRelocateProject,
   createTicket,
   editTicket,
+  homeDir,
   listProjects,
   listenForProjectEvents,
   openProject,
@@ -39,7 +40,7 @@ import { IssueList } from "./IssueList";
 import { isChord, singleKeyShortcutAllowed } from "./keyContext";
 import { LABEL_COLORS } from "./labels";
 import { MenuButton } from "./Menu";
-import { mutate, type Mutation } from "./mutations";
+import { mutate, type Mutation, useMutationStore } from "./mutations";
 import { ORDERINGS, type OrderingMode } from "./ordering";
 import { OwlMark } from "./OwlMark";
 import { QuickCreate } from "./QuickCreate";
@@ -227,6 +228,8 @@ export function App() {
   const [paletteTicketKey, setPaletteTicketKey] = useState<string>();
   const [paletteSearchResults, setPaletteSearchResults] =
     useState<TicketRow[]>();
+  /** The current user's home directory, for tilde-abbreviating paths. */
+  const [homePath, setHomePath] = useState<string | null>(null);
   const paletteReturnFocus = useRef<HTMLElement | undefined>(undefined);
   const filterField = useRef<HTMLInputElement>(null);
 
@@ -567,9 +570,10 @@ export function App() {
         stopListening = await listenForProjectEvents((event) => {
           if (active) applyEvent(event);
         });
-        const projects = await listProjects();
+        const [projects, home] = await Promise.all([listProjects(), homeDir()]);
         if (!active) return;
         setProjects(projects);
+        if (home) setHomePath(home);
         const reachable = projects.find((project) => project.reachable);
         if (reachable) await loadProject(reachable.id);
         else if (projects[0]) setActiveProjectId(projects[0].id);
@@ -1128,16 +1132,10 @@ export function App() {
               >
                 Settings
               </button>
-              {/* Truncated, never wrapped: the path is the one thing in this row
-                  with no width of its own to defend, and a long one used to take
-                  the header onto a second line. The chip treatment it is owed —
-                  folder glyph, click-to-copy, hover wash — is LC-68. */}
-              <code className="project-path" title={project.rootPath}>
-                {project.rootPath}
-              </code>
+              <PathChip path={project.rootPath} homePath={homePath} />
               {/* The controls belong to the board, so they appear only when
-                  there is one: an unreachable project keeps its identity row and
-                  gets `UnreachableProject` below it instead. */}
+                   there is one: an unreachable project keeps its identity row and
+                   gets `UnreachableProject` below it instead. */}
               {project.reachable && (
                 <div className="toolbar-actions">
                   {/* `screen-specs.md:47-48` orders the content header:
@@ -1469,6 +1467,63 @@ function ViewSegment(props: {
         </button>
       ))}
     </div>
+  );
+}
+
+/**
+ * Abbreviate a home-relative path to `~/…` for display (`cc_ui_diffs.md:133`).
+ * Only the actual home directory — supplied by the native layer — is
+ * abbreviated. The clipboard and tooltip keep the full absolute path.
+ */
+function tildeAbbreviate(path: string, home: string | null): string {
+  if (!home) return path;
+  if (path === home) return "~";
+  if (path.startsWith(home + "/")) return "~" + path.slice(home.length);
+  return path;
+}
+
+/**
+ * The project path as a chip (`screen-specs.md:44-47`, D-06): mono 12px, a
+ * folder glyph, truncated to the header with `text-overflow: ellipsis`, and a
+ * click that copies the full path and says so with a toast. The bare wrapping
+ * `<code>` it replaces consumed two lines for a long path; this one never does.
+ * The display text is tilde-abbreviated; the clipboard and `title` keep the
+ * full path.
+ */
+function PathChip(props: { path: string; homePath: string | null }) {
+  const raise = useMutationStore((state) => state.raise);
+  const copy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(props.path);
+      raise({ message: "Path copied", tone: "default" });
+    } catch {
+      raise({ message: "Could not copy path", tone: "danger" });
+    }
+  }, [props.path, raise]);
+  return (
+    <button
+      tabIndex={0}
+      className="path-chip"
+      aria-label={`Copy path — ${props.path}`}
+      title={props.path}
+      onClick={() => void copy()}
+    >
+      <svg
+        className="folder-glyph"
+        width="13"
+        height="13"
+        viewBox="0 0 14 14"
+        aria-hidden="true"
+      >
+        <path
+          d="M1.5 3.5 Q1.5 2.5 2.5 2.5 L5 2.5 L6.2 4 L11.5 4 Q12.5 4 12.5 5 L12.5 10.5 Q12.5 11.5 11.5 11.5 L2.5 11.5 Q1.5 11.5 1.5 10.5 Z"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.3"
+        />
+      </svg>
+      <span className="txt">{tildeAbbreviate(props.path, props.homePath)}</span>
+    </button>
   );
 }
 

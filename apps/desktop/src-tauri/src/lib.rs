@@ -253,6 +253,16 @@ fn stream_probe(on_event: Channel<StreamFrame>) -> AppResult<()> {
     )
 }
 
+/// The current user's home directory, for tilde-abbreviating paths in the UI.
+/// Only the actual home prefix is abbreviated — `/Users/other/...` stays as-is.
+#[tauri::command]
+fn home_dir(app: AppHandle) -> Option<String> {
+    app.path()
+        .home_dir()
+        .ok()
+        .map(|path| path.to_string_lossy().into_owned())
+}
+
 #[tauri::command]
 fn report_visible_ui(probe: VisibleUiProbe, app: AppHandle) -> AppResult<()> {
     let json = serde_json::to_string(&probe).map_err(|error| {
@@ -309,7 +319,8 @@ pub fn run() {
             edit_ticket,
             create_ticket,
             stream_probe,
-            report_visible_ui
+            report_visible_ui,
+            home_dir
         ])
         .run(tauri::generate_context!())
         .expect("LongClaw desktop should run");

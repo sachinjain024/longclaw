@@ -29,6 +29,7 @@ vi.mock("./api", () => ({
   chooseAndRelocateProject: vi.fn(),
   createTicket: vi.fn(),
   editTicket: vi.fn(),
+  homeDir: vi.fn(),
   listProjects: vi.fn(),
   listenForProjectEvents: vi.fn(),
   openProject: vi.fn(),
@@ -62,6 +63,7 @@ beforeEach(() => {
   });
   vi.mocked(api.listProjects).mockResolvedValue([]);
   vi.mocked(api.listenForProjectEvents).mockResolvedValue(() => {});
+  vi.mocked(api.homeDir).mockResolvedValue("/home/user");
   useLongClawStore.setState({
     projects: [],
     activeProjectId: undefined,
@@ -686,6 +688,105 @@ describe("priority from the board (V0-08)", () => {
       ).toBeTruthy(),
     );
     expect(screen.getByText(/No space left on device/)).toBeTruthy();
+  });
+});
+
+describe("the project path chip (LC-68)", () => {
+  const project = {
+    id: "project-fixture",
+    name: "Fixture Project",
+    rootPath: "/tmp/LongClaw Fixture",
+    key: "LC",
+    theme: "indigo",
+    starred: false,
+    reachable: true,
+    labels: {},
+  };
+
+  const ticket = {
+    state: "indexed" as const,
+    key: "LC-1",
+    id: "019c8c7e",
+    title: "Prove the round trip",
+    status: "todo" as const,
+    priority: "p3" as const,
+    labels: [],
+    createdAt: "2026-07-31T09:00:00Z",
+    updatedAt: "2026-07-31T09:00:00Z",
+    checkedCount: 0,
+    checklistCount: 0,
+    commentCount: 0,
+    attachmentCount: 0,
+    contentHash: "hash-1",
+    relativePath: ".longclaw/tickets/LC-1/ticket.md",
+  };
+
+  async function openBoard(override?: Partial<typeof project>) {
+    const p = { ...project, ...override };
+    vi.mocked(api.listProjects).mockResolvedValue([p]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project: p,
+      tickets: [ticket],
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    render(<App />);
+    await screen.findByRole("button", { name: "Board", pressed: true });
+    return p;
+  }
+
+  beforeEach(() => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+  });
+
+  it("renders the path as a chip with the full path as the title", async () => {
+    await openBoard();
+
+    const chip = screen.getByRole("button", { name: /Copy path/ });
+    expect(chip).toBeTruthy();
+    expect(chip.getAttribute("title")).toBe(project.rootPath);
+  });
+
+  it("abbreviates only the actual home directory and keeps the full path for copy", async () => {
+    const home = "/Users/sachin";
+    vi.mocked(api.homeDir).mockResolvedValue(home);
+    const p = await openBoard({ rootPath: `${home}/dev/longclaw` });
+
+    const chip = screen.getByRole("button", {
+      name: `Copy path — ${p.rootPath}`,
+    });
+    // Display text is tilde-abbreviated; title and clipboard keep the full path.
+    expect(chip.textContent).toContain("~/dev/longclaw");
+    expect(chip.textContent).not.toContain(home);
+    expect(chip.getAttribute("title")).toBe(p.rootPath);
+
+    fireEvent.click(chip);
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(p.rootPath);
+    await screen.findByText("Path copied");
+  });
+
+  it("does not abbreviate a path outside the actual home directory", async () => {
+    vi.mocked(api.homeDir).mockResolvedValue("/Users/sachin");
+    const p = await openBoard({ rootPath: "/Users/other/shared" });
+
+    const chip = screen.getByRole("button", {
+      name: `Copy path — ${p.rootPath}`,
+    });
+    expect(chip.textContent).toContain("/Users/other/shared");
+    expect(chip.textContent).not.toContain("~");
+  });
+
+  it("copies the path to the clipboard and raises a toast on click", async () => {
+    await openBoard();
+
+    fireEvent.click(screen.getByRole("button", { name: /Copy path/ }));
+
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+      project.rootPath,
+    );
+    await screen.findByText("Path copied");
   });
 });
 
