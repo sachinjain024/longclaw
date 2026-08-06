@@ -125,7 +125,7 @@ function focusSurface() {
   requestAnimationFrame(() => {
     const row = document.querySelector<HTMLElement>(`${ROW}[tabindex="0"]`);
     const fallback = document.querySelector<HTMLElement>(
-      ".board-heading .primary",
+      ".content-header .primary",
     );
     (row ?? fallback)?.focus();
   });
@@ -1105,28 +1105,98 @@ export function App() {
           />
         ) : (
           <>
-            <header className="project-toolbar">
-              <div>
-                <p className="eyebrow">LOCAL PROJECT</p>
-                <h1>{project.name}</h1>
-                <code>{project.rootPath}</code>
-              </div>
-              <div className="toolbar-actions">
-                <button
-                  tabIndex={0}
-                  className="secondary"
-                  onClick={() => void toggleStar(project)}
-                >
-                  {project.starred ? "Starred" : "Star"}
-                </button>
-                <button
-                  tabIndex={0}
-                  className="secondary"
-                  onClick={() => setSettingsOpen((open) => !open)}
-                >
-                  Settings
-                </button>
-              </div>
+            {/* One row, not three (`screen-specs.md:44-49`): the project's
+                identity on the left, every board control on the right. The
+                `LOCAL PROJECT` eyebrow and the `Board`/`List` heading that used
+                to stand above this are gone — the sidebar already says which
+                project you are in, and the view segment's pressed state already
+                says which surface you are standing on. Between them they cost
+                ~230px of chrome before the first card. */}
+            <header className="content-header">
+              <h1>{project.name}</h1>
+              <button
+                tabIndex={0}
+                className="secondary"
+                onClick={() => void toggleStar(project)}
+              >
+                {project.starred ? "Starred" : "Star"}
+              </button>
+              <button
+                tabIndex={0}
+                className="secondary"
+                onClick={() => setSettingsOpen((open) => !open)}
+              >
+                Settings
+              </button>
+              {/* Truncated, never wrapped: the path is the one thing in this row
+                  with no width of its own to defend, and a long one used to take
+                  the header onto a second line. The chip treatment it is owed —
+                  folder glyph, click-to-copy, hover wash — is LC-68. */}
+              <code className="project-path" title={project.rootPath}>
+                {project.rootPath}
+              </code>
+              {/* The controls belong to the board, so they appear only when
+                  there is one: an unreachable project keeps its identity row and
+                  gets `UnreachableProject` below it instead. */}
+              {project.reachable && (
+                <div className="toolbar-actions">
+                  {/* `screen-specs.md:47-48` orders the content header:
+                      filter field, then ordering control, then view segment. */}
+                  <input
+                    ref={filterField}
+                    className="filter-field"
+                    type="text"
+                    value={filterQuery}
+                    aria-label="Filter tickets"
+                    placeholder="Filter tickets"
+                    onChange={(event) => setFilterQuery(event.target.value)}
+                  />
+                  <div className="ordering-control">
+                    <span>Order</span>
+                    <MenuButton
+                      label="Order"
+                      options={ORDERINGS}
+                      value={ordering}
+                      footnote={ORDERING_FOOTNOTE}
+                      onPick={(next) => setBoardOrdering(project.id, next)}
+                    />
+                  </div>
+                  <ViewSegment view={view} onChange={setView} />
+                  <WriteIndicator />
+                  <span
+                    className={
+                      loading || reconciling ? "disk-state busy" : "disk-state"
+                    }
+                  >
+                    {reconciling
+                      ? "reconciling"
+                      : loading
+                        ? "reading"
+                        : "watching"}
+                  </span>
+                  {DEV_CHROME && (
+                    <button
+                      tabIndex={0}
+                      className="secondary"
+                      onClick={() => {
+                        if (!activeProjectId) return;
+                        void rebuildIndex(activeProjectId)
+                          .then(applySnapshot)
+                          .catch((error) => setError(normalizeError(error)));
+                      }}
+                    >
+                      Rebuild index
+                    </button>
+                  )}
+                  <button
+                    tabIndex={0}
+                    className="primary"
+                    onClick={() => setCreateSurface("quick")}
+                  >
+                    New ticket
+                  </button>
+                </div>
+              )}
             </header>
 
             {settingsOpen && (
@@ -1185,6 +1255,10 @@ export function App() {
                     className="trace-strip"
                     aria-label="Project source of truth"
                   >
+                    {/* The generation stamp lost its eyebrow when the header
+                        collapsed to one row; it belongs with the rest of the
+                        storage telemetry rather than above the board. */}
+                    <p className="eyebrow">GENERATION {generation}</p>
                     <span className="trace-node">FOLDER</span>
                     <span className="trace-arrow">/</span>
                     <span className="trace-node">.longclaw</span>
@@ -1197,74 +1271,6 @@ export function App() {
                     </span>
                   </div>
                 )}
-
-                <div className="board-heading">
-                  <div>
-                    {DEV_CHROME && (
-                      <p className="eyebrow">GENERATION {generation}</p>
-                    )}
-                    <h2>{view === "board" ? "Board" : "List"}</h2>
-                  </div>
-                  <div className="toolbar-actions">
-                    {/* `screen-specs.md:47-48` orders the content header:
-                        filter field, then ordering control, then view segment. */}
-                    <input
-                      ref={filterField}
-                      className="filter-field"
-                      type="text"
-                      value={filterQuery}
-                      aria-label="Filter tickets"
-                      placeholder="Filter tickets"
-                      onChange={(event) => setFilterQuery(event.target.value)}
-                    />
-                    <div className="ordering-control">
-                      <span>Order</span>
-                      <MenuButton
-                        label="Order"
-                        options={ORDERINGS}
-                        value={ordering}
-                        footnote={ORDERING_FOOTNOTE}
-                        onPick={(next) => setBoardOrdering(project.id, next)}
-                      />
-                    </div>
-                    <ViewSegment view={view} onChange={setView} />
-                    <WriteIndicator />
-                    <span
-                      className={
-                        loading || reconciling
-                          ? "disk-state busy"
-                          : "disk-state"
-                      }
-                    >
-                      {reconciling
-                        ? "reconciling"
-                        : loading
-                          ? "reading"
-                          : "watching"}
-                    </span>
-                    {DEV_CHROME && (
-                      <button
-                        tabIndex={0}
-                        className="secondary"
-                        onClick={() => {
-                          if (!activeProjectId) return;
-                          void rebuildIndex(activeProjectId)
-                            .then(applySnapshot)
-                            .catch((error) => setError(normalizeError(error)));
-                        }}
-                      >
-                        Rebuild index
-                      </button>
-                    )}
-                    <button
-                      tabIndex={0}
-                      className="primary"
-                      onClick={() => setCreateSurface("quick")}
-                    >
-                      New ticket
-                    </button>
-                  </div>
-                </div>
 
                 {tickets.length === 0 ? (
                   // A project with no tickets is the empty-project state, not a

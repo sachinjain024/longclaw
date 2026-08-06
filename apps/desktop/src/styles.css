@@ -270,9 +270,12 @@ textarea::placeholder {
   color: var(--lc-ink-3);
 }
 
+/* 24px of side inset, because that is what the content header and the board are
+   both specified against (`screen-specs.md:44`, `:96`) and every region in this
+   column shares it. */
 .main-panel {
   min-width: 0;
-  padding: 28px;
+  padding: 28px 24px;
 }
 
 .eyebrow {
@@ -520,28 +523,63 @@ button:disabled {
   cursor: default;
 }
 
-.project-toolbar,
-.board-heading,
+/* The content header is one row (`screen-specs.md:44-49`): project name,
+   settings, path, then a spacer, then every board control. It replaced a
+   `project-toolbar` stacked above a `board-heading`, which between them put
+   ~230px of chrome above the first card. */
+.content-header,
 .toolbar-actions {
   display: flex;
   align-items: center;
 }
 
-.project-toolbar,
-.board-heading {
-  justify-content: space-between;
-  gap: 18px;
+/* 56px, which is the spec's number and not a coincidence: 16px above a 30px
+   control row and 12px below (`screen-specs.md:44`). The 24px side inset the
+   same line asks for comes from `.main-panel`, which insets every region in
+   this column at once rather than each one repeating it.
+
+   Wrapping is the last resort, not the layout: at any width that fits, this is
+   one line. When it genuinely cannot be, the control row moves down whole —
+   which is the failure this wants, because a row that breaks *inside* the
+   cluster strands a control (LC-149). */
+.content-header {
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 0 12px;
 }
 
-.project-toolbar {
-  margin-bottom: 14px;
+/* The row's own height comes from the 30px controls in it, so the name gives up
+   the block margin it carries everywhere else. */
+.content-header h1 {
+  margin-bottom: 0;
+  white-space: nowrap;
 }
 
-.project-toolbar code,
+/* The spec's spacer: identity left, controls right. */
+.content-header .toolbar-actions {
+  margin-left: auto;
+}
+
 .unreachable-panel code,
 .empty-board code {
   display: block;
   overflow-wrap: anywhere;
+  color: var(--lc-ink-3);
+  font-size: 11px;
+}
+
+/* The only item in the header that yields width. Capped, because an uncapped
+   path is what pushed the control row onto a second line: bounding it is what
+   the one-row header is bought with, and it is what `screen-specs.md:45-46`
+   asks of the chip anyway. Full path stays reachable as the `title`; the rest
+   of the chip — folder glyph, copy on click, hover wash — is LC-68. */
+.content-header .project-path {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 180px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   color: var(--lc-ink-3);
   font-size: 11px;
 }
@@ -590,6 +628,12 @@ button:disabled {
   background: var(--lc-surface);
 }
 
+/* The generation stamp moved in here when the header collapsed to one row, and
+   an eyebrow's block margin would sit it off the strip's centre line. */
+.trace-strip .eyebrow {
+  margin: 0;
+}
+
 .trace-node,
 .trace-status {
   font: var(--lc-type-kbd-weight) var(--lc-type-kbd-size) /
@@ -615,17 +659,6 @@ button:disabled {
 
 .trace-status {
   margin-left: auto;
-}
-
-.board-heading {
-  padding: 10px 0 8px;
-}
-
-.board-heading h2 {
-  margin-bottom: 0;
-  font: var(--lc-type-title-weight) var(--lc-type-title-size) /
-    var(--lc-type-title-leading) var(--lc-type-title-font);
-  letter-spacing: var(--lc-type-title-tracking);
 }
 
 .disk-state {

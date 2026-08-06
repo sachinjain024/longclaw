@@ -87,19 +87,19 @@ const deltaE = (a, b) => {
  */
 const BOARD_FEEDBACK = [
   {
-    selector: ".board-heading .primary",
+    selector: ".content-header .primary",
     property: "background-color",
     action: "hover",
   },
   {
-    selector: ".board-heading .primary",
+    selector: ".content-header .primary",
     property: "background-color",
     action: "press",
   },
   {
     // Resting on `surface` in light and `raised` in dark — the appearance where
     // hovering to `wash` was a move to its own colour.
-    selector: ".project-toolbar .secondary",
+    selector: ".content-header .secondary",
     property: "background-color",
     action: "hover",
   },
@@ -131,12 +131,15 @@ const STATES = [
       ".ticket-row.fresh .actor",
       ".board-column h3",
       ".project-link strong",
-      ".eyebrow",
-      ".board-heading .primary",
+      // Was `.eyebrow` — the `LOCAL PROJECT` one, which the one-row header
+      // dropped. The path is the header's quiet text now, and it is the same
+      // ink-3-on-bg pairing this probe existed to prove.
+      ".content-header .project-path",
+      ".content-header .primary",
     ],
     token: [
       {
-        selector: ".board-heading .primary",
+        selector: ".content-header .primary",
         property: "background-color",
         token: "--lc-accent-human",
       },
@@ -153,7 +156,7 @@ const STATES = [
       {
         label: "human accent vs agent accent",
         a: {
-          selector: ".board-heading .primary",
+          selector: ".content-header .primary",
           property: "background-color",
         },
         b: { selector: ".ticket-row.fresh .actor", property: "color" },
@@ -166,7 +169,7 @@ const STATES = [
       ".list-row strong",
       ".list-row-key",
       ".list-group-header",
-      ".eyebrow",
+      ".content-header .project-path",
     ],
     token: [],
     distinct: [],

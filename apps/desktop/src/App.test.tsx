@@ -230,7 +230,7 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
       sequence: 1,
     });
     render(<App />);
-    await screen.findByRole("heading", { name: "Board" });
+    await screen.findByRole("button", { name: "Board", pressed: true });
   }
 
   /** Quick create: title, Enter, done (`screen-specs.md:198-207`). */
@@ -368,7 +368,7 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
       },
     });
     render(<App />);
-    await screen.findByRole("heading", { name: "Board" });
+    await screen.findByRole("button", { name: "Board", pressed: true });
     expect(document.querySelector('[data-ticket-key="LC-30"]')).toBeNull();
 
     submitNewTicket("The thirty-first");
@@ -464,7 +464,7 @@ describe("the full create surface (V0-16)", () => {
       sequence: 1,
     });
     render(<App />);
-    await screen.findByRole("heading", { name: "Board" });
+    await screen.findByRole("button", { name: "Board", pressed: true });
   }
 
   /** The ticket panel, which is the only `aside` that names a ticket. */
@@ -627,7 +627,7 @@ describe("priority from the board (V0-08)", () => {
       sequence: 1,
     });
     render(<App />);
-    await screen.findByRole("heading", { name: "Board" });
+    await screen.findByRole("button", { name: "Board", pressed: true });
   }
 
   function pressPAndPick(option: RegExp) {
@@ -935,7 +935,7 @@ describe("instant per-project theme selection (V0-36)", () => {
       sequence: 1,
     });
     render(<App />);
-    await screen.findByRole("heading", { name: "Board" });
+    await screen.findByRole("button", { name: "Board", pressed: true });
     fireEvent.click(screen.getByRole("button", { name: "Settings" }));
   }
 
@@ -1087,7 +1087,7 @@ describe("label definitions in project settings (V0-10)", () => {
       sequence: 1,
     });
     render(<App />);
-    await screen.findByRole("heading", { name: "Board" });
+    await screen.findByRole("button", { name: "Board", pressed: true });
     fireEvent.click(screen.getByRole("button", { name: "Settings" }));
   }
 
@@ -1303,7 +1303,7 @@ describe("the list and the board agree (V0-14)", () => {
       snapshot(tickets, 1, generation),
     );
     render(<App />);
-    await screen.findByRole("heading", { name: "Board" });
+    await screen.findByRole("button", { name: "Board", pressed: true });
     // The board draws the live tickets: an archived one is the list's (ADR 0004).
     const live = tickets.filter((ticket) => !isArchived(ticket)).length;
     await waitFor(() => expect(shownKeys().length).toBe(live));
@@ -1609,7 +1609,7 @@ describe("archive and unarchive (V0-11)", () => {
       sequence: 1,
     });
     render(<App />);
-    await screen.findByRole("heading", { name: "Board" });
+    await screen.findByRole("button", { name: "Board", pressed: true });
     if (from !== "board") {
       fireEvent.click(screen.getByRole("button", { name: "List" }));
       fireEvent.click(screen.getByRole("button", { name: /Archived/ }));
@@ -1968,7 +1968,7 @@ describe("board ordering and manual reordering (V0-09)", () => {
       sequence: 1,
     });
     render(<App />);
-    await screen.findByRole("heading", { name: "Board" });
+    await screen.findByRole("button", { name: "Board", pressed: true });
   }
 
   /** Switches the header control, which is a real menu with a real footnote. */
@@ -2239,7 +2239,7 @@ describe("the header filter (V0-15)", () => {
       sequence: 1,
     });
     render(<App />);
-    await screen.findByRole("heading", { name: "Board" });
+    await screen.findByRole("button", { name: "Board", pressed: true });
   }
 
   const field = () =>
