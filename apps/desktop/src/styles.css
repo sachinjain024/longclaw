@@ -1856,11 +1856,27 @@ button:disabled {
   font-weight: 620;
 }
 
+/* Code takes the code-surface pair, not the agent's tile (LC-97, LC-98).
+   `--lc-tile` is the agent's terminal window and is near-black in *both*
+   appearances, so the inherited ink painted itself: every backtick in a
+   description was a black rectangle. Which surface code belongs on is decided
+   in `design-tokens.json` under `alias`, not here — both rules below name the
+   role, so the two surfaces cannot drift apart again. Radius 4 per
+   `components.md:207`; `--lc-radius-tile` is the radius scale's name for it
+   and has nothing to do with the tile color. */
 .markdown code {
   border-radius: var(--lc-radius-tile);
   padding: 1px 4px;
-  background: var(--lc-tile);
+  color: var(--lc-code-ink);
+  background: var(--lc-code-surface);
   font: var(--lc-type-code-weight) 12px var(--lc-type-code-font);
+}
+
+/* A link is an affordance before it is a surface: code inside one keeps the
+   link's accent, which naming the ink above would otherwise have taken from
+   it. `accent-human-text` on `code-surface` clears AA in all four presets. */
+.markdown a code {
+  color: inherit;
 }
 
 .markdown-code {
@@ -1868,9 +1884,12 @@ button:disabled {
   border: 1px solid var(--lc-line);
   border-radius: var(--lc-radius-control);
   padding: var(--lc-space-2);
-  background: var(--lc-tile);
+  color: var(--lc-code-ink);
+  background: var(--lc-code-surface);
 }
 
+/* The block already carries the chip's fill and ink; the code inside it must
+   not paint a second chip on top of the first. */
 .markdown-code code {
   padding: 0;
   background: transparent;

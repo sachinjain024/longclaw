@@ -47,7 +47,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { report } from "./guard.mjs";
+import { cssRules, report } from "./guard.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const src = resolve(here, "../src");
@@ -79,14 +79,12 @@ const ORDER = [
  *
  * A rule body here is flat — this stylesheet nests nothing but at-rules — so
  * the block a declaration belongs to is the text between the braces around it,
- * and its selector list is the text since the previous brace. Comments go first
- * because this file explains itself at length, and prose sits between rules
- * where a selector would otherwise be read.
+ * and its selector list is the text since the previous brace. `cssRules` in
+ * `guard.mjs` does that scan, and handles the comments this file is full of.
  */
 function declaredLayers() {
   const found = new Map();
-  const rules = styles.replace(/\/\*[\s\S]*?\*\//g, "");
-  for (const [, selector, body] of rules.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+  for (const [selector, body] of cssRules(styles)) {
     const declared = body.match(/z-index:\s*([^;]+);/);
     if (!declared) continue;
     const token = declared[1].trim().match(/^var\(--lc-z-([a-z]+)\)$/)?.[1];

@@ -7,6 +7,9 @@
  *     :root.
  *   - Appearance tokens live on [data-appearance="light|dark"].
  *   - Theme accents live on [data-appearance][data-theme] compound blocks.
+ *   - Role aliases (`alias` in the JSON) emit `--lc-<name>: var(--lc-<of>)`
+ *     alongside the derived variants, so a decision like "code sits on wash"
+ *     is made once in the token file rather than repeated at each call site.
  *   - Every soft/hover/ring/rail accent variant is DERIVED once via
  *     color-mix(in oklab, …), so a theme preset supplies only its accent
  *     values — switching theme or appearance swaps tokens and nothing else.
@@ -59,6 +62,16 @@ for (const [theme, preset] of Object.entries(t.themes)) {
 for (const app of ["light", "dark"]) {
   for (const group of ["elevation", "mix"]) {
     if (!t[group]?.[app]) missing.push(`${group}.${app}`);
+  }
+}
+/* An alias points at a neutral by name. A typo would emit a `var()` that
+   resolves to nothing, which is how a component silently loses its color. */
+for (const [name, alias] of Object.entries(t.alias)) {
+  if (name === "note") continue;
+  if (!t.color.neutral[alias.of]) {
+    missing.push(
+      `alias.${name}.of → color.neutral.${alias.of} (no such token)`,
+    );
   }
 }
 if (missing.length > 0) {
@@ -222,6 +235,13 @@ derived.push(
   ),
 );
 derived.push(line("status-done", `var(${P}accent-human)`));
+/* Aliases ride here rather than in the appearance blocks: they are one `var()`
+   apiece, so they resolve against whichever appearance is active without being
+   restated per appearance — which is the whole point of naming the role once. */
+for (const [name, alias] of Object.entries(t.alias)) {
+  if (name === "note") continue;
+  derived.push(line(name, `var(${P}${alias.of})`));
+}
 derived.push(
   line("focus-ring", `0 0 0 var(${P}border-focus) var(${P}accent-human-ring)`),
 );

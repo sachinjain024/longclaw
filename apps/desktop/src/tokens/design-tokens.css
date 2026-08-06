@@ -471,6 +471,8 @@
     transparent
   );
   --lc-status-done: var(--lc-accent-human);
+  --lc-code-surface: var(--lc-wash);
+  --lc-code-ink: var(--lc-ink);
   --lc-focus-ring: 0 0 0 var(--lc-border-focus) var(--lc-accent-human-ring);
 }
 

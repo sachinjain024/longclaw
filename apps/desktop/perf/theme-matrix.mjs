@@ -198,6 +198,16 @@ const STATES = [
       ".entry-meta",
       ".change-actor",
       ".checklist label",
+      // LC-97 and LC-98: both took `--lc-tile`, the one background token that
+      // is near-black in *both* appearances, and left their ink to
+      // inheritance — so every backtick in a description painted itself. The
+      // matrix was green throughout, because no probe read a code surface.
+      // These do, in every preset and both appearances — including code inside
+      // a link, which keeps the link's accent rather than the code ink and so
+      // is the one pairing naming that ink could have broken.
+      ".markdown code",
+      ".markdown-code",
+      ".markdown a code",
       // The prompt glyph is the agent accent's only appearance on the tile now
       // that the tile is `--lc-tile` rather than a fill (components.md:152), so
       // it has to clear AA against that near-black in every preset.
@@ -216,6 +226,14 @@ const STATES = [
         selector: ".agent-badge",
         property: "color",
         token: "--lc-accent-agent-text",
+      },
+      {
+        // Contrast alone would pass a link that had quietly become body ink:
+        // `code-ink` on `code-surface` is a fine ratio and the wrong colour.
+        // This pins the affordance rather than the legibility.
+        selector: ".markdown a code",
+        property: "color",
+        token: "--lc-accent-human-text",
       },
     ],
     distinct: [
