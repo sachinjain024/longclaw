@@ -84,6 +84,10 @@ const deltaE = (a, b) => {
  * The interaction probes run on the board, where every control the design
  * system gives a hover or a press is on screen at once: the primary action, a
  * secondary, a card, and the one text field in the header.
+ *
+ * They name *variants*, not the screens the variants happen to sit on, so a
+ * probe should be repointed rather than dropped when a control moves. The
+ * secondary below has moved once already (LC-163).
  */
 const BOARD_FEEDBACK = [
   {
@@ -99,7 +103,14 @@ const BOARD_FEEDBACK = [
   {
     // Resting on `surface` in light and `raised` in dark — the appearance where
     // hovering to `wash` was a move to its own colour.
-    selector: ".content-header .secondary",
+    //
+    // The sidebar's `Create project`, not the header: LC-70 turned the header's
+    // `Star` / `Settings` text buttons into one gear icon button, and the only
+    // `.secondary` left there is the `DEV_CHROME`-gated Rebuild index button
+    // (`App.tsx:1212`, `devChrome.ts:8`), which a production harness build
+    // never renders. The probe matched nothing for two weeks and said so only
+    // after the `:has-text("Settings")` abort below stopped hiding it (LC-163).
+    selector: ".project-actions .secondary",
     property: "background-color",
     action: "hover",
   },
@@ -677,7 +688,10 @@ try {
       await check(state("quick-create"));
       await page.keyboard.press("Escape");
 
-      await page.click('button:has-text("Settings")');
+      // By class, not by text: the control is a gear icon button whose label is
+      // an `aria-label`, so `:has-text()` cannot see it and the run died here
+      // for two weeks (LC-70 → LC-163).
+      await page.click(".settings-button");
       await page.waitForSelector(".theme-picker");
       await check(state("settings"));
 
