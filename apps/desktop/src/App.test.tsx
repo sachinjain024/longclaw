@@ -689,6 +689,107 @@ describe("priority from the board (V0-08)", () => {
   });
 });
 
+describe("the project path chip (LC-68)", () => {
+  const project = {
+    id: "project-fixture",
+    name: "Fixture Project",
+    rootPath: "/tmp/LongClaw Fixture",
+    key: "LC",
+    theme: "indigo",
+    starred: false,
+    reachable: true,
+    labels: {},
+  };
+
+  const ticket = {
+    state: "indexed" as const,
+    key: "LC-1",
+    id: "019c8c7e",
+    title: "Prove the round trip",
+    status: "todo" as const,
+    priority: "p3" as const,
+    labels: [],
+    createdAt: "2026-07-31T09:00:00Z",
+    updatedAt: "2026-07-31T09:00:00Z",
+    checkedCount: 0,
+    checklistCount: 0,
+    commentCount: 0,
+    attachmentCount: 0,
+    contentHash: "hash-1",
+    relativePath: ".longclaw/tickets/LC-1/ticket.md",
+  };
+
+  async function openBoard() {
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project,
+      tickets: [ticket],
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    render(<App />);
+    await screen.findByRole("button", { name: "Board", pressed: true });
+  }
+
+  beforeEach(() => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+  });
+
+  it("renders the path as a chip with the full path in title and tooltip", async () => {
+    await openBoard();
+
+    const chip = screen.getByRole("button", { name: /Copy path/ });
+    expect(chip).toBeTruthy();
+    expect(chip.getAttribute("title")).toBe(`Copy path — ${project.rootPath}`);
+  });
+
+  it("abbreviates a home-relative path for display but keeps the full path for copy", async () => {
+    const homeProject = {
+      ...project,
+      rootPath: "/Users/sachin/dev/longclaw",
+    };
+    vi.mocked(api.listProjects).mockResolvedValue([homeProject]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project: homeProject,
+      tickets: [ticket],
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    render(<App />);
+    await screen.findByRole("button", { name: "Board", pressed: true });
+
+    const chip = screen.getByRole("button", {
+      name: /Copy path — \/Users\/sachin\/dev\/longclaw/,
+    });
+    // Display text is tilde-abbreviated; clipboard and title keep the full path.
+    expect(chip.textContent).toContain("~/dev/longclaw");
+    expect(chip.textContent).not.toContain("/Users/sachin");
+    expect(chip.getAttribute("title")).toBe(
+      "Copy path — /Users/sachin/dev/longclaw",
+    );
+
+    fireEvent.click(chip);
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+      "/Users/sachin/dev/longclaw",
+    );
+    await screen.findByText("Path copied");
+  });
+
+  it("copies the path to the clipboard and raises a toast on click", async () => {
+    await openBoard();
+
+    fireEvent.click(screen.getByRole("button", { name: /Copy path/ }));
+
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+      project.rootPath,
+    );
+    await screen.findByText("Path copied");
+  });
+});
+
 describe("project creation", () => {
   it("derives a backend-valid key for digit-leading project names", async () => {
     render(<App />);
