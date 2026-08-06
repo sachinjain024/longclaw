@@ -781,6 +781,18 @@ function mockSystem(initialDark: boolean) {
   };
 }
 
+/**
+ * The sidebar `<select>` these tests used to drive is gone (LC-72) — appearance
+ * is an app preference and belongs in project settings as a 3-up segment
+ * (LC-127), with the palette's `Toggle appearance` command reaching it until
+ * that lands. Both surfaces call exactly this, so the store is the honest seam
+ * for "an explicit override": what is under test is the override, not the
+ * control that sets it.
+ */
+function override(next: "light" | "dark" | "system") {
+  act(() => useLongClawStore.getState().setAppearance(next));
+}
+
 describe("system-matched appearance (V0-35)", () => {
   // Vitest's jsdom leaves `window.localStorage` as `undefined` (Node's
   // experimental storage without `--localstorage-file`), which the app's
@@ -832,10 +844,11 @@ describe("system-matched appearance (V0-35)", () => {
   it("an explicit override wins over the system and ignores its changes", async () => {
     const system = mockSystem(true);
     render(<App />);
-    const control =
-      await screen.findByLabelText<HTMLSelectElement>("Appearance");
+    await waitFor(() =>
+      expect(document.documentElement.dataset.appearance).toBe("dark"),
+    );
 
-    fireEvent.change(control, { target: { value: "light" } });
+    override("light");
     await waitFor(() =>
       expect(document.documentElement.dataset.appearance).toBe("light"),
     );
@@ -850,10 +863,7 @@ describe("system-matched appearance (V0-35)", () => {
   it("persists the preference and rehydrates it on the next launch", async () => {
     mockSystem(true);
     const first = render(<App />);
-    fireEvent.change(
-      await screen.findByLabelText<HTMLSelectElement>("Appearance"),
-      { target: { value: "light" } },
-    );
+    override("light");
     await waitFor(() =>
       expect(window.localStorage.getItem("longclaw.appearance")).toBe("light"),
     );
@@ -866,19 +876,16 @@ describe("system-matched appearance (V0-35)", () => {
     await waitFor(() =>
       expect(document.documentElement.dataset.appearance).toBe("light"),
     );
-    expect(
-      (await screen.findByLabelText<HTMLSelectElement>("Appearance")).value,
-    ).toBe("light");
+    // Rehydration has to reach the preference itself, not just the stamp: the
+    // palette row reads it back as `Toggle appearance (light)`.
+    expect(useLongClawStore.getState().appearance).toBe("light");
   });
 
   it("changing appearance touches no project data", async () => {
     mockSystem(false);
     render(<App />);
 
-    fireEvent.change(
-      await screen.findByLabelText<HTMLSelectElement>("Appearance"),
-      { target: { value: "dark" } },
-    );
+    override("dark");
     await waitFor(() =>
       expect(document.documentElement.dataset.appearance).toBe("dark"),
     );
@@ -2570,5 +2577,162 @@ describe("the side panel against its spec (Step 16a)", () => {
     // that opts out of the reveal has to be on the row that is starred.
     expect(star("Reachable Project").className).toContain("starred");
     expect(star("Moved Project").className).not.toContain("starred");
+  });
+});
+
+describe("the app shell against its spec (LC-71, LC-72, LC-73)", () => {
+  const project = {
+    id: "project-a",
+    name: "Shell Project",
+    rootPath: "/tmp/LongClaw A",
+    key: "LA",
+    theme: "plum",
+    starred: false,
+    reachable: true,
+    labels: {},
+  };
+
+  // One ticket, because `EmptyBoard` carries a `New ticket` button of its own
+  // and an empty board would make every header assertion below ambiguous.
+  const SEED: TicketRow[] = [
+    {
+      state: "indexed",
+      key: "LA-1",
+      id: "id-LA-1",
+      title: "Atomic replace race",
+      status: "todo",
+      priority: "none",
+      labels: [],
+      createdAt: "2026-08-01T09:00:00Z",
+      updatedAt: "2026-08-01T09:00:00Z",
+      checkedCount: 0,
+      checklistCount: 0,
+      commentCount: 0,
+      attachmentCount: 0,
+      contentHash: "hash-LA-1",
+      relativePath: ".longclaw/tickets/LA-1/ticket.md",
+    },
+  ];
+
+  async function openBoard() {
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project,
+      tickets: SEED,
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    render(<App />);
+    await screen.findByRole("button", { name: "Board", pressed: true });
+  }
+
+  describe("keyboard chips (LC-71)", () => {
+    it("puts a C chip on New ticket and a ⌘F chip on the filter field", async () => {
+      await openBoard();
+
+      const newTicket = screen.getByRole("button", { name: "New ticket" });
+      expect(newTicket.querySelector("kbd")?.textContent).toBe("C");
+      expect(
+        document.querySelector(".filter-wrap .filter-kbd")?.textContent,
+      ).toBe("⌘F");
+    });
+
+    it("keeps both accessible names free of the shortcut text", async () => {
+      await openBoard();
+
+      // `getByRole` matches on the accessible name, so an unhidden chip would
+      // make these "New ticket C" and "Filter tickets ⌘F" — the shortcut read
+      // aloud as part of the label. The chip is decorative; `aria-keyshortcuts`
+      // is where the shortcut is announced.
+      const newTicket = screen.getByRole("button", { name: "New ticket" });
+      const filter = screen.getByRole("textbox", { name: "Filter tickets" });
+      expect(newTicket.getAttribute("aria-keyshortcuts")).toBe("C");
+      expect(filter.getAttribute("aria-keyshortcuts")).toBe("Meta+F");
+    });
+
+    it("still filters after the chip is overlaid on the field", async () => {
+      // The chip is positioned over the field's right edge. If it ever stops
+      // being `pointer-events: none` the field keeps working here but dies
+      // under a real click, so this asserts the wrapper did not come between
+      // the ref and the input: `⌘F` focuses through it.
+      await openBoard();
+      const filter = screen.getByRole("textbox", {
+        name: "Filter tickets",
+      }) as HTMLInputElement;
+
+      fireEvent.keyDown(document, { key: "f", metaKey: true });
+
+      expect(document.activeElement).toBe(filter);
+    });
+  });
+
+  describe("sidebar footer (LC-72)", () => {
+    it("has no appearance select — appearance is not project chrome", async () => {
+      await openBoard();
+
+      // The one piece of OS chrome left in the sidebar. It moves to project
+      // settings as a 3-up segment (LC-127); the palette command reaches the
+      // preference until then.
+      expect(screen.queryByLabelText("Appearance")).toBeNull();
+      expect(document.querySelector(".side-panel-footer select")).toBeNull();
+    });
+
+    it("keeps the trust line, which is what the footer is for", async () => {
+      await openBoard();
+
+      const footer = document.querySelector(".side-panel-footer")!;
+      expect(footer.textContent).toBe("v0 · local · no account");
+    });
+  });
+
+  describe("sidebar project actions (LC-73)", () => {
+    it("puts them below the project sections, not above them", async () => {
+      await openBoard();
+
+      const nav = document.querySelector(".project-nav")!;
+      const kinds = [...nav.children].map((child) =>
+        child.classList.contains("project-actions")
+          ? "actions"
+          : child.classList.contains("project-section")
+            ? "section"
+            : "other",
+      );
+      // Both sections first, then the actions — the inversion this fixes had
+      // the actions at index 0.
+      expect(kinds).toEqual(["section", "section", "actions"]);
+    });
+
+    it("renders them as one quiet ghost row rather than two filled buttons", async () => {
+      await openBoard();
+
+      const buttons = [
+        ...document.querySelectorAll<HTMLButtonElement>(
+          ".project-actions-row button",
+        ),
+      ];
+      expect(buttons.map((button) => button.textContent)).toEqual([
+        "Open folder",
+        "Create project",
+      ]);
+      for (const button of buttons) {
+        expect(button.className).toContain("ghost");
+        expect(button.className).not.toContain("secondary");
+      }
+    });
+
+    it("still opens a folder and still opens the create form", async () => {
+      // The spec draws neither button, but the welcome screen they duplicate is
+      // only the no-project state — demoting them must not disarm them, or an
+      // open project becomes a dead end for adding a second one.
+      vi.mocked(api.chooseAndRegisterProject).mockResolvedValue(null);
+      await openBoard();
+
+      fireEvent.click(screen.getByText("Open folder"));
+      expect(api.chooseAndRegisterProject).toHaveBeenCalled();
+
+      fireEvent.click(screen.getByText("Create project"));
+      expect(await screen.findByText("Choose folder")).toBeTruthy();
+    });
   });
 });

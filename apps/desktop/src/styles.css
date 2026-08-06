@@ -89,9 +89,27 @@ textarea:focus-visible,
   gap: var(--lc-space-2);
 }
 
+/* At the foot of the list, not above the sections, and quiet enough that the
+   project rows stay the loudest thing in the sidebar (LC-73). The hairline is
+   on top for the same reason it used to be on the bottom: it separates the
+   actions from the rows, and the rows are now above it. */
 .project-actions {
-  border-bottom: var(--lc-border-hairline) solid var(--lc-line);
-  padding-bottom: var(--lc-space-4);
+  border-top: var(--lc-border-hairline) solid var(--lc-line);
+  padding-top: var(--lc-space-4);
+}
+
+.project-actions-row {
+  display: flex;
+  gap: var(--lc-space-1);
+}
+
+/* Sized to their labels, never stretched: the sidebar is 240px, so splitting
+   216px of content between two buttons leaves 106px each and wraps
+   `Create project` onto a second line. */
+.project-actions-row .ghost {
+  padding: 0 7px;
+  color: var(--lc-ink-3);
+  white-space: nowrap;
 }
 
 .quick-create {
@@ -226,17 +244,8 @@ textarea:focus-visible,
   letter-spacing: var(--lc-type-kbd-tracking);
 }
 
-.appearance-control {
-  display: grid;
-  gap: 6px;
-  color: var(--lc-ink-3);
-  font-size: 11px;
-  font-weight: 700;
-}
-
 /* Field foundations — components.md:59-72. One box for every text control in
    the app: 30px, 5px radius, 10px of padding, UI type, hairline `line-strong`. */
-.appearance-control select,
 label input,
 label select,
 label textarea {
@@ -249,7 +258,6 @@ label textarea {
     var(--lc-type-ui-leading) var(--lc-type-ui-font);
 }
 
-.appearance-control select,
 label input,
 label select {
   height: var(--lc-size-control);
@@ -1056,7 +1064,9 @@ button:disabled {
   height: 28px;
   border: 1px solid var(--lc-line);
   border-radius: var(--lc-radius-control);
-  padding: 0 9px;
+  /* Right padding clears the ⌘F chip, so a long query runs under the chip
+     instead of colliding with it. */
+  padding: 0 34px 0 9px;
   color: var(--lc-ink);
   background: var(--lc-surface);
   font-size: 12px;
@@ -1064,6 +1074,43 @@ button:disabled {
 
 .filter-field::placeholder {
   color: var(--lc-ink-3);
+}
+
+/* The chip sits inside the field's right edge (`prototype.css:328`). It is
+   `pointer-events: none` so the whole box still focuses the input — a chip that
+   swallowed the click would make the last 34px of the field dead (LC-71). */
+.filter-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.filter-kbd {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  border: var(--lc-border-hairline) solid var(--lc-line);
+  border-radius: var(--lc-radius-kbd);
+  padding: 1.5px 5px;
+  color: var(--lc-ink-3);
+  background: var(--lc-wash);
+  font: 500 var(--lc-type-kbd-size) var(--lc-type-code-font);
+  letter-spacing: var(--lc-type-kbd-tracking);
+  pointer-events: none;
+}
+
+/* On a filled button the chip is a wash of the label colour, not a bordered
+   box — a hairline in `line` would read as a seam in the accent fill
+   (`prototype.css:121`). Scoped to the header: `.editor-footer` already owns a
+   quieter chip treatment for the create and description footers, and this is
+   not that. */
+.toolbar-actions .primary kbd {
+  margin-left: 6px;
+  border-radius: var(--lc-radius-kbd);
+  padding: 1.5px 5px;
+  background: color-mix(in oklab, var(--lc-on-accent-human) 20%, transparent);
+  font: 500 var(--lc-type-kbd-size) var(--lc-type-code-font);
+  letter-spacing: var(--lc-type-kbd-tracking);
 }
 
 .ordering-control {
