@@ -13,6 +13,7 @@ import {
   chooseAndRelocateProject,
   createTicket,
   editTicket,
+  homeDir,
   listProjects,
   listenForProjectEvents,
   openProject,
@@ -227,6 +228,8 @@ export function App() {
   const [paletteTicketKey, setPaletteTicketKey] = useState<string>();
   const [paletteSearchResults, setPaletteSearchResults] =
     useState<TicketRow[]>();
+  /** The current user's home directory, for tilde-abbreviating paths. */
+  const [homePath, setHomePath] = useState<string | null>(null);
   const paletteReturnFocus = useRef<HTMLElement | undefined>(undefined);
   const filterField = useRef<HTMLInputElement>(null);
 
@@ -567,9 +570,10 @@ export function App() {
         stopListening = await listenForProjectEvents((event) => {
           if (active) applyEvent(event);
         });
-        const projects = await listProjects();
+        const [projects, home] = await Promise.all([listProjects(), homeDir()]);
         if (!active) return;
         setProjects(projects);
+        if (home) setHomePath(home);
         const reachable = projects.find((project) => project.reachable);
         if (reachable) await loadProject(reachable.id);
         else if (projects[0]) setActiveProjectId(projects[0].id);
@@ -1128,7 +1132,7 @@ export function App() {
               >
                 Settings
               </button>
-              <PathChip path={project.rootPath} />
+              <PathChip path={project.rootPath} homePath={homePath} />
               {/* The controls belong to the board, so they appear only when
                    there is one: an unreachable project keeps its identity row and
                    gets `UnreachableProject` below it instead. */}
@@ -1468,13 +1472,14 @@ function ViewSegment(props: {
 
 /**
  * Abbreviate a home-relative path to `~/…` for display (`cc_ui_diffs.md:133`).
- * The clipboard and tooltip keep the full absolute path; only the visible
- * text is abbreviated. On macOS home is `/Users/<name>`, on Linux `/home/<name>`.
+ * Only the actual home directory — supplied by the native layer — is
+ * abbreviated. The clipboard and tooltip keep the full absolute path.
  */
-function tildeAbbreviate(path: string): string {
-  const match = path.match(/^(\/(?:Users|home)\/[^/]+)(\/.*)?$/);
-  if (!match) return path;
-  return match[2] ? `~${match[2]}` : "~";
+function tildeAbbreviate(path: string, home: string | null): string {
+  if (!home) return path;
+  if (path === home) return "~";
+  if (path.startsWith(home + "/")) return "~" + path.slice(home.length);
+  return path;
 }
 
 /**
@@ -1482,10 +1487,10 @@ function tildeAbbreviate(path: string): string {
  * folder glyph, truncated to the header with `text-overflow: ellipsis`, and a
  * click that copies the full path and says so with a toast. The bare wrapping
  * `<code>` it replaces consumed two lines for a long path; this one never does.
- * The display text is tilde-abbreviated; the clipboard and tooltip keep the
+ * The display text is tilde-abbreviated; the clipboard and `title` keep the
  * full path.
  */
-function PathChip(props: { path: string }) {
+function PathChip(props: { path: string; homePath: string | null }) {
   const raise = useMutationStore((state) => state.raise);
   const copy = useCallback(async () => {
     try {
@@ -1500,7 +1505,7 @@ function PathChip(props: { path: string }) {
       tabIndex={0}
       className="path-chip"
       aria-label={`Copy path — ${props.path}`}
-      title={`Copy path — ${props.path}`}
+      title={props.path}
       onClick={() => void copy()}
     >
       <svg
@@ -1517,7 +1522,7 @@ function PathChip(props: { path: string }) {
           strokeWidth="1.3"
         />
       </svg>
-      <span className="txt">{tildeAbbreviate(props.path)}</span>
+      <span className="txt">{tildeAbbreviate(props.path, props.homePath)}</span>
     </button>
   );
 }

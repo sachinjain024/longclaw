@@ -29,6 +29,7 @@ vi.mock("./api", () => ({
   chooseAndRelocateProject: vi.fn(),
   createTicket: vi.fn(),
   editTicket: vi.fn(),
+  homeDir: vi.fn(),
   listProjects: vi.fn(),
   listenForProjectEvents: vi.fn(),
   openProject: vi.fn(),
@@ -62,6 +63,7 @@ beforeEach(() => {
   });
   vi.mocked(api.listProjects).mockResolvedValue([]);
   vi.mocked(api.listenForProjectEvents).mockResolvedValue(() => {});
+  vi.mocked(api.homeDir).mockResolvedValue("/home/user");
   useLongClawStore.setState({
     projects: [],
     activeProjectId: undefined,
@@ -719,10 +721,11 @@ describe("the project path chip (LC-68)", () => {
     relativePath: ".longclaw/tickets/LC-1/ticket.md",
   };
 
-  async function openBoard() {
-    vi.mocked(api.listProjects).mockResolvedValue([project]);
+  async function openBoard(override?: Partial<typeof project>) {
+    const p = { ...project, ...override };
+    vi.mocked(api.listProjects).mockResolvedValue([p]);
     vi.mocked(api.openProject).mockResolvedValue({
-      project,
+      project: p,
       tickets: [ticket],
       generation: 1,
       rebuiltInMs: 1,
@@ -730,6 +733,7 @@ describe("the project path chip (LC-68)", () => {
     });
     render(<App />);
     await screen.findByRole("button", { name: "Board", pressed: true });
+    return p;
   }
 
   beforeEach(() => {
@@ -737,45 +741,41 @@ describe("the project path chip (LC-68)", () => {
     Object.assign(navigator, { clipboard: { writeText } });
   });
 
-  it("renders the path as a chip with the full path in title and tooltip", async () => {
+  it("renders the path as a chip with the full path as the title", async () => {
     await openBoard();
 
     const chip = screen.getByRole("button", { name: /Copy path/ });
     expect(chip).toBeTruthy();
-    expect(chip.getAttribute("title")).toBe(`Copy path — ${project.rootPath}`);
+    expect(chip.getAttribute("title")).toBe(project.rootPath);
   });
 
-  it("abbreviates a home-relative path for display but keeps the full path for copy", async () => {
-    const homeProject = {
-      ...project,
-      rootPath: "/Users/sachin/dev/longclaw",
-    };
-    vi.mocked(api.listProjects).mockResolvedValue([homeProject]);
-    vi.mocked(api.openProject).mockResolvedValue({
-      project: homeProject,
-      tickets: [ticket],
-      generation: 1,
-      rebuiltInMs: 1,
-      sequence: 1,
-    });
-    render(<App />);
-    await screen.findByRole("button", { name: "Board", pressed: true });
+  it("abbreviates only the actual home directory and keeps the full path for copy", async () => {
+    const home = "/Users/sachin";
+    vi.mocked(api.homeDir).mockResolvedValue(home);
+    const p = await openBoard({ rootPath: `${home}/dev/longclaw` });
 
     const chip = screen.getByRole("button", {
-      name: /Copy path — \/Users\/sachin\/dev\/longclaw/,
+      name: `Copy path — ${p.rootPath}`,
     });
-    // Display text is tilde-abbreviated; clipboard and title keep the full path.
+    // Display text is tilde-abbreviated; title and clipboard keep the full path.
     expect(chip.textContent).toContain("~/dev/longclaw");
-    expect(chip.textContent).not.toContain("/Users/sachin");
-    expect(chip.getAttribute("title")).toBe(
-      "Copy path — /Users/sachin/dev/longclaw",
-    );
+    expect(chip.textContent).not.toContain(home);
+    expect(chip.getAttribute("title")).toBe(p.rootPath);
 
     fireEvent.click(chip);
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
-      "/Users/sachin/dev/longclaw",
-    );
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(p.rootPath);
     await screen.findByText("Path copied");
+  });
+
+  it("does not abbreviate a path outside the actual home directory", async () => {
+    vi.mocked(api.homeDir).mockResolvedValue("/Users/sachin");
+    const p = await openBoard({ rootPath: "/Users/other/shared" });
+
+    const chip = screen.getByRole("button", {
+      name: `Copy path — ${p.rootPath}`,
+    });
+    expect(chip.textContent).toContain("/Users/other/shared");
+    expect(chip.textContent).not.toContain("~");
   });
 
   it("copies the path to the clipboard and raises a toast on click", async () => {
