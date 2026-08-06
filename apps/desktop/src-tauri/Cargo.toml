@@ -5,6 +5,11 @@ description = "LongClaw local-first desktop application"
 authors = ["LongClaw"]
 edition = "2021"
 license = "MPL-2.0"
+# `tauri dev` runs a bare `cargo run`, and this crate has carried two binaries
+# since the `longclaw` CLI landed — which left `cargo run` unable to choose and
+# `npm run dev` dead on arrival. The window is the one you get by default; the
+# CLI is asked for by name (`--bin longclaw`).
+default-run = "longclaw-desktop"
 
 [lib]
 name = "longclaw_desktop_lib"
