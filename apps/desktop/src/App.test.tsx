@@ -3160,15 +3160,31 @@ describe("the app shell against its spec (LC-71, LC-72, LC-73)", () => {
       expect(document.querySelector(".side-panel-footer select")).toBeNull();
     });
 
-    it("keeps the trust line, which is what the footer is for", async () => {
+    it("is the trust line and nothing else", async () => {
       await openBoard();
 
-      // `toContain`, not `toBe`: the spec puts a waitlist ghost button beneath
-      // this line (`screen-specs.md:34-36`) and LC-75 is the open call on
-      // whether v0 ships it. Pinning the footer to its exact current text would
-      // fail that ticket rather than let it through.
+      // `toBe`, not `toContain`. The spec draws a waitlist ghost button beneath
+      // this line, and LC-75 closed that as **cut from v0** on 2026-08-06 — so
+      // the footer's exact text is now a decision worth pinning rather than an
+      // open question to leave room for. Re-opening it means unparking Step 15
+      // and reviewing a submission endpoint (V0-38) first; this assertion is
+      // meant to be in the way until then.
       const footer = document.querySelector(".side-panel-footer")!;
-      expect(footer.textContent).toContain("v0 · local · no account");
+      expect(footer.textContent).toBe("v0 · local · no account");
+    });
+
+    it("offers no waitlist signup", async () => {
+      await openBoard();
+
+      // Not a network assertion — jsdom cannot make one, and `audit:network` is
+      // a process-monitor pass over a real bundle that needs a human to drive
+      // it. This only catches the control coming back, which is worth catching:
+      // `cd_ui_diffs.md` carried a live "Step 7: Implement The Required
+      // Waitlist Flow" — endpoint client, `localStorage`, the lot — until LC-75
+      // voided it. This fails fast if someone works from a stale copy of it.
+      expect(
+        screen.queryByRole("button", { name: /early access|waitlist/i }),
+      ).toBeNull();
     });
   });
 

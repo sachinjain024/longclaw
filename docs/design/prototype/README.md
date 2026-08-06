@@ -51,10 +51,10 @@ switching (skeleton load).
 Every Step 2 work item maps to a place in this bundle:
 
 - **App shell, Local + Starred only** — prototype shell; `screen-specs.md` § App shell.
-- **Terminal region reservation (geometry only)** — bottom handle; § Terminal region.
+- **Terminal region reservation** — prototype only; § Terminal region. Cut from v0.
 - **First launch & project creation · settings & themes · board · list ·
   panel · markdown editing · checklists · merged timeline · palette ·
-  waitlist · light & dark** — all live in the prototype; each has a
+  waitlist (cut from v0) · light & dark** — all in the prototype; each has a
   section in `screen-specs.md`.
 - **Quick + full ticket creation** — `C` / palette / column `+` → quick;
   “Open full editor” → full create.

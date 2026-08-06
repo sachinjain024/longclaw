@@ -22,8 +22,8 @@
 │ side panel 240px │ main (flex)                             │
 │                  │  content header 56px                    │
 │                  │  board / list (flex, scrolls)           │
-│                  │  ── terminal region (reserved) ──       │
-│                  │  handle 24px (collapsed)                │
+│                  │  ── terminal region ── NOT IN V0        │
+│                  │  handle 24px — NOT IN V0                │
 └────────────────────────────────────────────────────────────┘
 ```
 
@@ -32,8 +32,8 @@
   section headers mono 10.5px uppercase `ink-3` (12px 8px 6px padding),
   project rows 28px (spec in components.md § App shell). Footer pinned to
   bottom: mono micro line `v0 · local · no account` (`ink-disabled`), then
-  the waitlist ghost button (30px). Sections in v0: **Starred**, **Local** —
-  nothing else, no Teams stubs.
+  the waitlist ghost button (30px) — NOT IN V0. In v0: **Starred**,
+  **Local** — nothing else, no Teams stubs.
 - **Project row anatomy:** 6px theme dot in the *project's own* human accent
   (rendered by scoping that project's `data-theme` on the dot), name 13px
   `ink-2`, star affordance revealed on hover (persistent when starred, in
@@ -52,7 +52,7 @@
   in `ink-disabled`. This is the honest surface of optimistic UI — the
   UI updates instantly, the indicator tells the truth about the disk.
 
-### Terminal region — Phase 2 reservation (geometry only)
+### Terminal region — NOT IN V0 (Phase 2 design; see § Cut from v0)
 
 - Collapsed: a 24px full-width handle at the window's bottom edge. Mono
   10px uppercase `ink-disabled` label `terminal · reserved · phase 2`,
@@ -257,7 +257,7 @@ movement. No custom-color affordance exists anywhere.
 - Remove confirms via a dialog that names the path and repeats the
   non-destructive guarantee; the confirm button is the danger variant.
 
-## Waitlist (side-panel footer)
+## Waitlist (side-panel footer) — NOT IN V0 (see § Cut from v0)
 
 - Quiet ghost button "Get early access" → centered modal: display heading
   "Early access to sync & teams", two sentences of value proposition, email
@@ -291,3 +291,28 @@ All motion communicates a state change; nothing is ornamental. Nothing
 exceeds 150ms except the deliberate agent pulse. `prefers-reduced-motion`
 zeroes the motion tokens (generated in the token CSS) and disables the
 panel/skeleton animations.
+
+## Cut from v0
+
+Two surfaces above are drawn in full and **ship in no part of the v0 binary**.
+Their sections are headed `NOT IN V0` and are kept because the design is good
+and the work is postponed rather than abandoned. A screen-by-screen comparison
+of the app against this document should record them as *absent by decision* —
+absence is the spec, and a build that grew either one back would be the defect.
+
+| Surface | Decision |
+|---|---|
+| **Terminal region** (§ App shell) | Not shown at all in v0 — no handle, no reserved height, no label. Founder decision 2026-08-06, closing `LC-74`: a strip advertising a Phase 2 feature is a promise the release does not want to make, and reserving geometry buys the shell nothing while the interior does not exist. The prototype keeps the geometry (`prototype.css` § 9) and the palette keeps its disabled `new terminal · PHASE 2` row; the app shell reserves nothing. |
+| **Waitlist** (§ Waitlist) | Cut from v0. [Step 15](../../mvp_plan_order.md) was parked by founder decision on 2026-08-01, taking V0-38/V0-39 with it; no submission endpoint was ever reviewed, and the step's own rule is to omit the feature from the binary rather than ship a form that fails silently. It would also be the one network call in a product whose release gate (`audit:network`) exists to prove it makes none. Confirmed 2026-08-06, closing `LC-75`. |
+
+Step 15 parked the waitlist without stripping it from the design record, so
+`states.md`, `data-requirements.md`, and `keyboard-focus-map.md` still describe
+its states, storage, and focus order in full. That is deliberate: those are the
+design to build on unparking. This section is the scope statement that governs
+them.
+
+**Editing note.** This document is cited by line number from roughly 220 places
+across the repo, including the app's own source comments. The `NOT IN V0`
+markers above were written to occupy exactly the lines they replaced, and this
+section was appended at the end, so no citation moved. Prefer the same
+discipline over inserting prose mid-document.

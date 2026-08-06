@@ -252,14 +252,14 @@ the common case for an agent working a ticket. Full reasoning in
   own `accent-human`, sitting left of the project name. Subtle wayfinding —
   the only place another project's theme leaks into the current window. The
   same swatch anatomy scales up in the theme picker.
-- Footer: quiet ghost button "Get early access" → waitlist modal; after
-  joining, it becomes static `ink-3` text "You're on the list". Never a wall,
-  never nagging.
-- **Terminal slot (Phase 2 reservation):** the shell grid reserves a bottom
-  region — collapsed 0px with a 28px reveal handle on hover at the window's
-  bottom edge; expanded 240–420px, resizable. Interior is out of scope; only
-  the geometry ships in v0. When it arrives, its chrome is the one other
-  place the agent accent lives.
+- Footer — **NOT IN V0**: quiet ghost button "Get early access" → waitlist
+  modal; after joining, static `ink-3` "You're on the list". Never a wall,
+  never nagging. Cut — `../prototype/screen-specs.md` § Cut from v0.
+- **Terminal slot (Phase 2 reservation) — NOT IN V0:** the shell grid would
+  reserve a bottom region — collapsed 0px with a 28px reveal handle on hover
+  at the window's bottom edge; expanded 240–420px, resizable. Interior out of
+  scope, and v0 reserves no geometry either (§ Cut from v0). When it arrives,
+  its chrome is the one other place the agent accent lives.
 
 ## Theme picker
 
