@@ -22,13 +22,53 @@ const SPINNER_DELAY_MS = 500;
 const TOAST_MS = 5_000;
 
 /**
+ * How long the settled `✓` stands. `states.md:178-180` has the panel show it
+ * *briefly*, and a mark that never expires is the thing LC-69 removed under
+ * another name: the last write of the session still on screen an hour later,
+ * for a file the user may have navigated away from. It matches the toast
+ * because both report the same event.
+ */
+const SETTLED_MS = TOAST_MS;
+
+/** Every ticket file in the project lives under it, so it names nothing. */
+const STORE_PREFIX = ".longclaw/";
+
+/**
+ * How this line names a file: the store's project-relative path with the
+ * prefix every ticket shares dropped — `tickets/LC-1/ticket.md`, which is the
+ * label the prototype's own disk state carries (`prototype.js:345`).
+ *
+ * Not the bare file name. `screen-specs.md:51-52` and `states.md:180` write
+ * `✓ ticket.md`, but as example prose: in LongClaw *every* ticket is stored as
+ * `ticket.md`, so the bare name would leave the header marking a write to one
+ * ticket while another sits open in the panel. The key is the identifying part.
+ */
+function diskLabel(path: string) {
+  return path.startsWith(STORE_PREFIX) ? path.slice(STORE_PREFIX.length) : path;
+}
+
+/**
  * The honest surface of optimistic UI: the mutated element already shows its
  * final state, and this says what the disk is actually doing.
+ *
+ * It reports only what is happening or what just landed
+ * (`screen-specs.md:50-53`). With no write, no read and no `idle` file to name,
+ * it renders nothing at all — the `● watching` chip it replaced in the content
+ * header was steady-state dev telemetry rather than designed chrome (LC-69).
+ *
+ * `busy` is a read the app is waiting on. A write outranks it, because the
+ * write is the user's own action and the one whose durability is in question.
  */
-export function WriteIndicator(props: { idle?: string; className?: string }) {
+export function WriteIndicator(props: {
+  idle?: string;
+  busy?: "reading" | "reconciling";
+  className?: string;
+}) {
   const writing = useMutationStore((state) => state.writing);
   const settled = useMutationStore((state) => state.settled);
+  const settledAt = useMutationStore((state) => state.settledAt);
   const [slow, setSlow] = useState(false);
+  const [stale, setStale] = useState(false);
 
   useEffect(() => {
     if (!writing) {
@@ -39,6 +79,18 @@ export function WriteIndicator(props: { idle?: string; className?: string }) {
     return () => clearTimeout(timer);
   }, [writing]);
 
+  // Keyed on the settle *event* — `settledAt` — so a second write to the same
+  // file, where `settled` never changes value, still gets a fresh mark. Not on
+  // `writing`: that also clears when a write *fails*, which put the stood-down
+  // mark of an older write back up beside the toast reporting the failure.
+  useEffect(() => {
+    setStale(false);
+    if (!settled) return;
+    const timer = setTimeout(() => setStale(true), SETTLED_MS);
+    return () => clearTimeout(timer);
+    // `settledAt` is here as the trigger, not as something the body reads.
+  }, [settledAt, settled]);
+
   const className = props.className ?? "disk-path";
   if (writing) {
     return (
@@ -48,16 +100,31 @@ export function WriteIndicator(props: { idle?: string; className?: string }) {
             ⟳
           </span>
         )}
-        writing {writing}…
+        writing {diskLabel(writing)}…
       </code>
     );
   }
-  // A settled mark for someone else's file is not this surface's news.
-  if (settled && (props.idle === undefined || settled === props.idle)) {
-    return <code className={`${className} settled`}>✓ {settled}</code>;
+  // No spinner here: the 500ms spinner is the unsettled-write promise
+  // (`states.md:56-58`), and a read is not a write.
+  if (props.busy) {
+    return <code className={className}>{props.busy}</code>;
   }
+  // A settled mark for someone else's file is not this surface's news. The
+  // comparison stays on the full path, which is what identifies the file.
+  if (
+    settled &&
+    !stale &&
+    (props.idle === undefined || settled === props.idle)
+  ) {
+    return (
+      <code className={`${className} settled`}>✓ {diskLabel(settled)}</code>
+    );
+  }
+  // The same spelling as the two above it. This element is one line that
+  // changes state, so a path that gained and lost its `.longclaw/` as writes
+  // came and went would read as the file changing rather than the disk.
   if (!props.idle) return null;
-  return <code className={className}>{props.idle}</code>;
+  return <code className={className}>{diskLabel(props.idle)}</code>;
 }
 
 export function ToastStack() {

@@ -35,7 +35,11 @@ describe("the disk-state indicator", () => {
     });
     render(<WriteIndicator />);
 
-    const line = screen.getByText(/writing .longclaw/);
+    // The key is what identifies the write — every ticket in the project is
+    // stored as `ticket.md`, so the bare name would name any of them. The
+    // `.longclaw/` they all share is the part that goes.
+    const line = screen.getByText(/writing tickets\/LC-1\/ticket\.md/);
+    expect(line.textContent).not.toContain(".longclaw");
     expect(line.textContent).not.toContain("⟳");
 
     act(() => void vi.advanceTimersByTime(499));
@@ -51,7 +55,8 @@ describe("the disk-state indicator", () => {
 
     act(() => void useMutationStore.getState().endWrite("ticket.md"));
     expect(screen.getByText("✓ ticket.md")).toBeTruthy();
-    expect(vi.getTimerCount()).toBe(0);
+    // The spinner's timer is gone; the one left is the settled mark's own life.
+    expect(vi.getTimerCount()).toBe(1);
 
     view.unmount();
     expect(vi.getTimerCount()).toBe(0);
@@ -61,8 +66,106 @@ describe("the disk-state indicator", () => {
     useMutationStore.setState({ settled: ".longclaw/tickets/LC-9/ticket.md" });
     render(<WriteIndicator idle=".longclaw/tickets/LC-1/ticket.md" />);
 
-    expect(screen.getByText(".longclaw/tickets/LC-1/ticket.md")).toBeTruthy();
+    expect(screen.getByText("tickets/LC-1/ticket.md")).toBeTruthy();
     expect(screen.queryByText(/✓/)).toBeNull();
+  });
+
+  /**
+   * LC-69. `✓` is news, and news goes stale: a mark that stood forever would be
+   * the `● watching` chip under another name — the last write of the session,
+   * still on screen, for a file the user may have navigated away from.
+   */
+  it("stands the settled mark down after 5s, and puts up a fresh one", () => {
+    useMutationStore.setState({ writing: "ticket.md", inFlight: 1 });
+    render(<WriteIndicator />);
+    act(() => void useMutationStore.getState().endWrite("ticket.md"));
+
+    expect(screen.getByText("✓ ticket.md")).toBeTruthy();
+    act(() => void vi.advanceTimersByTime(4_999));
+    expect(screen.getByText("✓ ticket.md")).toBeTruthy();
+
+    act(() => void vi.advanceTimersByTime(1));
+    expect(screen.queryByText("✓ ticket.md")).toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+
+    // The same file again: `settled` never changes value, so the mark has to
+    // come back off the write, not off that.
+    act(() => void useMutationStore.getState().beginWrite("ticket.md"));
+    act(() => void useMutationStore.getState().endWrite("ticket.md"));
+    expect(screen.getByText("✓ ticket.md")).toBeTruthy();
+  });
+
+  it("falls back to the file it was showing when the mark goes stale", () => {
+    useMutationStore.setState({ settled: ".longclaw/tickets/LC-1/ticket.md" });
+    render(<WriteIndicator idle=".longclaw/tickets/LC-1/ticket.md" />);
+
+    expect(screen.getByText("✓ tickets/LC-1/ticket.md")).toBeTruthy();
+
+    act(() => void vi.advanceTimersByTime(5_000));
+    expect(screen.getByText("tickets/LC-1/ticket.md")).toBeTruthy();
+  });
+
+  /**
+   * The mark reports one event: a write that landed. A write that *fails*
+   * clears `writing` without settling anything, and freshness that keyed on
+   * `writing` read that as news — standing an hours-old `✓` back up beside the
+   * toast saying the save had just failed.
+   */
+  it("leaves a stood-down mark down when the next write fails", async () => {
+    const { mutate } = await import("./mutations");
+    useMutationStore.setState({
+      writing: ".longclaw/tickets/LC-1/ticket.md",
+      inFlight: 1,
+    });
+    render(<WriteIndicator />);
+    act(
+      () =>
+        void useMutationStore
+          .getState()
+          .endWrite(".longclaw/tickets/LC-1/ticket.md"),
+    );
+
+    expect(screen.getByText("✓ tickets/LC-1/ticket.md")).toBeTruthy();
+    act(() => void vi.advanceTimersByTime(5_000));
+    expect(screen.queryByText(/✓/)).toBeNull();
+
+    await act(async () => {
+      await mutate({
+        path: ".longclaw/tickets/LC-1/ticket.md",
+        write: () => Promise.reject(new Error("No space left on device")),
+      });
+    });
+
+    expect(screen.queryByText(/✓/)).toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  /**
+   * LC-69. An indicator with nothing to report says nothing. The chip this
+   * replaced said `● watching` at every idle moment, which is dev telemetry —
+   * the disk-state line is for what the disk is doing right now.
+   */
+  it("says nothing at all when there is no news and no file to name", () => {
+    const view = render(<WriteIndicator />);
+
+    expect(view.container.textContent).toBe("");
+  });
+
+  it("reports a read the app is waiting on, and drops it when it lands", () => {
+    const view = render(<WriteIndicator busy="reconciling" />);
+
+    expect(screen.getByText("reconciling")).toBeTruthy();
+
+    view.rerender(<WriteIndicator />);
+    expect(view.container.textContent).toBe("");
+  });
+
+  it("lets a write outrank a read, because the write is the user's own", () => {
+    useMutationStore.setState({ writing: "ticket.md", inFlight: 1 });
+    render(<WriteIndicator busy="reconciling" />);
+
+    expect(screen.getByText(/writing ticket.md/)).toBeTruthy();
+    expect(screen.queryByText("reconciling")).toBeNull();
   });
 });
 

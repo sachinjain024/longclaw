@@ -13,7 +13,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 import * as api from "./api";
-import { resetMutations } from "./mutations";
+import { resetMutations, useMutationStore } from "./mutations";
 import { useLongClawStore } from "./state";
 import { isArchived } from "./tickets";
 import type {
@@ -848,6 +848,65 @@ describe("the project settings gear (LC-70)", () => {
     const panel = screen.getByRole("region", { name: "Project settings" });
     expect(panel.id).toBe("project-settings");
     expect(settings.getAttribute("aria-expanded")).toBe("true");
+  });
+});
+
+describe("the header disk-state indicator (LC-69)", () => {
+  const project = {
+    id: "project-fixture",
+    name: "Fixture Project",
+    rootPath: "/tmp/LongClaw Fixture",
+    key: "LC",
+    theme: "indigo",
+    starred: false,
+    reachable: true,
+    labels: {},
+  };
+
+  async function openBoard() {
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project,
+      tickets: [],
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    render(<App />);
+    await screen.findByRole("button", { name: "Board", pressed: true });
+    return document.querySelector<HTMLElement>(".content-header")!;
+  }
+
+  it("is silent on a settled board, where the old chip said `watching`", async () => {
+    const header = await openBoard();
+
+    expect(header.textContent).not.toContain("watching");
+  });
+
+  it("names the file a write landed in, and nothing before the first write", async () => {
+    const header = await openBoard();
+    expect(header.textContent).not.toContain("✓");
+
+    act(() => {
+      useMutationStore.setState({
+        settled: ".longclaw/tickets/LC-1/ticket.md",
+      });
+    });
+
+    // With the key, because every ticket in the project is stored as
+    // `ticket.md`: the mark has to say which one landed, not that one did.
+    expect(header.textContent).toContain("✓ tickets/LC-1/ticket.md");
+    expect(header.textContent).not.toContain(".longclaw/tickets");
+  });
+
+  it("speaks up while a read is in flight", async () => {
+    const header = await openBoard();
+
+    act(() => void useLongClawStore.setState({ loading: true }));
+    expect(header.textContent).toContain("reading");
+
+    act(() => void useLongClawStore.setState({ loading: false }));
+    expect(header.textContent).not.toContain("reading");
   });
 });
 
