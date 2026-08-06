@@ -859,13 +859,13 @@ async function auditZoom(browser) {
     selfTest: (target) =>
       target.addStyleTag({
         content:
-          ".board-heading .toolbar-actions > * { position: fixed; top: 8px; left: 8px; }",
+          ".content-header .toolbar-actions > * { position: fixed; top: 8px; left: 8px; }",
       }),
   });
   try {
     /** The controls a user cannot complete the lifecycle without. */
     const PRIMARY = [
-      [".board-heading .primary", "New ticket"],
+      [".content-header .primary", "New ticket"],
       [".filter-field", "Filter field"],
       ['.view-segment button[aria-pressed="true"]', "View segment"],
       [".ordering-control .menu-trigger", "Ordering"],
