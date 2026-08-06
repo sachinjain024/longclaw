@@ -270,9 +270,12 @@ textarea::placeholder {
   color: var(--lc-ink-3);
 }
 
+/* 24px of side inset, because that is what the content header and the board are
+   both specified against (`screen-specs.md:44`, `:96`) and every region in this
+   column shares it. */
 .main-panel {
   min-width: 0;
-  padding: 28px;
+  padding: 28px 24px;
 }
 
 .eyebrow {
@@ -530,15 +533,19 @@ button:disabled {
   align-items: center;
 }
 
-/* Wrapping is the last resort, not the layout: at any width that fits, this is
+/* 56px, which is the spec's number and not a coincidence: 16px above a 30px
+   control row and 12px below (`screen-specs.md:44`). The 24px side inset the
+   same line asks for comes from `.main-panel`, which insets every region in
+   this column at once rather than each one repeating it.
+
+   Wrapping is the last resort, not the layout: at any width that fits, this is
    one line. When it genuinely cannot be, the control row moves down whole —
    which is the failure this wants, because a row that breaks *inside* the
    cluster strands a control (LC-149). */
 .content-header {
   flex-wrap: wrap;
   gap: 12px;
-  margin-bottom: 8px;
-  padding: 4px 0;
+  padding: 16px 0 12px;
 }
 
 /* The row's own height comes from the 30px controls in it, so the name gives up
