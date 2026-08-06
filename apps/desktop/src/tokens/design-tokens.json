@@ -137,6 +137,15 @@
 
   "border": { "hairline": 1, "ring": 1.5, "rail": 2, "focus": 3 },
 
+  "z": {
+    "sticky": 1,
+    "panel": 2,
+    "modal": 3,
+    "toast": 4,
+    "popover": 5,
+    "note": "Every layer the app stacks, lowest first. A positioned element with any z-index outranks one with z-index: auto, so a surface meant to be on top that says nothing loses to a sticky list header that says 1 — which is how the open ticket panel came to be painted over by the list behind it (LC-96). The scale is the whole set: a positioned surface takes a layer from it rather than a number of its own. popover sits above modal because quick create carries the status, priority and label menus, and a menu behind its own modal is unusable. The workspace is the floor and deliberately has no layer: giving one to an ancestor of the board and list would make it a stacking context, and the menu popover renders inline rather than through a portal, so a menu opened from a card would be trapped under the panel. For the same reason these numbers order the surfaces that stack at the root; a popover rendered inside the panel is ordered within it and bounded by the panel's own layer. scripts/stacking-guard.mjs holds the relations."
+  },
+
   "motion": {
     "fast": "80ms",
     "state": "120ms",
