@@ -37,3 +37,17 @@ actor:
 -->
 ### Claude Code created this ticket
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_80bf54f8
+kind: comment
+occurred_at: 2026-08-06T14:32:58.001Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+The layering half is fixed by LC-96 (d932bca): .raw-file is an unpositioned child of .ticket-panel, which now takes --lc-z-panel, so the list no longer paints through the raw-file view. What remains here is the other half of the checklist — the spec's 680px centered modal versus the 560px right panel.
+<!-- /longclaw:event -->
