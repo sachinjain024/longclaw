@@ -76,3 +76,21 @@ changes:
 
 Implemented the project path chip and addressed review feedback: the visible path abbreviates only the actual native home-directory prefix, paths under other users remain absolute, the title preserves the exact full path, and copy uses the full absolute path with success/failure toast feedback. Added the native home_dir command, frontend coverage, and the strict WebKit harness stub. Validation passed: npm run verify; 533 frontend tests; 127 Rust unit tests plus integration suites; accessibility audit A1-A5.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_f1c6606a
+kind: comment
+occurred_at: 2026-08-06T07:45:54.784Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+The rename left the visual-regression gate red. `theme-matrix.mjs` probed `.content-header .project-path` in two places (its contrast list for both the board and list states), and the chip is `.path-chip`, so every axis reported `probe .content-header .project-path matched nothing` and `npm run matrix` exited 1 on `main`.
+
+Found while merging LC-71/72/73, and repaired there rather than dropped: the probe exists to prove the header's quiet text against the background — `.eyebrow`, then `.project-path`, now the chip — so it follows the element. Worth noting the pair it measures got easier, `ink-2` instead of `ink-3`; the comment in the probe list now says so.
+
+No defect in the chip itself. With the selector corrected the matrix is clean across 8 axes × 9 states.
+<!-- /longclaw:event -->

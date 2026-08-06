@@ -425,7 +425,7 @@ export function CommandPalette(props: {
             <button
               tabIndex={0}
               type="button"
-              className="palette-crumb"
+              className="kbd-chip palette-crumb"
               aria-label={`Back to commands from ${subMode.crumb}`}
               onClick={() => {
                 setMode("root");
@@ -459,7 +459,7 @@ export function CommandPalette(props: {
               visibleRows[active] ? `${rowId}-${active}` : undefined
             }
           />
-          <kbd className="palette-esc">esc</kbd>
+          <kbd className="kbd-chip palette-esc">esc</kbd>
         </div>
         <div
           id="command-palette-options"

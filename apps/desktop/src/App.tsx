@@ -1023,30 +1023,6 @@ export function App() {
         </div>
 
         <nav className="project-nav" aria-label="Projects">
-          <section className="project-actions">
-            <button
-              tabIndex={0}
-              className="secondary"
-              onClick={() => void chooseProject()}
-            >
-              Open folder
-            </button>
-            <button
-              tabIndex={0}
-              className="secondary"
-              onClick={() => setQuickCreateOpen((open) => !open)}
-            >
-              Create project
-            </button>
-            {quickCreateOpen && (
-              <CreateProjectForm
-                className="quick-create"
-                themes={THEMES}
-                submitLabel="Choose folder"
-                onSubmit={(draft) => void createProject(draft)}
-              />
-            )}
-          </section>
           <ProjectSection
             title="Starred"
             empty="No starred projects"
@@ -1063,23 +1039,48 @@ export function App() {
             onOpen={(id) => void loadProject(id)}
             onStar={(project) => void toggleStar(project)}
           />
+          {/* The spec draws only section headers and project rows here
+              (`screen-specs.md:30-36`), and both actions are reachable from the
+              welcome screen. They stay because the welcome screen is only the
+              no-project state — once a project is open this is the sole way to
+              add another, and the palette has no `open folder` command. So they
+              sit at the *foot* of the list as one quiet ghost row rather than
+              two filled buttons above the sections (LC-73). */}
+          <section className="project-actions">
+            <div className="project-actions-row">
+              <button
+                tabIndex={0}
+                className="ghost small"
+                onClick={() => void chooseProject()}
+              >
+                Open folder
+              </button>
+              <button
+                tabIndex={0}
+                className="ghost small"
+                onClick={() => setQuickCreateOpen((open) => !open)}
+              >
+                Create project
+              </button>
+            </div>
+            {quickCreateOpen && (
+              <CreateProjectForm
+                className="quick-create"
+                themes={THEMES}
+                submitLabel="Choose folder"
+                onSubmit={(draft) => void createProject(draft)}
+              />
+            )}
+          </section>
         </nav>
 
         <div className="side-panel-footer">
-          <div className="appearance-control">
-            <span>Appearance</span>
-            <select
-              aria-label="Appearance"
-              value={appearance}
-              onChange={(event) =>
-                setAppearance(event.target.value as "light" | "dark" | "system")
-              }
-            >
-              <option value="system">System</option>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-            </select>
-          </div>
+          {/* Appearance is an app preference, not project data, and the spec
+              puts its 3-up segment in project settings (`screen-specs.md:253`),
+              not here — the native `<select>` that used to sit above this line
+              was the only OS chrome left in the sidebar (LC-72). Until the
+              settings modal carries the segment (LC-127), the palette's
+              `Toggle appearance` command is the control. */}
           {/* The claim the whole product rests on, stated where the shell can
               always show it (`screen-specs.md:34`). */}
           <p className="trust-line">v0 · local · no account</p>
@@ -1140,15 +1141,26 @@ export function App() {
                 <div className="toolbar-actions">
                   {/* `screen-specs.md:47-48` orders the content header:
                       filter field, then ordering control, then view segment. */}
-                  <input
-                    ref={filterField}
-                    className="filter-field"
-                    type="text"
-                    value={filterQuery}
-                    aria-label="Filter tickets"
-                    placeholder="Filter tickets"
-                    onChange={(event) => setFilterQuery(event.target.value)}
-                  />
+                  {/* The chip is overlaid inside the field's right edge, as the
+                      prototype draws it (`prototype.js:495-498`). It is
+                      `aria-hidden` and paired with `aria-keyshortcuts` so the
+                      field's accessible name stays "Filter tickets" rather than
+                      becoming "Filter tickets ⌘F" (LC-71). */}
+                  <div className="filter-wrap">
+                    <input
+                      ref={filterField}
+                      className="filter-field"
+                      type="text"
+                      value={filterQuery}
+                      aria-label="Filter tickets"
+                      aria-keyshortcuts="Meta+F"
+                      placeholder="Filter tickets"
+                      onChange={(event) => setFilterQuery(event.target.value)}
+                    />
+                    <kbd className="kbd-chip filter-kbd" aria-hidden="true">
+                      ⌘F
+                    </kbd>
+                  </div>
                   <div className="ordering-control">
                     <span>Order</span>
                     <MenuButton
@@ -1189,9 +1201,11 @@ export function App() {
                   <button
                     tabIndex={0}
                     className="primary"
+                    aria-keyshortcuts="C"
                     onClick={() => setCreateSurface("quick")}
                   >
                     New ticket
+                    <kbd aria-hidden="true">C</kbd>
                   </button>
                 </div>
               )}

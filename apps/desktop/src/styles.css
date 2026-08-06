@@ -89,9 +89,30 @@ textarea:focus-visible,
   gap: var(--lc-space-2);
 }
 
+/* At the foot of the list, not above the sections, and quiet enough that the
+   project rows stay the loudest thing in the sidebar (LC-73). The hairline is
+   on top for the same reason it used to be on the bottom: it separates the
+   actions from the rows, and the rows are now above it. */
 .project-actions {
-  border-bottom: var(--lc-border-hairline) solid var(--lc-line);
-  padding-bottom: var(--lc-space-4);
+  border-top: var(--lc-border-hairline) solid var(--lc-line);
+  padding-top: var(--lc-space-4);
+}
+
+.project-actions-row {
+  display: flex;
+  gap: var(--lc-space-1);
+}
+
+/* Sized to their labels, never stretched: the sidebar is 240px, so splitting
+   216px of content between two buttons leaves 106px each and wraps
+   `Create project` onto a second line. The padding stays the documented small
+   `0 9px` (`components.md:44`) — `nowrap` and the default flex sizing are what
+   keep the row on one line, so there is nothing for an off-scale value to buy.
+   Colour is `.ghost`'s own `ink-2` (`components.md:49`): "quiet" in the ticket
+   names the variant, and dimming it further to `ink-3` was reading the word
+   rather than the table. */
+.project-actions-row .ghost {
+  white-space: nowrap;
 }
 
 .quick-create {
@@ -226,17 +247,8 @@ textarea:focus-visible,
   letter-spacing: var(--lc-type-kbd-tracking);
 }
 
-.appearance-control {
-  display: grid;
-  gap: 6px;
-  color: var(--lc-ink-3);
-  font-size: 11px;
-  font-weight: 700;
-}
-
 /* Field foundations — components.md:59-72. One box for every text control in
    the app: 30px, 5px radius, 10px of padding, UI type, hairline `line-strong`. */
-.appearance-control select,
 label input,
 label select,
 label textarea {
@@ -249,7 +261,6 @@ label textarea {
     var(--lc-type-ui-leading) var(--lc-type-ui-font);
 }
 
-.appearance-control select,
 label input,
 label select {
   height: var(--lc-size-control);
@@ -333,6 +344,22 @@ h1 {
 .ghost.small {
   min-height: var(--lc-size-control-sm);
   padding: 0 9px;
+}
+
+/* Chip anatomy, `components.md:85`: mono 10px/500 on `wash`, radius 3px,
+   hairline `line`. There is one quiet kbd chip in the design system, so there
+   is one rule for it — the palette's crumb and `esc` affordance and the filter
+   field's `⌘F` hint are the same object drawn in three places. Each adds only
+   its own placement below. The chip embedded in a filled primary is *not* this
+   one: it is a wash of the label colour, specified separately at
+   `components.md:56-57`. */
+.kbd-chip {
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-kbd);
+  color: var(--lc-ink-3);
+  background: var(--lc-wash);
+  font: var(--lc-type-kbd-weight) var(--lc-type-kbd-size)
+    var(--lc-type-kbd-font);
 }
 
 .ghost {
@@ -1079,7 +1106,9 @@ button:disabled {
   height: 28px;
   border: 1px solid var(--lc-line);
   border-radius: var(--lc-radius-control);
-  padding: 0 9px;
+  /* Right padding clears the ⌘F chip, so a long query runs under the chip
+     instead of colliding with it. */
+  padding: 0 34px 0 9px;
   color: var(--lc-ink);
   background: var(--lc-surface);
   font-size: 12px;
@@ -1087,6 +1116,47 @@ button:disabled {
 
 .filter-field::placeholder {
   color: var(--lc-ink-3);
+}
+
+/* The chip sits inside the field's right edge (`prototype.css:328`). It is
+   `pointer-events: none` so the whole box still focuses the input — a chip that
+   swallowed the click would make the last 34px of the field dead (LC-71). */
+.filter-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+/* Anatomy from `.kbd-chip`; the placement and the prototype's own tracking are
+   local. `letter-spacing` is deliberately not in the shared base: the palette's
+   crumb and `esc` chips never carried it, and folding it in would have retuned
+   two shipped components to fix a third. */
+.filter-kbd {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  padding: 1.5px 5px;
+  letter-spacing: var(--lc-type-kbd-tracking);
+  pointer-events: none;
+}
+
+/* The embedded hint on a filled primary (`components.md:56-57`): a wash of the
+   label colour rather than the bordered `.kbd-chip` box, because a hairline in
+   `line` would read as a seam in the accent fill. */
+.toolbar-actions .primary kbd {
+  margin-left: var(--lc-space-2);
+  border-radius: var(--lc-radius-kbd);
+  padding: 1.5px 5px;
+  background: color-mix(in oklab, var(--lc-on-accent-human) 20%, transparent);
+  font: var(--lc-type-kbd-weight) var(--lc-type-kbd-size)
+    var(--lc-type-kbd-font);
+  letter-spacing: var(--lc-type-kbd-tracking);
+}
+
+/* 18%, not 20% (`components.md:56-57`). Dark accents carry an ink label on the
+   themes where the fill is light enough, and ink at 20% reads as a hole. */
+[data-appearance="dark"] .toolbar-actions .primary kbd {
+  background: color-mix(in oklab, var(--lc-on-accent-human) 18%, transparent);
 }
 
 .ordering-control {
@@ -2146,17 +2216,13 @@ button:disabled {
   font-size: 15px;
 }
 
-/* Chip anatomy, `components.md:85`. The crumb is a button because `Esc` is the
-   keyboard path back and a pointer had none. */
+/* Anatomy from `.kbd-chip`. The crumb is a button because `Esc` is the keyboard
+   path back and a pointer had none. */
 .palette-crumb,
 .palette-esc {
   flex: none;
-  border: 1px solid var(--lc-line);
-  border-radius: var(--lc-radius-kbd);
   padding: 0 var(--lc-space-2);
-  background: var(--lc-wash);
-  color: var(--lc-ink-3);
-  font: 500 10px/1.8 var(--lc-type-code-font);
+  line-height: 1.8;
   text-transform: uppercase;
 }
 

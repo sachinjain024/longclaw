@@ -882,6 +882,21 @@ function mockSystem(initialDark: boolean) {
   };
 }
 
+/**
+ * The sidebar `<select>` these tests used to drive is gone (LC-72) — appearance
+ * is an app preference and belongs in project settings as a 3-up segment
+ * (LC-127), with the palette's `Toggle appearance` command reaching it until
+ * that lands. Both surfaces call exactly this, so the store is the honest seam
+ * for the multi-step clauses below: what they test is what an override *does*
+ * — beats the system, survives a relaunch — not the control that sets it.
+ *
+ * That a user can produce one at all is a separate claim, and it needs a real
+ * surface: `a user can set an override from the palette` drives the command.
+ */
+function overrideAppearance(next: "light" | "dark" | "system") {
+  act(() => useLongClawStore.getState().setAppearance(next));
+}
+
 describe("system-matched appearance (V0-35)", () => {
   // Vitest's jsdom leaves `window.localStorage` as `undefined` (Node's
   // experimental storage without `--localstorage-file`), which the app's
@@ -933,10 +948,11 @@ describe("system-matched appearance (V0-35)", () => {
   it("an explicit override wins over the system and ignores its changes", async () => {
     const system = mockSystem(true);
     render(<App />);
-    const control =
-      await screen.findByLabelText<HTMLSelectElement>("Appearance");
+    await waitFor(() =>
+      expect(document.documentElement.dataset.appearance).toBe("dark"),
+    );
 
-    fireEvent.change(control, { target: { value: "light" } });
+    overrideAppearance("light");
     await waitFor(() =>
       expect(document.documentElement.dataset.appearance).toBe("light"),
     );
@@ -951,10 +967,7 @@ describe("system-matched appearance (V0-35)", () => {
   it("persists the preference and rehydrates it on the next launch", async () => {
     mockSystem(true);
     const first = render(<App />);
-    fireEvent.change(
-      await screen.findByLabelText<HTMLSelectElement>("Appearance"),
-      { target: { value: "light" } },
-    );
+    overrideAppearance("light");
     await waitFor(() =>
       expect(window.localStorage.getItem("longclaw.appearance")).toBe("light"),
     );
@@ -967,19 +980,16 @@ describe("system-matched appearance (V0-35)", () => {
     await waitFor(() =>
       expect(document.documentElement.dataset.appearance).toBe("light"),
     );
-    expect(
-      (await screen.findByLabelText<HTMLSelectElement>("Appearance")).value,
-    ).toBe("light");
+    // Rehydration has to reach the preference itself, not just the stamp: the
+    // palette row reads it back as `Toggle appearance (light)`.
+    expect(useLongClawStore.getState().appearance).toBe("light");
   });
 
   it("changing appearance touches no project data", async () => {
     mockSystem(false);
     render(<App />);
 
-    fireEvent.change(
-      await screen.findByLabelText<HTMLSelectElement>("Appearance"),
-      { target: { value: "dark" } },
-    );
+    overrideAppearance("dark");
     await waitFor(() =>
       expect(document.documentElement.dataset.appearance).toBe("dark"),
     );
@@ -987,6 +997,50 @@ describe("system-matched appearance (V0-35)", () => {
     expect(api.updateProjectTheme).not.toHaveBeenCalled();
     expect(api.editTicket).not.toHaveBeenCalled();
     expect(api.updateProjectName).not.toHaveBeenCalled();
+  });
+
+  it("a user can set an override from the palette", async () => {
+    // The clauses above drive the store, so on their own they would all still
+    // pass with no reachable control anywhere in the app. Since LC-72 took the
+    // sidebar `<select>` out, the palette command is the only surface that sets
+    // this, and it stays the only one until LC-127 builds the settings segment
+    // — so one test drives it end to end rather than trusting the wiring.
+    mockSystem(true);
+    // The palette only mounts over an open project (`App.tsx:1403`), which is
+    // also the only state this command is reachable from.
+    const project = {
+      id: "project-appearance",
+      name: "Appearance Fixture",
+      rootPath: "/tmp/LongClaw Appearance",
+      key: "AF",
+      theme: "indigo",
+      starred: false,
+      reachable: true,
+      labels: {},
+    };
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project,
+      tickets: [],
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    render(<App />);
+    await waitFor(() =>
+      expect(document.documentElement.dataset.appearance).toBe("dark"),
+    );
+
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+    // `system` → `light` is the first step of the cycle the command runs.
+    fireEvent.click(
+      await screen.findByRole("option", { name: /Toggle appearance/ }),
+    );
+
+    await waitFor(() =>
+      expect(document.documentElement.dataset.appearance).toBe("light"),
+    );
+    expect(useLongClawStore.getState().appearance).toBe("light");
   });
 });
 
@@ -2671,5 +2725,180 @@ describe("the side panel against its spec (Step 16a)", () => {
     // that opts out of the reveal has to be on the row that is starred.
     expect(star("Reachable Project").className).toContain("starred");
     expect(star("Moved Project").className).not.toContain("starred");
+  });
+});
+
+describe("the app shell against its spec (LC-71, LC-72, LC-73)", () => {
+  const project = {
+    id: "project-a",
+    name: "Shell Project",
+    rootPath: "/tmp/LongClaw A",
+    key: "LA",
+    theme: "plum",
+    starred: false,
+    reachable: true,
+    labels: {},
+  };
+
+  function row(key: string, title: string): TicketRow {
+    return {
+      state: "indexed",
+      key,
+      id: `id-${key}`,
+      title,
+      status: "todo",
+      priority: "none",
+      labels: [],
+      createdAt: "2026-08-01T09:00:00Z",
+      updatedAt: "2026-08-01T09:00:00Z",
+      checkedCount: 0,
+      checklistCount: 0,
+      commentCount: 0,
+      attachmentCount: 0,
+      contentHash: `hash-${key}`,
+      relativePath: `.longclaw/tickets/${key}/ticket.md`,
+    };
+  }
+
+  // One ticket, because `EmptyBoard` carries a `New ticket` button of its own
+  // and an empty board would make every header assertion below ambiguous.
+  const SEED = [row("LA-1", "Atomic replace race")];
+
+  async function openBoard() {
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project,
+      tickets: SEED,
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    render(<App />);
+    await screen.findByRole("button", { name: "Board", pressed: true });
+  }
+
+  describe("keyboard chips (LC-71)", () => {
+    it("puts a C chip on New ticket and a ⌘F chip on the filter field", async () => {
+      await openBoard();
+
+      const newTicket = screen.getByRole("button", { name: "New ticket" });
+      expect(newTicket.querySelector("kbd")?.textContent).toBe("C");
+      expect(
+        document.querySelector(".filter-wrap .filter-kbd")?.textContent,
+      ).toBe("⌘F");
+    });
+
+    it("keeps both accessible names free of the shortcut text", async () => {
+      await openBoard();
+
+      // `getByRole` matches on the accessible name, so an unhidden chip would
+      // make these "New ticket C" and "Filter tickets ⌘F" — the shortcut read
+      // aloud as part of the label. The chip is decorative; `aria-keyshortcuts`
+      // is where the shortcut is announced.
+      const newTicket = screen.getByRole("button", { name: "New ticket" });
+      const filter = screen.getByRole("textbox", { name: "Filter tickets" });
+      expect(newTicket.getAttribute("aria-keyshortcuts")).toBe("C");
+      expect(filter.getAttribute("aria-keyshortcuts")).toBe("Meta+F");
+    });
+
+    it("still lets ⌘F reach the input through the new wrapper", async () => {
+      // The chip needed a positioned wrapper around the input, and the `⌘F`
+      // handler focuses through a ref. This asserts the wrapper did not come
+      // between the two. It does not cover the chip's `pointer-events: none` —
+      // jsdom has no hit testing, so a chip that swallowed pointer input would
+      // still pass here and only show up under a real click.
+      await openBoard();
+      const filter = screen.getByRole("textbox", {
+        name: "Filter tickets",
+      }) as HTMLInputElement;
+
+      fireEvent.keyDown(document, { key: "f", metaKey: true });
+
+      expect(document.activeElement).toBe(filter);
+    });
+  });
+
+  describe("sidebar footer (LC-72)", () => {
+    it("has no appearance select — appearance is not project chrome", async () => {
+      await openBoard();
+
+      // The one piece of OS chrome left in the sidebar. It moves to project
+      // settings as a 3-up segment (LC-127); the palette command reaches the
+      // preference until then.
+      expect(screen.queryByLabelText("Appearance")).toBeNull();
+      expect(document.querySelector(".side-panel-footer select")).toBeNull();
+    });
+
+    it("keeps the trust line, which is what the footer is for", async () => {
+      await openBoard();
+
+      // `toContain`, not `toBe`: the spec puts a waitlist ghost button beneath
+      // this line (`screen-specs.md:34-36`) and LC-75 is the open call on
+      // whether v0 ships it. Pinning the footer to its exact current text would
+      // fail that ticket rather than let it through.
+      const footer = document.querySelector(".side-panel-footer")!;
+      expect(footer.textContent).toContain("v0 · local · no account");
+    });
+  });
+
+  /**
+   * These pin the **fallback** LC-73 landed, not the state the spec wants.
+   * `screen-specs.md:30-36` and the ticket both say the sidebar carries only
+   * section headers and project rows; these two actions are still here because
+   * removing them today would strand a user — `Welcome` renders only with no
+   * project open (`App.tsx:1102`) and the palette has no `Open folder` command.
+   *
+   * So read them as "while the actions exist, this is where and how", not as
+   * "the actions belong here". **LC-156** is the ticket that deletes them, and
+   * it should delete this block with them rather than fight it.
+   */
+  describe("sidebar project actions — the LC-73 fallback, pending LC-156", () => {
+    it("puts them below the project sections, not above them", async () => {
+      await openBoard();
+
+      const nav = document.querySelector(".project-nav")!;
+      const kinds = [...nav.children].map((child) =>
+        child.classList.contains("project-actions")
+          ? "actions"
+          : child.classList.contains("project-section")
+            ? "section"
+            : "other",
+      );
+      // Both sections first, then the actions — the inversion this fixes had
+      // the actions at index 0.
+      expect(kinds).toEqual(["section", "section", "actions"]);
+    });
+
+    it("renders them as one quiet ghost row rather than two filled buttons", async () => {
+      await openBoard();
+
+      const buttons = [
+        ...document.querySelectorAll<HTMLButtonElement>(
+          ".project-actions-row button",
+        ),
+      ];
+      expect(buttons.map((button) => button.textContent)).toEqual([
+        "Open folder",
+        "Create project",
+      ]);
+      for (const button of buttons) {
+        expect(button.className).toContain("ghost");
+        expect(button.className).not.toContain("secondary");
+      }
+    });
+
+    it("still opens a folder and still opens the create form", async () => {
+      // The spec draws neither button, but the welcome screen they duplicate is
+      // only the no-project state — demoting them must not disarm them, or an
+      // open project becomes a dead end for adding a second one.
+      vi.mocked(api.chooseAndRegisterProject).mockResolvedValue(null);
+      await openBoard();
+
+      fireEvent.click(screen.getByText("Open folder"));
+      expect(api.chooseAndRegisterProject).toHaveBeenCalled();
+
+      fireEvent.click(screen.getByText("Create project"));
+      expect(await screen.findByText("Choose folder")).toBeTruthy();
+    });
   });
 });
