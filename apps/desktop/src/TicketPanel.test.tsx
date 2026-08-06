@@ -1439,9 +1439,13 @@ describe("the description editor (V0-12)", () => {
     const edit = screen.getByRole("button", { name: /Edit description/ });
     expect(edit.closest(".description-view")).toBeNull();
     expect(edit.closest("h3")?.textContent).toContain("Description");
+    // And it is the only way in: the body is not a second click target.
+    expect(
+      screen.getAllByRole("button", { name: /description/i }),
+    ).toHaveLength(1);
   });
 
-  it("offers exactly one way into the editor in each state (LC-99)", async () => {
+  it("leaves an empty description its own invitation, and no second one (LC-99)", async () => {
     readTicketMock.mockResolvedValue(detail({ description: "" }));
     render(surface());
     await ready();
@@ -1452,6 +1456,9 @@ describe("the description editor (V0-12)", () => {
       screen.queryByRole("button", { name: /Edit description/ }),
     ).toBeNull();
     const add = screen.getByRole("button", { name: /Add a description/ });
+    expect(
+      screen.getAllByRole("button", { name: /description/i }),
+    ).toHaveLength(1);
     fireEvent.click(add);
     expect(screen.getByLabelText("Description")).toHaveProperty("value", "");
   });

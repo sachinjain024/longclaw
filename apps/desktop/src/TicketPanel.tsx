@@ -797,8 +797,15 @@ export function TicketPanel(props: TicketPanelProps) {
             <h3>
               Description
               {/* The affordance lives in the header row, where none of the
-                  ticket's own text can be under it (LC-99). An empty
-                  description is its own invitation, so it stays bare there. */}
+                  ticket's own text can be under it (LC-99).
+
+                  The prototype renders it whenever the editor is closed and
+                  makes the body a click target too (`prototype.js:718-725`).
+                  Here the empty state is a button in its own right rather than
+                  a `div` with a click handler, so the header stays bare there:
+                  one editor behind two Tab stops, one of them named `Edit` for
+                  a description that does not exist yet, is worse than the
+                  invitation already on screen. */}
               {!editingDescription && ticket.description ? (
                 <button
                   tabIndex={0}

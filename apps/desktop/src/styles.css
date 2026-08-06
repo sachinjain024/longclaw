@@ -1689,18 +1689,27 @@ button:disabled {
 }
 
 /* The Edit affordance sits at the right of the Description header row, opposite
-   the heading, so no body text is ever under it (LC-99). It appears when the
-   section is hovered, and whenever it is the focused thing. */
+   the heading, so no body text is ever under it (LC-99). It keeps the
+   documented button type at the small variant's height, which is the size the
+   prototype gives this exact control (`prototype.js:720`, `btn btn-ghost
+   btn-sm`) — a 30px control would set the height of a 12px header row. */
 .description-edit {
   display: inline-flex;
   align-items: center;
-  gap: var(--lc-space-1);
-  font-size: 12px;
+  gap: var(--lc-space-2);
   opacity: 0;
 }
 
+.pencil-glyph {
+  flex: none;
+}
+
+/* It appears when the section is hovered, and whenever it holds focus. `:focus`
+   rather than `:focus-visible`, because focus returns here when the editor
+   closes (`keyboard-focus-map.md:87`) — including when the human closed it with
+   the mouse, which is the one way to hold focus and match neither rule. */
 .description-block:hover .description-edit,
-.description-edit:focus-visible {
+.description-edit:focus {
   opacity: 1;
 }
 
