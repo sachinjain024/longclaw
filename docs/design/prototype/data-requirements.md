@@ -16,7 +16,7 @@
 | `ticket.md` body | description (CommonMark), `## Checklist` tasks + stable item IDs, `## Attachments` registry, `## Activity` bounded events | canonical |
 | `longclaw.yaml` | project id, name, key, **theme**, created_at, people registry, label definitions | canonical |
 | `.longclaw/AGENTS.md` | generated agent editing contract | documentation |
-| App state (OS app-support dir) | project registry (paths), starred, appearance preference, board ordering preference (ADR 0003), archived-view toggle, window/panel state, palette history, index, watcher checkpoints, content hashes | disposable / device-local |
+| App state (OS app-support dir) | project registry (paths), last active project, starred, appearance preference, per-project board/list view, ordering preference (ADR 0003), filter query, archived-view toggle, window/panel state, palette history, index, watcher checkpoints, content hashes | disposable / device-local |
 | Derived at render | checklist progress, counts, relative times, freshness, degraded status | never stored |
 
 ## Per-surface requirements
@@ -38,8 +38,8 @@
 | Project name | name | `longclaw.yaml` |
 | Path chip | registered project path | app state registry |
 | Disk-state indicator | in-flight write + target filename | app state (write queue) |
-| Filter | query | app state (session only) |
-| View toggle | board/list preference | app state |
+| Filter | query | app state (device-local, per project) |
+| View toggle | board/list preference | app state (device-local, per project) |
 
 ### Board / issue list
 
@@ -50,7 +50,7 @@
 | Priority glyph / chip | priority | frontmatter |
 | Labels (name + color) | ticket label slugs → project label defs | frontmatter + `longclaw.yaml` |
 | Checklist fraction + progress | checklist items + checked | body `## Checklist` (derived) |
-| Ordering within column | priority (default) or rank (Manual mode, ADR 0003) | frontmatter `priority` / `rank`; mode from app state |
+| Ordering within column | priority (default) or rank (Manual mode, ADR 0003) | frontmatter `priority` / `rank`; mode from app state (device-local, per project) |
 | Archived exclusion / list archived group | archived_at (ADR 0004) | frontmatter `archived_at` |
 | Updated-at (list) | updated_at | frontmatter |
 | Fresh treatment + "updated by agent · 12s" | last external write time + actor type | watcher event + newest activity actor (derived, app state) |
