@@ -35,3 +35,17 @@ actor:
 -->
 ### Claude Code created this ticket
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_705bfd2f
+kind: comment
+occurred_at: 2026-08-06T14:32:57.982Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Partly landed with LC-96 (d932bca): the --lc-z-* scale now exists in design-tokens.json and every z-index in styles.css takes a layer from it (sticky · panel · modal · toast · popover), with scripts/stacking-guard.mjs holding the relations between the five surfaces. Two deviations from D-74's list, both deliberate and both noted beside the tokens: no workspace layer — a stacking context on an ancestor of the board and list would trap the inline-rendered menu popover under the panel — and a popover layer, which the app has and D-74 did not name. What is left of this ticket is the wider half of its checklist, 'use them everywhere position is set': the positioned surfaces that declare no z-index at all were left alone, since most of them are correct at auto.
+<!-- /longclaw:event -->

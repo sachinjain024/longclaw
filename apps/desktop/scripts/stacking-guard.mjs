@@ -1,0 +1,152 @@
+#!/usr/bin/env node
+/**
+ * The stacking guard: every surface that has to be on top says which layer it
+ * is on, and the layers are in the order the app needs them.
+ *
+ * `token-guard.mjs` refuses a `z-index` that is not a `--lc-z-*` token. That
+ * catches a private number; it cannot catch the two things that actually broke
+ * LC-96. The ticket panel is the topmost surface and declared **no** `z-index`
+ * at all, while `.list-group-header` declared `z-index: 1` — and a positioned
+ * element with any layer outranks one with `auto`, so the list behind the panel
+ * punched opaque bands across it: a clipped Labels row, a `Checklist` heading
+ * sliced in half, an item hidden outright. Nothing about either declaration is
+ * wrong on its own. What is wrong is the pair.
+ *
+ * So this guard reads the pair. It names the surfaces whose stacking is part of
+ * the app's behaviour rather than its paint order, requires each to take a
+ * layer, and checks the relations between them:
+ *
+ *   - the panel over the list's sticky group headers — LC-96 itself, and the
+ *     raw-file view rides on it (LC-134's layering half);
+ *   - the modal scrim over the panel, because source order used to settle that
+ *     and stopped the moment the panel took a layer of its own;
+ *   - the menu popover over the scrim, because quick create carries the status,
+ *     priority and label menus and a menu behind its own modal is unusable;
+ *   - a toast over the panel, because feedback that arrives hidden is not
+ *     feedback.
+ *
+ * The workspace is deliberately absent: it is the floor, and it must stay at
+ * `auto`. Giving a layer to an ancestor of the board and list would make it a
+ * stacking context, and `Menu.tsx` renders its popover inline rather than
+ * through a portal — so a menu opened from a card would be trapped under the
+ * panel by the very token meant to order them.
+ *
+ * **What this does not check.** These are the layers as *declared*, which is
+ * the whole comparison only for surfaces that stack at the root. A layer on a
+ * positioned box makes it a stacking context, so the panel's own popover is
+ * ordered inside the panel — above everything the panel contains, and bounded
+ * by the panel's 2 against anything outside it. That is visible only where a
+ * menu opened from the panel meets a toast or a scrim, neither of which can
+ * overlap it today, and the fix if it ever does is a portal rather than a
+ * number. Checked in WebKit when this landed: the panel's status menu paints
+ * over every point it covers.
+ *
+ * Usage: node scripts/stacking-guard.mjs   (exits non-zero on any finding)
+ */
+
+import { readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { report } from "./guard.mjs";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const src = resolve(here, "../src");
+const styles = readFileSync(join(src, "styles.css"), "utf8");
+const scale = JSON.parse(
+  readFileSync(join(src, "tokens/design-tokens.json"), "utf8"),
+).z;
+
+/** The scale, lowest layer first. `note` is prose. */
+const LAYERS = Object.keys(scale).filter((name) => name !== "note");
+
+/** Who must sit over whom, and the sentence the failure should read as. */
+const SURFACES = {
+  ".list-group-header": "the list's sticky group headers",
+  ".ticket-panel": "the ticket panel",
+  ".modal-scrim": "a modal",
+  ".menu-popover": "a menu",
+  ".toast-stack": "a toast",
+};
+const ORDER = [
+  [".ticket-panel", ".list-group-header"],
+  [".modal-scrim", ".ticket-panel"],
+  [".menu-popover", ".modal-scrim"],
+  [".toast-stack", ".ticket-panel"],
+];
+
+/**
+ * The layer each selector takes, as a number.
+ *
+ * A rule body here is flat — this stylesheet nests nothing but at-rules — so
+ * the block a declaration belongs to is the text between the braces around it,
+ * and its selector list is the text since the previous brace. Comments go first
+ * because this file explains itself at length, and prose sits between rules
+ * where a selector would otherwise be read.
+ */
+function declaredLayers() {
+  const found = new Map();
+  const rules = styles.replace(/\/\*[\s\S]*?\*\//g, "");
+  for (const [, selector, body] of rules.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const declared = body.match(/z-index:\s*([^;]+);/);
+    if (!declared) continue;
+    const token = declared[1].trim().match(/^var\(--lc-z-([a-z]+)\)$/)?.[1];
+    for (const name of Object.keys(SURFACES)) {
+      /* The rule that styles the surface itself, not one nested under it:
+         `.ticket-panel` and `.ticket-panel:hover` are the panel, and
+         `.ticket-panel .foo` and `.missing-ticket-panel` are not. */
+      const isSurface = (part) =>
+        part === name ||
+        (part.startsWith(name) && !/[-\w\s]/.test(part[name.length]));
+      if (
+        selector
+          .split(",")
+          .map((part) => part.trim())
+          .some(isSurface)
+      ) {
+        found.set(name, token ? scale[token] : null);
+      }
+    }
+  }
+  return found;
+}
+
+const findings = [];
+
+/* The scale itself: ascending, and no two layers the same — a tie is two
+   surfaces whose order is back to being source order. */
+const values = LAYERS.map((name) => scale[name]);
+if (values.some((value, index) => index > 0 && value <= values[index - 1])) {
+  findings.push(
+    `the --lc-z-* scale does not ascend: ${LAYERS.map((n) => `${n} ${scale[n]}`).join(", ")}`,
+  );
+}
+
+const layers = declaredLayers();
+for (const [selector, prose] of Object.entries(SURFACES)) {
+  if (!layers.has(selector)) {
+    findings.push(`${selector} (${prose}) declares no z-index`);
+  } else if (layers.get(selector) === null) {
+    findings.push(`${selector} (${prose}) declares a z-index off the scale`);
+  }
+}
+
+for (const [over, under] of ORDER) {
+  const above = layers.get(over);
+  const below = layers.get(under);
+  if (typeof above !== "number" || typeof below !== "number") continue;
+  if (above <= below) {
+    findings.push(
+      `${SURFACES[over]} (${over}, layer ${above}) does not paint over ` +
+        `${SURFACES[under]} (${under}, layer ${below})`,
+    );
+  }
+}
+
+report({
+  name: "stacking-guard",
+  findings,
+  checked: Object.keys(SURFACES).length,
+  noun: "surfaces",
+  remedy: "stacking defect(s) — see src/tokens/design-tokens.json § z:",
+  clean: "each takes a --lc-z-* layer, in the order the app needs",
+});
