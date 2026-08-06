@@ -64,3 +64,25 @@ Measured in WebKit at 1440px and 1500px: the first board column header moved fro
 
 Gate: `npm run check`, `a11y:audit` (A5 200% zoom green), `matrix` (8 axes × 9 states), `perf:board`, `perf:list` all pass. The `.board-heading`/`.project-toolbar` selectors in `a11y-audit.mjs` and `theme-matrix.mjs` were repointed, and the matrix's `.eyebrow` contrast probe on the board and list surfaces became `.content-header .project-path` — the same ink-3-on-bg pairing, on the element that still exists.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_da58fc16
+kind: comment
+occurred_at: 2026-08-06T05:18:51.017Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Review follow-up (42b20bb).
+
+**Header geometry (P2) — fixed.** The row had `padding: 4px 0` leaning on `.main-panel`'s 28px, so the spec's 16/12 rhythm and 24px side inset appeared nowhere in the CSS. Now `padding: 16px 0 12px` with `.main-panel` at `28px 24px`. Measured: 58px tall, 24px inset, first board column at y≈94 against the y≈100 this ticket names. It is 58 rather than 56 because `screen-specs.md`'s diagram assumes a 28px control and this app's buttons are 30px (`components.md:42-57`) — the padding is the specified number; the height is what that padding plus a real control row comes to.
+
+**One row at the default window (P1) — stands, and is now measured rather than argued.** At 1180px the header has 892px. With the path element removed *entirely* the row still needs 912px and still renders as two rows: h1 162 + Star 52 + Settings 77 + controls 585 + gaps 36. A 20px deficit with nothing left to give, so no arrangement of what LC-67 owns closes it. The controls at 585px are the surface: the `watching` pill (LC-69) and the Star button plus text Settings (LC-70) are ~200px of it.
+
+**Path truncation (P3) — recorded on LC-68.** The cap, ellipsis and `title` are D-06's, taken early because the row could not hold without them; LC-68 now carries a note saying so and what it still owes.
+
+**Process.** `npm run verify` was not run before the first commit — `npm run check` and the targeted gates were. Run in full now: `verify` (check + the native watcher round trip), `a11y:audit`, `matrix`, all exit 0.
+<!-- /longclaw:event -->
