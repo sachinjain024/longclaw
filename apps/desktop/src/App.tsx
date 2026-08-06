@@ -1121,17 +1121,35 @@ export function App() {
               <h1>{project.name}</h1>
               <button
                 tabIndex={0}
-                className="secondary"
-                onClick={() => void toggleStar(project)}
-              >
-                {project.starred ? "Starred" : "Star"}
-              </button>
-              <button
-                tabIndex={0}
-                className="secondary"
+                className="ghost small settings-button"
+                aria-label="Project settings"
+                aria-controls="project-settings"
+                aria-expanded={settingsOpen}
+                title="Project settings"
                 onClick={() => setSettingsOpen((open) => !open)}
               >
-                Settings
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 14 14"
+                  aria-hidden="true"
+                >
+                  <circle
+                    cx="7"
+                    cy="7"
+                    r="2.1"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.3"
+                  />
+                  <path
+                    d="M7 1.6 V3.4 M7 10.6 V12.4 M1.6 7 H3.4 M10.6 7 H12.4 M3.2 3.2 L4.5 4.5 M9.5 9.5 L10.8 10.8 M10.8 3.2 L9.5 4.5 M4.5 9.5 L3.2 10.8"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.3"
+                    strokeLinecap="round"
+                  />
+                </svg>
               </button>
               <PathChip path={project.rootPath} homePath={homePath} />
               {/* The controls belong to the board, so they appear only when
@@ -1212,7 +1230,11 @@ export function App() {
             </header>
 
             {settingsOpen && (
-              <section className="settings-panel" aria-label="Project settings">
+              <section
+                id="project-settings"
+                className="settings-panel"
+                aria-label="Project settings"
+              >
                 <label>
                   <span>Name</span>
                   <input

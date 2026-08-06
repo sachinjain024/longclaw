@@ -8,6 +8,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
@@ -790,6 +791,51 @@ describe("the project path chip (LC-68)", () => {
   });
 });
 
+describe("the project settings gear (LC-70)", () => {
+  const project = {
+    id: "project-fixture",
+    name: "Fixture Project",
+    rootPath: "/tmp/LongClaw Fixture",
+    key: "LC",
+    theme: "indigo",
+    starred: false,
+    reachable: true,
+    labels: {},
+  };
+
+  it("keeps starring in the sidebar and opens settings from a header gear", async () => {
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project,
+      tickets: [],
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    render(<App />);
+    await screen.findByRole("button", { name: "Board", pressed: true });
+
+    // Scoped by class, not `getByRole("banner")`: this `<header>` sits inside
+    // `.main-panel`, so HTML-AAM maps it to `generic`, and only jsdom's
+    // unconditional `header: "banner"` would make that query pass.
+    const header = document.querySelector<HTMLElement>(".content-header")!;
+    const settings = within(header).getByRole("button", {
+      name: "Project settings",
+    });
+    expect(
+      within(header).queryByRole("button", { name: /^Star(?:red)?$/ }),
+    ).toBeNull();
+    expect(settings.getAttribute("aria-controls")).toBe("project-settings");
+    expect(settings.getAttribute("aria-expanded")).toBe("false");
+
+    fireEvent.click(settings);
+
+    const panel = screen.getByRole("region", { name: "Project settings" });
+    expect(panel.id).toBe("project-settings");
+    expect(settings.getAttribute("aria-expanded")).toBe("true");
+  });
+});
+
 describe("project creation", () => {
   it("derives a backend-valid key for digit-leading project names", async () => {
     render(<App />);
@@ -1091,7 +1137,7 @@ describe("instant per-project theme selection (V0-36)", () => {
     });
     render(<App />);
     await screen.findByRole("button", { name: "Board", pressed: true });
-    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    fireEvent.click(screen.getByRole("button", { name: "Project settings" }));
   }
 
   it("must-pass: a preset applies instantly and writes only the project file", async () => {
@@ -1243,7 +1289,7 @@ describe("label definitions in project settings (V0-10)", () => {
     });
     render(<App />);
     await screen.findByRole("button", { name: "Board", pressed: true });
-    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    fireEvent.click(screen.getByRole("button", { name: "Project settings" }));
   }
 
   const chips = () =>

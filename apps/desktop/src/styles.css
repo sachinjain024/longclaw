@@ -582,6 +582,41 @@ button:disabled {
   white-space: nowrap;
 }
 
+/* The project already owns its star in the side panel; the header's one
+   project action is the prototype's compact gear (`screen-specs.md:44-45`). */
+.content-header .settings-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Square, so the shared 0 9px small padding (components.md:44) would skew it. */
+  width: var(--lc-size-control-sm);
+  padding: 0;
+  color: var(--lc-ink-3);
+  /* Only the gear reads as ink on hover, so the colour fade is scoped here
+     rather than added to the shared foundation, where it would have put a
+     third animated property on `button:disabled` — a state components.md:32
+     gives no motion at all. (The foundation already fades that state's
+     background and border-color; that predates this control.) */
+  transition:
+    background var(--lc-motion-fast) var(--lc-motion-ease),
+    border-color var(--lc-motion-fast) var(--lc-motion-ease),
+    color var(--lc-motion-fast) var(--lc-motion-ease);
+}
+
+.content-header .settings-button:hover {
+  color: var(--lc-ink);
+}
+
+.content-header .settings-button:focus-visible {
+  border-color: var(--lc-accent-human);
+}
+
+.content-header .settings-button:focus-visible,
+.path-chip:focus-visible {
+  box-shadow: var(--lc-focus-ring);
+  outline: none;
+}
+
 /* The spec's spacer: identity left, controls right. */
 .content-header .toolbar-actions {
   margin-left: auto;
@@ -613,11 +648,6 @@ button:disabled {
 
 .path-chip:hover {
   background: var(--lc-wash);
-}
-
-.path-chip:focus-visible {
-  box-shadow: var(--lc-focus-ring);
-  outline: none;
 }
 
 .path-chip .txt {
