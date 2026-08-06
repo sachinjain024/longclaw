@@ -570,6 +570,12 @@ button:disabled {
   color: var(--lc-ink);
 }
 
+.content-header .settings-button:focus-visible {
+  border-color: var(--lc-accent-human);
+  box-shadow: var(--lc-focus-ring);
+  outline: none;
+}
+
 /* The spec's spacer: identity left, controls right. */
 .content-header .toolbar-actions {
   margin-left: auto;
