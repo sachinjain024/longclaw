@@ -64,3 +64,23 @@ This also clears one of the two native `<select>` elements LC-152 tracks; the la
 
 The V0-35 appearance tests drove this `<select>`. They now drive the store's `setAppearance`, which is exactly what both the palette command and the future segment call — what those tests assert is that an explicit override beats the system and survives a relaunch, not which control set it.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_651ba0a0
+kind: comment
+occurred_at: 2026-08-06T06:38:20.383Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Post-merge review follow-up, fixed on this branch in `2ad1d83`.
+
+Two test problems the review caught:
+
+The footer assertion pinned `textContent` to `v0 · local · no account` exactly. The spec puts a waitlist ghost button beneath that line (`screen-specs.md:34-36`) and LC-75 is the open call on whether v0 ships it, so an equality assertion would have failed that ticket rather than let it through. It is `toContain` now.
+
+More seriously, moving the V0-35 tests off the removed `<select>` left them driving the store only — so every clause in that block would still have passed with no reachable appearance control anywhere in the app. Added `a user can set an override from the palette`, which drives the command end to end. That is the only surface that sets appearance until LC-127 builds the settings segment.
+<!-- /longclaw:event -->

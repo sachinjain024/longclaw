@@ -62,3 +62,21 @@ Both chips are `aria-hidden` and paired with `aria-keyshortcuts` (`C`, `Meta+F`)
 
 The `.primary kbd` rule is scoped to `.toolbar-actions`: `.editor-footer` owns a quieter chip treatment of its own, and letting a global rule reach it would have restyled the create and description footers as a side effect.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_0b09c7b9
+kind: comment
+occurred_at: 2026-08-06T06:38:20.351Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Post-merge review follow-up, fixed on this branch in `2ad1d83`.
+
+The two chips had drifted from `components.md` in three places: the gap to the New-ticket chip was a raw `6px` rather than the documented 8px "gap to kbd hint"; the chip on the filled primary was 20% of the label colour in both appearances, where `components.md:56-57` asks for 20% light / 18% dark; and `.filter-kbd` restated the quiet-chip anatomy that `.palette-crumb` / `.palette-esc` already carried.
+
+There is now one `.kbd-chip` rule for the one quiet chip the design system defines (`components.md:85`), worn by all three. `letter-spacing` stayed out of it — the palette chips never had the prototype's 0.02em, and folding it in would have retuned two shipped components to fix a third.
+<!-- /longclaw:event -->
