@@ -35,9 +35,10 @@ describe("the disk-state indicator", () => {
     });
     render(<WriteIndicator />);
 
-    // The file, not the path: `screen-specs.md:51-52` writes `writing
-    // ticket.md…`, and the header has no room for the rest of it.
-    const line = screen.getByText(/writing ticket\.md/);
+    // The key is what identifies the write — every ticket in the project is
+    // stored as `ticket.md`, so the bare name would name any of them. The
+    // `.longclaw/` they all share is the part that goes.
+    const line = screen.getByText(/writing tickets\/LC-1\/ticket\.md/);
     expect(line.textContent).not.toContain(".longclaw");
     expect(line.textContent).not.toContain("⟳");
 
@@ -65,7 +66,7 @@ describe("the disk-state indicator", () => {
     useMutationStore.setState({ settled: ".longclaw/tickets/LC-9/ticket.md" });
     render(<WriteIndicator idle=".longclaw/tickets/LC-1/ticket.md" />);
 
-    expect(screen.getByText(".longclaw/tickets/LC-1/ticket.md")).toBeTruthy();
+    expect(screen.getByText("tickets/LC-1/ticket.md")).toBeTruthy();
     expect(screen.queryByText(/✓/)).toBeNull();
   });
 
@@ -98,10 +99,45 @@ describe("the disk-state indicator", () => {
     useMutationStore.setState({ settled: ".longclaw/tickets/LC-1/ticket.md" });
     render(<WriteIndicator idle=".longclaw/tickets/LC-1/ticket.md" />);
 
-    expect(screen.getByText("✓ ticket.md")).toBeTruthy();
+    expect(screen.getByText("✓ tickets/LC-1/ticket.md")).toBeTruthy();
 
     act(() => void vi.advanceTimersByTime(5_000));
-    expect(screen.getByText(".longclaw/tickets/LC-1/ticket.md")).toBeTruthy();
+    expect(screen.getByText("tickets/LC-1/ticket.md")).toBeTruthy();
+  });
+
+  /**
+   * The mark reports one event: a write that landed. A write that *fails*
+   * clears `writing` without settling anything, and freshness that keyed on
+   * `writing` read that as news — standing an hours-old `✓` back up beside the
+   * toast saying the save had just failed.
+   */
+  it("leaves a stood-down mark down when the next write fails", async () => {
+    const { mutate } = await import("./mutations");
+    useMutationStore.setState({
+      writing: ".longclaw/tickets/LC-1/ticket.md",
+      inFlight: 1,
+    });
+    render(<WriteIndicator />);
+    act(
+      () =>
+        void useMutationStore
+          .getState()
+          .endWrite(".longclaw/tickets/LC-1/ticket.md"),
+    );
+
+    expect(screen.getByText("✓ tickets/LC-1/ticket.md")).toBeTruthy();
+    act(() => void vi.advanceTimersByTime(5_000));
+    expect(screen.queryByText(/✓/)).toBeNull();
+
+    await act(async () => {
+      await mutate({
+        path: ".longclaw/tickets/LC-1/ticket.md",
+        write: () => Promise.reject(new Error("No space left on device")),
+      });
+    });
+
+    expect(screen.queryByText(/✓/)).toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   /**

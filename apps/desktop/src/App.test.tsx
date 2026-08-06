@@ -878,9 +878,9 @@ describe("the header disk-state indicator (LC-69)", () => {
       });
     });
 
-    // The file, as `screen-specs.md:51-52` writes it — the path would truncate
-    // to nothing useful in a header this dense.
-    expect(header.textContent).toContain("✓ ticket.md");
+    // With the key, because every ticket in the project is stored as
+    // `ticket.md`: the mark has to say which one landed, not that one did.
+    expect(header.textContent).toContain("✓ tickets/LC-1/ticket.md");
     expect(header.textContent).not.toContain(".longclaw/tickets");
   });
 

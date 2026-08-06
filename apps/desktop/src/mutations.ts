@@ -131,6 +131,12 @@ interface MutationState {
   writing?: string;
   /** The file the last write landed in, for the settled `✓` state. */
   settled?: string;
+  /**
+   * How many writes have landed. The settled mark's freshness keys on this
+   * rather than on `settled`, which does not change when the same file is
+   * written twice, or on `writing`, which also clears when a write *fails*.
+   */
+  settledAt: number;
   /** Writes still out. Concurrent writes must not clear each other's spinner. */
   inFlight: number;
   raise: (toast: Omit<Toast, "id">) => void;
@@ -144,6 +150,7 @@ let nextToastId = 1;
 
 export const useMutationStore = create<MutationState>((set) => ({
   inFlight: 0,
+  settledAt: 0,
   raise: (toast) => set({ toast: { ...toast, id: nextToastId++ } }),
   dismiss: (id) =>
     set((state) => (state.toast?.id === id ? { toast: undefined } : {})),
@@ -159,6 +166,9 @@ export const useMutationStore = create<MutationState>((set) => ({
         inFlight,
         writing: inFlight === 0 ? undefined : state.writing,
         settled: landed ?? state.settled,
+        // Only a landing is a settle. A failure leaves the last mark where it
+        // was, stale if it had already stood down.
+        settledAt: landed ? state.settledAt + 1 : state.settledAt,
       };
     }),
 }));
@@ -169,6 +179,7 @@ export function resetMutations() {
     toast: undefined,
     writing: undefined,
     settled: undefined,
+    settledAt: 0,
     inFlight: 0,
   });
 }

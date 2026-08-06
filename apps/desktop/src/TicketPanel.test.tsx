@@ -560,13 +560,14 @@ describe("the panel's honesty about the file", () => {
     fireEvent.click(box);
 
     // The tick shows before the write lands, and the header says what is
-    // happening — naming the file, as `states.md:180` writes it.
+    // happening — naming the file, as `states.md:180` writes it, with the key
+    // that says which ticket's `ticket.md` it is.
     expect(box).toHaveProperty("checked", true);
-    await screen.findByText(/writing ticket\.md/);
+    await screen.findByText(/writing tickets\/LC-1\/ticket\.md/);
 
     settle(writeResult());
 
-    await screen.findByText("✓ ticket.md");
+    await screen.findByText("✓ tickets/LC-1/ticket.md");
   });
 
   it("shows the actor of every record, and marks only the agent's", async () => {

@@ -623,12 +623,13 @@ button:disabled {
 }
 
 /* The disk-state indicator, which `screen-specs.md:44-53` puts here — beside
-   the path chip, left of the spacer — at mono 10px. It names a file rather
-   than a path (`WriteFeedback.tsx`), so this cap is a guard-rail against an
-   unusually long file name, not the normal case; and it is absent whenever the
-   disk is quiet, so the width is only ever spent on news. */
+   the path chip, left of the spacer — at mono 10px. The cap holds the longest
+   thing it says, `writing tickets/LC-69/ticket.md…`, and it is absent whenever
+   the disk is quiet, so the width is only ever spent on news. Past that the
+   ellipsis takes the tail, which costs the `ticket.md` every ticket shares
+   rather than the key that identifies one (`WriteFeedback.tsx`). */
 .content-header > .disk-path {
-  max-width: 22ch;
+  max-width: 32ch;
   font-size: var(--lc-type-kbd-size);
 }
 

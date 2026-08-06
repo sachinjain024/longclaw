@@ -65,3 +65,23 @@ Two things the plan did not name:
 
 Covered by `WriteFeedback.test.tsx` (idle silence, the busy line, write-outranks-read, the mark's life) and `App.test.tsx` ("the header disk-state indicator (LC-69)"). `npm run verify` is green.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_cd963912
+kind: comment
+occurred_at: 2026-08-06T12:51:54.256Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+The two-axis review of this branch found two things worth fixing here, and both are now on it.
+
+The settled ✓ keyed its freshness on `writing`, which also clears when a write **fails** — so a failed save re-raised the stood-down mark of an older write beside the danger toast reporting the failure. Freshness now keys on a `settledAt` counter the store bumps only when a write lands. `WriteFeedback.test.tsx` covers it, and the test was checked against the old code first: it reproduces.
+
+The label named `ticket.md`, and every ticket in this project is stored as `ticket.md` — so the header could mark a write to one ticket while another sat open in the panel. It now says `tickets/LC-1/ticket.md`, the label the prototype's own disk state carries (`prototype.js:345`); the `.longclaw/` prefix they all share is what goes, not the key. The idle line uses the same spelling, so the element does not change how it names a file as it changes state. The header's cap moved 22ch → 32ch to hold it, and past that the ellipsis now costs the shared `ticket.md` rather than the key.
+
+The remaining seven items are LC-160, which also records the 5s stand-down and the new label as decisions rather than leaving them to be rediscovered. `npm run verify` is green.
+<!-- /longclaw:event -->

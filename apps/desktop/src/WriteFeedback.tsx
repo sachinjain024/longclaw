@@ -30,14 +30,21 @@ const TOAST_MS = 5_000;
  */
 const SETTLED_MS = TOAST_MS;
 
+/** Every ticket file in the project lives under it, so it names nothing. */
+const STORE_PREFIX = ".longclaw/";
+
 /**
- * `screen-specs.md:51-52` and `states.md:180` both name a file rather than a
- * path — `writing ticket.md…`, `✓ ticket.md`. The store keeps the
- * project-relative path, because that is what identifies *which* write; this
- * line only has to say which file it landed in.
+ * How this line names a file: the store's project-relative path with the
+ * prefix every ticket shares dropped — `tickets/LC-1/ticket.md`, which is the
+ * label the prototype's own disk state carries (`prototype.js:345`).
+ *
+ * Not the bare file name. `screen-specs.md:51-52` and `states.md:180` write
+ * `✓ ticket.md`, but as example prose: in LongClaw *every* ticket is stored as
+ * `ticket.md`, so the bare name would leave the header marking a write to one
+ * ticket while another sits open in the panel. The key is the identifying part.
  */
-function fileName(path: string) {
-  return path.slice(path.lastIndexOf("/") + 1);
+function diskLabel(path: string) {
+  return path.startsWith(STORE_PREFIX) ? path.slice(STORE_PREFIX.length) : path;
 }
 
 /**
@@ -59,6 +66,7 @@ export function WriteIndicator(props: {
 }) {
   const writing = useMutationStore((state) => state.writing);
   const settled = useMutationStore((state) => state.settled);
+  const settledAt = useMutationStore((state) => state.settledAt);
   const [slow, setSlow] = useState(false);
   const [stale, setStale] = useState(false);
 
@@ -71,14 +79,17 @@ export function WriteIndicator(props: {
     return () => clearTimeout(timer);
   }, [writing]);
 
-  // Keyed on `writing` as well as `settled`, so a second write to the same file
-  // — where `settled` never changes value — still gets a fresh mark.
+  // Keyed on the settle *event* — `settledAt` — so a second write to the same
+  // file, where `settled` never changes value, still gets a fresh mark. Not on
+  // `writing`: that also clears when a write *fails*, which put the stood-down
+  // mark of an older write back up beside the toast reporting the failure.
   useEffect(() => {
     setStale(false);
-    if (!settled || writing) return;
+    if (!settled) return;
     const timer = setTimeout(() => setStale(true), SETTLED_MS);
     return () => clearTimeout(timer);
-  }, [settled, writing]);
+    // `settledAt` is here as the trigger, not as something the body reads.
+  }, [settledAt, settled]);
 
   const className = props.className ?? "disk-path";
   if (writing) {
@@ -89,7 +100,7 @@ export function WriteIndicator(props: {
             ⟳
           </span>
         )}
-        writing {fileName(writing)}…
+        writing {diskLabel(writing)}…
       </code>
     );
   }
@@ -106,11 +117,14 @@ export function WriteIndicator(props: {
     (props.idle === undefined || settled === props.idle)
   ) {
     return (
-      <code className={`${className} settled`}>✓ {fileName(settled)}</code>
+      <code className={`${className} settled`}>✓ {diskLabel(settled)}</code>
     );
   }
+  // The same spelling as the two above it. This element is one line that
+  // changes state, so a path that gained and lost its `.longclaw/` as writes
+  // came and went would read as the file changing rather than the disk.
   if (!props.idle) return null;
-  return <code className={className}>{props.idle}</code>;
+  return <code className={className}>{diskLabel(props.idle)}</code>;
 }
 
 export function ToastStack() {
