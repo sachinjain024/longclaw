@@ -54,6 +54,29 @@ export function sourceFiles() {
   return filesUnder(root, SOURCE, [allowed]);
 }
 
+/**
+ * `[selector, body]` for every rule in a stylesheet, comments stripped.
+ *
+ * Two guards now read `styles.css` as rules rather than as lines —
+ * `stacking-guard.mjs` for the layer a surface declares, `tile-contrast-guard.mjs`
+ * for the ink a background is paired with — and both need the same two things
+ * the naive regex gets wrong. Comments go first, because in this stylesheet
+ * they sit between the previous `}` and the selector and several are
+ * paragraphs: left in, a finding names the rule's rationale instead of the
+ * rule. And the selector is collapsed to one line, because it may be a list
+ * broken across several.
+ *
+ * This is a scanner, not a parser: nested rules (`@media`) yield their inner
+ * rules, which is what both callers want, and neither has any use for the
+ * at-rule's own prelude.
+ */
+export function cssRules(css) {
+  const withoutComments = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  return [...withoutComments.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(
+    ([, selector, body]) => [selector.trim().replace(/\s+/g, " "), body],
+  );
+}
+
 /** `{ path, text, lines }` for one file, read once. */
 export function readSource(file) {
   const text = readFileSync(file, "utf8");

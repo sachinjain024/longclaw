@@ -29,6 +29,15 @@
  *      clear WCAG AA body text (4.5:1) against the tile in **both**
  *      appearances and **every** theme. The accents move per theme, so a ratio
  *      checked once is a ratio checked for indigo.
+ *   3. Every mention of `--lc-tile` in the stylesheet must belong to a rule
+ *      this read. One rule matches today, so without that count a single edit
+ *      to how the background is written would leave the guard checking nothing
+ *      and still exiting 0.
+ *
+ * The rendered counterpart is the theme matrix's `panel` state, which measures
+ * the same pair in WebKit after the cascade has run and catches what a reader
+ * of the source cannot. This is the cheap check that runs in `tokens:check` on
+ * every commit; that is the true one that needs a browser.
  *
  * Scoped to the tile deliberately. The same pair over every background token
  * would fire on the hundred-odd rules that inherit their ink correctly, since
@@ -50,7 +59,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { report } from "./guard.mjs";
+import { cssRules, report } from "./guard.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const src = resolve(here, "../src");
@@ -75,17 +84,31 @@ const THEMES = Object.keys(tokens.themes).filter((name) => name !== "note");
 const sameInEveryTheme = (value) =>
   Object.fromEntries(THEMES.map((theme) => [theme, value]));
 
+const PREFIX = { status: "status-", priority: "priority-", label: "label-" };
+
 const palette = new Map();
 const add = (name, value) => palette.set(`--lc-${name}`, value);
 for (const group of ["neutral", "status", "priority", "feedback", "label"]) {
   for (const [key, value] of Object.entries(tokens.color[group])) {
-    if (key === "note" || typeof value?.light !== "string") continue;
-    const prefix = {
-      status: "status-",
-      priority: "priority-",
-      label: "label-",
-    };
-    add(`${prefix[group] ?? ""}${key}`, sameInEveryTheme(value));
+    if (key === "note") continue;
+    /* `status.done` is the string `"accent.human"` rather than a hue —
+       `build.mjs` skips it here and derives it from the theme accent. Admitting
+       it would parse `"ac"` as hex and report the ratio as `NaN`. */
+    if (group === "status" && key === "done") continue;
+    if (typeof value.light !== "string") continue;
+    add(`${PREFIX[group] ?? ""}${key}`, sameInEveryTheme(value));
+    /* A priority may carry its own mark ink (`build.mjs`'s `mark-<app>`). It is
+       a real token a rule can name, so leaving it out would report a correct
+       ink as one this cannot resolve. */
+    if (value["mark-light"] && value["mark-dark"]) {
+      add(
+        `${PREFIX[group]}${key}-mark`,
+        sameInEveryTheme({
+          light: value["mark-light"],
+          dark: value["mark-dark"],
+        }),
+      );
+    }
   }
 }
 const ACCENTS = {
@@ -110,37 +133,43 @@ for (const [name, role] of Object.entries(ACCENTS)) {
 const channel = (part) =>
   part <= 0.03928 ? part / 12.92 : ((part + 0.055) / 1.055) ** 2.4;
 
-/** Relative luminance per WCAG 2.1. Hex only — the tile and its inks are hex. */
+/**
+ * Relative luminance per WCAG 2.1, for a 6-digit hex.
+ *
+ * Every hue in the token file is `#rrggbb` today and nothing enforces that, so
+ * anything else returns `undefined` rather than the `NaN` that would otherwise
+ * flow into a ratio and print as a finding nobody can act on. The caller turns
+ * that into a finding that says so.
+ */
 function luminance(hex) {
   const value = hex.trim().replace("#", "");
+  if (!/^[0-9a-fA-F]{6}$/.test(value)) return undefined;
   const [r, g, b] = [0, 2, 4].map((at) =>
     channel(parseInt(value.slice(at, at + 2), 16) / 255),
   );
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
+/** The ratio, or `undefined` if either side is not a hue this can read. */
 function contrast(a, b) {
-  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  const both = [luminance(a), luminance(b)];
+  if (both.some((value) => value === undefined)) return undefined;
+  const [hi, lo] = both.sort((x, y) => y - x);
   return (hi + 0.05) / (lo + 0.05);
 }
 
 /* ---------- the rules that paint the tile ---------- */
 
-/* Comments go first: they sit between the previous `}` and the selector, and
-   several of them in `styles.css` are paragraphs. Left in, a finding names the
-   rule's rationale instead of the rule. */
-const RULE = /([^{}]+)\{([^{}]*)\}/g;
 const declaration = (body, property) =>
   body.match(new RegExp(`(?:^|;)\\s*${property}\\s*:\\s*([^;]+)`))?.[1]?.trim();
 
+const rules = cssRules(styles);
+
 const findings = [];
 let checked = 0;
-for (const [, selector, body] of styles
-  .replace(/\/\*[\s\S]*?\*\//g, "")
-  .matchAll(RULE)) {
+for (const [where, body] of rules) {
   if (declaration(body, "background") !== "var(--lc-tile)") continue;
   checked += 1;
-  const where = selector.trim().replace(/\s+/g, " ");
 
   const ink = declaration(body, "color");
   if (!ink) {
@@ -173,16 +202,48 @@ for (const [, selector, body] of styles
     }
     for (const [hue, themes] of byHue) {
       const ratio = contrast(tokens.color.neutral.tile[appearance], hue);
-      if (ratio >= AA) continue;
       const scope =
         themes.length === THEMES.length
           ? `${appearance} appearance`
           : `${appearance} appearance (${themes.join(", ")})`;
-      findings.push(
-        `${where} — \`${token}\` on \`--lc-tile\` is ${ratio.toFixed(2)}:1 ` +
-          `in ${scope}, under AA's ${AA}:1`,
-      );
+      if (ratio === undefined) {
+        findings.push(
+          `${where} — \`${token}\` is \`${hue}\`, which is not a 6-digit hex, ` +
+            `so its contrast against \`--lc-tile\` in ${scope} cannot be read`,
+        );
+      } else if (ratio < AA) {
+        findings.push(
+          `${where} — \`${token}\` on \`--lc-tile\` is ${ratio.toFixed(2)}:1 ` +
+            `in ${scope}, under AA's ${AA}:1`,
+        );
+      }
     }
+  }
+}
+
+/* The floor, and the reason this guard cannot go quiet.
+ *
+ * Everything above keys off the exact string `background: var(--lc-tile)`.
+ * `background-color: var(--lc-tile)`, a shorthand with a position, or a
+ * `var(--lc-tile, #000)` fallback all slip straight through the filter — and
+ * because exactly one rule matches today, one such edit would leave nothing to
+ * check while the script still exited 0. `guard.mjs` is explicit that this is
+ * the failure mode these scripts exist to avoid: "A guard that passes silently
+ * is one nobody can tell is still running."
+ *
+ * So the tile is counted twice, by two different methods, and the counts have
+ * to agree: every mention of the token in the stylesheet must belong to a rule
+ * this actually read. A mention it cannot account for is a finding naming the
+ * rule, not a silence. */
+const mentions = rules.filter(([, body]) => body.includes("var(--lc-tile)"));
+if (mentions.length !== checked) {
+  for (const [where, body] of mentions) {
+    if (declaration(body, "background") === "var(--lc-tile)") continue;
+    findings.push(
+      `${where} — names \`--lc-tile\` in a form this guard does not read ` +
+        `(it understands \`background: var(--lc-tile)\` alone), so its ink ` +
+        `would go unchecked`,
+    );
   }
 }
 
@@ -193,6 +254,7 @@ report({
   /* One tile surface is the normal case here, not the edge one — "1 tile
      surfaces clean" would be the pass line almost every run prints. */
   noun: checked === 1 ? "tile surface" : "tile surfaces",
-  remedy: "unreadable tile surface(s) — name a light ink, or use --lc-wash:",
+  remedy:
+    "unreadable tile surface(s) — name a light ink, or take --lc-code-surface:",
   clean: "every ink on the tile clears AA in both appearances",
 });

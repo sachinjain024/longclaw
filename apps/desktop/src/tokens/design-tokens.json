@@ -367,6 +367,18 @@
     }
   },
 
+  "alias": {
+    "note": "A role that is a *decision about* another token rather than a hue of its own. It emits `--lc-<name>: var(--lc-<of>)`, so the decision is made once, here, and the components that consume it say what they are rather than which neutral they happen to sit on. `of` must name a color.neutral key; build.mjs fails on one that does not.",
+    "code-surface": {
+      "of": "wash",
+      "role": "inline code chips and fenced blocks (LC-97, LC-98). Was `tile` — the agent's terminal window, near-black in *both* appearances — so the inherited ink painted itself and every backtick rendered as a black rectangle. `wash` flips with the appearance, which is the property the decision turns on. Note that `wash` and `raised` share a value in dark, so code rendered *on* a raised surface would need this to move rather than the rules that consume it."
+    },
+    "code-ink": {
+      "of": "ink",
+      "role": "the ink that pairs with `code-surface`. Named rather than inherited so a blockquote's dimmed `ink-2` cannot follow code into a chip; a link's accent still wins, because a link is an affordance rather than a surface."
+    }
+  },
+
   "themes": {
     "note": "A theme preset supplies exactly four accent decisions per appearance: the accent (fills, rings, borders), the text variant (AA ≥ 4.5:1 as small text on surface and soft chips), the on-accent color (button labels, glyph marks on accent fills), and nothing else. Every soft/hover/ring/rail variant derives from these via mix.*. The agent pair is identical in every preset — agent activity must read the same in every project.",
     "indigo": {
