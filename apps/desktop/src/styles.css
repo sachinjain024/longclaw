@@ -555,6 +555,21 @@ button:disabled {
   white-space: nowrap;
 }
 
+/* The project already owns its star in the side panel; the header's one
+   project action is the prototype's compact gear (`screen-specs.md:44-45`). */
+.content-header .settings-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 5px;
+  color: var(--lc-ink-3);
+}
+
+.content-header .settings-button:hover {
+  color: var(--lc-ink);
+}
+
 /* The spec's spacer: identity left, controls right. */
 .content-header .toolbar-actions {
   margin-left: auto;
