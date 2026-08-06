@@ -86,3 +86,39 @@ Review follow-up (42b20bb).
 
 **Process.** `npm run verify` was not run before the first commit — `npm run check` and the targeted gates were. Run in full now: `verify` (check + the native watcher round trip), `a11y:audit`, `matrix`, all exit 0.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_07faafcb
+kind: comment
+occurred_at: 2026-08-06T05:23:39.368Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+**Changed**
+
+- Collapsed `project-toolbar` + `board-heading` into one `.content-header`: identity left, controls right.
+- Dropped the `LOCAL PROJECT` eyebrow and the `Board`/`List` heading; `GENERATION n` moved into the dev trace strip.
+- Star and Settings moved inline, right of the project name.
+- Controls now render only when `project.reachable` — the old `board-heading` got that from sitting inside the workspace.
+- Header padding is the spec's 16/12 (`screen-specs.md:44`); `.main-panel` carries the 24px side inset.
+- Path capped at 180px, ellipsed, full path on `title` — an uncapped path was what broke the row. Prerequisite taken from LC-68.
+- Header wraps as a whole, never inside the control cluster, so a break cannot strand a control (LC-149).
+
+**Result**
+
+- First board column: y≈275 → **y≈94**. Row height 58px, side inset 24px.
+- One row at ≥1440px.
+- Two rows at the 1180px default window: 912px needed against 892px available *with the path removed entirely*. Not closable here — LC-69 (`watching` pill) and LC-70 (Star, gear Settings) are ~200px of the 585px control cluster.
+
+**Harness**
+
+- Repointed `.board-heading`/`.project-toolbar` selectors in `a11y-audit.mjs` and `theme-matrix.mjs`.
+- Matrix `.eyebrow` contrast probe → `.content-header .project-path` (same ink-3-on-bg pairing, on an element that still exists).
+- Tests wait on the pressed `Board` view-segment button instead of the removed heading.
+
+**Gates:** `verify`, `a11y:audit`, `matrix`, `perf:board`, `perf:list` — all exit 0.
+<!-- /longclaw:event -->
