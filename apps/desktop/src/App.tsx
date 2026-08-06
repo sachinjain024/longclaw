@@ -1159,7 +1159,7 @@ export function App() {
                       placeholder="Filter tickets"
                       onChange={(event) => setFilterQuery(event.target.value)}
                     />
-                    <kbd className="filter-kbd" aria-hidden="true">
+                    <kbd className="kbd-chip filter-kbd" aria-hidden="true">
                       ⌘F
                     </kbd>
                   </div>

@@ -786,10 +786,13 @@ function mockSystem(initialDark: boolean) {
  * is an app preference and belongs in project settings as a 3-up segment
  * (LC-127), with the palette's `Toggle appearance` command reaching it until
  * that lands. Both surfaces call exactly this, so the store is the honest seam
- * for "an explicit override": what is under test is the override, not the
- * control that sets it.
+ * for the multi-step clauses below: what they test is what an override *does*
+ * — beats the system, survives a relaunch — not the control that sets it.
+ *
+ * That a user can produce one at all is a separate claim, and it needs a real
+ * surface: `a user can set an override from the palette` drives the command.
  */
-function override(next: "light" | "dark" | "system") {
+function overrideAppearance(next: "light" | "dark" | "system") {
   act(() => useLongClawStore.getState().setAppearance(next));
 }
 
@@ -848,7 +851,7 @@ describe("system-matched appearance (V0-35)", () => {
       expect(document.documentElement.dataset.appearance).toBe("dark"),
     );
 
-    override("light");
+    overrideAppearance("light");
     await waitFor(() =>
       expect(document.documentElement.dataset.appearance).toBe("light"),
     );
@@ -863,7 +866,7 @@ describe("system-matched appearance (V0-35)", () => {
   it("persists the preference and rehydrates it on the next launch", async () => {
     mockSystem(true);
     const first = render(<App />);
-    override("light");
+    overrideAppearance("light");
     await waitFor(() =>
       expect(window.localStorage.getItem("longclaw.appearance")).toBe("light"),
     );
@@ -885,7 +888,7 @@ describe("system-matched appearance (V0-35)", () => {
     mockSystem(false);
     render(<App />);
 
-    override("dark");
+    overrideAppearance("dark");
     await waitFor(() =>
       expect(document.documentElement.dataset.appearance).toBe("dark"),
     );
@@ -893,6 +896,50 @@ describe("system-matched appearance (V0-35)", () => {
     expect(api.updateProjectTheme).not.toHaveBeenCalled();
     expect(api.editTicket).not.toHaveBeenCalled();
     expect(api.updateProjectName).not.toHaveBeenCalled();
+  });
+
+  it("a user can set an override from the palette", async () => {
+    // The clauses above drive the store, so on their own they would all still
+    // pass with no reachable control anywhere in the app. Since LC-72 took the
+    // sidebar `<select>` out, the palette command is the only surface that sets
+    // this, and it stays the only one until LC-127 builds the settings segment
+    // — so one test drives it end to end rather than trusting the wiring.
+    mockSystem(true);
+    // The palette only mounts over an open project (`App.tsx:1403`), which is
+    // also the only state this command is reachable from.
+    const project = {
+      id: "project-appearance",
+      name: "Appearance Fixture",
+      rootPath: "/tmp/LongClaw Appearance",
+      key: "AF",
+      theme: "indigo",
+      starred: false,
+      reachable: true,
+      labels: {},
+    };
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project,
+      tickets: [],
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    render(<App />);
+    await waitFor(() =>
+      expect(document.documentElement.dataset.appearance).toBe("dark"),
+    );
+
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+    // `system` → `light` is the first step of the cycle the command runs.
+    fireEvent.click(
+      await screen.findByRole("option", { name: /Toggle appearance/ }),
+    );
+
+    await waitFor(() =>
+      expect(document.documentElement.dataset.appearance).toBe("light"),
+    );
+    expect(useLongClawStore.getState().appearance).toBe("light");
   });
 });
 
@@ -2592,14 +2639,12 @@ describe("the app shell against its spec (LC-71, LC-72, LC-73)", () => {
     labels: {},
   };
 
-  // One ticket, because `EmptyBoard` carries a `New ticket` button of its own
-  // and an empty board would make every header assertion below ambiguous.
-  const SEED: TicketRow[] = [
-    {
+  function row(key: string, title: string): TicketRow {
+    return {
       state: "indexed",
-      key: "LA-1",
-      id: "id-LA-1",
-      title: "Atomic replace race",
+      key,
+      id: `id-${key}`,
+      title,
       status: "todo",
       priority: "none",
       labels: [],
@@ -2609,10 +2654,14 @@ describe("the app shell against its spec (LC-71, LC-72, LC-73)", () => {
       checklistCount: 0,
       commentCount: 0,
       attachmentCount: 0,
-      contentHash: "hash-LA-1",
-      relativePath: ".longclaw/tickets/LA-1/ticket.md",
-    },
-  ];
+      contentHash: `hash-${key}`,
+      relativePath: `.longclaw/tickets/${key}/ticket.md`,
+    };
+  }
+
+  // One ticket, because `EmptyBoard` carries a `New ticket` button of its own
+  // and an empty board would make every header assertion below ambiguous.
+  const SEED = [row("LA-1", "Atomic replace race")];
 
   async function openBoard() {
     vi.mocked(api.listProjects).mockResolvedValue([project]);
@@ -2651,11 +2700,12 @@ describe("the app shell against its spec (LC-71, LC-72, LC-73)", () => {
       expect(filter.getAttribute("aria-keyshortcuts")).toBe("Meta+F");
     });
 
-    it("still filters after the chip is overlaid on the field", async () => {
-      // The chip is positioned over the field's right edge. If it ever stops
-      // being `pointer-events: none` the field keeps working here but dies
-      // under a real click, so this asserts the wrapper did not come between
-      // the ref and the input: `⌘F` focuses through it.
+    it("still lets ⌘F reach the input through the new wrapper", async () => {
+      // The chip needed a positioned wrapper around the input, and the `⌘F`
+      // handler focuses through a ref. This asserts the wrapper did not come
+      // between the two. It does not cover the chip's `pointer-events: none` —
+      // jsdom has no hit testing, so a chip that swallowed pointer input would
+      // still pass here and only show up under a real click.
       await openBoard();
       const filter = screen.getByRole("textbox", {
         name: "Filter tickets",
@@ -2681,8 +2731,12 @@ describe("the app shell against its spec (LC-71, LC-72, LC-73)", () => {
     it("keeps the trust line, which is what the footer is for", async () => {
       await openBoard();
 
+      // `toContain`, not `toBe`: the spec puts a waitlist ghost button beneath
+      // this line (`screen-specs.md:34-36`) and LC-75 is the open call on
+      // whether v0 ships it. Pinning the footer to its exact current text would
+      // fail that ticket rather than let it through.
       const footer = document.querySelector(".side-panel-footer")!;
-      expect(footer.textContent).toBe("v0 · local · no account");
+      expect(footer.textContent).toContain("v0 · local · no account");
     });
   });
 

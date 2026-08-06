@@ -105,9 +105,10 @@ textarea:focus-visible,
 
 /* Sized to their labels, never stretched: the sidebar is 240px, so splitting
    216px of content between two buttons leaves 106px each and wraps
-   `Create project` onto a second line. */
+   `Create project` onto a second line. The padding stays the documented small
+   `0 9px` (`components.md:44`) — `nowrap` and the default flex sizing are what
+   keep the row on one line, so there is nothing for an off-scale value to buy. */
 .project-actions-row .ghost {
-  padding: 0 7px;
   color: var(--lc-ink-3);
   white-space: nowrap;
 }
@@ -341,6 +342,22 @@ h1 {
 .ghost.small {
   min-height: var(--lc-size-control-sm);
   padding: 0 9px;
+}
+
+/* Chip anatomy, `components.md:85`: mono 10px/500 on `wash`, radius 3px,
+   hairline `line`. There is one quiet kbd chip in the design system, so there
+   is one rule for it — the palette's crumb and `esc` affordance and the filter
+   field's `⌘F` hint are the same object drawn in three places. Each adds only
+   its own placement below. The chip embedded in a filled primary is *not* this
+   one: it is a wash of the label colour, specified separately at
+   `components.md:56-57`. */
+.kbd-chip {
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-kbd);
+  color: var(--lc-ink-3);
+  background: var(--lc-wash);
+  font: var(--lc-type-kbd-weight) var(--lc-type-kbd-size)
+    var(--lc-type-kbd-font);
 }
 
 .ghost {
@@ -1084,33 +1101,37 @@ button:disabled {
   display: inline-flex;
 }
 
+/* Anatomy from `.kbd-chip`; the placement and the prototype's own tracking are
+   local. `letter-spacing` is deliberately not in the shared base: the palette's
+   crumb and `esc` chips never carried it, and folding it in would have retuned
+   two shipped components to fix a third. */
 .filter-kbd {
   position: absolute;
   top: 50%;
   right: 6px;
   transform: translateY(-50%);
-  border: var(--lc-border-hairline) solid var(--lc-line);
-  border-radius: var(--lc-radius-kbd);
   padding: 1.5px 5px;
-  color: var(--lc-ink-3);
-  background: var(--lc-wash);
-  font: 500 var(--lc-type-kbd-size) var(--lc-type-code-font);
   letter-spacing: var(--lc-type-kbd-tracking);
   pointer-events: none;
 }
 
-/* On a filled button the chip is a wash of the label colour, not a bordered
-   box — a hairline in `line` would read as a seam in the accent fill
-   (`prototype.css:121`). Scoped to the header: `.editor-footer` already owns a
-   quieter chip treatment for the create and description footers, and this is
-   not that. */
+/* The embedded hint on a filled primary (`components.md:56-57`): a wash of the
+   label colour rather than the bordered `.kbd-chip` box, because a hairline in
+   `line` would read as a seam in the accent fill. */
 .toolbar-actions .primary kbd {
-  margin-left: 6px;
+  margin-left: var(--lc-space-2);
   border-radius: var(--lc-radius-kbd);
   padding: 1.5px 5px;
   background: color-mix(in oklab, var(--lc-on-accent-human) 20%, transparent);
-  font: 500 var(--lc-type-kbd-size) var(--lc-type-code-font);
+  font: var(--lc-type-kbd-weight) var(--lc-type-kbd-size)
+    var(--lc-type-kbd-font);
   letter-spacing: var(--lc-type-kbd-tracking);
+}
+
+/* 18%, not 20% (`components.md:56-57`). Dark accents carry an ink label on the
+   themes where the fill is light enough, and ink at 20% reads as a hole. */
+[data-appearance="dark"] .toolbar-actions .primary kbd {
+  background: color-mix(in oklab, var(--lc-on-accent-human) 18%, transparent);
 }
 
 .ordering-control {
@@ -2169,17 +2190,13 @@ button:disabled {
   font-size: 15px;
 }
 
-/* Chip anatomy, `components.md:85`. The crumb is a button because `Esc` is the
-   keyboard path back and a pointer had none. */
+/* Anatomy from `.kbd-chip`. The crumb is a button because `Esc` is the keyboard
+   path back and a pointer had none. */
 .palette-crumb,
 .palette-esc {
   flex: none;
-  border: 1px solid var(--lc-line);
-  border-radius: var(--lc-radius-kbd);
   padding: 0 var(--lc-space-2);
-  background: var(--lc-wash);
-  color: var(--lc-ink-3);
-  font: 500 10px/1.8 var(--lc-type-code-font);
+  line-height: 1.8;
   text-transform: uppercase;
 }
 
