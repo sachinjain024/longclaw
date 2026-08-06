@@ -24,11 +24,6 @@ import type {
   WriteResult,
 } from "./types";
 
-const originalLocalStorage = Object.getOwnPropertyDescriptor(
-  globalThis,
-  "localStorage",
-);
-
 vi.mock("./api", () => ({
   chooseAndCreateProject: vi.fn(),
   chooseAndRegisterProject: vi.fn(),
@@ -55,17 +50,8 @@ vi.mock("./api", () => ({
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
-  try {
-    localStorage.removeItem("longclaw.activeProject");
-    localStorage.removeItem("longclaw.projectWorkspaces");
-  } catch {
-    // Tests that exercise unavailable app storage deliberately replace it.
-  }
-  if (originalLocalStorage) {
-    Object.defineProperty(globalThis, "localStorage", originalLocalStorage);
-  } else {
-    Reflect.deleteProperty(globalThis, "localStorage");
-  }
+  // `testSetup.ts` hands every test a fresh store, so nothing needs clearing
+  // here and nothing needs putting back.
 });
 
 beforeEach(() => {
@@ -1018,28 +1004,11 @@ function overrideAppearance(next: "light" | "dark" | "system") {
 }
 
 describe("system-matched appearance (V0-35)", () => {
-  // Vitest's jsdom leaves `window.localStorage` as `undefined` (Node's
-  // experimental storage without `--localstorage-file`), which the app's
-  // try/catch turns into "appearance works for this session only". The
-  // persistence clause needs a store that actually stores.
   beforeEach(() => {
-    const stored = new Map<string, string>();
-    Object.defineProperty(window, "localStorage", {
-      configurable: true,
-      value: {
-        getItem: (key: string) => stored.get(key) ?? null,
-        setItem: (key: string, value: string) => stored.set(key, value),
-        removeItem: (key: string) => stored.delete(key),
-      },
-    });
     useLongClawStore.setState({ appearance: "system" });
   });
 
   afterEach(() => {
-    Object.defineProperty(window, "localStorage", {
-      configurable: true,
-      value: undefined,
-    });
     useLongClawStore.setState({ appearance: "system" });
     delete document.documentElement.dataset.appearance;
   });
@@ -2277,22 +2246,6 @@ describe("board ordering and manual reordering (V0-09)", () => {
     }
   }
 
-  // jsdom under vitest exposes no `localStorage`, and the app treats a missing
-  // one as "this preference does not survive the session". The claim here is
-  // that it does survive, so the store it survives in has to exist.
-  beforeEach(() => {
-    const held = new Map<string, string>();
-    Object.defineProperty(globalThis, "localStorage", {
-      configurable: true,
-      value: {
-        getItem: (key: string) => held.get(key) ?? null,
-        setItem: (key: string, value: string) => held.set(key, value),
-        removeItem: (key: string) => held.delete(key),
-        clear: () => held.clear(),
-      },
-    });
-  });
-
   it("must-pass: switching the order rewrites no file", async () => {
     await openBoard([row("LC-1"), row("LC-2")]);
 
@@ -2687,22 +2640,14 @@ describe("the header filter (V0-15)", () => {
   });
 
   it("persists the query only as app preference state", async () => {
-    const held = new Map<string, string>();
-    Object.defineProperty(globalThis, "localStorage", {
-      configurable: true,
-      value: {
-        getItem: (key: string) => held.get(key) ?? null,
-        setItem: (key: string, value: string) => held.set(key, value),
-        removeItem: (key: string) => held.delete(key),
-        clear: () => held.clear(),
-      },
-    });
     await openBoard();
 
     type("recovery");
 
     await waitFor(() =>
-      expect(JSON.parse(held.get("longclaw.projectWorkspaces")!)).toEqual({
+      expect(
+        JSON.parse(localStorage.getItem("longclaw.projectWorkspaces")!),
+      ).toEqual({
         "project-fixture": { filterQuery: "recovery" },
       }),
     );
@@ -2781,19 +2726,7 @@ describe("project-scoped workspace restoration (LC-49)", () => {
     theme: "clay",
   };
 
-  let held: Map<string, string>;
-
   beforeEach(() => {
-    held = new Map<string, string>();
-    Object.defineProperty(globalThis, "localStorage", {
-      configurable: true,
-      value: {
-        getItem: (key: string) => held.get(key) ?? null,
-        setItem: (key: string, value: string) => held.set(key, value),
-        removeItem: (key: string) => held.delete(key),
-        clear: () => held.clear(),
-      },
-    });
     vi.mocked(api.listProjects).mockResolvedValue([projectA, projectB]);
     vi.mocked(api.openProject).mockImplementation(async (projectId) => ({
       project: projectId === projectB.id ? projectB : projectA,
@@ -2910,14 +2843,14 @@ describe("project-scoped workspace restoration (LC-49)", () => {
   });
 
   it("falls back safely when saved project and workspace values are malformed or stale", async () => {
-    held.set("longclaw.activeProject", projectB.id);
-    held.set(
+    localStorage.setItem("longclaw.activeProject", projectB.id);
+    localStorage.setItem(
       "longclaw.projectWorkspaces",
       JSON.stringify({
         [projectA.id]: { view: "grid", filterQuery: 42 },
       }),
     );
-    held.set(
+    localStorage.setItem(
       "longclaw.boardOrdering",
       JSON.stringify({ [projectA.id]: "new-ordering-from-the-future" }),
     );
@@ -2941,11 +2874,11 @@ describe("project-scoped workspace restoration (LC-49)", () => {
     expect(api.updateProjectName).not.toHaveBeenCalled();
     expect(api.updateProjectTheme).not.toHaveBeenCalled();
     expect(api.editTicket).not.toHaveBeenCalled();
-    expect(held.has("longclaw.boardOrdering")).toBe(false);
+    expect(localStorage.getItem("longclaw.boardOrdering")).toBeNull();
   });
 
   it("falls back when the remembered project is no longer registered", async () => {
-    held.set("longclaw.activeProject", "project-that-was-removed");
+    localStorage.setItem("longclaw.activeProject", "project-that-was-removed");
 
     render(<App />);
 
