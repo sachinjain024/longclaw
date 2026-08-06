@@ -21,17 +21,43 @@ export type ProjectWorkspace = {
 };
 export type ProjectWorkspacePatch = Partial<ProjectWorkspace>;
 
-export function readActiveProjectId(): string | undefined {
+/**
+ * The store these preferences live in, or `undefined` where the host has none.
+ *
+ * A host without web storage and a store that refuses a write are different
+ * failures, and the `catch` in every function below is for the second: a quota
+ * that is full, an origin that is blocked. Reaching for an absent global threw
+ * a `TypeError` into those same catches, so a persistence layer that could
+ * never work looked exactly like one that had merely been refused once — which
+ * is how a whole environment's silent no-op went unnoticed (LC-161).
+ *
+ * Both still degrade to "this choice does not survive the session". The point
+ * is that the code can now tell which one it is.
+ */
+function store(): Storage | undefined {
   try {
-    return localStorage.getItem(ACTIVE_PROJECT_KEY) || undefined;
+    return globalThis.localStorage ?? undefined;
+  } catch {
+    // Reading the global is itself blocked on some hosts.
+    return undefined;
+  }
+}
+
+export function readActiveProjectId(): string | undefined {
+  const storage = store();
+  if (!storage) return undefined;
+  try {
+    return storage.getItem(ACTIVE_PROJECT_KEY) || undefined;
   } catch {
     return undefined;
   }
 }
 
 function readRecord(key: string): Record<string, unknown> {
+  const storage = store();
+  if (!storage) return {};
   try {
-    const saved: unknown = JSON.parse(localStorage.getItem(key) ?? "");
+    const saved: unknown = JSON.parse(storage.getItem(key) ?? "");
     if (!saved || typeof saved !== "object" || Array.isArray(saved)) return {};
     return saved as Record<string, unknown>;
   } catch {
@@ -74,13 +100,14 @@ export function readProjectWorkspaces(): Record<string, ProjectWorkspace> {
     workspaces[projectId] = { ...workspaces[projectId], ordering };
     migrated = true;
   }
+  const storage = store();
   try {
     // Write the replacement before deleting the old key so a storage failure
     // cannot discard a valid Manual preference during migration.
     if (migrated) {
-      localStorage.setItem(PROJECT_WORKSPACES_KEY, JSON.stringify(workspaces));
+      storage?.setItem(PROJECT_WORKSPACES_KEY, JSON.stringify(workspaces));
     }
-    localStorage.removeItem(LEGACY_ORDERING_KEY);
+    storage?.removeItem(LEGACY_ORDERING_KEY);
   } catch {
     // A later launch can retry the legacy migration.
   }
@@ -88,8 +115,10 @@ export function readProjectWorkspaces(): Record<string, ProjectWorkspace> {
 }
 
 export function rememberActiveProject(projectId: string) {
+  const storage = store();
+  if (!storage) return;
   try {
-    localStorage.setItem(ACTIVE_PROJECT_KEY, projectId);
+    storage.setItem(ACTIVE_PROJECT_KEY, projectId);
   } catch {
     // The selected project still works for this session.
   }
@@ -98,8 +127,10 @@ export function rememberActiveProject(projectId: string) {
 export function rememberProjectWorkspaces(
   workspaces: Record<string, ProjectWorkspace>,
 ) {
+  const storage = store();
+  if (!storage) return;
   try {
-    localStorage.setItem(PROJECT_WORKSPACES_KEY, JSON.stringify(workspaces));
+    storage.setItem(PROJECT_WORKSPACES_KEY, JSON.stringify(workspaces));
   } catch {
     // Workspace choices still work for this session.
   }

@@ -84,4 +84,26 @@ describe("workspace preferences", () => {
     expect(() => rememberActiveProject("project-a")).not.toThrow();
     expect(() => rememberProjectWorkspaces({})).not.toThrow();
   });
+
+  /**
+   * The shape above is a getter that throws. This is the other one, and the one
+   * that actually happens: the global is defined and answers `undefined`, which
+   * is what Node hands a process without `--localstorage-file` and what a host
+   * with web storage switched off looks like. Every call was a `TypeError` into
+   * the same catches as a refused write, which is how an entire environment's
+   * silent no-op went unnoticed for a release (LC-161).
+   */
+  it("treats a host with no web storage as a session that cannot persist", () => {
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: undefined,
+    });
+
+    expect(readActiveProjectId()).toBeUndefined();
+    expect(readProjectWorkspaces()).toEqual({});
+    expect(() => rememberActiveProject("project-a")).not.toThrow();
+    expect(() =>
+      rememberProjectWorkspaces({ alpha: { view: "list" } }),
+    ).not.toThrow();
+  });
 });
