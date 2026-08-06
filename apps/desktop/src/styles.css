@@ -1856,10 +1856,19 @@ button:disabled {
   font-weight: 620;
 }
 
+/* Code is a `wash` chip, not a tile (LC-97, LC-98). `--lc-tile` is the agent's
+   terminal window and is near-black in *both* appearances, so the inherited
+   ink painted itself: every backtick in a description was a black rectangle.
+   `wash` is the token whose role has always been the inline code chip
+   (`design-tokens.json`, `components.md:207`), it flips with the appearance,
+   and the ink is named rather than inherited so a quote's dimmed `ink-2`
+   cannot follow code in here. Fenced blocks take the same pair — one decision,
+   both surfaces. */
 .markdown code {
   border-radius: var(--lc-radius-tile);
   padding: 1px 4px;
-  background: var(--lc-tile);
+  color: var(--lc-ink);
+  background: var(--lc-wash);
   font: var(--lc-type-code-weight) 12px var(--lc-type-code-font);
 }
 
@@ -1868,9 +1877,12 @@ button:disabled {
   border: 1px solid var(--lc-line);
   border-radius: var(--lc-radius-control);
   padding: var(--lc-space-2);
-  background: var(--lc-tile);
+  color: var(--lc-ink);
+  background: var(--lc-wash);
 }
 
+/* The block already carries the chip's fill and ink; the code inside it must
+   not paint a second chip on top of the first. */
 .markdown-code code {
   padding: 0;
   background: transparent;

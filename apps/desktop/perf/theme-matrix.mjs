@@ -187,6 +187,13 @@ const STATES = [
       ".entry-meta",
       ".change-actor",
       ".checklist label",
+      // LC-97 and LC-98: both took `--lc-tile`, the one background token that
+      // is near-black in *both* appearances, and left their ink to
+      // inheritance — so every backtick in a description painted itself. The
+      // matrix was green throughout, because no probe read a code surface.
+      // These two do, in every preset and both appearances.
+      ".markdown code",
+      ".markdown-code",
       // The prompt glyph is the agent accent's only appearance on the tile now
       // that the tile is `--lc-tile` rather than a fill (components.md:152), so
       // it has to clear AA against that near-black in every preset.

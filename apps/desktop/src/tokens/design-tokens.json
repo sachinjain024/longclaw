@@ -215,7 +215,7 @@
       "wash": {
         "light": "#EEF0F5",
         "dark": "#1C1E27",
-        "role": "inline code chips, quiet fills, progress track"
+        "role": "code surfaces — inline chips and fenced blocks alike (LC-97, LC-98) — quiet fills, progress track"
       },
       "raised-hover": {
         "light": "#EEF0F5",
@@ -265,7 +265,7 @@
       "tile": {
         "light": "#171923",
         "dark": "#060709",
-        "role": "agent avatar tile — a terminal window in miniature; always near-black in both appearances"
+        "role": "agent avatar tile — a terminal window in miniature; always near-black in both appearances, so anything painted on it must name a light ink rather than inherit one (scripts/tile-contrast-guard.mjs)"
       },
       "inverse-surface": {
         "light": "#171923",

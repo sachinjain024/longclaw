@@ -90,7 +90,13 @@ export function detail(key: string): TicketDetail {
       labels: ["storage"],
       createdAt: "2026-07-29T00:00:00Z",
       updatedAt: "2026-07-31T10:00:00Z",
-      description: "Prove the debounce holds under a rename storm.",
+      // Inline `code` and a fenced block are here so the matrix's panel probes
+      // have something to measure: LC-97 and LC-98 shipped black-on-black code
+      // past a green matrix, because the one description it rendered had no
+      // backtick in it.
+      description:
+        "Prove the debounce holds under a rename storm — `unlink` then `add` " +
+        "on `watcher/coalesce.rs`.\n\n```\ncoalesce(unlink, add) -> rename\n```",
       checklist: [
         { id: "ck_1", text: "Reproduce the storm", checked: true },
         { id: "ck_2", text: "Pin it in a test", checked: false },
