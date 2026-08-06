@@ -26,6 +26,10 @@ This document translates the vision into what a designer needs: brand direction,
 
 **The direction is settled.** The calm, Linear-family foundation from Iteration 1 remains; the noisier full-redesign exploration is discarded. This final iteration moves every accent color into **swappable project-theme tokens** and asks for **subtle, minor departures only** — no redesigns, no new visual language.
 
+> **Two surfaces below are cut from the v0 build.** The **terminal region** is not shown in v0 at all — no handle, no reserved geometry (LC-74, 2026-08-06) — and the **waitlist** is cut (LC-75, confirming the 2026-08-01 parking of Step 15). Both are still *designed*, and this brief still describes them, because the work is postponed rather than abandoned. Nothing below is an instruction to build either one in v0. The governing scope statement is `design/prototype/screen-specs.md` § Cut from v0.
+
+
+
 ## Brand direction
 
 ### Personality & feel
@@ -108,7 +112,7 @@ This is the design problem no reference product solves, and the reason this app 
 
 #### App shell
 
-Side panel + main content area. **Reserve a collapsible bottom region in the shell layout for the Phase 2 terminal panel** — design its collapsed/expanded geometry now (empty in v0) so terminals later extend the shell instead of forcing a redesign. Design the full side panel per the vision (All / Starred / Local / Teams), but v0 screens show only Local and Starred populated — no teams stubs. **[proposed]** Projects in the side panel may carry a small theme-colored marker (dot or tick) as a wayfinding cue — subtle; skip it if it adds noise.
+Side panel + main content area. ~~**Reserve a collapsible bottom region in the shell layout for the Phase 2 terminal panel** — design its collapsed/expanded geometry now (empty in v0) so terminals later extend the shell instead of forcing a redesign.~~ **Cut from the v0 build (LC-74):** the geometry was designed and lives in the prototype, but v0 reserves nothing — the shell has no bottom region and board/list runs to the window's edge. Design the full side panel per the vision (All / Starred / Local / Teams), but v0 screens show only Local and Starred populated — no teams stubs. **[proposed]** Projects in the side panel may carry a small theme-colored marker (dot or tick) as a wayfinding cue — subtle; skip it if it adds noise.
 
 #### Issue list
 
@@ -130,9 +134,9 @@ Folder picker plus the **theme picker**: a row of preset swatches (each showing 
 
 **[proposed]** v0 command set: create ticket · go to project · change status · assign · search tickets · star project · toggle appearance · change project theme · new terminal *(Phase 2, design the slot)*.
 
-#### Sign up
+#### Sign up — cut from v0 (LC-75)
 
-A quiet, persistent button in the side panel footer → modal: value proposition ("early access to cloud sync & teams"), email, done. Never a wall, never nagging.
+A quiet, persistent button in the side panel footer → modal: value proposition ("early access to cloud sync & teams"), email, done. Never a wall, never nagging. *Designed, not built: v0 ships no footer button and no modal.*
 
 ## Key flows
 
@@ -156,9 +160,9 @@ Human writes ticket + checklist → agent (external, e.g. Claude Code) edits fil
 
 Settings or palette → preset swatches → selection applies instantly (optimistic, animated only as a soft crossfade of accent surfaces). Nothing moves; only accents change.
 
-#### 5. Sign up → waitlist
+#### 5. Sign up → waitlist — cut from v0 (LC-75)
 
-Button → modal → confirmation state. Nothing in the app changes afterward except the button becoming a subtle "you're on the list."
+Button → modal → confirmation state. Nothing in the app changes afterward except the button becoming a subtle "you're on the list." *This flow does not exist in v0.*
 
 ## States
 
@@ -185,10 +189,10 @@ A files-on-disk app earns trust in its failure states. Design these, don't defau
 ### Do not design
 
 - Teams UI internals, sync settings, billing — Phase 3.
-- The terminal panel's interior — Phase 2; only its reserved position in the shell is designed now.
+- The terminal panel — Phase 2. Its position in the shell is *designed*, but v0 reserves no geometry for it and shows no handle (LC-74).
 - Custom theme colors, a theme builder, or per-user theme overrides — presets only.
 - A new visual identity — the Iteration 1 system is the base; the broader redesign program is retired.
-- Onboarding for accounts — there is none; only the waitlist modal.
+- Onboarding for accounts — there is none. The waitlist modal is designed but cut from v0 (LC-75), so v0 has no account-adjacent surface at all.
 - Windows/Linux chrome — macOS only.
 
 ## Process

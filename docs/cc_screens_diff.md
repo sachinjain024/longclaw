@@ -84,8 +84,8 @@ A prioritized backlog is at the end.
 **Spec:** `screen-specs.md` § App shell. Side panel 240px; content header one
 row, `padding: 16px 24px 12px`, containing project name · settings gear · path
 chip · disk-state · spacer · filter (190×28) · ordering control · view segment ·
-**New ticket** with a `C` kbd chip. Terminal region reserved at the window's
-bottom edge.
+**New ticket** with a `C` kbd chip. No terminal region — cut from v0 (LC-74);
+board/list runs to the window's bottom edge.
 
 **App:** `src/App.tsx:1106-1256`. Three stacked blocks: a `project-toolbar`
 (eyebrow `LOCAL PROJECT`, `<h1>` project name, `<code>` full absolute path,
@@ -99,10 +99,10 @@ a `board-heading` (`<h2>Board</h2>` + the control row).
 | D-07 | P2 | Disk-state indicator: `⟳ writing ticket.md…` while a write is in flight, `✓ ticket.md` when settled, `ink-disabled` | A permanent `● watching` chip (`App.tsx:1237-1250`), plus a `WriteIndicator` that only surfaces in the panel header | Make `disk-state` idle-silent or `✓ ticket.md`; reserve visible text for `writing…` / `reconciling`. The steady-state `watching` chip is dev telemetry, not designed chrome. |
 | D-08 | P2 | Settings is a **ghost gear icon button** next to the project name | Two text buttons `Star` / `Settings`, stacked vertically at the right edge | Gear icon button for settings; keep star as the sidebar row affordance (it already exists there) and drop the header `Star` button. |
 | D-09 | P2 | `New ticket` carries a `C` kbd chip; filter field carries a `⌘F` chip | Neither chip is rendered (no `<kbd>` outside `CommandPalette.tsx:462,488`) | Add `<kbd>` chips to the New-ticket button and the filter field. The keybindings already work. |
-| D-0A | P2 | Sidebar footer: mono `v0 · local · no account` then the waitlist ghost button | Footer has an **Appearance `<select>`** above the trust line; no waitlist button | Appearance belongs in project settings as a 3-up segment (`screen-specs.md:184-187`) — see D-42. Remove the native `<select>` from the sidebar. |
+| D-0A | P2 | Sidebar footer: mono `v0 · local · no account`, and nothing else — the waitlist ghost button the spec draws is cut from v0 (LC-75) | Footer has an **Appearance `<select>`** above the trust line | Appearance belongs in project settings as a 3-up segment (`screen-specs.md:184-187`) — see D-42. Remove the native `<select>` from the sidebar. |
 | D-0B | P2 | Sidebar has **only** section headers and project rows | Sidebar has `Open folder` / `Create project` buttons pinned at the top | These duplicate the palette's `go to project…` and the welcome screen. If they stay, they belong at the *foot* of the project list as one quiet ghost row, not as two filled buttons above the sections. |
-| D-0C | P3 | Terminal region reserved: 24px handle, mono `terminal · reserved · phase 2` | Absent (nothing in `styles.css` or `App.tsx`) | Phase-2 geometry reservation. Low value for v0 — file, don't fix, unless the release wants the promise visible. The palette's disabled `New terminal · PHASE 2` row already ships (`CommandPalette.tsx:207`). |
-| D-0D | P3 | Waitlist "Get early access" → modal | Absent everywhere | Product call, not a UI bug. Confirm it is intentionally cut from v0 and strike it from `screen-specs.md:213-222`, or build it. |
+| ~~D-0C~~ | — | Terminal region reserved: 24px handle, mono `terminal · reserved · phase 2` | Absent (nothing in `styles.css` or `App.tsx`) | **Not a diff, 2026-08-06 (LC-74).** The terminal is not shown at all in v0 — founder decision. Absence is the spec; `screen-specs.md` § Cut from v0 records it. The palette's disabled `New terminal · PHASE 2` row still ships (`CommandPalette.tsx:208-211`) and is the only Phase 2 signal v0 makes. |
+| ~~D-0D~~ | — | Waitlist "Get early access" → modal | Absent everywhere | **Not a diff, 2026-08-06 (LC-75).** Cut from v0, confirming the 2026-08-01 parking of Step 15 / V0-38 / V0-39. No endpoint was reviewed, and a v0 binary that phones home would contradict the `audit:network` gate. Absence is the spec; `screen-specs.md` § Cut from v0 records it. |
 
 **Not a diff:** `Open folder` / `Create project` labels, the owl mark, the
 STARRED/LOCAL sections, the trust line, the active-row treatment, and the
@@ -530,8 +530,10 @@ single stack.
 
 **Product decisions, not bugs**
 
-- **D-0C / D-0D** — is the terminal reservation and the waitlist in v0 or not? If
-  not, strike them from `screen-specs.md` so this comparison stops flagging them.
+- ~~**D-0C / D-0D**~~ — **answered 2026-08-06: neither is in v0.** The terminal
+  region is not shown at all (LC-74) and the waitlist is cut (LC-75). Both are
+  recorded in `screen-specs.md` § Cut from v0, which is where the
+  next comparison should look before filing either again.
 - **D-4J** — label management shipped without a design. It needs one.
 - **D-14** — welcome subtitle: mechanism or value?
 - **D-3I** — struck-through checked items: keep or drop?

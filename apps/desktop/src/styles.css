@@ -232,7 +232,7 @@ textarea:focus-visible,
 }
 
 /* Pinned to the foot with the trust line (`screen-specs.md:34`). The waitlist
-   button the spec puts beside it is Step 15, parked on 2026-08-01. */
+   button beside it is cut from v0 (LC-75) — the grid holds one row, not two. */
 .side-panel-footer {
   display: grid;
   gap: var(--lc-space-2);

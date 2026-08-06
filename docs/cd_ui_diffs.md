@@ -10,20 +10,30 @@ theme, and appearance controls is test-harness chrome and is not implementation
 scope. The native macOS title bar in the packaged app is also acceptable platform
 chrome. Everything below describes the LongClaw product surface.
 
+> **Superseded in part, 2026-08-06.** Two surfaces described below were
+> answered as product decisions and are **no longer differences to close**:
+> the **terminal reservation handle** (LC-74 — not shown in v0 at all) and the
+> **waitlist** (LC-75 — cut from v0). Absence is the spec for both. Sections 1
+> and 7, Steps 4 and 7, and the sequence and gate items that name them are
+> void to that extent; see `docs/design/prototype/screen-specs.md` § Cut from
+> v0 before acting on any of them. The `--lc-size-board-stack` retune in
+> Step 4 survives on its own merits.
+
 ## Difference Inventory
 
 ### 1. App Shell And Vertical Geometry
 
-- The specified shell has a 240px side panel, one compact content header, the
-  board/list surface, and a 24px terminal reservation handle at the bottom of the
-  main panel.
-- The implementation has a 240px side panel but uses two content-header rows and
-  has no terminal handle. This pushes the board down and leaves the main panel
-  ending in undifferentiated empty space.
+- The specified shell has a 240px side panel, one compact content header, and
+  the board/list surface. ~~a 24px terminal reservation handle at the bottom of
+  the main panel~~ — **cut, LC-74**: v0 shows no handle, and board/list owns the
+  shell to the window's bottom edge.
+- The implementation has a 240px side panel but uses two content-header rows.
+  The absent terminal handle is no longer a difference; the main panel ending at
+  the window edge is the intended shell.
 - `--lc-size-board-stack` is currently `calc(100vh - 360px)`, reserving space for
   the old two-row header and development trace strip. Leaving it unchanged after
-  the header and terminal work would keep columns materially shorter than the
-  available viewport and give board virtualization the wrong viewport geometry.
+  the header work would keep columns materially shorter than the available
+  viewport and give board virtualization the wrong viewport geometry.
 
 ### 2. Content Header
 
@@ -62,7 +72,7 @@ chrome. Everything below describes the LongClaw product surface.
 ### 4. Side Panel
 
 - The specified active-project side panel contains the logo, Starred and Local
-  project sections, the trust line, and the waitlist surface. It does not contain
+  project sections and the trust line (the waitlist surface is cut, LC-75). It does not contain
   persistent Open folder, Create project, or Appearance controls.
 - The implementation puts large Open folder and Create project buttons above the
   project sections and an Appearance select in the footer. These controls make
@@ -75,7 +85,8 @@ chrome. Everything below describes the LongClaw product surface.
   human accent when starred.
 - Active rows in the current dark screenshot are taller and more heavily filled
   than the prototype treatment and need theme-equivalent comparison.
-- The required `Get early access` footer button and its waitlist state are absent.
+- ~~The required `Get early access` footer button and its waitlist state are absent.~~
+  **Not a difference, LC-75:** the waitlist is cut from v0.
 
 ### 5. Board Columns And Interactions
 
@@ -112,9 +123,11 @@ chrome. Everything below describes the LongClaw product surface.
 - Remove requires a second confirmation dialog that names the path, repeats the
   non-destructive guarantee, and uses the danger button variant.
 
-### 7. Waitlist
+### 7. Waitlist — VOID (cut from v0, LC-75)
 
-- The side-panel footer must provide the quiet `Get early access` ghost button.
+*Retained as the design to build on unparking Step 15. None of it is v0 scope.*
+
+- ~~The side-panel footer must provide the quiet `Get early access` ghost button.~~
 - It opens a centered modal with the specified heading and value copy, email
   field, consent line, Join the waitlist primary action, and Not now action.
 - Success replaces the modal body with the specified confirmation and
@@ -206,18 +219,15 @@ Acceptance criteria:
 - Empty-project, no-match, populated, and degraded-ticket combinations have
   focused component tests.
 
-### Step 4: Add The Terminal Reservation And Retune Viewports
+### Step 4: ~~Add The Terminal Reservation And~~ Retune Viewports
 
-Implement the specified Phase 2 geometry without terminal behavior.
+**Do not add the handle.** LC-74 closed the terminal region as not-in-v0 on
+2026-08-06 — no handle, no hover treatment, no reserved height. Board and list
+run to the window's bottom edge. Only the retune below remains, and it is
+simpler for having no handle to subtract.
 
-- Add a 24px handle at the bottom of the main panel, excluding the side panel,
-  with a top hairline and centered mono
-  `terminal · reserved · phase 2` label.
-- Add the specified hover treatment and `ns-resize` cursor, but no expansion or
-  terminal interior in v0.
-- Make board and list content end above the handle.
 - Replace the stale `--lc-size-board-stack: calc(100vh - 360px)` reserve with a
-  value derived from the recomposed header, board padding, and 24px handle.
+  value derived from the recomposed header and board padding.
   Update the associated CSS comments and any board virtualization measurements.
 - Check short and tall windows so independent column scrolling starts only when
   content actually exceeds the available main-panel height.
@@ -246,11 +256,11 @@ Update side-panel composition and project-row primitives.
   project's human accent.
 - Retune row height, active fill, dot/icon sizing, and unreachable-project state
   against theme-equivalent prototype renders.
-- Keep the mono trust line pinned above the waitlist surface.
+- Keep the mono trust line pinned to the footer; it is the whole footer (LC-75).
 
 Acceptance criteria:
 
-- The side panel reads brand, project navigation, trust, then waitlist.
+- The side panel reads brand, project navigation, then trust.
 - Star state, unreachable state, hover, focus, and empty-section behavior match
   the screen and component specifications in light and dark appearances.
 
@@ -276,9 +286,12 @@ Acceptance criteria:
   Locate presents the current folder, and removal never deletes project files.
 - Cancel, confirm, Escape, and focus restoration work in both modal layers.
 
-### Step 7: Implement The Required Waitlist Flow
+### Step 7: ~~Implement The Required Waitlist Flow~~ — VOID (LC-75)
 
-Add the footer entry point and modal as a distinct feature surface.
+**Do not build any of this.** The waitlist is cut from v0: Step 15 is parked,
+no submission endpoint was ever reviewed, and this flow would introduce the one
+runtime network call into a binary whose `audit:network` gate exists to prove it
+makes none. Retained verbatim as the plan to follow on unparking.
 
 - Implement the specified content, email field, consent copy, Join the waitlist,
   and Not now actions.
@@ -327,25 +340,25 @@ the relevant repository gates on the integrated result.
   windows for header wrapping, board height, modal fit, and text truncation.
 - Run `npm run matrix` for theme and appearance changes.
 - Run `npm run a11y:audit` and its self-test after adding probes because header,
-  column actions, settings, waitlist, modal focus, and tab order all change.
+  column actions, settings, modal focus, and tab order all change.
 - Run `npm run perf:board` and quote its results because column rendering,
   viewport sizing, and potentially card geometry change.
 - Run `npm run perf:list` and quote its results because the shared header and
   available list viewport change.
 - Run `npm run verify` before each implementation commit.
-- Run `npm run build:app`, then run `npm run audit:network` offline and online
-  because waitlist submission introduces a runtime endpoint. Verify that idle
-  local-project use remains network-silent and only an explicit waitlist submit
-  contacts the configured endpoint.
+- Run `npm run build:app`, then run `npm run audit:network` offline and online.
+  With the waitlist cut (LC-75) there is no runtime endpoint at all, so the
+  expectation is now absolute: the binary must be network-silent throughout,
+  with no explicit-submit exception to carve out.
 
 ## Suggested Implementation Sequence
 
 1. Header composition and named file-write indicator.
 2. Empty-board scaffold and column quick create.
-3. Terminal handle and board/list viewport retuning.
+3. Board/list viewport retuning (terminal handle cut, LC-74).
 4. Side-panel project navigation and star affordance.
 5. Complete settings modal and removal confirmation.
-6. Waitlist modal, persistence, and failure states.
+6. ~~Waitlist modal, persistence, and failure states.~~ Cut, LC-75.
 7. Theme-equivalent token tuning.
 8. Integrated screenshots, accessibility, performance, network, verify, and app
    build gates.

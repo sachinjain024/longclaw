@@ -5,6 +5,16 @@ Compares the v0 prototype (`docs/design/prototype/prototype.html`, backed by
 (`apps/desktop/src/`), using the two screenshots supplied on 2026-08-05: the
 prototype board (Indigo, light) and the app board (Plum, dark).
 
+> **Superseded in part, 2026-08-06.** Two surfaces below were answered as
+> product decisions and are **no longer differences to repair**. The terminal
+> region is not shown in v0 at all (LC-74): that voids **D1**, the handle
+> clause of **C4**, and **Step 4's** handle. The waitlist is cut from v0
+> (LC-75): that voids **D3**, the waitlist clause of **B2**, and **Step 5's**
+> "waitlist slot". Absence is the spec for both; see
+> `docs/design/prototype/screen-specs.md` § Cut from v0 before acting on any of
+> them. Step 4's `--lc-size-board-stack` retune survives and is now *simpler*,
+> since no handle is subtracted.
+
 **Reading the screenshots.** Three things in them are *not* differences:
 
 - The dark strip across the top of the prototype shot is the **driver bar**
@@ -55,7 +65,7 @@ second, competing indicator rendered beside it.
 | # | Prototype / spec | Implementation | Where |
 |---|---|---|---|
 | B1 | Logo → Starred → Local → footer. No action buttons | Two full-width `secondary` buttons (`Open folder`, `Create project`) with a hairline divider directly under the logo, plus an inline create form that expands in place | `App.tsx:1022-1045`; `styles.css:86-102`; prototype `prototype.js:469-481` |
-| B2 | Footer = mono trust line, then the `Get early access` ghost button (30px) | Footer = `Appearance` `<select>`, then the trust line. The waitlist button does not exist; spec puts Appearance in **project settings** and the palette, not the shell | `App.tsx:1064-1082`; `styles.css:213-235`; spec `screen-specs.md:34`, `:254`, `:260-269` |
+| B2 | Footer = mono trust line. Spec draws a `Get early access` ghost button beneath it; **that button is cut from v0** (LC-75) and its absence is not a difference | Footer = `Appearance` `<select>`, then the trust line. Spec puts Appearance in **project settings** and the palette, not the shell | `App.tsx:1064-1082`; `styles.css:213-235`; spec `screen-specs.md:34`, `:254`, `:260-269` |
 | B3 | `Starred` section is omitted entirely when empty | Renders the heading plus `No starred projects` / `No local projects` body copy | `App.tsx:1480-1481`; prototype `prototype.js:471` |
 | B4 | Star is the icon-set glyph, `accent-human` when on | Text `★` / `☆` characters — different metrics and weight from every other glyph in the app | `App.tsx:1538`; prototype `GL.star` `prototype.js:112` |
 
@@ -69,7 +79,7 @@ section headers (`styles.css:52-59`, `:104-151` vs `prototype.css:275-303`).
 | C1 | Column header reveals a `+` on hover → quick create preseeded with that column's status | No `+`; a ticket can only be created into a column by choosing the status afterwards | `Board.tsx:446-453`; spec `screen-specs.md:104-105`; prototype `prototype.js:579` |
 | C2 | Empty project keeps the **full column scaffold** and puts the guided card in Todo (dashed border, one line of copy, `C` chip) | The whole board is replaced by one centered dashed `EmptyBoard` panel — the six-column scaffold the spec asks for never appears | `App.tsx:1269-1275`; `styles.css:648-677`; spec `screen-specs.md:127-129`; prototype `prototype.js:590-596` |
 | C3 | Card title clamps to **2 lines**, card height varies | Title is one 18px line, ellipsized; card pinned to 90px (118px when fresh) | `styles.css:840-849`; `boardGeometry.ts:29-46` |
-| C4 | Board is bounded below by the terminal handle; columns size to the window | Columns capped by `--lc-size-board-stack: calc(100vh - 360px)` — a reserve sized for the *two-row* header and the dev trace strip; with the header collapsed it will be ~200px too conservative | `tokens/design-tokens.css:88`; `styles.css:727-731` |
+| C4 | Columns size to the window. (The spec's terminal handle bounding the board below is **cut from v0**, LC-74 — the board runs to the window edge) | Columns capped by `--lc-size-board-stack: calc(100vh - 360px)` — a reserve sized for the *two-row* header and the dev trace strip; with the header collapsed it will be ~200px too conservative | `tokens/design-tokens.css:88`; `styles.css:727-731` |
 
 C3 is a deliberate trade, not an oversight: exact per-card offsets are what let
 a column render only the visible cards (71ms → 21ms a frame at 5,000 tickets,
@@ -80,9 +90,9 @@ that keeps the geometry exact (§ 2, Step 6).
 
 | # | Prototype / spec | Implementation | Where |
 |---|---|---|---|
-| D1 | 24px full-width terminal handle pinned to the bottom of the main region — top hairline, mono `terminal · reserved · phase 2`, `ns-resize` on hover. Geometry only | Absent. This is why the app's board falls away into unbounded empty space in the screenshot | spec `screen-specs.md:55-66`; prototype `prototype.js:532-538` |
+| ~~D1~~ | ~~24px full-width terminal handle pinned to the bottom of the main region~~ | **Not a difference, 2026-08-06 (LC-74).** The terminal is not shown in v0 at all — absence is the spec. The board ending at the window edge is the intended shell, not unbounded empty space | `screen-specs.md:55-66` and § Cut from v0 |
 | D2 | Project settings is a **centered modal**: Name + Key (Key disabled once a ticket exists, with `locked after first ticket`), Folder + `Locate…`, Theme picker, Appearance segment labelled an app preference, danger zone with the "files on disk are never touched" copy and a naming confirm dialog | An inline `settings-panel` grid pushed into the page flow above the board: no Key field, no Appearance segment, no danger-zone copy, no confirm step before `Remove from app` | `App.tsx:1132-1173`; `styles.css:559-571`; spec `screen-specs.md:250-258`; prototype `prototype.js:1038-1076` |
-| D3 | `Get early access` → waitlist modal, success state replaces the button with `✓ you're on the list` | Absent, and knowingly so — `styles.css:213-214` records it as parked | spec `screen-specs.md:260-269` |
+| ~~D3~~ | ~~`Get early access` → waitlist modal~~ | **Not a difference, 2026-08-06 (LC-75).** Cut from v0, confirming the 2026-08-01 parking of Step 15 / V0-38 / V0-39. Absence is the spec | `screen-specs.md:260-269` and § Cut from v0 |
 
 The palette, quick create, ticket panel, list view (including the collapsed
 archived group), status dots, priority glyphs, label chips, toasts and undo are
@@ -158,17 +168,17 @@ Three small, independent edits:
 **Files:** `App.tsx:1211-1229`, `:1259-1265`, `:1448-1467`; `styles.css:1021-1076`.
 **Gate:** `npm run a11y:audit` — the chips must not leak into accessible names.
 
-### Step 4 — Reserve the terminal region
+### Step 4 — ~~Reserve the terminal region~~ · retune the board stack
 
-**Do:** add the collapsed 24px handle at the bottom of `.main-panel`: top
-hairline, centered mono 10px uppercase `terminal · reserved · phase 2` in
-`ink-disabled`, hover `wash` + `ink-3` + `ns-resize`. Geometry only — no
-expansion, no interior (`screen-specs.md:55-66`). Scope it to the main region so
-it never crosses the side panel, and make the board/list shrink above it.
+**Do not build the handle.** LC-74 closed the terminal region as not-in-v0 on
+2026-08-06 — no handle, no reserved height, no label, and board/list runs to the
+window's bottom edge (`screen-specs.md` § Cut from v0). What remains of this
+step is the retune below, which no longer has a handle to subtract.
 
-Then retune `--lc-size-board-stack` (`tokens/design-tokens.css:88`) for the
-one-row header from Step 1 plus this handle. It is the reserve above and below a
-column; leaving it at `-360px` after the header shrinks wastes ~200px of column.
+Retune `--lc-size-board-stack` (`tokens/design-tokens.css:88`) for the
+one-row header from Step 1 — and for no handle. It is the reserve above and below
+a column; leaving it at `-360px` after the header shrinks wastes ~200px of
+column.
 
 **Gate:** `npm run perf:board` and `npm run perf:list` — the reserve feeds the
 windowing viewport.
@@ -182,8 +192,8 @@ folder` folded into the command palette (which already carries project
 commands). Hide a section entirely when it is empty (`App.tsx:1480-1481`).
 
 Move `Appearance` out of the footer into project settings (Step 6), where the
-spec puts it, leaving the footer as trust line → waitlist slot. Swap the `★`/`☆`
-characters for the icon-set glyph.
+spec puts it, leaving the footer as the trust line alone — the waitlist slot is
+cut from v0 (LC-75). Swap the `★`/`☆` characters for the icon-set glyph.
 
 **Done when:** the sidebar's reading order is brand → projects → trust, and
 nothing above the project list competes with the active row.
@@ -232,7 +242,7 @@ whitespace under one-line titles.
 ## 3 · Work order and gates
 
 1. Steps 1–3 — the header, in one branch. Largest visible delta, no data model.
-2. Step 4 — terminal reservation + `--lc-size-board-stack` retune.
+2. Step 4 — `--lc-size-board-stack` retune (terminal reservation cut, LC-74).
 3. Step 5 — sidebar.
 4. Steps 6–7 — settings modal, empty scaffold, column `+`.
 5. Step 8 — card height, only with perf numbers in hand.
