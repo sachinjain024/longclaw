@@ -323,7 +323,8 @@ h1 {
     var(--lc-type-ui-leading) var(--lc-type-ui-font);
   transition:
     background var(--lc-motion-fast) var(--lc-motion-ease),
-    border-color var(--lc-motion-fast) var(--lc-motion-ease);
+    border-color var(--lc-motion-fast) var(--lc-motion-ease),
+    color var(--lc-motion-fast) var(--lc-motion-ease);
 }
 
 /* The small variant, for banner and toolbar actions (components.md:44). */
@@ -561,8 +562,8 @@ button:disabled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 24px;
-  padding: 5px;
+  width: var(--lc-size-control-sm);
+  padding: 0;
   color: var(--lc-ink-3);
 }
 
@@ -572,6 +573,10 @@ button:disabled {
 
 .content-header .settings-button:focus-visible {
   border-color: var(--lc-accent-human);
+}
+
+.content-header .settings-button:focus-visible,
+.path-chip:focus-visible {
   box-shadow: var(--lc-focus-ring);
   outline: none;
 }
@@ -607,11 +612,6 @@ button:disabled {
 
 .path-chip:hover {
   background: var(--lc-wash);
-}
-
-.path-chip:focus-visible {
-  box-shadow: var(--lc-focus-ring);
-  outline: none;
 }
 
 .path-chip .txt {

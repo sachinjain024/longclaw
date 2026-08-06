@@ -1120,8 +1120,10 @@ export function App() {
               <h1>{project.name}</h1>
               <button
                 tabIndex={0}
-                className="ghost settings-button"
+                className="ghost small settings-button"
                 aria-label="Project settings"
+                aria-controls="project-settings"
+                aria-expanded={settingsOpen}
                 title="Project settings"
                 onClick={() => setSettingsOpen((open) => !open)}
               >
@@ -1214,7 +1216,11 @@ export function App() {
             </header>
 
             {settingsOpen && (
-              <section className="settings-panel" aria-label="Project settings">
+              <section
+                id="project-settings"
+                className="settings-panel"
+                aria-label="Project settings"
+              >
                 <label>
                   <span>Name</span>
                   <input

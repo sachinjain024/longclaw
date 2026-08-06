@@ -8,6 +8,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
@@ -814,20 +815,21 @@ describe("the project settings gear (LC-70)", () => {
     render(<App />);
     await screen.findByRole("button", { name: "Board", pressed: true });
 
-    const header = document.querySelector<HTMLElement>(".content-header")!;
-    const settings = screen.getByRole("button", {
+    const header = screen.getByRole("banner");
+    const settings = within(header).getByRole("button", {
       name: "Project settings",
     });
-    expect(header.contains(settings)).toBe(true);
-    expect(header.textContent).not.toContain("Star");
-    expect(settings.textContent).toBe("");
-    expect(settings.querySelector('svg[aria-hidden="true"]')).toBeTruthy();
+    expect(
+      within(header).queryByRole("button", { name: /^Star(?:red)?$/ }),
+    ).toBeNull();
+    expect(settings.getAttribute("aria-controls")).toBe("project-settings");
+    expect(settings.getAttribute("aria-expanded")).toBe("false");
 
     fireEvent.click(settings);
 
-    expect(
-      screen.getByRole("region", { name: "Project settings" }),
-    ).toBeTruthy();
+    const panel = screen.getByRole("region", { name: "Project settings" });
+    expect(panel.id).toBe("project-settings");
+    expect(settings.getAttribute("aria-expanded")).toBe("true");
   });
 });
 
