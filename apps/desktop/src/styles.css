@@ -107,9 +107,11 @@ textarea:focus-visible,
    216px of content between two buttons leaves 106px each and wraps
    `Create project` onto a second line. The padding stays the documented small
    `0 9px` (`components.md:44`) — `nowrap` and the default flex sizing are what
-   keep the row on one line, so there is nothing for an off-scale value to buy. */
+   keep the row on one line, so there is nothing for an off-scale value to buy.
+   Colour is `.ghost`'s own `ink-2` (`components.md:49`): "quiet" in the ticket
+   names the variant, and dimming it further to `ink-3` was reading the word
+   rather than the table. */
 .project-actions-row .ghost {
-  color: var(--lc-ink-3);
   white-space: nowrap;
 }
 

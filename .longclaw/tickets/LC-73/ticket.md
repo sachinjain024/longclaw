@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: b6cce84d-157b-4180-9233-bd5d52e4137f
 key: LC-73
 title: App shell — sidebar has Open folder / Create project buttons pinned at the top
-status: done
+status: todo
 priority: p2
 labels:
   - frontend
   - prototype-diff
 created_at: 2026-08-05T15:16:00.701Z
-updated_at: 2026-08-06T05:51:07.391Z
+updated_at: 2026-08-06T07:23:17.096Z
 ---
 
 **Prototype.** Sidebar has **only** section headers and project rows
@@ -85,4 +85,30 @@ The reasoning for keeping both buttons still holds: `Welcome` renders only when 
 Filed as **LC-156** rather than reopening this, because it is new design work, not a restyle of what landed here.
 
 Also from the same review, fixed on this branch in `2ad1d83`: the ghost row was overriding the documented small-button padding with an off-scale `0 7px` (`components.md:44`); it now inherits `.ghost.small`'s `0 9px` and still fits on one line.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_87191606
+kind: update
+occurred_at: 2026-08-06T07:23:17.096Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: done
+    to: todo
+-->
+### Claude Code updated this ticket
+
+Reopening. A second review is right that closing this as done overstated it.
+
+What landed is the checklist's fallback: the two actions moved from filled buttons above the sections to a ghost row at the foot. What the ticket actually states — "Sidebar has **only** section headers and project rows" (`screen-specs.md:30-36`) — is not met, because the actions are still there.
+
+The blocking work is **LC-156**: a palette `Open folder` command, and a create-project surface that does not live in the sidebar. Until both exist, deleting the row would leave an open project with no way to add a second (`App.tsx:1102`, `CommandPalette.tsx:150-211`). This ticket stays open behind it rather than being closed on the fallback.
+
+Also from that review, fixed on this branch: the ghost row was overriding the variant's documented `ink-2` text with `ink-3` (`components.md:49`) — "quiet" in the checklist names the ghost variant, and dimming it further was reading the word rather than the table. The row now uses `.ghost`'s own colour.
+
+The App.test.tsx block covering this is renamed `sidebar project actions — the LC-73 fallback, pending LC-156`, so it reads as "while the actions exist, this is where and how" rather than as a claim that they belong there. LC-156 should delete that block along with the row.
 <!-- /longclaw:event -->

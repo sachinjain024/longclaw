@@ -2740,7 +2740,18 @@ describe("the app shell against its spec (LC-71, LC-72, LC-73)", () => {
     });
   });
 
-  describe("sidebar project actions (LC-73)", () => {
+  /**
+   * These pin the **fallback** LC-73 landed, not the state the spec wants.
+   * `screen-specs.md:30-36` and the ticket both say the sidebar carries only
+   * section headers and project rows; these two actions are still here because
+   * removing them today would strand a user — `Welcome` renders only with no
+   * project open (`App.tsx:1102`) and the palette has no `Open folder` command.
+   *
+   * So read them as "while the actions exist, this is where and how", not as
+   * "the actions belong here". **LC-156** is the ticket that deletes them, and
+   * it should delete this block with them rather than fight it.
+   */
+  describe("sidebar project actions — the LC-73 fallback, pending LC-156", () => {
     it("puts them below the project sections, not above them", async () => {
       await openBoard();
 
