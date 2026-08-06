@@ -1156,76 +1156,84 @@ export function App() {
                    there is one: an unreachable project keeps its identity row and
                    gets `UnreachableProject` below it instead. */}
               {project.reachable && (
-                <div className="toolbar-actions">
-                  {/* `screen-specs.md:47-48` orders the content header:
-                      filter field, then ordering control, then view segment. */}
-                  {/* The chip is overlaid inside the field's right edge, as the
-                      prototype draws it (`prototype.js:495-498`). It is
-                      `aria-hidden` and paired with `aria-keyshortcuts` so the
-                      field's accessible name stays "Filter tickets" rather than
-                      becoming "Filter tickets ⌘F" (LC-71). */}
-                  <div className="filter-wrap">
-                    <input
-                      ref={filterField}
-                      className="filter-field"
-                      type="text"
-                      value={filterQuery}
-                      aria-label="Filter tickets"
-                      aria-keyshortcuts="Meta+F"
-                      placeholder="Filter tickets"
-                      onChange={(event) => setFilterQuery(event.target.value)}
-                    />
-                    <kbd className="kbd-chip filter-kbd" aria-hidden="true">
-                      ⌘F
-                    </kbd>
-                  </div>
-                  <div className="ordering-control">
-                    <span>Order</span>
-                    <MenuButton
-                      label="Order"
-                      options={ORDERINGS}
-                      value={ordering}
-                      footnote={ORDERING_FOOTNOTE}
-                      onPick={(next) => setBoardOrdering(project.id, next)}
-                    />
-                  </div>
-                  <ViewSegment view={view} onChange={setView} />
-                  <WriteIndicator />
-                  <span
-                    className={
-                      loading || reconciling ? "disk-state busy" : "disk-state"
+                <>
+                  {/* One disk-state line, beside the path chip and before the
+                      spacer, where `screen-specs.md:44-53` puts it — and silent
+                      when the disk is quiet (D-07). The `● watching` chip this
+                      replaces said the same thing at every idle moment, which
+                      is a dev trace rather than designed chrome. `reading` is
+                      the one word here D-07 did not ask for: the design answers
+                      a load with a board skeleton (`states.md:45-52`) that is
+                      not built, so until LC-159 builds it this line is the only
+                      thing that says a read is in flight. */}
+                  <WriteIndicator
+                    busy={
+                      reconciling
+                        ? "reconciling"
+                        : loading
+                          ? "reading"
+                          : undefined
                     }
-                  >
-                    {reconciling
-                      ? "reconciling"
-                      : loading
-                        ? "reading"
-                        : "watching"}
-                  </span>
-                  {DEV_CHROME && (
+                  />
+                  <div className="toolbar-actions">
+                    {/* `screen-specs.md:47-48` orders the content header:
+                        filter field, then ordering control, then view segment. */}
+                    {/* The chip is overlaid inside the field's right edge, as
+                        the prototype draws it (`prototype.js:495-498`). It is
+                        `aria-hidden` and paired with `aria-keyshortcuts` so the
+                        field's accessible name stays "Filter tickets" rather
+                        than becoming "Filter tickets ⌘F" (LC-71). */}
+                    <div className="filter-wrap">
+                      <input
+                        ref={filterField}
+                        className="filter-field"
+                        type="text"
+                        value={filterQuery}
+                        aria-label="Filter tickets"
+                        aria-keyshortcuts="Meta+F"
+                        placeholder="Filter tickets"
+                        onChange={(event) => setFilterQuery(event.target.value)}
+                      />
+                      <kbd className="kbd-chip filter-kbd" aria-hidden="true">
+                        ⌘F
+                      </kbd>
+                    </div>
+                    <div className="ordering-control">
+                      <span>Order</span>
+                      <MenuButton
+                        label="Order"
+                        options={ORDERINGS}
+                        value={ordering}
+                        footnote={ORDERING_FOOTNOTE}
+                        onPick={(next) => setBoardOrdering(project.id, next)}
+                      />
+                    </div>
+                    <ViewSegment view={view} onChange={setView} />
+                    {DEV_CHROME && (
+                      <button
+                        tabIndex={0}
+                        className="secondary"
+                        onClick={() => {
+                          if (!activeProjectId) return;
+                          void rebuildIndex(activeProjectId)
+                            .then(applySnapshot)
+                            .catch((error) => setError(normalizeError(error)));
+                        }}
+                      >
+                        Rebuild index
+                      </button>
+                    )}
                     <button
                       tabIndex={0}
-                      className="secondary"
-                      onClick={() => {
-                        if (!activeProjectId) return;
-                        void rebuildIndex(activeProjectId)
-                          .then(applySnapshot)
-                          .catch((error) => setError(normalizeError(error)));
-                      }}
+                      className="primary"
+                      aria-keyshortcuts="C"
+                      onClick={() => setCreateSurface("quick")}
                     >
-                      Rebuild index
+                      New ticket
+                      <kbd aria-hidden="true">C</kbd>
                     </button>
-                  )}
-                  <button
-                    tabIndex={0}
-                    className="primary"
-                    aria-keyshortcuts="C"
-                    onClick={() => setCreateSurface("quick")}
-                  >
-                    New ticket
-                    <kbd aria-hidden="true">C</kbd>
-                  </button>
-                </div>
+                  </div>
+                </>
               )}
             </header>
 

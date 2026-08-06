@@ -622,13 +622,23 @@ button:disabled {
   margin-left: auto;
 }
 
+/* The disk-state indicator, which `screen-specs.md:44-53` puts here — beside
+   the path chip, left of the spacer — at mono 10px. It names a file rather
+   than a path (`WriteFeedback.tsx`), so this cap is a guard-rail against an
+   unusually long file name, not the normal case; and it is absent whenever the
+   disk is quiet, so the width is only ever spent on news. */
+.content-header > .disk-path {
+  max-width: 22ch;
+  font-size: var(--lc-type-kbd-size);
+}
+
 /* The project path as a chip (`screen-specs.md:44-47`, D-06): mono 12px, a
    folder glyph, truncated to the header, and a click that copies. The bare
    wrapping `<code>` it replaces consumed two lines for a long path; this one
    never does. Modeled on the prototype's `.path-chip`
-   (`prototype.css:200-207`). It is the only item in the content header that
-   yields width — capped, because an uncapped path is what pushed the control
-   row onto a second line. */
+   (`prototype.css:200-207`). It yields width, capped, because an uncapped path
+   is what pushed the control row onto a second line — and being the wider of
+   the two capped items left of the spacer, it absorbs most of any shortfall. */
 .path-chip {
   display: inline-flex;
   align-items: center;
@@ -739,23 +749,6 @@ button:disabled {
 
 .trace-status {
   margin-left: auto;
-}
-
-.disk-state {
-  border-radius: var(--lc-radius-full);
-  padding: 6px 9px;
-  color: var(--lc-accent-agent-text);
-  background: var(--lc-accent-agent-soft);
-  font: 650 var(--lc-type-kbd-size) var(--lc-type-code-font);
-}
-
-.disk-state::before {
-  content: "●";
-  margin-right: 6px;
-}
-
-.disk-state.busy {
-  color: var(--lc-warn);
 }
 
 .empty-board,

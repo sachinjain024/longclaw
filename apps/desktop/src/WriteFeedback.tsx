@@ -22,13 +22,45 @@ const SPINNER_DELAY_MS = 500;
 const TOAST_MS = 5_000;
 
 /**
+ * How long the settled `✓` stands. `states.md:178-180` has the panel show it
+ * *briefly*, and a mark that never expires is the thing LC-69 removed under
+ * another name: the last write of the session still on screen an hour later,
+ * for a file the user may have navigated away from. It matches the toast
+ * because both report the same event.
+ */
+const SETTLED_MS = TOAST_MS;
+
+/**
+ * `screen-specs.md:51-52` and `states.md:180` both name a file rather than a
+ * path — `writing ticket.md…`, `✓ ticket.md`. The store keeps the
+ * project-relative path, because that is what identifies *which* write; this
+ * line only has to say which file it landed in.
+ */
+function fileName(path: string) {
+  return path.slice(path.lastIndexOf("/") + 1);
+}
+
+/**
  * The honest surface of optimistic UI: the mutated element already shows its
  * final state, and this says what the disk is actually doing.
+ *
+ * It reports only what is happening or what just landed
+ * (`screen-specs.md:50-53`). With no write, no read and no `idle` file to name,
+ * it renders nothing at all — the `● watching` chip it replaced in the content
+ * header was steady-state dev telemetry rather than designed chrome (LC-69).
+ *
+ * `busy` is a read the app is waiting on. A write outranks it, because the
+ * write is the user's own action and the one whose durability is in question.
  */
-export function WriteIndicator(props: { idle?: string; className?: string }) {
+export function WriteIndicator(props: {
+  idle?: string;
+  busy?: "reading" | "reconciling";
+  className?: string;
+}) {
   const writing = useMutationStore((state) => state.writing);
   const settled = useMutationStore((state) => state.settled);
   const [slow, setSlow] = useState(false);
+  const [stale, setStale] = useState(false);
 
   useEffect(() => {
     if (!writing) {
@@ -39,6 +71,15 @@ export function WriteIndicator(props: { idle?: string; className?: string }) {
     return () => clearTimeout(timer);
   }, [writing]);
 
+  // Keyed on `writing` as well as `settled`, so a second write to the same file
+  // — where `settled` never changes value — still gets a fresh mark.
+  useEffect(() => {
+    setStale(false);
+    if (!settled || writing) return;
+    const timer = setTimeout(() => setStale(true), SETTLED_MS);
+    return () => clearTimeout(timer);
+  }, [settled, writing]);
+
   const className = props.className ?? "disk-path";
   if (writing) {
     return (
@@ -48,13 +89,25 @@ export function WriteIndicator(props: { idle?: string; className?: string }) {
             ⟳
           </span>
         )}
-        writing {writing}…
+        writing {fileName(writing)}…
       </code>
     );
   }
-  // A settled mark for someone else's file is not this surface's news.
-  if (settled && (props.idle === undefined || settled === props.idle)) {
-    return <code className={`${className} settled`}>✓ {settled}</code>;
+  // No spinner here: the 500ms spinner is the unsettled-write promise
+  // (`states.md:56-58`), and a read is not a write.
+  if (props.busy) {
+    return <code className={className}>{props.busy}</code>;
+  }
+  // A settled mark for someone else's file is not this surface's news. The
+  // comparison stays on the full path, which is what identifies the file.
+  if (
+    settled &&
+    !stale &&
+    (props.idle === undefined || settled === props.idle)
+  ) {
+    return (
+      <code className={`${className} settled`}>✓ {fileName(settled)}</code>
+    );
   }
   if (!props.idle) return null;
   return <code className={className}>{props.idle}</code>;
