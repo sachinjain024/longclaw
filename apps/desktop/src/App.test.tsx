@@ -23,6 +23,11 @@ import type {
   WriteResult,
 } from "./types";
 
+const originalLocalStorage = Object.getOwnPropertyDescriptor(
+  globalThis,
+  "localStorage",
+);
+
 vi.mock("./api", () => ({
   chooseAndCreateProject: vi.fn(),
   chooseAndRegisterProject: vi.fn(),
@@ -55,6 +60,11 @@ afterEach(() => {
   } catch {
     // Tests that exercise unavailable app storage deliberately replace it.
   }
+  if (originalLocalStorage) {
+    Object.defineProperty(globalThis, "localStorage", originalLocalStorage);
+  } else {
+    Reflect.deleteProperty(globalThis, "localStorage");
+  }
 });
 
 beforeEach(() => {
@@ -73,7 +83,6 @@ beforeEach(() => {
   useLongClawStore.setState({
     projects: [],
     activeProjectId: undefined,
-    boardOrdering: {},
     tickets: [],
     generation: 0,
     lastSequence: 0,
@@ -1451,7 +1460,11 @@ describe("the list and the board agree (V0-14)", () => {
     fireEvent.click(screen.getByRole("button", { name: view }));
 
   /** Renders, waits for the board, and returns the event listener Rust would use. */
-  async function open(tickets: TicketRow[] = SEED, generation = 1) {
+  async function open(
+    tickets: TicketRow[] = SEED,
+    generation = 1,
+    expectedView: "Board" | "List" = "Board",
+  ) {
     let deliver: (envelope: StreamEnvelope) => void = () => {};
     vi.mocked(api.listenForProjectEvents).mockImplementation(
       async (handler) => {
@@ -1464,7 +1477,10 @@ describe("the list and the board agree (V0-14)", () => {
       snapshot(tickets, 1, generation),
     );
     render(<App />);
-    await screen.findByRole("button", { name: "Board", pressed: true });
+    await screen.findByRole("button", {
+      name: expectedView,
+      pressed: true,
+    });
     // The board draws the live tickets: an archived one is the list's (ADR 0004).
     const live = tickets.filter((ticket) => !isArchived(ticket)).length;
     await waitFor(() => expect(shownKeys().length).toBe(live));
@@ -1638,14 +1654,13 @@ describe("the list and the board agree (V0-14)", () => {
     useLongClawStore.setState({
       projects: [],
       activeProjectId: undefined,
-      boardOrdering: {},
       tickets: [],
       generation: 0,
       lastSequence: 0,
       externalMarks: {},
     });
     const reindexed = files().reverse();
-    await open(reindexed, 2);
+    await open(reindexed, 2, "List");
     toggleTo("List");
 
     // The new index is the one on screen, not a survivor of the last mount.
@@ -2201,11 +2216,13 @@ describe("board ordering and manual reordering (V0-09)", () => {
     await openBoard([row("LC-1")]);
     chooseOrdering("Manual");
 
-    expect(
-      JSON.parse(localStorage.getItem("longclaw.projectWorkspaces")!),
-    ).toEqual({
-      "project-fixture": { ordering: "manual" },
-    });
+    await waitFor(() =>
+      expect(
+        JSON.parse(localStorage.getItem("longclaw.projectWorkspaces")!),
+      ).toEqual({
+        "project-fixture": { ordering: "manual" },
+      }),
+    );
   });
 
   it("must-pass: Priority mode writes no rank however the board is dragged", async () => {
@@ -2579,9 +2596,11 @@ describe("the header filter (V0-15)", () => {
 
     type("recovery");
 
-    expect(JSON.parse(held.get("longclaw.projectWorkspaces")!)).toEqual({
-      "project-fixture": { filterQuery: "recovery" },
-    });
+    await waitFor(() =>
+      expect(JSON.parse(held.get("longclaw.projectWorkspaces")!)).toEqual({
+        "project-fixture": { filterQuery: "recovery" },
+      }),
+    );
     expect(api.editTicket).not.toHaveBeenCalled();
     expect(api.createTicket).not.toHaveBeenCalled();
     expect(api.updateProjectName).not.toHaveBeenCalled();
@@ -2684,7 +2703,6 @@ describe("project-scoped workspace restoration (LC-49)", () => {
     useLongClawStore.setState({
       projects: [],
       activeProjectId: undefined,
-      boardOrdering: {},
       tickets: [],
       generation: 0,
       lastSequence: 0,
@@ -2818,6 +2836,19 @@ describe("project-scoped workspace restoration (LC-49)", () => {
     expect(api.updateProjectName).not.toHaveBeenCalled();
     expect(api.updateProjectTheme).not.toHaveBeenCalled();
     expect(api.editTicket).not.toHaveBeenCalled();
+    expect(held.has("longclaw.boardOrdering")).toBe(false);
+  });
+
+  it("falls back when the remembered project is no longer registered", async () => {
+    held.set("longclaw.activeProject", "project-that-was-removed");
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Project A" });
+    expect(api.openProject).toHaveBeenCalledWith(projectA.id);
+    expect(api.openProject).not.toHaveBeenCalledWith(
+      "project-that-was-removed",
+    );
   });
 });
 

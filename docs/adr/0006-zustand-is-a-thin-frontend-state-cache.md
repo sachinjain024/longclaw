@@ -11,5 +11,5 @@ The Rust `ProjectEngine` module remains authoritative while the process runs; pr
 - React components consume selectors from a single store and do not call Tauri directly.
 - Optimistic state is allowed only when paired with the command result or a typed failure that can mark it unsaved.
 - Backend DTOs are deliberately view-oriented and contain no unrestricted absolute ticket path.
-- Store persistence is rejected. Project references belong in the Rust registry; canonical data belongs in project files.
+- Persisting the Zustand cache is rejected. Project references — including paths, cached metadata, and reachability — belong in the Rust registry; canonical data belongs in project files. Small device-local UI preferences may use webview preference storage. An opaque last-selected project id is such a preference only when startup revalidates it against the Rust registry before opening anything; it is not a second project reference.
 - Redux Toolkit was rejected for the v0 surface because its additional action/reducer ceremony adds no needed invariant. React Context was rejected because high-frequency ticket/list updates need selectors and isolated subscriptions. A custom event bus was rejected because it would recreate ordering and subscription behavior without a maintained state module.

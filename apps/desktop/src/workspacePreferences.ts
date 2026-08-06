@@ -1,4 +1,13 @@
-import type { OrderingMode } from "./ordering";
+/**
+ * Device-local workspace preferences from LC-49.
+ *
+ * This is deliberately not persisted Zustand state (ADR 0006): snapshots and
+ * project references remain owned by Rust. The active-project value is only an
+ * opaque selection hint, revalidated against Rust's registry before it is used;
+ * no project path or reachability claim crosses into webview storage.
+ */
+
+import { isOrderingMode, type OrderingMode } from "./ordering";
 
 const ACTIVE_PROJECT_KEY = "longclaw.activeProject";
 const PROJECT_WORKSPACES_KEY = "longclaw.projectWorkspaces";
@@ -10,6 +19,7 @@ export type ProjectWorkspace = {
   ordering?: OrderingMode;
   filterQuery?: string;
 };
+export type ProjectWorkspacePatch = Partial<ProjectWorkspace>;
 
 export function readActiveProjectId(): string | undefined {
   try {
@@ -46,7 +56,7 @@ export function readProjectWorkspaces(): Record<string, ProjectWorkspace> {
     if (value.view === "board" || value.view === "list") {
       workspace.view = value.view;
     }
-    if (value.ordering === "priority" || value.ordering === "manual") {
+    if (isOrderingMode(value.ordering)) {
       workspace.ordering = value.ordering;
     }
     if (typeof value.filterQuery === "string") {
@@ -57,11 +67,22 @@ export function readProjectWorkspaces(): Record<string, ProjectWorkspace> {
 
   // Before LC-49, ordering was the only persisted per-project workspace field.
   // Adopt that key once so existing Manual choices survive the schema merge.
-  for (const [projectId, ordering] of Object.entries(
-    readRecord(LEGACY_ORDERING_KEY),
-  )) {
+  const legacyOrdering = readRecord(LEGACY_ORDERING_KEY);
+  let migrated = false;
+  for (const [projectId, ordering] of Object.entries(legacyOrdering)) {
     if (ordering !== "manual" || workspaces[projectId]?.ordering) continue;
     workspaces[projectId] = { ...workspaces[projectId], ordering };
+    migrated = true;
+  }
+  try {
+    // Write the replacement before deleting the old key so a storage failure
+    // cannot discard a valid Manual preference during migration.
+    if (migrated) {
+      localStorage.setItem(PROJECT_WORKSPACES_KEY, JSON.stringify(workspaces));
+    }
+    localStorage.removeItem(LEGACY_ORDERING_KEY);
+  } catch {
+    // A later launch can retry the legacy migration.
   }
   return workspaces;
 }

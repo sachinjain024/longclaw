@@ -127,3 +127,17 @@ changes:
 
 Implemented restart-safe workspace restoration in the dedicated LC-49 worktree. The app now restores the last reachable project and keeps board/list view, ordering mode, and filter query per project, with safe fallback for unavailable projects and malformed or stale preferences. Added rendered-App restart tests, consolidated persistence behind a workspacePreferences module, migrated legacy ordering state, and updated the data requirements. Verification: npm run verify passed (546 frontend tests plus Rust, build, and native watcher); perf:board p95 keyboard 15ms, scroll 18ms, filter 26ms, write 16ms; perf:list p95 keyboard 16ms, scroll 18ms, filter 21ms, write 16ms; accessibility audit A1-A5 passed. Formal standards/spec review completed and all findings addressed.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_4180a4a6
+kind: comment
+occurred_at: 2026-08-06T12:30:23.283Z
+actor:
+  type: agent
+  id: codex
+  name: Codex
+-->
+### Codex commented
+
+Addressed the post-implementation standards/spec review. The expanded project/view/order/filter scope was explicitly requested before implementation, so it remains intentional. Clarified ADR 0006: only an opaque last-selected id is stored in webview preferences and it is revalidated against Rust-owned registry data; no path or reachability claim is persisted there. Updated the stale V0-15 history, added a module contract and fast workspacePreferences tests, centralized ordering validation and ViewMode, renamed the patch type, removed the dead Zustand ordering slice, made legacy ordering migration delete its old key after a safe replacement write, coalesced filter persistence off the per-keystroke path, restored test-global localStorage, and covered a remembered project removed from the registry. Verification passed: 96 focused tests; npm run verify with 551 frontend tests plus Rust/build/native watcher; board p95 keyboard 16ms, scroll 18ms, filter 27ms, write 16ms; list p95 keyboard 16ms, scroll 18ms, filter 22ms, write 16ms.
+<!-- /longclaw:event -->

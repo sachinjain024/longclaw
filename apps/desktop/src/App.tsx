@@ -74,6 +74,7 @@ import {
   rememberActiveProject,
   rememberProjectWorkspaces,
   type ProjectWorkspace,
+  type ProjectWorkspacePatch,
   type ViewMode,
 } from "./workspacePreferences";
 import { ToastStack, WriteIndicator } from "./WriteFeedback";
@@ -216,11 +217,11 @@ export function App() {
   const view = workspace?.view ?? "board";
   const filterQuery = workspace?.filterQuery ?? "";
   const updateWorkspace = useCallback(
-    (change: ProjectWorkspace) => {
+    (patch: ProjectWorkspacePatch) => {
       if (!activeProjectId) return;
       setProjectWorkspaces((current) => ({
         ...current,
-        [activeProjectId]: { ...current[activeProjectId], ...change },
+        [activeProjectId]: { ...current[activeProjectId], ...patch },
       }));
     },
     [activeProjectId],
@@ -528,9 +529,21 @@ export function App() {
     rememberActiveProject(activeProjectId);
   }, [activeProjectId]);
 
+  const latestProjectWorkspaces = useRef(projectWorkspaces);
   useEffect(() => {
-    rememberProjectWorkspaces(projectWorkspaces);
+    latestProjectWorkspaces.current = projectWorkspaces;
+    // The filter changes on every keystroke. Coalesce a burst so persistence
+    // never adds synchronous JSON work to the input-to-paint path.
+    const timer = window.setTimeout(
+      () => rememberProjectWorkspaces(projectWorkspaces),
+      150,
+    );
+    return () => window.clearTimeout(timer);
   }, [projectWorkspaces]);
+  useEffect(
+    () => () => rememberProjectWorkspaces(latestProjectWorkspaces.current),
+    [],
+  );
 
   useEffect(() => {
     const root = document.documentElement;
@@ -1448,8 +1461,8 @@ export function App() {
  * is what says which one you are standing in.
  */
 function ViewSegment(props: {
-  view: "board" | "list";
-  onChange: (view: "board" | "list") => void;
+  view: ViewMode;
+  onChange: (view: ViewMode) => void;
 }) {
   return (
     <div className="view-segment" role="group" aria-label="View">
