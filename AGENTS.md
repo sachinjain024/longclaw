@@ -3,8 +3,10 @@
 ### Issue tracker
 
 This repository tracks its own work in LongClaw, under `.longclaw/tickets/<KEY>/`.
-Both backlogs were imported on 2026-08-05 as `LC-1`…`LC-58`; file new work as a
-ticket rather than as a Markdown file under `docs/plans/`.
+Every `LC-*` item lives there as a directory, so a ticket named in a prompt is
+read straight from disk — `LC-69` is `.longclaw/tickets/LC-69/ticket.md`. Both
+backlogs were imported on 2026-08-05 as `LC-1`…`LC-58`; file new work as a ticket
+rather than as a Markdown file under `docs/plans/`.
 
 File it with the CLI, which is the one surface allowed to allocate a key — never
 by writing a ticket directory by hand, and always with `--agent-id`, because an
