@@ -92,20 +92,33 @@ textarea:focus-visible,
 /* Above the sections now, so the hairline separates it from the rows below
    (LC-73). Stacked rather than side by side: the sidebar is 240px, leaving
    216px of content, which is not enough for two labelled controls on one line —
-   the old row needed `nowrap` and label-sized buttons to survive it. */
+   the old row needed `nowrap` and label-sized buttons to survive it.
+
+   The two controls sit on the tightest step of the scale because they are one
+   pair, not two neighbours: `Open folder` is the second half of "add a
+   project", and the space that matters is the one below them, holding the pair
+   off the sections. */
 .project-actions {
+  row-gap: var(--lc-space-1);
   border-bottom: var(--lc-border-hairline) solid var(--lc-line);
   padding-bottom: var(--lc-space-4);
 }
 
-/* The create CTA fills the panel; `Open folder` is sized to its label and sits
-   left, so it reads as the quieter of the two rather than a second button of
-   equal weight. Both keep the documented full-size 30px control height —
-   `.small` is for banner and toolbar actions (`components.md:44`), which these
-   stopped being when they left the foot of the list. */
+/* The create CTA fills the panel; `Open folder` is sized to its label and
+   centred under it. It stays the quieter of the two on variant alone — ghost
+   against secondary — rather than on position, which is what lets it be
+   centred without competing. Both keep the documented full-size 30px control
+   height: `.small` is for banner and toolbar actions (`components.md:44`),
+   which these stopped being when they left the foot of the list. */
 .project-actions .ghost {
-  justify-self: start;
+  justify-self: center;
   white-space: nowrap;
+}
+
+/* The form is a separate thing from the pair that opens it, so it keeps the
+   8px the tightened row-gap took away. */
+.project-actions .quick-create {
+  margin-top: var(--lc-space-1);
 }
 
 .quick-create {
