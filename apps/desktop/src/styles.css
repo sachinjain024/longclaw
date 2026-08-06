@@ -323,8 +323,7 @@ h1 {
     var(--lc-type-ui-leading) var(--lc-type-ui-font);
   transition:
     background var(--lc-motion-fast) var(--lc-motion-ease),
-    border-color var(--lc-motion-fast) var(--lc-motion-ease),
-    color var(--lc-motion-fast) var(--lc-motion-ease);
+    border-color var(--lc-motion-fast) var(--lc-motion-ease);
 }
 
 /* The small variant, for banner and toolbar actions (components.md:44). */
@@ -562,9 +561,19 @@ button:disabled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  /* Square, so the shared 0 9px small padding (components.md:44) would skew it. */
   width: var(--lc-size-control-sm);
   padding: 0;
   color: var(--lc-ink-3);
+  /* Only the gear reads as ink on hover, so the colour fade is scoped here
+     rather than added to the shared foundation, where it would have put a
+     third animated property on `button:disabled` — a state components.md:32
+     gives no motion at all. (The foundation already fades that state's
+     background and border-color; that predates this control.) */
+  transition:
+    background var(--lc-motion-fast) var(--lc-motion-ease),
+    border-color var(--lc-motion-fast) var(--lc-motion-ease),
+    color var(--lc-motion-fast) var(--lc-motion-ease);
 }
 
 .content-header .settings-button:hover {

@@ -815,7 +815,10 @@ describe("the project settings gear (LC-70)", () => {
     render(<App />);
     await screen.findByRole("button", { name: "Board", pressed: true });
 
-    const header = screen.getByRole("banner");
+    // Scoped by class, not `getByRole("banner")`: this `<header>` sits inside
+    // `.main-panel`, so HTML-AAM maps it to `generic`, and only jsdom's
+    // unconditional `header: "banner"` would make that query pass.
+    const header = document.querySelector<HTMLElement>(".content-header")!;
     const settings = within(header).getByRole("button", {
       name: "Project settings",
     });
