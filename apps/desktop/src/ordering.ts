@@ -27,6 +27,11 @@ export const ORDERINGS: { id: OrderingMode; label: string }[] = [
   { id: "manual", label: "Manual" },
 ];
 
+/** Whether an untrusted preference names one of the ordering modes we offer. */
+export function isOrderingMode(value: unknown): value is OrderingMode {
+  return ORDERINGS.some((option) => option.id === value);
+}
+
 /**
  * Where each priority sits in the order `PRIORITIES` lists them in. Not a
  * `rank`: that word is taken, and it means the manual-order string on the

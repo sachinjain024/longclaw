@@ -24,6 +24,11 @@ import type {
   WriteResult,
 } from "./types";
 
+const originalLocalStorage = Object.getOwnPropertyDescriptor(
+  globalThis,
+  "localStorage",
+);
+
 vi.mock("./api", () => ({
   chooseAndCreateProject: vi.fn(),
   chooseAndRegisterProject: vi.fn(),
@@ -50,6 +55,17 @@ vi.mock("./api", () => ({
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  try {
+    localStorage.removeItem("longclaw.activeProject");
+    localStorage.removeItem("longclaw.projectWorkspaces");
+  } catch {
+    // Tests that exercise unavailable app storage deliberately replace it.
+  }
+  if (originalLocalStorage) {
+    Object.defineProperty(globalThis, "localStorage", originalLocalStorage);
+  } else {
+    Reflect.deleteProperty(globalThis, "localStorage");
+  }
 });
 
 beforeEach(() => {
@@ -68,7 +84,6 @@ beforeEach(() => {
   useLongClawStore.setState({
     projects: [],
     activeProjectId: undefined,
-    boardOrdering: {},
     tickets: [],
     generation: 0,
     lastSequence: 0,
@@ -1491,7 +1506,11 @@ describe("the list and the board agree (V0-14)", () => {
     fireEvent.click(screen.getByRole("button", { name: view }));
 
   /** Renders, waits for the board, and returns the event listener Rust would use. */
-  async function open(tickets: TicketRow[] = SEED, generation = 1) {
+  async function open(
+    tickets: TicketRow[] = SEED,
+    generation = 1,
+    expectedView: "Board" | "List" = "Board",
+  ) {
     let deliver: (envelope: StreamEnvelope) => void = () => {};
     vi.mocked(api.listenForProjectEvents).mockImplementation(
       async (handler) => {
@@ -1504,7 +1523,10 @@ describe("the list and the board agree (V0-14)", () => {
       snapshot(tickets, 1, generation),
     );
     render(<App />);
-    await screen.findByRole("button", { name: "Board", pressed: true });
+    await screen.findByRole("button", {
+      name: expectedView,
+      pressed: true,
+    });
     // The board draws the live tickets: an archived one is the list's (ADR 0004).
     const live = tickets.filter((ticket) => !isArchived(ticket)).length;
     await waitFor(() => expect(shownKeys().length).toBe(live));
@@ -1684,7 +1706,7 @@ describe("the list and the board agree (V0-14)", () => {
       externalMarks: {},
     });
     const reindexed = files().reverse();
-    await open(reindexed, 2);
+    await open(reindexed, 2, "List");
     toggleTo("List");
 
     // The new index is the one on screen, not a survivor of the last mount.
@@ -2240,10 +2262,12 @@ describe("board ordering and manual reordering (V0-09)", () => {
     await openBoard([row("LC-1")]);
     chooseOrdering("Manual");
 
-    expect(JSON.parse(localStorage.getItem("longclaw.boardOrdering")!)).toEqual(
-      {
-        "project-fixture": "manual",
-      },
+    await waitFor(() =>
+      expect(
+        JSON.parse(localStorage.getItem("longclaw.projectWorkspaces")!),
+      ).toEqual({
+        "project-fixture": { ordering: "manual" },
+      }),
     );
   });
 
@@ -2603,7 +2627,7 @@ describe("the header filter (V0-15)", () => {
     expect(api.updateProjectTheme).not.toHaveBeenCalled();
   });
 
-  it("keeps the query out of every persisted preference", async () => {
+  it("persists the query only as app preference state", async () => {
     const held = new Map<string, string>();
     Object.defineProperty(globalThis, "localStorage", {
       configurable: true,
@@ -2618,9 +2642,15 @@ describe("the header filter (V0-15)", () => {
 
     type("recovery");
 
-    // `data-requirements.md:41` calls the query session-only app state.
-    for (const value of held.values()) expect(value).not.toContain("recovery");
-    for (const key of held.keys()) expect(key).not.toContain("filter");
+    await waitFor(() =>
+      expect(JSON.parse(held.get("longclaw.projectWorkspaces")!)).toEqual({
+        "project-fixture": { filterQuery: "recovery" },
+      }),
+    );
+    expect(api.editTicket).not.toHaveBeenCalled();
+    expect(api.createTicket).not.toHaveBeenCalled();
+    expect(api.updateProjectName).not.toHaveBeenCalled();
+    expect(api.updateProjectTheme).not.toHaveBeenCalled();
   });
 
   // Found by `npm run perf:board`, not by reading the code: both surfaces
@@ -2669,6 +2699,202 @@ describe("the header filter (V0-15)", () => {
         .querySelector('[data-ticket-key="LC-2"]')!
         .getAttribute("tabindex"),
     ).toBe("0");
+  });
+});
+
+describe("project-scoped workspace restoration (LC-49)", () => {
+  const projectA = {
+    id: "project-a",
+    name: "Project A",
+    rootPath: "/tmp/LongClaw A",
+    key: "LA",
+    theme: "indigo",
+    starred: false,
+    reachable: true,
+    labels: {},
+  };
+  const projectB = {
+    ...projectA,
+    id: "project-b",
+    name: "Project B",
+    rootPath: "/tmp/LongClaw B",
+    key: "LB",
+    theme: "clay",
+  };
+
+  let held: Map<string, string>;
+
+  beforeEach(() => {
+    held = new Map<string, string>();
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: (key: string) => held.get(key) ?? null,
+        setItem: (key: string, value: string) => held.set(key, value),
+        removeItem: (key: string) => held.delete(key),
+        clear: () => held.clear(),
+      },
+    });
+    vi.mocked(api.listProjects).mockResolvedValue([projectA, projectB]);
+    vi.mocked(api.openProject).mockImplementation(async (projectId) => ({
+      project: projectId === projectB.id ? projectB : projectA,
+      tickets: [],
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    }));
+  });
+
+  function resetSessionStore() {
+    useLongClawStore.setState({
+      projects: [],
+      activeProjectId: undefined,
+      tickets: [],
+      generation: 0,
+      lastSequence: 0,
+      lastEvent: undefined,
+      externalMarks: {},
+      loading: false,
+      reconciling: false,
+      error: undefined,
+    });
+  }
+
+  const filter = () =>
+    screen.getByRole("textbox", { name: "Filter tickets" }) as HTMLInputElement;
+
+  function chooseOrdering(name: "Priority" | "Manual") {
+    fireEvent.click(screen.getByRole("button", { name: /^Order:/ }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name }));
+  }
+
+  it("reopens the project that was active before restart", async () => {
+    const firstLaunch = render(<App />);
+    await screen.findByRole("heading", { name: "Project A" });
+
+    fireEvent.click(screen.getByRole("button", { name: /Project B/ }));
+    await screen.findByRole("heading", { name: "Project B" });
+
+    firstLaunch.unmount();
+    resetSessionStore();
+    vi.mocked(api.openProject).mockClear();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Project B" });
+    expect(api.openProject).toHaveBeenCalledWith(projectB.id);
+    expect(api.openProject).not.toHaveBeenCalledWith(projectA.id);
+  });
+
+  it("restores each project's workspace when switching between them", async () => {
+    render(<App />);
+    await screen.findByRole("heading", { name: "Project A" });
+
+    fireEvent.click(screen.getByRole("button", { name: "List" }));
+    chooseOrdering("Manual");
+    fireEvent.change(filter(), { target: { value: "alpha" } });
+
+    fireEvent.click(screen.getByRole("button", { name: /Project B/ }));
+    await screen.findByRole("heading", { name: "Project B" });
+    expect(
+      screen.getByRole("button", { name: "Board", pressed: true }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Order: Priority" }),
+    ).toBeTruthy();
+    expect(filter().value).toBe("");
+
+    fireEvent.change(filter(), { target: { value: "beta" } });
+    fireEvent.click(screen.getByRole("button", { name: /Project A/ }));
+    await screen.findByRole("heading", { name: "Project A" });
+
+    expect(
+      screen.getByRole("button", { name: "List", pressed: true }),
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Order: Manual" })).toBeTruthy();
+    expect(filter().value).toBe("alpha");
+  });
+
+  it("restores both projects' complete workspaces after restart", async () => {
+    const firstLaunch = render(<App />);
+    await screen.findByRole("heading", { name: "Project A" });
+
+    fireEvent.click(screen.getByRole("button", { name: "List" }));
+    chooseOrdering("Manual");
+    fireEvent.change(filter(), { target: { value: "alpha" } });
+    fireEvent.click(screen.getByRole("button", { name: /Project B/ }));
+    await screen.findByRole("heading", { name: "Project B" });
+    fireEvent.change(filter(), { target: { value: "beta" } });
+    fireEvent.click(screen.getByRole("button", { name: /Project A/ }));
+    await screen.findByRole("heading", { name: "Project A" });
+
+    firstLaunch.unmount();
+    resetSessionStore();
+
+    render(<App />);
+    await screen.findByRole("heading", { name: "Project A" });
+    expect(
+      screen.getByRole("button", { name: "List", pressed: true }),
+    ).toBeTruthy();
+    await screen.findByRole("button", { name: "Order: Manual" });
+    expect(filter().value).toBe("alpha");
+
+    fireEvent.click(screen.getByRole("button", { name: /Project B/ }));
+    await screen.findByRole("heading", { name: "Project B" });
+    expect(
+      screen.getByRole("button", { name: "Board", pressed: true }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Order: Priority" }),
+    ).toBeTruthy();
+    expect(filter().value).toBe("beta");
+  });
+
+  it("falls back safely when saved project and workspace values are malformed or stale", async () => {
+    held.set("longclaw.activeProject", projectB.id);
+    held.set(
+      "longclaw.projectWorkspaces",
+      JSON.stringify({
+        [projectA.id]: { view: "grid", filterQuery: 42 },
+      }),
+    );
+    held.set(
+      "longclaw.boardOrdering",
+      JSON.stringify({ [projectA.id]: "new-ordering-from-the-future" }),
+    );
+    vi.mocked(api.listProjects).mockResolvedValue([
+      projectA,
+      { ...projectB, reachable: false },
+    ]);
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Project A" });
+    expect(api.openProject).toHaveBeenCalledWith(projectA.id);
+    expect(api.openProject).not.toHaveBeenCalledWith(projectB.id);
+    expect(
+      screen.getByRole("button", { name: "Board", pressed: true }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Order: Priority" }),
+    ).toBeTruthy();
+    expect(filter().value).toBe("");
+    expect(api.updateProjectName).not.toHaveBeenCalled();
+    expect(api.updateProjectTheme).not.toHaveBeenCalled();
+    expect(api.editTicket).not.toHaveBeenCalled();
+    expect(held.has("longclaw.boardOrdering")).toBe(false);
+  });
+
+  it("falls back when the remembered project is no longer registered", async () => {
+    held.set("longclaw.activeProject", "project-that-was-removed");
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Project A" });
+    expect(api.openProject).toHaveBeenCalledWith(projectA.id);
+    expect(api.openProject).not.toHaveBeenCalledWith(
+      "project-that-was-removed",
+    );
   });
 });
 

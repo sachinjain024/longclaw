@@ -19,6 +19,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { STATUS_OPTIONS, PRIORITY_OPTIONS } from "./metaOptions";
 import { ORDERINGS, type OrderingMode } from "./ordering";
+import type { ViewMode } from "./workspacePreferences";
 import { StatusDot } from "./StatusDot";
 import { ThemeSwatch } from "./ThemeSwatch";
 import type {
@@ -104,7 +105,7 @@ export function CommandPalette(props: {
   /** The board's current ordering, so the sub-mode can tick it. */
   ordering: OrderingMode;
   /** The surface in force, so the view row can name the one it will switch to. */
-  view: "board" | "list";
+  view: ViewMode;
   /** Closes and returns focus to whatever held it before `⌘K`. */
   onClose: () => void;
   onCreate: () => void;
@@ -115,7 +116,7 @@ export function CommandPalette(props: {
   onToggleStar: () => void;
   onToggleAppearance: () => void;
   onTheme: (theme: string) => void;
-  onView: (view: "board" | "list") => void;
+  onView: (view: ViewMode) => void;
   onArchive: () => void;
   onOrdering: (mode: OrderingMode) => void;
   /** Debounced. The palette holds no results of its own. */

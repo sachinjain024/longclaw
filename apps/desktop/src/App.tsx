@@ -68,6 +68,15 @@ import type {
   TicketStatus,
   TicketRow,
 } from "./types";
+import {
+  readActiveProjectId,
+  readProjectWorkspaces,
+  rememberActiveProject,
+  rememberProjectWorkspaces,
+  type ProjectWorkspace,
+  type ProjectWorkspacePatch,
+  type ViewMode,
+} from "./workspacePreferences";
 import { ToastStack, WriteIndicator } from "./WriteFeedback";
 
 const THEMES = [
@@ -79,34 +88,9 @@ const THEMES = [
 
 const APPEARANCE_KEY = "longclaw.appearance";
 
-/**
- * The board ordering preference, per project (ADR 0003). Device-local app state
- * and never project data, so it goes exactly where `appearance` goes: a webview
- * origin's `localStorage`, which in the packaged app is a file inside the OS
- * app-support container (`data-requirements.md:19`). It must never reach
- * `longclaw.yaml` or a ticket file, and this is the only place it is written.
- */
-const ORDERING_KEY = "longclaw.boardOrdering";
-
 /** The note `screen-specs.md:246-247` puts under the ordering menu, verbatim. */
 const ORDERING_FOOTNOTE =
   "Ordering is a view preference on this board — it never rewrites files.";
-
-function readOrderings(): Record<string, OrderingMode> {
-  try {
-    const saved: unknown = JSON.parse(localStorage.getItem(ORDERING_KEY) ?? "");
-    if (!saved || typeof saved !== "object") return {};
-    // A stored value this build does not know is dropped rather than trusted:
-    // the preference is disposable, so the safe reading is the default one.
-    return Object.fromEntries(
-      Object.entries(saved as Record<string, unknown>).filter(
-        (entry): entry is [string, OrderingMode] => entry[1] === "manual",
-      ),
-    );
-  } catch {
-    return {};
-  }
-}
 
 /**
  * Every row on every surface carries its ticket key, which is what lets one
@@ -179,8 +163,6 @@ export function App() {
     (state) => state.setActiveProjectId,
   );
   const setAppearance = useLongClawStore((state) => state.setAppearance);
-  const boardOrdering = useLongClawStore((state) => state.boardOrdering);
-  const setBoardOrdering = useLongClawStore((state) => state.setBoardOrdering);
   const applySnapshot = useLongClawStore((state) => state.applySnapshot);
   const applyEvent = useLongClawStore((state) => state.applyEvent);
   const applyLocalWrite = useLongClawStore((state) => state.applyLocalWrite);
@@ -213,17 +195,12 @@ export function App() {
   /** Drives the acknowledgement age text and its decay. */
   const [now, setNow] = useState(() => Date.now());
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
-  /** Board or list (`screen-specs.md:49`). View state, and it writes nothing. */
-  const [view, setView] = useState<"board" | "list">("board");
+  /** Per-project workspace choices. Device-local, and never project data. */
+  const [projectWorkspaces, setProjectWorkspaces] = useState<
+    Record<string, ProjectWorkspace>
+  >(readProjectWorkspaces);
   const [settingsName, setSettingsName] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
-  /**
-   * The content header's filter (`screen-specs.md:47`). Session-only app state
-   * (`data-requirements.md:41`): plain component state, deliberately not beside
-   * `appearance` and the ordering preference in `localStorage`, and never a
-   * field on anything that crosses IPC.
-   */
-  const [filterQuery, setFilterQuery] = useState("");
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [paletteTicketKey, setPaletteTicketKey] = useState<string>();
   const [paletteSearchResults, setPaletteSearchResults] =
@@ -234,9 +211,31 @@ export function App() {
   const filterField = useRef<HTMLInputElement>(null);
 
   const project = projects.find((item) => item.id === activeProjectId);
+  const workspace = activeProjectId
+    ? projectWorkspaces[activeProjectId]
+    : undefined;
+  const view = workspace?.view ?? "board";
+  const filterQuery = workspace?.filterQuery ?? "";
+  const updateWorkspace = useCallback(
+    (patch: ProjectWorkspacePatch) => {
+      if (!activeProjectId) return;
+      setProjectWorkspaces((current) => ({
+        ...current,
+        [activeProjectId]: { ...current[activeProjectId], ...patch },
+      }));
+    },
+    [activeProjectId],
+  );
+  const setView = useCallback(
+    (next: ViewMode) => updateWorkspace({ view: next }),
+    [updateWorkspace],
+  );
+  const setFilterQuery = useCallback(
+    (next: string) => updateWorkspace({ filterQuery: next }),
+    [updateWorkspace],
+  );
   /** Priority until this project has been switched (ADR 0003's default). */
-  const ordering: OrderingMode =
-    (activeProjectId && boardOrdering[activeProjectId]) || "priority";
+  const ordering: OrderingMode = workspace?.ordering ?? "priority";
   /** The row the panel is open on, read from the store both surfaces read. */
   const openRow = tickets.find((ticket) => ticket.key === selectedKey);
   const paletteTicket = tickets.find(
@@ -313,7 +312,7 @@ export function App() {
     setFilterQuery("");
     // Rule 3 of the focus map: closing a layer never drops focus on the floor.
     filterField.current?.focus();
-  }, []);
+  }, [setFilterQuery]);
   const openTicket = useCallback(
     (key: string) => {
       setSelectedKey(key);
@@ -388,9 +387,6 @@ export function App() {
       setLoading(false);
     }
   }
-
-  // A query about one project means nothing in the next one.
-  useEffect(() => setFilterQuery(""), [activeProjectId]);
 
   /**
    * `⌘F` and the filter's rung of the `Esc` ladder (`keyboard-focus-map.md:19-31`).
@@ -498,30 +494,6 @@ export function App() {
     }
   }, [setAppearance]);
 
-  // The ordering preference is hydrated once and written back whenever it
-  // changes, exactly as appearance is. Neither ever crosses IPC.
-  useEffect(() => {
-    const saved = readOrderings();
-    for (const [projectId, ordering] of Object.entries(saved)) {
-      setBoardOrdering(projectId, ordering);
-    }
-  }, [setBoardOrdering]);
-
-  const hydrated = useRef(false);
-  useEffect(() => {
-    // Not on the first pass, or an empty store would erase what is on disk
-    // before the hydration above has read it.
-    if (!hydrated.current) {
-      hydrated.current = true;
-      return;
-    }
-    try {
-      localStorage.setItem(ORDERING_KEY, JSON.stringify(boardOrdering));
-    } catch {
-      // The board still orders. Nothing here is a fact about a file.
-    }
-  }, [boardOrdering]);
-
   useEffect(() => {
     try {
       localStorage.setItem(APPEARANCE_KEY, appearance);
@@ -553,6 +525,27 @@ export function App() {
   }, [appearance]);
 
   useEffect(() => {
+    if (!activeProjectId) return;
+    rememberActiveProject(activeProjectId);
+  }, [activeProjectId]);
+
+  const latestProjectWorkspaces = useRef(projectWorkspaces);
+  useEffect(() => {
+    latestProjectWorkspaces.current = projectWorkspaces;
+    // The filter changes on every keystroke. Coalesce a burst so persistence
+    // never adds synchronous JSON work to the input-to-paint path.
+    const timer = window.setTimeout(
+      () => rememberProjectWorkspaces(projectWorkspaces),
+      150,
+    );
+    return () => window.clearTimeout(timer);
+  }, [projectWorkspaces]);
+  useEffect(
+    () => () => rememberProjectWorkspaces(latestProjectWorkspaces.current),
+    [],
+  );
+
+  useEffect(() => {
     const root = document.documentElement;
     const theme = project?.theme || "indigo";
     // The first stamp is the launch value; only a *change* crossfades.
@@ -574,7 +567,11 @@ export function App() {
         if (!active) return;
         setProjects(projects);
         if (home) setHomePath(home);
-        const reachable = projects.find((project) => project.reachable);
+        const remembered = readActiveProjectId();
+        const reachable =
+          projects.find(
+            (project) => project.id === remembered && project.reachable,
+          ) ?? projects.find((project) => project.reachable);
         if (reachable) await loadProject(reachable.id);
         else if (projects[0]) setActiveProjectId(projects[0].id);
       } catch (error) {
@@ -1186,7 +1183,7 @@ export function App() {
                       options={ORDERINGS}
                       value={ordering}
                       footnote={ORDERING_FOOTNOTE}
-                      onPick={(next) => setBoardOrdering(project.id, next)}
+                      onPick={(next) => updateWorkspace({ ordering: next })}
                     />
                   </div>
                   <ViewSegment view={view} onChange={setView} />
@@ -1464,7 +1461,7 @@ export function App() {
             if (commandTarget)
               setArchived(commandTarget, !isArchived(commandTarget));
           }}
-          onOrdering={(next) => setBoardOrdering(project.id, next)}
+          onOrdering={(next) => updateWorkspace({ ordering: next })}
           searchResults={paletteSearchResults}
           onSearch={(query) => {
             if (!activeProjectId) return;
@@ -1486,8 +1483,8 @@ export function App() {
  * is what says which one you are standing in.
  */
 function ViewSegment(props: {
-  view: "board" | "list";
-  onChange: (view: "board" | "list") => void;
+  view: ViewMode;
+  onChange: (view: ViewMode) => void;
 }) {
   return (
     <div className="view-segment" role="group" aria-label="View">
