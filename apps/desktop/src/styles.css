@@ -1665,7 +1665,6 @@ button:disabled {
 }
 
 .description-view {
-  position: relative;
   display: block;
   width: 100%;
   border: 1px solid transparent;
@@ -1682,19 +1681,25 @@ button:disabled {
   color: var(--lc-ink-3);
 }
 
-.description-view:hover {
+/* The wash belongs to the empty state alone, because that is the only one that
+   is a button. Under rendered markdown it promised a click that never did
+   anything — the Edit affordance in the header is what opens the editor. */
+.description-view.empty:hover {
   background: var(--lc-wash);
 }
 
-/* The Edit affordance appears on hover, and whenever it is the focused thing. */
+/* The Edit affordance sits at the right of the Description header row, opposite
+   the heading, so no body text is ever under it (LC-99). It appears when the
+   section is hovered, and whenever it is the focused thing. */
 .description-edit {
-  position: absolute;
-  top: var(--lc-space-1);
-  right: var(--lc-space-1);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lc-space-1);
+  font-size: 12px;
   opacity: 0;
 }
 
-.description-view:hover .description-edit,
+.description-block:hover .description-edit,
 .description-edit:focus-visible {
   opacity: 1;
 }
