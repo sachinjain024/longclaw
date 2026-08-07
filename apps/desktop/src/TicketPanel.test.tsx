@@ -816,6 +816,25 @@ describe("the status menu (V0-14 closed V0-08's open edge)", () => {
       metaTrigger("Status").querySelector(".status-dot.status-todo"),
     ).toBeTruthy();
   });
+
+  /**
+   * D-3B. Without the chevron these read as static chips until the pointer is
+   * on them, which is no help to anyone who has not put it there. It is
+   * decorative — `aria-haspopup` is what says the same thing to assistive
+   * technology, and says it better.
+   */
+  it("D-3B: marks each meta value as a menu trigger, in both channels", async () => {
+    render(surface());
+    await ready();
+
+    for (const field of ["Status", "Priority"] as const) {
+      const trigger = metaTrigger(field);
+      const chevron = trigger.querySelector(".menu-chevron");
+      expect(chevron).toBeTruthy();
+      expect(chevron?.getAttribute("aria-hidden")).toBe("true");
+      expect(trigger.getAttribute("aria-haspopup")).toBe("menu");
+    }
+  });
 });
 
 describe("a destructive-adjacent change and taking it back", () => {

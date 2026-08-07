@@ -2753,6 +2753,15 @@ html.theme-transition *::after {
   cursor: pointer;
 }
 
+/* The mark that says the value opens something (D-3B). Quiet — it is a hint
+   about the control, not part of the value — and never squeezed: it is the
+   piece a shrinking row would drop first, and the row would go back to reading
+   static. */
+.menu-chevron {
+  flex: none;
+  color: var(--lc-ink-3);
+}
+
 /* Label chip — components.md:75-80. The dot is reinforcement; the text is the
    identifier, so it is always drawn. */
 .label-chip {

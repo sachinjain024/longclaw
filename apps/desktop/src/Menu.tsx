@@ -170,6 +170,35 @@ export function Menu<T extends string>(props: MenuProps<T>) {
 }
 
 /**
+ * The mark that says a value is a menu and not a chip (`screen-specs.md:172-176`,
+ * D-3B). Without it Status and Priority read as static until the pointer is
+ * already on them, which is no help to anyone who has not put it there.
+ *
+ * Decorative: `aria-haspopup` on the trigger is what says the same thing to
+ * assistive technology, and it says it better.
+ */
+function ChevronGlyph() {
+  return (
+    <svg
+      className="menu-chevron"
+      width="11"
+      height="11"
+      viewBox="0 0 14 14"
+      aria-hidden="true"
+    >
+      <path
+        d="M4.5 2.5 L9.5 7 L4.5 11.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/**
  * A trigger that shows the value and opens the menu on it: the meta rows in the
  * ticket panel, where the menu has something to hang off that is not a card.
  */
@@ -210,6 +239,7 @@ export function MenuButton<T extends string>(props: {
       >
         {current?.glyph && <span className="menu-glyph">{current.glyph}</span>}
         <span>{current?.label ?? props.value}</span>
+        <ChevronGlyph />
       </button>
       {open && (
         <Menu
