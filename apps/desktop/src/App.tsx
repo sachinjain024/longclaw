@@ -1447,6 +1447,9 @@ export function App() {
           <TicketPanel
             projectId={activeProjectId}
             ticketKey={selectedKey}
+            // Abbreviated the same way the header's own chip is, so the two
+            // places the app writes this path agree on how it looks.
+            projectPath={tildeAbbreviate(project.rootPath, homePath)}
             labels={project.labels}
             mark={externalMarks[selectedKey]}
             reloadSignal={panelReload}
@@ -1466,6 +1469,17 @@ export function App() {
             onWrite={(result) =>
               applyLocalWrite(result.ticket, result.generation)
             }
+            // A file that parses again leaves the index holding a degraded row
+            // the watcher may not correct for a while, so the one surface that
+            // knows it is stale asks for the truth (ADR 0006). The whole
+            // project rather than the ticket: a file that would not parse had
+            // no row to replace, and the snapshot is the app's one way to get
+            // one back.
+            onReparsed={() => {
+              void reconcileProject(activeProjectId)
+                .then(applySnapshot)
+                .catch((error) => setError(normalizeError(error)));
+            }}
             onError={setError}
           />
         )}

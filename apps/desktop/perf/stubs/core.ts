@@ -10,7 +10,9 @@
  * than a second stub file so the strict default above stays the default: a perf
  * or matrix run never asks for it, so a measurement still cannot pass through a
  * command that was invented for the audit. `?fail=edit` makes the first edit
- * fail, which is the only way to reach the Retry the gate asks about.
+ * fail, which is the only way to reach the Retry the gate asks about, and
+ * `?fail=parse` degrades every read, which is the only way to reach the raw
+ * file view.
  */
 
 import { bridge, markLoaded } from "../bridge";
@@ -36,6 +38,16 @@ const board = snapshot(
 const WRITABLE = params.get("rw") === "1";
 /** `?fail=edit`: the next `edit_ticket` fails once, recoverably. */
 let failNextEdit = params.get("fail") === "edit";
+/**
+ * `?fail=parse`: every `read_ticket` comes back degraded, so the raw file view
+ * can be driven.
+ *
+ * A read rather than a fixture row: a degraded ticket in `board.tickets` would
+ * land in every screenshot the theme matrix and the board shots take, and in
+ * the counts the perf budgets are measured against. What the keyboard contract
+ * needs is only the panel's side of it.
+ */
+const FAIL_PARSE = params.get("fail") === "parse";
 
 export class Channel<T> {
   onmessage: (message: T) => void = () => {};
@@ -104,6 +116,27 @@ function editTicket(request: EditTicketRequest): WriteResult {
 /** The panel's view of a row, so an edit made on the board is visible in it. */
 function ticketDetail(key: string): TicketDetail {
   const base = detail(key);
+  if (FAIL_PARSE) {
+    return {
+      ...base,
+      ticket: undefined,
+      raw: [
+        "---",
+        "format: longclaw.ticket/v1",
+        `key: ${key}`,
+        "status: not_a_real_status",
+        "---",
+        "",
+        "The body survives.",
+      ].join("\n"),
+      diagnostic: {
+        code: "parse_failed",
+        message:
+          "status must be one of backlog, todo, …; found not_a_real_status",
+        line: 4,
+      },
+    };
+  }
   const row = rows.get(key);
   if (!row || !base.ticket) return base;
   return {

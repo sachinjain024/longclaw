@@ -133,6 +133,20 @@ export async function readTicket(
 }
 
 /**
+ * Hands one ticket's file to whatever the human opens Markdown with.
+ *
+ * The key rather than the path: this surface has no filesystem capability
+ * (`capabilities/main.json`), and Rust resolves the path against the project it
+ * already opened, so the request cannot become a reach outside it.
+ */
+export async function openTicketFile(
+  projectId: string,
+  ticketKey: string,
+): Promise<void> {
+  return invoke("open_ticket_file", { projectId, ticketKey });
+}
+
+/**
  * Saves a change. The request carries the hash the edit started from; a newer
  * file on disk comes back as a `conflict` and is never overwritten.
  */

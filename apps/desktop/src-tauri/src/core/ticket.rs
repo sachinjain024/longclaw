@@ -457,40 +457,73 @@ impl TicketDocument {
             yaml_diagnostic("Ticket frontmatter is invalid", &error).shift_lines(1)
         })?;
 
-        validate_format(&fields.format, directory_key)?;
+        // A field the format refuses is valid YAML, so nothing upstream has a
+        // location to offer — and an error with no line leaves the raw-file view
+        // with nothing to point at, which is the whole reason it shows the file
+        // (D-52). The mapping read the same bytes, so the field's own name is
+        // enough to find the line it is written on.
+        let point_at = |field: &str, diagnostic: Diagnostic| match mapping.line_of(field) {
+            // +1 for the opening delimiter, which the frontmatter text excludes.
+            Some(line) => diagnostic.at_line(line + 1),
+            None => diagnostic,
+        };
+        // The two validators that already take a field name are wrapped rather
+        // than called through `point_at` at each site: the name has to be the
+        // same in both halves, and writing it twice is what lets it stop being.
+        let non_empty = |field: &str, value: &str| {
+            require_non_empty(field, value).map_err(|error| point_at(field, error))
+        };
+        let timestamp = |field: &str, value: &str| {
+            validate_timestamp(field, value).map_err(|error| point_at(field, error))
+        };
+
+        validate_format(&fields.format, directory_key)
+            .map_err(|error| point_at("format", error))?;
         if fields.key != directory_key {
-            return Err(Diagnostic::parse(format!(
-                "Ticket key {} does not match its directory {directory_key}. \
-                 A ticket's key and path never change after creation.",
-                fields.key
-            )));
+            return Err(point_at(
+                "key",
+                Diagnostic::parse(format!(
+                    "Ticket key {} does not match its directory {directory_key}. \
+                     A ticket's key and path never change after creation.",
+                    fields.key
+                )),
+            ));
         }
-        require_non_empty("id", &fields.id)?;
-        require_non_empty("title", &fields.title)?;
+        non_empty("id", &fields.id)?;
+        non_empty("title", &fields.title)?;
         let status = Status::parse(&fields.status).ok_or_else(|| {
-            Diagnostic::parse(format!(
-                "status must be one of {}; found {}",
-                joined(Status::ALL.map(Status::as_str)),
-                fields.status
-            ))
+            point_at(
+                "status",
+                Diagnostic::parse(format!(
+                    "status must be one of {}; found {}",
+                    joined(Status::ALL.map(Status::as_str)),
+                    fields.status
+                )),
+            )
         })?;
         let priority = Priority::parse(&fields.priority).ok_or_else(|| {
-            Diagnostic::parse(format!(
-                "priority must be one of {}; found {}",
-                joined(Priority::ALL.map(Priority::as_str)),
-                fields.priority
-            ))
+            point_at(
+                "priority",
+                Diagnostic::parse(format!(
+                    "priority must be one of {}; found {}",
+                    joined(Priority::ALL.map(Priority::as_str)),
+                    fields.priority
+                )),
+            )
         })?;
-        validate_timestamp("created_at", &fields.created_at)?;
-        validate_timestamp("updated_at", &fields.updated_at)?;
+        timestamp("created_at", &fields.created_at)?;
+        timestamp("updated_at", &fields.updated_at)?;
         if let Some(archived_at) = &fields.archived_at {
-            validate_timestamp("archived_at", archived_at)?;
+            timestamp("archived_at", archived_at)?;
         }
         for label in &fields.labels {
             if label.is_empty() || label.chars().any(char::is_whitespace) {
-                return Err(Diagnostic::parse(format!(
-                    "labels hold project label slugs without whitespace; found {label:?}"
-                )));
+                return Err(point_at(
+                    "labels",
+                    Diagnostic::parse(format!(
+                        "labels hold project label slugs without whitespace; found {label:?}"
+                    )),
+                ));
             }
         }
 
@@ -1925,6 +1958,39 @@ mod tests {
             )
             .expect_err("a no-op edit should be refused");
         assert!(error.message.contains("nothing was written"));
+    }
+
+    /// D-52: the raw-file view exists to point at a line, so a field the parser
+    /// refuses has to say which line it is on — not just which field it was.
+    #[test]
+    fn a_refused_field_carries_the_line_it_is_written_on() {
+        let cases = [
+            ("status: todo\n", "status: not_a_real_status\n", 6),
+            ("priority: p2\n", "priority: sometime\n", 7),
+            (
+                "created_at: 2026-07-29T00:00:00Z\n",
+                "created_at: yesterday\n",
+                10,
+            ),
+            // The `labels:` key rather than the item: the block is one entry,
+            // and its first line is where a reader looks for it.
+            ("  - storage\n", "  - two words\n", 8),
+            ("title: Load canonical ticket files\n", "title: \"\"\n", 5),
+            (
+                "format: longclaw.ticket/v1\n",
+                "format: someone.else/v1\n",
+                2,
+            ),
+        ];
+        for (from, to, line) in cases {
+            let diagnostic = TicketDocument::parse(&TICKET.replace(from, to), "LC-1")
+                .expect_err("the broken field should be refused");
+            assert_eq!(
+                diagnostic.line,
+                Some(line),
+                "{to:?} should report line {line}: {diagnostic}"
+            );
+        }
     }
 
     #[test]

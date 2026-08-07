@@ -16,7 +16,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { editTicket, readTicket } from "./api";
+import { editTicket, openTicketFile, readTicket } from "./api";
 import { externalEditConflict } from "./attribution";
 import { classes } from "./classes";
 import { ConflictBanner } from "./ConflictBanner";
@@ -33,6 +33,7 @@ import { MarkdownView } from "./MarkdownView";
 import { MenuButton } from "./Menu";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "./metaOptions";
 import { mutate, type Mutation, useMutationStore } from "./mutations";
+import { RawFileView } from "./RawFileView";
 import { priorityLabel, statusLabel } from "./tickets";
 import { metaFieldFor } from "./TicketMetaMenu";
 import { Timeline } from "./Timeline";
@@ -93,19 +94,6 @@ const NOTHING_PENDING: Pending = { checks: {} };
  * app's own write, where nothing is new to the human who just did it.
  */
 type LoadMode = "open" | "external" | "local";
-
-function degradedHeading(detail: TicketDetail): string {
-  return detail.readOnly
-    ? "Newer format, shown read-only"
-    : "Shown without repair";
-}
-
-function degradedNote(detail: TicketDetail): string {
-  if (detail.readOnly) {
-    return "This ticket was written by a newer LongClaw format. The file is shown exactly as it exists on disk, and this build will not rewrite it.";
-  }
-  return "The file is shown exactly as it exists on disk. Fix it in an editor, then reload or wait for the watcher to read it again.";
-}
 
 /**
  * The ticket's key as a chip that copies it (`screen-specs.md:183`, D-38).
@@ -221,6 +209,12 @@ function useAutoGrow(value: string) {
 interface TicketPanelProps {
   projectId: string;
   ticketKey: string;
+  /**
+   * The project's root as the header shows it — tilde-abbreviated, for display
+   * only. The raw-file view names the file in full (`screen-specs.md:293`) and
+   * a `TicketDetail` carries only the half below the project root.
+   */
+  projectPath: string;
   /** The project's label definitions. A ticket carries slugs and nothing else. */
   labels: Record<string, Label>;
   /** An unreviewed external change to this ticket, if there is one. */
@@ -256,6 +250,14 @@ interface TicketPanelProps {
   /** Asks for the flip. The panel writes nothing here; see `archived`. */
   onArchive: (archived: boolean) => void;
   onWrite: (result: WriteResult) => void;
+  /**
+   * A file that would not parse does now. The panel has the ticket back, but
+   * the board and the list are still showing the degraded row the index holds,
+   * and nothing else will correct it until the watcher fires — which is the
+   * wait `Retry parse` exists to end (`states.md:102-104`). Fetching the
+   * snapshot is `App`'s job, not the panel's (ADR 0006).
+   */
+  onReparsed: () => void;
   onError: (error: AppError) => void;
 }
 
@@ -282,6 +284,9 @@ export function TicketPanel(props: TicketPanelProps) {
    */
   const [pendingComment, setPendingComment] = useState<string>();
   const [saving, setSaving] = useState(false);
+  /** A `Retry parse` read that has not come back, so the button cannot stack. */
+  const [retrying, setRetrying] = useState(false);
+  const raise = useMutationStore((state) => state.raise);
   const [conflict, setConflict] = useState<{
     error: AppError;
     pending: TicketEdit;
@@ -631,6 +636,46 @@ export function TicketPanel(props: TicketPanelProps) {
     await load("open");
   }
 
+  /**
+   * Reads the file again on demand (`states.md:102-104`).
+   *
+   * Every outcome says something. A file that parses gives the ticket back and
+   * tells `App` the row it holds is stale; one that still does not re-renders
+   * the raw view — with whatever the parser says now, which may be a different
+   * line — and says so, because a button whose success and failure look
+   * identical is one a human cannot learn anything from.
+   */
+  async function retryParse() {
+    if (retrying) return;
+    setRetrying(true);
+    const next = await load("open");
+    setRetrying(false);
+    if (!next) return;
+    if (next.ticket) {
+      raise({ message: `${ticketKey} parsed`, tone: "default" });
+      props.onReparsed();
+      return;
+    }
+    raise({ message: `${ticketKey} still does not parse`, tone: "danger" });
+  }
+
+  /**
+   * Hands the file to the editor the human already uses for Markdown.
+   *
+   * A failure toasts rather than going to `props.onError`, which is the split
+   * the panel already runs on: `load` routes a *read* the panel depends on to
+   * the app's banner, because there is nothing on screen without it, while a
+   * button the human just pressed — copy, a refused write, this — answers where
+   * they pressed it. The raw file is still readable either way.
+   */
+  async function openInEditor() {
+    try {
+      await openTicketFile(projectId, ticketKey);
+    } catch (error) {
+      raise({ message: normalizeError(error).message, tone: "danger" });
+    }
+  }
+
   /** Keeps the human's edit by re-applying it on top of the file as it is now. */
   async function keepMine() {
     // The edit the conflict refused, not the panel's `pending` — that was
@@ -784,16 +829,13 @@ export function TicketPanel(props: TicketPanelProps) {
       {unavailable ? null : !detail ? (
         <p className="panel-loading">Reading {ticketKey} from disk…</p>
       ) : !ticket ? (
-        <section className="degraded-copy">
-          <h3>{degradedHeading(detail)}</h3>
-          <p>
-            {detail.diagnostic?.line
-              ? `${detail.relativePath}:${detail.diagnostic.line} — ${detail.diagnostic.message}`
-              : detail.diagnostic?.message}
-          </p>
-          <p>{degradedNote(detail)}</p>
-          <pre className="raw-file">{detail.raw}</pre>
-        </section>
+        <RawFileView
+          detail={detail}
+          projectPath={props.projectPath}
+          retrying={retrying}
+          onRetry={() => void retryParse()}
+          onOpenInEditor={() => void openInEditor()}
+        />
       ) : (
         <>
           <textarea

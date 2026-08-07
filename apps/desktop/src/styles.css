@@ -2421,26 +2421,115 @@ button:disabled {
   justify-self: end;
 }
 
+/* ------------------------------------------------- raw file view (degraded) */
+
+/* `screen-specs.md:291-298`. The anatomy is the prototype's raw modal
+   (`prototype.css:733-748`) at panel width, since the modal itself is LC-134. */
+.raw-file-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lc-space-3);
+  min-height: 0;
+  border-left: 3px solid var(--lc-danger);
+  padding-left: 14px;
+}
+
+/* The path is the title (D-58): mono, because it is a location rather than
+   prose, and it may be the only thing that says which of many `ticket.md`
+   files this is. */
+.raw-file-path {
+  display: flex;
+  align-items: center;
+  gap: var(--lc-space-2);
+  color: var(--lc-ink);
+  font: var(--lc-type-code-weight) var(--lc-type-code-size) /
+    var(--lc-type-code-leading) var(--lc-type-code-font);
+  overflow-wrap: anywhere;
+}
+
+.raw-file-path .warn-glyph {
+  color: var(--lc-danger);
+  flex: none;
+}
+
+/* The parser's own words, in the parser's own shape: mono, with the file and
+   line it failed on (D-52). */
+.raw-file-error {
+  display: flex;
+  align-items: baseline;
+  gap: var(--lc-space-2);
+  border: var(--lc-border-hairline) solid var(--lc-danger-border);
+  border-radius: var(--lc-radius-card);
+  background: var(--lc-danger-surface);
+  color: var(--lc-danger);
+  padding: var(--lc-space-2) var(--lc-space-3);
+  font: var(--lc-type-code-weight) var(--lc-type-code-size) /
+    var(--lc-type-code-leading) var(--lc-type-code-font);
+  overflow-wrap: anywhere;
+}
+
+.raw-file-error .warn-glyph {
+  flex: none;
+  align-self: center;
+}
+
 .raw-file {
   overflow: auto;
   max-height: 320px;
   border: 1px solid var(--lc-line);
   border-radius: var(--lc-radius-card);
-  padding: var(--lc-space-3);
+  padding: var(--lc-space-3) 0;
   background: var(--lc-wash);
   font: var(--lc-type-code-weight) var(--lc-type-code-size) /
     var(--lc-type-code-leading) var(--lc-type-code-font);
 }
 
-.degraded-copy {
-  border-left: 3px solid var(--lc-danger);
-  padding-left: 14px;
+/* One row per line, so the gutter and the text cannot drift apart when a long
+   line wraps — it does not: the row scrolls with the block instead (D-53). */
+.raw-line {
+  display: flex;
+  gap: 14px;
+  padding: 0 14px;
+  white-space: pre;
+  color: var(--lc-ink-2);
 }
 
-.degraded-copy p {
+.raw-line-number {
+  width: 26px;
+  flex: none;
+  text-align: right;
+  color: var(--lc-ink-disabled);
+  user-select: none;
+}
+
+/* The line the parser named. Tint plus ink rather than tint alone: color is
+   never the only carrier (`accessibility.md`), and the banner above says the
+   same number in words. */
+.raw-line.offending {
+  background: var(--lc-danger-surface);
+  color: var(--lc-danger);
+}
+
+.raw-line.offending .raw-line-number {
+  color: var(--lc-danger);
+}
+
+.raw-file-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lc-space-3);
+}
+
+.raw-file-note {
+  flex: 1 1 200px;
   color: var(--lc-ink-3);
   font-size: 11px;
   line-height: 1.55;
+}
+
+.raw-file-foot .toolbar-actions {
+  margin-left: auto;
 }
 
 /* ------------------------------------------------------------ create mode */

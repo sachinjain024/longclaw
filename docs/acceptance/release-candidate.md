@@ -117,6 +117,17 @@ What stays with a person: driving the app, and the offline half. The harness
 samples; it does not click, and it says which steps it was actually driven
 through.
 
+One command deserves naming: **`open_ticket_file`**, behind the raw-file view's
+`Open in editor` (D-54). It is not a shell: there is no `$EDITOR`, no argument
+string, and no process launched from this app — it hands one file URL to
+`NSWorkspace`, the same AppKit surface the watcher's wake observer uses, and
+LaunchServices decides what opens it. Two things keep it inside the boundary the
+list above draws. The webview sends a **ticket key**, never a path, and Rust
+resolves it against the project already open and canonicalizes it inside the
+tickets root (`storage::resolve_ticket_path`), so a surface with no filesystem
+capability cannot acquire one by asking. And it grants no new Tauri permission,
+which is why the pinned set is unchanged.
+
 One dependency deserves naming: **`tauri-plugin-fs` is compiled into the binary**
 and cannot be removed, because `tauri-plugin-dialog` — the native folder picker —
 depends on it. Nothing grants it a permission, so no `fs:` command is reachable

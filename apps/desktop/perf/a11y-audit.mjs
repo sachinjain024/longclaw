@@ -595,6 +595,42 @@ async function auditFocusOrder(browser) {
   } finally {
     await context.close();
   }
+  await auditRawFileFocus(browser);
+}
+
+/**
+ * The raw file view's default action, on its own page.
+ *
+ * A file that will not parse has none of the panel's ordinary stops — no title,
+ * no status, no checklist — so the only keyboard question it raises is which
+ * control the view opens on, and `keyboard-focus-map.md:141-142` answers it:
+ * `Retry parse`. It is a second page rather than a step in the walk above,
+ * because `?fail=parse` degrades every read and the checks before it need a
+ * ticket that parses.
+ */
+async function auditRawFileFocus(browser) {
+  const { context, page } = await board(browser, {
+    fail: "parse",
+    selfTest: (target) =>
+      target.evaluate(() => {
+        HTMLElement.prototype.focus = function noop() {};
+      }),
+  });
+  try {
+    await focusFirstCard(page);
+    await page.keyboard.press("Enter");
+    await settle(page);
+    const shown = await visible(page, ".raw-file-view");
+    const at = await focused(page);
+    check(
+      "the raw file view opens with `Retry parse` focused",
+      shown && at.text === "Retry parse",
+      `raw view=${shown} focus=${at.text || at.label || at.className || at.tag}`,
+      "keyboard-focus-map.md:141-142 — `Retry parse` is the default-focused action",
+    );
+  } finally {
+    await context.close();
+  }
 }
 
 /* ---------- A3: visible focus ---------- */
