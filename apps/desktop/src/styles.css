@@ -686,24 +686,8 @@ button:disabled {
   flex-wrap: wrap;
 }
 
-/* The theme picker's column was a fixed 160px and the picker is four 44px
-   swatches plus gaps — roughly 206px — so the fourth preset rendered *under*
-   the Locate folder button. `max-content` lets the picker state its own width,
-   which is the only column here whose width is a component's anatomy rather
-   than this panel's choice. */
-.settings-panel {
-  display: grid;
-  grid-template-columns:
-    minmax(180px, 1fr)
-    max-content max-content max-content;
-  gap: 10px;
-  align-items: end;
-  margin-bottom: 14px;
-  border: var(--lc-border-hairline) solid var(--lc-line);
-  border-radius: var(--lc-radius-card);
-  padding: var(--lc-space-3);
-  background: var(--lc-surface);
-}
+/* Project settings is a modal now (LC-125); its rules live with the app's other
+   modal surfaces, at § project settings near the foot of this file. */
 
 /* No box of its own: the board and list sit directly on --lc-bg, and the cards
    and rows carry the surface (prototype.css § Board). */
@@ -1262,14 +1246,19 @@ button:disabled {
   border-color: var(--lc-line);
 }
 
-.view-segment {
+/* The segmented control, in the header for the view and in project settings for
+   appearance (`screen-specs.md:273-274`, D-42). One rule for both: they are the
+   same control — a short row of places to stand, one of them pressed. */
+.view-segment,
+.appearance-segment {
   display: inline-flex;
   border: 1px solid var(--lc-line);
   border-radius: var(--lc-radius-control);
   overflow: hidden;
 }
 
-.view-segment button {
+.view-segment button,
+.appearance-segment button {
   height: var(--lc-size-control-sm);
   border: 0;
   padding: 0 10px;
@@ -1278,14 +1267,24 @@ button:disabled {
   font-size: 12px;
 }
 
-.view-segment button:hover {
+.view-segment button:hover,
+.appearance-segment button:hover {
   background: var(--lc-wash);
 }
 
-.view-segment button.selected {
+.view-segment button.selected,
+.appearance-segment button.selected {
   color: var(--lc-accent-human-text);
   background: var(--lc-accent-human-soft);
   font-weight: 500;
+}
+
+/* The dialog's is the full-size control: it stands on its own row rather than
+   beside a filter field, and 24px reads as a chip there. */
+.appearance-segment button {
+  height: var(--lc-size-control);
+  padding: 0 14px;
+  font-size: 12.5px;
 }
 
 /* One scroller for every group, unlike the board's six (screen-specs.md:135).
@@ -3035,14 +3034,192 @@ html.theme-transition *::after {
   flex: none;
 }
 
+/* --------------------------------------------------- project settings (LC-125)
+
+   The dialog `screen-specs.md:269-278` draws, on the scrim quick create and the
+   palette already use. It was an inline `<section>` in the main panel until
+   LC-125, which pushed the board ~430px down behind it (D-40). */
+.settings-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 92vw);
+  max-height: 76vh;
+  overflow-y: auto;
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-modal);
+  padding: var(--lc-space-5);
+  background: var(--lc-surface);
+  box-shadow: var(--lc-shadow-modal);
+}
+
+/* Title type, not display: display is the greeting and nothing else
+   (`components.md:307`), which is where this departs from the prototype's
+   18px Familjen Grotesk dialog heading. */
+.settings-panel h2,
+.confirm-dialog h2 {
+  margin-bottom: 0;
+  font: var(--lc-type-title-weight) var(--lc-type-title-size) /
+    var(--lc-type-title-leading) var(--lc-type-title-font);
+  letter-spacing: var(--lc-type-title-tracking);
+}
+
+/* The sentence that says where all of this is written (D-4K). */
+.settings-subhead {
+  margin-top: 6px;
+  color: var(--lc-ink-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.settings-row {
+  margin-top: 16px;
+}
+
+/* Name and Key on one line, the way the spec pairs them: the key is short and
+   fixed, so it takes only the width it needs. */
+.settings-identity {
+  display: flex;
+  gap: 10px;
+}
+
+.settings-identity .settings-field:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-field label,
+.settings-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--lc-ink-3);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+/* The exception a row carries when what it sets is not project data (D-42). */
+.settings-label-note {
+  font-weight: 400;
+  text-transform: none;
+}
+
+.field-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.field-row input {
+  min-width: 0;
+}
+
+/* Locked, and shown locked (D-41): the one setting nothing in the app can
+   change, in the mono type every other key in the product wears. */
+.key-field {
+  width: 82px;
+  font-family: var(--lc-font-mono);
+  text-transform: uppercase;
+}
+
+.lock-note {
+  color: var(--lc-ink-3);
+  font-family: var(--lc-font-mono);
+  font-size: 10px;
+}
+
+/* The folder, as a read-only path beside the button that re-points it (D-43). */
+.path-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.picked-path {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  height: var(--lc-size-control);
+  border: 1px solid var(--lc-line-strong);
+  border-radius: var(--lc-radius-control);
+  padding: 0 10px;
+  color: var(--lc-ink-2);
+  background: var(--lc-wash);
+  font-family: var(--lc-font-mono);
+  font-size: var(--lc-type-code-size);
+}
+
+.picked-path .txt {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* The guarantee, above the button it is about (D-44). */
+.danger-zone {
+  display: flex;
+  gap: var(--lc-space-3);
+  align-items: center;
+  border-top: 1px solid var(--lc-line-soft);
+  margin-top: 22px;
+  padding-top: 16px;
+}
+
+.danger-zone .micro {
+  flex: 1;
+  color: var(--lc-ink-3);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+/* Actions right, as every footer in this app puts them (D-4L). Sticky, because
+   a project with a few labels defined makes the dialog scroll, and the way out
+   a pointer has must not be the thing below the fold. */
+.settings-foot {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 22px;
+  padding: var(--lc-space-3) 0;
+  background: var(--lc-surface);
+}
+
+/* The confirm the danger button opens (D-44): narrower than the dialog behind
+   it, because it is two sentences and two choices. */
+.confirm-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(440px, 92vw);
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-modal);
+  padding: var(--lc-space-5);
+  background: var(--lc-surface);
+  box-shadow: var(--lc-shadow-modal);
+}
+
+.confirm-dialog p {
+  margin-top: 6px;
+  color: var(--lc-ink-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.confirm-dialog code {
+  font-family: var(--lc-font-mono);
+  font-size: var(--lc-type-code-size);
+}
+
 /* Definition management, which is project data and so lives in settings. */
 .label-settings {
   display: flex;
   flex-direction: column;
   gap: var(--lc-space-2);
-  grid-column: 1 / -1;
-  border-top: 1px solid var(--lc-line);
-  padding-top: var(--lc-space-3);
+  border-top: 1px solid var(--lc-line-soft);
+  margin-top: 22px;
+  padding-top: 16px;
 }
 
 .label-settings h3 {
@@ -3056,10 +3233,12 @@ html.theme-transition *::after {
   font-size: var(--lc-type-micro-size);
 }
 
+/* Four columns, and the last one is fixed rather than `max-content` so the
+   swatches line up between the rows and the wider add-row button below them. */
 .label-row {
   display: grid;
   gap: var(--lc-space-2);
-  grid-template-columns: 120px minmax(120px, 1fr) 110px max-content max-content;
+  grid-template-columns: minmax(60px, 88px) minmax(90px, 1fr) max-content 84px;
   align-items: center;
 }
 
@@ -3068,6 +3247,63 @@ html.theme-transition *::after {
   color: var(--lc-ink-3);
   font-size: 11px;
   text-overflow: ellipsis;
+}
+
+.label-add button {
+  width: 100%;
+}
+
+.label-row .row-remove {
+  justify-self: center;
+  padding: 0 var(--lc-space-1);
+  color: var(--lc-ink-3);
+}
+
+.label-row .row-remove:hover,
+.label-row .row-remove:focus-visible {
+  color: var(--lc-ink);
+}
+
+/* The ramp as swatches rather than an OS dropdown (D-4J, D-72). The radio is
+   hidden and the dot is the target, exactly as the theme picker does it. */
+.label-colors {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.label-color {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid transparent;
+  border-radius: var(--lc-radius-full);
+  cursor: pointer;
+}
+
+.label-color input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.label-color:hover {
+  border-color: var(--lc-line-strong);
+}
+
+.label-color.selected {
+  border-color: var(--lc-accent-human);
+}
+
+.label-color input:focus-visible + .label-dot {
+  box-shadow: var(--lc-focus-ring);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3086,8 +3322,14 @@ html.theme-transition *::after {
     grid-template-columns: 220px minmax(0, 1fr);
   }
 
-  .welcome-panel,
-  .settings-panel {
+  .welcome-panel {
     grid-template-columns: 1fr;
+  }
+
+  /* Name over Key rather than beside it: the dialog is 92vw here and the pair
+     would leave the name field narrower than the key it sits next to. */
+  .settings-identity {
+    flex-direction: column;
+    align-items: stretch;
   }
 }

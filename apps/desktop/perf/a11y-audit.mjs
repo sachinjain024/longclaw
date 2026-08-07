@@ -561,6 +561,37 @@ async function auditFocusOrder(browser) {
           : ""),
       "keyboard-focus-map.md:61 — the panel's natural order",
     );
+
+    // Settings → the gear (LC-125). Two presses because the Tab walk above ends
+    // inside the panel, and a field there answers the first `Esc` itself.
+    await page.keyboard.press("Escape");
+    await settle(page);
+    await page.keyboard.press("Escape");
+    await settle(page);
+    const gear = await tabTo(page, (at) => at.label === "Project settings");
+    await page.keyboard.press("Enter");
+    await settle(page);
+    const settingsUp = await visible(page, ".settings-panel");
+    const inName = await page.evaluate(
+      () => !!document.activeElement?.closest(".settings-identity"),
+    );
+    check(
+      "the gear opens project settings with focus in its first field",
+      gear.found && settingsUp && inName,
+      `presses=${gear.presses} dialog=${settingsUp} focus=${inName ? "Name" : (await focused(page)).tag}`,
+      "keyboard-focus-map.md:136-140 — focus enters the first meaningful control",
+    );
+
+    await page.keyboard.press("Escape");
+    await settle(page);
+    const afterSettings = await focused(page);
+    check(
+      "`Esc` closes settings and focus returns to the gear",
+      !(await visible(page, ".settings-panel")) &&
+        afterSettings.label === "Project settings",
+      `focus=${afterSettings.label || afterSettings.className || afterSettings.tag}`,
+      "keyboard-focus-map.md:159 — settings returns focus to its opener",
+    );
   } finally {
     await context.close();
   }

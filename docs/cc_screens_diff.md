@@ -70,8 +70,8 @@ What diverges is **composition and states**:
    the code surfaces. D-51's *layering* went with D-01; its modal-vs-panel half
    is still open and is the only part of this item that is.
 2. **Three screens are structurally different**, not detail-different: the
-   welcome screen (D-10), project settings (D-40), and the empty-project state
-   (D-20).
+   welcome screen (D-10), ~~project settings (D-40)~~ — a modal since 2026-08-07
+   (LC-125) — and the empty-project state (D-20).
 3. **The app shell header is three stacked blocks (~230px)** where the design is
    one 56px row (D-05) — this is the single change that most alters how every
    populated screen reads, and it costs the board and list ~170px of height.
@@ -103,7 +103,7 @@ a `board-heading` (`<h2>Board</h2>` + the control row).
 | D-07 | P2 | Disk-state indicator: `⟳ writing ticket.md…` while a write is in flight, `✓ ticket.md` when settled, `ink-disabled` | A permanent `● watching` chip (`App.tsx:1237-1250`), plus a `WriteIndicator` that only surfaces in the panel header | Make `disk-state` idle-silent or `✓ ticket.md`; reserve visible text for `writing…` / `reconciling`. The steady-state `watching` chip is dev telemetry, not designed chrome. |
 | D-08 | P2 | Settings is a **ghost gear icon button** next to the project name | Two text buttons `Star` / `Settings`, stacked vertically at the right edge | Gear icon button for settings; keep star as the sidebar row affordance (it already exists there) and drop the header `Star` button. |
 | D-09 | P2 | `New ticket` carries a `C` kbd chip; filter field carries a `⌘F` chip | Neither chip is rendered (no `<kbd>` outside `CommandPalette.tsx:462,488`) | Add `<kbd>` chips to the New-ticket button and the filter field. The keybindings already work. |
-| D-0A | P2 | Sidebar footer: mono `v0 · local · no account`, and nothing else — the waitlist ghost button the spec draws is cut from v0 (LC-75) | Footer has an **Appearance `<select>`** above the trust line | Appearance belongs in project settings as a 3-up segment (`screen-specs.md:184-187`) — see D-42. Remove the native `<select>` from the sidebar. |
+| ~~D-0A~~ | P2 | Sidebar footer: mono `v0 · local · no account`, and nothing else — the waitlist ghost button the spec draws is cut from v0 (LC-75) | Footer has an **Appearance `<select>`** above the trust line | **Fixed 2026-08-07 (LC-72 / LC-127).** Both halves: the `<select>` came out of the footer with LC-72, leaving the trust line alone, and the 3-up segment the spec puts in project settings landed with LC-127 — so the preference has a home again rather than only the palette's `Toggle appearance`. |
 | ~~D-0B~~ | — | Sidebar has **only** section headers and project rows | Sidebar carries the project actions under the lockup, above the sections | **Not a diff, 2026-08-06 (LC-73).** Founder decision: the sidebar is the surface that lists projects, so "add one" belongs on it. The prototype's reading strands a user — `Welcome` is the no-project state alone (`App.tsx:1102`), so with a project open these are the only way to add a second — and the *foot* of the list is not a fix either, because `.project-nav` has no `overflow-y` and a long list carries them off screen. What this P2 actually caught was **weight**, not position: two filled buttons of equal weight above the rows. The spec now draws a `secondary` **Create project** over a `ghost` **Open folder**, never `primary`; `screen-specs.md` § App shell records it. The palette command this row's original plan leaned on is **LC-162**. |
 | ~~D-0C~~ | — | Terminal region reserved: 24px handle, mono `terminal · reserved · phase 2` | Absent (nothing in `styles.css` or `App.tsx`) | **Not a diff, 2026-08-06 (LC-74).** The terminal is not shown at all in v0 — founder decision. Absence is the spec; `screen-specs.md` § Cut from v0 records it. The palette's disabled `New terminal · PHASE 2` row still ships (`CommandPalette.tsx:208-211`) and is the only Phase 2 signal v0 makes. |
 | ~~D-0D~~ | — | Waitlist "Get early access" → modal | Absent everywhere | **Not a diff, 2026-08-06 (LC-75).** Cut from v0, confirming the 2026-08-01 parking of Step 15 / V0-38 / V0-39. No endpoint was reviewed, and a v0 binary that phones home would contradict the `audit:network` gate. Absence is the spec; `screen-specs.md` § Cut from v0 records it. |
@@ -361,19 +361,20 @@ path + **Locate…**) · Theme picker · **Appearance segment (System / Light /
 Dark)**, explicitly labelled an app preference · danger zone with the
 non-destructive copy. Remove confirms via a dialog naming the path.
 
-**App:** `src/App.tsx:1130-1170` — an inline `<section className="settings-panel">`
-that expands *between* the header and the board, pushing content down.
+**App:** `src/ProjectSettings.tsx` — the modal the spec draws, since 2026-08-07
+(LC-125 → LC-132). It was an inline `<section className="settings-panel">` that
+expanded *between* the header and the board, pushing content down.
 
 | ID | Sev | Prototype | App | Plan |
 |---|---|---|---|---|
-| D-40 | P1 | Centered modal dialog with a scrim | Inline expanding section; the board shifts down by ~430px behind it | Convert to a modal. The app already has a modal scrim (`styles.css:2036`) and two dialogs using it. |
-| D-41 | P1 | Key field, disabled once a ticket exists, with `locked after first ticket` | **No Key field at all** | Add it, disabled with the note. It is the one setting a user cannot change later — hiding it is worse than showing it locked. |
-| D-42 | P1 | Appearance segment lives here, labelled "app preference, not stored in the project" | Appearance is a native `<select>` in the sidebar footer (D-0A) | Move it here as a 3-up segment with the label. |
-| D-43 | P1 | Folder shown as a read-only mono path row with `Locate…` beside it | Only a `Locate folder` button; the path is not shown | Add the path row. |
-| D-44 | P1 | Remove from app: danger button + confirm dialog naming the path and repeating "Removing only forgets the project in LongClaw. Files on disk are never touched." | A full-width red-text button; **no explanatory copy** and no confirm dialog observed | Add the copy and the confirm dialog. This is the app's single most destructive-looking action and its guarantee is currently unstated. |
-| D-4J | P2 | No label management in v0 | A `Labels` editor grid: slug · name input · **native `<select>` colour** · Save · Remove, plus an add row | This is real functionality the prototype never drew. It needs a design pass: the eight-hue ramp should be swatches (`labels.ts:21-30`), not an OS dropdown, and the per-row `Save label X` / `Remove label X` buttons should collapse into a single row affordance. |
-| D-4K | P3 | Heading + `longclaw.yaml` explanation | Neither | Add both — the sentence is the reason the modal is trustworthy. |
-| D-4L | P3 | `Done` button closes | No close affordance inside the panel; you re-click `Settings` | Comes free with D-40. |
+| ~~D-40~~ | P1 | Centered modal dialog with a scrim | Inline expanding section; the board shifts down by ~430px behind it | **Fixed 2026-08-07 (LC-125).** `ProjectSettings.tsx`, on the `.modal-scrim` quick create and the palette already stand on. It is built with the app's other layers in `App` rather than inside the main panel, so the board stays where it was and stays visible behind it. The gear that opens it says `aria-haspopup="dialog"` now: `aria-expanded` describes a region that stays under its trigger, which this is no longer. |
+| ~~D-41~~ | P1 | Key field, disabled once a ticket exists, with `locked after first ticket` | **No Key field at all** | **Fixed 2026-08-07 (LC-126).** Shown, disabled, with the note beside it. One departure from the prototype's letter: it is disabled even before the first ticket, because v0 has no command that changes a project key at all — the note reads `set when the project was created` until a ticket exists and `locked after first ticket` once one does, so the field never claims an edit the app cannot perform. |
+| ~~D-42~~ | P1 | Appearance segment lives here, labelled "app preference, not stored in the project" | Appearance is a native `<select>` in the sidebar footer (D-0A) | **Fixed 2026-08-07 (LC-127).** A 3-up System / Light / Dark segment in the dialog, carrying the label's exception verbatim. It is the same control as the header's view segment and shares its rules — one row of places to stand, one of them pressed. The sidebar `<select>` was already gone (LC-72); this is the surface that replaces it. |
+| ~~D-43~~ | P1 | Folder shown as a read-only mono path row with `Locate…` beside it | Only a `Locate folder` button; the path is not shown | **Fixed 2026-08-07 (LC-128).** The full path in a mono row with a folder glyph, and `Locate…` beside it. Full rather than tilde-abbreviated as the header chip is: this is the row that answers *where is this project*, and the abbreviation exists to fit a chip into a header. |
+| ~~D-44~~ | P1 | Remove from app: danger button + confirm dialog naming the path and repeating "Removing only forgets the project in LongClaw. Files on disk are never touched." | A full-width red-text button; **no explanatory copy** and no confirm dialog observed | **Fixed 2026-08-07 (LC-129).** The guarantee sits beside the button, and the button opens a confirm that names the path and repeats it. The confirm is a sibling scrim rather than a child, so one `Esc` closes one layer, and focus enters **Cancel** — the map's "first meaningful control" is also the one of the two that costs nothing if `Enter` arrives from muscle memory. |
+| ~~D-4J~~ | P2 | No label management in v0 | A `Labels` editor grid: slug · name input · **native `<select>` colour** · Save · Remove, plus an add row | **Fixed 2026-08-07 (LC-130).** The design pass it asked for: the ramp is eight swatches in a radio group named for its row, and the two per-row buttons are one. The row commits itself — `Enter` or blur for the name, as `screen-specs.md:190` has the panel's title do, and a hue applies the moment it is picked, as the theme picker does — so the only button left is the `✕` that takes the definition away. |
+| ~~D-4K~~ | P3 | Heading + `longclaw.yaml` explanation | Neither | **Fixed 2026-08-07 (LC-131).** Both, in the prototype's words. The heading is title type rather than the prototype's 18px display: display is the greeting and nothing else (`components.md:307`). |
+| ~~D-4L~~ | P3 | `Done` button closes | No close affordance inside the panel; you re-click `Settings` | **Fixed 2026-08-07 (LC-132).** `Done` in a sticky footer — the dialog scrolls once a project defines a few labels, and the way out a pointer has must not be the thing below the fold. `Esc` closes it too, one rung above the filter's on the ladder, and either way focus returns to the gear; `a11y:audit` A2 checks both halves. |
 
 ---
 
@@ -486,7 +487,7 @@ single stack.
 |---|---|---|---|
 | D-70 | P1 | **Appearance preference is not restored on relaunch.** Set to Light, quit, relaunch → the control reads `System` again. It is written to `localStorage` under `longclaw.appearance` (`App.tsx:79`, `:491`) | Verify on a packaged build before filing as a bug — but if it reproduces there, the webview's storage is not surviving the process, and the ordering preference (stored the same way, `App.tsx:222`) is lost with it. |
 | D-71 | P2 | **The open project is not restored on relaunch** — it always falls back to the first registry entry | Already recorded as a clean-machine finding (`8578f73`). Listed here only because it is visible on every screen. |
-| D-72 | P2 | Native `<select>` elements appear in two places (sidebar appearance, settings label colours) | Neither is in the design system, and both render OS chrome inside an otherwise fully-styled app. Replace with the segment (D-42) and swatches (D-4J). |
+| ~~D-72~~ | P2 | Native `<select>` elements appear in two places (sidebar appearance, settings label colours) | **Fixed 2026-08-07 (LC-127 / LC-130).** Both are gone: the sidebar's went with LC-72 and the appearance segment replaces it, and the label colours are swatches. The app renders no `<select>` anywhere. |
 | D-73 | P2 | Native textarea **resize grabbers** are visible on the panel title, the comment composer, and the create-mode title | `resize: none` + auto-grow; the only textarea the spec gives a resize handle to is the description editor. |
 | ~~D-74~~ | P3 | No stacking-order scale exists | **Fixed 2026-08-06 (LC-96).** The `--lc-z-*` scale exists and every positioned surface takes a layer off it. `token-guard.mjs` refuses a literal `z-index`, and `stacking-guard.mjs` checks the order the five surfaces claim — a scale is the one place a value read alone says nothing. |
 
@@ -518,8 +519,9 @@ single stack.
 6. **D-05 / D-06 / D-07 / D-08 / D-09** — collapse the app shell header to one
    row. This buys ~170px back for the board and list and is the change most
    visible to a user comparing against the design.
-7. **D-40 → D-44** — project settings as a modal, with Key, Folder, Appearance,
-   and the remove-confirm.
+7. ~~**D-40 → D-44**~~ — project settings as a modal, with Key, Folder,
+   Appearance, and the remove-confirm (done 2026-08-07, LC-125 → LC-129, with
+   ~~**D-4J**~~, ~~**D-4K**~~, ~~**D-4L**~~, ~~**D-0A**~~ and ~~**D-72**~~).
 8. **D-10 / D-11 / D-12 / D-13** — welcome as a full-window centered column with
    the two-step create flow.
 9. **D-20 / D-24 / D-25** — empty project keeps the board scaffold and puts the
@@ -543,7 +545,8 @@ single stack.
     and ~~**D-23**~~: the board's focus ring and the `None` chip).
 15. **D-47 / D-48 / D-49 / D-4A / D-4B** — create surfaces.
 16. **D-60 / D-61 / D-62** — freshness attribution.
-17. **D-35 / D-37 / D-65 / D-72 / D-73** — layout and chrome polish.
+17. **D-35 / D-37 / D-65 / D-73** — layout and chrome polish (~~**D-72**~~ went
+    with the settings modal).
 
 **Product decisions, not bugs**
 
@@ -551,7 +554,10 @@ single stack.
   region is not shown at all (LC-74) and the waitlist is cut (LC-75). Both are
   recorded in `screen-specs.md` § Cut from v0, which is where the
   next comparison should look before filing either again.
-- **D-4J** — label management shipped without a design. It needs one.
+- ~~**D-4J**~~ — **answered 2026-08-07: it keeps its place and gains a design**
+  (LC-130). Label definitions are project data with nowhere else to live, so they
+  stay in settings; what they lost is the OS dropdown and the second button per
+  row.
 - **D-14** — welcome subtitle: mechanism or value?
 - ~~**D-3I**~~ — **answered 2026-08-07: keep** (LC-110). It was never only a
   flourish: `components.md:192-193` gives the settled row the strike and takes

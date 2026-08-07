@@ -91,7 +91,7 @@ that keeps the geometry exact (§ 2, Step 6).
 | # | Prototype / spec | Implementation | Where |
 |---|---|---|---|
 | ~~D1~~ | ~~24px full-width terminal handle pinned to the bottom of the main region~~ | **Not a difference, 2026-08-06 (LC-74).** The terminal is not shown in v0 at all — absence is the spec. The board ending at the window edge is the intended shell, not unbounded empty space | `screen-specs.md:55-66` and § Cut from v0 |
-| D2 | Project settings is a **centered modal**: Name + Key (Key disabled once a ticket exists, with `locked after first ticket`), Folder + `Locate…`, Theme picker, Appearance segment labelled an app preference, danger zone with the "files on disk are never touched" copy and a naming confirm dialog | An inline `settings-panel` grid pushed into the page flow above the board: no Key field, no Appearance segment, no danger-zone copy, no confirm step before `Remove from app` | `App.tsx:1132-1173`; `styles.css:559-571`; spec `screen-specs.md:250-258`; prototype `prototype.js:1038-1076` |
+| ~~D2~~ | ~~Project settings is a **centered modal**: Name + Key (Key disabled once a ticket exists, with `locked after first ticket`), Folder + `Locate…`, Theme picker, Appearance segment labelled an app preference, danger zone with the "files on disk are never touched" copy and a naming confirm dialog~~ | **Fixed 2026-08-07 (LC-125 → LC-132).** `ProjectSettings.tsx` is the modal, carrying every row the spec lists, and the label editor got the design pass D-4J asked for | `ProjectSettings.tsx`; `styles.css` § project settings; spec `screen-specs.md:250-258`; prototype `prototype.js:1038-1076` |
 | ~~D3~~ | ~~`Get early access` → waitlist modal~~ | **Not a difference, 2026-08-06 (LC-75).** Cut from v0, confirming the 2026-08-01 parking of Step 15 / V0-38 / V0-39. Absence is the spec | `screen-specs.md:260-269` and § Cut from v0 |
 
 The palette, quick create, ticket panel, list view (including the collapsed
@@ -198,7 +198,7 @@ cut from v0 (LC-75). Swap the `★`/`☆` characters for the icon-set glyph.
 **Done when:** the sidebar's reading order is brand → projects → trust, and
 nothing above the project list competes with the active row.
 
-### Step 6 — Project settings as a modal
+### Step 6 — ~~Project settings as a modal~~ · done 2026-08-07 (LC-125 → LC-132)
 
 **Do:** move `settings-panel` (`App.tsx:1132-1173`) into a centered modal
 reusing `.modal-scrim` (`styles.css:2035`), with the full spec content: Name +
@@ -211,6 +211,12 @@ touched." behind a confirm dialog that names the path
 nowhere else to live.
 
 **Gate:** `npm run a11y:audit` — new dialog, so focus trap and `Esc` return.
+
+**Done.** `ProjectSettings.tsx` carries the whole list, plus the label editor's
+design pass (D-4J): the ramp is swatches and each row keeps one button. A2 of the
+audit gained two checks — the gear opens the dialog with focus in its first
+field, and `Esc` closes it and gives the gear focus back — and both go red under
+`--self-test`.
 
 ### Step 7 — Empty-project scaffold and column quick-add
 

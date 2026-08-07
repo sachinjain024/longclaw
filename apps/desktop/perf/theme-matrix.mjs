@@ -702,8 +702,14 @@ try {
       await page.waitForSelector(".theme-picker");
       await check(state("settings"));
 
-      await page.fill(".settings-panel input", "Renamed");
+      // The name field by its row rather than by "the first input in the
+      // panel": the dialog carries a disabled Key field and two radio groups
+      // since LC-125, and only one input in it is meant to be typed into.
+      await page.fill(".settings-identity input:not([disabled])", "Renamed");
       await page.click('button:has-text("Rename")');
+      // The banner is on the main panel, behind the dialog — `Esc` takes the
+      // dialog down so the error state is rendered as a user would meet it.
+      await page.keyboard.press("Escape");
       await page.waitForSelector(".error-banner");
       await check(state("error"));
 
