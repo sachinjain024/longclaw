@@ -409,6 +409,18 @@ impl ProjectEngine {
         storage::read_ticket_detail(&self.root, &self.project().key, key)
     }
 
+    /// The ticket's file, canonicalized and proven to live inside this project,
+    /// for handing to the OS.
+    ///
+    /// The webview names a ticket and never a path — the same rule the read and
+    /// write paths follow — so `Open in editor` cannot become an arbitrary
+    /// filesystem reach out of a surface that has no filesystem capability. The
+    /// proof is `storage::resolve_ticket_path`'s, which refuses a key outside
+    /// the grammar and a symlink that leaves the project.
+    pub fn canonical_ticket_path(&self, key: &str) -> AppResult<PathBuf> {
+        storage::resolve_ticket_path(&self.root, key)
+    }
+
     pub fn edit_ticket(
         &self,
         key: &str,

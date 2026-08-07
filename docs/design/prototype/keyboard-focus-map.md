@@ -68,6 +68,12 @@ is empty there is nothing to post, so the last stop in the panel is the
 composer itself and `⌘↵` is the whole of the action — a stop that could only
 ever be tabbed to and not used is not a stop worth having.
 
+A file this build cannot read has none of those stops — there is no title,
+status, or checklist to reach. Its order is ID chip → close → **Open in
+editor** → **Retry parse** (LC-137); a newer-format file drops the retry,
+having nothing to fix. The raw-file *modal* below is where these two land once
+D-51 moves the view out of the panel.
+
 The panel does not steal `↑↓` from the page scroll. `S`/`P` still work
 (they target the open ticket) because the panel's ticket is the focused
 ticket. There is no `A` shortcut in v0 — assignment does not exist in

@@ -140,8 +140,11 @@ choose.
 
 **A ticket that will not parse.** A malformed `ticket.md` stays visible as a
 degraded ticket showing the raw file and the parse error, instead of vanishing
-from the board. Fix it in your editor and it returns on its own. LongClaw will
-not "repair" it for you, because a repair is a guess about what you meant.
+from the board. The file is line-numbered with the offending line marked, and
+the error names the line it happened on. **Open in editor** hands the file to
+whatever you open Markdown with; fix it there and it returns on its own, or
+press **Retry parse** rather than waiting. LongClaw will not "repair" it for
+you, because a repair is a guess about what you meant.
 
 **A ticket from a newer version of LongClaw.** Shown read-only —
 *"Newer format, shown read-only"* — rather than migrated. Upgrade the app to

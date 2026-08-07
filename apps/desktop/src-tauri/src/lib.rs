@@ -187,6 +187,38 @@ fn read_ticket(
         .detail(&ticket_key)
 }
 
+/// `Open in editor` from the raw-file view (`screen-specs.md:298`, D-54).
+///
+/// The webview sends a ticket key, never a path: the path is resolved against
+/// the project the app already opened and proven to be inside it, which is what
+/// keeps a surface with no filesystem capability from acquiring one by asking.
+/// A file the system declines to open is reported rather than passed over — a
+/// button that silently did nothing is the failure this state exists to avoid.
+#[tauri::command]
+fn open_ticket_file(
+    project_id: String,
+    ticket_key: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<()> {
+    let path = state
+        .engine(&project_id, tauri_sink(&app))?
+        .canonical_ticket_path(&ticket_key)?;
+    if platform::macos::open_in_default_app(&path) {
+        return Ok(());
+    }
+    Err(core::AppError::new(
+        core::ErrorCode::Io,
+        format!(
+            "macOS would not open {}. Open it from Finder, or set a default \
+             application for Markdown files.",
+            path.display()
+        ),
+        true,
+    )
+    .with_context("ticketKey", ticket_key))
+}
+
 #[tauri::command]
 fn edit_ticket(
     request: EditTicketRequest,
@@ -316,6 +348,7 @@ pub fn run() {
             rebuild_index,
             search_tickets,
             read_ticket,
+            open_ticket_file,
             edit_ticket,
             create_ticket,
             stream_probe,

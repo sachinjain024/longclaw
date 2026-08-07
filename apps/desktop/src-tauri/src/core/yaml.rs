@@ -78,6 +78,30 @@ impl Mapping {
         })
     }
 
+    /// The 1-based line `key` is written on, counted inside the mapping's own
+    /// text.
+    ///
+    /// A field that fails validation is not a YAML error, so `serde_yaml` has no
+    /// location to hand over — but the mapping already holds every entry's exact
+    /// bytes, which is enough to say where the field is. That is what turns
+    /// "status must be one of …" into a line the raw-file view can point at
+    /// (`screen-specs.md:295`, D-52).
+    pub fn line_of(&self, key: &str) -> Option<u32> {
+        let mut line = 1;
+        for block in &self.blocks {
+            match block {
+                Block::Entry { key: name, raw } => {
+                    if name == key {
+                        return Some(line);
+                    }
+                    line += newline_count(raw);
+                }
+                Block::Preamble(raw) => line += newline_count(raw),
+            }
+        }
+        None
+    }
+
     pub fn set_scalar(&mut self, key: &str, value: &str) {
         self.set_block(key, format!("{key}: {}\n", encode_scalar(value)), &[]);
     }
@@ -377,6 +401,12 @@ pub fn lines_with_endings(raw: &str) -> Vec<(u32, &str)> {
     lines
 }
 
+/// How many lines a block occupies. A final line without a newline still counts,
+/// which is what keeps `line_of` right for a frontmatter that ends unterminated.
+fn newline_count(raw: &str) -> u32 {
+    lines_with_endings(raw).len() as u32
+}
+
 fn is_ignorable(line: &str) -> bool {
     let trimmed = line.trim();
     trimmed.is_empty() || trimmed.starts_with('#')
@@ -516,6 +546,25 @@ mod tests {
             mapping.keys().collect::<Vec<_>>(),
             vec!["format", "title", "labels", "x_extension"]
         );
+    }
+
+    #[test]
+    fn a_key_reports_the_line_it_is_written_on() {
+        let mapping = Mapping::parse(FRONTMATTER).unwrap();
+        assert_eq!(mapping.line_of("format"), Some(1));
+        assert_eq!(mapping.line_of("title"), Some(2));
+        // Past a three-line sequence, not past one line of it.
+        assert_eq!(mapping.line_of("x_extension"), Some(6));
+        assert_eq!(mapping.line_of("status"), None);
+    }
+
+    #[test]
+    fn comments_and_blank_lines_count_toward_a_key_line() {
+        let raw =
+            "# leading note\n\nformat: longclaw.ticket/v1\n\n# about the title\ntitle: Kept\n";
+        let mapping = Mapping::parse(raw).unwrap();
+        assert_eq!(mapping.line_of("format"), Some(3));
+        assert_eq!(mapping.line_of("title"), Some(6));
     }
 
     #[test]

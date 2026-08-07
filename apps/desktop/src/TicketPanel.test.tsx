@@ -31,11 +31,13 @@ import type {
 vi.mock("./api", () => ({
   readTicket: vi.fn(),
   editTicket: vi.fn(),
+  openTicketFile: vi.fn(),
 }));
 
-const { editTicket, readTicket } = await import("./api");
+const { editTicket, openTicketFile, readTicket } = await import("./api");
 const readTicketMock = vi.mocked(readTicket);
 const editTicketMock = vi.mocked(editTicket);
+const openTicketFileMock = vi.mocked(openTicketFile);
 
 const NOW = Date.parse("2026-07-30T12:00:00Z");
 
@@ -179,6 +181,7 @@ function panel(props?: {
   shortcutsActive?: boolean;
   onArchive?: (archived: boolean) => void;
   onWrite?: (result: WriteResult) => void;
+  onReparsed?: () => void;
 }) {
   return (
     <TicketPanel
@@ -193,6 +196,7 @@ function panel(props?: {
       onClose={props?.onClose ?? noop}
       onArchive={props?.onArchive ?? noop}
       onWrite={props?.onWrite ?? noop}
+      onReparsed={props?.onReparsed ?? noop}
       onError={failOnError}
     />
   );
@@ -203,6 +207,7 @@ function surface(props?: {
   reloadSignal?: number;
   removedSignal?: number;
   onWrite?: (result: WriteResult) => void;
+  onReparsed?: () => void;
 }) {
   return (
     <>
@@ -254,6 +259,8 @@ beforeEach(() => {
   resetMutations();
   readTicketMock.mockReset();
   editTicketMock.mockReset();
+  openTicketFileMock.mockReset();
+  openTicketFileMock.mockResolvedValue(undefined);
   readTicketMock.mockResolvedValue(detail());
 });
 
@@ -591,7 +598,7 @@ describe("the panel's honesty about the file", () => {
     const onArchive = vi.fn();
     render(panel({ onArchive }));
 
-    await screen.findByText("Newer format, shown read-only");
+    await screen.findByText(/Newer format, shown read-only/);
 
     expect(screen.getByText(/schema version 99/)).toBeTruthy();
     expect(screen.getByText(/will not rewrite it/i)).toBeTruthy();
@@ -613,7 +620,7 @@ describe("the panel's honesty about the file", () => {
     );
     render(panel());
 
-    await screen.findByText("Shown without repair");
+    await screen.findByText(/Shown without repair/);
 
     expect(screen.getByText(/Fix it in an editor/)).toBeTruthy();
     expect(screen.queryByText(/will not rewrite it/i)).toBeNull();
@@ -1464,6 +1471,175 @@ describe("the archive button in the header (V0-11)", () => {
 
     await screen.findByText(/Shown without repair/);
     expect(screen.queryByRole("button", { name: "Archive" })).toBeNull();
+  });
+});
+
+/**
+ * The raw file view (`screen-specs.md:291-298`, `states.md:95-104`): the one
+ * screen a human gets when the file will not parse, so every part of it has to
+ * carry its weight — where the file is, which line broke it, and the two ways
+ * out.
+ */
+describe("the raw file view (LC-135 → LC-138)", () => {
+  const BROKEN = [
+    "---",
+    "format: longclaw.ticket/v1",
+    "key: LC-1",
+    "status: not_a_real_status",
+    "---",
+    "",
+    "The body survives.",
+  ].join("\n");
+
+  const MESSAGE =
+    "status must be one of backlog, todo, …; found not_a_real_status";
+
+  function broken(): TicketDetail {
+    return degradedDetail({ raw: BROKEN, message: MESSAGE, line: 4 });
+  }
+
+  /** The view, once the file it could not read has arrived. */
+  function shown() {
+    return screen.findByRole("heading", { name: /ticket\.md$/ });
+  }
+
+  function rawLines(): HTMLElement[] {
+    return [...document.querySelectorAll<HTMLElement>(".raw-line")];
+  }
+
+  it("D-58: titles the view with the path and leaves the reassurance to the body", async () => {
+    readTicketMock.mockResolvedValue(broken());
+    render(panel());
+
+    const heading = await shown();
+
+    expect(heading.textContent).toBe(".longclaw/tickets/LC-1/ticket.md");
+    expect(screen.getByText(/Shown without repair/)).toBeTruthy();
+  });
+
+  it("D-52: reads the parse error as file:line, not as bare prose", async () => {
+    readTicketMock.mockResolvedValue(broken());
+    render(panel());
+    await shown();
+
+    expect(screen.getByRole("alert").textContent).toContain(
+      `ticket.md:4 — ${MESSAGE}`,
+    );
+  });
+
+  it("D-52: still shows the error when the parser could not place it", async () => {
+    readTicketMock.mockResolvedValue(
+      degradedDetail({ raw: BROKEN, message: MESSAGE }),
+    );
+    render(panel());
+    await shown();
+
+    const banner = screen.getByRole("alert").textContent ?? "";
+    expect(banner).toContain(MESSAGE);
+    expect(banner).not.toContain("ticket.md:");
+  });
+
+  it("D-53: numbers every line and marks the one the parser named", async () => {
+    readTicketMock.mockResolvedValue(broken());
+    render(panel());
+    await shown();
+
+    const lines = rawLines();
+    expect(lines).toHaveLength(7);
+    expect(lines[0].textContent).toBe("1---");
+    const flagged = lines.filter((line) =>
+      line.className.includes("offending"),
+    );
+    expect(flagged).toHaveLength(1);
+    expect(flagged[0].textContent).toBe("4status: not_a_real_status");
+  });
+
+  it("D-53: numbers the file even when nothing points at a line", async () => {
+    readTicketMock.mockResolvedValue(
+      degradedDetail({ raw: BROKEN, message: MESSAGE }),
+    );
+    render(panel());
+    await shown();
+
+    expect(rawLines()).toHaveLength(7);
+    expect(
+      rawLines().filter((line) => line.className.includes("offending")),
+    ).toHaveLength(0);
+  });
+
+  it("D-54: Retry parse re-reads the file and gives back the ticket", async () => {
+    readTicketMock
+      .mockResolvedValueOnce(broken())
+      .mockResolvedValueOnce(detail());
+    const onReparsed = vi.fn();
+    render(surface({ onReparsed }));
+    await shown();
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry parse" }));
+
+    await ready();
+    expect(readTicketMock).toHaveBeenCalledTimes(2);
+    // The card the human left behind is still degraded until somebody re-reads
+    // the project, and waiting for the watcher is the recovery this button
+    // exists to replace (`states.md:102-104`).
+    expect(onReparsed).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("LC-1 parsed")).toBeTruthy();
+  });
+
+  it("D-54: a retry that still fails says so rather than looking like a no-op", async () => {
+    readTicketMock.mockResolvedValue(broken());
+    const onReparsed = vi.fn();
+    render(surface({ onReparsed }));
+    await shown();
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry parse" }));
+
+    await screen.findByText("LC-1 still does not parse");
+    expect(await shown()).toBeTruthy();
+    expect(onReparsed).not.toHaveBeenCalled();
+  });
+
+  it("D-54: Open in editor names the ticket, never a path", async () => {
+    readTicketMock.mockResolvedValue(broken());
+    render(surface());
+    await shown();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open in editor" }));
+
+    expect(openTicketFileMock).toHaveBeenCalledWith("project-1", "LC-1");
+  });
+
+  it("D-54: says why when the system declines to open the file", async () => {
+    readTicketMock.mockResolvedValue(broken());
+    openTicketFileMock.mockRejectedValue({
+      code: "io",
+      message: "macOS would not open the file",
+      recoverable: true,
+    });
+    render(surface());
+    await shown();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open in editor" }));
+
+    await screen.findByText(/macOS would not open the file/);
+  });
+
+  it("offers no retry on a newer-format file, where there is nothing to fix", async () => {
+    readTicketMock.mockResolvedValue(degradedDetail({ readOnly: true }));
+    render(panel());
+    await shown();
+
+    expect(screen.getByText(/Newer format, shown read-only/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Retry parse" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Open in editor" })).toBeTruthy();
+  });
+
+  it("does not claim to show the whole file when the read was cut short", async () => {
+    readTicketMock.mockResolvedValue({ ...broken(), rawTruncated: true });
+    render(panel());
+    await shown();
+
+    expect(screen.getByText(/too large to show whole/i)).toBeTruthy();
   });
 });
 
