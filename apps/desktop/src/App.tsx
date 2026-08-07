@@ -1353,7 +1353,7 @@ export function App() {
                         onReorder={reorderTicket}
                         // A column's `+` is the same quick create `C` opens,
                         // arriving with the column it was pressed in already
-                        // chosen (`keyboard-focus-map.md:45`).
+                        // chosen (`keyboard-focus-map.md:44`).
                         onCreateInStatus={(status) => {
                           setCarriedDraft({ title: "", status });
                           setCreateSurface("quick");

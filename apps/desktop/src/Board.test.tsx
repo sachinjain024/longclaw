@@ -112,7 +112,7 @@ function board(props?: {
       onChangePriority={props?.onChangePriority ?? noop}
       onChangeStatus={props?.onChangeStatus ?? noop}
       onReorder={props?.onReorder ?? noop}
-      onCreateInStatus={props?.onCreateInStatus}
+      onCreateInStatus={props?.onCreateInStatus ?? noop}
     />
   );
 }
@@ -265,6 +265,7 @@ describe("the pulse, which says a change just landed", () => {
         onChangePriority={noop}
         onChangeStatus={noop}
         onReorder={noop}
+        onCreateInStatus={noop}
       />,
     );
     scrollTo(stack(), 49 * CARD_STRIDE);
@@ -374,6 +375,7 @@ describe("the board's own shape", () => {
         onChangePriority={noop}
         onChangeStatus={noop}
         onReorder={noop}
+        onCreateInStatus={noop}
       />,
     );
 
@@ -445,6 +447,7 @@ describe("focus on a column that is being scrolled", () => {
         onChangePriority={noop}
         onChangeStatus={noop}
         onReorder={noop}
+        onCreateInStatus={noop}
       />,
     );
 
@@ -571,6 +574,7 @@ describe("what a change to one ticket costs", () => {
         onChangePriority={noop}
         onChangeStatus={noop}
         onReorder={noop}
+        onCreateInStatus={noop}
       />,
     );
     presented.length = 0;
@@ -588,6 +592,7 @@ describe("what a change to one ticket costs", () => {
         onChangePriority={noop}
         onChangeStatus={noop}
         onReorder={noop}
+        onCreateInStatus={noop}
       />,
     );
 
@@ -1027,7 +1032,11 @@ describe("the column header's + (LC-83)", () => {
     const heading = screen.getByRole("heading", {
       name: new RegExp(`^${title}`),
     });
-    return heading.querySelector<HTMLElement>(".column-add");
+    return (
+      heading
+        .closest(".board-column")
+        ?.querySelector<HTMLElement>(".column-add") ?? null
+    );
   }
 
   it("opens a create already standing in the column it was pressed in", () => {
@@ -1075,10 +1084,15 @@ describe("the column header's + (LC-83)", () => {
     expect(add("Todo")).toBeTruthy();
   });
 
-  it("leaves the header alone when nothing is listening", () => {
-    render(board());
+  // The button sits beside the `<h3>`, not inside it: a heading is named by its
+  // own text, and six columns each announcing "New ticket in …" would bury the
+  // one word someone moving by heading is listening for.
+  it("stays out of the column heading's name", () => {
+    render(board({ onCreateInStatus: noop }));
 
-    expect(document.querySelector(".column-add")).toBeNull();
+    const heading = screen.getByRole("heading", { name: /^Todo/ });
+    expect(heading.textContent).toBe("Todo0");
+    expect(heading.querySelector(".column-add")).toBeNull();
   });
 
   it("does not read a key pressed on it as a move on the roving card", () => {

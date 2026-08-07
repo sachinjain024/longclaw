@@ -811,13 +811,22 @@ button:disabled {
 }
 
 /* Dot, then name, then the count beside it (screen-specs.md:103); the far edge
-   is reserved for the column's own controls, as in prototype.css `.col-head`. */
+   is reserved for the column's own controls, as in prototype.css `.col-head`.
+
+   The heading and the `+` are siblings inside the head rather than the button
+   sitting in the `<h3>`: a heading's accessible name is its text, so a button
+   inside it would rename the column for anyone moving by heading. */
+.board-column-head {
+  display: flex;
+  align-items: center;
+  padding: 6px 4px 10px;
+}
+
 .board-column h3 {
   display: flex;
   align-items: center;
   gap: 7px;
   margin-bottom: 0;
-  padding: 6px 4px 10px;
   color: var(--lc-ink-2);
   font-size: var(--lc-type-ui-size);
   font-weight: 500;
@@ -834,7 +843,7 @@ button:disabled {
    itself is focused.
 
    Faded rather than `visibility: hidden`, which is what the prototype uses and
-   this cannot: a hidden element takes no focus, and `keyboard-focus-map.md:45`
+   this cannot: a hidden element takes no focus, and `keyboard-focus-map.md:44`
    gives these buttons a keyboard path. It holds its place in the header either
    way, so revealing it moves nothing. */
 .column-add {

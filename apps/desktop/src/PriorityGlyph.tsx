@@ -14,6 +14,7 @@
  * twice.
  */
 
+import { classes } from "./classes";
 import { priorityLabel } from "./tickets";
 import type { TicketPriority } from "./types";
 
@@ -61,9 +62,7 @@ export function PriorityGlyph(props: {
   if (props.priority === "none") {
     return (
       <span
-        className={
-          props.small ? "priority-chip none small" : "priority-chip none"
-        }
+        className={classes("priority-chip", "none", props.small && "small")}
         {...naming}
       >
         <svg
@@ -81,7 +80,7 @@ export function PriorityGlyph(props: {
 
   return (
     <span
-      className={props.small ? "priority-chip small" : "priority-chip"}
+      className={classes("priority-chip", props.small && "small")}
       {...naming}
     >
       {props.priority.toUpperCase()}

@@ -185,10 +185,10 @@ export function Board(props: {
   onReorder: (ticket: IndexedTicket, rank: string) => void;
   /**
    * Raised by a column's `+`, with that column's status
-   * (`keyboard-focus-map.md:45`). The board opens no surface of its own; App
+   * (`keyboard-focus-map.md:44`). The board opens no surface of its own; App
    * decides that a create preseeded with a status is quick create.
    */
-  onCreateInStatus?: (status: TicketStatus) => void;
+  onCreateInStatus: (status: TicketStatus) => void;
   /**
    * Focus a card from outside the board — the new card after a create, the card
    * behind a closing panel. It goes through the roving focus rather than the DOM
@@ -259,9 +259,10 @@ export function Board(props: {
     // focused: a click that has not been committed yet would otherwise move the
     // human off a card they are already standing on.
     const on = (event.target as HTMLElement).closest?.(CARD);
-    // A key pressed on a column's `+` belongs to that button, not to the board:
-    // nobody is standing on a card, and falling back to the roving key would
-    // move focus — or open a menu — on whatever card was last left behind.
+    // Only a card, or the grid itself, is standing anywhere the board's keys
+    // mean something. A key pressed on a control inside the grid — a column's
+    // `+` today — belongs to that control, and falling back to the roving key
+    // would move focus, or open a menu, on whatever card was last left behind.
     if (!on && event.target !== grid.current) return;
     const fromKey = (on as HTMLElement | null)?.dataset.ticketKey ?? rovingKey;
     const from = fromKey === undefined ? undefined : seats.get(fromKey);
@@ -386,7 +387,7 @@ function BoardColumn(props: {
   /** True in Manual, which is the only order a card can be dragged in. */
   draggable: boolean;
   /** Raised by the header's `+`, with this column's status. */
-  onCreate?: (status: TicketStatus) => void;
+  onCreate: (status: TicketStatus) => void;
   onSelect: (key: string) => void;
   onFocusCard: (key: string) => void;
   onDragCard: (key?: string) => void;
@@ -457,23 +458,29 @@ function BoardColumn(props: {
 
   return (
     <section className="board-column">
-      <h3>
-        {/* The dot the status wears everywhere; the header beside it names it,
-            which is the one place the dot is allowed to go unlabelled. */}
-        {props.status && <StatusDot status={props.status} decorative />}
-        {props.title}
-        <span>{props.tickets.length}</span>
+      {/* The `+` is the heading's sibling rather than its child, though it sits
+          on the same line: a heading's accessible name is its text, and a button
+          inside it would rename every column to "Todo 4 New ticket in Todo" for
+          anyone moving through the board by heading. */}
+      <div className="board-column-head">
+        <h3>
+          {/* The dot the status wears everywhere; the header beside it names it,
+              which is the one place the dot is allowed to go unlabelled. */}
+          {props.status && <StatusDot status={props.status} decorative />}
+          {props.title}
+          <span>{props.tickets.length}</span>
+        </h3>
         {/* The column's own control, revealed on hover or focus (prototype.css
             `.col-add`). The synthetic unreadable column has none: it names no
             status, so there is nothing a create here could be preseeded with. */}
-        {props.status && props.onCreate && (
+        {props.status && (
           <ColumnAdd
             title={props.title}
             status={props.status}
             onCreate={props.onCreate}
           />
         )}
-      </h3>
+      </div>
       <div
         className="board-stack"
         ref={stack}
@@ -543,7 +550,7 @@ function BoardColumn(props: {
 
 /**
  * A column header's `+`: quick create, preseeded with that column's status
- * (`screen-specs.md` § Board, `keyboard-focus-map.md:45`).
+ * (`screen-specs.md` § Board, `keyboard-focus-map.md:44`).
  *
  * It is named for the column rather than labelled `+`, because six of these sit
  * on the board and "New ticket" six times over says nothing about which one was

@@ -22,9 +22,9 @@ interface QuickCreateProps {
   /** The key the create is about to be given, read off the rows on screen. */
   provisionalKey: string;
   /**
-   * The status the modal opens on. A board column's `+` chooses it, so the
-   * create starts in the column it was pressed in; everything else opens on
-   * `todo`, where a new ticket belongs.
+   * The status the modal opens on — "defaults Todo; preseeded when opened from
+   * a column `+`" (`screen-specs.md:222`). A board column's `+` chooses it, so
+   * the create starts in the column it was pressed in.
    */
   initialStatus?: TicketStatus;
   onCancel: () => void;
