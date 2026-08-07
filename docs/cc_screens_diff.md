@@ -225,7 +225,8 @@ folder glyph · `archived` chip when archived · spacer · Archive/Unarchive gho
 close. Meta grid: 84px label column, rows Status / Priority / Labels, each a 26px
 menu trigger. **No other meta rows.**
 
-**App:** `src/TicketPanel.tsx:565-600` (header), `:767-768` (`Updated`).
+**App:** `src/TicketPanel.tsx:565-600` (header). The `Updated` row that stood at
+`:767-768` is gone (D-3A).
 
 | ID | Sev | Prototype | App | Plan |
 |---|---|---|---|---|
@@ -235,7 +236,7 @@ menu trigger. **No other meta rows.**
 | **D-04** | **P1** | Description hover reveals a pencil + `Edit` at the right of the section header | The `Edit description` affordance is absolutely positioned **over the body text** and overlaps it (`…pairs that the` collides with `Edit description`) | Move the affordance into the `Description` section header row (it has room), or give it an opaque background and reserve the gutter. |
 | D-38 | P2 | ID is a chip (`accent-human-soft`) and **click copies** | Plain `<span className="ticket-key">` (`TicketPanel.tsx:573`), no copy | Make it a chip button with copy + toast, matching the header path chip (D-06). |
 | D-39 | P2 | Path shows as `tickets/LC-128/ticket.md` with a folder glyph, **beside** a separate disk-state line | Path is rendered *by* `WriteIndicator`, so it is the disk-state line, and it shows the full `.longclaw/tickets/…` prefix with no glyph | Split the two: a static path chip plus the transient disk-state. Merging them means the path flickers on every write. |
-| D-3A | P1 | Meta grid rows: **Status, Priority, Labels. Nothing else.** | A fourth row, **`Updated  2026-08-05T17:20:00Z`** — a raw ISO timestamp (`TicketPanel.tsx:767-768`) | Remove it, or render it as the relative time the rest of the app uses. A raw UTC string in the product's most-read surface reads as debug output. |
+| ~~D-3A~~ | P1 | Meta grid rows: **Status, Priority, Labels. Nothing else.** | A fourth row, **`Updated  2026-08-05T17:20:00Z`** — a raw ISO timestamp (`TicketPanel.tsx:767-768`) | **Fixed 2026-08-07 (LC-102).** The row is removed, which is the option this table's own ranked list named. The age it stood in for is already on screen in the app's relative form — the list row's right-aligned `2h` and every entry in the panel's timeline — so nothing had to be reformatted to keep it. `.meta-grid code` went with it; the row was its only caller. |
 | D-3B | P2 | Each value carries a `>` chevron marking it as a menu trigger | No chevron; Status/Priority read as static chips until hovered | Add the chevron per `screen-specs.md:172-176`. |
 | D-3C | P2 | Labels row carries a dashed `+ add` affordance | Shows only existing chips; `None` (a bare button) when empty | Add the `+ add` affordance in both states. |
 | D-3D | P2 | Checklist header: `Checklist` · mono fraction · **56px progress bar** (fill `accent-agent` while fresh) | `Checklist` at the left and `3/7` flush right; no progress bar in the panel (the *cards* have one) | Add the bar per `screen-specs.md:188-190`. |
@@ -518,9 +519,9 @@ single stack.
 
 **Component detail**
 
-11. **D-3A** (drop the raw `Updated` ISO row), **D-04** (Edit affordance
-    overlap), **D-3D**, **D-3E**, **D-3F**, **D-38**, **D-3B**, **D-3C**,
-    **D-3G** — ticket panel.
+11. ~~**D-3A**~~ (drop the raw `Updated` ISO row — done, LC-102), **D-04** (Edit
+    affordance overlap), **D-3D**, **D-3E**, **D-3F**, **D-38**, **D-3B**,
+    **D-3C**, **D-3G** — ticket panel.
 12. **D-4E / D-4F** — palette glyphs (data change; the slot already exists).
 13. **D-45** — real toolbar icons.
 14. **D-21** — column-header `+`.
