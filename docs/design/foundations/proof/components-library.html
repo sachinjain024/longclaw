@@ -311,8 +311,10 @@
   .etab[aria-selected="true"] { background: var(--lc-surface); color: var(--lc-ink);
     border-color: var(--lc-line); box-shadow: var(--lc-shadow-card); }
   .ebar .esep { width: 1px; height: 16px; background: var(--lc-line-strong); margin: 0 4px; }
+  .fglyph { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6;
+    stroke-linecap: round; stroke-linejoin: round; }
   .ebtn { width: 24px; height: 24px; border: none; background: transparent; border-radius: var(--lc-radius-kbd);
-    color: var(--lc-ink-3); font-family: var(--lc-font-mono); font-size: 11.5px;
+    color: var(--lc-ink-3);
     display: inline-flex; align-items: center; justify-content: center; }
   .ebtn:hover { background: var(--lc-line-soft); color: var(--lc-ink-2); }
   .editor .ebody { padding: 12px 14px; font-size: 13.5px; line-height: 1.55; color: var(--lc-ink); }
@@ -942,11 +944,12 @@
             <button class="etab" aria-selected="true">Write</button>
             <button class="etab" aria-selected="false">Preview</button>
             <span class="esep"></span>
-            <button class="ebtn" title="Bold" style="font-weight:700;">B</button>
-            <button class="ebtn" title="Italic" style="font-style:italic;">I</button>
-            <button class="ebtn" title="Code">&lt;&gt;</button>
-            <button class="ebtn" title="Link">🔗︎</button>
-            <button class="ebtn" title="List">≔</button>
+            <button class="ebtn" title="Bold"><svg class="fglyph" viewBox="0 0 14 14"><path d="M3.5 2h3.6a2.6 2.6 0 0 1 .6 5.1 2.6 2.6 0 0 1-.6 5.1H3.5z"/><path d="M3.5 7h3.5"/></svg></button>
+            <button class="ebtn" title="Italic"><svg class="fglyph" viewBox="0 0 14 14"><path d="M9.5 2H5.7M8.4 2 5.7 12h3.8"/></svg></button>
+            <button class="ebtn" title="Code"><svg class="fglyph" viewBox="0 0 14 14"><path d="m5.2 3.5-2.6 3.5 2.6 3.5M8.8 3.5l2.6 3.5-2.6 3.5M8 2.2 6 11.8"/></svg></button>
+            <button class="ebtn" title="List"><svg class="fglyph" viewBox="0 0 14 14"><path d="M5.5 3.5h6M5.5 7h6M5.5 10.5h6"/><path d="M2.5 3.5h.01M2.5 7h.01M2.5 10.5h.01" stroke-width="2.6"/></svg></button>
+            <button class="ebtn" title="Task"><svg class="fglyph" viewBox="0 0 14 14"><rect x="2" y="2" width="3.5" height="3.5" rx="0.8"/><path d="m2.8 4 .9.9 1-1.4M7.5 4h4M2 9h3.5M7.5 9h4"/></svg></button>
+            <button class="ebtn" title="Link"><svg class="fglyph" viewBox="0 0 14 14"><path d="m5.7 8.4-.9.9a2.2 2.2 0 0 1-3.1-3.1l1.8-1.8a2.2 2.2 0 0 1 3.1 0M8.3 5.6l.9-.9a2.2 2.2 0 0 1 3.1 3.1l-1.8 1.8a2.2 2.2 0 0 1-3.1 0M4.8 7l4.4-1"/></svg></button>
           </div>
           <div class="ebody">The watcher fires twice when a file is renamed — once for the unlink, once for the add.
             Debounce events within <span class="t-code">50ms</span> and treat unlink+add on the same inode as a rename.</div>

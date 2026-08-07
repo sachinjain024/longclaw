@@ -25,14 +25,13 @@ export const TOOLBAR_ACTIONS: {
   id: ToolbarAction;
   /** The accessible name. An icon alone is not a name. */
   label: string;
-  glyph: string;
 }[] = [
-  { id: "bold", label: "Bold", glyph: "B" },
-  { id: "italic", label: "Italic", glyph: "I" },
-  { id: "code", label: "Code", glyph: "`" },
-  { id: "list", label: "Bulleted list", glyph: "•" },
-  { id: "task", label: "Task list", glyph: "☑" },
-  { id: "link", label: "Link", glyph: "↗" },
+  { id: "bold", label: "Bold" },
+  { id: "italic", label: "Italic" },
+  { id: "code", label: "Code" },
+  { id: "list", label: "Bulleted list" },
+  { id: "task", label: "Task list" },
+  { id: "link", label: "Link" },
 ];
 
 const WRAPPERS: Record<"bold" | "italic" | "code", string> = {

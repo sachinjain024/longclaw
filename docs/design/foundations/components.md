@@ -123,6 +123,25 @@ and surface; user-ramp dots lean on the mandatory label exactly like label
 chips. Backlog's dash survives every CVD type. Master shapes:
 `assets/glyphs.svg`.
 
+## Description editor — formatting glyph geometry
+
+The six toolbar actions use monochrome glyphs on the 14×14 grid, drawn 1:1 at
+14px inside the 24px control — so 1.6 is the stroke that renders rather than a
+scaled-up one, and the mark keeps a 5px inset from the button's hover chip.
+Every stroke is 1.6 except the list's three dots, which are the same round cap
+at 2.6 — a dot here is a weight, not a second shape. The masters are
+`format-bold`, `format-italic`, `format-code`, `format-list`, `format-task`,
+and `format-link` in `assets/glyphs.svg`, drawn in the third preview row. They
+stroke `--lc-ink-2`; a component copying the geometry uses `currentColor`
+instead, because the button owns its hover and disabled states.
+
+**The selected tab is the one Selected that is not `accent-human-soft.`** Write
+and Preview are panes, not choices, so the active one is lifted off the strip
+rather than tinted on it: `--lc-surface` with a `--lc-line` border and
+`--lc-shadow-card`, which is what the specimen above and `prototype.css:500`
+both draw. The border is what keeps it off colour alone, so § Global
+interaction model's rule holds even though its fill does not.
+
 ## Priority — set & glyph geometry
 
 Six levels, scannable not loud: monochrome except Urgent. **Revised by

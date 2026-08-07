@@ -17,6 +17,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { MarkdownView } from "./MarkdownView";
+import { FormattingIcon } from "./FormattingIcon";
 import type { ToolbarAction } from "./markdownToolbar";
 import { applyToolbarAction, TOOLBAR_ACTIONS } from "./markdownToolbar";
 
@@ -202,7 +203,7 @@ export function DescriptionEditor(props: DescriptionEditorProps) {
               onFocus={() => setActiveTool(index)}
               onClick={() => format(action.id)}
             >
-              <span aria-hidden="true">{action.glyph}</span>
+              <FormattingIcon action={action.id} />
             </button>
           ))}
         </div>
