@@ -33,6 +33,21 @@ const FALLBACK_KEY = "LC";
 export const PROJECT_KEY_RULE =
   "Uppercase letters and digits, starting with a letter, such as LC.";
 
+/**
+ * What the field says while nothing is wrong (D-15). Shorter than the rule on
+ * purpose: at the create form's width the rule ran to two lines, and a hint
+ * that wraps is read as a warning about a field the user has not touched yet.
+ *
+ * The clause it drops — *starting with a letter* — is the one that actually
+ * bites, so it is not lost: `projectKeyProblem` returns the full
+ * `PROJECT_KEY_RULE` the moment a key breaks it, which is when it is worth two
+ * lines. `such as LC` stays, because an example shows the letter start without
+ * spending a clause on it, and so does the half no refusal will ever explain: a
+ * key that locks is a consequence rather than a mistake.
+ */
+export const PROJECT_KEY_HINT =
+  "Uppercase letters and digits, such as LC. Locks after the first ticket.";
+
 export function isProjectKey(key: string) {
   return PROJECT_KEY.test(key);
 }
@@ -41,10 +56,16 @@ export function isProjectKey(key: string) {
  * Initials of each word, minus any leading characters that are not letters. The
  * leading digit is what made this a bug: `30 July 4PM` derived `3J4`, which the
  * backend then refused after the folder picker had already been answered.
+ *
+ * A hyphen, an underscore and a dot are word breaks, not characters to delete.
+ * They stopped being an edge case when the create form began prefilling the
+ * name from the chosen folder (`screen-specs.md:103`): folder names are where
+ * `-` and `_` live, and swallowing them made `my-app` one word and `M` its key.
  */
 export function defaultProjectKey(name: string) {
   const initials = name
     .toUpperCase()
+    .replace(/[-_.]+/g, " ")
     .replace(/[^A-Z0-9 ]/g, "")
     .split(/\s+/)
     .filter(Boolean)

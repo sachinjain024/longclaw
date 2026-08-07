@@ -326,13 +326,6 @@ h1 {
   letter-spacing: var(--lc-type-title-tracking);
 }
 
-.welcome-copy h1 {
-  margin: 0;
-  font: var(--lc-type-display-weight) var(--lc-type-display-size) /
-    var(--lc-type-display-leading) var(--lc-type-display-font);
-  letter-spacing: var(--lc-type-display-tracking);
-}
-
 /* Button foundations — components.md:42-57. 30px tall, 5px radius, UI type at
    13px/500, 12px of horizontal padding, and never pill-shaped. */
 .primary,
@@ -477,45 +470,109 @@ h1 {
   user-select: text;
 }
 
+/* First launch is the window, not a region inside it (`screen-specs.md:88`,
+   D-10): no side panel, no hairline, the same `--lc-bg` the shell paints. */
+.welcome-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--lc-bg);
+}
+
+/* One centered column, not two (`screen-specs.md:89-94`, D-11). It was a
+   two-column grid with a create form permanently open on the right, asking for
+   a name and a key before the folder that would hold them had been chosen. */
 .welcome-panel {
-  display: grid;
-  grid-template-columns: minmax(320px, 1fr) 360px;
-  gap: 32px;
-  align-items: start;
-  max-width: 980px;
-  padding-top: 56px;
-}
-
-.welcome-copy {
-  display: grid;
-  justify-items: start;
-  gap: var(--lc-space-3);
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--lc-space-8);
   color: var(--lc-ink);
+  text-align: center;
 }
 
-/* The subtitle that names the folder-on-disk model, at 420px so it reads as
-   one paragraph rather than a wall (`screen-specs.md:71`). */
-.welcome-copy p {
-  max-width: 420px;
+.welcome-panel .owl-mark {
+  margin-bottom: var(--lc-space-5);
+}
+
+.welcome-panel h1 {
   margin: 0;
+  font: var(--lc-type-display-weight) var(--lc-type-display-size) /
+    var(--lc-type-display-leading) var(--lc-type-display-font);
+  letter-spacing: var(--lc-type-display-tracking);
+}
+
+/* The subtitle, at 420px so it reads as one paragraph rather than a wall
+   (`screen-specs.md:90-91`).
+
+   Carried on its own class rather than as `.welcome-panel p`, which is what it
+   was: a descendant selector here also caught `.trust-line` — the one line on
+   the screen the spec puts in mono — and beat it on specificity, so the trust
+   line rendered in the UI face (D-16). The rule that keeps it mono is the one
+   on `.trust-line` itself, and nothing in this column may out-specify it. */
+.welcome-subtitle {
+  max-width: 420px;
+  margin: 10px 0 0;
   color: var(--lc-ink-2);
   font: var(--lc-type-body-weight) var(--lc-type-body-size) /
     var(--lc-type-body-leading) var(--lc-type-body-font);
 }
 
-.welcome-copy code {
-  color: var(--lc-ink);
-  font: var(--lc-type-code-weight) var(--lc-type-code-size) /
-    var(--lc-type-code-leading) var(--lc-type-code-font);
+/* Two peer buttons on one row, create first and primary (D-12). */
+.welcome-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 28px;
 }
 
-.create-card {
+.welcome-panel .trust-line {
+  margin-top: 26px;
+  padding: 0;
+}
+
+/* Step two: the create form, 460px and left-aligned inside the centered column
+   (`screen-specs.md:103-109`). No card border — it is the only thing on the
+   screen, so a box around it would be a frame around a frame. */
+.create-form {
+  width: 460px;
+  max-width: 92vw;
+  text-align: left;
+}
+
+.create-form h2 {
+  margin: 0 0 var(--lc-space-4);
+  font: var(--lc-type-title-weight) var(--lc-type-title-size) /
+    var(--lc-type-title-leading) var(--lc-type-title-font);
+  letter-spacing: var(--lc-type-title-tracking);
+}
+
+.create-form form {
   display: grid;
-  gap: 14px;
-  border: 1px solid var(--lc-line);
-  border-radius: var(--lc-radius-card);
-  padding: 18px;
-  background: var(--lc-surface);
+  gap: var(--lc-space-4);
+}
+
+/* The label for a row whose content is not a control — the folder (D-13). The
+   `<label>` type without the grid that pairs one with its field. */
+.field-label {
+  color: var(--lc-ink-2);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Create, then `Back` beside it — the create form's closing row, in the order
+   `keyboard-focus-map.md:146-148` gives it. `:only-child` is the sidebar's
+   quick create, whose form ends in its submit alone and whose submit has
+   always filled the 216px panel. */
+.form-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.form-actions > button:only-child {
+  flex: 1;
 }
 
 label {
@@ -3459,6 +3516,28 @@ html.theme-transition *::after {
   text-overflow: ellipsis;
 }
 
+/* The create form's folder row is the same box holding two claims rather than
+   one string (D-13): the folder you chose, and the `/.longclaw` LongClaw will
+   put inside it. Its own flex line, so the 8px the row gives the glyph does
+   not open up between the path and its suffix. */
+.picked-path .folder-path {
+  display: flex;
+  min-width: 0;
+}
+
+/* Only the chosen path truncates. The suffix is the half of the row that is
+   news, so it survives a path too long for the box. */
+.picked-path .folder-path .head {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.picked-path .folder-path .suffix {
+  flex: none;
+  color: var(--lc-ink-3);
+}
+
 /* The guarantee, above the button it is about (D-44). */
 .danger-zone {
   display: flex;
@@ -3595,10 +3674,6 @@ html.theme-transition *::after {
 @media (max-width: 980px) {
   .app-shell {
     grid-template-columns: 220px minmax(0, 1fr);
-  }
-
-  .welcome-panel {
-    grid-template-columns: 1fr;
   }
 
   /* Name over Key rather than beside it: the dialog is 92vw here and the pair

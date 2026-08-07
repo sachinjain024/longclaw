@@ -26,27 +26,34 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { cssRules, report } from "./guard.mjs";
+import { cssRules, declarationsOf, report } from "./guard.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const styles = readFileSync(resolve(here, "../src/styles.css"), "utf8");
 const rules = cssRules(styles);
 
 /** Every declaration a selector makes, across all the rules that set it. */
-function declarations(selector) {
-  return rules
-    .filter(([at]) => at.split(",").some((one) => one.trim() === selector))
-    .map(([, body]) => body)
-    .join(";");
-}
+const declarations = (selector) => declarationsOf(rules, selector);
 
 const findings = [];
 
-/** What a container is made of — any one of these is a frame coming back. */
+/**
+ * What a container is made of — any one of these is a frame coming back.
+ *
+ * Each pattern takes the longhands as well as the shorthand. The margin one
+ * did not, so `margin-top: 18px` — the exact declaration the frame this guard
+ * exists to keep out carried — would have walked straight past it.
+ */
 const FRAME = [
-  ["border", /\bborder(-(top|right|bottom|left))?\s*:\s*(?!0|none)/],
+  [
+    "border",
+    /\bborder(-(top|right|bottom|left|block|inline))?\s*:\s*(?!0|none)/,
+  ],
   ["background", /\bbackground(-color|-image)?\s*:\s*(?!none|transparent)/],
-  ["margin", /\bmargin\s*:\s*(?!0)/],
+  [
+    "margin",
+    /\bmargin(-(top|right|bottom|left)|-(block|inline)(-(start|end))?)?\s*:\s*(?!0)/,
+  ],
 ];
 
 const panel = declarations(".no-matches");
