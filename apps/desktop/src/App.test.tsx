@@ -3272,14 +3272,19 @@ describe("the header filter (V0-15)", () => {
 
   it("keeps the empty-project state out of the centred column (LC-91)", async () => {
     // A project with no tickets is the empty-project state whatever is in the
-    // field, and `EmptyBoard` keeps its own frame: the class that centres a
-    // state panel must not follow the query into it.
+    // field, and that state stands inside the board rather than instead of it
+    // (LC-86): the class that centres a state panel must not follow the query
+    // into it, and neither must the scaffold's stand-down.
     await openBoard([]);
 
     type("nothing here");
 
     expect(document.querySelector(".workspace.workspace-state")).toBeNull();
     expect(screen.queryByRole("status", { name: "No matches" })).toBeNull();
+    expect(document.querySelector(".guide-card")).toBeTruthy();
+    expect(document.querySelectorAll(".board-column").length).toBeGreaterThan(
+      1,
+    );
   });
 
   it("quotes the echoed query so an empty-looking one is visible (LC-92)", async () => {
@@ -3794,8 +3799,8 @@ describe("the app shell against its spec (LC-71, LC-72, LC-73)", () => {
     };
   }
 
-  // One ticket, because `EmptyBoard` carries a `New ticket` button of its own
-  // and an empty board would make every header assertion below ambiguous.
+  // One ticket, so the header's controls are the only ones on screen and every
+  // assertion below names exactly one element.
   const SEED = [row("LA-1", "Atomic replace race")];
 
   async function openBoard() {
@@ -4180,5 +4185,146 @@ describe("a project folder that cannot be reached (LC-139 … LC-145)", () => {
 
     expect(await screen.findByText("Folder not found")).toBeTruthy();
     expect(screen.queryByLabelText("Create a ticket")).toBeNull();
+  });
+});
+
+/**
+ * The empty project (LC-86 … LC-89), which the spec is more explicit about than
+ * any other state: the app never hides the workspace. It used to — one
+ * full-width dashed panel replaced the board, columns and all.
+ */
+describe("a project with no tickets (LC-86 … LC-89)", () => {
+  const project: ProjectReference = {
+    id: "project-new",
+    name: "New Project",
+    rootPath: "/Users/dev/code/new-project",
+    key: "NP",
+    theme: "indigo",
+    starred: false,
+    reachable: true,
+    labels: {},
+  };
+
+  async function openEmpty() {
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project,
+      tickets: [],
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    render(<App />);
+    await screen.findByRole("button", { name: "Board", pressed: true });
+  }
+
+  const guide = () =>
+    document.querySelector<HTMLElement>(".guide-card") ?? undefined;
+
+  const toggleTo = (view: "Board" | "List") =>
+    fireEvent.click(screen.getByRole("button", { name: view }));
+
+  it("must-pass: keeps the board mounted and puts the guide in Todo (LC-86)", async () => {
+    await openEmpty();
+
+    // The scaffold is the state: every column of the fixed set (ADR 0002), and
+    // the guide as Todo's only child rather than in place of the whole board.
+    const columns = Array.from(
+      document.querySelectorAll<HTMLElement>(".board-column h3"),
+    ).map((heading) => heading.textContent);
+    expect(columns).toEqual([
+      "Backlog0",
+      "Todo0",
+      "In Progress0",
+      "In Review0",
+      "Done0",
+      "Canceled0",
+    ]);
+    const todo = screen
+      .getByRole("heading", { name: /^Todo/ })
+      .closest(".board-column");
+    expect(todo?.contains(guide() as Node)).toBe(true);
+  });
+
+  it("gives the guide a C chip instead of a button of its own (LC-87)", async () => {
+    await openEmpty();
+
+    expect(guide()?.querySelector("kbd")?.textContent).toBe("C");
+    // The header's `New ticket` is the only one on screen — the guide used to
+    // put a second filled accent two rows under it.
+    expect(screen.getAllByRole("button", { name: "New ticket" })).toHaveLength(
+      1,
+    );
+    expect(guide()?.querySelector(".primary")).toBeNull();
+  });
+
+  it("names no path, so nothing wraps and no period is stranded (LC-88)", async () => {
+    await openEmpty();
+
+    expect(guide()?.textContent).toBe(
+      "Create your first ticketTitle it, give it a checklist, point an agent at the folder.C",
+    );
+    // The path is in the header chip two rows up; printing it here wrapped it
+    // over two lines and left the sentence's period alone on a third.
+    expect(guide()?.textContent).not.toContain(project.rootPath);
+  });
+
+  it("puts the list's guide inside the list's own card frame (LC-89)", async () => {
+    await openEmpty();
+
+    toggleTo("List");
+
+    const frame = document.querySelector(".issue-list .list-guide");
+    expect(frame).toBeTruthy();
+    expect(frame?.contains(guide() as Node)).toBe(true);
+    // The list is still the surface it stands on, not something it replaced.
+    expect(document.querySelector(".issue-list")).toBeTruthy();
+  });
+
+  it("opens quick create when the card is pressed", async () => {
+    await openEmpty();
+
+    fireEvent.click(guide() as HTMLElement);
+
+    expect(screen.getByLabelText("Create a ticket")).toBeTruthy();
+    // Todo, which is the column it was standing in.
+    expect(
+      screen.getByRole("button", { name: /^Status:/ }).textContent,
+    ).toContain("Todo");
+  });
+
+  it("stands down once the project has a ticket", async () => {
+    await openEmpty();
+    fireEvent.click(guide() as HTMLElement);
+
+    const created: WriteResult = {
+      ticket: {
+        state: "indexed",
+        key: "NP-1",
+        id: "id-NP-1",
+        title: "First one",
+        status: "todo",
+        priority: "none",
+        labels: [],
+        createdAt: "2026-08-07T09:00:00Z",
+        updatedAt: "2026-08-07T09:00:00Z",
+        checkedCount: 0,
+        checklistCount: 0,
+        commentCount: 0,
+        attachmentCount: 0,
+        contentHash: "hash-NP-1",
+        relativePath: ".longclaw/tickets/NP-1/ticket.md",
+      },
+      generation: 2,
+      changes: [],
+    };
+    vi.mocked(api.createTicket).mockResolvedValue(created);
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "First one" },
+    });
+    fireEvent.submit(screen.getByLabelText("Title"));
+
+    expect(await screen.findByText("First one")).toBeTruthy();
+    expect(guide()).toBeUndefined();
   });
 });

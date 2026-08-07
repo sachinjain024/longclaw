@@ -308,10 +308,17 @@ export function App() {
    * Whether the panel is the thing on screen. One expression, because two — the
    * panel's own condition and the workspace class that centres it — would be
    * two places to keep in agreement about the same state. A project with no
-   * tickets at all is the empty-project state whatever is in the field, and it
-   * has its own panel.
+   * tickets at all is the empty-project state whatever is in the field, and
+   * that state stands inside the surface rather than instead of it.
    */
   const showNoMatches = noMatches && tickets.length > 0;
+  /**
+   * The empty-project state (`states.md:28-35`): a reachable project with no
+   * ticket directories at all. It is not a filter state — the guide stands
+   * whatever is in the field — and it is not a state that replaces the
+   * workspace: the surface stays whole and hosts the guide (D-20/LC-86).
+   */
+  const emptyProject = tickets.length === 0;
 
   /**
    * The key the next create will probably claim, shown by both create surfaces
@@ -351,6 +358,18 @@ export function App() {
     // Rule 3 of the focus map: closing a layer never drops focus on the floor.
     filterField.current?.focus();
   }, [setFilterQuery]);
+  /**
+   * The guide card's action, on both surfaces. Plain quick create rather than
+   * the column's preseeded one: quick create opens on Todo already, and the
+   * guide is only ever standing in a project with nothing to preseed against.
+   */
+  const createFirstTicket = useCallback(() => setCreateSurface("quick"), []);
+  /**
+   * The guide, handed to whichever surface is drawn. Undefined is how a surface
+   * is told it has no guide to host, so the board branch and the list branch
+   * cannot come to disagree about which state they are in.
+   */
+  const guide = emptyProject ? createFirstTicket : undefined;
   const openTicket = useCallback(
     (key: string) => {
       setSelectedKey(key);
@@ -1489,65 +1508,59 @@ export function App() {
                   </div>
                 )}
 
-                {tickets.length === 0 ? (
-                  // A project with no tickets is the empty-project state, not a
-                  // filter state, whatever is in the field.
-                  <EmptyBoard
-                    project={project}
-                    onCreate={() => setCreateSurface("quick")}
+                {showNoMatches && (
+                  <NoMatches
+                    query={filterQuery}
+                    unreadable={unreadableShown}
+                    onClear={clearFilter}
+                  />
+                )}
+                {view === "board" ? (
+                  <Board
+                    tickets={visibleTickets}
+                    selectedKey={selectedKey}
+                    marks={externalMarks}
+                    labels={project.labels}
+                    ordering={ordering}
+                    // Six empty columns beside a "No matches" panel is the
+                    // empty board the designed state exists to replace — but a
+                    // project with no tickets *is* the scaffold plus the guide,
+                    // so this stands down for the query and not for the state
+                    // that owns the columns it would remove (D-20/LC-86).
+                    scaffold={!showNoMatches}
+                    now={now}
+                    focusRequest={cardFocus}
+                    onSelect={openTicket}
+                    onChangePriority={changePriority}
+                    onChangeStatus={changeStatus}
+                    onMoveCard={moveCard}
+                    // A column's `+` is the same quick create `C` opens,
+                    // arriving with the column it was pressed in already
+                    // chosen (`keyboard-focus-map.md:44`).
+                    onCreateInStatus={(status) => {
+                      setCarriedDraft({ title: "", status });
+                      setCreateSurface("quick");
+                    }}
+                    onCreateFirst={guide}
                   />
                 ) : (
-                  <>
-                    {showNoMatches && (
-                      <NoMatches
-                        query={filterQuery}
-                        unreadable={unreadableShown}
-                        onClear={clearFilter}
-                      />
-                    )}
-                    {view === "board" ? (
-                      <Board
-                        tickets={visibleTickets}
-                        selectedKey={selectedKey}
-                        marks={externalMarks}
-                        labels={project.labels}
-                        ordering={ordering}
-                        // Six empty columns beside a "No matches" panel is the
-                        // empty board the designed state exists to replace.
-                        scaffold={!noMatches}
-                        now={now}
-                        focusRequest={cardFocus}
-                        onSelect={openTicket}
-                        onChangePriority={changePriority}
-                        onChangeStatus={changeStatus}
-                        onMoveCard={moveCard}
-                        // A column's `+` is the same quick create `C` opens,
-                        // arriving with the column it was pressed in already
-                        // chosen (`keyboard-focus-map.md:44`).
-                        onCreateInStatus={(status) => {
-                          setCarriedDraft({ title: "", status });
-                          setCreateSurface("quick");
-                        }}
-                      />
-                    ) : (
-                      // Both surfaces are projections of the same store state
-                      // and hold no rows of their own, which is what makes them
-                      // agree after an app edit, a file edit, a restart, or a
-                      // rebuild — and now after a query.
-                      <IssueList
-                        tickets={visibleTickets}
-                        selectedKey={selectedKey}
-                        marks={externalMarks}
-                        labels={project.labels}
-                        ordering={ordering}
-                        now={now}
-                        focusRequest={cardFocus}
-                        onSelect={openTicket}
-                        onChangePriority={changePriority}
-                        onChangeStatus={changeStatus}
-                      />
-                    )}
-                  </>
+                  // Both surfaces are projections of the same store state
+                  // and hold no rows of their own, which is what makes them
+                  // agree after an app edit, a file edit, a restart, or a
+                  // rebuild — and now after a query.
+                  <IssueList
+                    tickets={visibleTickets}
+                    selectedKey={selectedKey}
+                    marks={externalMarks}
+                    labels={project.labels}
+                    ordering={ordering}
+                    now={now}
+                    focusRequest={cardFocus}
+                    onSelect={openTicket}
+                    onChangePriority={changePriority}
+                    onChangeStatus={changeStatus}
+                    onCreateFirst={guide}
+                  />
                 )}
               </section>
             )}
@@ -1987,29 +2000,11 @@ function Welcome(props: {
   );
 }
 
-function EmptyBoard(props: {
-  project: ProjectReference;
-  onCreate: () => void;
-}) {
-  return (
-    <div className="empty-board">
-      <strong>Create your first ticket</strong>
-      <p>
-        Every ticket is one file. This one will live under
-        <code> {props.project.rootPath}/.longclaw/tickets/</code>.
-      </p>
-      <button tabIndex={0} className="primary" onClick={props.onCreate}>
-        New ticket
-      </button>
-    </div>
-  );
-}
-
 /**
  * The no-match state (`states.md:37-41`, `screen-specs.md:130-131`): a centered
  * panel, the query echoed back, and a secondary Clear filter that `Esc` also
- * reaches. Built beside `EmptyBoard` and wearing its treatment, because both
- * answer the same question — why is there nothing here?
+ * reaches. The one state that stands *instead of* the surfaces — the
+ * empty-project guide (`GuideCard.tsx`) stands inside them.
  *
  * `role="status"` because a filter that empties the screen without saying so is
  * hostile to a screen-reader user; it is named, so it is distinguishable from the

@@ -70,10 +70,12 @@ What diverges is **composition and states**:
    the code surfaces. D-51's *layering* went with D-01; its modal-vs-panel half
    closed on 2026-08-07 (LC-134), and the raw file view is the spec's 680px
    modal now, so nothing of this item is open.
-2. **Three screens are structurally different**, not detail-different:
+2. ~~**Three screens are structurally different**~~, not detail-different:
    ~~the welcome screen (D-10)~~ — a full window, and a two-step create, since
    2026-08-07 (LC-76 → LC-79) — ~~project settings (D-40)~~ — a modal since
-   2026-08-07 (LC-125) — and the empty-project state (D-20).
+   2026-08-07 (LC-125) — and ~~the empty-project state (D-20)~~, which stands
+   inside the board rather than instead of it since 2026-08-07 (LC-86). All
+   three are closed.
 3. **The app shell header is three stacked blocks (~230px)** where the design is
    one 56px row (D-05) — this is the single change that most alters how every
    populated screen reads, and it costs the board and list ~170px of height.
@@ -190,15 +192,16 @@ stays visible** — all six columns, zero counts — and the Todo column hosts t
 guided card: dashed `line-strong` border, "Create your first ticket", one line of
 copy, a `C` kbd chip. The list view shows a centered equivalent.
 
-**App:** `src/App.tsx:1757-1773` (`EmptyBoard`), reached at `App.tsx:1259`
-(`tickets.length === 0 ? <EmptyBoard/> : …`).
+**App:** `src/GuideCard.tsx`, placed by `Board.tsx` in the Todo column and by
+`IssueList.tsx` in a card frame of the list's own. It was `EmptyBoard` in
+`App.tsx`, reached at `tickets.length === 0 ? <EmptyBoard/> : …`.
 
 | ID | Sev | Prototype | App | Plan |
 |---|---|---|---|---|
-| D-20 | P1 | Board scaffold stays; guided card sits **inside the Todo column** | The whole board is replaced by one full-width dashed panel; no columns render at all | This is the state the spec is most explicit about — the app never hides the workspace. Keep `<Board/>` mounted when `tickets.length === 0` and render the guide card as the Todo column's only child. Keep `EmptyBoard`'s copy, move it into a 264px card. |
-| D-24 | P2 | Guide card carries a `C` kbd chip and no button | A `New ticket` button, no kbd chip | Swap for the kbd chip (the button is already in the header two rows up). |
-| D-25 | P3 | Copy: "Title it, give it a checklist, point an agent at the folder." | "Every ticket is one file. This one will live under `<full absolute path>`." — the raw path wraps across two lines and a **stray `.` lands alone on a third line** | The stray period comes from `` <code> …</code>. `` at `App.tsx:1766` — the trailing text node wraps after a block-ish `<code>`. Move the period inside, or drop the path (it is already in the header) and use the prototype's copy. |
-| D-26 | P3 | List view shows a *centered equivalent*, sized to the list | List view shows the identical full-width panel | Acceptable, but the panel should sit inside the list's card frame rather than replacing it. |
+| ~~D-20~~ | P1 | Board scaffold stays; guided card sits **inside the Todo column** | The whole board is replaced by one full-width dashed panel; no columns render at all | **Fixed 2026-08-07 (LC-86).** The surface is never unmounted now: `App` draws the board or the list whatever the ticket count, and hands the empty-project state down as `onCreateFirst`, which the Todo column renders as its only child. The scaffold's one stand-down stays the filter's — `scaffold={!showNoMatches}` rather than `{!noMatches}`, so a query typed into an empty project no longer takes the columns with it. |
+| ~~D-24~~ | P2 | Guide card carries a `C` kbd chip and no button | A `New ticket` button, no kbd chip | **Fixed 2026-08-07 (LC-87).** The whole card is the control, as it is in the prototype, and the chip is what it wears — the header two rows up keeps the one filled accent on screen (`components.md:51`). The chip is `aria-hidden` with `aria-keyshortcuts="C"` beside it, the same trade the header button makes (LC-71), and the card is named for what pressing it does rather than for its two lines of copy. |
+| ~~D-25~~ | P3 | Copy: "Title it, give it a checklist, point an agent at the folder." | "Every ticket is one file. This one will live under `<full absolute path>`." — the raw path wraps across two lines and a **stray `.` lands alone on a third line** | **Fixed 2026-08-07 (LC-88).** The second option: the path is dropped, not repunctuated. It is already in the header chip (D-06), and a 264px card is the last place an absolute path should be asked to wrap. The copy is the prototype's. |
+| ~~D-26~~ | P3 | List view shows a *centered equivalent*, sized to the list | List view shows the identical full-width panel | **Fixed 2026-08-07 (LC-89).** The list has no Todo column to host a card, so the guide sits in `.list-guide` — the `surface` card frame every group body wears — with the invitation centred in it and carrying no frame of its own. The frame claims the height the list region has, so "centered equivalent, sized to the list" (`states.md:34`) is both words and not only the horizontal one. The list is still the surface it stands on rather than something it replaced. One departure worth naming: the prototype's list branch (`prototype.js:640-643`) has its own copy — "No tickets yet", the path, and a primary `New ticket` — and this reuses the board card's instead. Three rows of this section ask for one card with one line of copy and a chip; keeping a second wording, a second path echo, and the button D-24 removes would have re-opened all three on the surface nobody was looking at. |
 
 ---
 
@@ -210,7 +213,7 @@ matches" + the echoed query + secondary **Clear filter** (also `Esc`).
 | ID | Sev | Prototype | App | Plan |
 |---|---|---|---|---|
 | ~~D-30~~ | P0 | — | The filter input triggers **WebKit's native autofill dropdown** (a `Zzzz ×` suggestion popover under the field) | **Fixed 2026-08-07 (LC-90).** The field carries `autoComplete="off"`, `autoCorrect="off"`, `spellCheck={false}` and `name="longclaw-filter"` — the name because WebKit's heuristics read one when they decline the request, and no saved-value store has a value for that one. The prototype's field already carried the pair (`prototype.js:496`). |
-| ~~D-31~~ | P2 | Centered in the board region, no container | A bordered rounded container spanning the content width, top-aligned | **Fixed 2026-08-07 (LC-91).** `.no-matches` drops the dashed frame, the tint and the 18px block margin, and centres in the height the header leaves: `.main-panel` is a column, the workspace takes `.workspace-state` for the one state that stands *instead of* the surfaces, and the panel claims what is left. The surfaces stay mounted — they hold the roving focus and the scroll position a query that matches nothing would otherwise throw away, and they are what draws the unreadable rows the filter never hides — so an empty one hides itself (`.workspace-state > .board-grid:empty`) rather than leaving 28px of its own padding under the panel. Measured in WebKit at 1440×900: the panel spans the whole region, y=86→872, where it used to be a 758px-wide card at the top. The copy is capped at the 400px the prototype gives a state panel's sub-line, which the frame used to do by accident. `.empty-board` and `.unreachable-panel` keep the frame — D-20 and D-59 are the rows that decide those. |
+| ~~D-31~~ | P2 | Centered in the board region, no container | A bordered rounded container spanning the content width, top-aligned | **Fixed 2026-08-07 (LC-91).** `.no-matches` drops the dashed frame, the tint and the 18px block margin, and centres in the height the header leaves: `.main-panel` is a column, the workspace takes `.workspace-state` for the one state that stands *instead of* the surfaces, and the panel claims what is left. The surfaces stay mounted — they hold the roving focus and the scroll position a query that matches nothing would otherwise throw away, and they are what draws the unreadable rows the filter never hides — so an empty one hides itself (`.workspace-state > .board-grid:empty`) rather than leaving 28px of its own padding under the panel. Measured in WebKit at 1440×900: the panel spans the whole region, y=86→872, where it used to be a 758px-wide card at the top. The copy is capped at the 400px the prototype gives a state panel's sub-line, which the frame used to do by accident. `.empty-board` and `.unreachable-panel` keep the frame — D-20 and D-59 are the rows that decide those. (D-20 closed on 2026-08-07 and took `.empty-board` with it: the empty project has no panel now, only a card inside the Todo column.) |
 | ~~D-32~~ | P3 | "Nothing matches “zzzz”." (curly quotes) | "Nothing here matches zzzz." (no quotes) | **Fixed 2026-08-07 (LC-92).** The echo is inside the prototype's curly pair — in the sentence, not inside the `<code>`, so the mono slot holds the query and the quotes are punctuation around it — and a query that is whitespace, or wearing it, is still something the human can see they asked for. The sentence keeps its *here*: the row's Plan asks for the quotes, and *here* is the one word that says the filter narrows the surface in front of you rather than the project. |
 
 ---
@@ -552,8 +555,11 @@ single stack.
    key hint, and the trust line's face).
 
    **§ 2 is closed.** Every `D-` row in it is struck.
-9. **D-20 / D-24 / D-25** — empty project keeps the board scaffold and puts the
-   guide card in Todo.
+9. ~~**D-20 / D-24 / D-25**~~ — empty project keeps the board scaffold and puts
+   the guide card in Todo (done 2026-08-07, LC-86 → LC-88, with ~~**D-26**~~:
+   the list's own frame for it).
+
+   **§ 5 is closed.** Every `D-` row in it is struck.
 10. **D-56 / D-57 / D-59 → D-5C** — the unreachable-project screen.
 
 **Component detail**
