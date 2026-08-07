@@ -70,9 +70,10 @@ What diverges is **composition and states**:
    the code surfaces. D-51's *layering* went with D-01; its modal-vs-panel half
    closed on 2026-08-07 (LC-134), and the raw file view is the spec's 680px
    modal now, so nothing of this item is open.
-2. **Three screens are structurally different**, not detail-different: the
-   welcome screen (D-10), ~~project settings (D-40)~~ — a modal since 2026-08-07
-   (LC-125) — and the empty-project state (D-20).
+2. **Three screens are structurally different**, not detail-different:
+   ~~the welcome screen (D-10)~~ — a full window, and a two-step create, since
+   2026-08-07 (LC-76 → LC-79) — ~~project settings (D-40)~~ — a modal since
+   2026-08-07 (LC-125) — and the empty-project state (D-20).
 3. **The app shell header is three stacked blocks (~230px)** where the design is
    one 56px row (D-05) — this is the single change that most alters how every
    populated screen reads, and it costs the board and list ~170px of height.
@@ -125,17 +126,26 @@ column on `--lc-bg`: 52px owl, display greeting, 13.5px subtitle (max-width
 mono trust line. The create form is a separate step reached *after* a folder is
 picked, and it shows the chosen folder as a read-only mono path.
 
-**App:** `src/App.tsx:1721-1755` (`Welcome`) + `src/CreateProjectForm.tsx`.
+**App:** `src/App.tsx:1890-1960` (`Welcome`) + `src/CreateProjectForm.tsx`.
 
 | ID | Sev | Prototype | App | Plan |
 |---|---|---|---|---|
-| D-10 | P1 | Full-window; no app shell | The 240px sidebar stays visible with `No starred projects` / `No local projects` placeholders | Render `Welcome` above the shell when `projects.length === 0` — the welcome screen *is* the no-projects state, and an empty sidebar is a second, weaker statement of the same thing. |
-| D-11 | P1 | Single centered column | Two columns: copy left, a permanently-visible create-form card right | Restore the two-step flow: welcome → folder picker → create form. The form should not be on screen before a folder exists — it currently asks for a name and key with nowhere to put them. |
-| D-12 | P2 | Two buttons: **Create a project** (primary) + **Open a folder** (secondary) | One `Open existing folder` (secondary); "create" is the form's submit, labelled `Create project in folder` | Two peer buttons, primary = Create. |
-| D-13 | P2 | Create form shows the chosen folder as a read-only mono path with the `/.longclaw` suffix that will be created | No folder row at all | Add the folder row once the picker has run (`CreateProjectForm.tsx`). It is the screen's whole trust argument. |
-| D-14 | P3 | Subtitle: "Tickets live as plain files in a folder you choose — ideally inside your repo. Humans plan, agents execute, and both write to the same record." | "LongClaw writes project data into `.longclaw/` inside the folder you choose. Every ticket is a file you can read, edit, and commit." | Copy call. The app's version explains the mechanism; the prototype's explains the value. Pick one deliberately — currently it reads as a placeholder. |
-| D-15 | P3 | Key hint: "locks after the first ticket" | "Uppercase letters and digits, starting with a letter, such as LC. Locks after the first ticket." | Fine, keep — it's strictly more useful. Trim to one line. |
-| D-16 | P3 | Trust line in mono `--lc-type-micro` | Renders in the UI face, not mono | `.trust-line` should use `--lc-type-code-font`. |
+| ~~D-10~~ | P1 | Full-window; no app shell | The 240px sidebar stays visible with `No starred projects` / `No local projects` placeholders | **Fixed 2026-08-07 (LC-76).** `App` returns `.welcome-shell` instead of `.app-shell` when the registry has been read and holds nothing — the line the prototype's own renderer draws (`prototype.js:361`). Gated on *read*, not on the empty list alone: `projects` is empty for the first frame of every launch, so the list by itself would flash this screen over every returning user on the way to their board. A registry read that **failed** is not an empty registry and keeps the shell, which is the one surface that can show the error and still offer `Create project` and `Open folder`. |
+| ~~D-11~~ | P1 | Single centered column | Two columns: copy left, a permanently-visible create-form card right | **Fixed 2026-08-07 (LC-77).** One centered column, and the folder is the first question rather than the last: `chooseProjectFolder` is now its own call, so `Create a project` opens the picker and the form arrives holding what it answered. `Welcome` owns which step is up — it is not app state, it is over the moment the project exists — and `Back` is what leaves it. A cancelled picker returns the screen exactly as it was. `chooseAndCreateProject` stays for the sidebar's quick create, which has no room for a second step and asks for the folder last. |
+| ~~D-12~~ | P2 | Two buttons: **Create a project** (primary) + **Open a folder** (secondary) | One `Open existing folder` (secondary); "create" is the form's submit, labelled `Create project in folder` | **Fixed 2026-08-07 (LC-78).** Two peers on one row, create primary. The screen's main path had no button of its own before this: it was the submit of the form beside it. |
+| ~~D-13~~ | P2 | Create form shows the chosen folder as a read-only mono path with the `/.longclaw` suffix that will be created | No folder row at all | **Fixed 2026-08-07 (LC-79).** The form takes an optional `folder` and renders the settings modal's `.picked-path` above `Name`. Two spans, not one string — the folder is the user's and `/.longclaw` is the only thing LongClaw adds — and only the folder half truncates, because the suffix is the half that is news. Not a tab stop: the way to change it is `Back`, and `keyboard-focus-map.md:146-148` puts the order at name → key → theme → Create → Back. The picker hands focus to `Name` (`keyboard-focus-map.md:160`), on this path only. |
+| ~~D-14~~ | P3 | Subtitle: "Tickets live as plain files in a folder you choose — ideally inside your repo. Humans plan, agents execute, and both write to the same record." | "LongClaw writes project data into `.longclaw/` inside the folder you choose. Every ticket is a file you can read, edit, and commit." | **Answered 2026-08-07: value, the prototype's (LC-80).** D-11 and D-13 are what decide it. The mechanism now has a better place to be stated than a subtitle — the next step names the folder and the `/.longclaw` inside it, in the path the user just picked — so the one thing left unsaid on this screen is what the files are *for*. |
+| ~~D-15~~ | P3 | Key hint: "locks after the first ticket" | "Uppercase letters and digits, starting with a letter, such as LC. Locks after the first ticket." | **Fixed 2026-08-07 (LC-81).** `PROJECT_KEY_HINT` is the idle line and `PROJECT_KEY_RULE` is the refusal, which is where the dropped clause — *starting with a letter* — earns its second line. It is the clause that actually bites (`30 July 4PM` → `3J4`), so it is stated when a key breaks it rather than at rest. What stays is the half no refusal will ever explain: a key that locks is a consequence, not a mistake. |
+| ~~D-16~~ | P3 | Trust line in mono `--lc-type-micro` | Renders in the UI face, not mono | **Fixed 2026-08-07 (LC-82).** Not the token: `.trust-line` already asked for `--lc-type-kbd-font`, which is `--lc-font-mono`, and the sidebar's copy of the line renders in mono today — § 1 records it as matching. The subtitle above it was styled as `.welcome-copy p`, which matched the trust line too and beat one class on specificity. The subtitle carries `.welcome-subtitle` now, and `scripts/trust-line-guard.mjs` fails the build on any selector that can reach this line and set a font, because jsdom loads no stylesheet and the vitest suite can see the class but never the cascade. Swapping in `--lc-type-code-font` as the row asks would have changed the sidebar's line too, at 12px instead of 10px, for a defect that was never in the token. |
+
+**Also observed, 2026-08-07:** the picker's own branch is not built.
+`screen-specs.md:98-100` says a folder that already contains `.longclaw/` opens
+directly and a plain one proceeds to the create form; the app instead lets
+**Create a project** walk an initialised folder through the whole form before
+refusing it, and lets **Open a folder** error on a plain one. No `D-` row covers
+it — this section was walked without raising it — so it is **filed as LC-170**
+rather than reopened here. Nothing is written either way: `initialize_project`
+refuses before it creates.
 
 ---
 
@@ -404,7 +414,11 @@ app running.
 
 **Also observed:** a ticket whose file has *no* frontmatter at all (not even a
 `---` fence) is dropped even from the `Unreadable` group — it never reaches the
-degraded path. Worth a Rust-side test in `core/storage.rs`.
+degraded path. Worth a Rust-side test in `core/storage.rs`. **Filed 2026-08-07 as
+LC-168**, the one finding in this section that never carried a `D-` number and so
+was never swept into LC-133…LC-138. `TicketDocument::parse` does refuse the file
+with a located diagnostic (`core/ticket.rs:450-452`); what is missing is any test
+that it becomes a degraded record and reaches a snapshot.
 
 ---
 
@@ -465,8 +479,11 @@ needs an external write to land inside an in-app edit window.
 Verify against `states.md:154-182`: pinned above the title, warn triangle + "Changed
 on disk while you were editing." + attribution and age, **Reload file**
 (`warn-border-strong`) and **Keep mine** (`warn-ink` ghost), no focus steal, and a
-save with an unresolved conflict re-raising the banner. File a follow-up ticket
-to walk it.
+save with an unresolved conflict re-raising the banner. **Filed 2026-08-07 as
+LC-169**, which carries the walk and the one known departure to confirm rather
+than file: `Esc` does not clear the banner, though `keyboard-focus-map.md:82` says
+it should, because clearing would take "Keep mine" away from a title draft that is
+also pending (LC-12).
 
 ---
 
@@ -529,8 +546,12 @@ single stack.
 7. ~~**D-40 → D-44**~~ — project settings as a modal, with Key, Folder,
    Appearance, and the remove-confirm (done 2026-08-07, LC-125 → LC-129, with
    ~~**D-4J**~~, ~~**D-4K**~~, ~~**D-4L**~~, ~~**D-0A**~~ and ~~**D-72**~~).
-8. **D-10 / D-11 / D-12 / D-13** — welcome as a full-window centered column with
-   the two-step create flow.
+8. ~~**D-10 / D-11 / D-12 / D-13**~~ — welcome as a full-window centered column
+   with the two-step create flow (done 2026-08-07, LC-76 → LC-79, with
+   ~~**D-14**~~, ~~**D-15**~~ and ~~**D-16**~~: the subtitle's copy call, the
+   key hint, and the trust line's face).
+
+   **§ 2 is closed.** Every `D-` row in it is struck.
 9. **D-20 / D-24 / D-25** — empty project keeps the board scaffold and puts the
    guide card in Todo.
 10. **D-56 / D-57 / D-59 → D-5C** — the unreachable-project screen.
@@ -566,7 +587,9 @@ single stack.
   (LC-130). Label definitions are project data with nowhere else to live, so they
   stay in settings; what they lost is the OS dropdown and the second button per
   row.
-- **D-14** — welcome subtitle: mechanism or value?
+- ~~**D-14**~~ — **answered 2026-08-07: value** (LC-80). Not a coin toss in the
+  end: the two-step create flow (D-11) gave the mechanism a better place to be
+  stated than a subtitle, so the subtitle was free to say what the files are for.
 - ~~**D-3I**~~ — **answered 2026-08-07: keep** (LC-110). It was never only a
   flourish: `components.md:192-193` gives the settled row the strike and takes
   it back off the agent-fresh one, so dropping it would have cost the panel the
@@ -574,7 +597,21 @@ single stack.
 
 **Follow-up needed**
 
-- **§18 conflict banner** — walk it against `states.md:154-182`; it is built but
-  unexercised here.
+- ~~**§18 conflict banner**~~ — filed 2026-08-07 as **LC-169**. Built but
+  unexercised here; the walk against `states.md:154-182` is that ticket.
 - **D-70** — confirm the appearance/ordering preference loss on a packaged build
-  before treating it as real.
+  before treating it as real (LC-150).
+
+**Every row in this document is now ticketed.** The `D-` rows became LC-67…LC-154
+on 2026-08-05; the two prose findings above became LC-168 and LC-169 on
+2026-08-07. This file is kept as the cited source of those tickets — 89 of them
+name it in their `## Source` line — and as the record of *why* the struck rows
+were decided the way they were, not as a work list.
+
+The two companion plan documents, `docs/cc_ui_diffs.md` and `docs/cd_ui_diffs.md`,
+were **deleted 2026-08-07** once their own leftovers were filed: the
+`--lc-size-board-stack` retune (**LC-165**), two-line card titles (**LC-166**),
+and the dark-appearance density pass (**LC-167**). LC-74 and LC-75 still name
+those files in their activity entries, which are append-only and describe what was
+true when written; `git log -- docs/cc_ui_diffs.md docs/cd_ui_diffs.md` recovers
+them.

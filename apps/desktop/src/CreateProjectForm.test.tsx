@@ -88,12 +88,18 @@ describe("the create-project form", () => {
     expect(form.key.value).toBe("PROJ");
   });
 
-  it("states the key rule before anything is refused", () => {
+  // D-15: the idle hint ran to two lines at the create form's width, which
+  // reads as a warning about a field nobody has touched. It keeps the half no
+  // refusal will ever explain — that the key locks — and hands the rule itself
+  // to the refusal, which is where it earns the second line.
+  it("states what the key costs before anything is refused, on one line", () => {
     renderForm();
 
-    expect(
-      screen.getByText(/uppercase letters and digits, starting with a letter/i),
-    ).toBeTruthy();
+    const hint = screen.getByText(/locks after the first ticket/i);
+    expect(hint.textContent).toBe(
+      "Uppercase letters and digits, such as LC. Locks after the first ticket.",
+    );
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("explains an invalid key and never opens the folder picker", () => {
@@ -149,6 +155,134 @@ describe("the create-project form", () => {
     const form = renderForm();
 
     expect(form.name.maxLength).toBe(120);
+  });
+});
+
+/**
+ * Step two of first launch (D-13): the same form, with the folder the picker
+ * already answered with shown back. Without it the screen asked for a name and
+ * a key and never said where either would land.
+ */
+describe("the create-project form as first launch's second step", () => {
+  function renderStepTwo(props: Partial<{ onBack: () => void }> = {}) {
+    const onSubmit = vi.fn();
+    render(
+      <CreateProjectForm
+        themes={THEMES}
+        folder="/Users/dev/repo"
+        submitLabel="Create project"
+        onBack={props.onBack ?? vi.fn()}
+        onSubmit={onSubmit}
+      />,
+    );
+    return { onSubmit };
+  }
+
+  it("shows the chosen folder and the one directory creation adds to it", () => {
+    renderStepTwo();
+
+    const row = document.querySelector(".picked-path") as HTMLElement;
+    expect(row.textContent).toBe("/Users/dev/repo/.longclaw");
+    // The suffix is a span of its own so it can be dimmed and can survive a
+    // path too long for the row: the folder is the user's, `/.longclaw` is
+    // LongClaw's, and the row exists to distinguish them.
+    expect(row.querySelector(".suffix")?.textContent).toBe("/.longclaw");
+    expect(row.getAttribute("title")).toBe("/Users/dev/repo/.longclaw");
+  });
+
+  // `screen-specs.md:103`: Name prefilled from the folder name, Key from the
+  // name. The picker has already answered by the time this form exists, so the
+  // folder's own name is the best guess anyone has — and it is what focus lands
+  // in, which is a poor place for an empty box.
+  it("arrives holding the folder's name, and a key derived from it", () => {
+    render(
+      <CreateProjectForm
+        themes={THEMES}
+        folder="/Users/dev/my-app"
+        submitLabel="Create project"
+        onBack={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe(
+      "my-app",
+    );
+    expect(screen.getByLabelText<HTMLInputElement>("Key").value).toBe("MA");
+  });
+
+  it("creates what it arrived holding, if nobody touches it", () => {
+    const onSubmit = vi.fn();
+    render(
+      <CreateProjectForm
+        themes={THEMES}
+        folder="/Users/dev/my-app"
+        submitLabel="Create project"
+        onBack={vi.fn()}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Create project" }));
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      name: "my-app",
+      key: "MA",
+      theme: "indigo",
+    });
+  });
+
+  it("says nothing about a folder when the picker has not run", () => {
+    render(
+      <CreateProjectForm
+        themes={THEMES}
+        submitLabel="Choose folder"
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(document.querySelector(".picked-path")).toBeNull();
+    expect(screen.queryByText("Folder")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
+    // And nothing to prefill from, so it opens on its own placeholder.
+    expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe("");
+  });
+
+  // `keyboard-focus-map.md:160`: the folder picker hands focus to the name
+  // field. Only on this path — the sidebar's quick create opens beside a board
+  // someone is already working in.
+  it("puts the caret where the picker left off", () => {
+    renderStepTwo();
+
+    expect(document.activeElement).toBe(screen.getByLabelText("Name"));
+  });
+
+  it("goes back to the folder question without submitting anything", () => {
+    const onBack = vi.fn();
+    const { onSubmit } = renderStepTwo({ onBack });
+
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+
+    expect(onBack).toHaveBeenCalled();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  // `keyboard-focus-map.md:146-148` ends the form's tab order Create → Back.
+  it("puts the way forward before the way out", () => {
+    renderStepTwo();
+
+    const actions = [
+      ...document.querySelectorAll<HTMLButtonElement>(".form-actions button"),
+    ];
+    expect(actions.map((button) => button.textContent)).toEqual([
+      "Create project",
+      "Back",
+    ]);
+    expect(actions[0].className).toContain("primary");
+    expect(actions[1].className).toContain("ghost");
+    // A `Back` that submits the form it is cancelling is the default a
+    // `<button>` inside a `<form>` has unless it says otherwise.
+    expect(actions[1].getAttribute("type")).toBe("button");
   });
 });
 

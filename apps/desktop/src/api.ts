@@ -31,21 +31,51 @@ export async function chooseAndRegisterProject(): Promise<ProjectReference | nul
   return invoke("register_project", { rootPath: selected });
 }
 
-export async function chooseAndCreateProject(request: {
-  name: string;
-  key: string;
-  theme: string;
-}): Promise<ProjectReference | null> {
-  const selected = await open({
+/**
+ * The native folder picker on its own, answering with a path and creating
+ * nothing.
+ *
+ * First launch asks the folder before it asks anything else
+ * (`screen-specs.md:97-106`, D-11): the create form shows the chosen path back
+ * (D-13), which it cannot do while the picker is the last step rather than the
+ * first. `null` is a cancelled picker — a normal answer, not a failure.
+ */
+export async function chooseProjectFolder(): Promise<string | null> {
+  return open({
     directory: true,
     multiple: false,
     title: "Create a LongClaw project",
   });
+}
 
-  if (!selected) return null;
+/**
+ * Everything a new project needs that the folder does not supply. The same
+ * shape as `ProjectDraft`, and deliberately not that import: this is the IPC
+ * request `create_project` deserializes, and the day the form grows a field the
+ * backend does not take, the two should be allowed to disagree.
+ */
+export type NewProjectRequest = { name: string; key: string; theme: string };
+
+export async function createProjectInFolder(
+  rootPath: string,
+  request: NewProjectRequest,
+): Promise<ProjectReference> {
   return invoke("create_project", {
-    request: { rootPath: selected, ...request },
+    request: { rootPath, ...request },
   });
+}
+
+/**
+ * Form first, folder second — the order the sidebar's quick create still runs
+ * in, because a 240px panel has no room for a second step and the folder it
+ * picks is the last thing it needs.
+ */
+export async function chooseAndCreateProject(
+  request: NewProjectRequest,
+): Promise<ProjectReference | null> {
+  const selected = await chooseProjectFolder();
+  if (!selected) return null;
+  return createProjectInFolder(selected, request);
 }
 
 export async function chooseAndRelocateProject(

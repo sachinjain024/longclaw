@@ -21,6 +21,11 @@
  * shape, and reaches across languages for its second half: a `resize: none` in
  * the stylesheet is only safe while the component still auto-grows the field,
  * so it reads `TicketPanel.tsx` for the other end of the pair.
+ * `state-panel-guard.mjs` (LC-91) and `trust-line-guard.mjs` (LC-82) are the
+ * same shape again, and share a subject: a rule that is correct read alone and
+ * wrong read against its neighbours — a container coming back around a state
+ * panel, a descendant selector out-specifying the one class that decides a
+ * font. Neither is visible to the vitest suite, which loads no stylesheet.
  *
  * `src/tokens/` is the one place a literal is allowed anywhere: it is where the
  * scale is declared.
@@ -78,6 +83,22 @@ export function cssRules(css) {
   return [...withoutComments.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(
     ([, selector, body]) => [selector.trim().replace(/\s+/g, " "), body],
   );
+}
+
+/**
+ * Every declaration one selector makes, across all the rules that set it,
+ * joined into one body a pattern can be run over.
+ *
+ * Exact-match on the selector, not substring: `.no-matches` must not collect
+ * what `.no-matches strong` declares, and `.trust-line` must not collect what
+ * `.welcome-panel .trust-line` does — the second of each pair is a different
+ * subject, and in `trust-line-guard.mjs` it is the *defect* being looked for.
+ */
+export function declarationsOf(rules, selector) {
+  return rules
+    .filter(([at]) => at.split(",").some((one) => one.trim() === selector))
+    .map(([, body]) => body)
+    .join(";");
 }
 
 /** `{ path, text, lines }` for one file, read once. */
