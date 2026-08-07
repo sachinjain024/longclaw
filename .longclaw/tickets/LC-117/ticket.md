@@ -5,12 +5,12 @@ key: LC-117
 title: "Full create — description placeholder: \"What should happen? Agents read this before they start.\" — No placeholder"
 status: todo
 priority: p2
-rank: a1
+rank: a0
 labels:
   - frontend
   - prototype-diff
 created_at: 2026-08-05T15:16:01.373Z
-updated_at: 2026-08-07T09:55:51.690Z
+updated_at: 2026-08-07T10:51:00.991Z
 ---
 
 **Prototype.** Description placeholder: "What should happen? Agents read this before they start."
@@ -100,6 +100,21 @@ changes:
   - field: rank
     from: Zz
     to: a1
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_25b7fa9d
+kind: update
+occurred_at: 2026-08-07T10:51:00.991Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: rank
+    from: a1
+    to: a0
 -->
 ### You updated this ticket
 <!-- /longclaw:event -->

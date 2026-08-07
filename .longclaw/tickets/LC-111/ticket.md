@@ -3,14 +3,14 @@ format: longclaw.ticket/v1
 id: 080bba9f-81d4-438c-a08c-1d5af56c9799
 key: LC-111
 title: Description editor — six text glyphs (B, I, backtick, bullet, square, arrow) where the design has 24×24 icons
-status: in_progress
+status: todo
 priority: p2
-rank: a2
+rank: ZzV
 labels:
   - frontend
   - prototype-diff
 created_at: 2026-08-05T15:16:01.280Z
-updated_at: 2026-08-07T09:56:49.610Z
+updated_at: 2026-08-07T10:51:33.488Z
 ---
 
 **Prototype.** Six 24×24 **icon** buttons
@@ -142,6 +142,24 @@ changes:
   - field: status
     from: todo
     to: in_progress
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_85ab66c3
+kind: update
+occurred_at: 2026-08-07T10:51:33.488Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_progress
+    to: todo
+  - field: rank
+    from: a2
+    to: ZzV
 -->
 ### You updated this ticket
 <!-- /longclaw:event -->

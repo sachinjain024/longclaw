@@ -139,3 +139,17 @@ actor:
 
 The list moves tickets too, on the same terms. `screen-specs.md` § Issue list had withheld the affordance deliberately — *a dense 36px row is not one* — so the same gesture did nothing on one of the two projections of the same store (ADR 0006). What a drop writes now lives in `ticketMove.ts` and both surfaces ask it, so they cannot drift apart on what dropping somewhere means; `listGeometry.dropAt` is the list's half of the pointer arithmetic. Two things the list needed that the board did not: every status renders for as long as a drag lasts, because a status with no group on screen cannot be dropped into and dragging a group's last row away would otherwise remove it as a target for good; and a drop on a pinned sticky header means the top of that header's group rather than whichever row had scrolled beneath it. The archived group neither takes a drop nor gives one — archiving is a date and not a status (ADR 0004) — and that rule sits in `ticketMove.movable` so it holds for any surface that ever draws an archive. `keyboard-focus-map.md` and ADR 0003 record the reversal.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_7d1f8e3e
+kind: comment
+occurred_at: 2026-08-07T11:01:14.581Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+The board half is confirmed working in the app. The list half is not, and is now LC-174 — with a WebKit probe (`perf/drag-probe.mjs`) that shows the list accepting the drop in the engine, so the difference is something only the running app has.
+<!-- /longclaw:event -->
