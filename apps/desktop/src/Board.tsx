@@ -64,7 +64,7 @@
  */
 
 import { memo, useCallback, useMemo, useRef, useState } from "react";
-import type { DragEvent, KeyboardEvent, RefObject } from "react";
+import type { DragEvent, KeyboardEvent } from "react";
 import { presentCard } from "./boardCard";
 import {
   CARD_GAP,
@@ -74,6 +74,7 @@ import {
   windowFor,
 } from "./boardGeometry";
 import { classes } from "./classes";
+import { towardsEdge, useEdgeDrift } from "./edgeDrift";
 import { acknowledgement, isFresh } from "./freshness";
 import type { ExternalMark, ExternalMarks } from "./freshness";
 import {
@@ -85,12 +86,7 @@ import {
 import { GuideCard } from "./GuideCard";
 import { singleKeyShortcutAllowed } from "./keyContext";
 import { LabelChip } from "./LabelChip";
-import {
-  comparatorFor,
-  rankForDrop,
-  rankForInsert,
-  type OrderingMode,
-} from "./ordering";
+import { comparatorFor, type OrderingMode } from "./ordering";
 import { PriorityGlyph } from "./PriorityGlyph";
 import { PulseDot } from "./PulseDot";
 import { itemFor, moveFor, useRovingFocus } from "./rovingFocus";
@@ -101,6 +97,7 @@ import {
   TicketMetaMenu,
   type MetaMenuTarget,
 } from "./TicketMetaMenu";
+import { moveForDrop, takesDrop, type TicketMove } from "./ticketMove";
 import type {
   IndexedTicket,
   Label,
@@ -113,69 +110,10 @@ import { useViewportHeight } from "./viewportHeight";
 /** Cards rendered beyond each edge of the viewport, so a scroll shows no gap. */
 const OVERSCAN = 4;
 
-/**
- * How close to an edge a drag has to hang before the scroller under it moves,
- * and how far it travels each frame. A drop position off screen has to be
- * reachable — down a column that is taller than the window, and across a board
- * that is wider than it.
- */
-const AUTO_SCROLL_EDGE = 44;
-const AUTO_SCROLL_STEP = 14;
-
-/** -1 near the low edge of a box, 1 near the high one, 0 anywhere between. */
-function towardsEdge(position: number, low: number, high: number): number {
-  if (position > high - AUTO_SCROLL_EDGE) return 1;
-  if (position < low + AUTO_SCROLL_EDGE) return -1;
-  return 0;
-}
-
-/**
- * Scrolls a container for as long as a drag hangs near its edge, one animation
- * frame at a time. Both scrollers on the board need it and neither can reach a
- * position off screen without it: the columns down, the grid across.
- *
- * Stepping once when the drift starts rather than waiting for the first frame
- * is also what makes the edge feel like it responded.
- */
-function useEdgeDrift(
-  target: RefObject<HTMLDivElement | null>,
-  axis: "scrollTop" | "scrollLeft",
-  onScrolled?: (position: number) => void,
-): (next: number) => void {
-  const drift = useRef(0);
-  const frame = useRef(0);
-
-  function step() {
-    frame.current = 0;
-    const element = target.current;
-    if (!element || drift.current === 0) return;
-    element[axis] += drift.current * AUTO_SCROLL_STEP;
-    onScrolled?.(element[axis]);
-    frame.current = requestAnimationFrame(step);
-  }
-
-  return function driftBy(next: number) {
-    drift.current = next;
-    if (next === 0 || frame.current !== 0) return;
-    step();
-  };
-}
-
 /** How far one key press travels. Steps, not positions. */
 interface Move {
   columns: number;
   cards: number;
-}
-
-/**
- * What letting go of a card asks for: the column it landed in when that is not
- * the one it came from, the place it took in that column when the board is in
- * Manual, or both. Never neither — a drop that would write nothing is refused
- * before it is raised.
- */
-export interface BoardMove {
-  status?: TicketStatus;
-  rank?: string;
 }
 
 /**
@@ -273,10 +211,11 @@ export function Board(props: {
   /** Raised by the `S` menu, on the same terms. */
   onChangeStatus: (ticket: IndexedTicket, next: TicketStatus) => void;
   /**
-   * Raised by a drop: a column, a place in one, or both. The rank is allocated
-   * here — LongClaw owns rank allocation in v0 — and the write is App's.
+   * Raised by a drop: a column, a place in one, or both (`ticketMove.ts`). The
+   * rank is allocated here — LongClaw owns rank allocation in v0 — and the
+   * write is App's.
    */
-  onMoveCard: (ticket: IndexedTicket, move: BoardMove) => void;
+  onMoveCard: (ticket: IndexedTicket, move: TicketMove) => void;
   /**
    * Raised by a column's `+`, with that column's status
    * (`keyboard-focus-map.md:44`). The board opens no surface of its own; App
@@ -343,19 +282,9 @@ export function Board(props: {
   /** Whether a place inside a column is a thing this board can write (ADR 0003). */
   const placesByHand = props.ordering === "manual";
 
-  /**
-   * Whether letting go over this column would write anything.
-   *
-   * Every column a status names takes a card from another one: that drop is a
-   * status change. A card's own column takes it back only in Manual, where a
-   * place in the column is a thing to write; in Priority there is nothing a
-   * drop there could mean. The synthetic unreadable column names no status, so
-   * nothing lands in it — there would be no field to write.
-   */
+  /** Whether letting go over this column would write anything. */
   function accepts(columnIndex: number): boolean {
-    if (dragSeat === undefined) return false;
-    if (columns[columnIndex].status === undefined) return false;
-    return dragSeat.group !== columnIndex || placesByHand;
+    return takesDrop(columns, dragSeat, columnIndex, props.ordering);
   }
 
   /**
@@ -385,25 +314,16 @@ export function Board(props: {
   }
 
   function onDrop(columnIndex: number, gap: number) {
-    const column = columns[columnIndex];
     const moving = dragSeat === undefined ? undefined : ticketAt(dragSeat);
-    const from = dragSeat?.group;
+    const move = moveForDrop(
+      columns,
+      dragSeat,
+      columnIndex,
+      gap,
+      props.ordering,
+    );
     onDragCard(undefined);
-    if (!moving || moving.state !== "indexed" || !accepts(columnIndex)) return;
-
-    if (from === columnIndex) {
-      // Back in its own column: a place in it, and only in Manual (ADR 0003).
-      const rank = rankForDrop(column.tickets, moving.key, gap);
-      if (rank !== undefined) props.onMoveCard(moving, { rank });
-      return;
-    }
-
-    props.onMoveCard(moving, {
-      status: column.status,
-      // Priority allocates no rank, here as anywhere: the order inside the new
-      // column is not something the human chose by dropping into it (ADR 0003).
-      ...(placesByHand ? { rank: rankForInsert(column.tickets, gap) } : {}),
-    });
+    if (moving?.state === "indexed" && move) props.onMoveCard(moving, move);
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {

@@ -181,6 +181,20 @@ movement. No custom-color affordance exists anywhere.
   Hover `wash`; focus = inset human border + ring; selected = human wash +
   2px left accent bar. Degraded rows: warn triangle, mono filename, "View
   raw file".
+- **Dragging (LC-60, reversing "no drag affordance"):** a row dragged into
+  another group takes that group's status, and in Manual takes a place in
+  it too — the same move the board makes for the same gesture, decided in
+  one place (`ticketMove.ts`) so the two surfaces cannot disagree about
+  what a drop means. The group under the pointer wears an accent border
+  and wash; in Manual a 2px accent line rides the boundary the row would
+  land on. Dragging *within* a group is reordering and stays Manual-only.
+  The affordance is the grab cursor and nothing else: this list originally
+  had no drag because a 36px row has no room for a handle, and it still
+  does not have one. The **Archived** group takes no drop and none of its
+  rows can be dragged — archiving is a date, not a status (ADR 0004), and
+  a row moved out of it would land somewhere the board still would not
+  show. The **Unreadable** group takes none either: it names no status.
+  Hanging the drag at the top or bottom edge scrolls the list.
 - **Archived group (ADR 0004):** below the last status group, a
   toggleable header — folder glyph, "Archived", mono count, show/hide —
   collapsed by default. Expanded rows render at 80% opacity, use the

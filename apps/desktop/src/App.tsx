@@ -27,7 +27,7 @@ import {
   updateProjectName,
   updateProjectTheme,
 } from "./api";
-import { Board, type BoardMove } from "./Board";
+import { Board } from "./Board";
 import { classes } from "./classes";
 import { CommandPalette } from "./CommandPalette";
 import { RemoveProjectConfirm } from "./ConfirmDialog";
@@ -52,6 +52,7 @@ import { OwlMark } from "./OwlMark";
 import { ProjectSettings } from "./ProjectSettings";
 import { QuickCreate } from "./QuickCreate";
 import type { FocusRequest } from "./rovingFocus";
+import type { TicketMove } from "./ticketMove";
 import { useLongClawStore } from "./state";
 import { ThemeDot } from "./ThemeSwatch";
 import { TicketPanel } from "./TicketPanel";
@@ -1120,7 +1121,7 @@ export function App() {
    * else in the app ever sends that, because leaving Manual mode is a view
    * preference and must not rewrite a file.
    */
-  function moveCard(ticket: IndexedTicket, move: BoardMove) {
+  function moveCard(ticket: IndexedTicket, move: TicketMove) {
     const projectId = activeProjectId;
     if (!projectId) return;
     // `TicketDocument::apply` refuses an edit that changes nothing, so a half
@@ -1559,6 +1560,9 @@ export function App() {
                     onSelect={openTicket}
                     onChangePriority={changePriority}
                     onChangeStatus={changeStatus}
+                    // The same move the board raises, because the same gesture
+                    // means the same thing on both projections (`ticketMove.ts`).
+                    onMoveCard={moveCard}
                     onCreateFirst={guide}
                   />
                 )}

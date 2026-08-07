@@ -13,10 +13,11 @@ import {
   screen,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Board, type BoardMove } from "./Board";
+import { Board } from "./Board";
 import type * as BoardCard from "./boardCard";
 import { ASSUMED_VIEWPORT, CARD_STRIDE } from "./boardGeometry";
 import type { OrderingMode } from "./ordering";
+import type { TicketMove } from "./ticketMove";
 import { FRESH_WINDOW_MS } from "./freshness";
 import type { ExternalMark, ExternalMarks } from "./freshness";
 import type {
@@ -98,7 +99,7 @@ function board(props?: {
   ordering?: OrderingMode;
   onChangePriority?: (ticket: IndexedTicket, next: TicketPriority) => void;
   onChangeStatus?: (ticket: IndexedTicket, next: TicketStatus) => void;
-  onMoveCard?: (ticket: IndexedTicket, move: BoardMove) => void;
+  onMoveCard?: (ticket: IndexedTicket, move: TicketMove) => void;
   onCreateInStatus?: (status: TicketStatus) => void;
   onCreateFirst?: () => void;
 }) {

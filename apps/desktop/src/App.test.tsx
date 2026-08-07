@@ -3086,6 +3086,38 @@ describe("board ordering and manual reordering (V0-09)", () => {
       );
       expect(columnHolding("LC-2")).toContain("Todo");
     });
+
+    it("writes the same move when the drag happened on the list", async () => {
+      // The two surfaces are one write path, and the list had no drag at all
+      // until LC-60. Dropped into another group, it says exactly what the
+      // board says for the same gesture.
+      vi.mocked(api.editTicket).mockResolvedValue(
+        written("LC-2", { status: "done" }),
+      );
+      await openBoard([row("LC-1"), row("LC-2", { status: "done" })]);
+      fireEvent.click(screen.getByRole("button", { name: "List" }));
+
+      const scroller = document.querySelector<HTMLElement>(".issue-list")!;
+      scroller.getBoundingClientRect = () => ({ top: 0 }) as DOMRect;
+      fireEvent.dragStart(
+        document.querySelector<HTMLElement>('[data-ticket-key="LC-1"]')!,
+      );
+      for (const type of ["dragOver", "drop"] as const) {
+        const event = createEvent[type](scroller);
+        // Past Todo's header and its one row, into the Done group below it.
+        Object.defineProperty(event, "clientY", { value: 120 });
+        fireEvent(scroller, event);
+      }
+
+      await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(1));
+      expect(api.editTicket).toHaveBeenCalledWith({
+        projectId: project.id,
+        ticketKey: "LC-1",
+        expectedHash: "hash-LC-1",
+        edit: { status: "done" },
+      });
+      await screen.findByText("LC-1 → Done");
+    });
   });
 });
 

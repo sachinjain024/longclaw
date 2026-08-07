@@ -1597,6 +1597,41 @@ button:disabled {
   background: var(--lc-surface);
 }
 
+/* The group a row would arrive in, which is a status change and not a reorder
+   (LC-60) — the board's column says the same thing the same way. Only a row
+   from another group lights a group up: back in its own, the drop line already
+   says where it would go. The border colour changes rather than the border, so
+   the card does not grow by a pixel and move every row inside it. */
+.list-group.drop-target .list-group-body {
+  border-color: var(--lc-accent-human);
+  background: var(--lc-accent-human-wash);
+}
+
+/* A row that can be picked up says so with the cursor: at 36px there is no
+   room for a handle, which is what `screen-specs.md` § Issue list observed
+   when it gave the list no drag affordance at all. */
+.list-row.draggable {
+  cursor: grab;
+}
+
+.list-row.dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+
+/* Where letting go would put the row. The rows sit flush against each other,
+   so this rides the boundary between two of them rather than sitting in a gap
+   the way the board's does. */
+.list-drop-line {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 2px;
+  border-radius: var(--lc-radius-full);
+  margin-top: -1px;
+  background: var(--lc-accent-human);
+}
+
 .list-row {
   position: absolute;
   right: 0;
