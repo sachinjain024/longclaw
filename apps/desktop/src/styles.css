@@ -34,7 +34,10 @@ button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
-[role="button"]:focus-visible {
+[role="button"]:focus-visible,
+/* A scroll container the keyboard can reach is a stop like any other, and the
+   raw file view's block is the one of those the app has (`RawFileView.tsx`). */
+[tabindex="0"]:focus-visible {
   outline: var(--lc-border-focus) solid var(--lc-accent-human-ring);
   outline-offset: 2px;
 }
@@ -2488,8 +2491,12 @@ button:disabled {
   width: min(680px, 92vw);
   max-height: min(72vh, 640px);
   min-height: 0;
+  /* The prototype's raw view is a plain modal (`prototype.css:733` is a width
+     and nothing else) — the danger is in the banner and the warn glyph, where
+     `screen-specs.md:292` puts it. The 3px danger edge this carried was the
+     panel-embedded version's, and a red frame around the whole surface said it
+     a third time. */
   border: var(--lc-border-hairline) solid var(--lc-line);
-  border-left: 3px solid var(--lc-danger);
   border-radius: var(--lc-radius-modal);
   background: var(--lc-surface);
   box-shadow: var(--lc-shadow-modal);
@@ -2560,14 +2567,6 @@ button:disabled {
   background: var(--lc-wash);
   font: var(--lc-type-code-weight) var(--lc-type-code-size) /
     var(--lc-type-code-leading) var(--lc-type-code-font);
-}
-
-/* A tab stop, because it is the block the page keys scroll
-   (`keyboard-focus-map.md:141-142`), so it wears a ring like every other one —
-   the reset above names controls, and this is a `pre`. */
-.raw-file:focus-visible {
-  outline: var(--lc-border-focus) solid var(--lc-accent-human-ring);
-  outline-offset: 2px;
 }
 
 /* One row per line, so the gutter and the text cannot drift apart when a long

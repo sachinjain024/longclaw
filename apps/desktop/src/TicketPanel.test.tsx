@@ -1748,6 +1748,49 @@ describe("the raw file view (LC-135 → LC-138)", () => {
       );
     });
 
+    it("skips the retry button while a retry is out rather than dropping focus", async () => {
+      let settle: (detail: TicketDetail) => void = () => {};
+      readTicketMock
+        .mockResolvedValueOnce(broken())
+        .mockReturnValueOnce(
+          new Promise<TicketDetail>((resolve) => {
+            settle = resolve;
+          }),
+        );
+      render(surface());
+      await shown();
+
+      fireEvent.click(screen.getByRole("button", { name: "Retry parse" }));
+      // The read has not come back, so `Retry parse` is disabled — and focusing
+      // a disabled button is a no-op that would leave focus on `<body>`, behind
+      // the scrim, which is the one thing the trap exists to prevent.
+      const dialog = screen.getByRole("dialog");
+      fireEvent.keyDown(dialog, { key: "Tab" });
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Close raw file" }),
+      );
+
+      settle(broken());
+      await screen.findByText("LC-1 still does not parse");
+    });
+
+    it("hands focus to the panel when the file parses under it", async () => {
+      readTicketMock
+        .mockResolvedValueOnce(broken())
+        .mockResolvedValueOnce(detail());
+      render(surface());
+      await shown();
+
+      fireEvent.click(screen.getByRole("button", { name: "Retry parse" }));
+      await ready();
+
+      // The modal is gone and so is the button focus was on. Focus follows the
+      // layer rather than falling to the floor (`keyboard-focus-map.md:16-18`).
+      expect(document.activeElement).toBe(
+        screen.getByLabelText("Ticket LC-1"),
+      );
+    });
+
     it("opens with Close focused when there is no retry to offer", async () => {
       readTicketMock.mockResolvedValue(degradedDetail({ readOnly: true }));
       render(panel());

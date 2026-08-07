@@ -16,8 +16,9 @@
  * the app's behaviour rather than its paint order, requires each to take a
  * layer, and checks the relations between them:
  *
- *   - the panel over the list's sticky group headers — LC-96 itself, and the
- *     raw-file view rides on it (LC-134's layering half);
+ *   - the panel over the list's sticky group headers — LC-96 itself. The
+ *     raw-file view rode on the panel until LC-134 made it the modal the spec
+ *     draws, so it is the scrim's relation that covers it now;
  *   - the modal scrim over the panel, because source order used to settle that
  *     and stopped the moment the panel took a layer of its own;
  *   - the menu popover over the scrim, because quick create carries the status,

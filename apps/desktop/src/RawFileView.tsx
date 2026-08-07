@@ -123,11 +123,12 @@ export function RawFileView(props: {
    * file, which offers no retry — a modal that opened with focus still on the
    * card behind it would be a layer the keyboard is not in.
    *
-   * Once, deliberately. A retry that fails re-renders this same view, and
-   * stealing focus back each time would fight a human who had tabbed on to
-   * `Open in editor` — which, on a file that will not parse, is the other half
-   * of the answer. It is not a mount effect because the file may not have
-   * arrived yet: the run that matters is the first one with a button to focus.
+   * Once, deliberately. A retry that fails re-renders this same view with a
+   * fresh `detail`, and stealing focus back each time would fight a human who
+   * had tabbed on to `Open in editor` — which, on a file that will not parse,
+   * is the other half of the answer. It is not a mount effect because the file
+   * may not have arrived yet: the run that matters is the first one with a
+   * button to focus.
    */
   const focused = useRef(false);
   useEffect(() => {
@@ -136,20 +137,56 @@ export function RawFileView(props: {
     if (!first) return;
     focused.current = true;
     first.focus();
-  });
+  }, [detail]);
+
+  /**
+   * Everything `Tab` can land on inside the dialog, in document order.
+   *
+   * One attribute selector rather than the list the settings dialog and the
+   * palette use, for two reasons. Every control in this repo declares its own
+   * `tabIndex` — `scripts/tab-order-guard.mjs` fails the build otherwise — so
+   * one selector reaches all of them. And a selector *list* is grouped per
+   * selector by jsdom rather than returned in document order, which would put
+   * the file block after the footer's buttons in the test and before them in
+   * WebKit: a Tab order that differs between the thing asserting it and the
+   * thing shipping it.
+   *
+   * `disabled` is dropped for the same reason the others drop it: `Retry parse`
+   * is disabled while a retry is out, and focusing it there is a no-op that
+   * leaves focus on `<body>` behind the scrim — the one thing a trap exists to
+   * prevent.
+   */
+  function tabStops() {
+    return Array.from(
+      dialog.current?.querySelectorAll<HTMLElement>(
+        "[tabindex]:not([tabindex='-1'])",
+      ) ?? [],
+    ).filter((stop) => !stop.hasAttribute("disabled"));
+  }
 
   /**
    * Rule 5 of the focus map: a modal holds focus until it is dismissed. Without
    * it, `Tab` off the last button walks into the board behind the scrim — which
    * is the surface this file's ticket is not on.
+   *
+   * The page keys are the other half of the same line
+   * (`keyboard-focus-map.md:141-142`): the view "scrolls with the page keys",
+   * and the block that scrolls is the file rather than whatever the focused
+   * button sits in — so the keys are handed to it wherever focus is, which is
+   * on `Retry parse` when the view opens.
    */
-  function holdFocus(event: React.KeyboardEvent) {
+  function onKeyDown(event: React.KeyboardEvent) {
+    if (event.key === "PageDown" || event.key === "PageUp") {
+      const file = dialog.current?.querySelector(".raw-file");
+      if (!file) return;
+      event.preventDefault();
+      file.scrollBy({
+        top: (event.key === "PageDown" ? 1 : -1) * file.clientHeight,
+      });
+      return;
+    }
     if (event.key !== "Tab") return;
-    const stops = Array.from(
-      dialog.current?.querySelectorAll<HTMLElement>(
-        "button, pre[tabindex='0']",
-      ) ?? [],
-    );
+    const stops = tabStops();
     if (stops.length === 0) return;
     event.preventDefault();
     const here = stops.indexOf(document.activeElement as HTMLElement);
@@ -174,7 +211,7 @@ export function RawFileView(props: {
         role="dialog"
         aria-modal="true"
         aria-label={`Raw file ${fullPath}`}
-        onKeyDown={holdFocus}
+        onKeyDown={onKeyDown}
       >
         <div className="raw-file-head">
           <h3 className="raw-file-path">

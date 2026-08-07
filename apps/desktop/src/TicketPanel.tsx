@@ -756,7 +756,29 @@ export function TicketPanel(props: TicketPanelProps) {
    * drawn is the read's answer, in both directions — a row the index still calls
    * readable whose file has since broken lands here too.
    */
-  if (!unavailable && !ticket && (detail || props.degraded)) {
+  // A boolean rather than the detail it is derived from, so the effect below
+  // runs on the transition and not on every re-read of the same broken file.
+  const showingRawFile = Boolean(
+    !unavailable && !ticket && (detail || props.degraded),
+  );
+
+  /**
+   * Where focus goes when the file parses under the modal — a retry that
+   * worked, or the watcher arriving with a fixed file.
+   *
+   * The modal is replaced by the panel, so the control focus was on is gone
+   * from the document, and focus with nowhere to go lands on `<body>`: the
+   * layer changed under a human who is now standing outside both
+   * (`keyboard-focus-map.md:16-18`). The panel takes it, which is where the
+   * panel's own open puts it.
+   */
+  const wasShowingRawFile = useRef(false);
+  useEffect(() => {
+    if (wasShowingRawFile.current && !showingRawFile) panelRef.current?.focus();
+    wasShowingRawFile.current = showingRawFile;
+  }, [showingRawFile]);
+
+  if (showingRawFile) {
     return (
       <RawFileView
         detail={detail}
