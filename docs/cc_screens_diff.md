@@ -225,7 +225,8 @@ folder glyph · `archived` chip when archived · spacer · Archive/Unarchive gho
 close. Meta grid: 84px label column, rows Status / Priority / Labels, each a 26px
 menu trigger. **No other meta rows.**
 
-**App:** `src/TicketPanel.tsx:565-600` (header), `:767-768` (`Updated`).
+**App:** `src/TicketPanel.tsx:565-600` (header). The `Updated` row that stood at
+`:767-768` is gone (D-3A).
 
 | ID | Sev | Prototype | App | Plan |
 |---|---|---|---|---|
@@ -235,15 +236,15 @@ menu trigger. **No other meta rows.**
 | **D-04** | **P1** | Description hover reveals a pencil + `Edit` at the right of the section header | The `Edit description` affordance is absolutely positioned **over the body text** and overlaps it (`…pairs that the` collides with `Edit description`) | Move the affordance into the `Description` section header row (it has room), or give it an opaque background and reserve the gutter. |
 | D-38 | P2 | ID is a chip (`accent-human-soft`) and **click copies** | Plain `<span className="ticket-key">` (`TicketPanel.tsx:573`), no copy | Make it a chip button with copy + toast, matching the header path chip (D-06). |
 | D-39 | P2 | Path shows as `tickets/LC-128/ticket.md` with a folder glyph, **beside** a separate disk-state line | Path is rendered *by* `WriteIndicator`, so it is the disk-state line, and it shows the full `.longclaw/tickets/…` prefix with no glyph | Split the two: a static path chip plus the transient disk-state. Merging them means the path flickers on every write. |
-| D-3A | P1 | Meta grid rows: **Status, Priority, Labels. Nothing else.** | A fourth row, **`Updated  2026-08-05T17:20:00Z`** — a raw ISO timestamp (`TicketPanel.tsx:767-768`) | Remove it, or render it as the relative time the rest of the app uses. A raw UTC string in the product's most-read surface reads as debug output. |
+| ~~D-3A~~ | P1 | Meta grid rows: **Status, Priority, Labels. Nothing else.** | A fourth row, **`Updated  2026-08-05T17:20:00Z`** — a raw ISO timestamp (`TicketPanel.tsx:767-768`) | **Fixed 2026-08-07 (LC-102).** The row is removed, which is the option this table's own ranked list named. The age it stood in for is already on screen in the app's relative form — the list row's right-aligned `2h` and every entry in the panel's timeline — so nothing had to be reformatted to keep it. `.meta-grid code` went with it; the row was its only caller. |
 | D-3B | P2 | Each value carries a `>` chevron marking it as a menu trigger | No chevron; Status/Priority read as static chips until hovered | Add the chevron per `screen-specs.md:172-176`. |
 | D-3C | P2 | Labels row carries a dashed `+ add` affordance | Shows only existing chips; `None` (a bare button) when empty | Add the `+ add` affordance in both states. |
 | D-3D | P2 | Checklist header: `Checklist` · mono fraction · **56px progress bar** (fill `accent-agent` while fresh) | `Checklist` at the left and `3/7` flush right; no progress bar in the panel (the *cards* have one) | Add the bar per `screen-specs.md:188-190`. |
-| D-3E | P2 | Add-row: ghost checkbox + borderless input, Enter appends and keeps focus | A full-width **bordered** input, `Add a checklist item` | Restyle to the ghost-checkbox + borderless pattern so it reads as the next row rather than a form field. |
-| D-3F | P2 | Composer: avatar + auto-growing borderless field, `⌘↵` posts | Avatar + a bordered textarea with a visible native resize grabber + a separate `Comment` button | Remove the resize handle (`resize: none` + auto-grow), keep `⌘↵`, and demote the button to a quiet primary that appears once there is text. |
-| D-3G | P2 | Title is a borderless textarea; hover `wash`, focus field treatment | Borderless ✓, but the native **resize grabber is visible** at the title's bottom-right corner | `resize: none` on the title textarea. |
-| D-3H | P3 | `Activity` heading carries the entry count | No count | Add it. |
-| D-3I | P3 | Checked checklist items are struck through | Not struck through | Confirm against `components.md` § Checklist and align. |
+| ~~D-3E~~ | P2 | Add-row: ghost checkbox + borderless input, Enter appends and keeps focus | A full-width **bordered** input, `Add a checklist item` | **Fixed 2026-08-07 (LC-106).** Ghost box + borderless field, on the rows' own gap and padding so the two boxes share a column. The box is a real disabled checkbox at half opacity — same shape as the rows above, no Tab stop, `aria-hidden` because the field is already named. Enter already appended without blurring; that is now held by a test. The create surface's add-row took the same box (`prototype.js:895-897`), which is where the shared `.checklist-add` rule left it. |
+| ~~D-3F~~ | P2 | Composer: avatar + auto-growing borderless field, `⌘↵` posts | Avatar + a bordered textarea with a visible native resize grabber + a separate `Comment` button | **Fixed 2026-08-07 (LC-107).** `resize: none` with a real auto-grow (`useAutoGrow`, the prototype's own `scrollHeight` measurement) and a 220px cap, so a long comment scrolls itself instead of pushing the timeline off screen. The button is `secondary small` — the variant the prototype gives it — and renders only once there is text: disabled, it was a control that could never be pressed and a Tab stop that led nowhere. `⌘↵` is unchanged and is the only way in until the button arrives. The field stays bordered; that half of the row is not a diff (`screen-specs.md:193` gives the composer standard input foundations). |
+| ~~D-3G~~ | P2 | Title is a borderless textarea; hover `wash`, focus field treatment | Borderless ✓, but the native **resize grabber is visible** at the title's bottom-right corner | **Fixed 2026-08-07 (LC-108).** `resize: none`, and `useAutoGrow` with `rows={1}` so `rows` is a floor rather than the size — taking the handle away from a fixed two-row box would have traded a grabber for a clipped title. |
+| ~~D-3H~~ | P3 | `Activity` heading carries the entry count | No count | **Fixed 2026-08-07 (LC-109).** It counts what is on screen, so an optimistic comment is in it: posting renders the entry before the file has it, and a heading one short of what the reader can see would be the one place the panel argued with itself. `.checklist-fraction` became `.section-count` on the way — the fraction and the count are one object in the prototype (`prototype.js:729`, `:746`). |
+| ~~D-3I~~ | P3 | Checked checklist items are struck through | Not struck through | **Answered and fixed 2026-08-07 (LC-110): keep.** `components.md:192` specifies `ink-3` + line-through for the settled checked row, and `:193` has the agent-fresh row keep full `ink` and no strike until the ticket settles — so the strike is not a stylistic flourish to drop, it is what makes *fresh* legible as a distinct state. Both are implemented as `.checked` and `.fresh.checked`. |
 
 **Not a diff:** panel width (560px, `styles.css:1260`), slide-in, the Archive /
 Unarchive ghost button, the `archived` chip, Esc-closes, the agent timeline entry
@@ -518,9 +519,11 @@ single stack.
 
 **Component detail**
 
-11. **D-3A** (drop the raw `Updated` ISO row), **D-04** (Edit affordance
-    overlap), **D-3D**, **D-3E**, **D-3F**, **D-38**, **D-3B**, **D-3C**,
-    **D-3G** — ticket panel.
+11. ~~**D-3A**~~ (drop the raw `Updated` ISO row — done, LC-102), **D-04** (Edit
+    affordance overlap), **D-3D**, ~~**D-3E**~~, ~~**D-3F**~~, **D-38**,
+    **D-3B**, **D-3C**, ~~**D-3G**~~ (the panel's own fields — done 2026-08-07,
+    LC-106 / LC-107 / LC-108, with ~~**D-3H**~~ and ~~**D-3I**~~) — ticket
+    panel.
 12. **D-4E / D-4F** — palette glyphs (data change; the slot already exists).
 13. **D-45** — real toolbar icons.
 14. **D-21** — column-header `+`.
@@ -536,7 +539,10 @@ single stack.
   next comparison should look before filing either again.
 - **D-4J** — label management shipped without a design. It needs one.
 - **D-14** — welcome subtitle: mechanism or value?
-- **D-3I** — struck-through checked items: keep or drop?
+- ~~**D-3I**~~ — **answered 2026-08-07: keep** (LC-110). It was never only a
+  flourish: `components.md:192-193` gives the settled row the strike and takes
+  it back off the agent-fresh one, so dropping it would have cost the panel the
+  channel that separates *done* from *just done by somebody else*.
 
 **Follow-up needed**
 

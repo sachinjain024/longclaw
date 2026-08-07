@@ -24,6 +24,7 @@
 import { useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { DescriptionEditor } from "./DescriptionEditor";
+import { GhostBox } from "./GhostBox";
 import { LabelMenuButton } from "./LabelMenu";
 import { MenuButton } from "./Menu";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "./metaOptions";
@@ -155,7 +156,7 @@ export function CreatePanel(props: CreatePanelProps) {
       <section className="panel-section">
         <h3>
           Checklist
-          <span className="checklist-fraction">0/{checklist.length}</span>
+          <span className="section-count">0/{checklist.length}</span>
         </h3>
         <ul className="checklist">
           {checklist.map((text, index) => (
@@ -203,7 +204,12 @@ export function CreatePanel(props: CreatePanelProps) {
             setNewItem("");
           }}
         >
+          {/* The create surface's add-row is the list's next row here too
+              (`prototype.js:895-897`); without the box its borderless field
+              would sit a checkbox's width out of line with the rows above. */}
+          <GhostBox />
           <input
+            className="checklist-add-field"
             ref={addItem}
             value={newItem}
             placeholder="Add a checklist item"

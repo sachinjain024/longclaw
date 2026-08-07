@@ -1650,7 +1650,14 @@ button:disabled {
   background: transparent;
   font: var(--lc-type-title-weight) var(--lc-type-title-size) /
     var(--lc-type-title-leading) var(--lc-type-title-font);
-  resize: vertical;
+  /* No grabber (LC-108). The prototype's title is a borderless textarea with
+     nothing to drag, and the handle it was drawing here was the one piece of
+     native chrome on the panel's largest piece of text. `useAutoGrow` sizes it
+     to its content instead, so nothing is trapped by taking the handle away. */
+  resize: none;
+  /* The height is set from `scrollHeight`, which cannot settle while the box
+     is its own scroller: a rounding of one pixel would grow it every render. */
+  overflow: hidden;
 }
 
 .panel-title:hover {
@@ -1679,12 +1686,13 @@ button:disabled {
   padding-top: var(--lc-space-4);
 }
 
-/* The heading and what belongs to it read as one group at the left
-   (`prototype.css:488-491`) — `Checklist  3/7  ▬▬▬`. It used to be
-   `justify-content: space-between`, which pushed the fraction to the far edge
-   of a 560px panel and left it reading as an unrelated number (D-3D); the
-   affordance that genuinely belongs opposite the heading takes the spacer for
-   itself. */
+/* A heading and its own count read as one group at the left
+   (`prototype.css:488-491`, `prototype.js:729`, `:747`) — `Checklist  3/7  ▬▬▬`
+   and `Activity  4`. It used to be `justify-content: space-between`, which sent
+   the count to the far edge of a 560px panel, where a number a whole heading
+   away from the word it counts reads as belonging to nothing (D-3D). The one
+   thing that genuinely sits opposite its heading — the Description editor's
+   affordance — takes the spacer for itself. */
 .panel-section h3 {
   display: flex;
   gap: var(--lc-space-2);
@@ -1694,7 +1702,10 @@ button:disabled {
   font-size: 12px;
 }
 
-.checklist-fraction {
+/* The mono count a section heading carries. One rule, because the checklist's
+   `3/7` and the activity stream's entry count are the same object in the
+   prototype (`prototype.js:729`, `:746`) and differ only in what they count. */
+.section-count {
   color: var(--lc-ink-3);
   font-family: var(--lc-type-code-font);
   font-size: 10.5px;
@@ -1702,7 +1713,7 @@ button:disabled {
 }
 
 /* The fraction joins the acknowledgement while any row is agent-fresh. */
-.checklist-fraction.fresh {
+.section-count.fresh {
   color: var(--lc-accent-agent-text);
 }
 
@@ -1770,12 +1781,18 @@ button:disabled {
 
 .description-editor textarea,
 .composer textarea,
-.checklist-add input,
+.checklist-add-field,
 .panel-title {
   width: 100%;
 }
 
 .composer textarea {
+  /* One line to start, growing with what is typed (`prototype.css:581`), and
+     capped so a long comment scrolls itself rather than pushing the timeline it
+     belongs to off the screen. */
+  overflow: auto;
+  min-height: var(--lc-size-control);
+  max-height: 220px;
   border: 1px solid var(--lc-line-strong);
   border-radius: var(--lc-radius-control);
   padding: var(--lc-space-2);
@@ -1783,7 +1800,9 @@ button:disabled {
   background: var(--lc-surface);
   font: var(--lc-type-code-weight) var(--lc-type-code-size) /
     var(--lc-type-code-leading) var(--lc-type-code-font);
-  resize: vertical;
+  /* No grabber (LC-107): the prototype has none, and `useAutoGrow` already
+     gives the field the height the human would have dragged it to. */
+  resize: none;
 }
 
 .description-editor {
@@ -2024,6 +2043,25 @@ button:disabled {
   accent-color: var(--lc-accent-human);
 }
 
+/* Settled and done: an `ink-3` box and `ink-3` text with a line through it
+   (`components.md:192`, `prototype.js:131`). The list is the human→agent work
+   interface, and the pair is what lets a glance read the remaining work rather
+   than counting boxes.
+
+   The box is deliberately *not* the human accent. `components.md:191-193`
+   spends colour on one distinction only — the row an agent ticked while the
+   human was looking at it — and a settled tick that kept the accent would put
+   the same weight on every done row and leave the acknowledgement nothing to
+   stand out against. */
+.checklist-row.checked label {
+  color: var(--lc-ink-3);
+  text-decoration: line-through;
+}
+
+.checklist-row.checked input {
+  accent-color: var(--lc-ink-3);
+}
+
 /* A row an external write just ticked, until the ticket settles. */
 .checklist-row.fresh {
   background: var(--lc-accent-agent-wash);
@@ -2033,6 +2071,14 @@ button:disabled {
   accent-color: var(--lc-accent-agent);
 }
 
+/* Fresh outranks checked (`components.md:193`): a row an agent ticked while the
+   human was looking at it is news to read, so it keeps full `ink` and no
+   strike until the ticket settles. */
+.checklist-row.fresh.checked label {
+  color: var(--lc-ink);
+  text-decoration: none;
+}
+
 .agent-note {
   margin-left: auto;
   color: var(--lc-accent-agent-text);
@@ -2040,12 +2086,42 @@ button:disabled {
   font-style: normal;
 }
 
-.checklist-add input {
-  height: var(--lc-size-control);
-  border: 1px solid var(--lc-line-strong);
+/* The add-row is the next checklist row, not a form under the list (LC-106):
+   ghost box, borderless field, and the same gap and padding as the rows above
+   so the two boxes line up in one column (`prototype.css:555-558`). */
+.checklist-add {
+  display: flex;
+  align-items: center;
+  gap: var(--lc-space-2);
+  padding: var(--lc-space-1) var(--lc-space-2);
+}
+
+/* Drawn, never offered. Half opacity is what separates it from an item that
+   exists and happens to be unticked (`prototype.js:740`). */
+.ghost-box {
+  width: var(--lc-size-checkbox);
+  height: var(--lc-size-checkbox);
+  flex: none;
+  opacity: 0.5;
+}
+
+.checklist-add-field {
+  height: var(--lc-size-control-sm);
+  border: 1px solid transparent;
   border-radius: var(--lc-radius-control);
-  padding: 0 var(--lc-space-2);
+  padding: 0 var(--lc-space-1);
   color: var(--lc-ink);
+  background: transparent;
+  font-size: var(--lc-type-ui-size);
+}
+
+.checklist-add-field:hover {
+  background: var(--lc-wash);
+}
+
+/* Focus is the one state that draws a field, because that is when it is one. */
+.checklist-add-field:focus {
+  border-color: var(--lc-accent-human);
   background: var(--lc-surface);
 }
 
@@ -2218,9 +2294,11 @@ button:disabled {
   grid-row: 1;
 }
 
+/* Under the field it posts, at its right edge (`prototype.css:582`) — the end
+   of the thing being written, which is where the eye already is. */
 .composer button {
   grid-column: 2;
-  justify-self: start;
+  justify-self: end;
 }
 
 .raw-file {

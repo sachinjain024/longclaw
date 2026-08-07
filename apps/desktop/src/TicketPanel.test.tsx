@@ -242,6 +242,14 @@ function checklistRow(text: string): HTMLElement {
   return row;
 }
 
+/** The mono count a section heading carries, by the heading's own word. */
+function sectionCount(heading: string): string | undefined {
+  const section = [...document.querySelectorAll(".panel-section")].find(
+    (node) => node.querySelector("h3")?.textContent?.startsWith(heading),
+  );
+  return section?.querySelector(".section-count")?.textContent ?? undefined;
+}
+
 beforeEach(() => {
   resetMutations();
   readTicketMock.mockReset();
@@ -752,19 +760,24 @@ describe("the panel's honesty about the file", () => {
   });
 
   /**
-   * D-3A. The panel is the surface a person reads most, and it carried the
-   * frontmatter's `updated_at` verbatim. A raw UTC string there reads as debug
-   * output, and it said in machine spelling what the timeline under it already
-   * says in words.
+   * The panel used to end its meta grid with `Updated` and the ticket's
+   * `updatedAt` verbatim. A UTC string in the product's most-read surface reads
+   * as debug output, and the age it was standing in for is already on screen in
+   * the app's own relative form — the list row's `2h`, and every timeline entry.
+   *
+   * Held across the whole panel rather than the grid alone: the row above
+   * already pins the grid to three cells, and what this one is really about is
+   * that no surface here prints a machine timestamp at a human.
    */
-  it("D-3A: shows no raw ISO timestamp anywhere in the panel", async () => {
-    readTicketMock.mockResolvedValue(detail());
+  it("shows no raw timestamp (LC-102)", async () => {
+    readTicketMock.mockResolvedValue(
+      detail({ activity: [humanEvent(), agentEvent()] }),
+    );
     render(panel());
     await ready();
 
     const aside = document.querySelector(".ticket-panel");
     expect(aside?.textContent).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
-    expect(aside?.textContent).not.toContain("Updated");
   });
 
   it("posts a comment optimistically, and puts it back if the write fails", async () => {
@@ -1651,5 +1664,162 @@ describe("the description editor (V0-12)", () => {
     ).toHaveLength(1);
     fireEvent.click(add);
     expect(screen.getByLabelText("Description")).toHaveProperty("value", "");
+  });
+});
+
+/**
+ * The panel's own fields, against the prototype they were drawn from:
+ * `cc_screens_diff.md` D-3E through D-3I, filed as LC-106 → LC-110.
+ *
+ * Each of these is a piece of the same claim — the panel's inputs should read
+ * as the record continuing, not as a form bolted under it — so they are held
+ * together rather than one per section.
+ */
+describe("the panel's fields read as the record, not as a form", () => {
+  it("draws the add-row as the checklist's next row (LC-106)", async () => {
+    render(surface());
+    await ready();
+
+    const boxes = document.querySelectorAll<HTMLInputElement>(
+      ".checklist-add input",
+    );
+    const [box, field] = boxes;
+    // The box is drawn and never offered: the same control the rows above
+    // carry, so the column lines up, but disabled — no Tab stop — and hidden
+    // from assistive technology, which has the field's own name to go on.
+    expect(box.type).toBe("checkbox");
+    expect(box.checked).toBe(false);
+    expect(box.disabled).toBe(true);
+    expect(box.getAttribute("aria-hidden")).toBe("true");
+    expect(field).toBe(screen.getByLabelText("Add a checklist item"));
+  });
+
+  it("appends on Enter and leaves focus in the field (LC-106)", async () => {
+    editTicketMock.mockResolvedValue(writeResult());
+    render(surface());
+    await ready();
+
+    const field = screen.getByLabelText<HTMLInputElement>(
+      "Add a checklist item",
+    );
+    field.focus();
+    fireEvent.change(field, { target: { value: "Walk the panel" } });
+    fireEvent.submit(field.form!);
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(1));
+    expect(editTicketMock.mock.calls[0][0].edit).toEqual({
+      addChecklistItems: ["Walk the panel"],
+    });
+    // Cleared and still focused, which is what makes a list typeable in one
+    // pass (`keyboard-focus-map.md:63`).
+    expect(field.value).toBe("");
+    expect(document.activeElement).toBe(field);
+  });
+
+  it("holds the Comment button back until there is a comment (LC-107)", async () => {
+    render(surface());
+    await ready();
+
+    // A disabled button over an empty field was a control that could never be
+    // pressed and a Tab stop that led nowhere. ⌘↵ is the way in until there is
+    // something to post.
+    expect(screen.queryByRole("button", { name: "Comment" })).toBeNull();
+
+    const field = screen.getByLabelText("Comment");
+    fireEvent.change(field, { target: { value: "Looks right to me." } });
+    expect(screen.getByRole("button", { name: "Comment" })).toBeTruthy();
+
+    // Whitespace is not something to post, and the button says so by leaving.
+    fireEvent.change(field, { target: { value: "   " } });
+    expect(screen.queryByRole("button", { name: "Comment" })).toBeNull();
+  });
+
+  it("still posts on ⌘↵ with no button on screen (LC-107)", async () => {
+    editTicketMock.mockResolvedValue(writeResult());
+    render(surface());
+    await ready();
+
+    const field = screen.getByLabelText("Comment");
+    fireEvent.change(field, { target: { value: "Posted by ⌘↵." } });
+    fireEvent.keyDown(field, { key: "Enter", metaKey: true });
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(1));
+    expect(editTicketMock.mock.calls[0][0].edit).toEqual({
+      comment: "Posted by ⌘↵.",
+    });
+  });
+
+  /*
+   * The other half of LC-107 and LC-108 — that neither field draws a native
+   * resize grabber — is a declaration rather than a rendered node, and jsdom
+   * loads no stylesheet, so `getComputedStyle` here would report the initial
+   * value whichever way the file reads. `scripts/field-guard.mjs` holds it.
+   */
+
+  it("counts the activity entries in its heading (LC-109)", async () => {
+    readTicketMock.mockResolvedValue(
+      detail({ activity: [humanEvent(), agentEvent()] }),
+    );
+    // Never settles, so the optimistic entry stays on screen to be counted.
+    editTicketMock.mockReturnValue(new Promise<WriteResult>(() => {}));
+    render(surface());
+    await ready();
+
+    expect(sectionCount("Activity")).toBe("2");
+
+    const field = screen.getByLabelText("Comment");
+    fireEvent.change(field, { target: { value: "One more." } });
+    fireEvent.keyDown(field, { key: "Enter", metaKey: true });
+
+    // Posting is optimistic, so the entry is on screen before the file has it —
+    // and a heading that said one fewer than the reader can see would be the
+    // one place the panel argued with itself.
+    expect(document.querySelector(".timeline-entry.pending")).toBeTruthy();
+    expect(sectionCount("Activity")).toBe("3");
+  });
+
+  it("strikes a settled tick through, and leaves an acknowledged one alone (LC-110)", async () => {
+    const opened = [
+      { id: "ck_1", text: "Let an agent read this ticket", checked: true },
+      { id: "ck_2", text: "Review what it changed", checked: false },
+    ];
+    const both = [
+      opened[0],
+      { id: "ck_2", text: "Review what it changed", checked: true },
+    ];
+    readTicketMock
+      .mockResolvedValueOnce(detail({ checklist: opened }))
+      .mockResolvedValueOnce(
+        detail({ contentHash: "hash-2", checklist: both }),
+      );
+    const view = render(panel());
+    await ready();
+
+    // Checked on disk when the panel opened, so it is settled: `ink-3` and a
+    // line through it (`components.md:192`).
+    expect(checklistRow("Let an agent read this ticket").className).toContain(
+      "checked",
+    );
+    expect(checklistRow("Review what it changed").className).not.toContain(
+      "checked",
+    );
+
+    // The watcher reported a change to this ticket.
+    view.rerender(panel({ reloadSignal: 4 }));
+
+    await waitFor(() =>
+      expect(checklistRow("Review what it changed").className).toContain(
+        "fresh",
+      ),
+    );
+    // Both modifiers are true and the stylesheet lets `fresh` win: a row an
+    // agent ticked while the human was looking at it is news to read rather
+    // than a line to skip (`components.md:193`).
+    expect(checklistRow("Review what it changed").className).toContain(
+      "checked",
+    );
+    expect(
+      checklistRow("Let an agent read this ticket").className,
+    ).not.toContain("fresh");
   });
 });
