@@ -81,3 +81,16 @@ changes:
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_d37ebba3
+kind: comment
+occurred_at: 2026-08-07T14:45:50.609Z
+actor:
+  type: human
+  id: local
+-->
+### You commented
+
+In the List view, actually the drag isn’t working
+<!-- /longclaw:event -->
