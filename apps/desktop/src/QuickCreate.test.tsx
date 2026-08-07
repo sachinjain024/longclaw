@@ -136,3 +136,21 @@ describe("the status the modal opens on (LC-83)", () => {
     expect(statusTrigger().textContent).toContain("Todo");
   });
 });
+
+describe("quick create prototype parity", () => {
+  it("D-47: uses the modal frame as the title field boundary", () => {
+    render(quickCreate());
+
+    const titleInput = screen.getByLabelText("Title");
+    expect(titleInput.classList.contains("quick-create-title")).toBe(true);
+  });
+
+  it("D-49: shows status as a bare menu trigger with the chevron marker", () => {
+    render(quickCreate());
+
+    const trigger = statusTrigger();
+    expect(trigger.classList.contains("menu-trigger")).toBe(true);
+    expect(trigger.closest(".quick-create-meta")).not.toBeNull();
+    expect(trigger.querySelector(".menu-chevron")).not.toBeNull();
+  });
+});

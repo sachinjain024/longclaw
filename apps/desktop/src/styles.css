@@ -3275,6 +3275,12 @@ html.theme-transition *::after {
   display: flex;
 }
 
+.quick-create-meta .menu-trigger {
+  border: 0;
+  padding: 0;
+  background: none;
+}
+
 .quick-create-modal .editor-footer {
   padding: var(--lc-space-2) 0 0;
 }
