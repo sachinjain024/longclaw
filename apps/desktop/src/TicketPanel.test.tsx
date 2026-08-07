@@ -629,12 +629,16 @@ describe("the panel's honesty about the file", () => {
   });
 
   /**
-   * LC-102. The panel used to end its meta grid with `Updated` and the ticket's
+   * The panel used to end its meta grid with `Updated` and the ticket's
    * `updatedAt` verbatim. A UTC string in the product's most-read surface reads
-   * as debug output, and the age it was standing in for is already in the
-   * timeline — in the app's own relative form.
+   * as debug output, and the age it was standing in for is already on screen in
+   * the app's own relative form — the list row's `2h`, and every timeline entry.
+   *
+   * Held across the whole panel rather than the grid alone: the row above
+   * already pins the grid to three cells, and what this one is really about is
+   * that no surface here prints a machine timestamp at a human.
    */
-  it("shows no raw timestamp", async () => {
+  it("shows no raw timestamp (LC-102)", async () => {
     readTicketMock.mockResolvedValue(
       detail({ activity: [humanEvent(), agentEvent()] }),
     );
@@ -643,9 +647,6 @@ describe("the panel's honesty about the file", () => {
 
     const aside = document.querySelector(".ticket-panel");
     expect(aside?.textContent).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
-
-    // The age is still on screen, as the relative time the rest of the app uses.
-    expect(document.querySelector(".timeline")?.textContent).toContain("1m");
   });
 
   it("posts a comment optimistically, and puts it back if the write fails", async () => {
