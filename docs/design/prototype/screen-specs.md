@@ -133,6 +133,14 @@ movement. No custom-color affordance exists anywhere.
   The header control switches the board to Manual, which renders the
   per-ticket `rank` order; the choice is a per-project view preference in
   app state. Keyboard navigation always follows the visual order.
+- **Dragging (ADR 0003, revised for LC-60):** a card dragged into another
+  column takes that column's status — the same write `S` makes — in either
+  order. The column under the pointer says so with an accent wash and a
+  hairline; in Manual a drop line also shows where in it the card would
+  land, because Manual writes the place as well as the status. Dragging
+  *within* a column is reordering and stays Manual-only, so in Priority a
+  card's own column takes no drop and the pointer refuses it. The
+  Unreadable column takes none in either order: it names no status.
 - **Archived tickets never render on the board** (ADR 0004); the list
   view is the archive surface.
 - **Cards:** anatomy and all states (resting/hover/focus/selected/fresh/

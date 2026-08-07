@@ -27,7 +27,7 @@ import {
   updateProjectName,
   updateProjectTheme,
 } from "./api";
-import { Board } from "./Board";
+import { Board, type BoardMove } from "./Board";
 import { classes } from "./classes";
 import { CommandPalette } from "./CommandPalette";
 import { RemoveProjectConfirm } from "./ConfirmDialog";
@@ -1087,28 +1087,47 @@ export function App() {
   }
 
   /**
-   * A card dropped somewhere else in its column (ADR 0003). The board allocates
-   * the rank — LongClaw owns rank allocation in v0 — and this writes it, the
-   * same way the `P` menu's pick is written.
+   * A card let go somewhere else on the board: another lane (LC-60), another
+   * place in its own lane (ADR 0003), or — in Manual — both at once, because a
+   * card arriving in a lane is given a place in it.
    *
-   * The inverse is the rank the card had, and a card that had none is put back
+   * One edit either way. Two writes would be two files' worth of undo for one
+   * gesture, and the card would sit in the new lane at the old rank in between.
+   * The board allocates the rank — LongClaw owns rank allocation in v0 — and
+   * this writes it, the same way the `P` menu's pick is written.
+   *
+   * The inverse is what the card had, and a card that had no rank is put back
    * to having none: `TicketEdit.rank` takes `null` to clear the key. Nothing
    * else in the app ever sends that, because leaving Manual mode is a view
    * preference and must not rewrite a file.
    */
-  function reorderTicket(ticket: IndexedTicket, rank: string) {
+  function moveCard(ticket: IndexedTicket, move: BoardMove) {
     const projectId = activeProjectId;
-    if (!projectId || rank === ticket.rank) return;
+    if (!projectId) return;
+    // `TicketDocument::apply` refuses an edit that changes nothing, so a half
+    // of the move that is already true is left out of it rather than sent.
+    const status = move.status === ticket.status ? undefined : move.status;
+    const rank = move.rank === ticket.rank ? undefined : move.rank;
+    if (status === undefined && rank === undefined) return;
 
     void mutate(
       editMutation({
         projectId,
         ticket,
-        optimistic: { rank },
-        edit: { rank },
-        inverse: { rank: ticket.rank ?? null },
-        toast: `${ticket.key} moved`,
-        inverseToast: `${ticket.key} back where it was`,
+        optimistic: { ...(status && { status }), ...(rank && { rank }) },
+        edit: { ...(status && { status }), ...(rank && { rank }) },
+        inverse: {
+          ...(status && { status: ticket.status }),
+          ...(rank && { rank: ticket.rank ?? null }),
+        },
+        // The lane is the salient half when there is one: it is the change the
+        // human will look for on the board, and the rank is where it landed.
+        toast: status
+          ? `${ticket.key} → ${statusLabel(status)}`
+          : `${ticket.key} moved`,
+        inverseToast: status
+          ? `${ticket.key} back in ${statusLabel(ticket.status)}`
+          : `${ticket.key} back where it was`,
         failure: (error) =>
           `${ticket.key} could not be moved. ${error.message}`,
       }),
@@ -1498,7 +1517,7 @@ export function App() {
                         onSelect={openTicket}
                         onChangePriority={changePriority}
                         onChangeStatus={changeStatus}
-                        onReorder={reorderTicket}
+                        onMoveCard={moveCard}
                         // A column's `+` is the same quick create `C` opens,
                         // arriving with the column it was pressed in already
                         // chosen (`keyboard-focus-map.md:44`).

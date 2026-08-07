@@ -5,6 +5,7 @@ import {
   comparatorFor,
   orderColumn,
   rankForDrop,
+  rankForInsert,
 } from "./ordering";
 import type { TicketPriority, TicketRow } from "./types";
 
@@ -235,5 +236,57 @@ describe("the rank a drop allocates", () => {
     ];
 
     expect(rankForDrop(mixed, "LC-1", 3)).toBeUndefined();
+  });
+});
+
+describe("the rank a card arriving from another column takes", () => {
+  /** The column being dropped into. The moving card is not one of these. */
+  const column = [
+    row("LC-1", "p1", "a0"),
+    row("LC-2", "p1", "a1"),
+    row("LC-3", "p1", "a2"),
+  ];
+
+  it("lands between the neighbours the drop is between", () => {
+    const next = rankForInsert(column, 1);
+
+    expect(next > "a0" && next < "a1").toBe(true);
+  });
+
+  it("takes the head and the tail of the column", () => {
+    expect(rankForInsert(column, 0) < "a0").toBe(true);
+    expect(rankForInsert(column, 3) > "a2").toBe(true);
+  });
+
+  it("gives the first card in an empty column the first rank", () => {
+    expect(rankForInsert([], 0)).toBe("a0");
+  });
+
+  it("skips past a neighbour with no rank to find one that has it", () => {
+    // An unranked card is not a position, so it cannot bound one — the same
+    // rule a reorder inside one column follows.
+    const mixed = [
+      row("LC-1", "p1", "a0"),
+      row("LC-2", "p1", "a1"),
+      row("LC-3", "p1"),
+      row("LC-4", "p2"),
+    ];
+
+    const next = rankForInsert(mixed, 3);
+    expect(next > "a1").toBe(true);
+  });
+
+  it("lands at the boundary when the drop is among cards with no rank", () => {
+    // Nothing bounds the gap, so the arriving card takes the first rank and
+    // sits above the unranked cards rather than inside them. The same
+    // boundary a first drag inside a column lands at.
+    const unranked = [row("LC-1", "p1"), row("LC-2", "p2")];
+
+    expect(rankForInsert(unranked, 1)).toBe("a0");
+  });
+
+  it("clamps a gap that is off the end of the column", () => {
+    expect(rankForInsert(column, 99) > "a2").toBe(true);
+    expect(rankForInsert(column, -1) < "a0").toBe(true);
   });
 });

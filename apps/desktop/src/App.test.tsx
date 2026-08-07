@@ -22,6 +22,7 @@ import type {
   StreamEnvelope,
   TicketDetail,
   TicketRow,
+  TicketStatus,
   WriteResult,
 } from "./types";
 
@@ -2795,9 +2796,17 @@ describe("board ordering and manual reordering (V0-09)", () => {
     };
   }
 
-  function written(key: string, rank?: string): WriteResult {
+  function written(
+    key: string,
+    rank?: string,
+    status?: TicketStatus,
+  ): WriteResult {
     return {
-      ticket: row(key, { contentHash: `hash-${key}-written`, rank }),
+      ticket: row(key, {
+        contentHash: `hash-${key}-written`,
+        rank,
+        ...(status ? { status } : {}),
+      }),
       generation: 2,
       changes: [],
     };
@@ -2822,10 +2831,10 @@ describe("board ordering and manual reordering (V0-09)", () => {
     fireEvent.click(screen.getByRole("menuitemradio", { name }));
   }
 
-  /** A drop at a stated position in the Todo column. */
-  function dropAt(key: string, clientY: number) {
+  /** A drop at a stated position in a named column, Todo unless said otherwise. */
+  function dropAt(key: string, clientY: number, title = "Todo") {
     const stack = screen
-      .getByRole("heading", { name: /^Todo/ })
+      .getByRole("heading", { name: new RegExp(`^${title}`) })
       .closest(".board-column")!
       .querySelector<HTMLElement>(".board-stack")!;
     const sizer = stack.querySelector<HTMLElement>(".board-sizer")!;
@@ -2878,11 +2887,27 @@ describe("board ordering and manual reordering (V0-09)", () => {
   });
 
   it("must-pass: Priority mode writes no rank however the board is dragged", async () => {
+    vi.mocked(api.editTicket).mockResolvedValue(
+      written("LC-2", undefined, "in_progress"),
+    );
     await openBoard([row("LC-1", { rank: "a0" }), row("LC-2", { rank: "a1" })]);
 
+    // Inside its own lane, where a rank is the only thing a drop could write.
     dropAt("LC-2", 0);
 
     expect(api.editTicket).not.toHaveBeenCalled();
+
+    // And into another lane, which is a status change — and still no rank
+    // (LC-60).
+    dropAt("LC-2", 0, "In Progress");
+
+    await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(1));
+    expect(api.editTicket).toHaveBeenCalledWith({
+      projectId: project.id,
+      ticketKey: "LC-2",
+      expectedHash: "hash-LC-2",
+      edit: { status: "in_progress" },
+    });
   });
 
   it("must-pass: a manual drop writes a rank, and only a rank, and takes it back", async () => {
@@ -2971,6 +2996,97 @@ describe("board ordering and manual reordering (V0-09)", () => {
       .getState()
       .tickets.find((ticket) => ticket.key === "LC-3");
     expect(back?.state === "indexed" && back.rank).toBe("a2");
+  });
+
+  describe("dragged into another lane (LC-60)", () => {
+    /** Where a card sits now, by the column heading above it. */
+    function laneOf(key: string): string {
+      const column = document
+        .querySelector(`[data-ticket-key="${key}"]`)
+        ?.closest(".board-column");
+      return column?.querySelector("h3")?.textContent ?? "";
+    }
+
+    it("writes the status of the lane, and takes it back", async () => {
+      vi.mocked(api.editTicket).mockResolvedValue(
+        written("LC-2", undefined, "in_progress"),
+      );
+      await openBoard([row("LC-1"), row("LC-2")]);
+
+      dropAt("LC-2", 0, "In Progress");
+
+      await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(1));
+      expect(api.editTicket).toHaveBeenCalledWith({
+        projectId: project.id,
+        ticketKey: "LC-2",
+        expectedHash: "hash-LC-2",
+        edit: { status: "in_progress" },
+      });
+      await screen.findByText("LC-2 → In Progress");
+
+      vi.mocked(api.editTicket).mockResolvedValue(written("LC-2"));
+      fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+
+      await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(2));
+      expect(api.editTicket).toHaveBeenLastCalledWith({
+        projectId: project.id,
+        ticketKey: "LC-2",
+        expectedHash: "hash-LC-2-written",
+        edit: { status: "todo" },
+      });
+    });
+
+    it("writes the lane and the place in it as one edit, in Manual", async () => {
+      vi.mocked(api.editTicket).mockResolvedValue(
+        written("LC-1", "a5V", "in_progress"),
+      );
+      await openBoard([
+        row("LC-1", { rank: "a0" }),
+        row("LC-2", { status: "in_progress", rank: "a5" }),
+        row("LC-3", { status: "in_progress", rank: "a6" }),
+      ]);
+      chooseOrdering("Manual");
+
+      // Into the gap between LC-2 and LC-3, in a lane LC-1 is not in.
+      dropAt("LC-1", 63, "In Progress");
+
+      await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(1));
+      const sent = vi.mocked(api.editTicket).mock.calls[0][0];
+      expect(sent.ticketKey).toBe("LC-1");
+      expect(sent.edit.status).toBe("in_progress");
+      expect(sent.edit.rank! > "a5" && sent.edit.rank! < "a6").toBe(true);
+      expect(Object.keys(sent.edit).sort()).toEqual(["rank", "status"]);
+
+      // Both halves come back, and the rank it never had is cleared rather
+      // than invented.
+      vi.mocked(api.editTicket).mockResolvedValue(written("LC-1", "a0"));
+      fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+
+      await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(2));
+      expect(api.editTicket).toHaveBeenLastCalledWith({
+        projectId: project.id,
+        ticketKey: "LC-1",
+        expectedHash: "hash-LC-1-written",
+        edit: { status: "todo", rank: "a0" },
+      });
+    });
+
+    it("moves the card before the write leaves, and puts it back if it fails", async () => {
+      vi.mocked(api.editTicket).mockRejectedValue({
+        code: "io",
+        message: "Disk is full",
+        recoverable: true,
+      });
+      await openBoard([row("LC-1"), row("LC-2")]);
+
+      dropAt("LC-2", 0, "In Progress");
+
+      expect(laneOf("LC-2")).toContain("In Progress");
+      await screen.findByText(
+        "LC-2 could not be moved. Disk is full. The file was left as it was.",
+      );
+      expect(laneOf("LC-2")).toContain("Todo");
+    });
   });
 });
 
