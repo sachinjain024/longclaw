@@ -58,7 +58,7 @@
  * A drop is a mutation and the board holds no project id, so it is raised as
  * `onMoveTicket` and written in `App.tsx`, beside `changePriority`.
  *
- * There is no keyboard equivalent, deliberately: `keyboard-focus-map.md:158-161`
+ * There is no keyboard equivalent, deliberately: `keyboard-focus-map.md:165-168`
  * puts reordering within a column outside v0 and names `S` — the status move —
  * as the keyboard path that exists for the column a ticket is in.
  */

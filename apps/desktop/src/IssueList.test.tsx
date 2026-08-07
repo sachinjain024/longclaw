@@ -595,7 +595,7 @@ describe("moving through the list with the keyboard", () => {
 
   it("leaves the archived toggle its own tab stop", () => {
     // The header button is the keyboard path to the archive
-    // (`keyboard-focus-map.md:110`), so it is reachable rather than roved over.
+    // (`keyboard-focus-map.md:125`), so it is reachable rather than roved over.
     render(
       list({
         tickets: [

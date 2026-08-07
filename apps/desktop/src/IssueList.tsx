@@ -467,7 +467,7 @@ function ListGroup(props: {
     >
       {props.archived ? (
         // A real button with expanded state, which is the keyboard path archive
-        // has (`keyboard-focus-map.md:110`); there is no single-key binding.
+        // has (`keyboard-focus-map.md:125`); there is no single-key binding.
         <button
           tabIndex={0}
           className="list-group-header"

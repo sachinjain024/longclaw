@@ -6,7 +6,7 @@
  * that were changing it (D-40). Everything here is one project's record, so it
  * belongs on a layer over the board rather than in the middle of it — and a
  * layer comes with the two things the inline section never had: a way out from
- * the inside (D-4L) and an `Esc` (`keyboard-focus-map.md:136-141`).
+ * the inside (D-4L) and an `Esc` (`keyboard-focus-map.md:143-148`).
  *
  * The rows are the spec's, in its order: Name + Key, Folder, Theme, Appearance,
  * Labels, danger zone. Two of them are not project data and say so — appearance
