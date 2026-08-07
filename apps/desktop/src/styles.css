@@ -1457,9 +1457,51 @@ button:disabled {
   margin-left: auto;
 }
 
+/* The key as a chip that copies it (D-38, `prototype.css:152-159`): mono, and
+   the human accent on its own soft wash, because taking the key somewhere else
+   is a person's action rather than something the file did. */
+.id-chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  border: none;
+  border-radius: var(--lc-radius-control);
+  padding: 3px 7px;
+  color: var(--lc-accent-human-text);
+  background: var(--lc-accent-human-soft);
+  font: 500 11px var(--lc-type-code-font);
+  cursor: pointer;
+}
+
+.id-chip:focus-visible {
+  box-shadow: var(--lc-focus-ring);
+  outline: none;
+}
+
+/* Two elements, not one (D-39). The chip names the file and holds still; the
+   indicator beside it is absent unless the disk is doing something. Both give
+   up width before the actions do, since those are fixed and sit at the edge —
+   `.path-chip`'s 180px cap belongs to the content header, where the path is
+   arbitrarily long, and this one is `tickets/<key>/ticket.md` every time. */
+.panel-header .path-chip {
+  max-width: none;
+}
+
 .panel-header .disk-path {
   min-width: 0;
-  flex: 1;
+  flex: 0 1 auto;
+}
+
+/* A path chip that only names its file. The project's path is worth copying —
+   it is absolute and typed nowhere else — and this one is the same 24
+   characters for every ticket, with the key beside it already on the clipboard
+   (D-38), so it takes neither the pointer nor a Tab stop. */
+.path-chip.plain {
+  cursor: default;
+}
+
+.path-chip.plain:hover {
+  background: none;
 }
 
 /* The `archived` mark (`screen-specs.md:164`): kbd-styled, and deliberately

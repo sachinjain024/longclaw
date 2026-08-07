@@ -43,7 +43,7 @@ const STORE_PREFIX = ".longclaw/";
  * `ticket.md`, so the bare name would leave the header marking a write to one
  * ticket while another sits open in the panel. The key is the identifying part.
  */
-function diskLabel(path: string) {
+export function diskLabel(path: string) {
   return path.startsWith(STORE_PREFIX) ? path.slice(STORE_PREFIX.length) : path;
 }
 
@@ -62,6 +62,16 @@ function diskLabel(path: string) {
 export function WriteIndicator(props: {
   idle?: string;
   busy?: "reading" | "reconciling";
+  /**
+   * Report only what the disk is doing, and render nothing when it is quiet.
+   *
+   * For a surface that names its file itself — the ticket panel, which carries
+   * a path chip of its own (D-39) — because one element that is a path most of
+   * the time and a write report the rest of the time makes the path flicker on
+   * every save. `idle` is still the file this surface is about, and still what
+   * keeps somebody else's settled mark off it.
+   */
+  transient?: boolean;
   className?: string;
 }) {
   const writing = useMutationStore((state) => state.writing);
@@ -123,7 +133,7 @@ export function WriteIndicator(props: {
   // The same spelling as the two above it. This element is one line that
   // changes state, so a path that gained and lost its `.longclaw/` as writes
   // came and went would read as the file changing rather than the disk.
-  if (!props.idle) return null;
+  if (props.transient || !props.idle) return null;
   return <code className={className}>{diskLabel(props.idle)}</code>;
 }
 

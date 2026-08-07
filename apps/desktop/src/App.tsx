@@ -36,6 +36,7 @@ import { DEV_CHROME } from "./devChrome";
 import { normalizeError } from "./errors";
 import { failureMessage, failurePath, failureTitle } from "./failure";
 import { filterTickets, isFiltering } from "./filtering";
+import { FolderGlyph } from "./FolderGlyph";
 import { IssueList } from "./IssueList";
 import { isChord, singleKeyShortcutAllowed } from "./keyContext";
 import { LABEL_COLORS } from "./labels";
@@ -1552,20 +1553,7 @@ function PathChip(props: { path: string; homePath: string | null }) {
       title={props.path}
       onClick={() => void copy()}
     >
-      <svg
-        className="folder-glyph"
-        width="13"
-        height="13"
-        viewBox="0 0 14 14"
-        aria-hidden="true"
-      >
-        <path
-          d="M1.5 3.5 Q1.5 2.5 2.5 2.5 L5 2.5 L6.2 4 L11.5 4 Q12.5 4 12.5 5 L12.5 10.5 Q12.5 11.5 11.5 11.5 L2.5 11.5 Q1.5 11.5 1.5 10.5 Z"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.3"
-        />
-      </svg>
+      <FolderGlyph />
       <span className="txt">{tildeAbbreviate(props.path, props.homePath)}</span>
     </button>
   );

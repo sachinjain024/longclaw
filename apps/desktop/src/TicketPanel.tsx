@@ -21,6 +21,7 @@ import { externalEditConflict } from "./attribution";
 import { ConflictBanner } from "./ConflictBanner";
 import { DescriptionEditor } from "./DescriptionEditor";
 import { normalizeError } from "./errors";
+import { FolderGlyph } from "./FolderGlyph";
 import type { ExternalMark } from "./freshness";
 import { acknowledgement, freshlyChecked } from "./freshness";
 import { singleKeyShortcutAllowed } from "./keyContext";
@@ -29,7 +30,7 @@ import { sameLabels } from "./labels";
 import { MarkdownView } from "./MarkdownView";
 import { MenuButton } from "./Menu";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "./metaOptions";
-import { mutate, type Mutation } from "./mutations";
+import { mutate, type Mutation, useMutationStore } from "./mutations";
 import { priorityLabel, statusLabel } from "./tickets";
 import { metaFieldFor } from "./TicketMetaMenu";
 import { Timeline } from "./Timeline";
@@ -44,7 +45,7 @@ import type {
   TicketStatus,
   WriteResult,
 } from "./types";
-import { WriteIndicator } from "./WriteFeedback";
+import { diskLabel, WriteIndicator } from "./WriteFeedback";
 
 /**
  * What a destructive-adjacent change adds to a save: the state it shows before
@@ -102,6 +103,55 @@ function degradedNote(detail: TicketDetail): string {
     return "This ticket was written by a newer LongClaw format. The file is shown exactly as it exists on disk, and this build will not rewrite it.";
   }
   return "The file is shown exactly as it exists on disk. Fix it in an editor, then reload or wait for the watcher to read it again.";
+}
+
+/**
+ * The ticket's key as a chip that copies it (`screen-specs.md:161`, D-38).
+ *
+ * The same bargain as the header's path chip: a piece of identity that reads as
+ * text, and one click to take it somewhere else — a terminal, a commit message,
+ * a prompt. It wears the human accent because copying is a person's own action,
+ * and it is the panel's first Tab stop (`keyboard-focus-map.md:61`).
+ */
+function IdChip(props: { ticketKey: string }) {
+  const raise = useMutationStore((state) => state.raise);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(props.ticketKey);
+      raise({ message: `${props.ticketKey} copied`, tone: "default" });
+    } catch {
+      raise({ message: `Could not copy ${props.ticketKey}`, tone: "danger" });
+    }
+  };
+  return (
+    <button
+      tabIndex={0}
+      className="id-chip"
+      aria-label={`Copy ${props.ticketKey}`}
+      title={`Copy ${props.ticketKey}`}
+      onClick={() => void copy()}
+    >
+      {props.ticketKey}
+    </button>
+  );
+}
+
+/**
+ * The ticket's file, named where the ticket is read (`screen-specs.md:161-162`,
+ * D-39): the disk made visible, and static, so it holds still while the
+ * indicator beside it reports the writes.
+ *
+ * Not a button. The header's project path is one because an absolute path is
+ * worth taking away; this one is `tickets/<key>/ticket.md` for every ticket
+ * there has ever been, and the key beside it already copies.
+ */
+function TicketPathChip(props: { path: string }) {
+  return (
+    <span className="path-chip plain" title={props.path}>
+      <FolderGlyph />
+      <span className="txt">{diskLabel(props.path)}</span>
+    </span>
+  );
 }
 
 /**
@@ -596,8 +646,13 @@ export function TicketPanel(props: TicketPanelProps) {
       tabIndex={-1}
     >
       <header className="panel-header">
-        <span className="ticket-key">{ticketKey}</span>
-        <WriteIndicator idle={detail?.relativePath} />
+        <IdChip ticketKey={ticketKey} />
+        {detail && <TicketPathChip path={detail.relativePath} />}
+        {/* The path is the chip's, so this one is only ever the news: writing,
+            or the ✓ that stands briefly after (`states.md:178-180`). `idle` is
+            still the file it belongs to, which is what keeps another ticket's
+            settled mark out of this header. */}
+        <WriteIndicator idle={detail?.relativePath} transient />
         <div className="panel-header-actions">
           {props.archived && <span className="archived-chip">archived</span>}
           {/* A file this build cannot read has no frontmatter to flip. The

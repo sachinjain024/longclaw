@@ -570,6 +570,62 @@ describe("the panel's honesty about the file", () => {
     await screen.findByText("✓ tickets/LC-1/ticket.md");
   });
 
+  it("D-39: names the file in a chip that holds still while the disk moves", async () => {
+    let settle: (result: WriteResult) => void = () => {};
+    readTicketMock.mockResolvedValue(detail());
+    editTicketMock.mockReturnValue(
+      new Promise<WriteResult>((resolve) => {
+        settle = resolve;
+      }),
+    );
+    render(panel());
+    const box = await screen.findByLabelText("Review what it changed");
+
+    // Quiet: the chip is the only thing naming the file, and it carries the
+    // folder glyph the prototype pairs with a path.
+    const chip = () => document.querySelector(".panel-header .path-chip");
+    expect(chip()?.textContent).toBe("tickets/LC-1/ticket.md");
+    expect(chip()?.querySelector(".folder-glyph")).toBeTruthy();
+    expect(document.querySelector(".panel-header .disk-path")).toBeNull();
+
+    fireEvent.click(box);
+
+    // Writing: the indicator appears beside the chip rather than replacing it,
+    // which is the whole of the split — the path never flickers.
+    await screen.findByText(/writing tickets\/LC-1\/ticket\.md/);
+    expect(chip()?.textContent).toBe("tickets/LC-1/ticket.md");
+
+    settle(writeResult());
+
+    await screen.findByText("✓ tickets/LC-1/ticket.md");
+    expect(chip()?.textContent).toBe("tickets/LC-1/ticket.md");
+  });
+
+  it("D-38: copies the key from the header chip and says so", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    readTicketMock.mockResolvedValue(detail());
+    render(surface());
+    await ready();
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy LC-1" }));
+
+    expect(writeText).toHaveBeenCalledWith("LC-1");
+    await screen.findByText("LC-1 copied");
+  });
+
+  it("D-38: says the copy failed rather than pretending it worked", async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error("denied"));
+    Object.assign(navigator, { clipboard: { writeText } });
+    readTicketMock.mockResolvedValue(detail());
+    render(surface());
+    await ready();
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy LC-1" }));
+
+    await screen.findByText("Could not copy LC-1");
+  });
+
   it("shows the actor of every record, and marks only the agent's", async () => {
     readTicketMock.mockResolvedValue(
       detail({ activity: [humanEvent(), agentEvent()] }),
