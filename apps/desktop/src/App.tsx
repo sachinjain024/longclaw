@@ -1662,8 +1662,9 @@ function ViewSegment(props: {
 }
 
 /**
- * Abbreviate a home-relative path to `~/…` for display (`cc_ui_diffs.md:143`,
- * § Step 2 — the section reference is the durable half of that citation).
+ * Abbreviate a home-relative path to `~/…` for display. The clause lives in
+ * LC-68, which carries D-06's remaining work; `cc_ui_diffs.md` § Step 2 was the
+ * original citation and was deleted 2026-08-07.
  * Only the actual home directory — supplied by the native layer — is
  * abbreviated. The clipboard and tooltip keep the full absolute path.
  */

@@ -3582,9 +3582,10 @@ describe("the app shell against its spec (LC-71, LC-72, LC-73)", () => {
       // Not a network assertion — jsdom cannot make one, and `audit:network` is
       // a process-monitor pass over a real bundle that needs a human to drive
       // it. This only catches the control coming back, which is worth catching:
-      // `cd_ui_diffs.md` carried a live "Step 7: Implement The Required
+      // the comparison plan carried a live "Step 7: Implement The Required
       // Waitlist Flow" — endpoint client, `localStorage`, the lot — until LC-75
-      // voided it. This fails fast if someone works from a stale copy of it.
+      // voided it; the document holding it was deleted 2026-08-07. This fails
+      // fast if someone works from a stale copy of it.
       expect(
         screen.queryByRole("button", { name: /early access|waitlist/i }),
       ).toBeNull();

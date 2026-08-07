@@ -402,7 +402,11 @@ app running.
 
 **Also observed:** a ticket whose file has *no* frontmatter at all (not even a
 `---` fence) is dropped even from the `Unreadable` group — it never reaches the
-degraded path. Worth a Rust-side test in `core/storage.rs`.
+degraded path. Worth a Rust-side test in `core/storage.rs`. **Filed 2026-08-07 as
+LC-168**, the one finding in this section that never carried a `D-` number and so
+was never swept into LC-133…LC-138. `TicketDocument::parse` does refuse the file
+with a located diagnostic (`core/ticket.rs:450-452`); what is missing is any test
+that it becomes a degraded record and reaches a snapshot.
 
 ---
 
@@ -463,8 +467,11 @@ needs an external write to land inside an in-app edit window.
 Verify against `states.md:154-182`: pinned above the title, warn triangle + "Changed
 on disk while you were editing." + attribution and age, **Reload file**
 (`warn-border-strong`) and **Keep mine** (`warn-ink` ghost), no focus steal, and a
-save with an unresolved conflict re-raising the banner. File a follow-up ticket
-to walk it.
+save with an unresolved conflict re-raising the banner. **Filed 2026-08-07 as
+LC-169**, which carries the walk and the one known departure to confirm rather
+than file: `Esc` does not clear the banner, though `keyboard-focus-map.md:82` says
+it should, because clearing would take "Keep mine" away from a title draft that is
+also pending (LC-12).
 
 ---
 
@@ -571,7 +578,21 @@ single stack.
 
 **Follow-up needed**
 
-- **§18 conflict banner** — walk it against `states.md:154-182`; it is built but
-  unexercised here.
+- ~~**§18 conflict banner**~~ — filed 2026-08-07 as **LC-169**. Built but
+  unexercised here; the walk against `states.md:154-182` is that ticket.
 - **D-70** — confirm the appearance/ordering preference loss on a packaged build
-  before treating it as real.
+  before treating it as real (LC-150).
+
+**Every row in this document is now ticketed.** The `D-` rows became LC-67…LC-154
+on 2026-08-05; the two prose findings above became LC-168 and LC-169 on
+2026-08-07. This file is kept as the cited source of those tickets — 89 of them
+name it in their `## Source` line — and as the record of *why* the struck rows
+were decided the way they were, not as a work list.
+
+The two companion plan documents, `docs/cc_ui_diffs.md` and `docs/cd_ui_diffs.md`,
+were **deleted 2026-08-07** once their own leftovers were filed: the
+`--lc-size-board-stack` retune (**LC-165**), two-line card titles (**LC-166**),
+and the dark-appearance density pass (**LC-167**). LC-74 and LC-75 still name
+those files in their activity entries, which are append-only and describe what was
+true when written; `git log -- docs/cc_ui_diffs.md docs/cd_ui_diffs.md` recovers
+them.
