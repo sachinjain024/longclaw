@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 0baec687-360d-4239-9502-a6282fbd9713
 key: LC-135
 title: "Unparseable ticket file — error shown as plain prose with no line reference: \"status must be one of backlog, todo, …; found not_a_real_status\""
-status: todo
+status: done
 priority: p2
 labels:
   - frontend
   - prototype-diff
 created_at: 2026-08-05T15:16:01.662Z
-updated_at: 2026-08-05T15:16:01.662Z
+updated_at: 2026-08-07T05:07:43.925Z
 ---
 
 **Prototype.** Danger banner shows the parser error in mono **with `file:line`** (`ticket.md:7 — mapping values are not allowed here…`)
@@ -22,7 +22,7 @@ updated_at: 2026-08-05T15:16:01.662Z
 
 ## Checklist
 
-- [ ] Include the line number — it is the whole point of showing the raw file. <!-- longclaw:item=ck_feb86cba -->
+- [x] Include the line number — it is the whole point of showing the raw file. <!-- longclaw:item=ck_feb86cba -->
 
 ## Activity
 
@@ -36,4 +36,23 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_021c4ceb
+kind: update
+occurred_at: 2026-08-07T05:07:43.925Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: done
+  - field: checklist.ck_feb86cba.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->

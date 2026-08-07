@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 099532fe-f6db-4ecc-8598-85cf0dcefbe3
 key: LC-138
 title: Unparseable ticket file — heading is the file path — Heading is Shown without repair
-status: todo
+status: done
 priority: p3
 labels:
   - frontend
   - prototype-diff
 created_at: 2026-08-05T15:16:01.711Z
-updated_at: 2026-08-05T15:16:01.711Z
+updated_at: 2026-08-07T05:07:43.999Z
 ---
 
 **Prototype.** Heading is the file path
@@ -22,7 +22,7 @@ updated_at: 2026-08-05T15:16:01.711Z
 
 ## Checklist
 
-- [ ] Fine phrase, but the path should be the title and the reassurance the body. <!-- longclaw:item=ck_248dabdf -->
+- [x] Fine phrase, but the path should be the title and the reassurance the body. <!-- longclaw:item=ck_248dabdf -->
 
 ## Activity
 
@@ -36,4 +36,23 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_5b10f343
+kind: update
+occurred_at: 2026-08-07T05:07:43.999Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: done
+  - field: checklist.ck_248dabdf.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->
