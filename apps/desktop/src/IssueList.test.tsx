@@ -16,10 +16,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExternalMarks } from "./freshness";
 import { IssueList } from "./IssueList";
 import {
-  GROUP_GAP,
   GROUP_HEADER_HEIGHT,
   ROW_HEIGHT,
   groupBodyHeight,
+  listGeometry,
 } from "./listGeometry";
 import type * as ListRow from "./listRow";
 import type { OrderingMode } from "./ordering";
@@ -86,7 +86,7 @@ function list(props?: {
   onSelect?: (key: string) => void;
   onChangePriority?: (ticket: IndexedTicket, next: TicketPriority) => void;
   onChangeStatus?: (ticket: IndexedTicket, next: TicketStatus) => void;
-  onMoveCard?: (ticket: IndexedTicket, move: TicketMove) => void;
+  onMoveTicket?: (ticket: IndexedTicket, move: TicketMove) => void;
   onCreateFirst?: () => void;
 }) {
   return (
@@ -100,7 +100,7 @@ function list(props?: {
       onSelect={props?.onSelect ?? noop}
       onChangePriority={props?.onChangePriority ?? noop}
       onChangeStatus={props?.onChangeStatus ?? noop}
-      onMoveCard={props?.onMoveCard ?? noop}
+      onMoveTicket={props?.onMoveTicket ?? noop}
       onCreateFirst={props?.onCreateFirst}
     />
   );
@@ -753,12 +753,54 @@ describe("dragging a row to another group (LC-60)", () => {
     return element;
   }
 
-  /** Drags a row and lets go `clientY` pixels down the scroller. */
-  function dragTo(key: string, clientY: number) {
+  /**
+   * The geometry of what is on screen right now, from the rows the list drew —
+   * the same function the list lays itself out with. Stated rather than
+   * hard-coded because the group set changes the moment a drag starts: every
+   * status opens up, so a position written as a number would be measuring a
+   * different list than the one under the pointer.
+   */
+  function shown() {
+    const sections = Array.from(
+      document.querySelectorAll<HTMLElement>(".list-group"),
+    );
+    return {
+      sections,
+      geometry: listGeometry(
+        sections.map((section) => ({
+          tickets: Array.from(section.querySelectorAll(".list-row")),
+        })),
+      ),
+    };
+  }
+
+  /** The top of a named group's header, in the scroller's own coordinates. */
+  function groupTop(title: string): number {
+    const { sections, geometry } = shown();
+    const index = sections.findIndex((section) =>
+      (
+        section.querySelector(".list-group-header")?.textContent ?? ""
+      ).startsWith(title),
+    );
+    if (index < 0) throw new Error(`no group for ${title}`);
+    const slot = geometry.slots.findIndex(
+      (candidate) => candidate.group === index && candidate.row < 0,
+    );
+    return geometry.offsets[slot];
+  }
+
+  /** The top of one row inside a named group. */
+  function rowTopIn(title: string, index: number): number {
+    return groupTop(title) + GROUP_HEADER_HEIGHT + 1 + index * ROW_HEIGHT;
+  }
+
+  /** Picks a row up, then lets go where the drag itself decides. */
+  function dragTo(key: string, at: () => number) {
     layOut();
     fireEvent.dragStart(listRow(key));
-    dragAt("dragOver", clientY);
-    dragAt("drop", clientY);
+    const position = at();
+    dragAt("dragOver", position);
+    dragAt("drop", position);
   }
 
   /** The group section around one named header. */
@@ -771,12 +813,6 @@ describe("dragging a row to another group (LC-60)", () => {
     return section;
   }
 
-  /**
-   * Where a group's rows start, in scroller coordinates. Todo is the second
-   * group here — the list orders its groups by status, and Done follows.
-   */
-  const TODO_ROWS = GROUP_HEADER_HEIGHT + 1;
-
   it("is draggable in either order, because a group is a status", () => {
     const { rerender } = render(
       list({ tickets: across, ordering: "priority" }),
@@ -788,49 +824,47 @@ describe("dragging a row to another group (LC-60)", () => {
   });
 
   it("writes the status of the group it was let go in", () => {
-    const onMoveCard = vi.fn();
-    render(list({ tickets: across, ordering: "priority", onMoveCard }));
+    const onMoveTicket = vi.fn();
+    render(list({ tickets: across, ordering: "priority", onMoveTicket }));
 
-    // Onto the Done group's header, which is that group's own top edge.
-    const done = TODO_ROWS + 2 * ROW_HEIGHT + 1 + GROUP_GAP + 4;
-    dragTo("LC-1", done);
+    dragTo("LC-1", () => groupTop("Done") + 4);
 
-    expect(onMoveCard).toHaveBeenCalledTimes(1);
-    const [ticket, move] = onMoveCard.mock.calls[0];
+    expect(onMoveTicket).toHaveBeenCalledTimes(1);
+    const [ticket, move] = onMoveTicket.mock.calls[0];
     expect(ticket.key).toBe("LC-1");
     expect(move).toStrictEqual({ status: "done" });
   });
 
   it("writes the status and the place in it, in Manual", () => {
-    const onMoveCard = vi.fn();
-    render(list({ tickets: across, ordering: "manual", onMoveCard }));
+    const onMoveTicket = vi.fn();
+    render(list({ tickets: across, ordering: "manual", onMoveTicket }));
 
-    const done = TODO_ROWS + 2 * ROW_HEIGHT + 1 + GROUP_GAP + 4;
-    dragTo("LC-1", done);
+    // Past the middle of Done's only row: below it, so above nothing.
+    dragTo("LC-1", () => rowTopIn("Done", 0) + ROW_HEIGHT - 4);
 
-    const [, move] = onMoveCard.mock.calls[0];
+    const [, move] = onMoveTicket.mock.calls[0];
     expect(move.status).toBe("done");
-    expect(move.rank < "a5").toBe(true);
+    expect(move.rank > "a5").toBe(true);
   });
 
   it("reorders inside a group in Manual, and writes nothing in Priority", () => {
-    const onMoveCard = vi.fn();
+    const onMoveTicket = vi.fn();
     const { rerender } = render(
-      list({ tickets: across, ordering: "manual", onMoveCard }),
+      list({ tickets: across, ordering: "manual", onMoveTicket }),
     );
 
     // Past the middle of the second Todo row: the gap below LC-2.
-    dragTo("LC-1", TODO_ROWS + ROW_HEIGHT + 30);
+    dragTo("LC-1", () => rowTopIn("Todo", 1) + ROW_HEIGHT - 4);
 
-    expect(onMoveCard).toHaveBeenCalledTimes(1);
-    expect(onMoveCard.mock.calls[0][1].status).toBeUndefined();
-    expect(onMoveCard.mock.calls[0][1].rank > "a1").toBe(true);
+    expect(onMoveTicket).toHaveBeenCalledTimes(1);
+    expect(onMoveTicket.mock.calls[0][1].status).toBeUndefined();
+    expect(onMoveTicket.mock.calls[0][1].rank > "a1").toBe(true);
 
-    onMoveCard.mockClear();
-    rerender(list({ tickets: across, ordering: "priority", onMoveCard }));
-    dragTo("LC-1", TODO_ROWS + ROW_HEIGHT + 30);
+    onMoveTicket.mockClear();
+    rerender(list({ tickets: across, ordering: "priority", onMoveTicket }));
+    dragTo("LC-1", () => rowTopIn("Todo", 1) + ROW_HEIGHT - 4);
 
-    expect(onMoveCard).not.toHaveBeenCalled();
+    expect(onMoveTicket).not.toHaveBeenCalled();
   });
 
   it("says which group would take the row, and where in it", () => {
@@ -838,7 +872,7 @@ describe("dragging a row to another group (LC-60)", () => {
     layOut();
 
     fireEvent.dragStart(listRow("LC-1"));
-    dragAt("dragOver", TODO_ROWS + 2 * ROW_HEIGHT + 1 + GROUP_GAP + 4);
+    dragAt("dragOver", rowTopIn("Done", 0) + ROW_HEIGHT - 4);
 
     expect(group("Done").className).toContain("drop-target");
     expect(group("Todo").className).not.toContain("drop-target");
@@ -854,18 +888,97 @@ describe("dragging a row to another group (LC-60)", () => {
     layOut();
 
     fireEvent.dragStart(listRow("LC-1"));
-    dragAt("dragOver", TODO_ROWS + 2 * ROW_HEIGHT + 1 + GROUP_GAP + 4);
+    dragAt("dragOver", groupTop("Done") + 4);
 
     expect(group("Done").className).toContain("drop-target");
     expect(document.querySelector(".list-drop-line")).toBeNull();
   });
 
+  it("stops saying a group would take the row once the pointer leaves", () => {
+    render(list({ tickets: across, ordering: "manual" }));
+    layOut();
+    fireEvent.dragStart(listRow("LC-1"));
+    dragAt("dragOver", groupTop("Done") + 4);
+    expect(document.querySelector(".list-group.drop-target")).toBeTruthy();
+
+    fireEvent.dragLeave(scroller());
+
+    expect(document.querySelector(".list-group.drop-target")).toBeNull();
+    expect(document.querySelector(".list-drop-line")).toBeNull();
+  });
+
+  it("opens every status while the drag lasts, so an empty one can be reached", () => {
+    // The list draws only the statuses that hold tickets, which would make an
+    // empty status impossible to drop into — and dragging a group's last row
+    // away would take that status off the surface for good.
+    const onMoveTicket = vi.fn();
+    render(
+      list({
+        tickets: [row({ key: "LC-1", status: "todo" })],
+        ordering: "priority",
+        onMoveTicket,
+      }),
+    );
+    expect(groupTitles()).toEqual(["Todo1"]);
+
+    layOut();
+    fireEvent.dragStart(listRow("LC-1"));
+
+    expect(groupTitles()).toEqual([
+      "Backlog0",
+      "Todo1",
+      "In Progress0",
+      "In Review0",
+      "Done0",
+      "Canceled0",
+    ]);
+
+    // And an empty one takes the drop: its header is the whole of it.
+    const at = groupTop("In Review") + 4;
+    dragAt("dragOver", at);
+    expect(group("In Review").className).toContain("drop-target");
+    dragAt("drop", at);
+
+    expect(onMoveTicket).toHaveBeenCalledTimes(1);
+    expect(onMoveTicket.mock.calls[0][1]).toStrictEqual({
+      status: "in_review",
+    });
+
+    fireEvent.dragEnd(listRow("LC-1"));
+    expect(groupTitles()).toEqual(["Todo1"]);
+  });
+
+  it("reads a drop on a pinned header as the top of the group it belongs to", () => {
+    // A sticky header sits over its own group's rows, so the content under the
+    // pointer there is not what the pointer is pointing at: twenty rows down
+    // the list, the band is painted over row 20 and means row 0.
+    render(list({ tickets: many(60), ordering: "manual" }));
+    const element = layOut();
+    let scrolled = 0;
+    Object.defineProperty(element, "scrollTop", {
+      get: () => scrolled,
+      set: (value: number) => {
+        scrolled = value;
+      },
+      configurable: true,
+    });
+    scrolled = 20 * ROW_HEIGHT;
+    fireEvent.scroll(element);
+
+    fireEvent.dragStart(listRow("LC-30"));
+    dragAt("dragOver", 8);
+
+    const line = document.querySelector<HTMLElement>(".list-drop-line");
+    expect(line).toBeTruthy();
+    expect(line!.style.top).toBe("0px");
+  });
+
   it("takes no drop into the archive, and lets none of it be dragged", () => {
-    const onMoveCard = vi.fn();
+    const onMoveTicket = vi.fn();
     render(
       list({
         ordering: "manual",
-        onMoveCard,
+        onMoveTicket,
         tickets: [
           row({ key: "LC-1", status: "todo" }),
           row({
@@ -883,17 +996,16 @@ describe("dragging a row to another group (LC-60)", () => {
 
     layOut();
     fireEvent.dragStart(listRow("LC-1"));
-    // Down in the archive group, which names no status to write.
-    dragAt("dragOver", TODO_ROWS + ROW_HEIGHT + GROUP_GAP + 40);
-    dragAt("drop", TODO_ROWS + ROW_HEIGHT + GROUP_GAP + 40);
+    const at = groupTop("▤Archived") + 4;
+    dragAt("dragOver", at);
+    dragAt("drop", at);
 
-    expect(onMoveCard).not.toHaveBeenCalled();
+    expect(onMoveTicket).not.toHaveBeenCalled();
     expect(document.querySelector(".list-group.drop-target")).toBeNull();
   });
 
   it("scrolls the list when the drag hangs at its bottom edge", () => {
-    const onMoveCard = vi.fn();
-    render(list({ tickets: many(400), ordering: "manual", onMoveCard }));
+    render(list({ tickets: many(400), ordering: "manual" }));
     const element = layOut();
     let scrolled = 0;
     Object.defineProperty(element, "scrollTop", {

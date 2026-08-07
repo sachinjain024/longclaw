@@ -16,6 +16,7 @@
  */
 
 import { indexAt, runningOffsets } from "./boardGeometry";
+import type { DropSpot } from "./ticketMove";
 
 /** `--lc-size-row`: the height `.list-row` is pinned to (`screen-specs.md:141`). */
 export const ROW_HEIGHT = 36;
@@ -95,7 +96,7 @@ export function listGeometry(groups: { tickets: unknown[] }[]): ListGeometry {
 export function dropAt(
   geometry: ListGeometry,
   position: number,
-): { group: number; gap: number } | undefined {
+): DropSpot | undefined {
   const { slots, offsets } = geometry;
   if (slots.length === 0) return undefined;
 
@@ -105,7 +106,11 @@ export function dropAt(
   const slot = slots[index];
   if (slot.row < 0) return { group: slot.group, gap: 0 };
 
-  const middle = (offsets[index] + offsets[index + 1]) / 2;
+  // The row's own middle, not the slot's. A group's last row carries the body's
+  // bottom hairline and the air below the group in its stride, so splitting the
+  // stride would put the line 6.5px below where the row actually ends — and
+  // every group has a last row.
+  const middle = offsets[index] + ROW_HEIGHT / 2;
   return { group: slot.group, gap: within < middle ? slot.row : slot.row + 1 };
 }
 

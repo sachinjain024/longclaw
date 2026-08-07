@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { seatsFor, type StatusGroup } from "./grouping";
 import { moveForDrop, takesDrop } from "./ticketMove";
-import type { TicketRow } from "./types";
+import type { IndexedTicket, TicketRow } from "./types";
 
 function row(key: string, rank?: string): TicketRow {
   return {
@@ -66,36 +66,45 @@ describe("which group would take the drop", () => {
 });
 
 describe("what letting go writes", () => {
-  it("writes the status of the group it landed in", () => {
-    expect(moveForDrop(groups, from, 1, 0, "priority")).toStrictEqual({
-      status: "in_progress",
-    });
+  it("writes the status of the group it landed in, for the ticket it moved", () => {
+    const drop = moveForDrop(groups, from, { group: 1, gap: 0 }, "priority");
+
+    expect(drop?.ticket.key).toBe("LC-1");
+    expect(drop?.move).toStrictEqual({ status: "in_progress" });
   });
 
   it("writes the status and the place in it, in Manual", () => {
-    const move = moveForDrop(groups, from, 1, 1, "manual");
+    const drop = moveForDrop(groups, from, { group: 1, gap: 1 }, "manual");
 
-    expect(move?.status).toBe("in_progress");
-    expect(move!.rank! > "a5" && move!.rank! < "a6").toBe(true);
+    expect(drop?.move.status).toBe("in_progress");
+    expect(drop!.move.rank! > "a5" && drop!.move.rank! < "a6").toBe(true);
   });
 
   it("writes only a rank back inside its own group", () => {
-    const move = moveForDrop(groups, from, 0, 2, "manual");
+    const drop = moveForDrop(groups, from, { group: 0, gap: 2 }, "manual");
 
-    expect(move?.status).toBeUndefined();
-    expect(move!.rank! > "a1").toBe(true);
+    expect(drop?.move.status).toBeUndefined();
+    expect(drop!.move.rank! > "a1").toBe(true);
   });
 
   it("writes nothing for a drop that would not move the card", () => {
-    expect(moveForDrop(groups, from, 0, 0, "manual")).toBeUndefined();
-    expect(moveForDrop(groups, from, 0, 1, "manual")).toBeUndefined();
+    expect(
+      moveForDrop(groups, from, { group: 0, gap: 0 }, "manual"),
+    ).toBeUndefined();
+    expect(
+      moveForDrop(groups, from, { group: 0, gap: 1 }, "manual"),
+    ).toBeUndefined();
     // And nothing at all inside its own group in Priority, where a place is
     // not a thing this board can write (ADR 0003).
-    expect(moveForDrop(groups, from, 0, 2, "priority")).toBeUndefined();
+    expect(
+      moveForDrop(groups, from, { group: 0, gap: 2 }, "priority"),
+    ).toBeUndefined();
   });
 
   it("writes nothing into a group no status names", () => {
-    expect(moveForDrop(groups, from, 2, 0, "manual")).toBeUndefined();
+    expect(
+      moveForDrop(groups, from, { group: 2, gap: 0 }, "manual"),
+    ).toBeUndefined();
   });
 
   it("writes nothing for a file it cannot read", () => {
@@ -120,7 +129,36 @@ describe("what letting go writes", () => {
     ];
     const seat = seatsFor(degraded).get("LC-99")!;
 
-    expect(moveForDrop(degraded, seat, 1, 0, "priority")).toBeUndefined();
+    expect(
+      moveForDrop(degraded, seat, { group: 1, gap: 0 }, "priority"),
+    ).toBeUndefined();
     expect(takesDrop(degraded, seat, 1, "priority")).toBe(false);
+  });
+
+  it("writes nothing for an archived ticket, whichever surface asks", () => {
+    // Archiving is a date and not a status (ADR 0004), so a move would put an
+    // archived ticket in a group the board would still not draw it in. The
+    // rule is here rather than in the list, which is the only surface drawing
+    // an archive today — the next one gets it for nothing.
+    const archived: StatusGroup[] = [
+      {
+        id: "todo",
+        title: "Todo",
+        status: "todo",
+        tickets: [
+          {
+            ...(row("LC-8") as IndexedTicket),
+            archivedAt: "2026-07-30T09:00:00Z",
+          },
+        ],
+      },
+      { id: "done", title: "Done", status: "done", tickets: [] },
+    ];
+    const seat = seatsFor(archived).get("LC-8")!;
+
+    expect(takesDrop(archived, seat, 1, "priority")).toBe(false);
+    expect(
+      moveForDrop(archived, seat, { group: 1, gap: 0 }, "priority"),
+    ).toBeUndefined();
   });
 });

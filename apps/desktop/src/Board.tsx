@@ -56,7 +56,7 @@
  * scrolls it, on an animation frame, for as long as the pointer stays there.
  *
  * A drop is a mutation and the board holds no project id, so it is raised as
- * `onMoveCard` and written in `App.tsx`, beside `changePriority`.
+ * `onMoveTicket` and written in `App.tsx`, beside `changePriority`.
  *
  * There is no keyboard equivalent, deliberately: `keyboard-focus-map.md:158-161`
  * puts reordering within a column outside v0 and names `S` — the status move —
@@ -74,7 +74,7 @@ import {
   windowFor,
 } from "./boardGeometry";
 import { classes } from "./classes";
-import { towardsEdge, useEdgeDrift } from "./edgeDrift";
+import { pickUp, towardsEdge, useEdgeDrift } from "./dragging";
 import { acknowledgement, isFresh } from "./freshness";
 import type { ExternalMark, ExternalMarks } from "./freshness";
 import {
@@ -215,7 +215,7 @@ export function Board(props: {
    * rank is allocated here — LongClaw owns rank allocation in v0 — and the
    * write is App's.
    */
-  onMoveCard: (ticket: IndexedTicket, move: TicketMove) => void;
+  onMoveTicket: (ticket: IndexedTicket, move: TicketMove) => void;
   /**
    * Raised by a column's `+`, with that column's status
    * (`keyboard-focus-map.md:44`). The board opens no surface of its own; App
@@ -282,11 +282,6 @@ export function Board(props: {
   /** Whether a place inside a column is a thing this board can write (ADR 0003). */
   const placesByHand = props.ordering === "manual";
 
-  /** Whether letting go over this column would write anything. */
-  function accepts(columnIndex: number): boolean {
-    return takesDrop(columns, dragSeat, columnIndex, props.ordering);
-  }
-
   /**
    * Where the pointer is now. `dragover` fires many times a second, and the
    * position is the same for most of them, so the same position keeps the same
@@ -303,7 +298,9 @@ export function Board(props: {
 
   /** What a column is doing about the drag, for the column to render. */
   function dropFor(columnIndex: number): ColumnDrop | undefined {
-    if (!accepts(columnIndex)) return undefined;
+    if (!takesDrop(columns, dragSeat, columnIndex, props.ordering)) {
+      return undefined;
+    }
     const over = hover?.column === columnIndex ? hover : undefined;
     return {
       // The line is where the card would sit, so it is only drawn where the
@@ -314,16 +311,14 @@ export function Board(props: {
   }
 
   function onDrop(columnIndex: number, gap: number) {
-    const moving = dragSeat === undefined ? undefined : ticketAt(dragSeat);
-    const move = moveForDrop(
+    const drop = moveForDrop(
       columns,
       dragSeat,
-      columnIndex,
-      gap,
+      { group: columnIndex, gap },
       props.ordering,
     );
     onDragCard(undefined);
-    if (moving?.state === "indexed" && move) props.onMoveCard(moving, move);
+    if (drop) props.onMoveTicket(drop.ticket, drop.move);
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -368,23 +363,9 @@ export function Board(props: {
   const openSeat =
     props.selectedKey === undefined ? undefined : seats.get(props.selectedKey);
 
-  /**
-   * `dragstart` bubbles, so the board picks the dragged card up once here rather
-   * than handing every card a callback of its own — which is what keeps the card
-   * memoized on nothing but its ticket and two booleans.
-   */
   function onDragStart(event: DragEvent<HTMLDivElement>) {
-    const on = (event.target as HTMLElement).closest?.(".ticket-row");
-    const key = (on as HTMLElement | null)?.dataset.ticketKey;
-    if (key === undefined) return;
-    const seat = seats.get(key);
-    // A file this build cannot read has no field to write either half of a move
-    // into, which is also why its card is not `draggable` in the first place.
-    if (!seat || ticketAt(seat).state !== "indexed") return;
-    // WebKit will not start a drag with an empty data transfer.
-    event.dataTransfer?.setData("text/plain", key);
-    if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
-    setDragKey(key);
+    const key = pickUp(event, { selector: CARD, groups: columns, seats });
+    if (key !== undefined) setDragKey(key);
   }
 
   /**

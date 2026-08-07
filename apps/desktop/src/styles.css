@@ -1607,6 +1607,16 @@ button:disabled {
   background: var(--lc-accent-human-wash);
 }
 
+/* The header carries it too, because a status with nothing in it has no body
+   to carry anything — and an empty status is exactly the one a row is most
+   often headed for. It is the whole of that group's target while the drag
+   lasts (`screen-specs.md` § Issue list). */
+.list-group.drop-target .list-group-header {
+  border-radius: var(--lc-radius-kbd);
+  background: var(--lc-accent-human-wash);
+  color: var(--lc-ink);
+}
+
 /* A row that can be picked up says so with the cursor: at 36px there is no
    room for a handle, which is what `screen-specs.md` § Issue list observed
    when it gave the list no drag affordance at all. */

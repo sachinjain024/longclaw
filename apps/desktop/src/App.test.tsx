@@ -3102,10 +3102,13 @@ describe("board ordering and manual reordering (V0-09)", () => {
       fireEvent.dragStart(
         document.querySelector<HTMLElement>('[data-ticket-key="LC-1"]')!,
       );
+      // Every status opens up while a drag is in flight, so the groups above
+      // Done are Backlog (44), Todo's header and row (33 + 49), In Progress
+      // (44) and In Review (44): the Done header band starts at 214.
+      const onDoneHeader = 220;
       for (const type of ["dragOver", "drop"] as const) {
         const event = createEvent[type](scroller);
-        // Past Todo's header and its one row, into the Done group below it.
-        Object.defineProperty(event, "clientY", { value: 120 });
+        Object.defineProperty(event, "clientY", { value: onDoneHeader });
         fireEvent(scroller, event);
       }
 

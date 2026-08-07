@@ -1534,7 +1534,7 @@ export function App() {
                     onSelect={openTicket}
                     onChangePriority={changePriority}
                     onChangeStatus={changeStatus}
-                    onMoveCard={moveCard}
+                    onMoveTicket={moveCard}
                     // A column's `+` is the same quick create `C` opens,
                     // arriving with the column it was pressed in already
                     // chosen (`keyboard-focus-map.md:44`).
@@ -1562,7 +1562,7 @@ export function App() {
                     onChangeStatus={changeStatus}
                     // The same move the board raises, because the same gesture
                     // means the same thing on both projections (`ticketMove.ts`).
-                    onMoveCard={moveCard}
+                    onMoveTicket={moveCard}
                     onCreateFirst={guide}
                   />
                 )}

@@ -25,26 +25,52 @@
 
 import type { Seat, StatusGroup } from "./grouping";
 import { rankForDrop, rankForInsert, type OrderingMode } from "./ordering";
+import { isArchived } from "./tickets";
 import type { IndexedTicket, TicketStatus } from "./types";
 
 /**
  * What a drop asks for: the group it landed in when that is not the one it came
  * from, the place it took there when the board is in Manual, or both. Never
- * neither — a drop that would write nothing is refused rather than raised.
+ * neither, which the shape says rather than the prose: a move with no status
+ * has a rank, and one with no rank has a status.
  */
-export interface TicketMove {
-  status?: TicketStatus;
-  rank?: string;
+export type TicketMove =
+  | { status: TicketStatus; rank?: string }
+  | { status?: undefined; rank: string };
+
+/**
+ * Where a pointer is over a surface, in the terms a drop is decided in: which
+ * group, and which gap between that group's tickets. Two bare numbers either
+ * side of a call transpose silently; this cannot.
+ */
+export interface DropSpot {
+  group: number;
+  gap: number;
 }
 
-/** The ticket a seat holds, when it is one this build can write to. */
-function movable(
+/** What a drop writes, and the ticket it writes to. */
+export interface TicketDrop {
+  ticket: IndexedTicket;
+  move: TicketMove;
+}
+
+/**
+ * The ticket a seat holds, when it is one a drag may pick up at all.
+ *
+ * A file this build cannot read has no frontmatter to write a move into. An
+ * archived ticket is off the board entirely (ADR 0004), so moving one would
+ * write a status the human cannot see the result of — the rule lives here
+ * rather than in the surface that draws the archive, so it holds for any
+ * surface that ever draws one.
+ */
+export function movable(
   groups: StatusGroup[],
   from: Seat | undefined,
 ): IndexedTicket | undefined {
   if (!from) return undefined;
   const ticket = groups[from.group]?.tickets[from.index];
-  return ticket?.state === "indexed" ? ticket : undefined;
+  if (ticket?.state !== "indexed" || isArchived(ticket)) return undefined;
+  return ticket;
 }
 
 /**
@@ -64,33 +90,40 @@ export function takesDrop(
 }
 
 /**
- * The move a drop at `gap` of `group` asks for, or `undefined` when it asks for
- * nothing — `TicketDocument::apply` refuses an edit that changes nothing, so a
- * drop that would write nothing is never raised as one that would.
+ * The ticket a drop at `spot` moves and what it writes, or `undefined` when it
+ * writes nothing — `TicketDocument::apply` refuses an edit that changes
+ * nothing, so a drop that would write nothing is never raised as one that
+ * would. The ticket comes back with the move so a caller has no second chance
+ * to disagree about which one it was.
  */
 export function moveForDrop(
   groups: StatusGroup[],
   from: Seat | undefined,
-  group: number,
-  gap: number,
+  spot: DropSpot,
   ordering: OrderingMode,
-): TicketMove | undefined {
-  const moving = movable(groups, from);
-  if (!moving || !from || !takesDrop(groups, from, group, ordering)) return;
-  const landing = groups[group];
+): TicketDrop | undefined {
+  const ticket = movable(groups, from);
+  if (!ticket || !from || !takesDrop(groups, from, spot.group, ordering))
+    return;
+  const landing = groups[spot.group];
 
-  if (from.group === group) {
+  if (from.group === spot.group) {
     // Back in its own group: a place in it, and only in Manual (ADR 0003).
-    const rank = rankForDrop(landing.tickets, moving.key, gap);
-    return rank === undefined ? undefined : { rank };
+    const rank = rankForDrop(landing.tickets, ticket.key, spot.gap);
+    return rank === undefined ? undefined : { ticket, move: { rank } };
   }
+  // `takesDrop` has already refused a group no status names.
+  const status = landing.status as TicketStatus;
 
   return {
-    status: landing.status,
-    // Priority allocates no rank, here as anywhere: the order inside the group
-    // it arrives in is not something the human chose by dropping there.
-    ...(ordering === "manual"
-      ? { rank: rankForInsert(landing.tickets, gap) }
-      : {}),
+    ticket,
+    move: {
+      status,
+      // Priority allocates no rank, here as anywhere: the order inside the
+      // group it arrives in is not something the human chose by dropping there.
+      ...(ordering === "manual"
+        ? { rank: rankForInsert(landing.tickets, spot.gap) }
+        : {}),
+    },
   };
 }

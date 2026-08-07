@@ -188,6 +188,13 @@ movement. No custom-color affordance exists anywhere.
   what a drop means. The group under the pointer wears an accent border
   and wash; in Manual a 2px accent line rides the boundary the row would
   land on. Dragging *within* a group is reordering and stays Manual-only.
+  **While a drag is in flight, every status renders** — the one exception
+  to "only statuses with visible tickets render" above, and the list's
+  answer to the height the board reserves in each column: a status with no
+  group on screen is a status nothing can be dropped into, and dragging a
+  group's last row away would otherwise remove that status as a target for
+  good. An empty group is its header, which is the whole of its target and
+  wears the wash accordingly. The set stands down when the drag does.
   The affordance is the grab cursor and nothing else: this list originally
   had no drag because a 36px row has no room for a handle, and it still
   does not have one. The **Archived** group takes no drop and none of its
