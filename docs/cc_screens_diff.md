@@ -276,7 +276,7 @@ Unarchive ghost button, the `archived` chip, Esc-closes, the agent timeline entr
 
 ## 9 · Description editor
 
-**Spec:** `screen-specs.md:178-186`. Tab strip on `wash` with **Write** /
+**Spec:** `screen-specs.md:196-205`. Tab strip on `wash` with **Write** /
 **Preview** (24px) + right-aligned 24×24 icon buttons (bold, italic, code, list,
 task, link); borderless mono textarea, min 132px, vertical resize; footer mono
 `writes to ticket.md on save`, Cancel (`Esc`), primary Save (`⌘↵`).
@@ -286,8 +286,8 @@ with their kbd chips are all present (`src/DescriptionEditor.tsx`).
 
 | ID | Sev | Prototype | App | Plan |
 |---|---|---|---|---|
-| D-45 | P2 | Six 24×24 **icon** buttons | Six text glyphs: `B`, `I`, `` ` ``, `•`, a small square, `↗` | Replace with icons from the foundations set. The backtick-as-code and `↗`-as-link substitutions are the weakest — neither reads as its action. |
-| D-46 | P3 | Tabs 24px on a `wash` strip | ~20px, strip tint is lighter than `wash` | Align to the token. |
+| ~~D-45~~ | P2 | Six 24×24 **icon** buttons | Six text glyphs: `B`, `I`, `` ` ``, `•`, a small square, `↗` | **Fixed 2026-08-07 (LC-111).** Six `format-*` masters joined `assets/glyphs.svg` on its 14×14 grid, and `FormattingIcon` draws them 1:1 in the 24px buttons. The two the row calls weakest are the two that changed most: code is chevrons around a slash, link is a chain. The buttons keep their names — an icon alone is not a name. Copying rather than referencing is forced — an external `<use href="…#id">` draws nothing in WebKit — so `scripts/glyph-drift-guard.mjs` holds the three copies to the master's geometry and stroke weights, ignoring colour, which is the one thing they are each supposed to decide for themselves. |
+| ~~D-46~~ | P3 | Tabs 24px on a `wash` strip | ~20px, strip tint is lighter than `wash` | **Fixed 2026-08-07 (LC-112).** Neither half was the value it named. The colour was right all along — `.editor-tabstrip` has read `background: var(--lc-wash)` since the editor landed (`d02b107`), matching foundations in both appearances; what there wasn't was much of it, because with no vertical padding the 28px of controls reached the top and bottom edges and none of the wash ran above or below them. And the tab was already 24px, but `.editor-tab` was transparent and its 2px rule showed only when active, so it had no visible box and what you measure off a screenshot is the ink rather than the 24px. So: `--lc-space-1` above and below, which over a 28px row is the prototype's 36px band with each tab on 6px of wash; and the active tab becomes the chip both `components-library.html:311` and `prototype.css:500` draw, which is what gives the 24px a visible edge. That chip is `surface`, not the `accent-human-soft` § Global interaction model gives Selected — both drawings lift the active pane off the wash rather than tinting it, and `components.md` now records the exception. One thing left open: `prototype.css:498` swaps the strip to `--lc-raised` in dark, which we do not; the two tokens are the same colour in dark today, so nothing renders differently and no rule follows from it. Both controls also now consume `--lc-size-control-sm` rather than a literal `24px`. |
 
 ---
 
@@ -574,7 +574,10 @@ single stack.
 
     **This line is closed.** Every `D-` row in § 8 is struck.
 12. **D-4E / D-4F** — palette glyphs (data change; the slot already exists).
-13. **D-45** — real toolbar icons.
+13. ~~**D-45**~~ — real toolbar icons (done 2026-08-07, LC-111, with
+    ~~**D-46**~~: the tab strip's own height, in LC-112).
+
+    **§ 9 is closed.** Every `D-` row in it is struck.
 14. ~~**D-21**~~ — column-header `+` (done 2026-08-07, LC-83, with ~~**D-22**~~
     and ~~**D-23**~~: the board's focus ring and the `None` chip).
 15. **D-47 / D-48 / D-49 / D-4A / D-4B** — create surfaces.

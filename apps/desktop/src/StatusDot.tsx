@@ -47,14 +47,23 @@ export function StatusDot(props: {
       viewBox="0 0 14 14"
       {...naming}
     >
+      {/*
+       * One circle for all six, because the fill is the only thing that
+       * changes: `components.md` § Status draws r=5 with a 1.6 stroke, and
+       * gives the filled states "r=5 fill + 1.6px same-color stroke, so the
+       * visual weight matches the ring". Dropping the stroke on the filled
+       * ones — which this did — makes them smaller than the rings they are
+       * supposed to weigh the same as. `glyph-drift-guard.mjs` holds this to
+       * the masters now.
+       */}
       <circle
         cx="7"
         cy="7"
-        r={open ? 4.4 : 4.6}
+        r="5"
         fill={open ? "none" : "currentColor"}
-        stroke={open ? "currentColor" : "none"}
-        strokeWidth={open ? 1.6 : 0}
-        strokeDasharray={props.status === "backlog" ? "2.1 1.7" : undefined}
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeDasharray={props.status === "backlog" ? "2.1 2.5" : undefined}
       />
     </svg>
   );

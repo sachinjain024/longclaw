@@ -42,15 +42,25 @@ export function PriorityGlyph(props: {
         {...naming}
       >
         <rect x="1" y="1" width="12" height="12" rx="3" />
+        {/* Both marks are the master's rects (`assets/glyphs.svg`): the dot is
+            a 1.5 square with rx 0.75, which is a circle drawn the same way as
+            the bar above it rather than a second kind of shape. */}
         <rect
           className="mark"
-          x="6.4"
-          y="3.6"
-          width="1.2"
+          x="6.25"
+          y="3.4"
+          width="1.5"
           height="4.6"
-          rx="0.6"
+          rx="0.75"
         />
-        <circle className="mark" cx="7" cy="10.1" r="0.85" />
+        <rect
+          className="mark"
+          x="6.25"
+          y="9.2"
+          width="1.5"
+          height="1.5"
+          rx="0.75"
+        />
       </svg>
     );
   }

@@ -27,6 +27,12 @@
  * panel, a descendant selector out-specifying the one class that decides a
  * font. Neither is visible to the vitest suite, which loads no stylesheet.
  *
+ * `glyph-drift-guard.mjs` (LC-111) takes `report` alone and reads further out
+ * than any of them: `docs/design/foundations/`, which is not app source at all.
+ * That is the point of it. Its subject is a component and the design master it
+ * was copied from, and the two live on opposite sides of the repo, so the only
+ * place the pair can be compared is a script that reads both trees.
+ *
  * `src/tokens/` is the one place a literal is allowed anywhere: it is where the
  * scale is declared.
  */

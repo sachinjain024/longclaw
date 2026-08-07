@@ -107,6 +107,20 @@ describe("the formatting toolbar", () => {
     );
 
     expect(buttons).toHaveLength(6);
+    // Each button is its own foundation mark rather than a letter (D-45).
+    expect(
+      buttons.map((button) =>
+        button.querySelector(".formatting-glyph")?.getAttribute("class"),
+      ),
+    ).toEqual([
+      "formatting-glyph formatting-bold",
+      "formatting-glyph formatting-italic",
+      "formatting-glyph formatting-code",
+      "formatting-glyph formatting-list",
+      "formatting-glyph formatting-task",
+      "formatting-glyph formatting-link",
+    ]);
+    expect(buttons.every((button) => button.textContent === "")).toBe(true);
     // One stop, so Tab reaches the textarea without pressing it seven times
     // (`keyboard-focus-map.md:61`).
     expect(buttons.filter((button) => button.tabIndex === 0)).toHaveLength(1);

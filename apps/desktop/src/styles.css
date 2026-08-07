@@ -2125,7 +2125,15 @@ button:disabled {
   background: var(--lc-surface);
 }
 
-/* Tabs left, formatting right, both on the wash (`screen-specs.md:178-180`). */
+/* Tabs left, formatting right, both on the wash (`screen-specs.md:198-200`).
+   The vertical padding is what makes this read as a strip rather than as a row
+   that happens to be tinted. There was always wash across the middle, where
+   `space-between` leaves a gap, but the 28px of controls reached the top and
+   bottom edges, so none of it ran under or over them. `--lc-space-1` over a
+   28px row is the prototype's 36px band, and puts each 24px tab on its 6px of
+   wash (D-46). The foundations specimen sets its own bar to 34px flat
+   (`components-library.html:307`); the prototype is the reference D-46 is
+   written against, so 36 is what this follows. */
 .editor-tabstrip {
   display: flex;
   gap: var(--lc-space-2);
@@ -2133,7 +2141,7 @@ button:disabled {
   justify-content: space-between;
   border-bottom: 1px solid var(--lc-line);
   border-radius: var(--lc-radius-control) var(--lc-radius-control) 0 0;
-  padding: 0 var(--lc-space-2);
+  padding: var(--lc-space-1) var(--lc-space-2);
   background: var(--lc-wash);
 }
 
@@ -2143,18 +2151,29 @@ button:disabled {
 }
 
 .editor-tab {
-  height: 24px;
-  border: 0;
-  border-bottom: 2px solid transparent;
+  height: var(--lc-size-control-sm);
+  border: 1px solid transparent;
+  border-radius: var(--lc-radius-control);
   padding: 0 var(--lc-space-2);
   color: var(--lc-ink-3);
   background: transparent;
   font-size: 11px;
 }
 
+/* The chip `components-library.html:311` and `prototype.css:500` both draw,
+   not an underline: with a transparent background and its rule showing only
+   when active, the tab had no box you could see, so what anyone measures off a
+   screenshot is the ink — text and rule — and not the 24px it has always been.
+   That is D-46's `~20px`. The border carries the selection as well as the
+   fill, which is the part of § Global interaction model's Selected row that
+   binds here; the fill itself is `surface` rather than that row's
+   `accent-human-soft`, because both drawings of this control lift the active
+   pane off the wash instead of tinting it. */
 .editor-tab.active {
   color: var(--lc-ink);
-  border-bottom-color: var(--lc-accent-human);
+  border-color: var(--lc-line);
+  background: var(--lc-surface);
+  box-shadow: var(--lc-shadow-card);
 }
 
 .editor-toolbar {
@@ -2166,13 +2185,12 @@ button:disabled {
 .editor-toolbar button {
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: var(--lc-size-control-sm);
+  height: var(--lc-size-control-sm);
   border: 0;
   border-radius: var(--lc-radius-control);
   color: var(--lc-ink-2);
   background: transparent;
-  font: 600 11px var(--lc-type-code-font);
 }
 
 .editor-toolbar button:hover:not(:disabled) {

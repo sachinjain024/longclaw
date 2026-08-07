@@ -17,7 +17,7 @@ iteration). Everything here is the deliverable set for MVP plan Step 1.
 | `scripts/a11y-check.mjs` | The checker (`node scripts/a11y-check.mjs --write`); exits non-zero on any failure |
 | `scripts/render.mjs` | The render pipeline (`node scripts/render.mjs`); regenerates `proof/renders/` from the two proof pages |
 | `assets/owl-mark.svg` | Original geometric owl mark, variant A "talon" |
-| `assets/glyphs.svg` | Status / priority / checkbox / agent / folder / warn glyph masters |
+| `assets/glyphs.svg` | Status / priority / checkbox / agent / folder / warn / description-formatting glyph masters |
 | `proof/board.html` | **Board proof** — open in a browser; switch 4 themes × 2 appearances live |
 | `proof/components-library.html` | **Components library** — every foundation component as a live specimen: type, color (with live-resolved token values), space/radius/elevation/motion, buttons, fields, chips, status, priority, avatars, checklist, cards, list view, timeline, ticket panel, toast/banners, navigation, empty states, brand |
 | `proof/fonts.css` | Fonts extracted from the approved reference (latin subsets, offline proof) |
