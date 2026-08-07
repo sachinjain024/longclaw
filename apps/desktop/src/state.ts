@@ -75,6 +75,24 @@ interface LongClawState {
 const byKey = (a: TicketRow, b: TicketRow) =>
   a.key.localeCompare(b.key, undefined, { numeric: true });
 
+/**
+ * The project marked reachable again, because something was just read out of its
+ * folder. The identity of the array is preserved when nothing changes, so an
+ * ordinary event does not re-render every surface that watches the project list.
+ */
+function reachableAgain(
+  projects: ProjectReference[],
+  projectId: string,
+): ProjectReference[] {
+  if (
+    projects.every((project) => project.id !== projectId || project.reachable)
+  )
+    return projects;
+  return projects.map((project) =>
+    project.id === projectId ? { ...project, reachable: true } : project,
+  );
+}
+
 function without(marks: ExternalMarks, ticketKey: string): ExternalMarks {
   if (!(ticketKey in marks)) return marks;
   const next = { ...marks };
@@ -135,6 +153,11 @@ export const useLongClawStore = create<LongClawState>((set, get) => ({
       const switchingProject = state.activeProjectId !== snapshot.project.id;
       return {
         activeProjectId: snapshot.project.id,
+        // Rows in hand are proof the folder answered, so a snapshot is what
+        // takes an unreachable flag back (LC-141). Only that one field: the
+        // engine's copy of the project carries no `starred`, and adopting the
+        // whole reference would unstar a project by reading its tickets.
+        projects: reachableAgain(state.projects, snapshot.project.id),
         tickets: [...snapshot.tickets].sort(byKey),
         generation: snapshot.generation,
         // The snapshot's own boundary is what makes recovery converge: it says
@@ -209,6 +232,10 @@ export const useLongClawStore = create<LongClawState>((set, get) => ({
         generation: event.data.snapshot.generation,
         lastEvent: envelope,
         lastSequence: envelope.sequence,
+        // A rebuild is a read of the folder that succeeded. `recovered` is the
+        // one the engine sends when a project that was reported unreachable
+        // answers again, and these rows are the recovery (LC-141).
+        projects: reachableAgain(state.projects, envelope.projectId),
       });
       return;
     }
@@ -220,11 +247,11 @@ export const useLongClawStore = create<LongClawState>((set, get) => ({
           ? { ...project, reachable: false }
           : project,
       ),
-      error: {
-        code: "project_unavailable",
-        message: `Project folder is unavailable: ${event.data.rootPath}`,
-        recoverable: true,
-      },
+      // No error. The unreachable state is one centered panel and not a panel
+      // under a banner saying the same thing twice (`states.md:80-98`, D-59) —
+      // and the panel says it better, because it carries the path and the two
+      // actions that answer it.
+      error: undefined,
     });
   },
   reconcileFailed: () => set({ reconciling: false, loading: false }),

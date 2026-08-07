@@ -2371,7 +2371,7 @@ describe("board ordering and manual reordering (V0-09)", () => {
       true,
     );
     await screen.findByText(
-      "LC-3 could not be moved. Disk is full The file was left as it was.",
+      "LC-3 could not be moved. Disk is full. The file was left as it was.",
     );
     const back = useLongClawStore
       .getState()
@@ -2970,11 +2970,18 @@ describe("the side panel against its spec (Step 16a)", () => {
       link.querySelector(".project-warn")?.getAttribute("aria-hidden"),
     ).toBe("true");
 
-    // Clicking it selects it and lands on the recovery panel rather than
-    // reaching for a folder that is not there — relocating starts here.
+    // Clicking it selects it and lands on the recovery panel, and it does try
+    // the folder on the way: the flag is the last read's answer rather than a
+    // property of the project, so opening it is how a folder that came back is
+    // noticed (LC-141).
+    vi.mocked(api.openProject).mockRejectedValue({
+      code: "project_unavailable",
+      message: "The selected project folder is no longer available",
+      recoverable: true,
+    });
     fireEvent.click(link);
-    expect(await screen.findByText("UNREACHABLE")).toBeDefined();
-    expect(api.openProject).not.toHaveBeenCalledWith(unreachable.id);
+    expect(await screen.findByText("Folder not found")).toBeDefined();
+    expect(api.openProject).toHaveBeenCalledWith(unreachable.id);
   });
 
   it("keeps a starred project's star visible when the row is not hovered", async () => {
@@ -3184,5 +3191,230 @@ describe("the app shell against its spec (LC-71, LC-72, LC-73)", () => {
       fireEvent.click(screen.getByText("Create project"));
       expect(await screen.findByText("Choose folder")).toBeTruthy();
     });
+  });
+});
+
+/**
+ * The folder-missing state, against `states.md:80-98` (LC-139 … LC-145).
+ *
+ * Every one of these was reproduced by renaming a project directory out from
+ * under the running app. What the screen did then was: nothing at all, until an
+ * index rebuild was forced — and once it did notice, it said the state twice,
+ * named the registry rather than the folder, drew the recovery as the loud
+ * button and the removal as a one-click danger, and let quick create open over
+ * the top of it offering `LC-1`.
+ */
+describe("a project folder that cannot be reached (LC-139 … LC-145)", () => {
+  const project = {
+    id: "project-away",
+    name: "Away Project",
+    rootPath: "/Volumes/external/away",
+    key: "AW",
+    theme: "indigo",
+    starred: false,
+    reachable: true,
+    labels: {},
+  };
+  const unreachable = { ...project, reachable: false };
+
+  function row(key: string, title: string): TicketRow {
+    return {
+      state: "indexed",
+      key,
+      id: `id-${key}`,
+      title,
+      status: "todo",
+      priority: "none",
+      labels: [],
+      createdAt: "2026-08-01T09:00:00Z",
+      updatedAt: "2026-08-01T09:00:00Z",
+      checkedCount: 0,
+      checklistCount: 0,
+      commentCount: 0,
+      attachmentCount: 0,
+      contentHash: `hash-${key}`,
+      relativePath: `.longclaw/tickets/${key}/ticket.md`,
+    };
+  }
+
+  const SEED = [row("AW-1", "Cached row")];
+
+  /** The app at launch, with the folder already gone. */
+  async function openMissing() {
+    vi.mocked(api.listProjects).mockResolvedValue([unreachable]);
+    render(<App />);
+    return screen.findByText("Folder not found");
+  }
+
+  /** The app on a live board, with a handle on the event stream. */
+  async function openBoard() {
+    let emit: ((event: StreamEnvelope) => void) | undefined;
+    vi.mocked(api.listenForProjectEvents).mockImplementation((handler) => {
+      emit = handler;
+      return Promise.resolve(() => {});
+    });
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project,
+      tickets: SEED,
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    render(<App />);
+    await screen.findByText("Cached row");
+    return (event: StreamEnvelope) => act(() => emit?.(event));
+  }
+
+  const WENT_AWAY: StreamEnvelope = {
+    contractVersion: 1,
+    sequence: 2,
+    projectId: project.id,
+    emittedAt: "2026-08-07T09:00:00Z",
+    event: {
+      type: "projectUnavailable",
+      data: { rootPath: project.rootPath },
+    },
+  };
+
+  /**
+   * LC-139 / D-55. The watcher's signal alone has to raise the state:
+   * `states.md:96` forbids showing cached tickets as if they were live, and this
+   * is the only thing standing between a moved folder and a board that goes on
+   * drawing rows nobody can save to.
+   */
+  it("stops showing cached rows the moment the watcher says the folder is gone", async () => {
+    const emit = await openBoard();
+
+    emit(WENT_AWAY);
+
+    expect(await screen.findByText("Folder not found")).toBeTruthy();
+    expect(screen.queryByText("Cached row")).toBeNull();
+  });
+
+  /** LC-139, the same trigger arriving as a failed read instead. */
+  it("raises the state when a reconcile comes back unreadable", async () => {
+    const emit = await openBoard();
+    void emit;
+    vi.mocked(api.reconcileProject).mockRejectedValue({
+      code: "project_unavailable",
+      message: "The selected project folder is no longer available",
+      recoverable: true,
+    });
+
+    fireEvent(window, new Event("focus"));
+
+    expect(await screen.findByText("Folder not found")).toBeTruthy();
+    expect(screen.queryByText("Cached row")).toBeNull();
+  });
+
+  /**
+   * LC-141. The flag is the last read's answer, not a property of the project,
+   * so coming back to the window re-asks the registry — and a folder that has
+   * been remounted opens.
+   */
+  it("recovers on its own when the folder comes back", async () => {
+    await openMissing();
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project,
+      tickets: SEED,
+      generation: 2,
+      rebuiltInMs: 1,
+      sequence: 3,
+    });
+
+    fireEvent(window, new Event("focus"));
+
+    expect(await screen.findByText("Cached row")).toBeTruthy();
+    expect(screen.queryByText("Folder not found")).toBeNull();
+  });
+
+  /** LC-142 / D-59. One centered panel, not a panel under a banner. */
+  it("says it once", async () => {
+    await openMissing();
+
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getAllByText("Folder not found")).toHaveLength(1);
+  });
+
+  /** LC-143 / D-5A and LC-145 / D-5C: what the panel says, and what it drops. */
+  it("names the state and the guarantee rather than the registry", async () => {
+    const panel = (await openMissing()).closest(".unreachable-panel");
+
+    expect(panel?.querySelector(".state-icon svg")).toBeTruthy();
+    expect(panel?.textContent).toContain(project.rootPath);
+    expect(panel?.textContent).toContain(
+      "The project folder moved, or its disk isn’t mounted.",
+    );
+    expect(panel?.textContent).toContain(
+      "LongClaw never deletes or rewrites them",
+    );
+    expect(panel?.textContent).not.toContain("UNREACHABLE");
+    expect(panel?.textContent).not.toContain("registry");
+  });
+
+  /** LC-144 / D-5B. The recovery is the quiet button; the removal asks first. */
+  it("demotes Locate and puts Remove behind a confirm", async () => {
+    await openMissing();
+
+    const locate = screen.getByRole("button", { name: "Locate folder…" });
+    expect(locate.className).toContain("secondary");
+    expect(locate.className).not.toContain("primary");
+
+    const remove = screen.getByRole("button", { name: "Remove from app" });
+    expect(remove.className).toContain("ghost");
+
+    fireEvent.click(remove);
+    const dialog = await screen.findByRole("dialog", {
+      name: `Remove “${project.name}” from LongClaw?`,
+    });
+    expect(dialog.textContent).toContain(project.rootPath);
+    expect(dialog.textContent).toContain("stay on disk, untouched");
+    expect(api.removeProject).not.toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(api.removeProject).not.toHaveBeenCalled();
+  });
+
+  it("removes the reference only once the confirm is answered", async () => {
+    vi.mocked(api.removeProject).mockResolvedValue(undefined);
+    await openMissing();
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove from app" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Remove from app" }),
+    );
+
+    await waitFor(() =>
+      expect(api.removeProject).toHaveBeenCalledWith(project.id),
+    );
+  });
+
+  /**
+   * LC-140 / D-57. Quick create opened over the unreachable screen and offered
+   * `LC-1` as the next key, because the key is guessed from the rows on screen
+   * and there are none — a collision waiting for the folder to come back.
+   */
+  it("creates nothing while the folder is gone", async () => {
+    await openMissing();
+
+    fireEvent.keyDown(document, { key: "c" });
+
+    expect(screen.queryByLabelText("Create a ticket")).toBeNull();
+    expect(screen.queryByText(/AW-1/)).toBeNull();
+  });
+
+  it("takes a create surface down with the folder", async () => {
+    const emit = await openBoard();
+    fireEvent.keyDown(document, { key: "c" });
+    expect(screen.getByLabelText("Create a ticket")).toBeTruthy();
+
+    emit(WENT_AWAY);
+
+    expect(await screen.findByText("Folder not found")).toBeTruthy();
+    expect(screen.queryByLabelText("Create a ticket")).toBeNull();
   });
 });

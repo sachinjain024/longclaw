@@ -300,6 +300,46 @@ fn a_removed_root_can_be_restored_and_reconciled() {
     assert!(root.join(".longclaw/longclaw.yaml").is_file());
 }
 
+/// LC-139 / D-55. Renaming the project root out from under a running app is the
+/// reproduction, and it used to produce *nothing*: the watch is on a path inside
+/// the root, and moving an ancestor delivers no event for it, so the board kept
+/// showing cached rows as if they were live until something forced a re-read.
+/// `states.md:96` forbids exactly that. The quiet watcher has to notice on its
+/// own — and notice the folder coming back, which is LC-141's other half.
+#[test]
+fn a_root_that_goes_away_while_nothing_is_asked_of_it_is_still_reported() {
+    let _serial = serially();
+    let (temp, root) = copy_representative_project();
+    let (engine, events) = start_engine(&root);
+    let moved = temp.path().join("temporarily-moved");
+    fs::rename(&root, &moved).expect("move project root");
+
+    // No rebuild, no read, no user action: the probe is the only thing running.
+    assert!(matches!(
+        next_event(&events),
+        ProjectEvent::ProjectUnavailable { .. }
+    ));
+
+    fs::rename(&moved, &root).expect("restore project root");
+    let snapshot = loop {
+        match next_event(&events) {
+            ProjectEvent::IndexRebuilt { snapshot, reason } => {
+                assert_eq!(reason, RebuildReason::Recovered);
+                break snapshot;
+            }
+            // The watcher may report the folder's absence more than once on the
+            // way; what must not happen is that it never reports its return.
+            ProjectEvent::ProjectUnavailable { .. } => continue,
+            other => panic!(
+                "a returning folder recovers with a rebuild, got {}",
+                serde_json::to_string(&other).unwrap_or_default()
+            ),
+        }
+    };
+    assert_eq!(snapshot.tickets.len(), 6);
+    drop(engine);
+}
+
 #[test]
 fn recovery_triggers_close_together_emit_one_rebuild() {
     let _serial = serially();
@@ -732,4 +772,43 @@ fn filesystem_round_trip_covers_self_writes_bursts_deletion_and_reconcile() {
         ProjectEvent::ProjectUnavailable { .. }
     ));
     assert!(moved.join(".longclaw/longclaw.yaml").is_file());
+}
+
+/// LC-139 / D-55, the reproduction exactly as it was reported: rename the project
+/// directory out from under the running app and then **ask it nothing**. FSEvents
+/// delivers no event for a watched path whose ancestor moved, so this was silent
+/// — the board kept its cached rows, the sidebar dot stayed normal, and the state
+/// only appeared once something forced a re-read. Named into the
+/// `filesystem_round_trip` filter deliberately: the polling adapter notices the
+/// removal by itself, so only the production watcher can prove the silence.
+#[test]
+#[ignore = "native filesystem watcher; run through npm run test:watcher"]
+fn filesystem_round_trip_reports_a_folder_that_moved_away_unprompted() {
+    let _serial = serially();
+    let (temp, root) = copy_representative_project();
+    let (engine, events) = start_engine_with(&root, WatcherAdapter::Native);
+
+    let moved = temp.path().join("folder-moved-quietly");
+    fs::rename(&root, &moved).expect("move the project folder");
+    assert!(matches!(
+        next_event(&events),
+        ProjectEvent::ProjectUnavailable { .. }
+    ));
+
+    fs::rename(&moved, &root).expect("restore the project folder");
+    let snapshot = loop {
+        match next_event(&events) {
+            ProjectEvent::IndexRebuilt { snapshot, reason } => {
+                assert_eq!(reason, RebuildReason::Recovered);
+                break snapshot;
+            }
+            ProjectEvent::ProjectUnavailable { .. } => continue,
+            other => panic!(
+                "a returning folder recovers with a rebuild, got {}",
+                serde_json::to_string(&other).unwrap_or_default()
+            ),
+        }
+    };
+    assert_eq!(snapshot.tickets.len(), 6);
+    drop(engine);
 }

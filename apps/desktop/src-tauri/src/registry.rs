@@ -29,7 +29,7 @@ impl RegistryStore {
         })?;
         let path = app_data_dir.join("project-registry.json");
         let backup_path = app_data_dir.join("project-registry.backup.json");
-        let projects = match fs::read(&path) {
+        let mut projects: Vec<ProjectReference> = match fs::read(&path) {
             Ok(bytes) => {
                 let projects = serde_json::from_slice(&bytes).map_err(|error| {
                     AppError::new(
@@ -46,6 +46,15 @@ impl RegistryStore {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Vec::new(),
             Err(error) => return Err(AppError::io("Reading project registry", &path, error)),
         };
+        // The file's `reachable` is a cache of somebody's last probe, not a fact
+        // about this launch: a folder that was away when the app closed may be
+        // mounted now. `refreshed` decides it on every read, so the persisted
+        // value is dropped here rather than left to outlive the session that
+        // wrote it — which is how a project stayed flagged unreachable across a
+        // relaunch after the folder had come back (LC-141).
+        for project in &mut projects {
+            project.reachable = true;
+        }
         Ok(Self {
             path,
             backup_path,
@@ -351,6 +360,46 @@ mod tests {
         assert!(!missing[0].reachable);
         assert_eq!(missing[0].root_path, registered_path);
         assert!(moved.join(".longclaw/longclaw.yaml").is_file());
+    }
+
+    /// LC-141. A project that was away when the app closed stayed flagged
+    /// unreachable after the folder came back, because the flag was read out of
+    /// the registry file as though it were a fact about the disk. It is a cache
+    /// of somebody's last probe, and this launch has to take its own.
+    #[test]
+    fn a_persisted_unreachable_flag_does_not_survive_the_folder_coming_back() {
+        let temp = tempfile::tempdir().unwrap();
+        let app_data = temp.path().join("app-support");
+        let project = temp.path().join("project");
+        fs::create_dir_all(project.join(".longclaw/tickets")).unwrap();
+        fs::write(
+            project.join(".longclaw/longclaw.yaml"),
+            "format: longclaw.project/v1\nid: cache-proof\nname: Cache Proof\nkey: CP\ntheme: indigo\ncreated_at: 2026-07-29T00:00:00Z\n",
+        )
+        .unwrap();
+
+        let store = RegistryStore::load(&app_data).unwrap();
+        store.register(&project).unwrap();
+        drop(store);
+
+        // The registry as an older build could have left it: the folder is
+        // there, and the file still says it is not.
+        let registry_path = app_data.join("project-registry.json");
+        let stale = fs::read_to_string(&registry_path)
+            .unwrap()
+            .replace("\"reachable\": true", "\"reachable\": false");
+        assert!(stale.contains("\"reachable\": false"));
+        fs::write(&registry_path, stale).unwrap();
+
+        let restored = RegistryStore::load(&app_data).unwrap();
+        let [listed] = restored.list().try_into().unwrap();
+        assert!(listed.reachable);
+
+        // And the stale flag is not written back out, so it cannot come round
+        // again on the next launch.
+        restored.set_starred("cache-proof", true).unwrap();
+        let written = fs::read_to_string(&registry_path).unwrap();
+        assert!(!written.contains("\"reachable\": false"));
     }
 
     #[test]
