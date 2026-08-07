@@ -22,7 +22,6 @@ import type {
   StreamEnvelope,
   TicketDetail,
   TicketRow,
-  TicketStatus,
   WriteResult,
 } from "./types";
 
@@ -2796,17 +2795,9 @@ describe("board ordering and manual reordering (V0-09)", () => {
     };
   }
 
-  function written(
-    key: string,
-    rank?: string,
-    status?: TicketStatus,
-  ): WriteResult {
+  function written(key: string, landed?: Partial<IndexedTicket>): WriteResult {
     return {
-      ticket: row(key, {
-        contentHash: `hash-${key}-written`,
-        rank,
-        ...(status ? { status } : {}),
-      }),
+      ticket: row(key, { contentHash: `hash-${key}-written`, ...landed }),
       generation: 2,
       changes: [],
     };
@@ -2888,16 +2879,16 @@ describe("board ordering and manual reordering (V0-09)", () => {
 
   it("must-pass: Priority mode writes no rank however the board is dragged", async () => {
     vi.mocked(api.editTicket).mockResolvedValue(
-      written("LC-2", undefined, "in_progress"),
+      written("LC-2", { status: "in_progress" }),
     );
     await openBoard([row("LC-1", { rank: "a0" }), row("LC-2", { rank: "a1" })]);
 
-    // Inside its own lane, where a rank is the only thing a drop could write.
+    // Inside its own column, where a rank is the only thing a drop could write.
     dropAt("LC-2", 0);
 
     expect(api.editTicket).not.toHaveBeenCalled();
 
-    // And into another lane, which is a status change — and still no rank
+    // And into another column, which is a status change — and still no rank
     // (LC-60).
     dropAt("LC-2", 0, "In Progress");
 
@@ -2911,7 +2902,9 @@ describe("board ordering and manual reordering (V0-09)", () => {
   });
 
   it("must-pass: a manual drop writes a rank, and only a rank, and takes it back", async () => {
-    vi.mocked(api.editTicket).mockResolvedValue(written("LC-3", "a0V"));
+    vi.mocked(api.editTicket).mockResolvedValue(
+      written("LC-3", { rank: "a0V" }),
+    );
     await openBoard([
       row("LC-1", { rank: "a0" }),
       row("LC-2", { rank: "a1" }),
@@ -2931,7 +2924,9 @@ describe("board ordering and manual reordering (V0-09)", () => {
     });
     await screen.findByText("LC-3 moved");
 
-    vi.mocked(api.editTicket).mockResolvedValue(written("LC-3", "a2"));
+    vi.mocked(api.editTicket).mockResolvedValue(
+      written("LC-3", { rank: "a2" }),
+    );
     fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
 
     await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(2));
@@ -2944,7 +2939,9 @@ describe("board ordering and manual reordering (V0-09)", () => {
   });
 
   it("takes back a first-ever rank by clearing the key, not by inventing one", async () => {
-    vi.mocked(api.editTicket).mockResolvedValue(written("LC-3", "a0"));
+    vi.mocked(api.editTicket).mockResolvedValue(
+      written("LC-3", { rank: "a0" }),
+    );
     await openBoard([row("LC-1"), row("LC-2"), row("LC-3")]);
     chooseOrdering("Manual");
 
@@ -2998,18 +2995,18 @@ describe("board ordering and manual reordering (V0-09)", () => {
     expect(back?.state === "indexed" && back.rank).toBe("a2");
   });
 
-  describe("dragged into another lane (LC-60)", () => {
+  describe("dragged into another column (LC-60)", () => {
     /** Where a card sits now, by the column heading above it. */
-    function laneOf(key: string): string {
+    function columnHolding(key: string): string {
       const column = document
         .querySelector(`[data-ticket-key="${key}"]`)
         ?.closest(".board-column");
       return column?.querySelector("h3")?.textContent ?? "";
     }
 
-    it("writes the status of the lane, and takes it back", async () => {
+    it("writes the status of the column, and takes it back", async () => {
       vi.mocked(api.editTicket).mockResolvedValue(
-        written("LC-2", undefined, "in_progress"),
+        written("LC-2", { status: "in_progress" }),
       );
       await openBoard([row("LC-1"), row("LC-2")]);
 
@@ -3036,9 +3033,9 @@ describe("board ordering and manual reordering (V0-09)", () => {
       });
     });
 
-    it("writes the lane and the place in it as one edit, in Manual", async () => {
+    it("writes the column and the place in it as one edit, in Manual", async () => {
       vi.mocked(api.editTicket).mockResolvedValue(
-        written("LC-1", "a5V", "in_progress"),
+        written("LC-1", { rank: "a5V", status: "in_progress" }),
       );
       await openBoard([
         row("LC-1", { rank: "a0" }),
@@ -3047,7 +3044,7 @@ describe("board ordering and manual reordering (V0-09)", () => {
       ]);
       chooseOrdering("Manual");
 
-      // Into the gap between LC-2 and LC-3, in a lane LC-1 is not in.
+      // Into the gap between LC-2 and LC-3, in a column LC-1 is not in.
       dropAt("LC-1", 63, "In Progress");
 
       await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(1));
@@ -3059,7 +3056,9 @@ describe("board ordering and manual reordering (V0-09)", () => {
 
       // Both halves come back, and the rank it never had is cleared rather
       // than invented.
-      vi.mocked(api.editTicket).mockResolvedValue(written("LC-1", "a0"));
+      vi.mocked(api.editTicket).mockResolvedValue(
+        written("LC-1", { rank: "a0" }),
+      );
       fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
 
       await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(2));
@@ -3081,11 +3080,11 @@ describe("board ordering and manual reordering (V0-09)", () => {
 
       dropAt("LC-2", 0, "In Progress");
 
-      expect(laneOf("LC-2")).toContain("In Progress");
+      expect(columnHolding("LC-2")).toContain("In Progress");
       await screen.findByText(
         "LC-2 could not be moved. Disk is full. The file was left as it was.",
       );
-      expect(laneOf("LC-2")).toContain("Todo");
+      expect(columnHolding("LC-2")).toContain("Todo");
     });
   });
 });

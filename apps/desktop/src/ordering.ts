@@ -95,23 +95,28 @@ export function comparatorFor(mode: OrderingMode): TicketOrdering {
 }
 
 /**
- * The rank for the gap at `index` of a column that does not hold the moving
- * card — which is what both drops reduce to, once the card being moved is out
- * of the way.
+ * The rank for a card dropped at `index` of a column that does not already hold
+ * it — a card arriving from another column, and, once the card being moved is
+ * taken out of the way, a reorder inside one column too.
  *
  * The neighbours are the nearest ranked card on each side, not the immediate
  * ones: a card with no rank is not a position, so it cannot bound one.
+ *
+ * There is always an answer, unlike a reorder: an arriving card has to be given
+ * a place, and a column holding no ranks at all gives it the first one — which
+ * is the boundary between the ranked cards and the unranked ones, the same
+ * place the first drag inside a column lands.
  */
-function rankAt(others: TicketRow[], index: number): string {
-  const at = Math.max(0, Math.min(index, others.length));
+export function rankForInsert(ordered: TicketRow[], index: number): string {
+  const at = Math.max(0, Math.min(index, ordered.length));
 
   let before: string | undefined;
   for (let scan = at - 1; scan >= 0 && before === undefined; scan -= 1) {
-    before = manualRank(others[scan]);
+    before = manualRank(ordered[scan]);
   }
   let after: string | undefined;
-  for (let scan = at; scan < others.length && after === undefined; scan += 1) {
-    after = manualRank(others[scan]);
+  for (let scan = at; scan < ordered.length && after === undefined; scan += 1) {
+    after = manualRank(ordered[scan]);
   }
 
   return rankBetween(before, after);
@@ -134,25 +139,11 @@ export function rankForDrop(
   if (index === from || index === from + 1) return;
 
   const others = ordered.filter((ticket) => ticket.key !== movingKey);
-  const next = rankAt(others, index > from ? index - 1 : index);
+  const next = rankForInsert(others, index > from ? index - 1 : index);
   // A drop that cannot be expressed as a rank on this card alone — into the
   // middle of a run of cards that have none — writes nothing rather than
   // writing a rank the column would not move for.
   return next === manualRank(ordered[from]) ? undefined : next;
-}
-
-/**
- * The rank for a card dropped at `index` of a column it is arriving in from
- * another one, where every card present is a neighbour it could be placed
- * against and there is no position of its own to compare the result to.
- *
- * There is always an answer, unlike a reorder: an arriving card has to be given
- * a place, and a column holding no ranks at all gives it the first one — which
- * is the boundary between the ranked cards and the unranked ones, the same
- * place the first drag inside a column lands.
- */
-export function rankForInsert(ordered: TicketRow[], index: number): string {
-  return rankAt(ordered, index);
 }
 
 /**

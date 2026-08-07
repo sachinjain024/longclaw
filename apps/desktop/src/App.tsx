@@ -1087,12 +1087,12 @@ export function App() {
   }
 
   /**
-   * A card let go somewhere else on the board: another lane (LC-60), another
-   * place in its own lane (ADR 0003), or — in Manual — both at once, because a
-   * card arriving in a lane is given a place in it.
+   * A card let go somewhere else on the board: another column (LC-60), another
+   * place in its own column (ADR 0003), or — in Manual — both at once, because a
+   * card arriving in a column is given a place in it.
    *
    * One edit either way. Two writes would be two files' worth of undo for one
-   * gesture, and the card would sit in the new lane at the old rank in between.
+   * gesture, and the card would sit in the new column at the old rank in between.
    * The board allocates the rank — LongClaw owns rank allocation in v0 — and
    * this writes it, the same way the `P` menu's pick is written.
    *
@@ -1109,18 +1109,21 @@ export function App() {
     const status = move.status === ticket.status ? undefined : move.status;
     const rank = move.rank === ticket.rank ? undefined : move.rank;
     if (status === undefined && rank === undefined) return;
+    // The same two fields either way: what the row shows at once, and what the
+    // write carries. A `TicketEdit` is a `Partial<IndexedTicket>` in this much.
+    const change = { ...(status && { status }), ...(rank && { rank }) };
 
     void mutate(
       editMutation({
         projectId,
         ticket,
-        optimistic: { ...(status && { status }), ...(rank && { rank }) },
-        edit: { ...(status && { status }), ...(rank && { rank }) },
+        optimistic: change,
+        edit: change,
         inverse: {
           ...(status && { status: ticket.status }),
           ...(rank && { rank: ticket.rank ?? null }),
         },
-        // The lane is the salient half when there is one: it is the change the
+        // The column is the salient half when there is one: it is the change the
         // human will look for on the board, and the rank is where it landed.
         toast: status
           ? `${ticket.key} → ${statusLabel(status)}`

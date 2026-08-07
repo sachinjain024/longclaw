@@ -57,3 +57,17 @@ changes:
 
 Imported from `docs/backlog/v0-backlog.md`. The must-pass verification for V0-09 is recorded there as passed.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_36433b6f
+kind: comment
+occurred_at: 2026-08-07T08:11:40.955Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+One clause of this row's must-pass was deliberately revised by LC-60. **Drag only in Manual** read `card.draggable` flipping with the mode and a full drag in Priority calling no write. That was ADR 0003's first consequence taken to be about *dragging*; it is about *reordering*. A card is now draggable in both orders, and a drop into another column writes that column's status — the same write `S` makes. What this row pinned that still holds, and is still tested: a drop *inside* a card's own column writes a rank in Manual and nothing at all in Priority, and `rank` is written by nothing but a manual reordering. See ADR 0003 § Revised for LC-60.
+<!-- /longclaw:event -->

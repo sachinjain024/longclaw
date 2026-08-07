@@ -27,14 +27,14 @@
  * A drop means one of two things, and which one it is comes from where the card
  * lands rather than from anything the human has to choose first:
  *
- * - **Into another lane** it is a status change, the same write the `S` menu
+ * - **Into another column** it is a status change, the same write the `S` menu
  *   makes. Both orders have it, because a status is project data and Priority is
  *   a view preference (LC-60).
- * - **Inside its own lane** it is a rank, which is Manual's alone (ADR 0003).
+ * - **Inside its own column** it is a rank, which is Manual's alone (ADR 0003).
  *   In Priority a card's own column takes no drop at all, so the pointer says so
  *   rather than the card sliding back with nothing written.
  *
- * In Manual the two are one write: a card arriving in a lane is given a place in
+ * In Manual the two are one write: a card arriving in a column is given a place in
  * it, so the drop lands where it was let go rather than wherever the card's old
  * rank happens to sort.
  *
@@ -51,11 +51,11 @@
  *
  * There is no keyboard equivalent, deliberately: `keyboard-focus-map.md:158-161`
  * puts reordering within a column outside v0 and names `S` — the status move —
- * as the keyboard path that exists for the lane a ticket is in.
+ * as the keyboard path that exists for the column a ticket is in.
  */
 
 import { memo, useCallback, useMemo, useRef, useState } from "react";
-import type { DragEvent, KeyboardEvent } from "react";
+import type { DragEvent, KeyboardEvent, RefObject } from "react";
 import { presentCard } from "./boardCard";
 import {
   CARD_GAP,
@@ -104,11 +104,52 @@ import { useViewportHeight } from "./viewportHeight";
 const OVERSCAN = 4;
 
 /**
- * How close to a column's edge a drag has to hang before the column scrolls, and
- * how far it travels each frame. A drop position off screen has to be reachable.
+ * How close to an edge a drag has to hang before the scroller under it moves,
+ * and how far it travels each frame. A drop position off screen has to be
+ * reachable — down a column that is taller than the window, and across a board
+ * that is wider than it.
  */
 const AUTO_SCROLL_EDGE = 44;
 const AUTO_SCROLL_STEP = 14;
+
+/** -1 near the low edge of a box, 1 near the high one, 0 anywhere between. */
+function towardsEdge(position: number, low: number, high: number): number {
+  if (position > high - AUTO_SCROLL_EDGE) return 1;
+  if (position < low + AUTO_SCROLL_EDGE) return -1;
+  return 0;
+}
+
+/**
+ * Scrolls a container for as long as a drag hangs near its edge, one animation
+ * frame at a time. Both scrollers on the board need it and neither can reach a
+ * position off screen without it: the columns down, the grid across.
+ *
+ * Stepping once when the drift starts rather than waiting for the first frame
+ * is also what makes the edge feel like it responded.
+ */
+function useEdgeDrift(
+  target: RefObject<HTMLDivElement | null>,
+  axis: "scrollTop" | "scrollLeft",
+  onScrolled?: (position: number) => void,
+): (next: number) => void {
+  const drift = useRef(0);
+  const frame = useRef(0);
+
+  function step() {
+    frame.current = 0;
+    const element = target.current;
+    if (!element || drift.current === 0) return;
+    element[axis] += drift.current * AUTO_SCROLL_STEP;
+    onScrolled?.(element[axis]);
+    frame.current = requestAnimationFrame(step);
+  }
+
+  return function driftBy(next: number) {
+    drift.current = next;
+    if (next === 0 || frame.current !== 0) return;
+    step();
+  };
+}
 
 /** How far one key press travels. Steps, not positions. */
 interface Move {
@@ -117,8 +158,8 @@ interface Move {
 }
 
 /**
- * What letting go of a card asks for: the lane it landed in when that is not
- * the one it came from, the place it took in that lane when the board is in
+ * What letting go of a card asks for: the column it landed in when that is not
+ * the one it came from, the place it took in that column when the board is in
  * Manual, or both. Never neither — a drop that would write nothing is refused
  * before it is raised.
  */
@@ -222,7 +263,7 @@ export function Board(props: {
   /** Raised by the `S` menu, on the same terms. */
   onChangeStatus: (ticket: IndexedTicket, next: TicketStatus) => void;
   /**
-   * Raised by a drop: a lane, a place in one, or both. The rank is allocated
+   * Raised by a drop: a column, a place in one, or both. The rank is allocated
    * here — LongClaw owns rank allocation in v0 — and the write is App's.
    */
   onMoveCard: (ticket: IndexedTicket, move: BoardMove) => void;
@@ -250,6 +291,12 @@ export function Board(props: {
   const [dragKey, setDragKey] = useState<string>();
   const [hover, setHover] = useState<{ column: number; gap: number }>();
   const grid = useRef<HTMLDivElement>(null);
+  /**
+   * The board is wider than the window — six columns of 264px — so a drag has
+   * to be able to reach a column that is off the side of it, the same way it
+   * reaches a card below the fold.
+   */
+  const driftAcross = useEdgeDrift(grid, "scrollLeft");
 
   const {
     rovingKey,
@@ -277,6 +324,8 @@ export function Board(props: {
 
   /** The seat the dragged card came from, which is what a drop is read against. */
   const dragSeat = dragKey === undefined ? undefined : seats.get(dragKey);
+  /** Whether a place inside a column is a thing this board can write (ADR 0003). */
+  const placesByHand = props.ordering === "manual";
 
   /**
    * Whether letting go over this column would write anything.
@@ -290,7 +339,7 @@ export function Board(props: {
   function accepts(columnIndex: number): boolean {
     if (dragSeat === undefined) return false;
     if (columns[columnIndex].status === undefined) return false;
-    return dragSeat.group !== columnIndex || props.ordering === "manual";
+    return dragSeat.group !== columnIndex || placesByHand;
   }
 
   /**
@@ -313,8 +362,8 @@ export function Board(props: {
     const over = hover?.column === columnIndex ? hover : undefined;
     return {
       // The line is where the card would sit, so it is only drawn where the
-      // position is being chosen: in Priority the lane decides, not the gap.
-      gap: over && props.ordering === "manual" ? over.gap : undefined,
+      // position is being chosen: in Priority the column decides, not the gap.
+      gap: over && placesByHand ? over.gap : undefined,
       incoming: over !== undefined && dragSeat?.group !== columnIndex,
     };
   }
@@ -327,7 +376,7 @@ export function Board(props: {
     if (!moving || moving.state !== "indexed" || !accepts(columnIndex)) return;
 
     if (from === columnIndex) {
-      // Back in its own lane: a place in it, and only in Manual (ADR 0003).
+      // Back in its own column: a place in it, and only in Manual (ADR 0003).
       const rank = rankForDrop(column.tickets, moving.key, gap);
       if (rank !== undefined) props.onMoveCard(moving, { rank });
       return;
@@ -336,10 +385,8 @@ export function Board(props: {
     props.onMoveCard(moving, {
       status: column.status,
       // Priority allocates no rank, here as anywhere: the order inside the new
-      // lane is not something the human chose by dropping into it (ADR 0003).
-      ...(props.ordering === "manual"
-        ? { rank: rankForInsert(column.tickets, gap) }
-        : {}),
+      // column is not something the human chose by dropping into it (ADR 0003).
+      ...(placesByHand ? { rank: rankForInsert(column.tickets, gap) } : {}),
     });
   }
 
@@ -404,12 +451,41 @@ export function Board(props: {
     setDragKey(key);
   }
 
+  /**
+   * The drag, seen by the board rather than by one column: what carries it
+   * across a board wider than the window, and what notices when the pointer is
+   * over no column at all.
+   *
+   * `dragover` reaches here after the column under the pointer has had it, so
+   * `defaultPrevented` is exactly the question "did a column take this?" — the
+   * gaps between columns, a column header, and a column that refuses the drop
+   * all leave it alone, and none of them should leave a column lit up.
+   */
+  function onGridDragOver(event: DragEvent<HTMLDivElement>) {
+    if (dragKey === undefined) return;
+    if (!event.defaultPrevented) setHover(undefined);
+    const box = grid.current?.getBoundingClientRect();
+    if (box) driftAcross(towardsEdge(event.clientX, box.left, box.right));
+  }
+
   return (
     <div
       className="board-grid"
       ref={grid}
       onKeyDown={onKeyDown}
       onDragStart={onDragStart}
+      onDragOver={onGridDragOver}
+      // The columns stop their own drift; this one belongs to the board, so it
+      // is stopped where the drag ends however it ended — dropped on a column,
+      // let go over nothing, or taken off the board entirely. Leaving *for a
+      // column* is not leaving: `dragleave` fires on the way into every child,
+      // and stopping there would stutter the scroll it is meant to carry.
+      onDragLeave={(event) => {
+        const to = event.relatedTarget as Node | null;
+        if (!to || !grid.current?.contains(to)) driftAcross(0);
+      }}
+      onDragEnd={() => driftAcross(0)}
+      onDrop={() => driftAcross(0)}
     >
       {columns.map((column, columnIndex) => (
         <BoardColumn
@@ -490,33 +566,14 @@ function BoardColumn(props: {
   const sizer = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const viewport = useViewportHeight(stack);
-  /** Which way the column is drifting under a drag, and the frame doing it. */
-  const drift = useRef(0);
-  const frame = useRef(0);
+  /** A drag hanging at the top or bottom of the column keeps it scrolling. */
+  const driftBy = useEdgeDrift(stack, "scrollTop", setScrollTop);
 
   const offsets = useMemo(
     () => runningOffsets(cardStrides(props.tickets, props.marks, props.now)),
     [props.tickets, props.marks, props.now],
   );
   const range = windowFor(offsets, scrollTop, viewport, OVERSCAN);
-
-  // A drag that hangs near an edge keeps scrolling, which is how a drop position
-  // outside the window is reached at all. Stepping once here rather than waiting
-  // for the first frame is also what makes the edge feel like it responded.
-  function driftBy(next: number) {
-    drift.current = next;
-    if (next === 0 || frame.current !== 0) return;
-    step();
-  }
-
-  function step() {
-    frame.current = 0;
-    const element = stack.current;
-    if (!element || drift.current === 0) return;
-    element.scrollTop += drift.current * AUTO_SCROLL_STEP;
-    setScrollTop(element.scrollTop);
-    frame.current = requestAnimationFrame(step);
-  }
 
   /** The gap under the pointer, measured against the sizer the cards sit in. */
   function gapUnder(event: DragEvent<HTMLDivElement>): number {
@@ -534,10 +591,7 @@ function BoardColumn(props: {
     props.onDragOverGap(gapUnder(event));
 
     const box = stack.current?.getBoundingClientRect();
-    if (!box) return;
-    if (event.clientY > box.bottom - AUTO_SCROLL_EDGE) driftBy(1);
-    else if (event.clientY < box.top + AUTO_SCROLL_EDGE) driftBy(-1);
-    else driftBy(0);
+    if (box) driftBy(towardsEdge(event.clientY, box.top, box.bottom));
   }
 
   const shown: number[] = [];
@@ -554,7 +608,7 @@ function BoardColumn(props: {
     <section
       className={classes(
         "board-column",
-        // Two things, because they happen at different moments: the lane opens
+        // Two things, because they happen at different moments: the column opens
         // up as soon as a card it could take is in the air, and lights up when
         // the pointer is actually over it.
         props.drop && "drop-open",

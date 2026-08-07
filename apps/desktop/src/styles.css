@@ -1079,18 +1079,18 @@ button:disabled {
   cursor: grabbing;
 }
 
-/* A lane that could take the card in the air opens up to at least one card's
+/* A column that could take the card in the air opens up to at least one card's
    worth of it (LC-60). An empty column's stack is its 3px of padding and
    nothing else, which is not a target a pointer can be asked to hit — and an
-   empty lane is exactly where a card is most often headed. It costs the
-   resting board nothing: the reserve exists only while a drag does, and a lane
+   empty column is exactly where a card is most often headed. It costs the
+   resting board nothing: the reserve exists only while a drag does, and a column
    already taller than a card does not move. */
 .board-column.drop-open .board-stack {
   min-height: var(--lc-size-board-card);
 }
 
-/* The lane a card would arrive in, which is a status change and not a reorder
-   (LC-60). Only a foreign card lights a column up: back in its own lane the
+/* The column a card would arrive in, which is a status change and not a reorder
+   (LC-60). Only a foreign card lights a column up: back in its own column the
    drop line already says where it would go.
 
    Inset shadow rather than a border, and a background rather than padding: the

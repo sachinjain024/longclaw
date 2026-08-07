@@ -921,10 +921,28 @@ describe("board ordering and drag-and-drop (V0-09)", () => {
     element: HTMLElement,
     type: "dragOver" | "drop",
     clientY: number,
+    clientX = 0,
   ) {
     const event = createEvent[type](element);
     Object.defineProperty(event, "clientY", { value: clientY });
+    Object.defineProperty(event, "clientX", { value: clientX });
     fireEvent(element, event);
+  }
+
+  /** The board's own scroller, which is what carries a drag across columns. */
+  function boardGrid(): HTMLElement {
+    const element = document.querySelector<HTMLElement>(".board-grid");
+    if (!element) throw new Error("no board grid");
+    element.getBoundingClientRect = () =>
+      ({
+        top: 0,
+        bottom: 800,
+        height: 800,
+        left: 0,
+        right: 1200,
+        width: 1200,
+      }) as DOMRect;
+    return element;
   }
 
   /** Drags a card and lets go `clientY` pixels down the column's own box. */
@@ -943,9 +961,9 @@ describe("board ordering and drag-and-drop (V0-09)", () => {
     expect(columnKeys()).toEqual(["LC-2", "LC-3", "LC-1"]);
   });
 
-  it("picks a card up in either order, because a lane is a status (LC-60)", () => {
+  it("picks a card up in either order, because a column is a status (LC-60)", () => {
     // Reordering *inside* a column is Manual's alone (ADR 0003). Moving a card
-    // to another lane is a status change, which both orders have.
+    // to another column is a status change, which both orders have.
     const { rerender } = render(
       board({ tickets: ranked, ordering: "priority" }),
     );
@@ -965,7 +983,7 @@ describe("board ordering and drag-and-drop (V0-09)", () => {
     expect(onMoveCard).not.toHaveBeenCalled();
     expect(document.querySelector(".drop-line")).toBeNull();
 
-    // And into another lane, where it means a status and nothing else.
+    // And into another column, where it means a status and nothing else.
     dragTo("LC-3", 4, "In Progress");
 
     expect(onMoveCard).toHaveBeenCalledTimes(1);
@@ -1086,7 +1104,7 @@ describe("board ordering and drag-and-drop (V0-09)", () => {
     expect(scrolled).toBeGreaterThan(0);
   });
 
-  describe("dropped into another lane (LC-60)", () => {
+  describe("dropped into another column (LC-60)", () => {
     /** Todo carries the three ranked cards; In Progress carries two of its own. */
     const twoColumns = [
       ...ranked,
@@ -1101,7 +1119,7 @@ describe("board ordering and drag-and-drop (V0-09)", () => {
       return element;
     }
 
-    it("moves the ticket to the status of the lane it was let go in", () => {
+    it("moves the ticket to the status of the column it was let go in", () => {
       const onMoveCard = vi.fn();
       render(board({ tickets: twoColumns, ordering: "priority", onMoveCard }));
 
@@ -1113,7 +1131,7 @@ describe("board ordering and drag-and-drop (V0-09)", () => {
       expect(move).toStrictEqual({ status: "in_progress" });
     });
 
-    it("gives the arriving card a place in the lane, in Manual", () => {
+    it("gives the arriving card a place in the column, in Manual", () => {
       const onMoveCard = vi.fn();
       render(board({ tickets: twoColumns, ordering: "manual", onMoveCard }));
 
@@ -1127,7 +1145,7 @@ describe("board ordering and drag-and-drop (V0-09)", () => {
       expect(move.rank > "a5" && move.rank < "a6").toBe(true);
     });
 
-    it("lands at the end of an empty lane", () => {
+    it("lands at the end of an empty column", () => {
       const onMoveCard = vi.fn();
       render(board({ tickets: ranked, ordering: "manual", onMoveCard }));
 
@@ -1139,9 +1157,9 @@ describe("board ordering and drag-and-drop (V0-09)", () => {
       });
     });
 
-    it("opens every lane that could take the card as soon as it is lifted", () => {
-      // An empty lane is three pixels of padding at rest, so without this it is
-      // the one lane a card cannot be dragged to.
+    it("opens every column that could take the card as soon as it is lifted", () => {
+      // An empty column is three pixels of padding at rest, so without this it is
+      // the one column a card cannot be dragged to.
       render(board({ tickets: twoColumns, ordering: "priority" }));
 
       fireEvent.dragStart(card("LC-1"));
@@ -1155,7 +1173,41 @@ describe("board ordering and drag-and-drop (V0-09)", () => {
       expect(document.querySelector(".board-column.drop-open")).toBeNull();
     });
 
-    it("says which lane would take the card, and stops when it is let go", () => {
+    it("carries the drag across a board wider than the window", () => {
+      // Six columns of 264px do not fit, so a column off the side of the board
+      // is as unreachable as a card below the fold without this.
+      render(board({ tickets: twoColumns, ordering: "priority" }));
+      const grid = boardGrid();
+      let scrolled = 0;
+      Object.defineProperty(grid, "scrollLeft", {
+        get: () => scrolled,
+        set: (value: number) => {
+          scrolled = value;
+        },
+        configurable: true,
+      });
+
+      fireEvent.dragStart(card("LC-1"));
+      dragAt(grid, "dragOver", 400, 1190);
+
+      expect(scrolled).toBeGreaterThan(0);
+    });
+
+    it("lights no column while the pointer is over none of them", () => {
+      render(board({ tickets: twoColumns, ordering: "priority" }));
+      layOut("In Progress");
+      fireEvent.dragStart(card("LC-1"));
+      dragAt(stack("In Progress"), "dragOver", 0);
+      expect(column("In Progress").className).toContain("drop-target");
+
+      // The gaps between the columns: the board hears the drag, no column
+      // takes it, and nothing is left lit up behind the pointer.
+      dragAt(boardGrid(), "dragOver", 400, 600);
+
+      expect(document.querySelector(".board-column.drop-target")).toBeNull();
+    });
+
+    it("says which column would take the card, and stops when it is let go", () => {
       render(board({ tickets: twoColumns, ordering: "priority" }));
       layOut("In Progress");
 
@@ -1173,7 +1225,7 @@ describe("board ordering and drag-and-drop (V0-09)", () => {
       expect(document.querySelector(".board-column.drop-target")).toBeNull();
     });
 
-    it("shows where in the lane it would land, in Manual", () => {
+    it("shows where in the column it would land, in Manual", () => {
       render(board({ tickets: twoColumns, ordering: "manual" }));
       layOut("In Progress");
 

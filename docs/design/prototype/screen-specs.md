@@ -141,6 +141,12 @@ movement. No custom-color affordance exists anywhere.
   *within* a column is reordering and stays Manual-only, so in Priority a
   card's own column takes no drop and the pointer refuses it. The
   Unreadable column takes none in either order: it names no status.
+  While a drag is in flight every column that would accept it reserves at
+  least one card's height, so an empty column is a target rather than the
+  3px its stack measures at rest; the reserve goes when the drag does.
+  Hanging the drag near the left or right edge of the board scrolls it
+  sideways, as hanging near a column's top or bottom scrolls that column —
+  a column off the side of the window is otherwise unreachable.
 - **Archived tickets never render on the board** (ADR 0004); the list
   view is the archive surface.
 - **Cards:** anatomy and all states (resting/hover/focus/selected/fresh/
