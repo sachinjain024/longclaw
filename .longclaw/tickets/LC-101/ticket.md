@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 02efc3fd-9c0b-45c4-9689-e2df24c91b3f
 key: LC-101
 title: Ticket panel — path is rendered by WriteIndicator, so it is the disk-state line, and it shows the full .longclaw/tickets/… prefix with no glyph
-status: todo
+status: done
 priority: p2
 labels:
   - frontend
   - prototype-diff
 created_at: 2026-08-05T15:16:01.136Z
-updated_at: 2026-08-05T15:16:01.136Z
+updated_at: 2026-08-07T01:49:56.104Z
 ---
 
 **Prototype.** Path shows as `tickets/LC-128/ticket.md` with a folder glyph, **beside** a separate disk-state line
@@ -22,7 +22,7 @@ updated_at: 2026-08-05T15:16:01.136Z
 
 ## Checklist
 
-- [ ] Split the two: a static path chip plus the transient disk-state. Merging them means the path flickers on every write. <!-- longclaw:item=ck_b620f47f -->
+- [x] Split the two: a static path chip plus the transient disk-state. Merging them means the path flickers on every write. <!-- longclaw:item=ck_b620f47f -->
 
 ## Activity
 
@@ -36,4 +36,23 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_fb132465
+kind: update
+occurred_at: 2026-08-07T01:49:56.104Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: done
+  - field: checklist.ck_b620f47f.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->

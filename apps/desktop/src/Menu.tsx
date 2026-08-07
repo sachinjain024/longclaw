@@ -180,9 +180,10 @@ export function Menu<T extends string>(props: MenuProps<T>) {
 }
 
 /**
- * The mark that says a value is a menu and not a chip (`screen-specs.md:172-176`,
- * D-3B). Without it Status and Priority read as static until the pointer is
- * already on them, which is no help to anyone who has not put it there.
+ * The mark that says a value is a menu and not a chip (`screen-specs.md:192-193`,
+ * D-3B — the table's own `:172-176` predates an edit to that file). Without it
+ * Status and Priority read as static until the pointer is already on them,
+ * which is no help to anyone who has not put it there.
  *
  * Decorative: `aria-haspopup` on the trigger is what says the same thing to
  * assistive technology, and it says it better.
