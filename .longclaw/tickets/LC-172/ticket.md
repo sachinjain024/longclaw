@@ -3,13 +3,14 @@ format: longclaw.ticket/v1
 id: 2db763df-af9c-4955-b574-0a2cd28f4f3d
 key: LC-172
 title: "Attachments: paste an image into a description or comment and have it land in the ticket's folder"
-status: todo
+status: in_progress
 priority: p2
+rank: a0
 labels:
   - frontend
   - format
 created_at: 2026-08-07T06:56:34.384Z
-updated_at: 2026-08-07T06:56:34.384Z
+updated_at: 2026-08-07T09:56:28.851Z
 ---
 
 The file format already has attachments; the app has never been able to make one.
@@ -50,4 +51,33 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_6579b188
+kind: update
+occurred_at: 2026-08-07T09:55:21.550Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: rank
+    to: a0
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_81029151
+kind: update
+occurred_at: 2026-08-07T09:56:28.851Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: todo
+    to: in_progress
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

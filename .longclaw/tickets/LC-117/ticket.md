@@ -5,11 +5,12 @@ key: LC-117
 title: "Full create — description placeholder: \"What should happen? Agents read this before they start.\" — No placeholder"
 status: todo
 priority: p2
+rank: a1
 labels:
   - frontend
   - prototype-diff
 created_at: 2026-08-05T15:16:01.373Z
-updated_at: 2026-08-05T15:16:01.373Z
+updated_at: 2026-08-07T09:55:51.690Z
 ---
 
 **Prototype.** Description placeholder: "What should happen? Agents read this before they start."
@@ -36,4 +37,69 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_c85611b4
+kind: update
+occurred_at: 2026-08-07T09:55:05.237Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: rank
+    to: a0
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_d16db44e
+kind: update
+occurred_at: 2026-08-07T09:55:16.172Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: todo
+    to: in_progress
+  - field: rank
+    from: a0
+    to: a1
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_055a9b98
+kind: update
+occurred_at: 2026-08-07T09:55:18.456Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: rank
+    from: a1
+    to: Zz
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_83101a54
+kind: update
+occurred_at: 2026-08-07T09:55:51.690Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_progress
+    to: todo
+  - field: rank
+    from: Zz
+    to: a1
+-->
+### You updated this ticket
 <!-- /longclaw:event -->
