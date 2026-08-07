@@ -1209,6 +1209,16 @@ describe("the empty-project guide", () => {
     expect(guide()?.textContent).not.toContain(".longclaw/tickets");
   });
 
+  // An empty board has no card for the roving group to hold, so the guide is an
+  // ordinary Tab stop — and on WebKit with macOS *Keyboard navigation* off, a
+  // button without an explicit `tabIndex` is skipped entirely (AGENTS.md).
+  it("is an ordinary tab stop, not a member of the roving group", () => {
+    render(board({ tickets: [], onCreateFirst: noop }));
+
+    expect(guide()?.tabIndex).toBe(0);
+    expect(guide()?.className).not.toContain("ticket-row");
+  });
+
   it("raises the create the whole card is", () => {
     const onCreateFirst = vi.fn();
     render(board({ tickets: [], onCreateFirst }));

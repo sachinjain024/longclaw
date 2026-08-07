@@ -308,8 +308,8 @@ export function App() {
    * Whether the panel is the thing on screen. One expression, because two — the
    * panel's own condition and the workspace class that centres it — would be
    * two places to keep in agreement about the same state. A project with no
-   * tickets at all is the empty-project state whatever is in the field, and it
-   * has its own panel.
+   * tickets at all is the empty-project state whatever is in the field, and
+   * that state stands inside the surface rather than instead of it.
    */
   const showNoMatches = noMatches && tickets.length > 0;
   /**
@@ -364,6 +364,12 @@ export function App() {
    * guide is only ever standing in a project with nothing to preseed against.
    */
   const createFirstTicket = useCallback(() => setCreateSurface("quick"), []);
+  /**
+   * The guide, handed to whichever surface is drawn. Undefined is how a surface
+   * is told it has no guide to host, so the board branch and the list branch
+   * cannot come to disagree about which state they are in.
+   */
+  const guide = emptyProject ? createFirstTicket : undefined;
   const openTicket = useCallback(
     (key: string) => {
       setSelectedKey(key);
@@ -1513,7 +1519,7 @@ export function App() {
                       setCarriedDraft({ title: "", status });
                       setCreateSurface("quick");
                     }}
-                    onCreateFirst={emptyProject ? createFirstTicket : undefined}
+                    onCreateFirst={guide}
                   />
                 ) : (
                   // Both surfaces are projections of the same store state
@@ -1531,7 +1537,7 @@ export function App() {
                     onSelect={openTicket}
                     onChangePriority={changePriority}
                     onChangeStatus={changeStatus}
-                    onCreateFirst={emptyProject ? createFirstTicket : undefined}
+                    onCreateFirst={guide}
                   />
                 )}
               </section>

@@ -1041,8 +1041,8 @@ button:disabled {
 
 .guide-card strong {
   color: var(--lc-ink-2);
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--lc-type-ui-size);
+  font-weight: var(--lc-type-ui-weight);
 }
 
 /* Anatomy from `.kbd-chip`; the placement is this card's. The chip is the whole
@@ -1054,19 +1054,30 @@ button:disabled {
 
 /* The list's equivalent (D-26/LC-89): it has no Todo column to host a card, so
    the guide sits inside a frame of the list's own — the `surface` card every
-   group body wears — rather than replacing the list with a full-width panel. */
+   group body wears — rather than replacing the list with a full-width panel.
+
+   Sized to the list and centred in it, which is the two things `states.md:34`
+   asks of this one ("a centered equivalent, sized to the list"): the frame
+   claims the height the list region has, less the padding the list already
+   reserves under it, so the invitation centres in the box a group of rows
+   would have filled instead of sitting at the top of an empty one. */
 .list-guide {
   display: flex;
+  min-height: calc(var(--lc-size-board-stack) - var(--lc-space-5));
+  align-items: center;
   justify-content: center;
   border: 1px solid var(--lc-line);
   border-radius: var(--lc-radius-card);
-  margin-top: var(--lc-space-2);
-  padding: 38px;
+  padding: var(--lc-space-8);
   background: var(--lc-surface);
 }
 
 /* Inside that frame the invitation carries no frame of its own: one box, not
-   two. Declared after the base, which is what lets a single class win. */
+   two. Declared after the base, which is what lets a single class win.
+
+   400px is `.no-matches p`'s measure and the prototype's own (prototype.css
+   § state-panel): the width a state panel's sub-line is given, which is what
+   stops one line of copy running the width of the list. */
 .guide-panel {
   width: auto;
   max-width: 400px;
