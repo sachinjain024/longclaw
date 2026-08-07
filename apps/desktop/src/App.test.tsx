@@ -47,6 +47,7 @@ vi.mock("./api", () => ({
   reconcileProject: vi.fn(),
   removeProject: vi.fn(),
   reportVisibleUi: vi.fn(),
+  searchTickets: vi.fn(),
   setProjectStarred: vi.fn(),
   updateProjectName: vi.fn(),
   updateProjectTheme: vi.fn(),
@@ -376,7 +377,7 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
    * board but Tab from the top of the document.
    *
    * The same call is how the ticket panel returns focus to its card, so this
-   * covers `keyboard-focus-map.md:145` at size as well as :116.
+   * covers `keyboard-focus-map.md:152` at size as well as :123.
    */
   it("focuses the new card even when it lands outside the rendered window", async () => {
     const crowd: TicketRow[] = Array.from({ length: 30 }, (_, index) => ({
@@ -4395,5 +4396,148 @@ describe("a project with no tickets (LC-86 … LC-89)", () => {
 
     expect(await screen.findByText("First one")).toBeTruthy();
     expect(guide()).toBeUndefined();
+  });
+});
+
+/**
+ * LC-171. The palette opened at root, where the query filtered command labels,
+ * so `LC-2` — the fastest thing anyone knows how to type — matched nothing and
+ * the ticket was unreachable without first stepping into `Search tickets…`.
+ *
+ * Driven end to end here because the palette is handed the project's rows by
+ * `App` and nothing else pins that wiring: a component test can prove the root
+ * finds a key in the rows it is given, and only this level can show that the
+ * rows it is given are the project's rather than the filtered surface's.
+ */
+describe("a ticket key typed at the palette root (LC-171)", () => {
+  const project = {
+    id: "project-fixture",
+    name: "Fixture Project",
+    rootPath: "/tmp/LongClaw Fixture",
+    key: "LC",
+    theme: "indigo",
+    starred: false,
+    reachable: true,
+    labels: {},
+  };
+
+  const found: IndexedTicket = {
+    state: "indexed",
+    key: "LC-2",
+    id: "id-LC-2",
+    title: "Watcher recovery",
+    status: "todo",
+    priority: "none",
+    labels: [],
+    createdAt: "2026-08-01T09:00:00Z",
+    updatedAt: "2026-08-01T09:00:00Z",
+    checkedCount: 0,
+    checklistCount: 0,
+    commentCount: 0,
+    attachmentCount: 0,
+    contentHash: "hash-LC-2",
+    relativePath: ".longclaw/tickets/LC-2/ticket.md",
+  };
+
+  async function openPalette() {
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project,
+      tickets: [found],
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    vi.mocked(api.readTicket).mockResolvedValue({
+      key: found.key,
+      relativePath: found.relativePath,
+      contentHash: found.contentHash,
+      byteLength: 300,
+      readOnly: false,
+      raw: "",
+      rawTruncated: false,
+      missingAttachments: [],
+      orphanAttachments: [],
+      ticket: {
+        id: found.id,
+        key: found.key,
+        title: found.title,
+        status: found.status,
+        priority: found.priority,
+        labels: [],
+        createdAt: found.createdAt,
+        updatedAt: found.updatedAt,
+        description: "",
+        checklist: [],
+        attachments: [],
+        activity: [],
+        historyIncomplete: false,
+        unknownKeys: [],
+        recordDiagnostics: [],
+      },
+    });
+    render(<App />);
+    await screen.findByRole("button", { name: "Board", pressed: true });
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+    return (await screen.findByRole("combobox")) as HTMLInputElement;
+  }
+
+  it("opens the ticket, without a stop at the search sub-mode", async () => {
+    const input = await openPalette();
+
+    fireEvent.change(input, { target: { value: "lc-2" } });
+    // The row is the answer to the key, so it is the one `Enter` lands on.
+    const row = screen.getByRole("option", { name: /Watcher recovery/ });
+    expect(screen.getAllByRole("option")[0]).toBe(row);
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await screen.findByRole("complementary", { name: "Ticket LC-2" });
+    expect(
+      screen.queryByRole("dialog", { name: "Command palette" }),
+    ).toBeNull();
+    // The rows were already here: the root never asked Rust for them.
+    expect(api.searchTickets).not.toHaveBeenCalled();
+  });
+
+  it("takes a bare number as this project's ticket", async () => {
+    const input = await openPalette();
+
+    fireEvent.change(input, { target: { value: "2" } });
+
+    expect(
+      screen.getByRole("option", { name: /Watcher recovery/ }),
+    ).toBeTruthy();
+  });
+
+  it("leaves a key of another project to the commands", async () => {
+    const input = await openPalette();
+
+    fireEvent.change(input, { target: { value: "AB-2" } });
+
+    // The card behind the palette is still on the board; what must not exist
+    // is a palette row offering it for a key this project cannot hold.
+    expect(
+      screen.queryAllByRole("option", { name: /Watcher recovery/ }),
+    ).toHaveLength(0);
+  });
+
+  it("finds a ticket the surface behind it has filtered away", async () => {
+    // The header filter narrows the board; the palette is handed the project's
+    // rows rather than that narrowing, which is the whole point of a key.
+    await openPalette();
+    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.change(screen.getByRole("textbox", { name: "Filter tickets" }), {
+      target: { value: "nothing matches this" },
+    });
+    expect(screen.queryByText("Watcher recovery")).toBeNull();
+
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+    fireEvent.change(await screen.findByRole("combobox"), {
+      target: { value: "LC-2" },
+    });
+
+    expect(
+      screen.getByRole("option", { name: /Watcher recovery/ }),
+    ).toBeTruthy();
   });
 });

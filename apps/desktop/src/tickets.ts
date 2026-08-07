@@ -85,6 +85,42 @@ export function provisionalTicketKey(
   return `${projectKey}-${highest + 1}`;
 }
 
+/**
+ * The ticket key a query is asking for, or nothing when it is asking for
+ * something else (LC-171).
+ *
+ * The palette's root filters command labels, so `LC-60` — the fastest thing
+ * anyone knows how to type — used to find nothing at all. This is the rule that
+ * tells the root when a query is a key rather than a command, and it answers
+ * with the canonical key, which is what a row can then be matched against.
+ *
+ * Two decisions the ticket left open, made here:
+ *
+ * - **A bare number counts.** `60` is `LC-60`, because the palette runs against
+ *   the active project and never another, so its key is the only prefix a
+ *   number could mean.
+ * - **A foreign prefix does not.** Every ticket of a project carries that
+ *   project's key (`core/storage.rs:102`), so `AB-1` cannot be a ticket here;
+ *   offering to look for it would promise a search that must come back empty.
+ *   The query goes back to filtering commands, which is what it did before.
+ *
+ * The shape is the file format's own (`core/storage.rs:74`): `<PREFIX>-<n>`,
+ * `n` without leading zeros. Case is not part of it — the index lowercases both
+ * sides (`core/storage.rs:265-274`) and so does the header filter, so a key
+ * typed in the case it is easiest to type is still that key.
+ */
+export function ticketKeyQuery(
+  query: string,
+  projectKey: string,
+): string | undefined {
+  const typed = query.trim();
+  if (/^[1-9][0-9]*$/.test(typed)) return `${projectKey}-${typed}`;
+  const match = /^(.+)-([1-9][0-9]*)$/.exec(typed);
+  if (!match || match[1].toLowerCase() !== projectKey.toLowerCase())
+    return undefined;
+  return `${projectKey}-${match[2]}`;
+}
+
 /** The row an optimistic create shows while its file is being written. */
 export function provisionalTicket(
   key: string,

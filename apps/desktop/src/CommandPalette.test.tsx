@@ -44,6 +44,7 @@ function renderPalette(
     <CommandPalette
       project={project}
       projects={[project]}
+      tickets={[ticket]}
       ticket={ticket}
       appearance="system"
       ordering="priority"
@@ -198,6 +199,96 @@ describe("command palette", () => {
 
     fireEvent.click(create);
     expect(onCreate).not.toHaveBeenCalled();
+  });
+
+  /**
+   * LC-171. Typing a key is the fastest thing anyone knows how to do, and at
+   * the root it used to filter command labels — where `LC-60` matches nothing.
+   */
+  describe("a ticket key typed at the root", () => {
+    const found = { ...ticket, key: "LC-60", title: "The sixtieth ticket" };
+    const nearby = { ...ticket, key: "LC-601", title: "Nearby" };
+
+    function typeAtRoot(value: string, overrides = {}) {
+      const view = renderPalette({
+        tickets: [ticket, found, nearby],
+        ...overrides,
+      });
+      fireEvent.change(screen.getByRole("combobox"), { target: { value } });
+      return view;
+    }
+
+    it("offers the ticket as the first row, keyed and glyphed like a search row", () => {
+      typeAtRoot("lc-60");
+      const rows = screen.getAllByRole("option");
+      expect(rows[0]?.textContent).toContain("LC-60");
+      expect(rows[0]?.textContent).toContain("The sixtieth ticket");
+      expect(rows[0]?.querySelector(".search-key")?.textContent).toBe("LC-60");
+    });
+
+    it("answers from the rows it already holds, asking Rust nothing", () => {
+      // Synchronous on the keystroke: no debounce to wait out, and no window
+      // in which the palette says the ticket does not exist while it waits.
+      const onSearch = vi.fn();
+      typeAtRoot("LC-60", { onSearch });
+      expect(onSearch).not.toHaveBeenCalled();
+      expect(screen.getAllByRole("option")[0]?.textContent).toContain("LC-60");
+    });
+
+    it("opens it by the same path a search-mode row uses", () => {
+      const onOpenTicket = vi.fn();
+      const view = typeAtRoot("60", { onOpenTicket });
+      fireEvent.keyDown(screen.getByRole("combobox"), { key: "Enter" });
+      expect(onOpenTicket).toHaveBeenCalledWith("LC-60");
+      view.unmount();
+
+      renderPalette({
+        onOpenTicket,
+        initialMode: "search",
+        searchResults: [found],
+      });
+      fireEvent.click(screen.getByRole("option", { name: /sixtieth/ }));
+      expect(onOpenTicket).toHaveBeenNthCalledWith(2, "LC-60");
+    });
+
+    it("names one ticket, not everything the key is a prefix of", () => {
+      typeAtRoot("LC-60");
+      const rows = screen.getAllByRole("option");
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.textContent).toContain("The sixtieth ticket");
+    });
+
+    it("leaves a foreign prefix to the commands", () => {
+      typeAtRoot("AB-1");
+      expect(screen.queryByText("The sixtieth ticket")).toBeNull();
+      expect(screen.getByText("No matches")).toBeTruthy();
+    });
+
+    it("reaches a ticket the surface behind the palette is not showing", () => {
+      // An archived ticket is off the board by design (ADR 0004), which is
+      // exactly the case where a key is the only way to name it.
+      typeAtRoot("LC-60", {
+        tickets: [{ ...found, archivedAt: "2026-08-01T00:00:00Z" }],
+      });
+      const row = screen.getAllByRole("option")[0];
+      expect(row?.textContent).toContain("The sixtieth ticket");
+      expect(row?.textContent).toContain("archived");
+    });
+
+    it("admits when this project has no such ticket", () => {
+      typeAtRoot("LC-999");
+      expect(screen.getByText("No matches")).toBeTruthy();
+    });
+
+    it("keeps the sub-modes out of it", () => {
+      // The rule is the root's. In `status`, `2` is a query over status labels
+      // and nothing else, and it must not offer a ticket.
+      renderPalette({ initialMode: "status", tickets: [found] });
+      fireEvent.change(screen.getByRole("combobox"), {
+        target: { value: "2" },
+      });
+      expect(screen.queryByText("The sixtieth ticket")).toBeNull();
+    });
   });
 
   it("carries a pair swatch on every theme row", () => {

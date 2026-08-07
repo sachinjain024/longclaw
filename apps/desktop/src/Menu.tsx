@@ -117,7 +117,7 @@ export function Menu<T extends string>(props: MenuProps<T>) {
           : 0;
     if (step !== 0) {
       event.preventDefault();
-      // Wraps at both ends (`keyboard-focus-map.md:122`).
+      // Wraps at both ends (`keyboard-focus-map.md:129`).
       setActive((index) => (index + step + count) % count);
       return;
     }

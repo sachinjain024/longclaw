@@ -13,11 +13,21 @@
  * mode was branched on at each of those four points, adding one meant editing
  * four places and forgetting the fourth was silent.
  *
+ * The root is the one mode that answers with something other than its own rows:
+ * a query shaped like a ticket key is offered as the ticket it names (LC-171),
+ * because typing a key is the fastest thing anyone knows how to do and it used
+ * to be filtered against command labels, which no key matches. That match is
+ * read from the project's own rows rather than asked of `search_tickets` — a
+ * key is the one query already answerable from what is in memory, and answering
+ * it there is synchronous, exact, and cannot be truncated by the search's
+ * hundred-result cap or refused by a folder the app cannot reach.
+ *
  * It writes nothing. Every command is raised to `App`, which owns `mutate()`
  * and is therefore the only place a ticket file is written from.
  */
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { STATUS_OPTIONS, PRIORITY_OPTIONS } from "./metaOptions";
+import { ticketKeyQuery } from "./tickets";
 import { ORDERINGS, type OrderingMode } from "./ordering";
 import type { ViewMode } from "./devicePreferences";
 import { FolderGlyph } from "./FolderGlyph";
@@ -95,6 +105,32 @@ function RootGlyph({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * A ticket as a row (`screen-specs.md:236`): mono key, status dot, title, and
+ * the `· archived` tag.
+ *
+ * Search mode's rows are built here, and so is the one the root offers for a
+ * key-shaped query (LC-171) — one builder, so a ticket cannot be drawn one way
+ * in search and another at the root.
+ */
+function ticketRow(ticket: TicketRow): PaletteRow {
+  return {
+    id: ticket.key,
+    monoKey: ticket.key,
+    glyph:
+      ticket.state === "indexed" ? (
+        <StatusDot status={ticket.status} decorative />
+      ) : (
+        <span className="search-degraded" aria-hidden="true">
+          !
+        </span>
+      ),
+    label: ticket.state === "indexed" ? ticket.title : "unreadable file",
+    tag:
+      ticket.state === "indexed" && ticket.archivedAt ? "archived" : undefined,
+  };
+}
+
 export function CommandPalette(props: {
   /** The project every command runs against: the active one, never another. */
   project: ProjectReference;
@@ -109,6 +145,15 @@ export function CommandPalette(props: {
    * as the whole project.
    */
   searchResults?: TicketRow[];
+  /**
+   * Every row of the open project, in the state the surfaces read.
+   *
+   * The palette draws none of them: this is what a key typed at the root is
+   * looked up in (LC-171), which is the whole project rather than the narrowed
+   * list a surface happens to be showing — the point of typing a key is to
+   * reach a ticket you are not looking at.
+   */
+  tickets: TicketRow[];
   /** The registry, for the go-to-project sub-mode. */
   projects: ProjectReference[];
   /** The stored preference, so the toggle row can name what it will leave. */
@@ -160,6 +205,27 @@ export function CommandPalette(props: {
     // the project, which is the search mode's opening state.
     if (next === "search") props.onSearch("");
   }
+
+  /** The one way the palette opens a ticket, wherever the row was offered. */
+  const openTicketRow = (row: PaletteRow) => props.onOpenTicket(row.id);
+
+  /**
+   * The key the root is being asked about, if it is being asked about one
+   * (LC-171). Undefined for every other query, which then filters commands as
+   * it always has.
+   */
+  const rootKey =
+    mode === "root" ? ticketKeyQuery(query, props.project.key) : undefined;
+
+  /**
+   * The ticket that key names, or nothing when the project has no such ticket.
+   *
+   * Exact rather than a substring match: the query resolved to one key, and
+   * `LC-6` must not offer `LC-60` as the ticket the human named.
+   */
+  const rootKeyMatch = rootKey
+    ? props.tickets.find((ticket) => ticket.key === rootKey)
+    : undefined;
 
   const unreachable = !props.project.reachable;
   const root: PaletteRow[] = [
@@ -367,24 +433,8 @@ export function CommandPalette(props: {
     },
     search: {
       crumb: "search",
-      rows: (props.searchResults ?? []).map((ticket) => ({
-        id: ticket.key,
-        monoKey: ticket.key,
-        glyph:
-          ticket.state === "indexed" ? (
-            <StatusDot status={ticket.status} decorative />
-          ) : (
-            <span className="search-degraded" aria-hidden="true">
-              !
-            </span>
-          ),
-        label: ticket.state === "indexed" ? ticket.title : "unreadable file",
-        tag:
-          ticket.state === "indexed" && ticket.archivedAt
-            ? "archived"
-            : undefined,
-      })),
-      run: (row) => props.onOpenTicket(row.id),
+      rows: (props.searchResults ?? []).map(ticketRow),
+      run: openTicketRow,
       note: SEARCH_SCOPE_NOTE,
       // Rust answered this query; re-filtering here would hide the description
       // and label matches that are the reason to use search at all.
@@ -394,13 +444,20 @@ export function CommandPalette(props: {
 
   const subMode = mode === "root" ? undefined : MODES[mode];
   const rows = subMode ? subMode.rows : root;
-  const visibleRows =
+  const filtered =
     subMode && !subMode.filterLocally
       ? rows
       : rows.filter(
           (row) =>
             !query || row.label.toLowerCase().includes(query.toLowerCase()),
         );
+  // First, and not filtered by the query that produced it: `LC-60` is not in
+  // the ticket's title, and the row is the answer to it rather than a match on
+  // it. `Enter` therefore lands on the ticket, which is why it was typed.
+  const keyRow = rootKeyMatch ? ticketRow(rootKeyMatch) : undefined;
+  const visibleRows = keyRow
+    ? [{ ...keyRow, run: () => openTicketRow(keyRow) }, ...filtered]
+    : filtered;
 
   function activate(row: PaletteRow) {
     if (row.disabled) return;
@@ -504,6 +561,8 @@ export function CommandPalette(props: {
             onChange={(e) => {
               setQuery(e.target.value);
               setActive(0);
+              // Still only the search sub-mode: the root's own key lookup reads
+              // rows it already has, so it asks Rust nothing (LC-171).
               if (mode === "search") {
                 clearTimeout(searchTimer.current);
                 searchTimer.current = setTimeout(
