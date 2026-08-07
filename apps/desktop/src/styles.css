@@ -2625,6 +2625,16 @@ button:disabled {
   padding: 0 var(--lc-space-4);
 }
 
+.palette-input-glyph {
+  display: inline-grid;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  color: var(--lc-ink-3);
+  font: var(--lc-type-kbd-weight) 14px var(--lc-type-code-font);
+}
+
 .command-palette input {
   flex: 1;
   height: 100%;
@@ -2637,7 +2647,17 @@ button:disabled {
 
 /* Anatomy from `.kbd-chip`. The crumb is a button because `Esc` is the keyboard
    path back and a pointer had none. */
-.palette-crumb,
+.palette-crumb {
+  flex: none;
+  padding: 0 var(--lc-space-2);
+  border-color: transparent;
+  color: var(--lc-accent-human);
+  background: var(--lc-accent-human-soft);
+  font-family: var(--lc-type-code-font);
+  line-height: 1.8;
+  text-transform: none;
+}
+
 .palette-esc {
   flex: none;
   padding: 0 var(--lc-space-2);
@@ -2674,6 +2694,19 @@ button:disabled {
   color: var(--lc-ink-disabled);
   background: var(--lc-wash);
   cursor: default;
+}
+
+.command-palette .palette-glyph-slot {
+  display: inline-grid;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+}
+
+.command-palette .palette-root-glyph {
+  color: var(--lc-ink-3);
+  font: var(--lc-type-kbd-weight) 14px var(--lc-type-code-font);
 }
 
 /* The label takes the slack so the hint, the check and the reason stay right. */

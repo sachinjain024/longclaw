@@ -20,6 +20,8 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { STATUS_OPTIONS, PRIORITY_OPTIONS } from "./metaOptions";
 import { ORDERINGS, type OrderingMode } from "./ordering";
 import type { ViewMode } from "./workspacePreferences";
+import { FolderGlyph } from "./FolderGlyph";
+import { PriorityGlyph } from "./PriorityGlyph";
 import { StatusDot } from "./StatusDot";
 import { ThemeSwatch } from "./ThemeSwatch";
 import type {
@@ -84,6 +86,14 @@ const NO_TARGET = "Open or focus a ticket";
 
 /** Shown on a row that would write into a folder the app cannot reach (LC-140). */
 const NO_FOLDER = "The project folder cannot be reached";
+
+function RootGlyph({ children }: { children: ReactNode }) {
+  return (
+    <span className="palette-root-glyph" aria-hidden="true">
+      {children}
+    </span>
+  );
+}
 
 export function CommandPalette(props: {
   /** The project every command runs against: the active one, never another. */
@@ -156,6 +166,7 @@ export function CommandPalette(props: {
     {
       id: "create",
       label: "Create ticket",
+      glyph: <RootGlyph>+</RootGlyph>,
       hint: "C",
       // Nothing is creatable in a folder the app cannot read (`states.md:80-98`).
       // Disabled rather than hidden, with its reason, like every other row that
@@ -164,10 +175,20 @@ export function CommandPalette(props: {
       reason: unreachable ? NO_FOLDER : undefined,
       run: props.onCreate,
     },
-    { id: "project", label: "Go to project…", opens: "project" },
+    {
+      id: "project",
+      label: "Go to project…",
+      glyph: <RootGlyph>→</RootGlyph>,
+      opens: "project",
+    },
     {
       id: "status",
       label: "Change status…",
+      glyph: targetTicket ? (
+        <StatusDot status={targetTicket.status} decorative />
+      ) : (
+        <StatusDot status="todo" decorative />
+      ),
       hint: "S",
       opens: "status",
       disabled: !targetTicket,
@@ -176,15 +197,24 @@ export function CommandPalette(props: {
     {
       id: "priority",
       label: "Set priority…",
+      glyph: (
+        <PriorityGlyph priority={targetTicket?.priority ?? "none"} decorative />
+      ),
       hint: "P",
       opens: "priority",
       disabled: !targetTicket,
       reason: targetTicket ? undefined : NO_TARGET,
     },
-    { id: "search", label: "Search tickets…", opens: "search" },
+    {
+      id: "search",
+      label: "Search tickets…",
+      glyph: <RootGlyph>⌕</RootGlyph>,
+      opens: "search",
+    },
     {
       id: "star",
       label: props.project.starred ? "Unstar project" : "Star project",
+      glyph: <RootGlyph>★</RootGlyph>,
       run: () => {
         props.onToggleStar();
         props.onClose();
@@ -193,15 +223,22 @@ export function CommandPalette(props: {
     {
       id: "appearance",
       label: `Toggle appearance (${props.appearance})`,
+      glyph: <RootGlyph>☾</RootGlyph>,
       run: () => {
         props.onToggleAppearance();
         props.onClose();
       },
     },
-    { id: "theme", label: "Change project theme…", opens: "theme" },
+    {
+      id: "theme",
+      label: "Change project theme…",
+      glyph: <RootGlyph>◆</RootGlyph>,
+      opens: "theme",
+    },
     {
       id: "archive",
       label: targetTicket?.archivedAt ? "Unarchive ticket" : "Archive ticket",
+      glyph: <FolderGlyph />,
       disabled: !targetTicket,
       reason: targetTicket ? undefined : NO_TARGET,
       run: () => {
@@ -209,10 +246,16 @@ export function CommandPalette(props: {
         props.onClose();
       },
     },
-    { id: "ordering", label: "Change board ordering…", opens: "ordering" },
+    {
+      id: "ordering",
+      label: "Change board ordering…",
+      glyph: <RootGlyph>☷</RootGlyph>,
+      opens: "ordering",
+    },
     {
       id: "view",
       label: `Switch to ${props.view === "list" ? "board" : "list"} view`,
+      glyph: <RootGlyph>☰</RootGlyph>,
       run: () => {
         props.onView(props.view === "list" ? "board" : "list");
         props.onClose();
@@ -221,6 +264,7 @@ export function CommandPalette(props: {
     {
       id: "terminal",
       label: "New terminal",
+      glyph: <RootGlyph>›_</RootGlyph>,
       disabled: true,
       hint: "PHASE 2",
       reason: "Terminals arrive in Phase 2",
@@ -436,6 +480,9 @@ export function CommandPalette(props: {
         {/* `screen-specs.md:221`, `:232`: one 44px row carrying the crumb chip,
             the input, and the `esc` chip. */}
         <div className="palette-input-row">
+          <span className="palette-input-glyph" aria-hidden="true">
+            ⌕
+          </span>
           {subMode && (
             <button
               tabIndex={0}
@@ -495,7 +542,9 @@ export function CommandPalette(props: {
               className={index === active ? "active" : ""}
               onClick={() => activate(row)}
             >
-              {row.glyph}
+              {row.glyph && (
+                <span className="palette-glyph-slot">{row.glyph}</span>
+              )}
               {row.monoKey && <span className="search-key">{row.monoKey}</span>}
               <span className="palette-label">{row.label}</span>
               {row.tag && <small className="palette-tag">· {row.tag}</small>}
@@ -554,7 +603,9 @@ export function CommandPalette(props: {
             {`Showing the first ${SEARCH_LIMIT} matches. Narrow the query to see the rest.`}
           </p>
         )}
-        <footer>↑↓ navigate · ↵ run · esc close/back</footer>
+        <footer>{`↑↓ navigate · ↵ run · esc ${
+          mode === "root" ? "close" : "back"
+        }`}</footer>
       </section>
     </div>
   );

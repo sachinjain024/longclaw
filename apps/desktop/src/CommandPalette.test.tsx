@@ -69,14 +69,40 @@ function renderPalette(
 
 describe("command palette", () => {
   it("renders the twelve root commands and status glyphs", () => {
-    renderPalette();
+    const { container } = renderPalette();
     expect(screen.getAllByRole("option")).toHaveLength(12);
+    for (const glyph of ["+", "→", "⌕", "★", "☾", "◆", "☷", "☰", "›_"]) {
+      expect(container.textContent).toContain(glyph);
+    }
+    expect(
+      screen.getByRole("option", { name: /Set priority/ }).textContent,
+    ).toContain("P2");
 
     fireEvent.click(screen.getByRole("option", { name: /Change status/ }));
     expect(screen.getByRole("option", { name: "Todo" })).toBeTruthy();
     expect(
       screen.getByRole("option", { name: "Todo" }).querySelector("svg, span"),
     ).toBeTruthy();
+  });
+
+  it("opens the input row with a search glyph", () => {
+    const { container } = renderPalette();
+    expect(container.textContent?.match(/⌕/g)).toHaveLength(2);
+  });
+
+  it("uses the prototype crumb treatment in sub-modes", () => {
+    renderPalette({ initialMode: "theme" });
+    const crumb = screen.getByRole("button", { name: /Back to commands/ });
+    expect(crumb.textContent).toBe("theme");
+  });
+
+  it("names escape by what it does in the current mode", () => {
+    renderPalette();
+    expect(screen.getByText("↑↓ navigate · ↵ run · esc close")).toBeTruthy();
+
+    cleanup();
+    renderPalette({ initialMode: "theme" });
+    expect(screen.getByText("↑↓ navigate · ↵ run · esc back")).toBeTruthy();
   });
 
   it("keeps j and k typeable in the palette input", () => {
