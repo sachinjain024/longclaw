@@ -24,6 +24,15 @@
  * the four handlers below, and a drag library would be a new transitive
  * dependency for a feature whose hard part it does not solve anyway.
  *
+ * **It needs `dragDropEnabled: false` on the window, and it is silent without
+ * it.** Tauri's default installs an OS file-drop handler on the WKWebView —
+ * `draggingEntered:`, `draggingUpdated:`, `performDragOperation:` — that
+ * answers "handled" to every drag over the view and never forwards to super,
+ * including a drag that started inside the page. `dragstart` still fires, so a
+ * card lifts and then nothing lands: no `dragover`, no `drop`, no write. Every
+ * test below passes either way, because jsdom dispatches what it is told to;
+ * `release-audit` is what holds the flag down (LC-60).
+ *
  * A drop means one of two things, and which one it is comes from where the card
  * lands rather than from anything the human has to choose first:
  *
