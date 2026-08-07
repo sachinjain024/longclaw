@@ -56,3 +56,17 @@ changes:
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_c8c1ed2b
+kind: comment
+occurred_at: 2026-08-07T14:11:41.142Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Follow-up: the borderless 15px CSS had already landed on main, but this branch now adds quick-create-guard.mjs coverage and closes D-47 in docs/cc_screens_diff.md so the ticket is backed by the gate and the design-diff ledger.
+<!-- /longclaw:event -->

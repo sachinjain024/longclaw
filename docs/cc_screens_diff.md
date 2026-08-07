@@ -302,9 +302,9 @@ Width (620px) and vertical offset (12vh) both match.
 
 | ID | Sev | Prototype | App | Plan |
 |---|---|---|---|---|
-| D-47 | P2 | Title input is borderless, 15px | A bordered ~13px input with placeholder `Ticket title` | Borderless, 15px; the modal frame is already the field's boundary. |
+| ~~D-47~~ | P2 | Title input is borderless, 15px | A bordered ~13px input with placeholder `Ticket title` | **Fixed 2026-08-07 (LC-113).** `.quick-create-title` is borderless, unpadded, backgroundless, and 15px; `quick-create-guard.mjs` now keeps that CSS contract in the gate. |
 | D-48 | P2 | Context line carries the project's theme dot before the name | `longclaw · LC-137`, no dot | Add the dot (the sidebar already renders one). |
-| D-49 | P3 | Status trigger is a bare `○ Todo >` with a chevron | A bordered pill `○ Todo`, no chevron | Match the panel's meta-trigger treatment (see D-3B). |
+| ~~D-49~~ | P3 | Status trigger is a bare `○ Todo >` with a chevron | A bordered pill `○ Todo`, no chevron | **Fixed 2026-08-07 (LC-115).** The prototype cell wins over the misleading original plan wording: quick create uses the shared `MenuButton` semantics and D-3B chevron, but removes the local trigger border, padding, and background. `quick-create-guard.mjs` pins the bare quick-create treatment. |
 
 ---
 
@@ -582,7 +582,8 @@ single stack.
     **§ 9 is closed.** Every `D-` row in it is struck.
 14. ~~**D-21**~~ — column-header `+` (done 2026-08-07, LC-83, with ~~**D-22**~~
     and ~~**D-23**~~: the board's focus ring and the `None` chip).
-15. **D-47 / D-48 / D-49 / D-4A / D-4B** — create surfaces.
+15. ~~**D-47**~~ / **D-48** / ~~**D-49**~~ / **D-4A / D-4B** — create
+    surfaces.
 16. **D-60 / D-61 / D-62** — freshness attribution.
 17. **D-65** — layout and chrome polish (~~**D-72**~~ went with the settings
     modal; ~~**D-35**~~ and ~~**D-37**~~ went on 2026-08-07 with LC-93 and

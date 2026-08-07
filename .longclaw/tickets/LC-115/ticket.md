@@ -56,3 +56,17 @@ changes:
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_8b56ccb0
+kind: comment
+occurred_at: 2026-08-07T14:11:42.359Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Follow-up: D-49's prototype cell and checklist wording conflicted. The implemented choice is the prototype's bare quick-create trigger while retaining MenuButton's shared menu semantics and D-3B chevron; docs/cc_screens_diff.md now says that explicitly and quick-create-guard.mjs pins the scoped CSS.
+<!-- /longclaw:event -->
