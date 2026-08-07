@@ -1750,13 +1750,11 @@ describe("the raw file view (LC-135 → LC-138)", () => {
 
     it("skips the retry button while a retry is out rather than dropping focus", async () => {
       let settle: (detail: TicketDetail) => void = () => {};
-      readTicketMock
-        .mockResolvedValueOnce(broken())
-        .mockReturnValueOnce(
-          new Promise<TicketDetail>((resolve) => {
-            settle = resolve;
-          }),
-        );
+      readTicketMock.mockResolvedValueOnce(broken()).mockReturnValueOnce(
+        new Promise<TicketDetail>((resolve) => {
+          settle = resolve;
+        }),
+      );
       render(surface());
       await shown();
 
@@ -1786,9 +1784,7 @@ describe("the raw file view (LC-135 → LC-138)", () => {
 
       // The modal is gone and so is the button focus was on. Focus follows the
       // layer rather than falling to the floor (`keyboard-focus-map.md:16-18`).
-      expect(document.activeElement).toBe(
-        screen.getByLabelText("Ticket LC-1"),
-      );
+      expect(document.activeElement).toBe(screen.getByLabelText("Ticket LC-1"));
     });
 
     it("opens with Close focused when there is no retry to offer", async () => {
