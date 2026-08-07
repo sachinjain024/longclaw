@@ -197,9 +197,9 @@ matches" + the echoed query + secondary **Clear filter** (also `Esc`).
 
 | ID | Sev | Prototype | App | Plan |
 |---|---|---|---|---|
-| D-30 | P0 | — | The filter input triggers **WebKit's native autofill dropdown** (a `Zzzz ×` suggestion popover under the field) | Add `autoComplete="off"`, `autoCorrect="off"`, `spellCheck={false}`, and a `name` the browser will not treat as a saved field, to the filter input at `App.tsx:1210-1219`. A native OS popover inside a local-first app is both off-brand and a small privacy surprise. |
-| D-31 | P2 | Centered in the board region, no container | A bordered rounded container spanning the content width, top-aligned | Drop the frame; centre it in the remaining height. `NoMatches` in `App.tsx:1775+`. |
-| D-32 | P3 | "Nothing matches “zzzz”." (curly quotes) | "Nothing here matches zzzz." (no quotes) | Quote the echoed query so an empty-looking query is still visible. |
+| ~~D-30~~ | P0 | — | The filter input triggers **WebKit's native autofill dropdown** (a `Zzzz ×` suggestion popover under the field) | **Fixed 2026-08-07 (LC-90).** The field carries `autoComplete="off"`, `autoCorrect="off"`, `spellCheck={false}` and `name="longclaw-filter"` — the name because WebKit's heuristics read one when they decline the request, and no saved-value store has a value for that one. The prototype's field already carried the pair (`prototype.js:496`). |
+| ~~D-31~~ | P2 | Centered in the board region, no container | A bordered rounded container spanning the content width, top-aligned | **Fixed 2026-08-07 (LC-91).** `.no-matches` drops the dashed frame, the tint and the 18px block margin, and centres in the height the header leaves: `.main-panel` is a column, the workspace takes `.workspace-state` for the one state that stands *instead of* the surfaces, and the panel claims what is left. Measured in WebKit at 1440×900: the panel spans y=86→844 with its title on the centre line, where it used to be a 758px-wide card at the top. The copy is capped at the 400px the prototype gives a state panel's sub-line, which the frame used to do by accident. `.empty-board` and `.unreachable-panel` keep the frame — D-20 and D-59 are the rows that decide those. |
+| ~~D-32~~ | P3 | "Nothing matches “zzzz”." (curly quotes) | "Nothing here matches zzzz." (no quotes) | **Fixed 2026-08-07 (LC-92).** The echo is inside the prototype's curly pair, so a query that is whitespace — or wearing it — is still something the human can see they asked for. |
 
 ---
 
@@ -515,7 +515,8 @@ single stack.
 4. **D-55** — a missing project folder is not noticed; cached tickets keep
    rendering as if live. Contract violation (`states.md` "Never: … show cached
    tickets as if they were live").
-5. **D-30** — turn off native autofill on the filter field.
+5. ~~**D-30**~~ — done 2026-08-07 (LC-90): native autofill is off on the filter
+   field, by the four attributes it takes rather than the one that is asked for.
 
 **Structural — the screens that are a different screen, not a different detail**
 

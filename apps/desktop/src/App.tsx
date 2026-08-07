@@ -26,6 +26,7 @@ import {
   updateProjectTheme,
 } from "./api";
 import { Board } from "./Board";
+import { classes } from "./classes";
 import { CommandPalette } from "./CommandPalette";
 import { RemoveProjectConfirm } from "./ConfirmDialog";
 import { CreatePanel } from "./CreatePanel";
@@ -1288,10 +1289,24 @@ export function App() {
                         field's accessible name stays "Filter tickets" rather
                         than becoming "Filter tickets ⌘F" (LC-71). */}
                     <div className="filter-wrap">
+                      {/* The OS stays out of this field (LC-90). WebKit offered
+                          its own saved-value popover under it — a native
+                          dropdown inside a local-first app, which is both
+                          off-brand and a small privacy surprise. Turning
+                          autofill off is four attributes rather than one:
+                          `autoComplete` is the request, `name` is what the
+                          heuristics read when they ignore it, and the two
+                          text-assist attributes are the same class of unasked-
+                          for help over a query that is a substring, not prose.
+                          The prototype's field carries the same (prototype.js:496). */}
                       <input
                         ref={filterField}
                         className="filter-field"
                         type="text"
+                        name="longclaw-filter"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
                         value={filterQuery}
                         aria-label="Filter tickets"
                         aria-keyshortcuts="Meta+F"
@@ -1348,7 +1363,15 @@ export function App() {
                 onRemove={() => void forgetProject(project.id)}
               />
             ) : (
-              <section className="workspace">
+              // The no-match state is the one thing that stands *instead of*
+              // the surfaces rather than above them, so the workspace becomes
+              // the column it is centred in (LC-91).
+              <section
+                className={classes(
+                  "workspace",
+                  tickets.length > 0 && noMatches && "workspace-state",
+                )}
+              >
                 {DEV_CHROME && (
                   <div
                     className="trace-strip"
@@ -1824,8 +1847,12 @@ function NoMatches(props: {
   return (
     <div className="no-matches" role="status" aria-label="No matches">
       <strong>No matches</strong>
+      {/* Quoted, because an unquoted echo of a query that is mostly whitespace
+          — or all of it — reads as a sentence with a hole in it, and the one
+          thing this panel owes the human is what was asked (LC-92). The curly
+          pair is the prototype's (prototype.js:571). */}
       <p>
-        Nothing here matches <code>{props.query}</code>.
+        Nothing here matches <code>“{props.query}”</code>.
       </p>
       {props.unreadable > 0 && (
         <p>
