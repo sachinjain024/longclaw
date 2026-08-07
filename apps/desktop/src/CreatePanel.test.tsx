@@ -106,6 +106,40 @@ describe("every approved field, in one create", () => {
       "Needs more thought",
     );
   });
+
+  /**
+   * The title here wears `.panel-title`, which draws no resize grabber and
+   * hides its own overflow (D-73, LC-108). A field with no handle has to find
+   * its own height, and this one is the third of the three the finding names —
+   * the panel's two grew one when the handle came off, and this one did not, so
+   * a long title was clipped by the very rule that took the handle away.
+   */
+  it("grows the title to its own text rather than clipping it", () => {
+    // jsdom lays nothing out, so every box measures 0 and the hook declines to
+    // pin a field to nothing. A height that answers for the text is the whole
+    // input this behaviour has, so the test supplies one: 20px a line, 20
+    // characters to a line.
+    const lineHeight = 20;
+    Object.defineProperty(HTMLTextAreaElement.prototype, "scrollHeight", {
+      configurable: true,
+      get(this: HTMLTextAreaElement) {
+        if (this.style.height !== "auto") return 0;
+        return lineHeight * Math.max(1, Math.ceil(this.value.length / 20));
+      },
+    });
+
+    render(createPanel());
+    const title = screen.getByLabelText<HTMLTextAreaElement>("Title");
+    expect(title.style.height).toBe(`${lineHeight}px`);
+
+    fireEvent.change(title, {
+      target: { value: "A title long enough to need a second line of its own" },
+    });
+
+    expect(title.style.height).toBe(`${lineHeight * 3}px`);
+
+    Reflect.deleteProperty(HTMLTextAreaElement.prototype, "scrollHeight");
+  });
 });
 
 describe("nothing here claims the file exists yet", () => {
