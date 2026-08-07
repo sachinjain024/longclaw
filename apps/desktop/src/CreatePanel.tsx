@@ -155,7 +155,7 @@ export function CreatePanel(props: CreatePanelProps) {
       <section className="panel-section">
         <h3>
           Checklist
-          <span className="checklist-fraction">0/{checklist.length}</span>
+          <span className="section-count">0/{checklist.length}</span>
         </h3>
         <ul className="checklist">
           {checklist.map((text, index) => (
@@ -203,6 +203,20 @@ export function CreatePanel(props: CreatePanelProps) {
             setNewItem("");
           }}
         >
+          {/* The same ghost box the ticket panel's add-row carries (LC-106),
+              and for the same reason: the create surface's add-row is the row
+              after the list here too (`prototype.js:895-897`). Without it the
+              borderless field would sit a checkbox's width out of line with
+              the rows above it. */}
+          <input
+            type="checkbox"
+            className="ghost-box"
+            checked={false}
+            disabled
+            readOnly
+            aria-hidden="true"
+            tabIndex={-1}
+          />
           <input
             ref={addItem}
             value={newItem}

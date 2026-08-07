@@ -17,7 +17,10 @@
  * files rather than a tree — `styles.css` and the token JSON — because its
  * question is about the relation between a handful of selectors, not about
  * every file. It takes `report` alone, and the pass line it prints counts
- * surfaces rather than files.
+ * surfaces rather than files. `field-guard.mjs` (LC-107/LC-108) is the same
+ * shape, and reaches across languages for its second half: a `resize: none` in
+ * the stylesheet is only safe while the component still auto-grows the field,
+ * so it reads `TicketPanel.tsx` for the other end of the pair.
  *
  * `src/tokens/` is the one place a literal is allowed anywhere: it is where the
  * scale is declared.

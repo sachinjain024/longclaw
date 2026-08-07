@@ -238,12 +238,18 @@ const STATES = [
     ],
     distinct: [
       {
-        label: "agent tile vs human primary",
+        // The human accent used to be read off the composer's `Comment`
+        // button. That button is `secondary` now and only exists once there is
+        // something to post (LC-107), so it carries neither the accent nor a
+        // guaranteed presence in this state. The checklist's boxes do both:
+        // `--lc-accent-human` is what a human's own tick is filled with, and
+        // the list is on screen whenever the panel is.
+        label: "agent tile vs human accent",
         a: {
           selector: ".timeline .actor-tile.agent",
           property: "color",
         },
-        b: { selector: ".composer .primary", property: "background-color" },
+        b: { selector: ".checklist-row input", property: "accent-color" },
       },
     ],
   },
