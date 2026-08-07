@@ -8,9 +8,10 @@
  * there nothing here?", where the prototype centres a state panel in the board
  * region with nothing around it (`prototype.css § state-panel`,
  * `cc_screens_diff.md` D-31). It got there honestly: `.no-matches` shared one
- * rule with `.empty-board` and `.unreachable-panel`, and the two of those do
- * keep their frames, so the next person to touch that rule has a plausible
- * reason to put the selector back on it (LC-91).
+ * rule with `.unreachable-panel`, which does keep its frame, so the next person
+ * to touch that rule has a plausible reason to put the selector back on it
+ * (LC-91). The empty-project state shared it too until D-20/LC-86, and now has
+ * no panel at all — it is a card inside the Todo column.
  *
  * A frame is also the half no test can see. The panel's markup is identical
  * either way — jsdom loads no stylesheet, and the vitest suite can assert the

@@ -35,6 +35,7 @@ import {
   type Seat,
   type StatusGroup,
 } from "./grouping";
+import { GuideCard } from "./GuideCard";
 import { singleKeyShortcutAllowed } from "./keyContext";
 import { LabelChip } from "./LabelChip";
 import { groupBodyHeight, listGeometry, rowTop } from "./listGeometry";
@@ -118,6 +119,13 @@ export function IssueList(props: {
   onChangePriority: (ticket: IndexedTicket, next: TicketPriority) => void;
   /** Raised by the `S` menu, on the same terms. */
   onChangeStatus: (ticket: IndexedTicket, next: TicketStatus) => void;
+  /**
+   * Present only in the empty-project state. The list has no Todo column to
+   * host the guide, so it sits in a card frame of the list's own — the same
+   * `surface` a group body wears — rather than replacing the surface with a
+   * full-width panel (D-26/LC-89).
+   */
+  onCreateFirst?: () => void;
   /** Focus a row from outside the list; see `Board`'s own, and `rovingFocus.ts`. */
   focusRequest?: FocusRequest;
 }) {
@@ -234,6 +242,11 @@ export function IssueList(props: {
       onKeyDown={onKeyDown}
       onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
     >
+      {props.onCreateFirst && (
+        <div className="list-guide">
+          <GuideCard variant="panel" onCreate={props.onCreateFirst} />
+        </div>
+      )}
       {groups.map((group, index) => (
         <ListGroup
           key={group.id}

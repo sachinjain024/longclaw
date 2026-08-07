@@ -60,6 +60,7 @@ import {
   type Seat,
   type StatusGroup,
 } from "./grouping";
+import { GuideCard } from "./GuideCard";
 import { singleKeyShortcutAllowed } from "./keyContext";
 import { LabelChip } from "./LabelChip";
 import { comparatorFor, rankForDrop, type OrderingMode } from "./ordering";
@@ -189,6 +190,12 @@ export function Board(props: {
    * decides that a create preseeded with a status is quick create.
    */
   onCreateInStatus: (status: TicketStatus) => void;
+  /**
+   * Present only in the empty-project state, where it puts the guide card in
+   * the Todo column as that column's only child. The board stays whole around
+   * it: the scaffold is what the state is (`states.md:28-35`, D-20/LC-86).
+   */
+  onCreateFirst?: () => void;
   /**
    * Focus a card from outside the board — the new card after a create, the card
    * behind a closing panel. It goes through the roving focus rather than the DOM
@@ -333,6 +340,11 @@ export function Board(props: {
           dragKey={dragColumn === columnIndex ? dragKey : undefined}
           dropGap={dragColumn === columnIndex ? dropGap : undefined}
           draggable={props.ordering === "manual"}
+          // The guide belongs to Todo — it is the column a first ticket lands
+          // in, and the prototype puts it there (prototype.js:582).
+          onCreateFirst={
+            column.status === "todo" ? props.onCreateFirst : undefined
+          }
           onCreate={props.onCreateInStatus}
           onSelect={props.onSelect}
           onFocusCard={onFocusCard}
@@ -388,6 +400,8 @@ function BoardColumn(props: {
   draggable: boolean;
   /** Raised by the header's `+`, with this column's status. */
   onCreate: (status: TicketStatus) => void;
+  /** Set on Todo alone, and only while the project has no tickets at all. */
+  onCreateFirst?: () => void;
   onSelect: (key: string) => void;
   onFocusCard: (key: string) => void;
   onDragCard: (key?: string) => void;
@@ -502,6 +516,12 @@ function BoardColumn(props: {
           props.onDropCard(gap);
         }}
       >
+        {/* Outside the sizer, which places its cards absolutely against the
+            offsets the geometry states: the guide is in no column's geometry
+            and is drawn in normal flow above an empty sizer. */}
+        {props.onCreateFirst && (
+          <GuideCard variant="card" onCreate={props.onCreateFirst} />
+        )}
         <div
           className="board-sizer"
           ref={sizer}

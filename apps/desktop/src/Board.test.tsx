@@ -100,6 +100,7 @@ function board(props?: {
   onChangeStatus?: (ticket: IndexedTicket, next: TicketStatus) => void;
   onReorder?: (ticket: IndexedTicket, rank: string) => void;
   onCreateInStatus?: (status: TicketStatus) => void;
+  onCreateFirst?: () => void;
 }) {
   return (
     <Board
@@ -113,6 +114,7 @@ function board(props?: {
       onChangeStatus={props?.onChangeStatus ?? noop}
       onReorder={props?.onReorder ?? noop}
       onCreateInStatus={props?.onCreateInStatus ?? noop}
+      onCreateFirst={props?.onCreateFirst}
     />
   );
 }
@@ -1160,5 +1162,75 @@ describe("the column header's + (LC-83)", () => {
     expect(document.activeElement).toBe(plus);
     expect(screen.queryByRole("menu")).toBeNull();
     expect(onChangeStatus).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The empty-project state (D-20/LC-86): the board is the one thing the spec
+ * says the app never hides, so the scaffold stands and the Todo column hosts
+ * the invitation.
+ */
+describe("the empty-project guide", () => {
+  const guide = () =>
+    document.querySelector<HTMLElement>(".guide-card") ?? undefined;
+
+  it("keeps every column and puts the card in Todo", () => {
+    render(board({ tickets: [], onCreateFirst: noop }));
+
+    // The scaffold first: the state this replaced drew no columns at all.
+    expect(document.querySelectorAll(".board-column").length).toBeGreaterThan(
+      1,
+    );
+    const card = guide();
+    expect(card).toBeTruthy();
+    expect(stack("Todo").contains(card as Node)).toBe(true);
+    // One column hosts it, and it is not every column's empty state.
+    expect(document.querySelectorAll(".guide-card")).toHaveLength(1);
+  });
+
+  it("carries the C chip and no button of its own (D-24)", () => {
+    render(board({ tickets: [], onCreateFirst: noop }));
+
+    const card = guide();
+    expect(card?.querySelector("kbd")?.textContent).toBe("C");
+    // The chip is decorative — `aria-keyshortcuts` announces the key — so the
+    // card's name is what pressing it does and nothing else.
+    expect(card?.getAttribute("aria-label")).toBe("Create your first ticket");
+    expect(card?.getAttribute("aria-keyshortcuts")).toBe("C");
+    expect(screen.queryByRole("button", { name: "New ticket" })).toBeNull();
+  });
+
+  it("names no path, so nothing wraps and no period is stranded (D-25)", () => {
+    render(board({ tickets: [], onCreateFirst: noop }));
+
+    expect(guide()?.textContent).toContain(
+      "Title it, give it a checklist, point an agent at the folder.",
+    );
+    expect(guide()?.textContent).not.toContain(".longclaw/tickets");
+  });
+
+  // An empty board has no card for the roving group to hold, so the guide is an
+  // ordinary Tab stop — and on WebKit with macOS *Keyboard navigation* off, a
+  // button without an explicit `tabIndex` is skipped entirely (AGENTS.md).
+  it("is an ordinary tab stop, not a member of the roving group", () => {
+    render(board({ tickets: [], onCreateFirst: noop }));
+
+    expect(guide()?.tabIndex).toBe(0);
+    expect(guide()?.className).not.toContain("ticket-row");
+  });
+
+  it("raises the create the whole card is", () => {
+    const onCreateFirst = vi.fn();
+    render(board({ tickets: [], onCreateFirst }));
+
+    fireEvent.click(guide() as HTMLElement);
+
+    expect(onCreateFirst).toHaveBeenCalledTimes(1);
+  });
+
+  it("is absent from a board that has tickets", () => {
+    render(board({ tickets: columnOf(2) }));
+
+    expect(guide()).toBeUndefined();
   });
 });
