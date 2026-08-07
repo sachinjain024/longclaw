@@ -1492,6 +1492,10 @@ export function App() {
             }
             now={now}
             archived={openRow !== undefined && isArchived(openRow)}
+            // What the row the card was drawn from says, so a file the board
+            // already knows will not parse opens as the raw-file modal rather
+            // than as a panel that turns into one (LC-134).
+            degraded={openRow?.state === "degraded"}
             shortcutsActive={
               !paletteOpen && !settingsOpen && createSurface === undefined
             }

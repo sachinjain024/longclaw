@@ -181,6 +181,7 @@ function panel(props?: {
   removedSignal?: number;
   onClose?: () => void;
   archived?: boolean;
+  degraded?: boolean;
   shortcutsActive?: boolean;
   onArchive?: (archived: boolean) => void;
   onWrite?: (result: WriteResult) => void;
@@ -196,6 +197,7 @@ function panel(props?: {
       removedSignal={props?.removedSignal ?? 0}
       now={NOW}
       archived={props?.archived ?? false}
+      degraded={props?.degraded ?? false}
       shortcutsActive={props?.shortcutsActive ?? true}
       onClose={props?.onClose ?? noop}
       onArchive={props?.onArchive ?? noop}
@@ -1659,6 +1661,102 @@ describe("the raw file view (LC-135 → LC-138)", () => {
     await shown();
 
     expect(screen.getByText(/too large to show whole/i)).toBeTruthy();
+  });
+
+  /**
+   * D-51 / LC-134: the spec draws a modal, and the panel drew a 560px column of
+   * a surface built for editing a ticket there is none of. On the modal layer
+   * the file is also unpaintable-through by construction, which is the half of
+   * D-51 a `z-index` fixed and this makes structural.
+   */
+  describe("as the modal the spec draws (D-51)", () => {
+    it("opens on the modal layer rather than inside the ticket panel", async () => {
+      readTicketMock.mockResolvedValue(broken());
+      render(panel());
+      await shown();
+
+      const dialog = screen.getByRole("dialog");
+      expect(dialog.className).toContain("raw-file-view");
+      expect(dialog.getAttribute("aria-modal")).toBe("true");
+      expect(dialog.closest(".modal-scrim")).toBeTruthy();
+      // Not a panel that happens to hold a file: there is no panel at all, and
+      // so none of the controls that write to a ticket.
+      expect(document.querySelector(".ticket-panel")).toBeNull();
+      expect(screen.queryByLabelText("Title")).toBeNull();
+    });
+
+    it("says which file it is reading before the file arrives", async () => {
+      let settle: (detail: TicketDetail) => void = () => {};
+      readTicketMock.mockReturnValue(
+        new Promise<TicketDetail>((resolve) => {
+          settle = resolve;
+        }),
+      );
+      // What the board knew when the card was clicked. Without it the panel
+      // would open first and become a modal a moment later.
+      render(panel({ degraded: true }));
+
+      expect(screen.getByRole("dialog")).toBeTruthy();
+      expect(document.querySelector(".ticket-panel")).toBeNull();
+      expect(screen.getByText(/Reading LC-1 from disk/)).toBeTruthy();
+
+      settle(broken());
+      expect((await shown()).textContent).toBe(FULL_PATH);
+    });
+
+    it("closes on the scrim and on its own close button", async () => {
+      readTicketMock.mockResolvedValue(broken());
+      const onClose = vi.fn();
+      render(panel({ onClose }));
+      await shown();
+
+      fireEvent.click(screen.getByRole("button", { name: "Close raw file" }));
+      expect(onClose).toHaveBeenCalledTimes(1);
+
+      // Clicking past a modal is the same answer as closing it; clicking the
+      // file itself is not a click past it.
+      fireEvent.click(screen.getByRole("dialog"));
+      expect(onClose).toHaveBeenCalledTimes(1);
+      const scrim = screen.getByRole("dialog").closest(".modal-scrim");
+      fireEvent.click(scrim as HTMLElement);
+      expect(onClose).toHaveBeenCalledTimes(2);
+    });
+
+    it("holds Tab inside the dialog, file content included", async () => {
+      readTicketMock.mockResolvedValue(broken());
+      render(panel());
+      await shown();
+
+      const dialog = screen.getByRole("dialog");
+      const stops = [
+        screen.getByRole("button", { name: "Close raw file" }),
+        screen.getByLabelText("File content"),
+        screen.getByRole("button", { name: "Open in editor" }),
+      ];
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Retry parse" }),
+      );
+      // Round the ring from the last stop and back to it: nothing behind the
+      // scrim is reachable by Tab (`keyboard-focus-map.md:16-23`).
+      for (const stop of stops) {
+        fireEvent.keyDown(dialog, { key: "Tab" });
+        expect(document.activeElement).toBe(stop);
+      }
+      fireEvent.keyDown(dialog, { key: "Tab" });
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Retry parse" }),
+      );
+    });
+
+    it("opens with Close focused when there is no retry to offer", async () => {
+      readTicketMock.mockResolvedValue(degradedDetail({ readOnly: true }));
+      render(panel());
+      await shown();
+
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Close raw file" }),
+      );
+    });
   });
 });
 

@@ -186,6 +186,15 @@ export interface DegradedTicket {
   byteLength: number;
   /** True for a newer format version, where there is nothing to fix. */
   readOnly: boolean;
+  /**
+   * The status this directory last read as, when the index has seen it parse.
+   *
+   * Not a field of the file — the file is what could not be read — but the seat
+   * the row keeps on both surfaces, so a ticket that breaks stays in the column
+   * it was in instead of moving to the end of the board (`grouping.ts`, D-50).
+   * Absent on a directory this session has only ever seen unreadable.
+   */
+  lastKnownStatus?: TicketStatus;
   diagnostic: Diagnostic;
 }
 

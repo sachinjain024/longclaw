@@ -223,6 +223,9 @@ impl TicketFile {
                 relative_path: self.relative_path.clone(),
                 byte_length: self.byte_length,
                 read_only: diagnostic.is_read_only(),
+                // A file, alone, cannot say what it last parsed as. The index
+                // fills this in from the row it is replacing (`core::index`).
+                last_known_status: None,
                 diagnostic: diagnostic.clone(),
             }),
         }

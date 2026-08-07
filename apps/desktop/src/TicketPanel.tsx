@@ -246,6 +246,13 @@ interface TicketPanelProps {
    * (V0-29).
    */
   heldConflict?: HeldConflict;
+  /**
+   * What the index says about the file: true for a row the board drew as
+   * degraded. It decides nothing about which surface is drawn — the read does
+   * (see the raw-file branch) — and only spares a card the human clicked the
+   * panel it was never going to keep.
+   */
+  degraded?: boolean;
   onClose: () => void;
   /** Asks for the flip. The panel writes nothing here; see `archived`. */
   onArchive: (archived: boolean) => void;
@@ -732,6 +739,37 @@ export function TicketPanel(props: TicketPanelProps) {
    */
   const checkedCount = ticket?.checklist.filter(isChecked).length ?? 0;
 
+  /**
+   * A file that will not parse gets the modal the spec draws rather than this
+   * panel (`screen-specs.md:291-298`, D-51 / LC-134), so it is returned instead
+   * of the panel and not inside it: the panel is a surface for editing a ticket,
+   * and there is no ticket here to edit.
+   *
+   * The panel is still the thing that reads the file, and everything the modal
+   * offers is the panel's — the load, the retry, the editor hand-off, the
+   * `Esc` that closes the layer. What changes is only what is drawn.
+   *
+   * The question is asked of the file rather than of the index row:
+   * `props.degraded` is only what the board believed when the card was clicked,
+   * and all it buys is opening the modal *while the read is out*, so a degraded
+   * card does not flash a panel on its way to one. Which surface is finally
+   * drawn is the read's answer, in both directions — a row the index still calls
+   * readable whose file has since broken lands here too.
+   */
+  if (!unavailable && !ticket && (detail || props.degraded)) {
+    return (
+      <RawFileView
+        detail={detail}
+        ticketKey={ticketKey}
+        projectPath={props.projectPath}
+        retrying={retrying}
+        onRetry={() => void retryParse()}
+        onOpenInEditor={() => void openInEditor()}
+        onClose={props.onClose}
+      />
+    );
+  }
+
   return (
     <aside
       className="ticket-panel"
@@ -828,15 +866,9 @@ export function TicketPanel(props: TicketPanelProps) {
 
       {unavailable ? null : !detail ? (
         <p className="panel-loading">Reading {ticketKey} from disk…</p>
-      ) : !ticket ? (
-        <RawFileView
-          detail={detail}
-          projectPath={props.projectPath}
-          retrying={retrying}
-          onRetry={() => void retryParse()}
-          onOpenInEditor={() => void openInEditor()}
-        />
-      ) : (
+      ) : /* A file with no ticket in it left through the raw-file modal above;
+             this arm is how the fields below know they have one. */
+      !ticket ? null : (
         <>
           <textarea
             className="panel-title"

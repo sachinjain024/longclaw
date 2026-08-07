@@ -154,6 +154,10 @@ fn a_degraded_ticket_stays_visible_and_is_never_rewritten() {
         assert_eq!(row.read_only, expects_read_only);
         assert!(row.diagnostic.message.contains(fragment));
         assert_eq!(row.byte_length, original.len());
+        // This index has never seen either file parse, so it has no seat to lend
+        // one: a file that has only ever been unreadable belongs to the
+        // `Unreadable` group, which is the fallback D-50 names (LC-133).
+        assert_eq!(row.last_known_status, None);
 
         // The raw file is available for the raw-file view, byte for byte.
         let detail = engine.detail(key).expect("a degraded ticket still reads");

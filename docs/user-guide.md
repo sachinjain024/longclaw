@@ -139,9 +139,9 @@ It never silently discards either version — you are shown the conflict and
 choose.
 
 **A ticket that will not parse.** A malformed `ticket.md` stays visible as a
-degraded ticket showing the raw file and the parse error, instead of vanishing
-from the board. The file is line-numbered with the offending line marked, and
-the error names the line it happened on. **Open in editor** hands the file to
+degraded ticket, in the column it was already in, instead of vanishing from the
+board. Opening it shows the file itself, line-numbered with the offending line
+marked, and the error names the line it happened on. **Open in editor** hands the file to
 whatever you open Markdown with; fix it there and it returns on its own, or
 press **Retry parse** rather than waiting. LongClaw will not "repair" it for
 you, because a repair is a guess about what you meant.

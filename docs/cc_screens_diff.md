@@ -68,17 +68,19 @@ What diverges is **composition and states**:
    2026-08-06** (LC-96 → LC-99), and each left a guard behind it rather than only
    a fix: `stacking-guard.mjs` for the layering, `tile-contrast-guard.mjs` for
    the code surfaces. D-51's *layering* went with D-01; its modal-vs-panel half
-   is still open and is the only part of this item that is.
+   closed on 2026-08-07 (LC-134), and the raw file view is the spec's 680px
+   modal now, so nothing of this item is open.
 2. **Three screens are structurally different**, not detail-different: the
    welcome screen (D-10), ~~project settings (D-40)~~ — a modal since 2026-08-07
    (LC-125) — and the empty-project state (D-20).
 3. **The app shell header is three stacked blocks (~230px)** where the design is
    one 56px row (D-05) — this is the single change that most alters how every
    populated screen reads, and it costs the board and list ~170px of height.
-4. **Two designed error behaviours do not happen**: a degraded ticket never
-   appears in its last-known column (D-50 — it does appear on the board, in the
-   synthetic `Unreadable` column at the end), and a project folder that
-   disappears is not noticed until something forces a re-read (D-55).
+4. **Two designed error behaviours do not happen**: ~~a degraded ticket never
+   appears in its last-known column (D-50)~~ — fixed 2026-08-07 (LC-133), the
+   index remembers the status a directory last read as and both surfaces group
+   the degraded row by it — and a project folder that disappears is not noticed
+   until something forces a re-read (D-55).
 
 A prioritized backlog is at the end.
 
@@ -217,7 +219,7 @@ rows all match.
 | ID | Sev | Prototype | App | Plan |
 |---|---|---|---|---|
 | ~~D-35~~ | P2 | Relative time is a fixed 46px right-aligned column: `40m`, `3h`, `2d` | `just now` **wraps onto two lines** inside the 46px slot, making those rows visibly taller than their neighbours | **Fixed 2026-08-07 (LC-93).** The string, not the slot: `describeAgeInSlot` in `freshness.ts` substitutes `now` for the one age the column cannot hold, and the row reads it instead of `describeAge`. Prose keeps `just now` — the timeline entry and the card's acknowledgement are sentences, and a sentence saying `now` reads as a truncation — so there is one age vocabulary with one substitution rather than two. `.list-row-updated` also took `white-space: nowrap`, so no future age can wrap this slot in words the guard cannot see. |
-| ~~D-36~~ | P2 | Degraded rows sit **in place**, with the row's own anatomy | Degraded rows are hoisted into a synthetic `Unreadable` group at the bottom (`src/grouping.ts:86-90`) | **Fixed 2026-08-07 (LC-94).** Decided for both surfaces, and the two placements are deliberately different: `groupByStatus` takes an `unreadable` option, the board keeps `"last"` — its columns are the fixed set in a fixed order (ADR 0002), so the group no status names takes the seat at the end, which is the placement D-50 names — and the list asks for `"first"`. One vertical scroller is why: appended, the group sat below the fold at the default window size, which is the "never silent" invariant broken by a sort order. *In place* in the prototype's full sense — the row in its last-known status — needs a last-known status to exist, and nothing in the app remembers one yet; that is D-50 / LC-133's work, and this row no longer waits on it. |
+| ~~D-36~~ | P2 | Degraded rows sit **in place**, with the row's own anatomy | Degraded rows are hoisted into a synthetic `Unreadable` group at the bottom (`src/grouping.ts:86-90`) | **Fixed 2026-08-07 (LC-94).** Decided for both surfaces, and the two placements are deliberately different: `groupByStatus` takes an `unreadable` option, the board keeps `"last"` — its columns are the fixed set in a fixed order (ADR 0002), so the group no status names takes the seat at the end, which is the placement D-50 names — and the list asks for `"first"`. One vertical scroller is why: appended, the group sat below the fold at the default window size, which is the "never silent" invariant broken by a sort order. *In place* in the prototype's full sense — the row in its last-known status — needed a last-known status to exist, and D-50 / LC-133 gave it one on 2026-08-07: a degraded row now sits in the group its directory last read in, and the synthetic group holds only what nothing has seen parse. |
 | ~~D-37~~ | P3 | Degraded row: warn triangle, mono filename, `View raw file`, danger treatment | Present, but with no danger tint or border, and a stray **green freshness dot** renders immediately left of `View raw file` | **Fixed 2026-08-07 (LC-95).** The card's treatment at row height (`states.md:92-94`): the card's `--lc-danger-border` as an inset `::after` overlay — not a `border`, because `.divided` already owns the row's `border-top` for the hairline between rows, and not a `box-shadow`, because `.selected` owns that — with `--lc-danger-surface` behind it, since a 1px edge that frames a card is one hairline among hairlines at 36px. The ID slot, the warn glyph and `View raw file` take `--lc-danger` rather than the row's resting greys. The dot is gone with the whole fresh treatment: a file that would not parse has nothing in it to be fresh about, so `ListRow` reads `isFresh(…) && !row.degraded`. The board card carries the same dot and is **LC-164**, not this row — suppressing it there also moves `cardStrides`. |
 
 ---
@@ -393,8 +395,8 @@ app running.
 
 | ID | Sev | Prototype | App | Plan |
 |---|---|---|---|---|
-| **D-50** | **P0** | Degraded card renders in its last-known column | **The ticket vanishes from the board entirely.** Todo went 3 → 2, no card, no warning, no count change to explain it. **Two things have changed under this row since it was written, and neither closes it.** The board does render the degraded card now, in the synthetic `Unreadable` column at the end (`Board.test.tsx` § "keeps a file it cannot read on the board, in its own column") — which is the fallback this row's own Plan names, so what is left open here is the *last-known column*, not the vanishing. And the list's `Unreadable` group is no longer at the very bottom: D-36 / LC-94 moved it to the top on 2026-08-07, so it is no longer below the fold at the default window size | This violates the "never silent" invariant (`states.md:9-12`). The row exists all the way through (`core/storage.rs:220`, `types.ts:181`, `boardCard.ts:38`) — it is only the *grouping* that drops it. Give a degraded row a placement: keep its directory's last-known status if the index has one, else render an `Unreadable` column at the end of the board. Do not let a file the user can see on disk be invisible in the app. |
-| **D-51** | **P0** | Raw file view is a 680px centered modal | It opens as the 560px right panel, **and the surface behind paints through it** — several lines of the file are covered by opaque white bands from the list rows underneath, so the file is partly unreadable | Same root cause as D-01 (`z-index`). Also decide modal-vs-panel: the spec says modal, and a modal removes the layering problem entirely. |
+| ~~D-50~~ | P0 | Degraded card renders in its last-known column | **The ticket vanishes from the board entirely.** Todo went 3 → 2, no card, no warning, no count change to explain it. **Two things have changed under this row since it was written, and neither closes it.** The board does render the degraded card now, in the synthetic `Unreadable` column at the end (`Board.test.tsx` § "keeps a file it cannot read on the board, in its own column") — which is the fallback this row's own Plan names, so what is left open here is the *last-known column*, not the vanishing. And the list's `Unreadable` group is no longer at the very bottom: D-36 / LC-94 moved it to the top on 2026-08-07, so it is no longer below the fold at the default window size | **Fixed 2026-08-07 (LC-133).** The last-known column, which is what was left. A file that will not parse names no status, so the placement can only come from something that watched it parse: `TicketIndex` keeps a seat per ticket directory — the status it last read as — and lends it to the degraded row it builds (`core/index.rs`, `DegradedRow::last_known_status`). `ticketStatus` then groups a degraded row by that seat on **both** surfaces, so breaking a file moves nothing on screen but the card's own anatomy, and the synthetic group becomes the fallback rather than the destination. The seats survive `clear()` and a rebuild deliberately: nothing on disk can put them back, so dropping them would move the card every time the app resumed. They do not survive the process — a directory this session has never seen parse goes to `Unreadable`, which is where the fallback belongs. |
+| ~~D-51~~ | P0 | Raw file view is a 680px centered modal | It opens as the 560px right panel, **and the surface behind paints through it** — several lines of the file are covered by opaque white bands from the list rows underneath, so the file is partly unreadable | **Fixed 2026-08-07 (LC-134).** Both halves are closed now: the layering went with D-01 / LC-96, and the shape is the spec's — `RawFileView` renders a 680px dialog on `.modal-scrim`, hanging from the scrim's 12vh with the palette (`prototype.css:733`, `prototype.js:1120`), and `TicketPanel` returns it *instead of* the panel rather than inside it. The panel is still what reads the file, so the retry, the editor hand-off and `Esc` are unchanged; what is gone is a 560px editing surface wrapped around a file with no ticket in it. Which surface is drawn is the read's answer and not the index row's, so a row the board still calls readable whose file has since broken opens here too. The modal holds `Tab` and gives the file block a stop of its own, since page keys scroll what focus is inside (`keyboard-focus-map.md:141-142`). |
 | ~~D-52~~ | P2 | Danger banner shows the parser error in mono **with `file:line`** (`ticket.md:7 — mapping values are not allowed here…`) | Error shown as plain prose with no line reference: "status must be one of backlog, todo, …; found not_a_real_status" | **Fixed 2026-08-07 (LC-135).** The banner was already willing to print a line; the *parser* had none to give. A field the format refuses is valid YAML, so `serde_yaml` reports no location — `Mapping::line_of` finds the field's own line in the bytes the mapping already holds, and `status`, `priority`, the three timestamps, `labels`, `key`, `format`, `id`, and `title` all carry one now. The banner names `ticket.md:7` rather than the whole path, because the heading above it is the path (D-58). |
 | ~~D-53~~ | P2 | Content is line-numbered, offending line highlighted with `danger-surface` | No line numbers, no highlight | **Fixed 2026-08-07 (LC-136).** One row per line with an `aria-hidden` gutter — a screen reader counting down the side of a file is noise, and the banner says the number in words. The flagged row takes `danger-surface` *and* danger ink, never tint alone. |
 | ~~D-54~~ | P2 | Footer: note + **Open in editor** + **Retry parse** | Neither action | **Fixed 2026-08-07 (LC-137).** `Retry parse` re-reads on demand and every outcome speaks: a file that parses gives the ticket back, toasts, and asks `App` for a snapshot so the degraded *card* recovers too (`states.md:102-104`); one that still fails re-renders with whatever the parser says now and says so. `Open in editor` is a typed command that takes a **ticket key**, never a path — see `release-candidate.md` for why that is not a shell. A newer-format file gets no retry: there is nothing to fix, which is the distinction `Diagnostic::is_read_only` already draws. `Retry parse` takes the focus the view opens with, as `keyboard-focus-map.md:141-142` already said it should, and `a11y:audit` A2 holds it there over a `?fail=parse` read. |
@@ -501,17 +503,18 @@ single stack.
 1. ~~**D-01 / D-74**~~ — done 2026-08-06 (LC-96): `.ticket-panel` and the list's
    sticky header take layers off a `--lc-z-*` scale, and `stacking-guard.mjs`
    holds the relations between all five surfaces. It was the cheapest,
-   highest-value fix in this document, as billed. **D-51** is what is left: its
-   layering came free with this, but the spec's 680px centered modal did not —
-   the raw file still opens as the 560px right panel.
+   highest-value fix in this document, as billed. **D-51** came with it in two
+   parts: its layering came free with this, and the spec's 680px modal landed on
+   2026-08-07 (LC-134) — the raw file no longer borrows the ticket panel.
 2. ~~**D-02 / D-03**~~ — done 2026-08-06 (LC-97, LC-98): a `--lc-code-surface` /
    `--lc-code-ink` pair, so code no longer borrows the agent terminal's tile, and
    `tile-contrast-guard.mjs` reads the pair — which is what neither
    single-declaration guard could see.
-3. **D-50** — a corrupted ticket does not keep its last-known column; it is
-   collected into the `Unreadable` column at the end of the board instead, which
-   is the fallback the row's Plan allows. What is left of the contract violation
-   (`states.md` "never silent") is the count that changes with no explanation.
+3. ~~**D-50**~~ — done 2026-08-07 (LC-133): a corrupted ticket keeps the column
+   it last read in, because the index keeps a seat per ticket directory and
+   lends it to the row it can no longer read. The `Unreadable` group is the
+   fallback for a directory nothing has seen parse, not the destination for
+   every broken file, so no count changes without a card to explain it.
 4. **D-55** — a missing project folder is not noticed; cached tickets keep
    rendering as if live. Contract violation (`states.md` "Never: … show cached
    tickets as if they were live").

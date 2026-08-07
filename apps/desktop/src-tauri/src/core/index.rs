@@ -19,6 +19,7 @@ use super::attribution::attribute_change;
 use super::error::AppResult;
 use super::model::{ActivitySummary, IndexSnapshot, SearchResult, TicketRow};
 use super::storage::{collapse_whitespace, read_ticket_file, scan_ticket_paths};
+use super::ticket::Status;
 
 /// How many rows a search returns before it stops looking.
 const SEARCH_LIMIT: usize = 100;
@@ -37,19 +38,53 @@ struct State {
     /// Canonical ticket path to directory key, so a watcher event about a path
     /// resolves without scanning every record.
     paths: HashMap<PathBuf, String>,
+    /// The status each directory was last read as, which is the only place a
+    /// file that will not parse can be given a seat from. See `place`.
+    seats: HashMap<String, Status>,
     generation: u64,
 }
 
 impl State {
-    fn insert(&mut self, key: String, record: Record) {
+    /// Gives a row its seat, and takes the seat from a row that has one.
+    ///
+    /// A file that will not parse names no status — the file is exactly what
+    /// could not be read — so the board would have nowhere to draw its card but
+    /// the `Unreadable` column at the end, and a card that jumps to the end of
+    /// the board the moment somebody breaks the frontmatter is a ticket the
+    /// human has to go looking for (`states.md:92-93`, D-50). What the index can
+    /// answer is where the directory sat when it last read, and that is what
+    /// this lends it.
+    ///
+    /// Deliberately not a fact about the file: it is remembered, session-lived,
+    /// and reconstructed by the next successful read. Losing it costs a
+    /// placement and never a byte — the `Unreadable` group is the answer for a
+    /// directory this index has never seen parse.
+    fn place(&mut self, key: &str, row: &mut TicketRow) {
+        match row {
+            TicketRow::Indexed(indexed) => {
+                self.seats.insert(key.to_owned(), indexed.status);
+            }
+            TicketRow::Degraded(degraded) => {
+                degraded.last_known_status = self.seats.get(key).copied();
+            }
+        }
+    }
+
+    /// Places the row, stores it, and hands back the row as it was stored — the
+    /// caller's copy has to be the placed one, since that is what the event it
+    /// emits carries to the board.
+    fn insert(&mut self, key: String, mut record: Record) -> TicketRow {
+        self.place(&key, &mut record.row);
         if let Some(previous) = self.records.get(&key) {
             if previous.path != record.path {
                 self.paths.remove(&previous.path);
             }
         }
+        let row = record.row.clone();
         self.paths.insert(record.path.clone(), key.clone());
         self.records.insert(key, record);
         self.generation += 1;
+        row
     }
 
     fn rows(&self) -> Vec<TicketRow> {
@@ -96,6 +131,12 @@ impl TicketIndex {
         }
 
         let mut state = self.state.write();
+        for (key, record) in records.iter_mut() {
+            state.place(key, &mut record.row);
+        }
+        // A directory that is gone takes its seat with it: nothing on disk names
+        // it any more, and a folder put back is read before it is placed.
+        state.seats.retain(|key, _| records.contains_key(key));
         state.records = records;
         state.paths = by_path;
         state.generation += 1;
@@ -108,6 +149,13 @@ impl TicketIndex {
 
     /// Empties the index without touching a file, so a rebuild has to prove it can
     /// reconstruct everything from disk.
+    ///
+    /// The seats survive, and they are the one thing here that is not a row: no
+    /// file says where an unreadable ticket was sitting, so a rebuild that
+    /// dropped them would move a degraded card to the end of the board every
+    /// time the app resumed. Every row still comes back from disk — that is the
+    /// property this method exists for — and a seat is only remembered while
+    /// this index is alive.
     pub fn clear(&self) {
         let mut state = self.state.write();
         state.records.clear();
@@ -140,13 +188,15 @@ impl TicketIndex {
             // has no records to attribute from.
             Err(_) => None,
         };
-        let row = file.row();
         let record = Record {
-            row: row.clone(),
+            row: file.row(),
             path: file.path.clone(),
             search_text: file.search_text(),
         };
-        self.state.write().insert(file.key, record);
+        // The stored row rather than the one just read: `insert` is where a file
+        // that will not parse is given the seat its directory last read in, and
+        // the row this returns is the one the change event carries.
+        let row = self.state.write().insert(file.key, record);
         Ok((row, attribution))
     }
 
@@ -155,6 +205,10 @@ impl TicketIndex {
         let mut state = self.state.write();
         let key = state.paths.remove(path)?;
         state.records.remove(&key);
+        // The seat goes with it. A directory that comes back is read before it is
+        // placed, so remembering where a deleted one sat could only ever seat a
+        // different ticket.
+        state.seats.remove(&key);
         state.generation += 1;
         Some(key)
     }

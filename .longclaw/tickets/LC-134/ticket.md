@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: c8cc6098-f32a-479b-bf81-fd87479fc965
 key: LC-134
 title: Unparseable ticket file — it opens as the 560px right panel, and the surface behind paints through it — several lines of the file are covered by opaque white bands from the list rows underneath, so the file is partly unreadable
-status: todo
+status: done
 priority: urgent
 labels:
   - frontend
   - prototype-diff
 created_at: 2026-08-05T15:16:01.646Z
-updated_at: 2026-08-05T15:16:01.646Z
+updated_at: 2026-08-07T06:47:23.382Z
 ---
 
 **Prototype.** Raw file view is a 680px centered modal
@@ -22,7 +22,7 @@ updated_at: 2026-08-05T15:16:01.646Z
 
 ## Checklist
 
-- [ ] Same root cause as D-01 (z-index). Also decide modal-vs-panel: the spec says modal, and a modal removes the layering problem entirely. <!-- longclaw:item=ck_63f38b7a -->
+- [x] Same root cause as D-01 (z-index). Also decide modal-vs-panel: the spec says modal, and a modal removes the layering problem entirely. <!-- longclaw:item=ck_63f38b7a -->
 
 ## Activity
 
@@ -50,4 +50,25 @@ actor:
 ### Claude Code commented
 
 The layering half is fixed by LC-96 (d932bca): .raw-file is an unpositioned child of .ticket-panel, which now takes --lc-z-panel, so the list no longer paints through the raw-file view. What remains here is the other half of the checklist — the spec's 680px centered modal versus the 560px right panel.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_795c4194
+kind: update
+occurred_at: 2026-08-07T06:47:23.382Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: done
+  - field: checklist.ck_63f38b7a.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+The half LC-96 left: the raw file view is the spec's 680px modal now. `RawFileView` renders a dialog on `.modal-scrim`, hanging from 12vh with the palette (`prototype.css:733`), and `TicketPanel` returns it instead of the panel rather than inside it — the panel is a surface for editing a ticket, and a file that will not parse has none. The panel still reads the file, so retry, Open in editor and `Esc` are unchanged; which surface is drawn is the read's answer, not the index row's. The modal holds Tab and gives the file block a stop of its own, since page keys scroll what focus is inside.
 <!-- /longclaw:event -->

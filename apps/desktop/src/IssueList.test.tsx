@@ -328,6 +328,23 @@ describe("a file the build cannot read", () => {
     expect(groupTitles()).toEqual(["Unreadable1", "Todo1"]);
   });
 
+  // The other half of D-50 / LC-133, and the same rule on both surfaces: the
+  // synthetic group is where a row with no remembered status goes, not where
+  // every unreadable file goes.
+  it("keeps a file that broke in the group it last read in", () => {
+    render(
+      list({
+        tickets: [
+          row({ status: "todo" }),
+          { ...unreadable, lastKnownStatus: "todo" },
+        ],
+      }),
+    );
+
+    expect(groupTitles()).toEqual(["Todo2"]);
+    expect(listRow("LC-98").className).toContain("degraded");
+  });
+
   it("shows no freshness dot: nothing in it parsed to be fresh about", () => {
     const marks: ExternalMarks = {
       "LC-98": {

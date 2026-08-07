@@ -14,6 +14,11 @@
  * - the synthetic unreadable group goes last on the board and first in the list
  *   (argued in full on `groupByStatus`'s `unreadable` option, and nowhere else).
  *
+ * That group is the fallback and not the home of every file that will not parse:
+ * a degraded row is grouped by the status its directory last read as when the
+ * index remembers one (`ticketStatus`), so breaking a file moves nothing on
+ * screen but the card's own anatomy.
+ *
  * Ordering happens here, once, because the seats every surface's arrows read
  * have to agree with what it drew (`screen-specs.md:115`).
  *
@@ -29,10 +34,10 @@ import { isArchived, STATUSES } from "./tickets";
 import type { TicketRow, TicketStatus } from "./types";
 
 /**
- * A file that will not parse has no status, so it is grouped as what it is.
- * `archived` is not produced here — archived is a date and not a status (ADR
- * 0004) — but the list appends a group under that id, and naming it here is what
- * keeps the two surfaces reading one set of group ids.
+ * A file that will not parse, and that no index remembers a status for, is
+ * grouped as what it is. `archived` is not produced here — archived is a date
+ * and not a status (ADR 0004) — but the list appends a group under that id, and
+ * naming it here is what keeps the two surfaces reading one set of group ids.
  */
 export type GroupId = TicketStatus | "unreadable" | "archived";
 
@@ -50,8 +55,20 @@ export interface Seat {
   index: number;
 }
 
+/**
+ * Which group a ticket belongs to.
+ *
+ * A file that will not parse names no status, so the group it lands in is the
+ * seat the index remembers for its directory — the status it last read as
+ * (`core::index`) — and `unreadable` only when there is none. That is what keeps
+ * a ticket the human broke a moment ago in the column they left it in, rather
+ * than moving it to the end of the board with nothing on either surface to
+ * explain the move (`states.md:92-93`, D-50). The row still wears the degraded
+ * anatomy wherever it sits; only its placement is borrowed.
+ */
 export function ticketStatus(ticket: TicketRow): GroupId {
-  return ticket.state === "indexed" ? ticket.status : "unreadable";
+  if (ticket.state === "indexed") return ticket.status;
+  return ticket.lastKnownStatus ?? "unreadable";
 }
 
 /** One pass over the tickets rather than one filter per status. */
@@ -83,9 +100,12 @@ export function groupByStatus(
   const unreadable: TicketRow[] = [];
   for (const ticket of tickets) {
     if (isArchived(ticket)) continue;
-    const status = ticketStatus(ticket);
-    if (status === "unreadable") unreadable.push(ticket);
-    else byStatus.get(status)?.push(ticket);
+    // A seat naming a status this build has no column for falls back to the
+    // group that always has one. Dropping the row instead would be the vanishing
+    // this option exists to end (`states.md:9-12`).
+    const held = byStatus.get(ticketStatus(ticket));
+    if (held) held.push(ticket);
+    else unreadable.push(ticket);
   }
 
   const groups: StatusGroup[] = [];

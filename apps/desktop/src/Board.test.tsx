@@ -342,6 +342,48 @@ describe("the board's own shape", () => {
     expect(titles.at(-1)).toBe("Unreadable1");
   });
 
+  /**
+   * D-50 / LC-133: the fallback column is for a file this session has never seen
+   * parse. A ticket that broke under a running app keeps the column it was in,
+   * because the index remembers where its directory last read — and a card that
+   * moved to the end of the board would be a change the human never made, on a
+   * board that says nothing about why.
+   */
+  it("keeps a file that broke in the column it last read in", () => {
+    render(
+      board({
+        tickets: [
+          row(),
+          {
+            state: "degraded",
+            key: "LC-98",
+            contentHash: "hash-98",
+            relativePath: ".longclaw/tickets/LC-98/ticket.md",
+            byteLength: 220,
+            readOnly: false,
+            lastKnownStatus: "in_progress",
+            diagnostic: {
+              code: "parse_failed",
+              message: "status must be one of backlog, todo; found blocked",
+              line: 6,
+            },
+          },
+        ],
+      }),
+    );
+
+    // In Progress holds both, and no synthetic column is drawn at all.
+    expect(
+      screen.getByRole("heading", { name: /In Progress/ }).textContent,
+    ).toBe("In Progress2");
+    expect(screen.queryByRole("heading", { name: /Unreadable/ })).toBeNull();
+    // Still a degraded card wherever it sits: the seat is borrowed, the anatomy
+    // is the file's own.
+    const degraded = card("LC-98");
+    expect(degraded.className).toContain("degraded");
+    expect(degraded.textContent).toContain("needs repair");
+  });
+
   it("labels a newer-version file as newer format, not repair work", () => {
     render(
       board({

@@ -112,6 +112,17 @@ pub struct DegradedRow {
     /// True for a newer format version: there is nothing to fix, so the app offers
     /// no retry-and-repair affordance.
     pub read_only: bool,
+    /// The status this directory last parsed with, if this index has seen it read.
+    ///
+    /// Not read from the file: the file is exactly what could not be read. It is
+    /// the index's own memory of the row it replaced, and it is what lets the
+    /// board keep the card in the column the human left it in rather than moving
+    /// it to the end of the board the moment somebody breaks the frontmatter
+    /// (`states.md:92-93`, D-50). A cleared index has none, and the surfaces fall
+    /// back to their `Unreadable` group — losing it is losing a placement, never
+    /// data.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_known_status: Option<Status>,
     pub diagnostic: Diagnostic,
 }
 
@@ -415,6 +426,7 @@ mod json_contract_tests {
             relative_path: ".longclaw/tickets/LC-98/ticket.md".to_owned(),
             byte_length: 420,
             read_only: false,
+            last_known_status: Some(Status::Todo),
             diagnostic: Diagnostic {
                 code: ErrorCode::ParseFailed,
                 message: "status must be one of backlog, todo; found blocked".to_owned(),
