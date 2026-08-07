@@ -245,6 +245,20 @@ describe("what one row says", () => {
     expect(element.querySelector(".avatar")).toBeNull();
   });
 
+  // `just now` wrapped onto a second line inside the 46px column and made the
+  // row taller than its neighbours (D-35); the slot's vocabulary is one word.
+  it("says now for a ticket that changed a moment ago, not just now", () => {
+    render(
+      list({
+        tickets: [row({ updatedAt: new Date(NOW - 400).toISOString() })],
+      }),
+    );
+
+    expect(
+      listRow("LC-1").querySelector(".list-row-updated")?.textContent,
+    ).toBe("now");
+  });
+
   it("names the status for anyone who cannot see the dot's colour", () => {
     render(list({ tickets: [row({ status: "done" })] }));
 
@@ -307,10 +321,28 @@ describe("a file the build cannot read", () => {
     diagnostic: { code: "parse_failed", message: "no frontmatter" },
   };
 
-  it("keeps its place in the list, in its own group", () => {
+  // Above the statuses rather than under them; `grouping.ts` argues why.
+  it("keeps its place in the list, in its own group above the statuses", () => {
     render(list({ tickets: [row({ status: "todo" }), unreadable] }));
 
-    expect(groupTitles()).toEqual(["Todo1", "Unreadable1"]);
+    expect(groupTitles()).toEqual(["Unreadable1", "Todo1"]);
+  });
+
+  it("shows no freshness dot: nothing in it parsed to be fresh about", () => {
+    const marks: ExternalMarks = {
+      "LC-98": {
+        actorType: "agent",
+        actorLabel: "Claude Code",
+        at: NOW - 1_000,
+      },
+    };
+    render(list({ tickets: [unreadable], marks }));
+
+    const element = listRow("LC-98");
+    expect(element.querySelector(".pulse-dot")).toBeNull();
+    expect(element.className).not.toContain("fresh");
+    // The danger treatment is the whole of what the row wears.
+    expect(element.className).toContain("degraded");
   });
 
   it("shows the warning, the file name, and where the raw file is", () => {

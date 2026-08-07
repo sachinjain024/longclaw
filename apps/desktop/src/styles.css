@@ -1402,6 +1402,48 @@ button:disabled {
   border-top: 1px solid var(--lc-line-soft);
 }
 
+/* The degraded card's treatment at row height (`states.md:92-94`) — the card's
+   `--lc-danger-border` — plus the tint D-37 asks for on top of it. The card can
+   carry the border alone: at card scale it frames a 200px block and is the whole
+   signal. At 36px, in a card of rows already ruled by hairlines, one more
+   hairline is not a signal, so the row says it twice.
+
+   The edge is an `::after` overlay rather than a `border` because `.divided`
+   already owns this element's `border-top` — that is the hairline between rows —
+   and rather than a `box-shadow` because `.selected` owns that. An overlay is
+   what leaves the row still saying it is unreadable while it is open.
+
+   The tint is declared ahead of `:hover` and `.selected` so both still win the
+   background: the row is unreadable, not inert, and it answers a pointer and a
+   click like any other row does. */
+.list-row.degraded {
+  background: var(--lc-danger-surface);
+}
+
+.list-row.degraded::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: var(--lc-border-hairline) solid var(--lc-danger-border);
+  pointer-events: none;
+}
+
+/* A path, not a title, so it reads as one (prototype.css `.row.degraded`). */
+.list-row.degraded strong {
+  color: var(--lc-ink-2);
+  font-family: var(--lc-type-code-font);
+  font-size: var(--lc-type-micro-size);
+  font-weight: 400;
+}
+
+/* The ID slot, the glyph, and the one thing the row offers all speak in the
+   card's danger voice rather than in the row's resting greys. */
+.list-row.degraded .list-row-key,
+.list-row.degraded .row-warn,
+.list-row.degraded .list-row-raw {
+  color: var(--lc-danger);
+}
+
 .list-row:hover {
   background: var(--lc-wash);
 }
@@ -1443,6 +1485,9 @@ button:disabled {
   font-size: 10.5px;
 }
 
+/* A fixed 46px column (`screen-specs.md:141-146`). `nowrap` is the structural
+   half of the promise `describeAgeInSlot` makes in words: whatever age lands
+   here, it cannot become two lines and take the row's neighbours with it. */
 .list-row-updated {
   flex: none;
   width: 46px;
@@ -1450,6 +1495,7 @@ button:disabled {
   font-family: var(--lc-type-code-font);
   font-size: 10.5px;
   text-align: right;
+  white-space: nowrap;
 }
 
 .list-row-raw {
@@ -1457,13 +1503,6 @@ button:disabled {
   color: var(--lc-ink-3);
   font-size: 11px;
   text-decoration: underline;
-}
-
-.list-row.degraded strong {
-  color: var(--lc-ink-2);
-  font-family: var(--lc-type-code-font);
-  font-size: var(--lc-type-micro-size);
-  font-weight: 400;
 }
 
 .row-warn {

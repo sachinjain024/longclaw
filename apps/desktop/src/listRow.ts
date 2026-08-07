@@ -12,7 +12,7 @@
  * `IssueList.test.tsx` assert that a change to one ticket re-renders one row.
  */
 
-import { describeAge } from "./freshness";
+import { describeAgeInSlot } from "./freshness";
 import { resolveLabels, type ResolvedLabel } from "./labels";
 import { checklistFraction } from "./tickets";
 import type { Label, TicketPriority, TicketRow, TicketStatus } from "./types";
@@ -59,6 +59,6 @@ export function presentRow(
     checklist: checklistFraction(ticket),
     // A date the file wrote in a shape this build cannot read is left blank
     // rather than shown as an invented age.
-    updated: Number.isNaN(updatedAt) ? "" : describeAge(updatedAt, now),
+    updated: Number.isNaN(updatedAt) ? "" : describeAgeInSlot(updatedAt, now),
   };
 }

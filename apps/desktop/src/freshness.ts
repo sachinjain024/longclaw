@@ -99,15 +99,34 @@ export function acknowledgement(mark: ExternalMark, now: number): string {
   return `${glyph} updated by ${mark.actorLabel} · ${age} · via file edit`;
 }
 
+/** Prose, and the one age that does not fit the row's column. */
+const JUST_NOW = "just now";
+
 export function describeAge(at: number, now: number): string {
   const seconds = Math.floor(Math.max(0, now - at) / 1_000);
-  if (seconds < 1) return "just now";
+  if (seconds < 1) return JUST_NOW;
   if (seconds < 60) return `${seconds}s`;
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes}m`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}h`;
   return `${Math.floor(hours / 24)}d`;
+}
+
+/**
+ * The same age, in the fixed 46px right-aligned slot a list row ends with
+ * (`screen-specs.md:141-146`).
+ *
+ * Every age that vocabulary produces is two or three characters wide except one:
+ * `just now` wrapped onto a second line in that slot and made those rows visibly
+ * taller than their neighbours. Prose keeps the longer form — the timeline entry
+ * and the card's acknowledgement line are sentences, and a sentence saying `now`
+ * reads as a truncation — so this is one substitution over one vocabulary rather
+ * than a second way of naming ages.
+ */
+export function describeAgeInSlot(at: number, now: number): string {
+  const age = describeAge(at, now);
+  return age === JUST_NOW ? "now" : age;
 }
 
 /** Returns the same map when nothing decayed, so a sweep costs no re-render. */
