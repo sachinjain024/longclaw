@@ -1679,10 +1679,16 @@ button:disabled {
   padding-top: var(--lc-space-4);
 }
 
+/* The heading and what belongs to it read as one group at the left
+   (`prototype.css:488-491`) — `Checklist  3/7  ▬▬▬`. It used to be
+   `justify-content: space-between`, which pushed the fraction to the far edge
+   of a 560px panel and left it reading as an unrelated number (D-3D); the
+   affordance that genuinely belongs opposite the heading takes the spacer for
+   itself. */
 .panel-section h3 {
   display: flex;
+  gap: var(--lc-space-2);
   align-items: center;
-  justify-content: space-between;
   margin-bottom: var(--lc-space-2);
   color: var(--lc-ink-2);
   font-size: 12px;
@@ -1691,11 +1697,23 @@ button:disabled {
 .checklist-fraction {
   color: var(--lc-ink-3);
   font-family: var(--lc-type-code-font);
+  font-size: 10.5px;
+  font-weight: 500;
 }
 
 /* The fraction joins the acknowledgement while any row is agent-fresh. */
 .checklist-fraction.fresh {
   color: var(--lc-accent-agent-text);
+}
+
+/* 56px here against the card's 44px (`screen-specs.md:206`): the panel has the
+   room, and this is the surface the checklist is actually worked in. */
+.panel-progress {
+  width: 56px;
+}
+
+.panel-progress.fresh i {
+  background: var(--lc-accent-agent);
 }
 
 .description-view {
@@ -1731,6 +1749,9 @@ button:disabled {
   display: inline-flex;
   align-items: center;
   gap: var(--lc-space-2);
+  /* The header row groups its heading's own content at the left, so the one
+     thing that is opposite the heading says so itself. */
+  margin-left: auto;
   opacity: 0;
 }
 

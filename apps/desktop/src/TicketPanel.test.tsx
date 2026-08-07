@@ -306,6 +306,73 @@ describe("who a checklist tick belongs to", () => {
   });
 });
 
+/**
+ * D-3D. The cards have carried this meter since the board shipped; the panel —
+ * the surface the checklist is actually worked in — had the fraction alone,
+ * pushed to the far edge of a 560px row.
+ */
+describe("the checklist meter in the panel", () => {
+  const meter = () =>
+    document.querySelector<HTMLElement>(".panel-progress > i");
+
+  it("fills to the fraction beside it, and moves as a box is ticked", async () => {
+    readTicketMock.mockResolvedValue(
+      detail({
+        checklist: [
+          { id: "ck_1", text: "One", checked: true },
+          { id: "ck_2", text: "Two", checked: false },
+          { id: "ck_3", text: "Three", checked: false },
+          { id: "ck_4", text: "Four", checked: false },
+        ],
+      }),
+    );
+    editTicketMock.mockReturnValue(new Promise<WriteResult>(() => {}));
+    render(panel());
+    await screen.findByLabelText("Two");
+
+    expect(screen.getByText("1/4")).toBeTruthy();
+    expect(meter()?.style.width).toBe("25%");
+
+    // Optimistic, like the tick itself: it reads the same value the fraction
+    // does, so it cannot disagree with it while a write is out.
+    fireEvent.click(screen.getByLabelText("Two"));
+
+    expect(screen.getByText("2/4")).toBeTruthy();
+    expect(meter()?.style.width).toBe("50%");
+  });
+
+  it("wears the agent's accent while a row is fresh, and is not read aloud", async () => {
+    const ticked = [
+      { id: "ck_1", text: "Let an agent read this ticket", checked: true },
+      { id: "ck_2", text: "Review what it changed", checked: false },
+    ];
+    readTicketMock
+      .mockResolvedValueOnce(detail())
+      .mockResolvedValueOnce(
+        detail({ contentHash: "hash-2", checklist: ticked }),
+      );
+    const view = render(panel());
+    await screen.findByLabelText("Let an agent read this ticket");
+
+    const bar = () => document.querySelector(".panel-progress");
+    expect(bar()?.className).not.toContain("fresh");
+    // The fraction beside it says the same thing in words.
+    expect(bar()?.getAttribute("aria-hidden")).toBe("true");
+
+    view.rerender(panel({ reloadSignal: 7 }));
+
+    await waitFor(() => expect(bar()?.className).toContain("fresh"));
+  });
+
+  it("draws no meter for a ticket with no checklist", async () => {
+    readTicketMock.mockResolvedValue(detail({ checklist: [] }));
+    render(panel());
+    await screen.findByLabelText("Add a checklist item");
+
+    expect(document.querySelector(".panel-progress")).toBeNull();
+  });
+});
+
 describe("a change that lands while a draft is open", () => {
   async function withDirtyTitleDraft() {
     readTicketMock.mockResolvedValueOnce(detail()).mockResolvedValueOnce(

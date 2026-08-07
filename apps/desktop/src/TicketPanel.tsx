@@ -933,6 +933,33 @@ export function TicketPanel(props: TicketPanelProps) {
                 {ticket.checklist.filter(isChecked).length}/
                 {ticket.checklist.length}
               </span>
+              {/* The meter the cards have always had, in the panel too
+                  (`screen-specs.md:206-207`, D-3D): the fraction is the exact
+                  answer and this is the one a glance gives. It wears the
+                  agent's accent while any row is fresh, for the same reason a
+                  fresh card's does — the change the acknowledgement is about is
+                  usually this. Hidden from the reading, because the fraction
+                  beside it already says it in words. */}
+              {ticket.checklist.length > 0 && (
+                <span
+                  className={
+                    agentChecked.length > 0
+                      ? "progress panel-progress fresh"
+                      : "progress panel-progress"
+                  }
+                  aria-hidden="true"
+                >
+                  <i
+                    style={{
+                      width: `${Math.round(
+                        (ticket.checklist.filter(isChecked).length /
+                          ticket.checklist.length) *
+                          100,
+                      )}%`,
+                    }}
+                  />
+                </span>
+              )}
             </h3>
             <ul className="checklist">
               {ticket.checklist.map((item, index) => {
