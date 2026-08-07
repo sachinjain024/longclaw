@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: b60012bf-0c57-42b9-8454-fed43f6cf136
 key: LC-171
 title: "Can't find a ticket by its key: typing LC-60 into the palette searches commands, not tickets"
-status: todo
+status: in_review
 priority: urgent
 rank: a0
 labels:
   - frontend
 created_at: 2026-08-07T06:56:13.967Z
-updated_at: 2026-08-07T09:04:44.636Z
+updated_at: 2026-08-07T14:24:44.735Z
 ---
 
 Typing a ticket key is the fastest thing anyone knows how to do, and it finds nothing.
@@ -28,9 +28,9 @@ Worth deciding at the same time: whether a bare number (`60`) counts, and whethe
 
 ## Checklist
 
-- [ ] A ticket key typed at the palette root finds that ticket <!-- longclaw:item=ck_49625bb4 -->
-- [ ] Decide whether a bare number and a foreign project prefix count <!-- longclaw:item=ck_6746d997 -->
-- [ ] The match uses the same open path as a search-mode row <!-- longclaw:item=ck_67b4f9b8 -->
+- [x] A ticket key typed at the palette root finds that ticket <!-- longclaw:item=ck_49625bb4 -->
+- [x] Decide whether a bare number and a foreign project prefix count <!-- longclaw:item=ck_6746d997 -->
+- [x] The match uses the same open path as a search-mode row <!-- longclaw:item=ck_67b4f9b8 -->
 
 ## Activity
 
@@ -76,4 +76,29 @@ changes:
     to: todo
 -->
 ### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_58cc16ba
+kind: update
+occurred_at: 2026-08-07T14:24:44.735Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: in_review
+  - field: checklist.ck_49625bb4.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_6746d997.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_67b4f9b8.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->
