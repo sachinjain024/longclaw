@@ -155,6 +155,25 @@ describe("command palette", () => {
     expect(terminal.textContent).toContain("Phase 2");
   });
 
+  /**
+   * LC-140. `⌘K → Create ticket` reached quick create over the unreachable
+   * screen, where the key is guessed from a board with no rows — so it offered
+   * `LC-1`, a collision waiting for the folder to come back.
+   */
+  it("cannot create in a folder it cannot reach", () => {
+    const onCreate = vi.fn();
+    renderPalette({ project: { ...project, reachable: false }, onCreate });
+
+    const create = screen.getByRole("option", { name: /Create ticket/ });
+    expect((create as HTMLButtonElement).disabled).toBe(true);
+    expect(create.textContent).toContain(
+      "The project folder cannot be reached",
+    );
+
+    fireEvent.click(create);
+    expect(onCreate).not.toHaveBeenCalled();
+  });
+
   it("carries a pair swatch on every theme row", () => {
     const { container } = renderPalette({ initialMode: "theme" });
     expect(container.querySelectorAll(".theme-swatch")).toHaveLength(1);

@@ -73,6 +73,25 @@ export function failureRecovery(error: AppError): string | undefined {
   return recovery[cause];
 }
 
+/**
+ * Whether a failed read of a project means its folder could not be reached.
+ *
+ * `states.md:80-98` gives the unreachable state three triggers — "at launch, on
+ * watcher signal, or **on any failed read**" — so the codes that count as the
+ * third one are named once, here, rather than at each surface that has to make
+ * the same judgement. Only ask this of a failure that came from opening or
+ * reconciling a project: `io` is broad enough that a failed *ticket* write would
+ * answer yes, and a project is not unreachable because one file would not save.
+ */
+export function isUnreachableFailure(error: AppError): boolean {
+  return (
+    error.code === "project_unavailable" ||
+    error.code === "permission_denied" ||
+    error.code === "invalid_project" ||
+    error.code === "io"
+  );
+}
+
 /** The file this failure is about, when the error names one. */
 export function failurePath(error: AppError): string | undefined {
   return error.context?.path;
@@ -102,6 +121,21 @@ export function failureGuarantee(error: AppError): string | undefined {
  */
 export function failureMessage(error: AppError, own?: string): string {
   return [own ?? error.message, failureRecovery(error), failureGuarantee(error)]
-    .filter(Boolean)
+    .filter((sentence): sentence is string => Boolean(sentence))
+    .map(ended)
     .join(" ");
+}
+
+/**
+ * The sentence, ended.
+ *
+ * Rust writes its messages as a clause and stops — "The selected project folder
+ * is no longer available" — so joining three of them with a space produced *"The
+ * selected project folder is no longer available The file was left as it was."*
+ * The break belongs here rather than in each message, because whether a sentence
+ * has a neighbour is this function's business and not the writer's (LC-145).
+ */
+function ended(sentence: string): string {
+  const trimmed = sentence.trim();
+  return /[.!?:;…]$/.test(trimmed) ? trimmed : `${trimmed}.`;
 }

@@ -8,7 +8,12 @@
 
 import { describe, expect, it } from "vitest";
 import ipcContractJson from "../src-tauri/tests/fixtures/ipc-contract.json";
-import { failureRecovery, failureGuarantee, failureTitle } from "./failure";
+import {
+  failureGuarantee,
+  failureMessage,
+  failureRecovery,
+  failureTitle,
+} from "./failure";
 import { FAILURE_CAUSES, type AppError } from "./types";
 
 function failure(context?: Record<string, string>): AppError {
@@ -61,5 +66,36 @@ describe("what the app promises about the bytes", () => {
   it("never presents a bare error code as a title", () => {
     expect(failureTitle(failure())).not.toContain("permission_denied");
     expect(failureTitle(failure())).not.toContain("permission denied");
+  });
+});
+
+/**
+ * LC-145. Rust writes a message as a clause and stops, so three of them joined
+ * with a space read as one run-on: *"The selected project folder is no longer
+ * available The file was left as it was."*
+ */
+describe("three sentences read as three sentences", () => {
+  it("ends each one, whether or not its writer did", () => {
+    expect(
+      failureMessage({
+        code: "project_unavailable",
+        message: "The selected project folder is no longer available",
+        recoverable: true,
+      }),
+    ).toBe(
+      "The selected project folder is no longer available. The file was left as it was.",
+    );
+  });
+
+  it("leaves punctuation the writer supplied alone", () => {
+    expect(failureMessage(failure({ cause: "noSpace" }))).toBe(
+      "Saving ticket failed for ticket.md. Free some space on the volume, then try again. The file was left as it was.",
+    );
+  });
+
+  it("ends the caller's own opening sentence too", () => {
+    expect(failureMessage(failure(), "The ticket could not be created")).toBe(
+      "The ticket could not be created. The file was left as it was.",
+    );
   });
 });

@@ -27,11 +27,17 @@ import {
 } from "./api";
 import { Board } from "./Board";
 import { CommandPalette } from "./CommandPalette";
+import { RemoveProjectConfirm } from "./ConfirmDialog";
 import { CreatePanel } from "./CreatePanel";
 import { CreateProjectForm, type ProjectDraft } from "./CreateProjectForm";
 import { DEV_CHROME } from "./devChrome";
 import { normalizeError } from "./errors";
-import { failureMessage, failurePath, failureTitle } from "./failure";
+import {
+  failureMessage,
+  failurePath,
+  failureTitle,
+  isUnreachableFailure,
+} from "./failure";
 import { filterTickets, isFiltering } from "./filtering";
 import { FolderGlyph } from "./FolderGlyph";
 import { IssueList } from "./IssueList";
@@ -73,6 +79,7 @@ import {
   type ProjectWorkspacePatch,
   type ViewMode,
 } from "./workspacePreferences";
+import { WarnGlyph } from "./WarnGlyph";
 import { ToastStack, WriteIndicator } from "./WriteFeedback";
 
 const THEMES = [
@@ -201,6 +208,9 @@ export function App() {
     Record<string, ProjectWorkspace>
   >(readProjectWorkspaces);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  /* Settings' own **Remove from app** waits on its answer inside the dialog
+     that offers it (`ProjectSettings.tsx`); the unreachable screen keeps its
+     own. Both raise the same `RemoveProjectConfirm`. */
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [paletteTicketKey, setPaletteTicketKey] = useState<string>();
   const [paletteSearchResults, setPaletteSearchResults] =
@@ -213,6 +223,15 @@ export function App() {
   const settingsButton = useRef<HTMLButtonElement>(null);
 
   const project = projects.find((item) => item.id === activeProjectId);
+  /**
+   * A project whose folder the last read could not reach.
+   *
+   * Nothing is creatable here (`states.md:80-98`): quick create used to open over
+   * the unreachable screen offering `LC-1` as the next key, because the key is
+   * guessed from rows on screen and there are none — a collision waiting to
+   * happen the moment the folder came back (LC-140).
+   */
+  const unreachable = project !== undefined && !project.reachable;
   const workspace = activeProjectId
     ? projectWorkspaces[activeProjectId]
     : undefined;
@@ -367,22 +386,21 @@ export function App() {
       .getState()
       .projects.find((project) => project.id === projectId);
     setActiveProjectId(projectId);
-    if (knownProject && !knownProject.reachable) {
-      return;
-    }
+    // An unreachable project is opened like any other, deliberately. The flag is
+    // the last read's answer, not a fact about the disk, so refusing to try
+    // again is what kept a project unreachable after its folder came back
+    // (LC-141) — and the open is the re-probe.
     setLoading(true);
     try {
       applySnapshot(await openProject(projectId));
     } catch (error) {
       const normalized = normalizeError(error);
-      if (
-        knownProject &&
-        (normalized.code === "project_unavailable" ||
-          normalized.code === "permission_denied" ||
-          normalized.code === "invalid_project" ||
-          normalized.code === "io")
-      ) {
+      if (knownProject && isUnreachableFailure(normalized)) {
+        // The panel says this one, with the path and the two actions that answer
+        // it; a banner over the top would say it twice (D-59).
         markProjectReachable(projectId, false);
+        setError(undefined);
+        return;
       }
       setError(normalized);
     } finally {
@@ -434,6 +452,7 @@ export function App() {
       // create underneath whatever is already up.
       if (
         project &&
+        !unreachable &&
         !paletteOpen &&
         !settingsOpen &&
         createSurface === undefined &&
@@ -481,6 +500,7 @@ export function App() {
     project,
     selectedKey,
     settingsOpen,
+    unreachable,
   ]);
 
   /**
@@ -600,6 +620,15 @@ export function App() {
     };
   }, [applyEvent, applySnapshot, setError, setLoading, setProjects]);
 
+  // A folder that goes away while a create surface is up takes the surface with
+  // it. Only hiding it would leave a half-typed ticket to reappear over a board
+  // that has moved on by the time the folder comes back (LC-140).
+  useEffect(() => {
+    if (!unreachable) return;
+    setCreateSurface(undefined);
+    setCarriedDraft(undefined);
+  }, [unreachable]);
+
   // An external change to the open ticket makes the panel re-read the file, so
   // the description, checklist, and timeline it shows are the ones on disk.
   useEffect(() => {
@@ -675,19 +704,49 @@ export function App() {
     let reconcileInFlight = false;
     const reconcile = () => {
       if (
-        document.visibilityState === "visible" &&
-        activeProjectId &&
-        project?.reachable &&
-        !reconcileInFlight
+        document.visibilityState !== "visible" ||
+        !activeProjectId ||
+        reconcileInFlight
       ) {
-        reconcileInFlight = true;
-        void reconcileProject(activeProjectId)
-          .then(applySnapshot)
+        return;
+      }
+      reconcileInFlight = true;
+      // Coming back to an unreachable project asks the registry rather than the
+      // engine: there is no engine to ask, and re-listing is what notices a
+      // folder that was remounted while the window was in the background
+      // (LC-141). A project that has recovered is then opened for real.
+      if (!project?.reachable) {
+        void listProjects()
+          .then((registered) => {
+            setProjects(registered);
+            const recovered = registered.find(
+              (candidate) =>
+                candidate.id === activeProjectId && candidate.reachable,
+            );
+            if (recovered) return loadProject(recovered.id);
+          })
           .catch((error) => setError(normalizeError(error)))
           .finally(() => {
             reconcileInFlight = false;
           });
+        return;
       }
+      void reconcileProject(activeProjectId)
+        .then(applySnapshot)
+        .catch((error) => {
+          // A failed read *is* the unreachable trigger (`states.md:80-98`), and
+          // treating it as an ordinary error is how the app went on showing
+          // cached rows as though they were live (LC-139).
+          const normalized = normalizeError(error);
+          if (isUnreachableFailure(normalized)) {
+            markProjectReachable(activeProjectId, false);
+            return;
+          }
+          setError(normalized);
+        })
+        .finally(() => {
+          reconcileInFlight = false;
+        });
     };
     document.addEventListener("visibilitychange", reconcile);
     window.addEventListener("focus", reconcile);
@@ -695,7 +754,16 @@ export function App() {
       document.removeEventListener("visibilitychange", reconcile);
       window.removeEventListener("focus", reconcile);
     };
-  }, [activeProjectId, applySnapshot, project?.reachable, setError]);
+    // `loadProject` is deliberately not listed: it is redefined on every render,
+    // and the recovery path only reads it when the listener fires.
+  }, [
+    activeProjectId,
+    applySnapshot,
+    markProjectReachable,
+    project?.reachable,
+    setError,
+    setProjects,
+  ]);
 
   useLayoutEffect(() => {
     if (!activeProjectId) return;
@@ -1119,7 +1187,10 @@ export function App() {
       <section className="main-panel">
         {/* The code used to be the heading here, so an ordinary read-only
             folder announced itself as `permission denied` (V0-29). */}
-        {error && (
+        {/* Not while the project is unreachable: that state is one centered
+            panel (`states.md:80-98`), and a banner over the top of it said the
+            same thing twice — the second time in registry-speak (D-59). */}
+        {error && !unreachable && (
           <section className="error-banner" role="alert">
             <strong>{failureTitle(error)}</strong>
             <span>
@@ -1420,30 +1491,42 @@ export function App() {
         />
       )}
 
-      {project && activeProjectId && createSurface === "quick" && (
-        <QuickCreate
-          projectName={project.name}
-          provisionalKey={nextKey}
-          initialStatus={carriedDraft?.status}
-          onCancel={closeCreateSurface}
-          onCreate={submitNewTicket}
-          onOpenFullEditor={(draft) => {
-            setCarriedDraft(draft);
-            setCreateSurface("full");
-          }}
-        />
-      )}
+      {/* Both create surfaces are gated on the folder answering. Nothing is
+          creatable on an unreachable project (`states.md:80-98`): the key would
+          be guessed from a board with no rows, so the next create offered
+          `LC-1` — a collision waiting for the folder to come back (LC-140). */}
+      {project &&
+        activeProjectId &&
+        !unreachable &&
+        createSurface === "quick" && (
+          <QuickCreate
+            projectName={project.name}
+            provisionalKey={nextKey}
+            initialStatus={carriedDraft?.status}
+            onCancel={closeCreateSurface}
+            onCreate={submitNewTicket}
+            onOpenFullEditor={(draft) => {
+              setCarriedDraft(draft);
+              setCreateSurface("full");
+            }}
+          />
+        )}
 
-      {project && activeProjectId && createSurface === "full" && (
-        <CreatePanel
-          provisionalKey={nextKey}
-          labels={project.labels}
-          initialTitle={carriedDraft?.title}
-          initialStatus={carriedDraft?.status}
-          onCancel={closeCreateSurface}
-          onCreate={(request) => submitNewTicket(request, { openPanel: true })}
-        />
-      )}
+      {project &&
+        activeProjectId &&
+        !unreachable &&
+        createSurface === "full" && (
+          <CreatePanel
+            provisionalKey={nextKey}
+            labels={project.labels}
+            initialTitle={carriedDraft?.title}
+            initialStatus={carriedDraft?.status}
+            onCancel={closeCreateSurface}
+            onCreate={(request) =>
+              submitNewTicket(request, { openPanel: true })
+            }
+          />
+        )}
 
       {paletteOpen && project && (
         <CommandPalette
@@ -1746,28 +1829,61 @@ function NoMatches(props: {
   );
 }
 
+/**
+ * The whole main area when a project's folder cannot be read (`states.md:80-98`).
+ *
+ * Every line of it was saying the wrong thing. An `UNREACHABLE` eyebrow over the
+ * project's own name never said what had happened, where the spec's 30px warn
+ * triangle and **Folder not found** say it at a glance (LC-143). The copy
+ * described the registry — a file nobody has opened — instead of the two things
+ * a person needs: why a folder goes missing, and that their tickets are safe
+ * (LC-145). And **Locate folder** wore the primary indigo while **Remove from
+ * app** fired on one click: the recovery and the removal, drawn the wrong way
+ * round (LC-144).
+ */
 function UnreachableProject(props: {
   project: ProjectReference;
   onLocate: () => void;
   onRemove: () => void;
 }) {
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
   return (
     <section className="unreachable-panel">
-      <p className="eyebrow">UNREACHABLE</p>
-      <h2>{props.project.name}</h2>
+      <span className="state-icon">
+        <WarnGlyph size={30} />
+      </span>
+      <h2>Folder not found</h2>
       <code>{props.project.rootPath}</code>
       <p>
-        The registry entry was kept, but the folder cannot be opened from this
-        path. Select its new location or remove only this app reference.
+        The project folder moved, or its disk isn&rsquo;t mounted. Your tickets
+        are safe in their files — LongClaw never deletes or rewrites them, and
+        this project stays listed until you decide.
       </p>
       <div className="toolbar-actions">
-        <button tabIndex={0} className="primary" onClick={props.onLocate}>
-          Locate folder
+        {/* Secondary, not primary: this opens a picker, and the app has no
+            business making the more assertive of the two buttons the one that
+            starts by asking a question. */}
+        <button tabIndex={0} className="secondary" onClick={props.onLocate}>
+          Locate folder…
         </button>
-        <button tabIndex={0} className="danger" onClick={props.onRemove}>
+        <button
+          tabIndex={0}
+          className="ghost"
+          onClick={() => setConfirmingRemove(true)}
+        >
           Remove from app
         </button>
       </div>
+      {confirmingRemove && (
+        <RemoveProjectConfirm
+          project={props.project}
+          onConfirm={() => {
+            setConfirmingRemove(false);
+            props.onRemove();
+          }}
+          onCancel={() => setConfirmingRemove(false)}
+        />
+      )}
     </section>
   );
 }

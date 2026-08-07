@@ -812,7 +812,7 @@ describe("the panel's honesty about the file", () => {
       "Looks right to me.",
     );
     expect(
-      screen.getByText("Disk full The file was left as it was."),
+      screen.getByText("Disk full. The file was left as it was."),
     ).toBeTruthy();
   });
 

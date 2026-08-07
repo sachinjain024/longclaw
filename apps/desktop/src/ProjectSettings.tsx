@@ -16,6 +16,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { addProjectLabel, removeProjectLabel, updateProjectLabel } from "./api";
+import { RemoveProjectConfirm } from "./ConfirmDialog";
 import { normalizeError } from "./errors";
 import { FolderGlyph } from "./FolderGlyph";
 import { FALLBACK_LABEL_COLOR, isRampColor, LABEL_COLORS } from "./labels";
@@ -128,160 +129,162 @@ export function ProjectSettings(props: {
           aria-label="Project settings"
           onKeyDown={trapTab}
         >
-          <h2>Project settings</h2>
-          {/* The sentence that makes the dialog trustworthy (D-4K): every field
-              below is a line in a file inside the folder, not a row in an app
-              database somewhere else. Appearance is the exception and carries
-              its own note. */}
-          <p className="settings-subhead">
-            Everything here is stored in <code>longclaw.yaml</code> inside the
-            project folder — portable with the files.
-          </p>
+          <div className="settings-body">
+            <h2>Project settings</h2>
+            {/* The sentence that makes the dialog trustworthy (D-4K): every field
+                below is a line in a file inside the folder, not a row in an app
+                database somewhere else. Appearance is the exception and carries
+                its own note. */}
+            <p className="settings-subhead">
+              Everything here is stored in <code>longclaw.yaml</code> inside the
+              project folder — portable with the files.
+            </p>
 
-          <div className="settings-row settings-identity">
-            <div className="settings-field">
-              <label htmlFor={nameId}>Name</label>
-              <div className="field-row">
-                {/* `Enter` or blur commits, as the panel's title does
-                    (`screen-specs.md:190`). The `Rename` button beside this
-                    was the only way to save it, and pressing `Done` with a
-                    typed name threw the name away without saying so. */}
-                <input
-                  id={nameId}
-                  autoFocus
-                  value={name}
-                  spellCheck={false}
-                  onChange={(event) => setName(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      commitName();
-                      return;
-                    }
-                    // `Esc` reverts a field that has been typed into, and only
-                    // then: focus lands here when the dialog opens, so an
-                    // untouched field that swallowed the press would leave the
-                    // first `Esc` of every visit doing nothing.
-                    if (event.key !== "Escape" || name === props.project.name)
-                      return;
-                    event.stopPropagation();
-                    setName(props.project.name);
-                  }}
-                  onBlur={commitName}
-                />
+            <div className="settings-row settings-identity">
+              <div className="settings-field">
+                <label htmlFor={nameId}>Name</label>
+                <div className="field-row">
+                  {/* `Enter` or blur commits, as the panel's title does
+                      (`screen-specs.md:190`). The `Rename` button beside this
+                      was the only way to save it, and pressing `Done` with a
+                      typed name threw the name away without saying so. */}
+                  <input
+                    id={nameId}
+                    autoFocus
+                    value={name}
+                    spellCheck={false}
+                    onChange={(event) => setName(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        commitName();
+                        return;
+                      }
+                      // `Esc` reverts a field that has been typed into, and only
+                      // then: focus lands here when the dialog opens, so an
+                      // untouched field that swallowed the press would leave the
+                      // first `Esc` of every visit doing nothing.
+                      if (event.key !== "Escape" || name === props.project.name)
+                        return;
+                      event.stopPropagation();
+                      setName(props.project.name);
+                    }}
+                    onBlur={commitName}
+                  />
+                </div>
+              </div>
+              <div className="settings-field">
+                <label htmlFor={keyId}>Key</label>
+                <div className="field-row">
+                  {/* Shown rather than hidden (D-41). It is the one setting a
+                      user can never change — every ticket directory and every
+                      key in every file already carries it — so the honest thing
+                      is a locked field with the reason beside it, not a field
+                      that isn't there. */}
+                  <input
+                    id={keyId}
+                    className="key-field"
+                    value={props.project.key}
+                    disabled
+                    readOnly
+                  />
+                  <span className="lock-note">
+                    {props.hasTickets
+                      ? "locked after first ticket"
+                      : "set when the project was created"}
+                  </span>
+                </div>
               </div>
             </div>
-            <div className="settings-field">
-              <label htmlFor={keyId}>Key</label>
-              <div className="field-row">
-                {/* Shown rather than hidden (D-41). It is the one setting a
-                    user can never change — every ticket directory and every
-                    key in every file already carries it — so the honest thing
-                    is a locked field with the reason beside it, not a field
-                    that isn't there. */}
-                <input
-                  id={keyId}
-                  className="key-field"
-                  value={props.project.key}
-                  disabled
-                  readOnly
-                />
-                <span className="lock-note">
-                  {props.hasTickets
-                    ? "locked after first ticket"
-                    : "set when the project was created"}
+
+            <div className="settings-row">
+              {/* Not a `<label>`: the row's control is a button, and the path
+                  beside it is text rather than a field. */}
+              <span className="settings-label" id={folderId}>
+                Folder
+              </span>
+              <div className="path-row">
+                {/* The path itself, which the panel never showed — a `Locate
+                    folder` button alone asks you to re-point a folder without
+                    saying which one it is now (D-43). Full and selectable here,
+                    unlike the header chip, because this is the row that answers
+                    "where is this project?". */}
+                <span className="picked-path" title={props.project.rootPath}>
+                  <FolderGlyph />
+                  <span className="txt">{props.project.rootPath}</span>
                 </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="settings-row">
-            {/* Not a `<label>`: the row's control is a button, and the path
-                beside it is text rather than a field. */}
-            <span className="settings-label" id={folderId}>
-              Folder
-            </span>
-            <div className="path-row">
-              {/* The path itself, which the panel never showed — a `Locate
-                  folder` button alone asks you to re-point a folder without
-                  saying which one it is now (D-43). Full and selectable here,
-                  unlike the header chip, because this is the row that answers
-                  "where is this project?". */}
-              <span className="picked-path" title={props.project.rootPath}>
-                <FolderGlyph />
-                <span className="txt">{props.project.rootPath}</span>
-              </span>
-              <button
-                tabIndex={0}
-                className="secondary"
-                aria-describedby={folderId}
-                onClick={props.onLocate}
-              >
-                Locate…
-              </button>
-            </div>
-          </div>
-
-          <div className="settings-row">
-            <ThemePicker
-              themes={props.themes}
-              value={props.project.theme}
-              onPick={props.onTheme}
-            />
-          </div>
-
-          <div className="settings-row">
-            <span className="settings-label" id={appearanceId}>
-              Appearance{" "}
-              <span className="settings-label-note">
-                — app preference, not stored in the project
-              </span>
-            </span>
-            {/* The 3-up segment the spec puts here (D-42). It replaced a native
-                `<select>` in the sidebar footer, which was the last piece of OS
-                chrome in the shell (D-0A, D-72) and put a device preference
-                where the project list lives. */}
-            <div
-              className="appearance-segment"
-              role="group"
-              aria-labelledby={appearanceId}
-            >
-              {APPEARANCES.map((option) => (
                 <button
                   tabIndex={0}
-                  key={option.id}
-                  className={props.appearance === option.id ? "selected" : ""}
-                  aria-pressed={props.appearance === option.id}
-                  onClick={() => props.onAppearance(option.id)}
+                  className="secondary"
+                  aria-describedby={folderId}
+                  onClick={props.onLocate}
                 >
-                  {option.label}
+                  Locate…
                 </button>
-              ))}
+              </div>
             </div>
-          </div>
 
-          <ProjectLabels
-            project={props.project}
-            onUpdated={props.onUpdated}
-            onError={props.onError}
-          />
+            <div className="settings-row">
+              <ThemePicker
+                themes={props.themes}
+                value={props.project.theme}
+                onPick={props.onTheme}
+              />
+            </div>
 
-          {/* The guarantee, stated where the action is rather than only in the
-              confirm (D-44). This is the app's most destructive-looking button
-              and the least destructive thing it does. */}
-          <div className="danger-zone">
-            <p className="micro">
-              Removing only forgets the project in LongClaw. Files on disk are
-              never touched.
-            </p>
-            <button
-              tabIndex={0}
-              ref={removeButton}
-              className="danger"
-              onClick={() => setConfirmingRemove(true)}
-            >
-              Remove from app
-            </button>
+            <div className="settings-row">
+              <span className="settings-label" id={appearanceId}>
+                Appearance{" "}
+                <span className="settings-label-note">
+                  — app preference, not stored in the project
+                </span>
+              </span>
+              {/* The 3-up segment the spec puts here (D-42). It replaced a native
+                  `<select>` in the sidebar footer, which was the last piece of OS
+                  chrome in the shell (D-0A, D-72) and put a device preference
+                  where the project list lives. */}
+              <div
+                className="appearance-segment"
+                role="group"
+                aria-labelledby={appearanceId}
+              >
+                {APPEARANCES.map((option) => (
+                  <button
+                    tabIndex={0}
+                    key={option.id}
+                    className={props.appearance === option.id ? "selected" : ""}
+                    aria-pressed={props.appearance === option.id}
+                    onClick={() => props.onAppearance(option.id)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <ProjectLabels
+              project={props.project}
+              onUpdated={props.onUpdated}
+              onError={props.onError}
+            />
+
+            {/* The guarantee, stated where the action is rather than only in the
+                confirm (D-44). This is the app's most destructive-looking button
+                and the least destructive thing it does. */}
+            <div className="danger-zone">
+              <p className="micro">
+                Removing only forgets the project in LongClaw. Files on disk are
+                never touched.
+              </p>
+              <button
+                tabIndex={0}
+                ref={removeButton}
+                className="danger"
+                onClick={() => setConfirmingRemove(true)}
+              >
+                Remove from app
+              </button>
+            </div>
           </div>
 
           <div className="settings-foot">
@@ -292,65 +295,18 @@ export function ProjectSettings(props: {
         </section>
       </div>
 
-      {/* A sibling rather than a child: both scrims sit on `--lc-z-modal`, so
-          the confirm is above this one by source order, and the `Esc` listener
-          above answers it first — one press, one layer. */}
+      {/* The app's own remove-confirm (LC-144), which the unreachable screen
+          raises too: one guarantee in one set of words, from both places that
+          offer the action. A sibling rather than a child, so its scrim — the
+          same `--lc-z-modal` layer — is above this one by source order. */}
       {confirmingRemove && (
-        <ConfirmRemove
+        <RemoveProjectConfirm
           project={props.project}
           onCancel={cancelConfirm}
           onConfirm={props.onRemove}
         />
       )}
     </>
-  );
-}
-
-/**
- * The confirm D-44 asks for: it names the path and repeats the guarantee, and
- * the confirming button is the danger variant.
- *
- * Focus enters on **Cancel** — the first control in the footer, which is what
- * `keyboard-focus-map.md:136-141` asks of a modal, and the one of the two that
- * cannot cost anything if `Enter` arrives from muscle memory.
- */
-function ConfirmRemove(props: {
-  project: ProjectReference;
-  onCancel: () => void;
-  onConfirm: () => void;
-}) {
-  const heading = useId();
-  return (
-    <div className="modal-scrim centered" role="presentation">
-      {/* `Esc` is the settings dialog's document listener, which answers this
-          layer first while it is up. Tab stays inside these two buttons. */}
-      <section
-        className="confirm-dialog"
-        role="dialog"
-        aria-labelledby={heading}
-        onKeyDown={trapTab}
-      >
-        <h2 id={heading}>Remove “{props.project.name}” from LongClaw?</h2>
-        <p>
-          The folder <code>{props.project.rootPath}</code> and every ticket file
-          in it <strong>stay on disk, untouched</strong>. You can open it again
-          anytime.
-        </p>
-        <div className="settings-foot">
-          <button
-            tabIndex={0}
-            autoFocus
-            className="ghost"
-            onClick={props.onCancel}
-          >
-            Cancel
-          </button>
-          <button tabIndex={0} className="danger" onClick={props.onConfirm}>
-            Remove from app
-          </button>
-        </div>
-      </section>
-    </div>
   );
 }
 

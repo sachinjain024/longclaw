@@ -778,6 +778,31 @@ button:disabled {
   margin-top: 18px;
 }
 
+/* The state panel's own mark (prototype.css § state-panel): a 30px warn triangle
+   above the title, in the warn accent, carrying the state at a glance where an
+   `UNREACHABLE` eyebrow only spelled it (LC-143). */
+.state-icon {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--lc-warn);
+}
+
+/* The plain-language title the triangle sits above, at the size the prototype
+   gives a state panel (prototype.css § state-panel) rather than the browser's
+   idea of an `h2`. */
+.unreachable-panel h2 {
+  font-size: var(--lc-type-title-size);
+  font-weight: 600;
+}
+
+/* The copy names the causes and the guarantee, which is two sentences and needs
+   a measure to be read as prose rather than as a banner. */
+.unreachable-panel p {
+  max-width: 420px;
+  margin-inline: auto;
+  line-height: 1.5;
+}
+
 /* The prototype's board: fixed-width columns in one horizontal row that scrolls
    sideways, never wraps (prototype.css § Board). The columns are transparent —
    the cards carry the surface and float on --lc-bg. */
@@ -2714,6 +2739,48 @@ html.theme-transition *::after {
   transition-timing-function: var(--lc-motion-ease);
 }
 
+/* The confirm a destructive action goes behind (`screen-specs.md:277-278`).
+   Narrower than quick create because it is prose and two buttons, and the
+   guarantee it repeats has to read as a sentence rather than as a banner. */
+.confirm-dialog {
+  display: grid;
+  gap: var(--lc-space-3);
+  width: min(420px, 92vw);
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-panel);
+  padding: var(--lc-space-5);
+  background: var(--lc-surface);
+  box-shadow: var(--lc-shadow-overlay);
+  text-align: left;
+}
+
+.confirm-dialog h2 {
+  font-size: var(--lc-type-title-size);
+  font-weight: 600;
+}
+
+.confirm-body p {
+  margin: 0;
+  color: var(--lc-ink-2);
+  line-height: 1.5;
+}
+
+/* The path is the subject of the sentence it sits in, so it stays inline and
+   wraps with it rather than becoming a block of its own — the state panel this
+   dialog opens over makes every `code` inside it a block. */
+.confirm-body code {
+  display: inline;
+  overflow-wrap: anywhere;
+  color: var(--lc-ink);
+  font-size: 11.5px;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--lc-space-2);
+}
+
 .quick-create-modal {
   display: grid;
   gap: var(--lc-space-3);
@@ -3049,15 +3116,15 @@ html.theme-transition *::after {
    palette already use. It was an inline `<section>` in the main panel until
    LC-125, which pushed the board ~430px down behind it (D-40).
 
-   The box the two dialogs share; only their widths differ. Both rise on open —
-   the motion inventory's "modal rise" (`screen-specs.md:286`) — reusing the
-   keyframes the palette states, since it is the same 8px arrival. */
-.settings-panel,
-.confirm-dialog {
+   It rises on open — the motion inventory's "modal rise"
+   (`screen-specs.md:286`) — on the keyframes the palette states, since it is
+   the same 8px arrival. */
+.settings-panel {
   display: flex;
   flex-direction: column;
+  width: min(560px, 92vw);
   max-height: 76vh;
-  overflow-y: auto;
+  overflow: hidden;
   border: 1px solid var(--lc-line);
   border-radius: var(--lc-radius-modal);
   padding: var(--lc-space-5);
@@ -3066,16 +3133,21 @@ html.theme-transition *::after {
   animation: lc-palette-in var(--lc-motion-panel) ease-out;
 }
 
-.settings-panel {
-  width: min(560px, 92vw);
+/* The rows scroll; the footer does not. A `Done` under the fold is a way out
+   the pointer cannot see, and a sticky footer over the scroll painted itself
+   across the danger zone — this is the prototype's own modal anatomy
+   (`prototype.css:663-672`). */
+.settings-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* Title type, not display: display is the greeting and nothing else
    (`components.md` § Empty & first-run states — the section reference is the
    durable half of that citation), which is where this departs from the
    prototype's 18px Familjen Grotesk dialog heading. */
-.settings-panel h2,
-.confirm-dialog h2 {
+.settings-panel h2 {
   margin-bottom: 0;
   font: var(--lc-type-title-weight) var(--lc-type-title-size) /
     var(--lc-type-title-leading) var(--lc-type-title-font);
@@ -3190,37 +3262,15 @@ html.theme-transition *::after {
   line-height: 1.5;
 }
 
-/* Actions right, as every footer in this app puts them (D-4L). Sticky, because
-   a project with a few labels defined makes the dialog scroll, and the way out
-   a pointer has must not be the thing below the fold. */
+/* Actions right, as every footer in this app puts them (D-4L). */
 .settings-foot {
-  position: sticky;
-  bottom: 0;
   display: flex;
   gap: 10px;
   align-items: center;
   justify-content: flex-end;
-  margin-top: 22px;
-  padding: var(--lc-space-3) 0;
-  background: var(--lc-surface);
-}
-
-/* The confirm the danger button opens (D-44): narrower than the dialog behind
-   it, because it is two sentences and two choices. */
-.confirm-dialog {
-  width: min(440px, 92vw);
-}
-
-.confirm-dialog p {
-  margin-top: 6px;
-  color: var(--lc-ink-2);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.confirm-dialog code {
-  font-family: var(--lc-font-mono);
-  font-size: var(--lc-type-code-size);
+  border-top: 1px solid var(--lc-line-soft);
+  margin-top: var(--lc-space-3);
+  padding-top: var(--lc-space-3);
 }
 
 /* Definition management, which is project data and so lives in settings. */

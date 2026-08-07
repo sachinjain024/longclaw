@@ -25,6 +25,14 @@ if (changedEvent.type !== "ticketChanged") {
 }
 const initialTicket = changedEvent.data.ticket;
 
+const rebuiltEvent = ipcContract.projectEventEnvelopes.indexRebuilt.event;
+if (rebuiltEvent.type !== "indexRebuilt") {
+  throw new Error("IPC fixture indexRebuilt envelope has the wrong variant");
+}
+const rebuiltSnapshot = rebuiltEvent.data.snapshot;
+/** The fixture's own project reference: the registry entry these events concern. */
+const reachableProject = rebuiltSnapshot.project;
+
 /**
  * Applies an envelope as though every event before it had already arrived.
  *
@@ -41,7 +49,7 @@ function applyInSequence(envelope: StreamEnvelope, observedAt?: number) {
 describe("Rust project-event JSON applied to visible state", () => {
   beforeEach(() => {
     useLongClawStore.setState({
-      projects: [],
+      projects: [reachableProject],
       activeProjectId: changedEnvelope.projectId,
       appearance: "system",
       tickets: [initialTicket],
@@ -63,14 +71,44 @@ describe("Rust project-event JSON applied to visible state", () => {
     expect(useLongClawStore.getState().lastSequence).toBe(2);
   });
 
-  it("shows the real unavailable project path", () => {
+  /**
+   * The watcher's word is enough (LC-139). The event alone flags the project,
+   * which is what stops the board from drawing cached rows as though they were
+   * live — `states.md:96` forbids that in as many words.
+   */
+  it("flags the project unreachable on the watcher's signal alone", () => {
     applyInSequence(ipcContract.projectEventEnvelopes.projectUnavailable);
 
-    expect(useLongClawStore.getState().error).toMatchObject({
-      code: "project_unavailable",
-      message: "Project folder is unavailable: /tmp/LongClaw Fixture",
-      recoverable: true,
+    expect(useLongClawStore.getState().projects).toEqual([
+      { ...reachableProject, reachable: false },
+    ]);
+    // One centered panel says this, and it says it with the path and the two
+    // actions that answer it. A banner over the top would say it twice (D-59).
+    expect(useLongClawStore.getState().error).toBeUndefined();
+  });
+
+  /**
+   * LC-141. Unreachable is a reading of the disk, not a property of the project:
+   * rows that came back out of the folder are proof it answered.
+   */
+  it("takes the flag back when the folder answers again", () => {
+    useLongClawStore.setState({
+      projects: [{ ...reachableProject, reachable: false }],
     });
+
+    applyInSequence(ipcContract.projectEventEnvelopes.indexRebuilt);
+
+    expect(useLongClawStore.getState().projects).toEqual([reachableProject]);
+  });
+
+  it("takes the flag back when a snapshot lands", () => {
+    useLongClawStore.setState({
+      projects: [{ ...reachableProject, reachable: false }],
+    });
+
+    useLongClawStore.getState().applySnapshot(rebuiltSnapshot);
+
+    expect(useLongClawStore.getState().projects).toEqual([reachableProject]);
   });
 
   it("keeps an unreadable ticket visible with its diagnostic", () => {
@@ -259,9 +297,11 @@ describe("Rust project-event JSON applied to visible state", () => {
       .applyEvent(ipcContract.projectEventEnvelopes.projectUnavailable);
 
     expect(useLongClawStore.getState().lastSequence).toBe(4);
-    expect(useLongClawStore.getState().error).toMatchObject({
-      code: "project_unavailable",
-    });
+    expect(
+      useLongClawStore
+        .getState()
+        .projects.every((project) => project.reachable),
+    ).toBe(false);
   });
 
   it("treats a late duplicate as reordering rather than a gap", () => {
@@ -330,6 +370,8 @@ describe("Rust project-event JSON applied to visible state", () => {
   });
 
   it("upserts and removes local project references without keeping stale active rows", () => {
+    // An empty registry, so the assertions below are about this project alone.
+    useLongClawStore.setState({ projects: [] });
     const project = {
       id: "local-project",
       name: "Local Project",
