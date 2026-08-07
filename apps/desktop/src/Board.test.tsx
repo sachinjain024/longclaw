@@ -94,6 +94,7 @@ const DEFINITIONS: Record<string, Label> = {
 
 function board(props?: {
   tickets?: TicketRow[];
+  selectedKey?: string;
   marks?: ExternalMarks;
   labels?: Record<string, Label>;
   ordering?: OrderingMode;
@@ -106,6 +107,7 @@ function board(props?: {
   return (
     <Board
       tickets={props?.tickets ?? [row()]}
+      selectedKey={props?.selectedKey}
       marks={props?.marks ?? {}}
       labels={props?.labels ?? DEFINITIONS}
       ordering={props?.ordering ?? "priority"}
@@ -506,6 +508,74 @@ describe("focus on a column that is being scrolled", () => {
     scrollTo(stack(), 0);
 
     expect(card("LC-200").className).toContain("selected");
+  });
+
+  it("draws one card when the roving card and the open card are the same", () => {
+    // Clicking a card makes it both, so this is the ordinary case rather than a
+    // corner of one. Drawing it twice put two children under one key, which
+    // React leaves free to strand the second node — the defect LC-178 saw.
+    render(board({ tickets: columnOf(400), selectedKey: "LC-1" }));
+    fireEvent.focus(card("LC-1"));
+
+    scrollTo(stack(), 299 * CARD_STRIDE);
+
+    expect(document.querySelectorAll('[data-ticket-key="LC-1"]').length).toBe(
+      1,
+    );
+  });
+});
+
+/**
+ * The filter narrows the array `App` hands both surfaces (`filtering.ts`), so a
+ * column here simply receives fewer tickets. What LC-178 found is that a card
+ * the query had removed stayed on screen anyway — stranded below the matches at
+ * the offset it last had, and holding a scroll range for cards the column no
+ * longer had.
+ */
+describe("a column the filter has narrowed (LC-178)", () => {
+  /** The keys one column has on screen, top to bottom. */
+  function drawn(title = "Todo"): string[] {
+    return Array.from(
+      stack(title).querySelectorAll<HTMLElement>(".ticket-row"),
+    ).map((element) => element.dataset.ticketKey ?? "");
+  }
+
+  /** The four cards the recording's `Full Create` left in Todo. */
+  const matches = columnOf(400).slice(115, 119);
+
+  /**
+   * A long column with a card deep in it both open and roving — what clicking
+   * one does — and the window nowhere near it: the shape the board was in when
+   * the query was typed. `LC-200` sits at 19,502px, so a card left behind here
+   * is many viewports below the matches, which is where the recording found it.
+   */
+  function narrow() {
+    const { rerender } = render(
+      board({ tickets: columnOf(400), selectedKey: "LC-200" }),
+    );
+    fireEvent.focus(card("LC-200"));
+
+    rerender(board({ tickets: matches, selectedKey: "LC-200" }));
+  }
+
+  it("draws the matches alone, and reserves only their height", () => {
+    narrow();
+
+    expect(drawn()).toStrictEqual(["LC-116", "LC-117", "LC-118", "LC-119"]);
+    expect(sizer().style.height).toBe(`${4 * CARD_STRIDE}px`);
+  });
+
+  it("has nothing further down for a scroll to reach", () => {
+    narrow();
+
+    // The header says four, and scrolling the length of the column it used to
+    // be must not turn up a fifth.
+    scrollTo(stack(), 399 * CARD_STRIDE);
+
+    expect(screen.getByRole("heading", { name: /Todo/ }).textContent).toBe(
+      "Todo4",
+    );
+    expect(drawn()).toStrictEqual(["LC-116", "LC-117", "LC-118", "LC-119"]);
   });
 });
 

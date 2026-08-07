@@ -3,12 +3,12 @@ format: longclaw.ticket/v1
 id: f4aa3b26-678b-4c32-87c4-73e484cb7670
 key: LC-178
 title: Board filter — a filtered column scrolls far past its matches, and a non-matching card is stranded below them
-status: todo
+status: in_review
 priority: urgent
 labels:
   - frontend
 created_at: 2026-08-07T14:50:05.668Z
-updated_at: 2026-08-07T14:50:05.668Z
+updated_at: 2026-08-07T16:17:43.674Z
 ---
 
 **Finding.** With a filter applied, a board column keeps scrolling long after
@@ -79,12 +79,12 @@ Reported by the user the same day.
 
 ## Checklist
 
-- [ ] Reproduce on main: filter the board so a long column keeps a few cards, scroll it, and record the sizer height against the filtered card count. <!-- longclaw:item=ck_5483ecfd -->
-- [ ] A filtered column's scroll height is the height of its matching cards — no empty region below the last match. <!-- longclaw:item=ck_f7c17a54 -->
-- [ ] No card outside the filtered set renders, including the roving and open anchors when their ticket no longer matches. <!-- longclaw:item=ck_f1b6532e -->
-- [ ] The column header's count and the number of cards reachable by scrolling agree under a filter. <!-- longclaw:item=ck_b208b494 -->
-- [ ] Cover it in Board.test.tsx: filter a windowed column down and assert both the sizer height and the rendered keys. <!-- longclaw:item=ck_ac8705f1 -->
-- [ ] Run perf:board and quote the numbers — this touches column geometry. <!-- longclaw:item=ck_69366df9 -->
+- [x] Reproduce on main: filter the board so a long column keeps a few cards, scroll it, and record the sizer height against the filtered card count. <!-- longclaw:item=ck_5483ecfd -->
+- [x] A filtered column's scroll height is the height of its matching cards — no empty region below the last match. <!-- longclaw:item=ck_f7c17a54 -->
+- [x] No card outside the filtered set renders, including the roving and open anchors when their ticket no longer matches. <!-- longclaw:item=ck_f1b6532e -->
+- [x] The column header's count and the number of cards reachable by scrolling agree under a filter. <!-- longclaw:item=ck_b208b494 -->
+- [x] Cover it in Board.test.tsx: filter a windowed column down and assert both the sizer height and the rendered keys. <!-- longclaw:item=ck_ac8705f1 -->
+- [x] Run perf:board and quote the numbers — this touches column geometry. <!-- longclaw:item=ck_69366df9 -->
 
 ## Activity
 
@@ -98,4 +98,48 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_3148b306
+kind: update
+occurred_at: 2026-08-07T16:17:43.674Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: in_review
+  - field: checklist.ck_5483ecfd.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_f7c17a54.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_f1b6532e.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_b208b494.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_ac8705f1.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_69366df9.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Both halves are one cause, and it is the anchors rather than the sizer.
+
+A column draws its window plus its anchors, and the roving card and the open card are usually one card — clicking a card makes it both. With that card outside the window, `BoardColumn` pushed its index twice, so React was handed two children under one key. React's own warning calls that unsupported; what it did here was leave the second node mounted for good.
+
+Reproduced on main: 400 cards in Todo, `LC-200` open and roving, then filtered to four. `.board-sizer` measures 392px — the four matching cards, exactly right — and the leftover `LC-200` renders inside it at `top: 19502px`. So the sizer never outlived the filter. The stranded card is what holds the scroll range open, because an absolutely positioned child overflows the box it is placed in, and it is also the card the query did not match.
+
+The fix is that the column draws each anchor index once — the guard `IssueList.tsx` has carried since it was written. Covered in `Board.test.tsx` by three tests, all red on main.
+
+perf:board over 5,000 tickets: ArrowDown p95 15ms, scroll p95 19ms, filter p95 28ms, external write → paint p95 15ms. Every p95 is inside the 50ms budget and every median within 4ms of the 600-ticket floor.
 <!-- /longclaw:event -->
