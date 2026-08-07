@@ -52,6 +52,26 @@ function Harness(props: {
   );
 }
 
+/**
+ * The multi-select harness that actually ticks: a pick changes `selected`, so
+ * the menu re-renders while it is still open. That is the labels row's own
+ * shape (`LabelMenu.tsx`), and the only way a re-measured anchor is observable.
+ */
+function TickingHarness() {
+  const [selected, setSelected] = useState<string[]>(["p2"]);
+  return (
+    <Harness
+      multiple
+      selected={selected}
+      onPick={(id) =>
+        setSelected((was) =>
+          was.includes(id) ? was.filter((one) => one !== id) : [...was, id],
+        )
+      }
+    />
+  );
+}
+
 const rows = () => screen.getAllByRole("menuitemradio");
 
 /** Every caller opens the menu from something; these tests open it the same way. */
@@ -160,5 +180,43 @@ describe("the anchored menu", () => {
 
     expect(onPick).toHaveBeenCalledWith("urgent");
     expect(screen.getByRole("menu")).toBeTruthy();
+  });
+
+  /**
+   * The popover is placed where it opened and stays there.
+   *
+   * A multi-select menu is up while its own picks change the row underneath it,
+   * and the labels row is the case that made this matter: each tick inserts a
+   * chip *before* the `+ add` the menu hangs off (D-3C), so the anchor moves
+   * right by a chip every time. Re-measuring on each render walked the popover
+   * out from under the pointer that was still ticking rows.
+   */
+  it("holds its place when the anchor moves underneath it", () => {
+    // A tick has to re-render the menu for this to be a test at all — in the
+    // labels row it does, because the pick changes the very list the menu is
+    // handed back as `selected`.
+    render(<TickingHarness />);
+    const anchor = screen.getByRole("button", { name: "Priority" });
+    // jsdom has no layout, so the anchor's travel is the stub's to describe:
+    // every measurement comes back 80px further right than the last, which is
+    // the chip a tick inserts ahead of the `+ add`.
+    let left = 100;
+    anchor.getBoundingClientRect = () => {
+      left += 80;
+      return new DOMRect(left, 20, 60, 20);
+    };
+
+    open();
+    const placed = screen.getByRole("menu").getAttribute("style");
+    expect(placed).toContain("left: 180px");
+
+    fireEvent.click(screen.getAllByRole("menuitemcheckbox")[0]);
+
+    // The menu re-rendered — the row it was ticked on now reads as checked …
+    expect(
+      screen.getAllByRole("menuitemcheckbox")[0].getAttribute("aria-checked"),
+    ).toBe("true");
+    // … and it did not move while doing it.
+    expect(screen.getByRole("menu").getAttribute("style")).toBe(placed);
   });
 });

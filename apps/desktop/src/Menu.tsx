@@ -72,11 +72,21 @@ export function Menu<T extends string>(props: MenuProps<T>) {
   }, [active]);
 
   // Anchored, not attached: the popover is fixed to the viewport so a column's
-  // own scrolling cannot carry it away from the card it belongs to.
-  const rect = anchor?.getBoundingClientRect();
-  const position = rect
-    ? { top: rect.bottom + GAP, left: rect.left }
-    : undefined;
+  // own scrolling cannot carry it away from the card it belongs to. Measured
+  // once, when it opens — the same capture-on-open `returnTo` above does, and
+  // for a related reason.
+  //
+  // A multi-select menu stays up while its own picks change the row underneath
+  // it. The labels row grows a chip per tick and the `+ add` this hangs off is
+  // last in that row (D-3C), so it moves right by a chip every time — and
+  // re-measuring on each render would walk the popover sideways, out from under
+  // the pointer that is still ticking rows.
+  const placed = useRef<{ top: number; left: number } | undefined>(undefined);
+  if (!placed.current && anchor) {
+    const rect = anchor.getBoundingClientRect();
+    placed.current = { top: rect.bottom + GAP, left: rect.left };
+  }
+  const position = placed.current;
 
   useEffect(() => {
     const onPointerDown = (event: MouseEvent) => {

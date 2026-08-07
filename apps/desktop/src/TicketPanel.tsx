@@ -108,7 +108,7 @@ function degradedNote(detail: TicketDetail): string {
 }
 
 /**
- * The ticket's key as a chip that copies it (`screen-specs.md:161`, D-38).
+ * The ticket's key as a chip that copies it (`screen-specs.md:183`, D-38).
  *
  * The same bargain as the header's path chip: a piece of identity that reads as
  * text, and one click to take it somewhere else — a terminal, a commit message,
@@ -139,7 +139,7 @@ function IdChip(props: { ticketKey: string }) {
 }
 
 /**
- * The ticket's file, named where the ticket is read (`screen-specs.md:161-162`,
+ * The ticket's file, named where the ticket is read (`screen-specs.md:183-184`,
  * D-39): the disk made visible, and static, so it holds still while the
  * indicator beside it reports the writes.
  *
