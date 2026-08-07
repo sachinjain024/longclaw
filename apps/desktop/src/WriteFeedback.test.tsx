@@ -62,6 +62,39 @@ describe("the disk-state indicator", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  /**
+   * D-39. The ticket panel names its own file with a chip, so the indicator
+   * there is the news and nothing else — a steady line beside a steady chip
+   * would say the same thing twice, and swapping between them is what made the
+   * path flicker on every save.
+   */
+  it("renders nothing when the disk is quiet and it was asked for news only", () => {
+    render(
+      <WriteIndicator idle=".longclaw/tickets/LC-1/ticket.md" transient />,
+    );
+
+    expect(screen.queryByText("tickets/LC-1/ticket.md")).toBeNull();
+  });
+
+  it("still scopes the settled mark to its own file when it is news only", () => {
+    useMutationStore.setState({ settled: ".longclaw/tickets/LC-9/ticket.md" });
+    const view = render(
+      <WriteIndicator idle=".longclaw/tickets/LC-1/ticket.md" transient />,
+    );
+
+    expect(screen.queryByText(/✓/)).toBeNull();
+
+    useMutationStore.setState({
+      settled: ".longclaw/tickets/LC-1/ticket.md",
+      settledAt: 1,
+    });
+    view.rerender(
+      <WriteIndicator idle=".longclaw/tickets/LC-1/ticket.md" transient />,
+    );
+
+    expect(screen.getByText("✓ tickets/LC-1/ticket.md")).toBeTruthy();
+  });
+
   it("leaves another ticket's settled mark off this ticket's header", () => {
     useMutationStore.setState({ settled: ".longclaw/tickets/LC-9/ticket.md" });
     render(<WriteIndicator idle=".longclaw/tickets/LC-1/ticket.md" />);

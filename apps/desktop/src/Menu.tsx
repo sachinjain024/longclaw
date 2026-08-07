@@ -72,11 +72,21 @@ export function Menu<T extends string>(props: MenuProps<T>) {
   }, [active]);
 
   // Anchored, not attached: the popover is fixed to the viewport so a column's
-  // own scrolling cannot carry it away from the card it belongs to.
-  const rect = anchor?.getBoundingClientRect();
-  const position = rect
-    ? { top: rect.bottom + GAP, left: rect.left }
-    : undefined;
+  // own scrolling cannot carry it away from the card it belongs to. Measured
+  // once, when it opens — the same capture-on-open `returnTo` above does, and
+  // for a related reason.
+  //
+  // A multi-select menu stays up while its own picks change the row underneath
+  // it. The labels row grows a chip per tick and the `+ add` this hangs off is
+  // last in that row (D-3C), so it moves right by a chip every time — and
+  // re-measuring on each render would walk the popover sideways, out from under
+  // the pointer that is still ticking rows.
+  const placed = useRef<{ top: number; left: number } | undefined>(undefined);
+  if (!placed.current && anchor) {
+    const rect = anchor.getBoundingClientRect();
+    placed.current = { top: rect.bottom + GAP, left: rect.left };
+  }
+  const position = placed.current;
 
   useEffect(() => {
     const onPointerDown = (event: MouseEvent) => {
@@ -170,6 +180,36 @@ export function Menu<T extends string>(props: MenuProps<T>) {
 }
 
 /**
+ * The mark that says a value is a menu and not a chip (`screen-specs.md:192-193`,
+ * D-3B — the table's own `:172-176` predates an edit to that file). Without it
+ * Status and Priority read as static until the pointer is already on them,
+ * which is no help to anyone who has not put it there.
+ *
+ * Decorative: `aria-haspopup` on the trigger is what says the same thing to
+ * assistive technology, and it says it better.
+ */
+function ChevronGlyph() {
+  return (
+    <svg
+      className="menu-chevron"
+      width="11"
+      height="11"
+      viewBox="0 0 14 14"
+      aria-hidden="true"
+    >
+      <path
+        d="M4.5 2.5 L9.5 7 L4.5 11.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/**
  * A trigger that shows the value and opens the menu on it: the meta rows in the
  * ticket panel, where the menu has something to hang off that is not a card.
  */
@@ -210,6 +250,7 @@ export function MenuButton<T extends string>(props: {
       >
         {current?.glyph && <span className="menu-glyph">{current.glyph}</span>}
         <span>{current?.label ?? props.value}</span>
+        <ChevronGlyph />
       </button>
       {open && (
         <Menu

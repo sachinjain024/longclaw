@@ -314,6 +314,73 @@ describe("who a checklist tick belongs to", () => {
   });
 });
 
+/**
+ * D-3D. The cards have carried this meter since the board shipped; the panel —
+ * the surface the checklist is actually worked in — had the fraction alone,
+ * pushed to the far edge of a 560px row.
+ */
+describe("the checklist meter in the panel", () => {
+  const meter = () =>
+    document.querySelector<HTMLElement>(".panel-progress > i");
+
+  it("fills to the fraction beside it, and moves as a box is ticked", async () => {
+    readTicketMock.mockResolvedValue(
+      detail({
+        checklist: [
+          { id: "ck_1", text: "One", checked: true },
+          { id: "ck_2", text: "Two", checked: false },
+          { id: "ck_3", text: "Three", checked: false },
+          { id: "ck_4", text: "Four", checked: false },
+        ],
+      }),
+    );
+    editTicketMock.mockReturnValue(new Promise<WriteResult>(() => {}));
+    render(panel());
+    await screen.findByLabelText("Two");
+
+    expect(screen.getByText("1/4")).toBeTruthy();
+    expect(meter()?.style.width).toBe("25%");
+
+    // Optimistic, like the tick itself: it reads the same value the fraction
+    // does, so it cannot disagree with it while a write is out.
+    fireEvent.click(screen.getByLabelText("Two"));
+
+    expect(screen.getByText("2/4")).toBeTruthy();
+    expect(meter()?.style.width).toBe("50%");
+  });
+
+  it("wears the agent's accent while a row is fresh, and is not read aloud", async () => {
+    const ticked = [
+      { id: "ck_1", text: "Let an agent read this ticket", checked: true },
+      { id: "ck_2", text: "Review what it changed", checked: false },
+    ];
+    readTicketMock
+      .mockResolvedValueOnce(detail())
+      .mockResolvedValueOnce(
+        detail({ contentHash: "hash-2", checklist: ticked }),
+      );
+    const view = render(panel());
+    await screen.findByLabelText("Let an agent read this ticket");
+
+    const bar = () => document.querySelector(".panel-progress");
+    expect(bar()?.className).not.toContain("fresh");
+    // The fraction beside it says the same thing in words.
+    expect(bar()?.getAttribute("aria-hidden")).toBe("true");
+
+    view.rerender(panel({ reloadSignal: 7 }));
+
+    await waitFor(() => expect(bar()?.className).toContain("fresh"));
+  });
+
+  it("draws no meter for a ticket with no checklist", async () => {
+    readTicketMock.mockResolvedValue(detail({ checklist: [] }));
+    render(panel());
+    await screen.findByLabelText("Add a checklist item");
+
+    expect(document.querySelector(".panel-progress")).toBeNull();
+  });
+});
+
 describe("a change that lands while a draft is open", () => {
   async function withDirtyTitleDraft() {
     readTicketMock.mockResolvedValueOnce(detail()).mockResolvedValueOnce(
@@ -578,6 +645,62 @@ describe("the panel's honesty about the file", () => {
     await screen.findByText("✓ tickets/LC-1/ticket.md");
   });
 
+  it("D-39: names the file in a chip that holds still while the disk moves", async () => {
+    let settle: (result: WriteResult) => void = () => {};
+    readTicketMock.mockResolvedValue(detail());
+    editTicketMock.mockReturnValue(
+      new Promise<WriteResult>((resolve) => {
+        settle = resolve;
+      }),
+    );
+    render(panel());
+    const box = await screen.findByLabelText("Review what it changed");
+
+    // Quiet: the chip is the only thing naming the file, and it carries the
+    // folder glyph the prototype pairs with a path.
+    const chip = () => document.querySelector(".panel-header .path-chip");
+    expect(chip()?.textContent).toBe("tickets/LC-1/ticket.md");
+    expect(chip()?.querySelector(".folder-glyph")).toBeTruthy();
+    expect(document.querySelector(".panel-header .disk-path")).toBeNull();
+
+    fireEvent.click(box);
+
+    // Writing: the indicator appears beside the chip rather than replacing it,
+    // which is the whole of the split — the path never flickers.
+    await screen.findByText(/writing tickets\/LC-1\/ticket\.md/);
+    expect(chip()?.textContent).toBe("tickets/LC-1/ticket.md");
+
+    settle(writeResult());
+
+    await screen.findByText("✓ tickets/LC-1/ticket.md");
+    expect(chip()?.textContent).toBe("tickets/LC-1/ticket.md");
+  });
+
+  it("D-38: copies the key from the header chip and says so", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    readTicketMock.mockResolvedValue(detail());
+    render(surface());
+    await ready();
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy LC-1" }));
+
+    expect(writeText).toHaveBeenCalledWith("LC-1");
+    await screen.findByText("LC-1 copied");
+  });
+
+  it("D-38: says the copy failed rather than pretending it worked", async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error("denied"));
+    Object.assign(navigator, { clipboard: { writeText } });
+    readTicketMock.mockResolvedValue(detail());
+    render(surface());
+    await ready();
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy LC-1" }));
+
+    await screen.findByText("Could not copy LC-1");
+  });
+
   it("shows the actor of every record, and marks only the agent's", async () => {
     readTicketMock.mockResolvedValue(
       detail({ activity: [humanEvent(), agentEvent()] }),
@@ -772,6 +895,25 @@ describe("the status menu (V0-14 closed V0-08's open edge)", () => {
     expect(
       metaTrigger("Status").querySelector(".status-dot.status-todo"),
     ).toBeTruthy();
+  });
+
+  /**
+   * D-3B. Without the chevron these read as static chips until the pointer is
+   * on them, which is no help to anyone who has not put it there. It is
+   * decorative — `aria-haspopup` is what says the same thing to assistive
+   * technology, and says it better.
+   */
+  it("D-3B: marks each meta value as a menu trigger, in both channels", async () => {
+    render(surface());
+    await ready();
+
+    for (const field of ["Status", "Priority"] as const) {
+      const trigger = metaTrigger(field);
+      const chevron = trigger.querySelector(".menu-chevron");
+      expect(chevron).toBeTruthy();
+      expect(chevron?.getAttribute("aria-hidden")).toBe("true");
+      expect(trigger.getAttribute("aria-haspopup")).toBe("menu");
+    }
   });
 });
 
@@ -1099,10 +1241,11 @@ describe("priority in the panel (V0-08)", () => {
 });
 
 describe("labels in the panel (V0-10)", () => {
+  /** The chips the ticket carries. The `+ add` chip beside them is the control. */
   const chips = () =>
-    Array.from(metaTrigger("Labels").querySelectorAll(".label-chip")).map(
-      (chip) => chip.textContent,
-    );
+    Array.from(
+      document.querySelectorAll(".meta-labels .label-chip:not(.addable)"),
+    ).map((chip) => chip.textContent);
 
   it("shows a chip per slug, and follows priority in the tab order", async () => {
     readTicketMock.mockResolvedValue(detail({ labels: ["backend"] }));
@@ -1117,6 +1260,37 @@ describe("labels in the panel (V0-10)", () => {
     expect(
       triggers.map((trigger) => trigger.getAttribute("aria-label")),
     ).toEqual(["Status: Todo", "Priority: P2", "Labels: Backend"]);
+  });
+
+  /**
+   * D-3C. The row was one button with the chips inside it, so the empty state
+   * said `None` — a word reporting an absence where the prototype puts an
+   * invitation — and every chip was a click target for the same menu.
+   */
+  it("D-3C: offers + add whether or not the ticket carries labels", async () => {
+    readTicketMock.mockResolvedValue(detail({ labels: [] }));
+    const view = render(surface());
+    await ready();
+
+    const add = () => metaTrigger("Labels");
+    expect(add().textContent).toBe("add");
+    expect(add().classList.contains("addable")).toBe(true);
+    expect(chips()).toEqual([]);
+    // The absence is no longer narrated as a control.
+    expect(document.querySelector(".meta-labels")?.textContent).not.toContain(
+      "None",
+    );
+
+    view.unmount();
+    readTicketMock.mockResolvedValue(detail({ labels: ["backend"] }));
+    render(surface());
+    await ready();
+
+    expect(chips()).toEqual(["Backend"]);
+    expect(add().textContent).toBe("add");
+    // And it still opens the menu that both adds and takes off.
+    fireEvent.click(add());
+    expect(screen.getByRole("menu", { name: "Labels" })).toBeTruthy();
   });
 
   it("must-pass 3: renders a slug this project does not define, as itself", async () => {

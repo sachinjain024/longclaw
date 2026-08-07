@@ -22,16 +22,17 @@ import { classes } from "./classes";
 import { ConflictBanner } from "./ConflictBanner";
 import { DescriptionEditor } from "./DescriptionEditor";
 import { normalizeError } from "./errors";
+import { FolderGlyph } from "./FolderGlyph";
 import type { ExternalMark } from "./freshness";
-import { GhostBox } from "./GhostBox";
 import { acknowledgement, freshlyChecked } from "./freshness";
+import { GhostBox } from "./GhostBox";
 import { singleKeyShortcutAllowed } from "./keyContext";
 import { LabelMenuButton } from "./LabelMenu";
 import { sameLabels } from "./labels";
 import { MarkdownView } from "./MarkdownView";
 import { MenuButton } from "./Menu";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "./metaOptions";
-import { mutate, type Mutation } from "./mutations";
+import { mutate, type Mutation, useMutationStore } from "./mutations";
 import { priorityLabel, statusLabel } from "./tickets";
 import { metaFieldFor } from "./TicketMetaMenu";
 import { Timeline } from "./Timeline";
@@ -46,7 +47,7 @@ import type {
   TicketStatus,
   WriteResult,
 } from "./types";
-import { WriteIndicator } from "./WriteFeedback";
+import { diskLabel, WriteIndicator } from "./WriteFeedback";
 
 /**
  * What a destructive-adjacent change adds to a save: the state it shows before
@@ -104,6 +105,55 @@ function degradedNote(detail: TicketDetail): string {
     return "This ticket was written by a newer LongClaw format. The file is shown exactly as it exists on disk, and this build will not rewrite it.";
   }
   return "The file is shown exactly as it exists on disk. Fix it in an editor, then reload or wait for the watcher to read it again.";
+}
+
+/**
+ * The ticket's key as a chip that copies it (`screen-specs.md:183`, D-38).
+ *
+ * The same bargain as the header's path chip: a piece of identity that reads as
+ * text, and one click to take it somewhere else — a terminal, a commit message,
+ * a prompt. It wears the human accent because copying is a person's own action,
+ * and it is the panel's first Tab stop (`keyboard-focus-map.md:61`).
+ */
+function IdChip(props: { ticketKey: string }) {
+  const raise = useMutationStore((state) => state.raise);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(props.ticketKey);
+      raise({ message: `${props.ticketKey} copied`, tone: "default" });
+    } catch {
+      raise({ message: `Could not copy ${props.ticketKey}`, tone: "danger" });
+    }
+  };
+  return (
+    <button
+      tabIndex={0}
+      className="id-chip"
+      aria-label={`Copy ${props.ticketKey}`}
+      title={`Copy ${props.ticketKey}`}
+      onClick={() => void copy()}
+    >
+      {props.ticketKey}
+    </button>
+  );
+}
+
+/**
+ * The ticket's file, named where the ticket is read (`screen-specs.md:183-184`,
+ * D-39): the disk made visible, and static, so it holds still while the
+ * indicator beside it reports the writes.
+ *
+ * Not a button. The header's project path is one because an absolute path is
+ * worth taking away; this one is `tickets/<key>/ticket.md` for every ticket
+ * there has ever been, and the key beside it already copies.
+ */
+function TicketPathChip(props: { path: string }) {
+  return (
+    <span className="path-chip plain" title={props.path}>
+      <FolderGlyph />
+      <span className="txt">{diskLabel(props.path)}</span>
+    </span>
+  );
 }
 
 /**
@@ -629,6 +679,13 @@ export function TicketPanel(props: TicketPanelProps) {
   const commentField = useAutoGrow(commentDraft);
 
   const ticket = detail?.ticket;
+  /**
+   * How many boxes are ticked, counted once. The heading's fraction and the
+   * meter beside it are two readings of the same number, and an optimistic tick
+   * moves it before the write returns — counting it twice is two chances for
+   * them to disagree in front of the human (D-3D).
+   */
+  const checkedCount = ticket?.checklist.filter(isChecked).length ?? 0;
 
   return (
     <aside
@@ -638,8 +695,13 @@ export function TicketPanel(props: TicketPanelProps) {
       tabIndex={-1}
     >
       <header className="panel-header">
-        <span className="ticket-key">{ticketKey}</span>
-        <WriteIndicator idle={detail?.relativePath} />
+        <IdChip ticketKey={ticketKey} />
+        {detail && <TicketPathChip path={detail.relativePath} />}
+        {/* The path is the chip's, so this one is only ever the news: writing,
+            or the ✓ that stands briefly after (`states.md:178-180`). `idle` is
+            still the file it belongs to, which is what keeps another ticket's
+            settled mark out of this header. */}
+        <WriteIndicator idle={detail?.relativePath} transient />
         <div className="panel-header-actions">
           {props.archived && <span className="archived-chip">archived</span>}
           {/* A file this build cannot read has no frontmatter to flip. The
@@ -912,9 +974,34 @@ export function TicketPanel(props: TicketPanelProps) {
                   agentChecked.length > 0 && "fresh",
                 )}
               >
-                {ticket.checklist.filter(isChecked).length}/
-                {ticket.checklist.length}
+                {checkedCount}/{ticket.checklist.length}
               </span>
+              {/* The meter the cards have always had, in the panel too
+                  (`screen-specs.md:206-207`, D-3D): the fraction is the exact
+                  answer and this is the one a glance gives. It reads the same
+                  count the fraction does, so it cannot disagree with the number
+                  beside it while a tick's write is still out. It wears the
+                  agent's accent while any row is fresh, for the same reason a
+                  fresh card's does — the change the acknowledgement is about is
+                  usually this. Hidden from the reading, because the fraction
+                  beside it already says it in words. */}
+              {ticket.checklist.length > 0 && (
+                <span
+                  className={classes(
+                    "progress panel-progress",
+                    agentChecked.length > 0 && "fresh",
+                  )}
+                  aria-hidden="true"
+                >
+                  <i
+                    style={{
+                      width: `${Math.round(
+                        (checkedCount / ticket.checklist.length) * 100,
+                      )}%`,
+                    }}
+                  />
+                </span>
+              )}
             </h3>
             <ul className="checklist">
               {ticket.checklist.map((item, index) => {
