@@ -62,9 +62,13 @@ toasts, freshness and the archive flow all exist and broadly read correctly.
 
 What diverges is **composition and states**:
 
-1. **Four rendering defects make real content unreadable** (D-01 … D-04) — the
+1. ~~**Four rendering defects make real content unreadable** (D-01 … D-04) — the
    ticket panel is painted over by the surface behind it, and every inline and
-   fenced code span renders as a solid black block.
+   fenced code span renders as a solid black block.~~ **All four fixed
+   2026-08-06** (LC-96 → LC-99), and each left a guard behind it rather than only
+   a fix: `stacking-guard.mjs` for the layering, `tile-contrast-guard.mjs` for
+   the code surfaces. D-51's *layering* went with D-01; its modal-vs-panel half
+   is still open and is the only part of this item that is.
 2. **Three screens are structurally different**, not detail-different: the
    welcome screen (D-10), project settings (D-40), and the empty-project state
    (D-20).
@@ -231,10 +235,10 @@ a static path chip and a transient `WriteIndicator` (D-38, D-39).
 
 | ID | Sev | Prototype | App | Plan |
 |---|---|---|---|---|
-| **D-01** | **P0** | The panel is the topmost surface; board/list are behind it | **The list/board paints on top of the panel.** With the list view behind, sticky group headers and rows punch opaque white bands across the panel: LC-119's Labels row is clipped, the `Checklist` heading is sliced in half, a checklist item is fully hidden, and the word `Show` from the Archived group renders *inside* the panel | `.ticket-panel` is `position: fixed` with **no `z-index`** (`styles.css:1251-1265`), while `.list-group-header` is `position: sticky; z-index: 1` (`styles.css:1094-1097`). A positioned element with `z-index: 1` wins over one with `z-index: auto`. Fix: give `.ticket-panel` an explicit `z-index` above the workspace (and below the modal scrim at `:2371` / toast at `:2461`), then add a token-level stacking scale so this cannot recur. Same fix covers the raw-file view (D-52). |
-| **D-02** | **P0** | Inline code renders as `wash`-backed mono | **Inline code renders as a solid black block** — `unlink`, `add`, `watcher/coalesce.rs`, `[ ]`, `[x]` are all unreadable rectangles in light appearance | `.markdown code { background: var(--lc-tile) }` (`styles.css:1698-1703`). `--lc-tile` is `#171923` (`tokens/design-tokens.css:127`) — the near-black *agent terminal tile*, deliberately near-black in both appearances (`styles.css:1850`). Inherited ink then paints dark-on-dark. Fix: use `--lc-wash` (or add a `--lc-code-bg`) and set an explicit `color`. |
-| **D-03** | **P0** | Fenced blocks render as readable code | **Fenced blocks render as a solid black bar with no visible text** (LC-119's ```` ```md ```` example) | Same root cause: `.markdown-code { background: var(--lc-tile) }` (`styles.css:1705-1711`) with `.markdown-code code { background: transparent }` and inherited dark ink. Either give the block a light surface, or keep the dark tile and set `color: var(--lc-on-accent-agent)`/an explicit light ink. Decide once, in tokens. |
-| **D-04** | **P1** | Description hover reveals a pencil + `Edit` at the right of the section header | The `Edit description` affordance is absolutely positioned **over the body text** and overlaps it (`…pairs that the` collides with `Edit description`) | Move the affordance into the `Description` section header row (it has room), or give it an opaque background and reserve the gutter. |
+| ~~**D-01**~~ | **P0** | The panel is the topmost surface; board/list are behind it | **The list/board paints on top of the panel.** With the list view behind, sticky group headers and rows punch opaque white bands across the panel: LC-119's Labels row is clipped, the `Checklist` heading is sliced in half, a checklist item is fully hidden, and the word `Show` from the Archived group renders *inside* the panel | **Fixed 2026-08-06 (LC-96).** Both halves: `.ticket-panel` takes `--lc-z-panel` and the list's sticky header `--lc-z-sticky`, off a `--lc-z-*` scale that also covers the modal scrim and the toast — which is D-74, the scale this row asked for. `stacking-guard.mjs` reads the *relations* between the five surfaces rather than any one value, because a layer read alone says nothing: it is only meaningful against what the others claim. (This cell's "same fix covers the raw-file view (D-52)" meant **D-51**; D-52 is the danger banner's `file:line`. D-51's layering half went with this; its modal-vs-panel half did not.) |
+| ~~**D-02**~~ | **P0** | Inline code renders as `wash`-backed mono | **Inline code renders as a solid black block** — `unlink`, `add`, `watcher/coalesce.rs`, `[ ]`, `[x]` are all unreadable rectangles in light appearance | **Fixed 2026-08-06 (LC-97).** Decided once, in tokens, as this row asked: a `--lc-code-surface` / `--lc-code-ink` pair, so code stops borrowing the agent terminal's tile — a token that is near-black in *both* appearances by design, which is why inherited ink painted dark-on-dark. `tile-contrast-guard.mjs` now reads the pair rather than either declaration alone: neither was wrong by itself, which is exactly why `color-guard` and `token-guard` were both green while the panel was unreadable. |
+| ~~**D-03**~~ | **P0** | Fenced blocks render as readable code | **Fenced blocks render as a solid black bar with no visible text** (LC-119's ```` ```md ```` example) | **Fixed 2026-08-06 (LC-98).** Same root cause, same token pair. `.markdown-code code` keeps `background: transparent` so the code inside the block does not paint a second chip on top of the first. |
+| ~~**D-04**~~ | **P1** | Description hover reveals a pencil + `Edit` at the right of the section header | The `Edit description` affordance is absolutely positioned **over the body text** and overlaps it (`…pairs that the` collides with `Edit description`) | **Fixed 2026-08-06 (LC-99).** The first option: the affordance is an ordinary item in the `Description` header row, so there is no body text under it to overlap and no gutter to reserve. It kept the `ghost small` type — the size the prototype gives this exact control (`prototype.js:720`) — and reveals on `:focus` as well as section hover, because focus returns here when the editor closes (`keyboard-focus-map.md:87`), including from a mouse-driven close, which matches neither `:hover` nor `:focus-visible`. It took `margin-left: auto` when D-3D grouped the other headings' counts at the left (LC-105). |
 | ~~D-38~~ | P2 | ID is a chip (`accent-human-soft`) and **click copies** | Plain `<span className="ticket-key">` (`TicketPanel.tsx:573`), no copy | **Fixed 2026-08-07 (LC-100).** `IdChip`: the human accent on its soft wash, click copies the key, and the toast the project path chip already raises (D-06). The accessible name is `Copy LC-1`, which contains the visible text rather than replacing it. It is the panel's first Tab stop, which is where `keyboard-focus-map.md:61` had already put it. |
 | ~~D-39~~ | P2 | Path shows as `tickets/LC-128/ticket.md` with a folder glyph, **beside** a separate disk-state line | Path is rendered *by* `WriteIndicator`, so it is the disk-state line, and it shows the full `.longclaw/tickets/…` prefix with no glyph | **Fixed 2026-08-07 (LC-101).** Split in two: a static `path-chip` with the folder glyph names the file and holds still, and `WriteIndicator` takes a `transient` mode — news only, absent when the disk is quiet. `idle` still scopes the settled `✓` to this ticket's file. The `.longclaw/` prefix was already dropped by `diskLabel`; what the row actually named was the flicker, and that is what went. |
 | ~~D-3A~~ | P1 | Meta grid rows: **Status, Priority, Labels. Nothing else.** | A fourth row, **`Updated  2026-08-05T17:20:00Z`** — a raw ISO timestamp (`TicketPanel.tsx:767-768`) | **Fixed 2026-08-07 (LC-102).** The row is removed, which is the option this table's own ranked list named. The age it stood in for is already on screen in the app's relative form — the list row's right-aligned `2h` and every entry in the panel's timeline — so nothing had to be reformatted to keep it. `.meta-grid code` went with it; the row was its only caller. |
@@ -484,7 +488,7 @@ single stack.
 | D-71 | P2 | **The open project is not restored on relaunch** — it always falls back to the first registry entry | Already recorded as a clean-machine finding (`8578f73`). Listed here only because it is visible on every screen. |
 | D-72 | P2 | Native `<select>` elements appear in two places (sidebar appearance, settings label colours) | Neither is in the design system, and both render OS chrome inside an otherwise fully-styled app. Replace with the segment (D-42) and swatches (D-4J). |
 | D-73 | P2 | Native textarea **resize grabbers** are visible on the panel title, the comment composer, and the create-mode title | `resize: none` + auto-grow; the only textarea the spec gives a resize handle to is the description editor. |
-| D-74 | P3 | No stacking-order scale exists | D-01 and D-51 are both the same missing concept. Add `--lc-z-*` tokens (workspace / sticky / panel / modal / toast) and use them everywhere `position` is set. |
+| ~~D-74~~ | P3 | No stacking-order scale exists | **Fixed 2026-08-06 (LC-96).** The `--lc-z-*` scale exists and every positioned surface takes a layer off it. `token-guard.mjs` refuses a literal `z-index`, and `stacking-guard.mjs` checks the order the five surfaces claim — a scale is the one place a value read alone says nothing. |
 
 ---
 
@@ -492,12 +496,16 @@ single stack.
 
 **Ship blockers — the app currently renders content the user cannot read**
 
-1. **D-01 / D-51 / D-74** — give `.ticket-panel` a `z-index` above the workspace
-   and add the stacking scale. One CSS change, fixes the panel *and* the raw-file
-   view. Cheapest, highest-value fix in this document.
-2. **D-02 / D-03** — inline and fenced code render as black blocks. Two
-   background declarations in `styles.css`. Every ticket description with a
-   backtick in it is currently damaged.
+1. ~~**D-01 / D-74**~~ — done 2026-08-06 (LC-96): `.ticket-panel` and the list's
+   sticky header take layers off a `--lc-z-*` scale, and `stacking-guard.mjs`
+   holds the relations between all five surfaces. It was the cheapest,
+   highest-value fix in this document, as billed. **D-51** is what is left: its
+   layering came free with this, but the spec's 680px centered modal did not —
+   the raw file still opens as the 560px right panel.
+2. ~~**D-02 / D-03**~~ — done 2026-08-06 (LC-97, LC-98): a `--lc-code-surface` /
+   `--lc-code-ink` pair, so code no longer borrows the agent terminal's tile, and
+   `tile-contrast-guard.mjs` reads the pair — which is what neither
+   single-declaration guard could see.
 3. **D-50** — a corrupted ticket disappears from the board with no explanation.
    Contract violation (`states.md` "never silent").
 4. **D-55** — a missing project folder is not noticed; cached tickets keep
@@ -520,14 +528,15 @@ single stack.
 
 **Component detail**
 
-11. ~~**D-3A**~~ (drop the raw `Updated` ISO row — done, LC-102), **D-04** (Edit
-    affordance overlap), ~~**D-3E**~~, ~~**D-3F**~~, ~~**D-3G**~~ (the panel's
-    own fields — done 2026-08-07, LC-106 / LC-107 / LC-108, with ~~**D-3H**~~
-    and ~~**D-3I**~~), ~~**D-38**~~, ~~**D-39**~~, ~~**D-3B**~~, ~~**D-3C**~~,
-    ~~**D-3D**~~ (the header chips and the meta rows — done 2026-08-07,
-    LC-100 / LC-101 / LC-103 / LC-104 / LC-105) — ticket panel.
+11. ~~**D-04**~~ (Edit affordance overlap — done 2026-08-06, LC-99),
+    ~~**D-3A**~~ (drop the raw `Updated` ISO row — done, LC-102), ~~**D-3E**~~,
+    ~~**D-3F**~~, ~~**D-3G**~~ (the panel's own fields — done 2026-08-07,
+    LC-106 / LC-107 / LC-108, with ~~**D-3H**~~ and ~~**D-3I**~~),
+    ~~**D-38**~~, ~~**D-39**~~, ~~**D-3B**~~, ~~**D-3C**~~, ~~**D-3D**~~ (the
+    header chips and the meta rows — done 2026-08-07, LC-100 / LC-101 /
+    LC-103 / LC-104 / LC-105) — ticket panel.
 
-    What is left of this line is **D-04** alone.
+    **This line is closed.** Every `D-` row in § 8 is struck.
 12. **D-4E / D-4F** — palette glyphs (data change; the slot already exists).
 13. **D-45** — real toolbar icons.
 14. ~~**D-21**~~ — column-header `+` (done 2026-08-07, LC-83, with ~~**D-22**~~
