@@ -462,15 +462,25 @@ impl TicketDocument {
         // with nothing to point at, which is the whole reason it shows the file
         // (D-52). The mapping read the same bytes, so the field's own name is
         // enough to find the line it is written on.
-        let at = |field: &str, diagnostic: Diagnostic| match mapping.line_of(field) {
+        let point_at = |field: &str, diagnostic: Diagnostic| match mapping.line_of(field) {
             // +1 for the opening delimiter, which the frontmatter text excludes.
             Some(line) => diagnostic.at_line(line + 1),
             None => diagnostic,
         };
+        // The two validators that already take a field name are wrapped rather
+        // than called through `point_at` at each site: the name has to be the
+        // same in both halves, and writing it twice is what lets it stop being.
+        let non_empty = |field: &str, value: &str| {
+            require_non_empty(field, value).map_err(|error| point_at(field, error))
+        };
+        let timestamp = |field: &str, value: &str| {
+            validate_timestamp(field, value).map_err(|error| point_at(field, error))
+        };
 
-        validate_format(&fields.format, directory_key).map_err(|error| at("format", error))?;
+        validate_format(&fields.format, directory_key)
+            .map_err(|error| point_at("format", error))?;
         if fields.key != directory_key {
-            return Err(at(
+            return Err(point_at(
                 "key",
                 Diagnostic::parse(format!(
                     "Ticket key {} does not match its directory {directory_key}. \
@@ -479,10 +489,10 @@ impl TicketDocument {
                 )),
             ));
         }
-        require_non_empty("id", &fields.id).map_err(|error| at("id", error))?;
-        require_non_empty("title", &fields.title).map_err(|error| at("title", error))?;
+        non_empty("id", &fields.id)?;
+        non_empty("title", &fields.title)?;
         let status = Status::parse(&fields.status).ok_or_else(|| {
-            at(
+            point_at(
                 "status",
                 Diagnostic::parse(format!(
                     "status must be one of {}; found {}",
@@ -492,7 +502,7 @@ impl TicketDocument {
             )
         })?;
         let priority = Priority::parse(&fields.priority).ok_or_else(|| {
-            at(
+            point_at(
                 "priority",
                 Diagnostic::parse(format!(
                     "priority must be one of {}; found {}",
@@ -501,17 +511,14 @@ impl TicketDocument {
                 )),
             )
         })?;
-        validate_timestamp("created_at", &fields.created_at)
-            .map_err(|error| at("created_at", error))?;
-        validate_timestamp("updated_at", &fields.updated_at)
-            .map_err(|error| at("updated_at", error))?;
+        timestamp("created_at", &fields.created_at)?;
+        timestamp("updated_at", &fields.updated_at)?;
         if let Some(archived_at) = &fields.archived_at {
-            validate_timestamp("archived_at", archived_at)
-                .map_err(|error| at("archived_at", error))?;
+            timestamp("archived_at", archived_at)?;
         }
         for label in &fields.labels {
             if label.is_empty() || label.chars().any(char::is_whitespace) {
-                return Err(at(
+                return Err(point_at(
                     "labels",
                     Diagnostic::parse(format!(
                         "labels hold project label slugs without whitespace; found {label:?}"

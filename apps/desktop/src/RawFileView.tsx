@@ -14,6 +14,7 @@
  * that half is LC-134 and is deliberately not touched here.
  */
 
+import { useEffect, useRef } from "react";
 import type { TicketDetail } from "./types";
 import { WarnGlyph } from "./WarnGlyph";
 
@@ -79,6 +80,14 @@ function RawLines(props: { raw: string; offending?: number }) {
 
 export function RawFileView(props: {
   detail: TicketDetail;
+  /**
+   * The project's root as the header shows it — tilde-abbreviated, not
+   * canonical. The heading is the *full* path (`screen-specs.md:293`), and the
+   * relative path a `TicketDetail` carries is only the half of it below the
+   * project. This is the screen a person reads just before opening the file
+   * somewhere else, so the half that says *which* project belongs on it.
+   */
+  projectPath: string;
   /** Whether a retry is in flight, so the button cannot be pressed twice. */
   retrying: boolean;
   onRetry: () => void;
@@ -86,14 +95,27 @@ export function RawFileView(props: {
 }) {
   const { detail } = props;
   const error = errorText(detail);
+  const fullPath = `${props.projectPath}/${detail.relativePath}`;
+
+  /**
+   * `Retry parse` takes focus when the view opens
+   * (`keyboard-focus-map.md:141-142`).
+   *
+   * On mount only. A retry that fails re-renders this same view, and stealing
+   * focus back each time would fight a human who had tabbed on to `Open in
+   * editor` — which, on a file that will not parse, is the other half of the
+   * answer.
+   */
+  const retryButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    retryButton.current?.focus();
+  }, []);
+
   return (
-    <section
-      className="raw-file-view"
-      aria-label={`Raw file ${detail.relativePath}`}
-    >
+    <section className="raw-file-view" aria-label={`Raw file ${fullPath}`}>
       <h3 className="raw-file-path">
         <WarnGlyph size={15} />
-        {detail.relativePath}
+        {fullPath}
       </h3>
 
       {error && (
@@ -118,7 +140,7 @@ export function RawFileView(props: {
             tabIndex={0}
             className="ghost"
             onClick={props.onOpenInEditor}
-            title={detail.relativePath}
+            title={fullPath}
           >
             Open in editor
           </button>
@@ -128,6 +150,7 @@ export function RawFileView(props: {
               return the same answer. */}
           {!detail.readOnly && (
             <button
+              ref={retryButton}
               tabIndex={0}
               className="secondary"
               disabled={props.retrying}

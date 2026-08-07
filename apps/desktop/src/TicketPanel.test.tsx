@@ -166,6 +166,9 @@ const failOnError = (error: { message: string }) => {
   throw new Error(`unexpected error: ${error.message}`);
 };
 
+/** The project root as the header shows it: tilde-abbreviated, for display. */
+const PROJECT_PATH = "~/dev/longclaw";
+
 /** What `longclaw.yaml` defines in these tests. Tickets carry only the slugs. */
 const DEFINITIONS: Record<string, Label> = {
   backend: { name: "Backend", color: "blue" },
@@ -187,6 +190,7 @@ function panel(props?: {
     <TicketPanel
       projectId="project-1"
       ticketKey={props?.ticketKey ?? "LC-1"}
+      projectPath={PROJECT_PATH}
       labels={DEFINITIONS}
       reloadSignal={props?.reloadSignal ?? 0}
       removedSignal={props?.removedSignal ?? 0}
@@ -1498,6 +1502,8 @@ describe("the raw file view (LC-135 → LC-138)", () => {
     return degradedDetail({ raw: BROKEN, message: MESSAGE, line: 4 });
   }
 
+  const FULL_PATH = `${PROJECT_PATH}/.longclaw/tickets/LC-1/ticket.md`;
+
   /** The view, once the file it could not read has arrived. */
   function shown() {
     return screen.findByRole("heading", { name: /ticket\.md$/ });
@@ -1507,14 +1513,27 @@ describe("the raw file view (LC-135 → LC-138)", () => {
     return [...document.querySelectorAll<HTMLElement>(".raw-line")];
   }
 
-  it("D-58: titles the view with the path and leaves the reassurance to the body", async () => {
+  it("D-58: titles the view with the full path and leaves the reassurance to the body", async () => {
     readTicketMock.mockResolvedValue(broken());
     render(panel());
 
     const heading = await shown();
 
-    expect(heading.textContent).toBe(".longclaw/tickets/LC-1/ticket.md");
+    // The whole path, not the project-relative half the header chip shows:
+    // this is the screen read just before opening the file somewhere else
+    // (`screen-specs.md:293`).
+    expect(heading.textContent).toBe(FULL_PATH);
     expect(screen.getByText(/Shown without repair/)).toBeTruthy();
+  });
+
+  it("gives Retry parse the focus the view opens with", async () => {
+    readTicketMock.mockResolvedValue(broken());
+    render(panel());
+    await shown();
+
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Retry parse" }),
+    );
   });
 
   it("D-52: reads the parse error as file:line, not as bare prose", async () => {

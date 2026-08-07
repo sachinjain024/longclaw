@@ -94,9 +94,9 @@ impl Mapping {
                     if name == key {
                         return Some(line);
                     }
-                    line += newline_count(raw);
+                    line += line_count(raw);
                 }
-                Block::Preamble(raw) => line += newline_count(raw),
+                Block::Preamble(raw) => line += line_count(raw),
             }
         }
         None
@@ -403,7 +403,7 @@ pub fn lines_with_endings(raw: &str) -> Vec<(u32, &str)> {
 
 /// How many lines a block occupies. A final line without a newline still counts,
 /// which is what keeps `line_of` right for a frontmatter that ends unterminated.
-fn newline_count(raw: &str) -> u32 {
+fn line_count(raw: &str) -> u32 {
     lines_with_endings(raw).len() as u32
 }
 

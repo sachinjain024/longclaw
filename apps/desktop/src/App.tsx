@@ -1447,6 +1447,9 @@ export function App() {
           <TicketPanel
             projectId={activeProjectId}
             ticketKey={selectedKey}
+            // Abbreviated the same way the header's own chip is, so the two
+            // places the app writes this path agree on how it looks.
+            projectPath={tildeAbbreviate(project.rootPath, homePath)}
             labels={project.labels}
             mark={externalMarks[selectedKey]}
             reloadSignal={panelReload}

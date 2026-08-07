@@ -209,6 +209,12 @@ function useAutoGrow(value: string) {
 interface TicketPanelProps {
   projectId: string;
   ticketKey: string;
+  /**
+   * The project's root as the header shows it — tilde-abbreviated, for display
+   * only. The raw-file view names the file in full (`screen-specs.md:293`) and
+   * a `TicketDetail` carries only the half below the project root.
+   */
+  projectPath: string;
   /** The project's label definitions. A ticket carries slugs and nothing else. */
   labels: Record<string, Label>;
   /** An unreviewed external change to this ticket, if there is one. */
@@ -653,7 +659,15 @@ export function TicketPanel(props: TicketPanelProps) {
     raise({ message: `${ticketKey} still does not parse`, tone: "danger" });
   }
 
-  /** Hands the file to the editor the human already uses for Markdown. */
+  /**
+   * Hands the file to the editor the human already uses for Markdown.
+   *
+   * A failure toasts rather than going to `props.onError`, which is the split
+   * the panel already runs on: `load` routes a *read* the panel depends on to
+   * the app's banner, because there is nothing on screen without it, while a
+   * button the human just pressed — copy, a refused write, this — answers where
+   * they pressed it. The raw file is still readable either way.
+   */
   async function openInEditor() {
     try {
       await openTicketFile(projectId, ticketKey);
@@ -817,6 +831,7 @@ export function TicketPanel(props: TicketPanelProps) {
       ) : !ticket ? (
         <RawFileView
           detail={detail}
+          projectPath={props.projectPath}
           retrying={retrying}
           onRetry={() => void retryParse()}
           onOpenInEditor={() => void openInEditor()}

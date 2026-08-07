@@ -207,16 +207,20 @@ fn open_ticket_file(
     if platform::macos::open_in_default_app(&path) {
         return Ok(());
     }
+    // The message names the file, the context carries the path — the split
+    // `AppError::io` makes and ADR 0010 describes. A DTO that read an absolute
+    // path back to the human in prose would also be the one thing ADR 0006 says
+    // a view-oriented payload does not carry.
     Err(core::AppError::new(
         core::ErrorCode::Io,
         format!(
-            "macOS would not open {}. Open it from Finder, or set a default \
-             application for Markdown files.",
-            path.display()
+            "macOS would not open {ticket_key}'s file. Open it from Finder, or \
+             set a default application for Markdown files."
         ),
         true,
     )
-    .with_context("ticketKey", ticket_key))
+    .with_context("ticketKey", ticket_key)
+    .with_context("path", path.display().to_string()))
 }
 
 #[tauri::command]
