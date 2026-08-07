@@ -5,11 +5,12 @@ key: LC-111
 title: Description editor — six text glyphs (B, I, backtick, bullet, square, arrow) where the design has 24×24 icons
 status: done
 priority: p2
+rank: ZzV
 labels:
   - frontend
   - prototype-diff
 created_at: 2026-08-05T15:16:01.280Z
-updated_at: 2026-08-07T10:04:36.417Z
+updated_at: 2026-08-07T13:44:06.000Z
 ---
 
 **Prototype.** Six 24×24 **icon** buttons
@@ -39,9 +40,134 @@ actor:
 <!-- /longclaw:event -->
 
 <!-- longclaw:event
+id: evt_31434b1f
+kind: update
+occurred_at: 2026-08-07T09:54:24.554Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: rank
+    to: a0
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_f1475fef
+kind: update
+occurred_at: 2026-08-07T09:54:33.050Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: todo
+    to: in_progress
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_3ad3fd32
+kind: update
+occurred_at: 2026-08-07T09:55:30.922Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_progress
+    to: backlog
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_1fe03a2f
+kind: update
+occurred_at: 2026-08-07T09:55:54.428Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: backlog
+    to: todo
+  - field: rank
+    from: a0
+    to: Zz
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_46b93483
+kind: update
+occurred_at: 2026-08-07T09:56:14.771Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: rank
+    from: Zz
+    to: a0V
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_96f30133
+kind: update
+occurred_at: 2026-08-07T09:56:19.225Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: rank
+    from: a0V
+    to: a2
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_cf0af0ef
+kind: update
+occurred_at: 2026-08-07T09:56:49.610Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: todo
+    to: in_progress
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_85ab66c3
+kind: update
+occurred_at: 2026-08-07T10:51:33.488Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_progress
+    to: todo
+  - field: rank
+    from: a2
+    to: ZzV
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
 id: evt_2b486c82
 kind: update
-occurred_at: 2026-08-07T10:04:36.417Z
+occurred_at: 2026-08-07T13:44:06.000Z
 actor:
   type: agent
   id: claude-code
@@ -62,7 +188,7 @@ Implemented the six foundation-style formatting icons in the description editor;
 <!-- longclaw:event
 id: evt_f42443b6
 kind: comment
-occurred_at: 2026-08-07T10:54:33.000Z
+occurred_at: 2026-08-07T13:44:06.000Z
 actor:
   type: agent
   id: claude-code

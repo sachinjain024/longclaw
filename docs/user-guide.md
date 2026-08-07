@@ -161,6 +161,13 @@ the file or silently forget your projects. Quit the app, and in
 the backup is unusable too, just open your project folders again — **this list
 is not your data.** Your tickets are in your project, untouched.
 
+**The window comes back on the wrong appearance or the wrong project.** Those
+choices live in `device-preferences.json`, in the same folder as the project
+list. Unlike the list, it fails open: one LongClaw cannot read is renamed to
+`device-preferences.invalid.json` and the app starts on its defaults rather than
+refusing to start. Deleting it is a supported way to start over — it holds no
+ticket, and nothing in it is your data.
+
 **Anything else.** LongClaw says what it was doing, which file it was doing it
 to, and what to try. If you want more than the window shows, launch it from a
 terminal:

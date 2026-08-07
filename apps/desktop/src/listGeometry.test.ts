@@ -11,6 +11,7 @@ import {
   GROUP_GAP,
   GROUP_HEADER_HEIGHT,
   ROW_HEIGHT,
+  dropAt,
   groupBodyHeight,
   listGeometry,
   rowTop,
@@ -106,6 +107,52 @@ describe("the window the list renders", () => {
         ROW_HEIGHT + GROUP_BODY_BORDER + GROUP_GAP,
       ]),
     );
+  });
+});
+
+describe("where a drop over the list would land (LC-60)", () => {
+  // Two groups of two rows. Group 0: header 0-33, rows at 33 and 69, and the
+  // gap after it ends at 118. Group 1 starts there.
+  const geometry = listGeometry([group(2), group(2)]);
+
+  it("puts a drop over a group's header at the top of that group", () => {
+    // A header is the group's own top edge, not the tail of the one above it.
+    expect(dropAt(geometry, 4)).toEqual({ group: 0, gap: 0 });
+    expect(dropAt(geometry, 118 + 4)).toEqual({ group: 1, gap: 0 });
+  });
+
+  it("splits a row at its middle, like the board splits a card", () => {
+    // The first row runs 33-69, so its middle is 51.
+    expect(dropAt(geometry, 40)).toEqual({ group: 0, gap: 0 });
+    expect(dropAt(geometry, 60)).toEqual({ group: 0, gap: 1 });
+    expect(dropAt(geometry, 75)).toEqual({ group: 0, gap: 1 });
+    expect(dropAt(geometry, 100)).toEqual({ group: 0, gap: 2 });
+  });
+
+  it("counts the air below a group as the end of it", () => {
+    // The last row's stride carries the body's hairline and the 12px gap, so
+    // the air between two groups belongs to the one above — which is where the
+    // pointer looks like it is.
+    expect(dropAt(geometry, 112)).toEqual({ group: 0, gap: 2 });
+  });
+
+  it("clamps a position off either end of the scroller", () => {
+    expect(dropAt(geometry, -40)).toEqual({ group: 0, gap: 0 });
+    expect(dropAt(geometry, 9_000)).toEqual({ group: 1, gap: 2 });
+  });
+
+  it("puts a drop on a collapsed group's header in that group", () => {
+    // Archived, shut: a header slot and no rows at all (`screen-specs.md`).
+    // Header 0-33, its one row 33-82, then the shut group's header from 82.
+    const collapsed = listGeometry([group(1), group(0)]);
+
+    expect(dropAt(collapsed, 100)).toEqual({ group: 1, gap: 0 });
+    // And a hair above that is still the row above it, not the shut group.
+    expect(dropAt(collapsed, 80)).toEqual({ group: 0, gap: 1 });
+  });
+
+  it("answers nothing for a list with no groups at all", () => {
+    expect(dropAt(listGeometry([]), 10)).toBeUndefined();
   });
 });
 

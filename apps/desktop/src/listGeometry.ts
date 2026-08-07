@@ -15,7 +15,8 @@
  * scrolls, and no jsdom test can see that.
  */
 
-import { runningOffsets } from "./boardGeometry";
+import { indexAt, runningOffsets } from "./boardGeometry";
+import type { DropSpot } from "./ticketMove";
 
 /** `--lc-size-row`: the height `.list-row` is pinned to (`screen-specs.md:141`). */
 export const ROW_HEIGHT = 36;
@@ -73,6 +74,44 @@ export function listGeometry(groups: { tickets: unknown[] }[]): ListGeometry {
     }
   });
   return { slots, offsets: runningOffsets(strides) };
+}
+
+/**
+ * Which group a pointer is over, and which gap between its rows (LC-60).
+ *
+ * The board reads a drop off one column's offsets and gets a gap; the list has
+ * to say which group as well, because its one scroller stacks all of them. It
+ * is the same arithmetic either way — the slot under the position, then that
+ * slot's own midpoint as the line between its two gaps — which is what keeps a
+ * drop answerable for a row 3,000 down that is not in the document.
+ *
+ * Two positions are not rows and still have to answer. A group's **header** is
+ * that group's top edge, so a drop on it lands at gap 0 of the group below the
+ * header rather than at the end of the group above — a collapsed Archived group
+ * is nothing but a header, and a drop there must not be read as the group
+ * before it. The **air between two groups** belongs to the group above, because
+ * that is where its last row's stride ends and where the pointer looks like it
+ * is.
+ */
+export function dropAt(
+  geometry: ListGeometry,
+  position: number,
+): DropSpot | undefined {
+  const { slots, offsets } = geometry;
+  if (slots.length === 0) return undefined;
+
+  const last = offsets[offsets.length - 1];
+  const within = Math.max(0, Math.min(position, last));
+  const index = indexAt(offsets, within);
+  const slot = slots[index];
+  if (slot.row < 0) return { group: slot.group, gap: 0 };
+
+  // The row's own middle, not the slot's. A group's last row carries the body's
+  // bottom hairline and the air below the group in its stride, so splitting the
+  // stride would put the line 6.5px below where the row actually ends — and
+  // every group has a last row.
+  const middle = offsets[index] + ROW_HEIGHT / 2;
+  return { group: slot.group, gap: within < middle ? slot.row : slot.row + 1 };
 }
 
 /** A group body's height, which is what the browser lays the next group out from. */

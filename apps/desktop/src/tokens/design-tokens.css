@@ -106,11 +106,12 @@
   --lc-motion-pulse-duration: 900ms;
   --lc-motion-pulse-iterations: 2;
   --lc-motion-spinner: 900ms;
-  --lc-z-sticky: 1;
-  --lc-z-panel: 2;
-  --lc-z-modal: 3;
-  --lc-z-toast: 4;
-  --lc-z-popover: 5;
+  --lc-z-drag: 1;
+  --lc-z-sticky: 2;
+  --lc-z-panel: 3;
+  --lc-z-modal: 4;
+  --lc-z-toast: 5;
+  --lc-z-popover: 6;
 }
 
 /* Fallbacks so a bare document renders as light Indigo (the defaults). */

@@ -19,7 +19,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { STATUS_OPTIONS, PRIORITY_OPTIONS } from "./metaOptions";
 import { ORDERINGS, type OrderingMode } from "./ordering";
-import type { ViewMode } from "./workspacePreferences";
+import type { ViewMode } from "./devicePreferences";
 import { FolderGlyph } from "./FolderGlyph";
 import { PriorityGlyph } from "./PriorityGlyph";
 import { StatusDot } from "./StatusDot";

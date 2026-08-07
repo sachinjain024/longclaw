@@ -17,6 +17,7 @@ import { Board } from "./Board";
 import type * as BoardCard from "./boardCard";
 import { ASSUMED_VIEWPORT, CARD_STRIDE } from "./boardGeometry";
 import type { OrderingMode } from "./ordering";
+import type { TicketMove } from "./ticketMove";
 import { FRESH_WINDOW_MS } from "./freshness";
 import type { ExternalMark, ExternalMarks } from "./freshness";
 import type {
@@ -98,7 +99,7 @@ function board(props?: {
   ordering?: OrderingMode;
   onChangePriority?: (ticket: IndexedTicket, next: TicketPriority) => void;
   onChangeStatus?: (ticket: IndexedTicket, next: TicketStatus) => void;
-  onReorder?: (ticket: IndexedTicket, rank: string) => void;
+  onMoveTicket?: (ticket: IndexedTicket, move: TicketMove) => void;
   onCreateInStatus?: (status: TicketStatus) => void;
   onCreateFirst?: () => void;
 }) {
@@ -112,7 +113,7 @@ function board(props?: {
       onSelect={noop}
       onChangePriority={props?.onChangePriority ?? noop}
       onChangeStatus={props?.onChangeStatus ?? noop}
-      onReorder={props?.onReorder ?? noop}
+      onMoveTicket={props?.onMoveTicket ?? noop}
       onCreateInStatus={props?.onCreateInStatus ?? noop}
       onCreateFirst={props?.onCreateFirst}
     />
@@ -266,7 +267,7 @@ describe("the pulse, which says a change just landed", () => {
         ordering="priority"
         onChangePriority={noop}
         onChangeStatus={noop}
-        onReorder={noop}
+        onMoveTicket={noop}
         onCreateInStatus={noop}
       />,
     );
@@ -425,7 +426,7 @@ describe("the board's own shape", () => {
         ordering="priority"
         onChangePriority={noop}
         onChangeStatus={noop}
-        onReorder={noop}
+        onMoveTicket={noop}
         onCreateInStatus={noop}
       />,
     );
@@ -497,7 +498,7 @@ describe("focus on a column that is being scrolled", () => {
         ordering="priority"
         onChangePriority={noop}
         onChangeStatus={noop}
-        onReorder={noop}
+        onMoveTicket={noop}
         onCreateInStatus={noop}
       />,
     );
@@ -624,7 +625,7 @@ describe("what a change to one ticket costs", () => {
         ordering="priority"
         onChangePriority={noop}
         onChangeStatus={noop}
-        onReorder={noop}
+        onMoveTicket={noop}
         onCreateInStatus={noop}
       />,
     );
@@ -642,7 +643,7 @@ describe("what a change to one ticket costs", () => {
         ordering="priority"
         onChangePriority={noop}
         onChangeStatus={noop}
-        onReorder={noop}
+        onMoveTicket={noop}
         onCreateInStatus={noop}
       />,
     );
@@ -923,10 +924,28 @@ describe("board ordering and drag-and-drop (V0-09)", () => {
     element: HTMLElement,
     type: "dragOver" | "drop",
     clientY: number,
+    clientX = 0,
   ) {
     const event = createEvent[type](element);
     Object.defineProperty(event, "clientY", { value: clientY });
+    Object.defineProperty(event, "clientX", { value: clientX });
     fireEvent(element, event);
+  }
+
+  /** The board's own scroller, which is what carries a drag across columns. */
+  function boardGrid(): HTMLElement {
+    const element = document.querySelector<HTMLElement>(".board-grid");
+    if (!element) throw new Error("no board grid");
+    element.getBoundingClientRect = () =>
+      ({
+        top: 0,
+        bottom: 800,
+        height: 800,
+        left: 0,
+        right: 1200,
+        width: 1200,
+      }) as DOMRect;
+    return element;
   }
 
   /** Drags a card and lets go `clientY` pixels down the column's own box. */
@@ -945,44 +964,56 @@ describe("board ordering and drag-and-drop (V0-09)", () => {
     expect(columnKeys()).toEqual(["LC-2", "LC-3", "LC-1"]);
   });
 
-  it("must-pass: a card is draggable only in Manual", () => {
+  it("picks a card up in either order, because a column is a status (LC-60)", () => {
+    // Reordering *inside* a column is Manual's alone (ADR 0003). Moving a card
+    // to another column is a status change, which both orders have.
     const { rerender } = render(
       board({ tickets: ranked, ordering: "priority" }),
     );
-    expect(card("LC-1").draggable).toBe(false);
+    expect(card("LC-1").draggable).toBe(true);
 
     rerender(board({ tickets: ranked, ordering: "manual" }));
     expect(card("LC-1").draggable).toBe(true);
   });
 
   it("must-pass: Priority mode writes no rank, however hard it is dragged", () => {
-    const onReorder = vi.fn();
-    render(board({ tickets: ranked, ordering: "priority", onReorder }));
+    const onMoveTicket = vi.fn();
+    render(board({ tickets: ranked, ordering: "priority", onMoveTicket }));
 
+    // Inside its own column, where the only thing a drop could mean is a rank.
     dragTo("LC-3", 4);
 
-    expect(onReorder).not.toHaveBeenCalled();
+    expect(onMoveTicket).not.toHaveBeenCalled();
     expect(document.querySelector(".drop-line")).toBeNull();
+
+    // And into another column, where it means a status and nothing else.
+    dragTo("LC-3", 4, "In Progress");
+
+    expect(onMoveTicket).toHaveBeenCalledTimes(1);
+    expect(onMoveTicket.mock.calls[0][1]).toStrictEqual({
+      status: "in_progress",
+    });
   });
 
   it("writes a rank between the two cards the drop landed between", () => {
-    const onReorder = vi.fn();
-    render(board({ tickets: ranked, ordering: "manual", onReorder }));
+    const onMoveTicket = vi.fn();
+    render(board({ tickets: ranked, ordering: "manual", onMoveTicket }));
 
     // Past the middle of the first card and short of the middle of the second:
     // the gap between LC-1 and LC-2.
     dragTo("LC-3", CARD_STRIDE);
 
-    expect(onReorder).toHaveBeenCalledTimes(1);
-    const [ticket, rank] = onReorder.mock.calls[0];
+    expect(onMoveTicket).toHaveBeenCalledTimes(1);
+    const [ticket, move] = onMoveTicket.mock.calls[0];
     expect(ticket.key).toBe("LC-3");
-    expect(rank > "a0" && rank < "a1").toBe(true);
+    expect(move.status).toBeUndefined();
+    expect(move.rank > "a0" && move.rank < "a1").toBe(true);
   });
 
   it("takes a drop at a position the column is not rendering", () => {
     // The virtualized case, which is the whole difficulty: the card at the drop
     // position is not in the document, so the gap is arithmetic and not a node.
-    const onReorder = vi.fn();
+    const onMoveTicket = vi.fn();
     const long = Array.from({ length: 400 }, (_, index) =>
       row({
         key: `LC-${index + 1}`,
@@ -991,24 +1022,24 @@ describe("board ordering and drag-and-drop (V0-09)", () => {
         rank: `a0${index.toString().padStart(3, "0")}1`,
       }),
     );
-    render(board({ tickets: long, ordering: "manual", onReorder }));
+    render(board({ tickets: long, ordering: "manual", onMoveTicket }));
 
     expect(columnKeys().length).toBeLessThan(60);
     dragTo("LC-1", 300 * CARD_STRIDE);
 
-    expect(onReorder).toHaveBeenCalledTimes(1);
-    const [ticket, rank] = onReorder.mock.calls[0];
+    expect(onMoveTicket).toHaveBeenCalledTimes(1);
+    const [ticket, move] = onMoveTicket.mock.calls[0];
     expect(ticket.key).toBe("LC-1");
-    expect(rank > "a02991" && rank < "a03001").toBe(true);
+    expect(move.rank > "a02991" && move.rank < "a03001").toBe(true);
   });
 
   it("writes nothing when the card is dropped back where it was", () => {
-    const onReorder = vi.fn();
-    render(board({ tickets: ranked, ordering: "manual", onReorder }));
+    const onMoveTicket = vi.fn();
+    render(board({ tickets: ranked, ordering: "manual", onMoveTicket }));
 
     dragTo("LC-2", CARD_STRIDE + 4);
 
-    expect(onReorder).not.toHaveBeenCalled();
+    expect(onMoveTicket).not.toHaveBeenCalled();
   });
 
   it("shows where the card would land, and stops showing it on the way out", () => {
@@ -1074,6 +1105,168 @@ describe("board ordering and drag-and-drop (V0-09)", () => {
     dragAt(element, "dragOver", 596);
 
     expect(scrolled).toBeGreaterThan(0);
+  });
+
+  describe("dropped into another column (LC-60)", () => {
+    /** Todo carries the three ranked cards; In Progress carries two of its own. */
+    const twoColumns = [
+      ...ranked,
+      row({ key: "LC-4", status: "in_progress", rank: "a5" }),
+      row({ key: "LC-5", status: "in_progress", rank: "a6" }),
+    ];
+
+    /** The column element around one named stack, which wears the drop state. */
+    function column(title: string): HTMLElement {
+      const element = stack(title).closest<HTMLElement>(".board-column");
+      if (!element) throw new Error(`no column for ${title}`);
+      return element;
+    }
+
+    it("moves the ticket to the status of the column it was let go in", () => {
+      const onMoveTicket = vi.fn();
+      render(
+        board({ tickets: twoColumns, ordering: "priority", onMoveTicket }),
+      );
+
+      dragTo("LC-1", 0, "In Progress");
+
+      expect(onMoveTicket).toHaveBeenCalledTimes(1);
+      const [ticket, move] = onMoveTicket.mock.calls[0];
+      expect(ticket.key).toBe("LC-1");
+      expect(move).toStrictEqual({ status: "in_progress" });
+    });
+
+    it("gives the arriving card a place in the column, in Manual", () => {
+      const onMoveTicket = vi.fn();
+      render(board({ tickets: twoColumns, ordering: "manual", onMoveTicket }));
+
+      // The gap between LC-4 and LC-5, in a column the card is not in.
+      dragTo("LC-1", CARD_STRIDE, "In Progress");
+
+      expect(onMoveTicket).toHaveBeenCalledTimes(1);
+      const [ticket, move] = onMoveTicket.mock.calls[0];
+      expect(ticket.key).toBe("LC-1");
+      expect(move.status).toBe("in_progress");
+      expect(move.rank > "a5" && move.rank < "a6").toBe(true);
+    });
+
+    it("lands at the end of an empty column", () => {
+      const onMoveTicket = vi.fn();
+      render(board({ tickets: ranked, ordering: "manual", onMoveTicket }));
+
+      dragTo("LC-1", 0, "Done");
+
+      expect(onMoveTicket.mock.calls[0][1]).toStrictEqual({
+        status: "done",
+        rank: "a0",
+      });
+    });
+
+    it("opens every column that could take the card as soon as it is lifted", () => {
+      // An empty column is three pixels of padding at rest, so without this it is
+      // the one column a card cannot be dragged to.
+      render(board({ tickets: twoColumns, ordering: "priority" }));
+
+      fireEvent.dragStart(card("LC-1"));
+
+      expect(column("Done").className).toContain("drop-open");
+      expect(column("In Progress").className).toContain("drop-open");
+      // Not its own, in Priority: a drop there would write nothing.
+      expect(column("Todo").className).not.toContain("drop-open");
+
+      fireEvent.dragEnd(card("LC-1"));
+      expect(document.querySelector(".board-column.drop-open")).toBeNull();
+    });
+
+    it("carries the drag across a board wider than the window", () => {
+      // Six columns of 264px do not fit, so a column off the side of the board
+      // is as unreachable as a card below the fold without this.
+      render(board({ tickets: twoColumns, ordering: "priority" }));
+      const grid = boardGrid();
+      let scrolled = 0;
+      Object.defineProperty(grid, "scrollLeft", {
+        get: () => scrolled,
+        set: (value: number) => {
+          scrolled = value;
+        },
+        configurable: true,
+      });
+
+      fireEvent.dragStart(card("LC-1"));
+      dragAt(grid, "dragOver", 400, 1190);
+
+      expect(scrolled).toBeGreaterThan(0);
+    });
+
+    it("lights no column while the pointer is over none of them", () => {
+      render(board({ tickets: twoColumns, ordering: "priority" }));
+      layOut("In Progress");
+      fireEvent.dragStart(card("LC-1"));
+      dragAt(stack("In Progress"), "dragOver", 0);
+      expect(column("In Progress").className).toContain("drop-target");
+
+      // The gaps between the columns: the board hears the drag, no column
+      // takes it, and nothing is left lit up behind the pointer.
+      dragAt(boardGrid(), "dragOver", 400, 600);
+
+      expect(document.querySelector(".board-column.drop-target")).toBeNull();
+    });
+
+    it("says which column would take the card, and stops when it is let go", () => {
+      render(board({ tickets: twoColumns, ordering: "priority" }));
+      layOut("In Progress");
+
+      fireEvent.dragStart(card("LC-1"));
+      dragAt(stack("In Progress"), "dragOver", 0);
+
+      expect(column("In Progress").className).toContain("drop-target");
+      // Its own column is not a target in Priority: there is nothing a drop
+      // there could write.
+      expect(column("Todo").className).not.toContain("drop-target");
+      // And no line, because no position is being chosen.
+      expect(document.querySelector(".drop-line")).toBeNull();
+
+      fireEvent.dragEnd(card("LC-1"));
+      expect(document.querySelector(".board-column.drop-target")).toBeNull();
+    });
+
+    it("shows where in the column it would land, in Manual", () => {
+      render(board({ tickets: twoColumns, ordering: "manual" }));
+      layOut("In Progress");
+
+      fireEvent.dragStart(card("LC-1"));
+      dragAt(stack("In Progress"), "dragOver", CARD_STRIDE);
+
+      expect(column("In Progress").className).toContain("drop-target");
+      expect(stack("In Progress").querySelector(".drop-line")).toBeTruthy();
+    });
+
+    it("refuses the column for files it cannot read, having no status", () => {
+      const onMoveTicket = vi.fn();
+      render(
+        board({
+          ordering: "manual",
+          onMoveTicket,
+          tickets: [
+            ...ranked,
+            {
+              state: "degraded",
+              key: "LC-99",
+              contentHash: "hash-99",
+              relativePath: ".longclaw/tickets/LC-99/ticket.md",
+              byteLength: 220,
+              readOnly: false,
+              diagnostic: { code: "parse_failed", message: "no frontmatter" },
+            },
+          ],
+        }),
+      );
+
+      dragTo("LC-1", 0, "Unreadable");
+
+      expect(onMoveTicket).not.toHaveBeenCalled();
+      expect(column("Unreadable").className).not.toContain("drop-target");
+    });
   });
 });
 

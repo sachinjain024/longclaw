@@ -13,6 +13,10 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 import * as api from "./api";
+import {
+  resetDevicePreferences,
+  restoreDevicePreferences,
+} from "./devicePreferences";
 import { resetMutations, useMutationStore } from "./mutations";
 import { useLongClawStore } from "./state";
 import { isArchived } from "./tickets";
@@ -37,6 +41,7 @@ vi.mock("./api", () => ({
   listProjects: vi.fn(),
   listenForProjectEvents: vi.fn(),
   openProject: vi.fn(),
+  readPreferences: vi.fn(),
   readTicket: vi.fn(),
   rebuildIndex: vi.fn(),
   reconcileProject: vi.fn(),
@@ -45,6 +50,7 @@ vi.mock("./api", () => ({
   setProjectStarred: vi.fn(),
   updateProjectName: vi.fn(),
   updateProjectTheme: vi.fn(),
+  writePreferences: vi.fn(),
   addProjectLabel: vi.fn(),
   updateProjectLabel: vi.fn(),
   removeProjectLabel: vi.fn(),
@@ -57,8 +63,30 @@ afterEach(() => {
   // here and nothing needs putting back.
 });
 
+/**
+ * The preferences file, as far as this suite is concerned (LC-150). Device
+ * preferences are a document Rust keeps rather than a storage key, so the
+ * fixture is a fake backend that holds one — and a relaunch is `relaunch()`
+ * below, which forgets what this process holds and reads the document again,
+ * exactly as `src/main.tsx` does before its first render.
+ */
+let devicePreferences: Record<string, unknown> = {};
+
+async function relaunch() {
+  resetDevicePreferences();
+  await restoreDevicePreferences();
+}
+
 beforeEach(() => {
   resetMutations();
+  devicePreferences = {};
+  resetDevicePreferences();
+  vi.mocked(api.readPreferences).mockImplementation(async () => ({
+    ...devicePreferences,
+  }));
+  vi.mocked(api.writePreferences).mockImplementation(async (document) => {
+    devicePreferences = document;
+  });
   Object.defineProperty(window, "matchMedia", {
     writable: true,
     value: vi.fn().mockImplementation(() => ({
@@ -1634,19 +1662,25 @@ describe("system-matched appearance (V0-35)", () => {
     act(() => system.flip(true));
 
     expect(document.documentElement.dataset.appearance).toBe("light");
-    expect(window.localStorage.getItem("longclaw.appearance")).toBe("light");
+    await waitFor(() => expect(devicePreferences.appearance).toBe("light"));
   });
 
+  /**
+   * The P1 the clean-machine pass found: set Light, quit, relaunch, and the
+   * control read `System` again (LC-150). It reproduced because the preference
+   * was in webview storage, which the packaged build does not keep across the
+   * process; it is a file Rust owns now, and the relaunch here is a cold read
+   * of that file.
+   */
   it("persists the preference and rehydrates it on the next launch", async () => {
     mockSystem(true);
     const first = render(<App />);
     overrideAppearance("light");
-    await waitFor(() =>
-      expect(window.localStorage.getItem("longclaw.appearance")).toBe("light"),
-    );
+    await waitFor(() => expect(devicePreferences.appearance).toBe("light"));
     first.unmount();
-    // A restart begins from the store default; only localStorage survives.
+    // A restart begins from the store default; only the document survives.
     useLongClawStore.setState({ appearance: "system" });
+    await relaunch();
 
     render(<App />);
 
@@ -2795,9 +2829,9 @@ describe("board ordering and manual reordering (V0-09)", () => {
     };
   }
 
-  function written(key: string, rank?: string): WriteResult {
+  function written(key: string, landed?: Partial<IndexedTicket>): WriteResult {
     return {
-      ticket: row(key, { contentHash: `hash-${key}-written`, rank }),
+      ticket: row(key, { contentHash: `hash-${key}-written`, ...landed }),
       generation: 2,
       changes: [],
     };
@@ -2822,10 +2856,10 @@ describe("board ordering and manual reordering (V0-09)", () => {
     fireEvent.click(screen.getByRole("menuitemradio", { name }));
   }
 
-  /** A drop at a stated position in the Todo column. */
-  function dropAt(key: string, clientY: number) {
+  /** A drop at a stated position in a named column, Todo unless said otherwise. */
+  function dropAt(key: string, clientY: number, title = "Todo") {
     const stack = screen
-      .getByRole("heading", { name: /^Todo/ })
+      .getByRole("heading", { name: new RegExp(`^${title}`) })
       .closest(".board-column")!
       .querySelector<HTMLElement>(".board-stack")!;
     const sizer = stack.querySelector<HTMLElement>(".board-sizer")!;
@@ -2869,24 +2903,40 @@ describe("board ordering and manual reordering (V0-09)", () => {
     chooseOrdering("Manual");
 
     await waitFor(() =>
-      expect(
-        JSON.parse(localStorage.getItem("longclaw.projectWorkspaces")!),
-      ).toEqual({
+      expect(devicePreferences.projectWorkspaces).toEqual({
         "project-fixture": { ordering: "manual" },
       }),
     );
   });
 
   it("must-pass: Priority mode writes no rank however the board is dragged", async () => {
+    vi.mocked(api.editTicket).mockResolvedValue(
+      written("LC-2", { status: "in_progress" }),
+    );
     await openBoard([row("LC-1", { rank: "a0" }), row("LC-2", { rank: "a1" })]);
 
+    // Inside its own column, where a rank is the only thing a drop could write.
     dropAt("LC-2", 0);
 
     expect(api.editTicket).not.toHaveBeenCalled();
+
+    // And into another column, which is a status change — and still no rank
+    // (LC-60).
+    dropAt("LC-2", 0, "In Progress");
+
+    await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(1));
+    expect(api.editTicket).toHaveBeenCalledWith({
+      projectId: project.id,
+      ticketKey: "LC-2",
+      expectedHash: "hash-LC-2",
+      edit: { status: "in_progress" },
+    });
   });
 
   it("must-pass: a manual drop writes a rank, and only a rank, and takes it back", async () => {
-    vi.mocked(api.editTicket).mockResolvedValue(written("LC-3", "a0V"));
+    vi.mocked(api.editTicket).mockResolvedValue(
+      written("LC-3", { rank: "a0V" }),
+    );
     await openBoard([
       row("LC-1", { rank: "a0" }),
       row("LC-2", { rank: "a1" }),
@@ -2906,7 +2956,9 @@ describe("board ordering and manual reordering (V0-09)", () => {
     });
     await screen.findByText("LC-3 moved");
 
-    vi.mocked(api.editTicket).mockResolvedValue(written("LC-3", "a2"));
+    vi.mocked(api.editTicket).mockResolvedValue(
+      written("LC-3", { rank: "a2" }),
+    );
     fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
 
     await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(2));
@@ -2919,7 +2971,9 @@ describe("board ordering and manual reordering (V0-09)", () => {
   });
 
   it("takes back a first-ever rank by clearing the key, not by inventing one", async () => {
-    vi.mocked(api.editTicket).mockResolvedValue(written("LC-3", "a0"));
+    vi.mocked(api.editTicket).mockResolvedValue(
+      written("LC-3", { rank: "a0" }),
+    );
     await openBoard([row("LC-1"), row("LC-2"), row("LC-3")]);
     chooseOrdering("Manual");
 
@@ -2971,6 +3025,134 @@ describe("board ordering and manual reordering (V0-09)", () => {
       .getState()
       .tickets.find((ticket) => ticket.key === "LC-3");
     expect(back?.state === "indexed" && back.rank).toBe("a2");
+  });
+
+  describe("dragged into another column (LC-60)", () => {
+    /** Where a card sits now, by the column heading above it. */
+    function columnHolding(key: string): string {
+      const column = document
+        .querySelector(`[data-ticket-key="${key}"]`)
+        ?.closest(".board-column");
+      return column?.querySelector("h3")?.textContent ?? "";
+    }
+
+    it("writes the status of the column, and takes it back", async () => {
+      vi.mocked(api.editTicket).mockResolvedValue(
+        written("LC-2", { status: "in_progress" }),
+      );
+      await openBoard([row("LC-1"), row("LC-2")]);
+
+      dropAt("LC-2", 0, "In Progress");
+
+      await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(1));
+      expect(api.editTicket).toHaveBeenCalledWith({
+        projectId: project.id,
+        ticketKey: "LC-2",
+        expectedHash: "hash-LC-2",
+        edit: { status: "in_progress" },
+      });
+      await screen.findByText("LC-2 → In Progress");
+
+      vi.mocked(api.editTicket).mockResolvedValue(written("LC-2"));
+      fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+
+      await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(2));
+      expect(api.editTicket).toHaveBeenLastCalledWith({
+        projectId: project.id,
+        ticketKey: "LC-2",
+        expectedHash: "hash-LC-2-written",
+        edit: { status: "todo" },
+      });
+    });
+
+    it("writes the column and the place in it as one edit, in Manual", async () => {
+      vi.mocked(api.editTicket).mockResolvedValue(
+        written("LC-1", { rank: "a5V", status: "in_progress" }),
+      );
+      await openBoard([
+        row("LC-1", { rank: "a0" }),
+        row("LC-2", { status: "in_progress", rank: "a5" }),
+        row("LC-3", { status: "in_progress", rank: "a6" }),
+      ]);
+      chooseOrdering("Manual");
+
+      // Into the gap between LC-2 and LC-3, in a column LC-1 is not in.
+      dropAt("LC-1", 63, "In Progress");
+
+      await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(1));
+      const sent = vi.mocked(api.editTicket).mock.calls[0][0];
+      expect(sent.ticketKey).toBe("LC-1");
+      expect(sent.edit.status).toBe("in_progress");
+      expect(sent.edit.rank! > "a5" && sent.edit.rank! < "a6").toBe(true);
+      expect(Object.keys(sent.edit).sort()).toEqual(["rank", "status"]);
+
+      // Both halves come back, and the rank it never had is cleared rather
+      // than invented.
+      vi.mocked(api.editTicket).mockResolvedValue(
+        written("LC-1", { rank: "a0" }),
+      );
+      fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+
+      await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(2));
+      expect(api.editTicket).toHaveBeenLastCalledWith({
+        projectId: project.id,
+        ticketKey: "LC-1",
+        expectedHash: "hash-LC-1-written",
+        edit: { status: "todo", rank: "a0" },
+      });
+    });
+
+    it("moves the card before the write leaves, and puts it back if it fails", async () => {
+      vi.mocked(api.editTicket).mockRejectedValue({
+        code: "io",
+        message: "Disk is full",
+        recoverable: true,
+      });
+      await openBoard([row("LC-1"), row("LC-2")]);
+
+      dropAt("LC-2", 0, "In Progress");
+
+      expect(columnHolding("LC-2")).toContain("In Progress");
+      await screen.findByText(
+        "LC-2 could not be moved. Disk is full. The file was left as it was.",
+      );
+      expect(columnHolding("LC-2")).toContain("Todo");
+    });
+
+    it("writes the same move when the drag happened on the list", async () => {
+      // The two surfaces are one write path, and the list had no drag at all
+      // until LC-60. Dropped into another group, it says exactly what the
+      // board says for the same gesture.
+      vi.mocked(api.editTicket).mockResolvedValue(
+        written("LC-2", { status: "done" }),
+      );
+      await openBoard([row("LC-1"), row("LC-2", { status: "done" })]);
+      fireEvent.click(screen.getByRole("button", { name: "List" }));
+
+      const scroller = document.querySelector<HTMLElement>(".issue-list")!;
+      scroller.getBoundingClientRect = () => ({ top: 0 }) as DOMRect;
+      fireEvent.dragStart(
+        document.querySelector<HTMLElement>('[data-ticket-key="LC-1"]')!,
+      );
+      // Every status opens up while a drag is in flight, so the groups above
+      // Done are Backlog (44), Todo's header and row (33 + 49), In Progress
+      // (44) and In Review (44): the Done header band starts at 214.
+      const onDoneHeader = 220;
+      for (const type of ["dragOver", "drop"] as const) {
+        const event = createEvent[type](scroller);
+        Object.defineProperty(event, "clientY", { value: onDoneHeader });
+        fireEvent(scroller, event);
+      }
+
+      await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(1));
+      expect(api.editTicket).toHaveBeenCalledWith({
+        projectId: project.id,
+        ticketKey: "LC-1",
+        expectedHash: "hash-LC-1",
+        edit: { status: "done" },
+      });
+      await screen.findByText("LC-1 → Done");
+    });
   });
 });
 
@@ -3298,9 +3480,7 @@ describe("the header filter (V0-15)", () => {
     type("recovery");
 
     await waitFor(() =>
-      expect(
-        JSON.parse(localStorage.getItem("longclaw.projectWorkspaces")!),
-      ).toEqual({
+      expect(devicePreferences.projectWorkspaces).toEqual({
         "project-fixture": { filterQuery: "recovery" },
       }),
     );
@@ -3422,6 +3602,7 @@ describe("project-scoped workspace restoration (LC-49)", () => {
 
     firstLaunch.unmount();
     resetSessionStore();
+    await relaunch();
     vi.mocked(api.openProject).mockClear();
 
     render(<App />);
@@ -3475,6 +3656,7 @@ describe("project-scoped workspace restoration (LC-49)", () => {
 
     firstLaunch.unmount();
     resetSessionStore();
+    await relaunch();
 
     render(<App />);
     await screen.findByRole("heading", { name: "Project A" });
@@ -3496,17 +3678,19 @@ describe("project-scoped workspace restoration (LC-49)", () => {
   });
 
   it("falls back safely when saved project and workspace values are malformed or stale", async () => {
-    localStorage.setItem("longclaw.activeProject", projectB.id);
-    localStorage.setItem(
-      "longclaw.projectWorkspaces",
-      JSON.stringify({
-        [projectA.id]: { view: "grid", filterQuery: 42 },
-      }),
-    );
-    localStorage.setItem(
-      "longclaw.boardOrdering",
-      JSON.stringify({ [projectA.id]: "new-ordering-from-the-future" }),
-    );
+    // A document from another build, or from somebody's editor: the file is
+    // Rust's to keep and nobody's to validate but this build (LC-150).
+    devicePreferences = {
+      activeProjectId: projectB.id,
+      projectWorkspaces: {
+        [projectA.id]: {
+          view: "grid",
+          ordering: "new-ordering-from-the-future",
+          filterQuery: 42,
+        },
+      },
+    };
+    await relaunch();
     vi.mocked(api.listProjects).mockResolvedValue([
       projectA,
       { ...projectB, reachable: false },
@@ -3527,11 +3711,11 @@ describe("project-scoped workspace restoration (LC-49)", () => {
     expect(api.updateProjectName).not.toHaveBeenCalled();
     expect(api.updateProjectTheme).not.toHaveBeenCalled();
     expect(api.editTicket).not.toHaveBeenCalled();
-    expect(localStorage.getItem("longclaw.boardOrdering")).toBeNull();
   });
 
   it("falls back when the remembered project is no longer registered", async () => {
-    localStorage.setItem("longclaw.activeProject", "project-that-was-removed");
+    devicePreferences = { activeProjectId: "project-that-was-removed" };
+    await relaunch();
 
     render(<App />);
 

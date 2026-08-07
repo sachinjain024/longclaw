@@ -164,7 +164,10 @@ swatches (radio group, arrows move, space selects) → Create → Back.
 - No chords beyond the `⌘` basics (D8: "no chords in v0").
 - No `A` (assign) — D8 listed it, but v0 local mode has no assignee
   (ADR 0001); the binding is reserved for team mode.
-- No drag-and-drop keyboard equivalent — reordering within a column is
-  post-v0 (LC-136 canceled); status moves *are* the keyboard path across
-  columns (`S`).
+- No drag-and-drop keyboard equivalent — reordering within a column, and
+  now within a list group (LC-60), is post-v0 (LC-136 canceled); status
+  moves *are* the keyboard path between columns and between groups (`S`),
+  on both surfaces. So the pointer reaches no *status* the keyboard
+  cannot; what it reaches that the keyboard does not is a ticket's place
+  inside one, which is the thing v0 deliberately left unbound.
 - `New terminal` command exists but is disabled until Phase 2.

@@ -5,11 +5,12 @@ key: LC-112
 title: Description editor — tabs 24px on a wash strip — ~20px, strip tint is lighter than wash
 status: done
 priority: p3
+rank: Zz
 labels:
   - frontend
   - prototype-diff
 created_at: 2026-08-05T15:16:01.296Z
-updated_at: 2026-08-07T10:04:36.432Z
+updated_at: 2026-08-07T13:44:06.000Z
 ---
 
 **Prototype.** Tabs 24px on a `wash` strip
@@ -39,9 +40,23 @@ actor:
 <!-- /longclaw:event -->
 
 <!-- longclaw:event
+id: evt_284f0061
+kind: update
+occurred_at: 2026-08-07T10:51:04.496Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: rank
+    to: Zz
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
 id: evt_6cfb33e7
 kind: update
-occurred_at: 2026-08-07T10:04:36.432Z
+occurred_at: 2026-08-07T13:44:06.000Z
 actor:
   type: agent
   id: claude-code
@@ -62,7 +77,7 @@ Gave the tab strip its vertical padding and the active tab its chip, and put bot
 <!-- longclaw:event
 id: evt_4d669f85
 kind: comment
-occurred_at: 2026-08-07T10:54:33.000Z
+occurred_at: 2026-08-07T13:44:06.000Z
 actor:
   type: agent
   id: claude-code

@@ -75,7 +75,7 @@ export function runningOffsets(strides: number[]): number[] {
 }
 
 /** The first slot at or before `position`, by binary search over the offsets. */
-function indexAt(offsets: number[], position: number): number {
+export function indexAt(offsets: number[], position: number): number {
   let low = 0;
   let high = offsets.length - 2;
   while (low < high) {
