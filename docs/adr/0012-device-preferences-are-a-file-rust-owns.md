@@ -6,11 +6,28 @@ Device-local preferences — the appearance override, the last-open project, and
 
 ## Why
 
-The clean-machine pass found the preferences did not come back. Set the appearance to Light, quit, relaunch, and the control read `System` again ([LC-150](../../.longclaw/tickets/LC-150/ticket.md)); with two projects registered and the second one open at quit, relaunching selected the first ([LC-151](../../.longclaw/tickets/LC-151/ticket.md)). Both were written to `localStorage` and read back from it at startup, and the code for both was correct — the storage is what did not survive the process on the packaged build.
+The clean-machine pass found the preferences did not come back. Set the appearance to Light, quit, relaunch, and the control read `System` again ([LC-150](../../.longclaw/tickets/LC-150/ticket.md)); with two projects registered and the second one open at quit, relaunching selected the first ([LC-151](../../.longclaw/tickets/LC-151/ticket.md)). Both were written to `localStorage` and read back from it at startup.
 
-That is the deciding fact, and it is not one the app can fix from its own side: the store belongs to the webview and what it keeps is the webview's business. `localStorage` is also unavailable in the vitest environment for an unrelated reason ([LC-161](../../.longclaw/tickets/LC-161/ticket.md)), which meant the one place these could have been proved was the one place that could not run them. A file removes both problems at once: it is durable because durability is what a file is, and it is testable because a second `PreferencesStore::load` is a relaunch.
+**Why the value did not come back was never established, and this decision does not claim it was.** D-70 said so itself — *"verify on a packaged build before filing as a bug"* — and that verification was not performed. The record is in tension, which is the honest summary of it:
+
+- `8578f73` (2026-08-05), the clean-machine record, reports that the upgrade row *passed*: "project list, star, theme and appearance all survived installing the candidate over the previous build". Appearance had been in `localStorage` since `57b291e` (2026-07-30). D-70, filed the same day, reports the opposite.
+- The same commit diagnoses the open project as never persisted at all — "`activeProjectId` lives only in the in-memory store … it was never built". The persistence D-71 was missing landed a day *later*, with LC-49 (`f2e6549`, 2026-08-06). So D-71's original cause is known and is not a storage failure; whether the code that replaced it works is the part nobody has confirmed.
+
+What is not in tension is the position the preferences were in. Two P-level findings were filed against a store the app cannot defend — what a webview keeps across a process is the webview's business — and neither could be settled except by a person quitting and relaunching a packaged build by hand, because `localStorage` is unavailable in the vitest environment too ([LC-161](../../.longclaw/tickets/LC-161/ticket.md)). A store that cannot answer a question about itself will keep producing findings like these, and each will cost the same manual pass to close.
+
+So the decision is not "the storage was proved broken". It is: **the cheaper thing to change is where the value lives.** A file is durable because durability is what a file is, and testable because a second `PreferencesStore::load` is a relaunch — which makes the claim in both tickets an assertion in the suite rather than a trial somebody has to remember to run. If webview storage was in fact keeping these all along, nothing is lost by the move; if it was not, the bug is gone. The asymmetry is the whole argument.
 
 A local-first app that keeps every ticket as a file it can defend already has the mechanism. Preferences were the one thing it kept somewhere it could not.
+
+## What was checked on the packaged build
+
+Not the old storage — the new file, which is the claim that has to hold from here. Against the `LongClaw.app` bundle, with a throwaway `HOME` holding two registered projects (the `perf:startup` staging, plus a second project):
+
+- **Nothing remembered** → the app opened the first registry entry and wrote `{"activeProjectId": "relaunch-a", …}`. That is the control: the file records which project actually opened.
+- **`relaunch-b` remembered** → the app came up on the second project and left the document untouched. Had it fallen back, the same write would have replaced the id with `relaunch-a`.
+- **`appearance: "light"` remembered** → left untouched across the relaunch, which it would not have been had the store come up on `system`.
+
+One thing that check turned up, and it is worth writing down because it cuts against D-70's theory rather than for it: the old `localStorage` value **survived** — it was still readable to the bundle after the preferences file was deleted, and across a redirected `HOME`, which means the webview's store is not under `HOME` at all and outlived every throwaway profile in that run. On this machine, in this bundle, webview storage does persist across the process. So the reason the appearance override came back as `System` in the clean-machine pass remains unexplained, and this decision does not rest on explaining it.
 
 ## What Rust owns, and what it does not
 

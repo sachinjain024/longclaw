@@ -28,18 +28,23 @@
  *   - the drop indicator over the rows it is dropped between, and under the
  *     sticky header that stays over what scrolls beneath it (LC-154).
  *
- * **The rule the named surfaces are instances of.** LC-154 asked for the layers
- * to be used "everywhere position is set", and swept every positioned rule in
- * the stylesheet to find out where that is true. It is true of `fixed` and
- * `sticky` and not of `absolute`: a fixed box is out of flow at the root and a
- * sticky one exists in order to overlap what scrolls under it, so both are
- * claims against surfaces they never name, while `absolute` is nearly always a
- * placement inside one box — a virtualized row against its scroller's offsets,
- * a `kbd` chip inside its field, an input hidden under its own label. Rows are
- * the case that settles it: 5,000 of them, placed by geometry that never
- * overlaps, and a stacking context each would be paid for a relation they do
- * not have. So every `fixed` and every `sticky` rule must take a layer, and
- * `absolute` is left to the named relations above.
+ * **Two ways of holding a layer, and why.** LC-154 asked for the layers to be
+ * used "everywhere position is set", and swept every positioned rule in the
+ * stylesheet to find out what that means rule by rule.
+ *
+ * `fixed` and `sticky` can be held as a blanket rule, and are, below: a fixed
+ * box is out of flow at the root and a sticky one exists in order to overlap
+ * what scrolls under it, so each is a claim against surfaces it never names,
+ * and a claim like that is either declared or left to source order.
+ *
+ * `absolute` cannot. It is usually a placement inside one box — a `kbd` chip
+ * inside its field, an input hidden under its own label — and the rows settle
+ * that it must stay that way: 5,000 of them, placed by geometry that never
+ * overlaps, where a stacking context each is paid for a relation they do not
+ * have. But two absolute rules *are* claims — both drop indicators, which are
+ * rendered before the rows they are dropped between — so they are named in
+ * `SURFACES` and required to declare a layer there. Blanket rule where one
+ * holds; a named relation where the answer is per surface.
  *
  * The workspace is deliberately absent: it is the floor, and it must stay at
  * `auto`. Giving a layer to an ancestor of the board and list would make it a
@@ -160,17 +165,13 @@ for (const [over, under] of ORDER) {
 }
 
 /* The rule the named surfaces above are instances of: every `fixed` and every
-   `sticky` rule takes a layer. Read per selector rather than per block, since a
-   surface may state its position and its layer in different rules. */
+   `sticky` rule takes a layer. A rule may set the position for a whole selector
+   list, so each part of the list is a surface that has to answer for one. */
 const rules = cssRules(styles);
 const outOfFlow = new Set();
 for (const [selector, body] of rules) {
   if (!/position:\s*(fixed|sticky)/.test(body)) continue;
-  for (const part of selector.split(",").map((one) => one.trim())) {
-    if (/position:\s*(fixed|sticky)/.test(declarationsOf(rules, part))) {
-      outOfFlow.add(part);
-    }
-  }
+  for (const part of selector.split(",")) outOfFlow.add(part.trim());
 }
 for (const selector of outOfFlow) {
   const declared = declarationsOf(rules, selector).match(

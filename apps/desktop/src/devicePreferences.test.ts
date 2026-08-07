@@ -1,5 +1,3 @@
-// @vitest-environment jsdom
-
 /**
  * The claim these cover is the one LC-150 and LC-151 are about: a choice made in
  * one process is the choice the next process comes up with. The seam is the

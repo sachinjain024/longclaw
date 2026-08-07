@@ -4,12 +4,13 @@
  * view, ordering and filter each project was last looked at with.
  *
  * They live in a file Rust owns (`src-tauri/src/preferences.rs`, ADR 0012).
- * They used to live in `localStorage`, which ADR 0006 allowed and which does
- * not survive the process on the packaged build: set the appearance to Light,
- * quit, relaunch, and the control read `System` again (LC-150), while startup
- * fell back to the first registry entry however long you had spent on the
- * second (LC-151). A preference that does not outlive the window is not a
- * preference.
+ * They used to live in `localStorage`, which ADR 0006 allowed: set the
+ * appearance to Light, quit, relaunch, and the control read `System` again
+ * (LC-150), while startup fell back to the first registry entry however long
+ * you had spent on the second (LC-151). Why the value did not come back was
+ * never established — the ADR sets out what is and is not known — and the point
+ * of moving is that it no longer has to be. A store the app cannot test is one
+ * where every such question costs a manual relaunch to ask.
  *
  * **The document is read once, before the first render, and read synchronously
  * after that.** The appearance is stamped on the root and the workspace record
@@ -52,20 +53,25 @@ type DevicePreferences = {
   projectWorkspaces: Record<string, ProjectWorkspace>;
 };
 
-const EMPTY: DevicePreferences = { projectWorkspaces: {} };
+/**
+ * A launch that has restored nothing. A factory rather than a shared constant:
+ * the workspace record is handed out by reference, and one caller writing into
+ * a shared empty would leave it in every later "nothing was restored".
+ */
+const nothing = (): DevicePreferences => ({ projectWorkspaces: {} });
 
-let held: DevicePreferences = EMPTY;
+let held: DevicePreferences = nothing();
 
 function isAppearance(value: unknown): value is Appearance {
   return value === "light" || value === "dark" || value === "system";
 }
 
 /** Every field this build knows, taken from a document it must not trust. */
-function adopt(document: unknown): DevicePreferences {
-  if (!document || typeof document !== "object" || Array.isArray(document)) {
-    return EMPTY;
+function adopt(stored: unknown): DevicePreferences {
+  if (!stored || typeof stored !== "object" || Array.isArray(stored)) {
+    return nothing();
   }
-  const value = document as Record<string, unknown>;
+  const value = stored as Record<string, unknown>;
   const adopted: DevicePreferences = { projectWorkspaces: {} };
   if (isAppearance(value.appearance)) adopted.appearance = value.appearance;
   if (typeof value.activeProjectId === "string" && value.activeProjectId) {
@@ -108,7 +114,9 @@ function isEmpty(preferences: DevicePreferences) {
   );
 }
 
-function document(): Record<string, unknown> {
+/** What is written to the file. Named for the noun rather than `document`,
+ *  which is the global this module would otherwise shadow for its whole body. */
+function serialized(): Record<string, unknown> {
   const written: Record<string, unknown> = {
     projectWorkspaces: held.projectWorkspaces,
   };
@@ -137,7 +145,7 @@ function flush() {
     return;
   }
   writing = true;
-  void writePreferences(document())
+  void writePreferences(serialized())
     .catch(() => {
       // The choice still works for this session. A failure to persist is not a
       // failure to apply, and there is no surface here to report it on.
@@ -232,7 +240,7 @@ export function rememberProjectWorkspaces(
  * installs a fresh storage stub per test rather than one per run.
  */
 export function resetDevicePreferences() {
-  held = EMPTY;
+  held = nothing();
   writing = false;
   owed = false;
 }

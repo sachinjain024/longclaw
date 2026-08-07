@@ -5,9 +5,10 @@
 //! ordering and filter each project was last looked at with. ADR 0006 allowed
 //! them to live in webview storage, and they did — until the clean-machine pass
 //! found that neither the appearance override (LC-150) nor the open project
-//! (LC-151) came back after a relaunch. Webview storage is the webview's to
-//! keep, and on the packaged build it did not keep it; a preference that does
-//! not survive the process is not a preference, it is a session default.
+//! (LC-151) came back after a relaunch. Why they did not is not settled, and
+//! ADR 0012 is careful about that; what settled the question of *where they
+//! live* is that the old store could not be tested at all, so every answer cost
+//! a packaged relaunch performed by hand.
 //!
 //! So they are a file now, beside the project registry in application support,
 //! written the same way every other file this app owns is written — atomically,
@@ -80,7 +81,14 @@ impl PreferencesStore {
     /// Replaces the document wholesale — the webview owns its shape, so a merge
     /// here would make a key impossible to delete from the only side that knows
     /// the key exists.
+    ///
+    /// The lock is held across the file write rather than taken after it. Tauri
+    /// serves commands from a pool, so two writes can be in flight at once, and
+    /// with the lock taken afterwards the file could end up holding one while
+    /// memory held the other — the next read would then answer with a document
+    /// that is not the one on disk.
     pub fn write(&self, document: PreferenceDocument) -> AppResult<()> {
+        let mut held = self.document.write();
         let bytes =
             serde_json::to_vec_pretty(&Value::Object(document.clone())).map_err(|error| {
                 AppError::new(
@@ -90,7 +98,7 @@ impl PreferencesStore {
                 )
             })?;
         atomic_write(PREFERENCES_ACTION, &self.path, &bytes)?;
-        *self.document.write() = document;
+        *held = document;
         Ok(())
     }
 }
