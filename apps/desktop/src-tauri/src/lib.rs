@@ -3,6 +3,7 @@ pub mod cli;
 pub mod core;
 pub mod engine;
 mod platform;
+mod preferences;
 mod registry;
 
 use std::path::PathBuf;
@@ -16,6 +17,7 @@ use core::{
     RebuildReason, SearchResult, StreamEnvelope, StreamFrame, StreamKind, TicketDetail,
     VisibleUiProbe, WriteResult,
 };
+use preferences::PreferenceDocument;
 use serde::Deserialize;
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -289,6 +291,23 @@ fn stream_probe(on_event: Channel<StreamFrame>) -> AppResult<()> {
     )
 }
 
+/// The device's preferences, as the last process left them (LC-150, LC-151).
+///
+/// Read once at startup, before the first render: the appearance is stamped on
+/// the root and the workspace record is the initial state of a `useState`, so a
+/// document that arrives later is a flash of the wrong theme and a board that
+/// was on the wrong project for a frame.
+#[tauri::command]
+fn read_preferences(state: State<'_, AppState>) -> PreferenceDocument {
+    state.read_preferences()
+}
+
+/// Replaces the document. The webview owns its shape (`preferences.rs`).
+#[tauri::command]
+fn write_preferences(document: PreferenceDocument, state: State<'_, AppState>) -> AppResult<()> {
+    state.write_preferences(document)
+}
+
 /// The current user's home directory, for tilde-abbreviating paths in the UI.
 /// Only the actual home prefix is abbreviated — `/Users/other/...` stays as-is.
 #[tauri::command]
@@ -357,6 +376,8 @@ pub fn run() {
             create_ticket,
             stream_probe,
             report_visible_ui,
+            read_preferences,
+            write_preferences,
             home_dir
         ])
         .run(tauri::generate_context!())

@@ -34,6 +34,16 @@ import { RemoveProjectConfirm } from "./ConfirmDialog";
 import { CreatePanel } from "./CreatePanel";
 import { CreateProjectForm, type ProjectDraft } from "./CreateProjectForm";
 import { DEV_CHROME } from "./devChrome";
+import {
+  readActiveProjectId,
+  readProjectWorkspaces,
+  rememberActiveProject,
+  rememberAppearance,
+  rememberProjectWorkspaces,
+  type ProjectWorkspace,
+  type ProjectWorkspacePatch,
+  type ViewMode,
+} from "./devicePreferences";
 import { normalizeError } from "./errors";
 import {
   failureMessage,
@@ -74,15 +84,6 @@ import type {
   TicketStatus,
   TicketRow,
 } from "./types";
-import {
-  readActiveProjectId,
-  readProjectWorkspaces,
-  rememberActiveProject,
-  rememberProjectWorkspaces,
-  type ProjectWorkspace,
-  type ProjectWorkspacePatch,
-  type ViewMode,
-} from "./workspacePreferences";
 import { WarnGlyph } from "./WarnGlyph";
 import { ToastStack, WriteIndicator } from "./WriteFeedback";
 
@@ -92,8 +93,6 @@ const THEMES = [
   { id: "slate", label: "Slate" },
   { id: "plum", label: "Plum" },
 ];
-
-const APPEARANCE_KEY = "longclaw.appearance";
 
 /** The note `screen-specs.md:246-247` puts under the ordering menu, verbatim. */
 const ORDERING_FOOTNOTE =
@@ -557,22 +556,10 @@ export function App() {
   }
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(APPEARANCE_KEY);
-      if (saved === "light" || saved === "dark" || saved === "system") {
-        setAppearance(saved);
-      }
-    } catch {
-      setAppearance("system");
-    }
-  }, [setAppearance]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(APPEARANCE_KEY, appearance);
-    } catch {
-      // Appearance still works for this session.
-    }
+    // The launch value was restored before this component first rendered
+    // (`devicePreferences.ts`), so the first pass records what it already says
+    // and only a change made here reaches the file.
+    rememberAppearance(appearance);
     const query = window.matchMedia("(prefers-color-scheme: dark)");
     const stamp = () => {
       const root = document.documentElement;

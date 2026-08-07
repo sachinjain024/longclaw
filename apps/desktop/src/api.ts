@@ -232,6 +232,24 @@ export async function reportVisibleUi(probe: VisibleUiProbe): Promise<void> {
   await invoke("report_visible_ui", { probe });
 }
 
+/**
+ * The device's preferences, as the last process left them (`devicePreferences.ts`).
+ *
+ * Deliberately untyped past "an object": the shape is the frontend's, Rust keeps
+ * the file without reading it, and the copy on disk may have been written by
+ * another build or by hand. It is validated where it is adopted, not here.
+ */
+export async function readPreferences(): Promise<Record<string, unknown>> {
+  return invoke("read_preferences");
+}
+
+/** Replaces the document on disk. */
+export async function writePreferences(
+  document: Record<string, unknown>,
+): Promise<void> {
+  await invoke("write_preferences", { document });
+}
+
 /** The current user's home directory, for tilde-abbreviating paths in the UI. */
 export async function homeDir(): Promise<string | null> {
   return invoke("home_dir");
