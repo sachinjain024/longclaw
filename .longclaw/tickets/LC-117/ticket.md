@@ -3,14 +3,14 @@ format: longclaw.ticket/v1
 id: 4067971a-a694-4d57-9487-c658c09bb0e9
 key: LC-117
 title: "Full create — description placeholder: \"What should happen? Agents read this before they start.\" — No placeholder"
-status: todo
+status: done
 priority: p2
 rank: a0
 labels:
   - frontend
   - prototype-diff
 created_at: 2026-08-05T15:16:01.373Z
-updated_at: 2026-08-07T10:51:00.991Z
+updated_at: 2026-08-07T17:03:30.191Z
 ---
 
 **Prototype.** Description placeholder: "What should happen? Agents read this before they start."
@@ -23,7 +23,7 @@ updated_at: 2026-08-07T10:51:00.991Z
 
 ## Checklist
 
-- [ ] Add it — it is the one line telling the user what this field is for. <!-- longclaw:item=ck_5898c99a -->
+- [x] Add it — it is the one line telling the user what this field is for. <!-- longclaw:item=ck_5898c99a -->
 
 ## Activity
 
@@ -117,4 +117,23 @@ changes:
     to: a0
 -->
 ### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_699dcaf9
+kind: update
+occurred_at: 2026-08-07T17:03:30.191Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: done
+  - field: checklist.ck_5898c99a.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->

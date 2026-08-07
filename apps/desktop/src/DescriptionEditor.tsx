@@ -38,6 +38,12 @@ type Tab = (typeof TABS)[number]["id"];
 type DescriptionEditorProps = {
   value: string;
   onChange: (value: string) => void;
+  /**
+   * Shown while the draft is empty. Create mode says what the field is for and
+   * who reads it (D-4B); an edit is opened against a description that already
+   * exists, so it has nothing to explain.
+   */
+  placeholder?: string;
 } & (
   | { writeOnly: true }
   | {
@@ -222,6 +228,7 @@ export function DescriptionEditor(props: DescriptionEditorProps) {
           value={props.value}
           rows={8}
           aria-label="Description"
+          placeholder={props.placeholder}
           onChange={(event) => props.onChange(event.target.value)}
         />
       </div>

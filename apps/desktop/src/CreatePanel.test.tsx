@@ -160,6 +160,22 @@ describe("nothing here claims the file exists yet", () => {
     expect(chip.getAttribute("tabindex")).toBeNull();
   });
 
+  /**
+   * D-4A (LC-116). The key wears the same chip as the panel's real one, so the
+   * two surfaces read as the same object — with `· new` beside it saying which
+   * half is the guess. It was plain text, which made the create panel's header
+   * the one place the key was not a chip.
+   */
+  it("wears the ID chip the panel wears, without its copy affordance", () => {
+    render(createPanel());
+
+    const chip = screen.getByText(/RT-4/);
+    expect(chip.classList.contains("id-chip")).toBe(true);
+    // Nothing to copy: the real key is Rust's to allocate, and a chip that put
+    // this one on the clipboard would be handing out a guess.
+    expect(screen.queryByRole("button", { name: /Copy/ })).toBeNull();
+  });
+
   it("offers write mode only, with no Preview tab until the ticket exists", () => {
     render(createPanel());
 
@@ -216,6 +232,21 @@ describe("nothing here claims the file exists yet", () => {
     expect(document.activeElement).toBe(field);
   });
 
+  /**
+   * D-4D (LC-119). `0/0` before a first item is a count of nothing, and worse,
+   * it reads as a ticket whose checklist is unfinished. The section keeps its
+   * heading; the fraction arrives with the row it counts.
+   */
+  it("shows no checklist fraction until there is a first item", () => {
+    render(createPanel());
+    const section = screen.getByRole("heading", { name: /Checklist/ });
+    expect(section.querySelector(".section-count")).toBeNull();
+
+    addChecklistItem("Let an agent read this ticket");
+
+    expect(section.querySelector(".section-count")?.textContent).toBe("0/1");
+  });
+
   it("has no assignee, attachment or rank affordance", () => {
     render(createPanel());
 
@@ -224,6 +255,49 @@ describe("nothing here claims the file exists yet", () => {
     expect(panel.textContent).not.toMatch(/assign/i);
     expect(panel.textContent).not.toMatch(/attach/i);
     expect(panel.textContent).not.toMatch(/rank/i);
+  });
+});
+
+describe("full create prototype parity", () => {
+  /**
+   * D-4B (LC-117). The one line telling the human what this field is *for* —
+   * and what reads it. The prototype puts it only on the create surface: an
+   * edit is opened against a description that already exists.
+   */
+  it("says what the description is for while it is still empty", () => {
+    render(createPanel());
+
+    expect(
+      screen.getByLabelText("Description").getAttribute("placeholder"),
+    ).toBe("What should happen? Agents read this before they start.");
+  });
+
+  /**
+   * D-4C (LC-118), the same fix as D-3C: the chips are the value and the
+   * dashed chip is the control. The empty row said `None` — a word reporting
+   * an absence, where the prototype puts an invitation.
+   */
+  it("offers `+ add` on the labels row, never a `None` button", () => {
+    render(createPanel());
+
+    const control = metaTrigger("Labels");
+    expect(control.textContent).toContain("add");
+    expect(control.classList.contains("addable")).toBe(true);
+    // The empty row's accessible name still says the value, because the chips
+    // beside the control are not in its name.
+    expect(control.getAttribute("aria-label")).toBe("Labels: none");
+    expect(screen.queryByRole("button", { name: "None" })).toBeNull();
+  });
+
+  it("keeps `+ add` beside the chips once labels are on", () => {
+    render(createPanel());
+    fireEvent.click(metaTrigger("Labels"));
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "Backend" }));
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+
+    // A row with chips needs the control just as much: it takes labels off too.
+    expect(metaTrigger("Labels").textContent).toContain("add");
+    expect(screen.getByText("Backend")).toBeTruthy();
   });
 });
 

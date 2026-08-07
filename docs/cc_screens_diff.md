@@ -303,7 +303,7 @@ Width (620px) and vertical offset (12vh) both match.
 | ID | Sev | Prototype | App | Plan |
 |---|---|---|---|---|
 | ~~D-47~~ | P2 | Title input is borderless, 15px | A bordered ~13px input with placeholder `Ticket title` | **Fixed 2026-08-07 (LC-113).** `.quick-create-title` is borderless, unpadded, backgroundless, and 15px; `quick-create-guard.mjs` now keeps that CSS contract in the gate. |
-| D-48 | P2 | Context line carries the project's theme dot before the name | `longclaw · LC-137`, no dot | Add the dot (the sidebar already renders one). |
+| ~~D-48~~ | P2 | Context line carries the project's theme dot before the name | `longclaw · LC-137`, no dot | **Fixed 2026-08-07 (LC-114).** The sidebar's `ThemeDot` leads the context line, carrying `data-theme` *and* `data-appearance` — one alone matches no token block and silently draws the accent in force, which looks like working until two projects differ. `.quick-create-context` is a flex row, because a 6px circle on the label type's baseline rides high of the letters beside it. |
 | ~~D-49~~ | P3 | Status trigger is a bare `○ Todo >` with a chevron | A bordered pill `○ Todo`, no chevron | **Fixed 2026-08-07 (LC-115).** The prototype cell wins over the misleading original plan wording: quick create uses the shared `MenuButton` semantics and D-3B chevron, but removes the local trigger border, padding, and background. `quick-create-guard.mjs` pins the bare quick-create treatment. |
 
 ---
@@ -321,10 +321,10 @@ so `Create ticket` is reachable without scrolling a long draft
 
 | ID | Sev | Prototype | App | Plan |
 |---|---|---|---|---|
-| D-4A | P2 | `LC-137 · new` in a chip | `LC-1 · new` as plain text — **and the number was wrong** when the panel was opened while the project was in the unreachable state (see D-57); it read `LC-1` for a project whose keys run LC-101…LC-136 | Chip the provisional ID; and make sure key allocation is not reachable from a state where the index is empty (D-57 fixes the cause). |
-| D-4B | P2 | Description placeholder: "What should happen? Agents read this before they start." | No placeholder | Add it — it is the one line telling the user what this field is *for*. |
-| D-4C | P3 | Labels row shows `+ add` | Shows a `None` button | Same fix as D-3C. |
-| D-4D | P3 | No checklist counter in create mode | `0/0` | Hide the fraction until there is a first item. |
+| ~~D-4A~~ | P2 | `LC-137 · new` in a chip | `LC-1 · new` as plain text — **and the number was wrong** when the panel was opened while the project was in the unreachable state (see D-57); it read `LC-1` for a project whose keys run LC-101…LC-136 | **Fixed 2026-08-07 (LC-116).** The header wears `.id-chip`, the same chip the panel's real key wears, on a `span`: display only, no Tab stop, no copy — the key is Rust's to allocate and this one is a guess. `· new` keeps its lighter weight and drops the ink token it carried, which no theme states a contrast for against the human wash. The wrong-number half went with D-57 (LC-140): both create surfaces are gated on `project.reachable`. |
+| ~~D-4B~~ | P2 | Description placeholder: "What should happen? Agents read this before they start." | No placeholder | **Fixed 2026-08-07 (LC-117).** `DescriptionEditor` takes an optional `placeholder`; only the create panel passes one, because an edit is opened against a description that is already there. |
+| ~~D-4C~~ | P3 | Labels row shows `+ add` | Shows a `None` button | **Fixed 2026-08-07 (LC-118), by D-3C.** The create panel already imports the shared `LabelMenuButton`, so LC-104's fix reached it on the same commit. Pinned here as its own test rather than left to inference: the two surfaces sharing a component is what makes the claim true, and nothing else was checking it stayed that way. |
+| ~~D-4D~~ | P3 | No checklist counter in create mode | `0/0` | **Fixed 2026-08-07 (LC-119).** The fraction arrives with the row it counts. `0/0` is a count of nothing, and it reads as a checklist someone left unfinished. |
 
 ---
 
@@ -582,8 +582,11 @@ single stack.
     **§ 9 is closed.** Every `D-` row in it is struck.
 14. ~~**D-21**~~ — column-header `+` (done 2026-08-07, LC-83, with ~~**D-22**~~
     and ~~**D-23**~~: the board's focus ring and the `None` chip).
-15. ~~**D-47**~~ / **D-48** / ~~**D-49**~~ / **D-4A / D-4B** — create
-    surfaces.
+15. ~~**D-47**~~ / ~~**D-48**~~ / ~~**D-49**~~ / ~~**D-4A**~~ / ~~**D-4B**~~ —
+    create surfaces, closed 2026-08-07 (LC-113 → LC-119) with ~~**D-4C**~~ and
+    ~~**D-4D**~~, the two P3 rows in § 11.
+
+    **§ 10 and § 11 are closed.** Every `D-` row in both is struck.
 16. **D-60 / D-61 / D-62** — freshness attribution.
 17. **D-65** — layout and chrome polish (~~**D-72**~~ went with the settings
     modal; ~~**D-35**~~ and ~~**D-37**~~ went on 2026-08-07 with LC-93 and
