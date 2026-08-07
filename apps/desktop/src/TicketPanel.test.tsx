@@ -613,19 +613,39 @@ describe("the panel's honesty about the file", () => {
     expect(aside?.textContent).not.toMatch(/assign/i);
     expect(screen.queryByRole("button", { name: /assign/i })).toBeNull();
 
-    // The meta grid is exactly the four rows v0 has, and the agent is in none
+    // The meta grid is exactly the three rows v0 has, and the agent is in none
     // of them — it exists only inside the timeline.
     const meta = document.querySelector(".meta-grid");
     expect(
       [...(meta?.querySelectorAll(":scope > span") ?? [])].map(
         (cell) => cell.textContent,
       ),
-    ).toEqual(["Status", "Priority", "Labels", "Updated"]);
+    ).toEqual(["Status", "Priority", "Labels"]);
     expect(meta?.textContent).not.toContain("Claude Code");
     expect(screen.getByText("Claude Code").closest(".timeline")).toBeTruthy();
 
     // And the avatars that are correct are still there.
     expect(document.querySelectorAll(".composer .actor-tile")).toHaveLength(1);
+  });
+
+  /**
+   * LC-102. The panel used to end its meta grid with `Updated` and the ticket's
+   * `updatedAt` verbatim. A UTC string in the product's most-read surface reads
+   * as debug output, and the age it was standing in for is already in the
+   * timeline — in the app's own relative form.
+   */
+  it("shows no raw timestamp", async () => {
+    readTicketMock.mockResolvedValue(
+      detail({ activity: [humanEvent(), agentEvent()] }),
+    );
+    render(panel());
+    await ready();
+
+    const aside = document.querySelector(".ticket-panel");
+    expect(aside?.textContent).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
+
+    // The age is still on screen, as the relative time the rest of the app uses.
+    expect(document.querySelector(".timeline")?.textContent).toContain("1m");
   });
 
   it("posts a comment optimistically, and puts it back if the write fails", async () => {

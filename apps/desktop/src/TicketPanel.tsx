@@ -789,8 +789,6 @@ export function TicketPanel(props: TicketPanelProps) {
                 );
               }}
             />
-            <span>Updated</span>
-            <code>{ticket.updatedAt}</code>
           </div>
 
           <section className="panel-section description-block">
