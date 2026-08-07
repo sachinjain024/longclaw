@@ -21,6 +21,12 @@ interface QuickCreateProps {
   projectName: string;
   /** The key the create is about to be given, read off the rows on screen. */
   provisionalKey: string;
+  /**
+   * The status the modal opens on — "defaults Todo; preseeded when opened from
+   * a column `+`" (`screen-specs.md:222`). A board column's `+` chooses it, so
+   * the create starts in the column it was pressed in.
+   */
+  initialStatus?: TicketStatus;
   onCancel: () => void;
   /** Fires and forgets: the create is optimistic, so the modal never waits. */
   onCreate: (request: Omit<CreateTicketRequest, "projectId">) => void;
@@ -30,7 +36,9 @@ interface QuickCreateProps {
 
 export function QuickCreate(props: QuickCreateProps) {
   const [title, setTitle] = useState("");
-  const [status, setStatus] = useState<TicketStatus>("todo");
+  const [status, setStatus] = useState<TicketStatus>(
+    props.initialStatus ?? "todo",
+  );
 
   return (
     <div className="modal-scrim" role="presentation">

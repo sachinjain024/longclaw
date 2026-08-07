@@ -185,6 +185,11 @@ export function App() {
    * what has been typed rather than throwing it away.
    */
   const [createSurface, setCreateSurface] = useState<"quick" | "full">();
+  /**
+   * What the create surface opens with: what quick create had typed when
+   * **Open full editor →** moved between the two, and the status a board
+   * column's `+` preseeds. Cleared whenever create closes, either way.
+   */
   const [carriedDraft, setCarriedDraft] = useState<{
     title: string;
     status: TicketStatus;
@@ -1346,6 +1351,13 @@ export function App() {
                         onChangePriority={changePriority}
                         onChangeStatus={changeStatus}
                         onReorder={reorderTicket}
+                        // A column's `+` is the same quick create `C` opens,
+                        // arriving with the column it was pressed in already
+                        // chosen (`keyboard-focus-map.md:44`).
+                        onCreateInStatus={(status) => {
+                          setCarriedDraft({ title: "", status });
+                          setCreateSurface("quick");
+                        }}
                       />
                     ) : (
                       // Both surfaces are projections of the same store state
@@ -1408,6 +1420,7 @@ export function App() {
         <QuickCreate
           projectName={project.name}
           provisionalKey={nextKey}
+          initialStatus={carriedDraft?.status}
           onCancel={closeCreateSurface}
           onCreate={submitNewTicket}
           onOpenFullEditor={(draft) => {
