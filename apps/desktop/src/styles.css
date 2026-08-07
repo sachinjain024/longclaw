@@ -1674,14 +1674,6 @@ button:disabled {
   justify-self: start;
 }
 
-.meta-grid code {
-  overflow: hidden;
-  color: var(--lc-ink-3);
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .panel-section {
   border-top: 1px solid var(--lc-line);
   padding-top: var(--lc-space-4);

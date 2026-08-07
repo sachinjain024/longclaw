@@ -844,8 +844,13 @@ export function TicketPanel(props: TicketPanelProps) {
                 );
               }}
             />
-            <span>Updated</span>
-            <code>{ticket.updatedAt}</code>
+            {/* Status, Priority, Labels, and nothing else
+                (`screen-specs.md:172-176`). There was an `Updated` row here
+                carrying the frontmatter's own `2026-08-05T17:20:00Z` — a raw
+                UTC string, in the surface a person reads most, saying in
+                machine spelling what the timeline below it already says in
+                words and what every card and row says as relative time
+                (D-3A). */}
           </div>
 
           <section className="panel-section description-block">

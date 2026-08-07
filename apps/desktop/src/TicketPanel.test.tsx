@@ -669,19 +669,35 @@ describe("the panel's honesty about the file", () => {
     expect(aside?.textContent).not.toMatch(/assign/i);
     expect(screen.queryByRole("button", { name: /assign/i })).toBeNull();
 
-    // The meta grid is exactly the four rows v0 has, and the agent is in none
+    // The meta grid is exactly the three rows v0 has, and the agent is in none
     // of them — it exists only inside the timeline.
     const meta = document.querySelector(".meta-grid");
     expect(
       [...(meta?.querySelectorAll(":scope > span") ?? [])].map(
         (cell) => cell.textContent,
       ),
-    ).toEqual(["Status", "Priority", "Labels", "Updated"]);
+    ).toEqual(["Status", "Priority", "Labels"]);
     expect(meta?.textContent).not.toContain("Claude Code");
     expect(screen.getByText("Claude Code").closest(".timeline")).toBeTruthy();
 
     // And the avatars that are correct are still there.
     expect(document.querySelectorAll(".composer .actor-tile")).toHaveLength(1);
+  });
+
+  /**
+   * D-3A. The panel is the surface a person reads most, and it carried the
+   * frontmatter's `updated_at` verbatim. A raw UTC string there reads as debug
+   * output, and it said in machine spelling what the timeline under it already
+   * says in words.
+   */
+  it("D-3A: shows no raw ISO timestamp anywhere in the panel", async () => {
+    readTicketMock.mockResolvedValue(detail());
+    render(panel());
+    await ready();
+
+    const aside = document.querySelector(".ticket-panel");
+    expect(aside?.textContent).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
+    expect(aside?.textContent).not.toContain("Updated");
   });
 
   it("posts a comment optimistically, and puts it back if the write fails", async () => {
