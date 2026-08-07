@@ -32,7 +32,10 @@
 import { readPreferences, writePreferences } from "./api";
 import { isOrderingMode, type OrderingMode } from "./ordering";
 import { useLongClawStore, type Appearance } from "./state";
-import { webviewPreferences } from "./webviewPreferences";
+import {
+  forgetWebviewPreferences,
+  webviewPreferences,
+} from "./webviewPreferences";
 
 export type ViewMode = "board" | "list";
 export type ProjectWorkspace = {
@@ -139,23 +142,31 @@ function serialized(): Record<string, unknown> {
 let writing = false;
 let owed = false;
 
+/** One write, awaited. `true` if the document reached the backend. */
+async function write(): Promise<boolean> {
+  writing = true;
+  try {
+    await writePreferences(serialized());
+    return true;
+  } catch {
+    // The choice still works for this session. A failure to persist is not a
+    // failure to apply, and there is no surface here to report it on.
+    return false;
+  } finally {
+    writing = false;
+    if (owed) {
+      owed = false;
+      flush();
+    }
+  }
+}
+
 function flush() {
   if (writing) {
     owed = true;
     return;
   }
-  writing = true;
-  void writePreferences(serialized())
-    .catch(() => {
-      // The choice still works for this session. A failure to persist is not a
-      // failure to apply, and there is no surface here to report it on.
-    })
-    .finally(() => {
-      writing = false;
-      if (!owed) return;
-      owed = false;
-      flush();
-    });
+  void write();
 }
 
 /**
@@ -184,12 +195,22 @@ export async function restoreDevicePreferences(): Promise<void> {
   }
   const adopted = adopt(stored);
   if (isEmpty(adopted)) {
-    // Nothing on disk yet. Whatever the last build left in webview storage is
-    // the only copy of these choices there is, so it is adopted once and
-    // written where it will survive (`webviewPreferences.ts`).
+    // Nothing this build recognises on disk. Whatever the last build left in
+    // webview storage is the only copy of these choices there is, so it is
+    // carried across and written where it will survive.
+    //
+    // **Once, and then the old keys go.** A document can be empty because it
+    // was emptied — deleting it is the supported way to start over, and the
+    // user guide says so — and a migration that ran on every empty document
+    // would hand those choices back every time, which is a reset that does not
+    // stay reset. Consuming the keys is also the honest end of the migration:
+    // nothing writes there any more, so a value left behind is one nobody will
+    // ever update again. They are only taken away once the write has landed —
+    // on a host with no backend, storage that cannot be replaced must not be
+    // emptied either (`webviewPreferences.ts`).
     const carried = adopt(webviewPreferences());
     held = carried;
-    if (!isEmpty(carried)) flush();
+    if (!isEmpty(carried) && (await write())) forgetWebviewPreferences();
   } else {
     held = adopted;
   }

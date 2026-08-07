@@ -94,3 +94,37 @@ export function webviewPreferences(): Record<string, unknown> {
   }
   return document;
 }
+
+/**
+ * Takes the old keys away, once what they held has been written somewhere that
+ * survives.
+ *
+ * This is what makes the migration a migration rather than a fallback. An empty
+ * document is not only "never written" — it is also "emptied", which is the
+ * supported way to start over (`user-guide.md`), and a read that ran every time
+ * would hand the old choices back on the next launch. Consuming the keys is
+ * also what the abandonment means: nothing writes here any more, so a value
+ * left behind is one no later choice will ever correct.
+ *
+ * The cost is a downgrade: a build older than LC-150 installed over this one
+ * would find its storage empty and come up on the defaults. That is the trade
+ * ADR 0012 takes — the alternative is stale values that outlive every later
+ * change to them.
+ */
+export function forgetWebviewPreferences() {
+  const storage = store();
+  if (!storage) return;
+  for (const key of [
+    APPEARANCE_KEY,
+    ACTIVE_PROJECT_KEY,
+    PROJECT_WORKSPACES_KEY,
+    LEGACY_ORDERING_KEY,
+  ]) {
+    try {
+      storage.removeItem(key);
+    } catch {
+      // Refused. The document is already written; a key left behind is read
+      // once more on the next launch and written over the same values.
+    }
+  }
+}

@@ -79,3 +79,21 @@ What decided it was the asymmetry. `localStorage` is unreadable to the suite as 
 
 The new mechanism *was* checked on the bundle, which is the claim that has to hold from here: with two projects registered, a remembered second project comes up as the second project, and a remembered `light` survives the quit — with a control launch (no document) proving the file records which project actually opened, by writing the first one.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_24e65893
+kind: comment
+occurred_at: 2026-08-07T13:20:58.901Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Review follow-up: the migration off webview storage now consumes the old keys once what they held has been written to the file.
+
+It did not, and that broke the reset path this change documents. A document can be empty because somebody emptied it — deleting the file is the supported way to start over (`user-guide.md`) — and adoption keyed on 'the document is empty' handed the old choices straight back on the next launch. Now the four legacy keys are removed after the carrying write lands, so the migration happens once and a reset stays reset. Only after it lands: a host that refuses the write must not also be the host that empties the only copy. Both are tests.
+
+The trade is a downgrade — a build older than LC-150 installed over this one finds its storage empty and comes up on the defaults — and it is the right way round, since the alternative is stale values that outlive every later change to them.
+<!-- /longclaw:event -->

@@ -76,3 +76,19 @@ Two `absolute` rules were claims, and both were losing: the board's and the list
 
 `perf:board` and `perf:list` re-run in WebKit after the change: board ArrowDown p95 15ms, scroll 18ms, filter 28ms; list 16 / 18 / 22ms — every p95 well inside the 50ms budget, so the two new stacking contexts cost the scrollers nothing.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_877dddf4
+kind: comment
+occurred_at: 2026-08-07T13:20:43.606Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Review follow-up, on the one word of this checklist the sweep did not deliver: **workspace**. D-74 asked for `--lc-z-*` tokens named 'workspace / sticky / panel / modal / toast', and there is still no workspace layer. That is deliberate and inherited rather than overlooked — LC-96 recorded it in the comment above when it built the scale, and the reason is load-bearing: the workspace is an ancestor of the board and the list, `Menu.tsx` renders its popover inline rather than through a portal, and a layer on that ancestor makes it a stacking context that traps a menu opened from a card underneath the ticket panel. The token would create the defect the scale exists to prevent.
+
+So the item is ticked against four of the five names plus `popover` and `drag`, which the app has and D-74 did not name, and the omission is stated beside the scale in `design-tokens.json` rather than left to be rediscovered. If the popover ever moves to a portal, a workspace layer becomes possible and worth revisiting.
+<!-- /longclaw:event -->

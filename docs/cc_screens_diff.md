@@ -508,7 +508,7 @@ single stack.
 
 | ID | Sev | Finding | Plan |
 |---|---|---|---|
-| ~~D-70~~ | P1 | **Appearance preference is not restored on relaunch.** Set to Light, quit, relaunch → the control reads `System` again. It is written to `localStorage` under `longclaw.appearance` (`App.tsx:79`, `:491`) | **Fixed 2026-08-07 (LC-150) — but not by confirming this row's cause, which is still unknown.** The packaged relaunch was run for the *new* file rather than the old store (see the follow-up note at the end of this document), and what it turned up cuts against the theory here: webview storage survived the process on that machine, as `8578f73` also reported the same day. What the fix rests on is that the question was never cheap to ask — `localStorage` is unreadable to the suite too (LC-161) — so a preference living there produces findings nobody can close without a manual pass. So none of these are in webview storage any more — appearance, the open project and every project's workspace are one document in `device-preferences.json`, beside the project registry, written through the same atomic seam every other file this app owns is. [ADR 0012](adr/0012-device-preferences-are-a-file-rust-owns.md) records it and supersedes the sentence in ADR 0006 that allowed the old home. A relaunch is now something a test can perform — a second `PreferencesStore::load`, or the frontend forgetting what it holds and reading the document again — which is what the old storage could never be asked (LC-161). |
+| ~~D-70~~ | P1 | **Appearance preference is not restored on relaunch.** Set to Light, quit, relaunch → the control reads `System` again. It is written to `localStorage` under `longclaw.appearance` (`App.tsx:79`, `:491`) | **Fixed 2026-08-07 (LC-150) — struck for the symptom only.** This is the one row here whose two halves have different answers: the preference survives a relaunch now, checked on the bundle, while *why it did not before* is unexplained and is the open follow-up at the end of this document. The packaged check cuts against the theory in this cell — webview storage survived the process on that machine, as `8578f73` also reported the same day — so the fix does not rest on a diagnosis. It rests on the question never having been cheap to ask: `localStorage` is unreadable to the suite too (LC-161), so a preference living there produces findings nobody can close without a manual pass. So none of these are in webview storage any more — appearance, the open project and every project's workspace are one document in `device-preferences.json`, beside the project registry, written through the same atomic seam every other file this app owns is. [ADR 0012](adr/0012-device-preferences-are-a-file-rust-owns.md) records it and supersedes the sentence in ADR 0006 that allowed the old home. A relaunch is now something a test can perform — a second `PreferencesStore::load`, or the frontend forgetting what it holds and reading the document again — which is what the old storage could never be asked (LC-161). |
 | ~~D-71~~ | P2 | **The open project is not restored on relaunch** — it always falls back to the first registry entry | **Fixed 2026-08-07 (LC-151), with D-70.** This row's cause is on the record and is not a storage failure: `8578f73` diagnosed it as never persisted at all — `activeProjectId` lived only in the in-memory store — and LC-49 built the persistence the day after this row was written. What LC-151 adds is that the value it reads now outlives the process by construction, and that a relaunch with two projects registered is something the suite performs. Still an opaque hint and not a second project reference — the registry is asked whether the id is real and reachable before anything is opened, which is the condition ADR 0006 attached to it and ADR 0012 keeps. |
 | ~~D-72~~ | P2 | Native `<select>` elements appear in two places (sidebar appearance, settings label colours) | **Fixed 2026-08-07 (LC-127 / LC-130).** Both are gone: the sidebar's went with LC-72 and the appearance segment replaces it, and the label colours are swatches. The app renders no `<select>` anywhere. |
 | ~~D-73~~ | P2 | Native textarea **resize grabbers** are visible on the panel title, the comment composer, and the create-mode title | **Fixed 2026-08-07 (LC-153),** the last of the three. The panel's title and composer lost the handle and grew a `useAutoGrow` with LC-108 and LC-107; the create-mode title wears the same `.panel-title` rule, so it had lost the handle *without* the auto-grow — `resize: none` over `overflow: hidden`, which is the half of the pair that clips a long title silently. The hook is `autoGrow.ts` now rather than a private function in `TicketPanel`, and `field-guard.mjs` counts a call per field in both components. The description editor keeps its handle, as the spec says. |
@@ -608,18 +608,21 @@ single stack.
 
 - ~~**§18 conflict banner**~~ — filed 2026-08-07 as **LC-169**. Built but
   unexercised here; the walk against `states.md:154-182` is that ticket.
-- **D-70** — **the cause is still unexplained, and the row stays open for it
-  (2026-08-07).** The packaged relaunch was run against the bundle, but for the
+- **Why the appearance override came back as `System`** (the cause behind
+  **D-70**, whose row is struck for the symptom) — **still unexplained,
+  2026-08-07.** The packaged relaunch was run against the bundle, but for the
   *new* file rather than the old store: a remembered project and a remembered
   appearance both survive a quit, with a control launch proving the file records
   which project actually opened
   ([ADR 0012](adr/0012-device-preferences-are-a-file-rust-owns.md) § What was
-  checked). That check turned up evidence *against* this row's own theory —
-  the old `localStorage` value was still readable to the bundle across a
-  redirected `HOME`, so webview storage does survive the process on this
-  machine, which is also what `8578f73` reported the same day this row was
-  written. Why the control read `System` again is therefore not known. It is no
-  longer costly: the preference it was losing is somewhere the suite can watch.
+  checked). That check turned up evidence *against* D-70's own theory — the old
+  `localStorage` value was still readable to the bundle across a redirected
+  `HOME`, so webview storage does survive the process on this machine, which is
+  also what `8578f73` reported the same day the row was written. So the
+  behaviour the operator saw is real and unexplained, and neither this line nor
+  ADR 0012 claims to have explained it. What has changed is the price of
+  finding out: the preference is somewhere the suite can watch, so whoever picks
+  this up is chasing a cause rather than a lost setting.
 
 **Every row in this document is now ticketed.** The `D-` rows became LC-67…LC-154
 on 2026-08-05; the two prose findings above became LC-168 and LC-169 on

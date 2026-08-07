@@ -202,6 +202,48 @@ describe("the choices the last build left in webview storage", () => {
     expect(readAppearance()).toBe("dark");
     expect(api.writePreferences).not.toHaveBeenCalled();
   });
+
+  /**
+   * A document can be empty because somebody emptied it: deleting the file is
+   * the supported way to start over, and the user guide says so. A migration
+   * that ran on every empty document would hand the old choices back on the
+   * next launch, which is a reset that does not stay reset.
+   */
+  it("consumes the old keys, so starting over stays started over", async () => {
+    localStorage.setItem("longclaw.appearance", "light");
+    localStorage.setItem("longclaw.activeProject", "project-b");
+
+    await restoreDevicePreferences();
+    await landed({
+      appearance: "light",
+      activeProjectId: "project-b",
+      projectWorkspaces: {},
+    });
+    expect(localStorage.getItem("longclaw.appearance")).toBeNull();
+    expect(localStorage.getItem("longclaw.activeProject")).toBeNull();
+
+    // The whole file, deleted, the way the user guide describes.
+    disk = undefined;
+    await relaunch();
+
+    expect(readAppearance()).toBeUndefined();
+    expect(readActiveProjectId()).toBeUndefined();
+  });
+
+  /**
+   * The other half of that: keys are consumed only once what they held is
+   * somewhere else. A host that refuses the write must not also be a host that
+   * empties the only copy.
+   */
+  it("keeps them where the write they were carried into was refused", async () => {
+    vi.mocked(api.writePreferences).mockRejectedValue(new Error("no backend"));
+    localStorage.setItem("longclaw.appearance", "light");
+
+    await restoreDevicePreferences();
+
+    expect(api.writePreferences).toHaveBeenCalled();
+    expect(localStorage.getItem("longclaw.appearance")).toBe("light");
+  });
 });
 
 describe("writes", () => {
