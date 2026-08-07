@@ -74,3 +74,17 @@ changes:
 
 The echoed query sits inside the prototype's curly pair (`prototype.js:571`), so a query that is whitespace — or wearing it — is still visible as what was asked. The test types `"  zzzz  "` and reads the quotes back.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_a3c94eea
+kind: comment
+occurred_at: 2026-08-07T06:04:32.998Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Review follow-up: the quotes moved out of the `<code>`. Inside it they were typeset in the mono slot at 12px, which is the query's treatment being lent to the sentence's punctuation; the prototype has no code element at all and quotes in body text. `Nothing here matches “<code>{query}</code>”.` — the mono slot holds the echo, the sentence keeps its own marks. The wording keeps its *here*: the row's Plan asks for the quotes, and *here* is the word that says the filter narrows the surface in front of you rather than the project.
+<!-- /longclaw:event -->

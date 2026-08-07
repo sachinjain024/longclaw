@@ -712,6 +712,17 @@ button:disabled {
   flex-direction: column;
 }
 
+/* A surface with nothing in it still has padding, and 28px of it under the
+   panel is 14px of skew in what is supposed to be a centred state. The
+   surfaces stay mounted — they keep their roving focus and their scroll
+   position across a query that matches nothing, and they are what draws the
+   unreadable rows the filter never hides — so the empty case is taken here,
+   where `:empty` is exactly "this surface drew nothing". */
+.workspace-state > .board-grid:empty,
+.workspace-state > .issue-list:empty {
+  display: none;
+}
+
 /* Dev builds only (devChrome.ts): its own box, because the workspace it sits
    in has none — deliberately harness chrome, not the app's language. */
 .trace-strip {

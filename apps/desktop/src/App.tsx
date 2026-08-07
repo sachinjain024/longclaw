@@ -296,6 +296,14 @@ export function App() {
   const unreadableShown = noMatches
     ? visibleTickets.filter((row) => row.state === "degraded").length
     : 0;
+  /**
+   * Whether the panel is the thing on screen. One expression, because two — the
+   * panel's own condition and the workspace class that centres it — would be
+   * two places to keep in agreement about the same state. A project with no
+   * tickets at all is the empty-project state whatever is in the field, and it
+   * has its own panel.
+   */
+  const showNoMatches = noMatches && tickets.length > 0;
 
   /**
    * The key the next create will probably claim, shown by both create surfaces
@@ -1298,7 +1306,9 @@ export function App() {
                           heuristics read when they ignore it, and the two
                           text-assist attributes are the same class of unasked-
                           for help over a query that is a substring, not prose.
-                          The prototype's field carries the same (prototype.js:496). */}
+                          The prototype's field carries two of the four
+                          (`prototype.js:496`); a WebKit that ignores the
+                          request is why the other two are here. */}
                       <input
                         ref={filterField}
                         className="filter-field"
@@ -1369,7 +1379,7 @@ export function App() {
               <section
                 className={classes(
                   "workspace",
-                  tickets.length > 0 && noMatches && "workspace-state",
+                  showNoMatches && "workspace-state",
                 )}
               >
                 {DEV_CHROME && (
@@ -1403,7 +1413,7 @@ export function App() {
                   />
                 ) : (
                   <>
-                    {noMatches && (
+                    {showNoMatches && (
                       <NoMatches
                         query={filterQuery}
                         unreadable={unreadableShown}
@@ -1850,9 +1860,11 @@ function NoMatches(props: {
       {/* Quoted, because an unquoted echo of a query that is mostly whitespace
           — or all of it — reads as a sentence with a hole in it, and the one
           thing this panel owes the human is what was asked (LC-92). The curly
-          pair is the prototype's (prototype.js:571). */}
+          pair is the prototype's (`prototype.js:571`) and sits in the sentence
+          rather than inside the `<code>`: the mono slot holds the query, and
+          the quotes are the sentence's own punctuation around it. */}
       <p>
-        Nothing here matches <code>“{props.query}”</code>.
+        Nothing here matches “<code>{props.query}</code>”.
       </p>
       {props.unreadable > 0 && (
         <p>

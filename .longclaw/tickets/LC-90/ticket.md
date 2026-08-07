@@ -74,3 +74,17 @@ changes:
 
 The field turns four things off, not one: `autoComplete="off"` is the request, `name="longclaw-filter"` is what WebKit's heuristics read when they decline it — no saved-value store has a value for that name — and `autoCorrect`/`spellCheck` are the same class of unasked-for help over a query that is a substring, not prose. The prototype's field already carried the pair (`prototype.js:496`).
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_905281aa
+kind: comment
+occurred_at: 2026-08-07T06:04:32.971Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Review follow-up: the comment on the field claimed the prototype carried all four attributes. It carries two (`autocomplete`, `spellcheck`); the other two are here because a WebKit that ignores the request reads a `name`. The code says that now.
+<!-- /longclaw:event -->

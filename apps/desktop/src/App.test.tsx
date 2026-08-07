@@ -2960,9 +2960,26 @@ describe("the header filter (V0-15)", () => {
 
     // The prototype's state panel is centred in the board region with no
     // container of its own (prototype.css § state-panel); the frame it wore
-    // here spanned the content width and sat at the top.
-    expect(document.querySelector(".workspace.workspace-state")).toBeTruthy();
-    expect(noMatch().className).toContain("no-matches");
+    // here spanned the content width and sat at the top. This is the half a
+    // test can hold: the workspace becomes the column the panel is centred in,
+    // and the panel is what stands in it. The declarations themselves are
+    // `scripts/state-panel-guard.mjs` — jsdom loads no stylesheet, so a
+    // returning frame is invisible from here.
+    const workspace = document.querySelector(".workspace.workspace-state");
+    expect(workspace).toBeTruthy();
+    expect(workspace?.contains(noMatch())).toBe(true);
+  });
+
+  it("keeps the empty-project state out of the centred column (LC-91)", async () => {
+    // A project with no tickets is the empty-project state whatever is in the
+    // field, and `EmptyBoard` keeps its own frame: the class that centres a
+    // state panel must not follow the query into it.
+    await openBoard([]);
+
+    type("nothing here");
+
+    expect(document.querySelector(".workspace.workspace-state")).toBeNull();
+    expect(screen.queryByRole("status", { name: "No matches" })).toBeNull();
   });
 
   it("quotes the echoed query so an empty-looking one is visible (LC-92)", async () => {
