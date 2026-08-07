@@ -1717,8 +1717,7 @@ button:disabled {
 
 .description-editor textarea,
 .composer textarea,
-/* The field, not the ghost box beside it, which is sized to a checkbox. */
-.checklist-add input:not([type="checkbox"]),
+.checklist-add-field,
 .panel-title {
   width: 100%;
 }
@@ -1980,12 +1979,23 @@ button:disabled {
   accent-color: var(--lc-accent-human);
 }
 
-/* Settled and done: `ink-3` with a line through it (`components.md:192`). The
-   list is the human→agent work interface, and the strike is what lets a glance
-   read the remaining work rather than counting boxes. */
+/* Settled and done: an `ink-3` box and `ink-3` text with a line through it
+   (`components.md:192`, `prototype.js:131`). The list is the human→agent work
+   interface, and the pair is what lets a glance read the remaining work rather
+   than counting boxes.
+
+   The box is deliberately *not* the human accent. `components.md:191-193`
+   spends colour on one distinction only — the row an agent ticked while the
+   human was looking at it — and a settled tick that kept the accent would put
+   the same weight on every done row and leave the acknowledgement nothing to
+   stand out against. */
 .checklist-row.checked label {
   color: var(--lc-ink-3);
   text-decoration: line-through;
+}
+
+.checklist-row.checked input {
+  accent-color: var(--lc-ink-3);
 }
 
 /* A row an external write just ticked, until the ticket settles. */
@@ -2024,14 +2034,14 @@ button:disabled {
 
 /* Drawn, never offered. Half opacity is what separates it from an item that
    exists and happens to be unticked (`prototype.js:740`). */
-.checklist-add .ghost-box {
+.ghost-box {
   width: var(--lc-size-checkbox);
   height: var(--lc-size-checkbox);
   flex: none;
   opacity: 0.5;
 }
 
-.checklist-add input:not([type="checkbox"]) {
+.checklist-add-field {
   height: var(--lc-size-control-sm);
   border: 1px solid transparent;
   border-radius: var(--lc-radius-control);
@@ -2041,12 +2051,12 @@ button:disabled {
   font-size: var(--lc-type-ui-size);
 }
 
-.checklist-add input:not([type="checkbox"]):hover {
+.checklist-add-field:hover {
   background: var(--lc-wash);
 }
 
 /* Focus is the one state that draws a field, because that is when it is one. */
-.checklist-add input:not([type="checkbox"]):focus {
+.checklist-add-field:focus {
   border-color: var(--lc-accent-human);
   background: var(--lc-surface);
 }

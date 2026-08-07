@@ -23,6 +23,7 @@ import { ConflictBanner } from "./ConflictBanner";
 import { DescriptionEditor } from "./DescriptionEditor";
 import { normalizeError } from "./errors";
 import type { ExternalMark } from "./freshness";
+import { GhostBox } from "./GhostBox";
 import { acknowledgement, freshlyChecked } from "./freshness";
 import { singleKeyShortcutAllowed } from "./keyContext";
 import { LabelMenuButton } from "./LabelMenu";
@@ -146,12 +147,23 @@ function useAutoGrow(value: string) {
   useEffect(() => {
     const element = field.current;
     if (!element) return;
-    element.style.height = "auto";
-    // jsdom has no layout, so `scrollHeight` is 0 under test. Pinning the field
-    // to nothing would be worse than leaving the stylesheet to size it.
-    if (element.scrollHeight > 0) {
-      element.style.height = `${element.scrollHeight}px`;
-    }
+    const fit = () => {
+      element.style.height = "auto";
+      // jsdom has no layout, so `scrollHeight` is 0 under test. Pinning the
+      // field to nothing would be worse than leaving the stylesheet to size it.
+      if (element.scrollHeight > 0) {
+        element.style.height = `${element.scrollHeight}px`;
+      }
+    };
+    fit();
+    // The text is not the only thing that decides how tall it has to be: the
+    // panel is a percentage of the window, so narrowing the window rewraps the
+    // same characters onto more lines. Without this the height stays where the
+    // last keystroke left it — and `.panel-title` hides its overflow, so the
+    // title would clip silently, which is the failure taking the resize
+    // grabber away was supposed to make impossible.
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
   }, [value]);
   return field;
 }
@@ -969,22 +981,9 @@ export function TicketPanel(props: TicketPanelProps) {
                 void save({ addChecklistItems: [text] });
               }}
             >
-              {/* The next row's box, drawn but not offered (LC-106). It is what
-                  makes the field read as the row after the list rather than a
-                  form under it, and it is a real checkbox so it is the same
-                  shape and size as the boxes above. Disabled, so it is neither
-                  a Tab stop nor something to tick, and hidden from assistive
-                  technology, which has the field's own name to go on. */}
+              <GhostBox />
               <input
-                type="checkbox"
-                className="ghost-box"
-                checked={false}
-                disabled
-                readOnly
-                aria-hidden="true"
-                tabIndex={-1}
-              />
-              <input
+                className="checklist-add-field"
                 value={newItem}
                 placeholder="Add a checklist item"
                 aria-label="Add a checklist item"
@@ -1055,7 +1054,11 @@ export function TicketPanel(props: TicketPanelProps) {
                 // the stylesheet caps it, because the panel scrolls and a long
                 // comment should not push the timeline off screen entirely.
                 rows={1}
-                placeholder="Comment"
+                // The shortcut is named where it is used, because the button
+                // that used to stand for the action is no longer on screen
+                // until there is text to post (`prototype.js:752` carries the
+                // same hint for the same reason).
+                placeholder="Leave a comment… ⌘↵ to post"
                 aria-label="Comment"
                 onChange={(event) => setCommentDraft(event.target.value)}
                 onKeyDown={(event) => {

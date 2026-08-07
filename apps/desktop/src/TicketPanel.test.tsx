@@ -1604,7 +1604,7 @@ describe("the panel's fields read as the record, not as a form", () => {
     expect(sectionCount("Activity")).toBe("3");
   });
 
-  it("marks a settled tick, and holds the mark off a fresh one (LC-110)", async () => {
+  it("strikes a settled tick through, and leaves an acknowledged one alone (LC-110)", async () => {
     const opened = [
       { id: "ck_1", text: "Let an agent read this ticket", checked: true },
       { id: "ck_2", text: "Review what it changed", checked: false },

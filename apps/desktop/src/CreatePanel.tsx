@@ -24,6 +24,7 @@
 import { useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { DescriptionEditor } from "./DescriptionEditor";
+import { GhostBox } from "./GhostBox";
 import { LabelMenuButton } from "./LabelMenu";
 import { MenuButton } from "./Menu";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "./metaOptions";
@@ -203,21 +204,12 @@ export function CreatePanel(props: CreatePanelProps) {
             setNewItem("");
           }}
         >
-          {/* The same ghost box the ticket panel's add-row carries (LC-106),
-              and for the same reason: the create surface's add-row is the row
-              after the list here too (`prototype.js:895-897`). Without it the
-              borderless field would sit a checkbox's width out of line with
-              the rows above it. */}
+          {/* The create surface's add-row is the list's next row here too
+              (`prototype.js:895-897`); without the box its borderless field
+              would sit a checkbox's width out of line with the rows above. */}
+          <GhostBox />
           <input
-            type="checkbox"
-            className="ghost-box"
-            checked={false}
-            disabled
-            readOnly
-            aria-hidden="true"
-            tabIndex={-1}
-          />
-          <input
+            className="checklist-add-field"
             ref={addItem}
             value={newItem}
             placeholder="Add a checklist item"
