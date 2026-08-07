@@ -31,21 +31,45 @@ export async function chooseAndRegisterProject(): Promise<ProjectReference | nul
   return invoke("register_project", { rootPath: selected });
 }
 
+/**
+ * The native folder picker on its own, answering with a path and creating
+ * nothing.
+ *
+ * First launch asks the folder before it asks anything else
+ * (`screen-specs.md:97-106`, D-11): the create form shows the chosen path back
+ * (D-13), which it cannot do while the picker is the last step rather than the
+ * first. `null` is a cancelled picker — a normal answer, not a failure.
+ */
+export async function chooseProjectFolder(): Promise<string | null> {
+  return open({
+    directory: true,
+    multiple: false,
+    title: "Create a LongClaw project",
+  });
+}
+
+export async function createProjectInFolder(
+  rootPath: string,
+  request: { name: string; key: string; theme: string },
+): Promise<ProjectReference> {
+  return invoke("create_project", {
+    request: { rootPath, ...request },
+  });
+}
+
+/**
+ * Form first, folder second — the order the sidebar's quick create still runs
+ * in, because a 240px panel has no room for a second step and the folder it
+ * picks is the last thing it needs.
+ */
 export async function chooseAndCreateProject(request: {
   name: string;
   key: string;
   theme: string;
 }): Promise<ProjectReference | null> {
-  const selected = await open({
-    directory: true,
-    multiple: false,
-    title: "Create a LongClaw project",
-  });
-
+  const selected = await chooseProjectFolder();
   if (!selected) return null;
-  return invoke("create_project", {
-    request: { rootPath: selected, ...request },
-  });
+  return createProjectInFolder(selected, request);
 }
 
 export async function chooseAndRelocateProject(

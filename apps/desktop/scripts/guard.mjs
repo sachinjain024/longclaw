@@ -21,6 +21,11 @@
  * shape, and reaches across languages for its second half: a `resize: none` in
  * the stylesheet is only safe while the component still auto-grows the field,
  * so it reads `TicketPanel.tsx` for the other end of the pair.
+ * `state-panel-guard.mjs` (LC-91) and `trust-line-guard.mjs` (LC-82) are the
+ * same shape again, and share a subject: a rule that is correct read alone and
+ * wrong read against its neighbours — a container coming back around a state
+ * panel, a descendant selector out-specifying the one class that decides a
+ * font. Neither is visible to the vitest suite, which loads no stylesheet.
  *
  * `src/tokens/` is the one place a literal is allowed anywhere: it is where the
  * scale is declared.

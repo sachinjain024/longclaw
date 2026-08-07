@@ -10,6 +10,8 @@ import {
   chooseAndCreateProject,
   chooseAndRegisterProject,
   chooseAndRelocateProject,
+  chooseProjectFolder,
+  createProjectInFolder,
   createTicket,
   editTicket,
   homeDir,
@@ -218,6 +220,12 @@ export function App() {
     useState<TicketRow[]>();
   /** The current user's home directory, for tilde-abbreviating paths. */
   const [homePath, setHomePath] = useState<string | null>(null);
+  /**
+   * Whether the project registry has been read yet. The difference between "no
+   * projects" and "not asked yet", which is what keeps first launch's
+   * full-window welcome (D-10) from flashing over every ordinary launch.
+   */
+  const [registryRead, setRegistryRead] = useState(false);
   const paletteReturnFocus = useRef<HTMLElement | undefined>(undefined);
   const filterField = useRef<HTMLInputElement>(null);
   /** The gear the settings dialog opens from, and the focus it owes on close. */
@@ -610,6 +618,9 @@ export function App() {
         const [projects, home] = await Promise.all([listProjects(), homeDir()]);
         if (!active) return;
         setProjects(projects);
+        // Batched with the list itself, so no frame ever sees "read, and empty"
+        // before the projects arrive.
+        setRegistryRead(true);
         if (home) setHomePath(home);
         const remembered = readActiveProjectId();
         const reachable =
@@ -795,13 +806,21 @@ export function App() {
     return () => cancelAnimationFrame(frame);
   }, [activeProjectId, lastSequence, tickets]);
 
+  /**
+   * What every path that ends in a project does with it. `null` is a cancelled
+   * picker, which is an answer rather than a failure and leaves the screen
+   * where it was.
+   */
+  async function adoptProject(project: ProjectReference | null) {
+    if (!project) return;
+    upsertProject(project);
+    setQuickCreateOpen(false);
+    await loadProject(project.id);
+  }
+
   async function chooseProject() {
     try {
-      const project = await chooseAndRegisterProject();
-      if (!project) return;
-      upsertProject(project);
-      setQuickCreateOpen(false);
-      await loadProject(project.id);
+      await adoptProject(await chooseAndRegisterProject());
     } catch (error) {
       setError(normalizeError(error));
     }
@@ -809,11 +828,31 @@ export function App() {
 
   async function createProject(draft: ProjectDraft) {
     try {
-      const project = await chooseAndCreateProject(draft);
-      if (!project) return;
-      upsertProject(project);
-      setQuickCreateOpen(false);
-      await loadProject(project.id);
+      await adoptProject(await chooseAndCreateProject(draft));
+    } catch (error) {
+      setError(normalizeError(error));
+    }
+  }
+
+  /**
+   * The folder picker as first launch's opening question (D-11). The answer
+   * belongs to the screen that asked — `Welcome` holds which step it is on —
+   * so this hands it back rather than storing it, and turns a picker that
+   * threw into the app's one error surface on the way past.
+   */
+  async function chooseCreateFolder() {
+    try {
+      return await chooseProjectFolder();
+    } catch (error) {
+      setError(normalizeError(error));
+      return null;
+    }
+  }
+
+  /** Create in the folder the picker already answered with (D-11). */
+  async function createProjectIn(rootPath: string, draft: ProjectDraft) {
+    try {
+      await adoptProject(await createProjectInFolder(rootPath, draft));
     } catch (error) {
       setError(normalizeError(error));
     }
@@ -884,9 +923,7 @@ export function App() {
       // what the shell shows next, and its first control is where focus lands.
       setSettingsOpen(false);
       requestAnimationFrame(() =>
-        document
-          .querySelector<HTMLElement>(".welcome-panel .secondary")
-          ?.focus(),
+        document.querySelector<HTMLElement>(".welcome-actions button")?.focus(),
       );
     } catch (error) {
       setError(normalizeError(error));
@@ -1118,6 +1155,32 @@ export function App() {
     );
   }
 
+  /* First launch is the whole window (`screen-specs.md:88`, D-10). The shell
+     used to stay up around it: a 240px sidebar reading `No starred projects`
+     and `No local projects` beside a screen whose entire subject is that there
+     are none — the same statement twice, the second time in a form the user
+     can do nothing with. The prototype's own renderer draws the line in the
+     same place: `app.projects.length === 0 ? welcomeHTML() : shellHTML()`.
+
+     Gated on the registry having been read, not on the list alone: `projects`
+     is empty for the first frame of every launch, and without the gate every
+     returning user would see this screen flash before their board arrived. A
+     registry read that *failed* is not an empty registry, so it keeps the
+     shell — that is the one surface that can show the error and still offer
+     `Create project` and `Open folder`. */
+  if (registryRead && projects.length === 0) {
+    return (
+      <main className="welcome-shell">
+        {error && <ErrorBanner error={error} />}
+        <Welcome
+          onChooseFolder={chooseCreateFolder}
+          onCreate={(rootPath, draft) => void createProjectIn(rootPath, draft)}
+          onOpen={() => void chooseProject()}
+        />
+      </main>
+    );
+  }
+
   return (
     <main className="app-shell">
       <aside className="side-panel">
@@ -1199,24 +1262,24 @@ export function App() {
         {/* Not while the project is unreachable: that state is one centered
             panel (`states.md:80-98`), and a banner over the top of it said the
             same thing twice — the second time in registry-speak (D-59). */}
-        {error && !unreachable && (
-          <section className="error-banner" role="alert">
-            <strong>{failureTitle(error)}</strong>
-            <span>
-              {failureMessage(error)}
-              {/* The one thing the banner has room for that a toast does not. */}
-              {failurePath(error) && (
-                <code className="failure-path">{failurePath(error)}</code>
-              )}
-            </span>
-          </section>
-        )}
+        {error && !unreachable && <ErrorBanner error={error} />}
 
         {!project ? (
-          <Welcome
-            onCreate={(draft) => void createProject(draft)}
-            onOpen={() => void chooseProject()}
-          />
+          /* Projects the registry has, none of them open — what removing the
+             open one leaves behind while others remain. Nothing at all until
+             the registry *has* answered: a welcome column drawn over an unread
+             registry is a statement about projects nobody has counted, and it
+             is replaced a frame later by the board it was standing in front
+             of. */
+          registryRead && (
+            <Welcome
+              onChooseFolder={chooseCreateFolder}
+              onCreate={(rootPath, draft) =>
+                void createProjectIn(rootPath, draft)
+              }
+              onOpen={() => void chooseProject()}
+            />
+          )
         ) : (
           <>
             {/* One row, not three (`screen-specs.md:44-49`): the project's
@@ -1785,38 +1848,112 @@ function ProjectSection(props: {
   );
 }
 
+/**
+ * The app's one error surface. It hangs above whatever is below it, which is
+ * the board on most launches and the welcome screen on the first: a folder that
+ * already holds a project is refused by the create path, and the screen that
+ * asked for the folder is the screen that has to say so.
+ *
+ * The code used to be the heading here, so an ordinary read-only folder
+ * announced itself as `permission denied` (V0-29).
+ */
+function ErrorBanner(props: { error: AppError }) {
+  return (
+    <section className="error-banner" role="alert">
+      <strong>{failureTitle(props.error)}</strong>
+      <span>
+        {failureMessage(props.error)}
+        {/* The one thing the banner has room for that a toast does not. */}
+        {failurePath(props.error) && (
+          <code className="failure-path">{failurePath(props.error)}</code>
+        )}
+      </span>
+    </section>
+  );
+}
+
+/**
+ * First launch (`screen-specs.md:88-110`, `states.md:22-27`), as one centered
+ * column and two steps.
+ *
+ * It was one step in two columns: copy on the left and a create form always on
+ * the right, asking for a name and a key with nowhere to put them, because the
+ * folder picker did not run until the form was submitted (D-11). Now the folder
+ * is the first question — the picker, then the form that shows what it
+ * answered — which is what lets the form make the promise the screen exists to
+ * make (D-13).
+ *
+ * The step lives here rather than in `App` because it is not app state: it is
+ * over the moment the project exists, and unmounting this component is the only
+ * way out of it.
+ */
 function Welcome(props: {
-  onCreate: (draft: ProjectDraft) => void;
+  onChooseFolder: () => Promise<string | null>;
+  onCreate: (rootPath: string, draft: ProjectDraft) => void;
   onOpen: () => void;
 }) {
+  /** The folder the picker answered with, and therefore which step is up. */
+  const [folder, setFolder] = useState<string>();
+
+  if (folder !== undefined) {
+    return (
+      <section className="welcome-panel">
+        <div className="create-form">
+          <h2>New project</h2>
+          <CreateProjectForm
+            themes={THEMES}
+            folder={folder}
+            submitLabel="Create project"
+            onBack={() => setFolder(undefined)}
+            onSubmit={(draft) => props.onCreate(folder, draft)}
+          />
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="welcome-panel">
-      <div className="welcome-copy">
-        {/* 52px mark, display greeting, and the trust line the spec closes this
-            screen with (`screen-specs.md:69-74`). This is also the no-projects
-            state — there is no separate empty app screen and no account step
-            anywhere in the flow. */}
-        <OwlMark size={52} />
-        <h1>Plan with your agents.</h1>
-        <p>
-          LongClaw writes project data into <code>.longclaw/</code> inside the
-          folder you choose. Every ticket is a file you can read, edit, and
-          commit.
-        </p>
-        <button tabIndex={0} className="secondary" onClick={props.onOpen}>
-          Open existing folder
+      {/* 52px mark, display greeting, and the trust line the spec closes this
+          screen with (`screen-specs.md:89-94`). This is also the no-projects
+          state — there is no separate empty app screen and no account step
+          anywhere in the flow. */}
+      <OwlMark size={52} />
+      <h1>Plan with your agents.</h1>
+      {/* Value rather than mechanism, deciding D-14: the mechanism now has a
+          better place to be stated than a subtitle — the next step names the
+          folder and the `/.longclaw` inside it, in the path the user just
+          picked. What nothing else on this screen says is what the files are
+          *for*, so this says that. */}
+      <p className="welcome-subtitle">
+        Tickets live as plain files in a folder you choose — ideally inside your
+        repo. Humans plan, agents execute, and both write to the same record.
+      </p>
+      {/* Two peer buttons, create primary (D-12). The single `Open existing
+          folder` these replace left creation with no button of its own: it was
+          the submit of the form beside it, labelled `Create project in
+          folder`, which made the screen's main path the one thing on it
+          without a name. */}
+      <div className="welcome-actions">
+        <button
+          tabIndex={0}
+          className="primary"
+          onClick={() => {
+            void props.onChooseFolder().then((chosen) => {
+              // A cancelled picker leaves the screen exactly as it was.
+              if (chosen) setFolder(chosen);
+            });
+          }}
+        >
+          Create a project
         </button>
-        <p className="trust-line">
-          no account · no cloud · your files, on your disk
-        </p>
+        <button tabIndex={0} className="secondary" onClick={props.onOpen}>
+          Open a folder
+        </button>
       </div>
-
-      <CreateProjectForm
-        className="create-card"
-        themes={THEMES}
-        submitLabel="Create project in folder"
-        onSubmit={props.onCreate}
-      />
+      <p className="trust-line">
+        no account · no cloud · your files, on your disk
+      </p>
     </section>
   );
 }

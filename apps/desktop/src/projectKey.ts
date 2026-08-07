@@ -33,6 +33,20 @@ const FALLBACK_KEY = "LC";
 export const PROJECT_KEY_RULE =
   "Uppercase letters and digits, starting with a letter, such as LC.";
 
+/**
+ * What the field says while nothing is wrong (D-15). Shorter than the rule on
+ * purpose: at the create form's width the rule ran to two lines, and a hint
+ * that wraps is read as a warning about a field the user has not touched yet.
+ *
+ * The clause it drops — *starting with a letter* — is the one that actually
+ * bites, so it is not lost: `projectKeyProblem` returns the full
+ * `PROJECT_KEY_RULE` the moment a key breaks it, which is when it is worth two
+ * lines. What stays here is the half no refusal will ever explain, because a
+ * key that locks is a consequence rather than a mistake.
+ */
+export const PROJECT_KEY_HINT =
+  "Uppercase letters and digits. Locks after the first ticket.";
+
 export function isProjectKey(key: string) {
   return PROJECT_KEY.test(key);
 }

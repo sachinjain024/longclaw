@@ -18,6 +18,7 @@ import { useLongClawStore } from "./state";
 import { isArchived } from "./tickets";
 import type {
   IndexedTicket,
+  ProjectReference,
   StreamEnvelope,
   TicketDetail,
   TicketRow,
@@ -28,6 +29,8 @@ vi.mock("./api", () => ({
   chooseAndCreateProject: vi.fn(),
   chooseAndRegisterProject: vi.fn(),
   chooseAndRelocateProject: vi.fn(),
+  chooseProjectFolder: vi.fn(),
+  createProjectInFolder: vi.fn(),
   createTicket: vi.fn(),
   editTicket: vi.fn(),
   homeDir: vi.fn(),
@@ -1295,11 +1298,204 @@ describe("the header disk-state indicator (LC-69)", () => {
   });
 });
 
-describe("project creation", () => {
-  it("derives a backend-valid key for digit-leading project names", async () => {
+/**
+ * First launch, against `screen-specs.md:88-110` and `states.md:22-27`
+ * (LC-76 … LC-82).
+ *
+ * What it was: the app shell with a 240px sidebar reading `No starred
+ * projects` / `No local projects`, and a main panel split into copy on the left
+ * and a create form permanently open on the right — a form asking for a name
+ * and a key while the folder that would hold them was still unchosen, because
+ * the picker did not run until submit.
+ */
+describe("first launch (LC-76 … LC-82)", () => {
+  const created = {
+    id: "project-new",
+    name: "My Project",
+    rootPath: "/Users/dev/repo",
+    key: "MP",
+    theme: "indigo",
+    starred: false,
+    reachable: true,
+    labels: {},
+  };
+
+  /** The flow D-11 restores: welcome → folder picker → create form. */
+  async function reachCreateForm(folder = "/Users/dev/repo") {
+    vi.mocked(api.chooseProjectFolder).mockResolvedValue(folder);
+    render(<App />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Create a project" }),
+    );
+    await screen.findByLabelText("Name");
+  }
+
+  it("takes the whole window, sidebar and all (D-10)", async () => {
+    render(<App />);
+    await screen.findByRole("heading", { name: "Plan with your agents." });
+
+    expect(document.querySelector(".app-shell")).toBeNull();
+    expect(document.querySelector(".side-panel")).toBeNull();
+    // The two placeholders that said, in the weakest available form, the thing
+    // this screen exists to say.
+    expect(screen.queryByText("No starred projects")).toBeNull();
+    expect(screen.queryByText("No local projects")).toBeNull();
+  });
+
+  it("waits for the registry rather than flashing over an ordinary launch", async () => {
+    // `projects` is empty for the first frame of *every* launch. Deciding on
+    // the empty list alone would put this screen in front of a returning user
+    // on the way to their board.
+    let answer: (projects: ProjectReference[]) => void = () => {};
+    vi.mocked(api.listProjects).mockReturnValue(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
     render(<App />);
 
-    fireEvent.change(await screen.findByLabelText("Name"), {
+    expect(document.querySelector(".welcome-shell")).toBeNull();
+    expect(document.querySelector(".app-shell")).toBeTruthy();
+
+    await act(async () => answer([]));
+    expect(document.querySelector(".welcome-shell")).toBeTruthy();
+  });
+
+  it("offers create and open as peers, create primary (D-12)", async () => {
+    render(<App />);
+    await screen.findByRole("heading", { name: "Plan with your agents." });
+
+    const buttons = [
+      ...document.querySelectorAll<HTMLButtonElement>(
+        ".welcome-actions button",
+      ),
+    ];
+    expect(buttons.map((button) => button.textContent)).toEqual([
+      "Create a project",
+      "Open a folder",
+    ]);
+    expect(buttons[0].className).toContain("primary");
+    expect(buttons[1].className).toContain("secondary");
+  });
+
+  it("asks for the folder before it asks what to put in it (D-11)", async () => {
+    render(<App />);
+    await screen.findByRole("heading", { name: "Plan with your agents." });
+
+    expect(screen.queryByLabelText("Name")).toBeNull();
+    expect(screen.queryByLabelText("Key")).toBeNull();
+  });
+
+  it("states the value, and closes on the mono trust line (D-14, D-16)", async () => {
+    render(<App />);
+    const heading = await screen.findByRole("heading", {
+      name: "Plan with your agents.",
+    });
+    const panel = heading.closest(".welcome-panel") as HTMLElement;
+
+    // D-14 decided for value over mechanism: the next step names `.longclaw`
+    // in the path the user just picked, so the subtitle no longer has to.
+    expect(panel.querySelector(".welcome-subtitle")?.textContent).toContain(
+      "Tickets live as plain files in a folder you choose",
+    );
+    // D-16: the trust line renders in mono, and the rule that makes it mono is
+    // the one on `.trust-line`. It lost to `.welcome-copy p` — the subtitle's
+    // selector, which matched this paragraph too — so every `<p>` in this
+    // column carries a class of its own, and nothing selects them as `p`.
+    expect([...panel.querySelectorAll("p")].map((p) => p.className)).toEqual([
+      "welcome-subtitle",
+      "trust-line",
+    ]);
+  });
+
+  it("shows the folder the picker answered with (D-13)", async () => {
+    await reachCreateForm("/Users/dev/repo");
+
+    expect(document.querySelector(".picked-path")?.textContent).toBe(
+      "/Users/dev/repo/.longclaw",
+    );
+  });
+
+  it("leaves the screen alone when the picker is cancelled", async () => {
+    vi.mocked(api.chooseProjectFolder).mockResolvedValue(null);
+    render(<App />);
+    const create = await screen.findByRole("button", {
+      name: "Create a project",
+    });
+
+    await act(async () => void fireEvent.click(create));
+
+    expect(screen.queryByLabelText("Name")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Create a project" }),
+    ).toBeTruthy();
+  });
+
+  it("creates in the folder that was picked, and opens it", async () => {
+    vi.mocked(api.createProjectInFolder).mockResolvedValue(created);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project: created,
+      tickets: [],
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    await reachCreateForm("/Users/dev/repo");
+
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "My Project" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create project" }));
+
+    await waitFor(() =>
+      expect(api.createProjectInFolder).toHaveBeenCalledWith(
+        "/Users/dev/repo",
+        {
+          name: "My Project",
+          key: "MP",
+          theme: "indigo",
+        },
+      ),
+    );
+    // Creation lands on the board (`screen-specs.md:109-110`).
+    await screen.findByRole("button", { name: "Board", pressed: true });
+  });
+
+  it("goes back to the folder question without creating anything", async () => {
+    await reachCreateForm();
+
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+
+    expect(
+      screen.getByRole("button", { name: "Create a project" }),
+    ).toBeTruthy();
+    expect(screen.queryByLabelText("Name")).toBeNull();
+    expect(api.createProjectInFolder).not.toHaveBeenCalled();
+  });
+
+  it("says a refused folder out loud rather than sitting on the form", async () => {
+    // The one refusal this path meets in practice: a folder that already holds
+    // a project. Without the shell there is no other surface to say it on.
+    vi.mocked(api.createProjectInFolder).mockRejectedValue({
+      code: "invalid_project",
+      message: "This folder already holds a LongClaw project",
+      recoverable: true,
+      context: { path: "/Users/dev/repo/.longclaw/longclaw.yaml" },
+    });
+    await reachCreateForm("/Users/dev/repo");
+
+    fireEvent.click(screen.getByRole("button", { name: "Create project" }));
+
+    const banner = await screen.findByRole("alert");
+    expect(banner.textContent).toContain(
+      "This folder already holds a LongClaw project",
+    );
+  });
+
+  it("derives a backend-valid key for digit-leading project names", async () => {
+    await reachCreateForm();
+
+    fireEvent.change(screen.getByLabelText("Name"), {
       target: { value: "30 July 4PM" },
     });
 
@@ -1307,9 +1503,9 @@ describe("project creation", () => {
   });
 
   it("does not overwrite a key the user has edited", async () => {
-    render(<App />);
+    await reachCreateForm();
 
-    fireEvent.change(await screen.findByLabelText("Key"), {
+    fireEvent.change(screen.getByLabelText("Key"), {
       target: { value: "AB" },
     });
     fireEvent.change(screen.getByLabelText("Name"), {
@@ -1319,40 +1515,22 @@ describe("project creation", () => {
     expect(screen.getByLabelText<HTMLInputElement>("Key").value).toBe("AB");
   });
 
-  it("blocks invalid keys before the folder picker is opened", async () => {
-    render(<App />);
+  it("writes nothing into the folder while the key is invalid", async () => {
+    await reachCreateForm();
 
-    fireEvent.change(await screen.findByLabelText("Key"), {
+    fireEvent.change(screen.getByLabelText("Key"), {
       target: { value: "3J4" },
     });
-    const submit = screen.getByText<HTMLButtonElement>(
-      "Create project in folder",
-    );
+    const submit = screen.getByRole<HTMLButtonElement>("button", {
+      name: "Create project",
+    });
     fireEvent.click(submit);
 
     expect(submit.disabled).toBe(true);
     expect(
       screen.getByText(/uppercase letters and digits, starting with a letter/i),
     ).toBeTruthy();
-    expect(api.chooseAndCreateProject).not.toHaveBeenCalled();
-  });
-
-  it("creates the project the form describes", async () => {
-    // The picker was cancelled: the request still has to be the one the form
-    // described, which is what this asserts.
-    vi.mocked(api.chooseAndCreateProject).mockResolvedValue(null);
-    render(<App />);
-
-    fireEvent.change(await screen.findByLabelText("Name"), {
-      target: { value: "My Project" },
-    });
-    fireEvent.click(screen.getByText("Create project in folder"));
-
-    expect(api.chooseAndCreateProject).toHaveBeenCalledWith({
-      name: "My Project",
-      key: "MP",
-      theme: "indigo",
-    });
+    expect(api.createProjectInFolder).not.toHaveBeenCalled();
   });
 });
 
