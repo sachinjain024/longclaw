@@ -58,10 +58,15 @@ groups; `←→`/`H L` are unbound. Group headers are not focus stops.
 | Key | Action |
 |---|---|
 | `Esc` | Close panel → focus returns to the originating card/row |
-| `Tab` | Natural order: ID chip → archive → close → title → status → priority → labels → description → checklist rows → add-item → composer → comment |
+| `Tab` | Natural order: ID chip → archive → close → title → status → priority → labels → description → checklist rows → add-item → composer → comment¹ |
 | `Enter` / `Space` on a checklist row | Toggle the item |
 | `Enter` in add-item field | Append item, keep focus in the field |
 | `Enter` on a meta trigger | Open that menu |
+
+¹ The `comment` stop exists only once the composer has text (LC-107). While it
+is empty there is nothing to post, so the last stop in the panel is the
+composer itself and `⌘↵` is the whole of the action — a stop that could only
+ever be tabbed to and not used is not a stop worth having.
 
 The panel does not steal `↑↓` from the page scroll. `S`/`P` still work
 (they target the open ticket) because the panel's ticket is the focused
@@ -92,6 +97,9 @@ canceling returns focus to the description block.
 |---|---|
 | `⌘↵` | Post comment (optimistic) |
 | `Esc` | Blur composer (draft kept until panel closes) |
+
+The field names `⌘↵` in its own placeholder, because the `Comment` button that
+would otherwise stand for the action is not on screen until there is text.
 
 ## Command palette
 

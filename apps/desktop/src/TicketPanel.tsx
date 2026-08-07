@@ -18,10 +18,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { editTicket, readTicket } from "./api";
 import { externalEditConflict } from "./attribution";
+import { classes } from "./classes";
 import { ConflictBanner } from "./ConflictBanner";
 import { DescriptionEditor } from "./DescriptionEditor";
 import { normalizeError } from "./errors";
 import type { ExternalMark } from "./freshness";
+import { GhostBox } from "./GhostBox";
 import { acknowledgement, freshlyChecked } from "./freshness";
 import { singleKeyShortcutAllowed } from "./keyContext";
 import { LabelMenuButton } from "./LabelMenu";
@@ -127,6 +129,43 @@ function PencilGlyph() {
       />
     </svg>
   );
+}
+
+/**
+ * Grows a textarea to the height of its own text.
+ *
+ * The panel's two fields lost the native resize grabber (LC-108, LC-107): the
+ * prototype has no such handle anywhere, and a grabber on a title is an
+ * affordance for a problem — a title too tall for its box — that the field
+ * should never hand to the human in the first place. Taking the handle away
+ * makes the height the field's own job, which is what this does, by the same
+ * measurement the prototype uses (`prototype.js:1714-1717`): let the box
+ * collapse to nothing, then take the content's height back off it.
+ */
+function useAutoGrow(value: string) {
+  const field = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const element = field.current;
+    if (!element) return;
+    const fit = () => {
+      element.style.height = "auto";
+      // jsdom has no layout, so `scrollHeight` is 0 under test. Pinning the
+      // field to nothing would be worse than leaving the stylesheet to size it.
+      if (element.scrollHeight > 0) {
+        element.style.height = `${element.scrollHeight}px`;
+      }
+    };
+    fit();
+    // The text is not the only thing that decides how tall it has to be: the
+    // panel is a percentage of the window, so narrowing the window rewraps the
+    // same characters onto more lines. Without this the height stays where the
+    // last keystroke left it — and `.panel-title` hides its overflow, so the
+    // title would clip silently, which is the failure taking the resize
+    // grabber away was supposed to make impossible.
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, [value]);
+  return field;
 }
 
 interface TicketPanelProps {
@@ -586,6 +625,9 @@ export function TicketPanel(props: TicketPanelProps) {
     return held ?? item.checked;
   }
 
+  const titleField = useAutoGrow(titleDraft);
+  const commentField = useAutoGrow(commentDraft);
+
   const ticket = detail?.ticket;
 
   return (
@@ -694,8 +736,11 @@ export function TicketPanel(props: TicketPanelProps) {
         <>
           <textarea
             className="panel-title"
+            ref={titleField}
             value={titleDraft}
-            rows={2}
+            // One row, then as many as the title needs: the field carries no
+            // resize grabber, so `rows` is a floor and not the size (LC-108).
+            rows={1}
             aria-label="Title"
             onChange={(event) => {
               drafts.current.title = event.target.value;
@@ -862,11 +907,10 @@ export function TicketPanel(props: TicketPanelProps) {
             <h3>
               Checklist
               <span
-                className={
-                  agentChecked.length > 0
-                    ? "checklist-fraction fresh"
-                    : "checklist-fraction"
-                }
+                className={classes(
+                  "section-count",
+                  agentChecked.length > 0 && "fresh",
+                )}
               >
                 {ticket.checklist.filter(isChecked).length}/
                 {ticket.checklist.length}
@@ -880,7 +924,15 @@ export function TicketPanel(props: TicketPanelProps) {
                 return (
                   <li
                     key={item.id ?? `unadopted-${index}`}
-                    className={fresh ? "checklist-row fresh" : "checklist-row"}
+                    // `checked` carries the settled treatment — `ink-3` and a
+                    // line through the text (`components.md:192`). `fresh` is
+                    // the state above it and takes both back, because a row an
+                    // agent just ticked is news to read, not a line to skip.
+                    className={classes(
+                      "checklist-row",
+                      checked && "checked",
+                      fresh && "fresh",
+                    )}
                   >
                     <label>
                       <input
@@ -923,11 +975,15 @@ export function TicketPanel(props: TicketPanelProps) {
                 event.preventDefault();
                 const text = newItem.trim();
                 if (!text) return;
+                // Enter appends and leaves focus where it is, for rapid entry
+                // (`keyboard-focus-map.md:63`) — nothing here blurs the field.
                 setNewItem("");
                 void save({ addChecklistItems: [text] });
               }}
             >
+              <GhostBox />
               <input
+                className="checklist-add-field"
                 value={newItem}
                 placeholder="Add a checklist item"
                 aria-label="Add a checklist item"
@@ -937,7 +993,17 @@ export function TicketPanel(props: TicketPanelProps) {
           </section>
 
           <section className="panel-section">
-            <h3>Activity</h3>
+            <h3>
+              Activity
+              {/* The count of what is on screen, not of what the file holds
+                  (LC-109): posting is optimistic, so the pending comment is an
+                  entry in the stream and has to be an entry in the count. A
+                  heading that said one fewer than the reader can see would be
+                  the one place the panel argued with itself. */}
+              <span className="section-count">
+                {ticket.activity.length + (pendingComment ? 1 : 0)}
+              </span>
+            </h3>
             {ticket.historyIncomplete && (
               <p className="history-note">
                 This ticket changed without a matching activity entry. The state
@@ -982,14 +1048,17 @@ export function TicketPanel(props: TicketPanelProps) {
                 •
               </span>
               <textarea
+                ref={commentField}
                 value={commentDraft}
-                // Auto-growing, within reason: the panel scrolls, so a long
+                // Auto-growing, within reason: the field grows to its text and
+                // the stylesheet caps it, because the panel scrolls and a long
                 // comment should not push the timeline off screen entirely.
-                rows={Math.min(
-                  10,
-                  Math.max(2, commentDraft.split("\n").length),
-                )}
-                placeholder="Comment"
+                rows={1}
+                // The shortcut is named where it is used, because the button
+                // that used to stand for the action is no longer on screen
+                // until there is text to post (`prototype.js:752` carries the
+                // same hint for the same reason).
+                placeholder="Leave a comment… ⌘↵ to post"
                 aria-label="Comment"
                 onChange={(event) => setCommentDraft(event.target.value)}
                 onKeyDown={(event) => {
@@ -1002,14 +1071,17 @@ export function TicketPanel(props: TicketPanelProps) {
                   }
                 }}
               />
-              <button
-                tabIndex={0}
-                className="primary"
-                type="submit"
-                disabled={!commentDraft.trim()}
-              >
-                Comment
-              </button>
+              {/* ⌘↵ posts, so the button is the second way in rather than the
+                  first, and it arrives with the text it would post (LC-107). A
+                  disabled button standing over an empty field was a control
+                  that could never be pressed and a Tab stop that led nowhere;
+                  the quiet variant is the one the prototype gives this exact
+                  control (`prototype.js:753`, `btn btn-secondary btn-sm`). */}
+              {commentDraft.trim() ? (
+                <button tabIndex={0} className="secondary small" type="submit">
+                  Comment
+                </button>
+              ) : null}
             </form>
           </section>
         </>
