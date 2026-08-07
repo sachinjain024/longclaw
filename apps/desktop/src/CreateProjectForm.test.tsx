@@ -248,7 +248,7 @@ describe("the create-project form as first launch's second step", () => {
     expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe("");
   });
 
-  // `keyboard-focus-map.md:160`: the folder picker hands focus to the name
+  // `keyboard-focus-map.md:167`: the folder picker hands focus to the name
   // field. Only on this path — the sidebar's quick create opens beside a board
   // someone is already working in.
   it("puts the caret where the picker left off", () => {
@@ -267,7 +267,7 @@ describe("the create-project form as first launch's second step", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  // `keyboard-focus-map.md:146-148` ends the form's tab order Create → Back.
+  // `keyboard-focus-map.md:153-155` ends the form's tab order Create → Back.
   it("puts the way forward before the way out", () => {
     renderStepTwo();
 

@@ -13,11 +13,18 @@
  * mode was branched on at each of those four points, adding one meant editing
  * four places and forgetting the fourth was silent.
  *
+ * The root is the one mode that answers with something other than its own rows:
+ * a query shaped like a ticket key is looked up in the index and offered above
+ * the commands (LC-171), because typing a key is the fastest thing anyone knows
+ * how to do and it used to be filtered against command labels, which no key
+ * matches.
+ *
  * It writes nothing. Every command is raised to `App`, which owns `mutate()`
  * and is therefore the only place a ticket file is written from.
  */
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { STATUS_OPTIONS, PRIORITY_OPTIONS } from "./metaOptions";
+import { ticketKeyQuery } from "./tickets";
 import { ORDERINGS, type OrderingMode } from "./ordering";
 import type { ViewMode } from "./devicePreferences";
 import { FolderGlyph } from "./FolderGlyph";
@@ -95,6 +102,32 @@ function RootGlyph({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * A ticket as a row (`screen-specs.md:236`): mono key, status dot, title, and
+ * the `· archived` tag.
+ *
+ * Search mode's rows are built here, and so is the one the root offers for a
+ * key-shaped query (LC-171) — one builder, so a ticket cannot be drawn one way
+ * in search and another at the root.
+ */
+function ticketRow(ticket: TicketRow): PaletteRow {
+  return {
+    id: ticket.key,
+    monoKey: ticket.key,
+    glyph:
+      ticket.state === "indexed" ? (
+        <StatusDot status={ticket.status} decorative />
+      ) : (
+        <span className="search-degraded" aria-hidden="true">
+          !
+        </span>
+      ),
+    label: ticket.state === "indexed" ? ticket.title : "unreadable file",
+    tag:
+      ticket.state === "indexed" && ticket.archivedAt ? "archived" : undefined,
+  };
+}
+
 export function CommandPalette(props: {
   /** The project every command runs against: the active one, never another. */
   project: ProjectReference;
@@ -160,6 +193,28 @@ export function CommandPalette(props: {
     // the project, which is the search mode's opening state.
     if (next === "search") props.onSearch("");
   }
+
+  /** The one way the palette opens a ticket, wherever the row was offered. */
+  const openTicketRow = (row: PaletteRow) => props.onOpenTicket(row.id);
+
+  /**
+   * The key the root is being asked about, if it is being asked about one
+   * (LC-171). Undefined for every other query, which then filters commands as
+   * it always has.
+   */
+  const rootKey =
+    mode === "root" ? ticketKeyQuery(query, props.project.key) : undefined;
+
+  /**
+   * The asked-for ticket, out of whatever Rust last answered.
+   *
+   * Matched on the key rather than taken as the first result, which is what
+   * keeps a stale answer — the previous query's, or the wider substring match
+   * `lc-6` returns — from being drawn as the ticket the human named.
+   */
+  const rootKeyMatch = rootKey
+    ? props.searchResults?.find((ticket) => ticket.key === rootKey)
+    : undefined;
 
   const unreachable = !props.project.reachable;
   const root: PaletteRow[] = [
@@ -367,24 +422,8 @@ export function CommandPalette(props: {
     },
     search: {
       crumb: "search",
-      rows: (props.searchResults ?? []).map((ticket) => ({
-        id: ticket.key,
-        monoKey: ticket.key,
-        glyph:
-          ticket.state === "indexed" ? (
-            <StatusDot status={ticket.status} decorative />
-          ) : (
-            <span className="search-degraded" aria-hidden="true">
-              !
-            </span>
-          ),
-        label: ticket.state === "indexed" ? ticket.title : "unreadable file",
-        tag:
-          ticket.state === "indexed" && ticket.archivedAt
-            ? "archived"
-            : undefined,
-      })),
-      run: (row) => props.onOpenTicket(row.id),
+      rows: (props.searchResults ?? []).map(ticketRow),
+      run: openTicketRow,
       note: SEARCH_SCOPE_NOTE,
       // Rust answered this query; re-filtering here would hide the description
       // and label matches that are the reason to use search at all.
@@ -394,13 +433,20 @@ export function CommandPalette(props: {
 
   const subMode = mode === "root" ? undefined : MODES[mode];
   const rows = subMode ? subMode.rows : root;
-  const visibleRows =
+  const filtered =
     subMode && !subMode.filterLocally
       ? rows
       : rows.filter(
           (row) =>
             !query || row.label.toLowerCase().includes(query.toLowerCase()),
         );
+  // First, and not filtered by the query that produced it: `LC-60` is not in
+  // the ticket's title, and the row is the answer to it rather than a match on
+  // it. `Enter` therefore lands on the ticket, which is why it was typed.
+  const keyRow = rootKeyMatch ? ticketRow(rootKeyMatch) : undefined;
+  const visibleRows = keyRow
+    ? [{ ...keyRow, run: () => openTicketRow(keyRow) }, ...filtered]
+    : filtered;
 
   function activate(row: PaletteRow) {
     if (row.disabled) return;
@@ -466,8 +512,13 @@ export function CommandPalette(props: {
 
   const capped =
     mode === "search" && props.searchResults?.length === SEARCH_LIMIT;
+  // A key typed at the root is waiting on the same answer a search is, so it
+  // says so rather than claiming the ticket does not exist (LC-171). Only until
+  // the first answer arrives: after that the palette holds a real, if older,
+  // result set, and a key absent from it is a key this project does not have.
   const awaitingResults =
-    mode === "search" && props.searchResults === undefined;
+    props.searchResults === undefined &&
+    (mode === "search" || rootKey !== undefined);
 
   return (
     <div className="modal-scrim" role="presentation">
@@ -502,15 +553,22 @@ export function CommandPalette(props: {
             ref={input}
             value={query}
             onChange={(e) => {
-              setQuery(e.target.value);
+              const typed = e.target.value;
+              setQuery(typed);
               setActive(0);
-              if (mode === "search") {
-                clearTimeout(searchTimer.current);
-                searchTimer.current = setTimeout(
-                  () => props.onSearch(e.target.value),
-                  SEARCH_DEBOUNCE_MS,
-                );
-              }
+              // Search asks about whatever was typed; the root asks only when
+              // what was typed is a key, and asks about the key rather than the
+              // casing it arrived in (LC-171).
+              const asking =
+                mode === "search"
+                  ? typed
+                  : ticketKeyQuery(typed, props.project.key);
+              if (asking === undefined) return;
+              clearTimeout(searchTimer.current);
+              searchTimer.current = setTimeout(
+                () => props.onSearch(asking),
+                SEARCH_DEBOUNCE_MS,
+              );
             }}
             placeholder={mode === "root" ? "Type a command…" : "Search…"}
             aria-label="Command palette input"

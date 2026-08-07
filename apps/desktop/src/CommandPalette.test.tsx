@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CommandPalette } from "./CommandPalette";
 import { ORDERINGS } from "./ordering";
 import type { IndexedTicket, ProjectReference } from "./types";
@@ -198,6 +198,96 @@ describe("command palette", () => {
 
     fireEvent.click(create);
     expect(onCreate).not.toHaveBeenCalled();
+  });
+
+  /**
+   * LC-171. Typing a key is the fastest thing anyone knows how to do, and at
+   * the root it used to filter command labels — where `LC-60` matches nothing.
+   */
+  describe("a ticket key typed at the root", () => {
+    const found = { ...ticket, key: "LC-60", title: "The sixtieth ticket" };
+    /** Comfortably past the debounce, without keeping a second copy of it. */
+    const PAST_THE_DEBOUNCE_MS = 1000;
+
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+
+    function typeAtRoot(value: string, onSearch = vi.fn()) {
+      const view = renderPalette({ onSearch, searchResults: [found] });
+      fireEvent.change(screen.getByRole("combobox"), { target: { value } });
+      return { ...view, onSearch };
+    }
+
+    it("looks the key up rather than filtering commands", () => {
+      const { onSearch } = typeAtRoot("LC-60");
+      vi.advanceTimersByTime(PAST_THE_DEBOUNCE_MS);
+      expect(onSearch).toHaveBeenCalledWith("LC-60");
+    });
+
+    it("offers the ticket as the first row, keyed and glyphed like a search row", () => {
+      typeAtRoot("lc-60");
+      const rows = screen.getAllByRole("option");
+      expect(rows[0]?.textContent).toContain("LC-60");
+      expect(rows[0]?.textContent).toContain("The sixtieth ticket");
+      expect(rows[0]?.querySelector(".search-key")?.textContent).toBe("LC-60");
+    });
+
+    it("opens it by the same path a search-mode row uses", () => {
+      const onOpenTicket = vi.fn();
+      const view = renderPalette({ onOpenTicket, searchResults: [found] });
+      fireEvent.change(screen.getByRole("combobox"), {
+        target: { value: "60" },
+      });
+      fireEvent.keyDown(screen.getByRole("combobox"), { key: "Enter" });
+      expect(onOpenTicket).toHaveBeenCalledWith("LC-60");
+      view.unmount();
+
+      renderPalette({
+        onOpenTicket,
+        initialMode: "search",
+        searchResults: [found],
+      });
+      fireEvent.click(screen.getByRole("option", { name: /sixtieth/ }));
+      expect(onOpenTicket).toHaveBeenNthCalledWith(2, "LC-60");
+    });
+
+    it("shows only the ticket the query asked for, not the rest of the answer", () => {
+      // Rust answers `lc-60` with every substring match. The root asked about
+      // one key, so a near miss on that key is not a row here.
+      renderPalette({
+        searchResults: [found, { ...ticket, key: "LC-601", title: "Nearby" }],
+        onSearch: vi.fn(),
+      });
+      fireEvent.change(screen.getByRole("combobox"), {
+        target: { value: "LC-60" },
+      });
+      const rows = screen.getAllByRole("option");
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.textContent).toContain("LC-60");
+    });
+
+    it("leaves a foreign prefix to the commands, and asks Rust nothing", () => {
+      const { onSearch } = typeAtRoot("AB-1");
+      vi.advanceTimersByTime(PAST_THE_DEBOUNCE_MS);
+      expect(onSearch).not.toHaveBeenCalled();
+      expect(screen.queryByText("The sixtieth ticket")).toBeNull();
+    });
+
+    it("says it is searching rather than that there is nothing", () => {
+      renderPalette({ searchResults: undefined, onSearch: vi.fn() });
+      fireEvent.change(screen.getByRole("combobox"), {
+        target: { value: "LC-60" },
+      });
+      expect(screen.getByText("Searching…")).toBeTruthy();
+    });
+
+    it("admits when this project has no such ticket", () => {
+      renderPalette({ searchResults: [], onSearch: vi.fn() });
+      fireEvent.change(screen.getByRole("combobox"), {
+        target: { value: "LC-999" },
+      });
+      expect(screen.getByText("No matches")).toBeTruthy();
+    });
   });
 
   it("carries a pair swatch on every theme row", () => {

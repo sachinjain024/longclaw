@@ -565,7 +565,7 @@ h1 {
 }
 
 /* Create, then `Back` beside it — the create form's closing row, in the order
-   `keyboard-focus-map.md:146-148` gives it. `:only-child` is the sidebar's
+   `keyboard-focus-map.md:153-155` gives it. `:only-child` is the sidebar's
    quick create, whose form ends in its submit alone and whose submit has
    always filled the 216px panel. */
 .form-actions {

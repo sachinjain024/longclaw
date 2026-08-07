@@ -106,9 +106,16 @@ would otherwise stand for the action is not on screen until there is text.
 | Key | Action |
 |---|---|
 | Typing | Filters the current mode's rows |
+| Typing a key at the root | Offers that ticket as the first row |
 | `↑↓` | Move selection (wraps) |
 | `Enter` | Run selection |
 | `Esc` | Sub-mode → back to root; root → close |
+
+A root query shaped like a ticket key — `LC-60`, or the bare `60`, in any
+case — is looked up in the index and offered above the commands, opening
+on the path a search-mode row opens on (LC-171). A prefix that is not
+this project's is not a key here, because no ticket of this project
+carries one, so it filters commands as any other text does.
 
 Focus enters the input on open and returns to the pre-palette focus on
 close. Disabled rows (no target ticket; `New terminal` until Phase 2) are
