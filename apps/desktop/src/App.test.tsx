@@ -377,7 +377,7 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
    * board but Tab from the top of the document.
    *
    * The same call is how the ticket panel returns focus to its card, so this
-   * covers `keyboard-focus-map.md:152` at size as well as :116.
+   * covers `keyboard-focus-map.md:152` at size as well as :123.
    */
   it("focuses the new card even when it lands outside the rendered window", async () => {
     const crowd: TicketRow[] = Array.from({ length: 30 }, (_, index) => ({
@@ -4404,10 +4404,10 @@ describe("a project with no tickets (LC-86 … LC-89)", () => {
  * so `LC-2` — the fastest thing anyone knows how to type — matched nothing and
  * the ticket was unreachable without first stepping into `Search tickets…`.
  *
- * Driven end to end here because every layer beneath the palette could already
- * answer a key: the index, `search_tickets`, and the header filter. Only the
- * wiring between the root and the surface below it was missing, and a component
- * test cannot show that the root's lookup reaches Rust and comes back.
+ * Driven end to end here because the palette is handed the project's rows by
+ * `App` and nothing else pins that wiring: a component test can prove the root
+ * finds a key in the rows it is given, and only this level can show that the
+ * rows it is given are the project's rather than the filtered surface's.
  */
 describe("a ticket key typed at the palette root (LC-171)", () => {
   const project = {
@@ -4448,10 +4448,6 @@ describe("a ticket key typed at the palette root (LC-171)", () => {
       rebuiltInMs: 1,
       sequence: 1,
     });
-    vi.mocked(api.searchTickets).mockResolvedValue({
-      tickets: [found],
-      elapsedMs: 0,
-    });
     vi.mocked(api.readTicket).mockResolvedValue({
       key: found.key,
       relativePath: found.relativePath,
@@ -4486,22 +4482,12 @@ describe("a ticket key typed at the palette root (LC-171)", () => {
     return (await screen.findByRole("combobox")) as HTMLInputElement;
   }
 
-  it("asks the index for the key, in the case the key is stored in", async () => {
-    const input = await openPalette();
-
-    fireEvent.change(input, { target: { value: "lc-2" } });
-
-    await waitFor(() =>
-      expect(api.searchTickets).toHaveBeenCalledWith(project.id, "LC-2"),
-    );
-  });
-
   it("opens the ticket, without a stop at the search sub-mode", async () => {
     const input = await openPalette();
 
-    fireEvent.change(input, { target: { value: "LC-2" } });
+    fireEvent.change(input, { target: { value: "lc-2" } });
     // The row is the answer to the key, so it is the one `Enter` lands on.
-    const row = await screen.findByRole("option", { name: /Watcher recovery/ });
+    const row = screen.getByRole("option", { name: /Watcher recovery/ });
     expect(screen.getAllByRole("option")[0]).toBe(row);
     fireEvent.keyDown(input, { key: "Enter" });
 
@@ -4509,6 +4495,8 @@ describe("a ticket key typed at the palette root (LC-171)", () => {
     expect(
       screen.queryByRole("dialog", { name: "Command palette" }),
     ).toBeNull();
+    // The rows were already here: the root never asked Rust for them.
+    expect(api.searchTickets).not.toHaveBeenCalled();
   });
 
   it("takes a bare number as this project's ticket", async () => {
@@ -4516,11 +4504,8 @@ describe("a ticket key typed at the palette root (LC-171)", () => {
 
     fireEvent.change(input, { target: { value: "2" } });
 
-    await waitFor(() =>
-      expect(api.searchTickets).toHaveBeenCalledWith(project.id, "LC-2"),
-    );
     expect(
-      await screen.findByRole("option", { name: /Watcher recovery/ }),
+      screen.getByRole("option", { name: /Watcher recovery/ }),
     ).toBeTruthy();
   });
 
@@ -4529,12 +4514,30 @@ describe("a ticket key typed at the palette root (LC-171)", () => {
 
     fireEvent.change(input, { target: { value: "AB-2" } });
 
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    expect(api.searchTickets).not.toHaveBeenCalled();
     // The card behind the palette is still on the board; what must not exist
     // is a palette row offering it for a key this project cannot hold.
     expect(
       screen.queryAllByRole("option", { name: /Watcher recovery/ }),
     ).toHaveLength(0);
+  });
+
+  it("finds a ticket the surface behind it has filtered away", async () => {
+    // The header filter narrows the board; the palette is handed the project's
+    // rows rather than that narrowing, which is the whole point of a key.
+    await openPalette();
+    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.change(screen.getByRole("textbox", { name: "Filter tickets" }), {
+      target: { value: "nothing matches this" },
+    });
+    expect(screen.queryByText("Watcher recovery")).toBeNull();
+
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+    fireEvent.change(await screen.findByRole("combobox"), {
+      target: { value: "LC-2" },
+    });
+
+    expect(
+      screen.getByRole("option", { name: /Watcher recovery/ }),
+    ).toBeTruthy();
   });
 });

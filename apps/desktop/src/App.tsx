@@ -1675,6 +1675,9 @@ export function App() {
         <CommandPalette
           project={project}
           ticket={commandTarget}
+          // The project's rows, not the filtered ones: a key is what you type
+          // to reach a ticket the surface behind the palette is not showing.
+          tickets={tickets}
           projects={localProjects}
           appearance={appearance}
           themes={THEMES}

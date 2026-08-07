@@ -398,7 +398,8 @@ async function auditLifecycle(browser) {
       // A key at the root, before the search sub-mode (LC-171). Typed into the
       // root list, where it used to filter command labels and find nothing.
       await page.keyboard.type("PF-12");
-      await page.waitForTimeout(400);
+      // No debounce to wait out: the root reads rows the app already holds.
+      await settle(page);
       const offered = await page.evaluate(
         () =>
           document.querySelector('[role="option"] .search-key')?.textContent ??

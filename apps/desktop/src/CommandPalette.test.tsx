@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { CommandPalette } from "./CommandPalette";
 import { ORDERINGS } from "./ordering";
 import type { IndexedTicket, ProjectReference } from "./types";
@@ -44,6 +44,7 @@ function renderPalette(
     <CommandPalette
       project={project}
       projects={[project]}
+      tickets={[ticket]}
       ticket={ticket}
       appearance="system"
       ordering="priority"
@@ -206,23 +207,16 @@ describe("command palette", () => {
    */
   describe("a ticket key typed at the root", () => {
     const found = { ...ticket, key: "LC-60", title: "The sixtieth ticket" };
-    /** Comfortably past the debounce, without keeping a second copy of it. */
-    const PAST_THE_DEBOUNCE_MS = 1000;
+    const nearby = { ...ticket, key: "LC-601", title: "Nearby" };
 
-    beforeEach(() => vi.useFakeTimers());
-    afterEach(() => vi.useRealTimers());
-
-    function typeAtRoot(value: string, onSearch = vi.fn()) {
-      const view = renderPalette({ onSearch, searchResults: [found] });
+    function typeAtRoot(value: string, overrides = {}) {
+      const view = renderPalette({
+        tickets: [ticket, found, nearby],
+        ...overrides,
+      });
       fireEvent.change(screen.getByRole("combobox"), { target: { value } });
-      return { ...view, onSearch };
+      return view;
     }
-
-    it("looks the key up rather than filtering commands", () => {
-      const { onSearch } = typeAtRoot("LC-60");
-      vi.advanceTimersByTime(PAST_THE_DEBOUNCE_MS);
-      expect(onSearch).toHaveBeenCalledWith("LC-60");
-    });
 
     it("offers the ticket as the first row, keyed and glyphed like a search row", () => {
       typeAtRoot("lc-60");
@@ -232,12 +226,18 @@ describe("command palette", () => {
       expect(rows[0]?.querySelector(".search-key")?.textContent).toBe("LC-60");
     });
 
+    it("answers from the rows it already holds, asking Rust nothing", () => {
+      // Synchronous on the keystroke: no debounce to wait out, and no window
+      // in which the palette says the ticket does not exist while it waits.
+      const onSearch = vi.fn();
+      typeAtRoot("LC-60", { onSearch });
+      expect(onSearch).not.toHaveBeenCalled();
+      expect(screen.getAllByRole("option")[0]?.textContent).toContain("LC-60");
+    });
+
     it("opens it by the same path a search-mode row uses", () => {
       const onOpenTicket = vi.fn();
-      const view = renderPalette({ onOpenTicket, searchResults: [found] });
-      fireEvent.change(screen.getByRole("combobox"), {
-        target: { value: "60" },
-      });
+      const view = typeAtRoot("60", { onOpenTicket });
       fireEvent.keyDown(screen.getByRole("combobox"), { key: "Enter" });
       expect(onOpenTicket).toHaveBeenCalledWith("LC-60");
       view.unmount();
@@ -251,42 +251,43 @@ describe("command palette", () => {
       expect(onOpenTicket).toHaveBeenNthCalledWith(2, "LC-60");
     });
 
-    it("shows only the ticket the query asked for, not the rest of the answer", () => {
-      // Rust answers `lc-60` with every substring match. The root asked about
-      // one key, so a near miss on that key is not a row here.
-      renderPalette({
-        searchResults: [found, { ...ticket, key: "LC-601", title: "Nearby" }],
-        onSearch: vi.fn(),
-      });
-      fireEvent.change(screen.getByRole("combobox"), {
-        target: { value: "LC-60" },
-      });
+    it("names one ticket, not everything the key is a prefix of", () => {
+      typeAtRoot("LC-60");
       const rows = screen.getAllByRole("option");
       expect(rows).toHaveLength(1);
-      expect(rows[0]?.textContent).toContain("LC-60");
+      expect(rows[0]?.textContent).toContain("The sixtieth ticket");
     });
 
-    it("leaves a foreign prefix to the commands, and asks Rust nothing", () => {
-      const { onSearch } = typeAtRoot("AB-1");
-      vi.advanceTimersByTime(PAST_THE_DEBOUNCE_MS);
-      expect(onSearch).not.toHaveBeenCalled();
+    it("leaves a foreign prefix to the commands", () => {
+      typeAtRoot("AB-1");
       expect(screen.queryByText("The sixtieth ticket")).toBeNull();
+      expect(screen.getByText("No matches")).toBeTruthy();
     });
 
-    it("says it is searching rather than that there is nothing", () => {
-      renderPalette({ searchResults: undefined, onSearch: vi.fn() });
-      fireEvent.change(screen.getByRole("combobox"), {
-        target: { value: "LC-60" },
+    it("reaches a ticket the surface behind the palette is not showing", () => {
+      // An archived ticket is off the board by design (ADR 0004), which is
+      // exactly the case where a key is the only way to name it.
+      typeAtRoot("LC-60", {
+        tickets: [{ ...found, archivedAt: "2026-08-01T00:00:00Z" }],
       });
-      expect(screen.getByText("Searching…")).toBeTruthy();
+      const row = screen.getAllByRole("option")[0];
+      expect(row?.textContent).toContain("The sixtieth ticket");
+      expect(row?.textContent).toContain("archived");
     });
 
     it("admits when this project has no such ticket", () => {
-      renderPalette({ searchResults: [], onSearch: vi.fn() });
-      fireEvent.change(screen.getByRole("combobox"), {
-        target: { value: "LC-999" },
-      });
+      typeAtRoot("LC-999");
       expect(screen.getByText("No matches")).toBeTruthy();
+    });
+
+    it("keeps the sub-modes out of it", () => {
+      // The rule is the root's. In `status`, `2` is a query over status labels
+      // and nothing else, and it must not offer a ticket.
+      renderPalette({ initialMode: "status", tickets: [found] });
+      fireEvent.change(screen.getByRole("combobox"), {
+        target: { value: "2" },
+      });
+      expect(screen.queryByText("The sixtieth ticket")).toBeNull();
     });
   });
 

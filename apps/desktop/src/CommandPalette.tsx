@@ -14,10 +14,13 @@
  * four places and forgetting the fourth was silent.
  *
  * The root is the one mode that answers with something other than its own rows:
- * a query shaped like a ticket key is looked up in the index and offered above
- * the commands (LC-171), because typing a key is the fastest thing anyone knows
- * how to do and it used to be filtered against command labels, which no key
- * matches.
+ * a query shaped like a ticket key is offered as the ticket it names (LC-171),
+ * because typing a key is the fastest thing anyone knows how to do and it used
+ * to be filtered against command labels, which no key matches. That match is
+ * read from the project's own rows rather than asked of `search_tickets` — a
+ * key is the one query already answerable from what is in memory, and answering
+ * it there is synchronous, exact, and cannot be truncated by the search's
+ * hundred-result cap or refused by a folder the app cannot reach.
  *
  * It writes nothing. Every command is raised to `App`, which owns `mutate()`
  * and is therefore the only place a ticket file is written from.
@@ -142,6 +145,15 @@ export function CommandPalette(props: {
    * as the whole project.
    */
   searchResults?: TicketRow[];
+  /**
+   * Every row of the open project, in the state the surfaces read.
+   *
+   * The palette draws none of them: this is what a key typed at the root is
+   * looked up in (LC-171), which is the whole project rather than the narrowed
+   * list a surface happens to be showing — the point of typing a key is to
+   * reach a ticket you are not looking at.
+   */
+  tickets: TicketRow[];
   /** The registry, for the go-to-project sub-mode. */
   projects: ProjectReference[];
   /** The stored preference, so the toggle row can name what it will leave. */
@@ -206,14 +218,13 @@ export function CommandPalette(props: {
     mode === "root" ? ticketKeyQuery(query, props.project.key) : undefined;
 
   /**
-   * The asked-for ticket, out of whatever Rust last answered.
+   * The ticket that key names, or nothing when the project has no such ticket.
    *
-   * Matched on the key rather than taken as the first result, which is what
-   * keeps a stale answer — the previous query's, or the wider substring match
-   * `lc-6` returns — from being drawn as the ticket the human named.
+   * Exact rather than a substring match: the query resolved to one key, and
+   * `LC-6` must not offer `LC-60` as the ticket the human named.
    */
   const rootKeyMatch = rootKey
-    ? props.searchResults?.find((ticket) => ticket.key === rootKey)
+    ? props.tickets.find((ticket) => ticket.key === rootKey)
     : undefined;
 
   const unreachable = !props.project.reachable;
@@ -512,13 +523,8 @@ export function CommandPalette(props: {
 
   const capped =
     mode === "search" && props.searchResults?.length === SEARCH_LIMIT;
-  // A key typed at the root is waiting on the same answer a search is, so it
-  // says so rather than claiming the ticket does not exist (LC-171). Only until
-  // the first answer arrives: after that the palette holds a real, if older,
-  // result set, and a key absent from it is a key this project does not have.
   const awaitingResults =
-    props.searchResults === undefined &&
-    (mode === "search" || rootKey !== undefined);
+    mode === "search" && props.searchResults === undefined;
 
   return (
     <div className="modal-scrim" role="presentation">
@@ -553,22 +559,17 @@ export function CommandPalette(props: {
             ref={input}
             value={query}
             onChange={(e) => {
-              const typed = e.target.value;
-              setQuery(typed);
+              setQuery(e.target.value);
               setActive(0);
-              // Search asks about whatever was typed; the root asks only when
-              // what was typed is a key, and asks about the key rather than the
-              // casing it arrived in (LC-171).
-              const asking =
-                mode === "search"
-                  ? typed
-                  : ticketKeyQuery(typed, props.project.key);
-              if (asking === undefined) return;
-              clearTimeout(searchTimer.current);
-              searchTimer.current = setTimeout(
-                () => props.onSearch(asking),
-                SEARCH_DEBOUNCE_MS,
-              );
+              // Still only the search sub-mode: the root's own key lookup reads
+              // rows it already has, so it asks Rust nothing (LC-171).
+              if (mode === "search") {
+                clearTimeout(searchTimer.current);
+                searchTimer.current = setTimeout(
+                  () => props.onSearch(e.target.value),
+                  SEARCH_DEBOUNCE_MS,
+                );
+              }
             }}
             placeholder={mode === "root" ? "Type a command…" : "Search…"}
             aria-label="Command palette input"

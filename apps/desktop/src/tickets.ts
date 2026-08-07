@@ -92,8 +92,7 @@ export function provisionalTicketKey(
  * The palette's root filters command labels, so `LC-60` — the fastest thing
  * anyone knows how to type — used to find nothing at all. This is the rule that
  * tells the root when a query is a key rather than a command, and it answers
- * with the canonical key so the caller has something to compare an index answer
- * against.
+ * with the canonical key, which is what a row can then be matched against.
  *
  * Two decisions the ticket left open, made here:
  *
