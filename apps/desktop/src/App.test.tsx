@@ -835,6 +835,44 @@ describe("the project settings gear (LC-70)", () => {
     expect(panel.id).toBe("project-settings");
     expect(settings.getAttribute("aria-expanded")).toBe("true");
   });
+
+  /**
+   * `screen-specs.md:277-278`. The settings panel offers the same removal the
+   * unreachable screen does, so it has to ask the same question first — an
+   * action that confirms on one screen and fires on the next is not a confirm.
+   */
+  it("puts the settings panel's Remove behind the same confirm", async () => {
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project,
+      tickets: [],
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    vi.mocked(api.removeProject).mockResolvedValue(undefined);
+    render(<App />);
+    await screen.findByRole("button", { name: "Board", pressed: true });
+    const header = document.querySelector<HTMLElement>(".content-header")!;
+    fireEvent.click(
+      within(header).getByRole("button", { name: "Project settings" }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove from app" }));
+    expect(api.removeProject).not.toHaveBeenCalled();
+
+    const dialog = await screen.findByRole("dialog", {
+      name: `Remove \u201C${project.name}\u201D from LongClaw?`,
+    });
+    expect(dialog.textContent).toContain("stay on disk, untouched");
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Remove from app" }),
+    );
+
+    await waitFor(() =>
+      expect(api.removeProject).toHaveBeenCalledWith(project.id),
+    );
+  });
 });
 
 describe("the header disk-state indicator (LC-69)", () => {

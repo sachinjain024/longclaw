@@ -214,6 +214,8 @@ export function App() {
   >(readProjectWorkspaces);
   const [settingsName, setSettingsName] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  /** Whether the settings panel's **Remove from app** is waiting on its answer. */
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [paletteTicketKey, setPaletteTicketKey] = useState<string>();
   const [paletteSearchResults, setPaletteSearchResults] =
@@ -1347,14 +1349,28 @@ export function App() {
                   onUpdated={upsertProject}
                   onError={setError}
                 />
+                {/* The same removal, so the same question first: an action
+                    that asks on one screen and fires on the next is not a
+                    confirm, it is a coin toss (`screen-specs.md:277-278`). */}
                 <button
                   tabIndex={0}
                   className="danger"
-                  onClick={() => void forgetProject(project.id)}
+                  onClick={() => setConfirmingRemove(true)}
                 >
                   Remove from app
                 </button>
               </section>
+            )}
+
+            {confirmingRemove && project && (
+              <RemoveProjectConfirm
+                project={project}
+                onConfirm={() => {
+                  setConfirmingRemove(false);
+                  void forgetProject(project.id);
+                }}
+                onCancel={() => setConfirmingRemove(false)}
+              />
             )}
 
             {!project.reachable ? (
@@ -2042,16 +2058,8 @@ function UnreachableProject(props: {
         </button>
       </div>
       {confirmingRemove && (
-        <ConfirmDialog
-          title={`Remove “${props.project.name}” from LongClaw?`}
-          body={
-            <p>
-              The folder <code>{props.project.rootPath}</code> and every ticket
-              file in it <strong>stay on disk, untouched</strong>. You can open
-              it again anytime.
-            </p>
-          }
-          confirmLabel="Remove from app"
+        <RemoveProjectConfirm
+          project={props.project}
           onConfirm={() => {
             setConfirmingRemove(false);
             props.onRemove();
@@ -2060,5 +2068,36 @@ function UnreachableProject(props: {
         />
       )}
     </section>
+  );
+}
+
+/**
+ * What **Remove from app** asks before it does anything, from either of the two
+ * places that offer it (`screen-specs.md:275-278`).
+ *
+ * One component rather than one per surface, because the guarantee is the point:
+ * the same action must not repeat it in two different sets of words, and it must
+ * not be stated on one screen and skipped on the other — which is what happened
+ * while the settings panel's copy of the button went straight through.
+ */
+function RemoveProjectConfirm(props: {
+  project: ProjectReference;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <ConfirmDialog
+      title={`Remove “${props.project.name}” from LongClaw?`}
+      body={
+        <p>
+          The folder <code>{props.project.rootPath}</code> and every ticket file
+          in it <strong>stay on disk, untouched</strong>. You can open it again
+          anytime.
+        </p>
+      }
+      confirmLabel="Remove from app"
+      onConfirm={props.onConfirm}
+      onCancel={props.onCancel}
+    />
   );
 }

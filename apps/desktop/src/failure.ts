@@ -122,12 +122,12 @@ export function failureGuarantee(error: AppError): string | undefined {
 export function failureMessage(error: AppError, own?: string): string {
   return [own ?? error.message, failureRecovery(error), failureGuarantee(error)]
     .filter((sentence): sentence is string => Boolean(sentence))
-    .map(sentenceCase)
+    .map(ended)
     .join(" ");
 }
 
 /**
- * One sentence, ended.
+ * The sentence, ended.
  *
  * Rust writes its messages as a clause and stops — "The selected project folder
  * is no longer available" — so joining three of them with a space produced *"The
@@ -135,7 +135,7 @@ export function failureMessage(error: AppError, own?: string): string {
  * The break belongs here rather than in each message, because whether a sentence
  * has a neighbour is this function's business and not the writer's (LC-145).
  */
-function sentenceCase(sentence: string): string {
+function ended(sentence: string): string {
   const trimmed = sentence.trim();
   return /[.!?:;…]$/.test(trimmed) ? trimmed : `${trimmed}.`;
 }

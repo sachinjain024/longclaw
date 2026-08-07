@@ -677,20 +677,20 @@ impl ProjectWatcher {
                     // A tickets root that is gone means the project is gone. A root
                     // that is merely touched is left to the frontend's focus
                     // reconciliation rather than triggering a full rebuild here.
+                    //
+                    // An event is also proof of the opposite: if the last thing
+                    // said about the project was that it was gone, this burst is
+                    // the folder answering. Both readings are `probe_liveness`,
+                    // which is why the answer is asked for in one place — and
+                    // either way the burst is over, because a recovery rebuild
+                    // already holds every row this burst was going to report.
                     if root_touched && !tickets_root.is_dir() {
-                        if !reported_missing {
-                            engine.report_unavailable();
-                            reported_missing = true;
-                        }
+                        probe_liveness(&engine, &tickets_root, &mut reported_missing);
                         continue;
                     }
-                    // An event is proof the folder answered. If the last thing
-                    // said about it was that it was gone, taking that back is a
-                    // rebuild and not this burst: the changes made while it was
-                    // away were never delivered, so nothing incremental can
-                    // bridge the silence.
                     if reported_missing {
                         probe_liveness(&engine, &tickets_root, &mut reported_missing);
+                        continue;
                     }
                     if let Some(reason) = recovery_reason {
                         let _ = engine.rebuild(reason, true);
