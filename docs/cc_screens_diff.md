@@ -136,6 +136,15 @@ picked, and it shows the chosen folder as a read-only mono path.
 | ~~D-15~~ | P3 | Key hint: "locks after the first ticket" | "Uppercase letters and digits, starting with a letter, such as LC. Locks after the first ticket." | **Fixed 2026-08-07 (LC-81).** `PROJECT_KEY_HINT` is the idle line and `PROJECT_KEY_RULE` is the refusal, which is where the dropped clause — *starting with a letter* — earns its second line. It is the clause that actually bites (`30 July 4PM` → `3J4`), so it is stated when a key breaks it rather than at rest. What stays is the half no refusal will ever explain: a key that locks is a consequence, not a mistake. |
 | ~~D-16~~ | P3 | Trust line in mono `--lc-type-micro` | Renders in the UI face, not mono | **Fixed 2026-08-07 (LC-82).** Not the token: `.trust-line` already asked for `--lc-type-kbd-font`, which is `--lc-font-mono`, and the sidebar's copy of the line renders in mono today — § 1 records it as matching. The subtitle above it was styled as `.welcome-copy p`, which matched the trust line too and beat one class on specificity. The subtitle carries `.welcome-subtitle` now, and `scripts/trust-line-guard.mjs` fails the build on any selector that can reach this line and set a font, because jsdom loads no stylesheet and the vitest suite can see the class but never the cascade. Swapping in `--lc-type-code-font` as the row asks would have changed the sidebar's line too, at 12px instead of 10px, for a defect that was never in the token. |
 
+**Also observed, 2026-08-07:** the picker's own branch is not built.
+`screen-specs.md:98-100` says a folder that already contains `.longclaw/` opens
+directly and a plain one proceeds to the create form; the app instead lets
+**Create a project** walk an initialised folder through the whole form before
+refusing it, and lets **Open a folder** error on a plain one. No `D-` row covers
+it — this section was walked without raising it — so it is **filed as LC-170**
+rather than reopened here. Nothing is written either way: `initialize_project`
+refuses before it creates.
+
 ---
 
 ## 3 · Board

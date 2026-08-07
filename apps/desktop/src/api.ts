@@ -48,9 +48,17 @@ export async function chooseProjectFolder(): Promise<string | null> {
   });
 }
 
+/**
+ * Everything a new project needs that the folder does not supply. The same
+ * shape as `ProjectDraft`, and deliberately not that import: this is the IPC
+ * request `create_project` deserializes, and the day the form grows a field the
+ * backend does not take, the two should be allowed to disagree.
+ */
+export type NewProjectRequest = { name: string; key: string; theme: string };
+
 export async function createProjectInFolder(
   rootPath: string,
-  request: { name: string; key: string; theme: string },
+  request: NewProjectRequest,
 ): Promise<ProjectReference> {
   return invoke("create_project", {
     request: { rootPath, ...request },
@@ -62,11 +70,9 @@ export async function createProjectInFolder(
  * in, because a 240px panel has no room for a second step and the folder it
  * picks is the last thing it needs.
  */
-export async function chooseAndCreateProject(request: {
-  name: string;
-  key: string;
-  theme: string;
-}): Promise<ProjectReference | null> {
+export async function chooseAndCreateProject(
+  request: NewProjectRequest,
+): Promise<ProjectReference | null> {
   const selected = await chooseProjectFolder();
   if (!selected) return null;
   return createProjectInFolder(selected, request);

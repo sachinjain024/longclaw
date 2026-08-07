@@ -1409,11 +1409,18 @@ describe("first launch (LC-76 … LC-82)", () => {
   });
 
   it("shows the folder the picker answered with (D-13)", async () => {
-    await reachCreateForm("/Users/dev/repo");
+    await reachCreateForm("/Users/dev/my-app");
 
     expect(document.querySelector(".picked-path")?.textContent).toBe(
-      "/Users/dev/repo/.longclaw",
+      "/Users/dev/my-app/.longclaw",
     );
+    // And works from it, rather than only displaying it
+    // (`screen-specs.md:103`) — this is the whole return on asking the folder
+    // first, and the field focus lands in.
+    expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe(
+      "my-app",
+    );
+    expect(screen.getByLabelText<HTMLInputElement>("Key").value).toBe("MA");
   });
 
   it("leaves the screen alone when the picker is cancelled", async () => {

@@ -12,11 +12,19 @@ import {
 
 export const DEFAULT_PROJECT_NAME = "Untitled Project";
 
+/** What creation puts inside the chosen folder, and nothing else. */
+const PROJECT_DIRECTORY = "/.longclaw";
+
 export type ProjectDraft = {
   name: string;
   key: string;
   theme: string;
 };
+
+/** The folder's own name, which is the project's until someone says otherwise. */
+function folderName(folder: string | undefined) {
+  return folder?.split("/").filter(Boolean).pop() ?? "";
+}
 
 /**
  * The one create-project form. First launch and the side panel render the same
@@ -26,9 +34,6 @@ export type ProjectDraft = {
  * Everything the backend would refuse is refused here, before the native picker
  * opens. Nothing is created in the user's folder by a form they can still fix.
  */
-/** What creation puts inside the chosen folder, and nothing else. */
-const PROJECT_DIRECTORY = "/.longclaw";
-
 export function CreateProjectForm(props: {
   themes: ThemeOption[];
   submitLabel: string;
@@ -43,8 +48,14 @@ export function CreateProjectForm(props: {
   onBack?: () => void;
   onSubmit: (draft: ProjectDraft) => void;
 }) {
-  const [name, setName] = useState("");
-  const [key, setKey] = useState(() => defaultProjectKey(""));
+  // Prefilled from the folder, and from nothing else (`screen-specs.md:103`):
+  // by the time this form exists the picker has answered, and the folder's own
+  // name is the best guess anyone has. The sidebar's quick create runs before
+  // the picker, so it starts empty and offers `Untitled Project`.
+  const [name, setName] = useState(() => folderName(props.folder));
+  const [key, setKey] = useState(() =>
+    defaultProjectKey(folderName(props.folder)),
+  );
   const [keyEdited, setKeyEdited] = useState(false);
   const [theme, setTheme] = useState(props.themes[0]?.id ?? "indigo");
   // First launch renders this form while the side panel renders another one, so

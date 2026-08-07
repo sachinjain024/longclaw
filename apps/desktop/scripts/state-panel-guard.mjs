@@ -26,19 +26,14 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { cssRules, report } from "./guard.mjs";
+import { cssRules, declarationsOf, report } from "./guard.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const styles = readFileSync(resolve(here, "../src/styles.css"), "utf8");
 const rules = cssRules(styles);
 
 /** Every declaration a selector makes, across all the rules that set it. */
-function declarations(selector) {
-  return rules
-    .filter(([at]) => at.split(",").some((one) => one.trim() === selector))
-    .map(([, body]) => body)
-    .join(";");
-}
+const declarations = (selector) => declarationsOf(rules, selector);
 
 const findings = [];
 

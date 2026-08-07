@@ -85,6 +85,22 @@ export function cssRules(css) {
   );
 }
 
+/**
+ * Every declaration one selector makes, across all the rules that set it,
+ * joined into one body a pattern can be run over.
+ *
+ * Exact-match on the selector, not substring: `.no-matches` must not collect
+ * what `.no-matches strong` declares, and `.trust-line` must not collect what
+ * `.welcome-panel .trust-line` does — the second of each pair is a different
+ * subject, and in `trust-line-guard.mjs` it is the *defect* being looked for.
+ */
+export function declarationsOf(rules, selector) {
+  return rules
+    .filter(([at]) => at.split(",").some((one) => one.trim() === selector))
+    .map(([, body]) => body)
+    .join(";");
+}
+
 /** `{ path, text, lines }` for one file, read once. */
 export function readSource(file) {
   const text = readFileSync(file, "utf8");

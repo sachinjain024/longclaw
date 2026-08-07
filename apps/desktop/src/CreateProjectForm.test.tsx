@@ -97,7 +97,7 @@ describe("the create-project form", () => {
 
     const hint = screen.getByText(/locks after the first ticket/i);
     expect(hint.textContent).toBe(
-      "Uppercase letters and digits. Locks after the first ticket.",
+      "Uppercase letters and digits, such as LC. Locks after the first ticket.",
     );
     expect(screen.queryByRole("alert")).toBeNull();
   });
@@ -190,6 +190,48 @@ describe("the create-project form as first launch's second step", () => {
     expect(row.getAttribute("title")).toBe("/Users/dev/repo/.longclaw");
   });
 
+  // `screen-specs.md:103`: Name prefilled from the folder name, Key from the
+  // name. The picker has already answered by the time this form exists, so the
+  // folder's own name is the best guess anyone has — and it is what focus lands
+  // in, which is a poor place for an empty box.
+  it("arrives holding the folder's name, and a key derived from it", () => {
+    render(
+      <CreateProjectForm
+        themes={THEMES}
+        folder="/Users/dev/my-app"
+        submitLabel="Create project"
+        onBack={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe(
+      "my-app",
+    );
+    expect(screen.getByLabelText<HTMLInputElement>("Key").value).toBe("MA");
+  });
+
+  it("creates what it arrived holding, if nobody touches it", () => {
+    const onSubmit = vi.fn();
+    render(
+      <CreateProjectForm
+        themes={THEMES}
+        folder="/Users/dev/my-app"
+        submitLabel="Create project"
+        onBack={vi.fn()}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Create project" }));
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      name: "my-app",
+      key: "MA",
+      theme: "indigo",
+    });
+  });
+
   it("says nothing about a folder when the picker has not run", () => {
     render(
       <CreateProjectForm
@@ -202,6 +244,8 @@ describe("the create-project form as first launch's second step", () => {
     expect(document.querySelector(".picked-path")).toBeNull();
     expect(screen.queryByText("Folder")).toBeNull();
     expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
+    // And nothing to prefill from, so it opens on its own placeholder.
+    expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe("");
   });
 
   // `keyboard-focus-map.md:160`: the folder picker hands focus to the name

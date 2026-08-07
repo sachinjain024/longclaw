@@ -70,7 +70,15 @@
     { "name": "longclaw", "key": "L" },
     { "name": "  spaced   out  ", "key": "SO", "note": "surrounding whitespace is not a word" },
     { "name": "alpha beta gamma delta epsilon", "key": "ABGD", "note": "the derivation cap" },
-    { "name": "release-2026", "key": "R", "note": "punctuation joins the word it sits in" },
+    {
+      "name": "release-2026",
+      "key": "R2",
+      "note": "a hyphen is a word break, not a character to delete. It was one until the create form began prefilling the name from the chosen folder, which is where hyphens and underscores live"
+    },
+    { "name": "my-app", "key": "MA", "note": "the common folder name" },
+    { "name": "long_claw", "key": "LC" },
+    { "name": "site.v2", "key": "SV", "note": "a dot breaks a word too" },
+    { "name": "it's fine", "key": "IF", "note": "punctuation that is not a separator still joins the word it sits in" },
     { "name": "日本語プロジェクト", "key": "LC", "note": "nothing survives the ASCII filter" },
     { "name": "4", "key": "LC" },
     { "name": "", "key": "LC" },

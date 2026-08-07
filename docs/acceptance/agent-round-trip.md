@@ -55,21 +55,34 @@ window rather than on the checklist.
 
 ### 1. Create the project (human)
 
-1. Launch the app. On first launch, choose **Create project in folder**.
-2. Type a name beginning with a digit — `30 July 4PM` — and read the key the form
-   suggests.
-3. Clear the key field, then type `3J4` by hand.
-4. Restore a valid key, give it a name, keep Indigo, and pick the folder.
+1. Launch the app. On first launch the window is the welcome screen alone —
+   there is no sidebar. Choose **Create a project** and pick the folder.
+2. Read the form back: it names the folder you picked with the `/.longclaw` it
+   will create inside it, and the Name field arrives holding the folder's own
+   name with a key derived from it.
+3. Type a name beginning with a digit — `30 July 4PM` — and read the key the
+   form suggests.
+4. Clear the key field, then type `3J4` by hand.
+5. Restore a valid key, keep Indigo, and press **Create project**.
 
-**Pass (release-blocking):** the form never opens the native folder picker on a
-key the app would refuse. At step 2 the suggested key starts with a letter; at
-step 3 the invalid key is explained inline and **Choose folder** is disabled. The
-chosen folder is untouched until a valid form is submitted — a refused creation
-leaves no `.longclaw/` behind.
+**Pass (release-blocking):** the chosen folder is untouched until a valid form
+is submitted — a refused creation leaves no `.longclaw/` behind. At step 3 the
+suggested key starts with a letter; at step 4 the invalid key is explained
+inline and **Create project** is disabled, so nothing reaches the folder. Step 1
+is what **Back** returns you to, and it leaves the folder untouched too.
 
-This ordering is the check itself. The reported failure was not the refusal but
-its timing: the user answered a native dialog before learning the form was
-invalid, and the folder kept the residue. See
+The folder is answered first here, which is the two-step flow the welcome screen
+regained on 2026-08-07 (LC-77). The **ordering** half of this check moved with
+it: the reported failure was a user answering a native dialog before learning
+the form was invalid, and on this path the dialog is over before the form
+exists. The surface that still asks last is the sidebar's quick create —
+**Create project** → fill the form → **Choose folder** — so walk step 6 for it.
+
+6. Open the sidebar's **Create project**, type `3J4` into Key, and press
+   **Choose folder**.
+
+**Pass (release-blocking):** no native dialog opens. The key is explained inline
+and **Choose folder** is disabled. See
 [the resolved report](../plans/completed/project-key-derivation-bug.md).
 
 **Pass:** the board opens empty, the header shows the folder path, and the

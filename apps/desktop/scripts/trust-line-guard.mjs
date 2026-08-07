@@ -39,7 +39,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { cssRules, report } from "./guard.mjs";
+import { cssRules, declarationsOf, report } from "./guard.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const src = resolve(here, "../src");
@@ -90,14 +90,7 @@ function familyToken(body) {
   return shorthand?.[1].trim().split(/\s+/).pop() ?? null;
 }
 
-const trustLine = rules
-  .filter(([selector]) =>
-    selector.split(",").some((one) => one.trim() === ".trust-line"),
-  )
-  .map(([, body]) => body)
-  .join(";");
-
-const family = familyToken(trustLine);
+const family = familyToken(declarationsOf(rules, ".trust-line"));
 if (family === null) {
   findings.push(
     ".trust-line names no font family — the line falls back to the UI face " +
