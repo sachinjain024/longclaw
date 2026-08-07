@@ -23,10 +23,13 @@
  *              right; `--lc-type-kbd-font` and `--lc-type-code-font` are both
  *              mono and `--lc-type-micro-font` is not, and only the token file
  *              knows that.
- *   cascade  — no rule anywhere sets a font on a selector that can match
- *              `<p class="trust-line">`: a bare `p`, or a `p` scoped to one of
- *              the containers the line lives in. Every such selector outranks
- *              a single class.
+ *   cascade  — no rule sets a font on a selector that both *can match*
+ *              `<p class="trust-line">` where one stands, and *outranks*
+ *              `.trust-line`. Both halves are load-bearing. A bare `p` matches
+ *              the line and loses to it — flagging that would fail the build
+ *              over the cascade working — and a selector ending in
+ *              `.trust-line` rather than `p` reaches it just as surely as
+ *              `.welcome-panel p` does, at a specificity that wins.
  *
  * The container list is this guard's one hand-maintained fact, so it is pinned
  * to the markup: `App.tsx` must hold exactly as many trust lines as there are
@@ -69,14 +72,29 @@ const declared = new Map(
   ),
 );
 
-/** Follow `var(--a)` → `var(--b)` → a real font stack. */
+/**
+ * Follow `var(--a)` → `var(--b)` → a real font stack, or `undefined` when the
+ * chain runs out.
+ *
+ * `undefined` rather than `""`: a token nothing declares and a token that is
+ * not mono are different findings, and reporting the first as the second sends
+ * the reader to change a value that is not there. `var(--a, fallback)` resolves
+ * to the fallback when `--a` is undeclared, which is what the browser would
+ * render, so it is what this answers too.
+ */
 function resolveToken(value) {
-  let seen = 0;
   let current = value;
-  while (current?.startsWith("var(") && seen++ < 10) {
-    current = declared.get(current.slice(4, current.indexOf(")")).trim());
+  for (let hop = 0; hop < 10 && current?.startsWith("var("); hop++) {
+    // `lastIndexOf`, so a nested `var(--a, var(--b))` keeps its inner call
+    // whole rather than being cut at the first `)`.
+    const inside = current.slice(4, current.lastIndexOf(")"));
+    const comma = inside.indexOf(",");
+    const name = (comma === -1 ? inside : inside.slice(0, comma)).trim();
+    current =
+      declared.get(name) ??
+      (comma === -1 ? undefined : inside.slice(comma + 1).trim());
   }
-  return current ?? "";
+  return current;
 }
 
 /**
@@ -91,22 +109,68 @@ function familyToken(body) {
 }
 
 const family = familyToken(declarationsOf(rules, ".trust-line"));
+const stack = family === null ? undefined : resolveToken(family);
 if (family === null) {
   findings.push(
     ".trust-line names no font family — the line falls back to the UI face " +
       "the spec puts it deliberately outside of",
   );
-} else if (!/mono/i.test(resolveToken(family))) {
+} else if (stack === undefined) {
   findings.push(
-    `.trust-line resolves ${family} to \`${resolveToken(family)}\`, which is ` +
-      "not the mono stack (`screen-specs.md:93-94`)",
+    `.trust-line names ${family}, which nothing in the token file declares — ` +
+      "the line renders in whatever the cascade hands it, and this guard " +
+      "cannot say what that is",
+  );
+} else if (!/mono/i.test(stack)) {
+  findings.push(
+    `.trust-line resolves ${family} to \`${stack}\`, which is not the mono ` +
+      "stack (`screen-specs.md:93-94`)",
   );
 }
 
-/** Does this selector match a `<p>` by tag, over a trust line's container? */
+/**
+ * `[ids, classes, types]`, counted the way the cascade counts them —
+ * pseudo-classes with classes, so `.welcome-panel p:first-child` is not
+ * mistaken for a weaker rule than it is.
+ *
+ * Pseudo-*elements* are overcounted as classes rather than types. It does not
+ * matter here: a pseudo-element is never the trust line, so no selector ending
+ * in one reaches this comparison.
+ */
+function specificityOf(selector) {
+  const score = [0, 0, 0];
+  for (const simple of selector.match(/[#.:]?[\w-]+(\([^)]*\))?/g) ?? []) {
+    if (simple.startsWith("#")) score[0] += 1;
+    else if (simple.startsWith(".") || simple.startsWith(":")) score[1] += 1;
+    else score[2] += 1;
+  }
+  return score;
+}
+
+/** What a rule has to beat to take the trust line's font away from it. */
+const OWNER = specificityOf(".trust-line");
+
+function outranks(challenger, owner) {
+  for (let rank = 0; rank < owner.length; rank += 1) {
+    if (challenger[rank] !== owner[rank]) return challenger[rank] > owner[rank];
+  }
+  // Equal specificity is the `.trust-line` rule itself, or a second one that
+  // may legitimately have the last word. `declarationsOf` reads those together.
+  return false;
+}
+
+/**
+ * Can this selector match `<p class="trust-line">` where one actually stands?
+ *
+ * The subject has to be the paragraph itself — `p`, `.trust-line`, or both —
+ * and anything above it has to be a screen the line is on. A `p` under some
+ * other container is a different paragraph, and the containers are the fact
+ * this guard pins to the markup.
+ */
 function reachesTheTrustLine(selector) {
   const compounds = selector.split(/[\s>+~]+/).filter(Boolean);
-  if (compounds.pop() !== "p") return false;
+  const subject = compounds.pop();
+  if (!subject || !/^(p)?(\.trust-line)?$/.test(subject)) return false;
   return (
     compounds.length === 0 ||
     compounds.some((compound) => CONTAINERS.includes(compound))
@@ -116,7 +180,9 @@ function reachesTheTrustLine(selector) {
 for (const [selector, body] of rules) {
   if (familyToken(body) === null) continue;
   for (const one of selector.split(",").map((part) => part.trim())) {
-    if (reachesTheTrustLine(one)) {
+    // Reaching it is not enough — a bare `p` reaches it and loses to it, which
+    // is the cascade working rather than a defect.
+    if (reachesTheTrustLine(one) && outranks(specificityOf(one), OWNER)) {
       findings.push(
         `\`${one}\` sets a font on a selector that also matches the trust ` +
           "line and outranks `.trust-line` — give the paragraph it is meant " +
