@@ -143,3 +143,25 @@ The fix is that the column draws each anchor index once — the guard `IssueList
 
 perf:board over 5,000 tickets: ArrowDown p95 15ms, scroll p95 19ms, filter p95 28ms, external write → paint p95 15ms. Every p95 is inside the 50ms budget and every median within 4ms of the 600-ticket floor.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_a81d1ffd
+kind: comment
+occurred_at: 2026-08-07T16:26:37.558Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+The code review found the checklist only half-pinned, and the tests now close that.
+
+Item 2 asks that a filtered column reserve the height of its matching cards and no more. The assertion for it was `.board-sizer`'s height, which is green on main too — the sizer was never the wrong part. So the test now reads the height the column reserves and checks that every card it drew sits inside it, which is what "no empty region below the last match" actually means and what a card at `top: 19502px` in a 392px box breaks.
+
+Item 4 asks that the header's count and the cards reachable by scrolling agree. The assertion for it scrolled to one position, and `windowFor` clamps a scroll past the end back to the same window, so it re-read the same four cards rather than traversing anything. It now sweeps the scroll range the column used to have and unions what each position draws.
+
+Four tests, all red against `origin/main`'s `Board.tsx` and green with the fix. `npm run verify` passes, 772 frontend tests. The review also raised a duplicated test helper: `columnKeys` existed twice already and is now one copy at module scope.
+
+Not claimed: the reproduction is jsdom against main's code, not the running build the recording came from, and it uses `LC-200` rather than the recording's `LC-170`.
+<!-- /longclaw:event -->

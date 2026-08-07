@@ -155,6 +155,13 @@ function sizer(title = "Todo"): HTMLElement {
   return element;
 }
 
+/** The keys one column has on screen, top to bottom. */
+function columnKeys(title = "Todo"): string[] {
+  return Array.from(
+    stack(title).querySelectorAll<HTMLElement>(".ticket-row"),
+  ).map((element) => element.dataset.ticketKey ?? "");
+}
+
 /** jsdom lays nothing out, so a scroll has to be stated rather than performed. */
 function scrollTo(element: HTMLElement, top: number) {
   Object.defineProperty(element, "scrollTop", {
@@ -509,20 +516,6 @@ describe("focus on a column that is being scrolled", () => {
 
     expect(card("LC-200").className).toContain("selected");
   });
-
-  it("draws one card when the roving card and the open card are the same", () => {
-    // Clicking a card makes it both, so this is the ordinary case rather than a
-    // corner of one. Drawing it twice put two children under one key, which
-    // React leaves free to strand the second node — the defect LC-178 saw.
-    render(board({ tickets: columnOf(400), selectedKey: "LC-1" }));
-    fireEvent.focus(card("LC-1"));
-
-    scrollTo(stack(), 299 * CARD_STRIDE);
-
-    expect(document.querySelectorAll('[data-ticket-key="LC-1"]').length).toBe(
-      1,
-    );
-  });
 });
 
 /**
@@ -531,17 +524,18 @@ describe("focus on a column that is being scrolled", () => {
  * the query had removed stayed on screen anyway — stranded below the matches at
  * the offset it last had, and holding a scroll range for cards the column no
  * longer had.
+ *
+ * One cause, both symptoms. A column draws its window plus its anchors, and
+ * clicking a card makes it both the roving card and the open one; drawn twice,
+ * it went to React as two children under one key, and React left the second node
+ * mounted for good. The sizer was never wrong — `.ticket-row` is placed
+ * absolutely inside `.board-sizer` (`styles.css`), so the leftover card holds
+ * the scroll range open from outside the height the column reserved.
  */
 describe("a column the filter has narrowed (LC-178)", () => {
-  /** The keys one column has on screen, top to bottom. */
-  function drawn(title = "Todo"): string[] {
-    return Array.from(
-      stack(title).querySelectorAll<HTMLElement>(".ticket-row"),
-    ).map((element) => element.dataset.ticketKey ?? "");
-  }
-
   /** The four cards the recording's `Full Create` left in Todo. */
   const matches = columnOf(400).slice(115, 119);
+  const matchedKeys = ["LC-116", "LC-117", "LC-118", "LC-119"];
 
   /**
    * A long column with a card deep in it both open and roving — what clicking
@@ -558,24 +552,54 @@ describe("a column the filter has narrowed (LC-178)", () => {
     rerender(board({ tickets: matches, selectedKey: "LC-200" }));
   }
 
-  it("draws the matches alone, and reserves only their height", () => {
-    narrow();
+  it("draws one card when the roving card and the open card are the same", () => {
+    render(board({ tickets: columnOf(400), selectedKey: "LC-1" }));
+    fireEvent.focus(card("LC-1"));
 
-    expect(drawn()).toStrictEqual(["LC-116", "LC-117", "LC-118", "LC-119"]);
-    expect(sizer().style.height).toBe(`${4 * CARD_STRIDE}px`);
+    scrollTo(stack(), 299 * CARD_STRIDE);
+
+    expect(document.querySelectorAll('[data-ticket-key="LC-1"]').length).toBe(
+      1,
+    );
   });
 
-  it("has nothing further down for a scroll to reach", () => {
+  it("draws the matches and nothing else", () => {
     narrow();
 
-    // The header says four, and scrolling the length of the column it used to
-    // be must not turn up a fifth.
-    scrollTo(stack(), 399 * CARD_STRIDE);
+    expect(columnKeys()).toStrictEqual(matchedKeys);
+  });
+
+  it("keeps every card it draws inside the height it reserves", () => {
+    narrow();
+
+    // The empty region is this, rather than an oversized sizer: the height is
+    // built from the filtered array and was always right, so what a scrollbar
+    // measures past the last match is a card placed outside the box.
+    const reserved = Number.parseInt(sizer().style.height, 10);
+    expect(reserved).toBe(4 * CARD_STRIDE);
+    for (const element of stack().querySelectorAll<HTMLElement>(
+      ".ticket-row",
+    )) {
+      expect(Number.parseInt(element.style.top, 10)).toBeLessThan(reserved);
+    }
+  });
+
+  it("has no card beyond the four its header counts", () => {
+    narrow();
+
+    // Swept rather than read at one scroll position, because the card this
+    // found was parked far below the window: what the header claims has to be
+    // everything the whole scroll range can reach.
+    const reached = new Set<string>();
+    for (let top = 0; top <= 400 * CARD_STRIDE; top += 10 * CARD_STRIDE) {
+      scrollTo(stack(), top);
+      for (const key of columnKeys()) reached.add(key);
+    }
 
     expect(screen.getByRole("heading", { name: /Todo/ }).textContent).toBe(
       "Todo4",
     );
-    expect(drawn()).toStrictEqual(["LC-116", "LC-117", "LC-118", "LC-119"]);
+    expect([...reached].sort()).toStrictEqual(matchedKeys);
   });
 });
 
@@ -734,12 +758,6 @@ describe("priority on the board", () => {
   ];
 
   /** The keys of one column, in the order the column renders them. */
-  function columnKeys(title = "Todo"): string[] {
-    return Array.from(
-      stack(title).querySelectorAll<HTMLElement>(".ticket-row"),
-    ).map((element) => element.dataset.ticketKey ?? "");
-  }
-
   it("orders a column by priority, stable within a level (ADR 0003)", () => {
     render(board({ tickets: column }));
 
@@ -963,12 +981,6 @@ describe("board ordering and drag-and-drop (V0-09)", () => {
     row({ key: "LC-2", status: "todo", priority: "urgent", rank: "a1" }),
     row({ key: "LC-3", status: "todo", priority: "p1", rank: "a2" }),
   ];
-
-  function columnKeys(title = "Todo"): string[] {
-    return Array.from(
-      stack(title).querySelectorAll<HTMLElement>(".ticket-row"),
-    ).map((element) => element.dataset.ticketKey ?? "");
-  }
 
   /** jsdom lays nothing out, so the sizer's box has to be stated. */
   function layOut(title = "Todo") {
