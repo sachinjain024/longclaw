@@ -215,9 +215,9 @@ rows all match.
 
 | ID | Sev | Prototype | App | Plan |
 |---|---|---|---|---|
-| D-35 | P2 | Relative time is a fixed 46px right-aligned column: `40m`, `3h`, `2d` | `just now` **wraps onto two lines** inside the 46px slot, making those rows visibly taller than their neighbours | Either widen the slot or shorten the string (`now`). `src/freshness.ts` / `listRow.ts`. |
-| D-36 | P2 | Degraded rows sit **in place**, with the row's own anatomy | Degraded rows are hoisted into a synthetic `Unreadable` group at the bottom (`src/grouping.ts:86-90`) | See D-50 — decide once for both surfaces. |
-| D-37 | P3 | Degraded row: warn triangle, mono filename, `View raw file`, danger treatment | Present, but with no danger tint or border, and a stray **green freshness dot** renders immediately left of `View raw file` | Apply the danger row treatment; suppress the freshness dot on a row that has no parsed content to be fresh about. |
+| ~~D-35~~ | P2 | Relative time is a fixed 46px right-aligned column: `40m`, `3h`, `2d` | `just now` **wraps onto two lines** inside the 46px slot, making those rows visibly taller than their neighbours | **Fixed 2026-08-07 (LC-93).** The string, not the slot: `describeAgeInSlot` in `freshness.ts` substitutes `now` for the one age the column cannot hold, and the row reads it instead of `describeAge`. Prose keeps `just now` — the timeline entry and the card's acknowledgement are sentences, and a sentence saying `now` reads as a truncation — so there is one age vocabulary with one substitution rather than two. `.list-row-updated` also took `white-space: nowrap`, so no future age can wrap this slot in words the guard cannot see. |
+| ~~D-36~~ | P2 | Degraded rows sit **in place**, with the row's own anatomy | Degraded rows are hoisted into a synthetic `Unreadable` group at the bottom (`src/grouping.ts:86-90`) | **Fixed 2026-08-07 (LC-94).** Decided for both surfaces, and the two placements are deliberately different: `groupByStatus` takes an `unreadable` option, the board keeps `"last"` — its columns are the fixed set in a fixed order (ADR 0002), so the group no status names takes the seat at the end, which is the placement D-50 names — and the list asks for `"first"`. One vertical scroller is why: appended, the group sat below the fold at the default window size, which is the "never silent" invariant broken by a sort order. *In place* in the prototype's full sense — the row in its last-known status — needs a last-known status to exist, and nothing in the app remembers one yet; that is D-50 / LC-133's work, and this row no longer waits on it. |
+| ~~D-37~~ | P3 | Degraded row: warn triangle, mono filename, `View raw file`, danger treatment | Present, but with no danger tint or border, and a stray **green freshness dot** renders immediately left of `View raw file` | **Fixed 2026-08-07 (LC-95).** The card's treatment at row height (`states.md:92-94`): `--lc-danger-surface` behind the row, the card's `--lc-danger-border` drawn as an inset `::after` overlay — not a `border`, which would push every row below it off the 36px the geometry places it at, and not a `box-shadow`, which selection already owns — and the ID slot, the warn glyph and `View raw file` in `--lc-danger` rather than the row's resting greys. The dot is gone with the whole fresh treatment: a file that would not parse has nothing in it to be fresh about, so `ListRow` reads `isFresh(…) && !row.degraded`. |
 
 ---
 
@@ -392,7 +392,7 @@ app running.
 
 | ID | Sev | Prototype | App | Plan |
 |---|---|---|---|---|
-| **D-50** | **P0** | Degraded card renders in its last-known column | **The ticket vanishes from the board entirely.** Todo went 3 → 2, no card, no warning, no count change to explain it. It survives only in the list, hoisted to a synthetic `Unreadable` group at the very bottom (`grouping.ts:86-90`) — below the fold at the default window size | This violates the "never silent" invariant (`states.md:9-12`). The row exists all the way through (`core/storage.rs:220`, `types.ts:181`, `boardCard.ts:38`) — it is only the *grouping* that drops it. Give a degraded row a placement: keep its directory's last-known status if the index has one, else render an `Unreadable` column at the end of the board. Do not let a file the user can see on disk be invisible in the app. |
+| **D-50** | **P0** | Degraded card renders in its last-known column | **The ticket vanishes from the board entirely.** Todo went 3 → 2, no card, no warning, no count change to explain it. It survives only in the list, in a synthetic `Unreadable` group — at the very bottom, below the fold at the default window size, until D-36 / LC-94 moved that group to the top of the list on 2026-08-07. The board half of this row is untouched: the card is still missing from its column | This violates the "never silent" invariant (`states.md:9-12`). The row exists all the way through (`core/storage.rs:220`, `types.ts:181`, `boardCard.ts:38`) — it is only the *grouping* that drops it. Give a degraded row a placement: keep its directory's last-known status if the index has one, else render an `Unreadable` column at the end of the board. Do not let a file the user can see on disk be invisible in the app. |
 | **D-51** | **P0** | Raw file view is a 680px centered modal | It opens as the 560px right panel, **and the surface behind paints through it** — several lines of the file are covered by opaque white bands from the list rows underneath, so the file is partly unreadable | Same root cause as D-01 (`z-index`). Also decide modal-vs-panel: the spec says modal, and a modal removes the layering problem entirely. |
 | D-52 | P2 | Danger banner shows the parser error in mono **with `file:line`** (`ticket.md:7 — mapping values are not allowed here…`) | Error shown as plain prose with no line reference: "status must be one of backlog, todo, …; found not_a_real_status" | Include the line number — it is the whole point of showing the raw file. |
 | D-53 | P2 | Content is line-numbered, offending line highlighted with `danger-surface` | No line numbers, no highlight | Add both. |
@@ -545,8 +545,9 @@ single stack.
     and ~~**D-23**~~: the board's focus ring and the `None` chip).
 15. **D-47 / D-48 / D-49 / D-4A / D-4B** — create surfaces.
 16. **D-60 / D-61 / D-62** — freshness attribution.
-17. **D-35 / D-37 / D-65 / D-73** — layout and chrome polish (~~**D-72**~~ went
-    with the settings modal).
+17. **D-65 / D-73** — layout and chrome polish (~~**D-72**~~ went with the
+    settings modal; ~~**D-35**~~ and ~~**D-37**~~ went on 2026-08-07 with LC-93
+    and LC-95, alongside ~~**D-36**~~'s placement decision in LC-94).
 
 **Product decisions, not bugs**
 

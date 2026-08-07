@@ -333,6 +333,13 @@ describe("the board's own shape", () => {
     expect(degraded.textContent).toContain(".longclaw/tickets/LC-98/ticket.md");
     expect(degraded.textContent).toContain("needs repair");
     expect(screen.getByRole("heading", { name: /Unreadable/ })).toBeTruthy();
+    // At the end, after the fixed set. The board's scaffold starts at Backlog
+    // whatever else is on it (ADR 0002), so the synthetic column takes the only
+    // seat left — unlike the list, whose one scroller would bury it.
+    const titles = Array.from(
+      document.querySelectorAll<HTMLElement>(".board-column h3"),
+    ).map((heading) => heading.textContent);
+    expect(titles.at(-1)).toBe("Unreadable1");
   });
 
   it("labels a newer-version file as newer format, not repair work", () => {

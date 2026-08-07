@@ -3,6 +3,7 @@ import {
   FRESH_WINDOW_MS,
   acknowledgement,
   describeAge,
+  describeAgeInSlot,
   externalMark,
   freshlyChecked,
   isFresh,
@@ -91,6 +92,15 @@ describe("acknowledging an external change", () => {
     expect(describeAge(AT, AT + 7_400_000)).toBe("2h");
     // A clock that moved backwards must not print a negative age.
     expect(describeAge(AT, AT - 5_000)).toBe("just now");
+  });
+
+  it("says now in the row's fixed slot, where just now would wrap", () => {
+    expect(describeAgeInSlot(AT, AT + 400)).toBe("now");
+    expect(describeAgeInSlot(AT, AT - 5_000)).toBe("now");
+    // Every other age is already short enough to read the same in both places.
+    expect(describeAgeInSlot(AT, AT + 12_000)).toBe("12s");
+    expect(describeAgeInSlot(AT, AT + 185_000)).toBe("3m");
+    expect(describeAgeInSlot(AT, AT + 7_400_000)).toBe("2h");
   });
 });
 

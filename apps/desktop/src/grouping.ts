@@ -5,10 +5,14 @@
  * The board draws a column per group and the list draws a sticky header over a
  * card of rows, but "which tickets are in Todo, and in what order" is one
  * question with one answer, and two copies of it would be two chances to
- * disagree. The surfaces differ in exactly one thing worth a flag: the board
- * keeps every status whether or not it holds anything (ADR 0002 fixes the set,
- * so the scaffold is the point), and the list renders only the statuses that
- * have tickets (`screen-specs.md:135-136`).
+ * disagree. The surfaces differ in two things worth a flag, both of them about
+ * the shape they draw the answer into rather than about the answer:
+ *
+ * - the board keeps every status whether or not it holds anything (ADR 0002
+ *   fixes the set, so the scaffold is the point), and the list renders only the
+ *   statuses that have tickets (`screen-specs.md:135-136`);
+ * - the synthetic unreadable group goes last on the board and first in the list.
+ *   See `groupByStatus`.
  *
  * Ordering happens here, once, because the seats every surface's arrows read
  * have to agree with what it drew (`screen-specs.md:115`).
@@ -57,6 +61,19 @@ export function groupByStatus(
     compare?: TicketOrdering;
     /** True keeps a status with nothing in it: the board's fixed scaffold. */
     keepEmpty?: boolean;
+    /**
+     * Where the synthetic unreadable group sits. `"last"`, the default, is the
+     * board's: its columns are the fixed set in a fixed order (ADR 0002), so the
+     * one group no status names takes the seat at the end.
+     *
+     * The list asks for `"first"`. It is one vertical scroller rather than six
+     * columns, and appended, the group sat below the fold at the default window
+     * size — a file the human can see on disk, invisible in the app, which is
+     * the "never silent" invariant (`states.md:9-12`) broken by a sort order.
+     * Up top it is the first thing the list says, which is what a file the app
+     * cannot read deserves.
+     */
+    unreadable?: "first" | "last";
   },
 ): StatusGroup[] {
   const compare = options?.compare ?? byPriority;
@@ -86,7 +103,13 @@ export function groupByStatus(
   // place on both surfaces rather than disappearing from the one that lists
   // everything. Unordered: there is no priority in it to order by.
   if (unreadable.length > 0) {
-    groups.push({ id: "unreadable", title: "Unreadable", tickets: unreadable });
+    const group: StatusGroup = {
+      id: "unreadable",
+      title: "Unreadable",
+      tickets: unreadable,
+    };
+    if (options?.unreadable === "first") groups.unshift(group);
+    else groups.push(group);
   }
   return groups;
 }

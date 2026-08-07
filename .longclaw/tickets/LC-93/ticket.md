@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 5d4029e7-80d5-4bc2-9092-8c0169209c4f
 key: LC-93
 title: Issue list — just now wraps onto two lines inside the 46px slot, making those rows visibly taller than their neighbours
-status: todo
+status: in_progress
 priority: p2
 labels:
   - frontend
   - prototype-diff
 created_at: 2026-08-05T15:16:01.017Z
-updated_at: 2026-08-05T15:16:01.017Z
+updated_at: 2026-08-07T03:36:40.406Z
 ---
 
 **Prototype.** Relative time is a fixed 46px right-aligned column: `40m`, `3h`, `2d`
@@ -36,4 +36,20 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_88974962
+kind: update
+occurred_at: 2026-08-07T03:36:40.406Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: in_progress
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->

@@ -135,8 +135,13 @@ export function IssueList(props: {
   const compare = comparatorFor(props.ordering);
   const groups = useMemo(() => {
     // `groupByStatus` buckets by status, and archived is not one (ADR 0004), so
-    // what comes back is the live tickets whatever is handed in.
-    const live = groupByStatus(props.tickets, { compare });
+    // what comes back is the live tickets whatever is handed in. The unreadable
+    // group is asked for at the top: in one scroller, appended, it sat below the
+    // fold and said nothing about itself until someone scrolled past everything.
+    const live = groupByStatus(props.tickets, {
+      compare,
+      unreadable: "first",
+    });
     if (archived.length === 0) return live;
     // Always present, so the header keeps its place and its count; empty while
     // collapsed, which is what makes the geometry and the seats agree with what
@@ -369,7 +374,11 @@ const ListRow = memo(function ListRow(props: {
 }) {
   const { ticket, mark } = props;
   const row = presentRow(ticket, props.labels, props.now);
-  const fresh = isFresh(mark, props.now);
+  // A file that would not parse has nothing in it to be fresh about: the dot
+  // says an agent's edit landed in a ticket the human can read, and beside a
+  // path and a parser error it was a green light on a broken row. The danger
+  // treatment is the whole of what a degraded row wears.
+  const fresh = isFresh(mark, props.now) && !row.degraded;
   return (
     <button
       className={classes(
