@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: f6eb3135-23b7-4eff-b413-968568f7edef
 key: LC-139
 title: Folder missing / unreachable — a missing project folder is never noticed; cached tickets keep rendering as live
-status: todo
+status: done
 priority: urgent
 labels:
   - frontend
   - prototype-diff
 created_at: 2026-08-05T15:16:01.726Z
-updated_at: 2026-08-05T15:16:01.726Z
+updated_at: 2026-08-07T03:15:53.924Z
 ---
 
 **Prototype.** The watcher signal alone raises the state
@@ -22,7 +22,7 @@ updated_at: 2026-08-05T15:16:01.726Z
 
 ## Checklist
 
-- [ ] states.md:96 forbids exactly this: "Never: … show cached tickets as if they were live." Treat a watcher error / failed read on the project root as the unreachable trigger. <!-- longclaw:item=ck_991669c1 -->
+- [x] states.md:96 forbids exactly this: "Never: … show cached tickets as if they were live." Treat a watcher error / failed read on the project root as the unreachable trigger. <!-- longclaw:item=ck_991669c1 -->
 
 ## Activity
 
@@ -36,4 +36,23 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_da6e641a
+kind: update
+occurred_at: 2026-08-07T03:15:53.924Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: done
+  - field: checklist.ck_991669c1.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->
