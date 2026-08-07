@@ -706,7 +706,9 @@ try {
       // panel": the dialog carries a disabled Key field and two radio groups
       // since LC-125, and only one input in it is meant to be typed into.
       await page.fill(".settings-identity input:not([disabled])", "Renamed");
-      await page.click('button:has-text("Rename")');
+      // It commits on `Enter` — the `Rename` button beside it went with LC-125,
+      // because pressing `Done` with a typed name used to discard it silently.
+      await page.keyboard.press("Enter");
       // The banner is on the main panel, behind the dialog — `Esc` takes the
       // dialog down so the error state is rendered as a user would meet it.
       await page.keyboard.press("Escape");

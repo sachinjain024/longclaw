@@ -2428,6 +2428,13 @@ button:disabled {
   background: color-mix(in oklab, var(--lc-inverse-surface) 34%, transparent);
 }
 
+/* The prototype draws two scrims: the palette and the raw view hang from 12vh,
+   settings and the confirm are centered (`prototype.css:656-672`). */
+.modal-scrim.centered {
+  align-items: center;
+  padding-top: 0;
+}
+
 /* ------------------------------------------------------------------ */
 /* Command palette — screen-specs.md:218-237, components.md:272-283.   */
 /* ------------------------------------------------------------------ */
@@ -2650,8 +2657,10 @@ button:disabled {
 }
 
 /* Text that exists for assistive technology and not for the eye — the word
-   beside a glyph that carries meaning. Same recipe as the visually hidden theme
-   radio above; kept as a class because a second caller now needs it. */
+   beside a glyph that carries meaning — and the radio behind a swatch, which is
+   the label's target rather than its own. Same recipe as the visually hidden
+   theme radio above; kept as a class because more than one caller needs it. */
+.label-color input,
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -3038,11 +3047,15 @@ html.theme-transition *::after {
 
    The dialog `screen-specs.md:269-278` draws, on the scrim quick create and the
    palette already use. It was an inline `<section>` in the main panel until
-   LC-125, which pushed the board ~430px down behind it (D-40). */
-.settings-panel {
+   LC-125, which pushed the board ~430px down behind it (D-40).
+
+   The box the two dialogs share; only their widths differ. Both rise on open —
+   the motion inventory's "modal rise" (`screen-specs.md:286`) — reusing the
+   keyframes the palette states, since it is the same 8px arrival. */
+.settings-panel,
+.confirm-dialog {
   display: flex;
   flex-direction: column;
-  width: min(560px, 92vw);
   max-height: 76vh;
   overflow-y: auto;
   border: 1px solid var(--lc-line);
@@ -3050,11 +3063,17 @@ html.theme-transition *::after {
   padding: var(--lc-space-5);
   background: var(--lc-surface);
   box-shadow: var(--lc-shadow-modal);
+  animation: lc-palette-in var(--lc-motion-panel) ease-out;
+}
+
+.settings-panel {
+  width: min(560px, 92vw);
 }
 
 /* Title type, not display: display is the greeting and nothing else
-   (`components.md:307`), which is where this departs from the prototype's
-   18px Familjen Grotesk dialog heading. */
+   (`components.md` § Empty & first-run states — the section reference is the
+   durable half of that citation), which is where this departs from the
+   prototype's 18px Familjen Grotesk dialog heading. */
 .settings-panel h2,
 .confirm-dialog h2 {
   margin-bottom: 0;
@@ -3092,14 +3111,13 @@ html.theme-transition *::after {
   display: block;
   margin-bottom: 6px;
   color: var(--lc-ink-3);
-  font-size: 11.5px;
+  font-size: var(--lc-type-micro-size);
   font-weight: 500;
 }
 
 /* The exception a row carries when what it sets is not project data (D-42). */
 .settings-label-note {
   font-weight: 400;
-  text-transform: none;
 }
 
 .field-row {
@@ -3168,7 +3186,7 @@ html.theme-transition *::after {
 .danger-zone .micro {
   flex: 1;
   color: var(--lc-ink-3);
-  font-size: 11.5px;
+  font-size: var(--lc-type-micro-size);
   line-height: 1.5;
 }
 
@@ -3190,14 +3208,7 @@ html.theme-transition *::after {
 /* The confirm the danger button opens (D-44): narrower than the dialog behind
    it, because it is two sentences and two choices. */
 .confirm-dialog {
-  display: flex;
-  flex-direction: column;
   width: min(440px, 92vw);
-  border: 1px solid var(--lc-line);
-  border-radius: var(--lc-radius-modal);
-  padding: var(--lc-space-5);
-  background: var(--lc-surface);
-  box-shadow: var(--lc-shadow-modal);
 }
 
 .confirm-dialog p {

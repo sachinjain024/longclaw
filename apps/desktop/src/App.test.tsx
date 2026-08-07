@@ -1007,6 +1007,49 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
     );
   });
 
+  it("the name commits on Enter rather than waiting for a button", async () => {
+    vi.mocked(api.updateProjectName).mockResolvedValue({
+      ...project,
+      name: "Renamed",
+    });
+    const dialog = await openSettings();
+
+    const field = within(dialog).getByLabelText("Name");
+    // The `Rename` button beside this field was the only way to save it, and
+    // `Done` with a typed name threw the name away without saying so.
+    expect(within(dialog).queryByRole("button", { name: "Rename" })).toBeNull();
+
+    fireEvent.change(field, { target: { value: "Renamed" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+
+    await waitFor(() =>
+      expect(api.updateProjectName).toHaveBeenCalledWith(project.id, "Renamed"),
+    );
+  });
+
+  it("Tab stays inside the dialog, and `Esc` still closes it from the body", async () => {
+    const dialog = await openSettings();
+
+    // "Modals hold focus until dismissed" (`keyboard-focus-map.md:23-24`): Tab
+    // off the last control wraps to the first — the Name field — rather than
+    // landing on the board behind the scrim, where every stop is hidden.
+    const done = within(dialog).getByRole("button", { name: "Done" });
+    done.focus();
+    fireEvent.keyDown(done, { key: "Tab" });
+    expect(document.activeElement).toBe(within(dialog).getByLabelText("Name"));
+
+    // Clicking the dialog's own heading leaves nothing focused, which used to
+    // strand the dialog: its `Esc` handler was on the element.
+    (document.activeElement as HTMLElement | null)?.blur();
+    fireEvent.keyDown(document.body, { key: "Escape" });
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Project settings" }),
+      ).toBeNull(),
+    );
+  });
+
   it("D-4L: Done closes it and hands focus back to the gear", async () => {
     const dialog = await openSettings();
     const gear = screen.getByRole("button", { name: "Project settings" });
@@ -1085,6 +1128,49 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
         color: "purple",
       }),
     );
+  });
+
+  it("D-4J: `Esc` in a label name reverts the field and leaves the dialog up", async () => {
+    const dialog = await openSettings();
+    const field = within(dialog).getByLabelText<HTMLInputElement>(
+      "Name of label backend",
+    );
+
+    fireEvent.change(field, { target: { value: "Platform" } });
+    fireEvent.keyDown(field, { key: "Escape" });
+
+    expect(field.value).toBe("Backend");
+    expect(api.updateProjectLabel).not.toHaveBeenCalled();
+    // One press, one rung: the field answered it, so the dialog did not.
+    expect(
+      screen.getByRole("dialog", { name: "Project settings" }),
+    ).toBeTruthy();
+  });
+
+  it("D-4J: removing a row writes once, even with a name typed into it", async () => {
+    vi.mocked(api.removeProjectLabel).mockResolvedValue({
+      ...project,
+      labels: {},
+    });
+    const dialog = await openSettings();
+    const field = within(dialog).getByLabelText("Name of label backend");
+    fireEvent.change(field, { target: { value: "Platform" } });
+
+    // The press holds focus where it is, so the row does not commit a rename
+    // on its way out and race the delete for the same slug.
+    const remove = within(dialog).getByRole("button", {
+      name: "Remove label backend",
+    });
+    expect(fireEvent.mouseDown(remove)).toBe(false);
+    fireEvent.click(remove);
+
+    await waitFor(() =>
+      expect(api.removeProjectLabel).toHaveBeenCalledWith({
+        projectId: project.id,
+        slug: "backend",
+      }),
+    );
+    expect(api.updateProjectLabel).not.toHaveBeenCalled();
   });
 
   it("D-4J: a renamed row commits on blur, and an unchanged one writes nothing", async () => {

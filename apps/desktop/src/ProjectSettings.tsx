@@ -14,22 +14,45 @@
  * ticket carries it (D-41).
  */
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { addProjectLabel, removeProjectLabel, updateProjectLabel } from "./api";
 import { normalizeError } from "./errors";
 import { FolderGlyph } from "./FolderGlyph";
 import { FALLBACK_LABEL_COLOR, isRampColor, LABEL_COLORS } from "./labels";
+import type { Appearance } from "./state";
 import { ThemePicker, type ThemeOption } from "./ThemePicker";
 import type { AppError, Label, ProjectReference } from "./types";
 
-/** The appearance preference, which is the device's rather than the project's. */
-type AppearancePreference = "system" | "light" | "dark";
-
-const APPEARANCES: { id: AppearancePreference; label: string }[] = [
+const APPEARANCES: { id: Appearance; label: string }[] = [
   { id: "system", label: "System" },
   { id: "light", label: "Light" },
   { id: "dark", label: "Dark" },
 ];
+
+/** Everything inside `container` that Tab can land on, in document order. */
+function tabStops(container: HTMLElement) {
+  return Array.from(
+    container.querySelectorAll<HTMLElement>(
+      "button:not(:disabled), input:not(:disabled), [href], [tabindex]:not([tabindex='-1'])",
+    ),
+  );
+}
+
+/**
+ * "Modals hold focus until dismissed" (`keyboard-focus-map.md:23-24`), which a
+ * dialog only does if Tab wraps inside it — the palette does the same walk.
+ * Without this, Tab off the last control lands on the board behind the scrim,
+ * where every stop is hidden under it.
+ */
+function trapTab(event: React.KeyboardEvent<HTMLElement>) {
+  if (event.key !== "Tab") return;
+  const stops = tabStops(event.currentTarget);
+  if (stops.length === 0) return;
+  event.preventDefault();
+  const at = stops.indexOf(document.activeElement as HTMLElement);
+  const step = event.shiftKey ? -1 : 1;
+  stops[(at + step + stops.length) % stops.length]?.focus();
+}
 
 export function ProjectSettings(props: {
   project: ProjectReference;
@@ -38,9 +61,9 @@ export function ProjectSettings(props: {
    * (`data-requirements.md` § Project settings), which is what the note says.
    */
   hasTickets: boolean;
-  appearance: AppearancePreference;
+  appearance: Appearance;
   themes: ThemeOption[];
-  onAppearance: (next: AppearancePreference) => void;
+  onAppearance: (next: Appearance) => void;
   onRename: (name: string) => void;
   onTheme: (theme: string) => void;
   onLocate: () => void;
@@ -57,18 +80,53 @@ export function ProjectSettings(props: {
   const appearanceId = useId();
   /** Where focus returns when the confirm dialog is dismissed without removing. */
   const removeButton = useRef<HTMLButtonElement>(null);
+  const cancelConfirm = useCallback(() => {
+    setConfirmingRemove(false);
+    removeButton.current?.focus();
+  }, []);
+
+  /** Renaming to nothing, or to the name it already has, writes nothing. */
+  function commitName() {
+    const next = name.trim();
+    if (!next || next === props.project.name) {
+      setName(props.project.name);
+      return;
+    }
+    props.onRename(next);
+  }
+
+  /**
+   * The `Esc` rung this layer owns, on the document rather than on the dialog.
+   *
+   * A handler on the element only fires while focus is inside it, and a click
+   * on the dialog's own heading puts focus on `body` — after which `Esc` closed
+   * nothing, because `App`'s listener sees a layer open and stands down. One
+   * press still closes one rung: a field mid-edit stops the event itself, and
+   * the confirm is answered here rather than in a second listener, since two
+   * listeners on the same document would both fire and take two layers down.
+   */
+  const { onClose } = props;
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (confirmingRemove) {
+        cancelConfirm();
+        return;
+      }
+      onClose();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [cancelConfirm, confirmingRemove, onClose]);
 
   return (
     <>
-      <div className="modal-scrim" role="presentation">
+      <div className="modal-scrim centered" role="presentation">
         <section
           className="settings-panel"
           role="dialog"
           aria-label="Project settings"
-          onKeyDown={(event) => {
-            if (event.key !== "Escape") return;
-            props.onClose();
-          }}
+          onKeyDown={trapTab}
         >
           <h2>Project settings</h2>
           {/* The sentence that makes the dialog trustworthy (D-4K): every field
@@ -84,20 +142,33 @@ export function ProjectSettings(props: {
             <div className="settings-field">
               <label htmlFor={nameId}>Name</label>
               <div className="field-row">
+                {/* `Enter` or blur commits, as the panel's title does
+                    (`screen-specs.md:190`). The `Rename` button beside this
+                    was the only way to save it, and pressing `Done` with a
+                    typed name threw the name away without saying so. */}
                 <input
                   id={nameId}
                   autoFocus
                   value={name}
                   spellCheck={false}
                   onChange={(event) => setName(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      commitName();
+                      return;
+                    }
+                    // `Esc` reverts a field that has been typed into, and only
+                    // then: focus lands here when the dialog opens, so an
+                    // untouched field that swallowed the press would leave the
+                    // first `Esc` of every visit doing nothing.
+                    if (event.key !== "Escape" || name === props.project.name)
+                      return;
+                    event.stopPropagation();
+                    setName(props.project.name);
+                  }}
+                  onBlur={commitName}
                 />
-                <button
-                  tabIndex={0}
-                  className="secondary"
-                  onClick={() => props.onRename(name)}
-                >
-                  Rename
-                </button>
               </div>
             </div>
             <div className="settings-field">
@@ -222,15 +293,12 @@ export function ProjectSettings(props: {
       </div>
 
       {/* A sibling rather than a child: both scrims sit on `--lc-z-modal`, so
-          the confirm is above this one by source order, and an `Esc` inside it
-          cancels the confirm without also closing the settings behind it. */}
+          the confirm is above this one by source order, and the `Esc` listener
+          above answers it first — one press, one layer. */}
       {confirmingRemove && (
         <ConfirmRemove
           project={props.project}
-          onCancel={() => {
-            setConfirmingRemove(false);
-            removeButton.current?.focus();
-          }}
+          onCancel={cancelConfirm}
           onConfirm={props.onRemove}
         />
       )}
@@ -253,18 +321,14 @@ function ConfirmRemove(props: {
 }) {
   const heading = useId();
   return (
-    <div className="modal-scrim" role="presentation">
+    <div className="modal-scrim centered" role="presentation">
+      {/* `Esc` is the settings dialog's document listener, which answers this
+          layer first while it is up. Tab stays inside these two buttons. */}
       <section
         className="confirm-dialog"
         role="dialog"
         aria-labelledby={heading}
-        onKeyDown={(event) => {
-          if (event.key !== "Escape") return;
-          // The settings dialog behind this one listens for `Escape` too, and
-          // one key press must close one layer.
-          event.stopPropagation();
-          props.onCancel();
-        }}
+        onKeyDown={trapTab}
       >
         <h2 id={heading}>Remove “{props.project.name}” from LongClaw?</h2>
         <p>
@@ -309,6 +373,8 @@ function ProjectLabels(props: {
   const [name, setName] = useState("");
   const [color, setColor] = useState<string>(LABEL_COLORS[0]);
   const definitions = Object.entries(props.project.labels);
+  /** Where focus goes when the row holding it is taken away. */
+  const addSlug = useRef<HTMLInputElement>(null);
 
   /** Every write here returns the project as the file now reads. */
   async function run(write: () => Promise<ProjectReference>) {
@@ -343,14 +409,17 @@ function ProjectLabels(props: {
               }),
             )
           }
-          onRemove={() =>
+          onRemove={() => {
             void run(() =>
               removeProjectLabel({
                 projectId: props.project.id,
                 slug: definedSlug,
               }),
-            )
-          }
+            );
+            // The row is going, and with it whatever held focus inside it. The
+            // add-row is the one thing here that is always on screen.
+            addSlug.current?.focus();
+          }}
         />
       ))}
       <form
@@ -374,6 +443,7 @@ function ProjectLabels(props: {
         }}
       >
         <input
+          ref={addSlug}
           value={slug}
           aria-label="New label slug"
           placeholder="slug"
@@ -445,10 +515,10 @@ function LabelDefinition(props: {
             commitName();
             return;
           }
-          if (event.key !== "Escape") return;
-          // The row's own revert, and it stops there: `Esc` on a field that has
-          // been typed into puts the saved value back rather than closing the
-          // dialog around it.
+          // The row's own revert, and only for a field that has been typed
+          // into: `Esc` puts the saved value back rather than closing the
+          // dialog around it, but an untouched field owes the dialog the press.
+          if (event.key !== "Escape" || name === props.label.name) return;
           event.stopPropagation();
           setName(props.label.name);
         }}
@@ -472,6 +542,13 @@ function LabelDefinition(props: {
         className="ghost row-remove"
         type="button"
         aria-label={`Remove label ${props.slug}`}
+        // The press takes focus off the name field, and a typed name would
+        // commit on the way out — a rename written to a definition that is
+        // about to be deleted, racing the delete for the same slug. Holding
+        // focus where it is until the click lands is what keeps it to one
+        // write; the keyboard path never gets here with an uncommitted draft,
+        // because Tab committed it on the way to this button.
+        onMouseDown={(event) => event.preventDefault()}
         onClick={props.onRemove}
       >
         ✕
