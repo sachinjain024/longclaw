@@ -138,12 +138,13 @@
   "border": { "hairline": 1, "ring": 1.5, "rail": 2, "focus": 3 },
 
   "z": {
-    "sticky": 1,
-    "panel": 2,
-    "modal": 3,
-    "toast": 4,
-    "popover": 5,
-    "note": "Every layer the app stacks, lowest first. A positioned element with any z-index outranks one with z-index: auto, so a surface meant to be on top that says nothing loses to a sticky list header that says 1 — which is how the open ticket panel came to be painted over by the list behind it (LC-96). The scale is the whole set: a positioned surface takes a layer from it rather than a number of its own. popover sits above modal because quick create carries the status, priority and label menus, and a menu behind its own modal is unusable. The workspace is the floor and deliberately has no layer: giving one to an ancestor of the board and list would make it a stacking context, and the menu popover renders inline rather than through a portal, so a menu opened from a card would be trapped under the panel. For the same reason these numbers order the surfaces that stack at the root; a popover rendered inside the panel is ordered within it and bounded by the panel's own layer. scripts/stacking-guard.mjs holds the relations."
+    "drag": 1,
+    "sticky": 2,
+    "panel": 3,
+    "modal": 4,
+    "toast": 5,
+    "popover": 6,
+    "note": "Every layer the app stacks, lowest first. A positioned element with any z-index outranks one with z-index: auto, so a surface meant to be on top that says nothing loses to a sticky list header that says 1 — which is how the open ticket panel came to be painted over by the list behind it (LC-96). The scale is the whole set: a positioned surface takes a layer from it rather than a number of its own. drag is the drop indicator a drag draws over the rows: it is rendered before them, so at auto every row painted over it and the list's — which straddles a row boundary — lost a pixel of itself to any row wearing a background (LC-154). It sits below sticky because a group header stays on top of what scrolls under it, indicator included. popover sits above modal because quick create carries the status, priority and label menus, and a menu behind its own modal is unusable. The workspace is the floor and deliberately has no layer: giving one to an ancestor of the board and list would make it a stacking context, and the menu popover renders inline rather than through a portal, so a menu opened from a card would be trapped under the panel. For the same reason these numbers order the surfaces that stack at the root; a popover rendered inside the panel is ordered within it and bounded by the panel's own layer. The board's and list's rows take no layer of their own: they are placed by geometry that never overlaps them, and a stacking context per row is a cost the scroller pays 5,000 times for a relation it does not have. scripts/stacking-guard.mjs holds the relations."
   },
 
   "motion": {
