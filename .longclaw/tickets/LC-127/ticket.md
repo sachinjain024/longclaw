@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: eacb9f45-4eea-40ab-a6d9-b8995de8e715
 key: LC-127
 title: Project settings — appearance is a native <select> in the sidebar footer (D-0A)
-status: todo
+status: done
 priority: p1
 labels:
   - frontend
   - prototype-diff
 created_at: 2026-08-05T15:16:01.531Z
-updated_at: 2026-08-05T15:16:01.531Z
+updated_at: 2026-08-07T03:46:55.689Z
 ---
 
 **Prototype.** Appearance segment lives here, labelled "app preference, not stored in the project"
@@ -22,7 +22,7 @@ updated_at: 2026-08-05T15:16:01.531Z
 
 ## Checklist
 
-- [ ] Move it here as a 3-up segment with the label. <!-- longclaw:item=ck_63ecc66f -->
+- [x] Move it here as a 3-up segment with the label. <!-- longclaw:item=ck_63ecc66f -->
 
 ## Activity
 
@@ -36,4 +36,23 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_f0cd01b9
+kind: update
+occurred_at: 2026-08-07T03:46:55.689Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: done
+  - field: checklist.ck_63ecc66f.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->

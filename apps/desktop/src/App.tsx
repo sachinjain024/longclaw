@@ -7,7 +7,6 @@ import {
   useState,
 } from "react";
 import {
-  addProjectLabel,
   chooseAndCreateProject,
   chooseAndRegisterProject,
   chooseAndRelocateProject,
@@ -20,17 +19,15 @@ import {
   rebuildIndex,
   reconcileProject,
   removeProject,
-  removeProjectLabel,
   reportVisibleUi,
   searchTickets,
   setProjectStarred,
-  updateProjectLabel,
   updateProjectName,
   updateProjectTheme,
 } from "./api";
 import { Board } from "./Board";
 import { CommandPalette } from "./CommandPalette";
-import { ConfirmDialog } from "./ConfirmDialog";
+import { RemoveProjectConfirm } from "./ConfirmDialog";
 import { CreatePanel } from "./CreatePanel";
 import { CreateProjectForm, type ProjectDraft } from "./CreateProjectForm";
 import { DEV_CHROME } from "./devChrome";
@@ -45,15 +42,14 @@ import { filterTickets, isFiltering } from "./filtering";
 import { FolderGlyph } from "./FolderGlyph";
 import { IssueList } from "./IssueList";
 import { isChord, singleKeyShortcutAllowed } from "./keyContext";
-import { LABEL_COLORS } from "./labels";
 import { MenuButton } from "./Menu";
 import { mutate, type Mutation, useMutationStore } from "./mutations";
 import { ORDERINGS, type OrderingMode } from "./ordering";
 import { OwlMark } from "./OwlMark";
+import { ProjectSettings } from "./ProjectSettings";
 import { QuickCreate } from "./QuickCreate";
 import type { FocusRequest } from "./rovingFocus";
 import { useLongClawStore } from "./state";
-import { ThemePicker } from "./ThemePicker";
 import { ThemeDot } from "./ThemeSwatch";
 import { TicketPanel } from "./TicketPanel";
 import {
@@ -68,7 +64,6 @@ import type {
   CreateTicketRequest,
   HeldConflict,
   IndexedTicket,
-  Label,
   ProjectReference,
   TicketEdit,
   TicketPriority,
@@ -212,10 +207,10 @@ export function App() {
   const [projectWorkspaces, setProjectWorkspaces] = useState<
     Record<string, ProjectWorkspace>
   >(readProjectWorkspaces);
-  const [settingsName, setSettingsName] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
-  /** Whether the settings panel's **Remove from app** is waiting on its answer. */
-  const [confirmingRemove, setConfirmingRemove] = useState(false);
+  /* Settings' own **Remove from app** waits on its answer inside the dialog
+     that offers it (`ProjectSettings.tsx`); the unreachable screen keeps its
+     own. Both raise the same `RemoveProjectConfirm`. */
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [paletteTicketKey, setPaletteTicketKey] = useState<string>();
   const [paletteSearchResults, setPaletteSearchResults] =
@@ -224,6 +219,8 @@ export function App() {
   const [homePath, setHomePath] = useState<string | null>(null);
   const paletteReturnFocus = useRef<HTMLElement | undefined>(undefined);
   const filterField = useRef<HTMLInputElement>(null);
+  /** The gear the settings dialog opens from, and the focus it owes on close. */
+  const settingsButton = useRef<HTMLButtonElement>(null);
 
   const project = projects.find((item) => item.id === activeProjectId);
   /**
@@ -427,7 +424,13 @@ export function App() {
    */
   useEffect(() => {
     const layerOpen =
-      selectedKey !== undefined || createSurface !== undefined || paletteOpen;
+      selectedKey !== undefined ||
+      createSurface !== undefined ||
+      paletteOpen ||
+      // Settings is a modal since LC-125, so it takes a rung of this ladder:
+      // its own `Esc` closes it, and that press must not also empty the filter
+      // on the board behind it.
+      settingsOpen;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       if (isChord(event, "k")) {
@@ -451,6 +454,7 @@ export function App() {
         project &&
         !unreachable &&
         !paletteOpen &&
+        !settingsOpen &&
         createSurface === undefined &&
         singleKeyShortcutAllowed(event.target) &&
         event.key.toLowerCase() === "c" &&
@@ -464,7 +468,13 @@ export function App() {
       }
       if (isChord(event, "f")) {
         const field = filterField.current;
-        if (!field || createSurface !== undefined || paletteOpen) return;
+        if (
+          !field ||
+          createSurface !== undefined ||
+          paletteOpen ||
+          settingsOpen
+        )
+          return;
         event.preventDefault();
         field.focus();
         // "Selects existing query" (`keyboard-focus-map.md:31`), so the next
@@ -489,6 +499,7 @@ export function App() {
     paletteOpen,
     project,
     selectedKey,
+    settingsOpen,
     unreachable,
   ]);
 
@@ -576,8 +587,7 @@ export function App() {
     // The first stamp is the launch value; only a *change* crossfades.
     if (root.dataset.theme && root.dataset.theme !== theme) crossfade();
     root.dataset.theme = theme;
-    setSettingsName(project?.name ?? "");
-  }, [project?.name, project?.theme]);
+  }, [project?.theme]);
 
   useEffect(() => {
     let active = true;
@@ -839,10 +849,10 @@ export function App() {
     }
   }
 
-  async function renameProject() {
-    if (!project || settingsName.trim() === project.name) return;
+  async function renameProject(name: string) {
+    if (!project || name.trim() === project.name) return;
     try {
-      const updated = await updateProjectName(project.id, settingsName);
+      const updated = await updateProjectName(project.id, name);
       upsertProject(updated);
       await loadProject(updated.id);
     } catch (error) {
@@ -850,10 +860,25 @@ export function App() {
     }
   }
 
+  /** Closes the settings dialog and hands focus back to the gear that opened it. */
+  function closeSettings() {
+    setSettingsOpen(false);
+    requestAnimationFrame(() => settingsButton.current?.focus());
+  }
+
   async function forgetProject(projectId: string) {
     try {
       await removeProject(projectId);
       removeProjectReference(projectId);
+      // The gear this dialog was opened from goes with the project, so the
+      // ordinary focus return has nothing to return to: the welcome screen is
+      // what the shell shows next, and its first control is where focus lands.
+      setSettingsOpen(false);
+      requestAnimationFrame(() =>
+        document
+          .querySelector<HTMLElement>(".welcome-panel .secondary")
+          ?.focus(),
+      );
     } catch (error) {
       setError(normalizeError(error));
     }
@@ -1194,14 +1219,18 @@ export function App() {
                 ~230px of chrome before the first card. */}
             <header className="content-header">
               <h1>{project.name}</h1>
+              {/* `aria-haspopup`, not the `aria-expanded` this carried while
+                  settings was an inline section: what it opens is a modal
+                  dialog now, and an expanded state describes a region that
+                  stays part of the page under its trigger (LC-125). */}
               <button
                 tabIndex={0}
+                ref={settingsButton}
                 className="ghost small settings-button"
                 aria-label="Project settings"
-                aria-controls="project-settings"
-                aria-expanded={settingsOpen}
+                aria-haspopup="dialog"
                 title="Project settings"
-                onClick={() => setSettingsOpen((open) => !open)}
+                onClick={() => setSettingsOpen(true)}
               >
                 <svg
                   width="14"
@@ -1311,67 +1340,6 @@ export function App() {
                 </>
               )}
             </header>
-
-            {settingsOpen && (
-              <section
-                id="project-settings"
-                className="settings-panel"
-                aria-label="Project settings"
-              >
-                <label>
-                  <span>Name</span>
-                  <input
-                    value={settingsName}
-                    onChange={(event) => setSettingsName(event.target.value)}
-                  />
-                </label>
-                <button
-                  tabIndex={0}
-                  className="secondary"
-                  onClick={() => void renameProject()}
-                >
-                  Rename
-                </button>
-                <ThemePicker
-                  themes={THEMES}
-                  value={project.theme}
-                  onPick={(theme) => void changeTheme(theme)}
-                />
-                <button
-                  tabIndex={0}
-                  className="secondary"
-                  onClick={() => void relocateActiveProject(project.id)}
-                >
-                  Locate folder
-                </button>
-                <ProjectLabels
-                  project={project}
-                  onUpdated={upsertProject}
-                  onError={setError}
-                />
-                {/* The same removal, so the same question first: an action
-                    that asks on one screen and fires on the next is not a
-                    confirm, it is a coin toss (`screen-specs.md:277-278`). */}
-                <button
-                  tabIndex={0}
-                  className="danger"
-                  onClick={() => setConfirmingRemove(true)}
-                >
-                  Remove from app
-                </button>
-              </section>
-            )}
-
-            {confirmingRemove && project && (
-              <RemoveProjectConfirm
-                project={project}
-                onConfirm={() => {
-                  setConfirmingRemove(false);
-                  void forgetProject(project.id);
-                }}
-                onCancel={() => setConfirmingRemove(false)}
-              />
-            )}
 
             {!project.reachable ? (
               <UnreachableProject
@@ -1488,7 +1456,9 @@ export function App() {
             }
             now={now}
             archived={openRow !== undefined && isArchived(openRow)}
-            shortcutsActive={!paletteOpen && createSurface === undefined}
+            shortcutsActive={
+              !paletteOpen && !settingsOpen && createSurface === undefined
+            }
             onClose={() => closeTicket(selectedKey)}
             onArchive={(archived) => {
               if (openRow?.state === "indexed") setArchived(openRow, archived);
@@ -1499,6 +1469,27 @@ export function App() {
             onError={setError}
           />
         )}
+
+      {/* Settings is a layer over the board rather than a section inside it
+          (LC-125), so it is built here with the app's other modals — and it
+          stays mounted over an unreachable project, which is one of the two
+          screens that needs `Locate…` most. */}
+      {project && settingsOpen && (
+        <ProjectSettings
+          project={project}
+          hasTickets={tickets.length > 0}
+          appearance={appearance}
+          themes={THEMES}
+          onAppearance={setAppearance}
+          onRename={(name) => void renameProject(name)}
+          onTheme={(theme) => void changeTheme(theme)}
+          onLocate={() => void relocateActiveProject(project.id)}
+          onRemove={() => void forgetProject(project.id)}
+          onUpdated={upsertProject}
+          onError={setError}
+          onClose={closeSettings}
+        />
+      )}
 
       {/* Both create surfaces are gated on the folder answering. Nothing is
           creatable on an unreachable project (`states.md:80-98`): the key would
@@ -1746,180 +1737,6 @@ function ProjectSection(props: {
   );
 }
 
-/**
- * Label definitions, which are project data rather than ticket data
- * (`file_format.md:213-231`). `screen-specs.md` § Project settings never
- * mentions them, so they sit in the panel that already owns the project file's
- * other fields: the name, the theme, and the folder.
- *
- * Nothing here writes a ticket. A slug is not editable — it is what every ticket
- * carrying the label stores — and removing a definition leaves the slug where it
- * is, to be rendered as itself.
- */
-function ProjectLabels(props: {
-  project: ProjectReference;
-  onUpdated: (project: ProjectReference) => void;
-  onError: (error: AppError) => void;
-}) {
-  const [slug, setSlug] = useState("");
-  const [name, setName] = useState("");
-  const [color, setColor] = useState<string>(LABEL_COLORS[0]);
-  const definitions = Object.entries(props.project.labels);
-
-  /** Every write here returns the project as the file now reads. */
-  async function run(write: () => Promise<ProjectReference>) {
-    try {
-      props.onUpdated(await write());
-      return true;
-    } catch (error) {
-      // Rust owns the slug grammar and the name and colour rules, so its
-      // refusal is the message — this never guesses at one of its own.
-      props.onError(normalizeError(error));
-      return false;
-    }
-  }
-
-  return (
-    <section className="label-settings" aria-label="Labels">
-      <h3>Labels</h3>
-      {definitions.length === 0 && (
-        <p>No labels are defined in this project&apos;s longclaw.yaml yet.</p>
-      )}
-      {definitions.map(([definedSlug, label]) => (
-        <LabelDefinition
-          // Keyed by its values, so a row's drafts follow what landed on disk.
-          key={`${definedSlug}:${label.name}:${label.color}`}
-          slug={definedSlug}
-          label={label}
-          onSave={(next) =>
-            void run(() =>
-              updateProjectLabel({
-                projectId: props.project.id,
-                slug: definedSlug,
-                ...next,
-              }),
-            )
-          }
-          onRemove={() =>
-            void run(() =>
-              removeProjectLabel({
-                projectId: props.project.id,
-                slug: definedSlug,
-              }),
-            )
-          }
-        />
-      ))}
-      <form
-        className="label-row"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (!slug.trim() || !name.trim()) return;
-          void (async () => {
-            const added = await run(() =>
-              addProjectLabel({
-                projectId: props.project.id,
-                slug: slug.trim(),
-                name: name.trim(),
-                color,
-              }),
-            );
-            if (!added) return;
-            setSlug("");
-            setName("");
-          })();
-        }}
-      >
-        <input
-          value={slug}
-          aria-label="New label slug"
-          placeholder="slug"
-          onChange={(event) => setSlug(event.target.value)}
-        />
-        <input
-          value={name}
-          aria-label="New label name"
-          placeholder="Display name"
-          onChange={(event) => setName(event.target.value)}
-        />
-        <ColorSelect
-          label="New label color"
-          value={color}
-          onChange={setColor}
-        />
-        <button tabIndex={0} className="secondary" type="submit">
-          Add label
-        </button>
-      </form>
-    </section>
-  );
-}
-
-/** One definition. The slug is shown as what it is: a key, not a field. */
-function LabelDefinition(props: {
-  slug: string;
-  label: Label;
-  onSave: (next: { name: string; color: string }) => void;
-  onRemove: () => void;
-}) {
-  const [name, setName] = useState(props.label.name);
-  const [color, setColor] = useState(props.label.color);
-  const unchanged =
-    name.trim() === props.label.name && color === props.label.color;
-  return (
-    <div className="label-row">
-      <code>{props.slug}</code>
-      <input
-        value={name}
-        aria-label={`Name of label ${props.slug}`}
-        onChange={(event) => setName(event.target.value)}
-      />
-      <ColorSelect
-        label={`Color of label ${props.slug}`}
-        value={color}
-        onChange={setColor}
-      />
-      <button
-        tabIndex={0}
-        className="secondary"
-        disabled={unchanged}
-        onClick={() => props.onSave({ name: name.trim(), color })}
-      >
-        {`Save label ${props.slug}`}
-      </button>
-      <button tabIndex={0} className="danger" onClick={props.onRemove}>
-        {`Remove label ${props.slug}`}
-      </button>
-    </div>
-  );
-}
-
-/** The eight ramp hues (D12), which are the only colours a label may take. */
-function ColorSelect(props: {
-  label: string;
-  value: string;
-  onChange: (color: string) => void;
-}) {
-  return (
-    <select
-      aria-label={props.label}
-      value={props.value}
-      onChange={(event) => props.onChange(event.target.value)}
-    >
-      {/* A colour the ramp does not hold still has to be selectable, or saving
-          an unrelated rename would silently recolour the label. */}
-      {!LABEL_COLORS.includes(props.value as (typeof LABEL_COLORS)[number]) && (
-        <option value={props.value}>{props.value}</option>
-      )}
-      {LABEL_COLORS.map((color) => (
-        <option key={color} value={color}>
-          {color}
-        </option>
-      ))}
-    </select>
-  );
-}
-
 function Welcome(props: {
   onCreate: (draft: ProjectDraft) => void;
   onOpen: () => void;
@@ -2068,36 +1885,5 @@ function UnreachableProject(props: {
         />
       )}
     </section>
-  );
-}
-
-/**
- * What **Remove from app** asks before it does anything, from either of the two
- * places that offer it (`screen-specs.md:275-278`).
- *
- * One component rather than one per surface, because the guarantee is the point:
- * the same action must not repeat it in two different sets of words, and it must
- * not be stated on one screen and skipped on the other — which is what happened
- * while the settings panel's copy of the button went straight through.
- */
-function RemoveProjectConfirm(props: {
-  project: ProjectReference;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <ConfirmDialog
-      title={`Remove “${props.project.name}” from LongClaw?`}
-      body={
-        <p>
-          The folder <code>{props.project.rootPath}</code> and every ticket file
-          in it <strong>stay on disk, untouched</strong>. You can open it again
-          anytime.
-        </p>
-      }
-      confirmLabel="Remove from app"
-      onConfirm={props.onConfirm}
-      onCancel={props.onCancel}
-    />
   );
 }

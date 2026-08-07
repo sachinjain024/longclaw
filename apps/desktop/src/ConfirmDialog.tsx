@@ -15,6 +15,7 @@
  * is the rung the menus own too.
  */
 import { useEffect, useId, useRef, type ReactNode } from "react";
+import type { ProjectReference } from "./types";
 
 export function ConfirmDialog(props: {
   title: string;
@@ -111,5 +112,40 @@ export function ConfirmDialog(props: {
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * What **Remove from app** asks before it does anything, from either of the two
+ * places that offer it (`screen-specs.md:275-278`).
+ *
+ * One component rather than one per surface, because the guarantee is the point:
+ * the same action must not repeat it in two different sets of words, and it must
+ * not be stated on one screen and skipped on the other — which is what happened
+ * while the settings panel's copy of the button went straight through.
+ *
+ * It lives beside the dialog it fills in rather than in `App`, because the
+ * second caller is the settings dialog (LC-129) and a component reaching back
+ * into `App` for it would be an import cycle.
+ */
+export function RemoveProjectConfirm(props: {
+  project: ProjectReference;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <ConfirmDialog
+      title={`Remove “${props.project.name}” from LongClaw?`}
+      body={
+        <p>
+          The folder <code>{props.project.rootPath}</code> and every ticket file
+          in it <strong>stay on disk, untouched</strong>. You can open it again
+          anytime.
+        </p>
+      }
+      confirmLabel="Remove from app"
+      onConfirm={props.onConfirm}
+      onCancel={props.onCancel}
+    />
   );
 }

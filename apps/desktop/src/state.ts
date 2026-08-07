@@ -10,10 +10,18 @@ import type {
   TicketRow,
 } from "./types";
 
+/**
+ * The appearance preference: a device preference rather than project data, which
+ * is why it lives in this store and not in `ProjectReference`. Named here
+ * because the settings segment that sets it and the palette command that cycles
+ * it must not each spell the union out for themselves.
+ */
+export type Appearance = "light" | "dark" | "system";
+
 interface LongClawState {
   projects: ProjectReference[];
   activeProjectId?: string;
-  appearance: "light" | "dark" | "system";
+  appearance: Appearance;
   tickets: TicketRow[];
   generation: number;
   lastSequence: number;
@@ -42,7 +50,7 @@ interface LongClawState {
   removeProjectReference: (projectId: string) => void;
   markProjectReachable: (projectId: string, reachable: boolean) => void;
   setActiveProjectId: (projectId?: string) => void;
-  setAppearance: (appearance: "light" | "dark" | "system") => void;
+  setAppearance: (appearance: Appearance) => void;
   applySnapshot: (snapshot: ProjectSnapshot) => void;
   applyEvent: (envelope: StreamEnvelope, observedAt?: number) => void;
   /**

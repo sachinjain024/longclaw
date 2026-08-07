@@ -48,7 +48,8 @@ export interface ResolvedLabel {
   defined: boolean;
 }
 
-function isRampColor(color: string): color is LabelColor {
+/** Whether a stored colour is one of the eight, which only the ramp decides. */
+export function isRampColor(color: string): color is LabelColor {
   return (LABEL_COLORS as readonly string[]).includes(color);
 }
 

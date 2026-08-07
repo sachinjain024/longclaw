@@ -826,14 +826,375 @@ describe("the project settings gear (LC-70)", () => {
     expect(
       within(header).queryByRole("button", { name: /^Star(?:red)?$/ }),
     ).toBeNull();
-    expect(settings.getAttribute("aria-controls")).toBe("project-settings");
-    expect(settings.getAttribute("aria-expanded")).toBe("false");
+    // What it opens is a dialog since LC-125, so it says `haspopup` rather than
+    // the `aria-expanded` an inline region under a trigger would carry.
+    expect(settings.getAttribute("aria-haspopup")).toBe("dialog");
+    expect(settings.getAttribute("aria-expanded")).toBeNull();
 
     fireEvent.click(settings);
 
-    const panel = screen.getByRole("region", { name: "Project settings" });
-    expect(panel.id).toBe("project-settings");
-    expect(settings.getAttribute("aria-expanded")).toBe("true");
+    expect(
+      screen.getByRole("dialog", { name: "Project settings" }),
+    ).toBeTruthy();
+  });
+});
+
+describe("project settings as a modal (LC-125 … LC-132)", () => {
+  const project = {
+    id: "project-fixture",
+    name: "Fixture Project",
+    rootPath: "/tmp/LongClaw Fixture",
+    key: "LC",
+    theme: "indigo",
+    starred: false,
+    reachable: true,
+    labels: { backend: { name: "Backend", color: "blue" } },
+  };
+
+  const ticket: TicketRow = {
+    state: "indexed",
+    key: "LC-1",
+    id: "019c8c7e",
+    title: "Prove the round trip",
+    status: "todo",
+    priority: "p3",
+    labels: ["backend"],
+    createdAt: "2026-07-31T09:00:00Z",
+    updatedAt: "2026-07-31T09:00:00Z",
+    checkedCount: 0,
+    checklistCount: 0,
+    commentCount: 0,
+    attachmentCount: 0,
+    contentHash: "hash-1",
+    relativePath: ".longclaw/tickets/LC-1/ticket.md",
+  };
+
+  async function openSettings(tickets: TicketRow[] = [ticket]) {
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project,
+      tickets,
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    render(<App />);
+    await screen.findByRole("button", { name: "Board", pressed: true });
+    fireEvent.click(screen.getByRole("button", { name: "Project settings" }));
+    return screen.getByRole("dialog", { name: "Project settings" });
+  }
+
+  const confirmDialog = () =>
+    screen.queryByRole("dialog", { name: /from LongClaw\?$/ });
+
+  it("D-40: opens on the scrim, over a board that stays where it was", async () => {
+    const dialog = await openSettings();
+
+    expect(dialog.closest(".modal-scrim")).toBeTruthy();
+    // The inline section this replaces lived in the main panel and pushed
+    // everything below it down the page.
+    expect(document.querySelector(".main-panel .settings-panel")).toBeNull();
+    expect(document.querySelector("[data-ticket-key]")).toBeTruthy();
+  });
+
+  it("D-4K: says where every setting is written", async () => {
+    const dialog = await openSettings();
+
+    expect(
+      within(dialog).getByRole("heading", { name: "Project settings" }),
+    ).toBeTruthy();
+    expect(dialog.textContent).toContain("longclaw.yaml");
+  });
+
+  it("D-41: shows the key, locked, with the reason beside it", async () => {
+    const dialog = await openSettings();
+
+    const key = within(dialog).getByLabelText<HTMLInputElement>("Key");
+    expect(key.value).toBe("LC");
+    expect(key.disabled).toBe(true);
+    expect(dialog.textContent).toContain("locked after first ticket");
+  });
+
+  it("D-41: a project with no ticket yet is told why the key is fixed", async () => {
+    const dialog = await openSettings([]);
+
+    expect(
+      within(dialog).getByLabelText<HTMLInputElement>("Key").disabled,
+    ).toBe(true);
+    expect(dialog.textContent).toContain("set when the project was created");
+  });
+
+  it("D-43: shows the folder and relocates from beside it", async () => {
+    const dialog = await openSettings();
+
+    expect(within(dialog).getByTitle(project.rootPath).textContent).toContain(
+      project.rootPath,
+    );
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Locate…" }));
+
+    await waitFor(() =>
+      expect(api.chooseAndRelocateProject).toHaveBeenCalledWith(project.id),
+    );
+  });
+
+  it("D-42: the appearance segment sets the app preference", async () => {
+    const dialog = await openSettings();
+
+    const segment = within(dialog).getByRole("group", { name: /^Appearance/ });
+    // The exception the row states about itself, and the group's own name.
+    expect(dialog.textContent).toContain("not stored in the project");
+    expect(
+      within(segment)
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual(["System", "Light", "Dark"]);
+
+    fireEvent.click(within(segment).getByRole("button", { name: "Dark" }));
+
+    await waitFor(() =>
+      expect(document.documentElement.dataset.appearance).toBe("dark"),
+    );
+    expect(useLongClawStore.getState().appearance).toBe("dark");
+    // It is a device preference, so nothing about the project was written.
+    expect(api.updateProjectTheme).not.toHaveBeenCalled();
+    expect(api.updateProjectName).not.toHaveBeenCalled();
+  });
+
+  it("D-44: removing states its guarantee and asks first", async () => {
+    const dialog = await openSettings();
+
+    expect(dialog.textContent).toContain(
+      "Removing only forgets the project in LongClaw. Files on disk are never touched.",
+    );
+
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Remove from app" }),
+    );
+
+    const confirm = confirmDialog()!;
+    expect(confirm).toBeTruthy();
+    // It names the path and repeats the guarantee.
+    expect(confirm.textContent).toContain(project.rootPath);
+    expect(confirm.textContent).toContain("stay on disk, untouched");
+    expect(api.removeProject).not.toHaveBeenCalled();
+
+    // `Esc` cancels the confirm and leaves the settings behind it open.
+    fireEvent.keyDown(confirm, { key: "Escape" });
+    expect(confirmDialog()).toBeNull();
+    expect(
+      screen.getByRole("dialog", { name: "Project settings" }),
+    ).toBeTruthy();
+    expect(api.removeProject).not.toHaveBeenCalled();
+  });
+
+  it("D-44: confirming forgets the project and closes the dialog", async () => {
+    const dialog = await openSettings();
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Remove from app" }),
+    );
+    fireEvent.click(
+      within(confirmDialog()!).getByRole("button", { name: "Remove from app" }),
+    );
+
+    await waitFor(() =>
+      expect(api.removeProject).toHaveBeenCalledWith(project.id),
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Project settings" }),
+      ).toBeNull(),
+    );
+  });
+
+  it("the name commits on Enter rather than waiting for a button", async () => {
+    vi.mocked(api.updateProjectName).mockResolvedValue({
+      ...project,
+      name: "Renamed",
+    });
+    const dialog = await openSettings();
+
+    const field = within(dialog).getByLabelText("Name");
+    // The `Rename` button beside this field was the only way to save it, and
+    // `Done` with a typed name threw the name away without saying so.
+    expect(within(dialog).queryByRole("button", { name: "Rename" })).toBeNull();
+
+    fireEvent.change(field, { target: { value: "Renamed" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+
+    await waitFor(() =>
+      expect(api.updateProjectName).toHaveBeenCalledWith(project.id, "Renamed"),
+    );
+  });
+
+  it("Tab stays inside the dialog, and `Esc` still closes it from the body", async () => {
+    const dialog = await openSettings();
+
+    // "Modals hold focus until dismissed" (`keyboard-focus-map.md:23-24`): Tab
+    // off the last control wraps to the first — the Name field — rather than
+    // landing on the board behind the scrim, where every stop is hidden.
+    const done = within(dialog).getByRole("button", { name: "Done" });
+    done.focus();
+    fireEvent.keyDown(done, { key: "Tab" });
+    expect(document.activeElement).toBe(within(dialog).getByLabelText("Name"));
+
+    // Clicking the dialog's own heading leaves nothing focused, which used to
+    // strand the dialog: its `Esc` handler was on the element.
+    (document.activeElement as HTMLElement | null)?.blur();
+    fireEvent.keyDown(document.body, { key: "Escape" });
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Project settings" }),
+      ).toBeNull(),
+    );
+  });
+
+  it("D-4L: Done closes it and hands focus back to the gear", async () => {
+    const dialog = await openSettings();
+    const gear = screen.getByRole("button", { name: "Project settings" });
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Done" }));
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Project settings" }),
+      ).toBeNull(),
+    );
+    await waitFor(() => expect(document.activeElement).toBe(gear));
+  });
+
+  it("D-4L: `Esc` closes it too, and the filter behind it keeps its query", async () => {
+    const dialog = await openSettings();
+    fireEvent.change(screen.getByLabelText("Filter tickets"), {
+      target: { value: "round" },
+    });
+
+    // One press closes one layer: settings is a rung of the `Esc` ladder above
+    // the filter (`keyboard-focus-map.md:19-31`).
+    fireEvent.keyDown(dialog, { key: "Escape" });
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Project settings" }),
+      ).toBeNull(),
+    );
+    expect(
+      screen.getByLabelText<HTMLInputElement>("Filter tickets").value,
+    ).toBe("round");
+  });
+
+  it("D-4J / D-72: label colours are swatches, and a row carries one button", async () => {
+    vi.mocked(api.updateProjectLabel).mockResolvedValue({
+      ...project,
+      labels: { backend: { name: "Backend", color: "purple" } },
+    });
+    const dialog = await openSettings();
+
+    expect(dialog.querySelector("select")).toBeNull();
+    expect(
+      within(dialog).queryByRole("button", { name: /^Save label/ }),
+    ).toBeNull();
+    expect(
+      within(dialog).getByRole("button", { name: "Remove label backend" }),
+    ).toBeTruthy();
+
+    const hues = within(dialog).getByRole("group", {
+      name: "Color of label backend",
+    });
+    expect(
+      within(hues)
+        .getAllByRole("radio")
+        .map((radio) => (radio as HTMLInputElement).value),
+    ).toEqual([
+      "blue",
+      "cyan",
+      "purple",
+      "pink",
+      "red",
+      "orange",
+      "amber",
+      "gray",
+    ]);
+
+    // A picked hue applies at once, the way the theme picker does.
+    fireEvent.click(within(hues).getByRole("radio", { name: "purple" }));
+
+    await waitFor(() =>
+      expect(api.updateProjectLabel).toHaveBeenCalledWith({
+        projectId: project.id,
+        slug: "backend",
+        name: "Backend",
+        color: "purple",
+      }),
+    );
+  });
+
+  it("D-4J: `Esc` in a label name reverts the field and leaves the dialog up", async () => {
+    const dialog = await openSettings();
+    const field = within(dialog).getByLabelText<HTMLInputElement>(
+      "Name of label backend",
+    );
+
+    fireEvent.change(field, { target: { value: "Platform" } });
+    fireEvent.keyDown(field, { key: "Escape" });
+
+    expect(field.value).toBe("Backend");
+    expect(api.updateProjectLabel).not.toHaveBeenCalled();
+    // One press, one rung: the field answered it, so the dialog did not.
+    expect(
+      screen.getByRole("dialog", { name: "Project settings" }),
+    ).toBeTruthy();
+  });
+
+  it("D-4J: removing a row writes once, even with a name typed into it", async () => {
+    vi.mocked(api.removeProjectLabel).mockResolvedValue({
+      ...project,
+      labels: {},
+    });
+    const dialog = await openSettings();
+    const field = within(dialog).getByLabelText("Name of label backend");
+    fireEvent.change(field, { target: { value: "Platform" } });
+
+    // The press holds focus where it is, so the row does not commit a rename
+    // on its way out and race the delete for the same slug.
+    const remove = within(dialog).getByRole("button", {
+      name: "Remove label backend",
+    });
+    expect(fireEvent.mouseDown(remove)).toBe(false);
+    fireEvent.click(remove);
+
+    await waitFor(() =>
+      expect(api.removeProjectLabel).toHaveBeenCalledWith({
+        projectId: project.id,
+        slug: "backend",
+      }),
+    );
+    expect(api.updateProjectLabel).not.toHaveBeenCalled();
+  });
+
+  it("D-4J: a renamed row commits on blur, and an unchanged one writes nothing", async () => {
+    vi.mocked(api.updateProjectLabel).mockResolvedValue({
+      ...project,
+      labels: { backend: { name: "Platform", color: "blue" } },
+    });
+    const dialog = await openSettings();
+    const field = within(dialog).getByLabelText("Name of label backend");
+
+    fireEvent.blur(field);
+    expect(api.updateProjectLabel).not.toHaveBeenCalled();
+
+    fireEvent.change(field, { target: { value: "Platform" } });
+    fireEvent.blur(field);
+
+    await waitFor(() =>
+      expect(api.updateProjectLabel).toHaveBeenCalledWith({
+        projectId: project.id,
+        slug: "backend",
+        name: "Platform",
+        color: "blue",
+      }),
+    );
   });
 
   /**
@@ -1318,7 +1679,10 @@ describe("instant per-project theme selection (V0-36)", () => {
   it("offers exactly the fixed presets and no custom-color affordance", async () => {
     await openSettings();
 
-    const radios = screen.getAllByRole("radio") as HTMLInputElement[];
+    // Scoped to the picker: the label rows in the same dialog carry the eight
+    // ramp hues as radios of their own since LC-130.
+    const picker = document.querySelector<HTMLElement>(".theme-picker")!;
+    const radios = within(picker).getAllByRole("radio") as HTMLInputElement[];
     expect(radios.map((radio) => radio.value)).toEqual([
       "indigo",
       "clay",
@@ -1394,9 +1758,14 @@ describe("label definitions in project settings (V0-10)", () => {
     fireEvent.change(screen.getByLabelText("New label name"), {
       target: { value: "Reliability" },
     });
-    fireEvent.change(screen.getByLabelText("New label color"), {
-      target: { value: "amber" },
-    });
+    // A swatch, not an OS dropdown (LC-130): the hue is picked by name inside
+    // the group the fieldset's legend names.
+    fireEvent.click(
+      within(screen.getByRole("group", { name: "New label color" })).getByRole(
+        "radio",
+        { name: "amber" },
+      ),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Add label" }));
 
     await waitFor(() => expect(api.addProjectLabel).toHaveBeenCalledTimes(1));
@@ -1423,10 +1792,12 @@ describe("label definitions in project settings (V0-10)", () => {
     await openSettings();
     expect(chips()).toEqual(["Backend"]);
 
-    fireEvent.change(screen.getByLabelText("Name of label backend"), {
-      target: { value: "Platform" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Save label backend" }));
+    const field = screen.getByLabelText("Name of label backend");
+    fireEvent.change(field, { target: { value: "Platform" } });
+    // The row commits itself now (LC-130) — `Enter`, as the panel's title does
+    // — so there is no per-row Save button left to press.
+    expect(screen.queryByRole("button", { name: /^Save label/ })).toBeNull();
+    fireEvent.keyDown(field, { key: "Enter" });
 
     await waitFor(() =>
       expect(api.updateProjectLabel).toHaveBeenCalledTimes(1),
