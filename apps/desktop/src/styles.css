@@ -794,6 +794,31 @@ button:disabled {
   margin-top: 18px;
 }
 
+/* The state panel's own mark (prototype.css § state-panel): a 30px warn triangle
+   above the title, in the warn accent, carrying the state at a glance where an
+   `UNREACHABLE` eyebrow only spelled it (LC-143). */
+.state-icon {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--lc-warn);
+}
+
+/* The plain-language title the triangle sits above, at the size the prototype
+   gives a state panel (prototype.css § state-panel) rather than the browser's
+   idea of an `h2`. */
+.unreachable-panel h2 {
+  font-size: var(--lc-type-title-size);
+  font-weight: 600;
+}
+
+/* The copy names the causes and the guarantee, which is two sentences and needs
+   a measure to be read as prose rather than as a banner. */
+.unreachable-panel p {
+  max-width: 420px;
+  margin-inline: auto;
+  line-height: 1.5;
+}
+
 /* The prototype's board: fixed-width columns in one horizontal row that scrolls
    sideways, never wraps (prototype.css § Board). The columns are transparent —
    the cards carry the surface and float on --lc-bg. */
@@ -2704,6 +2729,48 @@ html.theme-transition *::after {
   transition-property: background-color, border-color, color, fill, stroke;
   transition-duration: var(--lc-motion-panel);
   transition-timing-function: var(--lc-motion-ease);
+}
+
+/* The confirm a destructive action goes behind (`screen-specs.md:277-278`).
+   Narrower than quick create because it is prose and two buttons, and the
+   guarantee it repeats has to read as a sentence rather than as a banner. */
+.confirm-dialog {
+  display: grid;
+  gap: var(--lc-space-3);
+  width: min(420px, 92vw);
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-panel);
+  padding: var(--lc-space-5);
+  background: var(--lc-surface);
+  box-shadow: var(--lc-shadow-overlay);
+  text-align: left;
+}
+
+.confirm-dialog h2 {
+  font-size: var(--lc-type-title-size);
+  font-weight: 600;
+}
+
+.confirm-body p {
+  margin: 0;
+  color: var(--lc-ink-2);
+  line-height: 1.5;
+}
+
+/* The path is the subject of the sentence it sits in, so it stays inline and
+   wraps with it rather than becoming a block of its own — the state panel this
+   dialog opens over makes every `code` inside it a block. */
+.confirm-body code {
+  display: inline;
+  overflow-wrap: anywhere;
+  color: var(--lc-ink);
+  font-size: 11.5px;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--lc-space-2);
 }
 
 .quick-create-modal {

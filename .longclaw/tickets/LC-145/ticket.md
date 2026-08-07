@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 581701d1-a0e3-471e-bbcf-abee6d909397
 key: LC-145
 title: Folder missing / unreachable — the copy is registry-speak, and the banner sentence is a run-on
-status: todo
+status: done
 priority: p3
 labels:
   - frontend
   - prototype-diff
 created_at: 2026-08-05T15:16:01.819Z
-updated_at: 2026-08-05T15:16:01.819Z
+updated_at: 2026-08-07T03:15:54.485Z
 ---
 
 **Prototype.** Copy names the causes and the guarantee: "The project folder moved, or its disk isn't mounted. Your tickets are safe in their files — LongClaw never deletes or rewrites them, and this project stays listed until you decide."
@@ -22,7 +22,7 @@ updated_at: 2026-08-05T15:16:01.819Z
 
 ## Checklist
 
-- [ ] Rewrite to the prototype's copy. Fix the run-on sentence regardless. <!-- longclaw:item=ck_fa467db5 -->
+- [x] Rewrite to the prototype's copy. Fix the run-on sentence regardless. <!-- longclaw:item=ck_fa467db5 -->
 
 ## Activity
 
@@ -36,4 +36,23 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_062f17b6
+kind: update
+occurred_at: 2026-08-07T03:15:54.485Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: done
+  - field: checklist.ck_fa467db5.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->

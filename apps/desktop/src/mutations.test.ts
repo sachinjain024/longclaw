@@ -87,7 +87,7 @@ describe("running a mutation", () => {
       tone: "danger",
       // The error's own words, then the guarantee — the claim the product rests
       // on, on the surface a failed write actually reaches (V0-29).
-      message: "No space left on device The file was left as it was.",
+      message: "No space left on device. The file was left as it was.",
     });
     // Nothing landed, so the settled `✓` must not claim a file.
     expect(useMutationStore.getState().settled).toBeUndefined();

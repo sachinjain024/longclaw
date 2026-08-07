@@ -82,6 +82,9 @@ const ORDERING_FOOTNOTE =
 /** Shown on a disabled row that needs a ticket and has none (`:233-235`). */
 const NO_TARGET = "Open or focus a ticket";
 
+/** Shown on a row that would write into a folder the app cannot reach (LC-140). */
+const NO_FOLDER = "The project folder cannot be reached";
+
 export function CommandPalette(props: {
   /** The project every command runs against: the active one, never another. */
   project: ProjectReference;
@@ -148,8 +151,19 @@ export function CommandPalette(props: {
     if (next === "search") props.onSearch("");
   }
 
+  const unreachable = !props.project.reachable;
   const root: PaletteRow[] = [
-    { id: "create", label: "Create ticket", hint: "C", run: props.onCreate },
+    {
+      id: "create",
+      label: "Create ticket",
+      hint: "C",
+      // Nothing is creatable in a folder the app cannot read (`states.md:80-98`).
+      // Disabled rather than hidden, with its reason, like every other row that
+      // is unavailable rather than absent (`screen-specs.md:106-107`).
+      disabled: unreachable,
+      reason: unreachable ? NO_FOLDER : undefined,
+      run: props.onCreate,
+    },
     { id: "project", label: "Go to project…", opens: "project" },
     {
       id: "status",

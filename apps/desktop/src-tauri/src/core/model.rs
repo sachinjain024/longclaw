@@ -270,6 +270,10 @@ pub enum RebuildReason {
     Manual,
     Resume,
     Overflow,
+    /// A project folder that was reported unreachable answered again. The rows
+    /// it comes back with are the recovery: an unreachable stretch delivers no
+    /// events, so there is nothing to catch up from (LC-141).
+    Recovered,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]

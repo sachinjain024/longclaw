@@ -326,7 +326,15 @@ export type ProjectEvent =
     }
   | {
       type: "indexRebuilt";
-      data: { snapshot: ProjectSnapshot; reason: "manual" | "resume" };
+      data: {
+        snapshot: ProjectSnapshot;
+        /**
+         * Every variant `RebuildReason` has (`core/model.rs`). `overflow` was
+         * missing here while Rust had been sending it, and `recovered` is the
+         * folder answering again after an unreachable stretch (LC-141).
+         */
+        reason: "manual" | "resume" | "overflow" | "recovered";
+      };
     }
   | {
       type: "projectUnavailable";

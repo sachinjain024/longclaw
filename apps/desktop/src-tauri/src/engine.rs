@@ -56,6 +56,15 @@ const STABILITY_INTERVAL: Duration = Duration::from_millis(35);
 const STABILITY_ATTEMPTS: usize = 6;
 /// How long a self-write receipt stays valid.
 const SELF_WRITE_TTL: Duration = Duration::from_secs(5);
+/// How often a quiet watcher checks that the project is still there.
+///
+/// The watcher is the only thing that would otherwise notice a folder going
+/// away, and on macOS it notices nothing: renaming an *ancestor* of the watched
+/// path delivers no event for the path itself, so a project root moved out from
+/// under a running app produced silence — and a board full of cached rows
+/// presented as live, which `states.md:96` forbids (LC-139). One `stat` per
+/// interval on an idle watcher is what that silence costs to close.
+const LIVENESS_PROBE: Duration = Duration::from_secs(2);
 
 pub type EventSink = Arc<dyn Fn(StreamEnvelope) + Send + Sync + 'static>;
 
@@ -231,7 +240,16 @@ impl Drop for ProjectWatcher {
         drop(self.wake_observer.take());
         drop(self.watcher.take());
         if let Some(worker) = self.worker.take() {
-            let _ = worker.join();
+            // Unless this *is* the worker. It upgrades the engine to probe and to
+            // rebuild, so the last strong reference can be the one it is holding
+            // — and then the engine, the watcher, and this join all run on the
+            // thread being joined. `join` answers that with an error rather than
+            // a hang, but it is an error raised inside a `Drop`, which is a
+            // panic; the sender is already disconnected above, so the thread
+            // ends either way and there is nothing left to wait for.
+            if worker.thread().id() != thread::current().id() {
+                let _ = worker.join();
+            }
         }
     }
 }
@@ -617,7 +635,21 @@ impl ProjectWatcher {
         let worker = thread::Builder::new()
             .name("longclaw-watch-coalescer".to_owned())
             .spawn(move || {
-                while let Ok(first) = event_rx.recv() {
+                // What the project was last said to be, so a probe reports each
+                // transition once rather than once per tick.
+                let mut reported_missing = false;
+                loop {
+                    let first = match event_rx.recv_timeout(LIVENESS_PROBE) {
+                        Ok(signal) => signal,
+                        Err(mpsc::RecvTimeoutError::Timeout) => {
+                            let Some(engine) = engine.upgrade() else {
+                                return;
+                            };
+                            probe_liveness(&engine, &tickets_root, &mut reported_missing);
+                            continue;
+                        }
+                        Err(mpsc::RecvTimeoutError::Disconnected) => return,
+                    };
                     let burst_started = Instant::now();
                     let mut paths = HashMap::<PathBuf, usize>::new();
                     let (mut root_touched, mut recovery_reason) = match first {
@@ -645,8 +677,19 @@ impl ProjectWatcher {
                     // A tickets root that is gone means the project is gone. A root
                     // that is merely touched is left to the frontend's focus
                     // reconciliation rather than triggering a full rebuild here.
+                    //
+                    // An event is also proof of the opposite: if the last thing
+                    // said about the project was that it was gone, this burst is
+                    // the folder answering. Both readings are `probe_liveness`,
+                    // which is why the answer is asked for in one place — and
+                    // either way the burst is over, because a recovery rebuild
+                    // already holds every row this burst was going to report.
                     if root_touched && !tickets_root.is_dir() {
-                        engine.report_unavailable();
+                        probe_liveness(&engine, &tickets_root, &mut reported_missing);
+                        continue;
+                    }
+                    if reported_missing {
+                        probe_liveness(&engine, &tickets_root, &mut reported_missing);
                         continue;
                     }
                     if let Some(reason) = recovery_reason {
@@ -669,6 +712,28 @@ impl ProjectWatcher {
             worker: Some(worker),
             wake_observer,
         })
+    }
+}
+
+/// One `stat`, and an event only when the answer changes.
+///
+/// Raising the unreachable state is the point (`states.md:80-98`): the trigger is
+/// the project path being unreachable "at launch, on watcher signal, or on any
+/// failed read", and a watcher that is merely quiet is not evidence of a folder
+/// that is still there. Lowering it again is the same fact read the other way —
+/// a returning folder recovers on its own (LC-141), and it recovers through a
+/// rebuild because the changes made while it was away were never delivered.
+fn probe_liveness(engine: &Arc<ProjectEngine>, tickets_root: &Path, reported_missing: &mut bool) {
+    if !tickets_root.is_dir() {
+        if !*reported_missing {
+            engine.report_unavailable();
+            *reported_missing = true;
+        }
+        return;
+    }
+    if *reported_missing {
+        *reported_missing = false;
+        let _ = engine.rebuild(RebuildReason::Recovered, true);
     }
 }
 
