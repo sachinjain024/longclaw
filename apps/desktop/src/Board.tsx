@@ -184,6 +184,12 @@ export function Board(props: {
   /** Raised by a drop in Manual. The rank is allocated; the write is App's. */
   onReorder: (ticket: IndexedTicket, rank: string) => void;
   /**
+   * Raised by a column's `+`, with that column's status
+   * (`keyboard-focus-map.md:45`). The board opens no surface of its own; App
+   * decides that a create preseeded with a status is quick create.
+   */
+  onCreateInStatus?: (status: TicketStatus) => void;
+  /**
    * Focus a card from outside the board — the new card after a create, the card
    * behind a closing panel. It goes through the roving focus rather than the DOM
    * because a card past the window is not in the DOM to be focused.
@@ -253,6 +259,10 @@ export function Board(props: {
     // focused: a click that has not been committed yet would otherwise move the
     // human off a card they are already standing on.
     const on = (event.target as HTMLElement).closest?.(CARD);
+    // A key pressed on a column's `+` belongs to that button, not to the board:
+    // nobody is standing on a card, and falling back to the roving key would
+    // move focus — or open a menu — on whatever card was last left behind.
+    if (!on && event.target !== grid.current) return;
     const fromKey = (on as HTMLElement | null)?.dataset.ticketKey ?? rovingKey;
     const from = fromKey === undefined ? undefined : seats.get(fromKey);
     if (!from || fromKey === undefined) return;
@@ -322,6 +332,7 @@ export function Board(props: {
           dragKey={dragColumn === columnIndex ? dragKey : undefined}
           dropGap={dragColumn === columnIndex ? dropGap : undefined}
           draggable={props.ordering === "manual"}
+          onCreate={props.onCreateInStatus}
           onSelect={props.onSelect}
           onFocusCard={onFocusCard}
           onDragCard={onDragCard}
@@ -374,6 +385,8 @@ function BoardColumn(props: {
   dropGap?: number;
   /** True in Manual, which is the only order a card can be dragged in. */
   draggable: boolean;
+  /** Raised by the header's `+`, with this column's status. */
+  onCreate?: (status: TicketStatus) => void;
   onSelect: (key: string) => void;
   onFocusCard: (key: string) => void;
   onDragCard: (key?: string) => void;
@@ -450,6 +463,16 @@ function BoardColumn(props: {
         {props.status && <StatusDot status={props.status} decorative />}
         {props.title}
         <span>{props.tickets.length}</span>
+        {/* The column's own control, revealed on hover or focus (prototype.css
+            `.col-add`). The synthetic unreadable column has none: it names no
+            status, so there is nothing a create here could be preseeded with. */}
+        {props.status && props.onCreate && (
+          <ColumnAdd
+            title={props.title}
+            status={props.status}
+            onCreate={props.onCreate}
+          />
+        )}
       </h3>
       <div
         className="board-stack"
@@ -515,6 +538,41 @@ function BoardColumn(props: {
         </div>
       </div>
     </section>
+  );
+}
+
+/**
+ * A column header's `+`: quick create, preseeded with that column's status
+ * (`screen-specs.md` § Board, `keyboard-focus-map.md:45`).
+ *
+ * It is named for the column rather than labelled `+`, because six of these sit
+ * on the board and "New ticket" six times over says nothing about which one was
+ * reached. The tooltip and the accessible name are the same sentence.
+ */
+function ColumnAdd(props: {
+  title: string;
+  status: TicketStatus;
+  onCreate: (status: TicketStatus) => void;
+}) {
+  const name = `New ticket in ${props.title}`;
+  return (
+    <button
+      type="button"
+      className="column-add"
+      tabIndex={0}
+      title={name}
+      aria-label={name}
+      onClick={() => props.onCreate(props.status)}
+    >
+      <svg width="13" height="13" viewBox="0 0 14 14" aria-hidden="true">
+        <path
+          d="M7 2.5 V11.5 M2.5 7 H11.5"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+      </svg>
+    </button>
   );
 }
 

@@ -3,8 +3,9 @@
  *
  * Six levels, monochrome except Urgent: a filled square with an exclamation for
  * Urgent, a bordered mono chip carrying its own number for P1–P4, and a dash for
- * None. D4 retired the old High/Medium/Low bars — the number carries the level,
- * so no chip is ever filled and none of them takes the theme accent.
+ * None — in the same chip frame, because the five of them share one slot. D4
+ * retired the old High/Medium/Low bars — the number carries the level, so no
+ * chip is ever filled and none of them takes the theme accent.
  *
  * Every glyph carries its name, because a priority conveyed by shape and colour
  * alone is a priority half the people looking at the board cannot read
@@ -53,17 +54,28 @@ export function PriorityGlyph(props: {
     );
   }
 
+  // The dash components.md keeps for None, inside the frame P1–P4 wear. The two
+  // share one slot — the card's ID row, a menu row's glyph column — and an
+  // unframed dash beside four framed numbers reads as a stray hyphen rather
+  // than as a level (D-23).
   if (props.priority === "none") {
     return (
-      <svg
-        className="priority-glyph none"
-        width={size}
-        height={size}
-        viewBox="0 0 14 14"
+      <span
+        className={
+          props.small ? "priority-chip none small" : "priority-chip none"
+        }
         {...naming}
       >
-        <rect x="2.5" y="6.2" width="9" height="1.6" rx="0.8" />
-      </svg>
+        <svg
+          className="priority-dash"
+          width="9"
+          height="2"
+          viewBox="0 0 9 2"
+          aria-hidden="true"
+        >
+          <rect y="0.2" width="9" height="1.6" rx="0.8" />
+        </svg>
+      </span>
     );
   }
 

@@ -99,6 +99,7 @@ function board(props?: {
   onChangePriority?: (ticket: IndexedTicket, next: TicketPriority) => void;
   onChangeStatus?: (ticket: IndexedTicket, next: TicketStatus) => void;
   onReorder?: (ticket: IndexedTicket, rank: string) => void;
+  onCreateInStatus?: (status: TicketStatus) => void;
 }) {
   return (
     <Board
@@ -111,6 +112,7 @@ function board(props?: {
       onChangePriority={props?.onChangePriority ?? noop}
       onChangeStatus={props?.onChangeStatus ?? noop}
       onReorder={props?.onReorder ?? noop}
+      onCreateInStatus={props?.onCreateInStatus}
     />
   );
 }
@@ -638,6 +640,27 @@ describe("priority on the board", () => {
     ).toBeTruthy();
   });
 
+  // LC-85: the dash used to sit bare in the slot P1–P4 fill with a chip, which
+  // on a card read as a stray hyphen rather than as a level.
+  it("gives None the same chip frame the numbered levels wear", () => {
+    render(
+      board({
+        tickets: [
+          row({ key: "LC-1", status: "todo", priority: "none" }),
+          row({ key: "LC-2", status: "todo", priority: "p3" }),
+        ],
+      }),
+    );
+
+    const none = card("LC-1").querySelector('[aria-label="Priority: None"]');
+    expect(none?.className).toContain("priority-chip");
+    expect(none?.querySelector(".priority-dash")).toBeTruthy();
+    expect(none?.textContent).toBe("");
+    expect(
+      card("LC-2").querySelector('[aria-label="Priority: P3"]')?.className,
+    ).toContain("priority-chip");
+  });
+
   it("opens the priority menu on the focused card when P is pressed", () => {
     const onChangePriority = vi.fn();
     render(board({ tickets: column, onChangePriority }));
@@ -995,5 +1018,84 @@ describe("board ordering and drag-and-drop (V0-09)", () => {
     dragAt(element, "dragOver", 596);
 
     expect(scrolled).toBeGreaterThan(0);
+  });
+});
+
+describe("the column header's + (LC-83)", () => {
+  /** The `+` in one named column's header, if the header carries one. */
+  function add(title: string): HTMLElement | null {
+    const heading = screen.getByRole("heading", {
+      name: new RegExp(`^${title}`),
+    });
+    return heading.querySelector<HTMLElement>(".column-add");
+  }
+
+  it("opens a create already standing in the column it was pressed in", () => {
+    const onCreateInStatus = vi.fn();
+    render(board({ onCreateInStatus }));
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "New ticket in In Progress" }),
+    );
+
+    expect(onCreateInStatus).toHaveBeenCalledWith("in_progress");
+  });
+
+  it("names its column, because six of them sit on one board", () => {
+    render(board({ onCreateInStatus: noop }));
+
+    expect(add("Todo")?.getAttribute("aria-label")).toBe("New ticket in Todo");
+    expect(add("Done")?.getAttribute("aria-label")).toBe("New ticket in Done");
+  });
+
+  it("is absent on the column no status names", () => {
+    render(
+      board({
+        onCreateInStatus: noop,
+        tickets: [
+          row(),
+          {
+            state: "degraded",
+            key: "LC-98",
+            contentHash: "hash-98",
+            relativePath: ".longclaw/tickets/LC-98/ticket.md",
+            byteLength: 220,
+            readOnly: false,
+            diagnostic: {
+              code: "parse_failed",
+              message: "status must be one of backlog, todo; found blocked",
+              line: 6,
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(add("Unreadable")).toBeNull();
+    expect(add("Todo")).toBeTruthy();
+  });
+
+  it("leaves the header alone when nothing is listening", () => {
+    render(board());
+
+    expect(document.querySelector(".column-add")).toBeNull();
+  });
+
+  it("does not read a key pressed on it as a move on the roving card", () => {
+    const onChangeStatus = vi.fn();
+    render(
+      board({ tickets: columnOf(3), onChangeStatus, onCreateInStatus: noop }),
+    );
+    card("LC-1").focus();
+    const plus = add("Todo");
+    if (!plus) throw new Error("no + in the Todo header");
+    plus.focus();
+
+    fireEvent.keyDown(plus, { key: "j" });
+    fireEvent.keyDown(plus, { key: "s" });
+
+    expect(document.activeElement).toBe(plus);
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(onChangeStatus).not.toHaveBeenCalled();
   });
 });

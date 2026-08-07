@@ -829,6 +829,34 @@ button:disabled {
   font-size: 11px;
 }
 
+/* The column's own control, in the far edge the header reserves for it
+   (prototype.css `.col-add`): quiet until the column is hovered or the button
+   itself is focused.
+
+   Faded rather than `visibility: hidden`, which is what the prototype uses and
+   this cannot: a hidden element takes no focus, and `keyboard-focus-map.md:45`
+   gives these buttons a keyboard path. It holds its place in the header either
+   way, so revealing it moves nothing. */
+.column-add {
+  display: inline-flex;
+  margin-left: auto;
+  border-radius: var(--lc-radius-kbd);
+  padding: 3px;
+  color: var(--lc-ink-3);
+  opacity: 0;
+  transition: opacity var(--lc-motion-fast) var(--lc-motion-ease);
+}
+
+.board-column:hover .column-add,
+.column-add:focus-visible {
+  opacity: 1;
+}
+
+.column-add:hover {
+  color: var(--lc-ink);
+  background: var(--lc-wash);
+}
+
 /* Each column scrolls independently (screen-specs.md § Board). Bounding it here
    is also what lets the column render only the cards this box can show.
 
@@ -1065,6 +1093,26 @@ button:disabled {
 
 .ticket-row.fresh.human-fresh .progress i {
   background: var(--lc-accent-human);
+}
+
+/* Roving focus has exactly one thing to point at, so the card it lands on has
+   to say so at a glance — after `S` or `P` closes a menu, this is the only
+   answer to "where am I".
+
+   The 3px ring the rest of the app wears is drawn outside the element, and the
+   column clips it: `.board-stack` scrolls, so its 3px/4px of padding is all the
+   room a card has outside itself and the ring came back a sliver. The card
+   wears its focus inside itself instead — the `accent-human` border
+   `components.md` § Board card asks for, with the ring inset against it, the
+   same trade `.list-row` makes for the same reason.
+
+   Placed after `.fresh` deliberately: the two carry the same specificity, and a
+   card that changed on disk while focused still has to be findable. The
+   acknowledgement keeps its own outward ring, its pulse and its footer. */
+.ticket-row:focus-visible {
+  border-color: var(--lc-accent-human);
+  outline: var(--lc-border-focus) solid var(--lc-accent-human-ring);
+  outline-offset: calc(-1 * var(--lc-border-focus));
 }
 
 .pulse-dot {
@@ -2751,10 +2799,6 @@ html.theme-transition *::after {
   fill: var(--lc-priority-urgent-mark);
 }
 
-.priority-glyph.none {
-  fill: var(--lc-priority-none);
-}
-
 /* A bordered container around real text: the number carries the level, so the
    chip never gains a fill and never takes the theme accent. */
 .priority-chip {
@@ -2777,6 +2821,18 @@ html.theme-transition *::after {
 .priority-chip.small {
   height: 13px;
   font-size: 8.5px;
+}
+
+/* None wears the same frame, holding the dash instead of a number: it is the
+   absence of a level, not the absence of a priority slot, and the dash on its
+   own read as a stray hyphen where the numbers had a chip (D-23). */
+.priority-chip.none {
+  color: var(--lc-priority-none);
+}
+
+.priority-dash {
+  flex: none;
+  fill: currentColor;
 }
 
 /* One popover behind status, priority, ordering and labels

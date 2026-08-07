@@ -8,10 +8,12 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { QuickCreate } from "./QuickCreate";
+import type { TicketStatus } from "./types";
 
 afterEach(cleanup);
 
 function quickCreate(props?: {
+  initialStatus?: TicketStatus;
   onCancel?: () => void;
   onCreate?: (request: unknown) => void;
   onOpenFullEditor?: (draft: unknown) => void;
@@ -20,6 +22,7 @@ function quickCreate(props?: {
     <QuickCreate
       projectName="Round Trip"
       provisionalKey="RT-4"
+      initialStatus={props?.initialStatus}
       onCancel={props?.onCancel ?? (() => {})}
       onCreate={props?.onCreate ?? (() => {})}
       onOpenFullEditor={props?.onOpenFullEditor ?? (() => {})}
@@ -106,5 +109,30 @@ describe("quick create is title and status", () => {
 
     expect(onCancel).toHaveBeenCalledTimes(1);
     expect(onCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe("the status the modal opens on (LC-83)", () => {
+  it("stands in the column the + was pressed in", () => {
+    const onCreate = vi.fn();
+    render(quickCreate({ initialStatus: "in_review", onCreate }));
+
+    expect(statusTrigger().textContent).toContain("In Review");
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Preseeded" },
+    });
+    fireEvent.click(screen.getByText("Create"));
+
+    expect(onCreate).toHaveBeenCalledWith({
+      title: "Preseeded",
+      status: "in_review",
+    });
+  });
+
+  it("opens on Todo when nothing chose one, which is where a new ticket goes", () => {
+    render(quickCreate());
+
+    expect(statusTrigger().textContent).toContain("Todo");
   });
 });

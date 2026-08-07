@@ -144,9 +144,9 @@ statuses render in order; Canceled correctly hides when empty.
 
 | ID | Sev | Prototype | App | Plan |
 |---|---|---|---|---|
-| D-21 | P2 | Column header reveals a `+` on hover | No `+` anywhere (`Board.tsx:447-453` renders dot + name + count only) | Add a hover/focus-revealed icon button to the column `<h3>`; on activate, `setCreateSurface("quick")` with `status` preseeded. The quick-create modal already accepts a status. |
-| D-22 | P2 | Focused card: human-accent inset border + ring | Focus ring exists but is faint at card scale — the focused card is hard to find after `S`/`P` closes a menu | Verify against `components.md` § Board card focus; the ring should read at a glance, it is the only thing roving focus can point at. |
-| D-23 | P3 | Priority `None` renders as a dash glyph in the ID row | Same, but the dash sits in the chip slot with no chip — reads as a stray hyphen (see LC-108) | Either render the `—` inside the same 22×16 chip frame as `P1`…`P4`, or omit it. |
+| ~~D-21~~ | P2 | Column header reveals a `+` on hover | No `+` anywhere (`Board.tsx:447-453` renders dot + name + count only) | **Fixed 2026-08-07 (LC-83).** `ColumnAdd` in `Board.tsx`, revealed on column hover or its own focus and named for its column — six buttons reading "New ticket" would say nothing about which one was reached. It raises the status rather than opening anything: `App` decides that a preseeded create is quick create, and `QuickCreate` now opens on the status it is given. Faded rather than `visibility: hidden` as the prototype has it, because a hidden element takes no focus and `keyboard-focus-map.md:45` gives these a keyboard path. |
+| ~~D-22~~ | P2 | Focused card: human-accent inset border + ring | Focus ring exists but is faint at card scale — the focused card is hard to find after `S`/`P` closes a menu | **Fixed 2026-08-07 (LC-84).** The ring was not faint, it was clipped: it is drawn outside the element, and `.board-stack` scrolls, so the 3px/4px of column padding was all the room it had. The card wears its focus inside itself now — the `accent-human` border `components.md` § Board card asks for, with the ring inset against it, the same trade `.list-row` already makes. |
+| ~~D-23~~ | P3 | Priority `None` renders as a dash glyph in the ID row | Same, but the dash sits in the chip slot with no chip — reads as a stray hyphen (see LC-108) | **Fixed 2026-08-07 (LC-85).** The first option: the dash keeps its geometry and gains the frame `P1`…`P4` wear, so the five levels share one slot. Omitting it was the alternative and would have made None the one level that says nothing. |
 
 **Not a diff:** column width, gap, order, card stack gap, the fixed status set,
 priority-default ordering, the ordering control, `Canceled` hiding when empty,
@@ -162,7 +162,7 @@ wraps.
 
 The app's cards are close: ID + priority chip on row 1, title, then fraction +
 progress bar + label chips. Truncation is applied. **No diffs worth filing** at
-this size beyond D-23 above.
+this size beyond ~~D-23~~ above, which is now closed.
 
 ---
 
@@ -530,7 +530,8 @@ single stack.
     What is left of this line is **D-04** alone.
 12. **D-4E / D-4F** — palette glyphs (data change; the slot already exists).
 13. **D-45** — real toolbar icons.
-14. **D-21** — column-header `+`.
+14. ~~**D-21**~~ — column-header `+` (done 2026-08-07, LC-83, with ~~**D-22**~~
+    and ~~**D-23**~~: the board's focus ring and the `None` chip).
 15. **D-47 / D-48 / D-49 / D-4A / D-4B** — create surfaces.
 16. **D-60 / D-61 / D-62** — freshness attribution.
 17. **D-35 / D-37 / D-65 / D-72 / D-73** — layout and chrome polish.
