@@ -6,10 +6,12 @@ use parking_lot::RwLock;
 
 use crate::core::{AppResult, ProjectReference, ProjectSnapshot, StreamEnvelope};
 use crate::engine::ProjectEngine;
+use crate::preferences::{PreferenceDocument, PreferencesStore};
 use crate::registry::RegistryStore;
 
 pub struct AppState {
     registry: RegistryStore,
+    preferences: PreferencesStore,
     engines: RwLock<HashMap<String, Arc<ProjectEngine>>>,
 }
 
@@ -17,8 +19,19 @@ impl AppState {
     pub fn new(app_data_dir: &Path) -> AppResult<Self> {
         Ok(Self {
             registry: RegistryStore::load(app_data_dir)?,
+            // Infallible on purpose: a preferences file nobody can read is not
+            // a reason to refuse to launch (`preferences.rs`).
+            preferences: PreferencesStore::load(app_data_dir),
             engines: RwLock::new(HashMap::new()),
         })
+    }
+
+    pub fn read_preferences(&self) -> PreferenceDocument {
+        self.preferences.read()
+    }
+
+    pub fn write_preferences(&self, document: PreferenceDocument) -> AppResult<()> {
+        self.preferences.write(document)
     }
 
     pub fn list_projects(&self) -> Vec<ProjectReference> {

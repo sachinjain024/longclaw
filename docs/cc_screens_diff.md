@@ -508,11 +508,11 @@ single stack.
 
 | ID | Sev | Finding | Plan |
 |---|---|---|---|
-| D-70 | P1 | **Appearance preference is not restored on relaunch.** Set to Light, quit, relaunch → the control reads `System` again. It is written to `localStorage` under `longclaw.appearance` (`App.tsx:79`, `:491`) | Verify on a packaged build before filing as a bug — but if it reproduces there, the webview's storage is not surviving the process, and the ordering preference (stored the same way, `App.tsx:222`) is lost with it. |
-| D-71 | P2 | **The open project is not restored on relaunch** — it always falls back to the first registry entry | Already recorded as a clean-machine finding (`8578f73`). Listed here only because it is visible on every screen. |
+| ~~D-70~~ | P1 | **Appearance preference is not restored on relaunch.** Set to Light, quit, relaunch → the control reads `System` again. It is written to `localStorage` under `longclaw.appearance` (`App.tsx:79`, `:491`) | **Fixed 2026-08-07 (LC-150) — struck for the symptom only.** This is the one row here whose two halves have different answers: the preference survives a relaunch now, checked on the bundle, while *why it did not before* is unexplained and is the open follow-up at the end of this document. The packaged check cuts against the theory in this cell — webview storage survived the process on that machine, as `8578f73` also reported the same day — so the fix does not rest on a diagnosis. It rests on the question never having been cheap to ask: `localStorage` is unreadable to the suite too (LC-161), so a preference living there produces findings nobody can close without a manual pass. So none of these are in webview storage any more — appearance, the open project and every project's workspace are one document in `device-preferences.json`, beside the project registry, written through the same atomic seam every other file this app owns is. [ADR 0012](adr/0012-device-preferences-are-a-file-rust-owns.md) records it and supersedes the sentence in ADR 0006 that allowed the old home. A relaunch is now something a test can perform — a second `PreferencesStore::load`, or the frontend forgetting what it holds and reading the document again — which is what the old storage could never be asked (LC-161). |
+| ~~D-71~~ | P2 | **The open project is not restored on relaunch** — it always falls back to the first registry entry | **Fixed 2026-08-07 (LC-151), with D-70.** This row's cause is on the record and is not a storage failure: `8578f73` diagnosed it as never persisted at all — `activeProjectId` lived only in the in-memory store — and LC-49 built the persistence the day after this row was written. What LC-151 adds is that the value it reads now outlives the process by construction, and that a relaunch with two projects registered is something the suite performs. Still an opaque hint and not a second project reference — the registry is asked whether the id is real and reachable before anything is opened, which is the condition ADR 0006 attached to it and ADR 0012 keeps. |
 | ~~D-72~~ | P2 | Native `<select>` elements appear in two places (sidebar appearance, settings label colours) | **Fixed 2026-08-07 (LC-127 / LC-130).** Both are gone: the sidebar's went with LC-72 and the appearance segment replaces it, and the label colours are swatches. The app renders no `<select>` anywhere. |
-| D-73 | P2 | Native textarea **resize grabbers** are visible on the panel title, the comment composer, and the create-mode title | `resize: none` + auto-grow; the only textarea the spec gives a resize handle to is the description editor. |
-| ~~D-74~~ | P3 | No stacking-order scale exists | **Fixed 2026-08-06 (LC-96).** The `--lc-z-*` scale exists and every positioned surface takes a layer off it. `token-guard.mjs` refuses a literal `z-index`, and `stacking-guard.mjs` checks the order the five surfaces claim — a scale is the one place a value read alone says nothing. |
+| ~~D-73~~ | P2 | Native textarea **resize grabbers** are visible on the panel title, the comment composer, and the create-mode title | **Fixed 2026-08-07 (LC-153),** the last of the three. The panel's title and composer lost the handle and grew a `useAutoGrow` with LC-108 and LC-107; the create-mode title wears the same `.panel-title` rule, so it had lost the handle *without* the auto-grow — `resize: none` over `overflow: hidden`, which is the half of the pair that clips a long title silently. The hook is `autoGrow.ts` now rather than a private function in `TicketPanel`, and `field-guard.mjs` counts a call per field in both components. The description editor keeps its handle, as the spec says. |
+| ~~D-74~~ | P3 | No stacking-order scale exists | **Fixed 2026-08-06 (LC-96), completed 2026-08-07 (LC-154).** The `--lc-z-*` scale exists and `token-guard.mjs` refuses a literal `z-index`. What LC-154 finished is the wider half — *use them everywhere position is set* — by sweeping every positioned rule rather than the five named surfaces. What came out of it is two ways of holding a layer. `fixed` and `sticky` take one by blanket rule: each is a claim against surfaces it never names. `absolute` cannot be ruled on in the blanket — it is usually a placement inside one box, and the rows settle that it must stay so (a layer each is 5,000 stacking contexts for a relation they do not have) — so the absolute rules that *are* claims are named individually instead. Two rules were wrong at `auto` and now take a `drag` layer — both drop indicators, which render *before* the rows they are dropped between, so every row painted over them and the list's lost a pixel of itself to any row wearing a background. `stacking-guard.mjs` holds both the relations and the rule. |
 
 ---
 
@@ -523,7 +523,9 @@ single stack.
 1. ~~**D-01 / D-74**~~ — done 2026-08-06 (LC-96): `.ticket-panel` and the list's
    sticky header take layers off a `--lc-z-*` scale, and `stacking-guard.mjs`
    holds the relations between all five surfaces. It was the cheapest,
-   highest-value fix in this document, as billed. **D-51** came with it in two
+   highest-value fix in this document, as billed. D-74's wider half — every
+   positioned rule, not the five named ones — closed on 2026-08-07 with LC-154,
+   and found two more surfaces that were losing to source order. **D-51** came with it in two
    parts: its layering came free with this, and the spec's 680px modal landed on
    2026-08-07 (LC-134) — the raw file no longer borrows the ticket panel.
 2. ~~**D-02 / D-03**~~ — done 2026-08-06 (LC-97, LC-98): a `--lc-code-surface` /
@@ -579,9 +581,10 @@ single stack.
     and ~~**D-23**~~: the board's focus ring and the `None` chip).
 15. **D-47 / D-48 / D-49 / D-4A / D-4B** — create surfaces.
 16. **D-60 / D-61 / D-62** — freshness attribution.
-17. **D-65 / D-73** — layout and chrome polish (~~**D-72**~~ went with the
-    settings modal; ~~**D-35**~~ and ~~**D-37**~~ went on 2026-08-07 with LC-93
-    and LC-95, alongside ~~**D-36**~~'s placement decision in LC-94).
+17. **D-65** — layout and chrome polish (~~**D-72**~~ went with the settings
+    modal; ~~**D-35**~~ and ~~**D-37**~~ went on 2026-08-07 with LC-93 and
+    LC-95, alongside ~~**D-36**~~'s placement decision in LC-94; ~~**D-73**~~,
+    the last resize grabber, went the same day with LC-153).
 
 **Product decisions, not bugs**
 
@@ -605,8 +608,21 @@ single stack.
 
 - ~~**§18 conflict banner**~~ — filed 2026-08-07 as **LC-169**. Built but
   unexercised here; the walk against `states.md:154-182` is that ticket.
-- **D-70** — confirm the appearance/ordering preference loss on a packaged build
-  before treating it as real (LC-150).
+- **Why the appearance override came back as `System`** (the cause behind
+  **D-70**, whose row is struck for the symptom) — **still unexplained,
+  2026-08-07.** The packaged relaunch was run against the bundle, but for the
+  *new* file rather than the old store: a remembered project and a remembered
+  appearance both survive a quit, with a control launch proving the file records
+  which project actually opened
+  ([ADR 0012](adr/0012-device-preferences-are-a-file-rust-owns.md) § What was
+  checked). That check turned up evidence *against* D-70's own theory — the old
+  `localStorage` value was still readable to the bundle across a redirected
+  `HOME`, so webview storage does survive the process on this machine, which is
+  also what `8578f73` reported the same day the row was written. So the
+  behaviour the operator saw is real and unexplained, and neither this line nor
+  ADR 0012 claims to have explained it. What has changed is the price of
+  finding out: the preference is somewhere the suite can watch, so whoever picks
+  this up is chasing a cause rather than a lost setting.
 
 **Every row in this document is now ticketed.** The `D-` rows became LC-67…LC-154
 on 2026-08-05; the two prose findings above became LC-168 and LC-169 on

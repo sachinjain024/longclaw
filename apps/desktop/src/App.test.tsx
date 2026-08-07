@@ -13,6 +13,10 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 import * as api from "./api";
+import {
+  resetDevicePreferences,
+  restoreDevicePreferences,
+} from "./devicePreferences";
 import { resetMutations, useMutationStore } from "./mutations";
 import { useLongClawStore } from "./state";
 import { isArchived } from "./tickets";
@@ -37,6 +41,7 @@ vi.mock("./api", () => ({
   listProjects: vi.fn(),
   listenForProjectEvents: vi.fn(),
   openProject: vi.fn(),
+  readPreferences: vi.fn(),
   readTicket: vi.fn(),
   rebuildIndex: vi.fn(),
   reconcileProject: vi.fn(),
@@ -45,6 +50,7 @@ vi.mock("./api", () => ({
   setProjectStarred: vi.fn(),
   updateProjectName: vi.fn(),
   updateProjectTheme: vi.fn(),
+  writePreferences: vi.fn(),
   addProjectLabel: vi.fn(),
   updateProjectLabel: vi.fn(),
   removeProjectLabel: vi.fn(),
@@ -57,8 +63,30 @@ afterEach(() => {
   // here and nothing needs putting back.
 });
 
+/**
+ * The preferences file, as far as this suite is concerned (LC-150). Device
+ * preferences are a document Rust keeps rather than a storage key, so the
+ * fixture is a fake backend that holds one — and a relaunch is `relaunch()`
+ * below, which forgets what this process holds and reads the document again,
+ * exactly as `src/main.tsx` does before its first render.
+ */
+let devicePreferences: Record<string, unknown> = {};
+
+async function relaunch() {
+  resetDevicePreferences();
+  await restoreDevicePreferences();
+}
+
 beforeEach(() => {
   resetMutations();
+  devicePreferences = {};
+  resetDevicePreferences();
+  vi.mocked(api.readPreferences).mockImplementation(async () => ({
+    ...devicePreferences,
+  }));
+  vi.mocked(api.writePreferences).mockImplementation(async (document) => {
+    devicePreferences = document;
+  });
   Object.defineProperty(window, "matchMedia", {
     writable: true,
     value: vi.fn().mockImplementation(() => ({
@@ -1634,19 +1662,25 @@ describe("system-matched appearance (V0-35)", () => {
     act(() => system.flip(true));
 
     expect(document.documentElement.dataset.appearance).toBe("light");
-    expect(window.localStorage.getItem("longclaw.appearance")).toBe("light");
+    await waitFor(() => expect(devicePreferences.appearance).toBe("light"));
   });
 
+  /**
+   * The P1 the clean-machine pass found: set Light, quit, relaunch, and the
+   * control read `System` again (LC-150). It reproduced because the preference
+   * was in webview storage, which the packaged build does not keep across the
+   * process; it is a file Rust owns now, and the relaunch here is a cold read
+   * of that file.
+   */
   it("persists the preference and rehydrates it on the next launch", async () => {
     mockSystem(true);
     const first = render(<App />);
     overrideAppearance("light");
-    await waitFor(() =>
-      expect(window.localStorage.getItem("longclaw.appearance")).toBe("light"),
-    );
+    await waitFor(() => expect(devicePreferences.appearance).toBe("light"));
     first.unmount();
-    // A restart begins from the store default; only localStorage survives.
+    // A restart begins from the store default; only the document survives.
     useLongClawStore.setState({ appearance: "system" });
+    await relaunch();
 
     render(<App />);
 
@@ -2869,9 +2903,7 @@ describe("board ordering and manual reordering (V0-09)", () => {
     chooseOrdering("Manual");
 
     await waitFor(() =>
-      expect(
-        JSON.parse(localStorage.getItem("longclaw.projectWorkspaces")!),
-      ).toEqual({
+      expect(devicePreferences.projectWorkspaces).toEqual({
         "project-fixture": { ordering: "manual" },
       }),
     );
@@ -3448,9 +3480,7 @@ describe("the header filter (V0-15)", () => {
     type("recovery");
 
     await waitFor(() =>
-      expect(
-        JSON.parse(localStorage.getItem("longclaw.projectWorkspaces")!),
-      ).toEqual({
+      expect(devicePreferences.projectWorkspaces).toEqual({
         "project-fixture": { filterQuery: "recovery" },
       }),
     );
@@ -3572,6 +3602,7 @@ describe("project-scoped workspace restoration (LC-49)", () => {
 
     firstLaunch.unmount();
     resetSessionStore();
+    await relaunch();
     vi.mocked(api.openProject).mockClear();
 
     render(<App />);
@@ -3625,6 +3656,7 @@ describe("project-scoped workspace restoration (LC-49)", () => {
 
     firstLaunch.unmount();
     resetSessionStore();
+    await relaunch();
 
     render(<App />);
     await screen.findByRole("heading", { name: "Project A" });
@@ -3646,17 +3678,19 @@ describe("project-scoped workspace restoration (LC-49)", () => {
   });
 
   it("falls back safely when saved project and workspace values are malformed or stale", async () => {
-    localStorage.setItem("longclaw.activeProject", projectB.id);
-    localStorage.setItem(
-      "longclaw.projectWorkspaces",
-      JSON.stringify({
-        [projectA.id]: { view: "grid", filterQuery: 42 },
-      }),
-    );
-    localStorage.setItem(
-      "longclaw.boardOrdering",
-      JSON.stringify({ [projectA.id]: "new-ordering-from-the-future" }),
-    );
+    // A document from another build, or from somebody's editor: the file is
+    // Rust's to keep and nobody's to validate but this build (LC-150).
+    devicePreferences = {
+      activeProjectId: projectB.id,
+      projectWorkspaces: {
+        [projectA.id]: {
+          view: "grid",
+          ordering: "new-ordering-from-the-future",
+          filterQuery: 42,
+        },
+      },
+    };
+    await relaunch();
     vi.mocked(api.listProjects).mockResolvedValue([
       projectA,
       { ...projectB, reachable: false },
@@ -3677,11 +3711,11 @@ describe("project-scoped workspace restoration (LC-49)", () => {
     expect(api.updateProjectName).not.toHaveBeenCalled();
     expect(api.updateProjectTheme).not.toHaveBeenCalled();
     expect(api.editTicket).not.toHaveBeenCalled();
-    expect(localStorage.getItem("longclaw.boardOrdering")).toBeNull();
   });
 
   it("falls back when the remembered project is no longer registered", async () => {
-    localStorage.setItem("longclaw.activeProject", "project-that-was-removed");
+    devicePreferences = { activeProjectId: "project-that-was-removed" };
+    await relaunch();
 
     render(<App />);
 

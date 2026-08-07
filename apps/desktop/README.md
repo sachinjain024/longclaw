@@ -39,3 +39,17 @@ file or forget project paths automatically. Quit the app, copy
 `project-registry.backup.json` over `project-registry.json`, and restart. If the
 backup is also unusable, register the project folders again from the app; project
 files in the repositories are not deleted by registry recovery.
+
+## Device preferences
+
+Beside the registry is `device-preferences.json`: the appearance override, the
+project that was open, and each project's view, ordering and filter. They belong
+to this machine rather than to any project, so they are never written into a
+project folder ([ADR 0012](../../docs/adr/0012-device-preferences-are-a-file-rust-owns.md)).
+
+This file fails _open_, which is the opposite of the registry and for the
+opposite reason: the worst a lost preference costs is a window that comes up on
+System appearance. One that does not parse is renamed to
+`device-preferences.invalid.json` and the app starts on its defaults, so a
+hand-edit that went wrong is still there to read. Deleting the file is a
+supported way to start over.

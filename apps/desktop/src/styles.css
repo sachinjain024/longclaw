@@ -1190,6 +1190,10 @@ button:disabled {
   position: absolute;
   right: 0;
   left: 0;
+  /* Rendered before the cards, so at `auto` every card and its shadow paint
+     over it — source order is the whole answer between positioned siblings
+     (LC-154). The layer says it once instead. */
+  z-index: var(--lc-z-drag);
   height: 2px;
   border-radius: var(--lc-radius-full);
   background: var(--lc-accent-human);
@@ -1636,6 +1640,12 @@ button:disabled {
   position: absolute;
   right: 0;
   left: 0;
+  /* It straddles the boundary, so it is the one indicator a row can take a
+     pixel off: the rows render after it, and a hovered, selected or degraded
+     row paints a background over the half of the line inside it. At `auto`
+     that turned a 2px line into a 1px one under the pointer, which is where a
+     drag is looking (LC-154). */
+  z-index: var(--lc-z-drag);
   height: 2px;
   border-radius: var(--lc-radius-full);
   margin-top: -1px;
@@ -2829,6 +2839,11 @@ button:disabled {
    the bottom so Create ticket is reachable without scrolling a long draft. */
 .create-panel .editor-footer {
   position: sticky;
+  /* Sticky is a claim to be over what scrolls under it, and the claim only
+     holds against unpositioned content while nothing positioned is added above
+     it — which is the assumption that broke on the list (LC-96). Nothing here
+     opens a popover, so a stacking context on the footer traps nothing. */
+  z-index: var(--lc-z-sticky);
   bottom: 0;
   margin-top: auto;
   background: var(--lc-surface);

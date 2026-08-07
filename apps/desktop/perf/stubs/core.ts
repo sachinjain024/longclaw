@@ -167,6 +167,12 @@ export async function invoke<T>(
   // value does not alter what the performance surfaces render.
   if (command === "home_dir") return "/Users/longclaw" as T;
   if (command === "list_projects") return [PROJECT] as T;
+  // A harness that carried preferences between runs would carry a view mode or
+  // a filter into a measurement that did not ask for one, so this device
+  // remembers nothing: every run starts on the launch defaults, and what the
+  // app writes goes nowhere.
+  if (command === "read_preferences") return {} as T;
+  if (command === "write_preferences") return undefined as T;
   if (command === "open_project" || command === "rebuild_index") {
     return { ...board, tickets: [...rows.values()], generation } as T;
   }

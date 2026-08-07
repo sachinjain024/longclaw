@@ -23,6 +23,7 @@
 
 import { useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
+import { useAutoGrow } from "./autoGrow";
 import { DescriptionEditor } from "./DescriptionEditor";
 import { GhostBox } from "./GhostBox";
 import { LabelMenuButton } from "./LabelMenu";
@@ -59,6 +60,7 @@ export function CreatePanel(props: CreatePanelProps) {
   const [checklist, setChecklist] = useState<string[]>([]);
   const [newItem, setNewItem] = useState("");
   const addItem = useRef<HTMLInputElement>(null);
+  const titleField = useAutoGrow(title);
 
   const canCreate = title.trim() !== "";
 
@@ -107,8 +109,12 @@ export function CreatePanel(props: CreatePanelProps) {
 
       <textarea
         className="panel-title"
+        ref={titleField}
         value={title}
-        rows={2}
+        // One row, then as many as the title needs. `.panel-title` draws no
+        // grabber and hides its overflow, so `rows` is a floor and the height
+        // is the field's own job (LC-153).
+        rows={1}
         autoFocus
         aria-label="Title"
         placeholder="Ticket title"

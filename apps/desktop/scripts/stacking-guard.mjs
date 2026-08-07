@@ -24,7 +24,27 @@
  *   - the menu popover over the scrim, because quick create carries the status,
  *     priority and label menus and a menu behind its own modal is unusable;
  *   - a toast over the panel, because feedback that arrives hidden is not
- *     feedback.
+ *     feedback;
+ *   - the drop indicator over the rows it is dropped between, and under the
+ *     sticky header that stays over what scrolls beneath it (LC-154).
+ *
+ * **Two ways of holding a layer, and why.** LC-154 asked for the layers to be
+ * used "everywhere position is set", and swept every positioned rule in the
+ * stylesheet to find out what that means rule by rule.
+ *
+ * `fixed` and `sticky` can be held as a blanket rule, and are, below: a fixed
+ * box is out of flow at the root and a sticky one exists in order to overlap
+ * what scrolls under it, so each is a claim against surfaces it never names,
+ * and a claim like that is either declared or left to source order.
+ *
+ * `absolute` cannot. It is usually a placement inside one box — a `kbd` chip
+ * inside its field, an input hidden under its own label — and the rows settle
+ * that it must stay that way: 5,000 of them, placed by geometry that never
+ * overlaps, where a stacking context each is paid for a relation they do not
+ * have. But two absolute rules *are* claims — both drop indicators, which are
+ * rendered before the rows they are dropped between — so they are named in
+ * `SURFACES` and required to declare a layer there. Blanket rule where one
+ * holds; a named relation where the answer is per surface.
  *
  * The workspace is deliberately absent: it is the floor, and it must stay at
  * `auto`. Giving a layer to an ancestor of the board and list would make it a
@@ -48,7 +68,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { cssRules, report } from "./guard.mjs";
+import { cssRules, declarationsOf, report } from "./guard.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const src = resolve(here, "../src");
@@ -62,6 +82,8 @@ const LAYERS = Object.keys(scale).filter((name) => name !== "note");
 
 /** Who must sit over whom, and the sentence the failure should read as. */
 const SURFACES = {
+  ".drop-line": "the board's drop indicator",
+  ".list-drop-line": "the list's drop indicator",
   ".list-group-header": "the list's sticky group headers",
   ".ticket-panel": "the ticket panel",
   ".modal-scrim": "a modal",
@@ -69,6 +91,7 @@ const SURFACES = {
   ".toast-stack": "a toast",
 };
 const ORDER = [
+  [".list-group-header", ".list-drop-line"],
   [".ticket-panel", ".list-group-header"],
   [".modal-scrim", ".ticket-panel"],
   [".menu-popover", ".modal-scrim"],
@@ -141,10 +164,33 @@ for (const [over, under] of ORDER) {
   }
 }
 
+/* The rule the named surfaces above are instances of: every `fixed` and every
+   `sticky` rule takes a layer. A rule may set the position for a whole selector
+   list, so each part of the list is a surface that has to answer for one. */
+const rules = cssRules(styles);
+const outOfFlow = new Set();
+for (const [selector, body] of rules) {
+  if (!/position:\s*(fixed|sticky)/.test(body)) continue;
+  for (const part of selector.split(",")) outOfFlow.add(part.trim());
+}
+for (const selector of outOfFlow) {
+  const declared = declarationsOf(rules, selector).match(
+    /z-index:\s*var\(--lc-z-([a-z]+)\)/,
+  );
+  if (!declared) {
+    findings.push(
+      `${selector} is fixed or sticky and takes no --lc-z-* layer — it is a ` +
+        `claim to be over surfaces it never names`,
+    );
+  } else if (!(declared[1] in scale)) {
+    findings.push(`${selector} takes --lc-z-${declared[1]}, off the scale`);
+  }
+}
+
 report({
   name: "stacking-guard",
   findings,
-  checked: Object.keys(SURFACES).length,
+  checked: new Set([...Object.keys(SURFACES), ...outOfFlow]).size,
   noun: "surfaces",
   remedy: "stacking defect(s) — see src/tokens/design-tokens.json § z:",
   clean: "each takes a --lc-z-* layer, in the order the app needs",
