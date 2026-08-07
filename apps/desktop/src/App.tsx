@@ -1555,6 +1555,13 @@ export function App() {
             }
             now={now}
             archived={openRow !== undefined && isArchived(openRow)}
+            // The file the row the card was drawn from names, so one the board
+            // already knows will not parse opens as the raw-file modal rather
+            // than as a panel that turns into one — and the modal has a path to
+            // title itself with before the read comes back (LC-134).
+            degradedPath={
+              openRow?.state === "degraded" ? openRow.relativePath : undefined
+            }
             shortcutsActive={
               !paletteOpen && !settingsOpen && createSurface === undefined
             }

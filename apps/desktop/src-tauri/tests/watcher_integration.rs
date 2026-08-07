@@ -682,6 +682,29 @@ fn a_ticket_that_becomes_unreadable_degrades_in_place() {
     };
     assert!(degraded.diagnostic.message.contains("status"));
 
+    // *In place* is the whole of this test's name, and a status is what the
+    // board draws a place from. The file no longer names one — it is the file
+    // that could not be read — so the index lends the row the status the
+    // directory last read as, and the card stays in the column the human left
+    // it in rather than moving to the end of the board (D-50).
+    assert_eq!(degraded.last_known_status, Some(Status::InProgress));
+
+    // The seat survives a rebuild, which starts from a cleared index: nothing on
+    // disk can put it back, so dropping it would move the card every time the
+    // app resumed.
+    let rebuilt = engine
+        .rebuild(RebuildReason::Manual, false)
+        .expect("the index should rebuild");
+    let TicketRow::Degraded(after) = rebuilt
+        .tickets
+        .iter()
+        .find(|row| row.key() == "LC-1")
+        .expect("LC-1 should still be listed")
+    else {
+        panic!("LC-1 should still be degraded after a rebuild");
+    };
+    assert_eq!(after.last_known_status, Some(Status::InProgress));
+
     // Fixing the file externally brings it back without a manual retry.
     editor_atomic_replace(&path, &raw, 2);
     let (restored, _, _) = changed(next_event(&events));

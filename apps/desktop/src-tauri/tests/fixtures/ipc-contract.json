@@ -123,6 +123,7 @@
                 "relativePath": ".longclaw/tickets/LC-98/ticket.md",
                 "byteLength": 420,
                 "readOnly": false,
+                "lastKnownStatus": "todo",
                 "diagnostic": {
                   "code": "parse_failed",
                   "message": "status must be one of backlog, todo; found blocked",

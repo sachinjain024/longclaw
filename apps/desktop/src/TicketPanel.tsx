@@ -246,6 +246,16 @@ interface TicketPanelProps {
    * (V0-29).
    */
   heldConflict?: HeldConflict;
+  /**
+   * The file the index says will not parse, as the degraded row carries it:
+   * project-relative, present only for a card the board drew as degraded.
+   *
+   * It decides nothing about which surface is finally drawn — the read does
+   * (see the raw-file branch) — and buys two things while the read is out: the
+   * card the human clicked does not flash the panel it was never going to keep,
+   * and the modal can say which file it is about before anything has come back.
+   */
+  degradedPath?: string;
   onClose: () => void;
   /** Asks for the flip. The panel writes nothing here; see `archived`. */
   onArchive: (archived: boolean) => void;
@@ -732,6 +742,69 @@ export function TicketPanel(props: TicketPanelProps) {
    */
   const checkedCount = ticket?.checklist.filter(isChecked).length ?? 0;
 
+  /**
+   * A file that will not parse gets the modal the spec draws rather than this
+   * panel (`screen-specs.md:291-298`, D-51 / LC-134), so it is returned instead
+   * of the panel and not inside it: the panel is a surface for editing a ticket,
+   * and there is no ticket here to edit.
+   *
+   * The panel is still the thing that reads the file, and everything the modal
+   * offers is the panel's — the load, the retry, the editor hand-off, the
+   * `Esc` that closes the layer. What changes is only what is drawn.
+   *
+   * The question is asked of the file rather than of the index row:
+   * `props.degradedPath` is only what the board believed when the card was
+   * clicked, and all it buys is opening the modal *while the read is out*, so a
+   * degraded card does not flash a panel on its way to one. Which surface is
+   * finally drawn is the read's answer, in both directions — a row the index
+   * still calls readable whose file has since broken lands here too.
+   *
+   * The path is the same answer as the surface, so it is one value: the file
+   * the modal is about, from the read when it has come back and from the row
+   * the card was drawn from until then. The heading is the *full* path
+   * (`screen-specs.md:293`), and taking the row's half means it is the full one
+   * from the first frame rather than a directory name that grows into a path
+   * when the read lands.
+   */
+  const rawFilePath =
+    unavailable || ticket
+      ? undefined
+      : (detail?.relativePath ?? props.degradedPath);
+  // The effect below wants the transition, not the path: a re-read of the same
+  // broken file returns an equal string and must not re-run it.
+  const showingRawFile = rawFilePath !== undefined;
+
+  /**
+   * Where focus goes when the file parses under the modal — a retry that
+   * worked, or the watcher arriving with a fixed file.
+   *
+   * The modal is replaced by the panel, so the control focus was on is gone
+   * from the document, and focus with nowhere to go lands on `<body>`: the
+   * layer changed under a human who is now standing outside both
+   * (`keyboard-focus-map.md:16-18`). The panel takes it, which is where the
+   * panel's own open puts it.
+   */
+  const wasShowingRawFile = useRef(false);
+  useEffect(() => {
+    if (wasShowingRawFile.current && !showingRawFile) panelRef.current?.focus();
+    wasShowingRawFile.current = showingRawFile;
+  }, [showingRawFile]);
+
+  if (rawFilePath !== undefined) {
+    return (
+      <RawFileView
+        detail={detail}
+        path={rawFilePath}
+        ticketKey={ticketKey}
+        projectPath={props.projectPath}
+        retrying={retrying}
+        onRetry={() => void retryParse()}
+        onOpenInEditor={() => void openInEditor()}
+        onClose={props.onClose}
+      />
+    );
+  }
+
   return (
     <aside
       className="ticket-panel"
@@ -828,15 +901,9 @@ export function TicketPanel(props: TicketPanelProps) {
 
       {unavailable ? null : !detail ? (
         <p className="panel-loading">Reading {ticketKey} from disk…</p>
-      ) : !ticket ? (
-        <RawFileView
-          detail={detail}
-          projectPath={props.projectPath}
-          retrying={retrying}
-          onRetry={() => void retryParse()}
-          onOpenInEditor={() => void openInEditor()}
-        />
-      ) : (
+      ) : /* A file with no ticket in it left through the raw-file modal above;
+             this arm is how the fields below know they have one. */
+      !ticket ? null : (
         <>
           <textarea
             className="panel-title"

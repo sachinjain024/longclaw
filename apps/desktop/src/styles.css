@@ -34,7 +34,10 @@ button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
-[role="button"]:focus-visible {
+[role="button"]:focus-visible,
+/* A scroll container the keyboard can reach is a stop like any other, and the
+   raw file view's block is the one of those the app has (`RawFileView.tsx`). */
+[tabindex="0"]:focus-visible {
   outline: var(--lc-border-focus) solid var(--lc-accent-human-ring);
   outline-offset: 2px;
 }
@@ -2533,15 +2536,38 @@ button:disabled {
 
 /* ------------------------------------------------- raw file view (degraded) */
 
-/* `screen-specs.md:291-298`. The anatomy is the prototype's raw modal
-   (`prototype.css:733-748`) at panel width, since the modal itself is LC-134. */
+/* `screen-specs.md:291-298`, the prototype's raw modal
+   (`prototype.css:733-748`): 680px on the modal layer, over everything, which
+   is where a file the app cannot read is read (LC-134). It hangs from the
+   scrim's 12vh with the palette rather than sitting centered — the two surfaces
+   the prototype drops from the top are the two that are mostly a long list. */
 .raw-file-view {
   display: flex;
   flex-direction: column;
   gap: var(--lc-space-3);
+  width: min(680px, 92vw);
+  max-height: min(72vh, 640px);
   min-height: 0;
-  border-left: 3px solid var(--lc-danger);
-  padding-left: 14px;
+  /* The prototype's raw view is a plain modal (`prototype.css:733` is a width
+     and nothing else) — the danger is in the banner and the warn glyph, where
+     `screen-specs.md:292` puts it. The 3px danger edge this carried was the
+     panel-embedded version's, and a red frame around the whole surface said it
+     a third time. */
+  border: var(--lc-border-hairline) solid var(--lc-line);
+  border-radius: var(--lc-radius-modal);
+  background: var(--lc-surface);
+  box-shadow: var(--lc-shadow-modal);
+  padding: var(--lc-space-4);
+  /* It rises like every other modal; the reduced-motion block at the foot of
+     this file zeroes it. */
+  animation: lc-palette-in var(--lc-motion-panel) ease-out;
+}
+
+/* The path and the close, on one line (`prototype.css:734`). */
+.raw-file-head {
+  display: flex;
+  align-items: center;
+  gap: var(--lc-space-2);
 }
 
 /* The path is the title (D-58): mono, because it is a location rather than
@@ -2551,6 +2577,8 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: var(--lc-space-2);
+  flex: 1;
+  min-width: 0;
   color: var(--lc-ink);
   font: var(--lc-type-code-weight) var(--lc-type-code-size) /
     var(--lc-type-code-leading) var(--lc-type-code-font);
@@ -2583,9 +2611,13 @@ button:disabled {
   align-self: center;
 }
 
+/* The scroller, and the modal's only elastic part: it takes the height the
+   head, the banner and the footer leave rather than a number of its own, so a
+   long file scrolls inside the modal instead of pushing `Retry parse` off it. */
 .raw-file {
   overflow: auto;
-  max-height: 320px;
+  flex: 1;
+  min-height: 0;
   border: 1px solid var(--lc-line);
   border-radius: var(--lc-radius-card);
   padding: var(--lc-space-3) 0;
