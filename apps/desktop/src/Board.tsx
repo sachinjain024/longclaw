@@ -467,6 +467,9 @@ function BoardColumn(props: {
    * Indexes of cards that stay mounted wherever they have been scrolled to: the
    * one the human is standing on and the one they have open. Unmounting the
    * focused card mid-scroll would drop focus onto the body without saying so.
+   *
+   * The two are often one card, so these are not distinct and the column draws
+   * each index once (LC-178).
    */
   anchors: number[];
   marks: ExternalMarks;
@@ -519,11 +522,19 @@ function BoardColumn(props: {
   }
 
   const shown: number[] = [];
-  for (const index of props.anchors) {
-    if (index < range.start || index >= range.end) shown.push(index);
-  }
   for (let index = range.start; index < range.end; index += 1)
     shown.push(index);
+  // An anchor already in the window is not drawn a second time, and neither is
+  // one the other anchor already named — clicking a card makes it both the
+  // roving card and the open one, so the common case is two anchors on one
+  // card. Two children under one key is unsupported in React, and what it did
+  // here was leave the second node mounted for good: a card stranded at the
+  // offset it last had, holding a scroll range the column no longer has cards
+  // for, and surviving the filter that removed its ticket (LC-178). This is the
+  // guard the list has carried since it was written (`IssueList.tsx`).
+  for (const index of props.anchors) {
+    if (!shown.includes(index)) shown.push(index);
+  }
   // Rendered in visual order, so the accessibility tree reads down the column
   // even though an anchor can sit anywhere in it.
   shown.sort((left, right) => left - right);
