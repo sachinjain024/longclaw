@@ -1425,4 +1425,41 @@ describe("the description editor (V0-12)", () => {
     // second-level heading in the panel's outline.
     expect(view?.querySelector("h5")?.textContent).toBe("Approach");
   });
+
+  it("hangs the Edit affordance off the section header, not the body (LC-99)", async () => {
+    readTicketMock.mockResolvedValue(
+      detail({ description: "The pairs that the panel already holds." }),
+    );
+    render(surface());
+    await ready();
+
+    // D-04: it was absolutely positioned over the rendered markdown, so it
+    // painted itself across the first line of the body. The header row has
+    // room, and nothing of the ticket's own text is under it there.
+    const edit = screen.getByRole("button", { name: /Edit description/ });
+    expect(edit.closest(".description-view")).toBeNull();
+    expect(edit.closest("h3")?.textContent).toContain("Description");
+    // And it is the only way in: the body is not a second click target.
+    expect(
+      screen.getAllByRole("button", { name: /description/i }),
+    ).toHaveLength(1);
+  });
+
+  it("leaves an empty description its own invitation, and no second one (LC-99)", async () => {
+    readTicketMock.mockResolvedValue(detail({ description: "" }));
+    render(surface());
+    await ready();
+
+    // An empty description is its own invitation, so the header stays bare —
+    // two affordances for one editor would be two Tab stops for one job.
+    expect(
+      screen.queryByRole("button", { name: /Edit description/ }),
+    ).toBeNull();
+    const add = screen.getByRole("button", { name: /Add a description/ });
+    expect(
+      screen.getAllByRole("button", { name: /description/i }),
+    ).toHaveLength(1);
+    fireEvent.click(add);
+    expect(screen.getByLabelText("Description")).toHaveProperty("value", "");
+  });
 });

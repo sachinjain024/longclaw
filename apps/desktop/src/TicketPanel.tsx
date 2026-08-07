@@ -104,6 +104,31 @@ function degradedNote(detail: TicketDetail): string {
   return "The file is shown exactly as it exists on disk. Fix it in an editor, then reload or wait for the watcher to read it again.";
 }
 
+/**
+ * The pencil the prototype pairs with `Edit` in the Description header. Purely
+ * decorative: the button beside it is named, and a glyph that repeated the name
+ * would say it twice (`accessibility.md`).
+ */
+function PencilGlyph() {
+  return (
+    <svg
+      className="pencil-glyph"
+      width="12"
+      height="12"
+      viewBox="0 0 14 14"
+      aria-hidden="true"
+    >
+      <path
+        d="M2.2 11.8 L2.8 9.2 L9.8 2.2 Q10.4 1.6 11 2.2 L11.8 3 Q12.4 3.6 11.8 4.2 L4.8 11.2 Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 interface TicketPanelProps {
   projectId: string;
   ticketKey: string;
@@ -768,8 +793,32 @@ export function TicketPanel(props: TicketPanelProps) {
             <code>{ticket.updatedAt}</code>
           </div>
 
-          <section className="panel-section">
-            <h3>Description</h3>
+          <section className="panel-section description-block">
+            <h3>
+              Description
+              {/* The affordance lives in the header row, where none of the
+                  ticket's own text can be under it (LC-99).
+
+                  The prototype renders it whenever the editor is closed and
+                  makes the body a click target too (`prototype.js:718-725`).
+                  Here the empty state is a button in its own right rather than
+                  a `div` with a click handler, so the header stays bare there:
+                  one editor behind two Tab stops, one of them named `Edit` for
+                  a description that does not exist yet, is worse than the
+                  invitation already on screen. */}
+              {!editingDescription && ticket.description ? (
+                <button
+                  tabIndex={0}
+                  className="ghost small description-edit"
+                  ref={editButton}
+                  aria-label="Edit description"
+                  onClick={() => openDescriptionEditor(ticket.description)}
+                >
+                  <PencilGlyph />
+                  Edit
+                </button>
+              ) : null}
+            </h3>
             {editingDescription ? (
               <DescriptionEditor
                 value={descriptionDraft}
@@ -798,14 +847,6 @@ export function TicketPanel(props: TicketPanelProps) {
                   headingOffset={3}
                   className="markdown"
                 />
-                <button
-                  tabIndex={0}
-                  className="ghost description-edit"
-                  ref={editButton}
-                  onClick={() => openDescriptionEditor(ticket.description)}
-                >
-                  Edit description
-                </button>
               </div>
             ) : (
               <button
