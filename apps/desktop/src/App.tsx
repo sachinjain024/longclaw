@@ -26,6 +26,7 @@ import {
   updateProjectTheme,
 } from "./api";
 import { Board } from "./Board";
+import { classes } from "./classes";
 import { CommandPalette } from "./CommandPalette";
 import { RemoveProjectConfirm } from "./ConfirmDialog";
 import { CreatePanel } from "./CreatePanel";
@@ -295,6 +296,14 @@ export function App() {
   const unreadableShown = noMatches
     ? visibleTickets.filter((row) => row.state === "degraded").length
     : 0;
+  /**
+   * Whether the panel is the thing on screen. One expression, because two — the
+   * panel's own condition and the workspace class that centres it — would be
+   * two places to keep in agreement about the same state. A project with no
+   * tickets at all is the empty-project state whatever is in the field, and it
+   * has its own panel.
+   */
+  const showNoMatches = noMatches && tickets.length > 0;
 
   /**
    * The key the next create will probably claim, shown by both create surfaces
@@ -1288,10 +1297,26 @@ export function App() {
                         field's accessible name stays "Filter tickets" rather
                         than becoming "Filter tickets ⌘F" (LC-71). */}
                     <div className="filter-wrap">
+                      {/* The OS stays out of this field (LC-90). WebKit offered
+                          its own saved-value popover under it — a native
+                          dropdown inside a local-first app, which is both
+                          off-brand and a small privacy surprise. Turning
+                          autofill off is four attributes rather than one:
+                          `autoComplete` is the request, `name` is what the
+                          heuristics read when they ignore it, and the two
+                          text-assist attributes are the same class of unasked-
+                          for help over a query that is a substring, not prose.
+                          The prototype's field carries two of the four
+                          (`prototype.js:496`); a WebKit that ignores the
+                          request is why the other two are here. */}
                       <input
                         ref={filterField}
                         className="filter-field"
                         type="text"
+                        name="longclaw-filter"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
                         value={filterQuery}
                         aria-label="Filter tickets"
                         aria-keyshortcuts="Meta+F"
@@ -1348,7 +1373,15 @@ export function App() {
                 onRemove={() => void forgetProject(project.id)}
               />
             ) : (
-              <section className="workspace">
+              // The no-match state is the one thing that stands *instead of*
+              // the surfaces rather than above them, so the workspace becomes
+              // the column it is centred in (LC-91).
+              <section
+                className={classes(
+                  "workspace",
+                  showNoMatches && "workspace-state",
+                )}
+              >
                 {DEV_CHROME && (
                   <div
                     className="trace-strip"
@@ -1380,7 +1413,7 @@ export function App() {
                   />
                 ) : (
                   <>
-                    {noMatches && (
+                    {showNoMatches && (
                       <NoMatches
                         query={filterQuery}
                         unreadable={unreadableShown}
@@ -1824,8 +1857,14 @@ function NoMatches(props: {
   return (
     <div className="no-matches" role="status" aria-label="No matches">
       <strong>No matches</strong>
+      {/* Quoted, because an unquoted echo of a query that is mostly whitespace
+          — or all of it — reads as a sentence with a hole in it, and the one
+          thing this panel owes the human is what was asked (LC-92). The curly
+          pair is the prototype's (`prototype.js:571`) and sits in the sentence
+          rather than inside the `<code>`: the mono slot holds the query, and
+          the quotes are the sentence's own punctuation around it. */}
       <p>
-        Nothing here matches <code>{props.query}</code>.
+        Nothing here matches “<code>{props.query}</code>”.
       </p>
       {props.unreadable > 0 && (
         <p>

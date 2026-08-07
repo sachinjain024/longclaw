@@ -289,9 +289,15 @@ textarea::placeholder {
 
 /* 24px of side inset, because that is what the content header and the board are
    both specified against (`screen-specs.md:44`, `:96`) and every region in this
-   column shares it. */
+   column shares it.
+
+   A column, so a region that asks for the height below the header can have it:
+   `.workspace-state` is the one that does (LC-91). Every other child sizes to
+   its content exactly as it did while this was block flow. */
 .main-panel {
+  display: flex;
   min-width: 0;
+  flex-direction: column;
   padding: 28px 24px;
 }
 
@@ -695,6 +701,28 @@ button:disabled {
   min-width: 0;
 }
 
+/* The workspace while a state panel stands in for the surfaces (LC-91): a
+   column that claims the height the header leaves, so the panel inside it can
+   centre in what remains rather than sitting at the top of it. Scoped to that
+   state — the board and the list size themselves and would gain nothing from
+   being flex items. */
+.workspace-state {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+/* A surface with nothing in it still has padding, and 28px of it under the
+   panel is 14px of skew in what is supposed to be a centred state. The
+   surfaces stay mounted — they keep their roving focus and their scroll
+   position across a query that matches nothing, and they are what draws the
+   unreadable rows the filter never hides — so the empty case is taken here,
+   where `:empty` is exactly "this surface drew nothing". */
+.workspace-state > .board-grid:empty,
+.workspace-state > .issue-list:empty {
+  display: none;
+}
+
 /* Dev builds only (devChrome.ts): its own box, because the workspace it sits
    in has none — deliberately harness chrome, not the app's language. */
 .trace-strip {
@@ -743,7 +771,6 @@ button:disabled {
 }
 
 .empty-board,
-.no-matches,
 .unreachable-panel {
   margin: 18px 0;
   border: 1px dashed var(--lc-line-strong);
@@ -753,11 +780,37 @@ button:disabled {
   background: color-mix(in oklab, var(--lc-wash) 44%, var(--lc-surface));
 }
 
+/* The no-match state carries no container of its own (prototype.css
+   § state-panel): it is centred in the height the workspace leaves, where the
+   dashed frame it used to wear spanned the content width and sat at the top —
+   a card drawn around an answer to "why is there nothing here?" (LC-91).
+
+   `.empty-board` and `.unreachable-panel` keep the frame, which is the shape
+   the diff for those states asks about separately (D-20, D-59) — this ticket
+   is the filter's. */
+.no-matches {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: var(--lc-space-8);
+  text-align: center;
+}
+
 .empty-board p,
 .no-matches p,
 .unreachable-panel p {
   margin-bottom: 0;
   color: var(--lc-ink-2);
+}
+
+/* Without the frame there is nothing holding the copy in, and the unreadable-
+   files sentence is three lines of it: 400px is the width the prototype gives
+   a state panel's sub-line (prototype.css § state-panel). */
+.no-matches p {
+  max-width: 400px;
 }
 
 .no-matches code {

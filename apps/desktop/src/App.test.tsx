@@ -2938,6 +2938,60 @@ describe("the header filter (V0-15)", () => {
     expect(document.querySelectorAll(".board-column")).toHaveLength(0);
   });
 
+  it("keeps the OS off the filter field (LC-90)", async () => {
+    await openBoard();
+
+    // A native autofill popover under a local-first app's filter is off-brand
+    // and a small privacy surprise: WebKit offers saved values for a field it
+    // recognizes, so the field says it is not one.
+    expect(field().getAttribute("autocomplete")).toBe("off");
+    expect(field().getAttribute("autocorrect")).toBe("off");
+    expect(field().getAttribute("spellcheck")).toBe("false");
+    // `name` is the half `autocomplete="off"` alone does not settle — WebKit
+    // heuristics read it — so it is one no password manager or address book
+    // has a value for.
+    expect(field().getAttribute("name")).toBe("longclaw-filter");
+  });
+
+  it("centres the no-match state instead of framing it (LC-91)", async () => {
+    await openBoard();
+
+    type("nothing here");
+
+    // The prototype's state panel is centred in the board region with no
+    // container of its own (prototype.css § state-panel); the frame it wore
+    // here spanned the content width and sat at the top. This is the half a
+    // test can hold: the workspace becomes the column the panel is centred in,
+    // and the panel is what stands in it. The declarations themselves are
+    // `scripts/state-panel-guard.mjs` — jsdom loads no stylesheet, so a
+    // returning frame is invisible from here.
+    const workspace = document.querySelector(".workspace.workspace-state");
+    expect(workspace).toBeTruthy();
+    expect(workspace?.contains(noMatch())).toBe(true);
+  });
+
+  it("keeps the empty-project state out of the centred column (LC-91)", async () => {
+    // A project with no tickets is the empty-project state whatever is in the
+    // field, and `EmptyBoard` keeps its own frame: the class that centres a
+    // state panel must not follow the query into it.
+    await openBoard([]);
+
+    type("nothing here");
+
+    expect(document.querySelector(".workspace.workspace-state")).toBeNull();
+    expect(screen.queryByRole("status", { name: "No matches" })).toBeNull();
+  });
+
+  it("quotes the echoed query so an empty-looking one is visible (LC-92)", async () => {
+    await openBoard();
+
+    type("  zzzz  ");
+
+    // Unquoted, a query that is all spaces — or one wearing them — echoes back
+    // as nothing at all.
+    expect(noMatch().textContent).toContain("“  zzzz  ”");
+  });
+
   it("must-pass: the list shows the same designed state", async () => {
     await openBoard();
     toggleTo("List");
