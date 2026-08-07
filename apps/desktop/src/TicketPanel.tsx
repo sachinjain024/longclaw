@@ -247,12 +247,15 @@ interface TicketPanelProps {
    */
   heldConflict?: HeldConflict;
   /**
-   * What the index says about the file: true for a row the board drew as
-   * degraded. It decides nothing about which surface is drawn — the read does
-   * (see the raw-file branch) — and only spares a card the human clicked the
-   * panel it was never going to keep.
+   * The file the index says will not parse, as the degraded row carries it:
+   * project-relative, present only for a card the board drew as degraded.
+   *
+   * It decides nothing about which surface is finally drawn — the read does
+   * (see the raw-file branch) — and buys two things while the read is out: the
+   * card the human clicked does not flash the panel it was never going to keep,
+   * and the modal can say which file it is about before anything has come back.
    */
-  degraded?: boolean;
+  degradedPath?: string;
   onClose: () => void;
   /** Asks for the flip. The panel writes nothing here; see `archived`. */
   onArchive: (archived: boolean) => void;
@@ -750,17 +753,26 @@ export function TicketPanel(props: TicketPanelProps) {
    * `Esc` that closes the layer. What changes is only what is drawn.
    *
    * The question is asked of the file rather than of the index row:
-   * `props.degraded` is only what the board believed when the card was clicked,
-   * and all it buys is opening the modal *while the read is out*, so a degraded
-   * card does not flash a panel on its way to one. Which surface is finally
-   * drawn is the read's answer, in both directions — a row the index still calls
-   * readable whose file has since broken lands here too.
+   * `props.degradedPath` is only what the board believed when the card was
+   * clicked, and all it buys is opening the modal *while the read is out*, so a
+   * degraded card does not flash a panel on its way to one. Which surface is
+   * finally drawn is the read's answer, in both directions — a row the index
+   * still calls readable whose file has since broken lands here too.
+   *
+   * The path is the same answer as the surface, so it is one value: the file
+   * the modal is about, from the read when it has come back and from the row
+   * the card was drawn from until then. The heading is the *full* path
+   * (`screen-specs.md:293`), and taking the row's half means it is the full one
+   * from the first frame rather than a directory name that grows into a path
+   * when the read lands.
    */
-  // A boolean rather than the detail it is derived from, so the effect below
-  // runs on the transition and not on every re-read of the same broken file.
-  const showingRawFile = Boolean(
-    !unavailable && !ticket && (detail || props.degraded),
-  );
+  const rawFilePath =
+    unavailable || ticket
+      ? undefined
+      : (detail?.relativePath ?? props.degradedPath);
+  // The effect below wants the transition, not the path: a re-read of the same
+  // broken file returns an equal string and must not re-run it.
+  const showingRawFile = rawFilePath !== undefined;
 
   /**
    * Where focus goes when the file parses under the modal — a retry that
@@ -778,10 +790,11 @@ export function TicketPanel(props: TicketPanelProps) {
     wasShowingRawFile.current = showingRawFile;
   }, [showingRawFile]);
 
-  if (showingRawFile) {
+  if (rawFilePath !== undefined) {
     return (
       <RawFileView
         detail={detail}
+        path={rawFilePath}
         ticketKey={ticketKey}
         projectPath={props.projectPath}
         retrying={retrying}

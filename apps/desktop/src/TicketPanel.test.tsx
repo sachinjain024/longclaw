@@ -181,7 +181,8 @@ function panel(props?: {
   removedSignal?: number;
   onClose?: () => void;
   archived?: boolean;
-  degraded?: boolean;
+  /** What a degraded row tells the panel before its own read comes back. */
+  degradedPath?: string;
   shortcutsActive?: boolean;
   onArchive?: (archived: boolean) => void;
   onWrite?: (result: WriteResult) => void;
@@ -197,7 +198,7 @@ function panel(props?: {
       removedSignal={props?.removedSignal ?? 0}
       now={NOW}
       archived={props?.archived ?? false}
-      degraded={props?.degraded ?? false}
+      degradedPath={props?.degradedPath}
       shortcutsActive={props?.shortcutsActive ?? true}
       onClose={props?.onClose ?? noop}
       onArchive={props?.onArchive ?? noop}
@@ -1694,11 +1695,16 @@ describe("the raw file view (LC-135 → LC-138)", () => {
       );
       // What the board knew when the card was clicked. Without it the panel
       // would open first and become a modal a moment later.
-      render(panel({ degraded: true }));
+      render(panel({ degradedPath: ".longclaw/tickets/LC-1/ticket.md" }));
 
       expect(screen.getByRole("dialog")).toBeTruthy();
       expect(document.querySelector(".ticket-panel")).toBeNull();
       expect(screen.getByText(/Reading LC-1 from disk/)).toBeTruthy();
+      // The heading is the full path from the first frame
+      // (`screen-specs.md:293`), taken from the row the card was drawn from —
+      // a directory name that grows into a path when the read lands would be
+      // the modal changing its mind about which file it is showing.
+      expect((await shown()).textContent).toBe(FULL_PATH);
 
       settle(broken());
       expect((await shown()).textContent).toBe(FULL_PATH);

@@ -91,7 +91,13 @@ function RawLines(props: { raw: string; offending?: number }) {
 export function RawFileView(props: {
   /** The file as it was read. Absent while the read is still out. */
   detail?: TicketDetail;
-  /** What the modal is about before the file arrives: the directory's name. */
+  /**
+   * Which file this is, project-relative — from the read once it lands, and
+   * from the row the card was drawn from until then, which is what lets the
+   * heading be the full path from the first frame (`screen-specs.md:293`).
+   */
+  path: string;
+  /** The ticket the read is for, which is what the wait is described by. */
   ticketKey: string;
   /**
    * The project's root as the header shows it — tilde-abbreviated, not
@@ -109,9 +115,7 @@ export function RawFileView(props: {
 }) {
   const { detail } = props;
   const error = detail && errorText(detail);
-  const fullPath = detail
-    ? `${props.projectPath}/${detail.relativePath}`
-    : props.ticketKey;
+  const fullPath = `${props.projectPath}/${props.path}`;
 
   const dialog = useRef<HTMLElement>(null);
   const retryButton = useRef<HTMLButtonElement>(null);
