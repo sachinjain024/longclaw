@@ -1402,15 +1402,20 @@ button:disabled {
   border-top: 1px solid var(--lc-line-soft);
 }
 
-/* The degraded card's treatment at row height (`states.md:92-94`): the danger
-   tint the card carries, and its border drawn as an overlay. The overlay is not
-   a `border`, because a row is placed at a stated 36px by the geometry and two
-   pixels of edge would put every row below it out of position, and not a
-   `box-shadow`, because selection already owns that property on this element and
-   a row the app cannot read has to keep saying so while it is open.
+/* The degraded card's treatment at row height (`states.md:92-94`) — the card's
+   `--lc-danger-border` — plus the tint D-37 asks for on top of it. The card can
+   carry the border alone: at card scale it frames a 200px block and is the whole
+   signal. At 36px, in a card of rows already ruled by hairlines, one more
+   hairline is not a signal, so the row says it twice.
 
-   Ahead of `:hover` and `.selected` so both still win the background: the row is
-   unreadable, not inert, and it answers a pointer like any other. */
+   The edge is an `::after` overlay rather than a `border` because `.divided`
+   already owns this element's `border-top` — that is the hairline between rows —
+   and rather than a `box-shadow` because `.selected` owns that. An overlay is
+   what leaves the row still saying it is unreadable while it is open.
+
+   The tint is declared ahead of `:hover` and `.selected` so both still win the
+   background: the row is unreadable, not inert, and it answers a pointer and a
+   click like any other row does. */
 .list-row.degraded {
   background: var(--lc-danger-surface);
 }

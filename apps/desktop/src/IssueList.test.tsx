@@ -321,9 +321,7 @@ describe("a file the build cannot read", () => {
     diagnostic: { code: "parse_failed", message: "no frontmatter" },
   };
 
-  // Its own group, and at the top of the scroller: appended, it sat below the
-  // fold at the default window size, which is a file the human can see on disk
-  // being invisible in the app (`states.md:9-12`).
+  // Above the statuses rather than under them; `grouping.ts` argues why.
   it("keeps its place in the list, in its own group above the statuses", () => {
     render(list({ tickets: [row({ status: "todo" }), unreadable] }));
 

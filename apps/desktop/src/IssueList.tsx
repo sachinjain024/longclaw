@@ -135,9 +135,9 @@ export function IssueList(props: {
   const compare = comparatorFor(props.ordering);
   const groups = useMemo(() => {
     // `groupByStatus` buckets by status, and archived is not one (ADR 0004), so
-    // what comes back is the live tickets whatever is handed in. The unreadable
-    // group is asked for at the top: in one scroller, appended, it sat below the
-    // fold and said nothing about itself until someone scrolled past everything.
+    // what comes back is the live tickets whatever is handed in. Why this
+    // surface asks for the unreadable group first and the board takes it last is
+    // argued once, where the option is declared.
     const live = groupByStatus(props.tickets, {
       compare,
       unreadable: "first",
@@ -374,10 +374,11 @@ const ListRow = memo(function ListRow(props: {
 }) {
   const { ticket, mark } = props;
   const row = presentRow(ticket, props.labels, props.now);
-  // A file that would not parse has nothing in it to be fresh about: the dot
-  // says an agent's edit landed in a ticket the human can read, and beside a
-  // path and a parser error it was a green light on a broken row. The danger
-  // treatment is the whole of what a degraded row wears.
+  // A file that would not parse has nothing in it to be fresh about: beside a
+  // path and a parser error, the dot was a green light on a broken row. The
+  // board card has the same dot for the same reason and is not fixed here —
+  // suppressing it there also moves `cardStrides`, and a treatment that
+  // disagrees with the geometry is worse than the dot. That is LC-164.
   const fresh = isFresh(mark, props.now) && !row.degraded;
   return (
     <button

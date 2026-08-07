@@ -11,8 +11,8 @@
  * - the board keeps every status whether or not it holds anything (ADR 0002
  *   fixes the set, so the scaffold is the point), and the list renders only the
  *   statuses that have tickets (`screen-specs.md:135-136`);
- * - the synthetic unreadable group goes last on the board and first in the list.
- *   See `groupByStatus`.
+ * - the synthetic unreadable group goes last on the board and first in the list
+ *   (argued in full on `groupByStatus`'s `unreadable` option, and nowhere else).
  *
  * Ordering happens here, once, because the seats every surface's arrows read
  * have to agree with what it drew (`screen-specs.md:115`).
