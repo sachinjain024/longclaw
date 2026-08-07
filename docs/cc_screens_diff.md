@@ -70,10 +70,12 @@ What diverges is **composition and states**:
    the code surfaces. D-51's *layering* went with D-01; its modal-vs-panel half
    closed on 2026-08-07 (LC-134), and the raw file view is the spec's 680px
    modal now, so nothing of this item is open.
-2. **Three screens are structurally different**, not detail-different:
+2. ~~**Three screens are structurally different**~~, not detail-different:
    ~~the welcome screen (D-10)~~ — a full window, and a two-step create, since
    2026-08-07 (LC-76 → LC-79) — ~~project settings (D-40)~~ — a modal since
-   2026-08-07 (LC-125) — and the empty-project state (D-20).
+   2026-08-07 (LC-125) — and ~~the empty-project state (D-20)~~, which stands
+   inside the board rather than instead of it since 2026-08-07 (LC-86). All
+   three are closed.
 3. **The app shell header is three stacked blocks (~230px)** where the design is
    one 56px row (D-05) — this is the single change that most alters how every
    populated screen reads, and it costs the board and list ~170px of height.
@@ -190,15 +192,16 @@ stays visible** — all six columns, zero counts — and the Todo column hosts t
 guided card: dashed `line-strong` border, "Create your first ticket", one line of
 copy, a `C` kbd chip. The list view shows a centered equivalent.
 
-**App:** `src/App.tsx:1757-1773` (`EmptyBoard`), reached at `App.tsx:1259`
-(`tickets.length === 0 ? <EmptyBoard/> : …`).
+**App:** `src/GuideCard.tsx`, placed by `Board.tsx` in the Todo column and by
+`IssueList.tsx` in a card frame of the list's own. It was `EmptyBoard` in
+`App.tsx`, reached at `tickets.length === 0 ? <EmptyBoard/> : …`.
 
 | ID | Sev | Prototype | App | Plan |
 |---|---|---|---|---|
-| D-20 | P1 | Board scaffold stays; guided card sits **inside the Todo column** | The whole board is replaced by one full-width dashed panel; no columns render at all | This is the state the spec is most explicit about — the app never hides the workspace. Keep `<Board/>` mounted when `tickets.length === 0` and render the guide card as the Todo column's only child. Keep `EmptyBoard`'s copy, move it into a 264px card. |
-| D-24 | P2 | Guide card carries a `C` kbd chip and no button | A `New ticket` button, no kbd chip | Swap for the kbd chip (the button is already in the header two rows up). |
-| D-25 | P3 | Copy: "Title it, give it a checklist, point an agent at the folder." | "Every ticket is one file. This one will live under `<full absolute path>`." — the raw path wraps across two lines and a **stray `.` lands alone on a third line** | The stray period comes from `` <code> …</code>. `` at `App.tsx:1766` — the trailing text node wraps after a block-ish `<code>`. Move the period inside, or drop the path (it is already in the header) and use the prototype's copy. |
-| D-26 | P3 | List view shows a *centered equivalent*, sized to the list | List view shows the identical full-width panel | Acceptable, but the panel should sit inside the list's card frame rather than replacing it. |
+| ~~D-20~~ | P1 | Board scaffold stays; guided card sits **inside the Todo column** | The whole board is replaced by one full-width dashed panel; no columns render at all | **Fixed 2026-08-07 (LC-86).** The surface is never unmounted now: `App` draws the board or the list whatever the ticket count, and hands the empty-project state down as `onCreateFirst`, which the Todo column renders as its only child. The scaffold's one stand-down stays the filter's — `scaffold={!showNoMatches}` rather than `{!noMatches}`, so a query typed into an empty project no longer takes the columns with it. |
+| ~~D-24~~ | P2 | Guide card carries a `C` kbd chip and no button | A `New ticket` button, no kbd chip | **Fixed 2026-08-07 (LC-87).** The whole card is the control, as it is in the prototype, and the chip is what it wears — the header two rows up keeps the one filled accent on screen (`components.md:51`). The chip is `aria-hidden` with `aria-keyshortcuts="C"` beside it, the same trade the header button makes (LC-71), and the card is named for what pressing it does rather than for its two lines of copy. |
+| ~~D-25~~ | P3 | Copy: "Title it, give it a checklist, point an agent at the folder." | "Every ticket is one file. This one will live under `<full absolute path>`." — the raw path wraps across two lines and a **stray `.` lands alone on a third line** | **Fixed 2026-08-07 (LC-88).** The second option: the path is dropped, not repunctuated. It is already in the header chip (D-06), and a 264px card is the last place an absolute path should be asked to wrap. The copy is the prototype's. |
+| ~~D-26~~ | P3 | List view shows a *centered equivalent*, sized to the list | List view shows the identical full-width panel | **Fixed 2026-08-07 (LC-89).** The list has no Todo column to host a card, so the guide sits in `.list-guide` — the `surface` card frame every group body wears — with the invitation centred inside it and carrying no frame of its own. The list is still the surface it stands on rather than something it replaced. |
 
 ---
 
@@ -552,8 +555,11 @@ single stack.
    key hint, and the trust line's face).
 
    **§ 2 is closed.** Every `D-` row in it is struck.
-9. **D-20 / D-24 / D-25** — empty project keeps the board scaffold and puts the
-   guide card in Todo.
+9. ~~**D-20 / D-24 / D-25**~~ — empty project keeps the board scaffold and puts
+   the guide card in Todo (done 2026-08-07, LC-86 → LC-88, with ~~**D-26**~~:
+   the list's own frame for it).
+
+   **§ 5 is closed.** Every `D-` row in it is struck.
 10. **D-56 / D-57 / D-59 → D-5C** — the unreachable-project screen.
 
 **Component detail**

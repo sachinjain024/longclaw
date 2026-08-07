@@ -28,10 +28,16 @@ import type {
 
 const params = new URLSearchParams(window.location.search);
 
-/** `?tickets=N` shrinks the board, so a number can be shown to scale with it. */
+/**
+ * `?tickets=N` shrinks the board, so a number can be shown to scale with it.
+ * `?tickets=0` is the empty project (LC-86), which is a designed state and not
+ * a degenerate size — the guide card is only reachable here.
+ */
 const requested = Number(params.get("tickets"));
 const board = snapshot(
-  Number.isFinite(requested) && requested > 0 ? requested : undefined,
+  Number.isFinite(requested) && requested >= 0 && params.has("tickets")
+    ? requested
+    : undefined,
 );
 
 /** `?rw=1`: serve the write commands as well as the read ones. */

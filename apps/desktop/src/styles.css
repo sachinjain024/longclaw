@@ -739,8 +739,7 @@ button:disabled {
   white-space: nowrap;
 }
 
-.unreachable-panel code,
-.empty-board code {
+.unreachable-panel code {
   display: block;
   overflow-wrap: anywhere;
   color: var(--lc-ink-3);
@@ -830,7 +829,6 @@ button:disabled {
   margin-left: auto;
 }
 
-.empty-board,
 .unreachable-panel {
   margin: 18px 0;
   border: 1px dashed var(--lc-line-strong);
@@ -845,9 +843,10 @@ button:disabled {
    dashed frame it used to wear spanned the content width and sat at the top —
    a card drawn around an answer to "why is there nothing here?" (LC-91).
 
-   `.empty-board` and `.unreachable-panel` keep the frame, which is the shape
-   the diff for those states asks about separately (D-20, D-59) — this ticket
-   is the filter's. */
+   `.unreachable-panel` keeps the frame, which is the shape the diff for that
+   state asks about separately (D-59) — this ticket is the filter's. The
+   empty-project state is neither: it stands *inside* the surfaces now, as a
+   card in the Todo column (`.guide-card`, D-20/LC-86). */
 .no-matches {
   display: flex;
   flex: 1;
@@ -859,7 +858,6 @@ button:disabled {
   text-align: center;
 }
 
-.empty-board p,
 .no-matches p,
 .unreachable-panel p {
   margin-bottom: 0;
@@ -879,10 +877,6 @@ button:disabled {
 }
 
 .no-matches .secondary {
-  margin-top: var(--lc-space-4);
-}
-
-.empty-board .primary {
   margin-top: var(--lc-space-4);
 }
 
@@ -1006,6 +1000,82 @@ button:disabled {
    whose cards are not all rendered. */
 .board-sizer {
   position: relative;
+}
+
+/* The empty-project guide, in the Todo column (`GuideCard.tsx`, prototype.css
+   `.card.guide`): a card the width of the column, dashed and unfilled, so the
+   one thing standing on an empty board reads as an invitation rather than as a
+   ticket. It replaced a full-width panel that stood in place of the whole board
+   — the one state the spec says never hides the workspace (D-20/LC-86).
+
+   In flow rather than absolute: the cards around it are placed against offsets
+   the geometry states, and the guide is in no column's geometry. */
+.guide-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 1px dashed var(--lc-line-strong);
+  border-radius: var(--lc-radius-card);
+  padding: 22px 12px;
+  color: var(--lc-ink-3);
+  text-align: center;
+  background: transparent;
+}
+
+.guide-card:hover {
+  border-color: var(--lc-ink-3);
+  color: var(--lc-ink-2);
+  background: var(--lc-wash);
+}
+
+/* Inset, for the reason `.ticket-row:focus-visible` is inset: `.board-stack`
+   scrolls, so the 3px/4px of column padding is all the room a ring drawn
+   outside the card would have. */
+.guide-card:focus-visible {
+  border-color: var(--lc-accent-human);
+  outline: var(--lc-border-focus) solid var(--lc-accent-human-ring);
+  outline-offset: calc(-1 * var(--lc-border-focus));
+}
+
+.guide-card strong {
+  color: var(--lc-ink-2);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Anatomy from `.kbd-chip`; the placement is this card's. The chip is the whole
+   of the affordance here — the header two rows up carries the button (D-24). */
+.guide-kbd {
+  padding: 0 var(--lc-space-2);
+  line-height: 1.8;
+}
+
+/* The list's equivalent (D-26/LC-89): it has no Todo column to host a card, so
+   the guide sits inside a frame of the list's own — the `surface` card every
+   group body wears — rather than replacing the list with a full-width panel. */
+.list-guide {
+  display: flex;
+  justify-content: center;
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-card);
+  margin-top: var(--lc-space-2);
+  padding: 38px;
+  background: var(--lc-surface);
+}
+
+/* Inside that frame the invitation carries no frame of its own: one box, not
+   two. Declared after the base, which is what lets a single class win. */
+.guide-panel {
+  width: auto;
+  max-width: 400px;
+  border-color: transparent;
+  padding: 10px 16px;
+}
+
+.guide-panel:hover {
+  border-color: transparent;
 }
 
 /* Cards are placed by the column rather than stacked by flow: the column knows

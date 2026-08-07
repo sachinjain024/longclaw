@@ -78,6 +78,7 @@ function list(props?: {
   onSelect?: (key: string) => void;
   onChangePriority?: (ticket: IndexedTicket, next: TicketPriority) => void;
   onChangeStatus?: (ticket: IndexedTicket, next: TicketStatus) => void;
+  onCreateFirst?: () => void;
 }) {
   return (
     <IssueList
@@ -90,6 +91,7 @@ function list(props?: {
       onSelect={props?.onSelect ?? noop}
       onChangePriority={props?.onChangePriority ?? noop}
       onChangeStatus={props?.onChangeStatus ?? noop}
+      onCreateFirst={props?.onCreateFirst}
     />
   );
 }
@@ -647,5 +649,54 @@ describe("the list follows the board's ordering preference (V0-09)", () => {
     render(list({ ordering: "manual" }));
 
     expect(document.querySelector(".list-row[draggable=true]")).toBeNull();
+  });
+});
+
+/**
+ * The empty-project state on the list (D-26/LC-89). The board has a Todo column
+ * to host the guide; the list has no column, so the frame it sits in is the
+ * list's own card — the same `surface` a group body wears — and the list is
+ * still the surface it sits on rather than something the guide replaced.
+ */
+describe("the empty-project guide", () => {
+  const guide = () =>
+    document.querySelector<HTMLElement>(".guide-card") ?? undefined;
+
+  it("sits inside the list's card frame rather than replacing the list", () => {
+    render(list({ tickets: [], onCreateFirst: noop }));
+
+    expect(scroller().querySelector(".list-guide")).toBeTruthy();
+    expect(
+      document.querySelector(".list-guide")?.contains(guide() as Node),
+    ).toBe(true);
+    // The panel wears no frame of its own inside that one.
+    expect(guide()?.className).toContain("guide-panel");
+  });
+
+  it("says the same thing the board's card says", () => {
+    render(list({ tickets: [], onCreateFirst: noop }));
+
+    expect(guide()?.getAttribute("aria-label")).toBe(
+      "Create your first ticket",
+    );
+    expect(guide()?.querySelector("kbd")?.textContent).toBe("C");
+    expect(guide()?.textContent).toContain(
+      "Title it, give it a checklist, point an agent at the folder.",
+    );
+  });
+
+  it("raises the create when it is pressed", () => {
+    const onCreateFirst = vi.fn();
+    render(list({ tickets: [], onCreateFirst }));
+
+    fireEvent.click(guide() as HTMLElement);
+
+    expect(onCreateFirst).toHaveBeenCalledTimes(1);
+  });
+
+  it("is absent from a list that has rows", () => {
+    render(list());
+
+    expect(guide()).toBeUndefined();
   });
 });

@@ -48,6 +48,10 @@ press. A degraded card accepts focus; `Enter` opens the raw file view; the
 `S`/`P` actions are inert on it. Focus order always matches the visual
 order, including the board-ordering preference (ADR 0003).
 
+An empty project has no card to enter on, so the Todo column's guide card is
+an ordinary `Tab` stop rather than part of the roving group, and activating
+it is quick create — the same thing `C` and the header's button do (LC-86).
+
 ## Issue list
 
 Same as board, but `↑↓`/`J K` traverse the flat visual order across
