@@ -163,5 +163,8 @@ describe("quick create prototype parity", () => {
     expect(dot?.dataset.appearance).toBe("dark");
     // Before the name, not after it: the eyebrow reads dot, name, key.
     expect(dot?.nextSibling?.textContent).toContain("Round Trip");
+    // Decoration. The name is right beside it, so a dot in the reading order
+    // would say the project twice.
+    expect(dot?.getAttribute("aria-hidden")).toBe("true");
   });
 });

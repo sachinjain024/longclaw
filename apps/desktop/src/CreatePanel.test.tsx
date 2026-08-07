@@ -149,30 +149,23 @@ describe("every approved field, in one create", () => {
 });
 
 describe("nothing here claims the file exists yet", () => {
-  it("shows the provisional key as a guess, and never as a tab stop", () => {
-    render(createPanel());
-
-    const chip = screen.getByText(/RT-4/);
-    expect(chip.textContent).toBe("RT-4 · new");
-    // Display only (`keyboard-focus-map.md:57`): the ID chip in view mode is a
-    // stop because it is the ticket's key. This one is not the ticket's key.
-    expect(chip.closest("button")).toBeNull();
-    expect(chip.getAttribute("tabindex")).toBeNull();
-  });
-
   /**
    * D-4A (LC-116). The key wears the same chip as the panel's real one, so the
    * two surfaces read as the same object — with `· new` beside it saying which
    * half is the guess. It was plain text, which made the create panel's header
    * the one place the key was not a chip.
    */
-  it("wears the ID chip the panel wears, without its copy affordance", () => {
+  it("shows the provisional key as a chip, as a guess, and never as a tab stop", () => {
     render(createPanel());
 
     const chip = screen.getByText(/RT-4/);
+    expect(chip.textContent).toBe("RT-4 · new");
     expect(chip.classList.contains("id-chip")).toBe(true);
-    // Nothing to copy: the real key is Rust's to allocate, and a chip that put
-    // this one on the clipboard would be handing out a guess.
+    // Display only (`keyboard-focus-map.md:57`): the ID chip in view mode is a
+    // stop because it is the ticket's key, and it copies. This one is not the
+    // ticket's key — copying it would hand out a guess — so it is neither.
+    expect(chip.closest("button")).toBeNull();
+    expect(chip.getAttribute("tabindex")).toBeNull();
     expect(screen.queryByRole("button", { name: /Copy/ })).toBeNull();
   });
 

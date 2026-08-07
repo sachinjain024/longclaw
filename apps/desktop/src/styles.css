@@ -3289,12 +3289,14 @@ html.theme-transition *::after {
   box-shadow: var(--lc-shadow-overlay);
 }
 
-/* Dot, then name and key (D-48). A flex row rather than an inline dot: the
-   `.eyebrow` line-height is the label type's, and a 6px circle sitting on the
-   text baseline rides high of the middle of the letters beside it. */
+/* Dot, then name and key (D-48, `prototype.css:706`). A flex row rather than an
+   inline dot: the `.eyebrow` line-height is the label type's, and a 6px circle
+   sitting on the text baseline rides high of the middle of the letters beside
+   it. 6px is the prototype's gap, not a spacing step — the same raw value
+   `.meta-labels` uses, because chip-to-chip spacing is its own scale. */
 .quick-create-context {
   display: flex;
-  gap: var(--lc-space-2);
+  gap: 6px;
   align-items: center;
 }
 

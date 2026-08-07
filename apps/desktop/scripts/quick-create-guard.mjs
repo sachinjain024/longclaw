@@ -1,15 +1,20 @@
 #!/usr/bin/env node
 /**
- * Quick create has two prototype-diff rows whose contract lives in CSS rather
- * than component state:
+ * The create surfaces have four prototype-diff rows whose contract lives in CSS
+ * rather than component state:
  *
  *   D-47 — the title input is borderless, 15px.
+ *   D-48 — the context line is a flex row, so the theme dot centres against the
+ *          letters beside it rather than riding their baseline.
  *   D-49 — the status trigger is bare in quick create, while keeping the shared
  *          menu trigger semantics and chevron from `MenuButton`.
+ *   D-4A — full create's provisional key wears the ID chip and none of its
+ *          behaviour: no pointer, because there is nothing to copy yet.
  *
  * jsdom does not reliably expose the stylesheet cascade for these declarations,
  * so the stable check is the same shape as the other CSS guards: read
- * `styles.css`, find the exact rules, and fail when the declarations drift.
+ * `styles.css`, find the exact rules, and fail when the declarations drift. The
+ * tests beside them pin what the components render; only the cascade is here.
  */
 
 import { readFileSync } from "node:fs";
@@ -84,12 +89,30 @@ requireDeclaration(
   "none",
   "D-49 quick-create status trigger is bare",
 );
+requireDeclaration(
+  ".quick-create-context",
+  "display",
+  "flex",
+  "D-48 the theme dot centres against the name rather than sitting on its baseline",
+);
+requireDeclaration(
+  ".quick-create-context",
+  "align-items",
+  "center",
+  "D-48 the theme dot centres against the name rather than sitting on its baseline",
+);
+requireDeclaration(
+  ".id-chip.provisional",
+  "cursor",
+  "default",
+  "D-4A the provisional key has nothing to copy, so the pointer must not offer it",
+);
 
 report({
   name: "quick-create-guard",
   findings,
-  checked: 2,
+  checked: 4,
   noun: "contracts",
-  remedy: "quick-create CSS contract(s) drifted",
-  clean: "D-47 and D-49 CSS contracts hold",
+  remedy: "create-surface CSS contract(s) drifted",
+  clean: "D-47, D-48, D-49 and D-4A CSS contracts hold",
 });
