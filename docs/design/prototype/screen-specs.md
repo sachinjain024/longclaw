@@ -133,6 +133,20 @@ movement. No custom-color affordance exists anywhere.
   The header control switches the board to Manual, which renders the
   per-ticket `rank` order; the choice is a per-project view preference in
   app state. Keyboard navigation always follows the visual order.
+- **Dragging (ADR 0003, revised for LC-60):** a card dragged into another
+  column takes that column's status — the same write `S` makes — in either
+  order. The column under the pointer says so with an accent wash and a
+  hairline; in Manual a drop line also shows where in it the card would
+  land, because Manual writes the place as well as the status. Dragging
+  *within* a column is reordering and stays Manual-only, so in Priority a
+  card's own column takes no drop and the pointer refuses it. The
+  Unreadable column takes none in either order: it names no status.
+  While a drag is in flight every column that would accept it reserves at
+  least one card's height, so an empty column is a target rather than the
+  3px its stack measures at rest; the reserve goes when the drag does.
+  Hanging the drag near the left or right edge of the board scrolls it
+  sideways, as hanging near a column's top or bottom scrolls that column —
+  a column off the side of the window is otherwise unreachable.
 - **Archived tickets never render on the board** (ADR 0004); the list
   view is the archive surface.
 - **Cards:** anatomy and all states (resting/hover/focus/selected/fresh/
@@ -167,6 +181,27 @@ movement. No custom-color affordance exists anywhere.
   Hover `wash`; focus = inset human border + ring; selected = human wash +
   2px left accent bar. Degraded rows: warn triangle, mono filename, "View
   raw file".
+- **Dragging (LC-60, reversing "no drag affordance"):** a row dragged into
+  another group takes that group's status, and in Manual takes a place in
+  it too — the same move the board makes for the same gesture, decided in
+  one place (`ticketMove.ts`) so the two surfaces cannot disagree about
+  what a drop means. The group under the pointer wears an accent border
+  and wash; in Manual a 2px accent line rides the boundary the row would
+  land on. Dragging *within* a group is reordering and stays Manual-only.
+  **While a drag is in flight, every status renders** — the one exception
+  to "only statuses with visible tickets render" above, and the list's
+  answer to the height the board reserves in each column: a status with no
+  group on screen is a status nothing can be dropped into, and dragging a
+  group's last row away would otherwise remove that status as a target for
+  good. An empty group is its header, which is the whole of its target and
+  wears the wash accordingly. The set stands down when the drag does.
+  The affordance is the grab cursor and nothing else: this list originally
+  had no drag because a 36px row has no room for a handle, and it still
+  does not have one. The **Archived** group takes no drop and none of its
+  rows can be dragged — archiving is a date, not a status (ADR 0004), and
+  a row moved out of it would land somewhere the board still would not
+  show. The **Unreadable** group takes none either: it names no status.
+  Hanging the drag at the top or bottom edge scrolls the list.
 - **Archived group (ADR 0004):** below the last status group, a
   toggleable header — folder glyph, "Archived", mono count, show/hide —
   collapsed by default. Expanded rows render at 80% opacity, use the

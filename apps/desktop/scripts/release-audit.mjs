@@ -173,6 +173,24 @@ failUnlessSameSet(
   "macOS bundle targets",
 );
 
+/* The board's drag-and-drop only exists while this is off (LC-60).
+   `dragDropEnabled` defaults to true, and with it on wry installs
+   `draggingEntered:`/`draggingUpdated:`/`performDragOperation:` on the
+   WKWebView for OS file drops. Tauri's handler returns "handled" for every one
+   of them, so wry never forwards to super and the page never sees `dragover`
+   or `drop` — including for a drag that started inside the page. The card
+   lifts and nothing lands, which is what LC-60 reported and what no jsdom test
+   can see. Nothing in the app listens for `tauri://drag-drop`; if file drops
+   are ever wanted (LC-172), they have to be HTML5 drop events in the webview,
+   not the OS handler. */
+for (const window of tauriConfig.app.windows) {
+  if (window.dragDropEnabled !== false) {
+    fail(
+      `window "${window.label}" must set dragDropEnabled: false — the OS file-drop handler swallows the board's own drag events (LC-60)`,
+    );
+  }
+}
+
 if (!tauriConfig.bundle.icon?.includes("icons/icon.png")) {
   fail("bundle icon must include icons/icon.png");
 }

@@ -14,6 +14,15 @@
  * flow at stated heights and only the rows inside a body are placed absolutely — a
  * sticky element has nothing to stick to inside an absolutely positioned parent.
  *
+ * **Dragging** is the board's gesture on this surface's axis (LC-60): a row into
+ * another group is a status change, a row moved inside its group in Manual is a
+ * rank, and what a drop writes is `ticketMove.ts` for both surfaces rather than
+ * a second opinion here. `screen-specs.md` § Issue list originally gave the list
+ * no drag affordance because a 36px row has no room for a handle — which is
+ * still true, and why the affordance is the grab cursor. The archived group is
+ * the one group that neither takes a drop nor gives one: archiving is a date and
+ * not a status (ADR 0004).
+ *
  * **Roles.** A row is one activation target that opens the panel, not a grid of
  * navigable cells, so this is a `section` per group with a heading that carries the
  * count — exactly the board's contract, and for the same reason. `role="table"` or
@@ -24,9 +33,10 @@
  */
 
 import { memo, useMemo, useRef, useState } from "react";
-import type { KeyboardEvent } from "react";
+import type { DragEvent, KeyboardEvent } from "react";
 import { windowFor } from "./boardGeometry";
 import { classes } from "./classes";
+import { pickUp, towardsEdge, useEdgeDrift } from "./dragging";
 import { isFresh } from "./freshness";
 import type { ExternalMark, ExternalMarks } from "./freshness";
 import {
@@ -38,7 +48,13 @@ import {
 import { GuideCard } from "./GuideCard";
 import { singleKeyShortcutAllowed } from "./keyContext";
 import { LabelChip } from "./LabelChip";
-import { groupBodyHeight, listGeometry, rowTop } from "./listGeometry";
+import {
+  dropAt,
+  GROUP_HEADER_HEIGHT,
+  groupBodyHeight,
+  listGeometry,
+  rowTop,
+} from "./listGeometry";
 import { presentRow } from "./listRow";
 import { comparatorFor, orderColumn, type OrderingMode } from "./ordering";
 import { PriorityGlyph } from "./PriorityGlyph";
@@ -52,6 +68,12 @@ import {
   TicketMetaMenu,
   type MetaMenuTarget,
 } from "./TicketMetaMenu";
+import {
+  moveForDrop,
+  takesDrop,
+  type DropSpot,
+  type TicketMove,
+} from "./ticketMove";
 import type {
   IndexedTicket,
   Label,
@@ -109,8 +131,8 @@ export function IssueList(props: {
   labels: Record<string, Label>;
   /**
    * The board's ordering preference, which the rows inside a group follow too
-   * (`screen-specs.md:146`). Dragging is the board's alone: the spec gives the
-   * list no drag affordance, and a dense 36px row is not one.
+   * (`screen-specs.md:146`) — and which decides, here as there, whether a place
+   * inside a group is a thing a drop can write (ADR 0003).
    */
   ordering: OrderingMode;
   now: number;
@@ -119,6 +141,12 @@ export function IssueList(props: {
   onChangePriority: (ticket: IndexedTicket, next: TicketPriority) => void;
   /** Raised by the `S` menu, on the same terms. */
   onChangeStatus: (ticket: IndexedTicket, next: TicketStatus) => void;
+  /**
+   * Raised by a drop: a group, a place in one, or both (`ticketMove.ts`). The
+   * board raises the same move for the same gesture, because a group here and a
+   * column there are the same status.
+   */
+  onMoveTicket: (ticket: IndexedTicket, move: TicketMove) => void;
   /**
    * Present only in the empty-project state. The list has no Todo column to
    * host the guide, so it sits in a card frame of the list's own — the same
@@ -135,12 +163,27 @@ export function IssueList(props: {
   const scroller = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const viewport = useViewportHeight(scroller);
+  /** The row being dragged, and which gap of which group it is hanging over. */
+  const [dragKey, setDragKey] = useState<string>();
+  const [hover, setHover] = useState<{ group: number; gap: number }>();
+  /** A drag hanging at the top or bottom of the one scroller keeps it moving. */
+  const driftBy = useEdgeDrift(scroller, "scrollTop", setScrollTop);
 
   const archived = useMemo(
     () => props.tickets.filter(isArchived),
     [props.tickets],
   );
   const compare = comparatorFor(props.ordering);
+  /**
+   * A status with nothing in it draws no group (`screen-specs.md:169`) — which
+   * is right at rest and wrong with a row in the air, because a status you
+   * cannot see is a status you cannot drop into. Worse, it is self-sealing:
+   * dragging a group's last row out would take that status off the surface and
+   * leave no way to drag anything back. So the whole set is kept for exactly as
+   * long as the drag lasts, which is the list's answer to the reserve the board
+   * makes in every column (LC-60).
+   */
+  const dragging = dragKey !== undefined;
   const groups = useMemo(() => {
     // `groupByStatus` buckets by status, and archived is not one (ADR 0004), so
     // what comes back is the live tickets whatever is handed in. Why this
@@ -148,6 +191,7 @@ export function IssueList(props: {
     // argued once, where the option is declared.
     const live = groupByStatus(props.tickets, {
       compare,
+      keepEmpty: dragging,
       unreadable: "first",
     });
     if (archived.length === 0) return live;
@@ -162,7 +206,7 @@ export function IssueList(props: {
         tickets: archiveOpen ? orderColumn(archived, compare) : [],
       } as StatusGroup,
     ];
-  }, [props.tickets, archived, archiveOpen, compare]);
+  }, [props.tickets, archived, archiveOpen, compare, dragging]);
 
   const seats = useMemo(() => seatsFor(groups), [groups]);
   const { slots, offsets } = useMemo(() => listGeometry(groups), [groups]);
@@ -204,6 +248,77 @@ export function IssueList(props: {
   // though an anchor can sit anywhere in it.
   for (const rows of shown.values()) rows.sort((left, right) => left - right);
 
+  /** The seat the dragged row came from, which is what a drop is read against. */
+  const dragSeat = dragKey === undefined ? undefined : seats.get(dragKey);
+
+  /** However the drag ended — dropped, cancelled, taken off the surface. */
+  function endDrag() {
+    setDragKey(undefined);
+    setHover(undefined);
+  }
+
+  function onDragStart(event: DragEvent<HTMLDivElement>) {
+    const key = pickUp(event, { selector: ROW, groups, seats });
+    if (key !== undefined) setDragKey(key);
+  }
+
+  /**
+   * Which group and gap the pointer is over, in the scroller's own content
+   * coordinates — which is what the geometry is stated in, and the only way a
+   * drop over a row 3,000 down that is not in the document is answerable.
+   *
+   * The top band is the one place the two coordinate systems disagree. A group
+   * header is `position: sticky`, so while a group is scrolled through, its
+   * header sits opaquely over that group's own rows: the content under the
+   * pointer there is not what the pointer is pointing at. A drop on a pinned
+   * header means the top of the group it belongs to, which is the group whose
+   * rows are underneath the band — and hanging there scrolls the list up to
+   * show it, because the band is inside the drift edge.
+   */
+  function spotUnder(event: DragEvent<HTMLDivElement>): DropSpot | undefined {
+    const element = scroller.current;
+    if (!element) return undefined;
+    const offset = event.clientY - element.getBoundingClientRect().top;
+    const position = offset + element.scrollTop;
+    const spot = dropAt({ slots, offsets }, position);
+    if (!spot || offset >= GROUP_HEADER_HEIGHT) return spot;
+    return { group: spot.group, gap: 0 };
+  }
+
+  function onDragOver(event: DragEvent<HTMLDivElement>) {
+    if (dragKey === undefined) return;
+    const over = spotUnder(event);
+    // A group that would write nothing refuses the drop by leaving the event
+    // alone: the archive, the unreadable group, and — in Priority — the row's
+    // own group. The pointer says so rather than the row sliding back.
+    if (!over || !takesDrop(groups, dragSeat, over.group, props.ordering)) {
+      setHover(undefined);
+    } else {
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+      // `dragover` fires many times a second at the same position, so the same
+      // position keeps the same object and React bails out of the render.
+      setHover((current) =>
+        current && current.group === over.group && current.gap === over.gap
+          ? current
+          : over,
+      );
+    }
+
+    const box = scroller.current?.getBoundingClientRect();
+    if (box) driftBy(towardsEdge(event.clientY, box.top, box.bottom));
+  }
+
+  function onDrop(event: DragEvent<HTMLDivElement>) {
+    if (dragKey === undefined) return;
+    const over = spotUnder(event);
+    const drop = over && moveForDrop(groups, dragSeat, over, props.ordering);
+    event.preventDefault();
+    driftBy(0);
+    endDrag();
+    if (drop) props.onMoveTicket(drop.ticket, drop.move);
+  }
+
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
     if (event.defaultPrevented) return;
@@ -241,6 +356,25 @@ export function IssueList(props: {
       ref={scroller}
       onKeyDown={onKeyDown}
       onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      // `dragend` bubbles from the row, which is why the row itself carries no
+      // handler: a per-row callback would change identity on every scroll and
+      // un-memoize the whole list.
+      onDragEnd={() => {
+        driftBy(0);
+        endDrag();
+      }}
+      // Leaving *for a row* is not leaving: `dragleave` fires on the way into
+      // every child, and clearing there would flicker the group's wash off and
+      // on again as the pointer crosses each row.
+      onDragLeave={(event) => {
+        const to = event.relatedTarget as Node | null;
+        if (to && scroller.current?.contains(to)) return;
+        driftBy(0);
+        setHover(undefined);
+      }}
     >
       {props.onCreateFirst && (
         <div className="list-guide">
@@ -261,6 +395,16 @@ export function IssueList(props: {
           marks={props.marks}
           labels={props.labels}
           now={props.now}
+          dragKey={dragSeat?.group === index ? dragKey : undefined}
+          // Where the row would land, and whether it would arrive from another
+          // group — the line is only drawn where a place is being chosen, which
+          // in Priority is nowhere (ADR 0003).
+          dropGap={
+            hover?.group === index && props.ordering === "manual"
+              ? hover.gap
+              : undefined
+          }
+          incoming={hover?.group === index && dragSeat?.group !== index}
           onSelect={props.onSelect}
           onFocusRow={onFocusRow}
         />
@@ -301,6 +445,12 @@ function ListGroup(props: {
   marks: ExternalMarks;
   labels: Record<string, Label>;
   now: number;
+  /** The row being dragged, when it is one of this group's. */
+  dragKey?: string;
+  /** Where letting go would put it, as a gap between this group's rows. */
+  dropGap?: number;
+  /** True while the pointer is here and the row would arrive from elsewhere. */
+  incoming: boolean;
   onSelect: (key: string) => void;
   onFocusRow: (key: string) => void;
 }) {
@@ -308,7 +458,13 @@ function ListGroup(props: {
   const count = props.archived ? props.archivedCount : group.tickets.length;
 
   return (
-    <section className={classes("list-group", props.archived && "archived")}>
+    <section
+      className={classes(
+        "list-group",
+        props.archived && "archived",
+        props.incoming && "drop-target",
+      )}
+    >
       {props.archived ? (
         // A real button with expanded state, which is the keyboard path archive
         // has (`keyboard-focus-map.md:110`); there is no single-key binding.
@@ -339,6 +495,13 @@ function ListGroup(props: {
           className="list-group-body"
           style={{ height: groupBodyHeight(group.tickets.length) }}
         >
+          {props.dropGap !== undefined && (
+            <div
+              className="list-drop-line"
+              aria-hidden="true"
+              style={{ top: rowTop(props.dropGap) }}
+            />
+          )}
           {props.shown.map((index) => {
             const ticket = group.tickets[index];
             return (
@@ -352,6 +515,12 @@ function ListGroup(props: {
                 mark={props.marks[ticket.key]}
                 labels={props.labels}
                 now={props.now}
+                // An archived ticket is off the board entirely (ADR 0004), so
+                // dropping one into a status group would move something the
+                // human cannot see the result of; and a file this build cannot
+                // read has no frontmatter to write a move into.
+                draggable={!props.archived && ticket.state === "indexed"}
+                dragging={ticket.key === props.dragKey}
                 onSelect={props.onSelect}
                 onFocusRow={props.onFocusRow}
               />
@@ -382,6 +551,9 @@ const ListRow = memo(function ListRow(props: {
   mark?: ExternalMark;
   labels: Record<string, Label>;
   now: number;
+  /** True on a row with frontmatter to write a move into, and not archived. */
+  draggable: boolean;
+  dragging: boolean;
   onSelect: (key: string) => void;
   onFocusRow: (key: string) => void;
 }) {
@@ -402,9 +574,12 @@ const ListRow = memo(function ListRow(props: {
         row.degraded && "degraded",
         fresh && "fresh",
         fresh && mark?.actorType === "human" && "human-fresh",
+        props.draggable && "draggable",
+        props.dragging && "dragging",
       )}
       style={{ top: props.top }}
       data-ticket-key={ticket.key}
+      draggable={props.draggable}
       tabIndex={props.tabStop ? 0 : -1}
       onClick={() => props.onSelect(ticket.key)}
       onFocus={() => props.onFocusRow(ticket.key)}

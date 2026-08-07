@@ -52,6 +52,7 @@ import { OwlMark } from "./OwlMark";
 import { ProjectSettings } from "./ProjectSettings";
 import { QuickCreate } from "./QuickCreate";
 import type { FocusRequest } from "./rovingFocus";
+import type { TicketMove } from "./ticketMove";
 import { useLongClawStore } from "./state";
 import { ThemeDot } from "./ThemeSwatch";
 import { TicketPanel } from "./TicketPanel";
@@ -1106,28 +1107,50 @@ export function App() {
   }
 
   /**
-   * A card dropped somewhere else in its column (ADR 0003). The board allocates
-   * the rank — LongClaw owns rank allocation in v0 — and this writes it, the
-   * same way the `P` menu's pick is written.
+   * A card let go somewhere else on the board: another column (LC-60), another
+   * place in its own column (ADR 0003), or — in Manual — both at once, because a
+   * card arriving in a column is given a place in it.
    *
-   * The inverse is the rank the card had, and a card that had none is put back
+   * One edit either way. Two writes would be two files' worth of undo for one
+   * gesture, and the card would sit in the new column at the old rank in between.
+   * The board allocates the rank — LongClaw owns rank allocation in v0 — and
+   * this writes it, the same way the `P` menu's pick is written.
+   *
+   * The inverse is what the card had, and a card that had no rank is put back
    * to having none: `TicketEdit.rank` takes `null` to clear the key. Nothing
    * else in the app ever sends that, because leaving Manual mode is a view
    * preference and must not rewrite a file.
    */
-  function reorderTicket(ticket: IndexedTicket, rank: string) {
+  function moveCard(ticket: IndexedTicket, move: TicketMove) {
     const projectId = activeProjectId;
-    if (!projectId || rank === ticket.rank) return;
+    if (!projectId) return;
+    // `TicketDocument::apply` refuses an edit that changes nothing, so a half
+    // of the move that is already true is left out of it rather than sent.
+    const status = move.status === ticket.status ? undefined : move.status;
+    const rank = move.rank === ticket.rank ? undefined : move.rank;
+    if (status === undefined && rank === undefined) return;
+    // The same two fields either way: what the row shows at once, and what the
+    // write carries. A `TicketEdit` is a `Partial<IndexedTicket>` in this much.
+    const change = { ...(status && { status }), ...(rank && { rank }) };
 
     void mutate(
       editMutation({
         projectId,
         ticket,
-        optimistic: { rank },
-        edit: { rank },
-        inverse: { rank: ticket.rank ?? null },
-        toast: `${ticket.key} moved`,
-        inverseToast: `${ticket.key} back where it was`,
+        optimistic: change,
+        edit: change,
+        inverse: {
+          ...(status && { status: ticket.status }),
+          ...(rank && { rank: ticket.rank ?? null }),
+        },
+        // The column is the salient half when there is one: it is the change the
+        // human will look for on the board, and the rank is where it landed.
+        toast: status
+          ? `${ticket.key} → ${statusLabel(status)}`
+          : `${ticket.key} moved`,
+        inverseToast: status
+          ? `${ticket.key} back in ${statusLabel(ticket.status)}`
+          : `${ticket.key} back where it was`,
         failure: (error) =>
           `${ticket.key} could not be moved. ${error.message}`,
       }),
@@ -1511,7 +1534,7 @@ export function App() {
                     onSelect={openTicket}
                     onChangePriority={changePriority}
                     onChangeStatus={changeStatus}
-                    onReorder={reorderTicket}
+                    onMoveTicket={moveCard}
                     // A column's `+` is the same quick create `C` opens,
                     // arriving with the column it was pressed in already
                     // chosen (`keyboard-focus-map.md:44`).
@@ -1537,6 +1560,9 @@ export function App() {
                     onSelect={openTicket}
                     onChangePriority={changePriority}
                     onChangeStatus={changeStatus}
+                    // The same move the board raises, because the same gesture
+                    // means the same thing on both projections (`ticketMove.ts`).
+                    onMoveTicket={moveCard}
                     onCreateFirst={guide}
                   />
                 )}
