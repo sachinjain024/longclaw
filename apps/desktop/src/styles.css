@@ -2840,8 +2840,35 @@ html.theme-transition *::after {
   background: var(--lc-label-gray);
 }
 
-.label-empty {
+/* The labels row: the chips a ticket carries, then the control that changes
+   them (`prototype.css:485`). It wraps, because a ticket may carry more chips
+   than the 84px-label grid leaves room for on one line. */
+.meta-labels {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: var(--lc-space-1) 0;
+}
+
+/* `+ add` (D-3C): the chip shape, drawn dashed, which is this system's mark for
+   a thing that is not there yet — the same treatment the guide card and the
+   drop target wear. It replaced a `None` button, a word that reported an
+   absence where the row could have been offering to fill it. It stays in both
+   states: the row with chips needs the control just as much. */
+.label-chip.addable {
+  border-style: dashed;
   color: var(--lc-ink-3);
+  cursor: pointer;
+}
+
+.label-chip.addable:hover {
+  border-color: var(--lc-line-strong);
+  color: var(--lc-ink);
+}
+
+.plus-glyph {
+  flex: none;
 }
 
 /* Definition management, which is project data and so lives in settings. */

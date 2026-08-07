@@ -1161,10 +1161,11 @@ describe("priority in the panel (V0-08)", () => {
 });
 
 describe("labels in the panel (V0-10)", () => {
+  /** The chips the ticket carries. The `+ add` chip beside them is the control. */
   const chips = () =>
-    Array.from(metaTrigger("Labels").querySelectorAll(".label-chip")).map(
-      (chip) => chip.textContent,
-    );
+    Array.from(
+      document.querySelectorAll(".meta-labels .label-chip:not(.addable)"),
+    ).map((chip) => chip.textContent);
 
   it("shows a chip per slug, and follows priority in the tab order", async () => {
     readTicketMock.mockResolvedValue(detail({ labels: ["backend"] }));
@@ -1179,6 +1180,37 @@ describe("labels in the panel (V0-10)", () => {
     expect(
       triggers.map((trigger) => trigger.getAttribute("aria-label")),
     ).toEqual(["Status: Todo", "Priority: P2", "Labels: Backend"]);
+  });
+
+  /**
+   * D-3C. The row was one button with the chips inside it, so the empty state
+   * said `None` — a word reporting an absence where the prototype puts an
+   * invitation — and every chip was a click target for the same menu.
+   */
+  it("D-3C: offers + add whether or not the ticket carries labels", async () => {
+    readTicketMock.mockResolvedValue(detail({ labels: [] }));
+    const view = render(surface());
+    await ready();
+
+    const add = () => metaTrigger("Labels");
+    expect(add().textContent).toBe("add");
+    expect(add().classList.contains("addable")).toBe(true);
+    expect(chips()).toEqual([]);
+    // The absence is no longer narrated as a control.
+    expect(document.querySelector(".meta-labels")?.textContent).not.toContain(
+      "None",
+    );
+
+    view.unmount();
+    readTicketMock.mockResolvedValue(detail({ labels: ["backend"] }));
+    render(surface());
+    await ready();
+
+    expect(chips()).toEqual(["Backend"]);
+    expect(add().textContent).toBe("add");
+    // And it still opens the menu that both adds and takes off.
+    fireEvent.click(add());
+    expect(screen.getByRole("menu", { name: "Labels" })).toBeTruthy();
   });
 
   it("must-pass 3: renders a slug this project does not define, as itself", async () => {
