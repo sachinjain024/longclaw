@@ -985,13 +985,19 @@ button:disabled {
 /* Each column scrolls independently (screen-specs.md § Board). Bounding it here
    is also what lets the column render only the cards this box can show.
 
-   The reserve in --lc-size-board-stack is the chrome above and below a column at
-   the default window: toolbar, board heading, the grid's own padding, and the
-   dev-only trace strip — sized to the dev build, so a release column just runs
-   a little short. Under a short board the cap never binds and nothing moves;
-   over a tall one the column scrolls inside it instead of stretching the page. */
+   --lc-size-board-stack is the current viewport minus the product chrome above
+   and below the board/list area: the one-row content header, the main panel
+   insets, and the board grid's vertical padding. The column header lives inside
+   the board, so the board subtracts it here while the list consumes the whole
+   shared stack height. */
+.board-column {
+  --lc-size-board-column-head: 39px;
+}
+
 .board-stack {
-  max-height: var(--lc-size-board-stack);
+  max-height: calc(
+    var(--lc-size-board-stack) - var(--lc-size-board-column-head)
+  );
   padding: 3px 4px 0;
   overflow-y: auto;
 }

@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: fdb5ad58-2827-48f4-a1de-346c2d16568b
 key: LC-165
 title: Board and list — --lc-size-board-stack still reserves 360px for the two-row header LC-67 collapsed
-status: todo
+status: in_progress
 priority: p1
 labels:
   - frontend
   - prototype-diff
 created_at: 2026-08-07T05:41:47.970Z
-updated_at: 2026-08-07T05:41:47.970Z
+updated_at: 2026-08-08T08:09:02.077Z
 ---
 
 **Spec.** The board and list stacks size to the window. The reserve above and below a column is the header and the board's own padding, and nothing else.
@@ -24,9 +24,9 @@ Both stacks read the token: `.board-stack` (`styles.css:886`) and the list's sta
 
 ## Checklist
 
-- [ ] Derive the reserve from the one-row header plus the board's own padding rather than the stale 360px, and update the explanatory comment at styles.css:881. <!-- longclaw:item=ck_b9000f4a -->
-- [ ] Re-run npm run perf:board and npm run perf:list and quote the numbers — the reserve feeds the windowing viewport, so this changes what the harness measures. <!-- longclaw:item=ck_aba63c6e -->
-- [ ] Check short and tall windows: independent column scrolling should start only when content actually exceeds the main panel's height. <!-- longclaw:item=ck_76d20435 -->
+- [x] Derive the reserve from the one-row header plus the board's own padding rather than the stale 360px, and update the explanatory comment at styles.css:881. <!-- longclaw:item=ck_b9000f4a -->
+- [x] Re-run npm run perf:board and npm run perf:list and quote the numbers — the reserve feeds the windowing viewport, so this changes what the harness measures. <!-- longclaw:item=ck_aba63c6e -->
+- [x] Check short and tall windows: independent column scrolling should start only when content actually exceeds the main panel's height. <!-- longclaw:item=ck_76d20435 -->
 
 ## Activity
 
@@ -40,4 +40,44 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_038b2adf
+kind: update
+occurred_at: 2026-08-08T04:16:42.592Z
+actor:
+  type: agent
+  id: codex
+  name: Codex
+changes:
+  - field: status
+    from: todo
+    to: in_progress
+-->
+### Codex updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_c275faa0
+kind: update
+occurred_at: 2026-08-08T08:09:02.077Z
+actor:
+  type: agent
+  id: codex
+  name: Codex
+changes:
+  - field: checklist.ck_b9000f4a.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_aba63c6e.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_76d20435.checked
+    from: "false"
+    to: "true"
+-->
+### Codex updated this ticket
+
+Implemented the one-row board/list stack reserve. Verification: short/tall WebKit perf-build viewports at 520px and 920px had documentExtra=0; board stack heights were 339px/739px and list heights were 378px/778px. Perf: board p95 keyboard 15ms, scroll 19ms, filter 30ms, external write 17ms; list p95 keyboard 19ms, scroll 19ms, filter 26ms, external write 17ms.
 <!-- /longclaw:event -->

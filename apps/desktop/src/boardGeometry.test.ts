@@ -154,6 +154,11 @@ describe("the card heights the stylesheet pins", () => {
     expect(tokens.size["board-card"]).toBe(CARD_HEIGHT);
     expect(tokens.size["board-card-fresh"]).toBe(FRESH_CARD_HEIGHT);
   });
+
+  it("reserves only the one-row header and board padding for the stack viewport", () => {
+    expect(tokens.size["board-stack"]).toBe("calc(100vh - 142px)");
+    expect(tokens.size["board-stack"]).not.toContain("360px");
+  });
 });
 
 describe("the gap a drop falls in", () => {
