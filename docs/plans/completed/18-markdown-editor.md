@@ -79,6 +79,10 @@ executed. It comes out as the paragraph text its author typed. The editor never
 writes the tree back, so an unsupported construct is a rendering gap, never data
 loss.
 
+(V0-13 moved ordered lists and block quotes into the subset. Tables stayed out,
+and LC-179 is what that cost and what was done about it — see
+[On tables](#on-tables-lc-179) below.)
+
 ## The seams
 
 - `src/markdown.ts` — `parseMarkdown(source): Block[]`. Pure, no React, no DOM.
@@ -230,3 +234,33 @@ not show one.
 code fences and lists, with the same no-live-DOM guarantee — which matters more
 there than in the description, because a comment body is written by an agent by
 definition. The `headingOffset` argument exists for exactly that call.
+
+### On tables (LC-179)
+
+Tables were left outside the v0 subset above, on the reasoning that an
+unsupported construct still comes out as its own text. That held in the tree and
+broke on screen. A pipe table parses to one paragraph whose text nodes keep the
+author's `\n`, and `.markdown` sets no `white-space`, so the webview collapsed a
+nine-row table into a single wrapped line with the delimiter row sitting inline
+as punctuation. The existing test could not see it: it asserted on node values,
+and the `\n` was still in the string.
+
+**A real `TableBlock` stays out of scope.** It is a new member of the union, a
+cell-and-alignment parser, and column styling from nothing — `styles.css` carries
+no `table`, `th`, or `td` rule anywhere — for a construct that appears in one
+ticket on disk. What shipped instead is the smaller half: `readTable` recognises
+a header row followed by a delimiter row and emits `break` nodes between the
+rows, so a table stays as many lines as it was typed and the pipes still mark the
+columns. Nothing else changes, because every other unsupported construct is one
+line long, and soft-wrapped prose must keep joining into one line or hard-wrapped
+paragraphs would break at their wrap points.
+
+The security invariant is untouched and structural: no new node type, and a table
+is still a `paragraph` of inlines, so there is still no branch that could produce
+markup.
+
+What would reopen it: tables written for alignment rather than for reading — a
+numeric column a reader wants to compare down — since the pipes carry the
+boundary but not the alignment. The line-structure test to extend then is
+`MarkdownView.test.tsx`, which asserts in lines on screen rather than in nodes,
+which is the unit this bug lived in.
