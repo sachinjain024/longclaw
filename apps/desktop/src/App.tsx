@@ -1644,6 +1644,7 @@ export function App() {
         createSurface === "quick" && (
           <QuickCreate
             projectName={project.name}
+            projectTheme={project.theme}
             provisionalKey={nextKey}
             initialStatus={carriedDraft?.status}
             onCancel={closeCreateSurface}

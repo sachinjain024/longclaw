@@ -101,8 +101,11 @@ export function CreatePanel(props: CreatePanelProps) {
       onKeyDown={onKeyDown}
     >
       <header className="panel-header">
-        {/* Display only. It is not the ticket's key until Rust says so. */}
-        <span className="ticket-key provisional">
+        {/* The same chip the panel's own key wears (D-4A), so the two headers
+            read as the same object — but a `span`, because this one is display
+            only: it is not the ticket's key until Rust says so, and a chip that
+            copied it would put a guess on the clipboard. */}
+        <span className="id-chip provisional">
           {props.provisionalKey} <span className="provisional-mark">· new</span>
         </span>
       </header>
@@ -154,16 +157,22 @@ export function CreatePanel(props: CreatePanelProps) {
         <h3>Description</h3>
         <DescriptionEditor
           writeOnly
+          // The one line saying what this field is for, and who reads it
+          // (D-4B). Only the create surface carries it: an edit is opened
+          // against a description that is already there.
+          placeholder="What should happen? Agents read this before they start."
           value={description}
           onChange={setDescription}
         />
       </section>
 
       <section className="panel-section">
-        <h3>
-          Checklist
-          <span className="section-count">0/{checklist.length}</span>
-        </h3>
+        {/* No fraction here, at any length (D-4D, `prototype.js:889`). Create's
+            items are all open by construction — `NewTicket.checklist` is a list
+            of strings — so the numerator can never move, and `0/3` says only
+            what the three rows on screen already say. The panel's own count
+            earns its place because there the numerator means something. */}
+        <h3>Checklist</h3>
         <ul className="checklist">
           {checklist.map((text, index) => (
             // Keyed by position: a draft item has no id to key by, and two rows

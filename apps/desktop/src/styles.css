@@ -1870,6 +1870,13 @@ button:disabled {
   outline: none;
 }
 
+/* Create's key wears the chip and none of its behaviour (D-4A,
+   `prototype.js:866`): there is nothing to copy until Rust allocates the real
+   one, so the pointer must not offer it. */
+.id-chip.provisional {
+  cursor: default;
+}
+
 /* Two elements, not one (D-39). The chip names the file and holds still; the
    indicator beside it is absent unless the disk is doing something. Both give
    up width before the actions do, since those are fixed and sit at the edge —
@@ -2867,9 +2874,12 @@ button:disabled {
   background: var(--lc-surface);
 }
 
-/* `KEY-n · new`, and it says which half is the guess. */
+/* `KEY-n · new`, and it says which half is the guess. Inside the chip now
+   (D-4A), so it keeps the chip's own accent rather than the ink token it used
+   to carry: ink-3 on the human wash is a pair no theme states a contrast for,
+   and neither would a dimmed accent. The weight says it instead — the one
+   distinction that costs the reading nothing across eight theme pairs. */
 .provisional-mark {
-  color: var(--lc-ink-3);
   font-weight: 400;
 }
 
@@ -3277,6 +3287,17 @@ html.theme-transition *::after {
   padding: var(--lc-space-5);
   background: var(--lc-surface);
   box-shadow: var(--lc-shadow-overlay);
+}
+
+/* Dot, then name and key (D-48, `prototype.css:706`). A flex row rather than an
+   inline dot: the `.eyebrow` line-height is the label type's, and a 6px circle
+   sitting on the text baseline rides high of the middle of the letters beside
+   it. 6px is the prototype's gap, not a spacing step — the same raw value
+   `.meta-labels` uses, because chip-to-chip spacing is its own scale. */
+.quick-create-context {
+  display: flex;
+  gap: 6px;
+  align-items: center;
 }
 
 /* Borderless 15px title (`screen-specs.md:200`): the modal is two fields, so a

@@ -149,15 +149,24 @@ describe("every approved field, in one create", () => {
 });
 
 describe("nothing here claims the file exists yet", () => {
-  it("shows the provisional key as a guess, and never as a tab stop", () => {
+  /**
+   * D-4A (LC-116). The key wears the same chip as the panel's real one, so the
+   * two surfaces read as the same object — with `· new` beside it saying which
+   * half is the guess. It was plain text, which made the create panel's header
+   * the one place the key was not a chip.
+   */
+  it("shows the provisional key as a chip, as a guess, and never as a tab stop", () => {
     render(createPanel());
 
     const chip = screen.getByText(/RT-4/);
     expect(chip.textContent).toBe("RT-4 · new");
+    expect(chip.classList.contains("id-chip")).toBe(true);
     // Display only (`keyboard-focus-map.md:57`): the ID chip in view mode is a
-    // stop because it is the ticket's key. This one is not the ticket's key.
+    // stop because it is the ticket's key, and it copies. This one is not the
+    // ticket's key — copying it would hand out a guess — so it is neither.
     expect(chip.closest("button")).toBeNull();
     expect(chip.getAttribute("tabindex")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Copy/ })).toBeNull();
   });
 
   it("offers write mode only, with no Preview tab until the ticket exists", () => {
@@ -216,6 +225,25 @@ describe("nothing here claims the file exists yet", () => {
     expect(document.activeElement).toBe(field);
   });
 
+  /**
+   * D-4D (LC-119). The prototype draws no counter in create mode at any length,
+   * and the numerator here could not move if it did: every draft item is open
+   * by construction. `0/0` was a count of nothing that read as a checklist left
+   * unfinished, and `0/3` would only repeat the three rows on screen.
+   */
+  it("shows no checklist fraction, however many items are drafted", () => {
+    render(createPanel());
+    const section = screen.getByRole("heading", { name: /Checklist/ });
+    expect(section.querySelector(".section-count")).toBeNull();
+    expect(section.textContent).toBe("Checklist");
+
+    addChecklistItem("Let an agent read this ticket");
+    addChecklistItem("Review what it changed");
+
+    expect(section.querySelector(".section-count")).toBeNull();
+    expect(section.textContent).toBe("Checklist");
+  });
+
   it("has no assignee, attachment or rank affordance", () => {
     render(createPanel());
 
@@ -224,6 +252,49 @@ describe("nothing here claims the file exists yet", () => {
     expect(panel.textContent).not.toMatch(/assign/i);
     expect(panel.textContent).not.toMatch(/attach/i);
     expect(panel.textContent).not.toMatch(/rank/i);
+  });
+});
+
+describe("full create prototype parity", () => {
+  /**
+   * D-4B (LC-117). The one line telling the human what this field is *for* —
+   * and what reads it. The prototype puts it only on the create surface: an
+   * edit is opened against a description that already exists.
+   */
+  it("says what the description is for while it is still empty", () => {
+    render(createPanel());
+
+    expect(
+      screen.getByLabelText("Description").getAttribute("placeholder"),
+    ).toBe("What should happen? Agents read this before they start.");
+  });
+
+  /**
+   * D-4C (LC-118), the same fix as D-3C: the chips are the value and the
+   * dashed chip is the control. The empty row said `None` — a word reporting
+   * an absence, where the prototype puts an invitation.
+   */
+  it("offers `+ add` on the labels row, never a `None` button", () => {
+    render(createPanel());
+
+    const control = metaTrigger("Labels");
+    expect(control.textContent).toContain("add");
+    expect(control.classList.contains("addable")).toBe(true);
+    // The empty row's accessible name still says the value, because the chips
+    // beside the control are not in its name.
+    expect(control.getAttribute("aria-label")).toBe("Labels: none");
+    expect(screen.queryByRole("button", { name: "None" })).toBeNull();
+  });
+
+  it("keeps `+ add` beside the chips once labels are on", () => {
+    render(createPanel());
+    fireEvent.click(metaTrigger("Labels"));
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "Backend" }));
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+
+    // A row with chips needs the control just as much: it takes labels off too.
+    expect(metaTrigger("Labels").textContent).toContain("add");
+    expect(screen.getByText("Backend")).toBeTruthy();
   });
 });
 

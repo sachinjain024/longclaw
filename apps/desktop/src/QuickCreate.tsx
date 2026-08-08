@@ -15,10 +15,17 @@
 import { useState } from "react";
 import { MenuButton } from "./Menu";
 import { STATUS_OPTIONS } from "./metaOptions";
+import { ThemeDot } from "./ThemeSwatch";
 import type { CreateTicketRequest, TicketStatus } from "./types";
 
 interface QuickCreateProps {
   projectName: string;
+  /**
+   * The project's own preset, for the dot the context line carries (D-48). The
+   * modal names which project the ticket lands in, and the dot is how that name
+   * is recognised everywhere else in the app.
+   */
+  projectTheme: string;
   /** The key the create is about to be given, read off the rows on screen. */
   provisionalKey: string;
   /**
@@ -54,7 +61,11 @@ export function QuickCreate(props: QuickCreateProps) {
           props.onCreate({ title: title.trim(), status });
         }}
       >
-        <p className="eyebrow">
+        {/* Dot, name, key (`prototype.js:1019`). The dot is decoration — the
+            name is right beside it — so it is hidden from the reading order
+            rather than repeated in words. */}
+        <p className="eyebrow quick-create-context">
+          <ThemeDot theme={props.projectTheme} />
           {props.projectName} · {props.provisionalKey}
         </p>
         {/* Borderless, and its own label: the modal has no visible field

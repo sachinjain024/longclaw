@@ -10,9 +10,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { QuickCreate } from "./QuickCreate";
 import type { TicketStatus } from "./types";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  // Only the theme-dot test stamps it, and the root outlives a render.
+  delete document.documentElement.dataset.appearance;
+});
 
 function quickCreate(props?: {
+  projectTheme?: string;
   initialStatus?: TicketStatus;
   onCancel?: () => void;
   onCreate?: (request: unknown) => void;
@@ -21,6 +26,7 @@ function quickCreate(props?: {
   return (
     <QuickCreate
       projectName="Round Trip"
+      projectTheme={props?.projectTheme ?? "ember"}
       provisionalKey="RT-4"
       initialStatus={props?.initialStatus}
       onCancel={props?.onCancel ?? (() => {})}
@@ -143,5 +149,22 @@ describe("quick create prototype parity", () => {
 
     const trigger = statusTrigger();
     expect(trigger.getAttribute("aria-haspopup")).toBe("menu");
+  });
+
+  it("D-48: carries the project's theme dot before the name (LC-114)", () => {
+    document.documentElement.dataset.appearance = "dark";
+    const { container } = render(quickCreate({ projectTheme: "ember" }));
+
+    const dot = container.querySelector<HTMLElement>(".theme-dot");
+    expect(dot).toBeTruthy();
+    // Both axes, or the dot resolves to the accent in force rather than this
+    // project's own — indistinguishable from working until two projects differ.
+    expect(dot?.dataset.theme).toBe("ember");
+    expect(dot?.dataset.appearance).toBe("dark");
+    // Before the name, not after it: the eyebrow reads dot, name, key.
+    expect(dot?.nextSibling?.textContent).toContain("Round Trip");
+    // Decoration. The name is right beside it, so a dot in the reading order
+    // would say the project twice.
+    expect(dot?.getAttribute("aria-hidden")).toBe("true");
   });
 });
