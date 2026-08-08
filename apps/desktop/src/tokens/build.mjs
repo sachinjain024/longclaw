@@ -216,24 +216,42 @@ for (const actor of ["human", "agent"]) {
     ),
   );
 }
-derived.push(
-  line(
-    "accent-agent-fresh-ring",
-    `color-mix(in oklab, var(${P}accent-agent) var(${P}mix-fresh-ring), transparent)`,
-  ),
-);
-derived.push(
-  line(
-    "accent-agent-fresh-border",
-    `color-mix(in oklab, var(${P}accent-agent) var(${P}mix-border), var(${P}line))`,
-  ),
-);
-derived.push(
-  line(
-    "accent-agent-pulse",
-    `color-mix(in oklab, var(${P}accent-agent) var(${P}mix-pulse), transparent)`,
-  ),
-);
+/* ---------- the freshness treatment, one set per attribution ----------
+ * A row that changed on disk wears the colour of whoever the file said changed
+ * it, and each set is generated from one shape so they can only differ in hue.
+ *
+ * The ring and the border were the agent's alone, hand-written once, and the
+ * pulse halo still is below: a person's file edit therefore flashed *green* for
+ * two beats under a violet dot. The `-fresh-` names are the design system's
+ * (`components.md:202`, `states.md:150-151`) and are kept exactly. */
+const freshSet = (name, hue) => {
+  derived.push(
+    line(
+      `${name}-fresh-ring`,
+      `color-mix(in oklab, ${hue} var(${P}mix-fresh-ring), transparent)`,
+    ),
+  );
+  derived.push(
+    line(
+      `${name}-fresh-border`,
+      `color-mix(in oklab, ${hue} var(${P}mix-border), var(${P}line))`,
+    ),
+  );
+  derived.push(
+    line(
+      `${name}-pulse`,
+      `color-mix(in oklab, ${hue} var(${P}mix-pulse), transparent)`,
+    ),
+  );
+};
+for (const actor of ["agent", "human"]) {
+  freshSet(`accent-${actor}`, `var(${P}accent-${actor})`);
+}
+/* An unclaimed change is the one that gets no accent at all: `warn` is a feedback
+   colour, and saying so is the whole point — green is the agent's, and a row that
+   wore it under a warn triangle was speaking both vocabularies at once about the
+   same event (`states.md:150-152`, LC-148). */
+freshSet("warn", `var(${P}warn)`);
 derived.push(line("status-done", `var(${P}accent-human)`));
 /* Aliases ride here rather than in the appearance blocks: they are one `var()`
    apiece, so they resolve against whichever appearance is active without being
@@ -298,17 +316,33 @@ out.push(...derived);
 out.push("}");
 out.push("");
 out.push(
-  "/* The agent pulse — the designed acknowledgement of an external file edit.",
+  "/* The pulse — the designed acknowledgement of an external file edit, in the",
 );
+out.push(
+  "   colour of whoever the file said made it. One animation per attribution",
+);
+out.push(
+  "   rather than a variable halo, because the halo is a hue and hues are",
+);
+out.push("   declared here and nowhere else (token-guard.mjs).");
 out.push(
   `   Play ${t.motion["pulse-iterations"]} iterations of ${t.motion["pulse-duration"]}; never loop forever. */`,
 );
-out.push("@keyframes lc-pulse {");
-out.push(`  0% { box-shadow: 0 0 0 0 var(${P}accent-agent-pulse); }`);
-out.push("  70% { box-shadow: 0 0 0 9px transparent; }");
-out.push("  100% { box-shadow: 0 0 0 0 transparent; }");
-out.push("}");
-out.push("");
+/* `lc-pulse` keeps its bare name for the agent: it is the animation the
+   prototype and `components.md:202` name, and the agent write is the moment the
+   whole treatment was designed around. */
+for (const [name, token] of [
+  ["lc-pulse", "accent-agent-pulse"],
+  ["lc-pulse-human", "accent-human-pulse"],
+  ["lc-pulse-warn", "warn-pulse"],
+]) {
+  out.push(`@keyframes ${name} {`);
+  out.push(`  0% { box-shadow: 0 0 0 0 var(${P}${token}); }`);
+  out.push("  70% { box-shadow: 0 0 0 9px transparent; }");
+  out.push("  100% { box-shadow: 0 0 0 0 transparent; }");
+  out.push("}");
+  out.push("");
+}
 /* Every motion token that names a duration is zeroed, derived from the group
    rather than listed here: a hardcoded list silently exempts the next token
    anyone adds, which is exactly what happened to `motion.spinner`. Counts and

@@ -467,9 +467,9 @@ footer attribution line, and it decays.
 
 | ID | Sev | Prototype | App | Plan |
 |---|---|---|---|---|
-| D-60 | P2 | Pulse dot sits **before** the ID | Renders **after** the ID | Move it. |
-| D-61 | P2 | Footer line carries the age: `❯ updated by agent · 12s` | `⚠ file changed on disk — actor unknown` with no age, truncated to `…actor unkn…` at 264px | Add the relative age; shorten the unknown-actor string so it fits the card (`file changed · 12s` + the warn glyph is enough — the panel timeline can carry the full sentence). |
-| D-62 | P3 | Agent green is for agent writes; an unknown actor gets the **warn** treatment (`states.md:150-152`) | An unknown-actor change gets the full agent-green treatment *and* a warn triangle — the two vocabularies are mixed on one line | Pick per attribution: agent → green + `❯`; unknown → warn + triangle. |
+| ~~D-60~~ | P2 | Pulse dot sits **before** the ID | Renders **after** the ID | **Fixed 2026-08-08 (LC-146).** The dot leads the key on the card. The 6px between them moved off the dot's own margin and onto `.card-top .ticket-key`'s flex gap: the dot leads the ID here and trails the title on a list row (`states.md:155`), so a margin of its own had to be unset on one of them. Pinned by a DOM-order assertion rather than a class check. |
+| ~~D-61~~ | P2 | Footer line carries the age: `❯ updated by agent · 12s` | `⚠ file changed on disk — actor unknown` with no age, truncated to `…actor unkn…` at 264px | **Fixed 2026-08-08 (LC-147).** The card says `⚠ file changed · 12s`. Every acknowledgement carries its age now — this was the only line on the board that could not say how stale it was, and it lost the age to a sentence spent naming the *absence* of an actor, which the warn glyph in front already says. The full sentence is unchanged where there is room: `UNATTRIBUTED_CHANGE` still reads `file changed on disk — actor unknown` and the panel timeline still says it. Both forms sit together in `attribution.ts` so they stay one claim at two lengths. |
+| ~~D-62~~ | P3 | Agent green is for agent writes; an unknown actor gets the **warn** treatment (`states.md:150-152`) | An unknown-actor change gets the full agent-green treatment *and* a warn triangle — the two vocabularies are mixed on one line | **Fixed 2026-08-08 (LC-148).** `freshAccentClass` is the one place the accent is picked, and the card and the list row both ask it; it replaces `wearsAgentAccent`, which returned true for anything that was not a person. Two surfaces were wrong the same way: every `human-fresh` rule was written `.ticket-row.human-fresh`, so a person's edit showed a *green* dot on a list row, and the pulse halo is a hue inside a `@keyframes`, so it beat agent-green under every actor — `lc-pulse`, `lc-pulse-human` and `lc-pulse-warn` are now generated from one shape with matching token sets (`accent-agent-fresh-*` keeps its design-system names). Colour is the whole finding and jsdom cannot see it, so `matrix` renders a second fresh card with no attribution and probes that its footer is `--lc-warn` and ΔE ≥ 10 from the agent's; both go red on this exact defect in all 8 axes. |
 
 ---
 
@@ -588,7 +588,10 @@ single stack.
     ~~**D-4D**~~, the two P3 rows in § 11.
 
     **§ 10 and § 11 are closed.** Every `D-` row in both is struck.
-16. **D-60 / D-61 / D-62** — freshness attribution.
+16. ~~**D-60**~~ / ~~**D-61**~~ / ~~**D-62**~~ — freshness attribution, closed
+    2026-08-08 with LC-146 → LC-148.
+
+    **§ 17 is closed.** Every `D-` row in it is struck.
 17. ~~**D-65**~~ — layout and chrome polish, struck 2026-08-08 with LC-149 for
     the half of it that was the control row, with **LC-182** carrying the half
     that is the header's own height (~~**D-72**~~ went with the

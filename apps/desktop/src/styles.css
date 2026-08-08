@@ -1235,6 +1235,7 @@ button:disabled {
 
 .card-top .ticket-key {
   display: inline-flex;
+  gap: 6px;
   align-items: center;
   font-size: 11px;
 }
@@ -1393,6 +1394,10 @@ button:disabled {
   color: var(--lc-accent-human-text);
 }
 
+.ticket-row.unknown-fresh .actor {
+  color: var(--lc-warn);
+}
+
 /* The acknowledgement of a change that arrived from disk: ring, pulse, and a
    footer naming the actor the file recorded. Never a silent re-render.
 
@@ -1402,22 +1407,37 @@ button:disabled {
    ring without the extra room would be placed wrong by exactly the footer. */
 .ticket-row.fresh {
   height: var(--lc-size-board-card-fresh);
+}
+
+/* Whose change it was decides the colour, and it decides all of it — the ring,
+   the meter, the footer and the pulse below. `freshAccentClass` in
+   attribution.ts is what picks between these three, so the card and the list row
+   cannot answer it differently. Green belongs to the agent: a change nothing
+   claimed used to wear the whole agent treatment *and* the warn triangle its
+   glyph gives it, which is one row saying two incompatible things about the same
+   event (LC-148). */
+.ticket-row.fresh.agent-fresh {
   border-color: var(--lc-accent-agent-fresh-border);
   box-shadow: 0 0 0 3px var(--lc-accent-agent-fresh-ring);
 }
 
 .ticket-row.fresh.human-fresh {
-  border-color: var(--lc-accent-human-border);
-  box-shadow: 0 0 0 3px var(--lc-accent-human-soft);
+  border-color: var(--lc-accent-human-fresh-border);
+  box-shadow: 0 0 0 3px var(--lc-accent-human-fresh-ring);
+}
+
+.ticket-row.fresh.unknown-fresh {
+  border-color: var(--lc-warn-fresh-border);
+  box-shadow: 0 0 0 3px var(--lc-warn-fresh-ring);
 }
 
 /* The change the acknowledgement is about is usually the checklist, so the
    meter wears the actor's accent while the card is fresh (prototype.css). */
-.ticket-row.fresh .fraction {
+.ticket-row.fresh.agent-fresh .fraction {
   color: var(--lc-accent-agent-text);
 }
 
-.ticket-row.fresh .progress i {
+.ticket-row.fresh.agent-fresh .progress i {
   background: var(--lc-accent-agent);
 }
 
@@ -1427,6 +1447,14 @@ button:disabled {
 
 .ticket-row.fresh.human-fresh .progress i {
   background: var(--lc-accent-human);
+}
+
+.ticket-row.fresh.unknown-fresh .fraction {
+  color: var(--lc-warn);
+}
+
+.ticket-row.fresh.unknown-fresh .progress i {
+  background: var(--lc-warn);
 }
 
 /* Roving focus has exactly one thing to point at, so the card it lands on has
@@ -1449,11 +1477,13 @@ button:disabled {
   outline-offset: calc(-1 * var(--lc-border-focus));
 }
 
+/* Spacing is the key row's, not the dot's: the dot leads the ID on a card and
+   trails the title on a list row (`states.md:149,155`), so a margin of its own
+   would have to be unset on one of them. */
 .pulse-dot {
   display: inline-block;
   width: 8px;
   height: 8px;
-  margin-left: 6px;
   border-radius: 50%;
   background: var(--lc-accent-agent);
   vertical-align: middle;
@@ -1468,8 +1498,26 @@ button:disabled {
     var(--lc-motion-pulse-iterations);
 }
 
-.ticket-row.human-fresh .pulse-dot {
+/* The dot and its halo, in the colour of whoever the file said made the change.
+   Written for the treatment rather than for `.ticket-row`, because the list row
+   wears the same classes and used to reach none of these: a person's edit showed
+   a green dot there, and every actor's halo beat agent-green everywhere, since
+   the halo is a hue inside a keyframe and only a second keyframe can change it
+   (see `lc-pulse-*` in design-tokens.css). */
+.human-fresh .pulse-dot {
   background: var(--lc-accent-human);
+}
+
+.human-fresh .pulse-dot.pulsing {
+  animation-name: lc-pulse-human;
+}
+
+.unknown-fresh .pulse-dot {
+  background: var(--lc-warn);
+}
+
+.unknown-fresh .pulse-dot.pulsing {
+  animation-name: lc-pulse-warn;
 }
 
 /* ----------------------------------------------------- the status dot (D3) */
@@ -1904,7 +1952,6 @@ button:disabled {
   flex: none;
   width: 6px;
   height: 6px;
-  margin-left: 0;
 }
 
 /* Still legible, still openable, and plainly set aside (ADR 0004). */

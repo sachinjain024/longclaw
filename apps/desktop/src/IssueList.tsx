@@ -34,6 +34,7 @@
 
 import { memo, useMemo, useRef, useState } from "react";
 import type { DragEvent, KeyboardEvent } from "react";
+import { freshAccentClass } from "./attribution";
 import { windowFor } from "./boardGeometry";
 import { classes } from "./classes";
 import { pickUp, towardsEdge, useEdgeDrift } from "./dragging";
@@ -573,7 +574,7 @@ const ListRow = memo(function ListRow(props: {
         props.selected && "selected",
         row.degraded && "degraded",
         fresh && "fresh",
-        fresh && mark?.actorType === "human" && "human-fresh",
+        fresh && mark && freshAccentClass(mark.actorType),
         props.draggable && "draggable",
         props.dragging && "dragging",
       )}

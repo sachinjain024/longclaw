@@ -471,17 +471,74 @@
     var(--lc-accent-agent) var(--lc-mix-pulse),
     transparent
   );
+  --lc-accent-human-fresh-ring: color-mix(
+    in oklab,
+    var(--lc-accent-human) var(--lc-mix-fresh-ring),
+    transparent
+  );
+  --lc-accent-human-fresh-border: color-mix(
+    in oklab,
+    var(--lc-accent-human) var(--lc-mix-border),
+    var(--lc-line)
+  );
+  --lc-accent-human-pulse: color-mix(
+    in oklab,
+    var(--lc-accent-human) var(--lc-mix-pulse),
+    transparent
+  );
+  --lc-warn-fresh-ring: color-mix(
+    in oklab,
+    var(--lc-warn) var(--lc-mix-fresh-ring),
+    transparent
+  );
+  --lc-warn-fresh-border: color-mix(
+    in oklab,
+    var(--lc-warn) var(--lc-mix-border),
+    var(--lc-line)
+  );
+  --lc-warn-pulse: color-mix(
+    in oklab,
+    var(--lc-warn) var(--lc-mix-pulse),
+    transparent
+  );
   --lc-status-done: var(--lc-accent-human);
   --lc-code-surface: var(--lc-wash);
   --lc-code-ink: var(--lc-ink);
   --lc-focus-ring: 0 0 0 var(--lc-border-focus) var(--lc-accent-human-ring);
 }
 
-/* The agent pulse — the designed acknowledgement of an external file edit.
+/* The pulse — the designed acknowledgement of an external file edit, in the
+   colour of whoever the file said made it. One animation per attribution
+   rather than a variable halo, because the halo is a hue and hues are
+   declared here and nowhere else (token-guard.mjs).
    Play 2 iterations of 900ms; never loop forever. */
 @keyframes lc-pulse {
   0% {
     box-shadow: 0 0 0 0 var(--lc-accent-agent-pulse);
+  }
+  70% {
+    box-shadow: 0 0 0 9px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+@keyframes lc-pulse-human {
+  0% {
+    box-shadow: 0 0 0 0 var(--lc-accent-human-pulse);
+  }
+  70% {
+    box-shadow: 0 0 0 9px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+@keyframes lc-pulse-warn {
+  0% {
+    box-shadow: 0 0 0 0 var(--lc-warn-pulse);
   }
   70% {
     box-shadow: 0 0 0 9px transparent;

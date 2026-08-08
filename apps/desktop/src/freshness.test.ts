@@ -42,8 +42,11 @@ describe("acknowledging an external change", () => {
 
     expect(unattributed).toMatchObject({ actorType: "unknown" });
     expect(unknown).toMatchObject({ actorType: "unknown" });
-    expect(acknowledgement(unattributed, AT)).toBe(
-      "⚠ file changed on disk — actor unknown",
+    // Short, and with the age every other acknowledgement carries (LC-147). The
+    // full sentence truncated to `…actor unkn…` in the card's 264px and took the
+    // age with it; the timeline still says the whole thing.
+    expect(acknowledgement(unattributed, AT + 12_000)).toBe(
+      "⚠ file changed · 12s",
     );
   });
 

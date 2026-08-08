@@ -183,11 +183,22 @@ describe("a card carrying an unreviewed agent change", () => {
 
     const element = card("LC-1");
     expect(element.className).toContain("fresh");
+    expect(element.className).toContain("agent-fresh");
     expect(element.className).not.toContain("human-fresh");
     expect(element.querySelector(".pulse-dot")).toBeTruthy();
     expect(element.textContent).toContain(
       "❯ updated by Claude Code · 12s · via file edit",
     );
+  });
+
+  // The dot leads the ID (`states.md:149`, LC-146): it is the thing that says
+  // *look here*, and behind the key it was the second thing read.
+  it("leads with the pulse dot rather than trailing the ID", () => {
+    render(board({ marks: mark() }));
+
+    const key = card("LC-1").querySelector(".ticket-key");
+    expect(key?.firstElementChild?.className).toContain("pulse-dot");
+    expect(key?.textContent).toBe("LC-1");
   });
 
   it("says so plainly when the change named no actor", () => {
@@ -197,9 +208,11 @@ describe("a card carrying an unreviewed agent change", () => {
       }),
     );
 
-    expect(card("LC-1").textContent).toContain(
-      "⚠ file changed on disk — actor unknown",
-    );
+    // Warn, not green: one row never speaks both vocabularies (LC-148).
+    const element = card("LC-1");
+    expect(element.className).toContain("unknown-fresh");
+    expect(element.className).not.toContain("agent-fresh");
+    expect(element.textContent).toContain("⚠ file changed · 12s");
   });
 
   it("keeps a person's file edit out of the agent accent", () => {
@@ -209,6 +222,7 @@ describe("a card carrying an unreviewed agent change", () => {
 
     const element = card("LC-1");
     expect(element.className).toContain("human-fresh");
+    expect(element.className).not.toContain("agent-fresh");
     expect(element.textContent).toContain(
       "• changed on disk · 12s · via file edit",
     );

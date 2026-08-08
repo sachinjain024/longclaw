@@ -309,7 +309,22 @@ describe("what one row says", () => {
     expect(element.className).toContain("fresh");
     expect(element.querySelector(".pulse-dot")).toBeTruthy();
     // The row is 36px whatever it is wearing; nothing here grows a footer.
+    expect(element.className).toContain("agent-fresh");
     expect(element.className).not.toContain("human-fresh");
+  });
+
+  // The row has no footer to say who, so the dot's accent is the whole of the
+  // attribution it can show — and it has to be the same decision the card makes
+  // (LC-148).
+  it("gives the dot the warn accent when the change named no actor", () => {
+    const marks: ExternalMarks = {
+      "LC-1": { actorType: "unknown", actorLabel: "actor unknown", at: NOW },
+    };
+    render(list({ marks }));
+
+    const element = listRow("LC-1");
+    expect(element.className).toContain("unknown-fresh");
+    expect(element.className).not.toContain("agent-fresh");
   });
 
   it("opens the ticket the row belongs to", () => {

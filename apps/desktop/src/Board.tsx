@@ -65,6 +65,7 @@
 
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import type { DragEvent, KeyboardEvent } from "react";
+import { freshAccentClass } from "./attribution";
 import { presentCard } from "./boardCard";
 import {
   CARD_GAP,
@@ -716,7 +717,7 @@ const BoardCard = memo(function BoardCard(props: {
         props.selected && "selected",
         ticket.state === "degraded" && "degraded",
         fresh && "fresh",
-        fresh && mark?.actorType === "human" && "human-fresh",
+        fresh && mark && freshAccentClass(mark.actorType),
         props.draggable && "draggable",
         props.dragging && "dragging",
       )}
@@ -728,9 +729,12 @@ const BoardCard = memo(function BoardCard(props: {
       onFocus={() => props.onFocusCard(ticket.key)}
     >
       <span className="card-top">
+        {/* The dot leads the key (`states.md:149`). It is the mark that says
+            *look at this row*, and a reader who has already read the ID has
+            spent the glance it was meant to catch. */}
         <span className="ticket-key">
-          {ticket.key}
           {fresh && <PulseDot mark={mark} now={props.now} />}
+          {ticket.key}
         </span>
         {row.priority && <PriorityGlyph priority={row.priority} small />}
       </span>

@@ -139,7 +139,8 @@ const STATES = [
     contrast: [
       ".ticket-row strong",
       ".ticket-row .ticket-key",
-      ".ticket-row.fresh .actor",
+      ".ticket-row.agent-fresh .actor",
+      ".ticket-row.unknown-fresh .actor",
       ".board-column h3",
       ".project-link strong",
       // Was `.eyebrow` — the `LOCAL PROJECT` one, which the one-row header
@@ -161,9 +162,16 @@ const STATES = [
         // The trace strip is dev-only chrome (devChrome.ts) and this build is
         // a release build, so the agent-accent contract is proven on the
         // designed element instead: the fresh card's acknowledgement footer.
-        selector: ".ticket-row.fresh .actor",
+        selector: ".ticket-row.agent-fresh .actor",
         property: "color",
         token: "--lc-accent-agent-text",
+      },
+      {
+        // And the other half of the same contract: a change nothing claimed
+        // wears `warn`, not the agent's green (LC-148).
+        selector: ".ticket-row.unknown-fresh .actor",
+        property: "color",
+        token: "--lc-warn",
       },
     ],
     distinct: [
@@ -173,7 +181,16 @@ const STATES = [
           selector: ".content-header .primary",
           property: "background-color",
         },
-        b: { selector: ".ticket-row.fresh .actor", property: "color" },
+        b: { selector: ".ticket-row.agent-fresh .actor", property: "color" },
+      },
+      {
+        // The row that used to fail: an unattributed change wore the full agent
+        // treatment *and* the warn triangle. Two cards side by side, one
+        // attributed and one not, must not read as the same event kind — in
+        // every theme, since a theme swaps the agent's hue but never `warn`'s.
+        label: "agent accent vs unattributed warn",
+        a: { selector: ".ticket-row.agent-fresh .actor", property: "color" },
+        b: { selector: ".ticket-row.unknown-fresh .actor", property: "color" },
       },
     ],
   },
@@ -442,52 +459,66 @@ try {
       );
       await page.evaluate(SAMPLER);
 
-      // One card wearing the external-update acknowledgement.
+      // Two cards wearing the external-update acknowledgement, one per
+      // vocabulary. The second carries no `attribution` at all, which is the
+      // real shape of a change that appended no record — the case the app must
+      // *not* dress in agent green (LC-148). Probing only the attributed card
+      // would leave the warn treatment's contrast unmeasured in every theme,
+      // and it is the pairing this change introduced.
       await page.evaluate(() => {
-        const key =
-          document
-            .querySelector(".ticket-row")
-            ?.getAttribute("data-ticket-key") ?? "";
-        const sequence = Number(key.replace("PF-", ""));
-        window.__longclawPerf.emit({
-          contractVersion: 1,
-          sequence: 1,
-          projectId: "019c8ca0-0000-7000-8000-0000000000ff",
-          emittedAt: "2026-07-31T00:00:00Z",
-          event: {
-            type: "ticketChanged",
-            data: {
-              source: "external",
-              coalescedEvents: 1,
-              detectedInMs: 1,
-              attribution: {
-                id: "evt_1",
-                kind: "update",
-                occurredAt: "2026-07-31T00:00:00Z",
-                actor: { type: "agent", name: "Claude Code" },
-              },
-              ticket: {
-                state: "indexed",
-                key,
-                id: `matrix-${sequence}`,
-                title: `Searchable storage ticket ${sequence}`,
-                status: "backlog",
-                priority: "none",
-                labels: ["storage"],
-                createdAt: "2026-07-29T00:00:00Z",
-                updatedAt: "2026-07-31T00:00:00Z",
-                checkedCount: 0,
-                checklistCount: 1,
-                commentCount: 0,
-                attachmentCount: 0,
-                contentHash: "hash-matrix",
-                relativePath: `.longclaw/tickets/${key}/ticket.md`,
+        // Consecutive envelope sequences, because a repeat is dropped as stale
+        // and a skip asks the app to resync (`state.ts:190,198`).
+        let envelope = 0;
+        const emit = (key, attribution) => {
+          const sequence = Number(key.replace("PF-", ""));
+          window.__longclawPerf.emit({
+            contractVersion: 1,
+            sequence: ++envelope,
+            projectId: "019c8ca0-0000-7000-8000-0000000000ff",
+            emittedAt: "2026-07-31T00:00:00Z",
+            event: {
+              type: "ticketChanged",
+              data: {
+                source: "external",
+                coalescedEvents: 1,
+                detectedInMs: 1,
+                ...(attribution ? { attribution } : {}),
+                ticket: {
+                  state: "indexed",
+                  key,
+                  id: `matrix-${sequence}`,
+                  title: `Searchable storage ticket ${sequence}`,
+                  status: "backlog",
+                  priority: "none",
+                  labels: ["storage"],
+                  createdAt: "2026-07-29T00:00:00Z",
+                  updatedAt: "2026-07-31T00:00:00Z",
+                  checkedCount: 0,
+                  checklistCount: 1,
+                  commentCount: 0,
+                  attachmentCount: 0,
+                  contentHash: "hash-matrix",
+                  relativePath: `.longclaw/tickets/${key}/ticket.md`,
+                },
               },
             },
-          },
+          });
+        };
+        const keys = [...document.querySelectorAll(".ticket-row")]
+          .slice(0, 2)
+          .map((row) => row.getAttribute("data-ticket-key") ?? "");
+        emit(keys[0], {
+          id: "evt_1",
+          kind: "update",
+          occurredAt: "2026-07-31T00:00:00Z",
+          actor: { type: "agent", name: "Claude Code" },
         });
+        emit(keys[1], undefined);
       });
-      await page.waitForSelector(".ticket-row.fresh", { timeout: 5_000 });
+      await page.waitForSelector(".ticket-row.agent-fresh", { timeout: 5_000 });
+      await page.waitForSelector(".ticket-row.unknown-fresh", {
+        timeout: 5_000,
+      });
 
       const check = async (state) => {
         for (const selector of state.contrast) {

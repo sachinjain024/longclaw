@@ -10,7 +10,7 @@
 
 import {
   actorGlyph,
-  UNATTRIBUTED_CHANGE,
+  UNATTRIBUTED_CHANGE_BRIEF,
   UNKNOWN_ACTOR_LABEL,
 } from "./attribution";
 import type { Actor, ChecklistItem } from "./types";
@@ -86,13 +86,19 @@ export function isPulsing(
 /**
  * The card footer line. An unattributed change gets the warn glyph and says so
  * instead of borrowing the agent's voice.
+ *
+ * Every form carries the age, including the unattributed one: *when* is the half
+ * of the acknowledgement that is true whether or not anything claimed the write,
+ * and the line that dropped it was the only one on the board that could not say
+ * how stale it was (LC-147). It is also the shortest form, because it is the one
+ * with no actor to name — see `UNATTRIBUTED_CHANGE_BRIEF`.
  */
 export function acknowledgement(mark: ExternalMark, now: number): string {
   const glyph = actorGlyph(mark.actorType);
-  if (mark.actorType === "unknown") {
-    return `${glyph} ${UNATTRIBUTED_CHANGE}`;
-  }
   const age = describeAge(mark.at, now);
+  if (mark.actorType === "unknown") {
+    return `${glyph} ${UNATTRIBUTED_CHANGE_BRIEF} · ${age}`;
+  }
   if (mark.actorType === "human") {
     return `${glyph} changed on disk · ${age} · via file edit`;
   }
