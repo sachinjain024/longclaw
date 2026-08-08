@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: e4ea0aca-c3ee-42ad-8d12-0966d95441ca
 key: LC-149
 title: Toasts and undo — while a write was in flight the header control row reflowed onto two lines and the ordering control was clipped
-status: in_review
+status: done
 priority: p2
 labels:
   - frontend
   - prototype-diff
 created_at: 2026-08-05T15:16:01.880Z
-updated_at: 2026-08-08T09:10:29.024Z
+updated_at: 2026-08-08T14:39:27.878Z
 ---
 
 **Prototype.** The content header is a fixed row and does not move
@@ -80,4 +80,20 @@ Two things worth reading rather than inheriting:
 
 - Below 760px — narrower than the window can be dragged, so only zoom reaches it — the row may break after all. `nowrap` there is a `New ticket` hanging off the side of the window, which `a11y:audit`'s A5 row failed on the first version of this fix and was right to.
 - What is not closed: between ~1230px and ~1400px the control row still moves down whole when a write starts, because the header is one row without the indicator and cannot be one row with it. Reserving the indicator's width closes it and leaves 4px of slack at 1440px, so a longer project name would be two rows at the width the design was drawn at. LC-182 carries that choice with the numbers.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_f4d49dbe
+kind: update
+occurred_at: 2026-08-08T14:39:27.878Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->
