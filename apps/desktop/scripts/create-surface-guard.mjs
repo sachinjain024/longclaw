@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * The create surfaces have four prototype-diff rows whose contract lives in CSS
- * rather than component state:
+ * Both create surfaces — the quick-create modal and the full create panel —
+ * have four prototype-diff rows whose contract lives in CSS rather than
+ * component state:
  *
  *   D-47 — the title input is borderless, 15px.
  *   D-48 — the context line is a flex row, so the theme dot centres against the
@@ -109,7 +110,7 @@ requireDeclaration(
 );
 
 report({
-  name: "quick-create-guard",
+  name: "create-surface-guard",
   findings,
   checked: 4,
   noun: "contracts",
