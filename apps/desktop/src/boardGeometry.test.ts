@@ -154,6 +154,19 @@ describe("the card heights the stylesheet pins", () => {
     expect(tokens.size["board-card"]).toBe(CARD_HEIGHT);
     expect(tokens.size["board-card-fresh"]).toBe(FRESH_CARD_HEIGHT);
   });
+
+  // Not a restatement of the number: the point of LC-165 is that the number is
+  // a *sum*, and the reserve went stale because one of the terms changed and the
+  // total did not — 360px was still paying for the two-row header LC-67 had
+  // collapsed. Written as the addition, the same edit fails here rather than
+  // shipping columns that end short of the window.
+  it("reserves the chrome above and below the region, and nothing else", () => {
+    const mainPanelInset = 28; // `.main-panel` padding-block, top and bottom
+    const contentHeader = 16 + 30 + 12; // its padding around a control row
+    const boardGridPadding = tokens.space["2"] + tokens.space["5"];
+    const reserve = mainPanelInset * 2 + contentHeader + boardGridPadding;
+    expect(tokens.size["board-stack"]).toBe(`calc(100vh - ${reserve}px)`);
+  });
 });
 
 describe("the gap a drop falls in", () => {

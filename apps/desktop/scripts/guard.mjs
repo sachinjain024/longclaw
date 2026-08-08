@@ -33,10 +33,13 @@
  * was copied from, and the two live on opposite sides of the repo, so the only
  * place the pair can be compared is a script that reads both trees.
  *
- * `quick-create-guard.mjs` (LC-113/LC-115) is back in the stylesheet: it pins
- * two prototype-diff rows whose implementation is declarations on existing
- * controls rather than a component branch. Vitest can assert the trigger still
- * behaves like a menu, but the chrome that made the rows fail is CSS.
+ * `create-surface-guard.mjs` (LC-113/LC-115, then LC-114/LC-116) is back in the
+ * stylesheet: it pins four prototype-diff rows whose implementation is
+ * declarations on existing controls rather than a component branch. Vitest can
+ * assert the trigger still behaves like a menu, but the chrome that made the
+ * rows fail is CSS. It was `quick-create-guard.mjs` while the modal was its
+ * whole subject; the full create panel brought it two more rows and the name
+ * stopped being true.
  *
  * `src/tokens/` is the one place a literal is allowed anywhere: it is where the
  * scale is declared.

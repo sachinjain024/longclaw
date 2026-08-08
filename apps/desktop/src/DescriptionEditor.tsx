@@ -38,14 +38,19 @@ type Tab = (typeof TABS)[number]["id"];
 type DescriptionEditorProps = {
   value: string;
   onChange: (value: string) => void;
-  /**
-   * Shown while the draft is empty. Create mode says what the field is for and
-   * who reads it (D-4B); an edit is opened against a description that already
-   * exists, so it has nothing to explain.
-   */
-  placeholder?: string;
 } & (
-  | { writeOnly: true }
+  | {
+      writeOnly: true;
+      /**
+       * Shown while the draft is empty: the one line saying what the field is
+       * for and who reads it (D-4B). On this arm rather than beside `value`,
+       * and required rather than optional, for the reason the union exists —
+       * an edit is opened against a description that already exists and has
+       * nothing to explain, so the type says only create mode may carry one,
+       * and that create mode may not forget it.
+       */
+      placeholder: string;
+    }
   | {
       writeOnly?: false;
       onCancel: () => void;
@@ -59,6 +64,8 @@ export function DescriptionEditor(props: DescriptionEditorProps) {
   const ids = useId();
   /** The save/cancel half, absent in create mode. Narrowing the union once. */
   const editing = props.writeOnly === true ? undefined : props;
+  /** The other arm, for the one prop only create mode has. */
+  const creating = props.writeOnly === true ? props : undefined;
   const [tab, setTab] = useState<Tab>("write");
   // Roving tabindex on both groups, so the panel's tab order reaches the
   // textarea in three presses rather than nine (`keyboard-focus-map.md:61`).
@@ -228,7 +235,7 @@ export function DescriptionEditor(props: DescriptionEditorProps) {
           value={props.value}
           rows={8}
           aria-label="Description"
-          placeholder={props.placeholder}
+          placeholder={creating?.placeholder}
           onChange={(event) => props.onChange(event.target.value)}
         />
       </div>
