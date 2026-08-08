@@ -627,9 +627,27 @@ button:disabled {
    `project-toolbar` stacked above a `board-heading`, which between them put
    ~230px of chrome above the first card. */
 .content-header,
+.header-identity,
 .toolbar-actions {
   display: flex;
   align-items: center;
+}
+
+/* The identity half, as one box (LC-149). It exists so that the header's only
+   break is the one between the two halves: the name, the gear, the path and the
+   disk-state line are a single item here, and an item is what a flex row wraps.
+   Ungrouped they were four, and the fourth arrived a write at a time.
+
+   `nowrap` and `min-width: 0` are the pair that makes it possible: nothing
+   inside may take a line of its own, so the shortfall goes to the two things in
+   it that yield — the path chip and the indicator, both of which end in an
+   ellipsis rather than a second row. `nowrap` is the default said out loud,
+   because holding it is the whole reason this box exists. */
+.header-identity {
+  flex: 0 1 auto;
+  flex-wrap: nowrap;
+  gap: 12px;
+  min-width: 0;
 }
 
 /* 56px, which is the spec's number and not a coincidence: 16px above a 30px
@@ -640,7 +658,9 @@ button:disabled {
    Wrapping is the last resort, not the layout: at any width that fits, this is
    one line. When it genuinely cannot be, the control row moves down whole —
    which is the failure this wants, because a row that breaks *inside* the
-   cluster strands a control (LC-149). */
+   cluster strands a control. This rule says only that the row *may* wrap. What
+   makes it wrap in exactly one place is that it has two items and neither may
+   break: `.header-identity` above and `nowrap` on `.toolbar-actions` below. */
 .content-header {
   flex-wrap: wrap;
   gap: 12px;
@@ -692,6 +712,36 @@ button:disabled {
 /* The spec's spacer: identity left, controls right. */
 .content-header .toolbar-actions {
   margin-left: auto;
+  /* And the cluster moves down whole or not at all (LC-149). The disk-state
+     indicator claims its width from this row the moment a write leaves, and a
+     cluster free to wrap answered that by breaking *inside* — `New ticket`
+     alone on a second row, the header a line taller than the fixed one
+     `screen-specs.md:44` draws, for as long as the write took. `nowrap` makes
+     it indivisible, which turns the shortfall into a question something has to
+     answer by yielding width. The two rules below say who. */
+  flex-wrap: nowrap;
+  /* And this is what lets it be answered at all. A flex item's automatic
+     minimum is its content's, and this row's content includes a text field,
+     whose own automatic minimum is the `size` attribute's 20 characters — so
+     `auto` here means "as wide as the field the user is not typing in", and the
+     row would sooner hang past the header's right edge than give a pixel back. */
+  min-width: 0;
+}
+
+/* Not the controls, though. Each of these is a label in a box — an ordering
+   value, two view names, `New ticket` and its `C` — so a shrunk one is a lost
+   word, and the default would have let all four give up a little each rather
+   than one of them giving up nothing. */
+.content-header .toolbar-actions > * {
+  flex: none;
+}
+
+/* The filter field is what gives it up. It is the one control in this row whose
+   width is a size rather than a content (`screen-specs.md:47`), and a shorter
+   field is still a field, so it is what absorbs the indicator — down to the
+   120px floor `.filter-wrap` states, and no further. */
+.content-header .toolbar-actions > .filter-wrap {
+  flex: 0 1 auto;
 }
 
 /* The disk-state indicator, which `screen-specs.md:44-53` puts here — beside
@@ -699,8 +749,14 @@ button:disabled {
    thing it says, `writing tickets/LC-69/ticket.md…`, and it is absent whenever
    the disk is quiet, so the width is only ever spent on news. Past that the
    ellipsis takes the tail, which costs the `ticket.md` every ticket shares
-   rather than the key that identifies one (`WriteFeedback.tsx`). */
-.content-header > .disk-path {
+   rather than the key that identifies one (`WriteFeedback.tsx`).
+
+   And it yields, like the path chip beside it (LC-149): the cap is what it
+   takes when the row can afford it, not a width it holds on to while the
+   controls are pushed off the line. */
+.header-identity > .disk-path {
+  flex: 0 1 auto;
+  min-width: 0;
   max-width: 32ch;
   font-size: var(--lc-type-kbd-size);
 }
@@ -1416,10 +1472,15 @@ button:disabled {
 /* `Order: Priority|Manual` (screen-specs.md:47-48). The word is drawn beside the
    trigger rather than inside it, so the trigger keeps saying only the value —
    which is what every other menu trigger in the app says. */
-/* 190×28px (`screen-specs.md:47`). The one control in the header that is a text
-   field, so it states its own box rather than borrowing a control token. */
+/* 28px tall (`screen-specs.md:47`). The one control in the header that is a text
+   field, so it states its own box rather than borrowing a control token — but
+   the *width* of that box is the wrapper's below, not this rule's, because the
+   wrapper is what the control row can ask to give some of it up (LC-149). */
 .filter-field {
-  width: 190px;
+  width: 100%;
+  /* A definite width is a flex item's automatic minimum, and `100%` of a
+     wrapper that has shrunk is the number this should follow. */
+  min-width: 0;
   height: 28px;
   border: 1px solid var(--lc-line);
   border-radius: var(--lc-radius-control);
@@ -1437,10 +1498,25 @@ button:disabled {
 
 /* The chip sits inside the field's right edge (`prototype.css:328`). It is
    `pointer-events: none` so the whole box still focuses the input — a chip that
-   swallowed the click would make the last 34px of the field dead (LC-71). */
+   swallowed the click would make the last 34px of the field dead (LC-71).
+   190px wide, which is the field's own number (`screen-specs.md:47`): the chip
+   is drawn inside the field, so the two are one box and only one of them can
+   state its width. */
 .filter-wrap {
   position: relative;
   display: inline-flex;
+  width: 190px;
+  /* How short the field may get when the header is short of width (LC-149).
+     Two things inside it are fixed whatever happens to the rest — 34px of right
+     padding under the ⌘F chip and 9px of left padding — so 120px leaves ~77px
+     of query, a dozen characters at 12px and more than the `LC-149` a query in
+     this app usually is. Shorter than that it stops being a field before it
+     stops being visible, and the row is better off wrapping instead.
+
+     It has to be a number rather than `auto`: a flex item's automatic minimum
+     is its own content, and this one's content is a field with a stated width,
+     so `auto` here reads as "190px, and not a pixel less". */
+  min-width: 120px;
 }
 
 /* Anatomy from `.kbd-chip`; the placement and the prototype's own tracking are
@@ -3922,5 +3998,24 @@ html.theme-transition *::after {
   .settings-identity {
     flex-direction: column;
     align-items: stretch;
+  }
+}
+
+/* Narrower than the window can be made. `tauri.conf.json` sets `minWidth: 760`,
+   so nothing below this is reachable by dragging an edge — it is what zoom
+   produces, and the accessibility gate reaches it by halving a 1440px viewport
+   (`a11y:audit` A5, 200%).
+
+   Here the control row may break after all, which is the rule LC-149 otherwise
+   spends its whole length refusing. The two failures are not equal. Above this
+   width the row breaking is gratuitous — there is width to be had, and taking
+   it from the filter field costs a few characters of a query. Below it there is
+   no width to take: the row's four controls at their smallest are wider than the
+   region, so `nowrap` stops being a layout and becomes a `New ticket` hanging
+   off the side of the window, which A5 fails and is right to. A break here
+   strands nothing: every control is on screen, in the region, and reachable. */
+@media (max-width: 759px) {
+  .content-header .toolbar-actions {
+    flex-wrap: wrap;
   }
 }

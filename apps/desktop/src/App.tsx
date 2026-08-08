@@ -1319,58 +1319,62 @@ export function App() {
                 says which surface you are standing on. Between them they cost
                 ~230px of chrome before the first card. */}
             <header className="content-header">
-              <h1>{project.name}</h1>
-              {/* `aria-haspopup`, not the `aria-expanded` this carried while
-                  settings was an inline section: what it opens is a modal
-                  dialog now, and an expanded state describes a region that
-                  stays part of the page under its trigger (LC-125). */}
-              <button
-                tabIndex={0}
-                ref={settingsButton}
-                className="ghost small settings-button"
-                aria-label="Project settings"
-                aria-haspopup="dialog"
-                title="Project settings"
-                onClick={() => setSettingsOpen(true)}
-              >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 14 14"
-                  aria-hidden="true"
+              {/* Two units, not five (LC-149). Everything that says *which
+                  project this is* is one box and every control is the other, so
+                  the only place the header can break is between them — which is
+                  the wrap `screen-specs.md:44` allows. Ungrouped, the disk-state
+                  line was a fourth item on this side that arrived when a write
+                  left and took a line of its own below 830px, putting a third
+                  row under a header the spec draws as one. */}
+              <div className="header-identity">
+                <h1>{project.name}</h1>
+                {/* `aria-haspopup`, not the `aria-expanded` this carried while
+                    settings was an inline section: what it opens is a modal
+                    dialog now, and an expanded state describes a region that
+                    stays part of the page under its trigger (LC-125). */}
+                <button
+                  tabIndex={0}
+                  ref={settingsButton}
+                  className="ghost small settings-button"
+                  aria-label="Project settings"
+                  aria-haspopup="dialog"
+                  title="Project settings"
+                  onClick={() => setSettingsOpen(true)}
                 >
-                  <circle
-                    cx="7"
-                    cy="7"
-                    r="2.1"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.3"
-                  />
-                  <path
-                    d="M7 1.6 V3.4 M7 10.6 V12.4 M1.6 7 H3.4 M10.6 7 H12.4 M3.2 3.2 L4.5 4.5 M9.5 9.5 L10.8 10.8 M10.8 3.2 L9.5 4.5 M4.5 9.5 L3.2 10.8"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.3"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </button>
-              <PathChip path={project.rootPath} homePath={homePath} />
-              {/* The controls belong to the board, so they appear only when
-                   there is one: an unreachable project keeps its identity row and
-                   gets `UnreachableProject` below it instead. */}
-              {project.reachable && (
-                <>
-                  {/* One disk-state line, beside the path chip and before the
-                      spacer, where `screen-specs.md:44-53` puts it — and silent
-                      when the disk is quiet (D-07). The `● watching` chip this
-                      replaces said the same thing at every idle moment, which
-                      is a dev trace rather than designed chrome. `reading` is
-                      the one word here D-07 did not ask for: the design answers
-                      a load with a board skeleton (`states.md:45-52`) that is
-                      not built, so until LC-159 builds it this line is the only
-                      thing that says a read is in flight. */}
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 14 14"
+                    aria-hidden="true"
+                  >
+                    <circle
+                      cx="7"
+                      cy="7"
+                      r="2.1"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.3"
+                    />
+                    <path
+                      d="M7 1.6 V3.4 M7 10.6 V12.4 M1.6 7 H3.4 M10.6 7 H12.4 M3.2 3.2 L4.5 4.5 M9.5 9.5 L10.8 10.8 M10.8 3.2 L9.5 4.5 M4.5 9.5 L3.2 10.8"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.3"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+                <PathChip path={project.rootPath} homePath={homePath} />
+                {/* One disk-state line, beside the path chip and before the
+                    spacer, where `screen-specs.md:44-53` puts it — and silent
+                    when the disk is quiet (D-07). The `● watching` chip this
+                    replaces said the same thing at every idle moment, which
+                    is a dev trace rather than designed chrome. `reading` is
+                    the one word here D-07 did not ask for: the design answers
+                    a load with a board skeleton (`states.md:45-52`) that is
+                    not built, so until LC-159 builds it this line is the only
+                    thing that says a read is in flight. */}
+                {project.reachable && (
                   <WriteIndicator
                     busy={
                       reconciling
@@ -1380,81 +1384,86 @@ export function App() {
                           : undefined
                     }
                   />
-                  <div className="toolbar-actions">
-                    {/* `screen-specs.md:47-48` orders the content header:
-                        filter field, then ordering control, then view segment. */}
-                    {/* The chip is overlaid inside the field's right edge, as
-                        the prototype draws it (`prototype.js:495-498`). It is
-                        `aria-hidden` and paired with `aria-keyshortcuts` so the
-                        field's accessible name stays "Filter tickets" rather
-                        than becoming "Filter tickets ⌘F" (LC-71). */}
-                    <div className="filter-wrap">
-                      {/* The OS stays out of this field (LC-90). WebKit offered
-                          its own saved-value popover under it — a native
-                          dropdown inside a local-first app, which is both
-                          off-brand and a small privacy surprise. Turning
-                          autofill off is four attributes rather than one:
-                          `autoComplete` is the request, `name` is what the
-                          heuristics read when they ignore it, and the two
-                          text-assist attributes are the same class of unasked-
-                          for help over a query that is a substring, not prose.
-                          The prototype's field carries two of the four
-                          (`prototype.js:496`); a WebKit that ignores the
-                          request is why the other two are here. */}
-                      <input
-                        ref={filterField}
-                        className="filter-field"
-                        type="text"
-                        name="longclaw-filter"
-                        autoComplete="off"
-                        autoCorrect="off"
-                        spellCheck={false}
-                        value={filterQuery}
-                        aria-label="Filter tickets"
-                        aria-keyshortcuts="Meta+F"
-                        placeholder="Filter tickets"
-                        onChange={(event) => setFilterQuery(event.target.value)}
-                      />
-                      <kbd className="kbd-chip filter-kbd" aria-hidden="true">
-                        ⌘F
-                      </kbd>
-                    </div>
-                    <div className="ordering-control">
-                      <span>Order</span>
-                      <MenuButton
-                        label="Order"
-                        options={ORDERINGS}
-                        value={ordering}
-                        footnote={ORDERING_FOOTNOTE}
-                        onPick={(next) => updateWorkspace({ ordering: next })}
-                      />
-                    </div>
-                    <ViewSegment view={view} onChange={setView} />
-                    {DEV_CHROME && (
-                      <button
-                        tabIndex={0}
-                        className="secondary"
-                        onClick={() => {
-                          if (!activeProjectId) return;
-                          void rebuildIndex(activeProjectId)
-                            .then(applySnapshot)
-                            .catch((error) => setError(normalizeError(error)));
-                        }}
-                      >
-                        Rebuild index
-                      </button>
-                    )}
+                )}
+              </div>
+              {/* The controls belong to the board, so they appear only when
+                  there is one: an unreachable project keeps its identity row and
+                  gets `UnreachableProject` below it instead. */}
+              {project.reachable && (
+                <div className="toolbar-actions">
+                  {/* `screen-specs.md:47-48` orders the content header:
+                      filter field, then ordering control, then view segment. */}
+                  {/* The chip is overlaid inside the field's right edge, as
+                      the prototype draws it (`prototype.js:495-498`). It is
+                      `aria-hidden` and paired with `aria-keyshortcuts` so the
+                      field's accessible name stays "Filter tickets" rather
+                      than becoming "Filter tickets ⌘F" (LC-71). */}
+                  <div className="filter-wrap">
+                    {/* The OS stays out of this field (LC-90). WebKit offered
+                        its own saved-value popover under it — a native
+                        dropdown inside a local-first app, which is both
+                        off-brand and a small privacy surprise. Turning
+                        autofill off is four attributes rather than one:
+                        `autoComplete` is the request, `name` is what the
+                        heuristics read when they ignore it, and the two
+                        text-assist attributes are the same class of unasked-
+                        for help over a query that is a substring, not prose.
+                        The prototype's field carries two of the four
+                        (`prototype.js:496`); a WebKit that ignores the
+                        request is why the other two are here. */}
+                    <input
+                      ref={filterField}
+                      className="filter-field"
+                      type="text"
+                      name="longclaw-filter"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck={false}
+                      value={filterQuery}
+                      aria-label="Filter tickets"
+                      aria-keyshortcuts="Meta+F"
+                      placeholder="Filter tickets"
+                      onChange={(event) => setFilterQuery(event.target.value)}
+                    />
+                    <kbd className="kbd-chip filter-kbd" aria-hidden="true">
+                      ⌘F
+                    </kbd>
+                  </div>
+                  <div className="ordering-control">
+                    <span>Order</span>
+                    <MenuButton
+                      label="Order"
+                      options={ORDERINGS}
+                      value={ordering}
+                      footnote={ORDERING_FOOTNOTE}
+                      onPick={(next) => updateWorkspace({ ordering: next })}
+                    />
+                  </div>
+                  <ViewSegment view={view} onChange={setView} />
+                  {DEV_CHROME && (
                     <button
                       tabIndex={0}
-                      className="primary"
-                      aria-keyshortcuts="C"
-                      onClick={() => setCreateSurface("quick")}
+                      className="secondary"
+                      onClick={() => {
+                        if (!activeProjectId) return;
+                        void rebuildIndex(activeProjectId)
+                          .then(applySnapshot)
+                          .catch((error) => setError(normalizeError(error)));
+                      }}
                     >
-                      New ticket
-                      <kbd aria-hidden="true">C</kbd>
+                      Rebuild index
                     </button>
-                  </div>
-                </>
+                  )}
+                  <button
+                    tabIndex={0}
+                    className="primary"
+                    aria-keyshortcuts="C"
+                    onClick={() => setCreateSurface("quick")}
+                  >
+                    New ticket
+                    <kbd aria-hidden="true">C</kbd>
+                  </button>
+                </div>
               )}
             </header>
 

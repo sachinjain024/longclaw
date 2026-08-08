@@ -12,7 +12,8 @@
  * command that was invented for the audit. `?fail=edit` makes the first edit
  * fail, which is the only way to reach the Retry the gate asks about, and
  * `?fail=parse` degrades every read, which is the only way to reach the raw
- * file view.
+ * file view. `?slow=N` holds a write open, which is the only way to see the
+ * screen the app shows while one is in flight.
  */
 
 import { bridge, markLoaded } from "../bridge";
@@ -53,6 +54,21 @@ let failNextEdit = params.get("fail") === "edit";
  * needs is only the panel's side of it.
  */
 const FAIL_PARSE = params.get("fail") === "parse";
+/**
+ * `?slow=N`: every write stays unsettled for N milliseconds before it lands.
+ *
+ * The disk-state indicator is on screen only while a write is in flight
+ * (`WriteFeedback.tsx`), and this stub settles a write in a microtask, so
+ * without this the harness can never look at the header the way LC-149's
+ * reporter did. It delays the *answer*, not the request: everything the app
+ * does optimistically still happens at once, which is the point — the state
+ * being held is "written, not yet confirmed", not "the app is stalled".
+ */
+const SLOW_WRITE_MS = Number(params.get("slow") ?? 0);
+const settling = () =>
+  SLOW_WRITE_MS > 0
+    ? new Promise<void>((wake) => setTimeout(wake, SLOW_WRITE_MS))
+    : Promise.resolve();
 
 export class Channel<T> {
   onmessage: (message: T) => void = () => {};
@@ -196,9 +212,11 @@ export async function invoke<T>(
 
   if (WRITABLE) {
     if (command === "create_ticket") {
+      await settling();
       return createTicket(args?.request as CreateTicketRequest) as T;
     }
     if (command === "edit_ticket") {
+      await settling();
       if (failNextEdit) {
         failNextEdit = false;
         // The shape `failure.ts` reads: a cause it knows, and a path, so the

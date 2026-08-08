@@ -69,6 +69,7 @@ npm --prefix apps/desktop run perf:rust     # performance budgets, ignored by de
 npm --prefix apps/desktop run perf:startup  # startup budgets, needs a built app
 npm run perf:board                          # board interaction budgets in WebKit
 npm run perf:list                           # the same, for the list surface
+npm --prefix apps/desktop run probe:header  # the content header's geometry, mid-write
 npm run matrix                              # theme × appearance visual regression
 npm run a11y:audit                          # accessibility Part A, keyboard-only, in WebKit
 npm run a11y:audit -- --self-test           # the same, expecting every row to go red
@@ -96,6 +97,16 @@ implements. Run it when you touch focus, a key handler, a modal, or a control's
 tab position. The `--self-test` inversion breaks the build on purpose and fails if
 a row still passes — run that after adding a probe, because two of the first ones
 were blind.
+
+`probe:header` is the same idea for a thing no test in `verify` can see: whether
+the content header is still **one row** while a write is in flight. jsdom does not
+lay out, so a control row that breaks in half and strands a control is green in
+`npm test` — LC-149 was found by a person looking at the app. It drives a real
+write in WebKit and measures the boxes at every width the window can be, and it
+carries the same `--self-test` inversion. Run it when you touch the header, its
+controls, or the disk-state indicator; run `a11y:audit` alongside it when a
+layout change makes the header wider, because a row that will not break is a row
+that can push a control off the side of the window (its A5 row).
 
 **A `<button>` needs an explicit `tabIndex`, and `npm run check` enforces it.**
 WebKit follows the macOS *Keyboard navigation* setting, which is off by default,

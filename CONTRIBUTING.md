@@ -82,6 +82,7 @@ Test suites worth knowing about:
 | `npm run perf:startup` | process start → first painted board, against the packaged app (needs `npm run build:app` first)         |
 | `npm run a11y:audit`   | accessibility Part A in WebKit: the ticket lifecycle by keyboard alone, focus order and return, visible focus, reduced motion, and 200% zoom |
 | `npm run matrix`       | every theme preset × light and dark over nine core states, checking rendered contrast and actor distinction |
+| `npm run probe:header` | the content header's geometry in WebKit while a real write is in flight, at every width the window can be (LC-149) |
 
 `perf:board` and `perf:list` need a WebKit build, once per machine:
 
@@ -96,12 +97,20 @@ what storage does per ticket, `perf:board` or `perf:list` when you change what
 that surface renders, and `perf:startup` when you change what happens before the
 first board paint.
 
-`a11y:audit` and `matrix` are not in `verify` for the same reason — both drive
-WebKit — but neither measures time, so both hold on a CI runner and `matrix`
-already runs as one. **Run `a11y:audit` when you touch focus, a key handler, a
-modal, or a control's tab position**, and run `a11y:audit -- --self-test` after
-adding a probe: it breaks the build on purpose and fails if any row still passes,
-which is how two blind probes were caught the day it was written.
+`a11y:audit`, `matrix` and `probe:header` are not in `verify` for the same reason
+— all three drive WebKit — but none of them measures time, so all three hold on a
+CI runner and `matrix` already runs as one. **Run `a11y:audit` when you touch
+focus, a key handler, a modal, or a control's tab position**, and run
+`a11y:audit -- --self-test` after adding a probe: it breaks the build on purpose
+and fails if any row still passes, which is how two blind probes were caught the
+day it was written.
+
+**Run `probe:header` when you touch the content header**, its controls, or the
+disk-state indicator. jsdom lays nothing out, so a header that breaks into two
+rows is invisible to `npm test`; this drives a real write and measures the boxes.
+It has a `--self-test` for the same reason the audit does. It is also the harness
+that says when a layout change has made the header wider than the window — run
+`a11y:audit` too when it does, because that is A5's question.
 
 **A `<button>` needs an explicit `tabIndex` and `npm run check` enforces it.**
 WebKit follows the macOS *Keyboard navigation* setting, off by default, and with
