@@ -24,6 +24,14 @@
  * comments — is neither dropped nor executed. It comes back out as the paragraph
  * text its author typed. The editor never writes this tree back to disk, so an
  * unsupported construct is a rendering gap and can never be data loss.
+ *
+ * A table is the only one of those that is more than one line, and "the text its
+ * author typed" has to mean the lines they typed or it means nothing: a soft
+ * newline is a space on screen, so a nine-row table was arriving as one run-on
+ * paragraph with the delimiter row inline in the middle of it (LC-179). So
+ * `readTable` recognises the construct only far enough to keep its rows apart.
+ * Rendering an actual `<table>` stays out of the subset — see
+ * `docs/plans/completed/18-markdown-editor.md`.
  */
 
 export interface TextNode {
@@ -110,6 +118,14 @@ const BULLET = /^ {0,3}[-*+][ \t]+(.*)$/;
 const ORDERED = /^ {0,3}(\d{1,9})[.)][ \t]+(.*)$/;
 const QUOTE = /^ {0,3}>[ \t]?(.*)$/;
 const TASK = /^\[([ xX])\][ \t]+(.*)$/;
+/**
+ * A GFM delimiter row — `| --- |`, `|:---|---:|`. It is what tells a table from
+ * two lines of prose that happen to hold a pipe, and requiring a pipe in it is
+ * what keeps `---` a thematic break and `Title\n-----` a setext heading, both of
+ * which stay their own paragraph text.
+ */
+const TABLE_DELIMITER =
+  /^ {0,3}\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/;
 const CLOSING_HASHES = /[ \t]+#+$/;
 const ESCAPABLE = /[!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]/;
 
@@ -147,10 +163,13 @@ export function parseMarkdown(source: string): Block[] {
       index = readQuote(lines, index, blocks);
       continue;
     }
-    index =
-      BULLET.test(line) || ORDERED.test(line)
-        ? readList(lines, index, blocks)
-        : readParagraph(lines, index, blocks);
+    if (BULLET.test(line) || ORDERED.test(line)) {
+      index = readList(lines, index, blocks);
+      continue;
+    }
+    index = startsTable(lines, index)
+      ? readTable(lines, index, blocks)
+      : readParagraph(lines, index, blocks);
   }
   return blocks;
 }
@@ -244,30 +263,93 @@ function readQuote(lines: string[], start: number, blocks: Block[]): number {
   return index;
 }
 
+/**
+ * The first line is a paragraph line by the time this is called, so it is taken
+ * unconditionally — and a table below it ends the run, because nobody puts a
+ * blank line between a sentence and the table it announces.
+ */
 function readParagraph(
   lines: string[],
   start: number,
   blocks: Block[],
 ): number {
-  const body: string[] = [];
-  let index = start;
-  while (index < lines.length) {
-    const line = lines[index];
-    const numbered = ORDERED.exec(line);
-    const interrupted =
-      line.trim() === "" ||
-      FENCE.test(line) ||
-      ATX.test(line) ||
-      QUOTE.test(line) ||
-      BULLET.test(line) ||
-      // Only a `1.` may interrupt a paragraph, which is what keeps "shipped in
-      // 1985. A good year." prose rather than a list numbered 1985.
-      (numbered !== null && Number(numbered[1]) === 1);
-    if (interrupted) break;
-    body.push(line);
+  const body = [lines[start]];
+  let index = start + 1;
+  while (
+    index < lines.length &&
+    !interruptsParagraph(lines[index]) &&
+    !startsTable(lines, index)
+  ) {
+    body.push(lines[index]);
     index += 1;
   }
   blocks.push({ type: "paragraph", children: parseInline(body.join("\n")) });
+  return index;
+}
+
+/** Where a run of prose ends, and a table's run of rows with it. */
+function interruptsParagraph(line: string): boolean {
+  const numbered = ORDERED.exec(line);
+  return (
+    line.trim() === "" ||
+    FENCE.test(line) ||
+    ATX.test(line) ||
+    QUOTE.test(line) ||
+    BULLET.test(line) ||
+    // Only a `1.` may interrupt a paragraph, which is what keeps "shipped in
+    // 1985. A good year." prose rather than a list numbered 1985.
+    (numbered !== null && Number(numbered[1]) === 1)
+  );
+}
+
+/** The only mark a row must carry, wherever a row is being recognised. */
+function isRow(line: string): boolean {
+  return line.includes("|");
+}
+
+/** A header row and the delimiter row under it, which is GFM's own test. */
+function startsTable(lines: string[], index: number): boolean {
+  const delimiter = lines[index + 1];
+  if (delimiter === undefined) return false;
+  return (
+    isRow(lines[index]) && isRow(delimiter) && TABLE_DELIMITER.test(delimiter)
+  );
+}
+
+/**
+ * A table, kept as the block of lines it was typed as and nothing more.
+ *
+ * There is no `TableBlock` in the union and no `<table>` on screen: the cells go
+ * through `parseInline` like any other text, so a code span in one is still a
+ * code span, and the pipes stay visible as the boundaries the author drew — an
+ * escaped `\|` among them, since nothing here knows a cell from its wall. What
+ * this adds over a plain paragraph is a `break` between rows, which is the
+ * difference between a table a reader can scan down and one run-on line.
+ *
+ * The delimiter row is shown too. Hiding it would be rendering half a table, and
+ * a reader who sees the dashes can tell the app kept the text rather than
+ * understood it.
+ */
+function readTable(lines: string[], start: number, blocks: Block[]): number {
+  // The delimiter row is taken on `startsTable`'s word: a table written without
+  // leading pipes has a `- | -` under it, which `interruptsParagraph` would
+  // read as a bullet.
+  const rows = [lines[start], lines[start + 1]];
+  let index = start + 2;
+  while (
+    index < lines.length &&
+    !interruptsParagraph(lines[index]) &&
+    isRow(lines[index])
+  ) {
+    rows.push(lines[index]);
+    index += 1;
+  }
+  const children: Inline[] = [];
+  for (const [position, row] of rows.entries()) {
+    if (position > 0) children.push({ type: "break" });
+    children.push(...parseInline(row));
+  }
+  blocks.push({ type: "paragraph", children });
   return index;
 }
 

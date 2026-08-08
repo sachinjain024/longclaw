@@ -197,6 +197,68 @@ describe("what happens to everything else", () => {
     expect(types).toEqual(["paragraph", "paragraph"]);
   });
 
+  /**
+   * A table is the one unsupported construct that is more than one line, so it
+   * is the one whose fallback has to carry line structure. A `\n` left inside a
+   * text node is not line structure: the webview collapses it (LC-179), which
+   * is why the claim below is about `break` nodes and `MarkdownView.test.tsx`
+   * makes it again in lines on screen.
+   */
+  it("separates a table's rows with breaks rather than a bare newline", () => {
+    const rows = [
+      "| Time | State |",
+      "| ---- | ----- |",
+      "| 0:00 | four cards |",
+      "| 0:05 | five cards |",
+    ];
+    const [paragraph] = parseMarkdown(rows.join("\n"));
+    if (paragraph.type !== "paragraph") throw new Error("expected a paragraph");
+    expect(
+      paragraph.children.filter((node) => node.type === "break"),
+    ).toHaveLength(rows.length - 1);
+    // The failure this replaces: every row present, every `\n` still inside a
+    // text node, and one line on screen.
+    expect(
+      paragraph.children.filter(
+        (node) => node.type === "text" && node.value.includes("\n"),
+      ),
+    ).toEqual([]);
+  });
+
+  it("takes the table out of the line that led into it", () => {
+    // Nobody leaves a blank line before a table they just announced, and cmark
+    // reads the delimiter row the same way: the row above it is the header, and
+    // the sentence above that is still a sentence.
+    const blocks = parseMarkdown(
+      "Here is the recording:\n| a | b |\n| - | - |\n| 1 | 2 |",
+    );
+    expect(blocks.map(shownText)).toEqual([
+      "Here is the recording:",
+      "| a | b |\n| - | - |\n| 1 | 2 |",
+    ]);
+  });
+
+  it("ends the table where the author stopped writing rows", () => {
+    const blocks = parseMarkdown(
+      "| a | b |\n| - | - |\n| 1 | 2 |\n## After\nProse.",
+    );
+    expect(blocks.map((block) => block.type)).toEqual([
+      "paragraph",
+      "heading",
+      "paragraph",
+    ]);
+  });
+
+  it("leaves a thematic break and a setext underline out of it", () => {
+    // Neither line holds a pipe, so neither can be read as a delimiter row and
+    // both stay the paragraph text they were.
+    const blocks = parseMarkdown("Title\n-----\n\n---");
+    expect(blocks.map((block) => block.type)).toEqual([
+      "paragraph",
+      "paragraph",
+    ]);
+  });
+
   it("leaves prose containing loose asterisks and underscores alone", () => {
     // `created_at` and `updated_at` in one sentence must not go italic, which is
     // why `_` is not an emphasis delimiter here at all.
