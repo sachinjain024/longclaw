@@ -500,7 +500,7 @@ single stack.
 
 | ID | Sev | Prototype | App | Plan |
 |---|---|---|---|---|
-| ~~D-65~~ | P2 | The content header is a fixed row and does not move | While a write was in flight the header control row **reflowed onto two lines** and the ordering control was clipped | **Fixed 2026-08-08 (LC-149) — the row, not the whole sentence.** The first half of this cell's own plan, and then the thing that made it work: `nowrap` on the control row, `min-width: 0` so the shortfall can be answered at all, and the filter field as the one control that answers it — every other one here is a label in a box, and the field's 190px is a size the spec chose. The header is also two items now rather than five, so the only place it can break is between the identity and the controls; ungrouped, the disk-state line was a fifth item that arrived a write at a time and took a row of its own below 830px. Measured rather than looked at: `npm run probe:header` drives a real write in WebKit and reads the boxes back at every width the window can be, 1440 down to `tauri.conf.json`'s 760, and it goes red against this row's `main`. Narrower than the window can be made — which only zoom reaches — the row is allowed to break after all, because `nowrap` there is a `New ticket` off the side of the window, and that is a thing the accessibility gate fails and is right to. What is *not* closed is the second half of the plan: between ~1230px and ~1400px the control row still moves down whole when a write starts, since the header is one row without the indicator and cannot be one row with it. Reserving the indicator's width closes it and costs 4px of slack at 1440px, so a longer project name would be two rows at the width the design was drawn at — **LC-182** carries the choice and the numbers. |
+| ~~D-65~~ | P2 | The content header is a fixed row and does not move | While a write was in flight the header control row **reflowed onto two lines** and the ordering control was clipped | **Half fixed 2026-08-08 (LC-149) — struck for the row, not for the sentence above it.** The first half of this cell's own plan, and then the thing that made it work: `nowrap` on the control row, `min-width: 0` so an indivisible row can still be made to fit, and the filter field as the one control that gives up the width — every other one here is a label in a box, and the field's 190px is a size the spec chose. Not width handed to the indicator, which is what this cell's plan pictures: a wrapping row moves down whole rather than shrinking, so what the indicator changes is which line the row gets, and the field is what makes it fit that line (140px at 760px, where the row is 50px wider than its line and used to hang 20px past the header). The header is also two items now rather than five, so the only place it can break is between the identity and the controls; ungrouped, the disk-state line was a fourth item on the identity side that arrived a write at a time and took a row of its own below 830px. Measured rather than looked at: `npm run probe:header` drives a real write in WebKit and reads the boxes back at every width the window can be, 1440 down to `tauri.conf.json`'s 760, and it goes red against this row's `main`. Narrower than the window can be made — which only zoom reaches — the row is allowed to break after all, because `nowrap` there is a `New ticket` off the side of the window, and that is a thing the accessibility gate fails and is right to. What is *not* closed is the second half of the plan: between ~1230px and ~1400px the control row still moves down whole when a write starts, since the header is one row without the indicator and cannot be one row with it. Reserving the indicator's width closes it and costs 4px of slack at 1440px, so a longer project name would be two rows at the width the design was drawn at — **LC-182** carries the choice and the numbers. |
 
 ---
 
@@ -589,13 +589,15 @@ single stack.
 
     **§ 10 and § 11 are closed.** Every `D-` row in both is struck.
 16. **D-60 / D-61 / D-62** — freshness attribution.
-17. ~~**D-65**~~ — layout and chrome polish, closed 2026-08-08 with LC-149, and
-    the residue is LC-182 rather than a `D-` row (~~**D-72**~~ went with the
+17. ~~**D-65**~~ — layout and chrome polish, struck 2026-08-08 with LC-149 for
+    the half of it that was the control row, with **LC-182** carrying the half
+    that is the header's own height (~~**D-72**~~ went with the
     settings modal; ~~**D-35**~~ and ~~**D-37**~~ went on 2026-08-07 with LC-93
     and LC-95, alongside ~~**D-36**~~'s placement decision in LC-94;
     ~~**D-73**~~, the last resize grabber, went the same day with LC-153).
 
-    **§ 19 is closed.** Its one `D-` row is struck.
+    **§ 19's row is struck, and § 19 is not closed.** The strike is the control
+    row; the prototype's *does not move* is LC-182.
 
 **Product decisions, not bugs**
 

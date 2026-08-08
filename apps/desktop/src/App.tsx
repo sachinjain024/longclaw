@@ -1322,7 +1322,8 @@ export function App() {
               {/* Two units, not five (LC-149). Everything that says *which
                   project this is* is one box and every control is the other, so
                   the only place the header can break is between them — which is
-                  the wrap `screen-specs.md:44` allows. Ungrouped, the disk-state
+                  the wrap `screen-specs.md` § Content header allows. Ungrouped,
+                  the disk-state
                   line was a fourth item on this side that arrived when a write
                   left and took a line of its own below 830px, putting a third
                   row under a header the spec draws as one. */}

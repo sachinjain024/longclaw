@@ -4,12 +4,12 @@ id: e000fbe3-a3c2-4c40-8522-adc37bdc15aa
 key: LC-182
 title: Toasts and undo — between ~1230px and ~1400px the control row still moves down when a write starts
 status: todo
-priority: p3
+priority: p2
 labels:
   - frontend
   - prototype-diff
 created_at: 2026-08-08T09:08:51.227Z
-updated_at: 2026-08-08T09:08:59.849Z
+updated_at: 2026-08-08T09:24:02.568Z
 ---
 
 **Prototype.** The content header is a fixed row and does not move.
@@ -43,6 +43,7 @@ while the row is short of width.
 - [ ] Decide between reserving the indicator's width and leaving the transient wrap, with the 1440px slack measured on a realistic project name rather than the fixture's <!-- longclaw:item=ck_9b60b3e3 -->
 - [ ] If the reserve wins, the reserved box has to be the thing that states 32ch — the cap lives in two places otherwise <!-- longclaw:item=ck_e3f5d193 -->
 - [ ] Extend perf/header-probe.mjs to assert the header's height is unchanged while a write is in flight, and remove the note that says it does not <!-- longclaw:item=ck_385ab98d -->
+- [ ] Measure whether a narrower indicator makes the reserve affordable: screen-specs.md § Disk-state indicator asks for `writing ticket.md…`, and WriteFeedback.tsx renders `writing tickets/<key>/ticket.md…` on purpose (LC-69 — every ticket file is called ticket.md, so the bare name names nothing). The reserve is unaffordable at the width it is, not at the width the spec draws <!-- longclaw:item=ck_a3e6ea2a -->
 
 ## Activity
 
@@ -72,4 +73,28 @@ changes:
     to: p3
 -->
 ### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_cbc76e47
+kind: update
+occurred_at: 2026-08-08T09:24:02.568Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: priority
+    from: p3
+    to: p2
+  - field: checklist.ck_a3e6ea2a.added
+    to: "Measure whether a narrower indicator makes the reserve affordable: screen-specs.md § Disk-state indicator asks for `writing ticket.md…`, and WriteFeedback.tsx renders `writing tickets/<key>/ticket.md…` on purpose (LC-69 — every ticket file is called ticket.md, so the bare name names nothing). The reserve is unaffordable at the width it is, not at the width the spec draws"
+-->
+### Claude Code updated this ticket
+
+Two facts from LC-149's code review, both measured, both belonging here rather than in that ticket.
+
+**The indicator is wider than the spec draws it.** `screen-specs.md` § Disk-state indicator asks for `9px spinner + writing ticket.md…`; the app renders `⟳writing tickets/PF-12/ticket.md…`, which `WriteFeedback.tsx` explains and LC-69 decided: every ticket in a project is stored as `ticket.md`, so the bare name would mark a write to one ticket while another sits open in the panel. That decision is not in question, but it is the reason the reserve costs 32ch — so the affordable version of this ticket may be a narrower indicator rather than a wider header. `header-probe.mjs` currently pins the long form in an assertion; whatever is decided here has to move that with it.
+
+**The header is already two rows at the launch window.** `tauri.conf.json` opens at 1180×780, and at 1180 the content header is 94px with the disk perfectly quiet — the identity on one row and the control row under it. That is true on `main` too and is not LC-149's doing, but it makes this ticket's band less exotic than it reads: the header is one row at 1440 and at few widths below it, so `screen-specs.md` § Content header's 56px is the exception rather than the rule. Whatever is decided about the reserve should be decided against that, not against the 1440px render.
 <!-- /longclaw:event -->

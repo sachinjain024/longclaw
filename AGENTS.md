@@ -69,7 +69,7 @@ npm --prefix apps/desktop run perf:rust     # performance budgets, ignored by de
 npm --prefix apps/desktop run perf:startup  # startup budgets, needs a built app
 npm run perf:board                          # board interaction budgets in WebKit
 npm run perf:list                           # the same, for the list surface
-npm --prefix apps/desktop run probe:header  # the content header's geometry, mid-write
+npm run probe:header                        # the content header's geometry, mid-write
 npm run matrix                              # theme × appearance visual regression
 npm run a11y:audit                          # accessibility Part A, keyboard-only, in WebKit
 npm run a11y:audit -- --self-test           # the same, expecting every row to go red

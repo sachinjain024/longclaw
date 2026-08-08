@@ -14,7 +14,7 @@
  * packaged app's WKWebView is — starts a real write through the real mutation
  * path, and reads the geometry back.
  *
- * The oracle is `screen-specs.md:44-53`: the content header is **one row** —
+ * The oracle is `screen-specs.md` § Content header: it is **one row** —
  * identity, path, disk state, then every board control — which wraps only as a
  * last resort, and then by moving the control row down *whole*. So what is
  * checked is not "it looks fine" but the four things that sentence means when
@@ -27,9 +27,10 @@
  *   2. nothing in it is clipped;
  *   3. every control is still inside the header — a row that has run out of
  *      width must give some up, not hang past the edge;
- *   4. the fixed controls keep their width — the filter field is the one that
- *      yields, because it is the only control here whose width is a size rather
- *      than a content.
+ *   4. the write resizes nothing, and every pixel the row has given up since the
+ *      widest run is the filter field's — it is the only control here whose
+ *      width is a size rather than a content, so it is the only one that can
+ *      give any up without losing a label.
  *
  * **What it does not assert, and why.** Not "the header's height never changes
  * while a write is in flight", though that is the prototype's behaviour D-65
@@ -215,6 +216,16 @@ async function openPriorityMenu(page) {
 
 /* ---------- the run ---------- */
 
+/**
+ * What each control is wide at the widest width, filled in by the first run.
+ *
+ * The narrow runs are read against it, because "the filter field is the one
+ * that yields" is a claim about what a shortfall costs, and a shortfall only
+ * exists at a width where there is one. Compared within a single run it would
+ * be a check that passes because nothing happened.
+ */
+const natural = new Map();
+
 async function probe(browser, px) {
   width(px);
   const context = await browser.newContext({
@@ -244,6 +255,12 @@ async function probe(browser, px) {
         : "no content header",
     );
     if (!quiet) return;
+    // The widest run comes first, and it is where every control is at the size
+    // the design gives it. Every narrower run is read against these.
+    if (natural.size === 0) {
+      for (const control of quiet.controls)
+        natural.set(control.name, control.box.width);
+    }
 
     // `Urgent` because the fixture writes `none` and `p2`, so the pick is always
     // a change — `changePriority` returns without writing when it is not.
@@ -323,29 +340,53 @@ async function probe(browser, px) {
         `header ends at ${Math.round(seen.header.right)} of ${seen.window}px`,
       );
 
-      // The filter field is the one control here whose width is a size rather
-      // than a content, so it is the one that may yield. A view segment or a
-      // `New ticket` that shrank would be losing a label.
       const widthOf = (controls, name) =>
         controls.find((control) => control.name === name)?.box.width ?? 0;
-      const moved = seen.controls
+
+      // The write resizes nothing. Weak on its own — at most widths there is
+      // nothing to resize — but it is the difference between a row that yields
+      // and a row that jumps under the pointer, so it is asked at every width.
+      const resized = seen.controls
         .map((control, index) => ({ control, before: quiet.controls[index] }))
         .filter(
           ({ control, before }) =>
-            control.name !== "filter-wrap" &&
-            (!before || Math.abs(before.box.width - control.box.width) > 1),
+            !before || Math.abs(before.box.width - control.box.width) > 1,
         );
       check(
-        `the fixed controls keep their width ${state}`,
-        moved.length === 0,
-        moved.length
-          ? moved
+        `no control is resized by the write ${state}`,
+        resized.length === 0,
+        resized.length
+          ? resized
               .map(
                 ({ control, before }) =>
                   `${control.name} ${Math.round(before?.box.width ?? 0)}→${Math.round(control.box.width)}`,
               )
               .join(", ")
-          : `filter ${Math.round(widthOf(quiet.controls, "filter-wrap"))}→${Math.round(widthOf(seen.controls, "filter-wrap"))}px`,
+          : `filter holds at ${Math.round(widthOf(seen.controls, "filter-wrap"))}px`,
+      );
+
+      // And the width the row has given up since 1440 is all the filter's. This
+      // is the check with something to say at 800 and 760, where the row is
+      // genuinely short: a view segment or a `New ticket` narrower than the
+      // design draws it would be losing a label rather than a few characters of
+      // a query.
+      const shrunk = seen.controls.filter(
+        (control) =>
+          control.name !== "filter-wrap" &&
+          natural.has(control.name) &&
+          natural.get(control.name) - control.box.width > 1,
+      );
+      check(
+        `only the filter field has given up width ${state}`,
+        shrunk.length === 0,
+        shrunk.length
+          ? shrunk
+              .map(
+                (control) =>
+                  `${control.name} ${Math.round(natural.get(control.name))}→${Math.round(control.box.width)}`,
+              )
+              .join(", ")
+          : `filter ${Math.round(natural.get("filter-wrap") ?? 0)}→${Math.round(widthOf(seen.controls, "filter-wrap"))}px since ${WIDTHS[0]}px`,
       );
     }
   } finally {

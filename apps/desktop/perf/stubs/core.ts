@@ -55,7 +55,11 @@ let failNextEdit = params.get("fail") === "edit";
  */
 const FAIL_PARSE = params.get("fail") === "parse";
 /**
- * `?slow=N`: every write stays unsettled for N milliseconds before it lands.
+ * `?slow=N`: a ticket write stays unsettled for N milliseconds before it lands.
+ *
+ * `create_ticket` and `edit_ticket` only — the two the mutation store reports
+ * on. Nothing else here writes: `write_preferences` returns without a receipt
+ * and `update_project_name` is refused by this harness on purpose.
  *
  * The disk-state indicator is on screen only while a write is in flight
  * (`WriteFeedback.tsx`), and this stub settles a write in a microtask, so

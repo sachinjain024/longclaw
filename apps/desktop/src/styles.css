@@ -712,34 +712,39 @@ button:disabled {
 /* The spec's spacer: identity left, controls right. */
 .content-header .toolbar-actions {
   margin-left: auto;
-  /* And the cluster moves down whole or not at all (LC-149). The disk-state
-     indicator claims its width from this row the moment a write leaves, and a
-     cluster free to wrap answered that by breaking *inside* — `New ticket`
-     alone on a second row, the header a line taller than the fixed one
-     `screen-specs.md:44` draws, for as long as the write took. `nowrap` makes
-     it indivisible, which turns the shortfall into a question something has to
-     answer by yielding width. The two rules below say who. */
+  /* And the row moves down whole or not at all (LC-149). The disk-state
+     indicator takes width from the header the moment a write leaves, and a row
+     free to wrap answered that by breaking *inside* — `New ticket` alone on a
+     second line, the header a line taller than the fixed one
+     `screen-specs.md` § Content header draws, for as long as the write took. */
   flex-wrap: nowrap;
-  /* And this is what lets it be answered at all. A flex item's automatic
-     minimum is its content's, and this row's content includes a text field,
-     whose own automatic minimum is the `size` attribute's 20 characters — so
-     `auto` here means "as wide as the field the user is not typing in", and the
-     row would sooner hang past the header's right edge than give a pixel back. */
+  /* And this is what an indivisible row costs, paid rather than dodged. Its
+     automatic minimum is its content's, and this row's content includes a text
+     field, whose own automatic minimum is the default `size` of a text input —
+     20 characters, which nothing here writes down because nothing has to. So
+     `auto` means "as wide as the field the user is not typing in", and a row
+     that cannot break and will not shrink hangs past the header's right edge
+     instead: 20px of `New ticket` off the side, measured at 760px. */
   min-width: 0;
 }
 
-/* Not the controls, though. Each of these is a label in a box — an ordering
-   value, two view names, `New ticket` and its `C` — so a shrunk one is a lost
-   word, and the default would have let all four give up a little each rather
-   than one of them giving up nothing. */
+/* Not from the controls, though. Each of these is a label in a box — an
+   ordering value, two view names, `New ticket` and its `C` — so a shrunk one is
+   a lost word, and the default would have let all four give up a little each
+   rather than one of them giving up nothing. */
 .content-header .toolbar-actions > * {
   flex: none;
 }
 
-/* The filter field is what gives it up. It is the one control in this row whose
-   width is a size rather than a content (`screen-specs.md:47`), and a shorter
-   field is still a field, so it is what absorbs the indicator — down to the
-   120px floor `.filter-wrap` states, and no further. */
+/* From the filter field, which is the one control in this row whose width is a
+   size rather than a content (`screen-specs.md` § Content header): a shorter
+   field is still a field. Down to the 120px floor `.filter-wrap` states, and no
+   further.
+
+   Not, strictly, width handed to the indicator. A wrapping row moves down whole
+   rather than shrinking to make room, so what the indicator changes is which
+   line this row gets; this is what makes it fit the line it lands on — 140px of
+   field at 760px, where the row's own width is 50px more than its line. */
 .content-header .toolbar-actions > .filter-wrap {
   flex: 0 1 auto;
 }
@@ -1472,7 +1477,8 @@ button:disabled {
 /* `Order: Priority|Manual` (screen-specs.md:47-48). The word is drawn beside the
    trigger rather than inside it, so the trigger keeps saying only the value —
    which is what every other menu trigger in the app says. */
-/* 28px tall (`screen-specs.md:47`). The one control in the header that is a text
+/* 28px tall (`screen-specs.md` § Content header). The one control in the header
+   that is a text
    field, so it states its own box rather than borrowing a control token — but
    the *width* of that box is the wrapper's below, not this rule's, because the
    wrapper is what the control row can ask to give some of it up (LC-149). */
@@ -1499,7 +1505,8 @@ button:disabled {
 /* The chip sits inside the field's right edge (`prototype.css:328`). It is
    `pointer-events: none` so the whole box still focuses the input — a chip that
    swallowed the click would make the last 34px of the field dead (LC-71).
-   190px wide, which is the field's own number (`screen-specs.md:47`): the chip
+   190px wide, which is the field's own number (`screen-specs.md` § Content
+   header): the chip
    is drawn inside the field, so the two are one box and only one of them can
    state its width. */
 .filter-wrap {
