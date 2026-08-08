@@ -254,17 +254,19 @@ rows, so a table stays as many lines as it was typed and the pipes still mark th
 columns. Prose keeps its own rule: a soft-wrapped paragraph still joins into one
 line, or a paragraph hard-wrapped at 80 columns would break at its wrap points.
 
-Two things that follows from, both accepted:
+Two things that follows from, each carried by its own ticket rather than by this
+paragraph:
 
-- **A multi-line raw HTML block still collapses.** `<details>`, its `<summary>`,
-  and its closing tag arrive as one line of shown text. Recognising it would mean
-  CommonMark's HTML-block start conditions, a parsing surface this subset does
-  not have — and the text is legible as source either way, which is not true of a
-  table, whose whole value was the columns.
-- **An escaped `\|` is indistinguishable from a boundary.** `parseInline` drops
-  the backslash, as it does for every escape, so a pipe the author escaped to
-  keep out of a cell looks like the cell wall it was escaping. There is no table
-  structure here to tell the two apart; a real `TableBlock` is what would.
+- **A multi-line raw HTML block still collapses** (LC-180). `<details>`, its
+  `<summary>`, and its closing tag arrive as one line of shown text. Recognising
+  it would mean CommonMark's HTML-block start conditions, a parsing surface this
+  subset does not have — and the text is legible as source either way, which is
+  not true of a table, whose whole value was the columns.
+- **An escaped `\|` is indistinguishable from a boundary** (LC-181).
+  `parseInline` drops the backslash, as it does for every escape, so a pipe the
+  author escaped to keep out of a cell looks like the cell wall it was escaping.
+  There is no table structure here to tell the two apart; a real `TableBlock` is
+  what would, which is what makes LC-181 the marker for that decision.
 
 The security invariant is untouched and structural: no new node type, and a table
 is still a `paragraph` of inlines, so there is still no branch that could produce
