@@ -3,12 +3,12 @@ format: longclaw.ticket/v1
 id: 6ba18bfc-8cbd-441c-a9f4-87005fb3d081
 key: LC-179
 title: A Markdown table in a description collapses into one run-on line
-status: in_review
+status: done
 priority: p2
 labels:
   - frontend
 created_at: 2026-08-07T16:12:05.944Z
-updated_at: 2026-08-08T04:53:09.560Z
+updated_at: 2026-08-08T08:28:56.122Z
 ---
 
 `markdown.ts` parses no table, and that is a decision rather than an oversight — its header says tables are "neither dropped nor executed. It comes back out as the paragraph text its author typed" (`markdown.ts:23`), and `markdown.test.ts:175` pins the promise with `| a | b |\n| - | - |`. The promise holds in the tree and breaks on screen.
@@ -86,6 +86,22 @@ changes:
   - field: checklist.ck_8969414e.checked
     from: "false"
     to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_02e6724b
+kind: update
+occurred_at: 2026-08-08T08:28:56.122Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_review
+    to: done
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->
