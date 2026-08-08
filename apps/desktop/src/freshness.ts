@@ -10,6 +10,7 @@
 
 import {
   actorGlyph,
+  UNATTRIBUTED_CHANGE,
   UNATTRIBUTED_CHANGE_BRIEF,
   UNKNOWN_ACTOR_LABEL,
 } from "./attribution";
@@ -103,6 +104,20 @@ export function acknowledgement(mark: ExternalMark, now: number): string {
     return `${glyph} changed on disk · ${age} · via file edit`;
   }
   return `${glyph} updated by ${mark.actorLabel} · ${age} · via file edit`;
+}
+
+/**
+ * The same acknowledgement where there is room for a sentence — the panel's
+ * banner, which is as wide as the panel.
+ *
+ * Only the unattributed line differs, because it is the only one the card had to
+ * abbreviate. Shortening it everywhere would have been the card's 264px deciding
+ * what a surface eight times its width is allowed to say (LC-147).
+ */
+export function acknowledgementInFull(mark: ExternalMark, now: number): string {
+  if (mark.actorType !== "unknown") return acknowledgement(mark, now);
+  const age = describeAge(mark.at, now);
+  return `${actorGlyph(mark.actorType)} ${UNATTRIBUTED_CHANGE} · ${age}`;
 }
 
 /** Prose, and the one age that does not fit the row's column. */

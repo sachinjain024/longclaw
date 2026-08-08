@@ -1378,23 +1378,29 @@ button:disabled {
 
 /* The footer never wraps (screen-specs.md § Board), which is also what keeps a
    fresh card to one known height for the column to place cards by. */
+/* No colour here: the footer only ever appears on a fresh card, and the accent
+   is the attribution's to give. Agent green as the base was the old default that
+   anything not a person fell through to. */
 .actor {
   overflow: hidden;
   margin-top: 7px;
   border-top: 1px solid var(--lc-line-soft);
   padding-top: 6px;
-  color: var(--lc-accent-agent-text);
   font-size: 10.5px;
   line-height: 14px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.ticket-row.human-fresh .actor {
+.agent-fresh .actor {
+  color: var(--lc-accent-agent-text);
+}
+
+.human-fresh .actor {
   color: var(--lc-accent-human-text);
 }
 
-.ticket-row.unknown-fresh .actor {
+.unknown-fresh .actor {
   color: var(--lc-warn);
 }
 
@@ -1422,8 +1428,8 @@ button:disabled {
 }
 
 .ticket-row.fresh.human-fresh {
-  border-color: var(--lc-accent-human-fresh-border);
-  box-shadow: 0 0 0 3px var(--lc-accent-human-fresh-ring);
+  border-color: var(--lc-accent-human-border);
+  box-shadow: 0 0 0 3px var(--lc-accent-human-soft);
 }
 
 .ticket-row.fresh.unknown-fresh {
@@ -1477,9 +1483,9 @@ button:disabled {
   outline-offset: calc(-1 * var(--lc-border-focus));
 }
 
-/* Spacing is the key row's, not the dot's: the dot leads the ID on a card and
-   trails the title on a list row (`states.md:149,155`), so a margin of its own
-   would have to be unset on one of them. */
+/* Spacing is the key row's, not the dot's: the dot leads the ID on a card
+   (`states.md:151`) and trails the title on a list row (`states.md:157`), so a
+   margin of its own would have to be unset on one of them. */
 .pulse-dot {
   display: inline-block;
   width: 8px;
@@ -2275,9 +2281,18 @@ button:disabled {
   font-weight: 500;
 }
 
-/* The fraction joins the acknowledgement while any row is agent-fresh. */
-.section-count.fresh {
+/* The fraction joins the acknowledgement while any row is fresh, wearing the
+   attribution the acknowledgement above it wears. */
+.section-count.fresh.agent-fresh {
   color: var(--lc-accent-agent-text);
+}
+
+.section-count.fresh.human-fresh {
+  color: var(--lc-accent-human-text);
+}
+
+.section-count.fresh.unknown-fresh {
+  color: var(--lc-warn);
 }
 
 /* 56px here against the card's 44px (`screen-specs.md:206`): the panel has the
@@ -2286,8 +2301,16 @@ button:disabled {
   width: 56px;
 }
 
-.panel-progress.fresh i {
+.panel-progress.fresh.agent-fresh i {
   background: var(--lc-accent-agent);
+}
+
+.panel-progress.fresh.human-fresh i {
+  background: var(--lc-accent-human);
+}
+
+.panel-progress.fresh.unknown-fresh i {
+  background: var(--lc-warn);
 }
 
 .description-view {
@@ -2643,13 +2666,32 @@ button:disabled {
   accent-color: var(--lc-ink-3);
 }
 
-/* A row an external write just ticked, until the ticket settles. */
-.checklist-row.fresh {
+/* A row an external write just ticked, until the ticket settles — in the colour
+   of whoever the file said ticked it, the same decision the card makes and from
+   the same `freshAccentClass`. A row an unclaimed write ticked used to fill
+   agent green directly under this panel's warn banner (LC-148). */
+.checklist-row.fresh.agent-fresh {
   background: var(--lc-accent-agent-wash);
 }
 
-.checklist-row.fresh input {
+.checklist-row.fresh.agent-fresh input {
   accent-color: var(--lc-accent-agent);
+}
+
+.checklist-row.fresh.human-fresh {
+  background: var(--lc-accent-human-wash);
+}
+
+.checklist-row.fresh.human-fresh input {
+  accent-color: var(--lc-accent-human);
+}
+
+.checklist-row.fresh.unknown-fresh {
+  background: var(--lc-warn-surface);
+}
+
+.checklist-row.fresh.unknown-fresh input {
+  accent-color: var(--lc-warn);
 }
 
 /* Fresh outranks checked (`components.md:193`): a row an agent ticked while the
@@ -2660,11 +2702,24 @@ button:disabled {
   text-decoration: none;
 }
 
-.agent-note {
+/* Named for the state, not for the agent: the same note says a person or an
+   unclaimed write ticked the row, and it carries that actor's glyph. */
+.fresh-note {
   margin-left: auto;
-  color: var(--lc-accent-agent-text);
   font: 500 var(--lc-type-kbd-size) var(--lc-type-code-font);
   font-style: normal;
+}
+
+.fresh-note.agent-fresh {
+  color: var(--lc-accent-agent-text);
+}
+
+.fresh-note.human-fresh {
+  color: var(--lc-accent-human-text);
+}
+
+.fresh-note.unknown-fresh {
+  color: var(--lc-warn);
 }
 
 /* The add-row is the next checklist row, not a form under the list (LC-106):

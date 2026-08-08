@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   FRESH_WINDOW_MS,
   acknowledgement,
+  acknowledgementInFull,
   describeAge,
   describeAgeInSlot,
   externalMark,
@@ -47,6 +48,22 @@ describe("acknowledging an external change", () => {
     // age with it; the timeline still says the whole thing.
     expect(acknowledgement(unattributed, AT + 12_000)).toBe(
       "⚠ file changed · 12s",
+    );
+  });
+
+  // The card is 264px and the panel banner is the width of the panel, so the
+  // short form is the card's constraint rather than a decision about what the
+  // app knows (LC-147).
+  it("says the whole sentence where there is room for it", () => {
+    const unattributed = externalMark(undefined, AT);
+    const agent = externalMark(attributed("agent", "Claude Code"), AT);
+
+    expect(acknowledgementInFull(unattributed, AT + 12_000)).toBe(
+      "⚠ file changed on disk — actor unknown · 12s",
+    );
+    // Every other line already fitted, so there is nothing to restore.
+    expect(acknowledgementInFull(agent, AT + 12_000)).toBe(
+      acknowledgement(agent, AT + 12_000),
     );
   });
 

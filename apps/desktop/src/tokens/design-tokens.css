@@ -466,26 +466,6 @@
     var(--lc-accent-agent) var(--lc-mix-border),
     var(--lc-line)
   );
-  --lc-accent-agent-pulse: color-mix(
-    in oklab,
-    var(--lc-accent-agent) var(--lc-mix-pulse),
-    transparent
-  );
-  --lc-accent-human-fresh-ring: color-mix(
-    in oklab,
-    var(--lc-accent-human) var(--lc-mix-fresh-ring),
-    transparent
-  );
-  --lc-accent-human-fresh-border: color-mix(
-    in oklab,
-    var(--lc-accent-human) var(--lc-mix-border),
-    var(--lc-line)
-  );
-  --lc-accent-human-pulse: color-mix(
-    in oklab,
-    var(--lc-accent-human) var(--lc-mix-pulse),
-    transparent
-  );
   --lc-warn-fresh-ring: color-mix(
     in oklab,
     var(--lc-warn) var(--lc-mix-fresh-ring),
@@ -495,6 +475,16 @@
     in oklab,
     var(--lc-warn) var(--lc-mix-border),
     var(--lc-line)
+  );
+  --lc-accent-agent-pulse: color-mix(
+    in oklab,
+    var(--lc-accent-agent) var(--lc-mix-pulse),
+    transparent
+  );
+  --lc-accent-human-pulse: color-mix(
+    in oklab,
+    var(--lc-accent-human) var(--lc-mix-pulse),
+    transparent
   );
   --lc-warn-pulse: color-mix(
     in oklab,

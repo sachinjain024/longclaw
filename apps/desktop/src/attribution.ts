@@ -32,15 +32,18 @@ export const UNATTRIBUTED_CHANGE = `file changed on disk — ${UNKNOWN_ACTOR_LAB
 export const UNATTRIBUTED_CHANGE_BRIEF = "file changed";
 
 /**
- * The accent a change wears, decided once from the attribution the file carried.
+ * The one name for the treatment a change wears, keyed on the attribution the
+ * file carried: `agent-fresh`, `human-fresh`, `unknown-fresh`.
  *
- * Green is the agent's alone. It used to reach anything that was not a person,
- * so an unclaimed change wore the full agent treatment *and* the warn triangle
- * its glyph gives it — one row speaking two vocabularies about the same event
- * (LC-148). Every surface that shows freshness asks this rather than testing
- * `actorType` itself, which is what keeps the card and the list row agreeing.
+ * The mapping is trivial and the point is that there is only one of it. Green is
+ * the agent's alone, and the rule used to be spelled out per surface — as
+ * `actorType === "human"` on the card and again on the list row, with anything
+ * that was not a person falling through to the agent's green. So an unclaimed
+ * change wore the full agent treatment *and* the warn triangle its own glyph
+ * gives it (LC-148). Every surface that shows freshness names it through here,
+ * which is what stops two of them answering differently.
  */
-export function freshAccentClass(actorType: ActorType): string {
+export function freshAccentClass(actorType: ActorType): `${ActorType}-fresh` {
   return `${actorType}-fresh`;
 }
 

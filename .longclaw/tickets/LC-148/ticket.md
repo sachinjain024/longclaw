@@ -74,3 +74,19 @@ Two things the card was not the only one getting wrong. The list row wore `human
 
 Colour is the point here and jsdom cannot see it, so `npm run matrix` now renders a second fresh card carrying no attribution at all and probes it: the footer must resolve to `--lc-warn`, and it must be ΔE ≥ 10 from the agent's. Both go red on exactly this defect in all 8 theme × appearance axes — verified by reverting the colour and watching them fail.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_837d034e
+kind: comment
+occurred_at: 2026-08-08T15:15:33.357Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Review found this only half done. The board card and the list row picked per attribution, but the ticket panel did not: its checklist rows, the fraction, the meter and the trailing `❯ just now` note all hang off `agentChecked`, which is `freshlyChecked(before, after)` — a before/after diff of the checklist that never sees an actor. So an unclaimed write filled all four in agent green *directly under* the panel's own warn banner, which is D-62's sentence verbatim on a second surface.
+
+They read `props.mark` now, the same mark the banner reads, so the panel cannot disagree with itself. Gating on the mark also gives the rows the banner's lifetime — they used to outlive it and sit there green with nothing on screen saying who. Three panel tests raised `reloadSignal` with no mark, which is a thing the app never does (the store writes both on one event); they pass one now, and a new test pins the unattributed case across all four surfaces plus the banner.
+<!-- /longclaw:event -->

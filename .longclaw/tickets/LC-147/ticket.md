@@ -70,3 +70,17 @@ actor:
 
 The card's unattributed line is now `⚠ file changed · 12s` — every acknowledgement carries its age, including this one, which was the only line on the board that could not say how stale it was. The full sentence is unchanged where there is room for it: `UNATTRIBUTED_CHANGE` still reads `file changed on disk — actor unknown` and the panel timeline still says it (Timeline.test.tsx:244). The two forms sit together in attribution.ts as `UNATTRIBUTED_CHANGE` and `UNATTRIBUTED_CHANGE_BRIEF` so it stays one claim at two lengths.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_f7e51d25
+kind: comment
+occurred_at: 2026-08-08T15:15:33.381Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Review flagged that the panel's acknowledgement banner had taken the card's abbreviation with it — the ticket scopes the shortening to the card and says the panel can carry the full sentence. `acknowledgementInFull` is the banner's form: the same line for every other actor, and `⚠ file changed on disk — actor unknown · 12s` for this one. The card's 264px no longer decides what a surface eight times its width may say.
+<!-- /longclaw:event -->

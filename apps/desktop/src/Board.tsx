@@ -729,7 +729,8 @@ const BoardCard = memo(function BoardCard(props: {
       onFocus={() => props.onFocusCard(ticket.key)}
     >
       <span className="card-top">
-        {/* The dot leads the key (`states.md:149`). It is the mark that says
+        {/* The dot leads the key (`states.md:151` puts it beside the ID; D-60
+            put it first). It is the mark that says
             *look at this row*, and a reader who has already read the ID has
             spent the glance it was meant to catch. */}
         <span className="ticket-key">

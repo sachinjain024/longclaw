@@ -216,15 +216,21 @@ for (const actor of ["human", "agent"]) {
     ),
   );
 }
-/* ---------- the freshness treatment, one set per attribution ----------
- * A row that changed on disk wears the colour of whoever the file said changed
- * it, and each set is generated from one shape so they can only differ in hue.
+/* ---------- the freshness treatment, per attribution ----------
+ * A card that changed on disk wears the colour of whoever the file said changed
+ * it. `states.md:148-149` scopes the treatment to "an external change to a
+ * ticket (agent **or unknown** actor)" and `:172-173` is what gives an
+ * unattributed one the warn vocabulary; the agent's `-fresh-` names are the
+ * design system's (`components.md:202`, `states.md:150-151`) and are kept
+ * exactly.
  *
- * The ring and the border were the agent's alone, hand-written once, and the
- * pulse halo still is below: a person's file edit therefore flashed *green* for
- * two beats under a violet dot. The `-fresh-` names are the design system's
- * (`components.md:202`, `states.md:150-151`) and are kept exactly. */
-const freshSet = (name, hue) => {
+ * The ring and the border are the card's, so only the two attributions that draw
+ * one get a pair. The pulse is every surface's — and it is the one part that had
+ * to be generated rather than written once, because the halo is a hue inside a
+ * `@keyframes` and only a second keyframe can change it. Hand-written, it beat
+ * agent-green under every actor, so a person's file edit flashed green under a
+ * violet dot. */
+const freshRing = (name, hue) => {
   derived.push(
     line(
       `${name}-fresh-ring`,
@@ -237,21 +243,25 @@ const freshSet = (name, hue) => {
       `color-mix(in oklab, ${hue} var(${P}mix-border), var(${P}line))`,
     ),
   );
+};
+freshRing("accent-agent", `var(${P}accent-agent)`);
+/* `warn` rather than an accent, and that is the point: nothing claimed this
+   write, so it is attributed to nobody (LC-148). A person's card keeps the
+   `accent-human-border` / `accent-human-soft` pair it already wore — no finding
+   asked for it to change. */
+freshRing("warn", `var(${P}warn)`);
+for (const [name, hue] of [
+  ["accent-agent", `var(${P}accent-agent)`],
+  ["accent-human", `var(${P}accent-human)`],
+  ["warn", `var(${P}warn)`],
+]) {
   derived.push(
     line(
       `${name}-pulse`,
       `color-mix(in oklab, ${hue} var(${P}mix-pulse), transparent)`,
     ),
   );
-};
-for (const actor of ["agent", "human"]) {
-  freshSet(`accent-${actor}`, `var(${P}accent-${actor})`);
 }
-/* An unclaimed change is the one that gets no accent at all: `warn` is a feedback
-   colour, and saying so is the whole point — green is the agent's, and a row that
-   wore it under a warn triangle was speaking both vocabularies at once about the
-   same event (`states.md:150-152`, LC-148). */
-freshSet("warn", `var(${P}warn)`);
 derived.push(line("status-done", `var(${P}accent-human)`));
 /* Aliases ride here rather than in the appearance blocks: they are one `var()`
    apiece, so they resolve against whichever appearance is active without being

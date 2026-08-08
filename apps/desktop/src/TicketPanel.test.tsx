@@ -17,6 +17,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ExternalMark } from "./freshness";
 import { resetMutations } from "./mutations";
 import { TicketPanel } from "./TicketPanel";
 import { ToastStack } from "./WriteFeedback";
@@ -40,6 +41,21 @@ const editTicketMock = vi.mocked(editTicket);
 const openTicketFileMock = vi.mocked(openTicketFile);
 
 const NOW = Date.parse("2026-07-30T12:00:00Z");
+
+/**
+ * What the store hands the panel when the watcher reports a change — the other
+ * half of a reload signal. The acknowledgement is per-attribution now, so a
+ * checklist tick has to arrive with an actor to be dressed as anybody's.
+ */
+function externalTick(
+  actorType: ExternalMark["actorType"] = "agent",
+): ExternalMark {
+  return {
+    actorType,
+    actorLabel: actorType === "agent" ? "Claude Code" : "actor unknown",
+    at: NOW,
+  };
+}
 
 function agentEvent(): ActivityEvent {
   return {
@@ -184,6 +200,13 @@ function panel(props?: {
   /** What a degraded row tells the panel before its own read comes back. */
   degradedPath?: string;
   shortcutsActive?: boolean;
+  /**
+   * The unreviewed external change, as `App.tsx:1586` hands it over. A reload
+   * signal is only half of what the watcher produces — the store writes the mark
+   * on the same event — and the acknowledgement is the half that says *who*, so
+   * a test raising the signal alone is describing something the app never does.
+   */
+  mark?: ExternalMark;
   onArchive?: (archived: boolean) => void;
   onWrite?: (result: WriteResult) => void;
   onReparsed?: () => void;
@@ -194,6 +217,7 @@ function panel(props?: {
       ticketKey={props?.ticketKey ?? "LC-1"}
       projectPath={PROJECT_PATH}
       labels={DEFINITIONS}
+      mark={props?.mark}
       reloadSignal={props?.reloadSignal ?? 0}
       removedSignal={props?.removedSignal ?? 0}
       now={NOW}
@@ -213,6 +237,7 @@ function panel(props?: {
 function surface(props?: {
   reloadSignal?: number;
   removedSignal?: number;
+  mark?: ExternalMark;
   onWrite?: (result: WriteResult) => void;
   onReparsed?: () => void;
 }) {
@@ -315,16 +340,63 @@ describe("who a checklist tick belongs to", () => {
     await screen.findByLabelText("Let an agent read this ticket");
 
     // The watcher reported a change to this ticket.
-    view.rerender(panel({ reloadSignal: 7 }));
+    view.rerender(panel({ reloadSignal: 7, mark: externalTick() }));
 
     await waitFor(() =>
       expect(checklistRow("Let an agent read this ticket").className).toContain(
         "fresh",
       ),
     );
+    expect(checklistRow("Let an agent read this ticket").className).toContain(
+      "agent-fresh",
+    );
     expect(screen.getByText("❯ just now")).toBeTruthy();
     // Nothing was written to reach that state.
     expect(editTicketMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * D-62's second half. The panel raises a warn banner for a change nothing
+   * claimed, and then dressed the rows that change ticked — and the fraction and
+   * the meter beside them — in agent green underneath it, because the rows come
+   * from a before/after diff of the checklist that never sees an actor. One
+   * surface, both vocabularies, which is the finding verbatim (LC-148).
+   */
+  it("never lends the agent's green to a tick nothing claimed", async () => {
+    const ticked = [
+      { id: "ck_1", text: "Let an agent read this ticket", checked: true },
+      { id: "ck_2", text: "Review what it changed", checked: false },
+    ];
+    readTicketMock
+      .mockResolvedValueOnce(detail())
+      .mockResolvedValueOnce(
+        detail({ contentHash: "hash-2", checklist: ticked }),
+      );
+    const view = render(panel());
+    await screen.findByLabelText("Let an agent read this ticket");
+
+    view.rerender(panel({ reloadSignal: 7, mark: externalTick("unknown") }));
+
+    const row = () => checklistRow("Let an agent read this ticket");
+    await waitFor(() => expect(row().className).toContain("fresh"));
+    expect(row().className).toContain("unknown-fresh");
+    expect(row().className).not.toContain("agent-fresh");
+    // The trailing note carries the actor's own glyph, not the agent's chevron.
+    expect(screen.getByText("⚠ just now")).toBeTruthy();
+    expect(screen.queryByText("❯ just now")).toBeNull();
+
+    // And the two surfaces the tick also colours, which read the same mark.
+    const count = document.querySelector(".section-count.fresh");
+    expect(count?.className).toContain("unknown-fresh");
+    expect(
+      document.querySelector(".panel-progress.fresh")?.className,
+    ).toContain("unknown-fresh");
+
+    // The banner above them says it in full: this surface has room for the
+    // sentence the card had to abbreviate (LC-147).
+    expect(document.querySelector(".panel-acknowledgement")?.textContent).toBe(
+      "⚠ file changed on disk — actor unknown · just now",
+    );
   });
 });
 
@@ -381,9 +453,11 @@ describe("the checklist meter in the panel", () => {
     // The fraction beside it says the same thing in words.
     expect(bar()?.getAttribute("aria-hidden")).toBe("true");
 
-    view.rerender(panel({ reloadSignal: 7 }));
+    view.rerender(panel({ reloadSignal: 7, mark: externalTick() }));
 
     await waitFor(() => expect(bar()?.className).toContain("fresh"));
+    // The accent is the attribution's, not a default (LC-148).
+    expect(bar()?.className).toContain("agent-fresh");
   });
 
   it("draws no meter for a ticket with no checklist", async () => {
@@ -2143,7 +2217,7 @@ describe("the panel's fields read as the record, not as a form", () => {
     );
 
     // The watcher reported a change to this ticket.
-    view.rerender(panel({ reloadSignal: 4 }));
+    view.rerender(panel({ reloadSignal: 4, mark: externalTick() }));
 
     await waitFor(() =>
       expect(checklistRow("Review what it changed").className).toContain(
