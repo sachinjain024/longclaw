@@ -216,7 +216,26 @@ describe("what happens to everything else", () => {
     expect(
       paragraph.children.filter((node) => node.type === "break"),
     ).toHaveLength(rows.length - 1);
-    expect(shownText(paragraph).split("\n")).toEqual(rows);
+    // The failure this replaces: every row present, every `\n` still inside a
+    // text node, and one line on screen.
+    expect(
+      paragraph.children.filter(
+        (node) => node.type === "text" && node.value.includes("\n"),
+      ),
+    ).toEqual([]);
+  });
+
+  it("takes the table out of the line that led into it", () => {
+    // Nobody leaves a blank line before a table they just announced, and cmark
+    // reads the delimiter row the same way: the row above it is the header, and
+    // the sentence above that is still a sentence.
+    const blocks = parseMarkdown(
+      "Here is the recording:\n| a | b |\n| - | - |\n| 1 | 2 |",
+    );
+    expect(blocks.map(shownText)).toEqual([
+      "Here is the recording:",
+      "| a | b |\n| - | - |\n| 1 | 2 |",
+    ]);
   });
 
   it("ends the table where the author stopped writing rows", () => {

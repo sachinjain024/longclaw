@@ -263,14 +263,23 @@ function readQuote(lines: string[], start: number, blocks: Block[]): number {
   return index;
 }
 
+/**
+ * The first line is a paragraph line by the time this is called, so it is taken
+ * unconditionally — and a table below it ends the run, because nobody puts a
+ * blank line between a sentence and the table it announces.
+ */
 function readParagraph(
   lines: string[],
   start: number,
   blocks: Block[],
 ): number {
-  const body: string[] = [];
-  let index = start;
-  while (index < lines.length && !interrupts(lines[index])) {
+  const body = [lines[start]];
+  let index = start + 1;
+  while (
+    index < lines.length &&
+    !interruptsParagraph(lines[index]) &&
+    !startsTable(lines, index)
+  ) {
     body.push(lines[index]);
     index += 1;
   }
@@ -279,7 +288,7 @@ function readParagraph(
 }
 
 /** Where a run of prose ends, and a table's run of rows with it. */
-function interrupts(line: string): boolean {
+function interruptsParagraph(line: string): boolean {
   const numbered = ORDERED.exec(line);
   return (
     line.trim() === "" ||
@@ -293,14 +302,17 @@ function interrupts(line: string): boolean {
   );
 }
 
+/** The only mark a row must carry, wherever a row is being recognised. */
+function isRow(line: string): boolean {
+  return line.includes("|");
+}
+
 /** A header row and the delimiter row under it, which is GFM's own test. */
 function startsTable(lines: string[], index: number): boolean {
   const delimiter = lines[index + 1];
   if (delimiter === undefined) return false;
   return (
-    lines[index].includes("|") &&
-    delimiter.includes("|") &&
-    TABLE_DELIMITER.test(delimiter)
+    isRow(lines[index]) && isRow(delimiter) && TABLE_DELIMITER.test(delimiter)
   );
 }
 
@@ -309,9 +321,10 @@ function startsTable(lines: string[], index: number): boolean {
  *
  * There is no `TableBlock` in the union and no `<table>` on screen: the cells go
  * through `parseInline` like any other text, so a code span in one is still a
- * code span, and the pipes stay visible as the column boundaries the author
- * drew. What this adds over a plain paragraph is a `break` between rows, which
- * is the difference between a table a reader can scan down and one run-on line.
+ * code span, and the pipes stay visible as the boundaries the author drew — an
+ * escaped `\|` among them, since nothing here knows a cell from its wall. What
+ * this adds over a plain paragraph is a `break` between rows, which is the
+ * difference between a table a reader can scan down and one run-on line.
  *
  * The delimiter row is shown too. Hiding it would be rendering half a table, and
  * a reader who sees the dashes can tell the app kept the text rather than
@@ -319,14 +332,14 @@ function startsTable(lines: string[], index: number): boolean {
  */
 function readTable(lines: string[], start: number, blocks: Block[]): number {
   // The delimiter row is taken on `startsTable`'s word: a table written without
-  // leading pipes has a `- | -` under it, which `interrupts` would read as a
-  // bullet.
+  // leading pipes has a `- | -` under it, which `interruptsParagraph` would
+  // read as a bullet.
   const rows = [lines[start], lines[start + 1]];
   let index = start + 2;
   while (
     index < lines.length &&
-    !interrupts(lines[index]) &&
-    lines[index].includes("|")
+    !interruptsParagraph(lines[index]) &&
+    isRow(lines[index])
   ) {
     rows.push(lines[index]);
     index += 1;

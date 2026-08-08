@@ -96,6 +96,15 @@ describe("the lines a reader gets", () => {
     expect(shown(TABLE)).toEqual(AS_SHOWN);
   });
 
+  it("keeps the rows apart under the line that led into the table", () => {
+    // The shape an author actually writes: a sentence, then the table, with no
+    // blank line between them.
+    expect(shown(`Here is the recording:\n${TABLE}`)).toEqual([
+      "Here is the recording:",
+      ...AS_SHOWN,
+    ]);
+  });
+
   it("keeps a table's rows apart inside a comment body's quote", () => {
     const quoted = ROWS.map((row) => `> ${row}`).join("\n");
     expect(shown(quoted)).toEqual(AS_SHOWN);
