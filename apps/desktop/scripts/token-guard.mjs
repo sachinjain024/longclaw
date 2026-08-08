@@ -9,8 +9,9 @@
  * at all**. The design system had a control radius of 5px and the app had one
  * of 7px, and nothing said so.
  *
- * Three families are checked, and only three, because they are the ones where
- * token coverage is complete and a literal is therefore always a defect:
+ * Three families of literal are checked, and only three, because they are the
+ * ones where token coverage is complete and a literal is therefore always a
+ * defect:
  *
  *   radius  — the scale is 3·4·5·8·10·14·999 (`--lc-radius-*`). `50%` and `0`
  *             are geometry rather than scale values and are allowed: a circle
@@ -38,6 +39,21 @@
  * a 190×28 filter field, a 58px key column, a 44px progress meter, 10.5px mono
  * meta, a 9.5px badge — so a guard there would fire on the spec being followed
  * rather than broken. Plan 36's audit table carries those instead.
+ *
+ * A fourth check is not about a value at all. `--lc-` is the token namespace,
+ * and `src/tokens/` — which `sourceFiles()` already exempts — is the only place
+ * entitled to declare into it, so a definition anywhere else is always a defect.
+ * That is a documented standard rather than a house preference:
+ * `docs/design/foundations/components.md:3` says everything below it *consumes*
+ * `--lc-*` tokens from the generated stylesheet, and `guard.mjs` says
+ * `src/tokens/` is the one place a literal is allowed anywhere, because it is
+ * where the scale is declared. Neither had anything enforcing it.
+ * That is the gap the one-off exemption above leaves open: LC-165 first cut a
+ * private `--lc-size-board-column-head: 39px` on `.board-column`, which read at
+ * its call site exactly like a token while being in no scale, no JSON and no
+ * theme. The height was right; the name was the defect, and it is the kind this
+ * guard can see. A one-off `39px` in a `max-height` is a value a reader knows to
+ * check — the same 39 behind `--lc-` claims to have been through the system.
  *
  * Usage: node scripts/token-guard.mjs   (exits non-zero on any finding)
  */
@@ -73,6 +89,20 @@ const Z_INDEX = {
 };
 
 /**
+ * A token defined outside the one directory allowed to define one.
+ *
+ * The capture is the property rather than the value, because the value is not
+ * what is wrong. Reading it does not need `var(…)` excluded: a reference closes
+ * its parenthesis or takes a comma, so only a declaration is followed by a
+ * colon.
+ */
+const TOKEN_DEFINITION = {
+  label: "token defined outside src/tokens/",
+  pattern: /(--lc-[a-z0-9-]+)\s*:/g,
+  offending: (property) => [property],
+};
+
+/**
  * The byte ranges of `@media (prefers-reduced-motion: reduce)` blocks.
  *
  * That block is the one place a literal duration is right: `0.01ms` is how the
@@ -82,6 +112,24 @@ const Z_INDEX = {
  * `transition: opacity 0.01ms` sails through, so the exemption is a place
  * rather than a value.
  */
+/**
+ * The same text with every block comment blanked, character for character.
+ *
+ * These rules read raw text rather than parsed rules, and this stylesheet's
+ * comments quote declarations constantly — saying why a value is what it is is
+ * most of what they are for. Unblanked, a comment explaining a rejected
+ * `--lc-size-board-column-head: 39px` reads to the scan exactly like the rule
+ * itself, and the guard fails the build over its own rationale.
+ *
+ * Blanked rather than deleted because a finding's line number is counted from
+ * the byte offset of its match, so every byte has to stay where it was.
+ */
+function withoutComments(text) {
+  return text.replace(/\/\*[\s\S]*?\*\//g, (comment) =>
+    comment.replace(/[^\n]/g, " "),
+  );
+}
+
 function reducedMotionRanges(text) {
   const ranges = [];
   const opener = /@media[^{]*prefers-reduced-motion[^{]*\{/g;
@@ -102,10 +150,15 @@ const files = sourceFiles();
 const findings = [];
 for (const file of files) {
   const { path, text, lines } = readSource(file);
-  const exemptRanges = reducedMotionRanges(text);
-  for (const rule of [RADIUS, MOTION, Z_INDEX]) {
-    for (const hit of text.matchAll(rule.pattern)) {
+  const scan = withoutComments(text);
+  const exemptRanges = reducedMotionRanges(scan);
+  for (const rule of [RADIUS, MOTION, Z_INDEX, TOKEN_DEFINITION]) {
+    for (const hit of scan.matchAll(rule.pattern)) {
+      // Only durations. The block exempts the `0.01ms` idiom, which is a
+      // duration and nothing else, so letting it cover the other rules would
+      // hand anything written inside it a pass it was never argued for.
       if (
+        rule === MOTION &&
         exemptRanges.some(([from, to]) => hit.index >= from && hit.index < to)
       )
         continue;
@@ -124,6 +177,7 @@ report({
   findings,
   checked: files.length,
   remedy:
-    "literal value(s) outside src/tokens/ — use a --lc-radius-*, --lc-motion-* or --lc-z-* token:",
-  clean: "every radius, duration and layer is a token",
+    "off-system value(s) outside src/tokens/ — spend a --lc-radius-*, --lc-motion-* or --lc-z-* token, and declare new ones in src/tokens/:",
+  clean:
+    "every radius, duration and layer is a token, and no file defines one of its own",
 });

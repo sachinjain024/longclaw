@@ -22,7 +22,7 @@ updated_at: 2026-08-07T17:03:30.231Z
 
 ## Checklist
 
-- [x] Hide the fraction until there is a first item. <!-- longclaw:item=ck_4060a40f -->
+- [x] Draw no fraction in create mode at any length, per the prototype cell. <!-- longclaw:item=ck_4060a40f -->
 
 ## Activity
 
@@ -69,4 +69,18 @@ actor:
 ### Claude Code commented
 
 Shipped the prototype cell rather than this ticket's checklist wording: the counter is gone from create mode at every length, not just at zero. `createPanelHTML` (`prototype.js:889`) draws none at all, and D-49 already settled that the prototype cell wins where the two disagree. It is also the stronger design — every draft item is open by construction, so the numerator can never move.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_5482650b
+kind: comment
+occurred_at: 2026-08-08T08:39:27.431Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Amended this item's wording to the behaviour that shipped. It read "Hide the fraction until there is a first item" and stayed ticked against code that draws no counter at any length, so the record contradicted CreatePanel.tsx and the D-4D row that settled it. The decision is unchanged and the marker is the same; only the sentence describing it was wrong.
 <!-- /longclaw:event -->

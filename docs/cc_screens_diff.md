@@ -302,9 +302,9 @@ Width (620px) and vertical offset (12vh) both match.
 
 | ID | Sev | Prototype | App | Plan |
 |---|---|---|---|---|
-| ~~D-47~~ | P2 | Title input is borderless, 15px | A bordered ~13px input with placeholder `Ticket title` | **Fixed 2026-08-07 (LC-113).** `.quick-create-title` is borderless, unpadded, backgroundless, and 15px; `quick-create-guard.mjs` now keeps that CSS contract in the gate. |
+| ~~D-47~~ | P2 | Title input is borderless, 15px | A bordered ~13px input with placeholder `Ticket title` | **Fixed 2026-08-07 (LC-113).** `.quick-create-title` is borderless, unpadded, backgroundless, and 15px; `create-surface-guard.mjs` now keeps that CSS contract in the gate. |
 | ~~D-48~~ | P2 | Context line carries the project's theme dot before the name | `longclaw · LC-137`, no dot | **Fixed 2026-08-07 (LC-114).** The sidebar's `ThemeDot` leads the context line at the prototype's 6px gap. The prototype paints its dot `--lc-accent-human` flat, which it can: it has one project. This app has many, so the dot carries `data-theme` *and* `data-appearance` — one alone matches no token block and silently draws the accent in force, which looks like working until two projects differ. `.quick-create-context` is a flex row, because a 6px circle on the label type's baseline rides high of the letters beside it. |
-| ~~D-49~~ | P3 | Status trigger is a bare `○ Todo >` with a chevron | A bordered pill `○ Todo`, no chevron | **Fixed 2026-08-07 (LC-115).** The prototype cell wins over the misleading original plan wording: quick create uses the shared `MenuButton` semantics and D-3B chevron, but removes the local trigger border, padding, and background. `quick-create-guard.mjs` pins the bare quick-create treatment. |
+| ~~D-49~~ | P3 | Status trigger is a bare `○ Todo >` with a chevron | A bordered pill `○ Todo`, no chevron | **Fixed 2026-08-07 (LC-115).** The prototype cell wins over the misleading original plan wording: quick create uses the shared `MenuButton` semantics and D-3B chevron, but removes the local trigger border, padding, and background. `create-surface-guard.mjs` pins the bare quick-create treatment. |
 
 ---
 

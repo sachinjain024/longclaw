@@ -982,9 +982,38 @@ button:disabled {
   overflow-x: auto;
 }
 
+/* The height bound sits here, on the whole column, rather than on the stack
+   inside it (LC-165). A column is its head plus its stack, and only the browser
+   knows how tall the head came out: bounding the column lets it measure that and
+   leaves the stack the remainder.
+
+   The alternative was tried first and worked — bound the stack, subtract a
+   `--lc-size-board-column-head: 39px`, which is what the head does measure. It
+   came out for what it would have cost later: 39 is the head's 16px of padding
+   plus whichever of its children is tallest, so a heading one type step larger
+   or a taller `.column-add` silently makes it wrong, in the same way a reserve
+   sized to a two-row header stayed behind when the header became one row. This
+   has no number to go stale.
+
+   --lc-size-board-stack is the viewport less the product chrome above and below
+   the board/list region, and nothing region-specific: 28 + 28 for `.main-panel`'s
+   insets, 58 for the one-row `.content-header` (16 + a 30px control row + 12),
+   and 8 + 20 for `.board-grid`'s own padding — 142 in all, which is why the list
+   spends the same token unmodified. It replaced a 360 sized to the two-row
+   `project-toolbar` + `board-heading` LC-67 collapsed, plus the dev-only
+   `.trace-strip`. The strip is still there under `npm run dev`, so the trade now
+   runs the other way: the release build is exact and a dev board hangs ~54px
+   past the window. That is the right way round — the product is not sized to its
+   harness.
+
+   Under a short board the cap never binds and nothing moves; over a tall one the
+   stack scrolls inside it instead of stretching the page. */
 .board-column {
+  display: flex;
   width: 264px;
+  max-height: var(--lc-size-board-stack);
   flex: none;
+  flex-direction: column;
 }
 
 /* Dot, then name, then the count beside it (screen-specs.md:103); the far edge
@@ -992,9 +1021,13 @@ button:disabled {
 
    The heading and the `+` are siblings inside the head rather than the button
    sitting in the `<h3>`: a heading's accessible name is its text, so a button
-   inside it would rename the column for anyone moving by heading. */
+   inside it would rename the column for anyone moving by heading.
+
+   `flex: none` so a column at its cap takes the height out of the stack, which
+   can scroll, rather than out of the head, which would crush the heading. */
 .board-column-head {
   display: flex;
+  flex: none;
   align-items: center;
   padding: 6px 4px 10px;
 }
@@ -1043,16 +1076,17 @@ button:disabled {
   background: var(--lc-wash);
 }
 
-/* Each column scrolls independently (screen-specs.md § Board). Bounding it here
-   is also what lets the column render only the cards this box can show.
+/* Each column scrolls independently (screen-specs.md § Board), and the height it
+   scrolls inside is whatever the column has left after its head — see the cap on
+   `.board-column`. `min-height: 0` is what lets it shrink to that: a flex item's
+   floor is its content, so without this the stack would push the column past its
+   cap and take the page with it.
 
-   The reserve in --lc-size-board-stack is the chrome above and below a column at
-   the default window: toolbar, board heading, the grid's own padding, and the
-   dev-only trace strip — sized to the dev build, so a release column just runs
-   a little short. Under a short board the cap never binds and nothing moves;
-   over a tall one the column scrolls inside it instead of stretching the page. */
+   That bound is also what lets the column render only the cards this box can
+   show; `useViewportHeight` measures the box rather than reading the token, so
+   the two cannot disagree. */
 .board-stack {
-  max-height: var(--lc-size-board-stack);
+  min-height: 0;
   padding: 3px 4px 0;
   overflow-y: auto;
 }
