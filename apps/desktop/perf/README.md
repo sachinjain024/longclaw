@@ -11,6 +11,15 @@ nothing but the surface changes between them. The list is the harder case — ev
 ticket in the project on one axis, rather than spread over six independent column
 scrollers — so it is the one to run when the render path changes.
 
+`npm run probe:header` is the one harness here that measures no time at all. It
+drives a real write in WebKit and reads the content header's geometry back at
+every width the window can be, because LC-149 — the control row breaking inside
+itself while a write was in flight, stranding the ordering control — is a defect
+about boxes that jsdom cannot lay out and a screenshot at one width cannot catch.
+Run it when you touch the header, the disk-state indicator, or anything about how
+those controls are sized. `--self-test` puts the pre-fix header back and expects
+the run to go red.
+
 `npm run perf:startup` is the third harness here and the odd one out: it drives
 the **packaged app**, not a web page, because the Step 4 startup budget is on the
 release bundle. It reads the app's own `startup_to_rendered_ms` diagnostic rather
@@ -28,6 +37,9 @@ sudo purge && npm run perf:startup -- --cold   # the cold budget, one sample onl
 npm run perf:board -- --nav=Tab        # the pre-roving-focus baseline
 npm run perf:board -- --order=manual   # the Manual comparator (ADR 0003)
 npm run perf:board -- --filter="storage"  # a different query in the filter trace
+npm run probe:header                   # the content header, mid-write, 1440→760
+npm run probe:header -- --self-test    # the pre-LC-149 header, expecting red
+node perf/header-probe.mjs --widths=1300  # one width, after a build
 ```
 
 `--order=manual` clicks the real ordering control before measuring. Manual is the

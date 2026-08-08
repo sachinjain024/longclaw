@@ -23,6 +23,7 @@
     "perf:startup": "npm --prefix apps/desktop run perf:startup",
     "perf:board": "npm --prefix apps/desktop run perf:board",
     "perf:list": "npm --prefix apps/desktop run perf:list",
+    "probe:header": "npm --prefix apps/desktop run probe:header",
     "release:binary-audit": "npm --prefix apps/desktop run release:binary-audit",
     "audit:network": "npm --prefix apps/desktop run audit:network"
   }

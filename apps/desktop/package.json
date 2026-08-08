@@ -40,6 +40,7 @@
     "perf:startup": "node perf/startup-trace.mjs",
     "a11y:audit": "vite build --config perf/vite.config.ts && node perf/a11y-audit.mjs",
     "a11y:tab-order": "node scripts/tab-order-guard.mjs",
+    "probe:header": "vite build --config perf/vite.config.ts && node perf/header-probe.mjs",
     "audit:network": "node perf/network-audit.mjs",
     "matrix": "vite build --config perf/vite.config.ts && node perf/theme-matrix.mjs",
     "perf:board": "vite build --config perf/vite.config.ts && node perf/board-trace.mjs",
