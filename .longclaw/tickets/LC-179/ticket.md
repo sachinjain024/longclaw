@@ -3,12 +3,12 @@ format: longclaw.ticket/v1
 id: 6ba18bfc-8cbd-441c-a9f4-87005fb3d081
 key: LC-179
 title: A Markdown table in a description collapses into one run-on line
-status: todo
+status: in_review
 priority: p2
 labels:
   - frontend
 created_at: 2026-08-07T16:12:05.944Z
-updated_at: 2026-08-07T16:13:37.343Z
+updated_at: 2026-08-08T04:53:09.560Z
 ---
 
 `markdown.ts` parses no table, and that is a decision rather than an oversight — its header says tables are "neither dropped nor executed. It comes back out as the paragraph text its author typed" (`markdown.ts:23`), and `markdown.test.ts:175` pins the promise with `| a | b |\n| - | - |`. The promise holds in the tree and breaks on screen.
@@ -33,9 +33,9 @@ LC-178 is the only ticket on disk holding a pipe table today, so this is rare ra
 
 ## Checklist
 
-- [ ] Keep the author's line breaks in the unsupported-construct fallback, so a table stays as many lines as it was typed <!-- longclaw:item=ck_0058d7be -->
-- [ ] Assert rendered line structure in a test, because the current one passes against a collapsed line <!-- longclaw:item=ck_86237452 -->
-- [ ] Decide whether a real TableBlock is in scope, and record that where 18-markdown-editor.md put tables outside v0 <!-- longclaw:item=ck_8969414e -->
+- [x] Keep the author's line breaks in the unsupported-construct fallback, so a table stays as many lines as it was typed <!-- longclaw:item=ck_0058d7be -->
+- [x] Assert rendered line structure in a test, because the current one passes against a collapsed line <!-- longclaw:item=ck_86237452 -->
+- [x] Decide whether a real TableBlock is in scope, and record that where 18-markdown-editor.md put tables outside v0 <!-- longclaw:item=ck_8969414e -->
 
 ## Activity
 
@@ -61,6 +61,31 @@ actor:
   name: Claude Code
 changes:
   - field: description
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_1a1168cd
+kind: update
+occurred_at: 2026-08-08T04:53:09.560Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: in_review
+  - field: checklist.ck_0058d7be.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_86237452.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_8969414e.checked
+    from: "false"
+    to: "true"
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->
