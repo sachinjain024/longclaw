@@ -226,18 +226,22 @@ describe("nothing here claims the file exists yet", () => {
   });
 
   /**
-   * D-4D (LC-119). `0/0` before a first item is a count of nothing, and worse,
-   * it reads as a ticket whose checklist is unfinished. The section keeps its
-   * heading; the fraction arrives with the row it counts.
+   * D-4D (LC-119). The prototype draws no counter in create mode at any length,
+   * and the numerator here could not move if it did: every draft item is open
+   * by construction. `0/0` was a count of nothing that read as a checklist left
+   * unfinished, and `0/3` would only repeat the three rows on screen.
    */
-  it("shows no checklist fraction until there is a first item", () => {
+  it("shows no checklist fraction, however many items are drafted", () => {
     render(createPanel());
     const section = screen.getByRole("heading", { name: /Checklist/ });
     expect(section.querySelector(".section-count")).toBeNull();
+    expect(section.textContent).toBe("Checklist");
 
     addChecklistItem("Let an agent read this ticket");
+    addChecklistItem("Review what it changed");
 
-    expect(section.querySelector(".section-count")?.textContent).toBe("0/1");
+    expect(section.querySelector(".section-count")).toBeNull();
+    expect(section.textContent).toBe("Checklist");
   });
 
   it("has no assignee, attachment or rank affordance", () => {

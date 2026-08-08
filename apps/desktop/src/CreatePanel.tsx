@@ -167,15 +167,12 @@ export function CreatePanel(props: CreatePanelProps) {
       </section>
 
       <section className="panel-section">
-        <h3>
-          Checklist
-          {/* Not until there is a row to count (D-4D). `0/0` is a fraction of
-              nothing, and it reads as a checklist someone has yet to finish.
-              Every draft item is open, so the numerator stays 0. */}
-          {checklist.length > 0 && (
-            <span className="section-count">0/{checklist.length}</span>
-          )}
-        </h3>
+        {/* No fraction here, at any length (D-4D, `prototype.js:889`). Create's
+            items are all open by construction — `NewTicket.checklist` is a list
+            of strings — so the numerator can never move, and `0/3` says only
+            what the three rows on screen already say. The panel's own count
+            earns its place because there the numerator means something. */}
+        <h3>Checklist</h3>
         <ul className="checklist">
           {checklist.map((text, index) => (
             // Keyed by position: a draft item has no id to key by, and two rows

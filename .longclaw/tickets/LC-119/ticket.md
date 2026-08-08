@@ -56,3 +56,17 @@ changes:
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_5cb72666
+kind: comment
+occurred_at: 2026-08-08T04:15:40.501Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Shipped the prototype cell rather than this ticket's checklist wording: the counter is gone from create mode at every length, not just at zero. `createPanelHTML` (`prototype.js:889`) draws none at all, and D-49 already settled that the prototype cell wins where the two disagree. It is also the stronger design — every draft item is open by construction, so the numerator can never move.
+<!-- /longclaw:event -->
