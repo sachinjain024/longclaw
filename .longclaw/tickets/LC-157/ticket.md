@@ -3,12 +3,12 @@ format: longclaw.ticket/v1
 id: 98f56db5-e177-4c69-a2e7-80623986dd69
 key: LC-157
 title: Perf harnesses hardcode port 4173, so a run in one worktree silently drives another worktree's build
-status: todo
+status: done
 priority: p2
 labels:
   - platform
 created_at: 2026-08-06T06:37:59.336Z
-updated_at: 2026-08-06T06:37:59.336Z
+updated_at: 2026-08-09T01:19:50.274Z
 ---
 
 All four Playwright harnesses hardcode \`const ORIGIN = "http://localhost:4173"\` — \`theme-matrix.mjs:32\`, \`a11y-audit.mjs:36\`, \`board-trace.mjs:36\`, \`board-shots.mjs:18\` — and each spawns its own \`vite preview\` without \`--strictPort\`.
@@ -26,8 +26,8 @@ This is exactly the failure mode \`AGENTS.md\` warns about for \`audit:network\`
 
 ## Checklist
 
-- [ ] Pass --strictPort to the spawned vite preview so a busy port fails the run instead of sliding to 4174 <!-- longclaw:item=ck_423b6346 -->
-- [ ] Or bind an ephemeral port and derive ORIGIN from it, which also lets two worktrees run harnesses at once <!-- longclaw:item=ck_ae5e17f9 -->
+- [x] Pass --strictPort to the spawned vite preview so a busy port fails the run instead of sliding to 4174 <!-- longclaw:item=ck_423b6346 -->
+- [x] Or bind an ephemeral port and derive ORIGIN from it, which also lets two worktrees run harnesses at once <!-- longclaw:item=ck_ae5e17f9 -->
 
 ## Activity
 
@@ -41,4 +41,69 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_d8466655
+kind: update
+occurred_at: 2026-08-09T01:16:50.582Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: in_progress
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_b2249ef8
+kind: update
+occurred_at: 2026-08-09T01:16:58.158Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_423b6346.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_ae5e17f9.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_f251afef
+kind: comment
+occurred_at: 2026-08-09T01:17:10.932Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Both checklist items landed together, because the first is not sufficient on its own: `--strictPort` makes the harness's own server die when 4173 is taken, but the readiness probe then succeeds against whoever holds the port, so the run still drives the wrong build — silently. All six harnesses (the four named here plus `header-probe` and `drag-probe`) now share `perf/preview-server.mjs`, which reserves an ephemeral port, launches with `--strictPort`, and probes nothing until the server it started has printed the URL it is serving on that exact port. Verified by holding 4173 with a second `vite preview` and running `probe:header` clean against its own port.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_a52879e3
+kind: update
+occurred_at: 2026-08-09T01:19:50.274Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_progress
+    to: done
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->

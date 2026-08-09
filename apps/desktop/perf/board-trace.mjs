@@ -27,13 +27,16 @@
  *   npm run perf:board -- --nav=Tab    # the pre-roving-focus baseline
  */
 
-import { spawn } from "node:child_process";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { webkit } from "playwright-core";
 
-const here = dirname(fileURLToPath(import.meta.url));
-const ORIGIN = "http://localhost:4173";
+import { startPreview } from "./preview-server.mjs";
+
+/**
+ * Where this run's build is served, known once the server is up rather than
+ * fixed in advance: a constant port is a port another checkout can already be
+ * serving on, and the probe cannot tell the two apart (LC-157).
+ */
+let ORIGIN;
 /** Matches `TICKETS` in `perf/fixture.ts` and `src-tauri/tests/performance.rs`. */
 const TICKETS = 5_000;
 const NAV_SAMPLES = 150;
@@ -133,29 +136,6 @@ function summarise(name, samples) {
     p95: round(percentile(samples, 0.95)),
     max: round(Math.max(...samples)),
   };
-}
-
-/** Starts `vite preview` and resolves once it answers. */
-async function serve() {
-  const server = spawn(
-    "npx",
-    ["vite", "preview", "--config", resolve(here, "vite.config.ts")],
-    { cwd: resolve(here, ".."), stdio: "ignore" },
-  );
-  const deadline = Date.now() + 30_000;
-  for (;;) {
-    try {
-      const response = await fetch(ORIGIN);
-      if (response.ok) return server;
-    } catch {
-      // Not up yet.
-    }
-    if (Date.now() > deadline) {
-      server.kill();
-      throw new Error("vite preview did not start");
-    }
-    await new Promise((wake) => setTimeout(wake, 200));
-  }
 }
 
 /**
@@ -478,7 +458,8 @@ function table(rows, floor) {
 }
 
 async function main() {
-  const server = await serve();
+  const preview = await startPreview();
+  ORIGIN = preview.origin;
   const browser = await webkit.launch();
   try {
     // A board small enough to have no work to do, measured through the same code
@@ -547,7 +528,7 @@ async function main() {
     }
   } finally {
     await browser.close();
-    server.kill();
+    await preview.close();
   }
 }
 

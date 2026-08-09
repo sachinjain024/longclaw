@@ -8,14 +8,10 @@
  *   node perf/board-shots.mjs <output-directory> [--tickets=24]
  */
 
-import { spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { webkit } from "playwright-core";
 
-const here = dirname(fileURLToPath(import.meta.url));
-const ORIGIN = "http://localhost:4173";
+import { startPreview } from "./preview-server.mjs";
 
 const out = process.argv[2];
 if (!out)
@@ -26,19 +22,7 @@ const size = Number(
   process.argv.find((value) => value.startsWith("--tickets="))?.slice(10) ?? 24,
 );
 
-const server = spawn(
-  "npx",
-  ["vite", "preview", "--config", resolve(here, "vite.config.ts")],
-  { cwd: resolve(here, ".."), stdio: "ignore" },
-);
-for (let attempt = 0; attempt < 150; attempt += 1) {
-  try {
-    if ((await fetch(ORIGIN)).ok) break;
-  } catch {
-    // Not up yet.
-  }
-  await new Promise((wake) => setTimeout(wake, 200));
-}
+const preview = await startPreview();
 
 const browser = await webkit.launch();
 try {
@@ -47,7 +31,7 @@ try {
       const page = await browser.newPage({
         viewport: { width: 1_440, height: 900 },
       });
-      await page.goto(`${ORIGIN}/?tickets=${size}`);
+      await page.goto(`${preview.origin}/?tickets=${size}`);
       await page.waitForFunction(
         () => document.querySelectorAll(".ticket-row").length > 0,
       );
@@ -124,5 +108,5 @@ try {
   console.log(`wrote 4 board renders to ${out}`);
 } finally {
   await browser.close();
-  server.kill();
+  await preview.close();
 }

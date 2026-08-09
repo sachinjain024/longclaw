@@ -22,14 +22,14 @@
  * Usage: npm run matrix   (vite build --config perf/vite.config.ts first)
  */
 
-import { spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { webkit } from "playwright-core";
 
+import { startPreview } from "./preview-server.mjs";
+
 const here = dirname(fileURLToPath(import.meta.url));
-const ORIGIN = "http://localhost:4173";
 const OUT = resolve(here, "../dist-matrix");
 mkdirSync(OUT, { recursive: true });
 
@@ -425,19 +425,7 @@ const SAMPLER = `(() => {
 
 /* ---------- drive ---------- */
 
-const server = spawn(
-  "npx",
-  ["vite", "preview", "--config", resolve(here, "vite.config.ts")],
-  { cwd: resolve(here, ".."), stdio: "ignore" },
-);
-for (let attempt = 0; attempt < 150; attempt += 1) {
-  try {
-    if ((await fetch(ORIGIN)).ok) break;
-  } catch {
-    // Not up yet.
-  }
-  await new Promise((wake) => setTimeout(wake, 200));
-}
+const preview = await startPreview();
 
 const failures = [];
 /** Probes exempted from the AA gate, reported so the exemption is never silent. */
@@ -456,7 +444,7 @@ try {
         // transition can never be mid-flight when a probe samples it.
         reducedMotion: "reduce",
       });
-      await page.goto(`${ORIGIN}/?tickets=${TICKETS}`);
+      await page.goto(`${preview.origin}/?tickets=${TICKETS}`);
       await page.waitForFunction(
         () => document.querySelectorAll(".ticket-row").length > 0,
       );
@@ -764,7 +752,7 @@ try {
   }
 } finally {
   await browser.close();
-  server.kill();
+  await preview.close();
 }
 
 if (exempt.length > 0) {
