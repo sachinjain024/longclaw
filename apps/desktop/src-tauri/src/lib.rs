@@ -189,7 +189,7 @@ fn read_ticket(
         .detail(&ticket_key)
 }
 
-/// `Open in editor` from the raw-file view (`screen-specs.md:298`, D-54).
+/// `Open in editor` from the raw-file view (`screen-specs.md:356`, D-54).
 ///
 /// The webview sends a ticket key, never a path: the path is resolved against
 /// the project the app already opened and proven to be inside it, which is what

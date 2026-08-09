@@ -5,7 +5,7 @@
  * status dot, because unlike a card it is not standing under a column that names
  * the status, and it carries a relative updated time, because "what exists" is a
  * question about age in a way that "what is in flight" is not
- * (`screen-specs.md:141-146`).
+ * (`screen-specs.md:175-180`).
  *
  * Separate from the component for the same reason `boardCard.ts` is: it is the
  * row's only decision, and presenting exactly once per render is what lets
@@ -23,7 +23,7 @@ export interface RowCopy {
   /** Absent on a degraded row: nothing in the file said what status it had. */
   status?: TicketStatus;
   priority?: TicketPriority;
-  /** Already capped to the two the row holds (`screen-specs.md:144`). */
+  /** Already capped to the two the row holds (`screen-specs.md:178`). */
   labels: ResolvedLabel[];
   /** `1/3`, and empty when the ticket has no checklist (`components.md:190`). */
   checklist: string;

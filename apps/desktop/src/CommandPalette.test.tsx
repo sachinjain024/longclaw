@@ -151,7 +151,7 @@ describe("command palette", () => {
     for (const option of ORDERINGS) {
       expect(screen.getByRole("option", { name: option.label })).toBeTruthy();
     }
-    // The footnote is the reason the mode is safe (`screen-specs.md:246-247`).
+    // The footnote is the reason the mode is safe (`screen-specs.md:324-325`).
     expect(screen.getByText(/never rewrites files/)).toBeTruthy();
   });
 

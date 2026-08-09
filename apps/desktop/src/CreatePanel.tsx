@@ -1,5 +1,5 @@
 /**
- * Full create: the ticket panel in create mode (`screen-specs.md:209-216`).
+ * Full create: the ticket panel in create mode (`screen-specs.md:264-271`).
  *
  * It sits beside `TicketPanel` rather than inside it, and wears the same
  * `.ticket-panel` treatment. The panel is built around a file: it reads one on
@@ -47,7 +47,7 @@ interface CreatePanelProps {
   provisionalKey?: string;
   /** The project's label definitions. A ticket carries slugs and nothing else. */
   labels: Record<string, Label>;
-  /** Carried in from quick create's "Open full editor →" (`screen-specs.md:202`). */
+  /** Carried in from quick create's "Open full editor →" (`screen-specs.md:258-259`). */
   initialTitle?: string;
   initialStatus?: TicketStatus;
   /**
@@ -234,7 +234,7 @@ export function CreatePanel(props: CreatePanelProps) {
             if (!text) return;
             setChecklist((rows) => [...rows, text]);
             // Enter appends and keeps focus, for rapid entry
-            // (`screen-specs.md:189`).
+            // (`screen-specs.md:244`).
             setNewItem("");
           }}
         >

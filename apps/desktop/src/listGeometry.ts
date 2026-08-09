@@ -18,9 +18,9 @@
 import { indexAt, runningOffsets } from "./boardGeometry";
 import type { DropSpot } from "./ticketMove";
 
-/** `--lc-size-row`: the height `.list-row` is pinned to (`screen-specs.md:141`). */
+/** `--lc-size-row`: the height `.list-row` is pinned to (`screen-specs.md:175`). */
 export const ROW_HEIGHT = 36;
-/** `--lc-space-7`: the sticky group header (`screen-specs.md:137`). */
+/** `--lc-space-7`: the sticky group header (`screen-specs.md:171`). */
 export const GROUP_HEADER_HEIGHT = 32;
 /** The hairline top and bottom of the group body's `surface` card. */
 export const GROUP_BODY_BORDER = 1;
@@ -50,7 +50,7 @@ export interface ListGeometry {
  * folded into the header's stride and the last row's rather than given slots of
  * their own, so that a row's offset stays exactly the top of that row. A group
  * holding nothing draws no body at all, which is only the collapsed Archived
- * group (`screen-specs.md:150-154`): every other group is rendered because it has
+ * group (`screen-specs.md:205-209`): every other group is rendered because it has
  * tickets in it.
  */
 export function listGeometry(groups: { tickets: unknown[] }[]): ListGeometry {

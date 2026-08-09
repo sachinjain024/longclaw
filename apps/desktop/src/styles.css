@@ -131,7 +131,7 @@ textarea:focus-visible,
   background: var(--lc-surface);
 }
 
-/* Mono, uppercase, ink-3, on the label type role (`screen-specs.md:33`). */
+/* Mono, uppercase, ink-3, on the label type role (`screen-specs.md:32`). */
 .project-section h2 {
   margin: 0;
   padding: var(--lc-space-3) var(--lc-space-2) 6px;
@@ -149,7 +149,7 @@ textarea:focus-visible,
   font-size: 12px;
 }
 
-/* One 28px line: theme dot, name, star (`screen-specs.md:37-43`). The path is
+/* One 28px line: theme dot, name, star (`screen-specs.md:57-63`). The path is
    not on the row — the content header and settings both show it in full, and a
    truncated second line of it was telling the truth about nothing. It stays
    reachable as the row's title. */
@@ -191,7 +191,7 @@ textarea:focus-visible,
 }
 
 /* An unreachable project is dimmed and marked, not painted danger: the row
-   stays in place and stays clickable (`screen-specs.md:40-42`). */
+   stays in place and stays clickable (`screen-specs.md:60-62`). */
 .project-link.unreachable strong {
   color: var(--lc-ink-3);
 }
@@ -217,7 +217,7 @@ textarea:focus-visible,
   background: var(--lc-accent-human);
 }
 
-/* Revealed on hover, persistent once starred (`screen-specs.md:38-39`). */
+/* Revealed on hover, persistent once starred (`screen-specs.md:58-59`). */
 .star-button {
   display: grid;
   width: var(--lc-size-control-sm);
@@ -291,7 +291,7 @@ textarea::placeholder {
 }
 
 /* 24px of side inset, because that is what the content header and the board are
-   both specified against (`screen-specs.md:44`, `:96`) and every region in this
+   both specified against (`screen-specs.md:44`, `:122`) and every region in this
    column shares it.
 
    A column, so a region that asks for the height below the header can have it:
@@ -482,7 +482,7 @@ h1 {
   background: var(--lc-bg);
 }
 
-/* One centered column, not two (`screen-specs.md:89-94`, D-11). It was a
+/* One centered column, not two (`screen-specs.md:90-94`, D-11). It was a
    two-column grid with a create form permanently open on the right, asking for
    a name and a key before the folder that would hold them had been chosen. */
 .welcome-panel {
@@ -622,7 +622,7 @@ button:disabled {
   cursor: default;
 }
 
-/* The content header is one row (`screen-specs.md:44-49`): project name,
+/* The content header is one row (`screen-specs.md:64-69`): project name,
    settings, path, then a spacer, then every board control. It replaced a
    `project-toolbar` stacked above a `board-heading`, which between them put
    ~230px of chrome above the first card. */
@@ -651,7 +651,7 @@ button:disabled {
 }
 
 /* 56px, which is the spec's number and not a coincidence: 16px above a 30px
-   control row and 12px below (`screen-specs.md:44`). The 24px side inset the
+   control row and 12px below (`screen-specs.md:64`). The 24px side inset the
    same line asks for comes from `.main-panel`, which insets every region in
    this column at once rather than each one repeating it.
 
@@ -675,7 +675,7 @@ button:disabled {
 }
 
 /* The project already owns its star in the side panel; the header's one
-   project action is the prototype's compact gear (`screen-specs.md:44-45`). */
+   project action is the prototype's compact gear (`screen-specs.md:64-65`). */
 .content-header .settings-button {
   display: inline-flex;
   align-items: center;
@@ -749,7 +749,7 @@ button:disabled {
   flex: 0 1 auto;
 }
 
-/* The disk-state indicator, which `screen-specs.md:44-53` puts here — beside
+/* The disk-state indicator, which `screen-specs.md:64-73` puts here — beside
    the path chip, left of the spacer — at mono 10px. The cap holds the longest
    thing it says, `writing tickets/LC-69/ticket.md…`, and it is absent whenever
    the disk is quiet, so the width is only ever spent on news. Past that the
@@ -766,7 +766,7 @@ button:disabled {
   font-size: var(--lc-type-kbd-size);
 }
 
-/* The project path as a chip (`screen-specs.md:44-47`, D-06): mono 12px, a
+/* The project path as a chip (`screen-specs.md:64-67`, D-06): mono 12px, a
    folder glyph, truncated to the header, and a click that copies. The bare
    wrapping `<code>` it replaces consumed two lines for a long path; this one
    never does. Modeled on the prototype's `.path-chip`
@@ -1016,7 +1016,7 @@ button:disabled {
   flex-direction: column;
 }
 
-/* Dot, then name, then the count beside it (screen-specs.md:103); the far edge
+/* Dot, then name, then the count beside it (screen-specs.md:123); the far edge
    is reserved for the column's own controls, as in prototype.css `.col-head`.
 
    The heading and the `+` are siblings inside the head rather than the button
@@ -1337,7 +1337,7 @@ button:disabled {
 }
 
 /* The card's foot: fraction, meter, then chips, never wrapping
-   (screen-specs.md:121-122). */
+   (screen-specs.md:155-156). */
 .ticket-meta {
   display: flex;
   height: 20px;
@@ -1561,8 +1561,8 @@ button:disabled {
 
 /* ------------------------------------------------------- the issue list */
 
-/* Board | List (screen-specs.md:49). */
-/* `Order: Priority|Manual` (screen-specs.md:47-48). The word is drawn beside the
+/* Board | List (screen-specs.md:69). */
+/* `Order: Priority|Manual` (screen-specs.md:67-68). The word is drawn beside the
    trigger rather than inside it, so the trigger keeps saying only the value —
    which is what every other menu trigger in the app says. */
 /* 28px tall (`screen-specs.md` § Content header). The one control in the header
@@ -1664,7 +1664,7 @@ button:disabled {
 }
 
 /* The segmented control, in the header for the view and in project settings for
-   appearance (`screen-specs.md:273-274`, D-42). One rule for both: they are the
+   appearance (`screen-specs.md:331-332`, D-42). One rule for both: they are the
    same control — a short row of places to stand, one of them pressed. */
 .view-segment,
 .appearance-segment {
@@ -1704,7 +1704,7 @@ button:disabled {
   font-size: 12.5px;
 }
 
-/* One scroller for every group, unlike the board's six (screen-specs.md:135).
+/* One scroller for every group, unlike the board's six (screen-specs.md:169).
    The reserve matches the board's, because the chrome above and below is the
    same chrome. */
 .issue-list {
@@ -1928,7 +1928,7 @@ button:disabled {
   font-size: 10.5px;
 }
 
-/* A fixed 46px column (`screen-specs.md:141-146`). `nowrap` is the structural
+/* A fixed 46px column (`screen-specs.md:175-180`). `nowrap` is the structural
    half of the promise `describeAgeInSlot` makes in words: whatever age lands
    here, it cannot become two lines and take the row's neighbours with it. */
 .list-row-updated {
@@ -2073,7 +2073,7 @@ button:disabled {
   background: none;
 }
 
-/* The `archived` mark (`screen-specs.md:164`): kbd-styled, and deliberately
+/* The `archived` mark (`screen-specs.md:219`): kbd-styled, and deliberately
    without an accent — an archived ticket is a quiet one, not a flagged one. */
 .archived-chip {
   border: 1px solid var(--lc-line-strong);
@@ -2295,7 +2295,7 @@ button:disabled {
   color: var(--lc-warn);
 }
 
-/* 56px here against the card's 44px (`screen-specs.md:206`): the panel has the
+/* 56px here against the card's 44px (`screen-specs.md:241`): the panel has the
    room, and this is the surface the checklist is actually worked in. */
 .panel-progress {
   width: 56px;
@@ -2397,7 +2397,7 @@ button:disabled {
   background: var(--lc-surface);
 }
 
-/* Tabs left, formatting right, both on the wash (`screen-specs.md:198-200`).
+/* Tabs left, formatting right, both on the wash (`screen-specs.md:233-235`).
    The vertical padding is what makes this read as a strip rather than as a row
    that happens to be tinted. There was always wash across the middle, where
    `space-between` leaves a gap, but the 28px of controls reached the top and
@@ -2521,7 +2521,7 @@ button:disabled {
   color: var(--lc-inverse-ink-2);
 }
 
-/* The rendered subset. 13px/1.55 per `screen-specs.md:184`. */
+/* The rendered subset. 13px/1.55 per `screen-specs.md:238`. */
 .markdown {
   font-size: var(--lc-type-ui-size);
   line-height: 1.55;
@@ -2918,7 +2918,7 @@ button:disabled {
   opacity: 0.62;
 }
 
-/* Avatar left, field and action stacked beside it (`screen-specs.md:193`). */
+/* Avatar left, field and action stacked beside it (`screen-specs.md:248`). */
 .composer {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -2939,7 +2939,7 @@ button:disabled {
 
 /* ------------------------------------------------- raw file view (degraded) */
 
-/* `screen-specs.md:291-298`, the prototype's raw modal
+/* `screen-specs.md:349-356`, the prototype's raw modal
    (`prototype.css:733-748`): 680px on the modal layer, over everything, which
    is where a file the app cannot read is read (LC-134). It hangs from the
    scrim's 12vh with the palette rather than sitting centered — the two surfaces
@@ -2953,7 +2953,7 @@ button:disabled {
   min-height: 0;
   /* The prototype's raw view is a plain modal (`prototype.css:733` is a width
      and nothing else) — the danger is in the banner and the warn glyph, where
-     `screen-specs.md:292` puts it. The 3px danger edge this carried was the
+     `screen-specs.md:351` puts it. The 3px danger edge this carried was the
      panel-embedded version's, and a red frame around the whole surface said it
      a third time. */
   border: var(--lc-border-hairline) solid var(--lc-line);
@@ -3079,7 +3079,7 @@ button:disabled {
 
 /* ------------------------------------------------------------ create mode */
 
-/* Full create wears the panel (`screen-specs.md:209`); the footer is pinned to
+/* Full create wears the panel (`screen-specs.md:264`); the footer is pinned to
    the bottom so Create ticket is reachable without scrolling a long draft. */
 .create-panel .editor-footer {
   position: sticky;
@@ -3142,7 +3142,7 @@ button:disabled {
 }
 
 /* ------------------------------------------------------------------ */
-/* Command palette — screen-specs.md:218-237, components.md:272-283.   */
+/* Command palette — screen-specs.md:296-315, components.md:272-283.   */
 /* ------------------------------------------------------------------ */
 
 .command-palette {
@@ -3155,7 +3155,7 @@ button:disabled {
   background: var(--lc-surface);
   box-shadow: var(--lc-shadow-modal);
   color: var(--lc-ink);
-  /* It rises (`screen-specs.md:286`); the global reduced-motion block at the
+  /* It rises (`screen-specs.md:364`); the global reduced-motion block at the
      foot of this file zeroes it, which is where every other surface's is
      zeroed too. */
   animation: lc-palette-in var(--lc-motion-panel) ease-out;
@@ -3288,7 +3288,7 @@ button:disabled {
   color: var(--lc-accent-human);
 }
 
-/* Search rows: status dot + mono key + title (`screen-specs.md:236`). */
+/* Search rows: status dot + mono key + title (`screen-specs.md:314`). */
 .command-palette .search-key {
   flex: none;
   color: var(--lc-ink-3);
@@ -3357,7 +3357,7 @@ button:disabled {
   background: var(--lc-accent-agent);
 }
 
-/* The theme picker (`screen-specs.md:92-98`): 44×28 pair swatches, radius 5,
+/* The theme picker (`screen-specs.md:112-118`): 44×28 pair swatches, radius 5,
    preset name in micro type below, selected = human-accent border + ring.
    The radio itself is visually hidden; the label is the target. */
 .theme-picker {
@@ -3434,7 +3434,7 @@ button:disabled {
   color: var(--lc-ink);
 }
 
-/* The 150ms theme/appearance crossfade (`screen-specs.md:286`): while the root
+/* The 150ms theme/appearance crossfade (`screen-specs.md:364`): while the root
    wears this class, color-bearing properties transition and nothing else does —
    "theme/appearance transition colors only; nothing moves." The class is
    transient: `App` applies it around a `data-theme`/`data-appearance` change
@@ -3453,7 +3453,7 @@ html.theme-transition *::after {
   transition-timing-function: var(--lc-motion-ease);
 }
 
-/* The confirm a destructive action goes behind (`screen-specs.md:277-278`).
+/* The confirm a destructive action goes behind (`screen-specs.md:335-336`).
    Narrower than quick create because it is prose and two buttons, and the
    guarantee it repeats has to read as a sentence rather than as a banner. */
 .confirm-dialog {
@@ -3519,8 +3519,8 @@ html.theme-transition *::after {
   align-items: center;
 }
 
-/* Borderless 15px title (`screen-specs.md:200`): the modal is two fields, so a
-   box around the first one is a frame around nothing. */
+/* Borderless 15px title (`screen-specs.md:256`): the modal is one field and two
+   menus, so a box around the field is a frame around nothing. */
 .quick-create-title {
   border: none;
   padding: 0;
@@ -3656,7 +3656,7 @@ html.theme-transition *::after {
 }
 
 /* One popover behind status, priority, ordering and labels
-   (screen-specs.md:239-247). Fixed to the viewport, so a scrolling column
+   (screen-specs.md:317-325). Fixed to the viewport, so a scrolling column
    cannot carry it away from the card it is anchored to. */
 .menu-popover {
   position: fixed;
@@ -3848,12 +3848,12 @@ html.theme-transition *::after {
 
 /* --------------------------------------------------- project settings (LC-125)
 
-   The dialog `screen-specs.md:269-278` draws, on the scrim quick create and the
+   The dialog `screen-specs.md:327-336` draws, on the scrim quick create and the
    palette already use. It was an inline `<section>` in the main panel until
    LC-125, which pushed the board ~430px down behind it (D-40).
 
    It rises on open — the motion inventory's "modal rise"
-   (`screen-specs.md:286`) — on the keyframes the palette states, since it is
+   (`screen-specs.md:364`) — on the keyframes the palette states, since it is
    the same 8px arrival. */
 .settings-panel {
   display: flex;

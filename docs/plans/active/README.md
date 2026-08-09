@@ -200,7 +200,7 @@ Dependencies worth knowing:
   archive should call. Do not add a second write path or a second toast: the
   toast is a single stack and `⌘Z` is already wired to it.
 - **14 is done, and V0-09 and V0-10 both sit directly on it.** `src/Menu.tsx` is
-  the one anchored popover `screen-specs.md:239-247` specifies for status,
+  the one anchored popover `screen-specs.md:317-325` specifies for status,
   priority, ordering and labels: it is handed rows, the values currently set, and
   an anchor, and it knows nothing about the field it is editing. V0-10's labels
   menu is the same component with `multiple`; the ordering control is the same
@@ -214,7 +214,7 @@ Dependencies worth knowing:
   `resolveLabels` in `apps/desktop/src/labels.ts` and renders `LabelChip` from
   `src/LabelChip.tsx`: that is the only place the D12 ramp is read, and the only
   place a slug the project defines no label for is turned into something legible.
-  The list row's own cap of two chips (`screen-specs.md:144`) is a `limit`
+  The list row's own cap of two chips (`screen-specs.md:178`) is a `limit`
   argument, not a second implementation. `src/LabelMenu.tsx` is the Labels meta
   row, and it is what V0-16's create surface should hang off rather than the
   comma-separated text field `QuickCreate.tsx` still carries. Definition
@@ -246,7 +246,7 @@ Dependencies worth knowing:
   panel's revert, toast, undo and conflict all live in component state; the panel
   holds a ghost button, an `archived` chip, and no write. **V0-24 inherits the
   other half:** `search_tickets` already returns archived tickets and a Rust test
-  pins it, but the `· archived` tag on a result (`screen-specs.md:154`, `:236`) is
+  pins it, but the `· archived` tag on a result (`screen-specs.md:209`, `:314`) is
   unbuilt, because there is no search UI in the app to hang it on. The row carries
   `archivedAt`; rendering the tag is V0-24's.
 - **18 is done, and V0-13 and V0-27 each inherit one edge of it.** There is one
@@ -330,7 +330,7 @@ Dependencies worth knowing:
   a licence to grab focus, because a query changes it while a human is typing.
 
 - **22 is done, and it is the last Wave 1 item.** There are two create surfaces and the
-  split is the spec's (`screen-specs.md:198-216`): quick create is title and
+  split is the spec's (`screen-specs.md:253-271`): quick create is title and
   status, and everything else is `apps/desktop/src/CreatePanel.tsx`, the panel in
   create mode. It sits **beside** `TicketPanel.tsx` rather than inside it because
   every behaviour there is a function of a file on disk, and shares the panel's
@@ -402,7 +402,7 @@ Wave 2's own dependencies, which are tighter than Wave 1's were:
   rather than filling a hole in it.
 - **V0-24 closes Wave 1's last open edge.** `search_tickets` already returns
   archived tickets and a Rust test pins it, but the `· archived` tag
-  (`screen-specs.md:154`, `:236`) was left unbuilt by V0-11 because there was no
+  (`screen-specs.md:209`, `:314`) was left unbuilt by V0-11 because there was no
   search UI to hang it on. The row carries `archivedAt`; 27 renders it.
 - **09 and 10 are both closed, and no plan is open.** The vanished-path overflow bug
   is fixed in `collect_event`, and the npm-launched native watcher timeout that

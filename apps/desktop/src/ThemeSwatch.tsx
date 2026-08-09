@@ -2,8 +2,8 @@ import { useResolvedAppearance } from "./appearance";
 
 /**
  * The preset pair swatch: left ⅔ human accent, right ⅓ agent accent
- * (`components.md:264-271`, `screen-specs.md:92-98`). The palette's theme rows
- * carry the miniature of it (`screen-specs.md:235`); the theme picker wears it
+ * (`components.md:264-271`, `screen-specs.md:112-118`). The palette's theme rows
+ * carry the miniature of it (`screen-specs.md:313`); the theme picker wears it
  * at 44×28.
  *
  * It draws no colour of its own: it carries both axes of the token contract and
@@ -28,7 +28,7 @@ export function ThemeSwatch(props: { theme: string }) {
 
 /**
  * The project's own theme, as a 6px dot beside its name in the side panel
- * (`components.md:251`, `screen-specs.md:37`) — the only place another
+ * (`components.md:251`, `screen-specs.md:57`) — the only place another
  * project's theme reaches this window. Same trick as the swatch, and the same
  * trap: with `data-theme` alone every dot silently wears the *active* project's
  * accent, which is indistinguishable from working until two projects differ.

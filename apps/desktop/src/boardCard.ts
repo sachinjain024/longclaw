@@ -25,7 +25,7 @@ export interface CardCopy {
 
 /**
  * How many chips the footer holds. It never wraps
- * (`screen-specs.md:121-122`), so the checklist fraction costs a chip.
+ * (`screen-specs.md:155-156`), so the checklist fraction costs a chip.
  */
 const CARD_LABEL_LIMIT = 2;
 const CARD_LABEL_LIMIT_BESIDE_A_FRACTION = 1;

@@ -1,7 +1,7 @@
 /**
  * The status and priority rows every menu in the app is built from.
  *
- * Every menu row carries the option's own glyph (`screen-specs.md:240`), and the
+ * Every menu row carries the option's own glyph (`screen-specs.md:320-321`), and the
  * status menu's glyph is the coloured dot. Built once, here rather than in a
  * surface: the rows never differ per ticket, and the panel, the create surface
  * and quick create must not be able to disagree about what the options are.

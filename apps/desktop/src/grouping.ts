@@ -10,7 +10,7 @@
  *
  * - the board keeps every status whether or not it holds anything (ADR 0002
  *   fixes the set, so the scaffold is the point), and the list renders only the
- *   statuses that have tickets (`screen-specs.md:135-136`);
+ *   statuses that have tickets (`screen-specs.md:169-170`);
  * - the synthetic unreadable group goes last on the board and first in the list
  *   (argued in full on `groupByStatus`'s `unreadable` option, and nowhere else).
  *
@@ -20,11 +20,11 @@
  * screen but the card's own anatomy.
  *
  * Ordering happens here, once, because the seats every surface's arrows read
- * have to agree with what it drew (`screen-specs.md:115`).
+ * have to agree with what it drew (`screen-specs.md:135`).
  *
  * An archived ticket is in none of these groups. Archived is a date and not a
  * status (ADR 0004), so a ticket carrying one has no status bucket to sit in:
- * that is what keeps it off the board (`screen-specs.md:116`) without either
+ * that is what keeps it off the board (`screen-specs.md:150`) without either
  * surface owning a rule of its own. The list still sees every archived ticket —
  * it asks `isArchived` directly and appends its own group.
  */

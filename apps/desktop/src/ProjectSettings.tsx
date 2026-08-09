@@ -1,5 +1,5 @@
 /**
- * Project settings (`screen-specs.md:269-278`), as the modal the spec draws.
+ * Project settings (`screen-specs.md:327-336`), as the modal the spec draws.
  *
  * It used to be a section that expanded *inside* the main panel, which pushed
  * the board about 430px down the page and left it there behind the controls
@@ -145,7 +145,7 @@ export function ProjectSettings(props: {
                 <label htmlFor={nameId}>Name</label>
                 <div className="field-row">
                   {/* `Enter` or blur commits, as the panel's title does
-                      (`screen-specs.md:190`). The `Rename` button beside this
+                      (`screen-specs.md:225`). The `Rename` button beside this
                       was the only way to save it, and pressing `Done` with a
                       typed name threw the name away without saying so. */}
                   <input
@@ -425,7 +425,7 @@ function ProjectLabels(props: {
  *
  * The row used to carry a `Save label X` and a `Remove label X` button, which
  * was two buttons per row saying the row's name twice (D-4J). It commits the
- * way the panel's title does instead (`screen-specs.md:190`) — `Enter` or blur
+ * way the panel's title does instead (`screen-specs.md:225`) — `Enter` or blur
  * — and a colour applies the moment it is picked, the way the theme picker
  * does, so the only button left is the one that takes the row away.
  */

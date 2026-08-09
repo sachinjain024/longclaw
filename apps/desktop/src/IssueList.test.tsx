@@ -655,7 +655,7 @@ describe("what a change to one ticket costs", () => {
 
 describe("the list follows the board's ordering preference (V0-09)", () => {
   it("orders the rows inside a group by rank in Manual", () => {
-    // `screen-specs.md:146`. One preference, two surfaces; the drag affordance
+    // `screen-specs.md:180`. One preference, two surfaces; the drag affordance
     // is the board's alone.
     const tickets = [
       row({ key: "LC-1", status: "todo", priority: "urgent", rank: "a2" }),

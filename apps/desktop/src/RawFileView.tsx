@@ -1,6 +1,6 @@
 /**
  * What a human gets when a ticket file will not parse: the file itself, the
- * line that broke it, and the two ways out (`screen-specs.md:291-298`,
+ * line that broke it, and the two ways out (`screen-specs.md:349-356`,
  * `states.md:95-104`).
  *
  * The design rule underneath it is `states.md:9-12` — never silent. Four of the
@@ -94,14 +94,14 @@ export function RawFileView(props: {
   /**
    * Which file this is, project-relative — from the read once it lands, and
    * from the row the card was drawn from until then, which is what lets the
-   * heading be the full path from the first frame (`screen-specs.md:293`).
+   * heading be the full path from the first frame (`screen-specs.md:351`).
    */
   path: string;
   /** The ticket the read is for, which is what the wait is described by. */
   ticketKey: string;
   /**
    * The project's root as the header shows it — tilde-abbreviated, not
-   * canonical. The heading is the *full* path (`screen-specs.md:293`), and the
+   * canonical. The heading is the *full* path (`screen-specs.md:351`), and the
    * relative path a `TicketDetail` carries is only the half of it below the
    * project. This is the screen a person reads just before opening the file
    * somewhere else, so the half that says *which* project belongs on it.

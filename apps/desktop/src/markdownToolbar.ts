@@ -20,7 +20,7 @@ export interface TextSelection {
   end: number;
 }
 
-/** The six, in the order `screen-specs.md:179-180` lists them. */
+/** The six, in the order `screen-specs.md:234-235` lists them. */
 export const TOOLBAR_ACTIONS: {
   id: ToolbarAction;
   /** The accessible name. An icon alone is not a name. */

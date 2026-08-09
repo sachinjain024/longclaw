@@ -52,7 +52,7 @@ interface TimelineProps {
   checklist?: ChecklistItem[];
   /**
    * A comment the human just posted, still being written. Posting is optimistic
-   * (`screen-specs.md:193`), so it is on screen before the file has it — but it
+   * (`screen-specs.md:248`), so it is on screen before the file has it — but it
    * is not a record yet, and it says so rather than pretending to be one.
    */
   pendingComment?: string;

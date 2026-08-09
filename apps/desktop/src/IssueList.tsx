@@ -3,7 +3,7 @@
  *
  * The board answers "what is in flight" and shows six columns whether or not they
  * hold anything. The list answers "what exists": only statuses with tickets get a
- * group (`screen-specs.md:135-136`), Canceled is reliably visible here rather than
+ * group (`screen-specs.md:169-170`), Canceled is reliably visible here rather than
  * conditionally on the board, and the archived tickets ADR 0004 keeps off the board
  * get their own collapsed group at the bottom.
  *
@@ -100,7 +100,7 @@ const MOVES: Record<string, number> = {
 
 /**
  * The row a move lands on, or undefined at either end. Groups are a visual
- * grouping and not a boundary: `screen-specs.md:115` says navigation follows the
+ * grouping and not a boundary: `screen-specs.md:135` says navigation follows the
  * visual order, and the row under the next header is the next row down.
  */
 function moveTo(
@@ -534,7 +534,7 @@ function ListGroup(props: {
 }
 
 /**
- * One row, in the order `screen-specs.md:141-146` sets: status dot, mono ID,
+ * One row, in the order `screen-specs.md:175-180` sets: status dot, mono ID,
  * priority glyph, title, acknowledgement dot, checklist fraction, up to two label chips,
  * relative updated time. No assignee slot in v0 (ADR 0001).
  *

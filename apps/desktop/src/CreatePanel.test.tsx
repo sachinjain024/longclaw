@@ -2,7 +2,7 @@
 
 /**
  * Full create: the panel in create mode, and every field the design approved
- * (`screen-specs.md:209-216`).
+ * (`screen-specs.md:264-271`).
  *
  * The claim these cover is that one create carries the lot — a user planning
  * real work sets priority and labels here rather than on a second pass — and
