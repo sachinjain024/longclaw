@@ -37,8 +37,14 @@ import type {
 } from "./types";
 
 interface CreatePanelProps {
-  /** The key the create is about to be given, read off the rows on screen. */
-  provisionalKey: string;
+  /**
+   * The key the create is about to be given, read off the rows on screen — and
+   * `undefined` when there are none to read it off yet, which is a project that
+   * has been switched to and has not answered. See `QuickCreate`: the surface
+   * says it does not know rather than naming `KEY-1` against an empty board,
+   * because that is a key the project has usually already spent (LC-188).
+   */
+  provisionalKey?: string;
   /** The project's label definitions. A ticket carries slugs and nothing else. */
   labels: Record<string, Label>;
   /** Carried in from quick create's "Open full editor →" (`screen-specs.md:202`). */
@@ -62,7 +68,8 @@ export function CreatePanel(props: CreatePanelProps) {
   const addItem = useRef<HTMLInputElement>(null);
   const titleField = useAutoGrow(title);
 
-  const canCreate = title.trim() !== "";
+  /** A title, and a project that can say which key is free. See `QuickCreate`. */
+  const canCreate = title.trim() !== "" && props.provisionalKey !== undefined;
 
   function create() {
     if (!canCreate) return;
@@ -78,7 +85,7 @@ export function CreatePanel(props: CreatePanelProps) {
 
   /**
    * `⌘↵` creates from anywhere in the panel and `Esc` cancels it
-   * (`screen-specs.md:214`). Both are panel-wide because the footer is the only
+   * (`screen-specs.md:269-271`). Both are panel-wide because the footer is the only
    * commit — the menus and the description editor stop their own keys before
    * they reach here.
    */
@@ -97,7 +104,11 @@ export function CreatePanel(props: CreatePanelProps) {
   return (
     <aside
       className="ticket-panel create-panel"
-      aria-label={`New ticket ${props.provisionalKey}`}
+      aria-label={
+        props.provisionalKey
+          ? `New ticket ${props.provisionalKey}`
+          : "New ticket"
+      }
       onKeyDown={onKeyDown}
     >
       <header className="panel-header">
@@ -106,7 +117,8 @@ export function CreatePanel(props: CreatePanelProps) {
             only: it is not the ticket's key until Rust says so, and a chip that
             copied it would put a guess on the clipboard. */}
         <span className="id-chip provisional">
-          {props.provisionalKey} <span className="provisional-mark">· new</span>
+          {props.provisionalKey ?? "opening…"}{" "}
+          <span className="provisional-mark">· new</span>
         </span>
       </header>
 

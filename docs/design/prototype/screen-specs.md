@@ -270,6 +270,29 @@ movement. No custom-color affordance exists anywhere.
   **Create ticket** (`⌘↵`) + ghost Cancel. On create the panel swaps to
   view mode of the real ticket.
 
+## Creating after the project moved (LC-188)
+
+- Both create surfaces stay up across a project switch: the sidebar is
+  live behind them and a half-typed ticket is not thrown away because
+  somebody looked at another board. **Create** therefore compares the
+  project it would land in against the one the draft was started in, and
+  when they differ it asks instead of writing. The confirm names both
+  projects, states the destination folder and the key the ticket will
+  take there, and only confirming writes; Cancel returns to the draft
+  with nothing sent. Its confirm button is the primary variant — nothing
+  is destroyed either way, the write is only being aimed.
+- **Nothing is creatable against a board that has not answered.** The
+  next key is a guess off the rows on screen, and against no rows that
+  guess is `KEY-1` — a key the project has usually already spent
+  (LC-140). So while a project is opening, both create surfaces show
+  `opening…` where the key goes and their **Create** is disabled, and
+  the confirm above cannot be answered either and says why. This is
+  reachable without a switch: re-opening the project already on screen
+  zeroes the board the same way.
+- A ticket panel does not survive a project switch. A key belongs to one
+  project, so the panel closes rather than re-aiming at a project that
+  never held that ticket.
+
 ## Command palette (`⌘K`)
 
 - 560px modal, radius `--lc-radius-modal`, `--lc-shadow-modal`, scrim.

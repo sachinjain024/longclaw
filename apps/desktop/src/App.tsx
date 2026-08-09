@@ -30,7 +30,7 @@ import {
 import { Board } from "./Board";
 import { classes } from "./classes";
 import { CommandPalette } from "./CommandPalette";
-import { RemoveProjectConfirm } from "./ConfirmDialog";
+import { ConfirmDialog, RemoveProjectConfirm } from "./ConfirmDialog";
 import { CreatePanel } from "./CreatePanel";
 import { CreateProjectForm, type ProjectDraft } from "./CreateProjectForm";
 import { DEV_CHROME } from "./devChrome";
@@ -103,6 +103,22 @@ interface EditStep {
 
 /** Which of a step's two edits is being sent. The other one puts it back. */
 type Direction = "make" | "take back";
+
+/**
+ * A create that was submitted into one project and would land in another,
+ * waiting on the human to say which (LC-188).
+ *
+ * The request is held whole rather than re-read from the surface: the surface
+ * stays mounted behind the dialog and its draft is still editable, and a create
+ * must write the words that were on screen when **Create** was pressed.
+ */
+interface PendingCreate {
+  request: Omit<CreateTicketRequest, "projectId">;
+  /** Full create's ending, carried across the question (`screen-specs.md:270-271`). */
+  openPanel: boolean;
+  /** Where the draft was composed, for the dialog's own words. */
+  fromProjectId: string;
+}
 
 const THEMES = [
   { id: "indigo", label: "Indigo" },
@@ -216,6 +232,22 @@ export function App() {
     title: string;
     status: TicketStatus;
   }>();
+  /**
+   * The project the open create surface was raised in.
+   *
+   * A create surface outlives a project switch — the sidebar stays live behind
+   * it — so the project a draft was composed against is the one that was on
+   * screen when it opened, not the one `activeProjectId` holds by the time
+   * **Create** is pressed. Reading it at submit is what filed the ticket in a
+   * project the human was no longer looking at (LC-188).
+   */
+  const [createProjectId, setCreateProjectId] = useState<string>();
+  /**
+   * A create the sidebar moved out from under, held while the human answers
+   * where it should land. The draft stays in the surface behind the dialog, so
+   * cancelling costs nothing that was typed.
+   */
+  const [pendingCreate, setPendingCreate] = useState<PendingCreate>();
   /** Bumped when an external change lands for the open ticket. */
   const [panelReload, setPanelReload] = useState(0);
   /** Bumped when the open ticket disappears from disk. */
@@ -258,6 +290,26 @@ export function App() {
    * happen the moment the folder came back (LC-140).
    */
   const unreachable = project !== undefined && !project.reachable;
+  /**
+   * Whether the active project's rows are actually in hand.
+   *
+   * `setActiveProjectId` puts `generation` back to 0 and only a snapshot puts a
+   * number on it, so this is the difference between *this project has no
+   * tickets* and *this project has not answered yet*. Creating against the
+   * second one is the LC-140 collision from the other direction: the next key is
+   * guessed off the rows on screen, and against an empty board the guess is
+   * `KEY-1` — a key that already belongs to a ticket the app has simply not read
+   * yet. A switch made mid-draft is how a human reaches that window (LC-188).
+   */
+  const boardLoaded = project !== undefined && generation > 0;
+  /**
+   * A project's name by id. Only one surface needs it — the dialog that names
+   * the project a held draft came *from*, which by definition is not the open
+   * one, so `project` cannot answer for it.
+   */
+  const projectName = (projectId: string) =>
+    projects.find((candidate) => candidate.id === projectId)?.name ??
+    "another project";
   const workspace = activeProjectId
     ? projectWorkspaces[activeProjectId]
     : undefined;
@@ -341,8 +393,17 @@ export function App() {
    * The key the next create will probably claim, shown by both create surfaces
    * as the provisional ID. A guess off the rows on screen: Rust allocates the
    * real one from the project's own directory names.
+   *
+   * Undefined until the board has answered, because the guess off no rows is
+   * `KEY-1` and that is a key the project has usually already spent. The
+   * surfaces say `opening…` and refuse to create rather than showing it — a
+   * create surface outlives a project switch, so this is a state a human
+   * reaches by clicking a project while a draft is up (LC-140, LC-188).
    */
-  const nextKey = project ? provisionalTicketKey(project.key, tickets) : "";
+  const nextKey =
+    project && boardLoaded
+      ? provisionalTicketKey(project.key, tickets)
+      : undefined;
 
   /**
    * Leaving create without creating. Focus goes back to the surface behind it —
@@ -438,6 +499,15 @@ export function App() {
     const knownProject = useLongClawStore
       .getState()
       .projects.find((project) => project.id === projectId);
+    // A ticket panel is open on a key, and a key belongs to one project. Left
+    // open across a switch it re-aims at the new project and asks it for a
+    // ticket that was never in it, which is the second half of LC-188. A
+    // relocate and a rename both re-load the project they are already on, so
+    // this is a switch and not every load.
+    if (projectId !== activeProjectId) {
+      closeTicket();
+      setPaletteTicketKey(undefined);
+    }
     setActiveProjectId(projectId);
     // An unreachable project is opened like any other, deliberately. The flag is
     // the last read's answer, not a fact about the disk, so refusing to try
@@ -671,7 +741,23 @@ export function App() {
     if (!unreachable) return;
     setCreateSurface(undefined);
     setCarriedDraft(undefined);
+    setPendingCreate(undefined);
   }, [unreachable]);
+
+  // Which project a create surface belongs to is decided when it opens and never
+  // re-read while it is up, which is the whole of LC-188: the sidebar stays live
+  // behind the surface, and a draft belongs to the board it was typed over.
+  // Quick create's **Open full editor →** is a move between two modes of one
+  // surface rather than a new one, so the origin it already holds stands — which
+  // is why this keeps an origin it has and only fills in one it does not.
+  useEffect(() => {
+    if (createSurface === undefined) {
+      setCreateProjectId(undefined);
+      setPendingCreate(undefined);
+      return;
+    }
+    setCreateProjectId((origin) => origin ?? activeProjectId);
+  }, [createSurface, activeProjectId]);
 
   // An external change to the open ticket makes the panel re-read the file, so
   // the description, checklist, and timeline it shows are the ones on disk.
@@ -955,22 +1041,56 @@ export function App() {
   }
 
   /**
-   * Creating never blocks on the disk write (`screen-specs.md:204-207`): the
-   * card appears at once under a key guessed from the board, the surface closes,
-   * and whatever key Rust allocated replaces the guess when the write lands.
+   * **Create**, pressed on either create surface.
    *
-   * `openPanel` is full create's ending (`screen-specs.md:214`): the panel swaps
-   * to view mode of **the real ticket**, so it can only open once the write has
-   * returned a key — view mode reads the file, and there is no file to read
-   * before then. The card is still optimistic, and focus rides it in the
-   * meantime, so nothing waits and focus never lands on the floor.
+   * The write itself is `writeNewTicket`. This is the one question asked in
+   * front of it: a draft composed over one project's board and submitted over
+   * another's is not obviously meant for either, so it is put to the human
+   * rather than resolved by whichever project happens to be active (LC-188).
+   * The surface stays up behind the dialog, holding what was typed.
    */
   function submitNewTicket(
     request: Omit<CreateTicketRequest, "projectId">,
     options?: { openPanel?: boolean },
   ) {
+    if (createProjectId !== undefined && createProjectId !== activeProjectId) {
+      setPendingCreate({
+        request,
+        openPanel: options?.openPanel === true,
+        fromProjectId: createProjectId,
+      });
+      return;
+    }
+    writeNewTicket(request, options?.openPanel === true);
+  }
+
+  /**
+   * Creating never blocks on the disk write (`screen-specs.md:204-207`): the
+   * card appears at once under a key guessed from the board, the surface closes,
+   * and whatever key Rust allocated replaces the guess when the write lands.
+   *
+   * `openPanel` is full create's ending (`screen-specs.md:270-271`): the panel swaps
+   * to view mode of **the real ticket**, so it can only open once the write has
+   * returned a key — view mode reads the file, and there is no file to read
+   * before then. The card is still optimistic, and focus rides it in the
+   * meantime, so nothing waits and focus never lands on the floor.
+   *
+   * It always writes into the project on screen *now*, which is what makes the
+   * question in `submitNewTicket` the only place the destination is decided.
+   */
+  function writeNewTicket(
+    request: Omit<CreateTicketRequest, "projectId">,
+    openPanel: boolean,
+  ) {
     const projectId = activeProjectId;
     if (!projectId || !project) return;
+    // Unreachable, and deliberately silent: both create surfaces disable their
+    // own **Create** while the key is unknown and the confirm disables its own,
+    // so refusing here has no user to tell. It stands as the last guard on the
+    // thing that actually goes wrong — a guess of `KEY-1` against a board that
+    // has not answered, taking a real ticket's seat through
+    // `addProvisionalTicket`, which keys by key (LC-140, LC-188).
+    if (!boardLoaded) return;
     const guessKey = provisionalTicketKey(project.key, tickets);
     setCreateSurface(undefined);
     setCarriedDraft(undefined);
@@ -987,7 +1107,7 @@ export function App() {
       onWritten: (written) => {
         removeTicket(guessKey);
         applyLocalWrite(written.ticket, written.generation);
-        if (options?.openPanel) openTicket(written.ticket.key);
+        if (openPanel) openTicket(written.ticket.key);
         else focusCard(written.ticket.key);
       },
       toast: (written) => `${written.ticket.key} created`,
@@ -1795,6 +1915,40 @@ export function App() {
             }
           />
         )}
+
+      {/* Over the create surface rather than instead of it: the draft behind
+          this is still the answer if the question is cancelled (LC-188). */}
+      {pendingCreate && project && createSurface !== undefined && (
+        <ConfirmDialog
+          title="The active project changed"
+          body={
+            <>
+              <p>
+                This ticket was started in{" "}
+                <strong>{projectName(pendingCreate.fromProjectId)}</strong>, and{" "}
+                <strong>{project.name}</strong> is the project on screen now.
+                Create it in <strong>{project.name}</strong>?
+              </p>
+              {/* No "still opening" branch to write here: **Create** is
+                  disabled on both surfaces until the board answers, so a
+                  project with no key to offer cannot raise this dialog. */}
+              <p>
+                It lands in <code>{project.rootPath}</code> as{" "}
+                <code>{nextKey}</code>, the next key free in this project.
+              </p>
+            </>
+          }
+          confirmLabel={`Create in ${project.name}`}
+          // Nothing is destroyed either way: this asks where a write goes.
+          confirmTone="primary"
+          onConfirm={() => {
+            const held = pendingCreate;
+            setPendingCreate(undefined);
+            writeNewTicket(held.request, held.openPanel);
+          }}
+          onCancel={() => setPendingCreate(undefined)}
+        />
+      )}
 
       {paletteOpen && project && (
         <CommandPalette
