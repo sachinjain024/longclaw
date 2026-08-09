@@ -22,6 +22,13 @@ export function ConfirmDialog(props: {
   /** Why this is safe, in the caller's words: it knows what it is removing. */
   body: ReactNode;
   confirmLabel: string;
+  /**
+   * How the confirm button reads. `danger` is the default because **Remove from
+   * app** was the only caller for a while; a dialog that asks *which project* a
+   * write lands in is an ordinary choice and must not be dressed as a
+   * destructive one (LC-188).
+   */
+  confirmTone?: "danger" | "primary";
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -103,7 +110,7 @@ export function ConfirmDialog(props: {
           </button>
           <button
             tabIndex={0}
-            className="danger"
+            className={props.confirmTone ?? "danger"}
             type="button"
             onClick={props.onConfirm}
           >

@@ -56,13 +56,12 @@
  * this file made up.
  */
 
-import { spawn } from "node:child_process";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { webkit } from "playwright-core";
 
-const here = dirname(fileURLToPath(import.meta.url));
-const ORIGIN = "http://localhost:4173";
+import { startPreview } from "./preview-server.mjs";
+
+/** This run's own server, up before anything is driven (`preview-server.mjs`). */
+let preview;
 
 const argument = (name, fallback) => {
   const hit = process.argv.find((value) => value.startsWith(`--${name}=`));
@@ -123,28 +122,6 @@ function check(name, ok, detail) {
 }
 
 /* ---------- harness plumbing ---------- */
-
-/** Starts `vite preview` and resolves once it answers. */
-async function serve() {
-  const server = spawn(
-    "npx",
-    ["vite", "preview", "--config", resolve(here, "vite.config.ts")],
-    { cwd: resolve(here, ".."), stdio: "ignore" },
-  );
-  const deadline = Date.now() + 30_000;
-  for (;;) {
-    try {
-      if ((await fetch(ORIGIN)).ok) return server;
-    } catch {
-      // Not up yet.
-    }
-    if (Date.now() > deadline) {
-      server.kill();
-      throw new Error("vite preview did not start");
-    }
-    await new Promise((wake) => setTimeout(wake, 200));
-  }
-}
 
 /**
  * Everything the checks read, in one round trip: the header's box, the cluster's
@@ -238,7 +215,7 @@ async function probe(browser, px) {
       rw: "1",
       slow: String(SLOW_MS),
     });
-    await page.goto(`${ORIGIN}/?${query}`, { waitUntil: "load" });
+    await page.goto(`${preview.origin}/?${query}`, { waitUntil: "load" });
     await page.waitForFunction(
       () => document.querySelectorAll("[data-ticket-key]").length > 0,
       undefined,
@@ -395,7 +372,7 @@ async function probe(browser, px) {
 }
 
 async function main() {
-  const server = await serve();
+  preview = await startPreview();
   const browser = await webkit.launch();
   try {
     for (const px of WIDTHS) {
@@ -411,7 +388,7 @@ async function main() {
     }
   } finally {
     await browser.close();
-    server.kill();
+    await preview.close();
   }
 
   console.log(
