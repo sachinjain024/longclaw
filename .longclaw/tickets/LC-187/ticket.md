@@ -3,12 +3,13 @@ format: longclaw.ticket/v1
 id: 68e8e508-b948-49a8-9d3f-b4c565d13473
 key: LC-187
 title: A Manual drop while a filter is on ranks only the rows that match
-status: todo
+status: in_progress
 priority: p3
+rank: Zw
 labels:
   - frontend
 created_at: 2026-08-09T00:57:08.052Z
-updated_at: 2026-08-09T00:57:08.052Z
+updated_at: 2026-08-09T07:37:25.281Z
 ---
 
 Found in LC-174's review, and not introduced by it.
@@ -43,4 +44,21 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_ff9d487a
+kind: update
+occurred_at: 2026-08-09T07:37:25.281Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: todo
+    to: in_progress
+  - field: rank
+    to: Zw
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

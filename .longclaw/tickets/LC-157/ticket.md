@@ -5,10 +5,11 @@ key: LC-157
 title: Perf harnesses hardcode port 4173, so a run in one worktree silently drives another worktree's build
 status: todo
 priority: p2
+rank: Zz
 labels:
   - platform
 created_at: 2026-08-06T06:37:59.336Z
-updated_at: 2026-08-06T06:37:59.336Z
+updated_at: 2026-08-09T07:37:19.714Z
 ---
 
 All four Playwright harnesses hardcode \`const ORIGIN = "http://localhost:4173"\` — \`theme-matrix.mjs:32\`, \`a11y-audit.mjs:36\`, \`board-trace.mjs:36\`, \`board-shots.mjs:18\` — and each spawns its own \`vite preview\` without \`--strictPort\`.
@@ -41,4 +42,18 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_328d2ead
+kind: update
+occurred_at: 2026-08-09T07:37:19.714Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: rank
+    to: Zz
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

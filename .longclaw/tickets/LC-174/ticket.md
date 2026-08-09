@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 367328d3-58c2-4f84-8750-4764279b116b
 key: LC-174
 title: Drag and drop does nothing in List view, though the board works and the list passes in WebKit
-status: in_progress
+status: done
 priority: p1
-rank: Zy
+rank: Zu
 labels:
   - frontend
 created_at: 2026-08-07T11:01:04.566Z
-updated_at: 2026-08-09T00:47:13.686Z
+updated_at: 2026-08-09T08:10:06.691Z
 ---
 
 Reported after LC-60 landed: a card drags between columns on the board, and nothing happens when a row is dragged in the list.
@@ -299,4 +299,39 @@ All four rows now pass end to end in WebKit, and there is a run that says so: `n
 Cost: bounded by where the drop is, and paid once per group. Dropping at the top writes one file, as before; dropping at the bottom of a fresh group writes the group; every later drop in it writes one file.
 
 `npm run verify` green. `perf:board` p95 16/19/30/15ms and `perf:list` p95 16/24/24/15ms, both within budget.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_18855da6
+kind: update
+occurred_at: 2026-08-09T07:37:29.993Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: rank
+    from: Zy
+    to: Zu
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_b3019906
+kind: update
+occurred_at: 2026-08-09T08:10:06.691Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_progress
+    to: done
+-->
+### Claude Code updated this ticket
+
+Confirmed working in the app by the reporter.
+
+The evidence is in this repository's own tickets: the ranks now on LC-176 (`a0`), LC-180 (`a1G`), LC-181 (`a1V`), LC-174 (`Zu`), LC-185 (`Zv`) and LC-187 (`Zw`) are fractional indices allocated *between neighbours* — which is exactly what the backfill makes possible and what the old allocator could not produce. Before the fix every drag in an unranked column returned the same `a0`, which is why this board had two tickets sharing it.
 <!-- /longclaw:event -->
