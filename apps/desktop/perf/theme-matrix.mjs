@@ -116,11 +116,12 @@ const BOARD_FEEDBACK = [
   },
   {
     // The card's hover is a border in light and a fill in dark; the border is
-    // the channel present in both. `:not(.fresh)` because the first card wears
-    // the external-update acknowledgement, whose border deliberately outranks
-    // hover — a fresh card keeps saying an agent touched it while you point at
-    // it, so probing that one would assert the opposite of the design.
-    selector: ".ticket-row:not(.fresh)",
+    // the channel present in both. `:not(.acknowledged)` because the first card
+    // wears the external-update acknowledgement, whose border deliberately
+    // outranks hover — an acknowledged card keeps saying an agent touched it
+    // while you point at it, so probing that one would assert the opposite of
+    // the design.
+    selector: ".ticket-row:not(.acknowledged)",
     property: "border-top-color",
     action: "hover",
   },
@@ -139,8 +140,8 @@ const STATES = [
     contrast: [
       ".ticket-row strong",
       ".ticket-row .ticket-key",
-      ".ticket-row.agent-fresh .actor",
-      ".ticket-row.unknown-fresh .actor",
+      ".ticket-row.acknowledged-agent .actor",
+      ".ticket-row.acknowledged-unknown .actor",
       ".board-column h3",
       ".project-link strong",
       // Was `.eyebrow` — the `LOCAL PROJECT` one, which the one-row header
@@ -161,15 +162,15 @@ const STATES = [
       {
         // The trace strip is dev-only chrome (devChrome.ts) and this build is
         // a release build, so the agent-accent contract is proven on the
-        // designed element instead: the fresh card's acknowledgement footer.
-        selector: ".ticket-row.agent-fresh .actor",
+        // designed element instead: the acknowledged card's footer.
+        selector: ".ticket-row.acknowledged-agent .actor",
         property: "color",
         token: "--lc-accent-agent-text",
       },
       {
         // And the other half of the same contract: a change nothing claimed
         // wears `warn`, not the agent's green (LC-148).
-        selector: ".ticket-row.unknown-fresh .actor",
+        selector: ".ticket-row.acknowledged-unknown .actor",
         property: "color",
         token: "--lc-warn",
       },
@@ -181,7 +182,10 @@ const STATES = [
           selector: ".content-header .primary",
           property: "background-color",
         },
-        b: { selector: ".ticket-row.agent-fresh .actor", property: "color" },
+        b: {
+          selector: ".ticket-row.acknowledged-agent .actor",
+          property: "color",
+        },
       },
       {
         // The row that used to fail: an unattributed change wore the full agent
@@ -189,8 +193,14 @@ const STATES = [
         // attributed and one not, must not read as the same event kind — in
         // every theme, since a theme swaps the agent's hue but never `warn`'s.
         label: "agent accent vs unattributed warn",
-        a: { selector: ".ticket-row.agent-fresh .actor", property: "color" },
-        b: { selector: ".ticket-row.unknown-fresh .actor", property: "color" },
+        a: {
+          selector: ".ticket-row.acknowledged-agent .actor",
+          property: "color",
+        },
+        b: {
+          selector: ".ticket-row.acknowledged-unknown .actor",
+          property: "color",
+        },
       },
     ],
   },
@@ -515,8 +525,10 @@ try {
         });
         emit(keys[1], undefined);
       });
-      await page.waitForSelector(".ticket-row.agent-fresh", { timeout: 5_000 });
-      await page.waitForSelector(".ticket-row.unknown-fresh", {
+      await page.waitForSelector(".ticket-row.acknowledged-agent", {
+        timeout: 5_000,
+      });
+      await page.waitForSelector(".ticket-row.acknowledged-unknown", {
         timeout: 5_000,
       });
 

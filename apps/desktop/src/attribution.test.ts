@@ -65,9 +65,9 @@ describe("presenting an actor", () => {
   // warn vocabulary its glyph already speaks, so no row says agent and warn at
   // once.
   it("gives each attribution one accent, and never lends green to an unknown", () => {
-    expect(acknowledgementClass("agent")).toBe("agent-fresh");
-    expect(acknowledgementClass("human")).toBe("human-fresh");
-    expect(acknowledgementClass("unknown")).toBe("unknown-fresh");
+    expect(acknowledgementClass("agent")).toBe("acknowledged-agent");
+    expect(acknowledgementClass("human")).toBe("acknowledged-human");
+    expect(acknowledgementClass("unknown")).toBe("acknowledged-unknown");
   });
 
   it("uses one glyph per actor kind everywhere", () => {

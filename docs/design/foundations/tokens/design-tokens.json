@@ -82,8 +82,8 @@
 
   "mix": {
     "note": "Percentages for color-mix(in oklab, accent N%, base) derivations, per appearance. These make every soft/tint variant a pure derivation of the two accent tokens, so a theme preset only supplies accents.",
-    "light": { "soft": "10%", "wash": "7%", "ring": "14%", "fresh-ring": "10%", "border": "38%", "rail": "35%", "avatar-ring": "65%", "pulse": "38%", "hover": "90%", "active": "82%" },
-    "dark": { "soft": "15%", "wash": "10%", "ring": "18%", "fresh-ring": "13%", "border": "42%", "rail": "40%", "avatar-ring": "70%", "pulse": "38%", "hover": "90%", "active": "82%" }
+    "light": { "soft": "10%", "wash": "7%", "ring": "14%", "acknowledged-ring": "10%", "border": "38%", "rail": "35%", "avatar-ring": "65%", "pulse": "38%", "hover": "90%", "active": "82%" },
+    "dark": { "soft": "15%", "wash": "10%", "ring": "18%", "acknowledged-ring": "13%", "border": "42%", "rail": "40%", "avatar-ring": "70%", "pulse": "38%", "hover": "90%", "active": "82%" }
   },
 
   "color": {

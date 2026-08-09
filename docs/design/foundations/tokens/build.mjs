@@ -101,8 +101,8 @@ for (const actor of ["human", "agent"]) {
   derived.push(line(`accent-${actor}-rail`, `color-mix(in oklab, ${a} var(${P}mix-rail), transparent)`));
   derived.push(line(`accent-${actor}-avatar-ring`, `color-mix(in oklab, ${a} var(${P}mix-avatar-ring), transparent)`));
 }
-derived.push(line("accent-agent-fresh-ring", `color-mix(in oklab, var(${P}accent-agent) var(${P}mix-fresh-ring), transparent)`));
-derived.push(line("accent-agent-fresh-border", `color-mix(in oklab, var(${P}accent-agent) var(${P}mix-border), var(${P}line))`));
+derived.push(line("accent-agent-acknowledged-ring", `color-mix(in oklab, var(${P}accent-agent) var(${P}mix-acknowledged-ring), transparent)`));
+derived.push(line("accent-agent-acknowledged-border", `color-mix(in oklab, var(${P}accent-agent) var(${P}mix-border), var(${P}line))`));
 derived.push(line("accent-agent-pulse", `color-mix(in oklab, var(${P}accent-agent) var(${P}mix-pulse), transparent)`));
 derived.push(line("status-done", `var(${P}accent-human)`));
 derived.push(line("focus-ring", `0 0 0 var(${P}border-focus) var(${P}accent-human-ring)`));

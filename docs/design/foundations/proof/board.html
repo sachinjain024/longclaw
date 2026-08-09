@@ -188,13 +188,13 @@
   .progress i { display: block; height: 100%; border-radius: 2px; background: var(--lc-ink-3); }
   .fraction { font-family: var(--lc-font-mono); font-size: 10.5px; font-weight: 500; color: var(--lc-ink-3); }
 
-  /* fresh agent activity — the designed moment */
-  .card.fresh {
-    border-color: var(--lc-accent-agent-fresh-border);
-    box-shadow: 0 0 0 var(--lc-border-focus) var(--lc-accent-agent-fresh-ring);
+  /* the acknowledgement of agent activity — the designed moment */
+  .card.acknowledged {
+    border-color: var(--lc-accent-agent-acknowledged-border);
+    box-shadow: 0 0 0 var(--lc-border-focus) var(--lc-accent-agent-acknowledged-ring);
   }
-  .card.fresh .fraction { color: var(--lc-accent-agent-text); }
-  .card.fresh .progress i { background: var(--lc-accent-agent); }
+  .card.acknowledged .fraction { color: var(--lc-accent-agent-text); }
+  .card.acknowledged .progress i { background: var(--lc-accent-agent); }
   .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--lc-accent-agent); }
   .pulsing { animation: lc-pulse var(--lc-motion-pulse-duration) var(--lc-motion-ease) 2; }
   .agent-foot {
@@ -344,7 +344,7 @@
             In Progress <span class="count">2</span>
           </div>
           <div class="cards">
-            <div class="card fresh" tabindex="0" id="fresh-card">
+            <div class="card acknowledged" tabindex="0" id="acknowledged-card">
               <div class="top">
                 <span class="id">LC-128</span><span class="spacer"></span>
                 <span class="pulse-dot pulsing" id="pulse-dot"></span>
@@ -356,7 +356,7 @@
                 <span class="progress"><i style="width: 43%"></i></span>
                 <span class="label-chip" style="--label: var(--lc-label-orange)"><i></i>watcher</span>
               </div>
-              <div class="agent-foot"><b>❯</b> updated by agent · <span id="fresh-ago">12s</span></div>
+              <div class="agent-foot"><b>❯</b> updated by agent · <span id="acknowledged-ago">12s</span></div>
             </div>
             <div class="card" tabindex="0">
               <div class="top"><span class="id">LC-122</span><span class="spacer"></span>
@@ -453,7 +453,7 @@
   // (900ms ease, exactly two beats — never an infinite loop).
   const dot = document.getElementById("pulse-dot");
   document.getElementById("simulate").addEventListener("click", () => {
-    document.getElementById("fresh-ago").textContent = "just now";
+    document.getElementById("acknowledged-ago").textContent = "just now";
     dot.classList.remove("pulsing");
     void dot.offsetWidth;
     dot.classList.add("pulsing");

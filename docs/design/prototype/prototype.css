@@ -383,12 +383,12 @@ svg.glyph { flex: none; }
 .card .title { font-size: 13px; font-weight: 500; line-height: 1.35; margin-bottom: 8px; color: var(--lc-ink); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .card .foot { display: flex; align-items: center; gap: 8px; min-height: 20px; }
 
-.card.fresh {
-  border-color: var(--lc-accent-agent-fresh-border);
-  box-shadow: 0 0 0 var(--lc-border-focus) var(--lc-accent-agent-fresh-ring);
+.card.acknowledged {
+  border-color: var(--lc-accent-agent-acknowledged-border);
+  box-shadow: 0 0 0 var(--lc-border-focus) var(--lc-accent-agent-acknowledged-ring);
 }
-.card.fresh .fraction { color: var(--lc-accent-agent-text); }
-.card.fresh .progress i { background: var(--lc-accent-agent); }
+.card.acknowledged .fraction { color: var(--lc-accent-agent-text); }
+.card.acknowledged .progress i { background: var(--lc-accent-agent); }
 .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--lc-accent-agent); flex: none; }
 .pulsing { animation: lc-pulse var(--lc-motion-pulse-duration) var(--lc-motion-ease) var(--lc-motion-pulse-iterations); }
 .agent-foot {
@@ -443,7 +443,7 @@ svg.glyph { flex: none; }
 .rows .row .id { font-family: var(--lc-font-mono); font-size: 11px; color: var(--lc-ink-3); width: 58px; flex: none; }
 .rows .row .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 500; color: var(--lc-ink); }
 .rows .row .updated { font-family: var(--lc-font-mono); font-size: 10.5px; color: var(--lc-ink-3); width: 46px; text-align: right; flex: none; }
-.rows .row .fresh-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--lc-accent-agent); flex: none; }
+.rows .row .acknowledged-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--lc-accent-agent); flex: none; }
 .rows .row.degraded .title { font-family: var(--lc-font-mono); font-size: 12px; font-weight: 400; color: var(--lc-ink-2); }
 .rows .row .warn-glyph { color: var(--lc-danger); display: inline-flex; }
 
@@ -549,8 +549,8 @@ svg.glyph { flex: none; }
 }
 .check-row .txt { font-size: 13px; line-height: 1.45; color: var(--lc-ink); }
 .check-row.checked .txt { color: var(--lc-ink-3); text-decoration: line-through; }
-.check-row.agent-fresh { background: var(--lc-accent-agent-wash); }
-.check-row.agent-fresh .txt { color: var(--lc-ink); text-decoration: none; }
+.check-row.acknowledged-agent { background: var(--lc-accent-agent-wash); }
+.check-row.acknowledged-agent .txt { color: var(--lc-ink); text-decoration: none; }
 .check-row .agent-when { margin-left: auto; flex: none; font-family: var(--lc-font-mono); font-size: 10.5px; color: var(--lc-accent-agent-text); padding-top: 2px; white-space: nowrap; }
 .check-add { display: flex; align-items: center; gap: 9px; margin-top: 4px; }
 .check-add .field { height: 26px; font-size: 12.5px; border-color: transparent; background: transparent; padding-left: 6px; }

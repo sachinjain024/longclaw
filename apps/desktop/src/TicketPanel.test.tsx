@@ -17,7 +17,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ExternalMark } from "./freshness";
+import type { ExternalMark } from "./acknowledgement";
 import { resetMutations } from "./mutations";
 import { TicketPanel } from "./TicketPanel";
 import { ToastStack } from "./WriteFeedback";
@@ -319,7 +319,7 @@ describe("who a checklist tick belongs to", () => {
     await waitFor(() =>
       expect(
         checklistRow("Let an agent read this ticket").className,
-      ).not.toContain("fresh"),
+      ).not.toContain("acknowledged"),
     );
     expect(screen.queryByText("❯ just now")).toBeNull();
   });
@@ -344,11 +344,11 @@ describe("who a checklist tick belongs to", () => {
 
     await waitFor(() =>
       expect(checklistRow("Let an agent read this ticket").className).toContain(
-        "fresh",
+        "acknowledged",
       ),
     );
     expect(checklistRow("Let an agent read this ticket").className).toContain(
-      "agent-fresh",
+      "acknowledged-agent",
     );
     expect(screen.getByText("❯ just now")).toBeTruthy();
     // Nothing was written to reach that state.
@@ -378,19 +378,19 @@ describe("who a checklist tick belongs to", () => {
     view.rerender(panel({ reloadSignal: 7, mark: externalTick("unknown") }));
 
     const row = () => checklistRow("Let an agent read this ticket");
-    await waitFor(() => expect(row().className).toContain("fresh"));
-    expect(row().className).toContain("unknown-fresh");
-    expect(row().className).not.toContain("agent-fresh");
+    await waitFor(() => expect(row().className).toContain("acknowledged"));
+    expect(row().className).toContain("acknowledged-unknown");
+    expect(row().className).not.toContain("acknowledged-agent");
     // The trailing note carries the actor's own glyph, not the agent's chevron.
     expect(screen.getByText("⚠ just now")).toBeTruthy();
     expect(screen.queryByText("❯ just now")).toBeNull();
 
     // And the two surfaces the tick also colours, which read the same mark.
-    const count = document.querySelector(".section-count.fresh");
-    expect(count?.className).toContain("unknown-fresh");
+    const count = document.querySelector(".section-count.acknowledged");
+    expect(count?.className).toContain("acknowledged-unknown");
     expect(
-      document.querySelector(".panel-progress.fresh")?.className,
-    ).toContain("unknown-fresh");
+      document.querySelector(".panel-progress.acknowledged")?.className,
+    ).toContain("acknowledged-unknown");
 
     // The banner above them says it in full: this surface has room for the
     // sentence the card had to abbreviate (LC-147).
@@ -435,7 +435,7 @@ describe("the checklist meter in the panel", () => {
     expect(meter()?.style.width).toBe("50%");
   });
 
-  it("wears the agent's accent while a row is fresh, and is not read aloud", async () => {
+  it("wears the agent's accent while a row is acknowledged, and is not read aloud", async () => {
     const ticked = [
       { id: "ck_1", text: "Let an agent read this ticket", checked: true },
       { id: "ck_2", text: "Review what it changed", checked: false },
@@ -449,15 +449,15 @@ describe("the checklist meter in the panel", () => {
     await screen.findByLabelText("Let an agent read this ticket");
 
     const bar = () => document.querySelector(".panel-progress");
-    expect(bar()?.className).not.toContain("fresh");
+    expect(bar()?.className).not.toContain("acknowledged");
     // The fraction beside it says the same thing in words.
     expect(bar()?.getAttribute("aria-hidden")).toBe("true");
 
     view.rerender(panel({ reloadSignal: 7, mark: externalTick() }));
 
-    await waitFor(() => expect(bar()?.className).toContain("fresh"));
+    await waitFor(() => expect(bar()?.className).toContain("acknowledged"));
     // The accent is the attribution's, not a default (LC-148).
-    expect(bar()?.className).toContain("agent-fresh");
+    expect(bar()?.className).toContain("acknowledged-agent");
   });
 
   it("draws no meter for a ticket with no checklist", async () => {
@@ -2208,7 +2208,7 @@ describe("the panel's fields read as the record, not as a form", () => {
     await ready();
 
     // Checked on disk when the panel opened, so it is settled: `ink-3` and a
-    // line through it (`components.md:192`).
+    // line through it (`components.md:218`).
     expect(checklistRow("Let an agent read this ticket").className).toContain(
       "checked",
     );
@@ -2221,17 +2221,17 @@ describe("the panel's fields read as the record, not as a form", () => {
 
     await waitFor(() =>
       expect(checklistRow("Review what it changed").className).toContain(
-        "fresh",
+        "acknowledged",
       ),
     );
-    // Both modifiers are true and the stylesheet lets `fresh` win: a row an
+    // Both modifiers are true and the stylesheet lets the acknowledgement win: a row an
     // agent ticked while the human was looking at it is news to read rather
-    // than a line to skip (`components.md:193`).
+    // than a line to skip (`components.md:219`).
     expect(checklistRow("Review what it changed").className).toContain(
       "checked",
     );
     expect(
       checklistRow("Let an agent read this ticket").className,
-    ).not.toContain("fresh");
+    ).not.toContain("acknowledged");
   });
 });

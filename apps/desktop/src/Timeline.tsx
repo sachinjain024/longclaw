@@ -4,8 +4,8 @@
  *
  * Two entry shapes, and the record's kind picks one. A **message** — a comment,
  * or a kind this build does not know — gets the full per-voice anatomy from
- * `components.md:195-206`: avatar or tile, name, `AGENT` badge, meta, body. A
- * **change** gets what `components.md:207` asks for instead: a single glyph and
+ * `components.md:226-233`: avatar or tile, name, `AGENT` badge, meta, body. A
+ * **change** gets what `components.md:234-238` asks for instead: a single glyph and
  * one line, with the actor's name in its own accent colour and no avatar.
  *
  * `states.md:169` describes an agent's external mutation as carrying the tile
@@ -15,7 +15,7 @@
  * rail and the meta and drops the 26px tile. That is why every kind still
  * satisfies V0-13's must-pass.
  *
- * **The badge stays on a change entry** even though `components.md:207` says
+ * **The badge stays on a change entry** even though `components.md:234-238` says
  * "one line". It costs no line — it sits inline beside the actor — and it is
  * the only channel on a change entry that says *agent* in words. The rail and
  * the accent name are colour, which D11's CVD policy will not let carry a
@@ -29,7 +29,7 @@
  */
 
 import { actorGlyph, actorName, eventProse } from "./attribution";
-import { describeAge } from "./freshness";
+import { describeAge } from "./acknowledgement";
 import { LabelDot } from "./LabelChip";
 import { MarkdownView } from "./MarkdownView";
 import { PriorityGlyph } from "./PriorityGlyph";

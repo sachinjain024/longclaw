@@ -125,11 +125,11 @@ const GL = {
   arrowGo: `<svg class="glyph" width="13" height="13" viewBox="0 0 14 14"><path d="M2 7 H11 M7.5 3 L11.5 7 L7.5 11" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
 };
 
-function checkbox(checked, agentFresh = false) {
+function checkbox(checked, agentAcknowledged = false) {
   if (!checked)
     return `<svg class="glyph" width="15" height="15" viewBox="0 0 15 15"><rect x="2" y="2" width="11" height="11" rx="3" fill="none" stroke="var(--lc-line-strong)" stroke-width="1.5"/></svg>`;
-  const fill = agentFresh ? "var(--lc-accent-agent)" : "var(--lc-ink-3)";
-  const mark = agentFresh ? "var(--lc-on-accent-agent)" : "var(--lc-surface)";
+  const fill = agentAcknowledged ? "var(--lc-accent-agent)" : "var(--lc-ink-3)";
+  const mark = agentAcknowledged ? "var(--lc-on-accent-agent)" : "var(--lc-surface)";
   return `<svg class="glyph" width="15" height="15" viewBox="0 0 15 15"><rect x="1.5" y="1.5" width="12" height="12" rx="3.5" fill="${fill}"/><path d="M4.4 7.8 L6.7 10 L10.7 5.3" fill="none" stroke="${mark}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 const avatar = (p, small = false) =>
@@ -151,10 +151,10 @@ const humanActor = (id) => ({ type: "human", id, name: PEOPLE[id].name });
 function T(o) {
   return Object.assign({
     id: uid("t"), labels: [], checklist: [], activity: [], priority: "none",
-    assignee: null, description: "", fresh: false, freshAt: 0, degraded: null, pending: false, archivedAt: null,
+    assignee: null, description: "", acknowledged: false, acknowledgedAt: 0, degraded: null, pending: false, archivedAt: null,
   }, o);
 }
-const ck = (text, checked = false) => ({ id: uid("ck"), text, checked, agentFresh: false, by: null });
+const ck = (text, checked = false) => ({ id: uid("ck"), text, checked, agentAcknowledged: false, by: null });
 const evCreate = (who, at) => ({ id: uid("ev"), kind: "event", actor: humanActor(who), at, ev: { field: "created" } });
 
 function seedLongclaw() {
@@ -599,13 +599,13 @@ function cardHTML(t) {
   if (t.degraded) return degradedCardHTML(t);
   const p = proj();
   const done = t.checklist.filter((c) => c.checked).length, total = t.checklist.length;
-  const freshNow = isFresh(t);
+  const acknowledgedNow = isAcknowledged(t);
   return `
-  <button class="card ${freshNow ? "fresh" : ""} ${app.panel && app.panel.key === t.key ? "selected" : ""}"
+  <button class="card ${acknowledgedNow ? "acknowledged" : ""} ${app.panel && app.panel.key === t.key ? "selected" : ""}"
       data-action="open-ticket" data-key="${t.key}" data-fkey="card:${t.key}" role="listitem">
     <span class="top">
       <span class="id">${esc(t.key)}</span><span class="spacer"></span>
-      ${freshNow ? `<span class="pulse-dot pulsing"></span>` : ""}
+      ${acknowledgedNow ? `<span class="pulse-dot pulsing"></span>` : ""}
       ${priGlyph(t.priority, true)}
     </span>
     <span class="title">${esc(t.title)}</span>
@@ -614,7 +614,7 @@ function cardHTML(t) {
       ${t.labels.slice(0, total ? 1 : 2).map((l) => `<span class="label-chip" style="--label: var(--lc-label-${label(l, p).color})"><i></i>${esc(label(l, p).name)}</span>`).join("")}
       <span class="spacer"></span>
     </span>
-    ${freshNow ? `<span class="agent-foot"><b>❯</b> updated by agent · ${relTime(t.freshAt)}</span>` : ""}
+    ${acknowledgedNow ? `<span class="agent-foot"><b>❯</b> updated by agent · ${relTime(t.acknowledgedAt)}</span>` : ""}
   </button>`;
 }
 
@@ -627,7 +627,7 @@ function degradedCardHTML(t) {
   </button>`;
 }
 
-const isFresh = (t) => t.fresh && now() - t.freshAt < 2 * MIN;
+const isAcknowledged = (t) => t.acknowledged && now() - t.acknowledgedAt < 2 * MIN;
 
 /* ---------- issue list ---------- */
 
@@ -673,7 +673,7 @@ function rowHTML(t, p) {
     <span class="id">${esc(t.key)}</span>
     ${priGlyph(t.priority, true)}
     <span class="title">${esc(t.title)}</span>
-    ${isFresh(t) ? `<span class="fresh-dot pulsing" title="Updated by agent"></span>` : ""}
+    ${isAcknowledged(t) ? `<span class="acknowledged-dot pulsing" title="Updated by agent"></span>` : ""}
     ${total ? `<span class="fraction">${done}/${total}</span>` : ""}
     ${t.labels.slice(0, 2).map((l) => `<span class="label-chip" style="--label: var(--lc-label-${label(l, p).color})"><i></i>${esc(label(l, p).name)}</span>`).join("")}
     <span class="updated">${relTime(t.updatedAt)}</span>
@@ -727,14 +727,14 @@ function panelHTML() {
 
       <div class="panel-section">
         <div class="shead">Checklist <span class="mono-meta">${total ? `${done}/${total}` : ""}</span>
-          ${total ? `<span class="progress" style="width:56px"><i style="width:${Math.round(done / total * 100)}%; ${t.checklist.some((c) => c.agentFresh) ? "background: var(--lc-accent-agent)" : ""}"></i></span>` : ""}
+          ${total ? `<span class="progress" style="width:56px"><i style="width:${Math.round(done / total * 100)}%; ${t.checklist.some((c) => c.agentAcknowledged) ? "background: var(--lc-accent-agent)" : ""}"></i></span>` : ""}
         </div>
         <div class="checklist">
           ${t.checklist.map((c) => `
-            <button class="check-row ${c.checked ? "checked" : ""} ${c.agentFresh ? "agent-fresh" : ""}" data-action="toggle-check" data-key="${t.key}" data-item="${c.id}" data-fkey="check:${c.id}">
-              <span class="box">${checkbox(c.checked, c.agentFresh)}</span>
+            <button class="check-row ${c.checked ? "checked" : ""} ${c.agentAcknowledged ? "acknowledged-agent" : ""}" data-action="toggle-check" data-key="${t.key}" data-item="${c.id}" data-fkey="check:${c.id}">
+              <span class="box">${checkbox(c.checked, c.agentAcknowledged)}</span>
               <span class="txt">${esc(c.text)}</span>
-              ${c.agentFresh ? `<span class="agent-when">❯ just now</span>` : ""}
+              ${c.agentAcknowledged ? `<span class="agent-when">❯ just now</span>` : ""}
             </button>`).join("")}
           <div class="check-add">
             <span class="box" style="width:15px;flex:none;display:inline-flex;margin-left:6px;opacity:.5">${checkbox(false)}</span>
@@ -1280,9 +1280,9 @@ function toggleCheck(t, itemId, actor = humanActor(ME), via) {
   if (!c) return;
   const was = c.checked;
   mutate(t, () => {
-    c.checked = !was; c.agentFresh = actor.type === "agent" && c.checked;
+    c.checked = !was; c.agentAcknowledged = actor.type === "agent" && c.checked;
     addEvent(t, actor, { field: "checklist", item: c.text, to: c.checked }, via);
-  }, { undo: () => { c.checked = was; c.agentFresh = false; t.activity.pop(); } });
+  }, { undo: () => { c.checked = was; c.agentAcknowledged = false; t.activity.pop(); } });
 }
 function createTicket({ title, status = "todo", priority = "none", assignee = null, labels = [], description = "", checklist = [] }) {
   const p = proj();
@@ -1310,8 +1310,8 @@ function toggleArchive(t) {
 }
 function markSeen(t) {
   let changed = false;
-  if (t.fresh) { t.fresh = false; changed = true; }
-  t.checklist.forEach((c) => { if (c.agentFresh) { c.agentFresh = false; changed = true; } });
+  if (t.acknowledged) { t.acknowledged = false; changed = true; }
+  t.checklist.forEach((c) => { if (c.agentAcknowledged) { c.agentAcknowledged = false; changed = true; } });
   return changed;
 }
 
@@ -1832,9 +1832,9 @@ function runAgentSession() {
   agentRunning = true;
   const btn = $("[data-action='drv-agent']"); if (btn) btn.disabled = true;
   let writes = 0;
-  const freshen = () => { t.fresh = true; t.freshAt = now(); };
+  const acknowledge = () => { t.acknowledged = true; t.acknowledgedAt = now(); };
   const agentWrite = (fn, line) => {
-    fn(); freshen(); writes++;
+    fn(); acknowledge(); writes++;
     t.updatedAt = now();
     ticker(`<b>❯ claude-code</b> wrote tickets/${t.key}/ticket.md — ${line}`);
     render();
@@ -1842,9 +1842,9 @@ function runAgentSession() {
   const steps = [
     [700, () => ticker(`<b>❯ claude-code</b> read .longclaw/AGENTS.md + tickets/${t.key}/ticket.md`)],
     [1900, () => { const c = t.checklist.find((x) => !x.checked); if (!c) return;
-      agentWrite(() => { c.checked = true; c.agentFresh = true; addEvent(t, AGENT, { field: "checklist", item: c.text, to: true }, "file edit"); }, `checked “${c.text}”`); }],
+      agentWrite(() => { c.checked = true; c.agentAcknowledged = true; addEvent(t, AGENT, { field: "checklist", item: c.text, to: true }, "file edit"); }, `checked “${c.text}”`); }],
     [3300, () => { const c = t.checklist.find((x) => !x.checked); if (!c) return;
-      agentWrite(() => { c.checked = true; c.agentFresh = true; addEvent(t, AGENT, { field: "checklist", item: c.text, to: true }, "file edit"); }, `checked “${c.text}”`); }],
+      agentWrite(() => { c.checked = true; c.agentAcknowledged = true; addEvent(t, AGENT, { field: "checklist", item: c.text, to: true }, "file edit"); }, `checked “${c.text}”`); }],
     [4700, () => agentWrite(() => {
         t.description += `\n\n## Discoveries\n\nEditors differ: VS Code renames \`file.tmp → file\`, vim rewrites in place with \`backupcopy=yes\`. The coalescing window handles both; hash-diffing suppresses the false delete.`;
         addEvent(t, AGENT, { field: "description" }, "file edit");
@@ -1881,7 +1881,7 @@ function stageConflict() {
     if (!app.panel || app.panel.key !== t.key) return;
     t.description += "\n\n> claude-code: preview renderer now escapes raw HTML before markdown transforms.";
     addEvent(t, AGENT, { field: "description" }, "file edit");
-    t.updatedAt = now(); t.fresh = true; t.freshAt = now();
+    t.updatedAt = now(); t.acknowledged = true; t.acknowledgedAt = now();
     app.panel.conflict = { by: "claude-code", at: now() };
     ticker(`<b>❯ claude-code</b> wrote tickets/${t.key}/ticket.md while you were editing`);
     render();
@@ -1930,7 +1930,7 @@ function stageUnplug() {
   render();
 }
 
-/* ================= periodic refresh (relative times, freshness decay) ================= */
+/* ================= periodic refresh (relative times, acknowledgement decay) ================= */
 
 setInterval(() => {
   if (document.activeElement && /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) return;

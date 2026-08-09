@@ -87,7 +87,7 @@ describe("every field apply() can write", () => {
       "unarchived this",
     ],
     // `apply` records a description change with no from and no to, because the
-    // diff is not tracked. The expandable diff is deferred (`components.md:207`).
+    // diff is not tracked. The expandable diff is deferred (`components.md:234-238`).
     ["description", { field: "description" }, "edited the description"],
     [
       "checklist.<id>.checked",

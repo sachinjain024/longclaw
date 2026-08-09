@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
-  FRESH_WINDOW_MS,
+  ACKNOWLEDGEMENT_WINDOW_MS,
   acknowledgement,
   acknowledgementInFull,
   describeAge,
   describeAgeInSlot,
   externalMark,
-  freshlyChecked,
-  isFresh,
+  newlyChecked,
+  isAcknowledged,
   pruneMarks,
-} from "./freshness";
+} from "./acknowledgement";
 import type { Actor, ChecklistItem } from "./types";
 
 const AT = 1_800_000_000_000;
@@ -87,8 +87,8 @@ describe("acknowledging an external change", () => {
   it("decays two minutes after the last write, and never before", () => {
     const mark = externalMark(attributed("agent", "Claude Code"), AT);
 
-    expect(isFresh(mark, AT + FRESH_WINDOW_MS - 1)).toBe(true);
-    expect(isFresh(mark, AT + FRESH_WINDOW_MS)).toBe(false);
+    expect(isAcknowledged(mark, AT + ACKNOWLEDGEMENT_WINDOW_MS - 1)).toBe(true);
+    expect(isAcknowledged(mark, AT + ACKNOWLEDGEMENT_WINDOW_MS)).toBe(false);
   });
 
   it("drops decayed marks so the board stops paying for them", () => {
@@ -101,8 +101,8 @@ describe("acknowledging an external change", () => {
 
     // A map with nothing to drop comes back as the same object, so a periodic
     // sweep does not re-render the board for no reason.
-    const stillFresh = { "LC-1": marks["LC-1"] };
-    expect(pruneMarks(stillFresh, AT)).toBe(stillFresh);
+    const stillAcknowledged = { "LC-1": marks["LC-1"] };
+    expect(pruneMarks(stillAcknowledged, AT)).toBe(stillAcknowledged);
   });
 
   it("reads ages the way the timeline does", () => {
@@ -138,7 +138,7 @@ describe("checklist items an external write just checked", () => {
       { id: "ck_3", text: "Ship it", checked: false },
     ];
 
-    expect(freshlyChecked(before, after)).toEqual(["ck_2"]);
+    expect(newlyChecked(before, after)).toEqual(["ck_2"]);
   });
 
   it("ignores unchecking, new items, and items with no id", () => {
@@ -149,6 +149,6 @@ describe("checklist items an external write just checked", () => {
       { text: "Appended by an agent", checked: true },
     ];
 
-    expect(freshlyChecked(before, after)).toEqual([]);
+    expect(newlyChecked(before, after)).toEqual([]);
   });
 });

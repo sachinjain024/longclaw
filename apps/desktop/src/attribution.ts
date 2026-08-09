@@ -33,13 +33,9 @@ export const UNATTRIBUTED_CHANGE_BRIEF = "file changed";
 
 /**
  * The one name for the acknowledgement a change wears, keyed on the attribution
- * the file carried: `agent-fresh`, `human-fresh`, `unknown-fresh`.
- *
- * The returned classes are the stylesheet's older vocabulary, which CONTEXT.md:33
- * asks the app not to speak — `Acknowledgement`, *avoid* `Fresh`. Renaming that
- * layer means renaming `accent-agent-fresh-border` and `-fresh-ring`, which
- * `states.md:150-151` and `components.md:202` pin by name, so it is LC-183 rather
- * than a rider on this. What the domain calls the thing stops here.
+ * the file carried: `acknowledged-agent`, `acknowledged-human`,
+ * `acknowledged-unknown`. They pair with the bare `acknowledged` the row wears,
+ * which carries the anatomy the accent then colours.
  *
  * The mapping is trivial and the point is that there is only one of it. Green is
  * the agent's alone, and the rule used to be spelled out per surface — as
@@ -51,8 +47,8 @@ export const UNATTRIBUTED_CHANGE_BRIEF = "file changed";
  */
 export function acknowledgementClass(
   actorType: ActorType,
-): `${ActorType}-fresh` {
-  return `${actorType}-fresh`;
+): `acknowledged-${ActorType}` {
+  return `acknowledged-${actorType}`;
 }
 
 export function actorGlyph(actorType: ActorType): string {

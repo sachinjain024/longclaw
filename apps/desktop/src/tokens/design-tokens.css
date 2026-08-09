@@ -84,7 +84,7 @@
   --lc-size-card-pad-x: 12px;
   --lc-size-card-pad-y: 10px;
   --lc-size-board-card: 90px;
-  --lc-size-board-card-fresh: 118px;
+  --lc-size-board-card-acknowledged: 118px;
   --lc-size-board-stack: calc(100vh - 142px);
   --lc-size-panel-gutter: 16px;
   --lc-size-panel-gutter-lg: 24px;
@@ -166,7 +166,7 @@
   --lc-mix-soft: 10%;
   --lc-mix-wash: 7%;
   --lc-mix-ring: 14%;
-  --lc-mix-fresh-ring: 10%;
+  --lc-mix-acknowledged-ring: 10%;
   --lc-mix-border: 38%;
   --lc-mix-rail: 35%;
   --lc-mix-avatar-ring: 65%;
@@ -232,7 +232,7 @@
   --lc-mix-soft: 10%;
   --lc-mix-wash: 7%;
   --lc-mix-ring: 14%;
-  --lc-mix-fresh-ring: 10%;
+  --lc-mix-acknowledged-ring: 10%;
   --lc-mix-border: 38%;
   --lc-mix-rail: 35%;
   --lc-mix-avatar-ring: 65%;
@@ -292,7 +292,7 @@
   --lc-mix-soft: 15%;
   --lc-mix-wash: 10%;
   --lc-mix-ring: 18%;
-  --lc-mix-fresh-ring: 13%;
+  --lc-mix-acknowledged-ring: 13%;
   --lc-mix-border: 42%;
   --lc-mix-rail: 40%;
   --lc-mix-avatar-ring: 70%;
@@ -456,22 +456,22 @@
     var(--lc-accent-agent) var(--lc-mix-avatar-ring),
     transparent
   );
-  --lc-accent-agent-fresh-ring: color-mix(
+  --lc-accent-agent-acknowledged-ring: color-mix(
     in oklab,
-    var(--lc-accent-agent) var(--lc-mix-fresh-ring),
+    var(--lc-accent-agent) var(--lc-mix-acknowledged-ring),
     transparent
   );
-  --lc-accent-agent-fresh-border: color-mix(
+  --lc-accent-agent-acknowledged-border: color-mix(
     in oklab,
     var(--lc-accent-agent) var(--lc-mix-border),
     var(--lc-line)
   );
-  --lc-warn-fresh-ring: color-mix(
+  --lc-warn-acknowledged-ring: color-mix(
     in oklab,
-    var(--lc-warn) var(--lc-mix-fresh-ring),
+    var(--lc-warn) var(--lc-mix-acknowledged-ring),
     transparent
   );
-  --lc-warn-fresh-border: color-mix(
+  --lc-warn-acknowledged-border: color-mix(
     in oklab,
     var(--lc-warn) var(--lc-mix-border),
     var(--lc-line)

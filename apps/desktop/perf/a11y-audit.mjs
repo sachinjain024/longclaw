@@ -823,7 +823,7 @@ async function auditVisibleFocus(browser) {
  * Not "no animation" — `mvp_plan_order.md` § Step 16b asks that meaningful
  * motion stay short and never be the only carrier of state. So this checks two
  * things: that the durations actually collapse, and that a state change is still
- * legible once they have. A freshness flash that was the *only* signal an agent
+ * legible once they have. An acknowledgement flash that was the *only* signal an agent
  * touched a ticket would pass the first and fail the second.
  */
 async function auditReducedMotion(browser) {
@@ -916,29 +916,29 @@ async function auditReducedMotion(browser) {
       });
     });
     await settle(page);
-    const freshness = await page.evaluate(() => {
-      const fresh = document.querySelector(".ticket-row.fresh");
-      if (!fresh) return { marked: false };
-      const plain = document.querySelector(".ticket-row:not(.fresh)");
-      const a = getComputedStyle(fresh);
+    const treatment = await page.evaluate(() => {
+      const acknowledged = document.querySelector(".ticket-row.acknowledged");
+      if (!acknowledged) return { marked: false };
+      const plain = document.querySelector(".ticket-row:not(.acknowledged)");
+      const a = getComputedStyle(acknowledged);
       const b = plain ? getComputedStyle(plain) : undefined;
       return {
         marked: true,
         // The acknowledgement line: text, not motion.
         acknowledgement:
-          fresh.querySelector(".actor")?.textContent?.trim() ?? "",
+          acknowledged.querySelector(".actor")?.textContent?.trim() ?? "",
         border: a.borderTopColor,
         plainBorder: b?.borderTopColor ?? "",
       };
     });
     check(
       "an external change is still marked with motion collapsed",
-      freshness.marked &&
-        (freshness.acknowledgement !== "" ||
-          freshness.border !== freshness.plainBorder),
-      freshness.marked
-        ? `text=${JSON.stringify(freshness.acknowledgement)} border ${freshness.border} vs ${freshness.plainBorder}`
-        : "no card carried the freshness treatment",
+      treatment.marked &&
+        (treatment.acknowledgement !== "" ||
+          treatment.border !== treatment.plainBorder),
+      treatment.marked
+        ? `text=${JSON.stringify(treatment.acknowledgement)} border ${treatment.border} vs ${treatment.plainBorder}`
+        : "no card carried the acknowledgement",
       "mvp_plan_order.md § Step 16b — motion must not be the only carrier of state",
     );
     await page.screenshot({ path: resolve(OUT, "A4-reduced-motion.png") });

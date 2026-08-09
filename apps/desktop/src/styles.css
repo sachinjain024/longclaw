@@ -1377,8 +1377,8 @@ button:disabled {
 }
 
 /* The footer never wraps (screen-specs.md § Board), which is also what keeps a
-   fresh card to one known height for the column to place cards by. */
-/* No colour here: the footer only ever appears on a fresh card, and the accent
+   acknowledged card to one known height for the column to place cards by. */
+/* No colour here: the footer only ever appears on an acknowledged card, and the
    is the attribution's to give. Agent green as the base was the old default that
    anything not a person fell through to. */
 .actor {
@@ -1392,74 +1392,74 @@ button:disabled {
   white-space: nowrap;
 }
 
-.agent-fresh .actor {
+.acknowledged-agent .actor {
   color: var(--lc-accent-agent-text);
 }
 
-.human-fresh .actor {
+.acknowledged-human .actor {
   color: var(--lc-accent-human-text);
 }
 
-.unknown-fresh .actor {
+.acknowledged-unknown .actor {
   color: var(--lc-warn);
 }
 
 /* The acknowledgement of a change that arrived from disk: ring, pulse, and a
    footer naming the actor the file recorded. Never a silent re-render.
 
-   The footer is why a fresh card is taller, and the height is stated here with
+   The footer is why an acknowledged card is taller, and the height is stated here
    the rest of the treatment rather than beside `.ticket-row`: `cardStrides` in
    boardGeometry.ts places cards from these two heights, so a card that wore the
    ring without the extra room would be placed wrong by exactly the footer. */
-.ticket-row.fresh {
-  height: var(--lc-size-board-card-fresh);
+.ticket-row.acknowledged {
+  height: var(--lc-size-board-card-acknowledged);
 }
 
 /* Whose change it was decides the colour, and it decides all of it — the ring,
-   the meter, the footer and the pulse below. `freshAccentClass` in
+   the meter, the footer and the pulse below. `acknowledgementClass` in
    attribution.ts is what picks between these three, so the card and the list row
    cannot answer it differently. Green belongs to the agent: a change nothing
    claimed used to wear the whole agent treatment *and* the warn triangle its
    glyph gives it, which is one row saying two incompatible things about the same
    event (LC-148). */
-.ticket-row.fresh.agent-fresh {
-  border-color: var(--lc-accent-agent-fresh-border);
-  box-shadow: 0 0 0 3px var(--lc-accent-agent-fresh-ring);
+.ticket-row.acknowledged.acknowledged-agent {
+  border-color: var(--lc-accent-agent-acknowledged-border);
+  box-shadow: 0 0 0 3px var(--lc-accent-agent-acknowledged-ring);
 }
 
-.ticket-row.fresh.human-fresh {
+.ticket-row.acknowledged.acknowledged-human {
   border-color: var(--lc-accent-human-border);
   box-shadow: 0 0 0 3px var(--lc-accent-human-soft);
 }
 
-.ticket-row.fresh.unknown-fresh {
-  border-color: var(--lc-warn-fresh-border);
-  box-shadow: 0 0 0 3px var(--lc-warn-fresh-ring);
+.ticket-row.acknowledged.acknowledged-unknown {
+  border-color: var(--lc-warn-acknowledged-border);
+  box-shadow: 0 0 0 3px var(--lc-warn-acknowledged-ring);
 }
 
 /* The change the acknowledgement is about is usually the checklist, so the
-   meter wears the actor's accent while the card is fresh (prototype.css). */
-.ticket-row.fresh.agent-fresh .fraction {
+   meter wears the actor's accent while the card is acknowledged (prototype.css). */
+.ticket-row.acknowledged.acknowledged-agent .fraction {
   color: var(--lc-accent-agent-text);
 }
 
-.ticket-row.fresh.agent-fresh .progress i {
+.ticket-row.acknowledged.acknowledged-agent .progress i {
   background: var(--lc-accent-agent);
 }
 
-.ticket-row.fresh.human-fresh .fraction {
+.ticket-row.acknowledged.acknowledged-human .fraction {
   color: var(--lc-accent-human-text);
 }
 
-.ticket-row.fresh.human-fresh .progress i {
+.ticket-row.acknowledged.acknowledged-human .progress i {
   background: var(--lc-accent-human);
 }
 
-.ticket-row.fresh.unknown-fresh .fraction {
+.ticket-row.acknowledged.acknowledged-unknown .fraction {
   color: var(--lc-warn);
 }
 
-.ticket-row.fresh.unknown-fresh .progress i {
+.ticket-row.acknowledged.acknowledged-unknown .progress i {
   background: var(--lc-warn);
 }
 
@@ -1474,7 +1474,7 @@ button:disabled {
    `components.md` § Board card asks for, with the ring inset against it, the
    same trade `.list-row` makes for the same reason.
 
-   Placed after `.fresh` deliberately: the two carry the same specificity, and a
+   Placed after `.acknowledged` deliberately: the two carry the same specificity, and a
    card that changed on disk while focused still has to be findable. The
    acknowledgement keeps its own outward ring, its pulse and its footer. */
 .ticket-row:focus-visible {
@@ -1495,7 +1495,7 @@ button:disabled {
   vertical-align: middle;
 }
 
-/* Only while the change is still new (freshness.ts `isPulsing`). A column
+/* Only while the change is still new (acknowledgement.ts `isPulsing`). A column
    renders only the cards it can show, so a card scrolled out and back remounts,
    and an animation on the dot itself would beat again for a change the human saw
    minutes ago. */
@@ -1510,19 +1510,19 @@ button:disabled {
    a green dot there, and every actor's halo beat agent-green everywhere, since
    the halo is a hue inside a keyframe and only a second keyframe can change it
    (see `lc-pulse-*` in design-tokens.css). */
-.human-fresh .pulse-dot {
+.acknowledged-human .pulse-dot {
   background: var(--lc-accent-human);
 }
 
-.human-fresh .pulse-dot.pulsing {
+.acknowledged-human .pulse-dot.pulsing {
   animation-name: lc-pulse-human;
 }
 
-.unknown-fresh .pulse-dot {
+.acknowledged-unknown .pulse-dot {
   background: var(--lc-warn);
 }
 
-.unknown-fresh .pulse-dot.pulsing {
+.acknowledged-unknown .pulse-dot.pulsing {
   animation-name: lc-pulse-warn;
 }
 
@@ -2281,17 +2281,17 @@ button:disabled {
   font-weight: 500;
 }
 
-/* The fraction joins the acknowledgement while any row is fresh, wearing the
+/* The fraction joins the acknowledgement while any row is acknowledged, wearing
    attribution the acknowledgement above it wears. */
-.section-count.fresh.agent-fresh {
+.section-count.acknowledged.acknowledged-agent {
   color: var(--lc-accent-agent-text);
 }
 
-.section-count.fresh.human-fresh {
+.section-count.acknowledged.acknowledged-human {
   color: var(--lc-accent-human-text);
 }
 
-.section-count.fresh.unknown-fresh {
+.section-count.acknowledged.acknowledged-unknown {
   color: var(--lc-warn);
 }
 
@@ -2301,15 +2301,15 @@ button:disabled {
   width: 56px;
 }
 
-.panel-progress.fresh.agent-fresh i {
+.panel-progress.acknowledged.acknowledged-agent i {
   background: var(--lc-accent-agent);
 }
 
-.panel-progress.fresh.human-fresh i {
+.panel-progress.acknowledged.acknowledged-human i {
   background: var(--lc-accent-human);
 }
 
-.panel-progress.fresh.unknown-fresh i {
+.panel-progress.acknowledged.acknowledged-unknown i {
   background: var(--lc-warn);
 }
 
@@ -2554,7 +2554,7 @@ button:disabled {
    description was a black rectangle. Which surface code belongs on is decided
    in `design-tokens.json` under `alias`, not here — both rules below name the
    role, so the two surfaces cannot drift apart again. Radius 4 per
-   `components.md:207`; `--lc-radius-tile` is the radius scale's name for it
+   `components.md:234-238`; `--lc-radius-tile` is the radius scale's name for it
    and has nothing to do with the tile color. */
 .markdown code {
   border-radius: var(--lc-radius-tile);
@@ -2648,11 +2648,11 @@ button:disabled {
 }
 
 /* Settled and done: an `ink-3` box and `ink-3` text with a line through it
-   (`components.md:192`, `prototype.js:131`). The list is the human→agent work
+   (`components.md:218`, `prototype.js:131`). The list is the human→agent work
    interface, and the pair is what lets a glance read the remaining work rather
    than counting boxes.
 
-   The box is deliberately *not* the human accent. `components.md:191-193`
+   The box is deliberately *not* the human accent. `components.md:217-219`
    spends colour on one distinction only — the row an agent ticked while the
    human was looking at it — and a settled tick that kept the accent would put
    the same weight on every done row and leave the acknowledgement nothing to
@@ -2668,57 +2668,57 @@ button:disabled {
 
 /* A row an external write just ticked, until the ticket settles — in the colour
    of whoever the file said ticked it, the same decision the card makes and from
-   the same `freshAccentClass`. A row an unclaimed write ticked used to fill
+   the same `acknowledgementClass`. A row an unclaimed write ticked used to fill
    agent green directly under this panel's warn banner (LC-148). */
-.checklist-row.fresh.agent-fresh {
+.checklist-row.acknowledged.acknowledged-agent {
   background: var(--lc-accent-agent-wash);
 }
 
-.checklist-row.fresh.agent-fresh input {
+.checklist-row.acknowledged.acknowledged-agent input {
   accent-color: var(--lc-accent-agent);
 }
 
-.checklist-row.fresh.human-fresh {
+.checklist-row.acknowledged.acknowledged-human {
   background: var(--lc-accent-human-wash);
 }
 
-.checklist-row.fresh.human-fresh input {
+.checklist-row.acknowledged.acknowledged-human input {
   accent-color: var(--lc-accent-human);
 }
 
-.checklist-row.fresh.unknown-fresh {
+.checklist-row.acknowledged.acknowledged-unknown {
   background: var(--lc-warn-surface);
 }
 
-.checklist-row.fresh.unknown-fresh input {
+.checklist-row.acknowledged.acknowledged-unknown input {
   accent-color: var(--lc-warn);
 }
 
-/* Fresh outranks checked (`components.md:193`): a row an agent ticked while the
+/* The acknowledgement outranks checked (`components.md:219`): a row an agent ticked while the
    human was looking at it is news to read, so it keeps full `ink` and no
    strike until the ticket settles. */
-.checklist-row.fresh.checked label {
+.checklist-row.acknowledged.checked label {
   color: var(--lc-ink);
   text-decoration: none;
 }
 
 /* Named for the state, not for the agent: the same note says a person or an
    unclaimed write ticked the row, and it carries that actor's glyph. */
-.fresh-note {
+.acknowledged-note {
   margin-left: auto;
   font: 500 var(--lc-type-kbd-size) var(--lc-type-code-font);
   font-style: normal;
 }
 
-.fresh-note.agent-fresh {
+.acknowledged-note.acknowledged-agent {
   color: var(--lc-accent-agent-text);
 }
 
-.fresh-note.human-fresh {
+.acknowledged-note.acknowledged-human {
   color: var(--lc-accent-human-text);
 }
 
-.fresh-note.unknown-fresh {
+.acknowledged-note.acknowledged-unknown {
   color: var(--lc-warn);
 }
 
@@ -2844,7 +2844,7 @@ button:disabled {
 }
 
 /* A change event is a glyph and a line, not an avatar and a block
-   (`components.md:207`). The rail still marks an agent's. */
+   (`components.md:234-238`). The rail still marks an agent's. */
 .entry-changes {
   display: grid;
   gap: 2px;
@@ -3551,7 +3551,7 @@ html.theme-transition *::after {
 
 /* ------------------------------------------------------------------- toasts */
 
-/* Bottom-center, single stack (components.md:213-215). */
+/* Bottom-center, single stack (components.md:258-260). */
 .toast-stack {
   position: fixed;
   bottom: var(--lc-space-6);

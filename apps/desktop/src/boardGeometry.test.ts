@@ -9,15 +9,15 @@ import {
   CARD_GAP,
   CARD_HEIGHT,
   CARD_STRIDE,
-  FRESH_CARD_HEIGHT,
-  FRESH_CARD_STRIDE,
+  ACKNOWLEDGED_CARD_HEIGHT,
+  ACKNOWLEDGED_CARD_STRIDE,
   cardStrides,
   gapAt,
   runningOffsets,
   windowFor,
 } from "./boardGeometry";
-import type { ExternalMarks } from "./freshness";
-import { FRESH_WINDOW_MS } from "./freshness";
+import type { ExternalMarks } from "./acknowledgement";
+import { ACKNOWLEDGEMENT_WINDOW_MS } from "./acknowledgement";
 import tokens from "./tokens/design-tokens.json";
 import type { TicketRow } from "./types";
 
@@ -52,7 +52,7 @@ describe("a column's card strides", () => {
     ]);
   });
 
-  it("makes room for the acknowledgement footer on a fresh card", () => {
+  it("makes room for the acknowledgement footer on an acknowledged card", () => {
     const marks: ExternalMarks = {
       "LC-2": {
         actorType: "agent",
@@ -63,7 +63,7 @@ describe("a column's card strides", () => {
 
     expect(cardStrides(rows(3), marks, NOW)).toEqual([
       CARD_STRIDE,
-      FRESH_CARD_STRIDE,
+      ACKNOWLEDGED_CARD_STRIDE,
       CARD_STRIDE,
     ]);
   });
@@ -73,7 +73,7 @@ describe("a column's card strides", () => {
       "LC-2": {
         actorType: "agent",
         actorLabel: "Claude Code",
-        at: NOW - FRESH_WINDOW_MS,
+        at: NOW - ACKNOWLEDGEMENT_WINDOW_MS,
       },
     };
 
@@ -143,7 +143,7 @@ describe("the window a column renders", () => {
 describe("the card heights the stylesheet pins", () => {
   it("keeps the stride a card plus the gap below it", () => {
     expect(CARD_STRIDE).toBe(CARD_HEIGHT + CARD_GAP);
-    expect(FRESH_CARD_STRIDE).toBe(FRESH_CARD_HEIGHT + CARD_GAP);
+    expect(ACKNOWLEDGED_CARD_STRIDE).toBe(ACKNOWLEDGED_CARD_HEIGHT + CARD_GAP);
   });
 
   // The offsets are only exact while these agree with the stylesheet. A token
@@ -152,7 +152,9 @@ describe("the card heights the stylesheet pins", () => {
   // scroll. `npm run tokens:check` holds the generated CSS to this same JSON.
   it("agrees with the tokens the board is laid out from", () => {
     expect(tokens.size["board-card"]).toBe(CARD_HEIGHT);
-    expect(tokens.size["board-card-fresh"]).toBe(FRESH_CARD_HEIGHT);
+    expect(tokens.size["board-card-acknowledged"]).toBe(
+      ACKNOWLEDGED_CARD_HEIGHT,
+    );
   });
 
   // Not a restatement of the number: the point of LC-165 is that the number is

@@ -33,7 +33,7 @@ const KNOWN_KINDS = ["create", "update", "comment", "external_change"];
 
 /**
  * A message carries a body and the full per-voice anatomy; a change carries a
- * glyph and a line (`components.md:195-208`).
+ * glyph and a line (`components.md:226-238`).
  *
  * An unfamiliar kind is a message, deliberately. It is the shape that shows the
  * most — actor, badge, provenance, and the whole body — so a kind this build
@@ -127,7 +127,7 @@ export function changeLines(
  * The fields are what `TicketDocument::apply` writes (`core/ticket.rs:561`) plus
  * whatever an external writer chose. `description` arrives with no `from` and no
  * `to` because the diff is not tracked, which is why it reads as an event rather
- * than a diff — the expandable diff is deferred (`components.md:207`).
+ * than a diff — the expandable diff is deferred (`components.md:234-238`).
  */
 export function describeChange(
   change: FieldChange,

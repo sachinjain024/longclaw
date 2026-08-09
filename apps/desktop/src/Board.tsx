@@ -76,8 +76,8 @@ import {
 } from "./boardGeometry";
 import { classes } from "./classes";
 import { pickUp, towardsEdge, useEdgeDrift } from "./dragging";
-import { acknowledgement, isFresh } from "./freshness";
-import type { ExternalMark, ExternalMarks } from "./freshness";
+import { acknowledgement, isAcknowledged } from "./acknowledgement";
+import type { ExternalMark, ExternalMarks } from "./acknowledgement";
 import {
   groupByStatus,
   seatsFor,
@@ -709,15 +709,15 @@ const BoardCard = memo(function BoardCard(props: {
 }) {
   const { ticket, mark } = props;
   const row = presentCard(ticket, props.labels);
-  const fresh = isFresh(mark, props.now);
+  const acknowledged = isAcknowledged(mark, props.now);
   return (
     <button
       className={classes(
         "ticket-row",
         props.selected && "selected",
         ticket.state === "degraded" && "degraded",
-        fresh && "fresh",
-        fresh && mark && acknowledgementClass(mark.actorType),
+        acknowledged && "acknowledged",
+        acknowledged && mark && acknowledgementClass(mark.actorType),
         props.draggable && "draggable",
         props.dragging && "dragging",
       )}
@@ -734,7 +734,7 @@ const BoardCard = memo(function BoardCard(props: {
             *look at this row*, and a reader who has already read the ID has
             spent the glance it was meant to catch. */}
         <span className="ticket-key">
-          {fresh && <PulseDot mark={mark} now={props.now} />}
+          {acknowledged && <PulseDot mark={mark} now={props.now} />}
           {ticket.key}
         </span>
         {row.priority && <PriorityGlyph priority={row.priority} small />}
@@ -751,7 +751,7 @@ const BoardCard = memo(function BoardCard(props: {
           <LabelChip key={label.slug} label={label} small />
         ))}
       </span>
-      {fresh && mark && (
+      {acknowledged && mark && (
         <span className="actor">{acknowledgement(mark, props.now)}</span>
       )}
     </button>

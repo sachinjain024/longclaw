@@ -218,13 +218,9 @@ for (const actor of ["human", "agent"]) {
 }
 /* ---------- the acknowledgement, per attribution ----------
  * A card that changed on disk wears the colour of whoever the file said changed
- * it. (The `-fresh-` in these names is the older vocabulary CONTEXT.md:33 asks
- * the app to drop; renaming them means moving the design system with them, which
- * is LC-183.) `states.md:148-149` scopes the treatment to "an external change to a
+ * it. `states.md:148-149` scopes the acknowledgement to "an external change to a
  * ticket (agent **or unknown** actor)" and `:172-173` is what gives an
- * unattributed one the warn vocabulary; the agent's `-fresh-` names are the
- * design system's (`components.md:202`, `states.md:150-151`) and are kept
- * exactly.
+ * unattributed one the warn vocabulary.
  *
  * The ring and the border are the card's, so only the two attributions that draw
  * one get a pair. The pulse is every surface's — and it is the one part that had
@@ -235,13 +231,13 @@ for (const actor of ["human", "agent"]) {
 const ringAndBorder = (name, hue) => {
   derived.push(
     line(
-      `${name}-fresh-ring`,
-      `color-mix(in oklab, ${hue} var(${P}mix-fresh-ring), transparent)`,
+      `${name}-acknowledged-ring`,
+      `color-mix(in oklab, ${hue} var(${P}mix-acknowledged-ring), transparent)`,
     ),
   );
   derived.push(
     line(
-      `${name}-fresh-border`,
+      `${name}-acknowledged-border`,
       `color-mix(in oklab, ${hue} var(${P}mix-border), var(${P}line))`,
     ),
   );

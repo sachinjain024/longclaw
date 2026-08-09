@@ -18,8 +18,8 @@ import type * as BoardCard from "./boardCard";
 import { ASSUMED_VIEWPORT, CARD_STRIDE } from "./boardGeometry";
 import type { OrderingMode } from "./ordering";
 import type { TicketMove } from "./ticketMove";
-import { FRESH_WINDOW_MS } from "./freshness";
-import type { ExternalMark, ExternalMarks } from "./freshness";
+import { ACKNOWLEDGEMENT_WINDOW_MS } from "./acknowledgement";
+import type { ExternalMark, ExternalMarks } from "./acknowledgement";
 import type {
   IndexedTicket,
   Label,
@@ -182,9 +182,9 @@ describe("a card carrying an unreviewed agent change", () => {
     render(board({ marks: mark() }));
 
     const element = card("LC-1");
-    expect(element.className).toContain("fresh");
-    expect(element.className).toContain("agent-fresh");
-    expect(element.className).not.toContain("human-fresh");
+    expect(element.className).toContain("acknowledged");
+    expect(element.className).toContain("acknowledged-agent");
+    expect(element.className).not.toContain("acknowledged-human");
     expect(element.querySelector(".pulse-dot")).toBeTruthy();
     expect(element.textContent).toContain(
       "❯ updated by Claude Code · 12s · via file edit",
@@ -210,8 +210,8 @@ describe("a card carrying an unreviewed agent change", () => {
 
     // Warn, not green: one row never speaks both vocabularies (LC-148).
     const element = card("LC-1");
-    expect(element.className).toContain("unknown-fresh");
-    expect(element.className).not.toContain("agent-fresh");
+    expect(element.className).toContain("acknowledged-unknown");
+    expect(element.className).not.toContain("acknowledged-agent");
     expect(element.textContent).toContain("⚠ file changed · 12s");
   });
 
@@ -221,18 +221,18 @@ describe("a card carrying an unreviewed agent change", () => {
     );
 
     const element = card("LC-1");
-    expect(element.className).toContain("human-fresh");
-    expect(element.className).not.toContain("agent-fresh");
+    expect(element.className).toContain("acknowledged-human");
+    expect(element.className).not.toContain("acknowledged-agent");
     expect(element.textContent).toContain(
       "• changed on disk · 12s · via file edit",
     );
   });
 
   it("drops the treatment once the change has decayed", () => {
-    render(board({ marks: mark({ at: NOW - FRESH_WINDOW_MS }) }));
+    render(board({ marks: mark({ at: NOW - ACKNOWLEDGEMENT_WINDOW_MS }) }));
 
     const element = card("LC-1");
-    expect(element.className).not.toContain("fresh");
+    expect(element.className).not.toContain("acknowledged");
     expect(element.querySelector(".pulse-dot")).toBeNull();
     expect(element.textContent).not.toContain("via file edit");
   });
@@ -240,7 +240,7 @@ describe("a card carrying an unreviewed agent change", () => {
   it("says nothing about a card the app itself wrote", () => {
     render(board());
 
-    expect(card("LC-1").className).not.toContain("fresh");
+    expect(card("LC-1").className).not.toContain("acknowledged");
     expect(card("LC-1").textContent).not.toContain("via file edit");
   });
 });
@@ -260,7 +260,7 @@ describe("the pulse, which says a change just landed", () => {
     // Still acknowledged — the ring and the footer are still true — but the
     // two-beat pulse is the part that means "just now", and it already played.
     const element = card("LC-1");
-    expect(element.className).toContain("fresh");
+    expect(element.className).toContain("acknowledged");
     expect(element.textContent).toContain("via file edit");
     expect(element.querySelector(".pulse-dot")?.className).not.toContain(
       "pulsing",
@@ -295,14 +295,14 @@ describe("the pulse, which says a change just landed", () => {
       />,
     );
     scrollTo(stack(), 49 * CARD_STRIDE);
-    expect(card("LC-50").className).toContain("fresh");
+    expect(card("LC-50").className).toContain("acknowledged");
 
     scrollTo(stack(), 299 * CARD_STRIDE);
     expect(document.querySelector('[data-ticket-key="LC-50"]')).toBeNull();
     scrollTo(stack(), 49 * CARD_STRIDE);
 
     const element = card("LC-50");
-    expect(element.className).toContain("fresh");
+    expect(element.className).toContain("acknowledged");
     expect(element.querySelector(".pulse-dot")?.className).not.toContain(
       "pulsing",
     );

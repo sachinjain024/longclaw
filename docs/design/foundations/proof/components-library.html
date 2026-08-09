@@ -220,7 +220,7 @@
   .check-rows { display: flex; flex-direction: column; gap: 6px; max-width: 420px; }
   .check-row { display: flex; align-items: center; gap: 9px; font-size: 13px; }
   .check-row.done span { color: var(--lc-ink-3); text-decoration: line-through; }
-  .check-row.agent-fresh { background: var(--lc-accent-agent-wash); border-radius: 6px; padding: 3px 6px; margin: 0 -6px; }
+  .check-row.acknowledged-agent { background: var(--lc-accent-agent-wash); border-radius: 6px; padding: 3px 6px; margin: 0 -6px; }
   .check-row .just-now { margin-left: auto; font-family: var(--lc-font-mono); font-size: 10px; color: var(--lc-accent-agent-text); }
   .progress { height: 3px; width: 44px; border-radius: 2px; background: var(--lc-wash); overflow: hidden; display: inline-block; }
   .progress i { display: block; height: 100%; border-radius: 2px; background: var(--lc-ink-3); }
@@ -237,10 +237,10 @@
   .card .foot { display: flex; align-items: center; gap: 8px; }
   .card .label-chip { height: var(--lc-size-chip-sm); padding: 0 7px; font-size: 10.5px; }
   .card .label-chip i { width: 6px; height: 6px; }
-  .card.fresh { border-color: var(--lc-accent-agent-fresh-border);
-    box-shadow: 0 0 0 var(--lc-border-focus) var(--lc-accent-agent-fresh-ring); }
-  .card.fresh .fraction { color: var(--lc-accent-agent-text); }
-  .card.fresh .progress i { background: var(--lc-accent-agent); }
+  .card.acknowledged { border-color: var(--lc-accent-agent-acknowledged-border);
+    box-shadow: 0 0 0 var(--lc-border-focus) var(--lc-accent-agent-acknowledged-ring); }
+  .card.acknowledged .fraction { color: var(--lc-accent-agent-text); }
+  .card.acknowledged .progress i { background: var(--lc-accent-agent); }
   .card .dot8 { width: 8px; height: 8px; border-radius: 50%; background: var(--lc-accent-agent); }
   .agent-foot { margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--lc-line-soft);
     display: flex; align-items: center; gap: 6px; font-family: var(--lc-font-mono); font-size: 10.5px;
@@ -727,7 +727,7 @@
   <section id="checklist">
     <div class="kicker"><span class="hash">## </span>10 · checklist</div>
     <h2>The human→agent interface</h2>
-    <p class="blurb">Humans write items; agents check them off during execution. A settled check is quiet gray; a fresh
+    <p class="blurb">Humans write items; agents check them off during execution. A settled check is quiet gray; an acknowledged
       agent check wears green with the row wash and a mono timestamp, then settles once the ticket is viewed.</p>
     <div class="panel">
       <div class="check-rows">
@@ -735,7 +735,7 @@
           <svg class="glyph" width="15" height="15" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" rx="3.5" fill="var(--lc-ink-3)"/><polyline points="4,7.2 6.2,9.2 10,4.9" fill="none" stroke="var(--lc-surface)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span>Reproduce double-fire on rename</span>
         </div>
-        <div class="check-row agent-fresh">
+        <div class="check-row acknowledged-agent">
           <svg class="glyph" width="15" height="15" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" rx="3.5" fill="var(--lc-accent-agent)"/><polyline points="4,7.2 6.2,9.2 10,4.9" fill="none" stroke="var(--lc-on-accent-agent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span>Add 50ms debounce to watcher</span>
           <span class="just-now">❯ just now</span>
@@ -748,7 +748,7 @@
       <div class="flexrow group" style="gap: 10px;">
         <span class="fraction" style="color: var(--lc-accent-agent-text)">3/7</span>
         <span class="progress"><i style="width: 43%; background: var(--lc-accent-agent)"></i></span>
-        <span class="note">fresh — agent accent</span>
+        <span class="note">acknowledged — agent accent</span>
         <span style="width: 16px"></span>
         <span class="fraction">3/7</span>
         <span class="progress"><i style="width: 43%"></i></span>
@@ -760,8 +760,8 @@
   <!-- ============ 11 CARDS ============ -->
   <section id="cards">
     <div class="kicker"><span class="hash">## </span>11 · cards</div>
-    <h2>Resting · fresh · selected · degraded</h2>
-    <p class="blurb">The fresh state is the product's magic moment: an external file edit earns the agent border, ring,
+    <h2>Resting · acknowledged · selected · degraded</h2>
+    <p class="blurb">The acknowledgement is the product's magic moment: an external file edit earns the agent border, ring,
       a two-beat pulse and the mono footer — never a silent re-render. Unparseable files degrade non-destructively.</p>
     <div class="panel">
       <div class="cards-row">
@@ -775,7 +775,7 @@
             <span class="label-chip" style="--label: var(--lc-label-pink)"><i></i>design</span>
           </div>
         </div>
-        <div class="card fresh">
+        <div class="card acknowledged">
           <div class="top"><span class="id">LC-128</span><span class="spacer"></span>
             <span class="dot8 pulsing" id="card-pulse"></span>
             <span class="p-chip sm">P1</span>
@@ -819,7 +819,7 @@
     <p class="blurb">36px keyboard-navigable rows: priority, ID, title, labels, checklist progress, updated-at —
       no assignee column, v0 is local mode and has no assignee (ADR 0001). The group header carries the status
       dot and name, so rows don't repeat it. <span class="m">↑↓</span>/<span class="m">J K</span> move focus (inset accent border);
-      selection is the soft human wash. An agent-fresh row gets the pulse dot and mono agent timestamp — same
+      selection is the soft human wash. An acknowledged-agent row gets the pulse dot and mono agent timestamp — same
       grammar as the board card.</p>
     <div class="panel">
       <div class="list">
@@ -868,7 +868,7 @@
           <span class="updated">5d</span>
         </div>
       </div>
-      <p class="note" style="margin-top: 10px;">selected row (soft wash) · focused row (inset accent border) · fresh row (pulse + mono agent timestamp)</p>
+      <p class="note" style="margin-top: 10px;">selected row (soft wash) · focused row (inset accent border) · acknowledged row (pulse + mono agent timestamp)</p>
     </div>
   </section>
 
@@ -963,7 +963,7 @@
             <svg class="glyph" width="15" height="15" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" rx="3.5" fill="var(--lc-ink-3)"/><polyline points="4,7.2 6.2,9.2 10,4.9" fill="none" stroke="var(--lc-surface)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             <span>Reproduce double-fire on rename</span>
           </div>
-          <div class="check-row agent-fresh">
+          <div class="check-row acknowledged-agent">
             <svg class="glyph" width="15" height="15" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" rx="3.5" fill="var(--lc-accent-agent)"/><polyline points="4,7.2 6.2,9.2 10,4.9" fill="none" stroke="var(--lc-on-accent-agent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             <span>Add 50ms debounce to watcher</span>
             <span class="just-now">❯ just now</span>
@@ -1194,7 +1194,7 @@
     "sw-derived": ["accent-human-soft", "accent-human-hover", "accent-human-active",
                    "accent-human-ring", "accent-human-border",
                    "accent-agent-soft", "accent-agent-wash", "accent-agent-rail",
-                   "accent-agent-fresh-border", "accent-agent-avatar-ring"],
+                   "accent-agent-acknowledged-border", "accent-agent-avatar-ring"],
     "sw-neutrals": ["bg", "surface", "raised", "wash", "ink", "ink-2", "ink-3",
                     "ink-disabled", "line", "line-soft", "line-strong", "tile",
                     "inverse-surface", "inverse-ink"],

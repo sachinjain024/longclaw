@@ -28,8 +28,8 @@ import { ConflictBanner } from "./ConflictBanner";
 import { DescriptionEditor } from "./DescriptionEditor";
 import { normalizeError } from "./errors";
 import { FolderGlyph } from "./FolderGlyph";
-import type { ExternalMark } from "./freshness";
-import { acknowledgementInFull, freshlyChecked } from "./freshness";
+import type { ExternalMark } from "./acknowledgement";
+import { acknowledgementInFull, newlyChecked } from "./acknowledgement";
 import { GhostBox } from "./GhostBox";
 import { singleKeyShortcutAllowed } from "./keyContext";
 import { LabelMenuButton } from "./LabelMenu";
@@ -372,7 +372,7 @@ export function TicketPanel(props: TicketPanelProps) {
       // behalf. The human's own tick is not news to them.
       setExternallyCheckedIds(
         mode === "external"
-          ? freshlyChecked(loadedChecklist.current, checklist)
+          ? newlyChecked(loadedChecklist.current, checklist)
           : [],
       );
       loadedChecklist.current = checklist;
@@ -1066,7 +1066,7 @@ export function TicketPanel(props: TicketPanelProps) {
               <span
                 className={classes(
                   "section-count",
-                  checklistAcknowledged && "fresh",
+                  checklistAcknowledged && "acknowledged",
                   checklistAcknowledged && accentClass,
                 )}
               >
@@ -1078,14 +1078,14 @@ export function TicketPanel(props: TicketPanelProps) {
                   count the fraction does, so it cannot disagree with the number
                   beside it while a tick's write is still out. It wears the
                   accent of whoever the file said made the change, for the same
-                  reason a fresh card's does — the change the acknowledgement is
+                  reason an acknowledged card's does — the change the acknowledgement is
                   about is usually this. Hidden from the reading, because the
                   fraction beside it already says it in words. */}
               {ticket.checklist.length > 0 && (
                 <span
                   className={classes(
                     "progress panel-progress",
-                    checklistAcknowledged && "fresh",
+                    checklistAcknowledged && "acknowledged",
                     checklistAcknowledged && accentClass,
                   )}
                   aria-hidden="true"
@@ -1102,22 +1102,23 @@ export function TicketPanel(props: TicketPanelProps) {
             </h3>
             <ul className="checklist">
               {ticket.checklist.map((item, index) => {
-                const fresh =
+                const acknowledged =
                   item.id !== undefined && acknowledgedChecks.includes(item.id);
                 const checked = isChecked(item);
                 return (
                   <li
                     key={item.id ?? `unadopted-${index}`}
                     // `checked` carries the settled treatment — `ink-3` and a
-                    // line through the text (`components.md:192`). `fresh` is
+                    // line through the text (`components.md:218`). The
+                    // acknowledgement is
                     // the state above it and takes both back, because a row
                     // something outside just ticked is news to read, not a line
                     // to skip.
                     className={classes(
                       "checklist-row",
                       checked && "checked",
-                      fresh && "fresh",
-                      fresh && accentClass,
+                      acknowledged && "acknowledged",
+                      acknowledged && accentClass,
                     )}
                   >
                     <label>
@@ -1153,8 +1154,8 @@ export function TicketPanel(props: TicketPanelProps) {
                     {/* The glyph is the actor's, like every other one the app
                         draws: a row an unclaimed write ticked gets the warn
                         triangle, not the agent's chevron (LC-148). */}
-                    {fresh && props.mark && (
-                      <em className={classes("fresh-note", accentClass)}>
+                    {acknowledged && props.mark && (
+                      <em className={classes("acknowledged-note", accentClass)}>
                         {actorGlyph(props.mark.actorType)} just now
                       </em>
                     )}

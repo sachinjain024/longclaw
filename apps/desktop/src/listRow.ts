@@ -12,7 +12,7 @@
  * `IssueList.test.tsx` assert that a change to one ticket re-renders one row.
  */
 
-import { describeAgeInSlot } from "./freshness";
+import { describeAgeInSlot } from "./acknowledgement";
 import { resolveLabels, type ResolvedLabel } from "./labels";
 import { checklistFraction } from "./tickets";
 import type { Label, TicketPriority, TicketRow, TicketStatus } from "./types";
@@ -25,7 +25,7 @@ export interface RowCopy {
   priority?: TicketPriority;
   /** Already capped to the two the row holds (`screen-specs.md:144`). */
   labels: ResolvedLabel[];
-  /** `1/3`, and empty when the ticket has no checklist (`components.md:180`). */
+  /** `1/3`, and empty when the ticket has no checklist (`components.md:190`). */
   checklist: string;
   /** Relative, mono, right-aligned. Empty when the date will not parse. */
   updated: string;

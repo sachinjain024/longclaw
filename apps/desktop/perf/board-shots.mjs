@@ -108,7 +108,9 @@ try {
       await page.waitForTimeout(1_200); // Let the two-beat pulse finish.
       // The acknowledgement is the whole point of the shot; a run that quietly
       // lost it would compare two boards that are not the same board.
-      await page.waitForSelector(".ticket-row.fresh", { timeout: 5_000 });
+      await page.waitForSelector(".ticket-row.acknowledged", {
+        timeout: 5_000,
+      });
 
       // A fixed viewport rather than the full page, so two builds always produce
       // images of the same size and can be compared pixel for pixel.

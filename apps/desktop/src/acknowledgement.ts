@@ -17,7 +17,7 @@ import {
 import type { Actor, ChecklistItem } from "./types";
 
 /** How long an unreviewed external change stays acknowledged (states.md). */
-export const FRESH_WINDOW_MS = 120_000;
+export const ACKNOWLEDGEMENT_WINDOW_MS = 120_000;
 
 export interface ExternalMark {
   /** Taken from a record this change appended, never guessed. */
@@ -57,8 +57,11 @@ export function externalMark(
 }
 
 /** True while the change still deserves the acknowledgement treatment. */
-export function isFresh(mark: ExternalMark | undefined, now: number): boolean {
-  return mark !== undefined && now - mark.at < FRESH_WINDOW_MS;
+export function isAcknowledged(
+  mark: ExternalMark | undefined,
+  now: number,
+): boolean {
+  return mark !== undefined && now - mark.at < ACKNOWLEDGEMENT_WINDOW_MS;
 }
 
 /**
@@ -81,7 +84,7 @@ export function isPulsing(
   mark: ExternalMark | undefined,
   now: number,
 ): boolean {
-  return isFresh(mark, now) && now - (mark?.at ?? 0) < PULSE_MS;
+  return isAcknowledged(mark, now) && now - (mark?.at ?? 0) < PULSE_MS;
 }
 
 /**
@@ -153,7 +156,7 @@ export function describeAgeInSlot(at: number, now: number): string {
 /** Returns the same map when nothing decayed, so a sweep costs no re-render. */
 export function pruneMarks(marks: ExternalMarks, now: number): ExternalMarks {
   const keys = Object.keys(marks);
-  const kept = keys.filter((key) => isFresh(marks[key], now));
+  const kept = keys.filter((key) => isAcknowledged(marks[key], now));
   if (kept.length === keys.length) return marks;
   return Object.fromEntries(kept.map((key) => [key, marks[key]]));
 }
@@ -162,7 +165,7 @@ export function pruneMarks(marks: ExternalMarks, now: number): ExternalMarks {
  * Checklist ids an external write just ticked, so the panel can show those rows
  * with the agent treatment rather than re-rendering the whole list as new.
  */
-export function freshlyChecked(
+export function newlyChecked(
   before: ChecklistItem[],
   after: ChecklistItem[],
 ): string[] {

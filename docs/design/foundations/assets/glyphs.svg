@@ -76,7 +76,7 @@
       <polyline points="4,7.2 6.2,9.2 10,4.9" fill="none" stroke="var(--lc-surface, #FFFFFF)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
     </symbol>
     <symbol id="checkbox-agent" viewBox="0 0 14 14">
-      <!-- agent-fresh check: the AGENT accent, exclusively (D2) -->
+      <!-- the acknowledged agent check: the AGENT accent, exclusively (D2) -->
       <rect x="1" y="1" width="12" height="12" rx="3.5" fill="var(--lc-accent-agent, #279E52)"/>
       <polyline points="4,7.2 6.2,9.2 10,4.9" fill="none" stroke="var(--lc-on-accent-agent, #FFFFFF)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
     </symbol>
