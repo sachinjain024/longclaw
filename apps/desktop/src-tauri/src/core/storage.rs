@@ -1242,7 +1242,7 @@ mod tests {
         read_ticket_detail, read_ticket_file, resolve_ticket_path, scan_ticket_paths,
         valid_ticket_key, NewTicket, TicketEdit, SAVING_TICKET,
     };
-    use crate::core::ErrorCode;
+    use crate::core::{ErrorCode, TicketRow};
 
     /// A project with one ticket already on disk, for the failure paths below.
     fn project_with_a_ticket(temp: &std::path::Path) -> (std::path::PathBuf, super::TicketWrite) {
@@ -1584,6 +1584,40 @@ mod tests {
         let diagnostic = file.parsed.as_ref().expect_err("should be degraded");
         assert!(diagnostic.message.contains("UTF-8"));
         assert_eq!(fs::read(&path).unwrap(), [0xff, 0xfe, b'h', b'i']);
+    }
+
+    #[test]
+    fn a_file_with_no_frontmatter_fence_becomes_a_degraded_record_with_its_bytes_intact() {
+        let temp = tempfile::tempdir().unwrap();
+        let directory = temp.path().join(".longclaw/tickets/LC-1");
+        fs::create_dir_all(&directory).unwrap();
+        let path = directory.join("ticket.md");
+        // Valid UTF-8, this project's directory, and no `---` anywhere: the one
+        // shape that reaches `parse` with nothing for it to read (LC-168).
+        let raw = "Somebody wrote notes here and never opened a frontmatter block.\n";
+        fs::write(&path, raw).unwrap();
+
+        let file = read_ticket_file(&path, "LC").unwrap();
+        assert_eq!(file.key, "LC-1");
+        assert_eq!(file.relative_path, ".longclaw/tickets/LC-1/ticket.md");
+        assert_eq!(file.raw, raw);
+        assert_eq!(file.byte_length, raw.len());
+        let diagnostic = file.parsed.as_ref().expect_err("should be degraded");
+        assert_eq!(diagnostic.code, ErrorCode::ParseFailed);
+        assert!(diagnostic.message.contains("frontmatter delimiter"));
+        // A located diagnostic, so the raw-file view has a line to point at (D-52).
+        assert_eq!(diagnostic.line, Some(1));
+        assert!(!diagnostic.is_read_only());
+
+        // The row the index would carry, which is what reaches a snapshot.
+        let TicketRow::Degraded(row) = file.row() else {
+            panic!("a file with no frontmatter must produce a degraded row");
+        };
+        assert_eq!(row.key, "LC-1");
+        assert_eq!(row.byte_length, raw.len());
+        assert!(!row.read_only);
+        // Degrading is a display decision, never a repair.
+        assert_eq!(fs::read_to_string(&path).unwrap(), raw);
     }
 
     #[test]
