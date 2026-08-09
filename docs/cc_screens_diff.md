@@ -423,6 +423,19 @@ was never swept into LC-133…LC-138. `TicketDocument::parse` does refuse the fi
 with a located diagnostic (`core/ticket.rs:450-452`); what is missing is any test
 that it becomes a degraded record and reaches a snapshot.
 
+**Closed 2026-08-09 (LC-168), as the tests rather than a fix.** The two that were
+missing are written — the read in `core/storage.rs` and the whole path in
+`tests/storage_integration.rs`, which plants such a file in a real project and
+finds the degraded row on the engine's snapshot, in its detail, and after a
+rebuild — and both pass as written. The rest of the chain holds too: the scan
+finds the directory, the filter exempts a degraded row by its state, and
+`groupByStatus` sends one with no remembered seat to `Unreadable` on both
+surfaces. What was observed was D-50 — *every* degraded card vanished from the
+board then, whatever had broken the file — and this shape came back with the rest
+when LC-133 lent the row its directory's last-known seat. Nothing about it is
+specific to a missing fence, which is why it never earned a `D-` number of its
+own; what it lacked was the coverage.
+
 ---
 
 ## 16 · Folder missing / unreachable

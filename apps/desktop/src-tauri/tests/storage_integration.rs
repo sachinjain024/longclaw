@@ -188,6 +188,47 @@ fn a_degraded_ticket_stays_visible_and_is_never_rewritten() {
     }
 }
 
+/// The whole path for the one shape LC-168 says was observed missing: a file that
+/// opens no frontmatter block at all, so the parser has nothing to read before it
+/// even reaches the format version.
+#[test]
+fn a_ticket_file_with_no_frontmatter_reaches_the_snapshot_as_a_degraded_row() {
+    let (_temp, root) = copy_representative_project();
+    let path = ticket_path(&root, "LC-97");
+    fs::create_dir_all(path.parent().expect("a ticket directory")).expect("the directory");
+    let raw = "# Notes about the sync worker\n\nNo frontmatter block was ever opened here.\n";
+    fs::write(&path, raw).expect("the planted file");
+
+    let (engine, _events) = start_engine(&root);
+    let snapshot = engine.snapshot();
+    assert_eq!(snapshot.tickets.len(), 7);
+
+    let row = degraded(&snapshot.tickets, "LC-97");
+    assert_eq!(row.relative_path, ".longclaw/tickets/LC-97/ticket.md");
+    assert_eq!(row.byte_length, raw.len());
+    assert!(!row.read_only);
+    assert!(row.diagnostic.message.contains("frontmatter delimiter"));
+    // A line for the raw-file view to point at (D-52), and no seat to borrow, so
+    // the surfaces group it under `Unreadable` (D-50).
+    assert_eq!(row.diagnostic.line, Some(1));
+    assert_eq!(row.last_known_status, None);
+
+    // The raw file is available for the raw-file view, byte for byte.
+    let detail = engine
+        .detail("LC-97")
+        .expect("a degraded ticket still reads");
+    assert!(detail.ticket.is_none());
+    assert!(detail.diagnostic.is_some());
+    assert_eq!(detail.raw, raw);
+
+    // A rebuild reaches the same visible state, and the bytes are never repaired.
+    let rebuilt = engine
+        .rebuild(RebuildReason::Manual, false)
+        .expect("the index should rebuild");
+    assert_eq!(rebuilt.tickets, snapshot.tickets);
+    assert_eq!(fs::read_to_string(&path).expect("still there"), raw);
+}
+
 #[test]
 fn a_ticket_directory_from_another_project_is_shown_and_never_claimed() {
     let (_temp, root) = copy_representative_project();
