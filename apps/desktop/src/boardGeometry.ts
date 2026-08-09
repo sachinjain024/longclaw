@@ -17,9 +17,18 @@
  * it scrolls.
  *
  * It can be exact because the stylesheet pins both card heights. A card is one
- * line of key, one of title, one of meta; a card wearing an unreviewed
+ * line of key, *two* of title, one of meta; a card wearing an unreviewed
  * acknowledgement adds the actor footer, which the board spec already requires
  * never to wrap (`screen-specs.md` § Board). There is no third height.
+ *
+ * The title's two lines are the prototype's (LC-166), and they are pinned rather
+ * than counted: the stylesheet clamps the title at two lines and reserves the
+ * room for both whether or not the second one is used. That is the whole trade.
+ * A card sized to its own title would be the natural way to spend those two
+ * lines and it is the one thing this module cannot have — a height that depends
+ * on content is a height a column would have to measure, and measuring is what
+ * costs 71 ms. So a one-line title pays ~18px of whitespace, and the offsets
+ * stay arithmetic.
  */
 
 import { isAcknowledged } from "./acknowledgement";
@@ -28,17 +37,22 @@ import type { TicketRow } from "./types";
 
 /**
  * `--lc-size-board-card`, the height `.ticket-row` is pinned to. Exactly what
- * the card's three rows measure — top 16 + 6, title 18 + 8, foot 20, plus
+ * the card's three rows measure — top 16 + 6, title 2 × 18 + 8, foot 20, plus
  * 10px padding and a 1px border each side — so pinning it moves nothing.
+ *
+ * That sentence is a claim about a stylesheet this module never reads, so
+ * `scripts/card-height-guard.mjs` adds the rows up and fails the build when the
+ * total stops being this number. Nothing else can: the tokens agree with these
+ * constants whatever they hold, and jsdom lays nothing out.
  */
-export const CARD_HEIGHT = 90;
+export const CARD_HEIGHT = 108;
 /**
  * `--lc-size-board-card-acknowledged`: the same card with the acknowledgement footer
  * under it. The footer adds its 7px margin, 1px rule, 6px padding and one
  * 14px mono line, pinned so the column can place the cards below it without
  * measuring anything.
  */
-export const ACKNOWLEDGED_CARD_HEIGHT = 118;
+export const ACKNOWLEDGED_CARD_HEIGHT = 136;
 /** `.ticket-row`'s margin-bottom: the gap between cards in a stack. */
 export const CARD_GAP = 8;
 

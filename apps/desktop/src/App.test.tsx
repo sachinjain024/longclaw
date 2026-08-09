@@ -13,6 +13,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 import * as api from "./api";
+import { CARD_STRIDE } from "./boardGeometry";
 import {
   resetDevicePreferences,
   restoreDevicePreferences,
@@ -2875,8 +2876,20 @@ describe("board ordering and manual reordering (V0-09)", () => {
       .map((card) => card.dataset.ticketKey!);
   }
 
-  /** A drop at a stated position in a named column, Todo unless said otherwise. */
-  function dropAt(key: string, clientY: number, title = "Todo") {
+  /**
+   * A drop in a named gap of a column, Todo unless said otherwise. Gap 0 is
+   * above the first card, gap 1 between the first and the second, and so on —
+   * the same numbering `gapAt` answers in (`boardGeometry.ts`).
+   *
+   * Stated as a gap rather than as a pixel, because the pixel was never the
+   * fact these tests are about. They held one — 160 for "between the second and
+   * third" — and LC-166 raised the card's height, at which point 160 became the
+   * gap *above* and four of them failed a long way from anything that had
+   * changed. `gap * CARD_STRIDE` is the top of that gap's own card, which
+   * `gapAt` resolves to the same gap at any stride the stylesheet ever pins.
+   */
+  function dropAt(key: string, gap: number, title = "Todo") {
+    const clientY = gap * CARD_STRIDE;
     const stack = screen
       .getByRole("heading", { name: new RegExp(`^${title}`) })
       .closest(".board-column")!
@@ -2964,7 +2977,7 @@ describe("board ordering and manual reordering (V0-09)", () => {
     chooseOrdering("Manual");
 
     // Into the gap between LC-1 and LC-2.
-    dropAt("LC-3", 63);
+    dropAt("LC-3", 1);
 
     await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(1));
     expect(api.editTicket).toHaveBeenCalledWith({
@@ -3031,7 +3044,7 @@ describe("board ordering and manual reordering (V0-09)", () => {
     chooseOrdering("Manual");
 
     // Into the gap between LC-2 and LC-3.
-    dropAt("LC-1", 160);
+    dropAt("LC-1", 2);
 
     await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(2));
     // The card above the gap is given a position first, so the dragged card has
@@ -3059,7 +3072,7 @@ describe("board ordering and manual reordering (V0-09)", () => {
     await openBoard([row("LC-1"), row("LC-2"), row("LC-3")]);
     chooseOrdering("Manual");
 
-    dropAt("LC-1", 160);
+    dropAt("LC-1", 2);
     await screen.findByText("LC-1 moved");
 
     vi.mocked(api.editTicket)
@@ -3101,7 +3114,7 @@ describe("board ordering and manual reordering (V0-09)", () => {
     await openBoard([row("LC-1"), row("LC-2"), row("LC-3")]);
     chooseOrdering("Manual");
 
-    dropAt("LC-1", 160);
+    dropAt("LC-1", 2);
 
     await screen.findByText(
       "LC-1 could not be moved. Disk is full. The file was left as it was.",
@@ -3129,7 +3142,7 @@ describe("board ordering and manual reordering (V0-09)", () => {
     ]);
     chooseOrdering("Manual");
 
-    dropAt("LC-3", 63);
+    dropAt("LC-3", 1);
 
     expect(useLongClawStore.getState().tickets[2].state === "indexed").toBe(
       true,
@@ -3193,7 +3206,7 @@ describe("board ordering and manual reordering (V0-09)", () => {
       chooseOrdering("Manual");
 
       // Into the gap between LC-2 and LC-3, in a column LC-1 is not in.
-      dropAt("LC-1", 63, "In Progress");
+      dropAt("LC-1", 1, "In Progress");
 
       await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(1));
       const sent = vi.mocked(api.editTicket).mock.calls[0][0];

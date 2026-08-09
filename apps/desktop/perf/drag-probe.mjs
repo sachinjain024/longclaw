@@ -78,6 +78,13 @@ const SELF_TEST = process.argv.includes("--self-test");
  */
 const FROM_ROW = Number(argument("from", "0"));
 const TO_GAP = Number(argument("gap", "3"));
+/**
+ * Where an `across` run lets go in the group it is aiming at. Not a gap — a
+ * status change has no place to choose, so this is a row to land *on*, and the
+ * second one rather than the first because the first shares an edge with the
+ * group's heading.
+ */
+const ACROSS_ROW = 1;
 
 /** What each surface calls its parts, and how it is reached. */
 const SURFACES = {
@@ -377,13 +384,28 @@ async function probe(browser, row) {
     }
 
     const before = await read(page, row.surface);
-    // A group deep enough to aim at a gap inside, drawn where a pointer can
-    // reach it. The synthetic unreadable group and the archive name no status
-    // and take no drop, so neither is a source or a target here.
+    /**
+     * The rows a run ever points at: the one it picks up, the one an `across`
+     * drop is aimed at, and the gap a `place` drop is aimed at. Those are what
+     * "drawn where a pointer can reach it" has to mean.
+     *
+     * It used to mean *every* rendered row, and that quietly tied which columns
+     * this probe was willing to use to how tall a card is. LC-166 raised the
+     * card 90 → 108px, at which point a 7-card column no longer fit its
+     * scroller end to end, four of the six columns stopped being eligible, and
+     * the target fell through to `Canceled` — the far side of a board that
+     * scrolls sideways, where the drop does not land. Three checks went red for
+     * a change that had nothing to do with drag. `--tickets=46` reproduces the
+     * same three on the pre-LC-166 card, which is what says the coupling was
+     * always here and 40 tickets merely stepped over it.
+     */
+    const aimedAt = [FROM_ROW, ACROSS_ROW, TO_GAP];
+    // The synthetic unreadable group and the archive name no status and take no
+    // drop, so neither is a source or a target here.
     const usable = before.filter(
       (group) =>
         group.rows.length > TO_GAP &&
-        group.rows.every((cell) => cell.visible) &&
+        aimedAt.every((index) => group.rows[index]?.visible) &&
         !["Unreadable", "Archived"].includes(group.title),
     );
     if (usable.length < 2) throw new Error("no two groups a drag can reach");
@@ -399,7 +421,7 @@ async function probe(browser, row) {
     const target = row.move === "across" ? usable[1] : source;
     const landing =
       row.move === "across"
-        ? middle(target.rows[1])
+        ? middle(target.rows[ACROSS_ROW])
         : topEdge(target.rows[TO_GAP]);
     const saw = await drag(page, row.surface, middle(moving), landing);
     const after = await settled(page, row.surface, before);
