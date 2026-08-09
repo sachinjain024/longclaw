@@ -269,12 +269,16 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
     await screen.findByRole("button", { name: "Board", pressed: true });
   }
 
-  /** Quick create: title, Enter, done (`screen-specs.md:198-207`). */
-  function submitNewTicket(title: string) {
+  /** Quick create: title, Enter, done (`screen-specs.md:253-262`). */
+  function submitNewTicket(title: string, priority?: string) {
     fireEvent.click(screen.getAllByText("New ticket")[0]);
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: title },
     });
+    if (priority) {
+      fireEvent.click(screen.getByRole("button", { name: /^Priority: / }));
+      fireEvent.click(screen.getByRole("menuitemradio", { name: priority }));
+    }
     fireEvent.click(screen.getByText("Create"));
   }
 
@@ -316,6 +320,30 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
     );
     expect(screen.getByText(/could not be created/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();
+  });
+
+  /**
+   * LC-186. Quick create asked for a status and nothing else, so an urgent
+   * ticket was filed at `none` and then edited — two writes for a fact the
+   * person filing it already had. The claim is the whole path, not the modal's
+   * own state: the priority chosen in the modal is in the request Rust is
+   * handed, and it is on the optimistic card before that request comes back.
+   */
+  it("sends the priority chosen in quick create, and shows it before the write returns", async () => {
+    vi.mocked(api.createTicket).mockReturnValue(new Promise(() => {}));
+    await openBoard();
+
+    submitNewTicket("Prove the round trip", "Urgent");
+
+    expect(api.createTicket).toHaveBeenCalledWith({
+      projectId: project.id,
+      title: "Prove the round trip",
+      status: "todo",
+      priority: "urgent",
+    });
+    // The card is the reason this matters: a create that dropped the priority
+    // on the way would look right in the modal and wrong on the board.
+    expect(screen.getByRole("img", { name: "Priority: Urgent" })).toBeTruthy();
   });
 
   it("undoes a create by archiving, because v0 never deletes a ticket file", async () => {
@@ -4806,6 +4834,7 @@ describe("a project switch under an open editor (LC-188)", () => {
       projectId: bravo.id,
       title: "Filed while the sidebar moved",
       status: "todo",
+      priority: "none",
     });
     // The optimistic card takes the next key rather than one that is taken:
     // `addProvisionalTicket` keys by key, so a guess of `BR-1` would have put
@@ -4928,6 +4957,7 @@ describe("a project switch under an open editor (LC-188)", () => {
       projectId: alpha.id,
       title: "An ordinary create",
       status: "todo",
+      priority: "none",
     });
   });
 

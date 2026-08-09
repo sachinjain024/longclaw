@@ -3529,8 +3529,13 @@ html.theme-transition *::after {
   font-size: 15px;
 }
 
+/* Status and priority (LC-186). Two bare triggers with nothing between them
+   would read as one control, so the gap is what separates them — there are no
+   field labels in this modal to do it. */
 .quick-create-meta {
   display: flex;
+  align-items: center;
+  gap: var(--lc-space-4);
 }
 
 .quick-create-meta .menu-trigger {

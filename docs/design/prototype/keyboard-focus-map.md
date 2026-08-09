@@ -130,7 +130,7 @@ rule; the list's Archived show/hide toggle is a focusable header button).
 |---|---|
 | `Enter` | Create ticket → toast + Undo; focus moves to the new card |
 | `Esc` | Cancel, focus returns |
-| `Tab` | Title → status trigger → Open full editor → Create |
+| `Tab` | Title → status trigger → priority trigger → Open full editor → Create |
 
 ## Menus (status / priority / ordering / labels)
 

@@ -12,7 +12,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CreatePanel } from "./CreatePanel";
-import type { Label } from "./types";
+import type { Label, TicketPriority } from "./types";
 
 afterEach(() => {
   cleanup();
@@ -31,6 +31,7 @@ const DEFINITIONS: Record<string, Label> = {
 
 function createPanel(props?: {
   initialTitle?: string;
+  initialPriority?: TicketPriority;
   onCancel?: () => void;
   onCreate?: (request: unknown) => void;
 }) {
@@ -39,6 +40,7 @@ function createPanel(props?: {
       provisionalKey="RT-4"
       labels={DEFINITIONS}
       initialTitle={props?.initialTitle}
+      initialPriority={props?.initialPriority}
       onCancel={props?.onCancel ?? (() => {})}
       onCreate={props?.onCreate ?? (() => {})}
     />
@@ -112,6 +114,21 @@ describe("every approved field, in one create", () => {
     expect(screen.getByLabelText<HTMLTextAreaElement>("Title").value).toBe(
       "Needs more thought",
     );
+  });
+
+  it("takes the priority quick create was holding too (LC-186)", () => {
+    render(createPanel({ initialPriority: "urgent" }));
+
+    // Quick create asks for a priority now, so the door between the surfaces
+    // has one to carry. Losing it here would mean the urgent ticket somebody
+    // marked urgent arrives at the fuller surface as `None`.
+    expect(metaTrigger("Priority").textContent).toContain("Urgent");
+  });
+
+  it("opens on None when quick create had no priority to hand over", () => {
+    render(createPanel());
+
+    expect(metaTrigger("Priority").textContent).toContain("None");
   });
 
   /**

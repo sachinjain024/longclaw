@@ -227,10 +227,16 @@ export function App() {
    * What the create surface opens with: what quick create had typed when
    * **Open full editor →** moved between the two, and the status a board
    * column's `+` preseeds. Cleared whenever create closes, either way.
+   *
+   * `priority` is optional because the two writers know different amounts: the
+   * move between surfaces carries a priority somebody chose, while a column's
+   * `+` chooses a status and nothing else (LC-186). Absent means "nobody said",
+   * and each surface's own default answers it.
    */
   const [carriedDraft, setCarriedDraft] = useState<{
     title: string;
     status: TicketStatus;
+    priority?: TicketPriority;
   }>();
   /**
    * The project the open create surface was raised in.
@@ -1891,6 +1897,7 @@ export function App() {
             projectTheme={project.theme}
             provisionalKey={nextKey}
             initialStatus={carriedDraft?.status}
+            initialPriority={carriedDraft?.priority}
             onCancel={closeCreateSurface}
             onCreate={submitNewTicket}
             onOpenFullEditor={(draft) => {
@@ -1909,6 +1916,7 @@ export function App() {
             labels={project.labels}
             initialTitle={carriedDraft?.title}
             initialStatus={carriedDraft?.status}
+            initialPriority={carriedDraft?.priority}
             onCancel={closeCreateSurface}
             onCreate={(request) =>
               submitNewTicket(request, { openPanel: true })

@@ -1,14 +1,15 @@
 // @vitest-environment jsdom
 
 /**
- * Quick create after V0-16 narrowed it: title and status, and a door to the
- * surface that owns everything else (`screen-specs.md:198-207`).
+ * Quick create after V0-16 narrowed it and LC-186 widened it by one: title,
+ * status and priority, and a door to the surface that owns everything else
+ * (`screen-specs.md:253-262`).
  */
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { QuickCreate } from "./QuickCreate";
-import type { TicketStatus } from "./types";
+import type { TicketPriority, TicketStatus } from "./types";
 
 afterEach(() => {
   cleanup();
@@ -19,6 +20,7 @@ afterEach(() => {
 function quickCreate(props?: {
   projectTheme?: string;
   initialStatus?: TicketStatus;
+  initialPriority?: TicketPriority;
   onCancel?: () => void;
   onCreate?: (request: unknown) => void;
   onOpenFullEditor?: (draft: unknown) => void;
@@ -29,6 +31,7 @@ function quickCreate(props?: {
       projectTheme={props?.projectTheme ?? "ember"}
       provisionalKey="RT-4"
       initialStatus={props?.initialStatus}
+      initialPriority={props?.initialPriority}
       onCancel={props?.onCancel ?? (() => {})}
       onCreate={props?.onCreate ?? (() => {})}
       onOpenFullEditor={props?.onOpenFullEditor ?? (() => {})}
@@ -41,8 +44,13 @@ function statusTrigger() {
   return screen.getByRole("button", { name: /^Status: / });
 }
 
-describe("quick create is title and status", () => {
-  it("sends the title and status the human typed, and nothing else", () => {
+/** The priority trigger beside it — the same component, the same vocabulary. */
+function priorityTrigger() {
+  return screen.getByRole("button", { name: /^Priority: / });
+}
+
+describe("quick create is title, status and priority", () => {
+  it("sends the title, status and priority the human chose, and nothing else", () => {
     const onCreate = vi.fn();
     render(quickCreate({ onCreate }));
 
@@ -51,23 +59,44 @@ describe("quick create is title and status", () => {
     });
     fireEvent.click(statusTrigger());
     fireEvent.click(screen.getByRole("menuitemradio", { name: "In Progress" }));
+    fireEvent.click(priorityTrigger());
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Urgent" }));
     fireEvent.click(screen.getByText("Create"));
 
     expect(onCreate).toHaveBeenCalledWith({
       title: "Prove the agent round trip",
       status: "in_progress",
+      priority: "urgent",
     });
   });
 
-  it("offers no description, checklist, priority or label field at all", () => {
+  it("sends the priority nobody chose as `none`, which is a priority (LC-186)", () => {
+    const onCreate = vi.fn();
+    render(quickCreate({ onCreate }));
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Filed without a thought about urgency" },
+    });
+    fireEvent.click(screen.getByText("Create"));
+
+    // Not omitted: `none` is what the file would hold either way, and sending
+    // it keeps one create request shape rather than two.
+    expect(onCreate).toHaveBeenCalledWith({
+      title: "Filed without a thought about urgency",
+      status: "todo",
+      priority: "none",
+    });
+  });
+
+  it("offers no description, checklist or label field at all", () => {
     render(quickCreate());
 
-    // Everything past title and status lives in full create. The label field in
-    // particular was free text, typed against definitions the project keeps in
-    // `longclaw.yaml`, which is what V0-10's menu exists to stop.
+    // Everything past title, status and priority lives in full create. The
+    // label field in particular was free text, typed against definitions the
+    // project keeps in `longclaw.yaml`, which is what V0-10's menu exists to
+    // stop — so widening this surface by one field is not an invitation.
     expect(screen.queryByLabelText("Description")).toBeNull();
     expect(screen.queryByLabelText(/Checklist/)).toBeNull();
-    expect(screen.queryByLabelText(/^Priority/)).toBeNull();
     expect(screen.queryByLabelText(/^Labels/)).toBeNull();
   });
 
@@ -81,14 +110,29 @@ describe("quick create is title and status", () => {
     });
     fireEvent.click(statusTrigger());
     fireEvent.click(screen.getByRole("menuitemradio", { name: "Backlog" }));
+    fireEvent.click(priorityTrigger());
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "P1" }));
     fireEvent.click(screen.getByText("Open full editor →"));
 
     expect(onOpenFullEditor).toHaveBeenCalledWith({
       title: "Needs more thought",
       status: "backlog",
+      priority: "p1",
     });
     // Moving surfaces is not creating.
     expect(onCreate).not.toHaveBeenCalled();
+  });
+
+  it("opens on the priority it is handed, so coming back does not forget", () => {
+    render(quickCreate({ initialPriority: "p2" }));
+
+    expect(priorityTrigger().textContent).toContain("P2");
+  });
+
+  it("opens on None when nothing chose one", () => {
+    render(quickCreate());
+
+    expect(priorityTrigger().textContent).toContain("None");
   });
 
   it("names the project and the key the create will probably claim", () => {
@@ -133,6 +177,7 @@ describe("the status the modal opens on (LC-83)", () => {
     expect(onCreate).toHaveBeenCalledWith({
       title: "Preseeded",
       status: "in_review",
+      priority: "none",
     });
   });
 
@@ -149,6 +194,19 @@ describe("quick create prototype parity", () => {
 
     const trigger = statusTrigger();
     expect(trigger.getAttribute("aria-haspopup")).toBe("menu");
+  });
+
+  it("D-49: priority is the same menu trigger, not a second kind of control", () => {
+    render(quickCreate());
+
+    expect(priorityTrigger().getAttribute("aria-haspopup")).toBe("menu");
+    // Status first, then priority — the meta grid's order everywhere else in
+    // the app (`screen-specs.md:229`), and the Tab order the focus map states
+    // (`keyboard-focus-map.md:133`).
+    expect(
+      statusTrigger().compareDocumentPosition(priorityTrigger()) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it("D-48: carries the project's theme dot before the name (LC-114)", () => {
