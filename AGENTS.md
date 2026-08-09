@@ -65,6 +65,8 @@ npm run dev      # launch the app
 npm --prefix apps/desktop run test:rust     # cargo test alone
 npm --prefix apps/desktop run test:frontend # vitest alone
 npm --prefix apps/desktop run test:watcher  # the native watcher round trip alone
+npm --prefix apps/desktop run citations:check      # the design docs' line citations
+npm --prefix apps/desktop run citations:update     # re-pin them after editing a doc
 npm --prefix apps/desktop run perf:rust     # performance budgets, ignored by default
 npm --prefix apps/desktop run perf:startup  # startup budgets, needs a built app
 npm run perf:board                          # board interaction budgets in WebKit
@@ -118,6 +120,22 @@ now hidden behind a green `verify` here — LC-60's window flag, where the page
 never saw a `dragover` at all, and LC-174's rank allocation, where every event
 was correct and the row still did not move. Run it when you touch a drop handler,
 `ticketMove.ts`, `ordering.ts` or `rank.ts`, and quote the run.
+
+**The design docs are cited by line number, and `citation-guard` holds those
+lines still.** `screen-specs.md` closes by asking that edits occupy exactly the
+lines they replace, because ~170 source comments name its lines; three changes
+ignored it and shifted everything below them, and 126 citations were pointing at
+the wrong prose before anyone noticed — a stale line number reads exactly like a
+fresh one. The guard pins every cited line of `screen-specs.md` to its text in
+`scripts/citation-lock.json` and fails when that text moves, naming the line it
+moved to, so re-pointing is mechanical. **If you edit a spec, prefer replacing
+prose in place over inserting it**; when you do change a pinned document's
+wording, re-point whatever cited it and then `citations:update`. Do not run
+`--update` to clear a red run — it records drift as the new truth. Its
+`--self-test` shifts a document by a line and fails if the guard stays green.
+The other three cited docs (`keyboard-focus-map.md`, `components.md`,
+`states.md`) are checked for range only: they still carry ~35 stale citations,
+and pinning them would freeze those. Repair one and it can join `PINNED`.
 
 **A `<button>` needs an explicit `tabIndex`, and `npm run check` enforces it.**
 WebKit follows the macOS _Keyboard navigation_ setting, which is off by default,
