@@ -5,10 +5,11 @@ key: LC-181
 title: An escaped pipe in a table cell renders as a cell wall
 status: todo
 priority: p3
+rank: Zz
 labels:
   - frontend
 created_at: 2026-08-08T08:06:03.285Z
-updated_at: 2026-08-08T08:06:03.285Z
+updated_at: 2026-08-09T00:03:49.861Z
 ---
 
 An escaped `\|` in a table cell renders as a cell wall.
@@ -46,4 +47,51 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_4f7ce5c7
+kind: update
+occurred_at: 2026-08-08T23:55:46.725Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: todo
+    to: in_progress
+  - field: rank
+    to: a1
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_1e328a46
+kind: update
+occurred_at: 2026-08-08T23:55:53.085Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: rank
+    from: a1
+    to: Zz
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_a8ff78e2
+kind: update
+occurred_at: 2026-08-09T00:03:49.861Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_progress
+    to: todo
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

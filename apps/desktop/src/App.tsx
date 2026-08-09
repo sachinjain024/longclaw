@@ -83,9 +83,26 @@ import type {
   TicketPriority,
   TicketStatus,
   TicketRow,
+  WriteResult,
 } from "./types";
 import { WarnGlyph } from "./WarnGlyph";
 import { ToastStack, WriteIndicator } from "./WriteFeedback";
+
+/**
+ * One ticket's share of a gesture: the row it starts from, how it reads before
+ * the write returns, and the two edits — the one being made and the one that
+ * takes it back. Most gestures are one of these; a drop that had to give the
+ * tickets above it a place is several (`editMutation`, LC-174).
+ */
+interface EditStep {
+  ticket: IndexedTicket;
+  optimistic: Partial<IndexedTicket>;
+  edit: TicketEdit;
+  inverse: TicketEdit;
+}
+
+/** Which of a step's two edits is being sent. The other one puts it back. */
+type Direction = "make" | "take back";
 
 const THEMES = [
   { id: "indigo", label: "Indigo" },
@@ -1018,30 +1035,103 @@ export function App() {
     optimistic: Partial<IndexedTicket>;
     edit: TicketEdit;
     inverse: TicketEdit;
+    /**
+     * Other tickets this same gesture writes, written before the ticket itself.
+     *
+     * A drop into a group where nothing has a rank has to give the tickets
+     * above it a place, or there is no position for the dragged one to take
+     * (`ordering.ts`, LC-174). It is one thing the human did, so it is one
+     * mutation: one disk-state indicator, one toast, one Undo — and a failure
+     * part-way through puts back what it has already written rather than
+     * leaving a group half-ordered.
+     */
+    backfill?: EditStep[];
     toast: string;
     inverseToast: string;
     failure?: (error: AppError) => string;
   }): Mutation {
     const { projectId, ticket } = options;
-    const write = (expectedHash: string, edit: TicketEdit) => () =>
-      editTicket({ projectId, ticketKey: ticket.key, expectedHash, edit });
+    // The backfill first and the dragged ticket last, so its receipt is the one
+    // the toast, the indicator and the Undo are all built from. The ordinary
+    // edit is this list of one, which is what keeps a single path.
+    const steps: EditStep[] = [
+      ...(options.backfill ?? []),
+      {
+        ticket,
+        optimistic: options.optimistic,
+        edit: options.edit,
+        inverse: options.inverse,
+      },
+    ];
+
+    /** What each step's forward write left on disk, for the inverse to send. */
+    let landed: WriteResult[] = [];
+
+    /** One step, written and shown. The row reads as the disk does afterwards. */
+    const send = (step: EditStep, expectedHash: string, going: Direction) =>
+      editTicket({
+        projectId,
+        ticketKey: step.ticket.key,
+        expectedHash,
+        edit: going === "make" ? step.edit : step.inverse,
+      }).then((result) => {
+        applyLocalWrite(result.ticket, result.generation);
+        return result;
+      });
+
+    /**
+     * One pass over the gesture: every ticket in order, reporting the last
+     * one's receipt. `going` is which of each step's two edits is being sent,
+     * and the other one is what unwinds a pass that failed part-way.
+     */
+    const pass =
+      (hash: (step: EditStep, index: number) => string, going: Direction) =>
+      async (): Promise<WriteResult> => {
+        const done: WriteResult[] = [];
+        try {
+          for (const [index, step] of steps.entries()) {
+            done.push(await send(step, hash(step, index), going));
+          }
+        } catch (error) {
+          // Best effort, and in reverse: half a gesture on disk is a position
+          // nobody chose, and worse than the failure the human is about to be
+          // told about. What will not go back is left to the watcher to report.
+          for (let index = done.length - 1; index >= 0; index -= 1) {
+            await send(
+              steps[index],
+              done[index].ticket.contentHash,
+              going === "make" ? "take back" : "make",
+            ).catch(() => {});
+          }
+          throw error;
+        }
+        if (going === "make") landed = done;
+        return done[done.length - 1];
+      };
 
     return {
       path: ticket.relativePath,
       // The row shows the change at once; a failed write puts it back exactly as
       // it was read.
       apply: () => {
-        applyLocalWrite({ ...ticket, ...options.optimistic }, generation);
-        return () => applyLocalWrite(ticket, generation);
+        for (const step of steps) {
+          applyLocalWrite({ ...step.ticket, ...step.optimistic }, generation);
+        }
+        return () => {
+          for (const step of steps) applyLocalWrite(step.ticket, generation);
+        };
       },
-      write: write(ticket.contentHash, options.edit),
+      write: pass((step) => step.ticket.contentHash, "make"),
       onWritten: (result) => applyLocalWrite(result.ticket, result.generation),
       toast: () => options.toast,
       undo: (result) => ({
         path: result.ticket.relativePath,
-        // The hash the first write left, so the inverse is not refused as stale
-        // by its own predecessor.
-        write: write(result.ticket.contentHash, options.inverse),
+        // The hash each step's own first write left, so the inverse is not
+        // refused as stale by its own predecessor.
+        write: pass(
+          (step, index) => landed[index].ticket.contentHash,
+          "take back",
+        ),
         onWritten: (undone) =>
           applyLocalWrite(undone.ticket, undone.generation),
         toast: () => options.inverseToast,
@@ -1098,12 +1188,17 @@ export function App() {
    * place in its own column (ADR 0003), or — in Manual — both at once, because a
    * card arriving in a column is given a place in it.
    *
-   * One edit either way. Two writes would be two files' worth of undo for one
-   * gesture, and the card would sit in the new column at the old rank in between.
-   * The board allocates the rank — LongClaw owns rank allocation in v0 — and
-   * this writes it, the same way the `P` menu's pick is written.
+   * One gesture, one mutation. The card's own status and rank are one edit —
+   * two writes would be two files' worth of undo for one drop, and the card
+   * would sit in the new column at the old rank in between. A drop that also
+   * had to give the cards above it a place carries them in the same mutation
+   * for the same reason (LC-174): the `backfill` is written first, so the card has
+   * something to sit under, and one Undo takes the whole gesture back.
    *
-   * The inverse is what the card had, and a card that had no rank is put back
+   * The board allocates the ranks — LongClaw owns rank allocation in v0 — and
+   * this writes them, the same way the `P` menu's pick is written.
+   *
+   * The inverse is what each card had, and a card that had no rank is put back
    * to having none: `TicketEdit.rank` takes `null` to clear the key. Nothing
    * else in the app ever sends that, because leaving Manual mode is a view
    * preference and must not rewrite a file.
@@ -1115,7 +1210,25 @@ export function App() {
     // of the move that is already true is left out of it rather than sent.
     const status = move.status === ticket.status ? undefined : move.status;
     const rank = move.rank === ticket.rank ? undefined : move.rank;
-    if (status === undefined && rank === undefined) return;
+    // The cards a place had to be made for. The surface names them by key; the
+    // row that carries the hash a write is sent against is the store's, so it
+    // is looked up here — and a key the store no longer holds is dropped rather
+    // than written blind.
+    const backfill = (move.backfill ?? []).flatMap<EditStep>((one) => {
+      const row = tickets.find((held) => held.key === one.key);
+      if (row?.state !== "indexed" || row.rank === one.rank) return [];
+      return [
+        {
+          ticket: row,
+          optimistic: { rank: one.rank },
+          edit: { rank: one.rank },
+          inverse: { rank: row.rank ?? null },
+        },
+      ];
+    });
+    if (status === undefined && rank === undefined && backfill.length === 0) {
+      return;
+    }
     // The same two fields either way: what the row shows at once, and what the
     // write carries. A `TicketEdit` is a `Partial<IndexedTicket>` in this much.
     const change = { ...(status && { status }), ...(rank && { rank }) };
@@ -1126,6 +1239,7 @@ export function App() {
         ticket,
         optimistic: change,
         edit: change,
+        backfill,
         inverse: {
           ...(status && { status: ticket.status }),
           ...(rank && { rank: ticket.rank ?? null }),

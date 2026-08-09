@@ -2857,6 +2857,24 @@ describe("board ordering and manual reordering (V0-09)", () => {
     fireEvent.click(screen.getByRole("menuitemradio", { name }));
   }
 
+  /**
+   * The cards of one column in the order they are drawn in. By `top` rather than
+   * by document order: the column places its cards absolutely and mounts its
+   * anchors out of sequence, so the DOM is not what a human sees.
+   */
+  function cardOrder(title = "Todo"): string[] {
+    const column = screen
+      .getByRole("heading", { name: new RegExp(`^${title}`) })
+      .closest(".board-column")!;
+    return [...column.querySelectorAll<HTMLElement>("[data-ticket-key]")]
+      .sort(
+        (left, right) =>
+          Number.parseFloat(left.style.top) -
+          Number.parseFloat(right.style.top),
+      )
+      .map((card) => card.dataset.ticketKey!);
+  }
+
   /** A drop at a stated position in a named column, Todo unless said otherwise. */
   function dropAt(key: string, clientY: number, title = "Todo") {
     const stack = screen
@@ -2999,6 +3017,103 @@ describe("board ordering and manual reordering (V0-09)", () => {
       // `null` clears the key. Nothing else in the app ever sends it.
       edit: { rank: null },
     });
+  });
+
+  it("must-pass: a drop into a column with no ranks lands where it was let go (LC-174)", async () => {
+    // The ordinary case, not a corner. ADR 0003 allocates no rank until
+    // something is dragged, so every column starts like this — and before
+    // LC-174 a card let go two rows down took the first rank, sorted above the
+    // cards with none, and did not move at all.
+    vi.mocked(api.editTicket)
+      .mockResolvedValueOnce(written("LC-2", { rank: "a0" }))
+      .mockResolvedValueOnce(written("LC-1", { rank: "a1" }));
+    await openBoard([row("LC-1"), row("LC-2"), row("LC-3")]);
+    chooseOrdering("Manual");
+
+    // Into the gap between LC-2 and LC-3.
+    dropAt("LC-1", 160);
+
+    await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(2));
+    // The card above the gap is given a position first, so the dragged card has
+    // something to sit under.
+    expect(vi.mocked(api.editTicket).mock.calls[0][0]).toStrictEqual({
+      projectId: project.id,
+      ticketKey: "LC-2",
+      expectedHash: "hash-LC-2",
+      edit: { rank: "a0" },
+    });
+    expect(vi.mocked(api.editTicket).mock.calls[1][0]).toStrictEqual({
+      projectId: project.id,
+      ticketKey: "LC-1",
+      expectedHash: "hash-LC-1",
+      edit: { rank: "a1" },
+    });
+    // Nothing below the gap is written: LC-3 is already under the drop.
+    expect(cardOrder("Todo")).toEqual(["LC-2", "LC-1", "LC-3"]);
+  });
+
+  it("takes the whole gesture back with one Undo (LC-174)", async () => {
+    vi.mocked(api.editTicket)
+      .mockResolvedValueOnce(written("LC-2", { rank: "a0" }))
+      .mockResolvedValueOnce(written("LC-1", { rank: "a1" }));
+    await openBoard([row("LC-1"), row("LC-2"), row("LC-3")]);
+    chooseOrdering("Manual");
+
+    dropAt("LC-1", 160);
+    await screen.findByText("LC-1 moved");
+
+    vi.mocked(api.editTicket)
+      .mockReset()
+      .mockResolvedValueOnce(written("LC-2"))
+      .mockResolvedValueOnce(written("LC-1"));
+    fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+
+    await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(2));
+    // Both keys are cleared rather than invented, and each against the hash its
+    // own forward write left behind.
+    expect(vi.mocked(api.editTicket).mock.calls[0][0]).toStrictEqual({
+      projectId: project.id,
+      ticketKey: "LC-2",
+      expectedHash: "hash-LC-2-written",
+      edit: { rank: null },
+    });
+    expect(vi.mocked(api.editTicket).mock.calls[1][0]).toStrictEqual({
+      projectId: project.id,
+      ticketKey: "LC-1",
+      expectedHash: "hash-LC-1-written",
+      edit: { rank: null },
+    });
+    expect(cardOrder("Todo")).toEqual(["LC-1", "LC-2", "LC-3"]);
+  });
+
+  it("puts back the half of the gesture that landed when the rest fails", async () => {
+    // One drop is one thing the human did, so a companion written and a card
+    // that never moved is a state nobody asked for. The rollback is best
+    // effort, and the toast still names the failure.
+    vi.mocked(api.editTicket)
+      .mockResolvedValueOnce(written("LC-2", { rank: "a0" }))
+      .mockRejectedValueOnce({
+        code: "io",
+        message: "Disk is full",
+        recoverable: true,
+      })
+      .mockResolvedValueOnce(written("LC-2"));
+    await openBoard([row("LC-1"), row("LC-2"), row("LC-3")]);
+    chooseOrdering("Manual");
+
+    dropAt("LC-1", 160);
+
+    await screen.findByText(
+      "LC-1 could not be moved. Disk is full. The file was left as it was.",
+    );
+    await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(3));
+    expect(vi.mocked(api.editTicket).mock.calls[2][0]).toStrictEqual({
+      projectId: project.id,
+      ticketKey: "LC-2",
+      expectedHash: "hash-LC-2-written",
+      edit: { rank: null },
+    });
+    expect(cardOrder("Todo")).toEqual(["LC-1", "LC-2", "LC-3"]);
   });
 
   it("moves the card before the write leaves, and puts it back if it fails", async () => {

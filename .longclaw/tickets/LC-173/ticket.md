@@ -3,14 +3,14 @@ format: longclaw.ticket/v1
 id: 68093908-9bfe-4c6b-b0b7-9a20a2f6bea6
 key: LC-173
 title: "Docs: link a plan to the ticket it belongs to, with the plan living as an .md file in the repo"
-status: todo
+status: backlog
 priority: p1
 labels:
   - format
   - product
   - post-mvp
 created_at: 2026-08-07T06:56:54.956Z
-updated_at: 2026-08-07T06:56:54.956Z
+updated_at: 2026-08-08T04:35:51.635Z
 ---
 
 **Post-MVP.** Filed now because it is the shape the repo already works in, not because it goes in v0.
@@ -51,4 +51,19 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_b3f0bd68
+kind: update
+occurred_at: 2026-08-08T04:35:51.635Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: todo
+    to: backlog
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

@@ -61,6 +61,17 @@ function manualRank(ticket: TicketRow): string | undefined {
 }
 
 /**
+ * Whether a rank could be written to this row at all. A file this build cannot
+ * read has no frontmatter to put one in — the same reason it cannot be dragged
+ * (`ticketMove.movable`), reaching it here because a degraded row still sits in
+ * the column its directory last read as (`grouping.ticketStatus`) and so can
+ * stand above a gap somebody else drops into.
+ */
+function takesRank(ticket: TicketRow): boolean {
+  return ticket.state === "indexed";
+}
+
+/**
  * The Manual order: by `rank`, and then by priority for everything with no rank.
  *
  * The mixed case is the one worth stating, because it is the ordinary one. A
@@ -94,36 +105,91 @@ export function comparatorFor(mode: OrderingMode): TicketOrdering {
   return mode === "manual" ? byRank : byPriority;
 }
 
+/** A card that is given a rank by a drop, and the rank it is given. */
+export interface RankAssignment {
+  key: string;
+  rank: string;
+}
+
 /**
- * The rank for a card dropped at `index` of a column that does not already hold
- * it — a card arriving from another column, and, once the card being moved is
- * taken out of the way, a reorder inside one column too.
+ * What one drop allocates: the rank for the card being moved, and a rank for
+ * every card above it that had none.
+ *
+ * `backfill` is empty for most drops and is never long — it is the cards
+ * *above* the gap only, in the order they already had, and a column keeps its
+ * ranks once it has them. It exists because a fractional index can only sit
+ * between keys that exist, and until LC-174 a drop among cards with no rank
+ * silently landed at the boundary instead (see `rankForInsert`).
+ */
+export interface RankPlan {
+  rank: string;
+  backfill: RankAssignment[];
+}
+
+/**
+ * The ranks for a card dropped at `index` of a column that does not already
+ * hold it — a card arriving from another column, and, once the card being moved
+ * is taken out of the way, a reorder inside one column too.
  *
  * The neighbours are the nearest ranked card on each side, not the immediate
- * ones: a card with no rank is not a position, so it cannot bound one.
+ * ones: a card with no rank is not a position, so it cannot bound one — which
+ * is the whole difficulty, because until something is dragged *no* card in a
+ * column has one (ADR 0003).
  *
- * There is always an answer, unlike a reorder: an arriving card has to be given
- * a place, and a column holding no ranks at all gives it the first one — which
- * is the boundary between the ranked cards and the unranked ones, the same
- * place the first drag inside a column lands.
+ * So a drop into a run of unranked cards gives those **above the gap** a
+ * position, in the order they already had, and takes the one after them. The
+ * cards below the gap are left alone: unranked cards sort below every ranked
+ * one and keep their order among themselves, so they are already where the drop
+ * says they should be, and a rank on one of them would be a file written for a
+ * card nobody moved. Dropping above everything writes nothing but the card's own
+ * rank; dropping at the bottom of a fresh column is the expensive end, and it is
+ * paid once per column.
+ *
+ * ADR 0003 originally had this land at the ranked/unranked boundary rather than
+ * under the pointer, on the grounds that the alternative wrote files nobody
+ * dragged. LC-174 is what that cost: on a column nobody has dragged in, which is
+ * every column, a card let go three rows down did not move at all.
+ *
+ * Two rows above a gap cannot be given a position, and both keep the unranked
+ * tail rather than being written to: a file this build cannot read has no
+ * frontmatter to hold one, and `ordered` is the column **as the surface is
+ * drawing it**, so a filter narrows what a drop can express. Both are the
+ * ranked-before-unranked rule of `byRank` showing through, and neither is new
+ * here — LC-187 is the open item for the filter one.
  */
-export function rankForInsert(ordered: TicketRow[], index: number): string {
+export function rankForInsert(ordered: TicketRow[], index: number): RankPlan {
   const at = Math.max(0, Math.min(index, ordered.length));
 
-  let before: string | undefined;
-  for (let scan = at - 1; scan >= 0 && before === undefined; scan -= 1) {
-    before = manualRank(ordered[scan]);
-  }
+  // The nearest ranked card below the gap, which bounds everything allocated
+  // here. Absent means the gap runs to the bottom of the column.
   let after: string | undefined;
   for (let scan = at; scan < ordered.length && after === undefined; scan += 1) {
     after = manualRank(ordered[scan]);
   }
 
-  return rankBetween(before, after);
+  // Down the cards above the gap, carrying the lower bound: a ranked one moves
+  // it, an unranked one is given the next position and becomes it. A file this
+  // build cannot read is passed over rather than named in a write that could
+  // not happen — it keeps the unranked tail, which is where a column that has
+  // been dragged in puts everything with no position (`byRank`).
+  const backfill: RankAssignment[] = [];
+  let before: string | undefined;
+  for (let scan = 0; scan < at; scan += 1) {
+    const rank = manualRank(ordered[scan]);
+    if (rank !== undefined) {
+      before = rank;
+      continue;
+    }
+    if (!takesRank(ordered[scan])) continue;
+    before = rankBetween(before, after);
+    backfill.push({ key: ordered[scan].key, rank: before });
+  }
+
+  return { rank: rankBetween(before, after), backfill };
 }
 
 /**
- * The rank for a card dropped at `index` in the column it is already in.
+ * The ranks for a card dropped at `index` in the column it is already in.
  *
  * `undefined` means the drop would not move the card and so should write
  * nothing — `TicketDocument::apply` refuses an edit that changes nothing.
@@ -132,18 +198,21 @@ export function rankForDrop(
   ordered: TicketRow[],
   movingKey: string,
   index: number,
-): string | undefined {
+): RankPlan | undefined {
   const from = ordered.findIndex((ticket) => ticket.key === movingKey);
   if (from === -1) return;
   // The two gaps either side of the card are where it already is.
   if (index === from || index === from + 1) return;
 
   const others = ordered.filter((ticket) => ticket.key !== movingKey);
-  const next = rankForInsert(others, index > from ? index - 1 : index);
-  // A drop that cannot be expressed as a rank on this card alone — into the
-  // middle of a run of cards that have none — writes nothing rather than
-  // writing a rank the column would not move for.
-  return next === manualRank(ordered[from]) ? undefined : next;
+  const plan = rankForInsert(others, index > from ? index - 1 : index);
+  // A drop that moves nothing writes nothing. Only a plan that gives the card
+  // the rank it already has can be one: a backfill is by definition a card
+  // changing position relative to the one being dragged.
+  if (plan.backfill.length === 0 && plan.rank === manualRank(ordered[from])) {
+    return;
+  }
+  return plan;
 }
 
 /**

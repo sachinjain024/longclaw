@@ -70,6 +70,7 @@ npm --prefix apps/desktop run perf:startup  # startup budgets, needs a built app
 npm run perf:board                          # board interaction budgets in WebKit
 npm run perf:list                           # the same, for the list surface
 npm run probe:header                        # the content header's geometry, mid-write
+npm run probe:drag                          # where a dragged ticket actually lands
 npm run matrix                              # theme × appearance visual regression
 npm run a11y:audit                          # accessibility Part A, keyboard-only, in WebKit
 npm run a11y:audit -- --self-test           # the same, expecting every row to go red
@@ -108,8 +109,18 @@ controls, or the disk-state indicator; run `a11y:audit` alongside it when a
 layout change makes the header wider, because a row that will not break is a row
 that can push a control off the side of the window (its A5 row).
 
+`probe:drag` is the same idea for drag-and-drop, and it asks the question the
+jsdom drag tests cannot: not whether the page _accepted_ a drop but whether the
+ticket **landed where it was let go**. It drives real mouse input in WebKit with
+the write commands served and reads the order back, one run per row of LC-174's
+checklist, plus the two Priority controls that must be refused. Two defects have
+now hidden behind a green `verify` here — LC-60's window flag, where the page
+never saw a `dragover` at all, and LC-174's rank allocation, where every event
+was correct and the row still did not move. Run it when you touch a drop handler,
+`ticketMove.ts`, `ordering.ts` or `rank.ts`, and quote the run.
+
 **A `<button>` needs an explicit `tabIndex`, and `npm run check` enforces it.**
-WebKit follows the macOS *Keyboard navigation* setting, which is off by default,
+WebKit follows the macOS _Keyboard navigation_ setting, which is off by default,
 and with it off Tab skips buttons entirely — which is why plan 07 gave the board
 roving focus, and why the ticket panel's controls were pointer-only until Step 17.
 Write `tabIndex={0}`, or `tabIndex={-1}` where a roving group owns the stop;
@@ -130,7 +141,7 @@ V0-42 is the open item for a gate that works on a runner.
 
 **If `verify` goes red on the native watcher, suspect the environment before the
 code.** An npm-launched `test:watcher` once timed out while the identical direct
-Cargo command passed, and it closed as *not reproducing* without a fix or an
+Cargo command passed, and it closed as _not reproducing_ without a fix or an
 explanation — read
 [plan 10's outcome](docs/plans/completed/10-npm-native-watcher-timeout.md) before
 touching the watcher, since two obvious workarounds are already recorded as

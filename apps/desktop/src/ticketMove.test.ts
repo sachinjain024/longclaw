@@ -85,6 +85,72 @@ describe("what letting go writes", () => {
 
     expect(drop?.move.status).toBeUndefined();
     expect(drop!.move.rank! > "a1").toBe(true);
+    // Both groups here are fully ranked, so the drop is one ticket's business.
+    expect(drop!.move.backfill).toBeUndefined();
+  });
+
+  it("carries the places it had to give the tickets above it (LC-174)", () => {
+    // A group nobody has dragged in, which is every group until somebody does.
+    // The drop is a position, so the rows above it are given positions too —
+    // one gesture, and one Undo, however many rows that is.
+    const fresh: StatusGroup[] = [
+      {
+        id: "todo",
+        title: "Todo",
+        status: "todo",
+        tickets: [row("LC-1"), row("LC-2"), row("LC-3"), row("LC-4")],
+      },
+      { id: "done", title: "Done", status: "done", tickets: [] },
+    ];
+    const seat = seatsFor(fresh).get("LC-1")!;
+    const drop = moveForDrop(fresh, seat, { group: 0, gap: 3 }, "manual");
+
+    expect(drop!.move.backfill!.map((one) => one.key)).toEqual([
+      "LC-2",
+      "LC-3",
+    ]);
+    // Above them, and below nothing: LC-4 is under the drop and keeps none.
+    expect(drop!.move.rank! > drop!.move.backfill![1].rank).toBe(true);
+  });
+
+  it("carries them for a ticket arriving from another group too", () => {
+    const fresh: StatusGroup[] = [
+      { id: "todo", title: "Todo", status: "todo", tickets: [row("LC-1")] },
+      {
+        id: "done",
+        title: "Done",
+        status: "done",
+        tickets: [row("LC-5"), row("LC-6")],
+      },
+    ];
+    const seat = seatsFor(fresh).get("LC-1")!;
+    const drop = moveForDrop(fresh, seat, { group: 1, gap: 2 }, "manual");
+
+    expect(drop!.move.status).toBe("done");
+    expect(drop!.move.backfill!.map((one) => one.key)).toEqual([
+      "LC-5",
+      "LC-6",
+    ]);
+  });
+
+  it("gives a ticket arriving in Priority no rank and nobody else one", () => {
+    // The order inside the group it arrives in is the priority order, which is
+    // not a thing the human chose by dropping there — so there is no position
+    // to express and nothing above it to express one against.
+    const fresh: StatusGroup[] = [
+      { id: "todo", title: "Todo", status: "todo", tickets: [row("LC-1")] },
+      {
+        id: "done",
+        title: "Done",
+        status: "done",
+        tickets: [row("LC-5"), row("LC-6")],
+      },
+    ];
+    const seat = seatsFor(fresh).get("LC-1")!;
+
+    expect(
+      moveForDrop(fresh, seat, { group: 1, gap: 2 }, "priority")?.move,
+    ).toStrictEqual({ status: "done" });
   });
 
   it("writes nothing for a drop that would not move the card", () => {
