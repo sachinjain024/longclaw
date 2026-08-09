@@ -127,6 +127,12 @@ function editTicket(request: EditTicketRequest): WriteResult {
   if (edit.status !== undefined) row.status = edit.status;
   if (edit.priority !== undefined) row.priority = edit.priority;
   if (edit.labels !== undefined) row.labels = edit.labels;
+  // `null` clears it, which is what an undone first drag sends (`types.ts`).
+  // Without this a Manual drag settles back to the rank it started with, and a
+  // harness watching where a card landed would be watching the optimistic
+  // update decay rather than the write — which is the one thing `drag-probe`
+  // exists to tell apart.
+  if (edit.rank !== undefined) row.rank = edit.rank ?? undefined;
   if (edit.archived !== undefined) {
     row.archivedAt = edit.archived
       ? new Date(Date.UTC(2026, 7, 4)).toISOString()

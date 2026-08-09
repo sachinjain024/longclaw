@@ -24,7 +24,13 @@
  */
 
 import type { Seat, StatusGroup } from "./grouping";
-import { rankForDrop, rankForInsert, type OrderingMode } from "./ordering";
+import {
+  rankForDrop,
+  rankForInsert,
+  type OrderingMode,
+  type RankAssignment,
+  type RankPlan,
+} from "./ordering";
 import { isArchived } from "./tickets";
 import type { IndexedTicket, TicketStatus } from "./types";
 
@@ -33,10 +39,16 @@ import type { IndexedTicket, TicketStatus } from "./types";
  * from, the place it took there when the board is in Manual, or both. Never
  * neither, which the shape says rather than the prose: a move with no status
  * has a rank, and one with no rank has a status.
+ *
+ * `backfill` is the rest of the gesture rather than a second gesture: the
+ * tickets above the drop that had no rank and so had to be given one for the
+ * place to exist at all (`ordering.ts`, LC-174). Usually absent, never present
+ * without a `rank`, and one Undo takes the whole of it back — a drop is one
+ * thing the human did.
  */
-export type TicketMove =
-  | { status: TicketStatus; rank?: string }
-  | { status?: undefined; rank: string };
+export type TicketMove = (
+  { status: TicketStatus; rank?: string } | { status?: undefined; rank: string }
+) & { backfill?: RankAssignment[] };
 
 /**
  * Where a pointer is over a surface, in the terms a drop is decided in: which
@@ -109,8 +121,8 @@ export function moveForDrop(
 
   if (from.group === spot.group) {
     // Back in its own group: a place in it, and only in Manual (ADR 0003).
-    const rank = rankForDrop(landing.tickets, ticket.key, spot.gap);
-    return rank === undefined ? undefined : { ticket, move: { rank } };
+    const plan = rankForDrop(landing.tickets, ticket.key, spot.gap);
+    return plan === undefined ? undefined : { ticket, move: written(plan) };
   }
   // `takesDrop` has already refused a group no status names.
   const status = landing.status as TicketStatus;
@@ -122,8 +134,23 @@ export function moveForDrop(
       // Priority allocates no rank, here as anywhere: the order inside the
       // group it arrives in is not something the human chose by dropping there.
       ...(ordering === "manual"
-        ? { rank: rankForInsert(landing.tickets, spot.gap) }
+        ? written(rankForInsert(landing.tickets, spot.gap))
         : {}),
     },
+  };
+}
+
+/**
+ * A plan as the half of a move that writes it. An empty backfill is left out
+ * rather than sent as `[]`, so the ordinary drop — into a group that already
+ * has ranks — is the same object it has always been.
+ */
+function written(plan: RankPlan): {
+  rank: string;
+  backfill?: RankAssignment[];
+} {
+  return {
+    rank: plan.rank,
+    ...(plan.backfill.length > 0 ? { backfill: plan.backfill } : {}),
   };
 }

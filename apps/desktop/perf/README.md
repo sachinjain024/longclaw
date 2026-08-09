@@ -20,6 +20,20 @@ Run it when you touch the header, the disk-state indicator, or anything about ho
 those controls are sized. `--self-test` puts the pre-fix header back and expects
 the run to go red.
 
+`npm run probe:drag` is the other one that measures nothing, and it asks the
+question every jsdom drag test is structurally unable to answer: not "did the
+page accept the drop" but "did the ticket end up where it was let go". It drives
+real mouse input in WebKit with the write commands served (`?rw=1`) and reads the
+order back, one run per row of LC-174's checklist — between columns and between
+groups on both surfaces, and a place inside one in Manual — plus the two Priority
+controls that must be _refused_, because a probe that only checked what should
+work would pass against a build that accepted everything. It found two defects
+nothing else could see: LC-60's window flag (no `dragover` at all) and LC-174's
+rank allocation (every event correct, the drop line in the right gap, and the row
+still where it started). `--from=` and `--gap=` aim the two "place" cases, which
+matters because that failure was directional. `--self-test` swallows `dragstart`
+the way the window's own handler did and expects the run to go red.
+
 `npm run perf:startup` is the third harness here and the odd one out: it drives
 the **packaged app**, not a web page, because the Step 4 startup budget is on the
 release bundle. It reads the app's own `startup_to_rendered_ms` diagnostic rather
@@ -40,6 +54,9 @@ npm run perf:board -- --filter="storage"  # a different query in the filter trac
 npm run probe:header                   # the content header, mid-write, 1440→760
 npm run probe:header -- --self-test    # the pre-LC-149 header, expecting red
 node perf/header-probe.mjs --widths=1300  # one width, after a build
+npm run probe:drag                     # every drag LC-174's checklist names
+npm run probe:drag -- --self-test      # LC-60's swallowed dragstart, expecting red
+node perf/drag-probe.mjs --case=list-place-manual --from=1 --gap=5
 ```
 
 `--order=manual` clicks the real ordering control before measuring. Manual is the
