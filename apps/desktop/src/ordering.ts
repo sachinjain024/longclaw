@@ -61,6 +61,17 @@ function manualRank(ticket: TicketRow): string | undefined {
 }
 
 /**
+ * Whether a rank could be written to this row at all. A file this build cannot
+ * read has no frontmatter to put one in — the same reason it cannot be dragged
+ * (`ticketMove.movable`), reaching it here because a degraded row still sits in
+ * the column its directory last read as (`grouping.ticketStatus`) and so can
+ * stand above a gap somebody else drops into.
+ */
+function takesRank(ticket: TicketRow): boolean {
+  return ticket.state === "indexed";
+}
+
+/**
  * The Manual order: by `rank`, and then by priority for everything with no rank.
  *
  * The mixed case is the one worth stating, because it is the ordinary one. A
@@ -138,6 +149,13 @@ export interface RankPlan {
  * under the pointer, on the grounds that the alternative wrote files nobody
  * dragged. LC-174 is what that cost: on a column nobody has dragged in, which is
  * every column, a card let go three rows down did not move at all.
+ *
+ * Two rows above a gap cannot be given a position, and both keep the unranked
+ * tail rather than being written to: a file this build cannot read has no
+ * frontmatter to hold one, and `ordered` is the column **as the surface is
+ * drawing it**, so a filter narrows what a drop can express. Both are the
+ * ranked-before-unranked rule of `byRank` showing through, and neither is new
+ * here — LC-187 is the open item for the filter one.
  */
 export function rankForInsert(ordered: TicketRow[], index: number): RankPlan {
   const at = Math.max(0, Math.min(index, ordered.length));
@@ -150,7 +168,10 @@ export function rankForInsert(ordered: TicketRow[], index: number): RankPlan {
   }
 
   // Down the cards above the gap, carrying the lower bound: a ranked one moves
-  // it, an unranked one is given the next position and becomes it.
+  // it, an unranked one is given the next position and becomes it. A file this
+  // build cannot read is passed over rather than named in a write that could
+  // not happen — it keeps the unranked tail, which is where a column that has
+  // been dragged in puts everything with no position (`byRank`).
   const backfill: RankAssignment[] = [];
   let before: string | undefined;
   for (let scan = 0; scan < at; scan += 1) {
@@ -159,6 +180,7 @@ export function rankForInsert(ordered: TicketRow[], index: number): RankPlan {
       before = rank;
       continue;
     }
+    if (!takesRank(ordered[scan])) continue;
     before = rankBetween(before, after);
     backfill.push({ key: ordered[scan].key, rank: before });
   }

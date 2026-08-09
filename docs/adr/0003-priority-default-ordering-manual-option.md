@@ -54,8 +54,19 @@ below every ranked one and keeps its order among the others, so it is already
 where the drop says it should be, and a rank on it would be the file nobody
 dragged that the earlier revision was right to refuse.
 
-- **It is still one gesture.** The companions and the dragged card go out as one
-  mutation, companions first, and one Undo takes the whole of it back
+Two rows above a gap are passed over rather than given a place, and both keep
+the unranked tail. A file this build cannot read has no frontmatter to hold a
+rank — it sits in the column its directory last read as
+(`grouping.ticketStatus`), so one can stand above a gap, and naming it in the
+plan would be naming a write that cannot happen. And `rankForInsert` is handed
+the column **as the surface is drawing it**, so under an active filter a drop
+can only express a position among the rows that match. Neither is introduced
+here — both are the ranked-before-unranked rule of `byRank` showing through, and
+a drop already moved such a row by one — but the backfill moves it further.
+LC-187 is the open item for the filter one.
+
+- **It is still one gesture.** The backfill and the dragged card go out as one
+  mutation, the backfill first, and one Undo takes the whole of it back
   (`moveCard`/`editMutation` in `App.tsx`). A failure part-way through puts back
   what it has already written rather than leaving a column half-ordered — best
   effort, and the toast still names the failure.
@@ -64,9 +75,13 @@ dragged that the earlier revision was right to refuse.
   dropping at the bottom writes the column. Every later drop in that column
   writes one file, because the column now has ranks.
 - **"`rank` is written only by manual reordering" still stands.** Nothing here
-  allocates a rank outside a Manual drag: switching mode still writes nothing,
-  and a drop in Priority still writes no rank at all — the two Priority "place"
-  cases in `perf/drag-probe.mjs` are the control that says so.
+  allocates a rank outside a Manual drag: switching mode still writes nothing
+  (`must-pass: switching the order rewrites no file`), and a drop in Priority
+  writes no rank whichever column it lands in (`must-pass: Priority mode writes
+no rank however the board is dragged`, which asserts the whole edit and not
+  just its status). The two Priority "place" cases in `perf/drag-probe.mjs` say
+  the narrower thing the pointer can be asked: that such a drop is refused
+  outright.
 - **The proof is a run, not a memory.** `npm run probe:drag` drives all four of
   LC-174's checklist rows with real mouse input in WebKit, with the write
   commands served, and reads the order back — because the surfaces' jsdom tests

@@ -360,6 +360,18 @@ describe("the rank a card arriving from another column takes", () => {
     expect(plan.rank > ranks[2]).toBe(true);
   });
 
+  it("gives no place to a file it cannot read", () => {
+    // A degraded row sits in the column its directory last read as
+    // (`grouping.ts` `ticketStatus`), so one can stand above the gap — and it
+    // has no frontmatter to write a rank into. Naming it in the plan would be
+    // naming a write that cannot happen: the caller would drop it and the
+    // column would be ordered by a position the file does not carry.
+    const mixed = [row("LC-1", "p1"), degraded("LC-98"), row("LC-2", "p2")];
+    const plan = rankForInsert(mixed, 3);
+
+    expect(plan.backfill.map((one) => one.key)).toEqual(["LC-1", "LC-2"]);
+  });
+
   it("writes nobody else when the drop is above every card", () => {
     const unranked = [row("LC-1", "p1"), row("LC-2", "p2")];
 

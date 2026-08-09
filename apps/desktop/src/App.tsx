@@ -88,6 +88,22 @@ import type {
 import { WarnGlyph } from "./WarnGlyph";
 import { ToastStack, WriteIndicator } from "./WriteFeedback";
 
+/**
+ * One ticket's share of a gesture: the row it starts from, how it reads before
+ * the write returns, and the two edits — the one being made and the one that
+ * takes it back. Most gestures are one of these; a drop that had to give the
+ * tickets above it a place is several (`editMutation`, LC-174).
+ */
+interface EditStep {
+  ticket: IndexedTicket;
+  optimistic: Partial<IndexedTicket>;
+  edit: TicketEdit;
+  inverse: TicketEdit;
+}
+
+/** Which of a step's two edits is being sent. The other one puts it back. */
+type Direction = "make" | "take back";
+
 const THEMES = [
   { id: "indigo", label: "Indigo" },
   { id: "clay", label: "Clay" },
@@ -1029,22 +1045,17 @@ export function App() {
      * part-way through puts back what it has already written rather than
      * leaving a group half-ordered.
      */
-    alongside?: {
-      ticket: IndexedTicket;
-      optimistic: Partial<IndexedTicket>;
-      edit: TicketEdit;
-      inverse: TicketEdit;
-    }[];
+    backfill?: EditStep[];
     toast: string;
     inverseToast: string;
     failure?: (error: AppError) => string;
   }): Mutation {
     const { projectId, ticket } = options;
-    // The companions first and the dragged ticket last, so its receipt is the
-    // one the toast, the indicator and the Undo are all built from. The
-    // ordinary edit is this list of one, which is what keeps a single path.
-    const steps = [
-      ...(options.alongside ?? []),
+    // The backfill first and the dragged ticket last, so its receipt is the one
+    // the toast, the indicator and the Undo are all built from. The ordinary
+    // edit is this list of one, which is what keeps a single path.
+    const steps: EditStep[] = [
+      ...(options.backfill ?? []),
       {
         ticket,
         optimistic: options.optimistic,
@@ -1056,46 +1067,45 @@ export function App() {
     /** What each step's forward write left on disk, for the inverse to send. */
     let landed: WriteResult[] = [];
 
+    /** One step, written and shown. The row reads as the disk does afterwards. */
+    const send = (step: EditStep, expectedHash: string, going: Direction) =>
+      editTicket({
+        projectId,
+        ticketKey: step.ticket.key,
+        expectedHash,
+        edit: going === "make" ? step.edit : step.inverse,
+      }).then((result) => {
+        applyLocalWrite(result.ticket, result.generation);
+        return result;
+      });
+
     /**
      * One pass over the gesture: every ticket in order, reporting the last
-     * one's receipt. `forward` is which half of each step is being sent, and so
-     * also which half puts it back when a pass has to unwind.
+     * one's receipt. `going` is which of each step's two edits is being sent,
+     * and the other one is what unwinds a pass that failed part-way.
      */
     const pass =
-      (
-        hash: (step: (typeof steps)[number], index: number) => string,
-        forward: boolean,
-      ) =>
+      (hash: (step: EditStep, index: number) => string, going: Direction) =>
       async (): Promise<WriteResult> => {
         const done: WriteResult[] = [];
         try {
           for (const [index, step] of steps.entries()) {
-            const result = await editTicket({
-              projectId,
-              ticketKey: step.ticket.key,
-              expectedHash: hash(step, index),
-              edit: forward ? step.edit : step.inverse,
-            });
-            applyLocalWrite(result.ticket, result.generation);
-            done.push(result);
+            done.push(await send(step, hash(step, index), going));
           }
         } catch (error) {
           // Best effort, and in reverse: half a gesture on disk is a position
           // nobody chose, and worse than the failure the human is about to be
           // told about. What will not go back is left to the watcher to report.
           for (let index = done.length - 1; index >= 0; index -= 1) {
-            await editTicket({
-              projectId,
-              ticketKey: steps[index].ticket.key,
-              expectedHash: done[index].ticket.contentHash,
-              edit: forward ? steps[index].inverse : steps[index].edit,
-            })
-              .then((back) => applyLocalWrite(back.ticket, back.generation))
-              .catch(() => {});
+            await send(
+              steps[index],
+              done[index].ticket.contentHash,
+              going === "make" ? "take back" : "make",
+            ).catch(() => {});
           }
           throw error;
         }
-        if (forward) landed = done;
+        if (going === "make") landed = done;
         return done[done.length - 1];
       };
 
@@ -1111,14 +1121,17 @@ export function App() {
           for (const step of steps) applyLocalWrite(step.ticket, generation);
         };
       },
-      write: pass((step) => step.ticket.contentHash, true),
+      write: pass((step) => step.ticket.contentHash, "make"),
       onWritten: (result) => applyLocalWrite(result.ticket, result.generation),
       toast: () => options.toast,
       undo: (result) => ({
         path: result.ticket.relativePath,
         // The hash each step's own first write left, so the inverse is not
         // refused as stale by its own predecessor.
-        write: pass((step, index) => landed[index].ticket.contentHash, false),
+        write: pass(
+          (step, index) => landed[index].ticket.contentHash,
+          "take back",
+        ),
         onWritten: (undone) =>
           applyLocalWrite(undone.ticket, undone.generation),
         toast: () => options.inverseToast,
@@ -1179,7 +1192,7 @@ export function App() {
    * two writes would be two files' worth of undo for one drop, and the card
    * would sit in the new column at the old rank in between. A drop that also
    * had to give the cards above it a place carries them in the same mutation
-   * for the same reason (LC-174): `alongside` is written first, so the card has
+   * for the same reason (LC-174): the `backfill` is written first, so the card has
    * something to sit under, and one Undo takes the whole gesture back.
    *
    * The board allocates the ranks — LongClaw owns rank allocation in v0 — and
@@ -1201,7 +1214,7 @@ export function App() {
     // row that carries the hash a write is sent against is the store's, so it
     // is looked up here — and a key the store no longer holds is dropped rather
     // than written blind.
-    const alongside = (move.backfill ?? []).flatMap((one) => {
+    const backfill = (move.backfill ?? []).flatMap<EditStep>((one) => {
       const row = tickets.find((held) => held.key === one.key);
       if (row?.state !== "indexed" || row.rank === one.rank) return [];
       return [
@@ -1213,7 +1226,7 @@ export function App() {
         },
       ];
     });
-    if (status === undefined && rank === undefined && alongside.length === 0) {
+    if (status === undefined && rank === undefined && backfill.length === 0) {
       return;
     }
     // The same two fields either way: what the row shows at once, and what the
@@ -1226,7 +1239,7 @@ export function App() {
         ticket,
         optimistic: change,
         edit: change,
-        alongside,
+        backfill,
         inverse: {
           ...(status && { status: ticket.status }),
           ...(rank && { rank: ticket.rank ?? null }),

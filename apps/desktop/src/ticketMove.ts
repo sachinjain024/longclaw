@@ -122,7 +122,7 @@ export function moveForDrop(
   if (from.group === spot.group) {
     // Back in its own group: a place in it, and only in Manual (ADR 0003).
     const plan = rankForDrop(landing.tickets, ticket.key, spot.gap);
-    return plan === undefined ? undefined : { ticket, move: written(plan) };
+    return plan === undefined ? undefined : { ticket, move: asMove(plan) };
   }
   // `takesDrop` has already refused a group no status names.
   const status = landing.status as TicketStatus;
@@ -134,18 +134,18 @@ export function moveForDrop(
       // Priority allocates no rank, here as anywhere: the order inside the
       // group it arrives in is not something the human chose by dropping there.
       ...(ordering === "manual"
-        ? written(rankForInsert(landing.tickets, spot.gap))
+        ? asMove(rankForInsert(landing.tickets, spot.gap))
         : {}),
     },
   };
 }
 
 /**
- * A plan as the half of a move that writes it. An empty backfill is left out
+ * A plan as the half of a move that carries it. An empty backfill is left out
  * rather than sent as `[]`, so the ordinary drop — into a group that already
  * has ranks — is the same object it has always been.
  */
-function written(plan: RankPlan): {
+function asMove(plan: RankPlan): {
   rank: string;
   backfill?: RankAssignment[];
 } {
