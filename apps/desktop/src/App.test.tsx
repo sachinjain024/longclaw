@@ -836,7 +836,11 @@ describe("the project settings gear (LC-70)", () => {
     labels: {},
   };
 
-  it("keeps starring in the sidebar and opens settings from a header gear", async () => {
+  // Named for what it asserts. It used to claim it "keeps starring in the
+  // sidebar" and then never look at the sidebar (LC-158): the star's half of
+  // LC-70 is that the row affordance already existed and was left alone, which
+  // is covered where that row is — § the side panel against its spec.
+  it("drops the header Star button and opens settings from a header gear", async () => {
     vi.mocked(api.listProjects).mockResolvedValue([project]);
     vi.mocked(api.openProject).mockResolvedValue({
       project,
