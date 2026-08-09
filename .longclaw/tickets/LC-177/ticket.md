@@ -5,10 +5,11 @@ key: LC-177
 title: quick-create-guard reads declarations without a left boundary and misreports its count
 status: todo
 priority: p3
+rank: a1
 labels:
   - frontend
 created_at: 2026-08-07T14:38:34.947Z
-updated_at: 2026-08-07T14:38:34.947Z
+updated_at: 2026-08-08T23:56:06.688Z
 ---
 
 Two defects in `apps/desktop/scripts/quick-create-guard.mjs`, both in the same
@@ -60,4 +61,48 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_c4bf0445
+kind: update
+occurred_at: 2026-08-07T16:53:05.494Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: todo
+    to: in_review
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_da5236c9
+kind: update
+occurred_at: 2026-08-07T16:54:45.126Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_review
+    to: todo
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_8f0424fa
+kind: update
+occurred_at: 2026-08-08T23:56:06.688Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: rank
+    to: a1
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

@@ -5,10 +5,11 @@ key: LC-180
 title: A multi-line raw HTML block collapses onto one line
 status: todo
 priority: p3
+rank: a0
 labels:
   - frontend
 created_at: 2026-08-08T08:05:56.718Z
-updated_at: 2026-08-08T08:05:56.718Z
+updated_at: 2026-08-08T23:56:02.232Z
 ---
 
 A multi-line raw HTML block collapses onto one line, the way a table did before LC-179.
@@ -50,4 +51,18 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_ee78531b
+kind: update
+occurred_at: 2026-08-08T23:56:02.232Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: rank
+    to: a0
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

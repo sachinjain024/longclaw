@@ -5,11 +5,12 @@ key: LC-176
 title: D-47 credits LC-113 with a fix that was already on main
 status: todo
 priority: p3
+rank: a2
 labels:
   - frontend
   - prototype-diff
 created_at: 2026-08-07T14:38:25.000Z
-updated_at: 2026-08-07T14:38:25.000Z
+updated_at: 2026-08-08T23:56:19.585Z
 ---
 
 `docs/cc_screens_diff.md` D-47 reads **Fixed 2026-08-07 (LC-113)**, but the CSS
@@ -49,4 +50,18 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_69811a8d
+kind: update
+occurred_at: 2026-08-08T23:56:19.585Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: rank
+    to: a2
+-->
+### You updated this ticket
 <!-- /longclaw:event -->
