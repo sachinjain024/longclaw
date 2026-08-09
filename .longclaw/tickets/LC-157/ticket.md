@@ -107,3 +107,17 @@ changes:
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_dc17ef1c
+kind: comment
+occurred_at: 2026-08-09T01:29:38.186Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Correction to this ticket's premise, found in review: vite was never auto-incrementing. `perf/vite.config.ts` has carried `preview: { strictPort: true }` since 80fa437 (2026-07-31, five days before this was filed), and every harness spawned with `--config perf/vite.config.ts`. So the harness's own server was already dying on a busy 4173 — `stdio: "ignore"` swallowed the complaint, nothing watched the child, and the probe then hit the other checkout. The reported symptom and the danger are exactly as described; only the mechanism named here was wrong, which is why `--strictPort` on its own would not have fixed it.
+<!-- /longclaw:event -->

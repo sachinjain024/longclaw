@@ -60,12 +60,8 @@ import { webkit } from "playwright-core";
 
 import { startPreview } from "./preview-server.mjs";
 
-/**
- * Where this run's build is served, known once the server is up rather than
- * fixed in advance: a constant port is a port another checkout can already be
- * serving on, and the probe cannot tell the two apart (LC-157).
- */
-let ORIGIN;
+/** This run's own server, up before anything is driven (`preview-server.mjs`). */
+let preview;
 
 const argument = (name, fallback) => {
   const hit = process.argv.find((value) => value.startsWith(`--${name}=`));
@@ -219,7 +215,7 @@ async function probe(browser, px) {
       rw: "1",
       slow: String(SLOW_MS),
     });
-    await page.goto(`${ORIGIN}/?${query}`, { waitUntil: "load" });
+    await page.goto(`${preview.origin}/?${query}`, { waitUntil: "load" });
     await page.waitForFunction(
       () => document.querySelectorAll("[data-ticket-key]").length > 0,
       undefined,
@@ -376,8 +372,7 @@ async function probe(browser, px) {
 }
 
 async function main() {
-  const preview = await startPreview();
-  ORIGIN = preview.origin;
+  preview = await startPreview();
   const browser = await webkit.launch();
   try {
     for (const px of WIDTHS) {

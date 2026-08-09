@@ -85,6 +85,12 @@ Test suites worth knowing about:
 | `npm run probe:header` | the content header's geometry in WebKit while a real write is in flight, at every width the window can be (LC-149)                                             |
 | `npm run probe:drag`   | where a dragged ticket actually lands, in WebKit with the write commands served: between columns and between groups, and a place inside one in Manual (LC-174) |
 
+One thing under `perf/` _is_ in `npm run verify`: `perf/preview-server.test.mjs`,
+which covers how all six harnesses get their server (LC-157). It spawns short
+node processes and binds ephemeral sockets rather than driving a browser, so it
+costs about a second and belongs with the unit suite; the harnesses themselves
+stay outside the gate.
+
 `perf:board`, `perf:list` and the two probes need a WebKit build, once per machine:
 
 ```sh

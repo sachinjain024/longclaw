@@ -34,12 +34,8 @@ import { webkit } from "playwright-core";
 import { startPreview } from "./preview-server.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
-/**
- * Where this run's build is served, known once the server is up rather than
- * fixed in advance: a constant port is a port another checkout can already be
- * serving on, and the probe cannot tell the two apart (LC-157).
- */
-let ORIGIN;
+/** This run's own server, up before anything is driven (`preview-server.mjs`). */
+let preview;
 const OUT = resolve(here, "../dist-a11y");
 mkdirSync(OUT, { recursive: true });
 
@@ -85,7 +81,7 @@ async function board(browser, options = {}) {
   const page = await context.newPage();
   const query = new URLSearchParams({ tickets: String(TICKETS), rw: "1" });
   if (options.fail) query.set("fail", options.fail);
-  await page.goto(`${ORIGIN}/?${query}`, { waitUntil: "load" });
+  await page.goto(`${preview.origin}/?${query}`, { waitUntil: "load" });
   await page.waitForFunction(
     () => document.querySelectorAll("[data-ticket-key]").length > 0,
     undefined,
@@ -1059,8 +1055,7 @@ const AUDITS = [
 ];
 
 async function main() {
-  const preview = await startPreview();
-  ORIGIN = preview.origin;
+  preview = await startPreview();
   const browser = await webkit.launch();
   try {
     for (const [id, audit] of AUDITS) {

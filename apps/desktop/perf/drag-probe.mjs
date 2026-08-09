@@ -57,12 +57,8 @@ import { webkit } from "playwright-core";
 
 import { startPreview } from "./preview-server.mjs";
 
-/**
- * Where this run's build is served, known once the server is up rather than
- * fixed in advance: a constant port is a port another checkout can already be
- * serving on, and the probe cannot tell the two apart (LC-157).
- */
-let ORIGIN;
+/** This run's own server, up before anything is driven (`preview-server.mjs`). */
+let preview;
 
 const argument = (name, fallback) => {
   const hit = process.argv.find((value) => value.startsWith(`--${name}=`));
@@ -352,7 +348,7 @@ async function probe(browser, row) {
   });
   const page = await context.newPage();
   try {
-    await page.goto(`${ORIGIN}/?tickets=${TICKETS}&rw=1`, {
+    await page.goto(`${preview.origin}/?tickets=${TICKETS}&rw=1`, {
       waitUntil: "load",
     });
     await page.waitForFunction(
@@ -497,8 +493,7 @@ async function main() {
   const cases = CASES.filter((row) => ONLY === undefined || row.id === ONLY);
   if (cases.length === 0) throw new Error(`no case named ${ONLY}`);
 
-  const preview = await startPreview();
-  ORIGIN = preview.origin;
+  preview = await startPreview();
   const browser = await webkit.launch();
   try {
     for (const row of cases) {

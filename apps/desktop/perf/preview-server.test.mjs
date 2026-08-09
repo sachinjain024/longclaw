@@ -8,6 +8,7 @@
  * real `vite preview` per case would put a build in the unit suite.
  */
 
+import { EventEmitter } from "node:events";
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
 import { afterEach, expect, test } from "vitest";
@@ -21,62 +22,64 @@ afterEach(async () => {
   await Promise.all(opened.splice(0).map((close) => close()));
 });
 
+/** Every stand-in below is this: a node one-liner on the same three pipes. */
+function child(script, env = {}) {
+  return spawn(process.execPath, ["-e", script], {
+    env: { ...process.env, ...env },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+}
+
+/** The listen-and-announce both serving doubles share. */
+const LISTEN = `require("node:http")
+   .createServer((_, response) => response.end("ok"))
+   .listen(Number(process.env.PORT), "127.0.0.1", () => `;
+
 /** Stands in for `vite preview`: announces a URL, then answers on it. */
 function serving(port, announce = port) {
-  return spawn(
-    process.execPath,
-    [
-      "-e",
-      `require("node:http")
-         .createServer((_, response) => response.end("ok"))
-         .listen(Number(process.env.PORT), "127.0.0.1", () => {
-           console.log("  ➜  Local:   http://localhost:" + process.env.ANNOUNCE + "/");
-         })`,
-    ],
-    {
-      env: { ...process.env, PORT: String(port), ANNOUNCE: String(announce) },
-      stdio: ["ignore", "pipe", "pipe"],
-    },
+  return child(
+    `${LISTEN} console.log(
+       "  ➜  Local:   http://localhost:" + process.env.ANNOUNCE + "/",
+     ))`,
+    { PORT: String(port), ANNOUNCE: String(announce) },
   );
 }
 
 /** The same, announcing the way vite does with colour forced on: port bolded. */
 function servingInColour(port) {
-  return spawn(
-    process.execPath,
-    [
-      "-e",
-      `require("node:http")
-         .createServer((_, response) => response.end("ok"))
-         .listen(Number(process.env.PORT), "127.0.0.1", () => {
-           console.log(
-             "  \\u001b[32m➜\\u001b[39m  \\u001b[1mLocal\\u001b[22m:   " +
-               "\\u001b[36mhttp://localhost:\\u001b[1m" + process.env.PORT +
-               "\\u001b[22m/\\u001b[39m",
-           );
-         })`,
-    ],
-    {
-      env: { ...process.env, PORT: String(port) },
-      stdio: ["ignore", "pipe", "pipe"],
-    },
+  return child(
+    `${LISTEN} console.log(
+       "  \\u001b[32m➜\\u001b[39m  \\u001b[1mLocal\\u001b[22m:   " +
+         "\\u001b[36mhttp://localhost:\\u001b[1m" + process.env.PORT +
+         "\\u001b[22m/\\u001b[39m",
+     ))`,
+    { PORT: String(port) },
   );
 }
 
 /** A server that dies on startup, the way `--strictPort` makes vite die. */
 function dying(complaint) {
-  return spawn(
-    process.execPath,
-    ["-e", `console.error(${JSON.stringify(complaint)}); process.exit(1)`],
-    { stdio: ["ignore", "pipe", "pipe"] },
-  );
+  return child(`console.error(${JSON.stringify(complaint)}); process.exit(1)`);
+}
+
+/**
+ * A child whose events the case orders by hand.
+ *
+ * A real pipe's timing is the machine's to decide, so the one ordering that
+ * matters here — gone first, last words after — cannot be provoked reliably by
+ * spawning anything. This is that ordering, stated.
+ */
+function scripted() {
+  const fake = new EventEmitter();
+  fake.stdout = new EventEmitter();
+  fake.stderr = new EventEmitter();
+  fake.kill = () => {};
+  return fake;
 }
 
 /** A server that comes up and never says so. */
 function mute() {
-  return spawn(process.execPath, ["-e", "setTimeout(() => {}, 60_000)"], {
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  return child("setTimeout(() => {}, 60_000)");
 }
 
 /** A decoy holding the port, standing in for the other worktree's preview. */
@@ -145,6 +148,30 @@ test("refuses a server that took a port other than the one it was given", async 
       timeoutMs: 5_000,
     }),
   ).rejects.toThrow(/not this run's build/);
+});
+
+test("quotes what the server said on its way out, not what had arrived by then", async () => {
+  const fake = scripted();
+  const run = startPreview({ launch: () => fake, timeoutMs: 5_000 });
+
+  // The order a full pipe delivers in: the process is gone well before the
+  // line that says why, and only `close` promises there is no more to come.
+  setTimeout(() => fake.emit("exit", 1, null), 10);
+  setTimeout(() => {
+    fake.stderr.emit("data", "Port is already in use\n");
+    fake.emit("close");
+  }, 200);
+
+  await expect(run).rejects.toThrow(/Port is already in use/);
+});
+
+test("fails, rather than crashing the run, when there is nothing to spawn", async () => {
+  await expect(
+    startPreview({
+      launch: () => spawn("no-such-preview-server-exists", { stdio: "pipe" }),
+      timeoutMs: 5_000,
+    }),
+  ).rejects.toThrow(/could not be started/);
 });
 
 test("names what it waited for when the server never speaks", async () => {
