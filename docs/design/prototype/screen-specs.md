@@ -253,10 +253,10 @@ movement. No custom-color affordance exists anywhere.
 ## Quick create (`C` or palette)
 
 - 620px modal at 12vh. Row 1: mono context line `project · KEY-n` (the next
-  key, allocated on create). Row 2: borderless 15px title input. Row 3:
-  status trigger (defaults Todo; preseeded when opened from a column `+`).
-  Footer: ghost **Open full editor →** (carries the typed title into full
-  create), mono hints `↵ create · esc cancel`, primary **Create**.
+  key, allocated on create). Row 2: borderless 15px title input. Row 3: status
+  trigger (defaults Todo; preseeded from a column `+`) then priority trigger
+  (defaults None) — the meta grid's order (LC-186). Footer: ghost **Open full
+  editor →** (carries all three), mono hints `↵ create · esc cancel`, **Create**.
 - Enter creates optimistically: card appears at top of its column, toast
   `LC-n created` with Undo (`⌘Z`), modal closes, focus moves to the new
   card. Creating never blocks on the disk write.

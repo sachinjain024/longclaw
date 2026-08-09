@@ -50,6 +50,11 @@ interface CreatePanelProps {
   /** Carried in from quick create's "Open full editor →" (`screen-specs.md:202`). */
   initialTitle?: string;
   initialStatus?: TicketStatus;
+  /**
+   * Quick create asks for a priority too (LC-186), so the move between the
+   * surfaces has one to carry. Absent means nobody chose, which is `none`.
+   */
+  initialPriority?: TicketPriority;
   onCancel: () => void;
   /** Fires and forgets: the create is optimistic, so the panel never waits. */
   onCreate: (request: Omit<CreateTicketRequest, "projectId">) => void;
@@ -60,7 +65,9 @@ export function CreatePanel(props: CreatePanelProps) {
   const [status, setStatus] = useState<TicketStatus>(
     props.initialStatus ?? "todo",
   );
-  const [priority, setPriority] = useState<TicketPriority>("none");
+  const [priority, setPriority] = useState<TicketPriority>(
+    props.initialPriority ?? "none",
+  );
   const [labels, setLabels] = useState<string[]>([]);
   const [description, setDescription] = useState("");
   const [checklist, setChecklist] = useState<string[]>([]);
