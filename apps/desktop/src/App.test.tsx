@@ -596,7 +596,7 @@ describe("the full create surface (V0-16)", () => {
     settle(created());
 
     // "On create the panel swaps to view mode of the real ticket"
-    // (`screen-specs.md:214`) — the real one, LC-7, not the guessed LC-1.
+    // (`screen-specs.md:270-271`) — the real one, LC-7, not the guessed LC-1.
     const panel = await screen.findByRole("complementary", {
       name: "Ticket LC-7",
     });
@@ -4701,27 +4701,39 @@ describe("a project switch under an open editor (LC-188)", () => {
     };
   }
 
-  function snapshot(
-    project: ProjectReference,
-    tickets: TicketRow[],
-    sequence: number,
-  ) {
-    return { project, tickets, generation: 1, rebuiltInMs: 1, sequence };
+  /** What Rust hands back for a create Bravo allocated `BR-2` for. */
+  function createdInBravo(): WriteResult {
+    return {
+      ticket: {
+        ...bravoTicket(),
+        key: "BR-2",
+        id: "019c9001",
+        title: "Filed while the sidebar moved",
+        contentHash: "hash-br-2",
+        relativePath: ".longclaw/tickets/BR-2/ticket.md",
+      },
+      generation: 2,
+      changes: [],
+    };
+  }
+
+  function boardOf(project: ProjectReference, tickets: IndexedTicket[]) {
+    return { project, tickets, generation: 1, rebuiltInMs: 1, sequence: 1 };
   }
 
   /**
-   * Bravo's board answers when the test says so. Every case here turns on the
-   * window between the click on a project and the rows arriving from it, so the
-   * two halves are separate steps rather than one resolved promise.
+   * Bravo's board answers when a test says so. Every case here turns on the
+   * window between clicking a project and its rows arriving, so opening Bravo
+   * is two steps rather than one resolved promise.
    */
-  let openBravo: () => void;
+  let answerBravo: () => void = () => {};
 
-  async function openAlpha() {
+  async function openAlpha(alphaTickets: IndexedTicket[] = []) {
     vi.mocked(api.listProjects).mockResolvedValue([alpha, bravo]);
     vi.mocked(api.openProject).mockImplementation(async (projectId: string) => {
-      if (projectId === alpha.id) return snapshot(alpha, [], 1);
+      if (projectId === alpha.id) return boardOf(alpha, alphaTickets);
       return new Promise((resolve) => {
-        openBravo = () => resolve(snapshot(bravo, [bravoTicket()], 1));
+        answerBravo = () => resolve(boardOf(bravo, [bravoTicket()]));
       });
     });
     render(<App />);
@@ -4734,7 +4746,7 @@ describe("a project switch under an open editor (LC-188)", () => {
     )!;
   }
 
-  /** Quick create with a title in it, opened over whatever board is up. */
+  /** Quick create with a title in it, over whatever board is up. */
   function startDraft(title: string) {
     fireEvent.click(screen.getAllByText("New ticket")[0]);
     fireEvent.change(screen.getByLabelText("Title"), {
@@ -4742,16 +4754,23 @@ describe("a project switch under an open editor (LC-188)", () => {
     });
   }
 
-  function confirmButton() {
-    return screen.getByRole("button", { name: "Create in Bravo" });
+  function createButton() {
+    return screen.getByRole("button", { name: "Create" });
   }
 
-  /** Draft in Alpha, switch to Bravo, press Create: the reported gesture. */
+  /** The context line quick create carries: project, then the key it expects. */
+  function contextLine() {
+    return document.querySelector(".quick-create-context")!.textContent;
+  }
+
+  /** Draft in Alpha, switch to Bravo, let Bravo answer, then press Create. */
   async function draftThenSwitch() {
     await openAlpha();
     startDraft("Filed while the sidebar moved");
     fireEvent.click(projectLink("Bravo"));
-    fireEvent.click(screen.getByText("Create"));
+    answerBravo();
+    await screen.findByText("Bravo already has this one");
+    fireEvent.click(createButton());
   }
 
   it("asks rather than filing the draft in whichever project is active", async () => {
@@ -4760,40 +4779,28 @@ describe("a project switch under an open editor (LC-188)", () => {
     // Nothing is written on the way to the question: the report was a ticket
     // that appeared in a project the human was no longer looking at.
     expect(api.createTicket).not.toHaveBeenCalled();
-    expect(
-      screen.getByRole("dialog", { name: "The active project changed" }),
-    ).toBeTruthy();
+    const dialog = screen.getByRole("dialog", {
+      name: "The active project changed",
+    });
     // Both projects are named. "Create it in the current one?" is not a
-    // question anybody can answer without being told which one that is.
-    const dialog = screen.getByRole("dialog");
+    // question anybody can answer without being told which one that is — and
+    // the destination's folder and key are what make the answer checkable.
     expect(dialog.textContent).toContain("Alpha");
     expect(dialog.textContent).toContain("Bravo");
-  });
-
-  it("waits for the project it is aimed at to answer before it can be confirmed", async () => {
-    await draftThenSwitch();
-
-    // Bravo's rows are still in flight, so its next free key is not known. The
-    // guess off an empty board would be `BR-1`, which Bravo already holds.
-    expect(confirmButton().hasAttribute("disabled")).toBe(true);
-    expect(screen.getByRole("dialog").textContent).toContain("still opening");
-
-    openBravo();
-    await screen.findByText("Bravo already has this one");
-
-    expect(confirmButton().hasAttribute("disabled")).toBe(false);
-    // And now it says which key the ticket will take, in the project it will
-    // take it in.
-    expect(screen.getByRole("dialog").textContent).toContain("BR-2");
+    expect(dialog.textContent).toContain("/tmp/LongClaw Bravo");
+    expect(dialog.textContent).toContain("BR-2");
+    // It asks where a write goes; it destroys nothing, so it is not the
+    // danger button **Remove from app** wears.
+    expect(
+      screen.getByRole("button", { name: "Create in Bravo" }).className,
+    ).toBe("primary");
   });
 
   it("creates in the project on screen once it is confirmed", async () => {
     vi.mocked(api.createTicket).mockReturnValue(new Promise(() => {}));
     await draftThenSwitch();
-    openBravo();
-    await screen.findByText("Bravo already has this one");
 
-    fireEvent.click(confirmButton());
+    fireEvent.click(screen.getByRole("button", { name: "Create in Bravo" }));
 
     expect(api.createTicket).toHaveBeenCalledWith({
       projectId: bravo.id,
@@ -4809,8 +4816,6 @@ describe("a project switch under an open editor (LC-188)", () => {
 
   it("cancels back to the draft, with nothing written", async () => {
     await draftThenSwitch();
-    openBravo();
-    await screen.findByText("Bravo already has this one");
 
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
@@ -4825,12 +4830,98 @@ describe("a project switch under an open editor (LC-188)", () => {
     );
   });
 
+  it("asks the same question from full create, and ends in the panel", async () => {
+    vi.mocked(api.createTicket).mockResolvedValue(createdInBravo());
+    vi.mocked(api.readTicket).mockReturnValue(new Promise(() => {}));
+    await openAlpha();
+    fireEvent.click(screen.getAllByText("New ticket")[0]);
+    fireEvent.click(screen.getByText("Open full editor →"));
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Filed while the sidebar moved" },
+    });
+    fireEvent.click(projectLink("Bravo"));
+    answerBravo();
+    await screen.findByText("Bravo already has this one");
+
+    fireEvent.click(screen.getByText("Create ticket"));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Create in Bravo" }),
+    );
+
+    expect(api.createTicket).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: bravo.id }),
+    );
+    // Full create's ending survives the question it was held behind
+    // (`screen-specs.md:270-271`): the panel opens on the ticket Rust keyed.
+    await screen.findByRole("complementary", { name: "Ticket BR-2" });
+    expect(api.readTicket).toHaveBeenCalledWith(bravo.id, "BR-2");
+  });
+
+  it("offers no key, and no create, while the project it switched to is opening", async () => {
+    await openAlpha();
+    startDraft("Filed while the sidebar moved");
+    expect(contextLine()).toContain("Alpha · AL-1");
+
+    fireEvent.click(projectLink("Bravo"));
+
+    // `BR-1` is the guess off a board with no rows, and Bravo already holds
+    // it. The surface says it does not know rather than naming it (LC-140).
+    expect(contextLine()).toContain("Bravo · opening…");
+    expect(contextLine()).not.toContain("BR-1");
+    expect(createButton().hasAttribute("disabled")).toBe(true);
+    fireEvent.submit(screen.getByLabelText("Create a ticket"));
+    expect(api.createTicket).not.toHaveBeenCalled();
+
+    answerBravo();
+    await screen.findByText("Bravo already has this one");
+
+    expect(contextLine()).toContain("Bravo · BR-2");
+    expect(createButton().hasAttribute("disabled")).toBe(false);
+  });
+
+  it("holds the same line for a re-open of the project already on screen", async () => {
+    // No switch, so no question is owed — but the board is zeroed all the
+    // same, and a create against it would guess a key Alpha has spent.
+    let answerAlphaAgain: () => void = () => {};
+    const alphaTicket: IndexedTicket = {
+      ...bravoTicket(),
+      key: "AL-1",
+      title: "Alpha's own ticket",
+      relativePath: ".longclaw/tickets/AL-1/ticket.md",
+    };
+    vi.mocked(api.listProjects).mockResolvedValue([alpha]);
+    let opens = 0;
+    vi.mocked(api.openProject).mockImplementation(async () => {
+      opens += 1;
+      if (opens === 1) return boardOf(alpha, [alphaTicket]);
+      return new Promise((resolve) => {
+        answerAlphaAgain = () => resolve(boardOf(alpha, [alphaTicket]));
+      });
+    });
+    render(<App />);
+    await screen.findByText("Alpha's own ticket");
+    startDraft("An ordinary create");
+
+    fireEvent.click(projectLink("Alpha"));
+
+    expect(contextLine()).toContain("Alpha · opening…");
+    expect(createButton().hasAttribute("disabled")).toBe(true);
+
+    answerAlphaAgain();
+    await screen.findByText("Alpha's own ticket");
+
+    // And no dialog on the way through: the project never changed.
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(contextLine()).toContain("Alpha · AL-2");
+    expect(createButton().hasAttribute("disabled")).toBe(false);
+  });
+
   it("asks nothing when the project never moved", async () => {
     vi.mocked(api.createTicket).mockReturnValue(new Promise(() => {}));
     await openAlpha();
     startDraft("An ordinary create");
 
-    fireEvent.click(screen.getByText("Create"));
+    fireEvent.click(createButton());
 
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(api.createTicket).toHaveBeenCalledWith({
@@ -4841,25 +4932,19 @@ describe("a project switch under an open editor (LC-188)", () => {
   });
 
   it("closes a ticket panel left open on the project being left", async () => {
-    vi.mocked(api.openProject).mockReset();
-    vi.mocked(api.listProjects).mockResolvedValue([alpha, bravo]);
     const alphaTicket: IndexedTicket = {
       ...bravoTicket(),
       key: "AL-1",
       title: "Alpha's own ticket",
       relativePath: ".longclaw/tickets/AL-1/ticket.md",
     };
-    vi.mocked(api.openProject).mockImplementation(async (projectId: string) =>
-      projectId === alpha.id
-        ? snapshot(alpha, [alphaTicket], 1)
-        : snapshot(bravo, [bravoTicket()], 1),
-    );
     vi.mocked(api.readTicket).mockReturnValue(new Promise(() => {}));
-    render(<App />);
+    await openAlpha([alphaTicket]);
     fireEvent.click(await screen.findByText("Alpha's own ticket"));
     await screen.findByRole("complementary", { name: /^Ticket AL-1/ });
 
     fireEvent.click(projectLink("Bravo"));
+    answerBravo();
 
     // A panel is open on a key, and `AL-1` is not a key Bravo can answer for.
     await waitFor(() =>

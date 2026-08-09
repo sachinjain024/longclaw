@@ -114,7 +114,7 @@ type Direction = "make" | "take back";
  */
 interface PendingCreate {
   request: Omit<CreateTicketRequest, "projectId">;
-  /** Full create's ending, carried across the question (`screen-specs.md:214`). */
+  /** Full create's ending, carried across the question (`screen-specs.md:270-271`). */
   openPanel: boolean;
   /** Where the draft was composed, for the dialog's own words. */
   fromProjectId: string;
@@ -393,8 +393,17 @@ export function App() {
    * The key the next create will probably claim, shown by both create surfaces
    * as the provisional ID. A guess off the rows on screen: Rust allocates the
    * real one from the project's own directory names.
+   *
+   * Undefined until the board has answered, because the guess off no rows is
+   * `KEY-1` and that is a key the project has usually already spent. The
+   * surfaces say `opening…` and refuse to create rather than showing it — a
+   * create surface outlives a project switch, so this is a state a human
+   * reaches by clicking a project while a draft is up (LC-140, LC-188).
    */
-  const nextKey = project ? provisionalTicketKey(project.key, tickets) : "";
+  const nextKey =
+    project && boardLoaded
+      ? provisionalTicketKey(project.key, tickets)
+      : undefined;
 
   /**
    * Leaving create without creating. Focus goes back to the surface behind it —
@@ -1044,7 +1053,6 @@ export function App() {
     request: Omit<CreateTicketRequest, "projectId">,
     options?: { openPanel?: boolean },
   ) {
-    if (!activeProjectId || !project) return;
     if (createProjectId !== undefined && createProjectId !== activeProjectId) {
       setPendingCreate({
         request,
@@ -1061,7 +1069,7 @@ export function App() {
    * card appears at once under a key guessed from the board, the surface closes,
    * and whatever key Rust allocated replaces the guess when the write lands.
    *
-   * `openPanel` is full create's ending (`screen-specs.md:214`): the panel swaps
+   * `openPanel` is full create's ending (`screen-specs.md:270-271`): the panel swaps
    * to view mode of **the real ticket**, so it can only open once the write has
    * returned a key — view mode reads the file, and there is no file to read
    * before then. The card is still optimistic, and focus rides it in the
@@ -1076,18 +1084,13 @@ export function App() {
   ) {
     const projectId = activeProjectId;
     if (!projectId || !project) return;
-    if (!boardLoaded) {
-      // The guess would be `KEY-1` against a board that has not answered yet,
-      // and `addProvisionalTicket` keys by key: the optimistic card would take
-      // the seat of a real ticket the app is about to read. Refuse out loud and
-      // leave the draft where it is (LC-140, LC-188).
-      setError({
-        code: "project_unavailable",
-        message: `${project.name} is still opening. Nothing was created — try again once its board is on screen.`,
-        recoverable: true,
-      });
-      return;
-    }
+    // Unreachable, and deliberately silent: both create surfaces disable their
+    // own **Create** while the key is unknown and the confirm disables its own,
+    // so refusing here has no user to tell. It stands as the last guard on the
+    // thing that actually goes wrong — a guess of `KEY-1` against a board that
+    // has not answered, taking a real ticket's seat through
+    // `addProvisionalTicket`, which keys by key (LC-140, LC-188).
+    if (!boardLoaded) return;
     const guessKey = provisionalTicketKey(project.key, tickets);
     setCreateSurface(undefined);
     setCarriedDraft(undefined);
@@ -1926,24 +1929,18 @@ export function App() {
                 <strong>{project.name}</strong> is the project on screen now.
                 Create it in <strong>{project.name}</strong>?
               </p>
-              {boardLoaded ? (
-                <p>
-                  It lands in <code>{project.rootPath}</code> as{" "}
-                  <code>{nextKey}</code>, the next key free in this project.
-                </p>
-              ) : (
-                <p>
-                  <strong>{project.name}</strong> is still opening. Until its
-                  tickets are read there is no way to tell which key is free, so
-                  nothing can be created into it yet.
-                </p>
-              )}
+              {/* No "still opening" branch to write here: **Create** is
+                  disabled on both surfaces until the board answers, so a
+                  project with no key to offer cannot raise this dialog. */}
+              <p>
+                It lands in <code>{project.rootPath}</code> as{" "}
+                <code>{nextKey}</code>, the next key free in this project.
+              </p>
             </>
           }
           confirmLabel={`Create in ${project.name}`}
           // Nothing is destroyed either way: this asks where a write goes.
           confirmTone="primary"
-          confirmDisabled={!boardLoaded}
           onConfirm={() => {
             const held = pendingCreate;
             setPendingCreate(undefined);

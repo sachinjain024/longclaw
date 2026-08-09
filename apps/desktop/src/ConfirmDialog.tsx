@@ -29,13 +29,6 @@ export function ConfirmDialog(props: {
    * destructive one (LC-188).
    */
   confirmTone?: "danger" | "primary";
-  /**
-   * A question that cannot be answered yet, with the reason in `body`. The
-   * dialog stays up rather than guessing on the user's behalf — the create
-   * behind LC-188 waits here for the project it is aimed at to finish opening,
-   * because until it does there is no board to read the next key off.
-   */
-  confirmDisabled?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -65,11 +58,8 @@ export function ConfirmDialog(props: {
    * the danger button walks straight into the screen the dialog is asking about.
    */
   function holdFocus(event: React.KeyboardEvent) {
-    // A disabled confirm is not a stop. Including it would send `Tab` to an
-    // element that cannot take focus, which reads as a trap rather than a hold.
     const stops = Array.from(
-      dialog.current?.querySelectorAll<HTMLElement>("button:not(:disabled)") ??
-        [],
+      dialog.current?.querySelectorAll<HTMLElement>("button") ?? [],
     );
     if (stops.length === 0) return;
     event.preventDefault();
@@ -122,7 +112,6 @@ export function ConfirmDialog(props: {
             tabIndex={0}
             className={props.confirmTone ?? "danger"}
             type="button"
-            disabled={props.confirmDisabled}
             onClick={props.onConfirm}
           >
             {props.confirmLabel}

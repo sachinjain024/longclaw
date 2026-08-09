@@ -26,8 +26,14 @@ interface QuickCreateProps {
    * is recognised everywhere else in the app.
    */
   projectTheme: string;
-  /** The key the create is about to be given, read off the rows on screen. */
-  provisionalKey: string;
+  /**
+   * The key the create is about to be given, read off the rows on screen — and
+   * `undefined` when there are no rows to read it off yet, which is a project
+   * that has been switched to and has not answered. A guess against an empty
+   * board is `KEY-1`, a key the project has usually already spent, so the
+   * surface says it does not know rather than naming one (LC-140, LC-188).
+   */
+  provisionalKey?: string;
   /**
    * The status the modal opens on — "defaults Todo; preseeded when opened from
    * a column `+`" (`screen-specs.md:222`). A board column's `+` chooses it, so
@@ -46,6 +52,13 @@ export function QuickCreate(props: QuickCreateProps) {
   const [status, setStatus] = useState<TicketStatus>(
     props.initialStatus ?? "todo",
   );
+  /**
+   * A title, and a project that can say which key is free. Both, because the
+   * card this raises appears under the guessed key before the write returns —
+   * so a create with no key to guess would put a card in some real ticket's
+   * seat on the board.
+   */
+  const canCreate = title.trim() !== "" && props.provisionalKey !== undefined;
 
   return (
     <div className="modal-scrim" role="presentation">
@@ -57,7 +70,7 @@ export function QuickCreate(props: QuickCreateProps) {
         }}
         onSubmit={(event) => {
           event.preventDefault();
-          if (!title.trim()) return;
+          if (!canCreate) return;
           props.onCreate({ title: title.trim(), status });
         }}
       >
@@ -66,7 +79,7 @@ export function QuickCreate(props: QuickCreateProps) {
             rather than repeated in words. */}
         <p className="eyebrow quick-create-context">
           <ThemeDot theme={props.projectTheme} />
-          {props.projectName} · {props.provisionalKey}
+          {props.projectName} · {props.provisionalKey ?? "opening…"}
         </p>
         {/* Borderless, and its own label: the modal has no visible field
             names, so the accessible name is the only one there is. */}
@@ -102,7 +115,7 @@ export function QuickCreate(props: QuickCreateProps) {
             tabIndex={0}
             className="primary"
             type="submit"
-            disabled={!title.trim()}
+            disabled={!canCreate}
           >
             Create
           </button>
