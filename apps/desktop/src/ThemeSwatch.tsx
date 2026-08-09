@@ -2,7 +2,7 @@ import { useResolvedAppearance } from "./appearance";
 
 /**
  * The preset pair swatch: left ⅔ human accent, right ⅓ agent accent
- * (`components.md:264-271`, `screen-specs.md:112-118`). The palette's theme rows
+ * (`components.md:292-297`, `screen-specs.md:112-118`). The palette's theme rows
  * carry the miniature of it (`screen-specs.md:313`); the theme picker wears it
  * at 44×28.
  *

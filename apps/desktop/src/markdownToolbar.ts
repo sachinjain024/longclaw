@@ -1,6 +1,6 @@
 /**
  * What the six formatting buttons do to a selection
- * (`keyboard-focus-map.md:84`), as string in, string out.
+ * (`keyboard-focus-map.md:89`), as string in, string out.
  *
  * This is a separate module from the editor because the claim it has to carry is
  * a property, not an interaction: **a toolbar action changes the selection and

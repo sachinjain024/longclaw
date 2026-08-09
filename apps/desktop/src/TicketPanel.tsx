@@ -456,7 +456,7 @@ export function TicketPanel(props: TicketPanelProps) {
   }, [onClose]);
 
   /**
-   * `S`/`P` with the panel open (`keyboard-focus-map.md:66-69`): "they target
+   * `S`/`P` with the panel open (`keyboard-focus-map.md:71-74`): "they target
    * the open ticket". The board and the list bind them on their own containers,
    * and focus is in neither while the panel is up, so the binding is here — and
    * it opens the panel's *own* menus, because their picks carry the conflict
@@ -669,7 +669,7 @@ export function TicketPanel(props: TicketPanelProps) {
 
   /**
    * Where focus goes when the editor closes: back to the description block
-   * (`keyboard-focus-map.md:86`), but only when the human closed it themselves.
+   * (`keyboard-focus-map.md:91`), but only when the human closed it themselves.
    * A reload that drops the editor should not steal focus from wherever they
    * are.
    */

@@ -222,7 +222,7 @@ export function MenuButton<T extends string>(props: {
   /**
    * Opened from outside the trigger: the `S`/`P` single-key path, which acts on
    * the open ticket while focus is somewhere else in the panel entirely
-   * (`keyboard-focus-map.md:66-69`). Omitted, the trigger owns its own state —
+   * (`keyboard-focus-map.md:71-74`). Omitted, the trigger owns its own state —
    * every other caller wants that and should not have to hold one.
    */
   open?: boolean;

@@ -5,7 +5,7 @@
  *
  * `--lc-tile` is the one background token that is **near-black in both
  * appearances** — `#171923` light, `#060709` dark — because it is the agent's
- * terminal window in miniature (`design-tokens.json`, `components.md:152-157`).
+ * terminal window in miniature (`design-tokens.json`, `components.md:178-183`).
  * Every other surface token flips with the appearance, so a box that takes one
  * and inherits `--lc-ink` reads correctly in both. A box on the tile does not:
  * in light appearance the inherited ink *is* `#171923`, the tile's own value,

@@ -123,19 +123,19 @@ was correct and the row still did not move. Run it when you touch a drop handler
 
 **The design docs are cited by line number, and `citation-guard` holds those
 lines still.** `screen-specs.md` closes by asking that edits occupy exactly the
-lines they replace, because ~170 source comments name its lines; three changes
-ignored it and shifted everything below them, and 126 citations were pointing at
-the wrong prose before anyone noticed — a stale line number reads exactly like a
-fresh one. The guard pins every cited line of `screen-specs.md` to its text in
-`scripts/citation-lock.json` and fails when that text moves, naming the line it
-moved to, so re-pointing is mechanical. **If you edit a spec, prefer replacing
-prose in place over inserting it**; when you do change a pinned document's
+lines they replace, because ~400 source comments name lines in it and its three
+companions; changes ignored that and shifted everything below them, and 160
+citations were pointing at the wrong prose before anyone noticed — a stale line
+number reads exactly like a fresh one. The guard pins every cited line of
+`screen-specs.md`, `keyboard-focus-map.md`, `components.md` and `states.md` to
+its text in `scripts/citation-lock.json` and fails when that text moves, naming
+the line it moved to, so re-pointing is mechanical. **If you edit one of these,
+prefer replacing prose in place over inserting it**; when you do change the
 wording, re-point whatever cited it and then `citations:update`. Do not run
 `--update` to clear a red run — it records drift as the new truth. Its
-`--self-test` shifts a document by a line and fails if the guard stays green.
-The other three cited docs (`keyboard-focus-map.md`, `components.md`,
-`states.md`) are checked for range only: they still carry ~35 stale citations,
-and pinning them would freeze those. Repair one and it can join `PINNED`.
+`--self-test` shifts each pinned document by a line and fails if the guard stays
+green. `file_format.md` and `data-requirements.md` are cited too but were never
+audited, so they get the range checks only; auditing one promotes it.
 
 **A `<button>` needs an explicit `tabIndex`, and `npm run check` enforces it.**
 WebKit follows the macOS _Keyboard navigation_ setting, which is off by default,

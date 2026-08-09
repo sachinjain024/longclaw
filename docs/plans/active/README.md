@@ -305,7 +305,7 @@ Dependencies worth knowing:
   `localStorage` beside `appearance`, keyed by project — **not** in
   `registry.rs`, deliberately; V0-31 later added registry recovery without
   changing that ownership. And reordering has no keyboard path on purpose:
-  `keyboard-focus-map.md:165-168` puts it outside v0, so **V0-23 should not add
+  `keyboard-focus-map.md:174-179` puts it outside v0, so **V0-23 should not add
   one** without reopening that line.
 - **21 is done, and V0-23 and V0-24 each inherit one edge of it.** There is one
   place a query narrows the rows now: `filterTickets` in
@@ -395,7 +395,7 @@ Wave 2's own dependencies, which are tighter than Wave 1's were:
   truncates silently with no designed affordance (27 decides); and **V0-25 has no
   design at all** — no trigger, no placement, no anatomy — which is why 29's first
   deliverable is a decision and its owner column says Design.
-- **Do not add a keyboard path for reordering.** `keyboard-focus-map.md:165-168`
+- **Do not add a keyboard path for reordering.** `keyboard-focus-map.md:174-179`
   puts it outside v0 deliberately and names `S` as the path that exists across
   columns. [20's outcome](../completed/20-board-ordering-and-drag.md) asks V0-23 to
   read that paragraph before touching it: adding one contradicts an approved line

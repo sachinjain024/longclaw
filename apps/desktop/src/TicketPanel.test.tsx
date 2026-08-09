@@ -915,7 +915,7 @@ describe("the panel's honesty about the file", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  // `keyboard-focus-map.md:66-69`: "`S`/`P` still work (they target the open
+  // `keyboard-focus-map.md:71-74`: "`S`/`P` still work (they target the open
   // ticket)". Focus is in the panel, so neither surface's own binding sees them.
   it("opens the status and priority menus on S and P", async () => {
     render(panel());
@@ -1989,7 +1989,7 @@ describe("the description editor (V0-12)", () => {
     fireEvent.change(textarea, { target: { value: "Cancelled." } });
     fireEvent.keyDown(textarea, { key: "Escape" });
 
-    // Esc is the editor's, not the panel's (`keyboard-focus-map.md:82`).
+    // Esc is the editor's, not the panel's (`keyboard-focus-map.md:87`).
     expect(onClose).not.toHaveBeenCalled();
     expect(editTicketMock).not.toHaveBeenCalled();
     expect(screen.queryByLabelText("Description")).toBeNull();

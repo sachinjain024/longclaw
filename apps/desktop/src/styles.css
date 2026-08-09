@@ -173,7 +173,7 @@ textarea:focus-visible,
 }
 
 /* The active project, in the human accent — opening a project is a planning
-   act (`components.md:249`). */
+   act (`components.md:275`). */
 .project-link.selected {
   color: var(--lc-ink);
   background: var(--lc-accent-human-soft);
@@ -206,7 +206,7 @@ textarea:focus-visible,
 }
 
 /* The project's *own* accent, which is the only place another project's theme
-   reaches this window (`components.md:251`). The element carries that
+   reaches this window (`components.md:277`). The element carries that
    project's `data-theme`, so `--lc-accent-human` here resolves to its preset
    rather than the one in force. */
 .theme-dot {
@@ -319,7 +319,7 @@ p {
   margin-top: 0;
 }
 
-/* Display type is the greeting and nothing else (`components.md:307`) — it is
+/* Display type is the greeting and nothing else (`components.md:333`) — it is
    the one place Familjen Grotesk appears at size, and spending it on a heading
    the user sees on every launch is what makes it stop meaning anything. */
 h1 {
@@ -2358,7 +2358,7 @@ button:disabled {
 
 /* It appears when the section is hovered, and whenever it holds focus. `:focus`
    rather than `:focus-visible`, because focus returns here when the editor
-   closes (`keyboard-focus-map.md:87`) — including when the human closed it with
+   closes (`keyboard-focus-map.md:92`) — including when the human closed it with
    the mouse, which is the one way to hold focus and match neither rule. */
 .description-block:hover .description-edit,
 .description-edit:focus {
@@ -2795,7 +2795,7 @@ button:disabled {
   font-family: var(--lc-type-code-font);
 }
 
-/* Humans are circles (components.md:147). */
+/* Humans are circles (components.md:173). */
 .actor-tile {
   display: grid;
   width: var(--lc-size-avatar);
@@ -2810,7 +2810,7 @@ button:disabled {
 
 /* Agents are not: a square terminal tile on `--lc-tile` — near-black in both
    appearances, "a terminal window in miniature" — with the prompt glyph in the
-   agent accent and a 1.5px accent ring (components.md:152-157).
+   agent accent and a 1.5px accent ring (components.md:178-183).
 
    This is not decoration. `components.md:20` makes the redundancy load-bearing:
    hue is never the only channel separating the two actors, and the agent's
@@ -3333,7 +3333,7 @@ button:disabled {
   font-size: 12px;
 }
 
-/* The miniature of the preset pair swatch (`components.md:264-271`): left ⅔
+/* The miniature of the preset pair swatch (`components.md:290-297`): left ⅔
    human accent, right ⅓ agent. It carries its own theme and appearance
    attributes, so these two rules read that theme's tokens rather than the one
    in force — and neither names a hue. */
@@ -3608,7 +3608,7 @@ html.theme-transition *::after {
 
 /* ------------------------------------------------------ priority and menus */
 
-/* Monochrome except Urgent (components.md:134-144). The exclamation is the
+/* Monochrome except Urgent (components.md:153-163). The exclamation is the
    mark colour so it reads on the filled square in both appearances. */
 .priority-glyph {
   flex: none;

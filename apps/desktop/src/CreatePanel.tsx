@@ -14,7 +14,7 @@
  *
  * - **The ID is a guess.** Rust allocates the real key from the project's own
  *   directory names. The chip says `KEY-n · new` and is display-only, never a
- *   tab stop (`keyboard-focus-map.md:57`).
+ *   tab stop (`keyboard-focus-map.md:61`).
  * - **Nothing has been written.** The description editor is write mode only —
  *   there is no file to preview against — and the checklist rows are drafts, so
  *   their boxes cannot be ticked: `NewTicket.checklist` is a list of strings and

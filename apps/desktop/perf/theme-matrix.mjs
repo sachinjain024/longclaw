@@ -236,7 +236,7 @@ const STATES = [
       ".markdown-code",
       ".markdown a code",
       // The prompt glyph is the agent accent's only appearance on the tile now
-      // that the tile is `--lc-tile` rather than a fill (components.md:152), so
+      // that the tile is `--lc-tile` rather than a fill (components.md:179), so
       // it has to clear AA against that near-black in every preset.
       ".timeline .actor-tile.agent",
     ],

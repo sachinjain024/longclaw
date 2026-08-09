@@ -197,7 +197,7 @@ async function auditLifecycle(browser) {
       "`C` opens quick create with focus in the title field",
       modal && inTitle.label === "Title",
       `modal=${modal} focus=${inTitle.label || inTitle.tag}`,
-      "keyboard-focus-map.md:32,123",
+      "keyboard-focus-map.md:32,133",
     );
     const title = `Keyboard lifecycle ${Date.now() % 100_000}`;
     await page.keyboard.type(title);
@@ -209,7 +209,7 @@ async function auditLifecycle(browser) {
       "`Enter` creates the ticket and focus moves to the new card",
       createdKey !== undefined,
       `focus=${createdKey ?? (afterCreate.className || afterCreate.tag)}`,
-      "keyboard-focus-map.md:123,156 — focus moves to the new card",
+      "keyboard-focus-map.md:131,164 — focus moves to the new card",
     );
 
     // Find (§ Global `⌘F`, and the filter's rung of the `Esc` ladder).
@@ -267,7 +267,7 @@ async function auditLifecycle(browser) {
         "entering edit focuses the textarea",
         inTextarea.label === "Description",
         `focus=${inTextarea.label || inTextarea.tag}`,
-        "keyboard-focus-map.md:86-87",
+        "keyboard-focus-map.md:91-92",
       );
       await page.keyboard.type(" Edited with the keyboard.");
       await page.keyboard.press("Meta+Enter");
@@ -280,7 +280,7 @@ async function auditLifecycle(browser) {
         "`⌘↵` saves and leaves edit mode",
         !stillEditing,
         `textarea still up: ${stillEditing}`,
-        "keyboard-focus-map.md:82",
+        "keyboard-focus-map.md:87",
       );
     }
 
@@ -323,7 +323,7 @@ async function auditLifecycle(browser) {
       "`Esc` closes the panel and focus returns to the card that opened it",
       isCard(backOnCard),
       `focus=${backOnCard.ticketKey ?? (backOnCard.className || backOnCard.tag)}`,
-      "keyboard-focus-map.md:60,152",
+      "keyboard-focus-map.md:60,161",
     );
     const movedFrom = backOnCard.ticketKey;
     await page.keyboard.press("s");
@@ -544,7 +544,7 @@ async function auditFocusOrder(browser) {
       "closing the ticket panel returns focus to the card that opened it",
       opened && afterPanel.ticketKey === card,
       `${card} → ${afterPanel.ticketKey ?? (afterPanel.className || afterPanel.tag)}`,
-      "keyboard-focus-map.md:152",
+      "keyboard-focus-map.md:161",
     );
 
     // Reading order inside the panel: the Tab sequence must run down the page.

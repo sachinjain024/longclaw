@@ -178,7 +178,7 @@ describe("nothing here claims the file exists yet", () => {
     const chip = screen.getByText(/RT-4/);
     expect(chip.textContent).toBe("RT-4 · new");
     expect(chip.classList.contains("id-chip")).toBe(true);
-    // Display only (`keyboard-focus-map.md:57`): the ID chip in view mode is a
+    // Display only (`keyboard-focus-map.md:61`): the ID chip in view mode is a
     // stop because it is the ticket's key, and it copies. This one is not the
     // ticket's key — copying it would hand out a guess — so it is neither.
     expect(chip.closest("button")).toBeNull();

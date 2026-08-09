@@ -25,13 +25,20 @@
  * Everything else is checked structurally only — in range, not reversed —
  * which needs no baseline and cannot cement an error.
  *
- * `screen-specs.md` is pinned. Its 172 citations were audited and repaired
- * against the spec as it stood when each was written, so its baseline means
- * something. `keyboard-focus-map.md`, `components.md` and `states.md` are not:
- * they carry ~35 citations that are already stale and 20 that land on blank
- * lines, and pinning them today would hold those errors in place and call it
- * green. Repair one the same way and it moves to `PINNED` — a one-line change
- * plus a `--update`.
+ * All four line-cited design documents are pinned, and each was audited before
+ * it was: every citation resolved against the document as it stood when that
+ * citing line was written, which is the only way to tell a number that was
+ * always wrong from one the document walked out from under. That distinction
+ * mattered — a citing line reformatted after its citation was written makes
+ * blame read an already-drifted document, and several citations turned out to
+ * have been wrong on the day they were typed. `ThemeSwatch.tsx` named the
+ * conflict-banner states while talking about theme swatches; three places
+ * cited the focus-return table for the rule that reordering has no keyboard
+ * path.
+ *
+ * `file_format.md` and `data-requirements.md` are cited too, but only 14 times
+ * between them and never audited, so they stay on the structural checks. The
+ * same repair promotes them.
  *
  * `--update` rewrites the lock from the current documents. It is for when you
  * changed a pinned document's *wording* and have already re-pointed whatever
@@ -63,7 +70,12 @@ const DOCUMENTS = {
 };
 
 /** The documents whose cited lines are pinned to their text. See the header. */
-const PINNED = ["screen-specs.md"];
+const PINNED = [
+  "screen-specs.md",
+  "keyboard-focus-map.md",
+  "components.md",
+  "states.md",
+];
 
 /**
  * Where citations are read from: the shipping tree, the guards and probes that
@@ -82,7 +94,14 @@ const SOURCES = [
   ["docs/backlog", /\.md$/],
 ];
 
-const CITATION = /([A-Za-z0-9_-]+\.md):(\d+)(?:-(\d+))?/g;
+/**
+ * `doc.md:12`, `doc.md:12-14`, and the comma form `doc.md:16-18,131,161` — one
+ * citation naming several places at once, which the a11y audit's oracles use.
+ * The comma form is the one that hides: matching only its first number leaves
+ * every number after the comma unguarded, which is exactly where four stale
+ * references were still sitting after the ranges around them were repaired.
+ */
+const CITATION = /([A-Za-z0-9_-]+\.md):(\d+(?:-\d+)?(?:,\d+(?:-\d+)?)*)/g;
 
 const collapse = (line) => line.split(/\s+/).filter(Boolean).join(" ");
 
@@ -90,22 +109,25 @@ function documentLines(name) {
   return readFileSync(resolve(repo, DOCUMENTS[name]), "utf8").split("\n");
 }
 
-/** Every `<doc>.md:N` and `<doc>.md:N-M` in the scanned tree, in file order. */
+/** Every citation in the scanned tree, one entry per span, in file order. */
 function citations() {
   const found = [];
   for (const [dir, match] of SOURCES) {
     for (const file of filesUnder(resolve(repo, dir), match)) {
       const lines = readFileSync(file, "utf8").split("\n");
       lines.forEach((text, index) => {
-        for (const [, doc, from, to] of text.matchAll(CITATION)) {
+        for (const [, doc, spans] of text.matchAll(CITATION)) {
           if (!DOCUMENTS[doc]) continue;
-          found.push({
-            where: `${relative(repo, file)}:${index + 1}`,
-            doc,
-            start: Number(from),
-            end: to ? Number(to) : Number(from),
-            cited: to ? `${doc}:${from}-${to}` : `${doc}:${from}`,
-          });
+          for (const span of spans.split(",")) {
+            const [from, to] = span.split("-");
+            found.push({
+              where: `${relative(repo, file)}:${index + 1}`,
+              doc,
+              start: Number(from),
+              end: to ? Number(to) : Number(from),
+              cited: `${doc}:${span}`,
+            });
+          }
         }
       });
     }
@@ -201,17 +223,25 @@ const lock = JSON.parse(readFileSync(lockPath, "utf8"));
 
 if (process.argv.includes("--self-test")) {
   // One line inserted at the top of a pinned document is the exact defect this
-  // guard exists for: every citation below it now names the wrong line.
-  const shifted = { [PINNED[0]]: ["", ...documentLines(PINNED[0])] };
-  const findings = check(all, lock, shifted);
-  if (findings.length === 0) {
+  // guard exists for: every citation below it now names the wrong line. Each
+  // pinned document is shifted in turn, because a lock that had silently lost
+  // one of them would still pass a test that only ever shifted the first.
+  const blind = [];
+  const caught = [];
+  for (const name of PINNED) {
+    const shifted = { [name]: ["", ...documentLines(name)] };
+    const findings = check(all, lock, shifted);
+    if (findings.length === 0) blind.push(name);
+    else caught.push(`${name} ${findings.length}`);
+  }
+  if (blind.length > 0) {
     console.error(
-      "citation-guard --self-test: a shifted document still passed — the guard is blind",
+      `citation-guard --self-test: shifting ${blind.join(", ")} still passed — the guard is blind there`,
     );
     process.exit(1);
   }
   console.log(
-    `citation-guard --self-test: a one-line shift is caught (${findings.length} findings)`,
+    `citation-guard --self-test: a one-line shift is caught in each pinned document (${caught.join(", ")} findings)`,
   );
   process.exit(0);
 }
@@ -222,5 +252,5 @@ report({
   checked: all.length,
   noun: "citations",
   remedy: `citation(s) name a line the document no longer has there`,
-  clean: `every cited line is in range, and ${PINNED.join(", ")} still reads as its citations say`,
+  clean: `every cited line is in range, and ${PINNED.length} pinned documents still read as their citations say`,
 });
