@@ -216,9 +216,11 @@ for (const actor of ["human", "agent"]) {
     ),
   );
 }
-/* ---------- the freshness treatment, per attribution ----------
+/* ---------- the acknowledgement, per attribution ----------
  * A card that changed on disk wears the colour of whoever the file said changed
- * it. `states.md:148-149` scopes the treatment to "an external change to a
+ * it. (The `-fresh-` in these names is the older vocabulary CONTEXT.md:33 asks
+ * the app to drop; renaming them means moving the design system with them, which
+ * is LC-183.) `states.md:148-149` scopes the treatment to "an external change to a
  * ticket (agent **or unknown** actor)" and `:172-173` is what gives an
  * unattributed one the warn vocabulary; the agent's `-fresh-` names are the
  * design system's (`components.md:202`, `states.md:150-151`) and are kept
@@ -230,7 +232,7 @@ for (const actor of ["human", "agent"]) {
  * `@keyframes` and only a second keyframe can change it. Hand-written, it beat
  * agent-green under every actor, so a person's file edit flashed green under a
  * violet dot. */
-const freshRing = (name, hue) => {
+const ringAndBorder = (name, hue) => {
   derived.push(
     line(
       `${name}-fresh-ring`,
@@ -244,12 +246,12 @@ const freshRing = (name, hue) => {
     ),
   );
 };
-freshRing("accent-agent", `var(${P}accent-agent)`);
+ringAndBorder("accent-agent", `var(${P}accent-agent)`);
 /* `warn` rather than an accent, and that is the point: nothing claimed this
    write, so it is attributed to nobody (LC-148). A person's card keeps the
    `accent-human-border` / `accent-human-soft` pair it already wore — no finding
    asked for it to change. */
-freshRing("warn", `var(${P}warn)`);
+ringAndBorder("warn", `var(${P}warn)`);
 for (const [name, hue] of [
   ["accent-agent", `var(${P}accent-agent)`],
   ["accent-human", `var(${P}accent-human)`],

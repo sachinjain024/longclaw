@@ -65,7 +65,7 @@
 
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import type { DragEvent, KeyboardEvent } from "react";
-import { freshAccentClass } from "./attribution";
+import { acknowledgementClass } from "./attribution";
 import { presentCard } from "./boardCard";
 import {
   CARD_GAP,
@@ -717,7 +717,7 @@ const BoardCard = memo(function BoardCard(props: {
         props.selected && "selected",
         ticket.state === "degraded" && "degraded",
         fresh && "fresh",
-        fresh && mark && freshAccentClass(mark.actorType),
+        fresh && mark && acknowledgementClass(mark.actorType),
         props.draggable && "draggable",
         props.dragging && "dragging",
       )}

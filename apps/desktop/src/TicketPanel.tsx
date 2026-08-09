@@ -20,7 +20,7 @@ import { editTicket, openTicketFile, readTicket } from "./api";
 import {
   actorGlyph,
   externalEditConflict,
-  freshAccentClass,
+  acknowledgementClass,
 } from "./attribution";
 import { useAutoGrow } from "./autoGrow";
 import { classes } from "./classes";
@@ -270,8 +270,10 @@ export function TicketPanel(props: TicketPanelProps) {
     pending: TicketEdit;
   }>();
   const [unavailable, setUnavailable] = useState<AppError>();
-  /** Checklist ids an external write ticked, for the freshness treatment. */
-  const [agentChecked, setAgentChecked] = useState<string[]>([]);
+  /** Checklist ids an external write ticked, for the acknowledgement. */
+  const [externallyCheckedIds, setExternallyCheckedIds] = useState<string[]>(
+    [],
+  );
   const [pending, setPending] = useState<Pending>(NOTHING_PENDING);
 
   /** Every field the disk has not confirmed goes back to the file's own value. */
@@ -368,7 +370,7 @@ export function TicketPanel(props: TicketPanelProps) {
       const description = next.ticket?.description ?? "";
       // Only a change from outside can have ticked something on somebody else's
       // behalf. The human's own tick is not news to them.
-      setAgentChecked(
+      setExternallyCheckedIds(
         mode === "external"
           ? freshlyChecked(loadedChecklist.current, checklist)
           : [],
@@ -744,16 +746,17 @@ export function TicketPanel(props: TicketPanelProps) {
    * acknowledgement of one external write, so they read one mark and settle
    * together.
    *
-   * `agentChecked` only knows *which* rows a write ticked — it is a before/after
+   * `externallyCheckedIds` only knows *which* rows a write ticked — it is a
+   * before/after
    * diff of the checklist and never sees an actor — so on its own it dressed an
    * unclaimed change in agent green directly under this panel's warn banner,
    * which is D-62's "two vocabularies" a second time (LC-148). Gating on the
    * mark also gives the rows the banner's lifetime: they used to outlive it and
    * sit there green with nothing left on screen saying who.
    */
-  const freshAccent = props.mark && freshAccentClass(props.mark.actorType);
-  const externallyChecked = props.mark ? agentChecked : [];
-  const checklistIsFresh = externallyChecked.length > 0;
+  const accentClass = props.mark && acknowledgementClass(props.mark.actorType);
+  const acknowledgedChecks = props.mark ? externallyCheckedIds : [];
+  const checklistAcknowledged = acknowledgedChecks.length > 0;
   // The effect below wants the transition, not the path: a re-read of the same
   // broken file returns an equal string and must not re-run it.
   const showingRawFile = rawFilePath !== undefined;
@@ -1063,8 +1066,8 @@ export function TicketPanel(props: TicketPanelProps) {
               <span
                 className={classes(
                   "section-count",
-                  checklistIsFresh && "fresh",
-                  checklistIsFresh && freshAccent,
+                  checklistAcknowledged && "fresh",
+                  checklistAcknowledged && accentClass,
                 )}
               >
                 {checkedCount}/{ticket.checklist.length}
@@ -1082,8 +1085,8 @@ export function TicketPanel(props: TicketPanelProps) {
                 <span
                   className={classes(
                     "progress panel-progress",
-                    checklistIsFresh && "fresh",
-                    checklistIsFresh && freshAccent,
+                    checklistAcknowledged && "fresh",
+                    checklistAcknowledged && accentClass,
                   )}
                   aria-hidden="true"
                 >
@@ -1100,7 +1103,7 @@ export function TicketPanel(props: TicketPanelProps) {
             <ul className="checklist">
               {ticket.checklist.map((item, index) => {
                 const fresh =
-                  item.id !== undefined && externallyChecked.includes(item.id);
+                  item.id !== undefined && acknowledgedChecks.includes(item.id);
                 const checked = isChecked(item);
                 return (
                   <li
@@ -1114,7 +1117,7 @@ export function TicketPanel(props: TicketPanelProps) {
                       "checklist-row",
                       checked && "checked",
                       fresh && "fresh",
-                      fresh && freshAccent,
+                      fresh && accentClass,
                     )}
                   >
                     <label>
@@ -1151,7 +1154,7 @@ export function TicketPanel(props: TicketPanelProps) {
                         draws: a row an unclaimed write ticked gets the warn
                         triangle, not the agent's chevron (LC-148). */}
                     {fresh && props.mark && (
-                      <em className={classes("fresh-note", freshAccent)}>
+                      <em className={classes("fresh-note", accentClass)}>
                         {actorGlyph(props.mark.actorType)} just now
                       </em>
                     )}
