@@ -5,10 +5,11 @@ key: LC-157
 title: Perf harnesses hardcode port 4173, so a run in one worktree silently drives another worktree's build
 status: done
 priority: p2
+rank: Zz
 labels:
   - platform
 created_at: 2026-08-06T06:37:59.336Z
-updated_at: 2026-08-09T01:19:50.274Z
+updated_at: 2026-08-09T07:37:19.714Z
 ---
 
 All four Playwright harnesses hardcode \`const ORIGIN = "http://localhost:4173"\` — \`theme-matrix.mjs:32\`, \`a11y-audit.mjs:36\`, \`board-trace.mjs:36\`, \`board-shots.mjs:18\` — and each spawns its own \`vite preview\` without \`--strictPort\`.
@@ -120,4 +121,18 @@ actor:
 ### Claude Code commented
 
 Correction to this ticket's premise, found in review: vite was never auto-incrementing. `perf/vite.config.ts` has carried `preview: { strictPort: true }` since 80fa437 (2026-07-31, five days before this was filed), and every harness spawned with `--config perf/vite.config.ts`. So the harness's own server was already dying on a busy 4173 — `stdio: "ignore"` swallowed the complaint, nothing watched the child, and the probe then hit the other checkout. The reported symptom and the danger are exactly as described; only the mechanism named here was wrong, which is why `--strictPort` on its own would not have fixed it.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_328d2ead
+kind: update
+occurred_at: 2026-08-09T07:37:19.714Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: rank
+    to: Zz
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

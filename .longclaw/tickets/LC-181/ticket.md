@@ -5,11 +5,11 @@ key: LC-181
 title: An escaped pipe in a table cell renders as a cell wall
 status: todo
 priority: p3
-rank: Zz
+rank: a1V
 labels:
   - frontend
 created_at: 2026-08-08T08:06:03.285Z
-updated_at: 2026-08-09T00:03:49.861Z
+updated_at: 2026-08-09T07:36:36.682Z
 ---
 
 An escaped `\|` in a table cell renders as a cell wall.
@@ -92,6 +92,21 @@ changes:
   - field: status
     from: in_progress
     to: todo
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_eebf3c40
+kind: update
+occurred_at: 2026-08-09T07:36:36.682Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: rank
+    from: Zz
+    to: a1V
 -->
 ### You updated this ticket
 <!-- /longclaw:event -->
