@@ -71,3 +71,25 @@ Both pass as written, so the row is not lost after the parse either — and the 
 
 What the 2026-08-05 observation saw was D-50: every degraded card vanished from the board, whatever had broken the file. LC-133 closed that on 2026-08-07 by lending the row its directory's last-known seat, and this shape came back with the rest. Nothing here is specific to a missing fence, which is why it never needed its own `D-` number — what it needed was the test.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_574c4329
+kind: comment
+occurred_at: 2026-08-09T00:56:27.243Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Review found a real gap in the above, and it is closed now.
+
+The two tests I had written both plant or read the file *before* the engine starts, which is the cold path. The observation was made the other way — § 15's method is `Reproduced by hand-breaking LC-133/ticket.md with the app running` — and the live path is a different one: watcher burst, then `ingest_attributing` rather than `rebuild`. The existing break-in-place test there (`a_ticket_that_becomes_unreadable_degrades_in_place`) breaks a `status:` value, so the file still has frontmatter and the parser still reaches a field. The fenceless shape, which is refused before that, had no live-path coverage at all.
+
+`a_ticket_whose_frontmatter_is_taken_away_entirely_degrades_in_place_too` (tests/watcher_integration.rs) is that case: the frontmatter is taken away under a running engine, and the row arrives as a change event — there is no event for a row the pipeline dropped, so reaching the assertion is itself the half that was never tested — degrades with its located diagnostic, and keeps its last-known column. Putting the frontmatter back brings the ticket back.
+
+That last assertion is worth stating plainly, because it corrects the emphasis of my previous comment: on the live path this file lands in `In Progress`, not `Unreadable`. `Unreadable` is the fallback for a directory the session never saw parse, which is the cold path's answer. Both are now written down, and each test says which one it is.
+
+Also from the review: the integration test now asserts the write refusal its two neighbours assert, and § 15's superseded sentences are struck rather than merely contradicted by the paragraph below them.
+<!-- /longclaw:event -->

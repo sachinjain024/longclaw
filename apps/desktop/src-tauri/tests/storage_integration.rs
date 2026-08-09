@@ -188,15 +188,17 @@ fn a_degraded_ticket_stays_visible_and_is_never_rewritten() {
     }
 }
 
-/// The whole path for the one shape LC-168 says was observed missing: a file that
-/// opens no frontmatter block at all, so the parser has nothing to read before it
-/// even reaches the format version.
+/// A directory this engine has never seen parse, holding a file that opens no
+/// frontmatter block at all: the shape LC-168 was filed for, on the cold path. The
+/// live one — the same file broken under a running app, which is how it was found
+/// — is `a_ticket_whose_frontmatter_is_taken_away_entirely_degrades_in_place_too`
+/// in the watcher suite, and it is the seat that separates them.
 #[test]
 fn a_ticket_file_with_no_frontmatter_reaches_the_snapshot_as_a_degraded_row() {
     let (_temp, root) = copy_representative_project();
     let path = ticket_path(&root, "LC-97");
     fs::create_dir_all(path.parent().expect("a ticket directory")).expect("the directory");
-    let raw = "# Notes about the sync worker\n\nNo frontmatter block was ever opened here.\n";
+    let raw = "Somebody's notes, in a directory that expected a ticket.\n";
     fs::write(&path, raw).expect("the planted file");
 
     let (engine, _events) = start_engine(&root);
@@ -208,9 +210,10 @@ fn a_ticket_file_with_no_frontmatter_reaches_the_snapshot_as_a_degraded_row() {
     assert_eq!(row.byte_length, raw.len());
     assert!(!row.read_only);
     assert!(row.diagnostic.message.contains("frontmatter delimiter"));
-    // A line for the raw-file view to point at (D-52), and no seat to borrow, so
-    // the surfaces group it under `Unreadable` (D-50).
+    // A line for the raw-file view to point at (D-52).
     assert_eq!(row.diagnostic.line, Some(1));
+    // No seat to borrow — this engine never saw the directory parse — so the
+    // surfaces group it under `Unreadable`, which is the fallback (D-50, LC-133).
     assert_eq!(row.last_known_status, None);
 
     // The raw file is available for the raw-file view, byte for byte.
@@ -220,6 +223,20 @@ fn a_ticket_file_with_no_frontmatter_reaches_the_snapshot_as_a_degraded_row() {
     assert!(detail.ticket.is_none());
     assert!(detail.diagnostic.is_some());
     assert_eq!(detail.raw, raw);
+
+    // A write is refused rather than attempted: never rewrite what could not be
+    // parsed safely (`docs/agents/issue-tracker.md`).
+    let error = engine
+        .edit_ticket(
+            "LC-97",
+            &TicketEdit {
+                status: Some(Status::Done),
+                ..TicketEdit::default()
+            },
+            &row.content_hash,
+        )
+        .expect_err("an unreadable ticket must not be rewritten");
+    assert_eq!(error.code, ErrorCode::ParseFailed);
 
     // A rebuild reaches the same visible state, and the bytes are never repaired.
     let rebuilt = engine
