@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import type { ExternalMarks } from "./freshness";
-import { externalMark, pruneMarks } from "./freshness";
+import type { ExternalMarks } from "./acknowledgement";
+import { externalMark, pruneMarks } from "./acknowledgement";
 import type {
   AppError,
   ProjectReference,

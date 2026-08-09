@@ -143,24 +143,24 @@
 External file edits are the product's magic moment and are **never a
 silent re-render**.
 
-### Fresh ticket (board card / list row)
+### Acknowledged ticket (board card / list row)
 
 - **Trigger:** watcher ingests an external change to a ticket (agent or
   unknown actor).
-- **Card:** border → `accent-agent-fresh-border`, 3px
-  `accent-agent-fresh-ring`, 8px pulse dot beside the ID (`lc-pulse`
+- **Card:** border → `accent-agent-acknowledged-border`, 3px
+  `accent-agent-acknowledged-ring`, 8px pulse dot beside the ID (`lc-pulse`
   900ms × exactly 2 — never loops), footer line `❯ updated by agent · 12s`
   (mono, `accent-agent-text`) above a soft divider. Checklist fraction and
-  progress fill switch to `accent-agent` while fresh. If the change moved
+  progress fill switch to `accent-agent` while acknowledged. If the change moved
   the ticket's status, the card moves columns with the standard 120ms
-  reorder *plus* the fresh treatment.
+  reorder *plus* the acknowledgement.
 - **List row:** 7px agent pulse dot beside the title.
 - **Decay:** on open (reviewed), or 2 minutes after the last agent write.
   Multiple writes in a session re-pulse but never stack rings.
 
 ### Agent-checked checklist rows (panel)
 
-- Fresh: box fills `accent-agent` with `on-accent-agent` mark, row bg
+- Acknowledged: box fills `accent-agent` with `on-accent-agent` mark, row bg
   `accent-agent-wash`, trailing mono `❯ just now`. Settles to the standard
   checked state once the ticket is viewed.
 
@@ -175,7 +175,7 @@ silent re-render**.
 ### While the panel is open
 
 - Non-conflicting external changes apply live: checklist rows flip with
-  the agent-fresh treatment, new timeline entries append, the description
+  the agent acknowledgement, new timeline entries append, the description
   updates if not being edited. The panel header's file path briefly shows
   the disk-state line (`✓ ticket.md`).
 
@@ -189,6 +189,6 @@ silent re-render**.
 | Write in flight | — | disk-state | disk-state | disk-state | toast + undo |
 | Folder missing | warn row | state panel | state panel | closed | confirm on remove |
 | Unparseable file | normal | degraded card | degraded row | — | raw file view |
-| Conflict | normal | fresh card | fresh row | warn banner | — |
-| External update | normal | fresh card | fresh dot | live apply + agent rows | — |
+| Conflict | normal | acknowledged card | acknowledged row | warn banner | — |
+| External update | normal | acknowledged card | acknowledged dot | live apply + agent rows | — |
 | Waitlist error | normal | — | — | — | inline danger |

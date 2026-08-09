@@ -163,7 +163,7 @@ unmet. Proposed changes land in
 
 | Existing criterion | Evidence gap | Proposed update | State |
 |---|---|---|---|
-| The round-trip scenario acknowledges a *human* file edit with the human accent, an addition beyond the approved prototype that the scenario itself flags for pilot review | Never observed, and now never will be. The scenario's own note asks whether the treatment reads as noise in real use | ~~Decide from evidence, not taste~~ — no evidence is coming. **Resolved as: keep**, by default rather than by finding. The branch in `src/freshness.ts` and its CSS variant stay | Closed by default, 2026-07-31 |
+| The round-trip scenario acknowledges a *human* file edit with the human accent, an addition beyond the approved prototype that the scenario itself flags for pilot review | Never observed, and now never will be. The scenario's own note asks whether the treatment reads as noise in real use | ~~Decide from evidence, not taste~~ — no evidence is coming. **Resolved as: keep**, by default rather than by finding. The branch in `src/acknowledgement.ts` and its CSS variant stay | Closed by default, 2026-07-31 |
 
 ## Vision register
 

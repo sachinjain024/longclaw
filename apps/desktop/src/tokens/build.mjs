@@ -216,24 +216,50 @@ for (const actor of ["human", "agent"]) {
     ),
   );
 }
-derived.push(
-  line(
-    "accent-agent-fresh-ring",
-    `color-mix(in oklab, var(${P}accent-agent) var(${P}mix-fresh-ring), transparent)`,
-  ),
-);
-derived.push(
-  line(
-    "accent-agent-fresh-border",
-    `color-mix(in oklab, var(${P}accent-agent) var(${P}mix-border), var(${P}line))`,
-  ),
-);
-derived.push(
-  line(
-    "accent-agent-pulse",
-    `color-mix(in oklab, var(${P}accent-agent) var(${P}mix-pulse), transparent)`,
-  ),
-);
+/* ---------- the acknowledgement, per attribution ----------
+ * A card that changed on disk wears the colour of whoever the file said changed
+ * it. `states.md:148-149` scopes the acknowledgement to "an external change to a
+ * ticket (agent **or unknown** actor)" and `:172-173` is what gives an
+ * unattributed one the warn vocabulary.
+ *
+ * The ring and the border are the card's, so only the two attributions that draw
+ * one get a pair. The pulse is every surface's — and it is the one part that had
+ * to be generated rather than written once, because the halo is a hue inside a
+ * `@keyframes` and only a second keyframe can change it. Hand-written, it beat
+ * agent-green under every actor, so a person's file edit flashed green under a
+ * violet dot. */
+const ringAndBorder = (name, hue) => {
+  derived.push(
+    line(
+      `${name}-acknowledged-ring`,
+      `color-mix(in oklab, ${hue} var(${P}mix-acknowledged-ring), transparent)`,
+    ),
+  );
+  derived.push(
+    line(
+      `${name}-acknowledged-border`,
+      `color-mix(in oklab, ${hue} var(${P}mix-border), var(${P}line))`,
+    ),
+  );
+};
+ringAndBorder("accent-agent", `var(${P}accent-agent)`);
+/* `warn` rather than an accent, and that is the point: nothing claimed this
+   write, so it is attributed to nobody (LC-148). A person's card keeps the
+   `accent-human-border` / `accent-human-soft` pair it already wore — no finding
+   asked for it to change. */
+ringAndBorder("warn", `var(${P}warn)`);
+for (const [name, hue] of [
+  ["accent-agent", `var(${P}accent-agent)`],
+  ["accent-human", `var(${P}accent-human)`],
+  ["warn", `var(${P}warn)`],
+]) {
+  derived.push(
+    line(
+      `${name}-pulse`,
+      `color-mix(in oklab, ${hue} var(${P}mix-pulse), transparent)`,
+    ),
+  );
+}
 derived.push(line("status-done", `var(${P}accent-human)`));
 /* Aliases ride here rather than in the appearance blocks: they are one `var()`
    apiece, so they resolve against whichever appearance is active without being
@@ -298,17 +324,33 @@ out.push(...derived);
 out.push("}");
 out.push("");
 out.push(
-  "/* The agent pulse — the designed acknowledgement of an external file edit.",
+  "/* The pulse — the designed acknowledgement of an external file edit, in the",
 );
+out.push(
+  "   colour of whoever the file said made it. One animation per attribution",
+);
+out.push(
+  "   rather than a variable halo, because the halo is a hue and hues are",
+);
+out.push("   declared here and nowhere else (token-guard.mjs).");
 out.push(
   `   Play ${t.motion["pulse-iterations"]} iterations of ${t.motion["pulse-duration"]}; never loop forever. */`,
 );
-out.push("@keyframes lc-pulse {");
-out.push(`  0% { box-shadow: 0 0 0 0 var(${P}accent-agent-pulse); }`);
-out.push("  70% { box-shadow: 0 0 0 9px transparent; }");
-out.push("  100% { box-shadow: 0 0 0 0 transparent; }");
-out.push("}");
-out.push("");
+/* `lc-pulse` keeps its bare name for the agent: it is the animation the
+   prototype and `components.md:202` name, and the agent write is the moment the
+   whole treatment was designed around. */
+for (const [name, token] of [
+  ["lc-pulse", "accent-agent-pulse"],
+  ["lc-pulse-human", "accent-human-pulse"],
+  ["lc-pulse-warn", "warn-pulse"],
+]) {
+  out.push(`@keyframes ${name} {`);
+  out.push(`  0% { box-shadow: 0 0 0 0 var(${P}${token}); }`);
+  out.push("  70% { box-shadow: 0 0 0 9px transparent; }");
+  out.push("  100% { box-shadow: 0 0 0 0 transparent; }");
+  out.push("}");
+  out.push("");
+}
 /* Every motion token that names a duration is zeroed, derived from the group
    rather than listed here: a hardcoded list silently exempts the next token
    anyone adds, which is exactly what happened to `motion.spinner`. Counts and

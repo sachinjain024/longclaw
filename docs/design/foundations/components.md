@@ -11,7 +11,7 @@
 1. **Two actors, two hues.** The human accent (`--lc-accent-human`) marks
    planning: primary actions, selection, focus, human authorship, Done. The
    agent accent (`--lc-accent-agent`) marks execution: agent comments, agent
-   edits, checklist ticks, the freshness pulse, and (Phase 2) terminal chrome.
+   edits, checklist ticks, the acknowledgement pulse, and (Phase 2) terminal chrome.
 2. **The exclusivity rule.** The agent accent appears **only** when an agent
    acted. It is never decorative, never a "success" color, never a status.
    Scarcity is what makes agent presence legible.
@@ -31,7 +31,7 @@ color-vision deficiency (see `accessibility.md`).
 | Selected | `--lc-accent-human-soft` background; selection never relies on color alone (checkmark or border accompanies it) | `--lc-motion-state` (120ms) |
 | Disabled | Text/glyphs `--lc-ink-disabled`; fills `--lc-wash`; no hover response; `cursor: default` | none |
 | Loading | Optimistic UI first — mutations render immediately; a 500ms-delayed spinner appears only if the write hasn't settled | `--lc-motion-state` |
-| Fresh (agent) | See § Agent presence — ring, border, pulse dot, footer | `lc-pulse` 900ms × 2 |
+| Acknowledged (agent) | See § Agent presence — ring, border, pulse dot, footer | `lc-pulse` 900ms × 2 |
 
 - Every pointer action has a keyboard path (§ Shortcuts).
 - Motion communicates state, never decorates: 80ms hover/press, 120ms state
@@ -199,10 +199,11 @@ assignee (ADR 0001).
 | Focused (keyboard) | focus ring + 1px `accent-human` border |
 | Selected | 1px `accent-human` border + `accent-human-soft` header wash |
 | Dragging | lift with `--lc-shadow-overlay`, 2° nothing — no rotation; drop targets show 2px `accent-human` insertion line |
-| **Fresh agent activity** | border `accent-agent-fresh-border`, `box-shadow: 0 0 0 3px var(--lc-accent-agent-fresh-ring)`, 8px pulse dot (`accent-agent`, `lc-pulse` 900ms × 2) beside the ID, footer line `❯ updated by agent · 12s` (mono 10.5px `accent-agent-text`) above a `line-soft` divider. Checklist fraction + progress fill switch to `accent-agent` while fresh. Decays to resting when the ticket is opened or after 2 minutes |
+| **Acknowledged agent activity** | border `accent-agent-acknowledged-border`, `box-shadow: 0 0 0 3px var(--lc-accent-agent-acknowledged-ring)`, 8px pulse dot (`accent-agent`, `lc-pulse` 900ms × 2) **before** the ID, footer line `❯ updated by agent · 12s` (mono 10.5px `accent-agent-text`) above a `line-soft` divider. Checklist fraction + progress fill switch to `accent-agent` while acknowledged. Decays to resting when the ticket is opened or after 2 minutes |
+| **Acknowledged, other attributions** | The same anatomy in the colour of whoever the file named, because `states.md:148-149` triggers the state on "an external change to a ticket (agent **or unknown** actor)" and green is the agent's alone. A person's file edit: `accent-human-border`, `accent-human-soft` ring, `lc-pulse-human`, `• changed on disk · 12s`. A change nothing claimed: `warn-acknowledged-border`, `warn-acknowledged-ring`, `lc-pulse-warn`, `⚠ file changed · 12s` — the warn vocabulary `states.md:172-173` gives it, never green under a warn triangle. The card is 264px, which is why the unattributed line is the short one; the panel banner and the timeline say `file changed on disk — actor unknown` in full |
 | Degraded (unparseable file) | border 1px `danger-border`, ID row shows warn triangle in `danger`, title falls back to filename in mono, single action: "View raw file". **Non-destructive always** |
 
-Checklist progress fill when not fresh: `ink-3`. The 3/7 fraction surfaces on
+Checklist progress fill when not acknowledged: `ink-3`. The 3/7 fraction surfaces on
 the card only when a checklist exists.
 
 ## Checklist (the human→agent interface)
@@ -215,9 +216,9 @@ hover `ink-3`).
 |---|---|---|
 | Unchecked | stroke `line-strong` | `ink` |
 | Checked (settled) | fill `ink-3`, mark `surface` | `ink-3`, line-through |
-| **Checked by agent (fresh)** | fill `accent-agent`, mark `on-accent-agent` | `ink`, row bg `accent-agent-wash` (radius 6, -6px margin bleed), trailing mono `❯ just now` in `accent-agent-text` |
+| **Checked by agent (acknowledged)** | fill `accent-agent`, mark `on-accent-agent` | `ink`, row bg `accent-agent-wash` (radius 6, -6px margin bleed), trailing mono `❯ just now` in `accent-agent-text` |
 
-Agent-fresh rows settle to the standard checked state once the ticket is
+Agent-acknowledged rows settle to the standard checked state once the ticket is
 viewed. Checking animates at `--lc-motion-state`.
 
 ## Timeline (one merged stream, two voices apart)

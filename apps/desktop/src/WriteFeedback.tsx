@@ -18,7 +18,7 @@ import { isChord, singleKeyShortcutAllowed } from "./keyContext";
  */
 const SPINNER_DELAY_MS = 500;
 
-/** Toast auto-dismiss (`components.md:213-215`). */
+/** Toast auto-dismiss (`components.md:258-260`). */
 const TOAST_MS = 5_000;
 
 /**

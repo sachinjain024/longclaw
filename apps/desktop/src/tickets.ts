@@ -56,7 +56,7 @@ export function isArchived(ticket: TicketRow): boolean {
 
 /**
  * `1/3`, and empty for a ticket with no checklist: the fraction surfaces only
- * when there is a checklist to count (`components.md:180`). Shared by the card
+ * when there is a checklist to count (`components.md:190`). Shared by the card
  * and the row, which must not be able to disagree about when it appears — the
  * board card also spends a label chip on it whenever it does.
  */

@@ -149,12 +149,12 @@ movement. No custom-color affordance exists anywhere.
   a column off the side of the window is otherwise unreachable.
 - **Archived tickets never render on the board** (ADR 0004); the list
   view is the archive surface.
-- **Cards:** anatomy and all states (resting/hover/focus/selected/fresh/
+- **Cards:** anatomy and all states (resting/hover/focus/selected/acknowledged/
   degraded) per components.md § Board card, minus the assignee avatar —
   v0 is local mode and has no assignee (ADR 0001). Board-specific rules:
   - max 2 label chips; when a checklist fraction is present, max 1 — the
     footer never wraps;
-  - fresh treatment decays when the ticket is opened, or 2 minutes after
+  - the acknowledgement decays when the ticket is opened, or 2 minutes after
     the last agent write, whichever comes first;
   - clicking anywhere on the card opens the panel; the card is a single
     focusable unit (interior elements are not tab stops).
@@ -174,7 +174,7 @@ movement. No custom-color affordance exists anywhere.
   `line-soft`.
 - **Row:** 36px (`--lc-size-row`), padding 0 12px, gap 10px. Order: status
   dot 13 · mono ID 11px `ink-3` (58px fixed) · priority glyph · title
-  (13px/500, truncates) · fresh dot (agent, when fresh) · checklist
+  (13px/500, truncates) · acknowledgement dot (agent, when acknowledged) · checklist
   fraction · ≤2 label chips · relative updated mono 10.5px right-aligned
   (46px fixed). No assignee slot in v0 (ADR 0001). Rows within a group
   follow the same ordering preference as the board.
@@ -239,7 +239,7 @@ movement. No custom-color affordance exists anywhere.
   - footer: mono note `writes to ticket.md on save`, Cancel (`Esc`),
     primary Save (`⌘↵`).
 - **Checklist:** section header with mono fraction + 56px progress bar
-  (fill `ink-3`; `accent-agent` while any row is agent-fresh). Rows per
+  (fill `ink-3`; `accent-agent` while any row is agent-acknowledged). Rows per
   components.md § Checklist. Add-row: ghost checkbox + borderless input,
   Enter appends and keeps focus for rapid entry.
 - **Activity:** merged timeline per components.md § Timeline — human

@@ -13,7 +13,7 @@ import {
   screen,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ExternalMarks } from "./freshness";
+import type { ExternalMarks } from "./acknowledgement";
 import { IssueList } from "./IssueList";
 import {
   GROUP_HEADER_HEIGHT,
@@ -295,7 +295,7 @@ describe("what one row says", () => {
     expect(listRow("LC-1").querySelectorAll(".label-chip")).toHaveLength(2);
   });
 
-  it("wears the fresh dot while an external change is unreviewed", () => {
+  it("wears the acknowledgement dot while an external change is unreviewed", () => {
     const marks: ExternalMarks = {
       "LC-1": {
         actorType: "agent",
@@ -306,10 +306,25 @@ describe("what one row says", () => {
     render(list({ marks }));
 
     const element = listRow("LC-1");
-    expect(element.className).toContain("fresh");
+    expect(element.className).toContain("acknowledged");
     expect(element.querySelector(".pulse-dot")).toBeTruthy();
     // The row is 36px whatever it is wearing; nothing here grows a footer.
-    expect(element.className).not.toContain("human-fresh");
+    expect(element.className).toContain("acknowledged-agent");
+    expect(element.className).not.toContain("acknowledged-human");
+  });
+
+  // The row has no footer to say who, so the dot's accent is the whole of the
+  // attribution it can show — and it has to be the same decision the card makes
+  // (LC-148).
+  it("gives the dot the warn accent when the change named no actor", () => {
+    const marks: ExternalMarks = {
+      "LC-1": { actorType: "unknown", actorLabel: "actor unknown", at: NOW },
+    };
+    render(list({ marks }));
+
+    const element = listRow("LC-1");
+    expect(element.className).toContain("acknowledged-unknown");
+    expect(element.className).not.toContain("acknowledged-agent");
   });
 
   it("opens the ticket the row belongs to", () => {
@@ -357,7 +372,7 @@ describe("a file the build cannot read", () => {
     expect(listRow("LC-98").className).toContain("degraded");
   });
 
-  it("shows no freshness dot: nothing in it parsed to be fresh about", () => {
+  it("shows no acknowledgement dot: nothing in it parsed to acknowledge", () => {
     const marks: ExternalMarks = {
       "LC-98": {
         actorType: "agent",
@@ -369,7 +384,7 @@ describe("a file the build cannot read", () => {
 
     const element = listRow("LC-98");
     expect(element.querySelector(".pulse-dot")).toBeNull();
-    expect(element.className).not.toContain("fresh");
+    expect(element.className).not.toContain("acknowledged");
     // The danger treatment is the whole of what the row wears.
     expect(element.className).toContain("degraded");
   });

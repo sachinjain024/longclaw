@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  acknowledgementClass,
   actorGlyph,
   actorName,
   eventProse,
   externalEditConflict,
-  wearsAgentAccent,
 } from "./attribution";
 import type { ActivityEvent, TicketDetail } from "./types";
 
@@ -61,10 +61,13 @@ describe("presenting an actor", () => {
     expect(actorName(event({ type: "human", id: "local" }))).toBe("You");
   });
 
-  it("gives an unattributed change the agent accent, and a person's none", () => {
-    expect(wearsAgentAccent("agent")).toBe(true);
-    expect(wearsAgentAccent("unknown")).toBe(true);
-    expect(wearsAgentAccent("human")).toBe(false);
+  // Green is the agent's alone (LC-148): a change nothing claimed wears the
+  // warn vocabulary its glyph already speaks, so no row says agent and warn at
+  // once.
+  it("gives each attribution one accent, and never lends green to an unknown", () => {
+    expect(acknowledgementClass("agent")).toBe("acknowledged-agent");
+    expect(acknowledgementClass("human")).toBe("acknowledged-human");
+    expect(acknowledgementClass("unknown")).toBe("acknowledged-unknown");
   });
 
   it("uses one glyph per actor kind everywhere", () => {

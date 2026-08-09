@@ -34,11 +34,12 @@
 
 import { memo, useMemo, useRef, useState } from "react";
 import type { DragEvent, KeyboardEvent } from "react";
+import { acknowledgementClass } from "./attribution";
 import { windowFor } from "./boardGeometry";
 import { classes } from "./classes";
 import { pickUp, towardsEdge, useEdgeDrift } from "./dragging";
-import { isFresh } from "./freshness";
-import type { ExternalMark, ExternalMarks } from "./freshness";
+import { isAcknowledged } from "./acknowledgement";
+import type { ExternalMark, ExternalMarks } from "./acknowledgement";
 import {
   groupByStatus,
   seatsFor,
@@ -534,7 +535,7 @@ function ListGroup(props: {
 
 /**
  * One row, in the order `screen-specs.md:141-146` sets: status dot, mono ID,
- * priority glyph, title, fresh dot, checklist fraction, up to two label chips,
+ * priority glyph, title, acknowledgement dot, checklist fraction, up to two label chips,
  * relative updated time. No assignee slot in v0 (ADR 0001).
  *
  * Memoized on its own ticket, so a change to one ticket re-renders one row. Unlike
@@ -559,12 +560,12 @@ const ListRow = memo(function ListRow(props: {
 }) {
   const { ticket, mark } = props;
   const row = presentRow(ticket, props.labels, props.now);
-  // A file that would not parse has nothing in it to be fresh about: beside a
+  // A file that would not parse has nothing in it to acknowledge a change to: beside a
   // path and a parser error, the dot was a green light on a broken row. The
   // board card has the same dot for the same reason and is not fixed here —
   // suppressing it there also moves `cardStrides`, and a treatment that
   // disagrees with the geometry is worse than the dot. That is LC-164.
-  const fresh = isFresh(mark, props.now) && !row.degraded;
+  const acknowledged = isAcknowledged(mark, props.now) && !row.degraded;
   return (
     <button
       className={classes(
@@ -572,8 +573,8 @@ const ListRow = memo(function ListRow(props: {
         props.divided && "divided",
         props.selected && "selected",
         row.degraded && "degraded",
-        fresh && "fresh",
-        fresh && mark?.actorType === "human" && "human-fresh",
+        acknowledged && "acknowledged",
+        acknowledged && mark && acknowledgementClass(mark.actorType),
         props.draggable && "draggable",
         props.dragging && "dragging",
       )}
@@ -594,7 +595,7 @@ const ListRow = memo(function ListRow(props: {
       <span className="list-row-key">{ticket.key}</span>
       {row.priority && <PriorityGlyph priority={row.priority} small />}
       <strong>{row.title}</strong>
-      {fresh && <PulseDot mark={mark} now={props.now} />}
+      {acknowledged && <PulseDot mark={mark} now={props.now} />}
       {row.checklist && (
         <span className="list-row-checklist">{row.checklist}</span>
       )}

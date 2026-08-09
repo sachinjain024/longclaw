@@ -22,8 +22,8 @@
  * never to wrap (`screen-specs.md` § Board). There is no third height.
  */
 
-import { isFresh } from "./freshness";
-import type { ExternalMarks } from "./freshness";
+import { isAcknowledged } from "./acknowledgement";
+import type { ExternalMarks } from "./acknowledgement";
 import type { TicketRow } from "./types";
 
 /**
@@ -33,18 +33,18 @@ import type { TicketRow } from "./types";
  */
 export const CARD_HEIGHT = 90;
 /**
- * `--lc-size-board-card-fresh`: the same card with the acknowledgement footer
+ * `--lc-size-board-card-acknowledged`: the same card with the acknowledgement footer
  * under it. The footer adds its 7px margin, 1px rule, 6px padding and one
  * 14px mono line, pinned so the column can place the cards below it without
  * measuring anything.
  */
-export const FRESH_CARD_HEIGHT = 118;
+export const ACKNOWLEDGED_CARD_HEIGHT = 118;
 /** `.ticket-row`'s margin-bottom: the gap between cards in a stack. */
 export const CARD_GAP = 8;
 
 /** How far the next card's top sits below this one's. */
 export const CARD_STRIDE = CARD_HEIGHT + CARD_GAP;
-export const FRESH_CARD_STRIDE = FRESH_CARD_HEIGHT + CARD_GAP;
+export const ACKNOWLEDGED_CARD_STRIDE = ACKNOWLEDGED_CARD_HEIGHT + CARD_GAP;
 
 /**
  * The height a column must reserve before it has measured itself. Deliberately a
@@ -59,7 +59,9 @@ export function cardStrides(
   now: number,
 ): number[] {
   return tickets.map((ticket) =>
-    isFresh(marks[ticket.key], now) ? FRESH_CARD_STRIDE : CARD_STRIDE,
+    isAcknowledged(marks[ticket.key], now)
+      ? ACKNOWLEDGED_CARD_STRIDE
+      : CARD_STRIDE,
   );
 }
 

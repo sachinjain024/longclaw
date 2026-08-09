@@ -15,15 +15,40 @@ export const UNKNOWN_ACTOR_LABEL = "actor unknown";
 
 /**
  * The one sentence for an observed change nothing in the file claims
- * (`states.md:172`). The board footer and the timeline both say it, and they say
- * it identically because saying it twice differently is how a surface starts
- * implying it knows more than another one does.
+ * (`states.md:172`), for a surface with room to say it: the timeline.
  */
 export const UNATTRIBUTED_CHANGE = `file changed on disk — ${UNKNOWN_ACTOR_LABEL}`;
 
-/** Agent and unattributed changes wear the agent accent; a person's do not. */
-export function wearsAgentAccent(actorType: ActorType): boolean {
-  return actorType !== "human";
+/**
+ * The same fact at card width, which is the shorter half of a deliberate pair.
+ *
+ * The two forms live together because the point is that they are one claim said
+ * at two lengths rather than two surfaces knowing different things. A board card
+ * is 264px, and the full sentence spent all of it on naming the absence of an
+ * actor — it truncated to `…actor unkn…` and pushed out the age, so the row said
+ * less than a shorter row would have (LC-147). The warn glyph in front already
+ * carries *unattributed*; the words only have to carry *what happened*.
+ */
+export const UNATTRIBUTED_CHANGE_BRIEF = "file changed";
+
+/**
+ * The one name for the acknowledgement a change wears, keyed on the attribution
+ * the file carried: `acknowledged-agent`, `acknowledged-human`,
+ * `acknowledged-unknown`. They pair with the bare `acknowledged` the row wears,
+ * which carries the anatomy the accent then colours.
+ *
+ * The mapping is trivial and the point is that there is only one of it. Green is
+ * the agent's alone, and the rule used to be spelled out per surface — as
+ * `actorType === "human"` on the card and again on the list row, with anything
+ * that was not a person falling through to the agent's green. So an unclaimed
+ * change wore the full agent treatment *and* the warn triangle its own glyph
+ * gives it (LC-148). Every surface that acknowledges a change names it through
+ * here, which is what stops two of them answering differently.
+ */
+export function acknowledgementClass(
+  actorType: ActorType,
+): `acknowledged-${ActorType}` {
+  return `acknowledged-${actorType}`;
 }
 
 export function actorGlyph(actorType: ActorType): string {

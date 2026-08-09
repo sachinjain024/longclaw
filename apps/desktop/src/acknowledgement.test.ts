@@ -1,14 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
-  FRESH_WINDOW_MS,
+  ACKNOWLEDGEMENT_WINDOW_MS,
   acknowledgement,
+  acknowledgementInFull,
   describeAge,
   describeAgeInSlot,
   externalMark,
-  freshlyChecked,
-  isFresh,
+  newlyChecked,
+  isAcknowledged,
   pruneMarks,
-} from "./freshness";
+} from "./acknowledgement";
 import type { Actor, ChecklistItem } from "./types";
 
 const AT = 1_800_000_000_000;
@@ -42,8 +43,27 @@ describe("acknowledging an external change", () => {
 
     expect(unattributed).toMatchObject({ actorType: "unknown" });
     expect(unknown).toMatchObject({ actorType: "unknown" });
-    expect(acknowledgement(unattributed, AT)).toBe(
-      "⚠ file changed on disk — actor unknown",
+    // Short, and with the age every other acknowledgement carries (LC-147). The
+    // full sentence truncated to `…actor unkn…` in the card's 264px and took the
+    // age with it; the timeline still says the whole thing.
+    expect(acknowledgement(unattributed, AT + 12_000)).toBe(
+      "⚠ file changed · 12s",
+    );
+  });
+
+  // The card is 264px and the panel banner is the width of the panel, so the
+  // short form is the card's constraint rather than a decision about what the
+  // app knows (LC-147).
+  it("says the whole sentence where there is room for it", () => {
+    const unattributed = externalMark(undefined, AT);
+    const agent = externalMark(attributed("agent", "Claude Code"), AT);
+
+    expect(acknowledgementInFull(unattributed, AT + 12_000)).toBe(
+      "⚠ file changed on disk — actor unknown · 12s",
+    );
+    // Every other line already fitted, so there is nothing to restore.
+    expect(acknowledgementInFull(agent, AT + 12_000)).toBe(
+      acknowledgement(agent, AT + 12_000),
     );
   });
 
@@ -67,8 +87,8 @@ describe("acknowledging an external change", () => {
   it("decays two minutes after the last write, and never before", () => {
     const mark = externalMark(attributed("agent", "Claude Code"), AT);
 
-    expect(isFresh(mark, AT + FRESH_WINDOW_MS - 1)).toBe(true);
-    expect(isFresh(mark, AT + FRESH_WINDOW_MS)).toBe(false);
+    expect(isAcknowledged(mark, AT + ACKNOWLEDGEMENT_WINDOW_MS - 1)).toBe(true);
+    expect(isAcknowledged(mark, AT + ACKNOWLEDGEMENT_WINDOW_MS)).toBe(false);
   });
 
   it("drops decayed marks so the board stops paying for them", () => {
@@ -81,8 +101,8 @@ describe("acknowledging an external change", () => {
 
     // A map with nothing to drop comes back as the same object, so a periodic
     // sweep does not re-render the board for no reason.
-    const stillFresh = { "LC-1": marks["LC-1"] };
-    expect(pruneMarks(stillFresh, AT)).toBe(stillFresh);
+    const stillAcknowledged = { "LC-1": marks["LC-1"] };
+    expect(pruneMarks(stillAcknowledged, AT)).toBe(stillAcknowledged);
   });
 
   it("reads ages the way the timeline does", () => {
@@ -118,7 +138,7 @@ describe("checklist items an external write just checked", () => {
       { id: "ck_3", text: "Ship it", checked: false },
     ];
 
-    expect(freshlyChecked(before, after)).toEqual(["ck_2"]);
+    expect(newlyChecked(before, after)).toEqual(["ck_2"]);
   });
 
   it("ignores unchecking, new items, and items with no id", () => {
@@ -129,6 +149,6 @@ describe("checklist items an external write just checked", () => {
       { text: "Appended by an agent", checked: true },
     ];
 
-    expect(freshlyChecked(before, after)).toEqual([]);
+    expect(newlyChecked(before, after)).toEqual([]);
   });
 });

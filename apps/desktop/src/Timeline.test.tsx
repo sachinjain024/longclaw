@@ -210,7 +210,7 @@ describe("an update", () => {
     // are colour, and the name itself is a name, not a role.
     expect(screen.getAllByText("AGENT")).toHaveLength(1);
     // Still one line per change — the badge rides the first line beside the
-    // actor, so `components.md:207`'s compact shape is intact.
+    // actor, so `components.md:234-238`'s compact shape is intact.
     expect(document.querySelectorAll(".entry-changes > li")).toHaveLength(2);
     expect(document.querySelector(".actor-tile")).toBeNull();
   });

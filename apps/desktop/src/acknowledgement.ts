@@ -11,12 +11,13 @@
 import {
   actorGlyph,
   UNATTRIBUTED_CHANGE,
+  UNATTRIBUTED_CHANGE_BRIEF,
   UNKNOWN_ACTOR_LABEL,
 } from "./attribution";
 import type { Actor, ChecklistItem } from "./types";
 
 /** How long an unreviewed external change stays acknowledged (states.md). */
-export const FRESH_WINDOW_MS = 120_000;
+export const ACKNOWLEDGEMENT_WINDOW_MS = 120_000;
 
 export interface ExternalMark {
   /** Taken from a record this change appended, never guessed. */
@@ -56,8 +57,11 @@ export function externalMark(
 }
 
 /** True while the change still deserves the acknowledgement treatment. */
-export function isFresh(mark: ExternalMark | undefined, now: number): boolean {
-  return mark !== undefined && now - mark.at < FRESH_WINDOW_MS;
+export function isAcknowledged(
+  mark: ExternalMark | undefined,
+  now: number,
+): boolean {
+  return mark !== undefined && now - mark.at < ACKNOWLEDGEMENT_WINDOW_MS;
 }
 
 /**
@@ -80,23 +84,43 @@ export function isPulsing(
   mark: ExternalMark | undefined,
   now: number,
 ): boolean {
-  return isFresh(mark, now) && now - (mark?.at ?? 0) < PULSE_MS;
+  return isAcknowledged(mark, now) && now - (mark?.at ?? 0) < PULSE_MS;
 }
 
 /**
  * The card footer line. An unattributed change gets the warn glyph and says so
  * instead of borrowing the agent's voice.
+ *
+ * Every form carries the age, including the unattributed one: *when* is the half
+ * of the acknowledgement that is true whether or not anything claimed the write,
+ * and the line that dropped it was the only one on the board that could not say
+ * how stale it was (LC-147). It is also the shortest form, because it is the one
+ * with no actor to name — see `UNATTRIBUTED_CHANGE_BRIEF`.
  */
 export function acknowledgement(mark: ExternalMark, now: number): string {
   const glyph = actorGlyph(mark.actorType);
-  if (mark.actorType === "unknown") {
-    return `${glyph} ${UNATTRIBUTED_CHANGE}`;
-  }
   const age = describeAge(mark.at, now);
+  if (mark.actorType === "unknown") {
+    return `${glyph} ${UNATTRIBUTED_CHANGE_BRIEF} · ${age}`;
+  }
   if (mark.actorType === "human") {
     return `${glyph} changed on disk · ${age} · via file edit`;
   }
   return `${glyph} updated by ${mark.actorLabel} · ${age} · via file edit`;
+}
+
+/**
+ * The same acknowledgement where there is room for a sentence — the panel's
+ * banner, which is as wide as the panel.
+ *
+ * Only the unattributed line differs, because it is the only one the card had to
+ * abbreviate. Shortening it everywhere would have been the card's 264px deciding
+ * what a surface eight times its width is allowed to say (LC-147).
+ */
+export function acknowledgementInFull(mark: ExternalMark, now: number): string {
+  if (mark.actorType !== "unknown") return acknowledgement(mark, now);
+  const age = describeAge(mark.at, now);
+  return `${actorGlyph(mark.actorType)} ${UNATTRIBUTED_CHANGE} · ${age}`;
 }
 
 /** Prose, and the one age that does not fit the row's column. */
@@ -132,7 +156,7 @@ export function describeAgeInSlot(at: number, now: number): string {
 /** Returns the same map when nothing decayed, so a sweep costs no re-render. */
 export function pruneMarks(marks: ExternalMarks, now: number): ExternalMarks {
   const keys = Object.keys(marks);
-  const kept = keys.filter((key) => isFresh(marks[key], now));
+  const kept = keys.filter((key) => isAcknowledged(marks[key], now));
   if (kept.length === keys.length) return marks;
   return Object.fromEntries(kept.map((key) => [key, marks[key]]));
 }
@@ -141,7 +165,7 @@ export function pruneMarks(marks: ExternalMarks, now: number): ExternalMarks {
  * Checklist ids an external write just ticked, so the panel can show those rows
  * with the agent treatment rather than re-rendering the whole list as new.
  */
-export function freshlyChecked(
+export function newlyChecked(
   before: ChecklistItem[],
   after: ChecklistItem[],
 ): string[] {

@@ -84,7 +84,7 @@
   --lc-size-card-pad-x: 12px;
   --lc-size-card-pad-y: 10px;
   --lc-size-board-card: 90px;
-  --lc-size-board-card-fresh: 118px;
+  --lc-size-board-card-acknowledged: 118px;
   --lc-size-board-stack: calc(100vh - 142px);
   --lc-size-panel-gutter: 16px;
   --lc-size-panel-gutter-lg: 24px;
@@ -166,7 +166,7 @@
   --lc-mix-soft: 10%;
   --lc-mix-wash: 7%;
   --lc-mix-ring: 14%;
-  --lc-mix-fresh-ring: 10%;
+  --lc-mix-acknowledged-ring: 10%;
   --lc-mix-border: 38%;
   --lc-mix-rail: 35%;
   --lc-mix-avatar-ring: 65%;
@@ -232,7 +232,7 @@
   --lc-mix-soft: 10%;
   --lc-mix-wash: 7%;
   --lc-mix-ring: 14%;
-  --lc-mix-fresh-ring: 10%;
+  --lc-mix-acknowledged-ring: 10%;
   --lc-mix-border: 38%;
   --lc-mix-rail: 35%;
   --lc-mix-avatar-ring: 65%;
@@ -292,7 +292,7 @@
   --lc-mix-soft: 15%;
   --lc-mix-wash: 10%;
   --lc-mix-ring: 18%;
-  --lc-mix-fresh-ring: 13%;
+  --lc-mix-acknowledged-ring: 13%;
   --lc-mix-border: 42%;
   --lc-mix-rail: 40%;
   --lc-mix-avatar-ring: 70%;
@@ -456,19 +456,39 @@
     var(--lc-accent-agent) var(--lc-mix-avatar-ring),
     transparent
   );
-  --lc-accent-agent-fresh-ring: color-mix(
+  --lc-accent-agent-acknowledged-ring: color-mix(
     in oklab,
-    var(--lc-accent-agent) var(--lc-mix-fresh-ring),
+    var(--lc-accent-agent) var(--lc-mix-acknowledged-ring),
     transparent
   );
-  --lc-accent-agent-fresh-border: color-mix(
+  --lc-accent-agent-acknowledged-border: color-mix(
     in oklab,
     var(--lc-accent-agent) var(--lc-mix-border),
+    var(--lc-line)
+  );
+  --lc-warn-acknowledged-ring: color-mix(
+    in oklab,
+    var(--lc-warn) var(--lc-mix-acknowledged-ring),
+    transparent
+  );
+  --lc-warn-acknowledged-border: color-mix(
+    in oklab,
+    var(--lc-warn) var(--lc-mix-border),
     var(--lc-line)
   );
   --lc-accent-agent-pulse: color-mix(
     in oklab,
     var(--lc-accent-agent) var(--lc-mix-pulse),
+    transparent
+  );
+  --lc-accent-human-pulse: color-mix(
+    in oklab,
+    var(--lc-accent-human) var(--lc-mix-pulse),
+    transparent
+  );
+  --lc-warn-pulse: color-mix(
+    in oklab,
+    var(--lc-warn) var(--lc-mix-pulse),
     transparent
   );
   --lc-status-done: var(--lc-accent-human);
@@ -477,11 +497,38 @@
   --lc-focus-ring: 0 0 0 var(--lc-border-focus) var(--lc-accent-human-ring);
 }
 
-/* The agent pulse — the designed acknowledgement of an external file edit.
+/* The pulse — the designed acknowledgement of an external file edit, in the
+   colour of whoever the file said made it. One animation per attribution
+   rather than a variable halo, because the halo is a hue and hues are
+   declared here and nowhere else (token-guard.mjs).
    Play 2 iterations of 900ms; never loop forever. */
 @keyframes lc-pulse {
   0% {
     box-shadow: 0 0 0 0 var(--lc-accent-agent-pulse);
+  }
+  70% {
+    box-shadow: 0 0 0 9px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+@keyframes lc-pulse-human {
+  0% {
+    box-shadow: 0 0 0 0 var(--lc-accent-human-pulse);
+  }
+  70% {
+    box-shadow: 0 0 0 9px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+@keyframes lc-pulse-warn {
+  0% {
+    box-shadow: 0 0 0 0 var(--lc-warn-pulse);
   }
   70% {
     box-shadow: 0 0 0 9px transparent;

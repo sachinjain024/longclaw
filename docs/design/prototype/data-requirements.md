@@ -17,7 +17,7 @@
 | `longclaw.yaml` | project id, name, key, **theme**, created_at, people registry, label definitions | canonical |
 | `.longclaw/AGENTS.md` | generated agent editing contract | documentation |
 | App state (OS app-support dir) | project registry (paths), last active project, starred, appearance preference, per-project board/list view, ordering preference (ADR 0003), filter query, archived-view toggle, window/panel state, palette history, index, watcher checkpoints, content hashes | disposable / device-local |
-| Derived at render | checklist progress, counts, relative times, freshness, degraded status | never stored |
+| Derived at render | checklist progress, counts, relative times, the acknowledgement, degraded status | never stored |
 
 ## Per-surface requirements
 
@@ -53,7 +53,7 @@
 | Ordering within column | priority (default) or rank (Manual mode, ADR 0003) | frontmatter `priority` / `rank`; mode from app state (device-local, per project) |
 | Archived exclusion / list archived group | archived_at (ADR 0004) | frontmatter `archived_at` |
 | Updated-at (list) | updated_at | frontmatter |
-| Fresh treatment + "updated by agent · 12s" | last external write time + actor type | watcher event + newest activity actor (derived, app state) |
+| The acknowledgement + "updated by agent · 12s" | last external write time + actor type | watcher event + newest activity actor (derived, app state) |
 | Degraded card/row | parse result, raw bytes, error, path | storage layer (never written back) |
 
 ### Ticket panel
@@ -67,7 +67,7 @@
 | Labels row + picker | slugs + project label defs | frontmatter + `longclaw.yaml` |
 | Description (view/edit) | markdown body (non-reserved sections) | `ticket.md` body |
 | Checklist block | items: stable id, text, checked | `## Checklist` + `longclaw:item` markers |
-| Agent-fresh row treatment | which item ids changed in the last unreviewed external write | watcher diff (app state) |
+| Agent-acknowledged row treatment | which item ids changed in the last unreviewed external write | watcher diff (app state) |
 | Timeline | events: id, kind, occurred_at, actor {type,id,name}, changes, body | `## Activity` `longclaw:event` records |
 | "via file edit" meta | how the change arrived | watcher provenance (app state) |
 | Composer post | new comment event (actor = local human) | appended to `## Activity` |
@@ -130,7 +130,7 @@ definitions. ✅ (`assignee` stays in the schema as optional but no v0
 surface reads or writes it — ADR 0001.)
 
 **Items the format intentionally leaves to app state, confirmed OK from
-the screens:** starred, appearance, view preference, filter, freshness,
+the screens:** starred, appearance, view preference, filter, the acknowledgement,
 conflict hashes, palette history, waitlist joined. None of these need to
 be portable; none enter the files.
 
@@ -150,7 +150,7 @@ be portable; none enter the files.
    written only by drag-and-drop while the board sort option is Manual.
    LongClaw owns rank allocation in v0; agents preserve existing ranks and
    do not invent them.
-4. **Freshness provenance** — unchanged. "Updated by agent" derives from
+4. **Acknowledgement provenance** — unchanged. "Updated by agent" derives from
    the newest activity entry's actor when a watcher event arrives; an
    unattributed external mutation shows as
    `file changed on disk — actor unknown`. No format change needed.

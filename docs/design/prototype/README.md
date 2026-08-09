@@ -27,7 +27,7 @@ harness, deliberately not app chrome. It never appears in the product.
 |---|---|
 | `reset · first launch` | Welcome → folder picker (simulated native) → create form (theme preselected) → empty board with guided card. The ticker reports clicks + seconds against the < 60s gate |
 | `demo project` | Populated three-project state (longclaw · personal-site · dotfiles, each with its own theme dot) |
-| `❯ agent session` | **The core demo.** A simulated external agent edits `ticket.md` on disk: card gains the fresh ring + pulse, checklist items tick in agent green, description gains a Discoveries section, status moves to In Review with an agent comment — then open the ticket to review and watch freshness settle |
+| `❯ agent session` | **The core demo.** A simulated external agent edits `ticket.md` on disk: card gains the acknowledgement ring + pulse, checklist items tick in agent green, description gains a Discoveries section, status moves to In Review with an agent comment — then open the ticket to review and watch the acknowledgement settle |
 | `conflict while editing` | Stages you editing LC-122's description, then lands an external edit → the warn banner with **Reload file / Keep mine** |
 | `corrupt a file` | Hand-breaks a ticket's frontmatter → degraded card → raw file view with the parse error and highlighted line → **Retry parse** recovers |
 | `unplug folder` | Project folder disappears → warn row in the sidebar + non-destructive recovery panel (**Locate folder… / Remove from app**) |
@@ -79,7 +79,7 @@ rather than silently:
 | **P1 — accepted 2026-08-01** | Palette gains **set priority…**, **switch board/list view**, **archive/unarchive ticket**, and **change board ordering…** beyond the fixed D14 set (which also loses *assign…* per ADR 0001) | D8 ships `P` as a shortcut and components.md requires every shortcut be palette-discoverable; the view toggle, archive (ADR 0004) and ordering (ADR 0003) otherwise have no keyboard path |
 | P2 | Quick create = title + status only | The brief's "title + status, enter, done"; everything else lives in full create |
 | P3 | Ticket panel is a 560px right overlay; board stays live behind it | Density + context; Esc returns focus to the originating card |
-| P4 | Freshness decays on open or after 2 minutes | components.md said "opened or after 2 minutes"; confirmed as the rule for list + board |
+| P4 | The acknowledgement decays on open or after 2 minutes | components.md said "opened or after 2 minutes"; confirmed as the rule for list + board |
 | P5 | Canceled column renders only when non-empty | Keeps the default board at five columns; canceled tickets remain in list/search |
 | P6 | Card footer: ≤2 labels, ≤1 when a checklist fraction is present | Footer never wraps |
 | P7 | Header **disk-state indicator** (`writing ticket.md… → ✓`) | The honest counterpart to optimistic UI in a files-first product |

@@ -42,7 +42,7 @@ await page.keyboard.press("Escape");
 await set("indigo", "light");
 await page.click('[data-action="drv-agent"]');
 await page.waitForTimeout(6800);
-await shot("agent-fresh-indigo-light");
+await shot("agent-acknowledged-indigo-light");
 
 /* conflict banner */
 await page.click('[data-action="drv-conflict"]');
