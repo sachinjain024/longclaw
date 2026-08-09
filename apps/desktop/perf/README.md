@@ -134,6 +134,21 @@ and onto a card. WebKit then read the next backspace as "go back".
 The keyboard scenario fails unless focus actually moves to a different card, so
 a key that has become a no-op reads as a broken run rather than as a fast one.
 
+## The server every harness shares
+
+`perf/preview-server.mjs` is where all six of them get one, and none of them
+knows a port. Each run asks the kernel for a free one, so two worktrees can take
+traces at the same time, and none of them waits on a fixed
+`http://localhost:4173` — which is what let a `vite preview` left running in
+another checkout answer the readiness probe and hand a harness a build it never
+loaded. `matrix` and `a11y:audit` are release gates, so that was a gate that
+could report green against the wrong code (LC-157).
+
+The control that makes it hold: nothing is probed until the server this run
+started has itself printed the URL it is serving, and that port is checked
+against the one it was told to take. So a run either drives its own build, or
+fails saying what the server said — it cannot quietly drive somebody else's.
+
 ## The dependency
 
 `playwright-core`, pinned to `1.62.1`, is the only thing this adds.

@@ -26,14 +26,16 @@
  *   npm run a11y:audit -- --self-test  # break the build, expect the rows to fail
  */
 
-import { spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { webkit } from "playwright-core";
 
+import { startPreview } from "./preview-server.mjs";
+
 const here = dirname(fileURLToPath(import.meta.url));
-const ORIGIN = "http://localhost:4173";
+/** This run's own server, up before anything is driven (`preview-server.mjs`). */
+let preview;
 const OUT = resolve(here, "../dist-a11y");
 mkdirSync(OUT, { recursive: true });
 
@@ -71,29 +73,6 @@ function check(name, ok, detail, oracle) {
 
 /* ---------- harness plumbing ---------- */
 
-/** Starts `vite preview` and resolves once it answers. */
-async function serve() {
-  const server = spawn(
-    "npx",
-    ["vite", "preview", "--config", resolve(here, "vite.config.ts")],
-    { cwd: resolve(here, ".."), stdio: "ignore" },
-  );
-  const deadline = Date.now() + 30_000;
-  for (;;) {
-    try {
-      const response = await fetch(ORIGIN);
-      if (response.ok) return server;
-    } catch {
-      // Not up yet.
-    }
-    if (Date.now() > deadline) {
-      server.kill();
-      throw new Error("vite preview did not start");
-    }
-    await new Promise((wake) => setTimeout(wake, 200));
-  }
-}
-
 async function board(browser, options = {}) {
   const context = await browser.newContext({
     viewport: options.viewport ?? VIEWPORT,
@@ -102,7 +81,7 @@ async function board(browser, options = {}) {
   const page = await context.newPage();
   const query = new URLSearchParams({ tickets: String(TICKETS), rw: "1" });
   if (options.fail) query.set("fail", options.fail);
-  await page.goto(`${ORIGIN}/?${query}`, { waitUntil: "load" });
+  await page.goto(`${preview.origin}/?${query}`, { waitUntil: "load" });
   await page.waitForFunction(
     () => document.querySelectorAll("[data-ticket-key]").length > 0,
     undefined,
@@ -1076,7 +1055,7 @@ const AUDITS = [
 ];
 
 async function main() {
-  const server = await serve();
+  preview = await startPreview();
   const browser = await webkit.launch();
   try {
     for (const [id, audit] of AUDITS) {
@@ -1148,7 +1127,7 @@ async function main() {
     }
   } finally {
     await browser.close();
-    server.kill();
+    await preview.close();
   }
 }
 
