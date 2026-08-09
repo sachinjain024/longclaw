@@ -101,3 +101,29 @@ changes:
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_b5ecfa09
+kind: comment
+occurred_at: 2026-08-09T05:01:40.944Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Reviewed on both axes (standards + spec). Three real defects in the first pass, all fixed in `6a12d4e`:
+
+1. The `!boardLoaded` refusal raised `project_unavailable`, whose `failureTitle` is "Project folder not found" — a project that was found and merely opening got told it was missing, and a code `isUnreachableFailure` treats as an unreachable trigger (`states.md:80-98`) came to mean two things.
+2. That refusal was invisible anyway. `ErrorBanner` renders inside `.main-panel`; the create surface draws a full-viewport `.modal-scrim` over it. Pressing Create in that window did nothing and said nothing.
+3. The surface itself was still lying. From the moment of the switch the context line read `Bravo · BR-1` — right project, and a key Bravo already owns.
+
+All three are answered in one place: `provisionalKey` is now optional on both create surfaces, `undefined` meaning "this project has not said which key is free". The line reads `Bravo · opening…`, Create is disabled until the board answers, and the `setError` is gone. That makes the dialog's own disabled state unreachable, so `confirmDisabled` and its "still opening" branch came out — `ConfirmDialog` now takes one added prop, `confirmTone`.
+
+Two untested paths the review named are covered now: full create across a switch, which is the `openPanel` half `PendingCreate` exists to carry, ending in the panel on the key Rust allocated; and the no-switch path, since re-opening the project already on screen zeroes the board the same way and owes no question. Seven of the eight cases are red against main.
+
+One thing standing, for whoever picks this up: the prompt fires at **Create**, not at the switch. The switch itself is now visible in the surface — the context line re-labels to the new project and says `opening…` — but nobody is asked anything until they commit. Reading the request the other way (a question at the moment the sidebar is clicked) is a different interaction and was not built.
+
+Also found and fixed in passing: `screen-specs.md:214` is the ticket panel's geometry, not full create's ending. Four comments cited it; three predate this branch. Other stale citations in the same family are still out there (`CreatePanel.tsx:2` says `209-216`, its `initialTitle` says `202`) and were left alone.
+<!-- /longclaw:event -->
