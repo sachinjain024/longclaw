@@ -4656,3 +4656,217 @@ describe("a ticket key typed at the palette root (LC-171)", () => {
     ).toBeTruthy();
   });
 });
+
+describe("a project switch under an open editor (LC-188)", () => {
+  const alpha = {
+    id: "project-alpha",
+    name: "Alpha",
+    rootPath: "/tmp/LongClaw Alpha",
+    key: "AL",
+    theme: "indigo",
+    starred: false,
+    reachable: true,
+    labels: {},
+  };
+
+  const bravo = {
+    id: "project-bravo",
+    name: "Bravo",
+    rootPath: "/tmp/LongClaw Bravo",
+    key: "BR",
+    theme: "clay",
+    starred: false,
+    reachable: true,
+    labels: {},
+  };
+
+  /** A ticket Bravo already holds, so `BR-1` is a key that is taken. */
+  function bravoTicket(): IndexedTicket {
+    return {
+      state: "indexed",
+      key: "BR-1",
+      id: "019c9000",
+      title: "Bravo already has this one",
+      status: "todo",
+      priority: "none",
+      labels: [],
+      createdAt: "2026-08-01T09:00:00Z",
+      updatedAt: "2026-08-01T09:00:00Z",
+      checkedCount: 0,
+      checklistCount: 0,
+      commentCount: 0,
+      attachmentCount: 0,
+      contentHash: "hash-br-1",
+      relativePath: ".longclaw/tickets/BR-1/ticket.md",
+    };
+  }
+
+  function snapshot(
+    project: ProjectReference,
+    tickets: TicketRow[],
+    sequence: number,
+  ) {
+    return { project, tickets, generation: 1, rebuiltInMs: 1, sequence };
+  }
+
+  /**
+   * Bravo's board answers when the test says so. Every case here turns on the
+   * window between the click on a project and the rows arriving from it, so the
+   * two halves are separate steps rather than one resolved promise.
+   */
+  let openBravo: () => void;
+
+  async function openAlpha() {
+    vi.mocked(api.listProjects).mockResolvedValue([alpha, bravo]);
+    vi.mocked(api.openProject).mockImplementation(async (projectId: string) => {
+      if (projectId === alpha.id) return snapshot(alpha, [], 1);
+      return new Promise((resolve) => {
+        openBravo = () => resolve(snapshot(bravo, [bravoTicket()], 1));
+      });
+    });
+    render(<App />);
+    await screen.findByRole("button", { name: "Board", pressed: true });
+  }
+
+  function projectLink(name: string) {
+    return [...document.querySelectorAll<HTMLElement>(".project-link")].find(
+      (link) => link.textContent?.includes(name),
+    )!;
+  }
+
+  /** Quick create with a title in it, opened over whatever board is up. */
+  function startDraft(title: string) {
+    fireEvent.click(screen.getAllByText("New ticket")[0]);
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: title },
+    });
+  }
+
+  function confirmButton() {
+    return screen.getByRole("button", { name: "Create in Bravo" });
+  }
+
+  /** Draft in Alpha, switch to Bravo, press Create: the reported gesture. */
+  async function draftThenSwitch() {
+    await openAlpha();
+    startDraft("Filed while the sidebar moved");
+    fireEvent.click(projectLink("Bravo"));
+    fireEvent.click(screen.getByText("Create"));
+  }
+
+  it("asks rather than filing the draft in whichever project is active", async () => {
+    await draftThenSwitch();
+
+    // Nothing is written on the way to the question: the report was a ticket
+    // that appeared in a project the human was no longer looking at.
+    expect(api.createTicket).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("dialog", { name: "The active project changed" }),
+    ).toBeTruthy();
+    // Both projects are named. "Create it in the current one?" is not a
+    // question anybody can answer without being told which one that is.
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.textContent).toContain("Alpha");
+    expect(dialog.textContent).toContain("Bravo");
+  });
+
+  it("waits for the project it is aimed at to answer before it can be confirmed", async () => {
+    await draftThenSwitch();
+
+    // Bravo's rows are still in flight, so its next free key is not known. The
+    // guess off an empty board would be `BR-1`, which Bravo already holds.
+    expect(confirmButton().hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("dialog").textContent).toContain("still opening");
+
+    openBravo();
+    await screen.findByText("Bravo already has this one");
+
+    expect(confirmButton().hasAttribute("disabled")).toBe(false);
+    // And now it says which key the ticket will take, in the project it will
+    // take it in.
+    expect(screen.getByRole("dialog").textContent).toContain("BR-2");
+  });
+
+  it("creates in the project on screen once it is confirmed", async () => {
+    vi.mocked(api.createTicket).mockReturnValue(new Promise(() => {}));
+    await draftThenSwitch();
+    openBravo();
+    await screen.findByText("Bravo already has this one");
+
+    fireEvent.click(confirmButton());
+
+    expect(api.createTicket).toHaveBeenCalledWith({
+      projectId: bravo.id,
+      title: "Filed while the sidebar moved",
+      status: "todo",
+    });
+    // The optimistic card takes the next key rather than one that is taken:
+    // `addProvisionalTicket` keys by key, so a guess of `BR-1` would have put
+    // the new card in the seat of a ticket that is really on disk.
+    expect(screen.getByText("Bravo already has this one")).toBeTruthy();
+    expect(screen.getByText("Filed while the sidebar moved")).toBeTruthy();
+  });
+
+  it("cancels back to the draft, with nothing written", async () => {
+    await draftThenSwitch();
+    openBravo();
+    await screen.findByText("Bravo already has this one");
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(api.createTicket).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    // The surface is still up and still holding what was typed, which is the
+    // point of asking rather than closing the create when the project moved.
+    expect(screen.getByLabelText("Create a ticket")).toBeTruthy();
+    expect(screen.getByLabelText("Title")).toHaveProperty(
+      "value",
+      "Filed while the sidebar moved",
+    );
+  });
+
+  it("asks nothing when the project never moved", async () => {
+    vi.mocked(api.createTicket).mockReturnValue(new Promise(() => {}));
+    await openAlpha();
+    startDraft("An ordinary create");
+
+    fireEvent.click(screen.getByText("Create"));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(api.createTicket).toHaveBeenCalledWith({
+      projectId: alpha.id,
+      title: "An ordinary create",
+      status: "todo",
+    });
+  });
+
+  it("closes a ticket panel left open on the project being left", async () => {
+    vi.mocked(api.openProject).mockReset();
+    vi.mocked(api.listProjects).mockResolvedValue([alpha, bravo]);
+    const alphaTicket: IndexedTicket = {
+      ...bravoTicket(),
+      key: "AL-1",
+      title: "Alpha's own ticket",
+      relativePath: ".longclaw/tickets/AL-1/ticket.md",
+    };
+    vi.mocked(api.openProject).mockImplementation(async (projectId: string) =>
+      projectId === alpha.id
+        ? snapshot(alpha, [alphaTicket], 1)
+        : snapshot(bravo, [bravoTicket()], 1),
+    );
+    vi.mocked(api.readTicket).mockReturnValue(new Promise(() => {}));
+    render(<App />);
+    fireEvent.click(await screen.findByText("Alpha's own ticket"));
+    await screen.findByRole("complementary", { name: /^Ticket AL-1/ });
+
+    fireEvent.click(projectLink("Bravo"));
+
+    // A panel is open on a key, and `AL-1` is not a key Bravo can answer for.
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("complementary", { name: /^Ticket / }),
+      ).toBeNull(),
+    );
+    await screen.findByText("Bravo already has this one");
+  });
+});
