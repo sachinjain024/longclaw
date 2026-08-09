@@ -716,6 +716,51 @@ fn a_ticket_that_becomes_unreadable_degrades_in_place() {
         .any(|indexed| indexed.key() == "LC-1" && indexed.is_degraded()));
 }
 
+/// The shape above breaks a field. This one takes the frontmatter away entirely,
+/// which is the file LC-168 was filed for and the way it was found: hand-broken
+/// under a running app. The parser refuses it before it reaches a field, so it is
+/// the one shape that could plausibly be dropped on its way in rather than
+/// degraded — and the observation was that it *was*.
+#[test]
+fn a_ticket_whose_frontmatter_is_taken_away_entirely_degrades_in_place_too() {
+    let _serial = serially();
+    let (_temp, root) = copy_representative_project();
+    let (engine, events) = start_engine(&root);
+    let path = ticket_path(&root, "LC-1");
+    let raw = fs::read_to_string(&path).expect("ticket.md");
+
+    let wiped = "# Notes I meant to put somewhere else\n";
+    editor_atomic_replace(&path, wiped, 1);
+
+    // It arrives. There is no event for a row the pipeline dropped, so reaching
+    // this line at all is the half of the observation that was never tested.
+    let (row, _, _) = changed(next_event(&events));
+    let TicketRow::Degraded(degraded) = &row else {
+        panic!("a file with no frontmatter should degrade");
+    };
+    assert!(degraded
+        .diagnostic
+        .message
+        .contains("frontmatter delimiter"));
+    assert_eq!(degraded.diagnostic.line, Some(1));
+    assert_eq!(degraded.byte_length, wiped.len());
+
+    // And it keeps its seat like any other file that broke under a running app:
+    // `Unreadable` is the fallback for a directory this session never saw parse,
+    // not the destination for everything unreadable (D-50, LC-133).
+    assert_eq!(degraded.last_known_status, Some(Status::InProgress));
+    assert!(engine
+        .snapshot()
+        .tickets
+        .iter()
+        .any(|row| row.key() == "LC-1" && row.is_degraded()));
+
+    // Putting the frontmatter back brings the ticket back.
+    editor_atomic_replace(&path, &raw, 2);
+    let (restored, _, _) = changed(next_event(&events));
+    assert_eq!(title_of(&restored), "Load canonical ticket files");
+}
+
 /// The production watcher, end to end: an app write that is not echoed, an
 /// external burst that becomes one update, a deletion, a reconcile, and a project
 /// folder that moves away. Ignored by default because it depends on FSEvents

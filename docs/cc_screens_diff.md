@@ -415,13 +415,28 @@ app running.
 | ~~D-54~~ | P2 | Footer: note + **Open in editor** + **Retry parse** | Neither action | **Fixed 2026-08-07 (LC-137).** `Retry parse` re-reads on demand and every outcome speaks: a file that parses gives the ticket back, toasts, and asks `App` for a snapshot so the degraded *card* recovers too (`states.md:102-104`); one that still fails re-renders with whatever the parser says now and says so. `Open in editor` is a typed command that takes a **ticket key**, never a path — see `release-candidate.md` for why that is not a shell. A newer-format file gets no retry: there is nothing to fix, which is the distinction `Diagnostic::is_read_only` already draws. `Retry parse` takes the focus the view opens with, as `keyboard-focus-map.md:141-142` already said it should, and `a11y:audit` A2 holds it there over a `?fail=parse` read. |
 | ~~D-58~~ | P3 | Heading is the file path | Heading is `Shown without repair` | **Fixed 2026-08-07 (LC-138).** The path is the title, in mono, and in *full* (`screen-specs.md:293`) rather than the project-relative half the header chip carries — this is the screen a person reads just before opening the file somewhere else. The phrase opens the footer note. |
 
-**Also observed:** a ticket whose file has *no* frontmatter at all (not even a
+**Also observed:** ~~a ticket whose file has *no* frontmatter at all (not even a
 `---` fence) is dropped even from the `Unreadable` group — it never reaches the
-degraded path. Worth a Rust-side test in `core/storage.rs`. **Filed 2026-08-07 as
+degraded path.~~ Worth a Rust-side test in `core/storage.rs`. **Filed 2026-08-07 as
 LC-168**, the one finding in this section that never carried a `D-` number and so
 was never swept into LC-133…LC-138. `TicketDocument::parse` does refuse the file
-with a located diagnostic (`core/ticket.rs:450-452`); what is missing is any test
-that it becomes a degraded record and reaches a snapshot.
+with a located diagnostic (`core/ticket.rs:450-452`); ~~what is missing is any test
+that it becomes a degraded record and reaches a snapshot.~~
+
+**Closed 2026-08-09 (LC-168), as the tests rather than a fix.** The three that
+were missing are written: the read in `core/storage.rs`; the cold path in
+`tests/storage_integration.rs`, which plants such a file in a real project and
+finds the degraded row on the engine's snapshot, in its detail, and after a
+rebuild; and the live one in `tests/watcher_integration.rs`, which is how the file
+was found — hand-broken under a running app, where it now arrives as a change
+event and keeps its last-known column. All pass as written. The rest of the chain
+holds too: the scan finds the directory, the filter exempts a degraded row by its
+state, and `groupByStatus` sends one with no remembered seat to `Unreadable` on
+both surfaces. What was observed was D-50 — *every* degraded card vanished from
+the board then, whatever had broken the file — and this shape came back with the
+rest when LC-133 lent the row its directory's last-known seat. Nothing about it is
+specific to a missing fence, which is why it never earned a `D-` number of its
+own; what it lacked was the coverage.
 
 ---
 
