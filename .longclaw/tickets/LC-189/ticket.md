@@ -57,3 +57,21 @@ actor:
 -->
 ### Claude Code created this ticket
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_3f7ef254
+kind: comment
+occurred_at: 2026-08-10T04:54:41.226Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+The open item is closed: `file_format.md` and `data-requirements.md` are audited and pinned, so all six line-cited documents are now locked and the two-tier split is retired.
+
+The audit found no drift in either — every citation still matched the text it was written against, which is what `.md` files nobody inserts into look like. One citation was wrong on its own terms rather than moved: `file_format.md:213-231`, cited from `labels.ts` and `ProjectSettings.tsx` for "a ticket stores slugs and nothing else", began at `name: Sachin Jain` inside the `people:` block. Tightened to 214-231, where `labels:` starts.
+
+That is the reason pinning follows auditing rather than replacing it: a lock generated a day earlier would have frozen that range and called it clean forever.
+<!-- /longclaw:event -->
