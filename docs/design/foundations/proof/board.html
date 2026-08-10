@@ -1,23 +1,23 @@
 <!doctype html>
-<html lang="en" data-appearance="light" data-theme="indigo">
+<html lang="en" data-theme="light" data-lc-theme="indigo">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LongClaw — board proof · themes × appearances</title>
 <link rel="stylesheet" href="fonts.css">
-<link rel="stylesheet" href="../tokens/design-tokens.css">
+<link rel="stylesheet" href="../../../../apps/desktop/src/tokens/design-tokens.css">
 <style>
   /* ============================================================
      BOARD PROOF — Phase 0 Step 1 exit gate.
      Every color below routes through a --lc-* token. There is not
-     a single hex value in this stylesheet; switching data-theme or
-     data-appearance on <html> swaps tokens and nothing else.
+     a single hex value in this stylesheet; switching data-lc-theme or
+     data-theme on <html> swaps tokens and nothing else.
 
      2026-07-31 — revised for ADR 0001 (no assignee in local mode):
      removed the seven card-footer assignee avatars and their push
-     spacers. The screenshots in proof/renders/ predate this revision
-     and still show assignee avatars; the render pipeline isn't
-     committed, so they have not been regenerated (see README.md).
+     spacers. proof/renders/ is regenerated from this file by
+     scripts/render.mjs (committed at V0-41), so the screenshots are
+     current evidence rather than history.
      ============================================================ */
 
   * { margin: 0; box-sizing: border-box; }
@@ -54,7 +54,7 @@
     display: flex; background: var(--lc-surface);
   }
   /* Swatch previews are pure CSS: each <i> carries the preset's own
-     data-theme/data-appearance attributes, so the theme token blocks apply
+     data-lc-theme/data-theme attributes, so the theme token blocks apply
      locally — the picker previews every preset without a single hue here. */
   .swatch i { display: block; height: 100%; }
   .swatch i:first-child { flex: 2; background: var(--lc-accent-human); }
@@ -128,8 +128,8 @@
   .btn-primary:active { background: var(--lc-accent-human-active); }
   .btn-secondary { border: 1px solid var(--lc-line-strong); background: var(--lc-surface); color: var(--lc-ink); }
   .btn-secondary:hover { background: var(--lc-wash); }
-  [data-appearance="dark"] .btn-secondary { background: var(--lc-raised); }
-  [data-appearance="dark"] .btn-secondary:hover { background: var(--lc-wash); }
+  [data-theme="dark"] .btn-secondary { background: var(--lc-raised); }
+  [data-theme="dark"] .btn-secondary:hover { background: var(--lc-wash); }
   .kbd {
     font-family: var(--lc-font-mono); font-size: var(--lc-type-kbd-size);
     background: color-mix(in oklab, var(--lc-on-accent-human) 20%, transparent);
@@ -160,7 +160,7 @@
                 box-shadow var(--lc-motion-fast) var(--lc-motion-ease);
   }
   .card:hover { border-color: var(--lc-line-strong); }
-  [data-appearance="dark"] .card:hover { background: var(--lc-raised); }
+  [data-theme="dark"] .card:hover { background: var(--lc-raised); }
   .card:focus-visible { outline: none; border-color: var(--lc-accent-human); box-shadow: var(--lc-focus-ring); }
   .card .top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
   .card .id { font-family: var(--lc-font-mono); font-size: 11px; color: var(--lc-ink-3); }
@@ -251,10 +251,11 @@
     <div class="swatches" role="group" aria-label="Project theme">
       <!-- Each preview cell scopes the preset's own tokens via attributes —
            exactly how the project-settings picker previews other presets. -->
-      <button class="swatch" data-set-theme="indigo" aria-pressed="true" title="Indigo (default)"><i data-appearance="light" data-theme="indigo"></i><i data-appearance="light" data-theme="indigo"></i></button>
-      <button class="swatch" data-set-theme="clay" aria-pressed="false" title="Clay"><i data-appearance="light" data-theme="clay"></i><i data-appearance="light" data-theme="clay"></i></button>
-      <button class="swatch" data-set-theme="slate" aria-pressed="false" title="Slate (proposed)"><i data-appearance="light" data-theme="slate"></i><i data-appearance="light" data-theme="slate"></i></button>
-      <button class="swatch" data-set-theme="plum" aria-pressed="false" title="Plum (proposed)"><i data-appearance="light" data-theme="plum"></i><i data-appearance="light" data-theme="plum"></i></button>
+      <button class="swatch" data-set-theme="indigo" aria-pressed="true" title="Indigo (default)"><i data-theme="light" data-lc-theme="indigo"></i><i data-theme="light" data-lc-theme="indigo"></i></button>
+      <button class="swatch" data-set-theme="clay" aria-pressed="false" title="Clay"><i data-theme="light" data-lc-theme="clay"></i><i data-theme="light" data-lc-theme="clay"></i></button>
+      <button class="swatch" data-set-theme="slate" aria-pressed="false" title="Slate (proposed)"><i data-theme="light" data-lc-theme="slate"></i><i data-theme="light" data-lc-theme="slate"></i></button>
+      <button class="swatch" data-set-theme="plum" aria-pressed="false" title="Plum (proposed)"><i data-theme="light" data-lc-theme="plum"></i><i data-theme="light" data-lc-theme="plum"></i></button>
+      <button class="swatch" data-set-theme="graphite" aria-pressed="false" title="Graphite (proposed)"><i data-theme="light" data-lc-theme="graphite"></i><i data-theme="light" data-lc-theme="graphite"></i></button>
     </div>
 
     <div class="seg" role="group" aria-label="Appearance">
@@ -425,7 +426,7 @@
   </div>
 
   <div class="gate-note">
-    exit gate: this board renders in 4 themes × 2 appearances from one DOM — switching swaps --lc-* tokens only ·
+    exit gate: this board renders in 5 themes × 2 appearances from one DOM — switching swaps --lc-* tokens only ·
     zero hardcoded accent hues in components (grep this file for "#": glyph geometry only) ·
     human/agent distinction verified in accessibility.md
   </div>
@@ -433,19 +434,19 @@
 <script>
   document.querySelectorAll("[data-set-theme]").forEach((b) =>
     b.addEventListener("click", () => {
-      document.documentElement.dataset.theme = b.dataset.setTheme;
+      document.documentElement.dataset.lcTheme = b.dataset.setTheme;
       document.querySelectorAll("[data-set-theme]").forEach((x) =>
         x.setAttribute("aria-pressed", x === b ? "true" : "false"));
     })
   );
   document.querySelectorAll("[data-set-appearance]").forEach((b) =>
     b.addEventListener("click", () => {
-      document.documentElement.dataset.appearance = b.dataset.setAppearance;
+      document.documentElement.dataset.theme = b.dataset.setAppearance;
       document.querySelectorAll("[data-set-appearance]").forEach((x) =>
         x.setAttribute("aria-pressed", x === b ? "true" : "false"));
       // swatch previews follow the active appearance
       document.querySelectorAll(".swatch i").forEach((i) =>
-        i.setAttribute("data-appearance", b.dataset.setAppearance));
+        i.setAttribute("data-theme", b.dataset.setAppearance));
     })
   );
 

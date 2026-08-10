@@ -9,7 +9,7 @@
     "48": "`Create project` on variant alone, not on position, and `New ticket` is the",
     "53": "so with a project open these are the only way to add a second; and",
     "57": "- **Project row anatomy:** 6px theme dot in the *project's own* human accent",
-    "58": "(rendered by scoping that project's `data-theme` on the dot), name 13px",
+    "58": "(rendered by scoping that project's `data-lc-theme` on the dot), name 13px",
     "59": "`ink-2`, star affordance revealed on hover (persistent when starred, in",
     "60": "`accent-human`). Unreachable projects swap the dot for a 12px warn",
     "61": "triangle in `--lc-warn` and dim the name to `ink-3`; the row stays in",

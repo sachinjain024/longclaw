@@ -207,7 +207,7 @@ textarea:focus-visible,
 
 /* The project's *own* accent, which is the only place another project's theme
    reaches this window (`components.md:277`). The element carries that
-   project's `data-theme`, so `--lc-accent-human` here resolves to its preset
+   project's `data-lc-theme`, so `--lc-accent-human` here resolves to its preset
    rather than the one in force. */
 .theme-dot {
   flex: none;
@@ -410,7 +410,7 @@ h1 {
   background: var(--lc-surface);
 }
 
-[data-appearance="dark"] .secondary {
+[data-theme="dark"] .secondary {
   background: var(--lc-raised);
 }
 
@@ -433,7 +433,7 @@ h1 {
   background: var(--lc-surface);
 }
 
-[data-appearance="dark"] .danger {
+[data-theme="dark"] .danger {
   background: var(--lc-raised);
 }
 
@@ -1257,7 +1257,7 @@ button:disabled {
   border-color: var(--lc-line-strong);
 }
 
-[data-appearance="dark"] .ticket-row:hover {
+[data-theme="dark"] .ticket-row:hover {
   background: var(--lc-raised);
 }
 
@@ -1421,7 +1421,7 @@ button:disabled {
   overflow: hidden;
 }
 
-[data-appearance="dark"] .progress {
+[data-theme="dark"] .progress {
   background: var(--lc-line);
 }
 
@@ -1700,7 +1700,7 @@ button:disabled {
 
 /* 18%, not 20% (`components.md:56-57`). Dark accents carry an ink label on the
    themes where the fill is light enough, and ink at 20% reads as a hole. */
-[data-appearance="dark"] .toolbar-actions .primary kbd {
+[data-theme="dark"] .toolbar-actions .primary kbd {
   background: color-mix(in oklab, var(--lc-on-accent-human) 18%, transparent);
 }
 
@@ -3494,7 +3494,7 @@ button:disabled {
 /* The 150ms theme/appearance crossfade (`screen-specs.md:364`): while the root
    wears this class, color-bearing properties transition and nothing else does —
    "theme/appearance transition colors only; nothing moves." The class is
-   transient: `App` applies it around a `data-theme`/`data-appearance` change
+   transient: `App` applies it around a `data-lc-theme`/`data-theme` change
    and removes it after the motion window, so it never competes with the
    component-level hover and state transitions. Reduced motion zeroes
    `--lc-motion-panel` and the crossfade collapses with it. */
@@ -3817,7 +3817,7 @@ html.theme-transition *::after {
   padding: 0 6px;
 }
 
-[data-appearance="dark"] .label-chip {
+[data-theme="dark"] .label-chip {
   background: var(--lc-raised);
 }
 

@@ -24,7 +24,14 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const tokens = JSON.parse(readFileSync(join(here, "../tokens/design-tokens.json"), "utf8"));
+/* LC-192: the one token file. This used to read a fork under ../tokens/ that
+   stopped tracking the shipped tokens at LC-183, so every AA number below was
+   proved against values the app did not use. An explicit path may be passed to
+   check a candidate set before landing it. */
+const tokensPath =
+  process.argv.find((a) => a.endsWith(".json")) ??
+  join(here, "../../../../apps/desktop/src/tokens/design-tokens.json");
+const tokens = JSON.parse(readFileSync(tokensPath, "utf8"));
 
 /* ---------- color math ---------- */
 

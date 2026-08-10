@@ -5,8 +5,8 @@
  * Output contract (see also $meta.contract in the JSON):
  *   - Static tokens (type, space, size, radius, border, motion, z) live on
  *     :root.
- *   - Appearance tokens live on [data-appearance="light|dark"].
- *   - Theme accents live on [data-appearance][data-theme] compound blocks.
+ *   - Appearance tokens live on [data-theme="light|dark"].
+ *   - Theme accents live on [data-theme][data-lc-theme] compound blocks.
  *   - Role aliases (`alias` in the JSON) emit `--lc-<name>: var(--lc-<of>)`
  *     alongside the derived variants, so a decision like "code sits on wash"
  *     is made once in the token file rather than repeated at each call site.
@@ -283,7 +283,7 @@ out.push(
   ` * Source: tokens/design-tokens.json · Verified: scripts/a11y-check.mjs`,
 );
 out.push(
-  ` * Contract: set data-appearance="light|dark" AND data-theme="${themes.join("|")}"`,
+  ` * Contract: set data-theme="light|dark" AND data-lc-theme="${themes.join("|")}"`,
 );
 out.push(
   ` * on the same root element (<html>). Components consume only --lc-* tokens;`,
@@ -303,14 +303,14 @@ out.push(...themeLines("indigo", "light"));
 out.push("}");
 out.push("");
 for (const app of ["light", "dark"]) {
-  out.push(`[data-appearance="${app}"] {`);
+  out.push(`[data-theme="${app}"] {`);
   out.push(...appearanceLines(app));
   out.push("}");
   out.push("");
 }
 for (const theme of themes) {
   for (const app of ["light", "dark"]) {
-    out.push(`[data-appearance="${app}"][data-theme="${theme}"] {`);
+    out.push(`[data-theme="${app}"][data-lc-theme="${theme}"] {`);
     out.push(...themeLines(theme, app));
     out.push("}");
     out.push("");
@@ -319,7 +319,7 @@ for (const theme of themes) {
 out.push(
   "/* Derived accent variants — resolve against whichever theme/appearance is active. */",
 );
-out.push(":root, [data-appearance] {");
+out.push(":root, [data-theme] {");
 out.push(...derived);
 out.push("}");
 out.push("");

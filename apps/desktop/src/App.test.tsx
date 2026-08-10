@@ -1018,7 +1018,7 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
     fireEvent.click(within(segment).getByRole("button", { name: "Dark" }));
 
     await waitFor(() =>
-      expect(document.documentElement.dataset.appearance).toBe("dark"),
+      expect(document.documentElement.dataset.theme).toBe("dark"),
     );
     expect(useLongClawStore.getState().appearance).toBe("dark");
     // It is a device preference, so nothing about the project was written.
@@ -1656,7 +1656,7 @@ describe("system-matched appearance (V0-35)", () => {
 
   afterEach(() => {
     useLongClawStore.setState({ appearance: "system" });
-    delete document.documentElement.dataset.appearance;
+    delete document.documentElement.dataset.theme;
   });
 
   it("resolves the system appearance when nothing is stored", async () => {
@@ -1664,7 +1664,7 @@ describe("system-matched appearance (V0-35)", () => {
     render(<App />);
 
     await waitFor(() =>
-      expect(document.documentElement.dataset.appearance).toBe("dark"),
+      expect(document.documentElement.dataset.theme).toBe("dark"),
     );
   });
 
@@ -1672,30 +1672,30 @@ describe("system-matched appearance (V0-35)", () => {
     const system = mockSystem(false);
     render(<App />);
     await waitFor(() =>
-      expect(document.documentElement.dataset.appearance).toBe("light"),
+      expect(document.documentElement.dataset.theme).toBe("light"),
     );
 
     act(() => system.flip(true));
 
-    expect(document.documentElement.dataset.appearance).toBe("dark");
+    expect(document.documentElement.dataset.theme).toBe("dark");
   });
 
   it("an explicit override wins over the system and ignores its changes", async () => {
     const system = mockSystem(true);
     render(<App />);
     await waitFor(() =>
-      expect(document.documentElement.dataset.appearance).toBe("dark"),
+      expect(document.documentElement.dataset.theme).toBe("dark"),
     );
 
     overrideAppearance("light");
     await waitFor(() =>
-      expect(document.documentElement.dataset.appearance).toBe("light"),
+      expect(document.documentElement.dataset.theme).toBe("light"),
     );
 
     act(() => system.flip(false));
     act(() => system.flip(true));
 
-    expect(document.documentElement.dataset.appearance).toBe("light");
+    expect(document.documentElement.dataset.theme).toBe("light");
     await waitFor(() => expect(devicePreferences.appearance).toBe("light"));
   });
 
@@ -1719,7 +1719,7 @@ describe("system-matched appearance (V0-35)", () => {
     render(<App />);
 
     await waitFor(() =>
-      expect(document.documentElement.dataset.appearance).toBe("light"),
+      expect(document.documentElement.dataset.theme).toBe("light"),
     );
     // Rehydration has to reach the preference itself, not just the stamp: the
     // palette row reads it back as `Toggle appearance (light)`.
@@ -1732,7 +1732,7 @@ describe("system-matched appearance (V0-35)", () => {
 
     overrideAppearance("dark");
     await waitFor(() =>
-      expect(document.documentElement.dataset.appearance).toBe("dark"),
+      expect(document.documentElement.dataset.theme).toBe("dark"),
     );
 
     expect(api.updateProjectTheme).not.toHaveBeenCalled();
@@ -1769,7 +1769,7 @@ describe("system-matched appearance (V0-35)", () => {
     });
     render(<App />);
     await waitFor(() =>
-      expect(document.documentElement.dataset.appearance).toBe("dark"),
+      expect(document.documentElement.dataset.theme).toBe("dark"),
     );
 
     fireEvent.keyDown(document, { key: "k", metaKey: true });
@@ -1779,7 +1779,7 @@ describe("system-matched appearance (V0-35)", () => {
     );
 
     await waitFor(() =>
-      expect(document.documentElement.dataset.appearance).toBe("light"),
+      expect(document.documentElement.dataset.theme).toBe("light"),
     );
     expect(useLongClawStore.getState().appearance).toBe("light");
   });
@@ -1817,7 +1817,7 @@ describe("instant per-project theme selection (V0-36)", () => {
 
   beforeEach(() => {
     // The stamp from a previous test is not this launch's first stamp.
-    delete document.documentElement.dataset.theme;
+    delete document.documentElement.dataset.lcTheme;
     document.documentElement.classList.remove("theme-transition");
   });
 
@@ -1844,12 +1844,12 @@ describe("instant per-project theme selection (V0-36)", () => {
         }),
     );
     await openSettings();
-    expect(document.documentElement.dataset.theme).toBe("indigo");
+    expect(document.documentElement.dataset.lcTheme).toBe("indigo");
 
     fireEvent.click(screen.getByRole("radio", { name: "Plum" }));
 
     // Optimistic: the accent flips before the write returns.
-    expect(document.documentElement.dataset.theme).toBe("plum");
+    expect(document.documentElement.dataset.lcTheme).toBe("plum");
     expect(api.updateProjectTheme).toHaveBeenCalledTimes(1);
     expect(api.updateProjectTheme).toHaveBeenCalledWith(project.id, "plum");
 
@@ -1857,7 +1857,7 @@ describe("instant per-project theme selection (V0-36)", () => {
       resolveWrite({ ...project, theme: "plum" });
     });
 
-    expect(document.documentElement.dataset.theme).toBe("plum");
+    expect(document.documentElement.dataset.lcTheme).toBe("plum");
     // No snapshot re-fetch and no ticket write: the theme is project metadata.
     expect(api.openProject).toHaveBeenCalledTimes(1);
     expect(api.editTicket).not.toHaveBeenCalled();
@@ -1898,16 +1898,16 @@ describe("instant per-project theme selection (V0-36)", () => {
     await openSettings();
 
     fireEvent.click(screen.getByRole("radio", { name: "Slate" }));
-    expect(document.documentElement.dataset.theme).toBe("slate");
+    expect(document.documentElement.dataset.lcTheme).toBe("slate");
 
     await waitFor(() =>
-      expect(document.documentElement.dataset.theme).toBe("indigo"),
+      expect(document.documentElement.dataset.lcTheme).toBe("indigo"),
     );
     expect(screen.getByRole("alert").textContent).toMatch(/read-only/);
   });
 
   it("swatches follow a live system appearance change", async () => {
-    // The swatch carries its own data-appearance so it can show a theme that
+    // The swatch carries its own data-theme so it can show a theme that
     // is not in force; a live OS switch must restamp mounted swatches, not
     // just the root, or the picker shows yesterday's appearance.
     const system = mockSystem(false);
@@ -1915,7 +1915,7 @@ describe("instant per-project theme selection (V0-36)", () => {
     await waitFor(() =>
       expect(
         document.querySelector<HTMLElement>(".theme-option .theme-swatch")
-          ?.dataset.appearance,
+          ?.dataset.theme,
       ).toBe("light"),
     );
 
@@ -1924,7 +1924,7 @@ describe("instant per-project theme selection (V0-36)", () => {
     await waitFor(() =>
       expect(
         document.querySelector<HTMLElement>(".theme-option .theme-swatch")
-          ?.dataset.appearance,
+          ?.dataset.theme,
       ).toBe("dark"),
     );
   });
@@ -1941,6 +1941,7 @@ describe("instant per-project theme selection (V0-36)", () => {
       "clay",
       "slate",
       "plum",
+      "graphite",
     ]);
     expect(document.querySelector('input[type="color"]')).toBeNull();
   });
@@ -3930,20 +3931,18 @@ describe("the side panel against its spec (Step 16a)", () => {
   it("scopes each theme dot to that project's own preset", async () => {
     await renderPanel();
 
-    // The accent blocks are compound — `[data-appearance][data-theme]`
+    // The accent blocks are compound — `[data-theme][data-lc-theme]`
     // (`design-tokens.css:294+`) — so a dot needs **both** axes or it matches no
     // block and silently inherits the active project's accent, which looks
-    // exactly like working until two projects differ. Asserting `data-theme`
+    // exactly like working until two projects differ. Asserting `data-lc-theme`
     // alone would pass on the broken version, so this asserts the pair.
     const dots = [
       ...localSection().querySelectorAll<HTMLElement>(".theme-dot"),
     ];
-    expect(dots.map((dot) => dot.dataset.theme)).toEqual(["plum"]);
+    expect(dots.map((dot) => dot.dataset.lcTheme)).toEqual(["plum"]);
     for (const dot of dots) {
-      expect(dot.dataset.appearance).toBe(
-        document.documentElement.dataset.appearance,
-      );
-      expect(dot.dataset.appearance).toBeTruthy();
+      expect(dot.dataset.theme).toBe(document.documentElement.dataset.theme);
+      expect(dot.dataset.theme).toBeTruthy();
     }
   });
 

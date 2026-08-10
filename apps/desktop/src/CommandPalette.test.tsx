@@ -295,7 +295,7 @@ describe("command palette", () => {
     const { container } = renderPalette({ initialMode: "theme" });
     expect(container.querySelectorAll(".theme-swatch")).toHaveLength(1);
     expect(
-      container.querySelector<HTMLElement>(".theme-swatch")?.dataset.theme,
+      container.querySelector<HTMLElement>(".theme-swatch")?.dataset.lcTheme,
     ).toBe("indigo");
   });
 });

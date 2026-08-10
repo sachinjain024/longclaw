@@ -5,8 +5,13 @@
  * again drift from the HTML it is supposed to show.
  *
  * The render set (names and sizes match the original evidence):
- *   board-{indigo,clay,slate,plum}-{light,dark}.png  — 1400×860 viewport
+ *   board-<preset>-{light,dark}.png                  — 1400×860 viewport
  *   library-indigo-light.png, library-clay-dark.png  — 1200 wide, full page
+ *
+ * The preset list is read from the token file rather than repeated here. It
+ * used to be a literal, which meant adding Graphite in LC-192 left the
+ * evidence one preset short while the README went on claiming the gate was
+ * met — the exact drift between claim and proof this pipeline exists to stop.
  *
  * Theme and appearance are set the way the token contract says they change:
  * the two root attributes swap, nothing else does.
@@ -19,7 +24,7 @@
  * Usage: node scripts/render.mjs   (from docs/design/foundations)
  */
 
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
@@ -34,7 +39,14 @@ const proof = resolve(here, "../proof");
 const out = resolve(proof, "renders");
 mkdirSync(out, { recursive: true });
 
-const THEMES = ["indigo", "clay", "slate", "plum"];
+const THEMES = Object.keys(
+  JSON.parse(
+    readFileSync(
+      resolve(here, "../../../../apps/desktop/src/tokens/design-tokens.json"),
+      "utf8",
+    ),
+  ).themes,
+).filter((k) => k !== "note");
 const APPEARANCES = ["light", "dark"];
 
 const browser = await webkit.launch();
@@ -42,8 +54,8 @@ const browser = await webkit.launch();
 const setAxes = (page, theme, appearance) =>
   page.evaluate(
     ([theme, appearance]) => {
-      document.documentElement.dataset.theme = theme;
-      document.documentElement.dataset.appearance = appearance;
+      document.documentElement.dataset.lcTheme = theme;
+      document.documentElement.dataset.theme = appearance;
     },
     [theme, appearance],
   );
