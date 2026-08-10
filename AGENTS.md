@@ -118,8 +118,10 @@ the write commands served and reads the order back, one run per row of LC-174's
 checklist, plus the two Priority controls that must be refused. Two defects have
 now hidden behind a green `verify` here — LC-60's window flag, where the page
 never saw a `dragover` at all, and LC-174's rank allocation, where every event
-was correct and the row still did not move. Run it when you touch a drop handler,
-`ticketMove.ts`, `ordering.ts` or `rank.ts`, and quote the run.
+was correct and the row still did not move. A fifth case asks the same of the
+panel's checklist (LC-185), whose order is the order of the lines in the file.
+Run it when you touch a drop handler, `ticketMove.ts`, `ordering.ts`, `rank.ts`
+or `checklistOrder.ts`, and quote the run.
 
 **The design docs are cited by line number, and `citation-guard` holds those
 lines still.** `screen-specs.md` closes by asking that edits occupy exactly the

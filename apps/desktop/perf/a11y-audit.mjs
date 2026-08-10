@@ -108,6 +108,10 @@ const focused = (page) =>
       role: element.getAttribute("role") ?? "",
       text: (element.textContent ?? "").trim().slice(0, 60),
       ticketKey: element.dataset?.ticketKey,
+      // Which checklist row focus is inside, if it is inside one. A checkbox
+      // takes its name from the label around it, so it has neither an
+      // `aria-label` nor text of its own to be recognised by (LC-185).
+      itemId: element.closest?.(".checklist-row")?.dataset?.itemId,
       box: { x: box.x, y: box.y, width: box.width, height: box.height },
     };
   });
@@ -313,6 +317,48 @@ async function auditLifecycle(browser) {
           "mutations.ts — Retry is the ordinary write path again",
         );
       }
+    }
+
+    // Reorder (§ Ticket panel `⌥↑`/`⌥↓`, LC-185). Dragging is the gesture this
+    // was built for and there is no pointer in this run at all, so this is the
+    // whole of the keyboard's path to it — and the order is read back *after*
+    // the write settles, because the panel shows the human's order before the
+    // file has confirmed it and a probe that looked earlier would be watching
+    // the optimistic step rather than the change.
+    const toRow = await tabTo(page, (at) => at.itemId !== undefined);
+    check(
+      "a checklist row is reachable by Tab inside the panel",
+      toRow.found,
+      `${toRow.presses} presses → ${toRow.at.itemId ?? toRow.at.tag}`,
+      "keyboard-focus-map.md:61",
+    );
+    if (toRow.found) {
+      const order = () =>
+        page.evaluate(() =>
+          [...document.querySelectorAll(".checklist-row")].map(
+            (row) => row.dataset.itemId,
+          ),
+        );
+      const before = await order();
+      await page.keyboard.press("Alt+ArrowDown");
+      await settle(page);
+      const after = await order();
+      check(
+        "`⌥↓` moves the focused row one place down the list",
+        before.length > 1 &&
+          after[0] === before[1] &&
+          after[1] === before[0] &&
+          after[1] === toRow.at.itemId,
+        `${before.join(",")} → ${after.join(",")}`,
+        "keyboard-focus-map.md:62",
+      );
+      const stillOn = await focused(page);
+      check(
+        "the row that moved keeps focus, so the next press moves the same row",
+        stillOn.itemId === toRow.at.itemId,
+        `focus=${stillOn.itemId ?? stillOn.className ?? stillOn.tag}`,
+        "keyboard-focus-map.md:11-12 — every pointer action has a keyboard path",
+      );
     }
 
     // Move (§ Board `S`), from the panel's own ticket.

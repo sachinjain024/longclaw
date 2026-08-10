@@ -28,6 +28,13 @@
  *   3. drag between groups in the list, in either order;
  *   4. Manual: place a row at a chosen spot inside its group.
  *
+ * A fifth case asks the same question of the ticket panel's checklist (LC-185),
+ * which is the third list in this app a pointer can rearrange. It has no ranks
+ * and no groups — the order is the order of the lines in the file — so what it
+ * can get wrong is the landing itself: the anchor a drop names is the row above
+ * where the pointer let go, and off by one there is a row that lands beside its
+ * gap rather than in it.
+ *
  * The two Priority "place" cases are here as the control: ADR 0003 gives a place
  * inside a group to Manual alone, so those two must be *refused* — the pointer
  * says no rather than the row sliding back. A probe that only checked the four
@@ -109,6 +116,23 @@ const SURFACES = {
       await page.waitForSelector(".list-row", { timeout: 30_000 });
     },
   },
+  /**
+   * The ticket panel's checklist (LC-185). It has no groups and no scroller of
+   * its own, so it names only the two things `drag` paints with: what lights up
+   * — here the row wearing the insertion line — and where that line was drawn.
+   * The line is a pseudo-element on the row's own edge rather than an element
+   * (`styles.css`), so the box read back is the row's, which is the boundary the
+   * drop is about either way.
+   */
+  panel: {
+    row: ".checklist-row",
+    lit: ".checklist-row.drop-above, .checklist-row.drop-below",
+    line: ".checklist-row.drop-above, .checklist-row.drop-below",
+    open: async (page) => {
+      await page.click(".ticket-row");
+      await page.waitForSelector(".checklist-row", { timeout: 30_000 });
+    },
+  },
 };
 
 /**
@@ -174,6 +198,12 @@ const CASES = [
     order: "priority",
     move: "place",
     refused: true,
+  },
+  {
+    id: "panel-checklist",
+    item: "5. panel: drag a checklist row to another place in the list (LC-185)",
+    surface: "panel",
+    checklist: true,
   },
 ];
 
@@ -347,6 +377,119 @@ const show = (seat) => (seat ? `${seat.title}[${seat.index}]` : "nowhere");
 
 /* ---------- the run ---------- */
 
+/**
+ * The checklist rows as they read, top to bottom, with the box each one is
+ * drawn in — the item id is the identity here, the way a ticket key is on the
+ * two ticket surfaces.
+ */
+const readChecklist = (page) =>
+  page.evaluate(() =>
+    [...document.querySelectorAll(".checklist-row")].map((row) => {
+      const box = row.getBoundingClientRect();
+      return {
+        key: row.dataset.itemId,
+        draggable: row.draggable,
+        x: box.left,
+        y: box.top,
+        w: box.width,
+        h: box.height,
+      };
+    }),
+  );
+
+/**
+ * A checklist row dragged to another place in its own list (LC-185).
+ *
+ * The question is LC-174's, asked of a different list: not whether the page
+ * accepted the drop but whether the row **landed where it was let go**. So the
+ * order is read back after the write has settled — the stub serves the order it
+ * wrote (`stubs/core.ts`), so an order that only looks right until the file
+ * answers shows up here as a row that moved back.
+ */
+async function probeChecklist(browser, row) {
+  run(row);
+  const context = await browser.newContext({
+    viewport: { width: 1440, height: 900 },
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(`${preview.origin}/?tickets=${TICKETS}&rw=1`, {
+      waitUntil: "load",
+    });
+    await page.waitForFunction(
+      () => document.querySelectorAll("[data-ticket-key]").length > 0,
+      undefined,
+      { timeout: 60_000 },
+    );
+    await SURFACES.panel.open(page);
+    if (SELF_TEST) await swallowDragstart(page);
+
+    const before = await readChecklist(page);
+    if (before.length < 2) throw new Error("the panel drew no list to reorder");
+    const moving = before[0];
+    const onto = before[before.length - 1];
+    check(
+      "the row can be picked up",
+      moving.draggable,
+      `${moving.key}, draggable=${moving.draggable}`,
+    );
+
+    // The lower half of the last row, which is the one gap below every item.
+    const saw = await drag(page, "panel", middle(moving), {
+      x: onto.x + Math.min(onto.w / 2, 80),
+      y: onto.y + onto.h - 3,
+    });
+    check(
+      "the page accepted the drop",
+      saw.accepted > 0 && saw.dropped,
+      `dragstart=${saw.dragstart} dragover=${saw.overs} ` +
+        `accepted=${saw.accepted} drop=${saw.dropped}`,
+    );
+    check(
+      "the insertion line is drawn on the boundary under the pointer",
+      saw.painted.lit > 0,
+      `lit=${saw.painted.lit} line=${saw.painted.line ?? "none"}`,
+    );
+
+    // Settled, not optimistic: the panel re-reads after the write, and a move
+    // the file disagreed with decays back here rather than in front of a human.
+    const deadline = Date.now() + 3_000;
+    let after = await readChecklist(page);
+    while (
+      after.map((item) => item.key).join(",") ===
+        before.map((item) => item.key).join(",") &&
+      Date.now() < deadline
+    ) {
+      await page.waitForTimeout(100);
+      after = await readChecklist(page);
+    }
+    await page.waitForTimeout(400);
+    after = await readChecklist(page);
+    const wanted = [...before.slice(1), moving].map((item) => item.key);
+    check(
+      `${moving.key} is last in the list now`,
+      after.map((item) => item.key).join(",") === wanted.join(","),
+      `${before.map((item) => item.key).join(" ")} → ` +
+        `${after.map((item) => item.key).join(" ")}`,
+    );
+  } finally {
+    await context.close();
+  }
+}
+
+/** LC-60's defect, restored: the drag never reaches the page at all. */
+const swallowDragstart = (page) =>
+  page.evaluate(() => {
+    window.addEventListener(
+      "dragstart",
+      (event) => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      },
+      true,
+    );
+  });
+
 async function probe(browser, row) {
   run(row);
   const ui = SURFACES[row.surface];
@@ -369,19 +512,7 @@ async function probe(browser, row) {
       await page.click('[role="menuitemradio"]:has-text("Manual")');
       await page.waitForSelector(ui.row, { timeout: 30_000 });
     }
-    if (SELF_TEST) {
-      // LC-60's defect, restored: the drag never reaches the page at all.
-      await page.evaluate(() => {
-        window.addEventListener(
-          "dragstart",
-          (event) => {
-            event.preventDefault();
-            event.stopImmediatePropagation();
-          },
-          true,
-        );
-      });
-    }
+    if (SELF_TEST) await swallowDragstart(page);
 
     const before = await read(page, row.surface);
     /**
@@ -520,7 +651,7 @@ async function main() {
   try {
     for (const row of cases) {
       try {
-        await probe(browser, row);
+        await (row.checklist ? probeChecklist : probe)(browser, row);
       } catch (error) {
         check(
           `the ${row.id} run completed`,

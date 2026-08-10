@@ -82,6 +82,11 @@ function Blocks({ blocks, offset }: { blocks: Block[]; offset: number }) {
                   {item.task && (
                     <input
                       type="checkbox"
+                      // Never a stop: a task inside rendered Markdown is a
+                      // picture of a box, not a control — the checklist is
+                      // where one is ticked. Stated rather than left to
+                      // `disabled` (`tab-order-guard.mjs`).
+                      tabIndex={-1}
                       checked={item.checked}
                       disabled
                       readOnly
