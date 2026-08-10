@@ -3,10 +3,10 @@ format: longclaw.ticket/v1
 id: 25888da3-3b3a-480a-9217-6df2a4f14ec3
 key: LC-192
 title: Sync Design System between Claude Design & Github Repo
-status: in_progress
+status: done
 priority: urgent
 created_at: 2026-08-10T05:20:35.525Z
-updated_at: 2026-08-10T07:23:36.689Z
+updated_at: 2026-08-10T08:11:53.088Z
 ---
 
 
@@ -338,4 +338,28 @@ changes:
     to: "true"
 -->
 ### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_98ff982f
+kind: update
+occurred_at: 2026-08-10T08:11:53.088Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_progress
+    to: done
+-->
+### Claude Code updated this ticket
+
+Landed as 9699448 on feat/lc-192-design-system-sync, reviewed in the running app and the prototype.
+
+The finding that shaped the rest: this repo and the Claude Design project were never parent and child. Both were built from the same v1 specimen plus the brief's instruction to move accents into theme tokens, and each invented its own preset hues — so where both copied v1 the values match to the digit, and where both invented, they diverged. Accents resolved to the design system's; two values resolved to neither, because the checker rejected the pair the design system's own prose called safe (D17).
+
+Checklist item 3 is checked as resolved rather than built. A skill was the wrong shape: token sync is now two emitters off one JSON with design:check wired into tokens:check, and component sync has no mechanical path across the two runtimes — a generated diff there would be a guarantee that lies. The guard that makes the component contract real instead is LC-197.
+
+Remainder split rather than left open: LC-195 (token conflicts E/F/G), LC-196 (the design system still renders retired components), LC-197 (components.md contract guard), LC-198 (converge the prototype's reference surface). Full comparison and resolution log in .longclaw/tickets/LC-192/conflicts.md.
 <!-- /longclaw:event -->
