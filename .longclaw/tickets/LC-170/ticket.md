@@ -115,3 +115,26 @@ The ticket cited `screen-specs.md:98-100`; the sentence is on 99-101. Cited 99-1
 
 Gate: `npm run verify` green (834 frontend tests, 139 Rust unit tests, citation-guard 424 clean). `npm run a11y:audit` green on all five rows — run because the fall-through makes the sidebar form take the caret for the first time.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_931ac16b
+kind: comment
+occurred_at: 2026-08-10T06:19:44.274Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+PR #9 review follow-up.
+
+Four findings, all addressed:
+
+- **`pickProjectFolder` renamed `pickFolderAndOpenIfProject`.** The old name said only "pick a folder" for a function whose main effect is that a project may be open when it returns.
+- **`folder_holds_project` does not canonicalize, and now says why.** ADR 0009 ties canonicalization to *persisting* a root; this persists nothing, answers the same either way (`exists()` resolves symlinks and `..` in the syscall), and has no containment boundary to enforce, because the folder is whichever one the human just chose in the picker. Recorded at the command rather than argued in a PR thread.
+- **The predicate divergence is closed at the spec, not in a comment.** `screen-specs.md:99-101` said "already contains `.longclaw/`"; it now names `.longclaw/longclaw.yaml`, which is what ADR 0009 already called the thing Rust validates. Two lines replaced by two, so no cited line below moved; the lock was re-pointed for line 101, the only pin the edit touched.
+- **The sidebar stays in scope**, by founder decision: it asks the three questions before the folder, so it met the identical refusal in the other order, and reverting would leave a known instance of the bug this ticket closes.
+
+Gate after the amendment: `npm run verify` green (834 frontend tests, citation-guard 425 clean).
+<!-- /longclaw:event -->

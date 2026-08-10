@@ -1079,11 +1079,17 @@ pub fn discard_claimed_ticket_directory(ticket_path: &Path) {
 
 /// Whether a folder already holds a LongClaw project, which is the one thing the
 /// folder picker needs to know before it decides which screen comes next
-/// (`screen-specs.md:99-101`). Not `.longclaw/` — `longclaw.yaml` inside it,
-/// which is what `initialize_project` refuses on below and what `read_project`
-/// goes on to read. A folder that cannot be reached is not a project: there is
-/// no third answer to give a picker, and every path this is asked about came
-/// back from the native picker a moment ago.
+/// (`screen-specs.md:99-101`). `longclaw.yaml`, not the `.longclaw/` directory
+/// around it: that is what `initialize_project` refuses on below, what
+/// `read_project` goes on to read, and what ADR 0009 names as the thing Rust
+/// validates. The spec line said the directory until LC-170's review, and was
+/// amended to the file — a `.longclaw/` with no `longclaw.yaml` in it is the
+/// residue a failed create leaves behind, and calling that a project would send
+/// the picker to `read_project` with nothing to read.
+///
+/// A folder that cannot be reached is not a project: there is no third answer to
+/// give a picker, and every path this is asked about came back from the native
+/// picker a moment ago.
 pub fn holds_project(project_root: &Path) -> bool {
     project_file_path(project_root).exists()
 }
@@ -1543,10 +1549,12 @@ mod tests {
         assert!(error.message.contains("already holds a LongClaw project"));
     }
 
-    /// `.longclaw/` is not the question — `longclaw.yaml` is. The spec line says
-    /// "already contains `.longclaw/`", and a picker that took it literally
-    /// would call the residue folder of a failed create a project and send the
-    /// user to `read_project`, which has nothing to read.
+    /// `.longclaw/` is not the question — `longclaw.yaml` is. The spec line said
+    /// "already contains `.longclaw/`" until LC-170's review, and a picker that
+    /// took it literally would call the residue folder of a failed create a
+    /// project and send the user to `read_project`, which has nothing to read.
+    /// `screen-specs.md:99-101` now names the file, so this pins the spec rather
+    /// than a departure from it.
     #[test]
     fn a_longclaw_directory_without_the_project_file_is_not_a_project() {
         let temp = tempfile::tempdir().unwrap();
