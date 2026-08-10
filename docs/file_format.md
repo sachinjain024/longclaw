@@ -127,7 +127,7 @@ Important choices:
 - `id` is the globally unique identity; `key` is the human-facing identifier such as `LC-42`.
 - `status` is one of `backlog`, `todo`, `in_progress`, `in_review`, `done`, or `canceled`.
 - `priority` is one of `urgent`, `p1`, `p2`, `p3`, `p4`, or `none`. Priority order is the default board order.
-- Checklist items use ordinary Markdown tasks plus invisible stable IDs. Agents can safely change `[ ]` to `[x]`, while the app can still identify and attribute changes to a particular item.
+- Checklist items use ordinary Markdown tasks plus invisible stable IDs. Agents can safely change `[ ]` to `[x]`, while the app can still identify and attribute changes to a particular item. The order of the lines is the order of the list, so reordering moves a line whole — its ID travels with it, and a change is recorded as `checklist.<id>.moved`.
 - `rank` is optional and lives on the ticket, preventing a shared board-order file from becoming a conflict hotspot. It affects order only when the board's device-local sort option is **Manual**. Drag-and-drop is disabled for priority sorting and writes ranks only in Manual mode. In v0, LongClaw owns rank allocation; agents preserve existing ranks and do not invent them.
 - Derived values such as checklist progress, comment count, and last activity are not stored in the ticket.
 - Every canonical structured record declares its own versioned `format`; project format version alone is not sufficient for safe partial migrations.

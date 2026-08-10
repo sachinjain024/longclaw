@@ -27,6 +27,7 @@ The creation surface is the `longclaw` CLI ([ADR 0011](../adr/0011-cli-is-the-cr
 longclaw ticket create --title "…" --description "…" --label storage \
   --checklist "…" --agent-id claude-code --agent-name "Claude Code"
 longclaw ticket edit LC-42 --status in_progress --agent-id claude-code
+longclaw ticket edit LC-42 --move-item ck_7d2a --after ck_0f19   # reorder; no --after is the top
 longclaw ticket show LC-42
 longclaw ticket list
 longclaw                     # the full surface
@@ -47,6 +48,7 @@ Specs live in the Markdown body of `ticket.md`. Additional headings such as `## 
 - Preserve unknown supported frontmatter fields.
 - Use the constrained YAML subset documented in `docs/file_format.md`.
 - Change checklist state without removing its `longclaw:item` marker.
+- Reorder checklist items through `--move-item`, which moves the line whole and names the item it now follows; a hand-edit that rewrote the lines in place would move the ids with them.
 - Keep `ticket.md` authoritative for all structured ticket data.
 - Append historical narration as a new bounded `longclaw:event` record under `## Activity`.
 - Explicitly identify activity actors as human or agent.
