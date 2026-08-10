@@ -959,7 +959,7 @@ export function App() {
    * surface just asked them in the other order.
    */
   async function createProject(draft: ProjectDraft) {
-    const folder = await pickProjectFolder(chooseProjectFolder);
+    const folder = await pickFolderAndOpenIfProject(chooseProjectFolder);
     if (folder) await createProjectIn(folder, draft);
   }
 
@@ -979,7 +979,9 @@ export function App() {
    * the form, because the surface that asked owns which step it is on —
    * `Welcome` its own, the sidebar its quick create.
    */
-  async function pickProjectFolder(pick: () => Promise<string | null>) {
+  async function pickFolderAndOpenIfProject(
+    pick: () => Promise<string | null>,
+  ) {
     try {
       const chosen = await pick();
       // A cancelled picker is an answer rather than a failure.
@@ -993,8 +995,9 @@ export function App() {
     }
   }
 
-  const chooseCreateFolder = () => pickProjectFolder(chooseProjectFolder);
-  const chooseOpenProject = () => pickProjectFolder(chooseOpenFolder);
+  const chooseCreateFolder = () =>
+    pickFolderAndOpenIfProject(chooseProjectFolder);
+  const chooseOpenProject = () => pickFolderAndOpenIfProject(chooseOpenFolder);
 
   /** Create in the folder the picker already answered with (D-11). */
   async function createProjectIn(rootPath: string, draft: ProjectDraft) {

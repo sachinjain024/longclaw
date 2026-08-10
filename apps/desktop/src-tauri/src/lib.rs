@@ -53,6 +53,19 @@ fn register_project(root_path: String, state: State<'_, AppState>) -> AppResult<
 /// reads one path and answers, which is why it can be a plain `bool` rather than
 /// an `AppResult` — an unreachable folder is a folder with no project in it, and
 /// the picker still has a screen to show for that.
+///
+/// **And no `canonicalize`, unlike every other command that takes a path.** The
+/// three that do — `register_project`, `create_project`, `relocate_project` —
+/// canonicalize because each one *persists* a root, and ADR 0009 makes the
+/// canonical root the thing the registry stores and every later call resolves
+/// against. This stores nothing, so there is no root to make canonical. It
+/// would also change no answer: `exists()` resolves symlinks and `..` in the
+/// syscall, so a canonical path and the picker's own answer agree about whether
+/// a file is there. The symlink-escape rejection ADR 0009 requires is likewise
+/// not this function's: escapes are checked when a path is resolved *inside* a
+/// registered project, and there is no containment boundary here — the folder is
+/// whichever one the human just chose in the native picker, and any folder on
+/// disk is a legitimate choice.
 #[tauri::command]
 fn folder_holds_project(root_path: String) -> bool {
     core::storage::holds_project(&PathBuf::from(root_path))
