@@ -83,3 +83,17 @@ Both runs `within budget`. Scroll came out a millisecond *better*, and it is not
 
 Gates: `npm run verify` green (820 frontend tests, the guards, the native watcher). `probe:drag` 38/38 at the default and at `--tickets=46`, with `--self-test` still going red. `matrix` clean across 8 axes × 9 states.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_77961a02
+kind: comment
+occurred_at: 2026-08-10T04:59:15.741Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+The ticket this closing note filed is **LC-190**, not LC-189. Merging this branch to `main` collided with two other tickets that had each allocated LC-189 off the same LC-188 high-water mark — the focus treatment split out of LC-158, and the design-doc citation drift on `fix/lc-189-design-doc-citations`. The pushed one keeps the key, per the rule the LC-184 collision set (`9b64629`); this report was re-filed verbatim as LC-190. The note above is left as written and corrected here rather than rewritten.
+<!-- /longclaw:event -->

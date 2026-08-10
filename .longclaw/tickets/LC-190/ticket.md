@@ -1,14 +1,14 @@
 ---
 format: longclaw.ticket/v1
-id: e3c186c5-d372-4caf-9cdd-59a2d2cbbcbc
-key: LC-189
+id: c6a4c812-5eab-4015-a856-9b3cc5b974bf
+key: LC-190
 title: "Board: a drop into the far-right column is refused, and probe:drag cannot see it"
 status: todo
 priority: none
 labels:
   - frontend
-created_at: 2026-08-09T15:07:34.010Z
-updated_at: 2026-08-09T15:07:34.010Z
+created_at: 2026-08-10T04:58:07.335Z
+updated_at: 2026-08-10T04:58:07.335Z
 ---
 
 Found while landing LC-166, and it reproduces on `main` untouched by it.
@@ -40,20 +40,34 @@ npm --prefix apps/desktop run probe:drag -- --tickets=46   # 35/38, exits 1
 
 ## Checklist
 
-- [ ] Decide which it is: drive a mouse-up over the far column with the board scrolled to it, and say whether the drop event fires <!-- longclaw:item=ck_a6b24184 -->
-- [ ] If it is the app: fix the drop, and add a drag-probe case that aims at the far column rather than reaching it by accident <!-- longclaw:item=ck_255ad6bd -->
-- [ ] If it is the probe: give it a way to reach a column that needs the grid scrolled, so the far column is testable at all <!-- longclaw:item=ck_fe38e382 -->
+- [ ] Decide which it is: drive a mouse-up over the far column with the board scrolled to it, and say whether the drop event fires <!-- longclaw:item=ck_e572659b -->
+- [ ] If it is the app: fix the drop, and add a drag-probe case that aims at the far column rather than reaching it by accident <!-- longclaw:item=ck_9b077547 -->
+- [ ] If it is the probe: give it a way to reach a column that needs the grid scrolled, so the far column is testable at all <!-- longclaw:item=ck_845db456 -->
 
 ## Activity
 
 <!-- longclaw:event
-id: evt_71c37a82
+id: evt_8a5ce09d
 kind: create
-occurred_at: 2026-08-09T15:07:34.010Z
+occurred_at: 2026-08-10T04:58:07.335Z
 actor:
   type: agent
   id: claude-code
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_944acbc9
+kind: comment
+occurred_at: 2026-08-10T04:59:05.535Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Re-keyed from LC-189. Three branches each allocated LC-189 off a main whose highest key was LC-188: this report (filed while landing LC-166), the global focus treatment split out of LC-158, and the design-doc citation drift on `fix/lc-189-design-doc-citations`. The citation one was already pushed, is `in_review`, and carries the key in its branch name and commit message, so by the rule the LC-184 collision set (`9b64629`) the unpushed ones yield. This is the same report verbatim under a new key and a new id; the LC-189 that `LC-166` names in its closing note is this ticket.
 <!-- /longclaw:event -->
