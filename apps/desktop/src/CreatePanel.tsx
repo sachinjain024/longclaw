@@ -21,9 +21,11 @@
  *   a created item is always open.
  */
 
-import { useRef, useState } from "react";
-import type { KeyboardEvent } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { DragEvent, KeyboardEvent } from "react";
 import { useAutoGrow } from "./autoGrow";
+import { landingFor, reordered } from "./checklistOrder";
+import { classes } from "./classes";
 import { DescriptionEditor } from "./DescriptionEditor";
 import { GhostBox } from "./GhostBox";
 import { LabelMenuButton } from "./LabelMenu";
@@ -74,6 +76,66 @@ export function CreatePanel(props: CreatePanelProps) {
   const [newItem, setNewItem] = useState("");
   const addItem = useRef<HTMLInputElement>(null);
   const titleField = useAutoGrow(title);
+  /** The draft row in the air, and the gap it would land in (LC-185). */
+  const [dragRow, setDragRow] = useState<number>();
+  const [dropGap, setDropGap] = useState<number>();
+  const rows = useRef<HTMLUListElement>(null);
+  /**
+   * Where a keyboard move sent a row, so focus can follow it there.
+   *
+   * The panel's rows key by position, because a draft item has no id and two of
+   * them may read the same. That is right for React and wrong for focus: the
+   * element the human was on keeps its place while the text inside it changes,
+   * so without this `⌥↓` would leave them holding the row they just moved past.
+   */
+  const [followRow, setFollowRow] = useState<number>();
+  useEffect(() => {
+    if (followRow === undefined) return;
+    setFollowRow(undefined);
+    const buttons = rows.current?.querySelectorAll<HTMLElement>(".row-remove");
+    buttons?.[followRow]?.focus();
+  }, [followRow]);
+
+  /** Which draft row an event happened on, by the position its element carries. */
+  function rowIndexAt(target: EventTarget | null): number {
+    const row = (target as HTMLElement | null)?.closest?.(".checklist-row");
+    const index = (row as HTMLElement | null)?.dataset.rowIndex;
+    return index === undefined ? -1 : Number(index);
+  }
+
+  /**
+   * The draft list, rearranged. Nothing is written: these rows are not a file
+   * yet, so the order is simply the order they will be created in — which is the
+   * one thing about a create surface that a move can change.
+   */
+  function moveDraft(from: number, to: number, follow: boolean) {
+    if (from === to) return;
+    setChecklist((current) => reordered(current, from, to));
+    if (follow) setFollowRow(to);
+  }
+
+  function gapAt(event: DragEvent<HTMLElement>): number | undefined {
+    const index = rowIndexAt(event.target);
+    if (index < 0) return undefined;
+    const row = (event.target as HTMLElement).closest(
+      ".checklist-row",
+    ) as HTMLElement;
+    const box = row.getBoundingClientRect();
+    return event.clientY > box.top + box.height / 2 ? index + 1 : index;
+  }
+
+  /** `⌥↑` / `⌥↓` on a row, the same binding the ticket panel's list carries. */
+  function moveByKey(event: KeyboardEvent<HTMLElement>) {
+    if (!event.altKey || event.metaKey || event.ctrlKey) return;
+    const step =
+      event.key === "ArrowUp" ? -1 : event.key === "ArrowDown" ? 1 : 0;
+    if (step === 0) return;
+    const from = rowIndexAt(event.target);
+    const to = from + step;
+    if (from < 0 || to < 0 || to >= checklist.length) return;
+    event.preventDefault();
+    moveDraft(from, to, true);
+  }
 
   /** A title, and a project that can say which key is free. See `QuickCreate`. */
   const canCreate = title.trim() !== "" && props.provisionalKey !== undefined;
@@ -192,14 +254,79 @@ export function CreatePanel(props: CreatePanelProps) {
             what the three rows on screen already say. The panel's own count
             earns its place because there the numerator means something. */}
         <h3>Checklist</h3>
-        <ul className="checklist">
+        <ul
+          className="checklist"
+          ref={rows}
+          onDragStart={(event) => {
+            const index = rowIndexAt(event.target);
+            if (checklist.length < 2 || index < 0) return;
+            // WebKit will not start a drag with an empty data transfer
+            // (`dragging.ts`).
+            event.dataTransfer?.setData("text/plain", checklist[index]);
+            if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+            setDragRow(index);
+          }}
+          onDragOver={(event) => {
+            if (dragRow === undefined) return;
+            const gap = gapAt(event);
+            if (gap === undefined) return;
+            event.preventDefault();
+            if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+            setDropGap((current) => (current === gap ? current : gap));
+          }}
+          onDrop={(event) => {
+            const gap = gapAt(event);
+            const from = dragRow;
+            setDragRow(undefined);
+            setDropGap(undefined);
+            if (gap === undefined || from === undefined) return;
+            event.preventDefault();
+            // Focus is on whatever the pointer left it on, so a drop does not
+            // move it — only the keyboard's own gesture does.
+            moveDraft(from, landingFor(from, gap), false);
+          }}
+          onDragEnd={() => {
+            setDragRow(undefined);
+            setDropGap(undefined);
+          }}
+          onDragLeave={(event) => {
+            if (event.currentTarget.contains(event.relatedTarget as Node))
+              return;
+            setDropGap(undefined);
+          }}
+          onKeyDown={moveByKey}
+        >
           {checklist.map((text, index) => (
             // Keyed by position: a draft item has no id to key by, and two rows
             // may legitimately carry the same text until the file mints them.
-            <li className="checklist-row draft" key={index}>
+            <li
+              className={classes(
+                "checklist-row",
+                "draft",
+                checklist.length > 1 && "draggable",
+                index === dragRow && "dragging",
+                dropGap === index && "drop-above",
+                dropGap === checklist.length &&
+                  index === checklist.length - 1 &&
+                  "drop-below",
+              )}
+              key={index}
+              data-row-index={index}
+              draggable={checklist.length > 1}
+            >
+              {checklist.length > 1 && (
+                <span className="row-grip" aria-hidden="true">
+                  ⠿
+                </span>
+              )}
               <label>
                 <input
                   type="checkbox"
+                  // Never a stop: a draft box cannot be ticked, and the row's
+                  // stop is the Remove button beside it. Stated rather than
+                  // left to the disabled attribute, for the same reason every
+                  // button here states one (`tab-order-guard.mjs`).
+                  tabIndex={-1}
                   checked={false}
                   disabled
                   readOnly
