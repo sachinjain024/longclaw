@@ -1311,17 +1311,32 @@ button:disabled {
   font-weight: 400;
 }
 
-/* One line, 18px, ellipsized: the pinned card height owns the room a second
-   line would take (prototype clamps at two; the window needs one height). */
+/* Two lines, 18px each, clamped (prototype.css `.card .title`, LC-166).
+
+   The height is stated as well as the clamp, and both are load-bearing. The
+   clamp guarantees the *maximum*, which is what keeps `CARD_HEIGHT` an exact
+   number rather than a guess the column would have to measure; the fixed height
+   spends that room whether or not the second line is used, which is what keeps
+   the foot of every card on the same line as its neighbours'. A one-line title
+   therefore pays ~18px of whitespace under it. That is the trade LC-166 was
+   filed to make deliberately — the alternative, a card as tall as its own
+   title, is the one shape `boardGeometry.ts` cannot window.
+
+   `overflow-wrap` because the clamp's ellipsis is drawn only when the text
+   overflows by *line*: a token with nowhere to break would render as one long
+   line and be clipped mid-glyph with no ellipsis at all. It is the degraded
+   card that makes this real, where the title is a path rather than prose. */
 .ticket-row strong {
+  display: -webkit-box;
   overflow: hidden;
-  height: 18px;
+  height: 36px;
   margin-bottom: 8px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   font-size: var(--lc-type-ui-size);
   font-weight: 500;
   line-height: 18px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .ticket-key,
