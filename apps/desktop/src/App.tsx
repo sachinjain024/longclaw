@@ -7,19 +7,20 @@ import {
   useState,
 } from "react";
 import {
-  chooseAndCreateProject,
-  chooseAndRegisterProject,
   chooseAndRelocateProject,
+  chooseOpenFolder,
   chooseProjectFolder,
   createProjectInFolder,
   createTicket,
   editTicket,
+  folderHoldsProject,
   homeDir,
   listProjects,
   listenForProjectEvents,
   openProject,
   rebuildIndex,
   reconcileProject,
+  registerProject,
   removeProject,
   reportVisibleUi,
   searchTickets,
@@ -261,6 +262,13 @@ export function App() {
   /** Drives the acknowledgement age text and its decay. */
   const [now, setNow] = useState(() => Date.now());
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+  /**
+   * The folder quick create was handed, which is only ever `Open folder`
+   * falling through to it after the picker answered with a plain one (LC-170).
+   * Its own button leaves this unset: that flow is form first, folder second,
+   * and picks the folder at submit.
+   */
+  const [quickCreateFolder, setQuickCreateFolder] = useState<string>();
   /** Per-project workspace choices. Device-local, and never project data. */
   const [projectWorkspaces, setProjectWorkspaces] = useState<
     Record<string, ProjectWorkspace>
@@ -930,40 +938,66 @@ export function App() {
   async function adoptProject(project: ProjectReference | null) {
     if (!project) return;
     upsertProject(project);
-    setQuickCreateOpen(false);
+    closeQuickCreate();
     await loadProject(project.id);
   }
 
-  async function chooseProject() {
-    try {
-      await adoptProject(await chooseAndRegisterProject());
-    } catch (error) {
-      setError(normalizeError(error));
-    }
-  }
-
-  async function createProject(draft: ProjectDraft) {
-    try {
-      await adoptProject(await chooseAndCreateProject(draft));
-    } catch (error) {
-      setError(normalizeError(error));
-    }
+  /** Shut, and holding no folder: the next open decides that again. */
+  function closeQuickCreate() {
+    setQuickCreateOpen(false);
+    setQuickCreateFolder(undefined);
   }
 
   /**
-   * The folder picker as first launch's opening question (D-11). The answer
-   * belongs to the screen that asked — `Welcome` holds which step it is on —
-   * so this hands it back rather than storing it, and turns a picker that
-   * threw into the app's one error surface on the way past.
+   * The sidebar's quick create: form first, folder second, because a 240px
+   * panel has no room for a second step and the folder is the last thing it
+   * needs. Its picker runs through the same branch as every other
+   * (`screen-specs.md:99-101`) — the draft is already answered by the time the
+   * folder is, so an initialised folder opens rather than being refused, and
+   * the answers that were never going to be used go with the form. That
+   * refusal is the one LC-170 was filed over, three questions and all; this
+   * surface just asked them in the other order.
    */
-  async function chooseCreateFolder() {
+  async function createProject(draft: ProjectDraft) {
+    const folder = await pickFolderAndOpenIfProject(chooseProjectFolder);
+    if (folder) await createProjectIn(folder, draft);
+  }
+
+  /**
+   * The folder picker as first launch's opening question (D-11), and then the
+   * one question that decides which screen its answer leads to
+   * (`screen-specs.md:99-101`): a folder that already holds a project opens,
+   * and a plain one goes on to the create form. Which button was pressed picks
+   * the picker's title and nothing else — before LC-170 each button owned one
+   * half of that branch and neither fell through, so `Create a project` on an
+   * initialised repo asked for a name, a key and a theme and then refused, and
+   * `Open a folder` on a plain one refused outright.
+   *
+   * What comes back is the folder to run a create form for, or `null` when
+   * there is no next screen to show: a cancelled picker, a project that has
+   * just been opened, or a failure already on the error banner. The caller owns
+   * the form, because the surface that asked owns which step it is on —
+   * `Welcome` its own, the sidebar its quick create.
+   */
+  async function pickFolderAndOpenIfProject(
+    pick: () => Promise<string | null>,
+  ) {
     try {
-      return await chooseProjectFolder();
+      const chosen = await pick();
+      // A cancelled picker is an answer rather than a failure.
+      if (!chosen) return null;
+      if (!(await folderHoldsProject(chosen))) return chosen;
+      await adoptProject(await registerProject(chosen));
+      return null;
     } catch (error) {
       setError(normalizeError(error));
       return null;
     }
   }
+
+  const chooseCreateFolder = () =>
+    pickFolderAndOpenIfProject(chooseProjectFolder);
+  const chooseOpenProject = () => pickFolderAndOpenIfProject(chooseOpenFolder);
 
   /** Create in the folder the picker already answered with (D-11). */
   async function createProjectIn(rootPath: string, draft: ProjectDraft) {
@@ -1444,7 +1478,7 @@ export function App() {
         <Welcome
           onChooseFolder={chooseCreateFolder}
           onCreate={(rootPath, draft) => void createProjectIn(rootPath, draft)}
-          onOpen={() => void chooseProject()}
+          onOpen={chooseOpenProject}
         />
       </main>
     );
@@ -1472,23 +1506,51 @@ export function App() {
           <button
             tabIndex={0}
             className="secondary"
-            onClick={() => setQuickCreateOpen((open) => !open)}
+            onClick={() =>
+              quickCreateOpen ? closeQuickCreate() : setQuickCreateOpen(true)
+            }
           >
             Create project
           </button>
           <button
             tabIndex={0}
             className="ghost"
-            onClick={() => void chooseProject()}
+            onClick={() =>
+              void chooseOpenProject().then((folder) => {
+                // A plain folder is an offer to create one there rather than a
+                // refusal (LC-170). The form below is this surface's create
+                // step, so the fall-through lands in it with the folder already
+                // answered — the same two screens the welcome column runs, in
+                // the space the sidebar has.
+                if (folder) {
+                  setQuickCreateFolder(folder);
+                  setQuickCreateOpen(true);
+                }
+              })
+            }
           >
             Open folder
           </button>
           {quickCreateOpen && (
             <CreateProjectForm
+              // Remounted when the folder changes: the form reads it once, to
+              // prefill the name and the key and to take the caret.
+              key={quickCreateFolder ?? ""}
               className="quick-create"
               themes={THEMES}
-              submitLabel="Choose folder"
-              onSubmit={(draft) => void createProject(draft)}
+              folder={quickCreateFolder}
+              // Naming the step that is actually next. `Choose folder` is a
+              // promise the fall-through has already kept.
+              submitLabel={
+                quickCreateFolder === undefined
+                  ? "Choose folder"
+                  : "Create project"
+              }
+              onSubmit={(draft) =>
+                quickCreateFolder === undefined
+                  ? void createProject(draft)
+                  : void createProjectIn(quickCreateFolder, draft)
+              }
             />
           )}
         </section>
@@ -1546,7 +1608,7 @@ export function App() {
               onCreate={(rootPath, draft) =>
                 void createProjectIn(rootPath, draft)
               }
-              onOpen={() => void chooseProject()}
+              onOpen={chooseOpenProject}
             />
           )
         ) : (
@@ -2213,10 +2275,21 @@ function ErrorBanner(props: { error: AppError }) {
 function Welcome(props: {
   onChooseFolder: () => Promise<string | null>;
   onCreate: (rootPath: string, draft: ProjectDraft) => void;
-  onOpen: () => void;
+  /**
+   * The same shape as `onChooseFolder`, because after LC-170 both buttons can
+   * end on either screen: what the folder turned out to hold decides, and the
+   * button only decides what the picker is titled. A path back means the create
+   * form is the next step, whichever button asked for it.
+   */
+  onOpen: () => Promise<string | null>;
 }) {
   /** The folder the picker answered with, and therefore which step is up. */
   const [folder, setFolder] = useState<string>();
+
+  /** What both buttons do with an answer: a path is step two, `null` is not. */
+  const showCreateForm = (chosen: string | null) => {
+    if (chosen) setFolder(chosen);
+  };
 
   if (folder !== undefined) {
     return (
@@ -2258,19 +2331,20 @@ function Welcome(props: {
           folder`, which made the screen's main path the one thing on it
           without a name. */}
       <div className="welcome-actions">
+        {/* A cancelled picker, and a folder that turned out to hold a project
+            and was opened, both leave this screen exactly as it was. */}
         <button
           tabIndex={0}
           className="primary"
-          onClick={() => {
-            void props.onChooseFolder().then((chosen) => {
-              // A cancelled picker leaves the screen exactly as it was.
-              if (chosen) setFolder(chosen);
-            });
-          }}
+          onClick={() => void props.onChooseFolder().then(showCreateForm)}
         >
           Create a project
         </button>
-        <button tabIndex={0} className="secondary" onClick={props.onOpen}>
+        <button
+          tabIndex={0}
+          className="secondary"
+          onClick={() => void props.onOpen().then(showCreateForm)}
+        >
           Open a folder
         </button>
       </div>

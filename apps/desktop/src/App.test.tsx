@@ -32,12 +32,13 @@ import type {
 
 vi.mock("./api", () => ({
   chooseAndCreateProject: vi.fn(),
-  chooseAndRegisterProject: vi.fn(),
   chooseAndRelocateProject: vi.fn(),
+  chooseOpenFolder: vi.fn(),
   chooseProjectFolder: vi.fn(),
   createProjectInFolder: vi.fn(),
   createTicket: vi.fn(),
   editTicket: vi.fn(),
+  folderHoldsProject: vi.fn(),
   homeDir: vi.fn(),
   listProjects: vi.fn(),
   listenForProjectEvents: vi.fn(),
@@ -46,6 +47,7 @@ vi.mock("./api", () => ({
   readTicket: vi.fn(),
   rebuildIndex: vi.fn(),
   reconcileProject: vi.fn(),
+  registerProject: vi.fn(),
   removeProject: vi.fn(),
   reportVisibleUi: vi.fn(),
   searchTickets: vi.fn(),
@@ -100,6 +102,10 @@ beforeEach(() => {
   vi.mocked(api.listProjects).mockResolvedValue([]);
   vi.mocked(api.listenForProjectEvents).mockResolvedValue(() => {});
   vi.mocked(api.homeDir).mockResolvedValue("/home/user");
+  // Every picked folder is a plain one unless a test says otherwise: that is the
+  // answer that leads to the create form, which is where most of these are
+  // going (LC-170).
+  vi.mocked(api.folderHoldsProject).mockResolvedValue(false);
   useLongClawStore.setState({
     projects: [],
     activeProjectId: undefined,
@@ -1543,8 +1549,11 @@ describe("first launch (LC-76 … LC-82)", () => {
   });
 
   it("says a refused folder out loud rather than sitting on the form", async () => {
-    // The one refusal this path meets in practice: a folder that already holds
-    // a project. Without the shell there is no other surface to say it on.
+    // Since LC-170 the picker asks the folder first, so this form is only ever
+    // reached for one that had no project in it — which leaves the race: a
+    // folder initialised between the question and the submit, by an agent or by
+    // the other window. Creation refuses it either way, and without the shell
+    // there is no other surface to say so on.
     vi.mocked(api.createProjectInFolder).mockRejectedValue({
       code: "invalid_project",
       message: "This folder already holds a LongClaw project",
@@ -1559,6 +1568,125 @@ describe("first launch (LC-76 … LC-82)", () => {
     expect(banner.textContent).toContain(
       "This folder already holds a LongClaw project",
     );
+  });
+
+  /**
+   * The picker's branch (`screen-specs.md:99-101`, LC-170). The folder decides
+   * which screen comes next, not the button: each button used to own one half
+   * of that sentence and neither fell through, so `Create a project` on an
+   * initialised repo asked for a name, a key and a theme and *then* refused,
+   * and `Open a folder` on a plain one refused outright. Nothing was ever
+   * written either way — this is wasted work and a late no, not data loss.
+   */
+  describe("the folder decides the screen, not the button (LC-170)", () => {
+    const existing = {
+      id: "project-existing",
+      name: "Orbit",
+      rootPath: "/Users/dev/orbit",
+      key: "ORB",
+      theme: "slate",
+      starred: false,
+      reachable: true,
+      labels: {},
+    };
+
+    /** A folder that already holds `existing`, on both sides of the picker. */
+    function initialised() {
+      vi.mocked(api.folderHoldsProject).mockResolvedValue(true);
+      vi.mocked(api.registerProject).mockResolvedValue(existing);
+      vi.mocked(api.openProject).mockResolvedValue({
+        project: existing,
+        tickets: [],
+        generation: 1,
+        rebuiltInMs: 1,
+        sequence: 1,
+      });
+    }
+
+    it("opens an initialised folder rather than asking three questions it will refuse", async () => {
+      vi.mocked(api.chooseProjectFolder).mockResolvedValue("/Users/dev/orbit");
+      initialised();
+      render(<App />);
+
+      fireEvent.click(
+        await screen.findByRole("button", { name: "Create a project" }),
+      );
+
+      await screen.findByRole("button", { name: "Board", pressed: true });
+      expect(api.registerProject).toHaveBeenCalledWith("/Users/dev/orbit");
+      // The form is the thing that was skipped, and creation was never tried:
+      // `initialize_project` would have refused it (`core/storage.rs`).
+      expect(screen.queryByLabelText("Name")).toBeNull();
+      expect(api.createProjectInFolder).not.toHaveBeenCalled();
+    });
+
+    it("offers to create in a plain folder rather than refusing to open it", async () => {
+      vi.mocked(api.chooseOpenFolder).mockResolvedValue("/Users/dev/my-app");
+      render(<App />);
+
+      fireEvent.click(
+        await screen.findByRole("button", { name: "Open a folder" }),
+      );
+
+      // Step two of the create flow, on the folder that was picked to open —
+      // the same screen `Create a project` would have reached (D-13).
+      expect(await screen.findByLabelText("Name")).toBeTruthy();
+      expect(document.querySelector(".picked-path")?.textContent).toBe(
+        "/Users/dev/my-app/.longclaw",
+      );
+      expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe(
+        "my-app",
+      );
+      expect(api.registerProject).not.toHaveBeenCalled();
+    });
+
+    it("still opens an initialised folder from Open a folder", async () => {
+      vi.mocked(api.chooseOpenFolder).mockResolvedValue("/Users/dev/orbit");
+      initialised();
+      render(<App />);
+
+      fireEvent.click(
+        await screen.findByRole("button", { name: "Open a folder" }),
+      );
+
+      await screen.findByRole("button", { name: "Board", pressed: true });
+      expect(api.registerProject).toHaveBeenCalledWith("/Users/dev/orbit");
+    });
+
+    it("leaves the screen alone when the open picker is cancelled", async () => {
+      vi.mocked(api.chooseOpenFolder).mockResolvedValue(null);
+      render(<App />);
+      const open = await screen.findByRole("button", { name: "Open a folder" });
+
+      await act(async () => void fireEvent.click(open));
+
+      expect(screen.queryByLabelText("Name")).toBeNull();
+      expect(api.folderHoldsProject).not.toHaveBeenCalled();
+      expect(api.registerProject).not.toHaveBeenCalled();
+    });
+
+    it("says a folder it could not read out loud, and shows no form for it", async () => {
+      // The folder holds a project, and the project will not open: an invalid
+      // `longclaw.yaml`, or one written by a newer LongClaw. The create form is
+      // not the answer to that — creation would refuse the same folder — so the
+      // screen stays where it was and the banner carries the reason.
+      vi.mocked(api.chooseOpenFolder).mockResolvedValue("/Users/dev/orbit");
+      vi.mocked(api.folderHoldsProject).mockResolvedValue(true);
+      vi.mocked(api.registerProject).mockRejectedValue({
+        code: "invalid_project",
+        message: "longclaw.yaml is missing required key: key",
+        recoverable: true,
+      });
+      render(<App />);
+
+      fireEvent.click(
+        await screen.findByRole("button", { name: "Open a folder" }),
+      );
+
+      const banner = await screen.findByRole("alert");
+      expect(banner.textContent).toContain("longclaw.yaml is missing");
+      expect(screen.queryByLabelText("Name")).toBeNull();
+    });
   });
 
   it("derives a backend-valid key for digit-leading project names", async () => {
@@ -4181,14 +4309,96 @@ describe("the app shell against its spec (LC-71, LC-72, LC-73)", () => {
       // `Welcome` renders only with no project open (`App.tsx:1102`), so with
       // one open these are the only way to add a second. Restyling them must
       // not disarm them.
-      vi.mocked(api.chooseAndRegisterProject).mockResolvedValue(null);
+      vi.mocked(api.chooseOpenFolder).mockResolvedValue(null);
       await openBoard();
 
       fireEvent.click(screen.getByText("Open folder"));
-      expect(api.chooseAndRegisterProject).toHaveBeenCalled();
+      expect(api.chooseOpenFolder).toHaveBeenCalled();
 
       fireEvent.click(screen.getByText("Create project"));
       expect(await screen.findByText("Choose folder")).toBeTruthy();
+    });
+
+    it("falls through to its own create form when the folder is a plain one (LC-170)", async () => {
+      // The sidebar runs the create flow the other way round — form first,
+      // folder at submit — so `Open folder` cannot hand a plain folder to
+      // `Welcome`'s second step. It hands it to this panel instead, which is
+      // the same form, and the submit stops promising a picker that has
+      // already run.
+      vi.mocked(api.chooseOpenFolder).mockResolvedValue("/Users/dev/my-app");
+      await openBoard();
+
+      fireEvent.click(screen.getByText("Open folder"));
+
+      const form = await waitFor(() => {
+        const found =
+          document.querySelector<HTMLFormElement>("form.quick-create");
+        if (!found) throw new Error("quick create should be open");
+        return found;
+      });
+      // The submit, not the sidebar button of the same name above it.
+      const submit = within(form).getByRole("button", {
+        name: "Create project",
+      });
+      expect(document.querySelector(".picked-path")?.textContent).toBe(
+        "/Users/dev/my-app/.longclaw",
+      );
+      expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe(
+        "my-app",
+      );
+      expect(screen.queryByText("Choose folder")).toBeNull();
+
+      fireEvent.click(submit);
+      await waitFor(() =>
+        expect(api.createProjectInFolder).toHaveBeenCalledWith(
+          "/Users/dev/my-app",
+          { name: "my-app", key: "MA", theme: "indigo" },
+        ),
+      );
+      // The folder was answered by the picker, so this flow must not open a
+      // second one at submit.
+      expect(api.chooseProjectFolder).not.toHaveBeenCalled();
+    });
+
+    it("opens an initialised folder picked at the end of quick create (LC-170)", async () => {
+      // This surface asks the three questions *before* the folder, so the
+      // refusal LC-170 was filed over lands here too — same wasted answers,
+      // reached in the other order. The picker's branch is the folder's to
+      // decide on this path as well: `screen-specs.md:99-101` puts it on the
+      // picker, not on the screen that opened it.
+      const existing = {
+        id: "project-existing",
+        name: "Orbit",
+        rootPath: "/Users/dev/orbit",
+        key: "ORB",
+        theme: "slate",
+        starred: false,
+        reachable: true,
+        labels: {},
+      };
+      vi.mocked(api.chooseProjectFolder).mockResolvedValue("/Users/dev/orbit");
+      vi.mocked(api.folderHoldsProject).mockResolvedValue(true);
+      vi.mocked(api.registerProject).mockResolvedValue(existing);
+      vi.mocked(api.openProject).mockResolvedValue({
+        project: existing,
+        tickets: [],
+        generation: 1,
+        rebuiltInMs: 1,
+        sequence: 1,
+      });
+      await openBoard();
+
+      fireEvent.click(screen.getByText("Create project"));
+      fireEvent.click(await screen.findByText("Choose folder"));
+
+      await waitFor(() =>
+        expect(api.registerProject).toHaveBeenCalledWith("/Users/dev/orbit"),
+      );
+      expect(api.createProjectInFolder).not.toHaveBeenCalled();
+      // The panel closes on the way to the project it opened.
+      await waitFor(() =>
+        expect(document.querySelector("form.quick-create")).toBeNull(),
+      );
     });
   });
 });

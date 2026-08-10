@@ -42,6 +42,35 @@ fn register_project(root_path: String, state: State<'_, AppState>) -> AppResult<
     state.register_project(PathBuf::from(root_path))
 }
 
+/// Whether the folder the picker just answered with already holds a project
+/// (`screen-specs.md:99-101`). The frontend has no filesystem of its own, so
+/// without this it can only find out by trying — `register_project` on a plain
+/// folder, or `create_project` on an initialised one — and both find out by
+/// failing, after the user has answered questions that were never going to be
+/// used (LC-170).
+///
+/// No `AppState`: this touches the registry not at all and creates nothing. It
+/// reads one path and answers, which is why it can be a plain `bool` rather than
+/// an `AppResult` — an unreachable folder is a folder with no project in it, and
+/// the picker still has a screen to show for that.
+///
+/// **And no `canonicalize`, unlike every other command that takes a path.** The
+/// three that do — `register_project`, `create_project`, `relocate_project` —
+/// canonicalize because each one *persists* a root, and ADR 0009 makes the
+/// canonical root the thing the registry stores and every later call resolves
+/// against. This stores nothing, so there is no root to make canonical. It
+/// would also change no answer: `exists()` resolves symlinks and `..` in the
+/// syscall, so a canonical path and the picker's own answer agree about whether
+/// a file is there. The symlink-escape rejection ADR 0009 requires is likewise
+/// not this function's: escapes are checked when a path is resolved *inside* a
+/// registered project, and there is no containment boundary here — the folder is
+/// whichever one the human just chose in the native picker, and any folder on
+/// disk is a legitimate choice.
+#[tauri::command]
+fn folder_holds_project(root_path: String) -> bool {
+    core::storage::holds_project(&PathBuf::from(root_path))
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct CreateProjectRequest {
@@ -358,6 +387,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             list_projects,
             register_project,
+            folder_holds_project,
             create_project,
             relocate_project,
             set_project_starred,

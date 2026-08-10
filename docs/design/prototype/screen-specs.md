@@ -97,8 +97,8 @@
 - **Folder picker:** v0 uses the macOS native picker. The prototype
   simulates it with a 520px sheet labeled `native folder picker · simulated
   in prototype`; rows are mono 12px, 34px tall. Picking a folder that
-  already contains `.longclaw/` opens the project directly (no create
-  form); a plain folder proceeds to the create form.
+  already holds a project — a `.longclaw/longclaw.yaml` — opens it
+  directly (no create form); a plain folder proceeds to the create form.
 - **Create form:** 460px column. Folder (read-only mono path on `wash`,
   showing the `/.longclaw` suffix that will be created), Name (prefilled
   from folder name), Key (mono, uppercase, ≤5 chars, prefilled from name,
