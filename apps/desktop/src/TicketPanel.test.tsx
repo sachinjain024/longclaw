@@ -11,6 +11,7 @@
 
 import {
   cleanup,
+  createEvent,
   fireEvent,
   render,
   screen,
@@ -466,6 +467,165 @@ describe("the checklist meter in the panel", () => {
     await screen.findByLabelText("Add a checklist item");
 
     expect(document.querySelector(".panel-progress")).toBeNull();
+  });
+});
+
+/**
+ * Rearranging the list (LC-185). Both gestures write the same edit, so what is
+ * asserted here is the *anchor* each one picks — the row the moved one now
+ * follows — because that is the whole of what the file will settle, and an index
+ * off by one is a row that lands beside where it was let go rather than in it.
+ */
+describe("rearranging the checklist (LC-185)", () => {
+  const three: ChecklistItem[] = [
+    { id: "ck_1", text: "First", checked: false },
+    { id: "ck_2", text: "Second", checked: false },
+    { id: "ck_3", text: "Third", checked: false },
+  ];
+
+  /** The rows as they read, top to bottom. */
+  function order(): string[] {
+    return [...document.querySelectorAll(".checklist-row label span")].map(
+      (node) => node.textContent ?? "",
+    );
+  }
+
+  /**
+   * A drag from one row to an edge of another. jsdom lays nothing out and has
+   * no `DragEvent`, so the target's box and the pointer are both stated — the
+   * same shape `IssueList.test.tsx` uses.
+   */
+  function dragOnto(from: string, onto: string, edge: "above" | "below") {
+    const target = checklistRow(onto);
+    target.getBoundingClientRect = () =>
+      ({ top: 0, bottom: 20, height: 20 }) as DOMRect;
+    fireEvent.dragStart(checklistRow(from));
+    for (const type of ["dragOver", "drop"] as const) {
+      const event = createEvent[type](target);
+      Object.defineProperty(event, "clientY", {
+        value: edge === "below" ? 15 : 5,
+      });
+      fireEvent(target, event);
+    }
+  }
+
+  beforeEach(() => {
+    readTicketMock.mockResolvedValue(detail({ checklist: three }));
+    editTicketMock.mockResolvedValue(writeResult());
+  });
+
+  it("writes the row a drop landed under, and shows the new order at once", async () => {
+    render(surface());
+    await screen.findByLabelText("First");
+
+    dragOnto("First", "Third", "below");
+
+    // Before any write has come back: the panel is showing the human's order.
+    expect(order()).toEqual(["Second", "Third", "First"]);
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(1));
+    expect(editTicketMock.mock.calls[0][0]).toMatchObject({
+      edit: { moveChecklistItem: { itemId: "ck_1", after: "ck_3" } },
+    });
+  });
+
+  it("reads the top edge of the first row as the top of the list", async () => {
+    render(surface());
+    await screen.findByLabelText("Third");
+
+    dragOnto("Third", "First", "above");
+
+    expect(order()).toEqual(["Third", "First", "Second"]);
+    await waitFor(() =>
+      expect(editTicketMock.mock.calls[0][0]).toMatchObject({
+        edit: { moveChecklistItem: { itemId: "ck_3", after: null } },
+      }),
+    );
+  });
+
+  it("writes nothing for a row let go where it already was", async () => {
+    render(surface());
+    await screen.findByLabelText("Second");
+
+    dragOnto("Second", "Second", "below");
+    dragOnto("Second", "First", "below");
+
+    expect(order()).toEqual(["First", "Second", "Third"]);
+    expect(editTicketMock).not.toHaveBeenCalled();
+  });
+
+  it("moves a row one place on ⌥↓ and keeps the row focused", async () => {
+    render(surface());
+    const box = await screen.findByLabelText("First");
+    box.focus();
+
+    fireEvent.keyDown(box, { key: "ArrowDown", altKey: true });
+
+    expect(order()).toEqual(["Second", "First", "Third"]);
+    expect(document.activeElement).toBe(screen.getByLabelText("First"));
+    await waitFor(() =>
+      expect(editTicketMock.mock.calls[0][0]).toMatchObject({
+        edit: { moveChecklistItem: { itemId: "ck_1", after: "ck_2" } },
+      }),
+    );
+  });
+
+  it("has nowhere to send the first row on ⌥↑, and writes nothing", async () => {
+    render(surface());
+    const box = await screen.findByLabelText("First");
+
+    fireEvent.keyDown(box, { key: "ArrowUp", altKey: true });
+
+    expect(order()).toEqual(["First", "Second", "Third"]);
+    expect(editTicketMock).not.toHaveBeenCalled();
+  });
+
+  it("leaves the arrow keys to the page when they are pressed alone", async () => {
+    render(surface());
+    const box = await screen.findByLabelText("First");
+
+    fireEvent.keyDown(box, { key: "ArrowDown" });
+
+    expect(editTicketMock).not.toHaveBeenCalled();
+  });
+
+  it("takes a move back under the row it came from", async () => {
+    render(surface());
+    await screen.findByLabelText("First");
+
+    dragOnto("First", "Third", "below");
+    await screen.findByText("LC-1 moved · First");
+    fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
+    expect(editTicketMock.mock.calls[1][0]).toMatchObject({
+      edit: { moveChecklistItem: { itemId: "ck_1", after: null } },
+    });
+  });
+
+  /**
+   * A task an agent appended as plain Markdown has no id, so no row can name it
+   * as the one it landed under. The list waits for the adoption the next write
+   * performs rather than offering a gesture half of whose landings it could not
+   * write down.
+   */
+  it("does not reorder a list holding a task with no id", async () => {
+    readTicketMock.mockResolvedValue(
+      detail({
+        checklist: [
+          { id: "ck_1", text: "First", checked: false },
+          { text: "Appended by an agent", checked: false },
+        ],
+      }),
+    );
+    render(surface());
+    const box = await screen.findByLabelText("First");
+
+    fireEvent.keyDown(box, { key: "ArrowDown", altKey: true });
+    dragOnto("First", "Appended by an agent", "below");
+
+    expect(order()).toEqual(["First", "Appended by an agent"]);
+    expect(editTicketMock).not.toHaveBeenCalled();
+    expect(checklistRow("First").getAttribute("draggable")).toBe("false");
   });
 });
 

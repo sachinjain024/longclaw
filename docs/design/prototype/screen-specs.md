@@ -240,8 +240,8 @@ movement. No custom-color affordance exists anywhere.
     primary Save (`⌘↵`).
 - **Checklist:** section header with mono fraction + 56px progress bar
   (fill `ink-3`; `accent-agent` while any row is agent-acknowledged). Rows per
-  components.md § Checklist. Add-row: ghost checkbox + borderless input,
-  Enter appends and keeps focus for rapid entry.
+  components.md § Checklist, and reorderable by drag or `⌥↑`/`⌥↓` (LC-185).
+  Add-row: ghost checkbox + borderless input, Enter appends, focus stays.
 - **Activity:** merged timeline per components.md § Timeline — human
   comments, agent comments (rail + AGENT badge + `via file edit` meta), and
   change events in one chronological stream, sorted by time with ID

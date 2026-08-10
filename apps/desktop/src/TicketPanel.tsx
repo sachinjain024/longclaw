@@ -16,6 +16,9 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+// Aliased because the panel also binds `keydown` on `document`, where the type
+// is the DOM's own `KeyboardEvent` and shadowing it would silently retype those.
+import type { DragEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { editTicket, openTicketFile, readTicket } from "./api";
 import {
   actorGlyph,
@@ -23,6 +26,7 @@ import {
   acknowledgementClass,
 } from "./attribution";
 import { useAutoGrow } from "./autoGrow";
+import { heldOrder, landingFor, moveOf, reordered } from "./checklistOrder";
 import { classes } from "./classes";
 import { ConflictBanner } from "./ConflictBanner";
 import { DescriptionEditor } from "./DescriptionEditor";
@@ -87,6 +91,8 @@ interface Pending {
   priority?: TicketPriority;
   /** The whole list, because a label edit replaces it whole. */
   labels?: string[];
+  /** The checklist's ids in the order a move left them, for the same reason. */
+  order?: string[];
 }
 
 const NOTHING_PENDING: Pending = { checks: {} };
@@ -275,6 +281,9 @@ export function TicketPanel(props: TicketPanelProps) {
     [],
   );
   const [pending, setPending] = useState<Pending>(NOTHING_PENDING);
+  /** The checklist row in the air, and the gap it would land in (LC-185). */
+  const [dragItem, setDragItem] = useState<string>();
+  const [dropGap, setDropGap] = useState<number>();
 
   /** Every field the disk has not confirmed goes back to the file's own value. */
   const clearPending = () => setPending(NOTHING_PENDING);
@@ -446,8 +455,21 @@ export function TicketPanel(props: TicketPanelProps) {
   // it has to move focus into it.
   const panelRef = useRef<HTMLElement>(null);
   const onClose = props.onClose;
+  /**
+   * Opening is the whole of this, which is why it depends on the ticket rather
+   * than on the callback below.
+   *
+   * Together with the listener it followed a new `onClose` identity, and `App`
+   * hands one over whenever it re-renders — which every write makes it do. So a
+   * write took focus off whatever the human was working in and put it on the
+   * panel itself, and the second `⌥↓` of a reorder went nowhere
+   * (`a11y-audit.mjs`, A1). The panel is *entered* once; it does not re-enter
+   * itself because something above it changed shape.
+   */
   useEffect(() => {
     panelRef.current?.focus();
+  }, [ticketKey]);
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
@@ -711,6 +733,139 @@ export function TicketPanel(props: TicketPanelProps) {
    * them to disagree in front of the human (D-3D).
    */
   const checkedCount = ticket?.checklist.filter(isChecked).length ?? 0;
+
+  /**
+   * The checklist as the human is looking at it: the file's items, in the order
+   * they last left them (LC-185). Everything below reads its indices off this
+   * one list, so a drop lands where the row *is* rather than where the file
+   * still says it is while the write is out.
+   */
+  const checklist = heldOrder(ticket?.checklist ?? [], pending.order);
+  /**
+   * Whether the list can be reordered at all.
+   *
+   * A move names the row it lands under, and a task an agent appended as plain
+   * Markdown has no id to be named by — so a list holding one has landings that
+   * cannot be written down, and the one that cannot is the row *above* the
+   * landing rather than the row being dragged. That is not a distinction worth
+   * asking a human to hold, so the whole list waits, exactly as long as the
+   * boxes beside those rows do: the next write adopts every id.
+   */
+  const reorderable =
+    checklist.length > 1 && checklist.every((item) => item.id !== undefined);
+  const reorderHint = reorderable
+    ? undefined
+    : "Reordering waits until every item has an id. Saving any change adopts them.";
+
+  /** Puts the list in the order the human left it; the file catches up. */
+  function holdOrder(order: string[]): () => void {
+    setPending((current) => ({ ...current, order }));
+    return () => setPending((current) => ({ ...current, order: undefined }));
+  }
+
+  /**
+   * Writes one row's new place, wherever the gesture came from.
+   *
+   * Both gestures end here because they are one change — and because the undo
+   * has to be the same one either way (`states.md:62-63`): the toast says which
+   * row moved, and `⌘Z` puts it back under the row it came from.
+   */
+  function moveRow(from: number, to: number) {
+    const ids = checklist
+      .map((item) => item.id)
+      .filter((id) => id !== undefined);
+    if (ids.length !== checklist.length) return;
+    const decided = moveOf(ids, from, to);
+    if (!decided) return;
+    const next = reordered(ids, from, to);
+    const text = checklist[from].text;
+    void save(
+      { moveChecklistItem: decided.move },
+      {
+        apply: () => holdOrder(next),
+        toast: `${ticketKey} moved · ${text}`,
+        inverse: { moveChecklistItem: decided.inverse },
+        inverseToast: `${ticketKey} order restored · ${text}`,
+      },
+    );
+  }
+
+  /** The row an event happened on, by the id its element carries. */
+  function rowIndexAt(target: EventTarget | null): number {
+    const row = (target as HTMLElement | null)?.closest?.(".checklist-row");
+    const id = (row as HTMLElement | null)?.dataset.itemId;
+    return id === undefined
+      ? -1
+      : checklist.findIndex((item) => item.id === id);
+  }
+
+  /**
+   * Which gap the pointer is in: above the row it is over, or below it, decided
+   * at that row's own midpoint. Rows here are as tall as their text, so the
+   * boundary is measured rather than computed from a row height the way the
+   * board's and the list's are.
+   */
+  function gapAt(event: DragEvent<HTMLElement>): number | undefined {
+    const index = rowIndexAt(event.target);
+    if (index < 0) return undefined;
+    const row = (event.target as HTMLElement).closest(
+      ".checklist-row",
+    ) as HTMLElement;
+    const box = row.getBoundingClientRect();
+    return event.clientY > box.top + box.height / 2 ? index + 1 : index;
+  }
+
+  function pickUpRow(event: DragEvent<HTMLElement>) {
+    const index = rowIndexAt(event.target);
+    if (!reorderable || index < 0) return;
+    // WebKit will not start a drag with an empty data transfer (`dragging.ts`).
+    event.dataTransfer?.setData("text/plain", checklist[index].id ?? "");
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+    setDragItem(checklist[index].id);
+  }
+
+  function overRow(event: DragEvent<HTMLElement>) {
+    if (dragItem === undefined) return;
+    const gap = gapAt(event);
+    if (gap === undefined) return;
+    // Without this the drop never fires: the default is "this is not a target".
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+    // `dragover` fires many times a second over the same gap, and an unchanged
+    // number is a render React can skip.
+    setDropGap((current) => (current === gap ? current : gap));
+  }
+
+  function dropRow(event: DragEvent<HTMLElement>) {
+    const gap = gapAt(event);
+    const from = checklist.findIndex((item) => item.id === dragItem);
+    endDrag();
+    if (gap === undefined || from < 0) return;
+    event.preventDefault();
+    moveRow(from, landingFor(from, gap));
+  }
+
+  function endDrag() {
+    setDragItem(undefined);
+    setDropGap(undefined);
+  }
+
+  /**
+   * `⌥↑` / `⌥↓` on a row, which is the whole of the keyboard's reorder
+   * (`keyboard-focus-map.md:62`). The row keeps focus across the move because
+   * React keys the list by item id and moves the node rather than rewriting it.
+   */
+  function moveByKey(event: ReactKeyboardEvent<HTMLElement>) {
+    if (!event.altKey || event.metaKey || event.ctrlKey) return;
+    const step =
+      event.key === "ArrowUp" ? -1 : event.key === "ArrowDown" ? 1 : 0;
+    if (step === 0 || !reorderable) return;
+    const from = rowIndexAt(event.target);
+    const to = from + step;
+    if (from < 0 || to < 0 || to >= checklist.length) return;
+    event.preventDefault();
+    moveRow(from, to);
+  }
 
   /**
    * A file that will not parse gets the modal the spec draws rather than this
@@ -1100,14 +1255,31 @@ export function TicketPanel(props: TicketPanelProps) {
                 </span>
               )}
             </h3>
-            <ul className="checklist">
-              {ticket.checklist.map((item, index) => {
+            <ul
+              className="checklist"
+              onDragStart={pickUpRow}
+              onDragOver={overRow}
+              onDrop={dropRow}
+              onDragEnd={endDrag}
+              onDragLeave={(event) => {
+                // Leaving for a row of the same list is not leaving; the next
+                // `dragover` would put the line back a frame later, which reads
+                // as a flicker under the pointer.
+                if (event.currentTarget.contains(event.relatedTarget as Node))
+                  return;
+                setDropGap(undefined);
+              }}
+              onKeyDown={moveByKey}
+            >
+              {checklist.map((item, index) => {
                 const acknowledged =
                   item.id !== undefined && acknowledgedChecks.includes(item.id);
                 const checked = isChecked(item);
                 return (
                   <li
                     key={item.id ?? `unadopted-${index}`}
+                    data-item-id={item.id}
+                    draggable={reorderable}
                     // `checked` carries the settled treatment — `ink-3` and a
                     // line through the text (`components.md:218`). The
                     // acknowledgement is
@@ -1116,14 +1288,44 @@ export function TicketPanel(props: TicketPanelProps) {
                     // to skip.
                     className={classes(
                       "checklist-row",
+                      reorderable && "draggable",
+                      item.id === dragItem && "dragging",
+                      dropGap === index && "drop-above",
+                      dropGap === checklist.length &&
+                        index === checklist.length - 1 &&
+                        "drop-below",
                       checked && "checked",
                       acknowledged && "acknowledged",
                       acknowledged && accentClass,
                     )}
                   >
+                    {/* The affordance, not the mechanism: the row is what is
+                        draggable, and this is what says so. Decorative, because
+                        the keyboard's way in is `⌥↑`/`⌥↓` on the row itself
+                        (`keyboard-focus-map.md:62`) — a grip that took a Tab
+                        stop of its own would put a second stop on every row to
+                        offer what the row already answers. */}
+                    {checklist.length > 1 && (
+                      <span
+                        className="row-grip"
+                        aria-hidden="true"
+                        title={reorderHint}
+                      >
+                        ⠿
+                      </span>
+                    )}
                     <label>
                       <input
                         type="checkbox"
+                        // The row's own Tab stop, and the only one it has. A
+                        // checkbox is skipped by WebKit on a default Mac
+                        // exactly as a button is (`tab-order-guard.mjs`), so
+                        // without this the rows are pointer-only — against the
+                        // panel's Tab order and the two gestures bound to a
+                        // focused row (`keyboard-focus-map.md:61-62`). The
+                        // accessibility audit found it while proving `⌥↓`
+                        // reachable, which it was not (LC-185).
+                        tabIndex={0}
                         checked={checked}
                         disabled={item.id === undefined}
                         title={
