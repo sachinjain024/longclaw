@@ -1077,6 +1077,17 @@ pub fn discard_claimed_ticket_directory(ticket_path: &Path) {
     }
 }
 
+/// Whether a folder already holds a LongClaw project, which is the one thing the
+/// folder picker needs to know before it decides which screen comes next
+/// (`screen-specs.md:99-101`). Not `.longclaw/` — `longclaw.yaml` inside it,
+/// which is what `initialize_project` refuses on below and what `read_project`
+/// goes on to read. A folder that cannot be reached is not a project: there is
+/// no third answer to give a picker, and every path this is asked about came
+/// back from the native picker a moment ago.
+pub fn holds_project(project_root: &Path) -> bool {
+    project_file_path(project_root).exists()
+}
+
 /// Creates `.longclaw/` for a folder that is not a project yet.
 pub fn initialize_project(
     project_root: &Path,
@@ -1104,7 +1115,11 @@ fn initialize_project_with_contract_writer(
     write_contract: impl FnOnce(&Path, &ProjectDocument) -> AppResult<()>,
 ) -> AppResult<ProjectDocument> {
     let project_path = project_file_path(project_root);
-    if project_path.exists() {
+    // The same question the picker asks before it chooses a screen, asked
+    // through the same function on purpose (LC-170): a create form is only ever
+    // reached for a folder this said no to, so the two answers drifting apart
+    // would put this refusal back at the end of a form nobody needed to fill in.
+    if holds_project(project_root) {
         return Err(AppError::new(
             ErrorCode::InvalidProject,
             "This folder already holds a LongClaw project",
@@ -1238,9 +1253,9 @@ mod tests {
 
     use super::{
         atomic_replace, belongs_to_project, content_hash, foreign_project_diagnostic,
-        initialize_project_with_contract_writer, prepare_new_ticket, prepare_ticket_edit,
-        read_ticket_detail, read_ticket_file, resolve_ticket_path, scan_ticket_paths,
-        valid_ticket_key, NewTicket, TicketEdit, SAVING_TICKET,
+        holds_project, initialize_project_with_contract_writer, prepare_new_ticket,
+        prepare_ticket_edit, read_ticket_detail, read_ticket_file, resolve_ticket_path,
+        scan_ticket_paths, valid_ticket_key, NewTicket, TicketEdit, SAVING_TICKET,
     };
     use crate::core::{ErrorCode, TicketRow};
 
@@ -1488,6 +1503,60 @@ mod tests {
         assert!(project.join(".longclaw/keep-me").is_dir());
         assert!(project.join(".longclaw/longclaw.yaml").is_file());
         assert!(project.join(".longclaw/tickets").is_dir());
+    }
+
+    /// The folder picker's branch (`screen-specs.md:99-101`) and creation's
+    /// refusal have to be the same question asked twice, or the picker sends a
+    /// folder to the create form that creation will not take — three answered
+    /// questions and then `This folder already holds a LongClaw project`, which
+    /// is what LC-170 was filed for.
+    #[test]
+    fn a_folder_holds_a_project_exactly_when_creating_in_it_would_be_refused() {
+        let temp = tempfile::tempdir().unwrap();
+        let plain = temp.path().join("plain");
+        fs::create_dir(&plain).unwrap();
+
+        assert!(!holds_project(&plain));
+        initialize_project_with_contract_writer(
+            &plain,
+            "Plain",
+            "PLN",
+            Some("indigo"),
+            "2026-08-07T00:00:00Z",
+            |_root, _document| Ok(()),
+        )
+        .expect("a plain folder takes a create");
+
+        assert!(holds_project(&plain));
+        let error = match initialize_project_with_contract_writer(
+            &plain,
+            "Second",
+            "SEC",
+            Some("indigo"),
+            "2026-08-07T00:00:01Z",
+            |_root, _document| Ok(()),
+        ) {
+            Ok(_) => panic!("a folder that holds a project should refuse a create"),
+            Err(error) => error,
+        };
+        assert_eq!(error.code, ErrorCode::InvalidProject);
+        assert!(error.message.contains("already holds a LongClaw project"));
+    }
+
+    /// `.longclaw/` is not the question — `longclaw.yaml` is. The spec line says
+    /// "already contains `.longclaw/`", and a picker that took it literally
+    /// would call the residue folder of a failed create a project and send the
+    /// user to `read_project`, which has nothing to read.
+    #[test]
+    fn a_longclaw_directory_without_the_project_file_is_not_a_project() {
+        let temp = tempfile::tempdir().unwrap();
+        let residue = temp.path().join("residue");
+        fs::create_dir_all(residue.join(".longclaw/tickets")).unwrap();
+
+        assert!(!holds_project(&residue));
+        // A folder nobody has made yet answers rather than failing: the question
+        // is asked of whatever the native picker hands back.
+        assert!(!holds_project(&temp.path().join("never-existed")));
     }
 
     #[test]

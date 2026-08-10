@@ -3,12 +3,12 @@ format: longclaw.ticket/v1
 id: 9b37287f-34af-4d81-85b6-785e109a0e2b
 key: LC-170
 title: "Folder picker: a folder that already holds a project should open it, not walk the create form"
-status: todo
+status: done
 priority: p2
 labels:
   - frontend
 created_at: 2026-08-07T06:41:10.439Z
-updated_at: 2026-08-07T06:41:17.038Z
+updated_at: 2026-08-10T05:52:55.197Z
 ---
 
 `screen-specs.md:98-100` gives the picker a branch the app does not have: "Picking a folder that already contains `.longclaw/` opens the project directly (no create form); a plain folder proceeds to the create form." The prototype handles both in one place (`prototype.js:1370-1387`).
@@ -28,9 +28,9 @@ Not filed by `cc_screens_diff.md`: § 2 walked this screen and raised D-10 → D
 
 ## Checklist
 
-- [ ] Add a command that reports whether a folder already holds a LongClaw project <!-- longclaw:item=ck_2399bae5 -->
-- [ ] Create a project: an initialised folder opens directly, skipping the create form <!-- longclaw:item=ck_0f355a65 -->
-- [ ] Open a folder: a plain folder falls through to the create form rather than erroring <!-- longclaw:item=ck_24926588 -->
+- [x] Add a command that reports whether a folder already holds a LongClaw project <!-- longclaw:item=ck_2399bae5 -->
+- [x] Create a project: an initialised folder opens directly, skipping the create form <!-- longclaw:item=ck_0f355a65 -->
+- [x] Open a folder: a plain folder falls through to the create form rather than erroring <!-- longclaw:item=ck_24926588 -->
 
 ## Activity
 
@@ -60,4 +60,58 @@ changes:
     to: p2
 -->
 ### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_5b42bdd0
+kind: update
+occurred_at: 2026-08-10T05:43:42.500Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: in_progress
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_cdcd38b9
+kind: update
+occurred_at: 2026-08-10T05:52:55.197Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_progress
+    to: done
+  - field: checklist.ck_2399bae5.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_0f355a65.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_24926588.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Implemented on fix/lc-170-folder-picker-branch.
+
+The picker's branch is now one question asked in one place: `folder_holds_project` over `storage::holds_project`, which is the same predicate `initialize_project` refuses on — the two are wired to the same function so they cannot drift.
+
+Two decisions worth recording:
+
+- **The predicate is `.longclaw/longclaw.yaml`, not `.longclaw/`.** `screen-specs.md:100` says "already contains `.longclaw/`", but taking that literally would call the residue directory of a failed create a project and send the user to `read_project`, which has nothing to read. Pinned by a test.
+- **The sidebar's quick create was in scope after all.** It asks name, key and theme *before* the folder, so it met the same refusal this ticket was filed over, three wasted answers and all — just in the other order. Its picker now runs the same branch, so an initialised folder opens there too.
+
+The ticket cited `screen-specs.md:98-100`; the sentence is on 99-101. Cited 99-101 in the source and re-pinned the lock, so the "a plain folder proceeds to the create form" clause is held still too.
+
+Gate: `npm run verify` green (834 frontend tests, 139 Rust unit tests, citation-guard 424 clean). `npm run a11y:audit` green on all five rows — run because the fall-through makes the sidebar form take the caret for the first time.
 <!-- /longclaw:event -->

@@ -30,6 +30,8 @@
     "93": "(primary **Create a project**, secondary **Open a folder**), and the mono",
     "94": "trust line `no account · no cloud · your files, on your disk`.",
     "97": "- **Folder picker:** v0 uses the macOS native picker. The prototype",
+    "99": "in prototype`; rows are mono 12px, 34px tall. Picking a folder that",
+    "101": "form); a plain folder proceeds to the create form.",
     "103": "showing the `/.longclaw` suffix that will be created), Name (prefilled",
     "106": "a default, never a decision gate), primary **Create project** / ghost",
     "107": "**Back**.",

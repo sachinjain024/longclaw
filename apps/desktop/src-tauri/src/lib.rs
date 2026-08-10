@@ -42,6 +42,22 @@ fn register_project(root_path: String, state: State<'_, AppState>) -> AppResult<
     state.register_project(PathBuf::from(root_path))
 }
 
+/// Whether the folder the picker just answered with already holds a project
+/// (`screen-specs.md:99-101`). The frontend has no filesystem of its own, so
+/// without this it can only find out by trying — `register_project` on a plain
+/// folder, or `create_project` on an initialised one — and both find out by
+/// failing, after the user has answered questions that were never going to be
+/// used (LC-170).
+///
+/// No `AppState`: this touches the registry not at all and creates nothing. It
+/// reads one path and answers, which is why it can be a plain `bool` rather than
+/// an `AppResult` — an unreachable folder is a folder with no project in it, and
+/// the picker still has a screen to show for that.
+#[tauri::command]
+fn folder_holds_project(root_path: String) -> bool {
+    core::storage::holds_project(&PathBuf::from(root_path))
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct CreateProjectRequest {
@@ -358,6 +374,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             list_projects,
             register_project,
+            folder_holds_project,
             create_project,
             relocate_project,
             set_project_starred,
