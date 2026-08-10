@@ -8,28 +8,45 @@ iteration). Everything here is the deliverable set for MVP plan Step 1.
 
 | Path | Deliverable |
 |---|---|
-| `tokens/design-tokens.json` | **Token source of truth** — system tokens (type, space, radii, elevation, borders, motion, neutrals, status, priority, feedback, labels) + 4 theme presets × light/dark |
-| `tokens/build.mjs` | Generates `design-tokens.css` from the JSON (`node tokens/build.mjs`) |
-| `tokens/design-tokens.css` | Generated CSS custom properties — the only file components consume |
 | `components.md` | Component foundations & interaction-state specifications |
-| `decisions.md` | Decision log — every **[proposed]** brief item resolved (D1–D15) |
-| `accessibility.md` | Generated WCAG AA + color-vision-deficiency results (204 checks) |
+| `decisions.md` | Decision log — every **[proposed]** brief item resolved (D1–D17) |
+| `accessibility.md` | Generated WCAG AA + color-vision-deficiency results (226 checks) |
 | `scripts/a11y-check.mjs` | The checker (`node scripts/a11y-check.mjs --write`); exits non-zero on any failure |
 | `scripts/render.mjs` | The render pipeline (`node scripts/render.mjs`); regenerates `proof/renders/` from the two proof pages |
 | `assets/owl-mark.svg` | Original geometric owl mark, variant A "talon" |
 | `assets/glyphs.svg` | Status / priority / checkbox / agent / folder / warn / description-formatting glyph masters |
-| `proof/board.html` | **Board proof** — open in a browser; switch 4 themes × 2 appearances live |
+| `proof/board.html` | **Board proof** — open in a browser; switch 5 themes × 2 appearances live |
 | `proof/components-library.html` | **Components library** — every foundation component as a live specimen: type, color (with live-resolved token values), space/radius/elevation/motion, buttons, fields, chips, status, priority, avatars, checklist, cards, list view, timeline, ticket panel, toast/banners, navigation, empty states, brand |
 | `proof/fonts.css` | Fonts extracted from the approved reference (latin subsets, offline proof) |
-| `proof/renders/` | Headless-rendered screenshots — board in all 8 combinations, library in light/dark |
+| `proof/renders/` | Headless-rendered screenshots — board in all 10 combinations, library in light/dark |
+
+## Where the tokens live
+
+**`apps/desktop/src/tokens/design-tokens.json` — the one token source.** It is
+generated into `design-tokens.css` beside it by `src/tokens/build.mjs`, and that
+one stylesheet is what the app, the prototype, both proof pages and the
+accessibility checker all read.
+
+There used to be a second copy under `foundations/tokens/`, labelled the source
+of truth while the app shipped the other one. They stopped tracking each other
+at LC-183, and the accessibility checker read the stale one — so 226 AA and CVD
+checks were being proved against values no user ever saw. LC-192 deleted the
+fork; `apps/desktop/scripts/token-source-guard.mjs` fails the build if a second
+copy reappears, or if any page under `docs/design/` links a token file that is
+not the shipped one.
 
 ## Token contract
 
 Set both axes on the root element:
 
 ```html
-<html data-appearance="light|dark" data-theme="indigo|clay|slate|plum">
+<html data-theme="light|dark" data-lc-theme="indigo|clay|slate|plum|graphite">
 ```
+
+`data-theme` carries the **appearance**, `data-lc-theme` the **preset** —
+the contract Claude Design's `theme-v3.css` uses. Until LC-192 the repo had
+these two names swapped relative to the design system, so markup could not
+move between them (LC-192 § A1).
 
 Components consume only `--lc-*` custom properties. A theme preset supplies
 six values per appearance (accent, AA text variant, on-accent × human/agent);
@@ -40,7 +57,7 @@ swap and nothing else.
 
 ## Exit-gate status
 
-- ✅ Board renders correctly in 4 themes × 2 appearances (`proof/renders/`,
+- ✅ Board renders correctly in 5 themes × 2 appearances (`proof/renders/`,
   from one DOM — the sources differ only in the two root attributes).
 - ✅ Switching a project theme changes tokens only — `proof/board.html`
   contains zero hex values (`grep '#[0-9a-fA-F]' proof/board.html`) and zero
@@ -68,12 +85,12 @@ history.
 ## Regenerating
 
 ```sh
-node tokens/build.mjs               # JSON → CSS
-node scripts/a11y-check.mjs --write # verify + regenerate accessibility.md
-node scripts/render.mjs             # proof pages → proof/renders/
+npm --prefix apps/desktop run tokens:build  # JSON → CSS
+node scripts/a11y-check.mjs --write         # verify + regenerate accessibility.md
+node scripts/render.mjs                     # proof pages → proof/renders/
 ```
 
-Any token change: edit `tokens/design-tokens.json`, run all three commands,
+Any token change: edit `apps/desktop/src/tokens/design-tokens.json`, run all three commands,
 and re-open `proof/board.html`. If a screen breaks under a preset, fix the
 tokens, never the screen. The render script drives WebKit through
 `playwright-core`, resolved from `apps/desktop`; a first run may need

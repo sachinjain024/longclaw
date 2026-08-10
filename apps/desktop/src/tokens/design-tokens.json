@@ -1,14 +1,14 @@
 {
   "$meta": {
     "name": "LongClaw design tokens",
-    "version": "1.0.0",
-    "source": "docs/design/fable-design-system-v1.mhtml (approved reference) + docs/design_brief.md (final iteration)",
+    "version": "1.1.0",
+    "source": "docs/design/fable-design-system-v1.mhtml (approved reference) + docs/design_brief.md (final iteration) + Claude Design 'LongClaw DS v3 — system' (d34ededb-196a-431f-b064-1ab2ef09bfe1), reconciled in LC-192",
     "prefix": "--lc-",
     "axes": {
       "appearance": ["light", "dark"],
-      "theme": ["indigo", "clay", "slate", "plum"]
+      "theme": ["indigo", "clay", "slate", "plum", "graphite"]
     },
-    "contract": "Both axes are independent. Apply data-appearance and data-theme on the same root element (<html>). Components consume only --lc-* tokens; no component may hardcode an accent hue. Switching theme or appearance is a token swap and nothing else.",
+    "contract": "Both axes are independent. Apply data-theme and data-lc-theme on the same root element (<html>). Components consume only --lc-* tokens; no component may hardcode an accent hue. Switching theme or appearance is a token swap and nothing else.",
     "notes": "Color values that differ from the approved visual reference were adjusted to clear WCAG AA; every adjustment is recorded in ../decisions.md and verified by ../scripts/a11y-check.mjs."
   },
 
@@ -385,31 +385,31 @@
     "indigo": {
       "label": "Indigo",
       "default": true,
-      "human": { "light": "#6B5CF6", "dark": "#887DF2" },
-      "human-text": { "light": "#5D4DE8", "dark": "#9C93F4" },
+      "human": { "light": "#5B4DEF", "dark": "#887DF2" },
+      "human-text": { "light": "#5B4DEF", "dark": "#9C93F4" },
       "on-human": { "light": "#FFFFFF", "dark": "#101116" },
-      "agent": { "light": "#279E52", "dark": "#6CD592" },
-      "agent-text": { "light": "#1B7A3D", "dark": "#7FDCA0" },
-      "on-agent": { "light": "#FFFFFF", "dark": "#0F1015" }
+      "agent": { "light": "#12946A", "dark": "#66D4A1" },
+      "agent-text": { "light": "#0B7D59", "dark": "#66D4A1" },
+      "on-agent": { "light": "#FFFFFF", "dark": "#101116" }
     },
     "clay": {
       "label": "Clay",
-      "human": { "light": "#9C4126", "dark": "#C57A55" },
-      "human-text": { "light": "#9C4126", "dark": "#C97F5B" },
+      "human": { "light": "#A9482C", "dark": "#DD8A6C" },
+      "human-text": { "light": "#A9482C", "dark": "#DD8A6C" },
       "on-human": { "light": "#FFFFFF", "dark": "#101116" },
-      "agent": { "light": "#279E52", "dark": "#6CD592" },
-      "agent-text": { "light": "#1B7A3D", "dark": "#7FDCA0" },
-      "on-agent": { "light": "#FFFFFF", "dark": "#0F1015" }
+      "agent": { "light": "#12946A", "dark": "#66D4A1" },
+      "agent-text": { "light": "#0B7D59", "dark": "#66D4A1" },
+      "on-agent": { "light": "#FFFFFF", "dark": "#101116" }
     },
     "slate": {
       "label": "Slate",
       "proposed": true,
-      "human": { "light": "#3D6BC4", "dark": "#85A7EC" },
-      "human-text": { "light": "#3765BD", "dark": "#93B0EE" },
+      "human": { "light": "#3A62BE", "dark": "#85A7EC" },
+      "human-text": { "light": "#3A62BE", "dark": "#93B0EE" },
       "on-human": { "light": "#FFFFFF", "dark": "#101116" },
-      "agent": { "light": "#279E52", "dark": "#6CD592" },
-      "agent-text": { "light": "#1B7A3D", "dark": "#7FDCA0" },
-      "on-agent": { "light": "#FFFFFF", "dark": "#0F1015" }
+      "agent": { "light": "#12946A", "dark": "#66D4A1" },
+      "agent-text": { "light": "#0B7D59", "dark": "#66D4A1" },
+      "on-agent": { "light": "#FFFFFF", "dark": "#101116" }
     },
     "plum": {
       "label": "Plum",
@@ -417,9 +417,19 @@
       "human": { "light": "#A23F9C", "dark": "#D48BD0" },
       "human-text": { "light": "#9C3B96", "dark": "#D897D5" },
       "on-human": { "light": "#FFFFFF", "dark": "#101116" },
-      "agent": { "light": "#279E52", "dark": "#6CD592" },
-      "agent-text": { "light": "#1B7A3D", "dark": "#7FDCA0" },
-      "on-agent": { "light": "#FFFFFF", "dark": "#0F1015" }
+      "agent": { "light": "#12946A", "dark": "#66D4A1" },
+      "agent-text": { "light": "#0B7D59", "dark": "#66D4A1" },
+      "on-agent": { "light": "#FFFFFF", "dark": "#101116" }
+    },
+    "graphite": {
+      "label": "Graphite",
+      "proposed": true,
+      "human": { "light": "#525A6E", "dark": "#A9AFC4" },
+      "human-text": { "light": "#525A6E", "dark": "#A9AFC4" },
+      "on-human": { "light": "#FFFFFF", "dark": "#101116" },
+      "agent": { "light": "#12946A", "dark": "#66D4A1" },
+      "agent-text": { "light": "#0B7D59", "dark": "#66D4A1" },
+      "on-agent": { "light": "#FFFFFF", "dark": "#101116" }
     }
   }
 }

@@ -4,10 +4,10 @@ id: 9a4628a2-6ada-4a36-9348-fad9adf1d0ec
 key: LC-185
 title: User should be able to rearrange items in checklist
 status: in_progress
-priority: urgent
+priority: p1
 rank: Zv
 created_at: 2026-08-09T00:29:54.076Z
-updated_at: 2026-08-09T07:37:27.793Z
+updated_at: 2026-08-10T07:22:01.301Z
 ---
 
 ## Activity
@@ -63,6 +63,21 @@ changes:
   - field: rank
     from: Zx
     to: Zv
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_7057cdd1
+kind: update
+occurred_at: 2026-08-10T07:22:01.301Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: priority
+    from: urgent
+    to: p1
 -->
 ### You updated this ticket
 <!-- /longclaw:event -->

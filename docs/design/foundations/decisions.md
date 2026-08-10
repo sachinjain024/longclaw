@@ -6,23 +6,19 @@ every divergence flagged in the approved visual reference
 **rejected** / **adjusted**. All decisions below are staged for founder
 sign-off at the M0 gate; none silently diverge from the brief.
 
-## D1 — Theme preset set: 4 presets · accepted (count), proposed (new hues)
+## D1 — Theme preset set: 5 presets · accepted (count), proposed (new hues)
 
-Indigo (default) · Clay · **Slate** · **Plum**. Brief allowed 4–5 including
-Indigo and Clay with 2–3 new proposals; we ship two new proposals and stop at
-four, because every additional preset must clear a shrinking safe-hue space
-(see D2 rejections) and four already proves the token architecture.
+Indigo (default) · Clay · **Slate** · **Plum** · **Graphite**. Revised by
+LC-192 (D17): Graphite comes across from the Claude Design v3 preset set, and
+the founder asked for room to add more later.
 
-| Preset | Human accent (light / dark) | Agent accent (light / dark) | Status |
-|---|---|---|---|
-| Indigo · default | `#6B5CF6` / `#887DF2` | `#279E52` / `#6CD592` | accepted — approved reference values |
-| Clay | `#9C4126` / `#C57A55` | same | adjusted — see D10 |
-| Slate | `#3D6BC4` / `#85A7EC` | same | proposed — steel blue, calm and technical |
-| Plum | `#A23F9C` / `#D48BD0` | same | proposed — warm violet, clearly not Indigo |
-
-The brief's Indigo working values (`#4B4EE7`/`#898CF6`) were superseded by
-the approved reference's `#6B5CF6`/`#887DF2`; the reference sets these as its
-root theme tokens and they test better against the status ramp.
+| Preset           | Human accent (light / dark) | Agent accent (light / dark) | Status                                     |
+| ---------------- | --------------------------- | --------------------------- | ------------------------------------------ |
+| Indigo · default | `#5B4DEF` / `#887DF2`       | `#12946A` / `#66D4A1`       | revised — see D17                          |
+| Clay             | `#A9482C` / `#DD8A6C`       | same                        | revised — see D17                          |
+| Slate            | `#3A62BE` / `#85A7EC`       | same                        | proposed — steel blue, calm and technical  |
+| Plum             | `#A23F9C` / `#D48BD0`       | same                        | proposed — warm violet, clearly not Indigo |
+| Graphite         | `#525A6E` / `#A9AFC4`       | same                        | proposed — the quiet near-neutral option   |
 
 **Rejected preset candidates** (recorded so they aren't re-proposed blind):
 
@@ -35,7 +31,7 @@ root theme tokens and they test better against the status ramp.
 
 ## D2 — Agent accent stays one green family across all themes · accepted
 
-`#279E52` light / `#6CD592` dark in every preset. Agent activity must read
+`#12946A` light / `#66D4A1` dark in every preset (values revised by D17). Agent activity must read
 identically in every project — the differentiating surface never changes
 costume. Tested against every human accent under protanopia, deuteranopia and
 tritanopia (`accessibility.md`); the Clay pairing required a value adjustment
@@ -154,20 +150,20 @@ WCAG AA when tested (`scripts/a11y-check.mjs`, results in
 `accessibility.md`). Production values were nudged the minimum distance to
 clear the gates; the look stays calm.
 
-| Token | Reference | Production | Why |
-|---|---|---|---|
-| `ink-3` light | `#878CA0` | `#666B80` | 4.5:1 as meta text on wash/bg/surface |
-| `ink-3` dark | `#676C80` | `#8A8FA3` | same, on dark surfaces |
-| `status-backlog/todo` light | `#A9ADC0`/`#878CA0` | `#82879B` | 3:1 glyph stroke on bg |
-| `status-in-progress` light | `#DE9B0D` | `#B47D0A` | amber failed 3:1 badly (2.1) |
-| `status-in-review` light | `#E5732A` | `#C25C1B` | 3:1 on bg |
-| `status-canceled` light/dark | `#C7CAD6`/`#3A3D4D` | `#82879B`/`#767B90` | fill 3:1 + X mark 3:1 on fill |
-| `priority-urgent` light | `#E0762F` | `#C2591D` | fill and white mark both 3:1 |
-| `warn` light | `#B45309` | `#9A5008` | 4.5:1 as banner text |
-| `danger` light | `#D64545` | `#C43A3A` | 4.5:1 as button text |
-| Clay human light | `#A9482C` (brief working value) | `#9C4126` | deuteranopia ΔL 9.6 → 13.3 vs agent green |
-| Clay human dark | — (unspecified in brief) | `#C57A55` | deuteranopia ΔE 20.8 (clears the strict tier) |
-| dark toast secondary | `#5A5F75` | `#4C5165` | 4.5:1 on inverse surface |
+| Token                        | Reference                       | Production          | Why                                           |
+| ---------------------------- | ------------------------------- | ------------------- | --------------------------------------------- |
+| `ink-3` light                | `#878CA0`                       | `#666B80`           | 4.5:1 as meta text on wash/bg/surface         |
+| `ink-3` dark                 | `#676C80`                       | `#8A8FA3`           | same, on dark surfaces                        |
+| `status-backlog/todo` light  | `#A9ADC0`/`#878CA0`             | `#82879B`           | 3:1 glyph stroke on bg                        |
+| `status-in-progress` light   | `#DE9B0D`                       | `#B47D0A`           | amber failed 3:1 badly (2.1)                  |
+| `status-in-review` light     | `#E5732A`                       | `#C25C1B`           | 3:1 on bg                                     |
+| `status-canceled` light/dark | `#C7CAD6`/`#3A3D4D`             | `#82879B`/`#767B90` | fill 3:1 + X mark 3:1 on fill                 |
+| `priority-urgent` light      | `#E0762F`                       | `#C2591D`           | fill and white mark both 3:1                  |
+| `warn` light                 | `#B45309`                       | `#9A5008`           | 4.5:1 as banner text                          |
+| `danger` light               | `#D64545`                       | `#C43A3A`           | 4.5:1 as button text                          |
+| Clay human light             | `#A9482C` (brief working value) | `#9C4126`           | deuteranopia ΔL 9.6 → 13.3 vs agent green     |
+| Clay human dark              | — (unspecified in brief)        | `#C57A55`           | deuteranopia ΔE 20.8 (clears the strict tier) |
+| dark toast secondary         | `#5A5F75`                       | `#4C5165`           | 4.5:1 on inverse surface                      |
 
 Dark-appearance status values keep the reference hues (`#E7B23A`,
 `#EC8B4C`, `#E0762F`) — they all pass on dark surfaces. Where a color is
@@ -228,13 +224,13 @@ palette per the brief's proposal.
 
 ## D15 — Token architecture · accepted (hard requirement, verified)
 
-Two independent axes on the root element: `data-appearance` (light/dark) ×
-`data-theme` (indigo/clay/slate/plum). A preset supplies **six values per
+Two independent axes on the root element: `data-theme` (light/dark) ×
+`data-lc-theme` (indigo/clay/slate/plum). A preset supplies **six values per
 appearance** (accent, text variant, on-accent × two actors); every
 soft/hover/ring/rail/wash variant derives via `color-mix(in oklab, …)` in
 generated CSS. Neutrals, status, warn/error, and label colors are
 theme-independent system tokens. The board proof (`proof/board.html`)
-renders all 4 themes × 2 appearances from one DOM with zero component
+renders all 5 themes × 2 appearances from one DOM with zero component
 overrides — switching is a token swap and nothing else.
 
 ## D16 — The header gear's hover fades its glyph colour · accepted (reference divergence)
@@ -258,3 +254,52 @@ state `components.md:32` gives no motion at all.
 > Raised as item 4 of LC-158, from the review of LC-70. Items 1-3 and 5 of that
 > ticket were defects; this one was a question, recorded here rather than
 > answered in a CSS comment nobody would find from the prototype side.
+
+## D17 — Reconciled with Claude Design v3 · accepted (LC-192)
+
+The repo and the Claude Design project **LongClaw DS v3** were never parent and
+child. Both were built from the same two inputs — the v1 specimen
+(`fable-design-system-v1.mhtml`, saved by hand) and the brief's instruction to
+move accents into theme tokens — and each invented its own preset hues. That
+predicts exactly what LC-192 found: where both copied v1 the values match to
+the digit (focus-ring 14/18, agent-ring 10/13, agent-border 38/42), and where
+both invented, they diverge.
+
+Resolved in favour of Claude Design, because those hues were chosen against the
+settled docs while the repo's were carried over from a specimen's tweak state:
+
+|                      | was                   | now                   | why                                                                                                                                                                                                                                                       |
+| -------------------- | --------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Indigo human · light | `#6B5CF6`             | `#5B4DEF`             | v3 retires `#6B5CF6` outright. Its own `#4B4EE7` sits 5° from Linear's `#5E6AD2` in hue; the brand goal is not to be mistaken for Linear, so this keeps v3's weight at 245° — 11° off Linear — and clears 5.60:1 on white where `#6B5CF6` scraped 4.68:1. |
+| Agent · light/dark   | `#279E52` / `#6CD592` | `#12946A` / `#66D4A1` | v3's green. v1's own `lcPulse` keyframe already hardcoded `rgba(18,148,106,.38)` — the specimen disagreed with itself and v3 is the resolution.                                                                                                           |
+| Agent text           | `#1B7A3D` / `#7FDCA0` | `#0B7D59` / `#66D4A1` | v3 §07-05 proposed `#0B7D59` for strict 4.5:1; it clears 5.13:1 on white and 4.54:1 on the agent soft chip.                                                                                                                                               |
+| Clay human           | `#9C4126` / `#C57A55` | `#A9482C` / `#DD8A6C` | v3's pair, dark adjusted — see below.                                                                                                                                                                                                                     |
+
+**Two values are ours, not v3's, and the checker is why.** v3 §07-06 asserted
+that the clay/agent-green pair stays separable under deuteranopia because of
+its lightness gap. It does not: v3's clay dark `#E29277` against the new agent
+green scores ΔE 18.03 / ΔL 5.53, under the ΔE ≥ 20 (or ΔE ≥ 12 with ΔL ≥ 10)
+bar. `#DD8A6C` clears it. Separately the new green is teal-shifted enough to
+collide with Slate under tritanopia (ΔE 17.91), so Slate light moves
+`#3D6BC4` → `#3A62BE`. Sweeping the green itself fixed neither and made clay
+worse — the old `#6CD592` scores ΔE 10.77 there.
+
+This is the whole argument for the repo holding the token ledger: v3 has no
+checker, so it shipped a pair its own prose claimed was safe. All 226 checks
+pass at the landed values.
+
+**Also settled here:** the appearance/preset attributes were swapped relative
+to the design system — the repo used `data-theme` for the preset and
+`data-appearance` for light/dark, while `theme-v3.css` uses `data-lc-theme`
+and `data-theme`. Same attribute name, opposite meaning, so no markup could
+move between them. The repo adopted v3's contract (LC-192 § A1).
+
+**And the fork:** `docs/design/foundations/tokens/` was a second
+`design-tokens.json` labelled the source of truth while the app shipped
+another. `a11y-check.mjs` read the stale one, so this document's AA guarantee
+was being proved against values no user saw. Deleted; the prototype, both
+proof pages and the checker now read `apps/desktop/src/tokens/`, and
+`scripts/token-source-guard.mjs` fails the build if a second copy reappears.
+
+> Filed as LC-192. The full item-by-item comparison is
+> `.longclaw/tickets/LC-192/conflicts.md`.

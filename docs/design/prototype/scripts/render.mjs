@@ -1,17 +1,33 @@
 /* Regenerates ../renders/ from prototype.html.
- * Usage: npm i playwright && node scripts/render.mjs
- * Uses the locally installed Chrome (channel: "chrome"). */
-import { chromium } from "playwright";
+ * Usage: node scripts/render.mjs   (from docs/design/prototype)
+ *
+ * Drives WebKit through `playwright-core`, resolved out of `apps/desktop` —
+ * the same engine and the same resolution the foundations pipeline uses
+ * (../../foundations/scripts/render.mjs), and the engine the product actually
+ * ships in, since Tauri renders through WKWebView on macOS.
+ *
+ * It used to import full `playwright` and launch `channel: "chrome"`, neither
+ * of which is installed in this repo — so the committed renders could not be
+ * regenerated at all, and LC-192 found them eleven weeks stale, still showing
+ * accents the design system had retired. A pipeline that cannot run is not a
+ * pipeline; it is a screenshot with a script next to it.
+ */
 import { mkdirSync } from "fs";
+import { createRequire } from "module";
 import { dirname, resolve } from "path";
 import { fileURLToPath } from "url";
 
 const here = dirname(fileURLToPath(import.meta.url));
+const require = createRequire(
+  resolve(here, "../../../../apps/desktop/package.json"),
+);
+const { webkit } = require("playwright-core");
+
 const url = "file://" + resolve(here, "../prototype.html");
 const out = resolve(here, "../renders");
 mkdirSync(out, { recursive: true });
 
-const browser = await chromium.launch({ channel: "chrome" });
+const browser = await webkit.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 const shot = (name) => page.screenshot({ path: `${out}/${name}.png` });
 const set = async (theme, appearance) => {

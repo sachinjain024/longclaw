@@ -2,7 +2,7 @@
    LongClaw v0 prototype — Phase 0, Step 2.
    Every color routes through a --lc-* token (see foundations/tokens/).
    There is not a single hex value in this stylesheet; switching
-   data-theme / data-appearance on <html> swaps tokens and nothing else.
+   data-lc-theme / data-theme on <html> swaps tokens and nothing else.
    Geometry follows foundations/components.md.
    ==================================================================== */
 
@@ -34,9 +34,9 @@ input, textarea, select { font: inherit; color: inherit; }
   background: var(--lc-tile); color: var(--lc-inverse-ink);
   font-family: var(--lc-font-mono); font-size: 10.5px;
 }
-[data-appearance="dark"] .driver { border-bottom: 1px solid var(--lc-line); }
+[data-theme="dark"] .driver { border-bottom: 1px solid var(--lc-line); }
 .driver-name { font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--lc-inverse-ink); opacity: .92; }
-[data-appearance="light"] .driver-name { color: var(--lc-inverse-ink); }
+[data-theme="light"] .driver-name { color: var(--lc-inverse-ink); }
 .driver-group { display: flex; align-items: center; gap: 4px; }
 .driver-group button {
   height: 22px; padding: 0 8px; border-radius: var(--lc-radius-kbd);
@@ -71,17 +71,17 @@ input, textarea, select { font: inherit; color: inherit; }
 
 /* The tile stays near-black in both appearances; in dark, "inverse" ink is
    dark too, so the harness remaps its text to the (light) ink ramp. */
-[data-appearance="dark"] .driver,
-[data-appearance="dark"] .driver-name { color: var(--lc-ink); }
-[data-appearance="dark"] .driver-group button { color: var(--lc-ink-2); border-color: color-mix(in oklab, var(--lc-ink) 22%, transparent); }
-[data-appearance="dark"] .driver-group button:hover { color: var(--lc-ink); border-color: color-mix(in oklab, var(--lc-ink) 45%, transparent); }
-[data-appearance="dark"] .driver-sep { background: color-mix(in oklab, var(--lc-ink) 25%, transparent); }
-[data-appearance="dark"] .driver-ticker { color: var(--lc-ink-2); }
-[data-appearance="dark"] .driver .swatch { border-color: color-mix(in oklab, var(--lc-ink) 28%, transparent); }
-[data-appearance="dark"] .driver .swatch[aria-pressed="true"] { border-color: var(--lc-ink); box-shadow: 0 0 0 2px color-mix(in oklab, var(--lc-ink) 25%, transparent); }
-[data-appearance="dark"] .driver-seg { border-color: color-mix(in oklab, var(--lc-ink) 28%, transparent); }
-[data-appearance="dark"] .driver-seg button { color: var(--lc-ink-2); }
-[data-appearance="dark"] .driver-seg button[aria-pressed="true"] { background: color-mix(in oklab, var(--lc-ink) 18%, transparent); color: var(--lc-ink); }
+[data-theme="dark"] .driver,
+[data-theme="dark"] .driver-name { color: var(--lc-ink); }
+[data-theme="dark"] .driver-group button { color: var(--lc-ink-2); border-color: color-mix(in oklab, var(--lc-ink) 22%, transparent); }
+[data-theme="dark"] .driver-group button:hover { color: var(--lc-ink); border-color: color-mix(in oklab, var(--lc-ink) 45%, transparent); }
+[data-theme="dark"] .driver-sep { background: color-mix(in oklab, var(--lc-ink) 25%, transparent); }
+[data-theme="dark"] .driver-ticker { color: var(--lc-ink-2); }
+[data-theme="dark"] .driver .swatch { border-color: color-mix(in oklab, var(--lc-ink) 28%, transparent); }
+[data-theme="dark"] .driver .swatch[aria-pressed="true"] { border-color: var(--lc-ink); box-shadow: 0 0 0 2px color-mix(in oklab, var(--lc-ink) 25%, transparent); }
+[data-theme="dark"] .driver-seg { border-color: color-mix(in oklab, var(--lc-ink) 28%, transparent); }
+[data-theme="dark"] .driver-seg button { color: var(--lc-ink-2); }
+[data-theme="dark"] .driver-seg button[aria-pressed="true"] { background: color-mix(in oklab, var(--lc-ink) 18%, transparent); color: var(--lc-ink); }
 
 /* ====================================================================
    2 · SHARED PRIMITIVES — buttons, inputs, chips, avatars, glyphs
@@ -102,15 +102,15 @@ input, textarea, select { font: inherit; color: inherit; }
 .btn-secondary { border: 1px solid var(--lc-line-strong); background: var(--lc-surface); color: var(--lc-ink); }
 .btn-secondary:hover { background: var(--lc-wash); }
 .btn-secondary:active { border-color: var(--lc-ink-3); }
-[data-appearance="dark"] .btn-secondary { background: var(--lc-raised); }
-[data-appearance="dark"] .btn-secondary:hover { background: var(--lc-wash); }
+[data-theme="dark"] .btn-secondary { background: var(--lc-raised); }
+[data-theme="dark"] .btn-secondary:hover { background: var(--lc-wash); }
 .btn-ghost { background: transparent; color: var(--lc-ink-2); }
 .btn-ghost:hover { background: var(--lc-wash); }
 .btn-ghost:active { background: var(--lc-line-soft); }
 .btn-danger { border: 1px solid var(--lc-danger-border); background: var(--lc-surface); color: var(--lc-danger); }
 .btn-danger:hover { background: var(--lc-danger-surface); }
-[data-appearance="dark"] .btn-danger { background: var(--lc-raised); }
-[data-appearance="dark"] .btn-danger:hover { background: var(--lc-danger-surface); }
+[data-theme="dark"] .btn-danger { background: var(--lc-raised); }
+[data-theme="dark"] .btn-danger:hover { background: var(--lc-danger-surface); }
 .btn-sm { height: var(--lc-size-control-sm); padding: 0 9px; font-size: 12px; }
 .btn[disabled] { color: var(--lc-ink-disabled); background: var(--lc-wash); border-color: var(--lc-line); cursor: default; }
 
@@ -128,7 +128,7 @@ input, textarea, select { font: inherit; color: inherit; }
   caret-color: var(--lc-accent-human);
   transition: border-color var(--lc-motion-fast) var(--lc-motion-ease);
 }
-[data-appearance="dark"] .field { background: var(--lc-surface); }
+[data-theme="dark"] .field { background: var(--lc-surface); }
 .field::placeholder { color: var(--lc-ink-3); }
 .field:focus-visible { border-color: var(--lc-accent-human); box-shadow: var(--lc-focus-ring); }
 .field.invalid { border-color: var(--lc-danger); }
@@ -142,7 +142,7 @@ input, textarea, select { font: inherit; color: inherit; }
   font-size: 10.5px; font-weight: 500; color: var(--lc-ink-2);
   background: var(--lc-surface);
 }
-[data-appearance="dark"] .label-chip { background: var(--lc-raised); }
+[data-theme="dark"] .label-chip { background: var(--lc-raised); }
 .label-chip i { width: 6px; height: 6px; border-radius: 50%; background: var(--label, var(--lc-label-gray)); }
 .label-chip.lg { height: var(--lc-size-chip); font-size: 11.5px; }
 .label-chip.lg i { width: 7px; height: 7px; }
@@ -193,7 +193,7 @@ input, textarea, select { font: inherit; color: inherit; }
 svg.glyph { flex: none; }
 
 .progress { height: 3px; width: 44px; border-radius: 2px; background: var(--lc-wash); overflow: hidden; flex: none; }
-[data-appearance="dark"] .progress { background: var(--lc-line); }
+[data-theme="dark"] .progress { background: var(--lc-line); }
 .progress i { display: block; height: 100%; border-radius: 2px; background: var(--lc-ink-3); transition: width var(--lc-motion-state) var(--lc-motion-ease); }
 .fraction { font-family: var(--lc-font-mono); font-size: 10.5px; font-weight: 500; color: var(--lc-ink-3); }
 
@@ -329,7 +329,7 @@ svg.glyph { flex: none; }
 
 .view-seg { display: flex; border: 1px solid var(--lc-line-strong); border-radius: var(--lc-radius-control); overflow: hidden; flex: none; }
 .view-seg button { height: 28px; padding: 0 11px; background: var(--lc-surface); color: var(--lc-ink-2); font-size: 12.5px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; }
-[data-appearance="dark"] .view-seg button { background: var(--lc-raised); }
+[data-theme="dark"] .view-seg button { background: var(--lc-raised); }
 .view-seg button:hover { background: var(--lc-wash); }
 .view-seg button[aria-pressed="true"] { background: var(--lc-accent-human); color: var(--lc-on-accent-human); }
 .view-seg button:focus-visible { box-shadow: inset var(--lc-focus-ring); }
@@ -375,7 +375,7 @@ svg.glyph { flex: none; }
               background var(--lc-motion-fast) var(--lc-motion-ease);
 }
 .card:hover { border-color: var(--lc-line-strong); }
-[data-appearance="dark"] .card:hover { background: var(--lc-raised); }
+[data-theme="dark"] .card:hover { background: var(--lc-raised); }
 .card:focus-visible { border-color: var(--lc-accent-human); box-shadow: var(--lc-focus-ring); }
 .card.selected { border-color: var(--lc-accent-human); background: var(--lc-accent-human-wash); }
 .card .top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
@@ -437,7 +437,7 @@ svg.glyph { flex: none; }
 }
 .rows .row:last-child { border-bottom: none; }
 .rows .row:hover { background: var(--lc-wash); }
-[data-appearance="dark"] .rows .row:hover { background: var(--lc-raised); }
+[data-theme="dark"] .rows .row:hover { background: var(--lc-raised); }
 .rows .row:focus-visible { box-shadow: inset 0 0 0 1px var(--lc-accent-human), inset var(--lc-focus-ring); }
 .rows .row.selected { background: var(--lc-accent-human-wash); box-shadow: inset 2px 0 0 var(--lc-accent-human); }
 .rows .row .id { font-family: var(--lc-font-mono); font-size: 11px; color: var(--lc-ink-3); width: 58px; flex: none; }
@@ -495,7 +495,7 @@ svg.glyph { flex: none; }
 .editor { border: 1px solid var(--lc-line); border-radius: var(--lc-radius-card); overflow: hidden; }
 .editor.editing { border-color: var(--lc-line-strong); }
 .editor-tabs { display: flex; align-items: center; gap: 2px; padding: 6px 8px; border-bottom: 1px solid var(--lc-line-soft); background: var(--lc-wash); }
-[data-appearance="dark"] .editor-tabs { background: var(--lc-raised); }
+[data-theme="dark"] .editor-tabs { background: var(--lc-raised); }
 .editor-tabs .tab { height: 24px; padding: 0 10px; border-radius: var(--lc-radius-kbd); font-size: 12px; font-weight: 500; color: var(--lc-ink-3); }
 .editor-tabs .tab[aria-selected="true"] { background: var(--lc-surface); color: var(--lc-ink); box-shadow: 0 0 0 1px var(--lc-line); }
 .editor-tabs .tab:hover { color: var(--lc-ink); }
@@ -525,9 +525,9 @@ svg.glyph { flex: none; }
 .md ul { margin: 0 0 10px; padding-left: 20px; }
 .md li { margin: 3px 0; }
 .md code { font-family: var(--lc-font-mono); font-size: 11.5px; background: var(--lc-wash); border-radius: var(--lc-radius-kbd); padding: 1.5px 5px; }
-[data-appearance="dark"] .md code { background: var(--lc-raised); }
+[data-theme="dark"] .md code { background: var(--lc-raised); }
 .md pre { background: var(--lc-wash); border-radius: var(--lc-radius-control); padding: 10px 12px; margin: 0 0 10px; overflow-x: auto; }
-[data-appearance="dark"] .md pre { background: var(--lc-raised); }
+[data-theme="dark"] .md pre { background: var(--lc-raised); }
 .md pre code { background: none; padding: 0; font-size: 11.5px; }
 .md a { color: var(--lc-accent-human-text); text-decoration: none; }
 .md a:hover { text-decoration: underline; }
@@ -720,7 +720,7 @@ svg.glyph { flex: none; }
 .dialog .danger-zone { border-top: 1px solid var(--lc-line-soft); margin-top: 22px; padding-top: 16px; }
 .seg-appearance { display: flex; border: 1px solid var(--lc-line-strong); border-radius: var(--lc-radius-control); overflow: hidden; width: fit-content; }
 .seg-appearance button { height: 28px; padding: 0 14px; background: var(--lc-surface); color: var(--lc-ink-2); font-size: 12.5px; font-weight: 500; }
-[data-appearance="dark"] .seg-appearance button { background: var(--lc-raised); }
+[data-theme="dark"] .seg-appearance button { background: var(--lc-raised); }
 .seg-appearance button[aria-pressed="true"] { background: var(--lc-accent-human); color: var(--lc-on-accent-human); }
 
 /* waitlist success */

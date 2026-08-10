@@ -1,16 +1,16 @@
 <!doctype html>
-<html lang="en" data-appearance="light" data-theme="indigo">
+<html lang="en" data-theme="light" data-lc-theme="indigo">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LongClaw — components library · foundations proof</title>
 <link rel="stylesheet" href="fonts.css">
-<link rel="stylesheet" href="../tokens/design-tokens.css">
+<link rel="stylesheet" href="../../../../apps/desktop/src/tokens/design-tokens.css">
 <style>
   /* ============================================================
      COMPONENTS LIBRARY — every foundation component on live tokens.
      Same discipline as board.html: not a single hex value in this
-     file; switching data-theme / data-appearance swaps tokens only.
+     file; switching data-lc-theme / data-theme swaps tokens only.
      Color values shown under swatches are read back from the
      rendered pixels by JS, so they are always the shipped values.
 
@@ -141,12 +141,12 @@
   .btn-primary:active, .btn-primary.force-active { background: var(--lc-accent-human-active); }
   .btn-secondary { border: 1px solid var(--lc-line-strong); background: var(--lc-surface); color: var(--lc-ink); }
   .btn-secondary:hover, .btn-secondary.force-hover { background: var(--lc-wash); }
-  [data-appearance="dark"] .btn-secondary { background: var(--lc-raised); }
+  [data-theme="dark"] .btn-secondary { background: var(--lc-raised); }
   .btn-ghost { background: transparent; color: var(--lc-ink-2); }
   .btn-ghost:hover, .btn-ghost.force-hover { background: var(--lc-wash); }
   .btn-danger { border: 1px solid var(--lc-danger-border); background: var(--lc-surface); color: var(--lc-danger); }
   .btn-danger:hover, .btn-danger.force-hover { background: var(--lc-danger-surface); }
-  [data-appearance="dark"] .btn-danger { background: var(--lc-raised); }
+  [data-theme="dark"] .btn-danger { background: var(--lc-raised); }
   .btn[disabled] { background: var(--lc-wash); color: var(--lc-ink-disabled); border: none; cursor: default; }
   .kbd { font-family: var(--lc-font-mono); font-size: var(--lc-type-kbd-size);
     background: color-mix(in oklab, var(--lc-on-accent-human) 20%, transparent);
@@ -160,7 +160,7 @@
   .field { height: var(--lc-size-control); border: 1px solid var(--lc-line-strong); border-radius: var(--lc-radius-control);
     background: var(--lc-surface); display: flex; align-items: center; gap: 8px; padding: 0 10px;
     font-size: 13px; color: var(--lc-ink); max-width: 360px; }
-  [data-appearance="dark"] .field { background: var(--lc-surface); }
+  [data-theme="dark"] .field { background: var(--lc-surface); }
   .field.placeholder { color: var(--lc-ink-3); }
   .field.force-focus { border-color: var(--lc-accent-human); box-shadow: var(--lc-focus-ring); }
   .field .caret { width: 1.5px; height: 15px; background: var(--lc-accent-human); }
@@ -174,7 +174,7 @@
   .label-chip { display: inline-flex; align-items: center; gap: 6px; height: var(--lc-size-chip); padding: 0 9px;
     border: 1px solid var(--lc-line); border-radius: var(--lc-radius-full); font-size: 11.5px; font-weight: 500;
     color: var(--lc-ink-2); background: var(--lc-surface); }
-  [data-appearance="dark"] .label-chip { background: var(--lc-raised); }
+  [data-theme="dark"] .label-chip { background: var(--lc-raised); }
   .label-chip i { width: 7px; height: 7px; border-radius: 50%; background: var(--label, var(--lc-label-gray)); }
   .id-chip { display: inline-flex; align-items: center; height: var(--lc-size-chip); padding: 0 9px;
     border-radius: var(--lc-radius-control); background: var(--lc-accent-human-soft);
@@ -299,7 +299,7 @@
   .meta-ctl { display: inline-flex; align-items: center; gap: 6px; height: var(--lc-size-control-sm);
     padding: 0 9px; border: 1px solid var(--lc-line-strong); border-radius: var(--lc-radius-control);
     font-size: 12px; font-weight: 500; color: var(--lc-ink); background: var(--lc-surface); cursor: pointer; }
-  [data-appearance="dark"] .meta-ctl { background: var(--lc-raised); }
+  [data-theme="dark"] .meta-ctl { background: var(--lc-raised); }
   .meta-ctl:hover { background: var(--lc-wash); }
   .meta-ctl .who { font-size: 12px; }
   .tdivider { border-top: 1px solid var(--lc-line-soft); }
@@ -333,13 +333,13 @@
   .banner.warn { background: var(--lc-warn-surface); border: 1px solid var(--lc-warn-border); }
   .banner.warn .btn-b { height: var(--lc-size-control-sm); padding: 0 9px; border: 1px solid var(--lc-warn-border-strong);
     border-radius: var(--lc-radius-control); background: var(--lc-surface); color: var(--lc-ink); font-size: 11.5px; font-weight: 500; }
-  [data-appearance="dark"] .banner.warn .btn-b { background: var(--lc-raised); }
+  [data-theme="dark"] .banner.warn .btn-b { background: var(--lc-raised); }
   .banner.warn .btn-g { height: var(--lc-size-control-sm); padding: 0 9px; border: none; border-radius: var(--lc-radius-control);
     background: transparent; color: var(--lc-warn-ink); font-size: 11.5px; font-weight: 500; }
   .banner.danger { background: var(--lc-danger-surface); border: 1px solid var(--lc-danger-border); }
   .banner.danger .btn-b { height: var(--lc-size-control-sm); padding: 0 9px; border: 1px solid var(--lc-danger-border);
     border-radius: var(--lc-radius-control); background: var(--lc-surface); color: var(--lc-danger); font-size: 11.5px; font-weight: 500; }
-  [data-appearance="dark"] .banner.danger .btn-b { background: var(--lc-raised); }
+  [data-theme="dark"] .banner.danger .btn-b { background: var(--lc-raised); }
 
   /* ---- 14 navigation ---- */
   .nav-demo { display: grid; grid-template-columns: 240px 1fr; gap: var(--lc-space-5); align-items: start; }
@@ -408,10 +408,11 @@
   <span class="meta">components library · every foundation on live tokens</span>
   <span class="spacer"></span>
   <div class="swatches" role="group" aria-label="Project theme">
-    <button class="swatch" data-set-theme="indigo" aria-pressed="true" title="Indigo (default)"><i data-appearance="light" data-theme="indigo"></i><i data-appearance="light" data-theme="indigo"></i></button>
-    <button class="swatch" data-set-theme="clay" aria-pressed="false" title="Clay"><i data-appearance="light" data-theme="clay"></i><i data-appearance="light" data-theme="clay"></i></button>
-    <button class="swatch" data-set-theme="slate" aria-pressed="false" title="Slate (proposed)"><i data-appearance="light" data-theme="slate"></i><i data-appearance="light" data-theme="slate"></i></button>
-    <button class="swatch" data-set-theme="plum" aria-pressed="false" title="Plum (proposed)"><i data-appearance="light" data-theme="plum"></i><i data-appearance="light" data-theme="plum"></i></button>
+    <button class="swatch" data-set-theme="indigo" aria-pressed="true" title="Indigo (default)"><i data-theme="light" data-lc-theme="indigo"></i><i data-theme="light" data-lc-theme="indigo"></i></button>
+    <button class="swatch" data-set-theme="clay" aria-pressed="false" title="Clay"><i data-theme="light" data-lc-theme="clay"></i><i data-theme="light" data-lc-theme="clay"></i></button>
+    <button class="swatch" data-set-theme="slate" aria-pressed="false" title="Slate (proposed)"><i data-theme="light" data-lc-theme="slate"></i><i data-theme="light" data-lc-theme="slate"></i></button>
+    <button class="swatch" data-set-theme="plum" aria-pressed="false" title="Plum (proposed)"><i data-theme="light" data-lc-theme="plum"></i><i data-theme="light" data-lc-theme="plum"></i></button>
+    <button class="swatch" data-set-theme="graphite" aria-pressed="false" title="Graphite (proposed)"><i data-theme="light" data-lc-theme="graphite"></i><i data-theme="light" data-lc-theme="graphite"></i></button>
   </div>
   <div class="seg" role="group" aria-label="Appearance">
     <button data-set-appearance="light" aria-pressed="true">Light</button>
@@ -1091,10 +1092,11 @@
           </div>
           <p class="row-label" style="margin-top: 18px;">Theme picker — preset swatches, no wheel, no custom colors</p>
           <div class="picker-row">
-            <div class="picker selected" data-preview="indigo"><div class="pswatch"><i data-appearance="light" data-theme="indigo"></i><i data-appearance="light" data-theme="indigo"></i></div><div class="pname">Indigo</div></div>
-            <div class="picker" data-preview="clay"><div class="pswatch"><i data-appearance="light" data-theme="clay"></i><i data-appearance="light" data-theme="clay"></i></div><div class="pname">Clay</div></div>
-            <div class="picker" data-preview="slate"><div class="pswatch"><i data-appearance="light" data-theme="slate"></i><i data-appearance="light" data-theme="slate"></i></div><div class="pname">Slate</div></div>
-            <div class="picker" data-preview="plum"><div class="pswatch"><i data-appearance="light" data-theme="plum"></i><i data-appearance="light" data-theme="plum"></i></div><div class="pname">Plum</div></div>
+            <div class="picker selected" data-preview="indigo"><div class="pswatch"><i data-theme="light" data-lc-theme="indigo"></i><i data-theme="light" data-lc-theme="indigo"></i></div><div class="pname">Indigo</div></div>
+            <div class="picker" data-preview="clay"><div class="pswatch"><i data-theme="light" data-lc-theme="clay"></i><i data-theme="light" data-lc-theme="clay"></i></div><div class="pname">Clay</div></div>
+            <div class="picker" data-preview="slate"><div class="pswatch"><i data-theme="light" data-lc-theme="slate"></i><i data-theme="light" data-lc-theme="slate"></i></div><div class="pname">Slate</div></div>
+            <div class="picker" data-preview="plum"><div class="pswatch"><i data-theme="light" data-lc-theme="plum"></i><i data-theme="light" data-lc-theme="plum"></i></div><div class="pname">Plum</div></div>
+            <div class="picker" data-preview="graphite"><div class="pswatch"><i data-theme="light" data-lc-theme="graphite"></i><i data-theme="light" data-lc-theme="graphite"></i></div><div class="pname">Graphite</div></div>
           </div>
         </div>
       </div>
@@ -1149,7 +1151,7 @@
   /* ---- proof controls (same contract as board.html) ---- */
   document.querySelectorAll("[data-set-theme]").forEach((b) =>
     b.addEventListener("click", () => {
-      document.documentElement.dataset.theme = b.dataset.setTheme;
+      document.documentElement.dataset.lcTheme = b.dataset.setTheme;
       document.querySelectorAll("[data-set-theme]").forEach((x) =>
         x.setAttribute("aria-pressed", x === b ? "true" : "false"));
       document.querySelectorAll(".picker").forEach((p) =>
@@ -1159,11 +1161,11 @@
   );
   document.querySelectorAll("[data-set-appearance]").forEach((b) =>
     b.addEventListener("click", () => {
-      document.documentElement.dataset.appearance = b.dataset.setAppearance;
+      document.documentElement.dataset.theme = b.dataset.setAppearance;
       document.querySelectorAll("[data-set-appearance]").forEach((x) =>
         x.setAttribute("aria-pressed", x === b ? "true" : "false"));
       document.querySelectorAll(".swatch i, .pswatch i").forEach((i) =>
-        i.setAttribute("data-appearance", b.dataset.setAppearance));
+        i.setAttribute("data-theme", b.dataset.setAppearance));
       paintValues();
     })
   );

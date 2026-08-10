@@ -15,8 +15,8 @@ export function ThemeSwatch(props: { theme: string }) {
   return (
     <span
       className="theme-swatch"
-      data-theme={props.theme}
-      data-appearance={appearance}
+      data-lc-theme={props.theme}
+      data-theme={appearance}
       // The row's own label names the preset; the swatch repeats it in colour.
       aria-hidden="true"
     >
@@ -30,7 +30,7 @@ export function ThemeSwatch(props: { theme: string }) {
  * The project's own theme, as a 6px dot beside its name in the side panel
  * (`components.md:251`, `screen-specs.md:57`) — the only place another
  * project's theme reaches this window. Same trick as the swatch, and the same
- * trap: with `data-theme` alone every dot silently wears the *active* project's
+ * trap: with `data-lc-theme` alone every dot silently wears the *active* project's
  * accent, which is indistinguishable from working until two projects differ.
  */
 export function ThemeDot(props: { theme: string }) {
@@ -38,8 +38,8 @@ export function ThemeDot(props: { theme: string }) {
   return (
     <span
       className="theme-dot"
-      data-theme={props.theme}
-      data-appearance={appearance}
+      data-lc-theme={props.theme}
+      data-theme={appearance}
       aria-hidden="true"
     />
   );

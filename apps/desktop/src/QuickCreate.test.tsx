@@ -14,7 +14,7 @@ import type { TicketPriority, TicketStatus } from "./types";
 afterEach(() => {
   cleanup();
   // Only the theme-dot test stamps it, and the root outlives a render.
-  delete document.documentElement.dataset.appearance;
+  delete document.documentElement.dataset.theme;
 });
 
 function quickCreate(props?: {
@@ -210,15 +210,15 @@ describe("quick create prototype parity", () => {
   });
 
   it("D-48: carries the project's theme dot before the name (LC-114)", () => {
-    document.documentElement.dataset.appearance = "dark";
+    document.documentElement.dataset.theme = "dark";
     const { container } = render(quickCreate({ projectTheme: "ember" }));
 
     const dot = container.querySelector<HTMLElement>(".theme-dot");
     expect(dot).toBeTruthy();
     // Both axes, or the dot resolves to the accent in force rather than this
     // project's own — indistinguishable from working until two projects differ.
-    expect(dot?.dataset.theme).toBe("ember");
-    expect(dot?.dataset.appearance).toBe("dark");
+    expect(dot?.dataset.lcTheme).toBe("ember");
+    expect(dot?.dataset.theme).toBe("dark");
     // Before the name, not after it: the eyebrow reads dot, name, key.
     expect(dot?.nextSibling?.textContent).toContain("Round Trip");
     // Decoration. The name is right beside it, so a dot in the reading order

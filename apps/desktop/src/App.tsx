@@ -126,6 +126,7 @@ const THEMES = [
   { id: "clay", label: "Clay" },
   { id: "slate", label: "Slate" },
   { id: "plum", label: "Plum" },
+  { id: "graphite", label: "Graphite" },
 ];
 
 /** The note `screen-specs.md:324-325` puts under the ordering menu, verbatim. */
@@ -671,10 +672,10 @@ export function App() {
             : "light"
           : appearance;
       // The first stamp is the launch value; only a *change* crossfades.
-      if (root.dataset.appearance && root.dataset.appearance !== next) {
+      if (root.dataset.theme && root.dataset.theme !== next) {
         crossfade();
       }
-      root.dataset.appearance = next;
+      root.dataset.theme = next;
     };
     stamp();
     // "System" is a live preference, not a launch-time read: macOS switching
@@ -710,8 +711,8 @@ export function App() {
     const root = document.documentElement;
     const theme = project?.theme || "indigo";
     // The first stamp is the launch value; only a *change* crossfades.
-    if (root.dataset.theme && root.dataset.theme !== theme) crossfade();
-    root.dataset.theme = theme;
+    if (root.dataset.lcTheme && root.dataset.lcTheme !== theme) crossfade();
+    root.dataset.lcTheme = theme;
   }, [project?.theme]);
 
   useEffect(() => {

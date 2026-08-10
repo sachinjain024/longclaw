@@ -372,11 +372,11 @@ function syncRoot() {
     ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
     : app.appearancePref;
   const root = document.documentElement;
-  root.dataset.theme = theme;
-  root.dataset.appearance = appearance;
+  root.dataset.lcTheme = theme;
+  root.dataset.theme = appearance;
   $$("#driver .swatch").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.value === theme)));
   $$("#driver .driver-seg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.value === appearance)));
-  $$("#driver .swatch i").forEach((i) => i.setAttribute("data-appearance", appearance));
+  $$("#driver .swatch i").forEach((i) => i.setAttribute("data-theme", appearance));
 }
 
 /* ---------- welcome / first launch ---------- */
@@ -432,11 +432,11 @@ function createProjectHTML() {
 }
 
 function themePickerHTML(selected, action) {
-  const appearance = document.documentElement.dataset.appearance || "light";
+  const appearance = document.documentElement.dataset.theme || "light";
   return `<div class="theme-picker" role="radiogroup" aria-label="Project theme">
-    ${["indigo", "clay", "slate", "plum"].map((th) => `
+    ${["indigo", "clay", "slate", "plum", "graphite"].map((th) => `
       <button class="theme-opt" role="radio" aria-pressed="${th === selected}" aria-checked="${th === selected}" data-action="${action}" data-value="${th}">
-        <span class="pair"><i data-appearance="${appearance}" data-theme="${th}"></i><i data-appearance="${appearance}" data-theme="${th}"></i></span>
+        <span class="pair"><i data-theme="${appearance}" data-lc-theme="${th}"></i><i data-theme="${appearance}" data-lc-theme="${th}"></i></span>
         <span class="name">${th[0].toUpperCase() + th.slice(1)}${th === "indigo" ? " · default" : ""}</span>
       </button>`).join("")}
   </div>`;
@@ -460,7 +460,7 @@ function sidebarHTML() {
   const rows = (list) => list.map((p) => `
     <button class="proj ${p.id === app.currentId ? "active" : ""} ${p.reachable ? "" : "unreachable"}" data-action="open-project" data-id="${p.id}" data-fkey="proj:${p.id}">
       ${p.reachable
-        ? `<span class="dot" data-appearance="${document.documentElement.dataset.appearance}" data-theme="${p.theme}"></span>`
+        ? `<span class="dot" data-theme="${document.documentElement.dataset.theme}" data-lc-theme="${p.theme}"></span>`
         : `<span class="warn-glyph" title="Folder not found">${GL.warn(12)}</span>`}
       <span class="name">${esc(p.name)}</span>
       <span class="star ${p.starred ? "on" : ""}" data-action="star-project" data-id="${p.id}" role="button" tabindex="-1" title="${p.starred ? "Unstar" : "Star"}">${GL.star(p.starred)}</span>
@@ -975,7 +975,7 @@ function paletteHTML(o) {
     crumb = "go to project";
     o.items = app.projects.filter((pp) => pp.name.toLowerCase().includes(q))
       .map((pp) => ({ id: "project", pid: pp.id, glyph: pp.reachable
-        ? `<span class="dot" style="width:6px;height:6px;border-radius:50%;background:var(--lc-accent-human);display:inline-block" data-appearance="${document.documentElement.dataset.appearance}" data-theme="${pp.theme}"></span>`
+        ? `<span class="dot" style="width:6px;height:6px;border-radius:50%;background:var(--lc-accent-human);display:inline-block" data-theme="${document.documentElement.dataset.theme}" data-lc-theme="${pp.theme}"></span>`
         : GL.warn(11),
         html: `${esc(pp.name)}${pp.reachable ? "" : ` <span class="sub">· unreachable</span>`}` }));
     rows = o.items.map(mk).join("");
@@ -989,9 +989,9 @@ function paletteHTML(o) {
     if (o.mode === "ordering") o.items = [["priority", "Priority — Urgent first (default)"], ["manual", "Manual — your order, kept in each ticket's rank"]]
       .filter(([, n]) => n.toLowerCase().includes(q))
       .map(([v, n]) => ({ id: "set-ordering", val: v, glyph: GL.listIcon, name: n }));
-    if (o.mode === "theme") o.items = ["indigo", "clay", "slate", "plum"].filter((th) => th.includes(q))
+    if (o.mode === "theme") o.items = ["indigo", "clay", "slate", "plum", "graphite"].filter((th) => th.includes(q))
       .map((th) => ({ id: "set-theme", val: th, name: th[0].toUpperCase() + th.slice(1),
-        glyph: `<span style="display:inline-flex;width:16px;height:11px;border-radius:2px;overflow:hidden" data-appearance="${document.documentElement.dataset.appearance}" data-theme="${th}"><i style="flex:2;background:var(--lc-accent-human)"></i><i style="flex:1;background:var(--lc-accent-agent)"></i></span>` }));
+        glyph: `<span style="display:inline-flex;width:16px;height:11px;border-radius:2px;overflow:hidden" data-theme="${document.documentElement.dataset.theme}" data-lc-theme="${th}"><i style="flex:2;background:var(--lc-accent-human)"></i><i style="flex:1;background:var(--lc-accent-agent)"></i></span>` }));
     rows = o.items.map(mk).join("");
   }
   return `
@@ -1336,7 +1336,7 @@ document.addEventListener("click", (e) => {
     "drv-unplug": () => stageUnplug(),
     "drv-theme": () => {
       if (p) { p.theme = target.dataset.value; ticker(`theme → ${target.dataset.value} · wrote longclaw.yaml`); }
-      document.documentElement.dataset.theme = target.dataset.value;
+      document.documentElement.dataset.lcTheme = target.dataset.value;
       render();
     },
     "drv-appearance": () => { app.appearancePref = target.dataset.value; render(); },
@@ -1345,7 +1345,7 @@ document.addEventListener("click", (e) => {
     "fl-create": () => { app.overlay = { type: "folder", mode: "create" }; render(); },
     "fl-open": () => { app.overlay = { type: "folder", mode: "open" }; render(); },
     "fl-cancel": () => { app.pendingCreate = null; render(); },
-    "np-theme": () => { app.pendingCreate.theme = target.dataset.value; document.documentElement.dataset.theme = target.dataset.value; render(); },
+    "np-theme": () => { app.pendingCreate.theme = target.dataset.value; document.documentElement.dataset.lcTheme = target.dataset.value; render(); },
     "fl-confirm": () => {
       const pc = app.pendingCreate;
       const project = {
@@ -1600,7 +1600,7 @@ function paletteRun(i) {
       archive: () => { const t2 = paletteTarget(); app.overlay = null; if (t2) { toggleArchive(t2); return; } },
       search: () => { o.mode = "search"; o.query = ""; o.sel = 0; },
       star: () => { const p = proj(); p.starred = !p.starred; app.overlay = null; toast(p.starred ? `Starred ${p.name}` : `Unstarred ${p.name}`); },
-      appearance: () => { app.appearancePref = document.documentElement.dataset.appearance === "dark" ? "light" : "dark"; app.overlay = null; },
+      appearance: () => { app.appearancePref = document.documentElement.dataset.theme === "dark" ? "light" : "dark"; app.overlay = null; },
       theme: () => { o.mode = "theme"; o.query = ""; o.sel = 0; },
       view: () => { app.view = app.view === "board" ? "list" : "board"; app.overlay = null; },
     }[r.id];

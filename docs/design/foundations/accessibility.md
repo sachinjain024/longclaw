@@ -54,54 +54,66 @@
 | system · dark | danger text on raised | `#E06C6C` on `#1C1E27` | 5.17 | pass |
 | system · dark | priority P1–P4 chip text on bg | `#9DA2B5` on `#0F1015` | 7.48 | pass |
 | system · dark | priority P1–P4 chip text on surface | `#9DA2B5` on `#16171E` | 7.03 | pass |
-| indigo · light | button label on human accent | `#FFFFFF` on `#6B5CF6` | 4.68 | pass |
-| indigo · light | human accent text on surface | `#5D4DE8` on `#FFFFFF` | 5.69 | pass |
-| indigo · light | human accent text on soft chip | `#5D4DE8` on `#EEF0FF` | 5.02 | pass |
-| indigo · light | agent accent text on surface | `#1B7A3D` on `#FFFFFF` | 5.39 | pass |
-| indigo · light | agent accent text on soft chip | `#1B7A3D` on `#EBF5ED` | 4.83 | pass |
-| indigo · light | agent accent text on checklist wash | `#1B7A3D` on `#F1F8F2` | 4.99 | pass |
+| indigo · light | button label on human accent | `#FFFFFF` on `#5B4DEF` | 5.60 | pass |
+| indigo · light | human accent text on surface | `#5B4DEF` on `#FFFFFF` | 5.60 | pass |
+| indigo · light | human accent text on soft chip | `#5B4DEF` on `#ECEFFF` | 4.89 | pass |
+| indigo · light | agent accent text on surface | `#0B7D59` on `#FFFFFF` | 5.13 | pass |
+| indigo · light | agent accent text on soft chip | `#0B7D59` on `#EBF4EF` | 4.57 | pass |
+| indigo · light | agent accent text on checklist wash | `#0B7D59` on `#F1F7F4` | 4.73 | pass |
 | indigo · dark | button label on human accent | `#101116` on `#887DF2` | 5.62 | pass |
 | indigo · dark | human accent text on surface | `#9C93F4` on `#16171E` | 6.72 | pass |
 | indigo · dark | human accent text on soft chip | `#9C93F4` on `#252539` | 5.63 | pass |
-| indigo · dark | agent accent text on surface | `#7FDCA0` on `#16171E` | 10.76 | pass |
-| indigo · dark | agent accent text on soft chip | `#7FDCA0` on `#232F2E` | 8.33 | pass |
-| indigo · dark | agent accent text on checklist wash | `#7FDCA0` on `#1F2729` | 9.16 | pass |
-| clay · light | button label on human accent | `#FFFFFF` on `#9C4126` | 6.57 | pass |
-| clay · light | human accent text on surface | `#9C4126` on `#FFFFFF` | 6.57 | pass |
-| clay · light | human accent text on soft chip | `#9C4126` on `#F7EBE8` | 5.63 | pass |
-| clay · light | agent accent text on surface | `#1B7A3D` on `#FFFFFF` | 5.39 | pass |
-| clay · light | agent accent text on soft chip | `#1B7A3D` on `#EBF5ED` | 4.83 | pass |
-| clay · light | agent accent text on checklist wash | `#1B7A3D` on `#F1F8F2` | 4.99 | pass |
-| clay · dark | button label on human accent | `#101116` on `#C57A55` | 5.65 | pass |
-| clay · dark | human accent text on surface | `#C97F5B` on `#16171E` | 5.67 | pass |
-| clay · dark | human accent text on soft chip | `#C97F5B` on `#2D2527` | 4.75 | pass |
-| clay · dark | agent accent text on surface | `#7FDCA0` on `#16171E` | 10.76 | pass |
-| clay · dark | agent accent text on soft chip | `#7FDCA0` on `#232F2E` | 8.33 | pass |
-| clay · dark | agent accent text on checklist wash | `#7FDCA0` on `#1F2729` | 9.16 | pass |
-| slate · light | button label on human accent | `#FFFFFF` on `#3D6BC4` | 5.12 | pass |
-| slate · light | human accent text on surface | `#3765BD` on `#FFFFFF` | 5.59 | pass |
-| slate · light | human accent text on soft chip | `#3765BD` on `#EAF0FA` | 4.88 | pass |
-| slate · light | agent accent text on surface | `#1B7A3D` on `#FFFFFF` | 5.39 | pass |
-| slate · light | agent accent text on soft chip | `#1B7A3D` on `#EBF5ED` | 4.83 | pass |
-| slate · light | agent accent text on checklist wash | `#1B7A3D` on `#F1F8F2` | 4.99 | pass |
+| indigo · dark | agent accent text on surface | `#66D4A1` on `#16171E` | 9.78 | pass |
+| indigo · dark | agent accent text on soft chip | `#66D4A1` on `#232F30` | 7.56 | pass |
+| indigo · dark | agent accent text on checklist wash | `#66D4A1` on `#1E272A` | 8.34 | pass |
+| clay · light | button label on human accent | `#FFFFFF` on `#A9482C` | 5.75 | pass |
+| clay · light | human accent text on surface | `#A9482C` on `#FFFFFF` | 5.75 | pass |
+| clay · light | human accent text on soft chip | `#A9482C` on `#F8ECE9` | 4.98 | pass |
+| clay · light | agent accent text on surface | `#0B7D59` on `#FFFFFF` | 5.13 | pass |
+| clay · light | agent accent text on soft chip | `#0B7D59` on `#EBF4EF` | 4.57 | pass |
+| clay · light | agent accent text on checklist wash | `#0B7D59` on `#F1F7F4` | 4.73 | pass |
+| clay · dark | button label on human accent | `#101116` on `#DD8A6C` | 7.12 | pass |
+| clay · dark | human accent text on surface | `#DD8A6C` on `#16171E` | 6.74 | pass |
+| clay · dark | human accent text on soft chip | `#DD8A6C` on `#30272A` | 5.47 | pass |
+| clay · dark | agent accent text on surface | `#66D4A1` on `#16171E` | 9.78 | pass |
+| clay · dark | agent accent text on soft chip | `#66D4A1` on `#232F30` | 7.56 | pass |
+| clay · dark | agent accent text on checklist wash | `#66D4A1` on `#1E272A` | 8.34 | pass |
+| slate · light | button label on human accent | `#FFFFFF` on `#3A62BE` | 5.72 | pass |
+| slate · light | human accent text on surface | `#3A62BE` on `#FFFFFF` | 5.72 | pass |
+| slate · light | human accent text on soft chip | `#3A62BE` on `#EAEFFA` | 4.97 | pass |
+| slate · light | agent accent text on surface | `#0B7D59` on `#FFFFFF` | 5.13 | pass |
+| slate · light | agent accent text on soft chip | `#0B7D59` on `#EBF4EF` | 4.57 | pass |
+| slate · light | agent accent text on checklist wash | `#0B7D59` on `#F1F7F4` | 4.73 | pass |
 | slate · dark | button label on human accent | `#101116` on `#85A7EC` | 7.84 | pass |
 | slate · dark | human accent text on surface | `#93B0EE` on `#16171E` | 8.24 | pass |
 | slate · dark | human accent text on soft chip | `#93B0EE` on `#252A38` | 6.60 | pass |
-| slate · dark | agent accent text on surface | `#7FDCA0` on `#16171E` | 10.76 | pass |
-| slate · dark | agent accent text on soft chip | `#7FDCA0` on `#232F2E` | 8.33 | pass |
-| slate · dark | agent accent text on checklist wash | `#7FDCA0` on `#1F2729` | 9.16 | pass |
+| slate · dark | agent accent text on surface | `#66D4A1` on `#16171E` | 9.78 | pass |
+| slate · dark | agent accent text on soft chip | `#66D4A1` on `#232F30` | 7.56 | pass |
+| slate · dark | agent accent text on checklist wash | `#66D4A1` on `#1E272A` | 8.34 | pass |
 | plum · light | button label on human accent | `#FFFFFF` on `#A23F9C` | 5.63 | pass |
 | plum · light | human accent text on surface | `#9C3B96` on `#FFFFFF` | 6.04 | pass |
 | plum · light | human accent text on soft chip | `#9C3B96` on `#F7ECF5` | 5.25 | pass |
-| plum · light | agent accent text on surface | `#1B7A3D` on `#FFFFFF` | 5.39 | pass |
-| plum · light | agent accent text on soft chip | `#1B7A3D` on `#EBF5ED` | 4.83 | pass |
-| plum · light | agent accent text on checklist wash | `#1B7A3D` on `#F1F8F2` | 4.99 | pass |
+| plum · light | agent accent text on surface | `#0B7D59` on `#FFFFFF` | 5.13 | pass |
+| plum · light | agent accent text on soft chip | `#0B7D59` on `#EBF4EF` | 4.57 | pass |
+| plum · light | agent accent text on checklist wash | `#0B7D59` on `#F1F7F4` | 4.73 | pass |
 | plum · dark | button label on human accent | `#101116` on `#D48BD0` | 7.54 | pass |
 | plum · dark | human accent text on surface | `#D897D5` on `#16171E` | 7.92 | pass |
 | plum · dark | human accent text on soft chip | `#D897D5` on `#2E2735` | 6.38 | pass |
-| plum · dark | agent accent text on surface | `#7FDCA0` on `#16171E` | 10.76 | pass |
-| plum · dark | agent accent text on soft chip | `#7FDCA0` on `#232F2E` | 8.33 | pass |
-| plum · dark | agent accent text on checklist wash | `#7FDCA0` on `#1F2729` | 9.16 | pass |
+| plum · dark | agent accent text on surface | `#66D4A1` on `#16171E` | 9.78 | pass |
+| plum · dark | agent accent text on soft chip | `#66D4A1` on `#232F30` | 7.56 | pass |
+| plum · dark | agent accent text on checklist wash | `#66D4A1` on `#1E272A` | 8.34 | pass |
+| graphite · light | button label on human accent | `#FFFFFF` on `#525A6E` | 6.89 | pass |
+| graphite · light | human accent text on surface | `#525A6E` on `#FFFFFF` | 6.89 | pass |
+| graphite · light | human accent text on soft chip | `#525A6E` on `#ECEDF0` | 5.89 | pass |
+| graphite · light | agent accent text on surface | `#0B7D59` on `#FFFFFF` | 5.13 | pass |
+| graphite · light | agent accent text on soft chip | `#0B7D59` on `#EBF4EF` | 4.57 | pass |
+| graphite · light | agent accent text on checklist wash | `#0B7D59` on `#F1F7F4` | 4.73 | pass |
+| graphite · dark | button label on human accent | `#101116` on `#A9AFC4` | 8.63 | pass |
+| graphite · dark | human accent text on surface | `#A9AFC4` on `#16171E` | 8.18 | pass |
+| graphite · dark | human accent text on soft chip | `#A9AFC4` on `#292B33` | 6.46 | pass |
+| graphite · dark | agent accent text on surface | `#66D4A1` on `#16171E` | 9.78 | pass |
+| graphite · dark | agent accent text on soft chip | `#66D4A1` on `#232F30` | 7.56 | pass |
+| graphite · dark | agent accent text on checklist wash | `#66D4A1` on `#1E272A` | 8.34 | pass |
 
 ## Non-text contrast (AA ≥ 3:1)
 
@@ -133,91 +145,111 @@
 | system · dark | status canceled on surface | `#767B90` on `#16171E` | 4.26 | pass |
 | system · dark | priority urgent on surface | `#E0762F` on `#16171E` | 5.79 | pass |
 | system · dark | urgent mark on urgent fill | `#101116` on `#E0762F` | 6.11 | pass |
-| indigo · light | human accent fill (done dot, selection) on surface | `#6B5CF6` on `#FFFFFF` | 4.68 | pass |
-| indigo · light | human accent fill on bg | `#6B5CF6` on `#F4F5F8` | 4.29 | pass |
-| indigo · light | agent accent fill (checkbox, dot) on surface | `#279E52` on `#FFFFFF` | 3.44 | pass |
-| indigo · light | agent check mark on fill | `#FFFFFF` on `#279E52` | 3.44 | pass |
-| indigo · light | agent ❯ prompt on avatar tile | `#279E52` on `#171923` | 5.08 | pass |
-| indigo · light | focus border (1px accent) on surface | `#6B5CF6` on `#FFFFFF` | 4.68 | pass |
+| indigo · light | human accent fill (done dot, selection) on surface | `#5B4DEF` on `#FFFFFF` | 5.60 | pass |
+| indigo · light | human accent fill on bg | `#5B4DEF` on `#F4F5F8` | 5.13 | pass |
+| indigo · light | agent accent fill (checkbox, dot) on surface | `#12946A` on `#FFFFFF` | 3.84 | pass |
+| indigo · light | agent check mark on fill | `#FFFFFF` on `#12946A` | 3.84 | pass |
+| indigo · light | agent ❯ prompt on avatar tile | `#12946A` on `#171923` | 4.56 | pass |
+| indigo · light | focus border (1px accent) on surface | `#5B4DEF` on `#FFFFFF` | 5.60 | pass |
 | indigo · dark | human accent fill (done dot, selection) on surface | `#887DF2` on `#16171E` | 5.33 | pass |
 | indigo · dark | human accent fill on bg | `#887DF2` on `#0F1015` | 5.67 | pass |
-| indigo · dark | agent accent fill (checkbox, dot) on surface | `#6CD592` on `#16171E` | 9.84 | pass |
-| indigo · dark | agent check mark on fill | `#0F1015` on `#6CD592` | 10.47 | pass |
-| indigo · dark | agent ❯ prompt on avatar tile | `#6CD592` on `#060709` | 11.10 | pass |
+| indigo · dark | agent accent fill (checkbox, dot) on surface | `#66D4A1` on `#16171E` | 9.78 | pass |
+| indigo · dark | agent check mark on fill | `#101116` on `#66D4A1` | 10.32 | pass |
+| indigo · dark | agent ❯ prompt on avatar tile | `#66D4A1` on `#060709` | 11.03 | pass |
 | indigo · dark | focus border (1px accent) on surface | `#887DF2` on `#16171E` | 5.33 | pass |
-| clay · light | human accent fill (done dot, selection) on surface | `#9C4126` on `#FFFFFF` | 6.57 | pass |
-| clay · light | human accent fill on bg | `#9C4126` on `#F4F5F8` | 6.02 | pass |
-| clay · light | agent accent fill (checkbox, dot) on surface | `#279E52` on `#FFFFFF` | 3.44 | pass |
-| clay · light | agent check mark on fill | `#FFFFFF` on `#279E52` | 3.44 | pass |
-| clay · light | agent ❯ prompt on avatar tile | `#279E52` on `#171923` | 5.08 | pass |
-| clay · light | focus border (1px accent) on surface | `#9C4126` on `#FFFFFF` | 6.57 | pass |
-| clay · dark | human accent fill (done dot, selection) on surface | `#C57A55` on `#16171E` | 5.35 | pass |
-| clay · dark | human accent fill on bg | `#C57A55` on `#0F1015` | 5.69 | pass |
-| clay · dark | agent accent fill (checkbox, dot) on surface | `#6CD592` on `#16171E` | 9.84 | pass |
-| clay · dark | agent check mark on fill | `#0F1015` on `#6CD592` | 10.47 | pass |
-| clay · dark | agent ❯ prompt on avatar tile | `#6CD592` on `#060709` | 11.10 | pass |
-| clay · dark | focus border (1px accent) on surface | `#C57A55` on `#16171E` | 5.35 | pass |
-| slate · light | human accent fill (done dot, selection) on surface | `#3D6BC4` on `#FFFFFF` | 5.12 | pass |
-| slate · light | human accent fill on bg | `#3D6BC4` on `#F4F5F8` | 4.70 | pass |
-| slate · light | agent accent fill (checkbox, dot) on surface | `#279E52` on `#FFFFFF` | 3.44 | pass |
-| slate · light | agent check mark on fill | `#FFFFFF` on `#279E52` | 3.44 | pass |
-| slate · light | agent ❯ prompt on avatar tile | `#279E52` on `#171923` | 5.08 | pass |
-| slate · light | focus border (1px accent) on surface | `#3D6BC4` on `#FFFFFF` | 5.12 | pass |
+| clay · light | human accent fill (done dot, selection) on surface | `#A9482C` on `#FFFFFF` | 5.75 | pass |
+| clay · light | human accent fill on bg | `#A9482C` on `#F4F5F8` | 5.28 | pass |
+| clay · light | agent accent fill (checkbox, dot) on surface | `#12946A` on `#FFFFFF` | 3.84 | pass |
+| clay · light | agent check mark on fill | `#FFFFFF` on `#12946A` | 3.84 | pass |
+| clay · light | agent ❯ prompt on avatar tile | `#12946A` on `#171923` | 4.56 | pass |
+| clay · light | focus border (1px accent) on surface | `#A9482C` on `#FFFFFF` | 5.75 | pass |
+| clay · dark | human accent fill (done dot, selection) on surface | `#DD8A6C` on `#16171E` | 6.74 | pass |
+| clay · dark | human accent fill on bg | `#DD8A6C` on `#0F1015` | 7.17 | pass |
+| clay · dark | agent accent fill (checkbox, dot) on surface | `#66D4A1` on `#16171E` | 9.78 | pass |
+| clay · dark | agent check mark on fill | `#101116` on `#66D4A1` | 10.32 | pass |
+| clay · dark | agent ❯ prompt on avatar tile | `#66D4A1` on `#060709` | 11.03 | pass |
+| clay · dark | focus border (1px accent) on surface | `#DD8A6C` on `#16171E` | 6.74 | pass |
+| slate · light | human accent fill (done dot, selection) on surface | `#3A62BE` on `#FFFFFF` | 5.72 | pass |
+| slate · light | human accent fill on bg | `#3A62BE` on `#F4F5F8` | 5.25 | pass |
+| slate · light | agent accent fill (checkbox, dot) on surface | `#12946A` on `#FFFFFF` | 3.84 | pass |
+| slate · light | agent check mark on fill | `#FFFFFF` on `#12946A` | 3.84 | pass |
+| slate · light | agent ❯ prompt on avatar tile | `#12946A` on `#171923` | 4.56 | pass |
+| slate · light | focus border (1px accent) on surface | `#3A62BE` on `#FFFFFF` | 5.72 | pass |
 | slate · dark | human accent fill (done dot, selection) on surface | `#85A7EC` on `#16171E` | 7.43 | pass |
 | slate · dark | human accent fill on bg | `#85A7EC` on `#0F1015` | 7.90 | pass |
-| slate · dark | agent accent fill (checkbox, dot) on surface | `#6CD592` on `#16171E` | 9.84 | pass |
-| slate · dark | agent check mark on fill | `#0F1015` on `#6CD592` | 10.47 | pass |
-| slate · dark | agent ❯ prompt on avatar tile | `#6CD592` on `#060709` | 11.10 | pass |
+| slate · dark | agent accent fill (checkbox, dot) on surface | `#66D4A1` on `#16171E` | 9.78 | pass |
+| slate · dark | agent check mark on fill | `#101116` on `#66D4A1` | 10.32 | pass |
+| slate · dark | agent ❯ prompt on avatar tile | `#66D4A1` on `#060709` | 11.03 | pass |
 | slate · dark | focus border (1px accent) on surface | `#85A7EC` on `#16171E` | 7.43 | pass |
 | plum · light | human accent fill (done dot, selection) on surface | `#A23F9C` on `#FFFFFF` | 5.63 | pass |
 | plum · light | human accent fill on bg | `#A23F9C` on `#F4F5F8` | 5.17 | pass |
-| plum · light | agent accent fill (checkbox, dot) on surface | `#279E52` on `#FFFFFF` | 3.44 | pass |
-| plum · light | agent check mark on fill | `#FFFFFF` on `#279E52` | 3.44 | pass |
-| plum · light | agent ❯ prompt on avatar tile | `#279E52` on `#171923` | 5.08 | pass |
+| plum · light | agent accent fill (checkbox, dot) on surface | `#12946A` on `#FFFFFF` | 3.84 | pass |
+| plum · light | agent check mark on fill | `#FFFFFF` on `#12946A` | 3.84 | pass |
+| plum · light | agent ❯ prompt on avatar tile | `#12946A` on `#171923` | 4.56 | pass |
 | plum · light | focus border (1px accent) on surface | `#A23F9C` on `#FFFFFF` | 5.63 | pass |
 | plum · dark | human accent fill (done dot, selection) on surface | `#D48BD0` on `#16171E` | 7.15 | pass |
 | plum · dark | human accent fill on bg | `#D48BD0` on `#0F1015` | 7.60 | pass |
-| plum · dark | agent accent fill (checkbox, dot) on surface | `#6CD592` on `#16171E` | 9.84 | pass |
-| plum · dark | agent check mark on fill | `#0F1015` on `#6CD592` | 10.47 | pass |
-| plum · dark | agent ❯ prompt on avatar tile | `#6CD592` on `#060709` | 11.10 | pass |
+| plum · dark | agent accent fill (checkbox, dot) on surface | `#66D4A1` on `#16171E` | 9.78 | pass |
+| plum · dark | agent check mark on fill | `#101116` on `#66D4A1` | 10.32 | pass |
+| plum · dark | agent ❯ prompt on avatar tile | `#66D4A1` on `#060709` | 11.03 | pass |
 | plum · dark | focus border (1px accent) on surface | `#D48BD0` on `#16171E` | 7.15 | pass |
+| graphite · light | human accent fill (done dot, selection) on surface | `#525A6E` on `#FFFFFF` | 6.89 | pass |
+| graphite · light | human accent fill on bg | `#525A6E` on `#F4F5F8` | 6.32 | pass |
+| graphite · light | agent accent fill (checkbox, dot) on surface | `#12946A` on `#FFFFFF` | 3.84 | pass |
+| graphite · light | agent check mark on fill | `#FFFFFF` on `#12946A` | 3.84 | pass |
+| graphite · light | agent ❯ prompt on avatar tile | `#12946A` on `#171923` | 4.56 | pass |
+| graphite · light | focus border (1px accent) on surface | `#525A6E` on `#FFFFFF` | 6.89 | pass |
+| graphite · dark | human accent fill (done dot, selection) on surface | `#A9AFC4` on `#16171E` | 8.18 | pass |
+| graphite · dark | human accent fill on bg | `#A9AFC4` on `#0F1015` | 8.70 | pass |
+| graphite · dark | agent accent fill (checkbox, dot) on surface | `#66D4A1` on `#16171E` | 9.78 | pass |
+| graphite · dark | agent check mark on fill | `#101116` on `#66D4A1` | 10.32 | pass |
+| graphite · dark | agent ❯ prompt on avatar tile | `#66D4A1` on `#060709` | 11.03 | pass |
+| graphite · dark | focus border (1px accent) on surface | `#A9AFC4` on `#16171E` | 8.18 | pass |
 
 ## Human/agent distinction under color-vision deficiency
 
 | Theme · appearance | Vision | Human → | Agent → | ΔE | ΔL | Result |
 |---|---|---|---|---:|---:|---|
-| indigo · light | normal | `#6B5CF6` | `#279E52` | 143.75 | 8.75 | pass |
-| indigo · light | protanopia | `#0079FB` | `#9F904C` | 113.15 | 7.19 | pass |
-| indigo · light | deuteranopia | `#006EF3` | `#918657` | 104.50 | 6.81 | pass |
-| indigo · light | tritanopia | `#1C82A1` | `#009B8C` | 31.57 | 6.97 | pass |
-| indigo · dark | normal | `#887DF2` | `#6CD592` | 114.67 | 19.45 | pass |
-| indigo · dark | protanopia | `#4C90F6` | `#D5C78E` | 91.21 | 20.14 | pass |
-| indigo · dark | deuteranopia | `#4889EF` | `#C6BC96` | 81.54 | 18.62 | pass |
-| indigo · dark | tritanopia | `#6795AC` | `#53D3C3` | 37.44 | 18.20 | pass |
-| clay · light | normal | `#9C4126` | `#279E52` | 87.61 | 17.99 | pass |
-| clay · light | protanopia | `#5A5123` | `#9F904C` | 27.25 | 25.39 | pass |
-| clay · light | deuteranopia | `#706523` | `#918657` | 17.16 | 13.27 | pass |
-| clay · light | tritanopia | `#AB2D3B` | `#009B8C` | 94.16 | 18.07 | pass |
-| clay · dark | normal | `#C57A55` | `#6CD592` | 73.91 | 19.33 | pass |
-| clay · dark | protanopia | `#8E8352` | `#D5C78E` | 25.61 | 25.50 | pass |
-| clay · dark | deuteranopia | `#A09355` | `#C6BC96` | 20.79 | 15.40 | pass |
-| clay · dark | tritanopia | `#D66C71` | `#53D3C3` | 85.36 | 19.26 | pass |
-| slate · light | normal | `#3D6BC4` | `#279E52` | 104.02 | 11.25 | pass |
-| slate · light | protanopia | `#3E74C7` | `#9F904C` | 88.00 | 10.69 | pass |
-| slate · light | deuteranopia | `#2468C2` | `#918657` | 82.02 | 11.37 | pass |
-| slate · light | tritanopia | `#00808E` | `#009B8C` | 21.40 | 8.65 | pass |
-| slate · dark | normal | `#85A7EC` | `#6CD592` | 81.25 | 9.27 | pass |
-| slate · dark | protanopia | `#8EACEF` | `#D5C78E` | 68.52 | 9.64 | pass |
-| slate · dark | deuteranopia | `#83A3EA` | `#C6BC96` | 61.17 | 8.93 | pass |
-| slate · dark | tritanopia | `#5FB6BF` | `#53D3C3` | 20.01 | 8.28 | pass |
-| plum · light | normal | `#A23F9C` | `#279E52` | 120.15 | 13.84 | pass |
-| plum · light | protanopia | `#385F9F` | `#9F904C` | 79.85 | 19.29 | pass |
-| plum · light | deuteranopia | `#596C99` | `#918657` | 55.04 | 10.01 | pass |
-| plum · light | tritanopia | `#A84968` | `#009B8C` | 81.07 | 13.04 | pass |
-| plum · dark | normal | `#D48BD0` | `#6CD592` | 97.25 | 10.50 | pass |
-| plum · dark | protanopia | `#879ED3` | `#D5C78E` | 62.39 | 14.95 | pass |
-| plum · dark | deuteranopia | `#99A7CE` | `#C6BC96` | 43.14 | 7.52 | pass |
-| plum · dark | tritanopia | `#D991A4` | `#53D3C3` | 69.49 | 9.71 | pass |
+| indigo · light | normal | `#5B4DEF` | `#12946A` | 132.64 | 10.50 | pass |
+| indigo · light | protanopia | `#006EF4` | `#918868` | 96.76 | 7.60 | pass |
+| indigo · light | deuteranopia | `#0061EC` | `#827E6D` | 92.15 | 7.61 | pass |
+| indigo · light | tritanopia | `#007898` | `#009489` | 30.10 | 8.48 | pass |
+| indigo · dark | normal | `#887DF2` | `#66D4A1` | 107.56 | 19.24 | pass |
+| indigo · dark | protanopia | `#4C90F6` | `#D1C79E` | 82.94 | 20.10 | pass |
+| indigo · dark | deuteranopia | `#4889EF` | `#C1BBA4` | 73.57 | 18.24 | pass |
+| indigo · dark | tritanopia | `#6795AC` | `#41D4C6` | 38.77 | 18.15 | pass |
+| clay · light | normal | `#A9482C` | `#12946A` | 84.92 | 11.25 | pass |
+| clay · light | protanopia | `#635929` | `#918868` | 21.65 | 18.94 | pass |
+| clay · light | deuteranopia | `#7A6E29` | `#827E6D` | 30.00 | 6.45 | pass |
+| clay · light | tritanopia | `#BA3342` | `#009489` | 94.58 | 11.99 | pass |
+| clay · dark | normal | `#DD8A6C` | `#66D4A1` | 74.19 | 12.10 | pass |
+| clay · dark | protanopia | `#9F946A` | `#D1C79E` | 18.91 | 18.81 | pass |
+| clay · dark | deuteranopia | `#B3A66B` | `#C1BBA4` | 21.42 | 7.84 | pass |
+| clay · dark | tritanopia | `#EF7C82` | `#41D4C6` | 89.46 | 12.19 | pass |
+| slate · light | normal | `#3A62BE` | `#12946A` | 89.68 | 11.11 | pass |
+| slate · light | protanopia | `#306DC1` | `#918868` | 69.88 | 10.52 | pass |
+| slate · light | deuteranopia | `#0B61BC` | `#827E6D` | 66.43 | 11.09 | pass |
+| slate · light | tritanopia | `#007887` | `#009489` | 20.32 | 9.18 | pass |
+| slate · dark | normal | `#85A7EC` | `#66D4A1` | 73.80 | 9.05 | pass |
+| slate · dark | protanopia | `#8EACEF` | `#D1C79E` | 60.10 | 9.59 | pass |
+| slate · dark | deuteranopia | `#83A3EA` | `#C1BBA4` | 53.07 | 8.55 | pass |
+| slate · dark | tritanopia | `#5FB6BF` | `#41D4C6` | 21.17 | 8.23 | pass |
+| plum · light | normal | `#A23F9C` | `#12946A` | 106.03 | 10.68 | pass |
+| plum · light | protanopia | `#385F9F` | `#918868` | 60.28 | 16.26 | pass |
+| plum · light | deuteranopia | `#596C99` | `#827E6D` | 37.74 | 6.86 | pass |
+| plum · light | tritanopia | `#A84968` | `#009489` | 78.58 | 10.69 | pass |
+| plum · dark | normal | `#D48BD0` | `#66D4A1` | 91.71 | 10.28 | pass |
+| plum · dark | protanopia | `#879ED3` | `#D1C79E` | 54.15 | 14.90 | pass |
+| plum · dark | deuteranopia | `#99A7CE` | `#C1BBA4` | 35.08 | 7.14 | pass |
+| plum · dark | tritanopia | `#D991A4` | `#41D4C6` | 72.02 | 9.66 | pass |
+| graphite · light | normal | `#525A6E` | `#12946A` | 54.00 | 16.14 | pass |
+| graphite · light | protanopia | `#545B6F` | `#918868` | 35.82 | 17.96 | pass |
+| graphite · light | deuteranopia | `#52596E` | `#827E6D` | 27.36 | 14.74 | pass |
+| graphite · light | tritanopia | `#4B5E61` | `#009489` | 33.41 | 16.57 | pass |
+| graphite · dark | normal | `#A9AFC4` | `#66D4A1` | 53.36 | 5.96 | pass |
+| graphite · dark | protanopia | `#A9B1C5` | `#D1C79E` | 34.14 | 7.94 | pass |
+| graphite · dark | deuteranopia | `#A7AEC3` | `#C1BBA4` | 24.65 | 4.63 | pass |
+| graphite · dark | tritanopia | `#A3B3B6` | `#41D4C6` | 36.86 | 5.62 | pass |
 
 ## Notes
 

@@ -55,7 +55,7 @@
   the viewport once it is long enough. This position is the spec —
   `cc_screens_diff.md` D-0B records the reversal.
 - **Project row anatomy:** 6px theme dot in the *project's own* human accent
-  (rendered by scoping that project's `data-theme` on the dot), name 13px
+  (rendered by scoping that project's `data-lc-theme` on the dot), name 13px
   `ink-2`, star affordance revealed on hover (persistent when starred, in
   `accent-human`). Unreachable projects swap the dot for a 12px warn
   triangle in `--lc-warn` and dim the name to `ink-3`; the row stays in
