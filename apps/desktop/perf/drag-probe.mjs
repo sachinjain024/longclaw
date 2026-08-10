@@ -100,6 +100,11 @@ const SURFACES = {
     group: ".board-column",
     head: "h3",
     scroller: ".board-stack",
+    // The board clips in both axes and in two different elements: a column's
+    // rows scroll inside `.board-stack`, and the columns themselves scroll
+    // sideways inside `.board-grid`. The pane is the second one, and without it
+    // a column parked off the side of the window reads as reachable (LC-190).
+    pane: ".board-grid",
     lit: ".board-column.drop-target",
     line: ".drop-line",
     open: async () => {},
@@ -109,6 +114,9 @@ const SURFACES = {
     group: ".list-group",
     head: ".list-group-header",
     scroller: ".issue-list",
+    // One scroller, and it does not scroll sideways: the same element bounds
+    // both axes here.
+    pane: ".issue-list",
     lit: ".list-group.drop-target",
     line: ".list-drop-line",
     open: async (page) => {
@@ -154,6 +162,14 @@ const CASES = [
     surface: "board",
     order: "manual",
     move: "across",
+  },
+  {
+    id: "board-across-far",
+    item: "1. board: drag into the far-right column, the grid scrolled to it (LC-190)",
+    surface: "board",
+    order: "manual",
+    move: "across",
+    far: true,
   },
   {
     id: "board-place-manual",
@@ -229,8 +245,18 @@ function check(name, ok, detail) {
  *
  * By box rather than by document order: both surfaces place their rows
  * absolutely and mount anchors out of sequence, so the DOM is not the order the
- * human sees. `visible` is whether the row is inside its own scroller, which is
- * what makes a row a thing this probe may aim a pointer at.
+ * human sees. `visible` is whether the row is drawn where a pointer can reach
+ * it, which is what makes a row a thing this probe may aim at — and that is two
+ * questions, not one: inside its own scroller vertically, and inside the pane
+ * that scrolls its group horizontally.
+ *
+ * It asked only the first until LC-190. A `getBoundingClientRect` is the
+ * unclipped position, so the sixth column of a six-column board — 1644px out on
+ * a 1440px window — reported rows at their full height and read as reachable.
+ * The probe aimed a mouse-up past the right edge of the window, the drop event
+ * never fired, and the run blamed the app for refusing a drop nobody had made.
+ * The app takes that drop; `board-across-far` below now scrolls the grid and
+ * proves it.
  */
 const read = (page, surface) =>
   page.evaluate(
@@ -253,6 +279,11 @@ const read = (page, surface) =>
           group.closest(sel.scroller) ??
           group
         ).getBoundingClientRect();
+        // The pane is always an ancestor: it is what the group itself scrolls
+        // inside of, so a group parked outside it is not on screen at all.
+        const reach = (
+          group.closest(sel.pane) ?? group
+        ).getBoundingClientRect();
         const rows = [...group.querySelectorAll(sel.row)]
           .map((row) => {
             const box = row.getBoundingClientRect();
@@ -263,14 +294,18 @@ const read = (page, surface) =>
               y: box.top,
               w: box.width,
               h: box.height,
-              visible: box.top >= clip.top && box.bottom <= clip.bottom,
+              visible:
+                box.top >= clip.top &&
+                box.bottom <= clip.bottom &&
+                box.left >= reach.left &&
+                box.right <= reach.right,
             };
           })
           .sort((left, right) => left.y - right.y);
         return { title, rows };
       });
     },
-    pick(surface, "group", "head", "scroller", "row"),
+    pick(surface, "group", "head", "scroller", "pane", "row"),
   );
 
 /** The selectors one `page.evaluate` needs, without the handlers it cannot take. */
@@ -340,6 +375,29 @@ async function drag(page, surface, from, to) {
     accepted: overs.filter((event) => event.accepted).length,
     dropped: seen.some((event) => event.name === "drop" && event.accepted),
   };
+}
+
+/**
+ * Scroll the surface's pane to its far end, and say where it came to rest.
+ *
+ * Six columns at 264px with their gaps is ~1644px of board against a 1440px
+ * window, so the last column is not reachable at all without this — and a probe
+ * that cannot reach it cannot claim the drop there works. Returns the distance
+ * scrolled so a run that could not move (a board narrower than its window) is
+ * visible rather than silently testing a nearer column.
+ */
+async function scrollPaneToEnd(page, surface) {
+  const moved = await page.evaluate((selector) => {
+    const pane = document.querySelector(selector);
+    if (!pane) return 0;
+    pane.scrollLeft = pane.scrollWidth;
+    return Math.round(pane.scrollLeft);
+  }, SURFACES[surface].pane);
+  // The scroll is not animated, but the rows are absolutely placed and the
+  // surface re-reads its boxes; a frame is what makes the next read the settled
+  // one.
+  await page.waitForTimeout(200);
+  return moved;
 }
 
 /**
@@ -514,6 +572,17 @@ async function probe(browser, row) {
     }
     if (SELF_TEST) await swallowDragstart(page);
 
+    // Aimed at the far column on purpose, which means scrolling to it first:
+    // reaching it by ticket count is what LC-190 showed cannot be trusted.
+    const scrolled = row.far ? await scrollPaneToEnd(page, row.surface) : 0;
+    if (row.far) {
+      check(
+        "the grid scrolls sideways, so the far column can be reached",
+        scrolled > 0,
+        `scrollLeft=${scrolled}`,
+      );
+    }
+
     const before = await read(page, row.surface);
     /**
      * The rows a run ever points at: the one it picks up, the one an `across`
@@ -525,10 +594,16 @@ async function probe(browser, row) {
      * card 90 → 108px, at which point a 7-card column no longer fit its
      * scroller end to end, four of the six columns stopped being eligible, and
      * the target fell through to `Canceled` — the far side of a board that
-     * scrolls sideways, where the drop does not land. Three checks went red for
-     * a change that had nothing to do with drag. `--tickets=46` reproduces the
-     * same three on the pre-LC-166 card, which is what says the coupling was
-     * always here and 40 tickets merely stepped over it.
+     * scrolls sideways, which the probe could not reach and so read as a
+     * refusal. Three checks went red for a change that had nothing to do with
+     * drag. `--tickets=46` reproduced the same three on the pre-LC-166 card,
+     * which is what says the coupling was always here and 40 tickets merely
+     * stepped over it.
+     *
+     * That refusal was the probe's own reach and not the app's logic, which is
+     * LC-190: `visible` now bounds the pane as well, so a column off the side
+     * of the window is no longer eligible by accident, and `board-across-far`
+     * scrolls to it and drops there on purpose.
      */
     const aimedAt = [FROM_ROW, ACROSS_ROW, TO_GAP];
     // The synthetic unreadable group and the archive name no status and take no
@@ -549,7 +624,22 @@ async function probe(browser, row) {
       `${moving.key} in ${source.title}, draggable=${moving.draggable}`,
     );
 
-    const target = row.move === "across" ? usable[1] : source;
+    const target =
+      row.move === "across"
+        ? row.far
+          ? usable[usable.length - 1]
+          : usable[1]
+        : source;
+    if (row.far) {
+      // Without this the case degrades into a second `board-across-manual` the
+      // moment the scroll stops working, and passes while proving nothing.
+      const last = before[before.length - 1];
+      check(
+        `the target is the board's last column, ${last.title}`,
+        target.title === last.title,
+        `aiming at ${target.title}, last is ${last.title}`,
+      );
+    }
     const landing =
       row.move === "across"
         ? middle(target.rows[ACROSS_ROW])
