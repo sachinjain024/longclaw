@@ -25,6 +25,7 @@ import {
   externalEditConflict,
   acknowledgementClass,
 } from "./attribution";
+import { useAddRowInView } from "./addRow";
 import { useAutoGrow } from "./autoGrow";
 import {
   dropEdge,
@@ -760,6 +761,11 @@ export function TicketPanel(props: TicketPanelProps) {
    */
   const reorderable =
     checklist.length > 1 && checklist.every((item) => item.id !== undefined);
+  /**
+   * The add-row follows the list down as it grows, so the field the human is
+   * typing in does not end up under the bottom edge of the panel (LC-193).
+   */
+  const addField = useAddRowInView(checklist.length);
 
   /** Puts the list in the order the human left it; the file catches up. */
   function holdOrder(order: string[]): () => void {
@@ -1361,6 +1367,7 @@ export function TicketPanel(props: TicketPanelProps) {
               <GhostBox />
               <input
                 className="checklist-add-field"
+                ref={addField}
                 value={newItem}
                 placeholder="Add a checklist item"
                 aria-label="Add a checklist item"

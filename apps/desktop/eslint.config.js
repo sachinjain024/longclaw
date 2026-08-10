@@ -35,6 +35,7 @@ export default tseslint.config(
     files: ["perf/**/*.mjs"],
     languageOptions: {
       globals: {
+        Element: "readonly",
         HTMLElement: "readonly",
         URLSearchParams: "readonly",
         clearInterval: "readonly",

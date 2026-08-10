@@ -23,6 +23,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { DragEvent, KeyboardEvent } from "react";
+import { useAddRowInView } from "./addRow";
 import { useAutoGrow } from "./autoGrow";
 import { dropEdge, gapUnder, landingFor, reordered } from "./checklistOrder";
 import { classes } from "./classes";
@@ -74,7 +75,13 @@ export function CreatePanel(props: CreatePanelProps) {
   const [description, setDescription] = useState("");
   const [checklist, setChecklist] = useState<string[]>([]);
   const [newItem, setNewItem] = useState("");
-  const addItem = useRef<HTMLInputElement>(null);
+  /**
+   * The add-row, which is both where focus goes when a row is removed and the
+   * row that has to follow the list down as it grows (LC-193). The create
+   * surface scrolls exactly as the panel does, and its add-row is the same
+   * object — so it cannot answer this differently.
+   */
+  const addItem = useAddRowInView(checklist.length);
   const titleField = useAutoGrow(title);
   /** The draft row in the air, and the gap it would land in (LC-185). */
   const [dragRow, setDragRow] = useState<number>();

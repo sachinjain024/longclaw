@@ -48,6 +48,7 @@
     "a11y:tab-order": "node scripts/tab-order-guard.mjs",
     "probe:header": "vite build --config perf/vite.config.ts && node perf/header-probe.mjs",
     "probe:drag": "vite build --config perf/vite.config.ts && node perf/drag-probe.mjs",
+    "probe:checklist": "vite build --config perf/vite.config.ts && node perf/checklist-probe.mjs",
     "audit:network": "node perf/network-audit.mjs",
     "matrix": "vite build --config perf/vite.config.ts && node perf/theme-matrix.mjs",
     "perf:board": "vite build --config perf/vite.config.ts && node perf/board-trace.mjs",

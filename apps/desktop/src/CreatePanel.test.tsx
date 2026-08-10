@@ -24,6 +24,9 @@ afterEach(() => {
   cleanup();
   // Only the auto-grow test installs it (below), and only that test may see it.
   Reflect.deleteProperty(HTMLTextAreaElement.prototype, "scrollHeight");
+  // The same for `scrollIntoView`, which jsdom does not define and the app's
+  // calls are guarded for (`addRow.ts`).
+  Reflect.deleteProperty(Element.prototype, "scrollIntoView");
 });
 
 /** What the auto-grow test measures a line of text as. */
@@ -339,6 +342,33 @@ describe("nothing here claims the file exists yet", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Remove First" }));
     expect(document.activeElement).toBe(field);
+  });
+
+  /**
+   * And keeps it *on screen*: the draft row lands where the field was standing,
+   * so the field moves a row down a pane that does not follow it, and on a short
+   * window one Enter puts it under the bottom edge (LC-193). The panel's add-row
+   * answers this and so does this one — they are the same object. jsdom lays
+   * nothing out, so the call is what is held here;
+   * `perf/checklist-probe.mjs` measures the boxes, on this surface too.
+   */
+  it("brings the add-row back into view as the draft list grows (LC-193)", () => {
+    const scrolled = vi.fn();
+    Element.prototype.scrollIntoView = scrolled;
+    render(createPanel());
+    const field = screen.getByLabelText("Add a checklist item");
+
+    field.focus();
+    addChecklistItem("First");
+    expect(scrolled.mock.instances[0]).toBe(field);
+    expect(scrolled.mock.calls[0][0]).toEqual({ block: "nearest" });
+
+    // Not when the field is not where the human is: removing a row moves the
+    // list too, and focus is on the button that did it until it goes away.
+    scrolled.mockClear();
+    field.blur();
+    addChecklistItem("Second");
+    expect(scrolled).not.toHaveBeenCalled();
   });
 
   /**
