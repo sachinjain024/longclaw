@@ -41,6 +41,12 @@
  * whole subject; the full create panel brought it two more rows and the name
  * stopped being true.
  *
+ * `card-height-guard.mjs` (LC-166) is the shape stretched furthest: it reads
+ * `styles.css` and the token JSON not to compare two rules but to *add the
+ * rules up*, because the board places 5,000 cards from a height it never
+ * measures. Its subject is the one thing none of the others is — a number that
+ * is correct only as long as a sum of numbers somewhere else has not moved.
+ *
  * `src/tokens/` is the one place a literal is allowed anywhere: it is where the
  * scale is declared.
  */

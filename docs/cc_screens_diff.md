@@ -183,6 +183,22 @@ The app's cards are close: ID + priority chip on row 1, title, then fraction +
 progress bar + label chips. Truncation is applied. **No diffs worth filing** at
 this size beyond ~~D-23~~ above, which is now closed.
 
+**One of them was filed after all, and landed 2026-08-09 (LC-166).** "Truncation
+is applied" was doing more work in that sentence than it looks: the prototype
+clamps the title at two lines and this clamped it at one, and the reason was
+never the card — it was the column. `boardGeometry.ts` places 5,000 cards from a
+height it never measures, so a card as tall as its own title is the one shape it
+cannot window, and the diff was declined here on those grounds rather than
+disagreed with. What was missed is that the trade has a third option: clamp at
+two lines and pin the height to *both*, spending ~18px under a one-line title
+and keeping one stride per state. The pinned heights went 90 → 108px and, with
+the acknowledgement footer, 118 → 136px. Measured either side rather than
+eyeballed, as the ticket asked: `perf:board` scroll p95 19 → 18ms, keyboard 15 →
+15, external write 15 → 15, against a 50ms budget — the taller card *narrows*
+the window, 12 cards a column to 11, so the surface has fewer nodes than before
+rather than more. The sum is now a check (`scripts/card-height-guard.mjs`),
+because the one thing this must not become is a number nobody adds up again.
+
 ---
 
 ## 5 · Empty project

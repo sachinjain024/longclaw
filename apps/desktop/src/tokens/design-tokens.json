@@ -118,8 +118,8 @@
     "card-width-min": 240,
     "card-pad-x": 12,
     "card-pad-y": 10,
-    "board-card": 90,
-    "board-card-acknowledged": 118,
+    "board-card": 108,
+    "board-card-acknowledged": 136,
     "board-stack": "calc(100vh - 142px)",
     "panel-gutter": 16,
     "panel-gutter-lg": 24

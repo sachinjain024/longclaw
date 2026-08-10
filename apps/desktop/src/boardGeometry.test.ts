@@ -169,6 +169,11 @@ describe("the card heights the stylesheet pins", () => {
     const reserve = mainPanelInset * 2 + contentHeader + boardGridPadding;
     expect(tokens.size["board-stack"]).toBe(`calc(100vh - ${reserve}px)`);
   });
+
+  // The other half of that sum — the rows the stylesheet actually draws, and
+  // whether they still add up to the token above — is `card-height-guard.mjs`,
+  // not a case here. It cannot be one: this suite loads no stylesheet, and
+  // after LC-166 the term most likely to move is the title's line count.
 });
 
 describe("the gap a drop falls in", () => {

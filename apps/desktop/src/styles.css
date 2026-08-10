@@ -620,6 +620,29 @@ button:disabled {
   color: var(--lc-ink-disabled);
   background: var(--lc-wash);
   cursor: default;
+  /* And no motion, which is the other half of that row of components.md:32 and
+     was missing until LC-158: the `.primary/.secondary/.danger/.ghost`
+     foundation fades `background` and `border-color`, and both are properties
+     this rule changes, so a control becoming unavailable animated its way there.
+
+     Where this sits is load-bearing. It beats that foundation on specificity —
+     (0,1,1) against `.ghost`'s (0,1,0) — so the hover fade is off while
+     disabled. It *ties* the `html.theme-transition` block, which is (0,1,1) too
+     because of its `html`, and ties break by source order: that block is ~2,800
+     lines below, so it still wins, and a disabled control keeps crossfading
+     with everything else through a theme swap. Moving either rule past the
+     other silently drops one of those.
+
+     One direction, and that is CSS rather than a shortcut: a transition reads
+     the style it is going *to*, so arriving at disabled finds this `none` and
+     does not animate, while leaving it finds the foundation again and fades
+     back. Suppressing that second direction means `:not(:disabled)` on the
+     foundation, which lifts it to (0,2,0) and past `html.theme-transition *` —
+     paying 80ms theme crossfades on every enabled button in the app to save one
+     80ms fade here. `.content-header .settings-button` is the one rule already
+     out-specifying this at (0,2,0), and is harmless only because that gear is
+     never disabled. */
+  transition: none;
 }
 
 /* The content header is one row (`screen-specs.md:64-69`): project name,
@@ -688,7 +711,9 @@ button:disabled {
      rather than added to the shared foundation, where it would have put a
      third animated property on `button:disabled` — a state components.md:32
      gives no motion at all. (The foundation already fades that state's
-     background and border-color; that predates this control.) */
+     background and border-color; that predates this control.) The prototype's
+     gear fades neither, having no shared button class to inherit a transition
+     from; that the app's does is D16, decided rather than drifted into. */
   transition:
     background var(--lc-motion-fast) var(--lc-motion-ease),
     border-color var(--lc-motion-fast) var(--lc-motion-ease),
@@ -701,10 +726,6 @@ button:disabled {
 
 .content-header .settings-button:focus-visible {
   border-color: var(--lc-accent-human);
-}
-
-.content-header .settings-button:focus-visible,
-.path-chip:focus-visible {
   box-shadow: var(--lc-focus-ring);
   outline: none;
 }
@@ -780,8 +801,16 @@ button:disabled {
   flex: 0 1 auto;
   min-width: 0;
   max-width: 180px;
-  padding: 2px 4px;
-  border: none;
+  /* The 1px the focused state needs, reserved transparent and paid for out of
+     the padding rather than added to the box: `components.md:30` puts a 1px
+     `accent-human` border on every keyboard-focused control, and `border: none`
+     — what this carried until LC-158 — can only ever draw the ring half of
+     that. A border that appears on focus would also move the text 1px, in the
+     one header that must stay a single row (LC-149). 1px + 3px is the same
+     border box as the 2px + 4px it replaces, and the background paints under a
+     transparent border, so the hover wash is unchanged too. */
+  padding: 1px 3px;
+  border: 1px solid transparent;
   border-radius: var(--lc-radius-kbd);
   background: none;
   color: var(--lc-ink-2);
@@ -792,6 +821,19 @@ button:disabled {
 
 .path-chip:hover {
   background: var(--lc-wash);
+}
+
+/* Both halves of `components.md:30`, and here rather than beside the gear's
+   copy of it, which is where the `box-shadow` half used to live — the gear and
+   the chip share a treatment, not a rule, and reading this one meant scrolling
+   past 70 lines to a comment about a button. `outline: none` displaces the
+   global 2px-offset outline on `button:focus-visible` so the ring hugs the box
+   the border is on; the two are one object, not a ring and a stray line 2px
+   away. */
+.path-chip:focus-visible {
+  border-color: var(--lc-accent-human);
+  box-shadow: var(--lc-focus-ring);
+  outline: none;
 }
 
 .path-chip .txt {
@@ -1311,17 +1353,32 @@ button:disabled {
   font-weight: 400;
 }
 
-/* One line, 18px, ellipsized: the pinned card height owns the room a second
-   line would take (prototype clamps at two; the window needs one height). */
+/* Two lines, 18px each, clamped (prototype.css `.card .title`, LC-166).
+
+   The height is stated as well as the clamp, and both are load-bearing. The
+   clamp guarantees the *maximum*, which is what keeps `CARD_HEIGHT` an exact
+   number rather than a guess the column would have to measure; the fixed height
+   spends that room whether or not the second line is used, which is what keeps
+   the foot of every card on the same line as its neighbours'. A one-line title
+   therefore pays ~18px of whitespace under it. That is the trade LC-166 was
+   filed to make deliberately — the alternative, a card as tall as its own
+   title, is the one shape `boardGeometry.ts` cannot window.
+
+   `overflow-wrap` because the clamp's ellipsis is drawn only when the text
+   overflows by *line*: a token with nowhere to break would render as one long
+   line and be clipped mid-glyph with no ellipsis at all. It is the degraded
+   card that makes this real, where the title is a path rather than prose. */
 .ticket-row strong {
+  display: -webkit-box;
   overflow: hidden;
-  height: 18px;
+  height: 36px;
   margin-bottom: 8px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   font-size: var(--lc-type-ui-size);
   font-weight: 500;
   line-height: 18px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .ticket-key,

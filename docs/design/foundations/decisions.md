@@ -236,3 +236,25 @@ generated CSS. Neutrals, status, warn/error, and label colors are
 theme-independent system tokens. The board proof (`proof/board.html`)
 renders all 4 themes × 2 appearances from one DOM with zero component
 overrides — switching is a token swap and nothing else.
+
+## D16 — The header gear's hover fades its glyph colour · accepted (reference divergence)
+
+The prototype's gear (`prototype.css:322-323`) shifts both `background` and
+`color` on hover with no transition on either. The app's fades both at
+`--lc-motion-fast`, which `components.md:28` asks of a hover in any case.
+
+The divergence is not a divergence in intent. The prototype's gear is a bare
+`<button>` carrying no shared button class, so it inherits no transition and
+never had one to keep; the app's is a `.ghost`, so the background half of that
+hover already cross-fades from the button foundation. What was actually open
+was whether to hold the glyph colour out of it, and a snapping glyph over a
+fading background is one hover disagreeing with itself.
+
+Scoped to `.content-header .settings-button` rather than added to `.ghost`: the
+gear is the only button whose glyph carries the hover, and on the shared
+foundation a third animated property would also land on `button:disabled`, a
+state `components.md:32` gives no motion at all.
+
+> Raised as item 4 of LC-158, from the review of LC-70. Items 1-3 and 5 of that
+> ticket were defects; this one was a question, recorded here rather than
+> answered in a CSS comment nobody would find from the prototype side.
