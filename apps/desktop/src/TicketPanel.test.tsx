@@ -915,7 +915,7 @@ describe("the panel's honesty about the file", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  // `keyboard-focus-map.md:66-69`: "`S`/`P` still work (they target the open
+  // `keyboard-focus-map.md:71-74`: "`S`/`P` still work (they target the open
   // ticket)". Focus is in the panel, so neither surface's own binding sees them.
   it("opens the status and priority menus on S and P", async () => {
     render(panel());
@@ -957,7 +957,7 @@ describe("the status menu (V0-14 closed V0-08's open edge)", () => {
 
     fireEvent.click(metaTrigger("Status"));
 
-    // `screen-specs.md:240` — every menu row carries the option's own glyph, and
+    // `screen-specs.md:320-321` — every menu row carries the option's own glyph, and
     // the status menu's glyph is the coloured dot. V0-08 shipped without one
     // because the app had no status dot at all.
     const rows = screen.getAllByRole("menuitemradio");
@@ -1461,7 +1461,7 @@ describe("labels in the panel (V0-10)", () => {
     fireEvent.click(metaTrigger("Labels"));
     tick("Backend");
 
-    // Multi-select ticks and stays open (`screen-specs.md:239-247`).
+    // Multi-select ticks and stays open (`screen-specs.md:317-325`).
     expect(screen.getByRole("menu", { name: "Labels" })).toBeTruthy();
     await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(1));
     expect(editTicketMock.mock.calls[0][0]).toMatchObject({
@@ -1556,7 +1556,7 @@ describe("the archive button in the header (V0-11)", () => {
 });
 
 /**
- * The raw file view (`screen-specs.md:291-298`, `states.md:95-104`): the one
+ * The raw file view (`screen-specs.md:349-356`, `states.md:95-104`): the one
  * screen a human gets when the file will not parse, so every part of it has to
  * carry its weight — where the file is, which line broke it, and the two ways
  * out.
@@ -1598,7 +1598,7 @@ describe("the raw file view (LC-135 → LC-138)", () => {
 
     // The whole path, not the project-relative half the header chip shows:
     // this is the screen read just before opening the file somewhere else
-    // (`screen-specs.md:293`).
+    // (`screen-specs.md:351`).
     expect(heading.textContent).toBe(FULL_PATH);
     expect(screen.getByText(/Shown without repair/)).toBeTruthy();
   });
@@ -1775,7 +1775,7 @@ describe("the raw file view (LC-135 → LC-138)", () => {
       expect(document.querySelector(".ticket-panel")).toBeNull();
       expect(screen.getByText(/Reading LC-1 from disk/)).toBeTruthy();
       // The heading is the full path from the first frame
-      // (`screen-specs.md:293`), taken from the row the card was drawn from —
+      // (`screen-specs.md:351`), taken from the row the card was drawn from —
       // a directory name that grows into a path when the read lands would be
       // the modal changing its mind about which file it is showing.
       expect((await shown()).textContent).toBe(FULL_PATH);
@@ -1930,7 +1930,7 @@ describe("the description editor (V0-12)", () => {
       "ariaSelected",
       "true",
     );
-    // Six, no more and no fewer (`screen-specs.md:179-180`).
+    // Six, no more and no fewer (`screen-specs.md:234-235`).
     const toolbar = screen.getByRole("toolbar", { name: "Formatting" });
     expect(
       Array.from(toolbar.querySelectorAll("button")).map((button) =>
@@ -1989,7 +1989,7 @@ describe("the description editor (V0-12)", () => {
     fireEvent.change(textarea, { target: { value: "Cancelled." } });
     fireEvent.keyDown(textarea, { key: "Escape" });
 
-    // Esc is the editor's, not the panel's (`keyboard-focus-map.md:82`).
+    // Esc is the editor's, not the panel's (`keyboard-focus-map.md:87`).
     expect(onClose).not.toHaveBeenCalled();
     expect(editTicketMock).not.toHaveBeenCalled();
     expect(screen.queryByLabelText("Description")).toBeNull();

@@ -1,7 +1,7 @@
 /**
  * The anchored popover behind status, priority, ordering and labels.
  *
- * `screen-specs.md:239-247` specifies one menu for all four, so this is one
+ * `screen-specs.md:317-325` specifies one menu for all four, so this is one
  * component with no idea which field it is editing: it is handed rows, the values
  * that are currently set, and something to hang off. Single-select picks and
  * closes; multi-select ticks and stays open, which is the only difference between
@@ -180,7 +180,7 @@ export function Menu<T extends string>(props: MenuProps<T>) {
 }
 
 /**
- * The mark that says a value is a menu and not a chip (`screen-specs.md:192-193`,
+ * The mark that says a value is a menu and not a chip (`screen-specs.md:227-228`,
  * D-3B — the table's own `:172-176` predates an edit to that file). Without it
  * Status and Priority read as static until the pointer is already on them,
  * which is no help to anyone who has not put it there.
@@ -222,7 +222,7 @@ export function MenuButton<T extends string>(props: {
   /**
    * Opened from outside the trigger: the `S`/`P` single-key path, which acts on
    * the open ticket while focus is somewhere else in the panel entirely
-   * (`keyboard-focus-map.md:66-69`). Omitted, the trigger owns its own state —
+   * (`keyboard-focus-map.md:71-74`). Omitted, the trigger owns its own state —
    * every other caller wants that and should not have to hold one.
    */
   open?: boolean;

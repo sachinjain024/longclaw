@@ -1,5 +1,5 @@
 /**
- * The priority glyphs, from `components.md:134-144`.
+ * The priority glyphs, from `components.md:153-163`.
  *
  * Six levels, monochrome except Urgent: a filled square with an exclamation for
  * Urgent, a bordered mono chip carrying its own number for P1–P4, and a dash for

@@ -35,7 +35,7 @@ describe("the slots a list scroller stacks", () => {
 
   it("gives a collapsed group its header and nothing else", () => {
     // The only group that is ever empty is Archived while it is shut
-    // (`screen-specs.md:150-154`); every other group is drawn because it has
+    // (`screen-specs.md:205-209`); every other group is drawn because it has
     // tickets in it.
     const { slots, offsets } = listGeometry([group(1), group(0)]);
 

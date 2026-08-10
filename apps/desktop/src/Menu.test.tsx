@@ -2,7 +2,7 @@
 
 /**
  * The one popover behind status, priority, ordering and labels
- * (`screen-specs.md:239-247`). These are the guarantees its callers are allowed
+ * (`screen-specs.md:317-325`). These are the guarantees its callers are allowed
  * to rely on, so they are tested here once rather than in each caller.
  */
 

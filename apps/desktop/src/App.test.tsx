@@ -406,7 +406,7 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
    * board but Tab from the top of the document.
    *
    * The same call is how the ticket panel returns focus to its card, so this
-   * covers `keyboard-focus-map.md:152` at size as well as :123.
+   * covers `keyboard-focus-map.md:161` at size as well as :123.
    */
   it("focuses the new card even when it lands outside the rendered window", async () => {
     const crowd: TicketRow[] = Array.from({ length: 30 }, (_, index) => ({
@@ -1263,7 +1263,7 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
   });
 
   /**
-   * `screen-specs.md:277-278`. The settings panel offers the same removal the
+   * `screen-specs.md:335-336`. The settings panel offers the same removal the
    * unreachable screen does, so it has to ask the same question first — an
    * action that confirms on one screen and fires on the next is not a confirm.
    */
@@ -2790,7 +2790,7 @@ describe("archive and unarchive (V0-11)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Unarchive" }));
 
-    // The panel stays: only archiving closes it (`screen-specs.md:166`).
+    // The panel stays: only archiving closes it (`screen-specs.md:221`).
     expect(screen.getByRole("complementary", { name: "Ticket LC-1" }));
     // Back among the statuses, and out of the archived group it was opened in.
     expect(screen.getByRole("heading", { name: /^Todo/ })).toBeTruthy();
@@ -3950,7 +3950,7 @@ describe("the side panel against its spec (Step 16a)", () => {
   it("marks an unreachable project without hiding or disabling it", async () => {
     await renderPanel();
 
-    // The row keeps its place and stays clickable (`screen-specs.md:40-42`):
+    // The row keeps its place and stays clickable (`screen-specs.md:60-62`):
     // relocating a project starts by opening it.
     const link = [
       ...localSection().querySelectorAll<HTMLElement>(".project-link"),

@@ -1,5 +1,5 @@
 /**
- * Full create: the ticket panel in create mode (`screen-specs.md:209-216`).
+ * Full create: the ticket panel in create mode (`screen-specs.md:264-271`).
  *
  * It sits beside `TicketPanel` rather than inside it, and wears the same
  * `.ticket-panel` treatment. The panel is built around a file: it reads one on
@@ -14,7 +14,7 @@
  *
  * - **The ID is a guess.** Rust allocates the real key from the project's own
  *   directory names. The chip says `KEY-n · new` and is display-only, never a
- *   tab stop (`keyboard-focus-map.md:57`).
+ *   tab stop (`keyboard-focus-map.md:61`).
  * - **Nothing has been written.** The description editor is write mode only —
  *   there is no file to preview against — and the checklist rows are drafts, so
  *   their boxes cannot be ticked: `NewTicket.checklist` is a list of strings and
@@ -47,7 +47,7 @@ interface CreatePanelProps {
   provisionalKey?: string;
   /** The project's label definitions. A ticket carries slugs and nothing else. */
   labels: Record<string, Label>;
-  /** Carried in from quick create's "Open full editor →" (`screen-specs.md:202`). */
+  /** Carried in from quick create's "Open full editor →" (`screen-specs.md:258-259`). */
   initialTitle?: string;
   initialStatus?: TicketStatus;
   /**
@@ -234,7 +234,7 @@ export function CreatePanel(props: CreatePanelProps) {
             if (!text) return;
             setChecklist((rows) => [...rows, text]);
             // Enter appends and keeps focus, for rapid entry
-            // (`screen-specs.md:189`).
+            // (`screen-specs.md:244`).
             setNewItem("");
           }}
         >

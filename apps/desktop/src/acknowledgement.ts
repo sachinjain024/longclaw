@@ -139,7 +139,7 @@ export function describeAge(at: number, now: number): string {
 
 /**
  * The same age, in the fixed 46px right-aligned slot a list row ends with
- * (`screen-specs.md:141-146`).
+ * (`screen-specs.md:175-180`).
  *
  * Every age that vocabulary produces is two or three characters wide except one:
  * `just now` wrapped onto a second line in that slot and made those rows visibly

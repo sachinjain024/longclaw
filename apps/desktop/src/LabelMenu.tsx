@@ -2,7 +2,7 @@
  * The labels row: the chips a ticket carries, and the popover that changes them.
  *
  * The same anchored menu as status, priority and ordering
- * (`screen-specs.md:239-247`), with `multiple` — so a row ticks and the menu
+ * (`screen-specs.md:317-325`), with `multiple` — so a row ticks and the menu
  * stays open, because picking labels is rarely picking one. The rows are every
  * definition the project has, plus any slug this ticket carries that the project
  * does not define, so an undefined slug can always be taken off again.

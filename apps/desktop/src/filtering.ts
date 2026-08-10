@@ -1,5 +1,5 @@
 /**
- * The content header's filter (`screen-specs.md:47`).
+ * The content header's filter (`screen-specs.md:67`).
  *
  * ## Where this sits
  *

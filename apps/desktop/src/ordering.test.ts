@@ -67,7 +67,7 @@ describe("priority ordering", () => {
   });
 
   it("keeps equal priorities in the order they arrived", () => {
-    // "Stable within a level" (screen-specs.md:112). The incoming order is the
+    // "Stable within a level" (screen-specs.md:132). The incoming order is the
     // store's global key sort, so this is what a human sees inside a level.
     const level = [
       row("LC-10", "p2"),

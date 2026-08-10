@@ -38,7 +38,7 @@ const STORE_PREFIX = ".longclaw/";
  * prefix every ticket shares dropped — `tickets/LC-1/ticket.md`, which is the
  * label the prototype's own disk state carries (`prototype.js:345`).
  *
- * Not the bare file name. `screen-specs.md:51-52` and `states.md:180` write
+ * Not the bare file name. `screen-specs.md:71-72` and `states.md:180` write
  * `✓ ticket.md`, but as example prose: in LongClaw *every* ticket is stored as
  * `ticket.md`, so the bare name would leave the header marking a write to one
  * ticket while another sits open in the panel. The key is the identifying part.
@@ -52,7 +52,7 @@ export function diskLabel(path: string) {
  * final state, and this says what the disk is actually doing.
  *
  * It reports only what is happening or what just landed
- * (`screen-specs.md:50-53`). With no write, no read and no `idle` file to name,
+ * (`screen-specs.md:70-73`). With no write, no read and no `idle` file to name,
  * it renders nothing at all — the `● watching` chip it replaced in the content
  * header was steady-state dev telemetry rather than designed chrome (LC-69).
  *

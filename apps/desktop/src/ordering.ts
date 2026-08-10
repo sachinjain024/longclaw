@@ -4,7 +4,7 @@
  * ADR 0003 gives the board two orders: priority by default, and a Manual order
  * over the per-ticket `rank`. Both live here rather than inside `layOutColumns`,
  * so a surface picks an order instead of owning one — the list reads the same
- * preference for the rows inside a group (`screen-specs.md:146`).
+ * preference for the rows inside a group (`screen-specs.md:180`).
  *
  * Which of the two is in force is a device-local view preference and never
  * project data, so nothing in this file writes anything and switching mode moves
@@ -220,7 +220,7 @@ export function rankForDrop(
  *
  * `Array.prototype.sort` has been stable since ES2019, which is what makes the
  * order within one priority level the order the tickets arrived in — the store's
- * key sort (`screen-specs.md:112`).
+ * key sort (`screen-specs.md:132`).
  */
 export function orderColumn(
   tickets: TicketRow[],

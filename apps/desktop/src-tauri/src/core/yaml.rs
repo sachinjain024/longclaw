@@ -85,7 +85,7 @@ impl Mapping {
     /// location to hand over — but the mapping already holds every entry's exact
     /// bytes, which is enough to say where the field is. That is what turns
     /// "status must be one of …" into a line the raw-file view can point at
-    /// (`screen-specs.md:295`, D-52).
+    /// (`screen-specs.md:353`, D-52).
     pub fn line_of(&self, key: &str) -> Option<u32> {
         let mut line = 1;
         for block in &self.blocks {

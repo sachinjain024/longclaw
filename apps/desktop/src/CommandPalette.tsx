@@ -1,5 +1,5 @@
 /**
- * The `⌘K` command palette (`screen-specs.md:218-237`).
+ * The `⌘K` command palette (`screen-specs.md:296-315`).
  *
  * A combobox over a listbox, not a menu: the input is what the human types into
  * and the rows are what it filters, so the input keeps DOM focus throughout and
@@ -8,7 +8,7 @@
  * rows — a row never holds focus, so it never sees the key.
  *
  * The palette is one screen in seven modes: a root command list and six
- * sub-modes (`:231`). Every mode is declared once, in `MODES` below — its rows,
+ * sub-modes (`:309`). Every mode is declared once, in `MODES` below — its rows,
  * its crumb, what a pick does, and any note under the list — because when the
  * mode was branched on at each of those four points, adding one meant editing
  * four places and forgetting the fourth was silent.
@@ -42,7 +42,7 @@ import type {
   TicketStatus,
 } from "./types";
 
-/** The root list, and the six sub-modes it opens (`screen-specs.md:231`). */
+/** The root list, and the six sub-modes it opens (`screen-specs.md:309`). */
 type Mode =
   "root" | "status" | "priority" | "theme" | "project" | "search" | "ordering";
 
@@ -52,9 +52,9 @@ type PaletteRow = {
   label: string;
   /** The option's own glyph: a status dot, a priority mark, a pair swatch. */
   glyph?: ReactNode;
-  /** Mono ticket key before the label. Search rows only (`screen-specs.md:236`). */
+  /** Mono ticket key before the label. Search rows only (`screen-specs.md:314`). */
   monoKey?: string;
-  /** Quiet trailing note on the row itself, e.g. `· archived` (`:154`). */
+  /** Quiet trailing note on the row itself, e.g. `· archived` (`:209`). */
   tag?: string;
   /** The value already in force. Wears the menus' trailing check (`Menu.tsx`). */
   current?: boolean;
@@ -135,7 +135,7 @@ export function CommandPalette(props: {
   /** The project every command runs against: the active one, never another. */
   project: ProjectReference;
   /**
-   * The open or focused ticket (`:233`). Absent is a real state — it is what
+   * The open or focused ticket (`:311`). Absent is a real state — it is what
    * disables status, priority and archive rather than letting them fail.
    */
   ticket?: IndexedTicket;
@@ -404,7 +404,7 @@ export function CommandPalette(props: {
         id: project.id,
         label: project.name,
         // The sidebar's treatment for an unreachable project
-        // (`screen-specs.md:41-42`), which the palette had no rule of its own
+        // (`screen-specs.md:61-62`), which the palette had no rule of its own
         // for: still listed, still openable — opening it is how a human reaches
         // the Locate folder action.
         tag: project.reachable ? undefined : "unreachable",
@@ -534,7 +534,7 @@ export function CommandPalette(props: {
         aria-label="Command palette"
         onKeyDown={keyDown}
       >
-        {/* `screen-specs.md:221`, `:232`: one 44px row carrying the crumb chip,
+        {/* `screen-specs.md:221`, `:310`: one 44px row carrying the crumb chip,
             the input, and the `esc` chip. */}
         <div className="palette-input-row">
           <span className="palette-input-glyph" aria-hidden="true">

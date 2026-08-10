@@ -50,8 +50,8 @@ interface QuickCreateProps {
    */
   provisionalKey?: string;
   /**
-   * The status the modal opens on — "defaults Todo; preseeded when opened from
-   * a column `+`" (`screen-specs.md:222`). A board column's `+` chooses it, so
+   * The status the modal opens on — "defaults Todo; preseeded from a column
+   * `+`" (`screen-specs.md:257`). A board column's `+` chooses it, so
    * the create starts in the column it was pressed in.
    */
   initialStatus?: TicketStatus;

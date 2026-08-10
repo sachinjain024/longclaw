@@ -32,7 +32,7 @@ fn the_create_request_the_full_create_surface_sends() {
     assert_eq!(request.ticket.checklist.len(), 2);
 }
 
-/// Quick create is title and status and nothing else (`screen-specs.md:198-207`),
+/// Quick create is title and status and nothing else (`screen-specs.md:253-262`),
 /// so the fields it leaves out have to be genuinely optional on the wire rather
 /// than merely always sent.
 #[test]

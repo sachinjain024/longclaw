@@ -1,7 +1,7 @@
 /**
  * The description editor: Write/Preview tabs, six formatting buttons, a mono
  * textarea, and a footer that says where the bytes go
- * (`screen-specs.md:176-185`).
+ * (`screen-specs.md:231-240`).
  *
  * The rule the whole component is built around: **the textarea holds the raw
  * string and nothing here ever normalizes it.** The preview is a read-only
@@ -29,7 +29,7 @@ const TABS = [
 type Tab = (typeof TABS)[number]["id"];
 
 /**
- * Create mode is "write mode only until first save" (`screen-specs.md:211`), so
+ * Create mode is "write mode only until first save" (`screen-specs.md:266`), so
  * it takes neither tab, neither footer button, nor the keys that drive them: the
  * create panel owns `⌘↵` and `Esc`, and there is no file to preview against or
  * save to. Modelled as a union rather than four optional props so the edit path
@@ -74,7 +74,7 @@ export function DescriptionEditor(props: DescriptionEditorProps) {
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const toolRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  // Entering edit puts the caret at the end (`keyboard-focus-map.md:86`). In
+  // Entering edit puts the caret at the end (`keyboard-focus-map.md:91`). In
   // create mode there is nothing to enter — the editor is simply on screen, and
   // the title is where a new ticket starts.
   useEffect(() => {
@@ -146,7 +146,7 @@ export function DescriptionEditor(props: DescriptionEditorProps) {
   /**
    * Esc cancels the edit and stops there. Without this it reaches the panel's
    * document listener and closes the whole panel, which is not what
-   * `keyboard-focus-map.md:82` asks for. Create mode takes neither key: both
+   * `keyboard-focus-map.md:87` asks for. Create mode takes neither key: both
    * belong to the create panel's footer, so they are left to bubble.
    */
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -166,7 +166,7 @@ export function DescriptionEditor(props: DescriptionEditorProps) {
   return (
     <div className="description-editor" onKeyDown={onKeyDown}>
       <div className="editor-tabstrip">
-        {/* No Preview until the ticket exists (`screen-specs.md:211`). */}
+        {/* No Preview until the ticket exists (`screen-specs.md:266`). */}
         {editing && (
           <div
             role="tablist"

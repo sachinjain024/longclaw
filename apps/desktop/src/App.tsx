@@ -127,7 +127,7 @@ const THEMES = [
   { id: "plum", label: "Plum" },
 ];
 
-/** The note `screen-specs.md:246-247` puts under the ordering menu, verbatim. */
+/** The note `screen-specs.md:324-325` puts under the ordering menu, verbatim. */
 const ORDERING_FOOTNOTE =
   "Ordering is a view preference on this board — it never rewrites files.";
 
@@ -163,7 +163,7 @@ function sortedProjects(projects: ProjectReference[]) {
 
 /**
  * The 150ms crossfade a theme or appearance change wears
- * (`screen-specs.md:286`): the root briefly carries `theme-transition`, under
+ * (`screen-specs.md:364`): the root briefly carries `theme-transition`, under
  * which `styles.css` transitions color-bearing properties only. The timeout
  * outlives the class by a little so the transition finishes before the rule
  * disappears; back-to-back changes just extend the window.
@@ -218,7 +218,7 @@ export function App() {
 
   const [selectedKey, setSelectedKey] = useState<string>();
   /**
-   * Which create surface is up, if either (`screen-specs.md:198-216`). One at a
+   * Which create surface is up, if either (`screen-specs.md:253-271`). One at a
    * time: quick create's **Open full editor →** is a move between them, carrying
    * what has been typed rather than throwing it away.
    */
@@ -430,7 +430,7 @@ export function App() {
    * past the window, or a panel closing over a row scrolled out of sight, focused
    * nothing and left `<body>` holding it. The surfaces answer this by moving
    * their tab stop first, which mounts the row, and taking focus after. Found by
-   * the Step 17 accessibility audit; `keyboard-focus-map.md:16-18,123,152`.
+   * the Step 17 accessibility audit; `keyboard-focus-map.md:16-18,131,161`.
    */
   const [cardFocus, setCardFocus] = useState<FocusRequest>();
   const focusCard = useCallback((key: string) => {
@@ -994,7 +994,7 @@ export function App() {
   }
 
   /**
-   * Theme applies instantly (`screen-specs.md:96-98`): the reference flips
+   * Theme applies instantly (`screen-specs.md:116-118`): the reference flips
    * before the write returns — the crossfade is the acknowledgement — and a
    * refused write flips it back and says so. No snapshot re-fetch: the theme
    * is a fact about `longclaw.yaml`, not about tickets, so re-loading the
@@ -1071,7 +1071,7 @@ export function App() {
   }
 
   /**
-   * Creating never blocks on the disk write (`screen-specs.md:204-207`): the
+   * Creating never blocks on the disk write (`screen-specs.md:260-262`): the
    * card appears at once under a key guessed from the board, the surface closes,
    * and whatever key Rust allocated replaces the guess when the write lands.
    *
@@ -1397,7 +1397,7 @@ export function App() {
     if (!projectId || archived === isArchived(ticket)) return;
     // Archiving hides the ticket, so the panel it was raised from goes with it;
     // unarchiving puts it back on the board and leaves the panel open
-    // (`screen-specs.md:164-168`).
+    // (`screen-specs.md:219-223`).
     if (archived) {
       closeTicket();
       focusSurface();
@@ -1514,7 +1514,7 @@ export function App() {
 
         <div className="side-panel-footer">
           {/* Appearance is an app preference, not project data, and the spec
-              puts its 3-up segment in project settings (`screen-specs.md:253`),
+              puts its 3-up segment in project settings (`screen-specs.md:331`),
               not here — the native `<select>` that used to sit above this line
               was the only OS chrome left in the sidebar (LC-72). Until the
               settings modal carries the segment (LC-127), the palette's
@@ -1551,7 +1551,7 @@ export function App() {
           )
         ) : (
           <>
-            {/* One row, not three (`screen-specs.md:44-49`): the project's
+            {/* One row, not three (`screen-specs.md:64-69`): the project's
                 identity on the left, every board control on the right. The
                 `LOCAL PROJECT` eyebrow and the `Board`/`List` heading that used
                 to stand above this are gone — the sidebar already says which
@@ -2022,7 +2022,7 @@ export function App() {
 }
 
 /**
- * The Board | List segment in the content header (`screen-specs.md:49`). A pair
+ * The Board | List segment in the content header (`screen-specs.md:69`). A pair
  * of buttons rather than a radio group: each one is a place to go, and `pressed`
  * is what says which one you are standing in.
  */
@@ -2062,7 +2062,7 @@ function tildeAbbreviate(path: string, home: string | null): string {
 }
 
 /**
- * The project path as a chip (`screen-specs.md:44-47`, D-06): mono 12px, a
+ * The project path as a chip (`screen-specs.md:64-67`, D-06): mono 12px, a
  * folder glyph, truncated to the header with `text-overflow: ellipsis`, and a
  * click that copies the full path and says so with a toast. The bare wrapping
  * `<code>` it replaces consumed two lines for a long path; this one never does.
@@ -2129,7 +2129,7 @@ function ProjectSection(props: {
           >
             {/* The dot carries the project's own preset, so a row can show a
                 theme this window is not currently wearing. Unreachable swaps it
-                for the warn triangle (`screen-specs.md:40`) — said in words too,
+                for the warn triangle (`screen-specs.md:60`) — said in words too,
                 because a glyph is never the only channel. */}
             {project.reachable ? (
               <ThemeDot theme={project.theme} />
@@ -2238,7 +2238,7 @@ function Welcome(props: {
   return (
     <section className="welcome-panel">
       {/* 52px mark, display greeting, and the trust line the spec closes this
-          screen with (`screen-specs.md:89-94`). This is also the no-projects
+          screen with (`screen-specs.md:90-94`). This is also the no-projects
           state — there is no separate empty app screen and no account step
           anywhere in the flow. */}
       <OwlMark size={52} />
@@ -2282,7 +2282,7 @@ function Welcome(props: {
 }
 
 /**
- * The no-match state (`states.md:37-41`, `screen-specs.md:130-131`): a centered
+ * The no-match state (`states.md:37-41`, `screen-specs.md:164-165`): a centered
  * panel, the query echoed back, and a secondary Clear filter that `Esc` also
  * reaches. The one state that stands *instead of* the surfaces — the
  * empty-project guide (`GuideCard.tsx`) stands inside them.

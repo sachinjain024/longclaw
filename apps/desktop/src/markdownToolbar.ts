@@ -1,6 +1,6 @@
 /**
  * What the six formatting buttons do to a selection
- * (`keyboard-focus-map.md:84`), as string in, string out.
+ * (`keyboard-focus-map.md:89`), as string in, string out.
  *
  * This is a separate module from the editor because the claim it has to carry is
  * a property, not an interaction: **a toolbar action changes the selection and
@@ -20,7 +20,7 @@ export interface TextSelection {
   end: number;
 }
 
-/** The six, in the order `screen-specs.md:179-180` lists them. */
+/** The six, in the order `screen-specs.md:234-235` lists them. */
 export const TOOLBAR_ACTIONS: {
   id: ToolbarAction;
   /** The accessible name. An icon alone is not a name. */
