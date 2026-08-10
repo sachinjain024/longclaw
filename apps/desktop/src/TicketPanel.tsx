@@ -26,7 +26,14 @@ import {
   acknowledgementClass,
 } from "./attribution";
 import { useAutoGrow } from "./autoGrow";
-import { heldOrder, landingFor, moveOf, reordered } from "./checklistOrder";
+import {
+  dropEdge,
+  gapUnder,
+  heldOrder,
+  landingFor,
+  moveOf,
+  reordered,
+} from "./checklistOrder";
 import { classes } from "./classes";
 import { ConflictBanner } from "./ConflictBanner";
 import { DescriptionEditor } from "./DescriptionEditor";
@@ -753,9 +760,6 @@ export function TicketPanel(props: TicketPanelProps) {
    */
   const reorderable =
     checklist.length > 1 && checklist.every((item) => item.id !== undefined);
-  const reorderHint = reorderable
-    ? undefined
-    : "Reordering waits until every item has an id. Saving any change adopts them.";
 
   /** Puts the list in the order the human left it; the file catches up. */
   function holdOrder(order: string[]): () => void {
@@ -799,22 +803,6 @@ export function TicketPanel(props: TicketPanelProps) {
       : checklist.findIndex((item) => item.id === id);
   }
 
-  /**
-   * Which gap the pointer is in: above the row it is over, or below it, decided
-   * at that row's own midpoint. Rows here are as tall as their text, so the
-   * boundary is measured rather than computed from a row height the way the
-   * board's and the list's are.
-   */
-  function gapAt(event: DragEvent<HTMLElement>): number | undefined {
-    const index = rowIndexAt(event.target);
-    if (index < 0) return undefined;
-    const row = (event.target as HTMLElement).closest(
-      ".checklist-row",
-    ) as HTMLElement;
-    const box = row.getBoundingClientRect();
-    return event.clientY > box.top + box.height / 2 ? index + 1 : index;
-  }
-
   function pickUpRow(event: DragEvent<HTMLElement>) {
     const index = rowIndexAt(event.target);
     if (!reorderable || index < 0) return;
@@ -826,7 +814,7 @@ export function TicketPanel(props: TicketPanelProps) {
 
   function overRow(event: DragEvent<HTMLElement>) {
     if (dragItem === undefined) return;
-    const gap = gapAt(event);
+    const gap = gapUnder(event, rowIndexAt);
     if (gap === undefined) return;
     // Without this the drop never fires: the default is "this is not a target".
     event.preventDefault();
@@ -837,7 +825,7 @@ export function TicketPanel(props: TicketPanelProps) {
   }
 
   function dropRow(event: DragEvent<HTMLElement>) {
-    const gap = gapAt(event);
+    const gap = gapUnder(event, rowIndexAt);
     const from = checklist.findIndex((item) => item.id === dragItem);
     endDrag();
     if (gap === undefined || from < 0) return;
@@ -1290,10 +1278,7 @@ export function TicketPanel(props: TicketPanelProps) {
                       "checklist-row",
                       reorderable && "draggable",
                       item.id === dragItem && "dragging",
-                      dropGap === index && "drop-above",
-                      dropGap === checklist.length &&
-                        index === checklist.length - 1 &&
-                        "drop-below",
+                      dropEdge(index, checklist.length, dropGap),
                       checked && "checked",
                       acknowledged && "acknowledged",
                       acknowledged && accentClass,
@@ -1305,12 +1290,8 @@ export function TicketPanel(props: TicketPanelProps) {
                         (`keyboard-focus-map.md:62`) — a grip that took a Tab
                         stop of its own would put a second stop on every row to
                         offer what the row already answers. */}
-                    {checklist.length > 1 && (
-                      <span
-                        className="row-grip"
-                        aria-hidden="true"
-                        title={reorderHint}
-                      >
+                    {reorderable && (
+                      <span className="row-grip" aria-hidden="true">
                         ⠿
                       </span>
                     )}

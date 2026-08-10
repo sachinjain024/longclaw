@@ -141,11 +141,12 @@ green. A seventh document is audited first and pinned second: the lock freezes
 whatever it is handed, so pinning an unaudited one holds its mistakes still and
 calls them clean.
 
-**A `<button>` needs an explicit `tabIndex`, and `npm run check` enforces it.**
-WebKit follows the macOS _Keyboard navigation_ setting, which is off by default,
-and with it off Tab skips buttons entirely — which is why plan 07 gave the board
-roving focus, and why the ticket panel's controls were pointer-only until Step 17.
-Write `tabIndex={0}`, or `tabIndex={-1}` where a roving group owns the stop;
+**A `<button>` or a checkbox needs an explicit `tabIndex`, and `npm run check`
+enforces it.** WebKit follows the macOS _Keyboard navigation_ setting, which is
+off by default, and with it off Tab skips both entirely — which is why plan 07
+gave the board roving focus, why the ticket panel's controls were pointer-only
+until Step 17, and why its checklist rows still were until LC-185. Write
+`tabIndex={0}`, or `tabIndex={-1}` where a roving group owns the stop;
 `scripts/tab-order-guard.mjs` fails on an absent one.
 
 `npm run verify` must pass before you commit. CI additionally runs

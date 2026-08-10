@@ -83,7 +83,7 @@ Test suites worth knowing about:
 | `npm run a11y:audit`   | accessibility Part A in WebKit: the ticket lifecycle by keyboard alone, focus order and return, visible focus, reduced motion, and 200% zoom                   |
 | `npm run matrix`       | every theme preset × light and dark over nine core states, checking rendered contrast and actor distinction                                                    |
 | `npm run probe:header` | the content header's geometry in WebKit while a real write is in flight, at every width the window can be (LC-149)                                             |
-| `npm run probe:drag`   | where a dragged ticket actually lands, in WebKit with the write commands served: between columns and between groups, and a place inside one in Manual (LC-174) |
+| `npm run probe:drag`   | where a dragged ticket actually lands, in WebKit with the write commands served: between columns and between groups, a place inside one in Manual (LC-174), and a checklist row inside the panel's list (LC-185) |
 
 One thing under `perf/` _is_ in `npm run verify`: `perf/preview-server.test.mjs`,
 which covers how all six harnesses get their server (LC-157). It spawns short
@@ -120,18 +120,19 @@ that says when a layout change has made the header wider than the window — run
 `a11y:audit` too when it does, because that is A5's question.
 
 **Run `probe:drag` when you touch a drop handler**, `ticketMove.ts`,
-`ordering.ts` or `rank.ts`. Every drag test in `npm test` is jsdom, which
+`ordering.ts`, `rank.ts` or `checklistOrder.ts`. Every drag test in `npm test` is jsdom, which
 dispatches whatever it is told to, so it can say the page accepted a drop and
 cannot say the ticket landed where it was let go — the two defects that have hid
 behind a green gate here are LC-60's window flag, where the page never saw a
 `dragover`, and LC-174's rank allocation, where every event was right and the row
 did not move. It carries a `--self-test` like the others.
 
-**A `<button>` needs an explicit `tabIndex` and `npm run check` enforces it.**
-WebKit follows the macOS _Keyboard navigation_ setting, off by default, and with
-it off Tab skips buttons — so an unmarked button is invisible to the keyboard on
-an ordinary Mac. Write `tabIndex={0}`, or `tabIndex={-1}` where a roving group or
-an `aria-activedescendant` list owns the stop.
+**A `<button>` or a checkbox needs an explicit `tabIndex` and `npm run check`
+enforces it.** WebKit follows the macOS _Keyboard navigation_ setting, off by
+default, and with it off Tab skips both — so an unmarked one is invisible to the
+keyboard on an ordinary Mac, which is what kept the panel's checklist rows
+pointer-only until LC-185. Write `tabIndex={0}`, or `tabIndex={-1}` where a
+roving group or an `aria-activedescendant` list owns the stop.
 
 `perf:startup` redirects `HOME` to a throwaway directory and copies the fixture
 project, so it never reads or writes the real registry in

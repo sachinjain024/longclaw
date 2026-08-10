@@ -30,6 +30,45 @@ export function landingFor(from: number, gap: number): number {
   return gap > from ? gap - 1 : gap;
 }
 
+/**
+ * Which gap a pointer is in, from the row it is over and that row's own box:
+ * above it, or below it, decided at its midpoint.
+ *
+ * Measured rather than computed from a row height, because these rows are as
+ * tall as their text — which is the one way this list differs from the board's
+ * and the issue list's, where a stride is a constant (`listGeometry.ts`).
+ *
+ * `rowIndexAt` is what tells the two surfaces apart: the panel's rows know
+ * their item id, the create panel's know their position, and neither has the
+ * other's. Nothing else about the gesture differs, so nothing else is passed.
+ */
+export function gapUnder(
+  event: { target: EventTarget | null; clientY: number },
+  rowIndexAt: (target: EventTarget | null) => number,
+): number | undefined {
+  const index = rowIndexAt(event.target);
+  if (index < 0) return undefined;
+  const row = (event.target as HTMLElement).closest(".checklist-row");
+  if (!row) return undefined;
+  const box = row.getBoundingClientRect();
+  return event.clientY > box.top + box.height / 2 ? index + 1 : index;
+}
+
+/**
+ * Which edge of this row the insertion line is on, if either. The last row
+ * carries the list's bottom edge, because there is no row below it to put the
+ * line above.
+ */
+export function dropEdge(
+  index: number,
+  length: number,
+  gap: number | undefined,
+): "drop-above" | "drop-below" | undefined {
+  if (gap === index) return "drop-above";
+  if (gap === length && index === length - 1) return "drop-below";
+  return undefined;
+}
+
 /** The list with the item at `from` taken out and put back at `to`. */
 export function reordered<Item>(
   items: readonly Item[],

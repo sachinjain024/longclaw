@@ -24,7 +24,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { DragEvent, KeyboardEvent } from "react";
 import { useAutoGrow } from "./autoGrow";
-import { landingFor, reordered } from "./checklistOrder";
+import { dropEdge, gapUnder, landingFor, reordered } from "./checklistOrder";
 import { classes } from "./classes";
 import { DescriptionEditor } from "./DescriptionEditor";
 import { GhostBox } from "./GhostBox";
@@ -114,14 +114,42 @@ export function CreatePanel(props: CreatePanelProps) {
     if (follow) setFollowRow(to);
   }
 
-  function gapAt(event: DragEvent<HTMLElement>): number | undefined {
+  /** Whether there is another row for one to be dragged past. */
+  const reorderable = checklist.length > 1;
+
+  function pickUpRow(event: DragEvent<HTMLElement>) {
     const index = rowIndexAt(event.target);
-    if (index < 0) return undefined;
-    const row = (event.target as HTMLElement).closest(
-      ".checklist-row",
-    ) as HTMLElement;
-    const box = row.getBoundingClientRect();
-    return event.clientY > box.top + box.height / 2 ? index + 1 : index;
+    if (!reorderable || index < 0) return;
+    // WebKit will not start a drag with an empty data transfer (`dragging.ts`).
+    event.dataTransfer?.setData("text/plain", checklist[index]);
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+    setDragRow(index);
+  }
+
+  function overRow(event: DragEvent<HTMLElement>) {
+    if (dragRow === undefined) return;
+    const gap = gapUnder(event, rowIndexAt);
+    if (gap === undefined) return;
+    // Without this the drop never fires: the default is "this is not a target".
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+    setDropGap((current) => (current === gap ? current : gap));
+  }
+
+  function dropRow(event: DragEvent<HTMLElement>) {
+    const gap = gapUnder(event, rowIndexAt);
+    const from = dragRow;
+    endDrag();
+    if (gap === undefined || from === undefined) return;
+    event.preventDefault();
+    // Focus is wherever the pointer left it, so a drop does not move it — only
+    // the keyboard's own gesture does.
+    moveDraft(from, landingFor(from, gap), false);
+  }
+
+  function endDrag() {
+    setDragRow(undefined);
+    setDropGap(undefined);
   }
 
   /** `⌥↑` / `⌥↓` on a row, the same binding the ticket panel's list carries. */
@@ -257,39 +285,13 @@ export function CreatePanel(props: CreatePanelProps) {
         <ul
           className="checklist"
           ref={rows}
-          onDragStart={(event) => {
-            const index = rowIndexAt(event.target);
-            if (checklist.length < 2 || index < 0) return;
-            // WebKit will not start a drag with an empty data transfer
-            // (`dragging.ts`).
-            event.dataTransfer?.setData("text/plain", checklist[index]);
-            if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
-            setDragRow(index);
-          }}
-          onDragOver={(event) => {
-            if (dragRow === undefined) return;
-            const gap = gapAt(event);
-            if (gap === undefined) return;
-            event.preventDefault();
-            if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
-            setDropGap((current) => (current === gap ? current : gap));
-          }}
-          onDrop={(event) => {
-            const gap = gapAt(event);
-            const from = dragRow;
-            setDragRow(undefined);
-            setDropGap(undefined);
-            if (gap === undefined || from === undefined) return;
-            event.preventDefault();
-            // Focus is on whatever the pointer left it on, so a drop does not
-            // move it — only the keyboard's own gesture does.
-            moveDraft(from, landingFor(from, gap), false);
-          }}
-          onDragEnd={() => {
-            setDragRow(undefined);
-            setDropGap(undefined);
-          }}
+          onDragStart={pickUpRow}
+          onDragOver={overRow}
+          onDrop={dropRow}
+          onDragEnd={endDrag}
           onDragLeave={(event) => {
+            // Leaving for a row of the same list is not leaving; the next
+            // `dragover` would put the line back a frame later.
             if (event.currentTarget.contains(event.relatedTarget as Node))
               return;
             setDropGap(undefined);
@@ -303,18 +305,15 @@ export function CreatePanel(props: CreatePanelProps) {
               className={classes(
                 "checklist-row",
                 "draft",
-                checklist.length > 1 && "draggable",
+                reorderable && "draggable",
                 index === dragRow && "dragging",
-                dropGap === index && "drop-above",
-                dropGap === checklist.length &&
-                  index === checklist.length - 1 &&
-                  "drop-below",
+                dropEdge(index, checklist.length, dropGap),
               )}
               key={index}
               data-row-index={index}
-              draggable={checklist.length > 1}
+              draggable={reorderable}
             >
-              {checklist.length > 1 && (
+              {reorderable && (
                 <span className="row-grip" aria-hidden="true">
                   ⠿
                 </span>

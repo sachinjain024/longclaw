@@ -1011,11 +1011,15 @@ impl TicketDocument {
             None => None,
         };
         let line = lines.remove(from);
+        // The same arithmetic the recorded position is computed with, asked of
+        // line numbers instead of list positions — one function, so a fix to one
+        // cannot leave the event describing a place the line never took.
+        //
+        // The top is the one landing the two spaces disagree about: position 0
+        // of the list is wherever the *first item line* is, and the heading and
+        // any prose above it are not places a line may go.
         let to = match anchor {
-            // The removal already shifted an anchor below the item up by one, so
-            // its own index is now the place after it.
-            Some(index) if index > from => index,
-            Some(index) => index + 1,
+            Some(index) => landing(from, Some(index)),
             None => lines
                 .iter()
                 .position(|line| parse_checklist_line(line).is_some())

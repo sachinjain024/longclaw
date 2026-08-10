@@ -569,6 +569,37 @@ describe("rearranging the checklist (LC-185)", () => {
     );
   });
 
+  /**
+   * A second press while the first write is still out is dropped, not queued —
+   * `save` refuses to start a write against a hash another is already using.
+   * What matters is that dropping it is *quiet and whole*: one write goes out,
+   * the list reads the order that write made, and nothing is left claiming a
+   * place the file does not hold. Holding the key down is V0's limit here.
+   */
+  it("drops a second press made while the first write is still out", async () => {
+    let land: (result: WriteResult) => void = () => {};
+    editTicketMock.mockReturnValueOnce(
+      new Promise<WriteResult>((settle) => {
+        land = settle;
+      }),
+    );
+    render(surface());
+    const box = await screen.findByLabelText("First");
+
+    fireEvent.keyDown(box, { key: "ArrowDown", altKey: true });
+    expect(order()).toEqual(["Second", "First", "Third"]);
+    fireEvent.keyDown(screen.getByLabelText("First"), {
+      key: "ArrowDown",
+      altKey: true,
+    });
+
+    expect(editTicketMock).toHaveBeenCalledTimes(1);
+    land(writeResult());
+    await waitFor(() => expect(readTicketMock).toHaveBeenCalledTimes(2));
+    // The file's own order, once it answers — not a second move nobody wrote.
+    expect(order()).toEqual(["First", "Second", "Third"]);
+  });
+
   it("has nowhere to send the first row on ⌥↑, and writes nothing", async () => {
     render(surface());
     const box = await screen.findByLabelText("First");
@@ -626,6 +657,9 @@ describe("rearranging the checklist (LC-185)", () => {
     expect(order()).toEqual(["First", "Appended by an agent"]);
     expect(editTicketMock).not.toHaveBeenCalled();
     expect(checklistRow("First").getAttribute("draggable")).toBe("false");
+    // And nothing advertises the gesture, on hover or on focus: a grip that
+    // appeared and then did nothing is worse than no grip.
+    expect(document.querySelector(".row-grip")).toBeNull();
   });
 });
 
