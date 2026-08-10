@@ -94,7 +94,7 @@ export interface ChangeContext {
   checklist?: readonly ChecklistItem[];
 }
 
-const CHECKLIST_FIELD = /^checklist\.(.+)\.(checked|added)$/;
+const CHECKLIST_FIELD = /^checklist\.(.+)\.(checked|added|moved)$/;
 
 /**
  * Every line one record puts on screen.
@@ -219,6 +219,19 @@ function describeChecklist(
         text === undefined
           ? "added a checklist item"
           : `added ${quote(text)} to the checklist`,
+    };
+  }
+  if (what === "moved") {
+    // The same glyph the manual board order wears, because it is the same news:
+    // somebody put something in a different place by hand. The record carries
+    // the positions it went between; the sentence names the row, which is what
+    // a reader recognises — a number is only meaningful beside the list itself.
+    return {
+      glyph: char("↕"),
+      text:
+        item === undefined
+          ? "moved a checklist item"
+          : `moved ${quote(item.text)}`,
     };
   }
   const verb = to === "true" ? "checked" : "unchecked";

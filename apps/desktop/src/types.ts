@@ -139,6 +139,16 @@ export interface ChecklistItem {
   checked: boolean;
 }
 
+/**
+ * A row's new place in the checklist, as a neighbour rather than an index: the
+ * item it now follows, or `null` for the top, which is the one landing with no
+ * item above it to name (`core/ticket.rs`, `ChecklistMove`).
+ */
+export interface ChecklistMove {
+  itemId: string;
+  after: string | null;
+}
+
 export interface Attachment {
   id: string;
   file: string;
@@ -281,6 +291,8 @@ export interface TicketEdit {
   archived?: boolean;
   description?: string;
   checklist?: { itemId: string; checked: boolean }[];
+  /** One row's new place, named by the row it now follows (LC-185). */
+  moveChecklistItem?: ChecklistMove;
   addChecklistItems?: string[];
   comment?: string;
 }
