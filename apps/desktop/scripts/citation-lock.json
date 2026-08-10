@@ -253,5 +253,18 @@
     "172": "never guesses. An observed external change without actor metadata logs",
     "178": "the agent acknowledgement, new timeline entries append, the description",
     "180": "the disk-state line (`✓ ticket.md`)."
+  },
+  "file_format.md": {
+    "66": "rank: \"a0V\"",
+    "131": "- `rank` is optional and lives on the ticket, preventing a shared board-order file from becoming a conflict hotspot. It affects order only when the board's device-local sort option is **Manual**. Drag-and-drop is disabled for priority sorting and writes ranks only in Manual mode. In v0, LongClaw owns rank allocation; agents preserve existing ranks and do not invent them.",
+    "194": "- Activity is sorted by `occurred_at`, with `id` used as a deterministic tie-breaker.",
+    "214": "labels:",
+    "231": "Tickets store label slugs. This lets a label's display name or color change without rewriting every ticket carrying that label.",
+    "345": "- `status: canceled` records a workflow outcome and keeps the ticket active in history and search.",
+    "347": "- Hard deletion is not part of the normal ticket workflow. If added, it should use a recoverable trash operation and must never reuse the deleted ticket key."
+  },
+  "data-requirements.md": {
+    "41": "| Filter | query | app state (device-local, per project) |",
+    "121": "| Undo toast | inverse of last mutation | app state (session) |"
   }
 }

@@ -126,16 +126,18 @@ lines still.** `screen-specs.md` closes by asking that edits occupy exactly the
 lines they replace, because ~400 source comments name lines in it and its three
 companions; changes ignored that and shifted everything below them, and 160
 citations were pointing at the wrong prose before anyone noticed — a stale line
-number reads exactly like a fresh one. The guard pins every cited line of
-`screen-specs.md`, `keyboard-focus-map.md`, `components.md` and `states.md` to
+number reads exactly like a fresh one. The guard pins every cited line of all
+six line-cited documents — `screen-specs.md`, `keyboard-focus-map.md`,
+`components.md`, `states.md`, `file_format.md` and `data-requirements.md` — to
 its text in `scripts/citation-lock.json` and fails when that text moves, naming
 the line it moved to, so re-pointing is mechanical. **If you edit one of these,
 prefer replacing prose in place over inserting it**; when you do change the
 wording, re-point whatever cited it and then `citations:update`. Do not run
 `--update` to clear a red run — it records drift as the new truth. Its
 `--self-test` shifts each pinned document by a line and fails if the guard stays
-green. `file_format.md` and `data-requirements.md` are cited too but were never
-audited, so they get the range checks only; auditing one promotes it.
+green. A seventh document is audited first and pinned second: the lock freezes
+whatever it is handed, so pinning an unaudited one holds its mistakes still and
+calls them clean.
 
 **A `<button>` needs an explicit `tabIndex`, and `npm run check` enforces it.**
 WebKit follows the macOS _Keyboard navigation_ setting, which is off by default,

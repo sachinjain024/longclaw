@@ -1,7 +1,7 @@
 /**
  * How a label slug becomes something to draw.
  *
- * A ticket stores slugs and nothing else (`file_format.md:213-231`), which is
+ * A ticket stores slugs and nothing else (`file_format.md:214-231`), which is
  * what lets a definition be renamed or recoloured without rewriting a single
  * ticket. The cost of that is one lookup, and it has to give an answer for every
  * slug — including one this project defines no label for, because an agent can

@@ -12,33 +12,28 @@
  * number reads exactly like a fresh one, and no test loads a Markdown file.
  * This is the discipline that note asks for, enforced rather than requested.
  *
- * **Two tiers, because they need different amounts of trust.**
+ * Every cited line's text is recorded in `citation-lock.json`, and the guard
+ * fails when the text at that number changes. That catches drift the moment it
+ * happens — insert a line anywhere above a citation and every citation below it
+ * goes red, naming where its text actually went.
  *
- * A *pinned* document has every cited line's text recorded in
- * `citation-lock.json`, and the guard fails when the text at that number
- * changes. That catches drift the moment it happens — insert a line anywhere
- * above a citation and every citation below it goes red, naming where its text
- * actually went. It is only honest for a document whose citations are known to
- * be right, so pinning one is something you do *after* auditing it: the lock
- * freezes whatever it is given, including mistakes.
+ * **Pinning is something you do after auditing, not instead of it.** The lock
+ * freezes whatever it is handed, mistakes included, so a document pinned while
+ * its citations are still wrong just holds them still and prints "clean" over
+ * them. Each of the six was audited first: every citation resolved against the
+ * document as it stood when that citing line was written, which is the only way
+ * to tell a number that was always wrong from one the document walked out from
+ * under. That distinction earned its keep — a citing line reformatted after its
+ * citation was written makes blame read an already-drifted document, and
+ * several citations turned out to have been wrong on the day they were typed.
+ * `ThemeSwatch.tsx` named the conflict-banner states while talking about theme
+ * swatches; three places cited the focus-return table for the rule that
+ * reordering has no keyboard path.
  *
- * Everything else is checked structurally only — in range, not reversed —
- * which needs no baseline and cannot cement an error.
- *
- * All four line-cited design documents are pinned, and each was audited before
- * it was: every citation resolved against the document as it stood when that
- * citing line was written, which is the only way to tell a number that was
- * always wrong from one the document walked out from under. That distinction
- * mattered — a citing line reformatted after its citation was written makes
- * blame read an already-drifted document, and several citations turned out to
- * have been wrong on the day they were typed. `ThemeSwatch.tsx` named the
- * conflict-banner states while talking about theme swatches; three places
- * cited the focus-return table for the rule that reordering has no keyboard
- * path.
- *
- * `file_format.md` and `data-requirements.md` are cited too, but only 14 times
- * between them and never audited, so they stay on the structural checks. The
- * same repair promotes them.
+ * A seventh document would take the same route: audit, add to `DOCUMENTS` and
+ * `PINNED`, `--update`. Until it is audited it belongs in neither — an unlocked
+ * document still gets the structural checks (in range, not reversed), which
+ * need no baseline and cannot cement an error.
  *
  * `--update` rewrites the lock from the current documents. It is for when you
  * changed a pinned document's *wording* and have already re-pointed whatever
@@ -69,13 +64,12 @@ const DOCUMENTS = {
   "data-requirements.md": "docs/design/prototype/data-requirements.md",
 };
 
-/** The documents whose cited lines are pinned to their text. See the header. */
-const PINNED = [
-  "screen-specs.md",
-  "keyboard-focus-map.md",
-  "components.md",
-  "states.md",
-];
+/**
+ * The documents whose cited lines are pinned to their text — every document in
+ * `DOCUMENTS`, now that all six have been audited. See the header before adding
+ * a seventh: pinning an unaudited document freezes its mistakes.
+ */
+const PINNED = Object.keys(DOCUMENTS);
 
 /**
  * Where citations are read from: the shipping tree, the guards and probes that
