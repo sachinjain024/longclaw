@@ -19,6 +19,7 @@
 import { bridge, markLoaded } from "../bridge";
 import { PROJECT, detail, snapshot, ticket } from "../fixture";
 import type {
+  ChecklistItem,
   CreateTicketRequest,
   EditTicketRequest,
   IndexedTicket,
@@ -141,8 +142,31 @@ function editTicket(request: EditTicketRequest): WriteResult {
   if (edit.addChecklistItems?.length) {
     row.checklistCount += edit.addChecklistItems.length;
   }
+  // The order the write settled on, kept so the next read serves it. Without
+  // this a probe watching where a checklist row landed would be watching the
+  // panel's optimistic order decay back to the fixture's — the same trap the
+  // rank above is kept for, and the one `drag-probe` exists to tell apart.
+  if (edit.moveChecklistItem) {
+    const { itemId, after } = edit.moveChecklistItem;
+    const key = request.ticketKey;
+    const items = [...(checklists.get(key) ?? baseChecklist(key))];
+    const from = items.findIndex((item) => item.id === itemId);
+    const anchor =
+      after === null ? -1 : items.findIndex((item) => item.id === after);
+    if (from >= 0 && (after === null || anchor >= 0)) {
+      const [moved] = items.splice(from, 1);
+      items.splice(anchor > from ? anchor : anchor + 1, 0, moved);
+      checklists.set(key, items);
+    }
+  }
   return write(row);
 }
+
+/** Checklists a write has reordered, by ticket key. */
+const checklists = new Map<string, ChecklistItem[]>();
+
+const baseChecklist = (key: string): ChecklistItem[] =>
+  detail(key).ticket?.checklist ?? [];
 
 /** The panel's view of a row, so an edit made on the board is visible in it. */
 function ticketDetail(key: string): TicketDetail {
@@ -175,6 +199,7 @@ function ticketDetail(key: string): TicketDetail {
     contentHash: row.contentHash,
     ticket: {
       ...base.ticket,
+      checklist: checklists.get(key) ?? base.ticket.checklist,
       title: row.title,
       status: row.status,
       priority: row.priority,

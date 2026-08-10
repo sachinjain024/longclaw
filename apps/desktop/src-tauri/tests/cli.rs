@@ -109,6 +109,71 @@ fn an_agent_is_recorded_as_an_agent_and_a_person_as_themselves() {
     assert!(person.contains("### You created this ticket"), "{person}");
 }
 
+/// The order is a thing an agent can put right, not only a thing a human drags
+/// (LC-185). `--after` names the item the moved one now follows, and its absence
+/// is the top of the list.
+#[test]
+fn an_item_moves_to_the_place_the_command_names() {
+    let (_temp, root) = common::new_project("reorder", "LC");
+    let created = run(
+        &root,
+        &[
+            "ticket",
+            "create",
+            "--title",
+            "Ordered work",
+            "--checklist",
+            "first",
+            "--checklist",
+            "second",
+            "--checklist",
+            "third",
+        ],
+    );
+    let ids: Vec<String> = created["ticket"]["checklist"]
+        .as_array()
+        .expect("a created checklist")
+        .iter()
+        .map(|item| item["id"].as_str().expect("an id").to_owned())
+        .collect();
+    let texts = |value: &Value| -> Vec<String> {
+        value["ticket"]["checklist"]
+            .as_array()
+            .expect("a checklist")
+            .iter()
+            .map(|item| item["text"].as_str().expect("text").to_owned())
+            .collect()
+    };
+
+    let moved = run(
+        &root,
+        &[
+            "ticket",
+            "edit",
+            "LC-1",
+            "--move-item",
+            &ids[2],
+            "--after",
+            &ids[0],
+        ],
+    );
+    assert_eq!(texts(&moved), ["first", "third", "second"]);
+
+    let promoted = run(&root, &["ticket", "edit", "LC-1", "--move-item", &ids[1]]);
+    assert_eq!(texts(&promoted), ["second", "first", "third"]);
+
+    let raw = read(&root, "LC-1");
+    assert!(
+        raw.contains(&format!("field: checklist.{}.moved", ids[1])),
+        "{raw}"
+    );
+
+    assert_eq!(
+        refuse(&root, &["ticket", "edit", "LC-1", "--after", &ids[0]]),
+        "--after needs --move-item"
+    );
+}
+
 /// An agent that edits is an agent in the history too, not only at creation.
 #[test]
 fn an_agent_edit_appends_an_agent_authored_event() {

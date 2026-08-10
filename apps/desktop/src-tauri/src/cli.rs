@@ -41,7 +41,7 @@ use serde_json::{json, Value};
 use crate::app_state::AppState;
 use crate::core::project::{ProjectDocument, DEFAULT_LABEL_COLOR};
 use crate::core::storage::{self, NewTicket};
-use crate::core::ticket::{Actor, ChecklistToggle, Priority, Status, TicketEdit};
+use crate::core::ticket::{Actor, ChecklistMove, ChecklistToggle, Priority, Status, TicketEdit};
 use crate::core::{AppError, AppResult, ErrorCode, ProjectReference};
 
 /// The bundle identifier, which is also the folder the app keeps its project
@@ -70,6 +70,7 @@ TICKETS
                     [--description <text> | --description-file <file>]
                     [--check <item-id>]... [--uncheck <item-id>]...
                     [--add-checklist <item>]... [--comment <text>]
+                    [--move-item <item-id> [--after <item-id>]]
                     [--archive | --unarchive] [--path <dir>]
   ticket list       [--path <dir>]
   ticket show <KEY> [--path <dir>]
@@ -247,6 +248,8 @@ fn ticket_edit(arguments: &[String]) -> AppResult<Value> {
             "check",
             "uncheck",
             "add-checklist",
+            "move-item",
+            "after",
             "comment",
             "agent-id",
             "agent-name",
@@ -284,6 +287,7 @@ fn ticket_edit(arguments: &[String]) -> AppResult<Value> {
         archived,
         description: description(&options)?,
         checklist: toggles(&options),
+        move_checklist_item: moved_item(&options)?,
         add_checklist_items: options.many("add-checklist"),
         comment: options.one("comment")?.map(str::to_owned),
     };
@@ -454,6 +458,21 @@ fn toggles(options: &Options) -> Vec<ChecklistToggle> {
         .chain(cleared)
         .map(|(item_id, checked)| ChecklistToggle { item_id, checked })
         .collect()
+}
+
+/// The reorder an edit carries, if it carries one. `--after` names the item the
+/// moved one now follows; without it the item goes to the top, which is the one
+/// landing no other item can name.
+fn moved_item(options: &Options) -> AppResult<Option<ChecklistMove>> {
+    let after = options.one("after")?.map(str::to_owned);
+    match options.one("move-item")? {
+        Some(item_id) => Ok(Some(ChecklistMove {
+            item_id: item_id.to_owned(),
+            after,
+        })),
+        None if after.is_some() => Err(usage_error("--after needs --move-item")),
+        None => Ok(None),
+    }
 }
 
 /// The actor to record. Absent agent flags mean the person who typed the

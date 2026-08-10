@@ -30,7 +30,10 @@ controls that must be _refused_, because a probe that only checked what should
 work would pass against a build that accepted everything. It found two defects
 nothing else could see: LC-60's window flag (no `dragover` at all) and LC-174's
 rank allocation (every event correct, the drop line in the right gap, and the row
-still where it started). `--from=` and `--gap=` aim the two "place" cases, which
+still where it started). A fifth case is the ticket panel's checklist (LC-185) —
+the third list here a pointer can rearrange, and the only one whose order is the
+order of the lines in the file rather than a rank.
+`--from=` and `--gap=` aim the two "place" cases, which
 matters because that failure was directional. `--self-test` swallows `dragstart`
 the way the window's own handler did and expects the run to go red.
 

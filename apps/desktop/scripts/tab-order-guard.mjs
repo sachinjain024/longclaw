@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * The tab-stop guard: every `<button>` this app renders carries an explicit
- * `tabIndex`.
+ * The tab-stop guard: every `<button>` and every checkbox this app renders
+ * carries an explicit `tabIndex`.
  *
  * **Why this is not redundant with the HTML default.** A `<button>` is in the
  * tab order in every browser except the one LongClaw actually ships on. WebKit
@@ -22,13 +22,33 @@
  * says so. What this refuses is the *absent* attribute, because that is the one
  * that reads as "the default is fine" and is not.
  *
+ * **The checkbox is the same fact, and it hid for longer** (LC-185). That list
+ * of what WebKit does visit — text fields, selects, links — has no checkbox in
+ * it either, so the ticket panel's checklist rows were pointer-only while
+ * `keyboard-focus-map.md:61-62` said `Tab` reached them and `Enter`/`Space`
+ * toggled them. Nothing caught it here because this only ever read `<button>`,
+ * and nothing caught it in the audit because no row had walked to a checklist
+ * row until one was written to prove `⌥↓` reachable. A checkbox is a control a
+ * human operates, so it answers the same question a button does.
+ *
  * Usage: node scripts/tab-order-guard.mjs   (exits non-zero on any finding)
  */
 
 import { readSource, sourceFiles, report } from "./guard.mjs";
 
-/** A JSX button opening tag: `<button` followed by whitespace or `>`. */
-const OPENING = /<button(\s|>|$)/;
+/**
+ * The JSX opening tags this reads, by what the finding should call them. An
+ * `<input>` is only one of these when it is a checkbox: a text field is the one
+ * kind of control WebKit does visit with the OS setting off.
+ */
+const CONTROLS = [
+  { opening: /<button(\s|>|$)/, name: "<button>" },
+  {
+    opening: /<input(\s|>|$)/,
+    attribute: /type="checkbox"/,
+    name: "checkbox",
+  },
+];
 
 /**
  * The attributes of the JSX element starting at `line`, as one string.
@@ -68,9 +88,13 @@ for (const file of files) {
   lines.forEach((text, index) => {
     // A `<button>` inside a comment is prose about the DOM, not DOM.
     if (/^\s*(\/\/|\*|\/\*)/.test(text)) return;
-    if (!OPENING.test(text)) return;
-    if (/tabIndex=/.test(openingTag(lines, index))) return;
-    findings.push(`${path}:${index + 1} — <button> with no tabIndex`);
+    for (const control of CONTROLS) {
+      if (!control.opening.test(text)) continue;
+      const tag = openingTag(lines, index);
+      if (control.attribute && !control.attribute.test(tag)) continue;
+      if (/tabIndex=/.test(tag)) continue;
+      findings.push(`${path}:${index + 1} — ${control.name} with no tabIndex`);
+    }
   });
 }
 
@@ -79,7 +103,7 @@ report({
   findings,
   checked: files.length,
   remedy:
-    "button(s) with no explicit tabIndex — WebKit skips those on a default Mac, " +
+    "control(s) with no explicit tabIndex — WebKit skips those on a default Mac, " +
     "so add tabIndex={0}, or tabIndex={-1} if a roving group owns the stop:",
-  clean: "every button states its place in the tab order",
+  clean: "every button and checkbox states its place in the tab order",
 });

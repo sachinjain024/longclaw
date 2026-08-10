@@ -9,7 +9,13 @@
  * that nothing on screen pretends the file already exists.
  */
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  createEvent,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CreatePanel } from "./CreatePanel";
 import type { Label, TicketPriority } from "./types";
@@ -227,6 +233,99 @@ describe("nothing here claims the file exists yet", () => {
     expect(onCreate).toHaveBeenCalledWith(
       expect.objectContaining({ checklist: ["First", "Third"] }),
     );
+  });
+
+  /**
+   * The same two gestures the ticket panel's list has (LC-185), over rows that
+   * are not a file yet: the order they are dragged into is the order they are
+   * created in, and nothing is written until Create is.
+   */
+  describe("rearranging the drafted rows", () => {
+    function drafted(): string[] {
+      return [...document.querySelectorAll(".checklist-row label span")].map(
+        (node) => node.textContent ?? "",
+      );
+    }
+
+    function threeRows() {
+      const onCreate = vi.fn();
+      render(createPanel({ onCreate }));
+      fireEvent.change(screen.getByLabelText("Title"), {
+        target: { value: "Ordered work" },
+      });
+      addChecklistItem("First");
+      addChecklistItem("Second");
+      addChecklistItem("Third");
+      return onCreate;
+    }
+
+    /** jsdom lays nothing out and has no `DragEvent`; both are stated here. */
+    function dragOnto(from: string, onto: string, edge: "above" | "below") {
+      const row = (text: string) => {
+        const found = screen.getByText(text).closest("li");
+        if (!found) throw new Error(`no draft row for ${text}`);
+        return found;
+      };
+      const target = row(onto);
+      target.getBoundingClientRect = () =>
+        ({ top: 0, bottom: 20, height: 20 }) as DOMRect;
+      fireEvent.dragStart(row(from));
+      for (const type of ["dragOver", "drop"] as const) {
+        const event = createEvent[type](target);
+        Object.defineProperty(event, "clientY", {
+          value: edge === "below" ? 15 : 5,
+        });
+        fireEvent(target, event);
+      }
+    }
+
+    it("creates the ticket in the order the rows were dragged into", () => {
+      const onCreate = threeRows();
+
+      dragOnto("Third", "First", "above");
+
+      expect(drafted()).toEqual(["Third", "First", "Second"]);
+      fireEvent.click(screen.getByText("Create ticket"));
+      expect(onCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          checklist: ["Third", "First", "Second"],
+        }),
+      );
+    });
+
+    it("moves a row on ⌥↓ and sends focus after it", () => {
+      threeRows();
+      const remove = screen.getByRole("button", { name: "Remove First" });
+      remove.focus();
+
+      fireEvent.keyDown(remove, { key: "ArrowDown", altKey: true });
+
+      expect(drafted()).toEqual(["Second", "First", "Third"]);
+      // The rows key by position, so the row that moved is a different element
+      // now — focus has to follow the item rather than the place.
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Remove First" }),
+      );
+    });
+
+    it("has nowhere to send the last row on ⌥↓", () => {
+      threeRows();
+      const remove = screen.getByRole("button", { name: "Remove Third" });
+
+      fireEvent.keyDown(remove, { key: "ArrowDown", altKey: true });
+
+      expect(drafted()).toEqual(["First", "Second", "Third"]);
+    });
+
+    it("draws no grip on a list with nothing to reorder", () => {
+      render(createPanel());
+      addChecklistItem("Alone");
+
+      expect(document.querySelector(".row-grip")).toBeNull();
+      expect(
+        document.querySelector(".checklist-row")?.getAttribute("draggable"),
+      ).toBe("false");
+    });
   });
 
   it("keeps focus in the add-row after appending and after removing", () => {

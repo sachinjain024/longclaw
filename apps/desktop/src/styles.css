@@ -2779,6 +2779,68 @@ button:disabled {
   color: var(--lc-warn);
 }
 
+/* Reordering the list (LC-185). The grip lives in the panel's gutter rather
+   than in the row, so the resting anatomy is exactly the one components.md
+   § Checklist draws — 15px box, 13px text, nothing before them. A column added
+   to every row would move the whole list sideways to advertise a gesture that
+   is used once in a while, and the gutter is 20px of padding already there.
+
+   It appears on hover and while the row holds focus, which are the two moments
+   a reorder is being considered; the keyboard's way in is `⌥↑`/`⌥↓` on the row
+   (`keyboard-focus-map.md:62`) and never needs to see it. */
+.checklist-row {
+  position: relative;
+}
+
+.row-grip {
+  position: absolute;
+  left: -14px;
+  width: 12px;
+  color: var(--lc-ink-3);
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity var(--lc-motion-fast) var(--lc-motion-ease);
+}
+
+.checklist-row.draggable:hover .row-grip,
+.checklist-row:focus-within .row-grip {
+  opacity: 1;
+}
+
+.checklist-row.draggable .row-grip {
+  cursor: grab;
+}
+
+.checklist-row.dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+
+/* Where letting go would put the row — the 2px `accent-human` insertion line
+   components.md:201 specifies, on the boundary the drop is about. The rows are
+   in flow rather than absolutely placed, so it rides each row's own edge
+   instead of being one element positioned over the list. */
+.checklist-row.drop-above::before,
+.checklist-row.drop-below::after {
+  position: absolute;
+  right: 0;
+  left: 0;
+  z-index: var(--lc-z-drag);
+  height: 2px;
+  border-radius: var(--lc-radius-full);
+  background: var(--lc-accent-human);
+  content: "";
+}
+
+.checklist-row.drop-above::before {
+  top: calc(var(--lc-space-1) / -2 - 1px);
+}
+
+.checklist-row.drop-below::after {
+  bottom: calc(var(--lc-space-1) / -2 - 1px);
+}
+
 /* The add-row is the next checklist row, not a form under the list (LC-106):
    ghost box, borderless field, and the same gap and padding as the rows above
    so the two boxes line up in one column (`prototype.css:555-558`). */

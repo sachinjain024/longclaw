@@ -104,6 +104,11 @@ describe("every field apply() can write", () => {
       { field: "checklist.ck_9.added", to: "Write the migration" },
       "added “Write the migration” to the checklist",
     ],
+    [
+      "checklist.<id>.moved",
+      { field: "checklist.ck_1.moved", from: "1", to: "2" },
+      "moved “Add the retry policy”",
+    ],
   ];
 
   it.each(fields)("says a %s change in words", (_name, change, sentence) => {

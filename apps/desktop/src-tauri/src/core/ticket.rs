@@ -361,6 +361,11 @@ pub struct TicketEdit {
     pub description: Option<String>,
     #[serde(default)]
     pub checklist: Vec<ChecklistToggle>,
+    /// One item's new place in the list. A drag is one gesture, so this is one
+    /// move rather than a list of them — and a whole replacement order is not
+    /// offered at all, because the file is the record and an order sent in full
+    /// would carry away the items a writer this edit never mentioned.
+    pub move_checklist_item: Option<ChecklistMove>,
     #[serde(default)]
     pub add_checklist_items: Vec<String>,
     pub comment: Option<String>,
@@ -384,6 +389,22 @@ pub struct ChecklistToggle {
     pub checked: bool,
 }
 
+/// Where an item now sits, named by the item it follows.
+///
+/// A neighbour rather than an index, because an index is a claim about the whole
+/// list and this edit is only about one item: a writer that appended two items
+/// between the read and the write moves every index below it, and "after
+/// `ck_0007`" still means the same place. Absent — which is also what `null`
+/// says — is the top of the list, the one landing that has no item above it to
+/// name.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ChecklistMove {
+    pub item_id: String,
+    #[serde(default)]
+    pub after: Option<String>,
+}
+
 impl TicketEdit {
     fn is_empty(&self) -> bool {
         self.title.is_none()
@@ -394,6 +415,7 @@ impl TicketEdit {
             && self.archived.is_none()
             && self.description.is_none()
             && self.checklist.is_empty()
+            && self.move_checklist_item.is_none()
             && self.add_checklist_items.is_empty()
             && self.comment.is_none()
     }
@@ -749,6 +771,37 @@ impl TicketDocument {
                 ));
             }
         }
+        // Before the appends, so both halves of a list read the same way: the
+        // move is about the items the file already had, and an item added by
+        // this same edit lands after them either way.
+        if let Some(moved) = &edit.move_checklist_item {
+            let from = checklist_position(&current.checklist, &moved.item_id)?;
+            let anchor = match &moved.after {
+                Some(after) if after == &moved.item_id => {
+                    return Err(Diagnostic::parse(
+                        "A checklist item cannot be moved after itself",
+                    ))
+                }
+                Some(after) => Some(checklist_position(&current.checklist, after)?),
+                None => None,
+            };
+            let to = landing(from, anchor);
+            // A drop that let go where the item already was is not a write. Left
+            // in, it would append an event saying an order changed that did not.
+            if to != from {
+                if !next.move_checklist_item(&moved.item_id, moved.after.as_deref()) {
+                    return Err(Diagnostic::parse(
+                        "This ticket has more than one Checklist section, so there is no one \
+                         order to move an item within. Merge them into one and try again.",
+                    ));
+                }
+                changes.push(FieldChange::new(
+                    format!("checklist.{}.moved", moved.item_id),
+                    Some((from + 1).to_string()),
+                    Some((to + 1).to_string()),
+                ));
+            }
+        }
         for text in &edit.add_checklist_items {
             let text = text.trim();
             if text.is_empty() || text.contains('\n') {
@@ -905,6 +958,83 @@ impl TicketDocument {
                 );
             }
         }
+    }
+
+    /// Moves one item's line so it sits directly after `after`, or first in the
+    /// list when that is `None`. Answers whether it could.
+    ///
+    /// The line travels whole — its box, its text and its id marker are one line
+    /// and stay one line — and every other byte of the section is untouched, so
+    /// a note somebody left between two items stays where they left it rather
+    /// than being carried along by the item above it.
+    ///
+    /// It cannot when the file has more than one `## Checklist` heading. A
+    /// hand-written file may; the app never writes one. The reader sees those
+    /// sections as a single list, so "after `ck_0007`" and "first" are questions
+    /// about that list — and a section can only answer them about itself. The
+    /// quiet wrong answer is the one this refusal is for: moving an item to the
+    /// top of the *second* section, recording that the order changed, and
+    /// leaving the file exactly as it was.
+    fn move_checklist_item(&mut self, item_id: &str, after: Option<&str>) -> bool {
+        let mut sections = self
+            .chunks
+            .iter_mut()
+            .filter(|chunk| chunk.role == Role::Checklist);
+        let (Some(chunk), None) = (sections.next(), sections.next()) else {
+            return false;
+        };
+        if !section_holds(&chunk.raw, item_id) {
+            return false;
+        }
+        let mut lines: Vec<String> = lines_with_endings(&chunk.raw)
+            .into_iter()
+            .map(|(_, line)| line.to_owned())
+            .collect();
+        // A last line without an ending is the file's, not the item's. Lend one
+        // for the move — otherwise the moved line would take the missing newline
+        // with it and weld itself to whatever it lands above — and take it back
+        // from whichever line is last afterwards.
+        let ends_with_newline = chunk.raw.ends_with('\n');
+        if !ends_with_newline {
+            if let Some(last) = lines.last_mut() {
+                last.push('\n');
+            }
+        }
+        let Some(from) = lines.iter().position(|line| holds_item(line, item_id)) else {
+            return false;
+        };
+        let anchor = match after {
+            Some(after) => match lines.iter().position(|line| holds_item(line, after)) {
+                Some(index) => Some(index),
+                None => return false,
+            },
+            None => None,
+        };
+        let line = lines.remove(from);
+        // The same arithmetic the recorded position is computed with, asked of
+        // line numbers instead of list positions — one function, so a fix to one
+        // cannot leave the event describing a place the line never took.
+        //
+        // The top is the one landing the two spaces disagree about: position 0
+        // of the list is wherever the *first item line* is, and the heading and
+        // any prose above it are not places a line may go.
+        let to = match anchor {
+            Some(index) => landing(from, Some(index)),
+            None => lines
+                .iter()
+                .position(|line| parse_checklist_line(line).is_some())
+                .unwrap_or(lines.len()),
+        };
+        lines.insert(to, line);
+        if !ends_with_newline {
+            if let Some(last) = lines.last_mut() {
+                while last.ends_with('\n') {
+                    last.pop();
+                }
+            }
+        }
+        chunk.raw = lines.concat();
+        true
     }
 
     fn adopt_checklist_ids(&mut self) {
@@ -1350,6 +1480,43 @@ fn parse_checklist_line(line: &str) -> Option<ChecklistItem> {
     Some(ChecklistItem { id, text, checked })
 }
 
+/// Whether this line is the checklist item with this id.
+fn holds_item(line: &str, item_id: &str) -> bool {
+    parse_checklist_line(line).is_some_and(|item| item.id.as_deref() == Some(item_id))
+}
+
+/// Whether this `## Checklist` section is the one that lists the item.
+fn section_holds(raw: &str, item_id: &str) -> bool {
+    lines_with_endings(raw)
+        .into_iter()
+        .any(|(_, line)| holds_item(line, item_id))
+}
+
+/// Where an item sits in the list, or the diagnostic for one this ticket does
+/// not have. The same sentence a toggle gets: the reason is the same, and so is
+/// the thing the caller has to fix.
+fn checklist_position(checklist: &[ChecklistItem], item_id: &str) -> Result<usize, Diagnostic> {
+    checklist
+        .iter()
+        .position(|item| item.id.as_deref() == Some(item_id))
+        .ok_or_else(|| Diagnostic::parse(format!("Checklist item {item_id} is not in this ticket")))
+}
+
+/// Where an item ends up: the index it holds once it has been taken out of the
+/// list at `from` and put back after `anchor`, or first when there is none.
+///
+/// The two directions are not symmetric, which is the whole of it. An anchor
+/// *below* the item loses a place when the item leaves, so its own index is
+/// already the place after it; an anchor above keeps its index and the item goes
+/// to the next one.
+fn landing(from: usize, anchor: Option<usize>) -> usize {
+    match anchor {
+        Some(index) if index > from => index,
+        Some(index) => index + 1,
+        None => 0,
+    }
+}
+
 /// Rewrites the lines a closure claims and leaves every other byte untouched.
 fn rewrite_lines(raw: &str, mut rewrite: impl FnMut(&str) -> Option<String>) -> String {
     lines_with_endings(raw)
@@ -1604,8 +1771,8 @@ fn parse_attachment(record: &RawRecord) -> Result<Attachment, Diagnostic> {
 #[cfg(test)]
 mod tests {
     use super::{
-        render_new_ticket, ChecklistToggle, Priority, Status, TicketDocument, TicketEdit,
-        TICKET_FORMAT,
+        render_new_ticket, ChecklistMove, ChecklistToggle, Priority, Status, TicketDocument,
+        TicketEdit, TICKET_FORMAT,
     };
 
     const NOW: &str = "2026-07-30T10:00:00.000Z";
@@ -1656,13 +1823,51 @@ mod tests {
     }
 
     fn apply(edit: TicketEdit) -> (String, TicketDocument) {
-        let applied = document()
+        apply_to(document(), edit)
+    }
+
+    fn apply_to(document: TicketDocument, edit: TicketEdit) -> (String, TicketDocument) {
+        let applied = document
             .apply(&edit, NOW)
             .expect("the edit should be accepted");
         (
             String::from_utf8(applied.bytes.clone()).expect("UTF-8 output"),
             applied.document,
         )
+    }
+
+    /// The fixture with a third item. Two items can only swap, so a move that
+    /// lands *between* two others — the one an ordering can get wrong — needs a
+    /// list long enough to have a middle.
+    fn three_item_document() -> TicketDocument {
+        let ticket = TICKET.replace(
+            "- [x] second <!-- longclaw:item=ck_0002 -->\n",
+            concat!(
+                "- [x] second <!-- longclaw:item=ck_0002 -->\n",
+                "- [ ] third <!-- longclaw:item=ck_0003 -->\n",
+            ),
+        );
+        TicketDocument::parse(&ticket, "LC-1").expect("the three-item fixture should parse")
+    }
+
+    /// The checklist as ids, in the order the file lists them.
+    fn order(document: &TicketDocument) -> Vec<String> {
+        document
+            .ticket()
+            .checklist
+            .iter()
+            .map(|item| item.id.clone().expect("every fixture item carries an id"))
+            .collect()
+    }
+
+    fn moving(item_id: &str, after: Option<&str>) -> TicketEdit {
+        TicketEdit {
+            move_checklist_item: Some(ChecklistMove {
+                item_id: item_id.to_owned(),
+                after: after.map(str::to_owned),
+            }),
+            ..TicketEdit::default()
+        }
     }
 
     #[test]
@@ -1707,6 +1912,10 @@ mod tests {
                         item_id: "ck_0001".to_owned(),
                         checked: true,
                     }],
+                    move_checklist_item: Some(ChecklistMove {
+                        item_id: "ck_0001".to_owned(),
+                        after: Some("ck_0002".to_owned()),
+                    }),
                     add_checklist_items: vec!["Write the migration".to_owned()],
                     comment: None,
                 },
@@ -1802,6 +2011,109 @@ mod tests {
             )
             .expect_err("an unknown checklist item should be refused");
         assert!(error.message.contains("ck_missing"));
+    }
+
+    #[test]
+    fn moving_an_item_to_the_top_rewrites_the_order_and_nothing_else() {
+        let (rendered, next) = apply(moving("ck_0002", None));
+        assert!(
+            rendered.contains(concat!(
+                "## Checklist\n",
+                "\n",
+                "- [x] second <!-- longclaw:item=ck_0002 -->\n",
+                "- [ ] first <!-- longclaw:item=ck_0001 -->\n",
+                "\n",
+                "## Activity\n",
+            )),
+            "{rendered}"
+        );
+        assert_eq!(order(&next), ["ck_0002", "ck_0001"]);
+        // The line moved whole: its text and its box came with it.
+        assert!(next.ticket().checklist[0].checked);
+        assert_eq!(next.ticket().checklist[0].text, "second");
+        let event = next.ticket().last_activity().expect("appended event");
+        assert_eq!(event.changes.len(), 1);
+        assert_eq!(event.changes[0].field, "checklist.ck_0002.moved");
+        assert_eq!(event.changes[0].from.as_deref(), Some("2"));
+        assert_eq!(event.changes[0].to.as_deref(), Some("1"));
+    }
+
+    #[test]
+    fn an_item_lands_directly_after_the_one_it_was_dropped_on() {
+        let (_, next) = apply_to(three_item_document(), moving("ck_0001", Some("ck_0003")));
+        assert_eq!(order(&next), ["ck_0002", "ck_0003", "ck_0001"]);
+        let event = next.ticket().last_activity().expect("appended event");
+        assert_eq!(event.changes[0].from.as_deref(), Some("1"));
+        assert_eq!(event.changes[0].to.as_deref(), Some("3"));
+    }
+
+    /// Landing after an item *above* is the direction the arithmetic gets wrong:
+    /// the moved line is gone by the time the anchor is counted again.
+    #[test]
+    fn an_item_moved_upwards_lands_below_its_anchor_and_above_the_rest() {
+        let (_, next) = apply_to(three_item_document(), moving("ck_0003", Some("ck_0001")));
+        assert_eq!(order(&next), ["ck_0001", "ck_0003", "ck_0002"]);
+        let event = next.ticket().last_activity().expect("appended event");
+        assert_eq!(event.changes[0].from.as_deref(), Some("3"));
+        assert_eq!(event.changes[0].to.as_deref(), Some("2"));
+    }
+
+    #[test]
+    fn a_move_to_where_the_item_already_is_writes_nothing() {
+        for edit in [moving("ck_0002", Some("ck_0001")), moving("ck_0001", None)] {
+            let error = document()
+                .apply(&edit, NOW)
+                .expect_err("a move that changes no order should be refused");
+            assert!(error.message.contains("nothing was written"), "{error:?}");
+        }
+    }
+
+    #[test]
+    fn a_move_naming_an_item_this_ticket_does_not_have_is_refused() {
+        for (edit, missing) in [
+            (moving("ck_missing", None), "ck_missing"),
+            (moving("ck_0001", Some("ck_gone")), "ck_gone"),
+        ] {
+            let error = document()
+                .apply(&edit, NOW)
+                .expect_err("an unknown checklist item should be refused");
+            assert!(error.message.contains(missing), "{error:?}");
+        }
+    }
+
+    #[test]
+    fn an_item_cannot_be_moved_after_itself() {
+        let error = document()
+            .apply(&moving("ck_0001", Some("ck_0001")), NOW)
+            .expect_err("an item is not its own anchor");
+        assert!(error.message.contains("after itself"), "{error:?}");
+    }
+
+    /// A hand-written file can carry two `## Checklist` headings, and the panel
+    /// draws their items as one list. Neither landing means anything there — and
+    /// the top of the second section is the dangerous one, because it is a place
+    /// the line can actually be put while the list the human is reading does not
+    /// move at all.
+    #[test]
+    fn a_move_between_two_checklist_sections_is_refused() {
+        let ticket = TICKET.replace(
+            "- [x] second <!-- longclaw:item=ck_0002 -->\n",
+            concat!(
+                "\n",
+                "## Checklist\n",
+                "\n",
+                "- [x] second <!-- longclaw:item=ck_0002 -->\n",
+            ),
+        );
+        let document =
+            TicketDocument::parse(&ticket, "LC-1").expect("two sections still parse as a ticket");
+        assert_eq!(document.ticket().checklist.len(), 2);
+        for edit in [moving("ck_0001", Some("ck_0002")), moving("ck_0002", None)] {
+            let error = document
+                .apply(&edit, NOW)
+                .expect_err("a move in a two-section list should be refused");
+            assert!(error.message.contains("Checklist section"), "{error:?}");
+        }
     }
 
     #[test]
