@@ -302,7 +302,7 @@ afterEach(cleanup);
 // (`addRow.ts`). A test that installs one hands the next suite a stub that lies
 // about what this environment can do, so it goes back afterwards.
 afterEach(() => {
-  delete (Element.prototype as Partial<Element>).scrollIntoView;
+  Reflect.deleteProperty(Element.prototype, "scrollIntoView");
 });
 
 describe("who a checklist tick belongs to", () => {
@@ -2326,6 +2326,50 @@ describe("the panel's fields read as the record, not as a form", () => {
     // pass (`keyboard-focus-map.md:63`).
     expect(field.value).toBe("");
     expect(document.activeElement).toBe(field);
+  });
+
+  /**
+   * And rapid entry is what that focus is *for*, so the second item of it has to
+   * survive the first item's round trip. One hash means one edit at a time, and
+   * until LC-193 that meant the second Enter was refused in silence — the field
+   * had already been cleared, so the text was simply gone. It queues now, and
+   * goes as one edit the moment the disk is free.
+   */
+  it("keeps an item typed while the first one's write is out (LC-193)", async () => {
+    let land: (result: WriteResult) => void = () => {};
+    editTicketMock.mockReturnValueOnce(
+      new Promise<WriteResult>((resolve) => {
+        land = resolve;
+      }),
+    );
+    editTicketMock.mockResolvedValue(writeResult());
+    render(surface());
+    await ready();
+
+    const field = screen.getByLabelText<HTMLInputElement>(
+      "Add a checklist item",
+    );
+    field.focus();
+    fireEvent.change(field, { target: { value: "First" } });
+    fireEvent.submit(field.form!);
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(1));
+
+    // The disk still has the first one. This is the keystroke that used to
+    // vanish: the field clears, and nothing was written.
+    fireEvent.change(field, { target: { value: "Second" } });
+    fireEvent.submit(field.form!);
+    fireEvent.change(field, { target: { value: "Third" } });
+    fireEvent.submit(field.form!);
+    expect(field.value).toBe("");
+    expect(editTicketMock).toHaveBeenCalledTimes(1);
+
+    land(writeResult());
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
+    // Both of them, in the order they were typed, and in one write — the queue
+    // is what the disk was busy with, not two round trips.
+    expect(editTicketMock.mock.calls[1][0].edit).toEqual({
+      addChecklistItems: ["Second", "Third"],
+    });
   });
 
   /**

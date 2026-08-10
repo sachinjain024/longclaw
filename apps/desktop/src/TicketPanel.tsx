@@ -275,7 +275,16 @@ export function TicketPanel(props: TicketPanelProps) {
    * clears it when the file comes back carrying the real record.
    */
   const [pendingComment, setPendingComment] = useState<string>();
-  const [saving, setSaving] = useState(false);
+  /**
+   * Whether a write of this panel's is out. One hash means one edit at a time,
+   * and this is what every save is refused against.
+   *
+   * A ref rather than state, and it was state until LC-193. Nothing renders it —
+   * the disk-state indicator reads the mutation store — so the only thing the
+   * state bought was a re-render per write and a value a render behind the
+   * truth, which is a value two Enters in one frame can both find false.
+   */
+  const writing = useRef(false);
   /** A `Retry parse` read that has not come back, so the button cannot stack. */
   const [retrying, setRetrying] = useState(false);
   const raise = useMutationStore((state) => state.raise);
@@ -619,8 +628,8 @@ export function TicketPanel(props: TicketPanelProps) {
     // Keep mine does — must send the hash that came back, not the one that was
     // on screen when the button was pressed.
     const hash = lastRead.current?.contentHash;
-    if (!hash || saving) return;
-    setSaving(true);
+    if (!hash || writing.current) return;
+    writing.current = true;
     const written = await mutate({
       path: lastRead.current?.relativePath,
       apply: options?.apply,
@@ -635,7 +644,33 @@ export function TicketPanel(props: TicketPanelProps) {
       handles: takeConflict(edit),
     });
     if (written) await load("local");
-    setSaving(false);
+    writing.current = false;
+    // Whatever was typed while this was out goes now.
+    void drainNewItems();
+  }
+
+  /**
+   * Checklist items typed while a write was in flight.
+   *
+   * A write blocks the next one — one hash, one edit — and until LC-193 that
+   * block was a *drop*: the submit handler had already cleared the field, so an
+   * item typed during the round trip left the field empty, never reached the
+   * file, and said nothing about it. Rapid entry is the whole reason Enter
+   * leaves focus where it is (`keyboard-focus-map.md:63`), and a surface that
+   * loses the second item of it is not offering rapid entry.
+   *
+   * A ref, not state: nothing renders it, and the queue has to be exact at the
+   * moment of the keystroke rather than a render later.
+   */
+  const queuedItems = useRef<string[]>([]);
+
+  /** Sends everything queued, as one edit, as soon as the disk is free. */
+  async function drainNewItems() {
+    if (writing.current || queuedItems.current.length === 0) return;
+    // Spliced before the await, so a keystroke during this write queues behind
+    // it rather than being sent twice.
+    const items = queuedItems.current.splice(0);
+    await save({ addChecklistItems: items });
   }
 
   /** Takes the newer file, discarding the drafts that lost. */
@@ -691,7 +726,7 @@ export function TicketPanel(props: TicketPanelProps) {
     // The edit the conflict refused, not the panel's `pending` — that was
     // cleared when the banner went up.
     const refused = conflict?.pending;
-    if (!refused || saving) return;
+    if (!refused || writing.current) return;
     // "As it is now" is a promise, and the read that keeps it may still be out.
     await refreshing.current;
     await save(refused, { resolvesConflict: true });
@@ -1361,7 +1396,11 @@ export function TicketPanel(props: TicketPanelProps) {
                 // Enter appends and leaves focus where it is, for rapid entry
                 // (`keyboard-focus-map.md:63`) — nothing here blurs the field.
                 setNewItem("");
-                void save({ addChecklistItems: [text] });
+                // Queued rather than written, because the field is cleared
+                // either way and a write already out would otherwise refuse this
+                // one silently (LC-193). It goes now if the disk is free.
+                queuedItems.current.push(text);
+                void drainNewItems();
               }}
             >
               <GhostBox />

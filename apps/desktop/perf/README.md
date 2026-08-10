@@ -120,6 +120,13 @@ storage numbers describe the same 5,000-ticket project.
 The build is a production build. A development build double-renders under
 `StrictMode` and would measure work the product never does.
 
+Two things `edit_ticket` writes are remembered rather than answered from the
+fixture: the order a checklist move settled on, and the items an append added. A
+stub
+that bumped the card's count and left the served list alone would let a probe
+type an item and never see the row it made, which is the difference between
+watching a write and watching an optimistic update decay (LC-193).
+
 ## How a sample is timed
 
 Wholly inside the page:
@@ -145,7 +152,7 @@ a key that has become a no-op reads as a broken run rather than as a fast one.
 
 ## The server every harness shares
 
-`perf/preview-server.mjs` is where all six of them get one, and none of them
+`perf/preview-server.mjs` is where all seven of them get one, and none of them
 knows a port. Each run asks the kernel for a free one, so two worktrees can take
 traces at the same time, and none of them waits on a fixed
 `http://localhost:4173` — which is what let a `vite preview` left running in

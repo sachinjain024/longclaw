@@ -69,11 +69,16 @@ const FAIL_PARSE = params.get("fail") === "parse";
  * does optimistically still happens at once, which is the point — the state
  * being held is "written, not yet confirmed", not "the app is stalled".
  */
-const SLOW_WRITE_MS = Number(params.get("slow") ?? 0);
+let slowWriteMs = Number(params.get("slow") ?? 0);
 const settling = () =>
-  SLOW_WRITE_MS > 0
-    ? new Promise<void>((wake) => setTimeout(wake, SLOW_WRITE_MS))
+  slowWriteMs > 0
+    ? new Promise<void>((wake) => setTimeout(wake, slowWriteMs))
     : Promise.resolve();
+// The same delay, turned on for one step of a run rather than for all of it
+// (`bridge.ts`). `checklist-probe` needs a single write held open while it types
+// through it, and paying `?slow` for every write of the run instead would be
+// minutes of waiting to reach the one that matters.
+if (WRITABLE) bridge.holdWrites = (ms: number) => void (slowWriteMs = ms);
 
 export class Channel<T> {
   onmessage: (message: T) => void = () => {};

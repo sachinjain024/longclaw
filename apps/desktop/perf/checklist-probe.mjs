@@ -36,6 +36,13 @@
  * `document.activeElement`: a field that keeps focus under the bottom edge keeps
  * the letter of that line and none of it.
  *
+ * The last check reads the same line for what the focus is *for*. Rapid entry
+ * means typing the next item before the last one's write has come back, and the
+ * panel refuses a second write while one is out — one hash, one edit. Until
+ * LC-193 that refusal was silent, and the submit handler had already cleared the
+ * field, so the item was simply gone. `bridge.holdWrites` holds one write open
+ * long enough to type through it, which is the only way to ask.
+ *
  * **It refuses rather than reports when it cannot reach the position.** A pane
  * with nothing to scroll cannot push anything under its edge, so a green from one
  * would be a green about nothing — the failure LC-190 spent a run on.
@@ -76,6 +83,15 @@ const WIDTH = 1_440;
 
 /** The two surfaces that draw an add-row. Both, always: they are one object. */
 const SURFACES = ["panel", "create"];
+/**
+ * The gap under the field the setup aims for, and the most it will accept.
+ *
+ * One row is ~33px, so a field with less than that under it is one the next
+ * append pushes under the edge — which is the position the reporter was in and
+ * the only one this probe has anything to say about.
+ */
+const EDGE_MARGIN = 12;
+const EDGE_SLACK = 24;
 
 /* ---------- reporting ---------- */
 
@@ -106,6 +122,9 @@ const settle = (page) => page.waitForTimeout(160);
  */
 const geometry = (page) =>
   page.evaluate(() => {
+    // The one walk from the add-row to the pane that scrolls it, so nothing
+    // below has to restate that relationship and none of the statements can
+    // drift apart.
     const field = document.querySelector(".checklist-add-field");
     const pane = field?.closest(".ticket-panel");
     if (!field || !pane) return { present: false };
@@ -119,6 +138,9 @@ const geometry = (page) =>
       // than that is a field the next append will push under the edge.
       slack: Math.round(edge.bottom - box.bottom),
       inside: box.top >= edge.top - 0.5 && box.bottom <= edge.bottom + 0.5,
+      // Whether the pane *could* be scrolled to put the field at its bottom
+      // edge, which it can only once what is above the field is taller than it.
+      reachable: field.offsetTop >= pane.clientHeight,
       rows: document.querySelectorAll(".checklist-row").length,
     };
   });
@@ -137,23 +159,18 @@ const geometry = (page) =>
  * Focus is taken *after* this, never before — the same crash, and the reason the
  * order here is not the order a human works in.
  */
-async function scrollFieldToEdge(page, margin = 12) {
+async function scrollFieldToEdge(page) {
   for (let turn = 0; turn < 4; turn += 1) {
     const at = await geometry(page);
     if (!at.present || !at.scrollable) return at;
-    if (Math.abs(at.slack - margin) <= margin) return at;
-    await page.evaluate(
-      ([slack, gap]) => {
-        const pane = document
-          .querySelector(".checklist-add-field")
-          ?.closest(".ticket-panel");
-        // Scrolling down moves the field up, so closing the gap under it is a
-        // scroll *back*. Clamped at 0 by the scroller, which is what makes a
-        // pane with too little above the field unreachable rather than wrong.
-        if (pane) pane.scrollTop += gap - slack;
-      },
-      [at.slack, margin],
-    );
+    if (at.slack >= 0 && at.slack <= EDGE_SLACK) return at;
+    await page.evaluate((delta) => {
+      // Scrolling down moves the field up, so closing the gap under it is a
+      // scroll *back*. Clamped at 0 by the scroller, which is what makes a pane
+      // with too little above the field unreachable rather than wrong.
+      const pane = document.querySelector(".ticket-panel");
+      if (pane) pane.scrollTop -= delta;
+    }, at.slack - EDGE_MARGIN);
     await settle(page);
   }
   return geometry(page);
@@ -170,15 +187,7 @@ async function fillUntilReachable(page) {
   await page.click(".checklist-add-field");
   await settle(page);
   for (let row = 1; row <= 30; row += 1) {
-    const reachable = await page.evaluate(() => {
-      const field = document.querySelector(".checklist-add-field");
-      const pane = field?.closest(".ticket-panel");
-      if (!field || !pane) return true;
-      // What the scroller would have to give up to put the field at its bottom
-      // edge. Once the content above the field is taller than the pane, it can.
-      return field.offsetTop >= pane.clientHeight;
-    });
-    if (reachable) return row - 1;
+    if ((await geometry(page)).reachable !== false) return row - 1;
     await page.keyboard.type(`Filler ${row}`, { delay: 5 });
     await page.keyboard.press("Enter");
     await settle(page);
@@ -201,9 +210,16 @@ async function open(browser, height, surface) {
     { timeout: 60_000 },
   );
   if (SELF_TEST) {
-    // The app before the fix, exactly: the call is still made and does nothing.
+    // The fix taken away and nothing else. Only the add-row's own call is
+    // swallowed, so the board's roving focus keeps the `scrollIntoView` it has
+    // always had (`rovingFocus.ts:126`) and a red run is a red about
+    // `addRow.ts` rather than about every scroll in the app.
     await page.addInitScript(() => {
-      Element.prototype.scrollIntoView = () => {};
+      const real = Element.prototype.scrollIntoView;
+      Element.prototype.scrollIntoView = function scrollIntoView(...args) {
+        if (this.classList?.contains("checklist-add-field")) return;
+        return real.apply(this, args);
+      };
     });
     await page.reload({ waitUntil: "load" });
     await page.waitForFunction(
@@ -249,17 +265,22 @@ async function probe(browser, height, surface) {
     // The setup is a claim of its own, and this is where a size drops out.
     //
     // The field can only be made the last thing in the pane when what is above
-    // it — title, meta, description — is taller than the pane. Where it is not,
-    // this height cannot ask the question, and a check that went green on it
-    // would be a green about nothing (LC-190). So the size is *skipped*, out
-    // loud, and `main` fails a run in which every size skipped.
-    if (!start.present || !start.scrollable || start.slack > 24) {
-      current.skipped = true;
-      check(
-        "this height can put the field at the pane's bottom edge",
-        true,
-        `skipped — ${start.present ? `${start.slack}px under the field after ${filled} filler rows` : "no add-row"}`,
-      );
+    // it — title, meta, description, the rows themselves — is taller than the
+    // pane. Where it is not, this height cannot ask the question, and a check
+    // that went green on it would be a green about nothing (LC-190). So the size
+    // records **no check at all** and says why: a skip that counted as a pass
+    // would pad the run's own numerator with sizes it never measured, which is
+    // the same lie one step further back. `main` fails a run in which every size
+    // skipped.
+    if (
+      !start.present ||
+      !start.scrollable ||
+      start.slack < 0 ||
+      start.slack > EDGE_SLACK
+    ) {
+      current.skipped = start.present
+        ? `${start.slack}px under the field after ${filled} filler rows`
+        : "no add-row";
       return;
     }
     measured += 1;
@@ -295,6 +316,28 @@ async function probe(browser, height, surface) {
         `${at.inside ? "inside" : "under"} the pane, slack=${at.slack}px`,
       );
     }
+
+    // Rapid entry, the thing the kept focus is *for*: two items typed inside one
+    // write's round trip. The panel refuses a second write while one is out —
+    // one hash, one edit — and until LC-193 that refusal was silent and the
+    // field had already been cleared, so the item was gone. `?slow` is the only
+    // way to hold a write open long enough to type through it.
+    if (surface === "panel") {
+      await page.evaluate(() => window.__longclawPerf.holdWrites(1_200));
+      const before = (await geometry(page)).rows;
+      for (const text of ["Through the write", "And behind it"]) {
+        await page.keyboard.type(text, { delay: 5 });
+        await page.keyboard.press("Enter");
+      }
+      await page.waitForTimeout(2_500);
+      const after = await geometry(page);
+      check(
+        "two items typed inside one write's round trip both land",
+        after.rows === before + 2,
+        `${before} → ${after.rows} rows`,
+      );
+      await page.evaluate(() => window.__longclawPerf.holdWrites(0));
+    }
   } finally {
     await context.close();
   }
@@ -327,7 +370,9 @@ async function main() {
   );
   let failed = 0;
   for (const row of results) {
-    console.log(`\n  ${row.name}${row.skipped ? " — skipped" : ""}`);
+    console.log(
+      `\n  ${row.name}${row.skipped ? `\n    skip  this height cannot put the field at the pane's edge\n            ${row.skipped}` : ""}`,
+    );
     for (const item of row.checks) {
       if (!item.ok) failed += 1;
       console.log(

@@ -16,11 +16,19 @@
  *
  * Two things it deliberately does not do:
  *
- *   - **It does not scroll unless the field has focus.** An item appended by an
- *     external write — an agent adding a task while the panel is open — must not
- *     move the page under somebody reading the activity above it.
+ *   - **It does not scroll unless the field has focus.** The gate is where the
+ *     human is, not where the write came from: an item an agent appends while
+ *     the panel is merely open must not move the page under somebody reading the
+ *     activity, and one that arrives while they are typing in the field moves
+ *     the field, so following it is the same courtesy either way.
  *   - **It scrolls by `nearest`, so a field already in view does not move.** The
  *     scroll is the minimum that puts the row back, not a jump to a position.
+ *
+ * It watches the count rather than the field's own box, which is the cheap
+ * question and the one that answers the report: a list that gains a row moves
+ * the field by a row. A list that keeps its length and changes height under it —
+ * an item edited into two wrapped lines by something outside — is not followed,
+ * and there is no way into that from this surface.
  */
 
 import { useLayoutEffect, useRef } from "react";
