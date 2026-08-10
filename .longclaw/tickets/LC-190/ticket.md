@@ -172,3 +172,30 @@ The cause is in `read()`: `visible` asked only whether a row was inside its own 
 
 `ck_9b077547` stays open on purpose: it is the branch for "if it is the app", and the app was exonerated.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_147420b8
+kind: comment
+occurred_at: 2026-08-10T16:10:54.319Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Review findings, and a correction to the run figures above.
+
+**The baseline was misreported.** The comment above says `probe:drag` went 49/49 "(was 43/43)". `main`'s probe is **42/42**, not 43/43. The nine cases there are 5 checks each for the four that must land and the three list/board `across` runs, 4 each for the two Priority controls that must be refused, and 4 for the panel checklist; `board-across-far` adds 7, which is the 49. Nothing about the conclusion changes — only the number it was measured against.
+
+**Fixed from the two-axis review:**
+
+- The probe's case list is documented in four places and only `AGENTS.md` had been updated. `CONTRIBUTING.md`, `apps/desktop/perf/README.md` and the module docblock in `drag-probe.mjs` now name the sixth case too — the same set `b05964d` and `0e95c47` updated when the fifth landed.
+- The anti-decay guard measured its target against `before.at(-1)`, the last group *drawn*, which includes the `Unreadable` and `Archived` groups that `usable` deliberately excludes. On a board carrying an unreadable file it would have failed a run with nothing wrong with it. It now measures against the last group that takes a drop at all, and that exclusion is one `takesDrop` predicate both places share instead of an inline list.
+- `scrollPaneToEnd` said it returned "the distance scrolled" and returned the resting `scrollLeft`. Renamed and the docblock corrected; the settle comment no longer claims a frame it does not wait for.
+- The `far` branch in target selection was a nested ternary; it is a named `targetGroup` now.
+
+**Kept, with the reason:** the `pane` bound applies to the list surface as well as the board, which the probe branch of this ticket did not ask for. `read()` is one function serving both surfaces, and the blindness it fixes is not board-specific — a list whose groups scrolled sideways would report the same false refusal. The list's pane is its scroller, so the bound is a no-op there today and its cases stay green.
+
+Runs after the fixes: `probe:drag` 49/49, `--tickets=46` 49/49, `--self-test` 20/49 with the inversion holding, `npm run verify` exit 0.
+<!-- /longclaw:event -->

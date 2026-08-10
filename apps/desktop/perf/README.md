@@ -32,7 +32,13 @@ nothing else could see: LC-60's window flag (no `dragover` at all) and LC-174's
 rank allocation (every event correct, the drop line in the right gap, and the row
 still where it started). A fifth case is the ticket panel's checklist (LC-185) —
 the third list here a pointer can rearrange, and the only one whose order is the
-order of the lines in the file rather than a rank.
+order of the lines in the file rather than a rank. A sixth scrolls the board
+sideways and drops into the far-right column, which at six columns starts past
+the right edge of a 1440px window: aiming at it unscrolled put the mouse-up
+outside the window and read the missing `drop` as the app refusing one, which is
+LC-190. A row this cannot reach is a row it must not report on, so eligibility
+now bounds the pane a group scrolls sideways in as well as the scroller its rows
+scroll in.
 `--from=` and `--gap=` aim the two "place" cases, which
 matters because that failure was directional. `--self-test` swallows `dragstart`
 the way the window's own handler did and expects the run to go red.

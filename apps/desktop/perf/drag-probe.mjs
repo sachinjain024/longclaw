@@ -35,6 +35,12 @@
  * where the pointer let go, and off by one there is a row that lands beside its
  * gap rather than in it.
  *
+ * A sixth scrolls the board sideways and drops into its far-right column, which
+ * six 264px columns put past the right edge of a 1440px window. That one is here
+ * because this probe reported it as refused when nothing had refused anything:
+ * it aimed the mouse-up outside the window, no `drop` came back, and the app
+ * wore it (LC-190). What this cannot reach it must not report on.
+ *
  * The two Priority "place" cases are here as the control: ADR 0003 gives a place
  * inside a group to Manual alone, so those two must be *refused* — the pointer
  * says no rather than the row sliding back. A probe that only checked the four
@@ -378,26 +384,50 @@ async function drag(page, surface, from, to) {
 }
 
 /**
+ * Whether a group is one a drag may use at all.
+ *
+ * The synthetic unreadable group and the archive name no status and take no
+ * drop, so neither is a source nor a target — and neither counts as the last
+ * group on the surface when a run is aiming at the far end of it.
+ */
+const takesDrop = (group) => !["Unreadable", "Archived"].includes(group.title);
+
+/**
+ * The group a case lets go over: the far end of the surface, the next group
+ * along, or the one it started in.
+ *
+ * `far` is its own answer rather than a bigger index because the point of it is
+ * the end of the row of columns, wherever that lands — the case exists to reach
+ * what the window cuts off (LC-190), and `usable` is already in visual order.
+ */
+function targetGroup(row, source, usable) {
+  if (row.move !== "across") return source;
+  return row.far ? usable.at(-1) : usable[1];
+}
+
+/**
  * Scroll the surface's pane to its far end, and say where it came to rest.
  *
  * Six columns at 264px with their gaps is ~1644px of board against a 1440px
  * window, so the last column is not reachable at all without this — and a probe
- * that cannot reach it cannot claim the drop there works. Returns the distance
- * scrolled so a run that could not move (a board narrower than its window) is
- * visible rather than silently testing a nearer column.
+ * that cannot reach it cannot claim the drop there works. Returns the resting
+ * `scrollLeft`, which is 0 on a pane that had nowhere to go: a board narrower
+ * than its window then reads as a run that proved nothing, rather than as one
+ * that quietly tested a nearer column.
  */
 async function scrollPaneToEnd(page, surface) {
-  const moved = await page.evaluate((selector) => {
+  const restingScrollLeft = await page.evaluate((selector) => {
     const pane = document.querySelector(selector);
     if (!pane) return 0;
+    // Past the end; the browser clamps it to whatever the maximum really is.
     pane.scrollLeft = pane.scrollWidth;
     return Math.round(pane.scrollLeft);
   }, SURFACES[surface].pane);
-  // The scroll is not animated, but the rows are absolutely placed and the
-  // surface re-reads its boxes; a frame is what makes the next read the settled
-  // one.
+  // The scroll itself is not animated, but the surface re-reads its boxes off
+  // the scroll and the rows are placed absolutely, so this waits for that to
+  // land — the same settle `drag` spends between moving and reading.
   await page.waitForTimeout(200);
-  return moved;
+  return restingScrollLeft;
 }
 
 /**
@@ -606,13 +636,11 @@ async function probe(browser, row) {
      * scrolls to it and drops there on purpose.
      */
     const aimedAt = [FROM_ROW, ACROSS_ROW, TO_GAP];
-    // The synthetic unreadable group and the archive name no status and take no
-    // drop, so neither is a source or a target here.
     const usable = before.filter(
       (group) =>
         group.rows.length > TO_GAP &&
         aimedAt.every((index) => group.rows[index]?.visible) &&
-        !["Unreadable", "Archived"].includes(group.title),
+        takesDrop(group),
     );
     if (usable.length < 2) throw new Error("no two groups a drag can reach");
 
@@ -624,16 +652,15 @@ async function probe(browser, row) {
       `${moving.key} in ${source.title}, draggable=${moving.draggable}`,
     );
 
-    const target =
-      row.move === "across"
-        ? row.far
-          ? usable[usable.length - 1]
-          : usable[1]
-        : source;
+    const target = targetGroup(row, source, usable);
     if (row.far) {
       // Without this the case degrades into a second `board-across-manual` the
       // moment the scroll stops working, and passes while proving nothing.
-      const last = before[before.length - 1];
+      // Measured against the last group that takes a drop at all, not the last
+      // group on the surface: `Unreadable` and `Archived` draw after the
+      // columns and are never a target, so naming them here would fail a run
+      // with nothing wrong with it.
+      const last = before.filter(takesDrop).at(-1);
       check(
         `the target is the board's last column, ${last.title}`,
         target.title === last.title,

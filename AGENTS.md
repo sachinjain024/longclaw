@@ -125,7 +125,7 @@ which is off the side of a 1440px window at six columns and so is reachable no
 other way: aiming at it unscrolled put the mouse-up past the edge of the window,
 and LC-190 spent that refusal on the app before finding it was the probe's own
 reach. What a probe cannot reach it must not report on — its `visible` now means
-inside the scroller *and* inside the pane that scrolls the group sideways.
+inside the scroller _and_ inside the pane that scrolls the group sideways.
 Run it when you touch a drop handler, `ticketMove.ts`, `ordering.ts`, `rank.ts`
 or `checklistOrder.ts`, and quote the run.
 
