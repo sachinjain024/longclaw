@@ -41,6 +41,14 @@
  * it aimed the mouse-up outside the window, no `drop` came back, and the app
  * wore it (LC-190). What this cannot reach it must not report on.
  *
+ * A seventh pair asks LC-187's question, which is the only one here whose answer
+ * is not on screen when it is given: with a filter on, both surfaces draw the
+ * rows that matched and a drop used to allocate ranks over exactly those, so the
+ * rows the query was hiding — never seen, never dragged — ended up below them.
+ * Nothing looks wrong until the query is cleared, so these two run the drop with
+ * a filter on, **clear it, and read the whole column back**: the card must be in
+ * the gap it was let go in and every hidden row must be where it was left.
+ *
  * The two Priority "place" cases are here as the control: ADR 0003 gives a place
  * inside a group to Manual alone, so those two must be *refused* — the pointer
  * says no rather than the row sliding back. A probe that only checked the four
@@ -99,12 +107,32 @@ const TO_GAP = Number(argument("gap", "3"));
  */
 const ACROSS_ROW = 1;
 
+/**
+ * The query the two filtered runs put in the field, and the board they put it
+ * over (LC-187).
+ *
+ * The fixture's rows are `PF-<n>` titled `Searchable storage ticket <n>`, and a
+ * column holds every sixth one (`perf/fixture.ts`), so a bare digit matches
+ * some of a column and not others and leaves what it hides **interleaved** with
+ * what it draws — which is the arrangement the defect needs and a query
+ * matching a run of neighbours would not produce. 48 is what makes four matches
+ * deep enough to drop into while keeping a whole column inside the window the
+ * surfaces render of it — the order with the query off is the answer here, and
+ * a window of it is not. Neither run trusts that arithmetic: both refuse to
+ * report on a column the query did not leave in that shape.
+ */
+const FILTER = argument("filter", "1");
+const FILTER_TICKETS = Number(argument("filter-tickets", "48"));
+
 /** What each surface calls its parts, and how it is reached. */
 const SURFACES = {
   board: {
     row: ".ticket-row",
     group: ".board-column",
     head: "h3",
+    // The number in the column's heading, which is how many rows the group
+    // *holds* — the DOM holds only a window of them.
+    count: "h3 span",
     scroller: ".board-stack",
     // The board clips in both axes and in two different elements: a column's
     // rows scroll inside `.board-stack`, and the columns themselves scroll
@@ -119,6 +147,7 @@ const SURFACES = {
     row: ".list-row",
     group: ".list-group",
     head: ".list-group-header",
+    count: ".list-group-count",
     scroller: ".issue-list",
     // One scroller, and it does not scroll sideways: the same element bounds
     // both axes here.
@@ -227,6 +256,24 @@ const CASES = [
     surface: "panel",
     checklist: true,
   },
+  {
+    id: "board-place-filtered",
+    item: "2. board: place a card with a filter on, and the hidden rows keep their place (LC-187)",
+    surface: "board",
+    order: "manual",
+    move: "place",
+    filter: FILTER,
+    tickets: FILTER_TICKETS,
+  },
+  {
+    id: "list-place-filtered",
+    item: "4. list: the same, in the list, which is handed the same narrowed rows",
+    surface: "list",
+    order: "manual",
+    move: "place",
+    filter: FILTER,
+    tickets: FILTER_TICKETS,
+  },
 ];
 
 /* ---------- reporting ---------- */
@@ -308,10 +355,17 @@ const read = (page, surface) =>
             };
           })
           .sort((left, right) => left.y - right.y);
-        return { title, rows };
+        // What the group holds, from its heading, against what the DOM is
+        // drawing of it: both surfaces render a window of a long group, so a
+        // run that needs the whole order has to be able to tell the two apart
+        // rather than take the rows it can see for the column (LC-187).
+        const counted = Number(
+          group.querySelector(sel.count)?.textContent?.trim(),
+        );
+        return { title, rows, held: Number.isNaN(counted) ? null : counted };
       });
     },
-    pick(surface, "group", "head", "scroller", "pane", "row"),
+    pick(surface, "group", "head", "count", "scroller", "pane", "row"),
   );
 
 /** The selectors one `page.evaluate` needs, without the handlers it cannot take. */
@@ -759,6 +813,186 @@ async function probe(browser, row) {
   }
 }
 
+/**
+ * A group, when the DOM is drawing the whole of it rather than a window.
+ *
+ * Both surfaces virtualize, so `rows` is what is mounted and the number in the
+ * heading is what the group holds. Every other case here reads positions and
+ * can work from a window; this one is judged on the order of a whole column,
+ * and a prefix of it silently answers a different question.
+ */
+function fullyDrawn(title, groups) {
+  const group = groups.find((one) => one.title === title);
+  return group?.held !== null && group?.rows.length === group?.held
+    ? group
+    : undefined;
+}
+
+/** Types a query into the content header's filter field, and lets it land. */
+async function setFilter(page, query) {
+  await page.fill(".filter-field", query);
+  // Both surfaces re-lay out off the query and place their rows absolutely, so
+  // this is the same settle `drag` spends between moving and reading.
+  await page.waitForTimeout(300);
+}
+
+/**
+ * The rows a query is hiding above the gap a run is aiming at.
+ *
+ * These are the rows the drop must not disturb and the reason the run exists:
+ * ranked over the drawn column alone, the card and the matches above it sort
+ * above every one of them, because a row with no rank sorts below every row
+ * with one (`ordering.ts`). A column the query left without one of these is a
+ * column where the defect cannot be expressed, so a run over it would pass
+ * whatever the app did.
+ */
+function hiddenAbove(group, whole) {
+  const all = fullyDrawn(group.title, whole);
+  if (!all) return [];
+  const anchor = group.rows[TO_GAP - 1].key;
+  const drawn = new Set(group.rows.map((one) => one.key));
+  const at = all.rows.findIndex((one) => one.key === anchor);
+  return all.rows
+    .slice(0, at)
+    .filter((one) => !drawn.has(one.key))
+    .map((one) => one.key);
+}
+
+/**
+ * A Manual place-drop with a filter on, read back with the filter off (LC-187).
+ *
+ * Every other case here can be judged by what is on screen when it ends. This
+ * one cannot: with the query still in the field the board looks right either
+ * way, because the rows that moved are the rows the query is hiding. So the run
+ * reads the column **before** the filter goes on, drops inside what the filter
+ * leaves, then clears the field and asks for the whole column back. The answer
+ * is one array: the order it started in, with the card that moved taken out and
+ * put back under the row it was let go under. Anything else is a row that moved
+ * without being dragged.
+ */
+async function probeFiltered(browser, row) {
+  run(row);
+  const ui = SURFACES[row.surface];
+  const context = await browser.newContext({
+    viewport: { width: 1440, height: 900 },
+  });
+  const page = await context.newPage();
+  try {
+    if (TO_GAP < 1) throw new Error("this run needs a gap below a drawn row");
+    await page.goto(`${preview.origin}/?tickets=${row.tickets}&rw=1`, {
+      waitUntil: "load",
+    });
+    await page.waitForFunction(
+      () => document.querySelectorAll("[data-ticket-key]").length > 0,
+      undefined,
+      { timeout: 60_000 },
+    );
+    await ui.open(page);
+    await page.click('button[aria-label^="Order:"]');
+    await page.click('[role="menuitemradio"]:has-text("Manual")');
+    await page.waitForSelector(ui.row, { timeout: 30_000 });
+    if (SELF_TEST) await swallowDragstart(page);
+
+    // The column with nothing hidden, which is what the run is judged against.
+    const whole = await read(page, row.surface);
+    await setFilter(page, row.filter);
+    const drawn = await read(page, row.surface);
+
+    // The same reach test the other runs make, over the rows the query left —
+    // and then the one that is this run's own: a column the query left solid
+    // holds nothing this drop could get wrong.
+    const aimedAt = [FROM_ROW, TO_GAP];
+    const source = drawn
+      .filter(
+        (group) =>
+          takesDrop(group) &&
+          group.rows.length > TO_GAP &&
+          aimedAt.every((index) => group.rows[index]?.visible),
+      )
+      .find((group) => hiddenAbove(group, whole).length > 0);
+    if (!source) {
+      throw new Error(
+        `no group where "${row.filter}" left ${TO_GAP + 1} reachable rows ` +
+          `with a hidden one above the gap`,
+      );
+    }
+
+    const moving = source.rows[FROM_ROW];
+    const anchor = source.rows[TO_GAP - 1];
+    if (moving.key === anchor.key) throw new Error("the drop moves nothing");
+    const hidden = hiddenAbove(source, whole);
+    check(
+      `the query hides ${hidden.length} row(s) above the gap in ${source.title}`,
+      hidden.length > 0,
+      `drawn ${source.rows.map((one) => one.key).join(" ")} — hidden above: ${hidden.join(" ")}`,
+    );
+    check(
+      "the row can be picked up",
+      moving.draggable,
+      `${moving.key} in ${source.title}, draggable=${moving.draggable}`,
+    );
+
+    const saw = await drag(
+      page,
+      row.surface,
+      middle(moving),
+      topEdge(source.rows[TO_GAP]),
+    );
+    check(
+      "the page accepted the drop",
+      saw.accepted > 0 && saw.dropped,
+      `dragstart=${saw.dragstart} dragover=${saw.overs} ` +
+        `accepted=${saw.accepted} drop=${saw.dropped}`,
+    );
+    // The pointer is read over the drawn column and is not what this is about:
+    // a line in the right gap and a column in the wrong order is the whole
+    // defect, and separating the two is what makes the failure readable.
+    const wanted = source.rows[TO_GAP].y;
+    check(
+      "the drop line is drawn in the gap under the pointer",
+      saw.painted.line !== null && Math.abs(saw.painted.line - wanted) <= 4,
+      `line at ${saw.painted.line === null ? "none" : Math.round(saw.painted.line)}, gap ${TO_GAP} at ${Math.round(wanted)}`,
+    );
+
+    await settled(page, row.surface, drawn);
+    await setFilter(page, "");
+    const after = await read(page, row.surface);
+
+    // The column the query was hiding half of, back in one piece — which is
+    // the only reading this case can be judged on, so a window of it fails
+    // here rather than being compared as though it were the column.
+    const settledColumn = fullyDrawn(source.title, after);
+    if (
+      !check(
+        `${source.title} can be read back whole with the query cleared`,
+        Boolean(settledColumn),
+        settledColumn
+          ? `${settledColumn.rows.length} rows, all of them`
+          : `drew ${after.find((group) => group.title === source.title)?.rows.length} of ` +
+              `${after.find((group) => group.title === source.title)?.held} rows`,
+      )
+    ) {
+      return;
+    }
+
+    const before = fullyDrawn(source.title, whole).rows;
+    const expected = before
+      .map((one) => one.key)
+      .filter((key) => key !== moving.key);
+    expected.splice(expected.indexOf(anchor.key) + 1, 0, moving.key);
+    const now = settledColumn.rows.map((one) => one.key);
+    check(
+      `${moving.key} sits under ${anchor.key}, and the query's hidden rows are where they were`,
+      now.join(",") === expected.join(","),
+      `wanted ${expected.join(" ")}\n            ` +
+        `   got ${now.join(" ")}\n            ` +
+        `  was ${before.map((one) => one.key).join(" ")}`,
+    );
+  } finally {
+    await context.close();
+  }
+}
+
 async function main() {
   const cases = CASES.filter((row) => ONLY === undefined || row.id === ONLY);
   if (cases.length === 0) throw new Error(`no case named ${ONLY}`);
@@ -768,7 +1002,12 @@ async function main() {
   try {
     for (const row of cases) {
       try {
-        await (row.checklist ? probeChecklist : probe)(browser, row);
+        const drive = row.checklist
+          ? probeChecklist
+          : row.filter
+            ? probeFiltered
+            : probe;
+        await drive(browser, row);
       } catch (error) {
         check(
           `the ${row.id} run completed`,

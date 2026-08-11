@@ -127,6 +127,13 @@ other way: aiming at it unscrolled put the mouse-up past the edge of the window,
 and LC-190 spent that refusal on the app before finding it was the probe's own
 reach. What a probe cannot reach it must not report on — its `visible` now means
 inside the scroller _and_ inside the pane that scrolls the group sideways.
+A seventh pair drops **with a filter on** and then clears it (LC-187): the
+surfaces are handed the rows that matched, so a drop decided over those alone
+ranked them above every hidden row that had none, and nothing on screen said so
+until the query came off. These two are the only cases here whose answer is not
+visible when the gesture ends, which is why they read the column back whole —
+and they refuse to report on a column the query did not leave with a hidden row
+above the gap, or on one the surface is drawing only a window of.
 Run it when you touch a drop handler, `ticketMove.ts`, `ordering.ts`, `rank.ts`
 or `checklistOrder.ts`, and quote the run.
 
