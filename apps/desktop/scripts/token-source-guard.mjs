@@ -33,8 +33,9 @@
  *      prototype of a product that does not exist, which is the specific thing
  *      LC-192 was filed to stop.
  *
- * `archive/` is exempt. Superseded systems are kept there on purpose and are
- * not consumed by anything — that is what archiving means.
+ * Nothing is exempt. `archive/` used to be — it held the superseded foundations,
+ * token files and all — but the directory is gone, so every tracked file is now
+ * held to the one-source rule.
  *
  * Usage: node scripts/token-source-guard.mjs   (exits non-zero on any finding)
  */
@@ -56,8 +57,7 @@ const tracked = execFileSync("git", ["ls-files"], {
   encoding: "utf8",
 })
   .split("\n")
-  .filter(Boolean)
-  .filter((p) => !p.startsWith("archive/"));
+  .filter(Boolean);
 
 const findings = [];
 

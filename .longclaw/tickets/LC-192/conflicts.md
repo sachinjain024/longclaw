@@ -7,7 +7,7 @@
 | Artifact       | Project **“LC Fable v3 Design System”** (`809bce20-a672-4824-a618-dd6c07d85f62`, type `PROJECT`)   | `apps/desktop/src/tokens/` (ships) + `docs/design/foundations/` (documents)             |
 | Structure      | Binds design system `d34ededb…` (the **v1** system) under `_ds/`, then overlays **`theme-v3.css`** | `design-tokens.json` → `build.mjs` → `design-tokens.css`, guarded by `tokens:check`     |
 | Spec page      | `LongClaw DS v3.dc.html` — 7 sections, ends “stop point: review before screens”                    | `decisions.md` D1–D16, `components.md`, `accessibility.md`                              |
-| Companion docs | `uploads/design-brief-v3.html` (draft v0.5), `uploads/vision-scope-v3.html`                        | `docs/design_brief.md` (**canonical**, later iteration), `archive/v3/` (same two files) |
+| Companion docs | `uploads/design-brief-v3.html` (draft v0.5), `uploads/vision-scope-v3.html`                        | `docs/design_brief.md` (**canonical**, later iteration); `archive/v3/` held the same two files until the directory was deleted — recover from git history if needed |
 
 **The v3 project is a design-time proposal that stopped before screens. The repo is that proposal carried through implementation, an accessibility pass, and eleven months of founder revisions.** Most conflicts below are the repo moving on without the Claude Design side being updated. A few are the repo silently ignoring a v3 decision.
 
