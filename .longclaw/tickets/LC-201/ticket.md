@@ -3,10 +3,10 @@ format: longclaw.ticket/v1
 id: 13b2335a-b6da-4a1b-8256-94997dc7eb1b
 key: LC-201
 title: Add Support for creating multiple tickets during "Quick Create” Mode
-status: in_progress
+status: done
 priority: urgent
 created_at: 2026-08-11T12:45:46.841Z
-updated_at: 2026-08-11T14:07:59.766Z
+updated_at: 2026-08-11T14:39:57.041Z
 ---
 
 User should be able to create multiple tickets during Quick Create Mode. We can enable it by provide a CheckBox / Toggle like “Create More” in the Quick Create mode only.
@@ -67,7 +67,7 @@ Nothing is open. The next step is the implementation.
 - [x] Use the design system to generate a prototype.html inside docs/ux/prototypes/LC=XXX….html <!-- longclaw:item=ck_f6bcba19 -->
 - [x] Product Spec -> Prototype.HTML Human Review. Wait for it before the implementation <!-- longclaw:item=ck_c7bc2bbf -->
 - [x] Once you get human review of Prototype.html then start the actual coding of the task <!-- longclaw:item=ck_eb951d8a -->
-- [ ] Ship -> Commit & Merge to main <!-- longclaw:item=ck_0dbbee71 -->
+- [x] Ship -> Commit & Merge to main <!-- longclaw:item=ck_0dbbee71 -->
 
 ## Activity
 
@@ -251,6 +251,25 @@ changes:
     from: "false"
     to: "true"
   - field: checklist.ck_30aed702.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_ea2bee27
+kind: update
+occurred_at: 2026-08-11T14:39:57.041Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_progress
+    to: done
+  - field: checklist.ck_0dbbee71.checked
     from: "false"
     to: "true"
 -->
