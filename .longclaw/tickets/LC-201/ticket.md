@@ -6,7 +6,7 @@ title: Add Support for creating multiple tickets during "Quick Create” Mode
 status: in_progress
 priority: urgent
 created_at: 2026-08-11T12:45:46.841Z
-updated_at: 2026-08-11T13:17:51.380Z
+updated_at: 2026-08-11T13:31:04.471Z
 ---
 
 User should be able to create multiple tickets during Quick Create Mode. We can enable it by provide a CheckBox / Toggle like “Create More” in the Quick Create mode only.
@@ -18,8 +18,8 @@ When users have selected the option and the first ticket is created then Quick C
 - Product spec: `docs/plans/active/LC-201-Bulk-Create-In-Quick-Create-Mode.md`
 - Prototype: `docs/ux/prototypes/LC-201-Bulk-Create-In-Quick-Create-Mode.html`
 
-Both are on the `feat/lc-201-quick-create-multiple` branch. Revision 2 carries
-the review's five layout changes; no implementation code is written yet.
+Both are on the `feat/lc-201-quick-create-multiple` branch, at revision 3. No
+implementation code is written yet.
 
 The spec widens quick create by two fields — a plain auto-growing **description**
 (not the Write/Preview editor, which stays in full create) and **labels** through
@@ -38,16 +38,22 @@ menu re-introduces nothing. The description's case rests on Create more alone.
 
 ## Review, 2026-08-11
 
-Five changes, all in revision 2 of both documents: the description is three lines
-and takes a field box; `⌘↵` moves inside the **Create** button; `Esc` becomes a
-chip at the top right; **Open full editor →** goes hard left in the footer; and
-**Create more** sits immediately left of **Create**. The mono hints line goes
-with them, because both bindings it carried now sit on controls of their own.
+**Revision 2** — the description is three lines and takes a field box; `⌘↵` moves
+inside the **Create** button; `Esc` moves to the top right; **Open full editor →**
+goes hard left in the footer; **Create more** sits immediately left of **Create**.
+The mono hints line goes with them, because both bindings it carried now sit on
+controls of their own.
 
-One question is left, and it does not block: the `esc` chip is drawn display-only
-as the palette's is, but quick create has no **Cancel** and its scrim does not
-dismiss, so a pointer-only human has no exit that is not a create. Making the
-chip a button is a two-line change and a new tab stop.
+**Revision 3** — the description's edge softens from `--lc-line-strong` to
+`--lc-line`; `esc` becomes lower-case plain text rather than a chip; and clicking
+it closes the modal, which is quick create's first exit that is not a create. It
+is not a tab stop: its keyboard path is the key it is named after.
+
+The title has no border to soften. What appears around it is the app-wide focus
+outline (`styles.css:41`), the whole of the keyboard-visibility contract, and
+nothing in this plan touches it.
+
+Nothing is open. The next step is the implementation.
 
 ## Checklist
 
@@ -193,6 +199,20 @@ changes:
 id: evt_23abe3ed
 kind: update
 occurred_at: 2026-08-11T13:17:51.380Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_b75c073a
+kind: update
+occurred_at: 2026-08-11T13:31:04.471Z
 actor:
   type: agent
   id: claude-code

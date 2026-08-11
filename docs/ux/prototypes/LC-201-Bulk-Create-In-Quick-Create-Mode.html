@@ -19,15 +19,32 @@
      land, as written, in the sections named beside each rule.
      ==================================================================== -->
 <style id="proposed">
-/* `esc`, top right of the context row — the palette's own chip
-   (`CommandPalette.tsx:583`), so the app has one way of saying this rather than
-   two. Display only, like that one: `Esc` is the binding and the chip reports
-   it. The row is already a flex line, so `auto` is the whole placement. */
+/* `esc`, top right of the context row.
+ *
+ * Not the palette's chip. That one is a `<kbd>` in a bordered box reporting a
+ * key, and a box up here competes with the two fields under it for the only
+ * edge the modal has to spend. This is the word, in the eyebrow's own register,
+ * and it closes the modal when it is clicked — so quick create finally has an
+ * exit that is not a create. There is no **Cancel** in this footer and the
+ * scrim does not dismiss.
+ *
+ * `tabIndex={-1}`, stated rather than defaulted (`tab-order-guard.mjs`): its
+ * keyboard path is the key it is named after, and a stop in front of the title
+ * for a control the keyboard already has is a press the human pays on every
+ * open. Lower case, because that is how the key is written everywhere else in
+ * the app's mono hints. */
 .quick-create-esc {
   margin-left: auto;
-  padding: 0 var(--lc-space-2);
-  line-height: 1.8;
-  text-transform: uppercase;
+  border: 0;
+  padding: 0;
+  color: var(--lc-ink-3);
+  background: none;
+  font: var(--lc-type-kbd-weight) var(--lc-type-kbd-size)
+    var(--lc-type-kbd-font);
+}
+
+.quick-create-esc:hover {
+  color: var(--lc-ink-2);
 }
 
 /* The description: three lines to start, growing with what is typed, capped so
@@ -51,7 +68,13 @@
      under however little is in it. */
   min-height: calc(var(--lc-type-code-size) * var(--lc-type-code-leading) * 3);
   max-height: 180px;
-  border: 1px solid var(--lc-line-strong);
+  /* `--lc-line`, not the `--lc-line-strong` the app's field foundation uses.
+     Field-strength is right where a box is the only thing saying "this is a
+     control" — a settings dialog, a composer at the bottom of a timeline. Here
+     the modal is four rows tall and the footer's own hairline sits directly
+     under this one, so a stronger edge than that reads as a frame rather than
+     as a field. This is the weight every other hairline in the modal carries. */
+  border: 1px solid var(--lc-line);
   border-radius: var(--lc-radius-control);
   padding: var(--lc-space-2);
   color: var(--lc-ink);
@@ -200,7 +223,7 @@ body {
     <button data-drive="reset">reset the run</button>
   </span>
   <span class="sep" aria-hidden="true"></span>
-  <span class="ask">revision 2 · the review's five changes are in</span>
+  <span class="ask">revision 3 · softer field edge, esc closes</span>
   <span class="spacer"></span>
   <span class="swatches" role="group" aria-label="Project theme">
     <button class="swatch" data-theme-pick="ember" aria-pressed="true" title="Ember"><i data-theme="light" data-lc-theme="ember"></i></button>
@@ -241,13 +264,13 @@ body {
     <ol>
       <li class="q"><strong>The description is 3 lines and boxed.</strong> It takes the field treatment the title does not: at three lines an unframed block reads as a gap, and the panel makes the same split between a bare title and a boxed editor.</li>
       <li class="q"><strong><kbd>⌘↵</kbd> is on the Create button</strong>, the way full create already writes it — so the binding is stated once, on the thing it does.</li>
-      <li class="q"><strong><kbd>esc</kbd> is a chip at the top right</strong>, the palette's own chip and not a second way of drawing one.</li>
+      <li class="q"><strong><code>esc</code> sits at the top right</strong> — the word, in the eyebrow's register, not a chip. Clicking it closes the modal.</li>
       <li class="q"><strong>Open full editor → is hard left</strong>, and <strong>Create more sits immediately left of Create</strong> — the toggle beside the button it changes.</li>
       <li class="q">The mono hints line is gone: with both bindings now on controls of their own, it had nothing left to say.</li>
     </ol>
 
-    <h2>One question left</h2>
-    <p class="q">The <kbd>esc</kbd> chip is display-only, as the palette's is. Quick create has no <strong>Cancel</strong> button and its scrim does not dismiss, so <kbd>Esc</kbd> is the only way out that is not a create — should the chip also be clickable, or does a pointer-only user keep reaching for <strong>Open full editor →</strong>?</p>
+    <h2>Nothing open</h2>
+    <p>The <code>esc</code> at the top right is plain text and it closes the modal when clicked — which is quick create's first exit that is not a create. It is not a tab stop: its keyboard path is the key it is named after.</p>
 
     <h2>Worth watching</h2>
     <p>Each create replaces the toast, so the third ticket's <strong>Undo</strong> takes the second one's off the screen. Undo is the inverse of the <em>last</em> mutation — <code>data-requirements.md:121</code> scopes it one deep, and this ticket does not widen it.</p>
@@ -364,7 +387,7 @@ function modalHTML() {
       <p class="eyebrow quick-create-context">
         <span class="theme-dot" data-lc-theme="${document.documentElement.dataset.lcTheme}" data-theme="${document.documentElement.dataset.theme}" aria-hidden="true"></span>
         Round Trip · RT-${app.seq}
-        <kbd class="kbd-chip quick-create-esc">esc</kbd>
+        <button type="button" tabindex="-1" class="quick-create-esc" data-role="close" aria-label="Close">esc</button>
       </p>
       <input class="quick-create-title" autofocus value="${esc(app.title)}" aria-label="Title" placeholder="Ticket title">
       <textarea class="quick-create-description" rows="3" aria-label="Description" placeholder="What should happen? Agents read this before they start.">${esc(app.description)}</textarea>
@@ -530,6 +553,12 @@ document.addEventListener("change", (event) => {
 });
 
 document.addEventListener("click", (event) => {
+  // `esc`, the word, doing what it says.
+  if (event.target.closest('[data-role="close"]')) {
+    app.open = false;
+    app.menu = undefined;
+    return render();
+  }
   const menuTrigger = event.target.closest("[data-menu]");
   const pick = event.target.closest("[data-pick]");
   const drive = event.target.closest("[data-drive]");

@@ -166,6 +166,7 @@
     "157": "## Focus-return table",
     "161": "| Ticket panel | The card/row that opened it (survives re-render) |",
     "164": "| Quick create (created) | The new ticket's card |",
+    "165": "| Quick create (canceled) | Prior focus |",
     "166": "| Settings / waitlist / confirm / raw view | The opener (gear, footer button, degraded card) |",
     "167": "| Folder picker (create flow) | The create form's name field |",
     "174": "- No drag-and-drop keyboard equivalent — reordering within a column, and",

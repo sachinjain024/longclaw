@@ -64,10 +64,11 @@ than three.
 
 620px modal at 12vh, unchanged. Rows, in order:
 
-1. **Context line** — dot · project · `KEY-n`, and *new* an `esc` chip at the
-   right end. The key re-reads the next free one on every create, so during a
-   run it counts up: `LC-201`, `LC-202`, … Each is still a guess read off the
-   rows on screen; Rust allocates the real one.
+1. **Context line** — dot · project · `KEY-n`, and *new* `esc` at the right end:
+   the word, in the eyebrow's own register, which **closes the modal when it is
+   clicked**. The key re-reads the next free one on every create, so during a run
+   it counts up: `LC-201`, `LC-202`, … Each is still a guess read off the rows on
+   screen; Rust allocates the real one.
 2. **Title** — borderless 15px input. Unchanged (D-47).
 3. **Description** — *new.* Three lines to start, growing with what is typed,
    capped at 180px so a long one scrolls itself rather than pushing the footer
@@ -88,10 +89,22 @@ field is a frame around nothing" — at three lines that argument inverts, since
 unframed block of empty space under the title reads as a gap rather than as a
 field. The panel makes the same split, with a bare `.panel-title` over a boxed
 editor. What the field wears is `.composer textarea`'s shape and very nearly its
-rules: hairline `line-strong`, `radius-control`, `space-2` of padding, the code
-type both existing description surfaces use, `resize: none` and an auto-grow. The
-app already has a bordered, auto-growing, capped markdown field; a second kind
-here would be a second answer to a solved question.
+rules: `radius-control`, `space-2` of padding, the code type both existing
+description surfaces use, `resize: none` and an auto-grow. The app already has a
+bordered, auto-growing, capped markdown field; a second kind here would be a
+second answer to a solved question.
+
+**Its edge is `--lc-line`, not the `--lc-line-strong` of the field foundation.**
+Field-strength is right where the box is the only thing saying "this is a
+control" — a settings dialog, a composer at the bottom of a timeline. This modal
+is four rows tall and the footer's own hairline sits directly under this one, so
+a stronger edge than that reads as a frame rather than as a field. `--lc-line` is
+the weight every other hairline in the modal already carries.
+
+**The title still has no border of its own.** The rectangle that appears around
+it is `outline: var(--lc-border-focus) solid var(--lc-accent-human-ring)` from
+`styles.css:41` — the app-wide focus ring, on every control in the app, and the
+whole of the keyboard-visibility contract. Nothing in this plan touches it.
 
 **Why not `DescriptionEditor`.** It is the right component in full create and the
 wrong one here. Its tabstrip and six formatting buttons are nine controls, and
@@ -162,10 +175,25 @@ binding grows a second half, the one full create already has:
 
 **Each of those is said once, on the control it belongs to, rather than a fourth
 time in a mono line.** `⌘↵` goes inside **Create** as a `<kbd>`, which is exactly
-how full create's own footer writes it (`CreatePanel.tsx:408`). `Esc` becomes a
-`kbd-chip` at the right end of the context row, the same chip the palette carries
-(`CommandPalette.tsx:583`) — so the app has one way of drawing this and not two.
+how full create's own footer writes it (`CreatePanel.tsx:408`). `esc` goes to the
+right end of the context row — the word, lower case, in the eyebrow's register.
 With both moved, the mono hints line has nothing left to say and goes.
+
+**And `esc` is a button, so quick create finally has an exit that is not a
+create.** Today it has no **Cancel**, and its scrim is `role="presentation"` with
+no click handler, so a human who opened the modal by pointer and changed their
+mind has nowhere on the screen to go: **Open full editor →** is the only control
+that leaves, and it does not leave. Clicking the word does what the word says.
+
+It is deliberately **not** the palette's `kbd-chip` (`CommandPalette.tsx:583`).
+That one is a `<kbd>` in a bordered box reporting a key it cannot perform, and a
+box up here competes with the two fields below it for the only edge this modal
+has to spend. The palette's chip stays as it is; this is a different job.
+
+`tabIndex={-1}`, stated rather than defaulted (`tab-order-guard.mjs`). Its
+keyboard path is the key it is named after, which is the purest form of the
+focus map's rule 1, and a stop in front of the title for a control the keyboard
+already has is a press the human pays on every open.
 
 `↵` from the title is the one binding no longer written on the screen. It is the
 habit rather than the discoverable path, `⌘↵` is stated and does the same thing
@@ -180,8 +208,12 @@ Tab order, which `keyboard-focus-map.md:133` states and `a11y:audit` walks:
 > Create more → Create
 
 Create more sits immediately left of **Create**: the control it changes is the
-next thing both the eye and the Tab key reach. The `esc` chip is display-only and
-not a stop, like the palette's.
+next thing both the eye and the Tab key reach. `esc` is a control but not a stop,
+for the reason above.
+
+The focus-return table gains a second entry with it: **Quick create (closed by
+`esc`, clicked or pressed) → prior focus**, which is the row canceling already
+has (`keyboard-focus-map.md:165`) and now has two ways of being reached.
 
 The checkbox carries an explicit `tabIndex={0}`. WebKit follows the macOS
 *Keyboard navigation* setting and skips both buttons and checkboxes with it off,
@@ -195,20 +227,20 @@ the title field, cleared.**
 ## Do this
 
 1. **`src/QuickCreate.tsx`** — description textarea, `LabelMenuButton` on the
-   meta row, the `esc` chip on the context row, the Create more checkbox, `⌘↵`
-   on the **Create** button and in a panel-wide handler, and a `createMore` flag
-   on what `onCreate` sends. On a create with the flag set, clear title and
-   description and keep the rest; the modal owns its own reset, so App never
-   reaches in.
+   meta row, the `esc` button on the context row calling the same `onCancel` the
+   key does, the Create more checkbox, `⌘↵` on the **Create** button and in a
+   modal-wide handler, and a `createMore` flag on what `onCreate` sends. On a
+   create with the flag set, clear title and description and keep the rest; the
+   modal owns its own reset, so App never reaches in.
 2. **`src/App.tsx`** — `submitNewTicket`/`writeNewTicket` take a `keepOpen`
    option that skips `setCreateSurface(undefined)` and **both** `focusCard`
    calls. `PendingCreate` carries it too, so a run that crosses a project switch
    (LC-188) resumes into the same loop after the confirm.
-3. **`src/styles.css`** — the description field, the `esc` chip's placement, the
-   footer's checkbox, and the meta row with three triggers at 620px. No new
-   token; nothing here introduces a colour. The exact rules are the
-   `<style id="proposed">` block of the prototype, which is where they were
-   measured.
+3. **`src/styles.css`** — the description field, `esc`'s placement and its
+   stripped-back treatment, the footer's checkbox, and the meta row with three
+   triggers at 620px. No new token; nothing here introduces a colour. The exact
+   rules are the `<style id="proposed">` block of the prototype, which is where
+   they were measured.
 4. **`src/autoGrow.ts`** — `useAutoGrow` sets `height = scrollHeight`, which is
    exact for a borderless field and two pixels short for one with a border under
    `box-sizing: border-box`. Every field it drives today is borderless except
@@ -228,7 +260,8 @@ the title field, cleared.**
    field rather than a card. Confirm it goes red under `--self-test`. The Tab
    walk in that section changes shape too, and the existing create row must stay
    green: with the box unticked, `↵` still creates and focus still lands on the
-   new card.
+   new card. `esc` is pointer-only by design, so the walk must **not** find it —
+   a row that reaches it is a row that says the tab order grew a stop.
 8. **`docs/design/prototype/screen-specs.md`** and
    **`keyboard-focus-map.md`** — the § Quick create rows, in place where the
    prose allows it, then `citations:update` for what genuinely moved. Both are
@@ -274,8 +307,7 @@ with them. Revision 2 of the prototype is what they look like.
    surface becomes*.
 2. **`⌘↵` moves inside the Create button**, stated once on the thing it does
    rather than a second time in a mono line.
-3. **`Esc` becomes a chip at the top right** of the context row, the palette's
-   own `kbd-chip`.
+3. **`Esc` moves to the top right** of the context row.
 4. **Open full editor → goes hard left** in the footer.
 5. **Create more sits immediately left of Create.** The second question — footer
    or meta row — is answered footer, and more precisely than it was asked.
@@ -283,19 +315,19 @@ with them. Revision 2 of the prototype is what they look like.
 The mono hints line goes with them, because both bindings it carried now sit on
 controls of their own.
 
-## Still open
+### Revision 3, the same day
 
-**Is the `esc` chip clickable?** It is drawn display-only, as the palette's is.
-But the palette has a visible list to click away from and quick create does not:
-this modal has no **Cancel**, and its scrim does not dismiss, so `Esc` is the
-only way out that is not a create. A pointer-only human's nearest exit today is
-**Open full editor →**, which is not an exit. Making the chip a button is a
-two-line change and a new tab stop; leaving it alone keeps the app's one way of
-drawing this. Not blocking — the implementation can carry either.
+6. **The description's edge softens** from `--lc-line-strong` to `--lc-line`.
+   The title has no edge to soften: what appears around it is the app-wide focus
+   outline, which nothing here touches.
+7. **`esc` is lower case, plain text, and not a chip** — the word in the
+   eyebrow's register rather than a `<kbd>` in a box.
+8. **Clicking it closes the modal**, which answers the question revision 2 left
+   open and gives quick create its first exit that is not a create.
 
 ## Measured, not assumed
 
-Revision 2 driven in WebKit over the app's own stylesheet:
+Revision 3 driven in WebKit over the app's own stylesheet:
 
 | | |
 |---|---|
@@ -303,4 +335,6 @@ Revision 2 driven in WebKit over the app's own stylesheet:
 | Description, empty | 72px — three lines of the code type, its floor |
 | Description, five lines | 108px, no scrollbar |
 | Description, twenty lines | 180px, scrolls itself; the modal does not |
+| Description edge | `1px solid #e3e5ee` — `--lc-line`, one step down the ramp |
+| `esc` | a `<button>`, `tabIndex` −1, no border, no background, no `text-transform`; clicking it closes a modal with a title typed into it |
 | The run | title and description cleared, status/priority/labels kept, key advanced, focus in the title field, one toast replacing the last |
