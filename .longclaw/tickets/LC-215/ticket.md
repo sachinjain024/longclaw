@@ -3,12 +3,12 @@ format: longclaw.ticket/v1
 id: ecc1129b-3efe-4863-8d56-8c0bc170de41
 key: LC-215
 title: CheckList Item should be editable and deletable
-status: todo
+status: in_review
 priority: urgent
 labels:
   - release
 created_at: 2026-08-11T14:57:26.525Z
-updated_at: 2026-08-11T14:57:26.525Z
+updated_at: 2026-08-11T18:36:19.535Z
 ---
 
 Both during Ticket Creation Process and Editing Process
@@ -24,4 +24,22 @@ actor:
   id: local
 -->
 ### You created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_6ef99208
+kind: update
+occurred_at: 2026-08-11T18:36:19.535Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: in_review
+-->
+### Claude Code updated this ticket
+
+Both surfaces. A row now carries a pencil and a cross, revealed with the drag grip: the pencil replaces the row with a field that commits on Enter or blur and abandons on Esc, and the cross removes it with a toast that offers the row back where it sat. Rust gained editChecklistItem, removeChecklistItem and restoreChecklistItem — the last so a removal can be undone, since an append lands at the end and the row was not at the end — and the CLI gained --edit-item/--item-text and --remove-item so an agent can do what the app can. An emptied field leaves the row alone in both surfaces; deleting is the cross's job. Neither gesture is offered on a row the file has minted no id for.
 <!-- /longclaw:event -->
