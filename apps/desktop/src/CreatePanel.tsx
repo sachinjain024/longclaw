@@ -35,7 +35,7 @@ import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "./metaOptions";
 import type {
   CreateTicketRequest,
   Label,
-  TicketPriority,
+  TicketDraft,
   TicketStatus,
 } from "./types";
 
@@ -50,29 +50,29 @@ interface CreatePanelProps {
   provisionalKey?: string;
   /** The project's label definitions. A ticket carries slugs and nothing else. */
   labels: Record<string, Label>;
-  /** Carried in from quick create's "Open full editor →" (`screen-specs.md:258-259`). */
-  initialTitle?: string;
-  initialStatus?: TicketStatus;
   /**
-   * Quick create asks for a priority too (LC-186), so the move between the
-   * surfaces has one to carry. Absent means nobody chose, which is `none`.
+   * Carried in from quick create's "Open full editor →"
+   * (`screen-specs.md:258-259`) — all five fields it asks for, as one draft
+   * rather than five props (`TicketDraft`).
+   *
+   * The door is what makes the narrow surface honest: "everything past these
+   * lives over there" is only true if getting there costs nothing, so it is
+   * the one place a field must not quietly go missing. Absent altogether is
+   * full create opened on its own, where every field starts at its default.
    */
-  initialPriority?: TicketPriority;
+  initialDraft?: TicketDraft;
   onCancel: () => void;
   /** Fires and forgets: the create is optimistic, so the panel never waits. */
   onCreate: (request: Omit<CreateTicketRequest, "projectId">) => void;
 }
 
 export function CreatePanel(props: CreatePanelProps) {
-  const [title, setTitle] = useState(props.initialTitle ?? "");
-  const [status, setStatus] = useState<TicketStatus>(
-    props.initialStatus ?? "todo",
-  );
-  const [priority, setPriority] = useState<TicketPriority>(
-    props.initialPriority ?? "none",
-  );
-  const [labels, setLabels] = useState<string[]>([]);
-  const [description, setDescription] = useState("");
+  const draft = props.initialDraft;
+  const [title, setTitle] = useState(draft?.title ?? "");
+  const [status, setStatus] = useState<TicketStatus>(draft?.status ?? "todo");
+  const [priority, setPriority] = useState(draft?.priority ?? "none");
+  const [labels, setLabels] = useState<string[]>(draft?.labels ?? []);
+  const [description, setDescription] = useState(draft?.description ?? "");
   const [checklist, setChecklist] = useState<string[]>([]);
   const [newItem, setNewItem] = useState("");
   /**

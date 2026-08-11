@@ -315,6 +315,29 @@ export interface CreateTicketRequest {
   checklist?: string[];
 }
 
+/**
+ * What **Open full editor →** carries from quick create to full create.
+ *
+ * Named once because it travels through three places — the door's argument,
+ * `App`'s held draft, and the create panel's opening state — and three
+ * restatements of the same five fields is three chances for them to disagree
+ * about which are optional. They did: the door sent all five, `App` held three
+ * of them optional, and the panel took five separate `initial…` props.
+ *
+ * Every field is required here. A draft is what the human had typed at the
+ * moment they asked for more room, and "nothing typed yet" is `""` or `[]`
+ * rather than absent — the same reason the create request sends an empty
+ * description instead of omitting it. The checklist is not in it: it is the one
+ * field quick create does not offer, so there is never one to carry.
+ */
+export interface TicketDraft {
+  title: string;
+  description: string;
+  status: TicketStatus;
+  priority: TicketPriority;
+  labels: string[];
+}
+
 export interface WriteResult {
   ticket: TicketRow;
   generation: number;

@@ -80,6 +80,7 @@ import type {
   HeldConflict,
   IndexedTicket,
   ProjectReference,
+  TicketDraft,
   TicketEdit,
   TicketPriority,
   TicketStatus,
@@ -117,6 +118,12 @@ interface PendingCreate {
   request: Omit<CreateTicketRequest, "projectId">;
   /** Full create's ending, carried across the question (`screen-specs.md:270-271`). */
   openPanel: boolean;
+  /**
+   * Quick create's, when **Create more** is ticked (LC-201). Carried for the
+   * same reason `openPanel` is: a run that crosses a project switch resumes
+   * into the same loop after the confirm rather than being closed by it.
+   */
+  keepOpen: boolean;
   /** Where the draft was composed, for the dialog's own words. */
   fromProjectId: string;
 }
@@ -235,11 +242,7 @@ export function App() {
    * `+` chooses a status and nothing else (LC-186). Absent means "nobody said",
    * and each surface's own default answers it.
    */
-  const [carriedDraft, setCarriedDraft] = useState<{
-    title: string;
-    status: TicketStatus;
-    priority?: TicketPriority;
-  }>();
+  const [carriedDraft, setCarriedDraft] = useState<TicketDraft>();
   /**
    * The project the open create surface was raised in.
    *
@@ -1092,17 +1095,21 @@ export function App() {
    */
   function submitNewTicket(
     request: Omit<CreateTicketRequest, "projectId">,
-    options?: { openPanel?: boolean },
+    options?: { openPanel?: boolean; keepOpen?: boolean },
   ) {
     if (createProjectId !== undefined && createProjectId !== activeProjectId) {
       setPendingCreate({
         request,
         openPanel: options?.openPanel === true,
+        keepOpen: options?.keepOpen === true,
         fromProjectId: createProjectId,
       });
       return;
     }
-    writeNewTicket(request, options?.openPanel === true);
+    writeNewTicket(request, {
+      openPanel: options?.openPanel === true,
+      keepOpen: options?.keepOpen === true,
+    });
   }
 
   /**
@@ -1116,12 +1123,21 @@ export function App() {
    * before then. The card is still optimistic, and focus rides it in the
    * meantime, so nothing waits and focus never lands on the floor.
    *
+   * `keepOpen` is quick create's Create more loop (LC-201), and it is the exact
+   * negation of the two things every other create does: the surface stays up,
+   * and **focus does not follow the card** — neither optimistically nor when
+   * the write returns. The second one is the whole reason this is a flag rather
+   * than a caller's afterthought: `onWritten` fires when the disk answers,
+   * which during a run is while the human is typing the next ticket's title,
+   * and a create that stole the caret mid-word would read as dropped
+   * keystrokes rather than as a focus bug.
+   *
    * It always writes into the project on screen *now*, which is what makes the
    * question in `submitNewTicket` the only place the destination is decided.
    */
   function writeNewTicket(
     request: Omit<CreateTicketRequest, "projectId">,
-    openPanel: boolean,
+    { openPanel, keepOpen }: { openPanel: boolean; keepOpen: boolean },
   ) {
     const projectId = activeProjectId;
     if (!projectId || !project) return;
@@ -1133,7 +1149,7 @@ export function App() {
     // `addProvisionalTicket`, which keys by key (LC-140, LC-188).
     if (!boardLoaded) return;
     const guessKey = provisionalTicketKey(project.key, tickets);
-    setCreateSurface(undefined);
+    if (!keepOpen) setCreateSurface(undefined);
     setCarriedDraft(undefined);
 
     void mutate({
@@ -1141,7 +1157,7 @@ export function App() {
         addProvisionalTicket(
           provisionalTicket(guessKey, request, new Date().toISOString()),
         );
-        focusCard(guessKey);
+        if (!keepOpen) focusCard(guessKey);
         return () => removeTicket(guessKey);
       },
       write: () => createTicket({ projectId, ...request }),
@@ -1149,7 +1165,7 @@ export function App() {
         removeTicket(guessKey);
         applyLocalWrite(written.ticket, written.generation);
         if (openPanel) openTicket(written.ticket.key);
-        else focusCard(written.ticket.key);
+        else if (!keepOpen) focusCard(written.ticket.key);
       },
       toast: (written) => `${written.ticket.key} created`,
       // v0 has no ticket deletion (ADR 0004), so the inverse of a create is an
@@ -1842,7 +1858,17 @@ export function App() {
                     // arriving with the column it was pressed in already
                     // chosen (`keyboard-focus-map.md:44`).
                     onCreateInStatus={(status) => {
-                      setCarriedDraft({ title: "", status });
+                      // A whole draft, empty but for the column: "nothing
+                      // typed yet" is `""` and `[]` rather than absent, which
+                      // is what keeps one shape between the preseed and the
+                      // draft the door carries back.
+                      setCarriedDraft({
+                        title: "",
+                        description: "",
+                        status,
+                        priority: "none",
+                        labels: [],
+                      });
                       setCreateSurface("quick");
                     }}
                     onCreateFirst={guide}
@@ -1963,10 +1989,13 @@ export function App() {
             projectName={project.name}
             projectTheme={project.theme}
             provisionalKey={nextKey}
+            labels={project.labels}
             initialStatus={carriedDraft?.status}
             initialPriority={carriedDraft?.priority}
             onCancel={closeCreateSurface}
-            onCreate={submitNewTicket}
+            onCreate={(request, { createMore }) =>
+              submitNewTicket(request, { keepOpen: createMore })
+            }
             onOpenFullEditor={(draft) => {
               setCarriedDraft(draft);
               setCreateSurface("full");
@@ -1981,9 +2010,7 @@ export function App() {
           <CreatePanel
             provisionalKey={nextKey}
             labels={project.labels}
-            initialTitle={carriedDraft?.title}
-            initialStatus={carriedDraft?.status}
-            initialPriority={carriedDraft?.priority}
+            initialDraft={carriedDraft}
             onCancel={closeCreateSurface}
             onCreate={(request) =>
               submitNewTicket(request, { openPanel: true })
@@ -2019,7 +2046,10 @@ export function App() {
           onConfirm={() => {
             const held = pendingCreate;
             setPendingCreate(undefined);
-            writeNewTicket(held.request, held.openPanel);
+            writeNewTicket(held.request, {
+              openPanel: held.openPanel,
+              keepOpen: held.keepOpen,
+            });
           }}
           onCancel={() => setPendingCreate(undefined)}
         />

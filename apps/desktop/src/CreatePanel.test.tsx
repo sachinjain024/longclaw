@@ -18,7 +18,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CreatePanel } from "./CreatePanel";
-import type { Label, TicketPriority } from "./types";
+import type { Label, TicketDraft } from "./types";
 
 afterEach(() => {
   cleanup();
@@ -39,8 +39,7 @@ const DEFINITIONS: Record<string, Label> = {
 };
 
 function createPanel(props?: {
-  initialTitle?: string;
-  initialPriority?: TicketPriority;
+  initialDraft?: TicketDraft;
   onCancel?: () => void;
   onCreate?: (request: unknown) => void;
 }) {
@@ -48,8 +47,7 @@ function createPanel(props?: {
     <CreatePanel
       provisionalKey="RT-4"
       labels={DEFINITIONS}
-      initialTitle={props?.initialTitle}
-      initialPriority={props?.initialPriority}
+      initialDraft={props?.initialDraft}
       onCancel={props?.onCancel ?? (() => {})}
       onCreate={props?.onCreate ?? (() => {})}
     />
@@ -117,8 +115,22 @@ describe("every approved field, in one create", () => {
     ).toEqual(["Backend", "Reliability"]);
   });
 
+  /** A draft with only the field under test set, the rest at their defaults. */
+  function draft(fields: Partial<TicketDraft>): TicketDraft {
+    return {
+      title: "",
+      description: "",
+      status: "todo",
+      priority: "none",
+      labels: [],
+      ...fields,
+    };
+  }
+
   it("takes the title quick create was holding", () => {
-    render(createPanel({ initialTitle: "Needs more thought" }));
+    render(
+      createPanel({ initialDraft: draft({ title: "Needs more thought" }) }),
+    );
 
     expect(screen.getByLabelText<HTMLTextAreaElement>("Title").value).toBe(
       "Needs more thought",
@@ -126,7 +138,7 @@ describe("every approved field, in one create", () => {
   });
 
   it("takes the priority quick create was holding too (LC-186)", () => {
-    render(createPanel({ initialPriority: "urgent" }));
+    render(createPanel({ initialDraft: draft({ priority: "urgent" }) }));
 
     // Quick create asks for a priority now, so the door between the surfaces
     // has one to carry. Losing it here would mean the urgent ticket somebody
