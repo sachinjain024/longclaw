@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: d114377d-6cbf-4dfb-8124-5b5c0207ad47
 key: LC-154
 title: Cross-cutting — no stacking-order scale exists
-status: in_review
+status: done
 priority: p3
 labels:
   - frontend
   - prototype-diff
 created_at: 2026-08-05T15:16:01.967Z
-updated_at: 2026-08-07T12:15:20.373Z
+updated_at: 2026-08-11T11:33:44.765Z
 ---
 
 **Finding.** No stacking-order scale exists
@@ -91,4 +91,19 @@ actor:
 Review follow-up, on the one word of this checklist the sweep did not deliver: **workspace**. D-74 asked for `--lc-z-*` tokens named 'workspace / sticky / panel / modal / toast', and there is still no workspace layer. That is deliberate and inherited rather than overlooked — LC-96 recorded it in the comment above when it built the scale, and the reason is load-bearing: the workspace is an ancestor of the board and the list, `Menu.tsx` renders its popover inline rather than through a portal, and a layer on that ancestor makes it a stacking context that traps a menu opened from a card underneath the ticket panel. The token would create the defect the scale exists to prevent.
 
 So the item is ticked against four of the five names plus `popover` and `drag`, which the app has and D-74 did not name, and the omission is stated beside the scale in `design-tokens.json` rather than left to be rediscovered. If the popover ever moves to a portal, a workspace layer becomes possible and worth revisiting.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_1a4bf6a5
+kind: update
+occurred_at: 2026-08-11T11:33:44.765Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

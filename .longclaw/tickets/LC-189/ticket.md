@@ -3,12 +3,12 @@ format: longclaw.ticket/v1
 id: cf8f567b-5a59-409f-8810-07b29ff3826a
 key: LC-189
 title: Design-doc line citations had drifted, and nothing checked them
-status: in_review
+status: done
 priority: p2
 labels:
   - design
 created_at: 2026-08-09T14:39:10.942Z
-updated_at: 2026-08-09T14:39:10.942Z
+updated_at: 2026-08-11T11:32:51.840Z
 ---
 
 The four design docs are cited by line number from ~413 places, including the
@@ -74,4 +74,19 @@ The open item is closed: `file_format.md` and `data-requirements.md` are audited
 The audit found no drift in either — every citation still matched the text it was written against, which is what `.md` files nobody inserts into look like. One citation was wrong on its own terms rather than moved: `file_format.md:213-231`, cited from `labels.ts` and `ProjectSettings.tsx` for "a ticket stores slugs and nothing else", began at `name: Sachin Jain` inside the `people:` block. Tightened to 214-231, where `labels:` starts.
 
 That is the reason pinning follows auditing rather than replacing it: a lock generated a day earlier would have frozen that range and called it clean forever.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_6bcedfaa
+kind: update
+occurred_at: 2026-08-11T11:32:51.840Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

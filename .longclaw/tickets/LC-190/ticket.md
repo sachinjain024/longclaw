@@ -3,12 +3,12 @@ format: longclaw.ticket/v1
 id: c6a4c812-5eab-4015-a856-9b3cc5b974bf
 key: LC-190
 title: "Board: a drop into the far-right column is refused, and probe:drag cannot see it"
-status: in_review
+status: done
 priority: none
 labels:
   - frontend
 created_at: 2026-08-10T04:58:07.335Z
-updated_at: 2026-08-10T15:50:22.167Z
+updated_at: 2026-08-11T11:32:30.046Z
 ---
 
 Found while landing LC-166, and it reproduces on `main` untouched by it.
@@ -198,4 +198,19 @@ Review findings, and a correction to the run figures above.
 **Kept, with the reason:** the `pane` bound applies to the list surface as well as the board, which the probe branch of this ticket did not ask for. `read()` is one function serving both surfaces, and the blindness it fixes is not board-specific — a list whose groups scrolled sideways would report the same false refusal. The list's pane is its scroller, so the bound is a no-op there today and its cases stay green.
 
 Runs after the fixes: `probe:drag` 49/49, `--tickets=46` 49/49, `--self-test` 20/49 with the inversion holding, `npm run verify` exit 0.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_aeb6662d
+kind: update
+occurred_at: 2026-08-11T11:32:30.046Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

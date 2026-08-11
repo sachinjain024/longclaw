@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: b60012bf-0c57-42b9-8454-fed43f6cf136
 key: LC-171
 title: "Can't find a ticket by its key: typing LC-60 into the palette searches commands, not tickets"
-status: in_review
+status: done
 priority: urgent
 rank: a0
 labels:
   - frontend
 created_at: 2026-08-07T06:56:13.967Z
-updated_at: 2026-08-07T14:24:44.735Z
+updated_at: 2026-08-11T11:29:58.753Z
 ---
 
 Typing a ticket key is the fastest thing anyone knows how to do, and it finds nothing.
@@ -101,4 +101,19 @@ changes:
     to: "true"
 -->
 ### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_2860e372
+kind: update
+occurred_at: 2026-08-11T11:29:58.753Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

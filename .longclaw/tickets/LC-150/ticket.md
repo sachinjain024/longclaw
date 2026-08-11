@@ -3,14 +3,14 @@ format: longclaw.ticket/v1
 id: d602302f-c91c-4a80-b226-be1cf302ff48
 key: LC-150
 title: Cross-cutting — appearance preference is not restored on relaunch
-status: in_review
+status: done
 priority: p1
 rank: a0
 labels:
   - frontend
   - prototype-diff
 created_at: 2026-08-05T15:16:01.898Z
-updated_at: 2026-08-07T12:15:37.547Z
+updated_at: 2026-08-11T11:33:04.842Z
 ---
 
 **Finding.** **Appearance preference is not restored on relaunch.** Set to Light, quit, relaunch → the control reads `System` again. It is written to `localStorage` under `longclaw.appearance` (`App.tsx:79`, `:491`)
@@ -96,4 +96,19 @@ Review follow-up: the migration off webview storage now consumes the old keys on
 It did not, and that broke the reset path this change documents. A document can be empty because somebody emptied it — deleting the file is the supported way to start over (`user-guide.md`) — and adoption keyed on 'the document is empty' handed the old choices straight back on the next launch. Now the four legacy keys are removed after the carrying write lands, so the migration happens once and a reset stays reset. Only after it lands: a host that refuses the write must not also be the host that empties the only copy. Both are tests.
 
 The trade is a downgrade — a build older than LC-150 installed over this one finds its storage empty and comes up on the defaults — and it is the right way round, since the alternative is stale values that outlive every later change to them.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_661bda52
+kind: update
+occurred_at: 2026-08-11T11:33:04.842Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

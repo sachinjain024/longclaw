@@ -3,10 +3,10 @@ format: longclaw.ticket/v1
 id: f21662cb-3e0e-4dd6-8558-438b80e2dbfe
 key: LC-193
 title: Ticket Checklist - After entering one checklist item, the next input row isn’t focussed
-status: in_review
+status: done
 priority: urgent
 created_at: 2026-08-10T06:27:31.139Z
-updated_at: 2026-08-10T22:48:59.919Z
+updated_at: 2026-08-11T11:31:48.158Z
 ---
 
 ## What it is
@@ -70,6 +70,10 @@ LC-200 — the root `package.json` passthroughs ate every flag, so four document
 `--self-test` commands were running as ordinary passes. Fixed here because this
 ticket's own inversion could not otherwise be run as documented.
 
+
+## Checklist
+
+- [x] Test <!-- longclaw:item=ck_47633a98 -->
 ## Activity
 
 <!-- longclaw:event
@@ -141,4 +145,48 @@ changes:
     to: in_review
 -->
 ### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_2cbccebf
+kind: update
+occurred_at: 2026-08-11T11:31:37.070Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: checklist.ck_47633a98.added
+    to: Test
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_50102ece
+kind: update
+occurred_at: 2026-08-11T11:31:43.701Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: checklist.ck_47633a98.checked
+    from: "false"
+    to: "true"
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_e2128c94
+kind: update
+occurred_at: 2026-08-11T11:31:48.158Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

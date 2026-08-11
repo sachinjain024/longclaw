@@ -3,10 +3,10 @@ format: longclaw.ticket/v1
 id: 1425105d-515b-406a-a040-4e8a3e975151
 key: LC-186
 title: User should be able to define priority in Quick Create Mode
-status: in_review
+status: done
 priority: urgent
 created_at: 2026-08-09T00:30:22.580Z
-updated_at: 2026-08-09T07:36:29.859Z
+updated_at: 2026-08-11T11:30:12.115Z
 ---
 
 ## Activity
@@ -75,4 +75,19 @@ Quick create now asks for priority beside status — the same MenuButton over th
 Labels, description and checklist stay in full create — widening by one field is not an invitation to widen further.
 
 `screen-specs.md` and `keyboard-focus-map.md` were updated in place, holding their sections' line counts so the citations pointing into them stay true. verify green (827 frontend tests, every guard clean), a11y:audit Part A green.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_41f64c95
+kind: update
+occurred_at: 2026-08-11T11:30:12.115Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

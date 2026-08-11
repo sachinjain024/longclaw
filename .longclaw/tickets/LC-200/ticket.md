@@ -3,12 +3,12 @@ format: longclaw.ticket/v1
 id: 6af5777d-834f-421a-851c-09dc2105f882
 key: LC-200
 title: The root package.json passthroughs ate every flag, so four documented --self-test runs were ordinary passes
-status: in_review
+status: done
 priority: none
 labels:
   - frontend
 created_at: 2026-08-10T22:44:30.848Z
-updated_at: 2026-08-10T22:44:44.493Z
+updated_at: 2026-08-11T11:32:38.187Z
 ---
 
 Found while adding `probe:checklist` for LC-193, and fixed there because that
@@ -94,4 +94,19 @@ changes:
     to: The root package.json passthroughs ate every flag, so four documented --self-test runs were ordinary passes
 -->
 ### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_cf221c33
+kind: update
+occurred_at: 2026-08-11T11:32:38.187Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

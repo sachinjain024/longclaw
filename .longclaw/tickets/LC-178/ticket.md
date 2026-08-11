@@ -3,12 +3,12 @@ format: longclaw.ticket/v1
 id: f4aa3b26-678b-4c32-87c4-73e484cb7670
 key: LC-178
 title: Board filter — a filtered column scrolls far past its matches, and a non-matching card is stranded below them
-status: in_review
+status: done
 priority: urgent
 labels:
   - frontend
 created_at: 2026-08-07T14:50:05.668Z
-updated_at: 2026-08-07T16:17:43.674Z
+updated_at: 2026-08-11T11:30:05.882Z
 ---
 
 **Finding.** With a filter applied, a board column keeps scrolling long after
@@ -164,4 +164,19 @@ Item 4 asks that the header's count and the cards reachable by scrolling agree. 
 Four tests, all red against `origin/main`'s `Board.tsx` and green with the fix. `npm run verify` passes, 772 frontend tests. The review also raised a duplicated test helper: `columnKeys` existed twice already and is now one copy at module scope.
 
 Not claimed: the reproduction is jsdom against main's code, not the running build the recording came from, and it uses `LC-200` rather than the recording's `LC-170`.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_77efd73e
+kind: update
+occurred_at: 2026-08-11T11:30:05.882Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### You updated this ticket
 <!-- /longclaw:event -->
