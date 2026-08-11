@@ -25,7 +25,7 @@ labels:
     name: Design
     color: orange
   release:
-    name: Release
+    name: Release Blocker
     color: red
   product:
     name: Product
