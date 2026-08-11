@@ -30,84 +30,105 @@ const rules = cssRules(styles);
 
 const findings = [];
 
-/** Every declaration this file asserts, counted as it is read. */
+/**
+ * What the pass line counts, both derived from the assertions below rather than
+ * written down beside them: every declaration this file holds, and every
+ * prototype-diff row those declarations belong to.
+ *
+ * The row is a separate argument rather than the first word of `reason` because
+ * a sentence is not a key. A hand-written `2` is what LC-177 was filed against,
+ * and the `4` that replaced it went stale the same way; a number and a list
+ * that count themselves cannot.
+ */
 let checked = 0;
+const rows = new Set();
 
-function requireDeclaration(selector, property, expected, reason) {
+function requireDeclaration(row, selector, property, expected, reason) {
   checked += 1;
-  if (declarationsOf(rules, selector).length === 0) {
-    findings.push(`${selector} has no rule; expected ${reason}`);
-    return;
-  }
+  rows.add(row);
 
   const values = declaredValues(rules, selector, property);
-  if (!values.includes(expected)) {
-    findings.push(
-      `${selector} declares ${property}: ${values.join(", ") || "<missing>"}; ` +
-        `expected ${expected} (${reason})`,
-    );
-  }
+  if (values.includes(expected)) return;
+
+  // Two ways to miss, and the reader needs them apart: a rule that says
+  // something else, and a selector the stylesheet no longer has at all.
+  findings.push(
+    declarationsOf(rules, selector).length === 0
+      ? `${selector} has no rule; expected ${row} ${reason}`
+      : `${selector} declares ${property}: ${values.join(", ") || "<missing>"}; ` +
+          `expected ${expected} (${row} ${reason})`,
+  );
 }
 
 requireDeclaration(
+  "D-47",
   ".quick-create-title",
   "border",
   "none",
-  "D-47 title input uses the modal frame as its boundary",
+  "title input uses the modal frame as its boundary",
 );
 requireDeclaration(
+  "D-47",
   ".quick-create-title",
   "padding",
   "0",
-  "D-47 title input has no field chrome",
+  "title input has no field chrome",
 );
 requireDeclaration(
+  "D-47",
   ".quick-create-title",
   "background",
   "none",
-  "D-47 title input has no field chrome",
+  "title input has no field chrome",
 );
 requireDeclaration(
+  "D-47",
   ".quick-create-title",
   "font-size",
   "15px",
-  "D-47 title input matches the prototype size",
+  "title input matches the prototype size",
 );
 requireDeclaration(
-  ".quick-create-meta .menu-trigger",
-  "border",
-  "0",
-  "D-49 quick-create status trigger is bare",
-);
-requireDeclaration(
-  ".quick-create-meta .menu-trigger",
-  "padding",
-  "0",
-  "D-49 quick-create status trigger is bare",
-);
-requireDeclaration(
-  ".quick-create-meta .menu-trigger",
-  "background",
-  "none",
-  "D-49 quick-create status trigger is bare",
-);
-requireDeclaration(
+  "D-48",
   ".quick-create-context",
   "display",
   "flex",
-  "D-48 the theme dot centres against the name rather than sitting on its baseline",
+  "the theme dot centres against the name rather than sitting on its baseline",
 );
 requireDeclaration(
+  "D-48",
   ".quick-create-context",
   "align-items",
   "center",
-  "D-48 the theme dot centres against the name rather than sitting on its baseline",
+  "the theme dot centres against the name rather than sitting on its baseline",
 );
 requireDeclaration(
+  "D-49",
+  ".quick-create-meta .menu-trigger",
+  "border",
+  "0",
+  "quick-create status trigger is bare",
+);
+requireDeclaration(
+  "D-49",
+  ".quick-create-meta .menu-trigger",
+  "padding",
+  "0",
+  "quick-create status trigger is bare",
+);
+requireDeclaration(
+  "D-49",
+  ".quick-create-meta .menu-trigger",
+  "background",
+  "none",
+  "quick-create status trigger is bare",
+);
+requireDeclaration(
+  "D-4A",
   ".id-chip.provisional",
   "cursor",
   "default",
-  "D-4A the provisional key has nothing to copy, so the pointer must not offer it",
+  "the provisional key has nothing to copy, so the pointer must not offer it",
 );
 
 report({
@@ -116,5 +137,5 @@ report({
   checked,
   noun: "declarations",
   remedy: "create-surface CSS contract(s) drifted",
-  clean: "D-47, D-48, D-49 and D-4A CSS contracts hold",
+  clean: `${[...rows].join(", ")} CSS contracts hold`,
 });

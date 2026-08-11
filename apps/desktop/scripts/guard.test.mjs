@@ -1,16 +1,11 @@
 /**
- * LC-177: `declaredValues` is the one place a guard reads `property: value` out
- * of a selector's declarations, and the only reason it is shared is the left
- * boundary.
+ * The left boundary `declaredValues` exists to carry, as cases rather than as
+ * the paragraph above it in `guard.mjs` (LC-177).
  *
- * `glyph-drift-guard.mjs` learned it first — `\b` alone matches the `width`
- * inside `stroke-width` — and `create-surface-guard.mjs` was reading without
- * one, so a `padding` assertion would have been satisfied by a `scroll-padding`
- * the rule happened to declare. That guard reports clean while the declaration
- * it names has drifted, which is the worst thing a guard can do.
- *
- * These cases are the boundary and the shape of what comes back; the guards
- * above own what a value is allowed to be.
+ * A guard reading without one reports clean over a declaration that has
+ * drifted, which is the worst thing a guard can do, and the drift is invisible
+ * precisely because the pass line is unchanged. So the boundary is the half of
+ * this reader worth pinning; the guards own what a value is allowed to be.
  */
 
 import { describe, expect, it } from "vitest";

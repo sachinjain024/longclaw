@@ -9,7 +9,7 @@ rank: a1
 labels:
   - frontend
 created_at: 2026-08-07T14:38:34.947Z
-updated_at: 2026-08-11T16:55:00Z
+updated_at: 2026-08-11T17:02:06Z
 ---
 
 Two defects in `apps/desktop/scripts/quick-create-guard.mjs`, both in the same
@@ -163,4 +163,49 @@ Left alone deliberately: the pass line still names D-47, D-48, D-49 and D-4A in
 prose, so a fifth row would need that sentence edited. That is a smaller lie
 than the number was — the sentence is beside the assertions it describes — but
 it is the same kind, and it is not what this ticket was filed against.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_9b3e21c7
+kind: comment
+occurred_at: 2026-08-11T17:02:06Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+A two-axis review of the branch against `main` returned four things worth
+acting on, and one correction to the entry above.
+
+**The correction.** "The boundary exists once rather than twice" is true of the
+declaration reader and not of the file: `glyph-drift-guard.mjs`'s `attr` still
+carries its own `(?<![\w-])`, and should — it reads markup attributes, where the
+`width` inside `stroke-width` is the case it was written for, and CSS
+declarations are not what it parses. One reader was merged, not two.
+
+**The row list counts itself now.** The last entry left that standing as a
+smaller lie than the number had been; the review named it the same shape of
+drift this ticket was filed against, which is the more honest reading. The
+prototype-diff row is an argument to `requireDeclaration` rather than the first
+word of its `reason`, and the pass line joins the set the assertions built —
+"D-47, D-48, D-49, D-4A CSS contracts hold" is now derived end to end. Nothing
+in the `report` call is written down beside the thing it describes.
+
+**The happy path walks the rules once.** `declaredValues` calls
+`declarationsOf` itself, so asking whether the selector had a rule *first* read
+the sheet twice per assertion. The no-rule question is now asked only when the
+value is already wrong, which is the path that exits anyway.
+
+**Deliberately out of scope.** Two more readers of this shape exist and neither
+is a defect: `card-height-guard.mjs`'s `declaration()` anchors with `(?:^|;)`,
+which is stricter than the shared boundary rather than weaker, so moving it onto
+`declaredValues` would loosen it; and `stacking-guard.mjs` reads a fixed
+`z-index:` with no boundary, which is safe because no CSS property ends in
+`z-index`. Both are noted here rather than changed.
+
+The tests are the one thing in the branch this ticket did not ask for — the
+`/implement` run was told to work test-first, and `scripts/guard.test.mjs` is
+where that landed. They pin the false-pass the description spells out.
 <!-- /longclaw:event -->
