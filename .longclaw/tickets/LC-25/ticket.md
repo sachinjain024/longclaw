@@ -55,3 +55,29 @@ changes:
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_e2a5e1da
+kind: comment
+occurred_at: 2026-08-11T14:04:41.750Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Left open in a backlog sweep on 2026-08-11, unlike LC-20 through LC-24. Recording why, because the paperwork says this one is closed and the tree does not agree.
+
+Its five siblings all close cleanly: `docs/plans/active/README.md:36` declares Step 12 complete, each names its plan, and each is verifiable in the code. This one is the exception.
+
+`docs/plans/completed/29-shortcut-reference.md` contradicts itself inside its own `## Outcome`. One paragraph says "The two-way shortcut binding test and explicit owner/decision record remain open" and that `components.md:300-301` — "Every shortcut is discoverable in the palette" — is **not** met and not claimed, since `⌘K`, `⌘F`, `⌘Z`, `Enter` and `Esc` appear in no palette row because none of them is a command. A later paragraph in the same section says the reference "is now generated from the declared binding set and its two-way test covers the positive and negative sets", and the README row repeats that.
+
+What is actually there:
+
+- A reference exists as documentation — `components.md:311-324` § Shortcuts (v0 set) — and its ten rows do match what the app binds.
+- No declared binding set, no generated surface and no two-way test exist in the tree. There is no shortcuts/bindings module in `src/`, and no guard for it among the eighteen in `apps/desktop/scripts/`.
+- `components.md:326-327` still asserts the palette-discoverability claim that plan 29's outcome says is unmet.
+
+So the second half of the must-pass — "nothing appears that is not implemented", enforced rather than promised — is unmet, and the reference is maintained by hand. Note that LC-197, guarding the `components.md` contract in both directions, is open and overlaps this; whoever picks either should read both. Someone with the authority to decide should settle whether this closes or narrows.
+<!-- /longclaw:event -->
