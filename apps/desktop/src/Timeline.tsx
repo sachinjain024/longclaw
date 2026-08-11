@@ -38,6 +38,7 @@ import type { ChangeGlyph } from "./timelineEvents";
 import {
   changeLines,
   entryShape,
+  isComment,
   sortActivity,
   unfamiliarKind,
 } from "./timelineEvents";
@@ -56,6 +57,16 @@ interface TimelineProps {
    * is not a record yet, and it says so rather than pretending to be one.
    */
   pendingComment?: string;
+  /**
+   * Whether a comment is drawn as the one line that says it happened rather
+   * than with its body (LC-211).
+   *
+   * This is what the Activity tab is: the same stream, with the words left to
+   * the tab that is about words. It is a property of the *view*, not of the
+   * record, which is why it is a prop here and not a kind in
+   * `timelineEvents.ts`.
+   */
+  commentsAsLines?: boolean;
 }
 
 export function Timeline(props: TimelineProps) {
@@ -68,6 +79,7 @@ export function Timeline(props: TimelineProps) {
           event={event}
           now={props.now}
           context={context}
+          commentsAsLines={props.commentsAsLines}
         />
       ))}
       {props.pendingComment !== undefined && (
@@ -81,14 +93,23 @@ function TimelineEntry({
   event,
   now,
   context,
+  commentsAsLines,
 }: {
   event: ActivityEvent;
   now: number;
   context: { labels?: Record<string, Label>; checklist?: ChecklistItem[] };
+  commentsAsLines?: boolean;
 }) {
   const actorType = event.actor.type;
-  const shape = entryShape(event.kind);
-  const prose = eventProse(event.body);
+  /**
+   * A comment drawn as one line (LC-211). Its body is left out with the shape:
+   * a change entry keeps its body — an update carrying a note is that note —
+   * but a comment's body *is* the comment, and a line above the whole of it
+   * would be the compact form saying the same thing twice.
+   */
+  const asLine = Boolean(commentsAsLines) && isComment(event.kind);
+  const shape = asLine ? "change" : entryShape(event.kind);
+  const prose = asLine ? "" : eventProse(event.body);
   const meta = [
     describeAge(Date.parse(event.occurredAt), now),
     // Where the change came from, not just when. An external change says it

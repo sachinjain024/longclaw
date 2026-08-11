@@ -41,7 +41,9 @@ use serde_json::{json, Value};
 use crate::app_state::AppState;
 use crate::core::project::{ProjectDocument, DEFAULT_LABEL_COLOR};
 use crate::core::storage::{self, NewTicket};
-use crate::core::ticket::{Actor, ChecklistMove, ChecklistToggle, Priority, Status, TicketEdit};
+use crate::core::ticket::{
+    Actor, ChecklistMove, ChecklistTextEdit, ChecklistToggle, Priority, Status, TicketEdit,
+};
 use crate::core::{AppError, AppResult, ErrorCode, ProjectReference};
 
 /// The bundle identifier, which is also the folder the app keeps its project
@@ -71,6 +73,8 @@ TICKETS
                     [--check <item-id>]... [--uncheck <item-id>]...
                     [--add-checklist <item>]... [--comment <text>]
                     [--move-item <item-id> [--after <item-id>]]
+                    [--edit-item <item-id> --item-text <text>]
+                    [--remove-item <item-id>]
                     [--archive | --unarchive] [--path <dir>]
   ticket list       [--path <dir>]
   ticket show <KEY> [--path <dir>]
@@ -250,6 +254,9 @@ fn ticket_edit(arguments: &[String]) -> AppResult<Value> {
             "add-checklist",
             "move-item",
             "after",
+            "edit-item",
+            "item-text",
+            "remove-item",
             "comment",
             "agent-id",
             "agent-name",
@@ -288,6 +295,11 @@ fn ticket_edit(arguments: &[String]) -> AppResult<Value> {
         description: description(&options)?,
         checklist: toggles(&options),
         move_checklist_item: moved_item(&options)?,
+        edit_checklist_item: edited_item(&options)?,
+        remove_checklist_item: options.one("remove-item")?.map(str::to_owned),
+        // Not offered: it exists so the app can undo a removal, and an agent
+        // that wants a row back can add one.
+        restore_checklist_item: None,
         add_checklist_items: options.many("add-checklist"),
         comment: options.one("comment")?.map(str::to_owned),
     };
@@ -472,6 +484,22 @@ fn moved_item(options: &Options) -> AppResult<Option<ChecklistMove>> {
         })),
         None if after.is_some() => Err(usage_error("--after needs --move-item")),
         None => Ok(None),
+    }
+}
+
+/// The retyped item an edit carries, if it carries one. Two flags rather than
+/// one `id=text` pair, because an item's text is prose and would have to be
+/// escaped around whatever separator was chosen.
+fn edited_item(options: &Options) -> AppResult<Option<ChecklistTextEdit>> {
+    let text = options.one("item-text")?.map(str::to_owned);
+    match (options.one("edit-item")?, text) {
+        (Some(item_id), Some(text)) => Ok(Some(ChecklistTextEdit {
+            item_id: item_id.to_owned(),
+            text,
+        })),
+        (Some(_), None) => Err(usage_error("--edit-item needs --item-text")),
+        (None, Some(_)) => Err(usage_error("--item-text needs --edit-item")),
+        (None, None) => Ok(None),
     }
 }
 

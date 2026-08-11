@@ -280,12 +280,13 @@ function checklistRow(text: string): HTMLElement {
   return row;
 }
 
-/** The mono count a section heading carries, by the heading's own word. */
-function sectionCount(heading: string): string | undefined {
-  const section = [...document.querySelectorAll(".panel-section")].find(
-    (node) => node.querySelector("h3")?.textContent?.startsWith(heading),
+/** The mono count a heading carries, where that heading is a tab (LC-211). */
+function tabCount(tab: "Activity" | "Comments"): string | undefined {
+  return (
+    screen
+      .getByRole("tab", { name: new RegExp(`^${tab}`) })
+      .querySelector(".section-count")?.textContent ?? undefined
   );
-  return section?.querySelector(".section-count")?.textContent ?? undefined;
 }
 
 beforeEach(() => {
@@ -666,6 +667,338 @@ describe("rearranging the checklist (LC-185)", () => {
     // And nothing advertises the gesture, on hover or on focus: a grip that
     // appeared and then did nothing is worse than no grip.
     expect(document.querySelector(".row-grip")).toBeNull();
+  });
+});
+
+/**
+ * Rewording and removing a row (LC-215). The two gestures the checklist was
+ * missing: until now a typo was fixed by deleting the ticket's line in the file
+ * by hand, and a row added in error stayed on the list for good.
+ */
+describe("editing and removing a checklist row (LC-215)", () => {
+  function edit(text: string) {
+    fireEvent.click(screen.getByRole("button", { name: `Edit ${text}` }));
+    return screen.getByRole("textbox", { name: `Edit ${text}` });
+  }
+
+  beforeEach(() => {
+    editTicketMock.mockResolvedValue(writeResult());
+  });
+
+  it("writes the new wording, keyed by the id the row keeps", async () => {
+    render(surface());
+    await screen.findByLabelText("Let an agent read this ticket");
+
+    const field = edit("Let an agent read this ticket");
+    fireEvent.change(field, { target: { value: "Let an agent read it" } });
+    fireEvent.submit(field.closest("form")!);
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(1));
+    expect(editTicketMock.mock.calls[0][0]).toMatchObject({
+      edit: {
+        editChecklistItem: { itemId: "ck_1", text: "Let an agent read it" },
+      },
+    });
+  });
+
+  it("takes the rewording back through the ordinary write path", async () => {
+    render(surface());
+    await screen.findByLabelText("Let an agent read this ticket");
+
+    const field = edit("Let an agent read this ticket");
+    fireEvent.change(field, { target: { value: "Let an agent read it" } });
+    fireEvent.submit(field.closest("form")!);
+    await screen.findByText(/LC-1 reworded/);
+    fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
+    expect(editTicketMock.mock.calls[1][0]).toMatchObject({
+      edit: {
+        editChecklistItem: {
+          itemId: "ck_1",
+          text: "Let an agent read this ticket",
+        },
+      },
+    });
+  });
+
+  /**
+   * Committing moves focus off the field, so the blur arrives after the submit
+   * that caused it. Both are ways of leaving the field and only one of them is
+   * a write.
+   */
+  it("writes once when the commit is followed by the blur it caused", async () => {
+    render(surface());
+    await screen.findByLabelText("Let an agent read this ticket");
+
+    const field = edit("Let an agent read this ticket");
+    fireEvent.change(field, { target: { value: "Let an agent read it" } });
+    fireEvent.submit(field.closest("form")!);
+    fireEvent.blur(field);
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(1));
+    expect(editTicketMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves the row alone when the field is closed with Escape", async () => {
+    render(surface());
+    await screen.findByLabelText("Let an agent read this ticket");
+
+    const field = edit("Let an agent read this ticket");
+    fireEvent.change(field, { target: { value: "Something else" } });
+    fireEvent.keyDown(field, { key: "Escape" });
+
+    expect(editTicketMock).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Let an agent read this ticket")).toBeTruthy();
+  });
+
+  it("writes nothing for a field committed with the text it opened on", async () => {
+    render(surface());
+    await screen.findByLabelText("Let an agent read this ticket");
+
+    const field = edit("Let an agent read this ticket");
+    fireEvent.submit(field.closest("form")!);
+
+    expect(editTicketMock).not.toHaveBeenCalled();
+  });
+
+  it("removes a row and offers the row itself back, in the place it sat", async () => {
+    render(surface());
+    await screen.findByLabelText("Review what it changed");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove Review what it changed" }),
+    );
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(1));
+    expect(editTicketMock.mock.calls[0][0]).toMatchObject({
+      edit: { removeChecklistItem: "ck_2" },
+    });
+    await screen.findByText(/LC-1 removed · Review what it changed/);
+
+    fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
+    // The row it followed, not an index: what comes back has to land where it
+    // was, and by the time this runs the list may have grown a row.
+    expect(editTicketMock.mock.calls[1][0]).toMatchObject({
+      edit: {
+        restoreChecklistItem: {
+          text: "Review what it changed",
+          after: "ck_1",
+          checked: false,
+        },
+      },
+    });
+  });
+
+  it("names no neighbour when the row that went was the first one", async () => {
+    render(surface());
+    await screen.findByLabelText("Let an agent read this ticket");
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Remove Let an agent read this ticket",
+      }),
+    );
+    await screen.findByText(/LC-1 removed/);
+    fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
+    expect(editTicketMock.mock.calls[1][0]).toMatchObject({
+      edit: { restoreChecklistItem: { after: null } },
+    });
+  });
+
+  it("restores a checked row as checked", async () => {
+    readTicketMock.mockResolvedValue(
+      detail({
+        checklist: [
+          { id: "ck_1", text: "Let an agent read this ticket", checked: false },
+          { id: "ck_2", text: "Review what it changed", checked: true },
+        ],
+      }),
+    );
+    render(surface());
+    await screen.findByLabelText("Review what it changed");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove Review what it changed" }),
+    );
+    await screen.findByText(/LC-1 removed/);
+    fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
+    expect(editTicketMock.mock.calls[1][0]).toMatchObject({
+      edit: { restoreChecklistItem: { checked: true } },
+    });
+  });
+
+  /**
+   * An item an agent appended as a plain Markdown task has no id until the next
+   * app write adopts it, and neither gesture can name a row it cannot address.
+   */
+  it("offers neither gesture on a row the file has not minted an id for", async () => {
+    readTicketMock.mockResolvedValue(
+      detail({
+        checklist: [
+          { id: "ck_1", text: "Let an agent read this ticket", checked: false },
+          { text: "Appended by an agent", checked: false },
+        ],
+      }),
+    );
+    render(surface());
+    await screen.findByLabelText("Appended by an agent");
+
+    expect(
+      screen.queryByRole("button", { name: "Edit Appended by an agent" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Remove Appended by an agent" }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("button", {
+        name: "Edit Let an agent read this ticket",
+      }),
+    ).toBeTruthy();
+  });
+});
+
+/**
+ * Activity and Comments as two tabs over one record (LC-211). Comments used to
+ * be entries in the merged stream, where a run of agent status changes buried
+ * the one thing a person wrote.
+ */
+describe("the activity and comments tabs (LC-211)", () => {
+  function tab(name: "Activity" | "Comments") {
+    return screen.getByRole("tab", { name: new RegExp(`^${name}`) });
+  }
+
+  /**
+   * Activity opens, because the whole point of this panel is that an agent's
+   * changes arrive in it while somebody is looking at it. A panel that opened on
+   * a tab those changes are not on would hide its own subject.
+   */
+  it("opens on Activity, with the composer under it", async () => {
+    render(surface());
+    await ready();
+
+    expect(tab("Activity").getAttribute("aria-selected")).toBe("true");
+    expect(tab("Comments").getAttribute("aria-selected")).toBe("false");
+    // The composer belongs to the section rather than to either tab, so
+    // commenting on what an agent just did costs no click.
+    expect(screen.getByLabelText("Comment")).toBeTruthy();
+  });
+
+  it("keeps every entry under Activity, with a comment as one line", async () => {
+    readTicketMock.mockResolvedValue(
+      detail({ activity: [humanEvent(), agentEvent()] }),
+    );
+    render(surface());
+    await ready();
+
+    // Both records are here — the change in full, the comment as the line that
+    // says one happened, which is what a log of what happened owes it.
+    expect(screen.getByText(/In Progress/)).toBeTruthy();
+    expect(screen.getByText("commented")).toBeTruthy();
+    // And not its body: that is what the other tab is for.
+    expect(screen.queryByText("Starting on this.")).toBeNull();
+    expect(tabCount("Activity")).toBe("2");
+  });
+
+  it("shows the comment bodies under Comments and nothing else", async () => {
+    readTicketMock.mockResolvedValue(
+      detail({ activity: [humanEvent(), agentEvent()] }),
+    );
+    render(surface());
+    await ready();
+
+    fireEvent.click(tab("Comments"));
+
+    // The person's words, in full.
+    expect(screen.getByText("Starting on this.")).toBeTruthy();
+    // The agent's status change is not a comment and is not here.
+    expect(screen.queryByText(/In Progress/)).toBeNull();
+    expect(tabCount("Comments")).toBe("1");
+  });
+
+  it("keeps the composer under both tabs", async () => {
+    render(surface());
+    await ready();
+
+    fireEvent.click(tab("Comments"));
+
+    expect(screen.getByLabelText("Comment")).toBeTruthy();
+  });
+
+  it("keeps a typed draft across a trip through the other tab", async () => {
+    render(surface());
+    await ready();
+
+    fireEvent.change(screen.getByLabelText("Comment"), {
+      target: { value: "Halfway through a thought" },
+    });
+    fireEvent.click(tab("Comments"));
+    fireEvent.click(tab("Activity"));
+
+    expect(
+      (screen.getByLabelText("Comment") as HTMLTextAreaElement).value,
+    ).toBe("Halfway through a thought");
+  });
+
+  /**
+   * A comment on its way to the file is on screen before the file has it, so it
+   * has to be on screen under whichever tab is open — a count that named an
+   * entry the reader cannot see is the argument LC-109 settled.
+   */
+  it("shows the posting comment under Activity as well", async () => {
+    editTicketMock.mockReturnValue(new Promise<WriteResult>(() => {}));
+    render(surface());
+    await ready();
+
+    const field = screen.getByLabelText("Comment");
+    fireEvent.change(field, { target: { value: "Posting under Activity." } });
+    fireEvent.keyDown(field, { key: "Enter", metaKey: true });
+
+    expect(document.querySelector(".timeline-entry.pending")).toBeTruthy();
+    expect(tabCount("Comments")).toBe("2");
+  });
+
+  it("moves between the tabs with the arrow keys", async () => {
+    render(surface());
+    await ready();
+
+    tab("Activity").focus();
+    fireEvent.keyDown(tab("Activity"), { key: "ArrowRight" });
+
+    expect(tab("Comments").getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(tab("Comments"));
+
+    fireEvent.keyDown(tab("Comments"), { key: "ArrowLeft" });
+    expect(tab("Activity").getAttribute("aria-selected")).toBe("true");
+  });
+
+  /**
+   * One Tab stop for the pair, which is what a tablist is: the selected tab
+   * carries it and the arrows move between them (`keyboard-focus-map.md:11-12`).
+   */
+  it("puts one Tab stop on the pair rather than one on each", async () => {
+    render(surface());
+    await ready();
+
+    expect(tab("Activity").getAttribute("tabindex")).toBe("0");
+    expect(tab("Comments").getAttribute("tabindex")).toBe("-1");
+  });
+
+  it("says the ticket's history is incomplete under Activity, where the record is", async () => {
+    const incomplete = detail();
+    incomplete.ticket!.historyIncomplete = true;
+    readTicketMock.mockResolvedValue(incomplete);
+    render(surface());
+    await ready();
+
+    expect(screen.getByText(/history is incomplete/)).toBeTruthy();
+    fireEvent.click(tab("Comments"));
+    expect(screen.queryByText(/history is incomplete/)).toBeNull();
   });
 });
 
@@ -2122,10 +2455,15 @@ describe("the description editor (V0-12)", () => {
   it("shows Write and Preview tabs and exactly six formatting buttons", async () => {
     const textarea = await openTheEditor("Check whether the round trip holds.");
 
-    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
-      "Write",
-      "Preview",
-    ]);
+    // Scoped to the editor's own tablist: the record below it has a pair of its
+    // own now (LC-211), and `getAllByRole` reaches the whole panel.
+    expect(
+      [
+        ...screen
+          .getByRole("tablist", { name: "Description view" })
+          .querySelectorAll('[role="tab"]'),
+      ].map((tab) => tab.textContent),
+    ).toEqual(["Write", "Preview"]);
     expect(screen.getByRole("tab", { name: "Write" })).toHaveProperty(
       "ariaSelected",
       "true",
@@ -2469,7 +2807,7 @@ describe("the panel's fields read as the record, not as a form", () => {
    * value whichever way the file reads. `scripts/field-guard.mjs` holds it.
    */
 
-  it("counts the activity entries in its heading (LC-109)", async () => {
+  it("counts the activity entries on its tab (LC-109)", async () => {
     readTicketMock.mockResolvedValue(
       detail({ activity: [humanEvent(), agentEvent()] }),
     );
@@ -2478,17 +2816,17 @@ describe("the panel's fields read as the record, not as a form", () => {
     render(surface());
     await ready();
 
-    expect(sectionCount("Activity")).toBe("2");
+    expect(tabCount("Activity")).toBe("2");
 
     const field = screen.getByLabelText("Comment");
     fireEvent.change(field, { target: { value: "One more." } });
     fireEvent.keyDown(field, { key: "Enter", metaKey: true });
 
     // Posting is optimistic, so the entry is on screen before the file has it —
-    // and a heading that said one fewer than the reader can see would be the
-    // one place the panel argued with itself.
+    // and a tab that said one fewer than the reader can see would be the one
+    // place the panel argued with itself.
     expect(document.querySelector(".timeline-entry.pending")).toBeTruthy();
-    expect(sectionCount("Activity")).toBe("3");
+    expect(tabCount("Activity")).toBe("3");
   });
 
   it("strikes a settled tick through, and leaves an acknowledged one alone (LC-110)", async () => {

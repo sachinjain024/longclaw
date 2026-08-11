@@ -35,6 +35,7 @@ import {
   moveOf,
   reordered,
 } from "./checklistOrder";
+import { RowActions, RowEditor } from "./ChecklistRow";
 import { classes } from "./classes";
 import { ConflictBanner } from "./ConflictBanner";
 import { DescriptionEditor } from "./DescriptionEditor";
@@ -49,11 +50,13 @@ import { sameLabels } from "./labels";
 import { MarkdownView } from "./MarkdownView";
 import { MenuButton } from "./Menu";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "./metaOptions";
+import { PencilGlyph } from "./PencilGlyph";
 import { mutate, type Mutation, useMutationStore } from "./mutations";
 import { RawFileView } from "./RawFileView";
 import { priorityLabel, statusLabel } from "./tickets";
 import { metaFieldFor } from "./TicketMetaMenu";
 import { Timeline } from "./Timeline";
+import { isComment } from "./timelineEvents";
 import type {
   AppError,
   ChecklistItem,
@@ -163,28 +166,61 @@ function TicketPathChip(props: { path: string }) {
   );
 }
 
+/** Which half of the record the panel is showing (LC-211). */
+type HistoryTab = "comments" | "activity";
+
 /**
- * The pencil the prototype pairs with `Edit` in the Description header. Purely
- * decorative: the button beside it is named, and a glyph that repeated the name
- * would say it twice (`accessibility.md`).
+ * The two tabs over the ticket's record (LC-211).
+ *
+ * A real `tablist`, so the pair costs the panel's Tab order one stop rather than
+ * two and the arrows move between them — the roving pattern the board's columns
+ * already use, and the one a screen reader announces as a set rather than as two
+ * unrelated buttons.
+ *
+ * Activity is first and selected on open, because it is the whole record and
+ * this panel's reason for existing is that an agent's changes arrive in it while
+ * somebody is looking. Comments is the same stream with everything that is not
+ * somebody's words taken out. The composer sits under both.
  */
-function PencilGlyph() {
+function HistoryTabs(props: {
+  tab: HistoryTab;
+  onPick: (tab: HistoryTab) => void;
+  activityCount: number;
+  commentCount: number;
+}) {
+  const tabs: { id: HistoryTab; label: string; count: number }[] = [
+    { id: "activity", label: "Activity", count: props.activityCount },
+    { id: "comments", label: "Comments", count: props.commentCount },
+  ];
   return (
-    <svg
-      className="pencil-glyph"
-      width="12"
-      height="12"
-      viewBox="0 0 14 14"
-      aria-hidden="true"
-    >
-      <path
-        d="M2.2 11.8 L2.8 9.2 L9.8 2.2 Q10.4 1.6 11 2.2 L11.8 3 Q12.4 3.6 11.8 4.2 L4.8 11.2 Z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.3"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <div className="panel-tabs" role="tablist" aria-label="Ticket record">
+      {tabs.map(({ id, label, count }) => (
+        <button
+          key={id}
+          type="button"
+          role="tab"
+          id={`tab-${id}`}
+          className={classes("panel-tab", props.tab === id && "selected")}
+          aria-selected={props.tab === id}
+          aria-controls={`panel-tab-${id}`}
+          // The selected tab is the set's only stop; the arrows own the rest.
+          tabIndex={props.tab === id ? 0 : -1}
+          onClick={() => props.onPick(id)}
+          onKeyDown={(event) => {
+            if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+            event.preventDefault();
+            const next = tabs[(tabs.findIndex((one) => one.id === id) + 1) % 2];
+            props.onPick(next.id);
+            // Selection follows focus, which is the pattern for a tabset whose
+            // panels are already rendered and cost nothing to show.
+            document.getElementById(`tab-${next.id}`)?.focus();
+          }}
+        >
+          {label}
+          <span className="section-count">{count}</span>
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -275,6 +311,12 @@ export function TicketPanel(props: TicketPanelProps) {
    * clears it when the file comes back carrying the real record.
    */
   const [pendingComment, setPendingComment] = useState<string>();
+  /**
+   * Which half of the record is showing (LC-211). Panel state rather than a
+   * preference: it is a question about the ticket in front of the human, and
+   * the next ticket opens on the composer the same way this one did.
+   */
+  const [historyTab, setHistoryTab] = useState<HistoryTab>("activity");
   /**
    * Whether a write of this panel's is out. One hash means one edit at a time,
    * and this is what every save is refused against.
@@ -785,6 +827,14 @@ export function TicketPanel(props: TicketPanelProps) {
    */
   const checklist = heldOrder(ticket?.checklist ?? [], pending.order);
   /**
+   * The comment records, for the tab that is about them (LC-211). Filtered by
+   * kind rather than by shape: an unfamiliar kind is drawn as a message too, and
+   * filing one under Comments would be this build claiming to know what it is.
+   */
+  const comments = (ticket?.activity ?? []).filter((event) =>
+    isComment(event.kind),
+  );
+  /**
    * Whether the list can be reordered at all.
    *
    * A move names the row it lands under, and a task an agent appended as plain
@@ -806,6 +856,66 @@ export function TicketPanel(props: TicketPanelProps) {
   function holdOrder(order: string[]): () => void {
     setPending((current) => ({ ...current, order }));
     return () => setPending((current) => ({ ...current, order: undefined }));
+  }
+
+  /**
+   * The row being retyped, by id, and nothing else: the text lives in the field
+   * itself until it is committed, so a keystroke does not re-render the list.
+   */
+  const [editingItem, setEditingItem] = useState<string>();
+
+  /**
+   * Writes one row's new wording (LC-215).
+   *
+   * The id is what makes this an edit rather than a delete and an add: the box
+   * keeps its state, the row keeps its place, and the history keeps its subject.
+   * A commit that changed nothing writes nothing — Rust would refuse it as an
+   * edit that matches the file, and a refusal is not what closing a field means.
+   */
+  function editRow(itemId: string, was: string, text: string) {
+    setEditingItem(undefined);
+    const next = text.trim();
+    if (!next || next === was) return;
+    void save(
+      { editChecklistItem: { itemId, text: next } },
+      {
+        toast: `${ticketKey} reworded · ${next}`,
+        inverse: { editChecklistItem: { itemId, text: was } },
+        inverseToast: `${ticketKey} wording restored · ${was}`,
+      },
+    );
+  }
+
+  /**
+   * Takes one row out of the list, and offers it back (LC-215).
+   *
+   * The undo is a restore rather than an append, because an append lands at the
+   * end and the row was not at the end. It names the row it followed for the
+   * reason a move does: by the time undo is pressed the list may have grown a
+   * row, and a neighbour still means the same place when an index does not.
+   *
+   * The removed row is not held optimistically. A tick can be shown before the
+   * file agrees because a box that snaps back is a box; a row that vanished and
+   * came back is the list rearranging itself twice.
+   */
+  function removeRow(index: number) {
+    const item = checklist[index];
+    const itemId = item.id;
+    if (!itemId) return;
+    void save(
+      { removeChecklistItem: itemId },
+      {
+        toast: `${ticketKey} removed · ${item.text}`,
+        inverse: {
+          restoreChecklistItem: {
+            text: item.text,
+            after: checklist[index - 1]?.id ?? null,
+            checked: isChecked(item),
+          },
+        },
+        inverseToast: `${ticketKey} restored · ${item.text}`,
+      },
+    );
   }
 
   /**
@@ -1336,52 +1446,78 @@ export function TicketPanel(props: TicketPanelProps) {
                         ⠿
                       </span>
                     )}
-                    <label>
-                      <input
-                        type="checkbox"
-                        // The row's own Tab stop, and the only one it has. A
-                        // checkbox is skipped by WebKit on a default Mac
-                        // exactly as a button is (`tab-order-guard.mjs`), so
-                        // without this the rows are pointer-only — against the
-                        // panel's Tab order and the two gestures bound to a
-                        // focused row (`keyboard-focus-map.md:61-62`). The
-                        // accessibility audit found it while proving `⌥↓`
-                        // reachable, which it was not (LC-185).
-                        tabIndex={0}
-                        checked={checked}
-                        disabled={item.id === undefined}
-                        title={
-                          item.id === undefined
-                            ? "Appended without an id. Saving any change adopts it."
-                            : undefined
-                        }
-                        onChange={(event) => {
-                          const itemId = item.id;
-                          if (!itemId) return;
-                          const next = event.target.checked;
-                          void save(
-                            { checklist: [{ itemId, checked: next }] },
-                            {
-                              // Show the tick now; the file catches up.
-                              apply: () => holdCheck(itemId, next),
-                              toast: `${ticketKey} ${next ? "checked" : "unchecked"} · ${item.text}`,
-                              inverse: {
-                                checklist: [{ itemId, checked: !next }],
-                              },
-                              inverseToast: `${ticketKey} ${next ? "unchecked" : "checked"} · ${item.text}`,
-                            },
-                          );
-                        }}
+                    {editingItem !== undefined && editingItem === item.id ? (
+                      <RowEditor
+                        text={item.text}
+                        onCommit={(next) => editRow(item.id!, item.text, next)}
+                        onCancel={() => setEditingItem(undefined)}
                       />
-                      <span>{item.text}</span>
-                    </label>
-                    {/* The glyph is the actor's, like every other one the app
+                    ) : (
+                      <>
+                        <label>
+                          <input
+                            type="checkbox"
+                            // The row's own Tab stop, and the only one it has. A
+                            // checkbox is skipped by WebKit on a default Mac
+                            // exactly as a button is (`tab-order-guard.mjs`), so
+                            // without this the rows are pointer-only — against the
+                            // panel's Tab order and the two gestures bound to a
+                            // focused row (`keyboard-focus-map.md:61-62`). The
+                            // accessibility audit found it while proving `⌥↓`
+                            // reachable, which it was not (LC-185).
+                            tabIndex={0}
+                            checked={checked}
+                            disabled={item.id === undefined}
+                            title={
+                              item.id === undefined
+                                ? "Appended without an id. Saving any change adopts it."
+                                : undefined
+                            }
+                            onChange={(event) => {
+                              const itemId = item.id;
+                              if (!itemId) return;
+                              const next = event.target.checked;
+                              void save(
+                                { checklist: [{ itemId, checked: next }] },
+                                {
+                                  // Show the tick now; the file catches up.
+                                  apply: () => holdCheck(itemId, next),
+                                  toast: `${ticketKey} ${next ? "checked" : "unchecked"} · ${item.text}`,
+                                  inverse: {
+                                    checklist: [{ itemId, checked: !next }],
+                                  },
+                                  inverseToast: `${ticketKey} ${next ? "unchecked" : "checked"} · ${item.text}`,
+                                },
+                              );
+                            }}
+                          />
+                          <span>{item.text}</span>
+                        </label>
+                        {/* The glyph is the actor's, like every other one the app
                         draws: a row an unclaimed write ticked gets the warn
                         triangle, not the agent's chevron (LC-148). */}
-                    {acknowledged && props.mark && (
-                      <em className={classes("acknowledged-note", accentClass)}>
-                        {actorGlyph(props.mark.actorType)} just now
-                      </em>
+                        {acknowledged && props.mark && (
+                          <em
+                            className={classes(
+                              "acknowledged-note",
+                              accentClass,
+                            )}
+                          >
+                            {actorGlyph(props.mark.actorType)} just now
+                          </em>
+                        )}
+                        {/* Both gestures need an id to name the row by, and an
+                        agent's plain Markdown task has none until the next
+                        write adopts it — the same reason its box is disabled
+                        (LC-215). */}
+                        {item.id !== undefined && (
+                          <RowActions
+                            text={item.text}
+                            onEdit={() => setEditingItem(item.id)}
+                            onRemove={() => removeRow(index)}
+                          />
+                        )}
+                      </>
                     )}
                   </li>
                 );
@@ -1415,33 +1551,70 @@ export function TicketPanel(props: TicketPanelProps) {
             </form>
           </section>
 
+          {/* Two tabs over one record (LC-211). Comments were entries in the
+              merged stream, where a run of agent status changes buried the one
+              thing a person had written; the stream is still whole under
+              Activity, with each comment as the line that says it happened. */}
           <section className="panel-section">
-            <h3>
-              Activity
-              {/* The count of what is on screen, not of what the file holds
-                  (LC-109): posting is optimistic, so the pending comment is an
-                  entry in the stream and has to be an entry in the count. A
-                  heading that said one fewer than the reader can see would be
-                  the one place the panel argued with itself. */}
-              <span className="section-count">
-                {ticket.activity.length + (pendingComment ? 1 : 0)}
-              </span>
-            </h3>
-            {ticket.historyIncomplete && (
-              <p className="history-note">
-                This ticket changed without a matching activity entry. The state
-                stands; the history is incomplete.
-              </p>
-            )}
-            <Timeline
-              events={ticket.activity}
-              now={props.now}
-              // So a change event names a label and a checklist item rather
-              // than the slug and the id the record carries.
-              labels={props.labels}
-              checklist={ticket.checklist}
-              pendingComment={pendingComment}
+            <HistoryTabs
+              tab={historyTab}
+              onPick={setHistoryTab}
+              /* The count of what is on screen, not of what the file holds
+                 (LC-109): posting is optimistic, so the pending comment is an
+                 entry in the stream and has to be an entry in the count. A tab
+                 that said one fewer than the reader can see would be the one
+                 place the panel argued with itself. */
+              activityCount={ticket.activity.length + (pendingComment ? 1 : 0)}
+              commentCount={comments.length + (pendingComment ? 1 : 0)}
             />
+            {historyTab === "activity" ? (
+              <div
+                role="tabpanel"
+                id="panel-tab-activity"
+                aria-labelledby="tab-activity"
+              >
+                {/* Here rather than beside the comments: an entry the file is
+                    missing is a hole in the record, and the record is this
+                    tab. */}
+                {ticket.historyIncomplete && (
+                  <p className="history-note">
+                    This ticket changed without a matching activity entry. The
+                    state stands; the history is incomplete.
+                  </p>
+                )}
+                <Timeline
+                  events={ticket.activity}
+                  now={props.now}
+                  // So a change event names a label and a checklist item rather
+                  // than the slug and the id the record carries.
+                  labels={props.labels}
+                  checklist={ticket.checklist}
+                  commentsAsLines
+                  // Drawn under both tabs, because it is the one entry that is
+                  // not a record yet and a tab counting something the reader
+                  // cannot see is the argument LC-109 settled.
+                  pendingComment={pendingComment}
+                />
+              </div>
+            ) : (
+              <div
+                role="tabpanel"
+                id="panel-tab-comments"
+                aria-labelledby="tab-comments"
+              >
+                <Timeline
+                  events={comments}
+                  now={props.now}
+                  labels={props.labels}
+                  checklist={ticket.checklist}
+                  pendingComment={pendingComment}
+                />
+              </div>
+            )}
+            {/* Outside both panels, because it belongs to neither: posting is
+                the panel's action, and a composer that lived under Comments
+                would put a click between reading what an agent did and saying
+                something about it. */}
             <form
               className="composer"
               onSubmit={(event) => {

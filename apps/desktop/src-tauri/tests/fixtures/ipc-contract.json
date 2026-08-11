@@ -214,9 +214,22 @@
       "to": "true"
     },
     {
+      "field": "checklist.ck_0002.text",
+      "from": "second",
+      "to": "Reworded by the fixture"
+    },
+    {
       "field": "checklist.ck_0001.moved",
       "from": "1",
       "to": "2"
+    },
+    {
+      "field": "checklist.ck_0001.removed",
+      "from": "first"
+    },
+    {
+      "field": "checklist.ck_minted.added",
+      "to": "Restored by the fixture"
     },
     {
       "field": "checklist.ck_minted.added",

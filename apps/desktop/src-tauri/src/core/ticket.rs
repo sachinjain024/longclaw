@@ -366,6 +366,17 @@ pub struct TicketEdit {
     /// offered at all, because the file is the record and an order sent in full
     /// would carry away the items a writer this edit never mentioned.
     pub move_checklist_item: Option<ChecklistMove>,
+    /// One item's new wording. One rather than a list for the same reason a
+    /// move is one: a human retypes one row at a time, and an edit that carried
+    /// several would have to say what happens when the third is refused.
+    pub edit_checklist_item: Option<ChecklistTextEdit>,
+    /// The item to take out of the list, by id. Its text goes into the recorded
+    /// change, so the removal stays readable after the line is gone.
+    pub remove_checklist_item: Option<String>,
+    /// Puts a removed item back where it was. It exists so a removal can be
+    /// undone (`rank: null` is here for the same reason) — a plain append lands
+    /// at the end, which is not where the row the human just deleted was.
+    pub restore_checklist_item: Option<ChecklistRestore>,
     #[serde(default)]
     pub add_checklist_items: Vec<String>,
     pub comment: Option<String>,
@@ -405,6 +416,32 @@ pub struct ChecklistMove {
     pub after: Option<String>,
 }
 
+/// New wording for one item. The id is what stays: the box keeps its state and
+/// the history keeps its subject, so this is a change to the line's words and
+/// to nothing else.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ChecklistTextEdit {
+    pub item_id: String,
+    pub text: String,
+}
+
+/// An item put back after a removal: its words, its box, and the row it sat
+/// after — `None` for the top, the same landing `ChecklistMove` names that way.
+///
+/// It carries no id. The id left with the line and nothing on disk still refers
+/// to it, so a restore mints a fresh one; what the human is owed back is the
+/// row, not the identifier they never saw.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ChecklistRestore {
+    pub text: String,
+    #[serde(default)]
+    pub after: Option<String>,
+    #[serde(default)]
+    pub checked: bool,
+}
+
 impl TicketEdit {
     fn is_empty(&self) -> bool {
         self.title.is_none()
@@ -416,6 +453,9 @@ impl TicketEdit {
             && self.description.is_none()
             && self.checklist.is_empty()
             && self.move_checklist_item.is_none()
+            && self.edit_checklist_item.is_none()
+            && self.remove_checklist_item.is_none()
+            && self.restore_checklist_item.is_none()
             && self.add_checklist_items.is_empty()
             && self.comment.is_none()
     }
@@ -771,6 +811,20 @@ impl TicketDocument {
                 ));
             }
         }
+        // Before the move, because both are about the items the file already
+        // had and this one does not change where any of them sit.
+        if let Some(edited) = &edit.edit_checklist_item {
+            let text = single_checklist_line(&edited.text)?;
+            let item = checklist_item(&current.checklist, &edited.item_id)?;
+            if item.text != text {
+                next.set_checklist_text(&edited.item_id, text);
+                changes.push(FieldChange::new(
+                    format!("checklist.{}.text", edited.item_id),
+                    Some(item.text.clone()),
+                    Some(text.to_owned()),
+                ));
+            }
+        }
         // Before the appends, so both halves of a list read the same way: the
         // move is about the items the file already had, and an item added by
         // this same edit lands after them either way.
@@ -802,13 +856,51 @@ impl TicketDocument {
                 ));
             }
         }
-        for text in &edit.add_checklist_items {
-            let text = text.trim();
-            if text.is_empty() || text.contains('\n') {
+        // After the move, so an edit that does both still moves the item it
+        // named; and before the appends, because a restore is about the list as
+        // it stood, not about a row this same edit is adding.
+        if let Some(item_id) = &edit.remove_checklist_item {
+            let item = checklist_item(&current.checklist, item_id)?;
+            let removed_text = item.text.clone();
+            if !next.remove_checklist_item(item_id) {
                 return Err(Diagnostic::parse(
-                    "A checklist item is a single non-empty line",
+                    "This ticket has more than one Checklist section, so there is no one list to \
+                     remove an item from. Merge them into one and try again.",
                 ));
             }
+            changes.push(FieldChange::new(
+                format!("checklist.{item_id}.removed"),
+                Some(removed_text),
+                None,
+            ));
+        }
+        if let Some(restored) = &edit.restore_checklist_item {
+            let text = single_checklist_line(&restored.text)?;
+            // Checked before anything is written: an undo that appended the row
+            // and then found nowhere to put it would have to leave it at the end
+            // and call that a restore.
+            if let Some(after) = &restored.after {
+                checklist_position(&current.checklist, after)?;
+            }
+            let id = mint_id("ck");
+            next.append_checklist_item(&id, text);
+            if restored.checked {
+                next.set_checklist_checked(&id, true);
+            }
+            if !next.move_checklist_item(&id, restored.after.as_deref()) {
+                return Err(Diagnostic::parse(
+                    "This ticket has more than one Checklist section, so there is no one list to \
+                     restore an item into. Merge them into one and try again.",
+                ));
+            }
+            changes.push(FieldChange::new(
+                format!("checklist.{id}.added"),
+                None,
+                Some(text.to_owned()),
+            ));
+        }
+        for text in &edit.add_checklist_items {
+            let text = single_checklist_line(text)?;
             let id = mint_id("ck");
             next.append_checklist_item(&id, text);
             changes.push(FieldChange::new(
@@ -931,6 +1023,69 @@ impl TicketDocument {
                 Some(format!("{indent}{marker}{rest}"))
             });
         }
+    }
+
+    /// Rewrites one item's words, leaving its indent, its box and its id marker
+    /// exactly where they were — the line is reassembled from the pieces the
+    /// parser found rather than rendered fresh, so a trailing note or an
+    /// unfamiliar marker somebody put on the line survives the edit.
+    fn set_checklist_text(&mut self, item_id: &str, text: &str) {
+        for chunk in self
+            .chunks
+            .iter_mut()
+            .filter(|chunk| chunk.role == Role::Checklist)
+        {
+            chunk.raw = rewrite_lines(&chunk.raw, |line| {
+                let item = parse_checklist_line(line)?;
+                if item.id.as_deref() != Some(item_id) {
+                    return None;
+                }
+                let indent = &line[..line.len() - line.trim_start().len()];
+                let box_marker = if item.checked { "- [x] " } else { "- [ ] " };
+                let ending = if line.ends_with('\n') { "\n" } else { "" };
+                Some(format!(
+                    "{indent}{box_marker}{text} {ITEM_MARKER_OPEN}{item_id} {ITEM_MARKER_CLOSE}{ending}"
+                ))
+            });
+        }
+    }
+
+    /// Takes one item's line out of the list. Answers whether it could, and
+    /// refuses for the reason a move does: with two `## Checklist` sections the
+    /// reader sees one list and no section can answer about the other's rows.
+    ///
+    /// The line goes whole and nothing else moves, so prose between two items
+    /// stays where its author put it — and the heading stays even when the last
+    /// item leaves, because an add-row still has a list to append to.
+    fn remove_checklist_item(&mut self, item_id: &str) -> bool {
+        let mut sections = self
+            .chunks
+            .iter_mut()
+            .filter(|chunk| chunk.role == Role::Checklist);
+        let (Some(chunk), None) = (sections.next(), sections.next()) else {
+            return false;
+        };
+        let mut lines: Vec<String> = lines_with_endings(&chunk.raw)
+            .into_iter()
+            .map(|(_, line)| line.to_owned())
+            .collect();
+        let Some(at) = lines.iter().position(|line| holds_item(line, item_id)) else {
+            return false;
+        };
+        // A last line with no ending carries the file's own missing newline. If
+        // that is the line leaving, the one above it inherits the absence rather
+        // than the file quietly gaining a newline it never had.
+        let took_the_last_ending = !lines[at].ends_with('\n');
+        lines.remove(at);
+        if took_the_last_ending {
+            if let Some(last) = lines.last_mut() {
+                while last.ends_with('\n') {
+                    last.pop();
+                }
+            }
+        }
+        chunk.raw = lines.concat();
+        true
     }
 
     fn append_checklist_item(&mut self, id: &str, text: &str) {
@@ -1502,6 +1657,28 @@ fn checklist_position(checklist: &[ChecklistItem], item_id: &str) -> Result<usiz
         .ok_or_else(|| Diagnostic::parse(format!("Checklist item {item_id} is not in this ticket")))
 }
 
+/// The item itself, refused the same way and in the same words as its position.
+fn checklist_item<'a>(
+    checklist: &'a [ChecklistItem],
+    item_id: &str,
+) -> Result<&'a ChecklistItem, Diagnostic> {
+    Ok(&checklist[checklist_position(checklist, item_id)?])
+}
+
+/// What an item's text has to be to survive a round trip: one line, and not an
+/// empty one. A second line would parse back as prose below the list, and an
+/// empty one as a box with nothing in it — so both are refused here rather than
+/// written and rediscovered on the next read.
+fn single_checklist_line(text: &str) -> Result<&str, Diagnostic> {
+    let text = text.trim();
+    if text.is_empty() || text.contains('\n') {
+        return Err(Diagnostic::parse(
+            "A checklist item is a single non-empty line",
+        ));
+    }
+    Ok(text)
+}
+
 /// Where an item ends up: the index it holds once it has been taken out of the
 /// list at `from` and put back after `anchor`, or first when there is none.
 ///
@@ -1771,8 +1948,8 @@ fn parse_attachment(record: &RawRecord) -> Result<Attachment, Diagnostic> {
 #[cfg(test)]
 mod tests {
     use super::{
-        render_new_ticket, ChecklistMove, ChecklistToggle, Priority, Status, TicketDocument,
-        TicketEdit, TICKET_FORMAT,
+        render_new_ticket, ChecklistMove, ChecklistRestore, ChecklistTextEdit, ChecklistToggle,
+        Priority, Status, TicketDocument, TicketEdit, TICKET_FORMAT,
     };
 
     const NOW: &str = "2026-07-30T10:00:00.000Z";
@@ -1915,6 +2092,18 @@ mod tests {
                     move_checklist_item: Some(ChecklistMove {
                         item_id: "ck_0001".to_owned(),
                         after: Some("ck_0002".to_owned()),
+                    }),
+                    edit_checklist_item: Some(ChecklistTextEdit {
+                        item_id: "ck_0002".to_owned(),
+                        text: "Reworded by the fixture".to_owned(),
+                    }),
+                    // The item this same edit moved: removal runs last of the
+                    // three, so the pinned order is the order they apply in.
+                    remove_checklist_item: Some("ck_0001".to_owned()),
+                    restore_checklist_item: Some(ChecklistRestore {
+                        text: "Restored by the fixture".to_owned(),
+                        after: Some("ck_0002".to_owned()),
+                        checked: true,
                     }),
                     add_checklist_items: vec!["Write the migration".to_owned()],
                     comment: None,
@@ -2401,6 +2590,222 @@ mod tests {
             .expect("a checklist section");
         assert!(checklist_block.trim_start().starts_with("- [ ] first"));
         assert!(rendered.contains("- [ ] third <!-- longclaw:item=ck_"));
+    }
+
+    #[test]
+    fn editing_an_item_rewrites_its_text_and_keeps_its_id_and_box() {
+        let (rendered, next) = apply(TicketEdit {
+            edit_checklist_item: Some(ChecklistTextEdit {
+                item_id: "ck_0002".to_owned(),
+                text: "second, reworded".to_owned(),
+            }),
+            ..TicketEdit::default()
+        });
+        // The box stays ticked and the marker stays put: this edit is about the
+        // words, and an item that lost its id would lose its history with it.
+        assert!(rendered.contains("- [x] second, reworded <!-- longclaw:item=ck_0002 -->\n"));
+        assert!(rendered.contains("- [ ] first <!-- longclaw:item=ck_0001 -->\n"));
+        assert_eq!(next.ticket().checklist.len(), 2);
+        let event = next.ticket().last_activity().expect("appended event");
+        assert_eq!(event.changes.len(), 1);
+        assert_eq!(event.changes[0].field, "checklist.ck_0002.text");
+        assert_eq!(event.changes[0].from.as_deref(), Some("second"));
+        assert_eq!(event.changes[0].to.as_deref(), Some("second, reworded"));
+    }
+
+    #[test]
+    fn editing_an_item_to_the_text_it_already_has_writes_nothing() {
+        let error = document()
+            .apply(
+                &TicketEdit {
+                    edit_checklist_item: Some(ChecklistTextEdit {
+                        item_id: "ck_0001".to_owned(),
+                        text: "first".to_owned(),
+                    }),
+                    ..TicketEdit::default()
+                },
+                NOW,
+            )
+            .expect_err("an edit that changes nothing is not a write");
+        assert!(error.message.contains("already matches"));
+    }
+
+    #[test]
+    fn an_item_edited_to_an_empty_line_or_across_two_is_refused() {
+        for text in ["", "   ", "two\nlines"] {
+            let error = document()
+                .apply(
+                    &TicketEdit {
+                        edit_checklist_item: Some(ChecklistTextEdit {
+                            item_id: "ck_0001".to_owned(),
+                            text: text.to_owned(),
+                        }),
+                        ..TicketEdit::default()
+                    },
+                    NOW,
+                )
+                .expect_err("a checklist item is a single non-empty line");
+            assert!(error.message.contains("single non-empty line"));
+        }
+        assert_eq!(document().render(), TICKET);
+    }
+
+    #[test]
+    fn editing_an_item_the_file_does_not_have_is_refused() {
+        let error = document()
+            .apply(
+                &TicketEdit {
+                    edit_checklist_item: Some(ChecklistTextEdit {
+                        item_id: "ck_9999".to_owned(),
+                        text: "nowhere".to_owned(),
+                    }),
+                    ..TicketEdit::default()
+                },
+                NOW,
+            )
+            .expect_err("an unknown item cannot be edited");
+        assert!(error.message.contains("ck_9999"));
+    }
+
+    #[test]
+    fn removing_an_item_takes_its_line_and_leaves_the_rest() {
+        let (rendered, next) = apply(TicketEdit {
+            remove_checklist_item: Some("ck_0001".to_owned()),
+            ..TicketEdit::default()
+        });
+        // The line is gone; the id is not, because the event that records the
+        // removal names it. That is the point of recording it.
+        assert!(!rendered.contains("longclaw:item=ck_0001"));
+        assert!(rendered.contains("checklist.ck_0001.removed"));
+        assert!(rendered.contains("- [x] second <!-- longclaw:item=ck_0002 -->\n"));
+        assert_eq!(next.ticket().checklist.len(), 1);
+        // The section stays, so an add-row still has a list to append to.
+        assert_eq!(rendered.matches("## Checklist").count(), 1);
+        let event = next.ticket().last_activity().expect("appended event");
+        assert_eq!(event.changes.len(), 1);
+        assert_eq!(event.changes[0].field, "checklist.ck_0001.removed");
+        // The text goes into the record, which is what makes the removal
+        // readable afterwards — the line itself is gone.
+        assert_eq!(event.changes[0].from.as_deref(), Some("first"));
+        assert_eq!(event.changes[0].to, None);
+    }
+
+    #[test]
+    fn removing_the_last_item_leaves_an_empty_section_rather_than_a_hole() {
+        let (rendered, next) = apply_to(
+            apply(TicketEdit {
+                remove_checklist_item: Some("ck_0001".to_owned()),
+                ..TicketEdit::default()
+            })
+            .1,
+            TicketEdit {
+                remove_checklist_item: Some("ck_0002".to_owned()),
+                ..TicketEdit::default()
+            },
+        );
+        assert!(next.ticket().checklist.is_empty());
+        assert!(rendered.contains("## Checklist"));
+        assert!(!rendered.contains("longclaw:item="));
+        // Nothing below the section was carried off with the lines.
+        assert!(rendered.contains("### Fixture Agent commented"));
+    }
+
+    #[test]
+    fn removing_an_item_the_file_does_not_have_is_refused() {
+        let error = document()
+            .apply(
+                &TicketEdit {
+                    remove_checklist_item: Some("ck_9999".to_owned()),
+                    ..TicketEdit::default()
+                },
+                NOW,
+            )
+            .expect_err("an unknown item cannot be removed");
+        assert!(error.message.contains("ck_9999"));
+    }
+
+    #[test]
+    fn a_restored_item_lands_back_where_it_was_taken_from() {
+        // The undo of "remove the middle one": it goes back after the first,
+        // not at the end, which is the only landing a plain append could offer.
+        let removed = apply_to(
+            three_item_document(),
+            TicketEdit {
+                remove_checklist_item: Some("ck_0002".to_owned()),
+                ..TicketEdit::default()
+            },
+        )
+        .1;
+        let (rendered, next) = apply_to(
+            removed,
+            TicketEdit {
+                restore_checklist_item: Some(ChecklistRestore {
+                    text: "second".to_owned(),
+                    after: Some("ck_0001".to_owned()),
+                    checked: true,
+                }),
+                ..TicketEdit::default()
+            },
+        );
+        let texts: Vec<&str> = next
+            .ticket()
+            .checklist
+            .iter()
+            .map(|item| item.text.as_str())
+            .collect();
+        assert_eq!(texts, vec!["first", "second", "third"]);
+        // Its box comes back the way it went, and its id is a new one: the old
+        // id left with the line, and nothing on disk still refers to it.
+        assert!(next.ticket().checklist[1].checked);
+        assert!(rendered.contains("- [x] second <!-- longclaw:item=ck_"));
+        assert!(!rendered.contains("longclaw:item=ck_0002"));
+    }
+
+    #[test]
+    fn an_item_restored_to_the_top_needs_no_neighbour() {
+        let removed = apply(TicketEdit {
+            remove_checklist_item: Some("ck_0001".to_owned()),
+            ..TicketEdit::default()
+        })
+        .1;
+        let (_, next) = apply_to(
+            removed,
+            TicketEdit {
+                restore_checklist_item: Some(ChecklistRestore {
+                    text: "first".to_owned(),
+                    after: None,
+                    checked: false,
+                }),
+                ..TicketEdit::default()
+            },
+        );
+        let texts: Vec<&str> = next
+            .ticket()
+            .checklist
+            .iter()
+            .map(|item| item.text.as_str())
+            .collect();
+        assert_eq!(texts, vec!["first", "second"]);
+        assert!(!next.ticket().checklist[0].checked);
+    }
+
+    #[test]
+    fn a_restore_whose_neighbour_is_gone_is_refused_rather_than_landing_anywhere() {
+        let error = document()
+            .apply(
+                &TicketEdit {
+                    restore_checklist_item: Some(ChecklistRestore {
+                        text: "first".to_owned(),
+                        after: Some("ck_9999".to_owned()),
+                        checked: false,
+                    }),
+                    ..TicketEdit::default()
+                },
+                NOW,
+            )
+            .expect_err("a restore names the row it follows, and that row must exist");
+        assert!(error.message.contains("ck_9999"));
+        assert_eq!(document().render(), TICKET);
     }
 
     #[test]

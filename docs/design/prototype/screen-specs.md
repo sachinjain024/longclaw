@@ -240,11 +240,11 @@ movement. No custom-color affordance exists anywhere.
     primary Save (`⌘↵`).
 - **Checklist:** section header with mono fraction + 56px progress bar
   (fill `ink-3`; `accent-agent` while any row is agent-acknowledged). Rows per
-  components.md § Checklist, and reorderable by drag or `⌥↑`/`⌥↓` (LC-185).
+  components.md § Checklist: reorderable (LC-185), rewordable and deletable (LC-215).
   Add-row: ghost checkbox + borderless input, Enter appends, focus stays.
-- **Activity:** merged timeline per components.md § Timeline — human
-  comments, agent comments (rail + AGENT badge + `via file edit` meta), and
-  change events in one chronological stream, sorted by time with ID
+- **Activity · Comments:** two tabs over one record (LC-211). Activity is
+  selected on open and holds every entry per components.md § Timeline, a
+  comment among them as a one-line `commented`; Comments holds the bodies alone, and the composer sits under both. Sorted by time with ID
   tie-break. Composer: avatar + auto-growing field, `⌘↵` posts, posting is
   optimistic.
 - **Conflict banner** renders pinned above the title when an external edit
