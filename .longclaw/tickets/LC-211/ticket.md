@@ -47,3 +47,17 @@ changes:
 
 Two tabs over one record. Activity is selected on open and holds every entry, drawing a comment as the line that says one happened; Comments holds the bodies alone. The composer sits under both rather than inside Comments, so commenting on what an agent just did still costs no click. For the Markdown half of the ticket: the timeline already rendered comments as Markdown, but nothing on the way in said so, so the composer now carries the same six formatting buttons the description editor has, over the same helper. Worth checking by hand: whether Activity is the tab you want selected on open.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_84a79cd3
+kind: comment
+occurred_at: 2026-08-11T23:18:43.468Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Reworked on your note: Comments is selected on open, Activity is still the first tab and one click away. The composer already sat under both, so this changed what is on screen rather than what is reachable. One knock-on worth knowing: the theme matrix probed the panel's message anatomy and change anatomy in one state, and those now live on different tabs — it is two states now, and its agent-accent probe moved to .timeline-entry.agent .change-actor, which is the selector the contract was always about.
+<!-- /longclaw:event -->
