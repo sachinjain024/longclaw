@@ -25,6 +25,7 @@ import { useEffect, useRef, useState } from "react";
 import type { DragEvent, KeyboardEvent } from "react";
 import { useAddRowInView } from "./addRow";
 import { useAutoGrow } from "./autoGrow";
+import { RowActions, RowEditor } from "./ChecklistRow";
 import { dropEdge, gapUnder, landingFor, reordered } from "./checklistOrder";
 import { classes } from "./classes";
 import { DescriptionEditor } from "./DescriptionEditor";
@@ -102,6 +103,44 @@ export function CreatePanel(props: CreatePanelProps) {
     const buttons = rows.current?.querySelectorAll<HTMLElement>(".row-remove");
     buttons?.[followRow]?.focus();
   }, [followRow]);
+
+  /** The row being retyped, by position — a draft row has no id to name. */
+  const [editingRow, setEditingRow] = useState<number>();
+  /** A row whose edit button should take focus back, by position. */
+  const [refocusRow, setRefocusRow] = useState<number>();
+  useEffect(() => {
+    if (refocusRow === undefined) return;
+    setRefocusRow(undefined);
+    const buttons = rows.current?.querySelectorAll<HTMLElement>(".row-edit");
+    buttons?.[refocusRow]?.focus();
+  }, [refocusRow]);
+
+  /**
+   * Replaces one draft row's text (LC-215). An empty field leaves the row as it
+   * was — the same answer the panel gives, and the reason is the same one: a
+   * field is where words are changed and `✕` is where a row is removed, so a
+   * field that also deleted would be two gestures wearing one control.
+   */
+  function editRow(index: number, text: string) {
+    setEditingRow(undefined);
+    // Closing the field unmounts what holds focus, and focus on nothing is
+    // focus on `<body>` — the end of the keyboard's path through the list. The
+    // button that opened it is where the human was.
+    setRefocusRow(index);
+    const next = text.trim();
+    if (!next) return;
+    setChecklist((rows) =>
+      rows.map((row, position) => (position === index ? next : row)),
+    );
+  }
+
+  /** Takes a draft row off the list. Nothing is written; nothing was. */
+  function removeRow(index: number) {
+    setChecklist((rows) => rows.filter((_, position) => position !== index));
+    // Removing a row must not drop focus on the floor, and the add-row is the
+    // one control that is always there.
+    addItem.current?.focus();
+  }
 
   /** Which draft row an event happened on, by the position its element carries. */
   function rowIndexAt(target: EventTarget | null): number {
@@ -325,37 +364,37 @@ export function CreatePanel(props: CreatePanelProps) {
                   ⠿
                 </span>
               )}
-              <label>
-                <input
-                  type="checkbox"
-                  // Never a stop: a draft box cannot be ticked, and the row's
-                  // stop is the Remove button beside it. Stated rather than
-                  // left to the disabled attribute, for the same reason every
-                  // button here states one (`tab-order-guard.mjs`).
-                  tabIndex={-1}
-                  checked={false}
-                  disabled
-                  readOnly
-                  title="A new ticket's items start unchecked."
+              {editingRow === index ? (
+                <RowEditor
+                  text={text}
+                  onCommit={(next) => editRow(index, next)}
+                  onCancel={() => setEditingRow(undefined)}
                 />
-                <span>{text}</span>
-              </label>
-              <button
-                tabIndex={0}
-                className="ghost row-remove"
-                type="button"
-                aria-label={`Remove ${text}`}
-                onClick={() => {
-                  setChecklist((rows) =>
-                    rows.filter((_, position) => position !== index),
-                  );
-                  // Removing a row must not drop focus on the floor, and the
-                  // add-row is the one control that is always there.
-                  addItem.current?.focus();
-                }}
-              >
-                ✕
-              </button>
+              ) : (
+                <>
+                  <label>
+                    <input
+                      type="checkbox"
+                      // Never a stop: a draft box cannot be ticked, and the
+                      // row's stops are the two buttons beside it. Stated
+                      // rather than left to the disabled attribute, for the
+                      // same reason every button here states one
+                      // (`tab-order-guard.mjs`).
+                      tabIndex={-1}
+                      checked={false}
+                      disabled
+                      readOnly
+                      title="A new ticket's items start unchecked."
+                    />
+                    <span>{text}</span>
+                  </label>
+                  <RowActions
+                    text={text}
+                    onEdit={() => setEditingRow(index)}
+                    onRemove={() => removeRow(index)}
+                  />
+                </>
+              )}
             </li>
           ))}
         </ul>

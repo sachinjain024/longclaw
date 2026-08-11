@@ -174,6 +174,79 @@ fn an_item_moves_to_the_place_the_command_names() {
     );
 }
 
+/// Rewording and removing a row are the same kind of thing as reordering one:
+/// the line carries an id, and a hand-edit that retyped it would carry the id
+/// away with the words (LC-215).
+#[test]
+fn an_item_can_be_reworded_and_removed_by_id() {
+    let (_temp, root) = common::new_project("edit-items", "LC");
+    let created = run(
+        &root,
+        &[
+            "ticket",
+            "create",
+            "--title",
+            "Editable work",
+            "--checklist",
+            "first",
+            "--checklist",
+            "second",
+        ],
+    );
+    let ids: Vec<String> = created["ticket"]["checklist"]
+        .as_array()
+        .expect("a created checklist")
+        .iter()
+        .map(|item| item["id"].as_str().expect("an id").to_owned())
+        .collect();
+
+    let reworded = run(
+        &root,
+        &[
+            "ticket",
+            "edit",
+            "LC-1",
+            "--edit-item",
+            &ids[0],
+            "--item-text",
+            "first, reworded",
+        ],
+    );
+    let items = reworded["ticket"]["checklist"]
+        .as_array()
+        .expect("a checklist");
+    assert_eq!(items[0]["text"], "first, reworded");
+    // The id survives the rewording, which is the whole reason this is a
+    // command rather than an edit to the line.
+    assert_eq!(items[0]["id"], ids[0].as_str());
+
+    let removed = run(&root, &["ticket", "edit", "LC-1", "--remove-item", &ids[0]]);
+    let left = removed["ticket"]["checklist"]
+        .as_array()
+        .expect("a checklist");
+    assert_eq!(left.len(), 1);
+    assert_eq!(left[0]["id"], ids[1].as_str());
+
+    let raw = read(&root, "LC-1");
+    assert!(
+        raw.contains(&format!("field: checklist.{}.removed", ids[0])),
+        "{raw}"
+    );
+    assert!(!raw.contains(&format!("longclaw:item={}", ids[0])), "{raw}");
+
+    assert_eq!(
+        refuse(&root, &["ticket", "edit", "LC-1", "--edit-item", &ids[1]]),
+        "--edit-item needs --item-text"
+    );
+    assert_eq!(
+        refuse(
+            &root,
+            &["ticket", "edit", "LC-1", "--item-text", "orphaned"]
+        ),
+        "--item-text needs --edit-item"
+    );
+}
+
 /// An agent that edits is an agent in the history too, not only at creation.
 #[test]
 fn an_agent_edit_appends_an_agent_authored_event() {

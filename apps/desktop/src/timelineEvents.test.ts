@@ -109,6 +109,25 @@ describe("every field apply() can write", () => {
       { field: "checklist.ck_1.moved", from: "1", to: "2" },
       "moved “Add the retry policy”",
     ],
+    // The new words, not the old: the row on screen says the new ones, and the
+    // record keeps both so a reader can see what it used to say.
+    [
+      "checklist.<id>.text",
+      {
+        field: "checklist.ck_1.text",
+        from: "Add the retry policy",
+        to: "Add the retry policy, with a cap",
+      },
+      "reworded “Add the retry policy” to “Add the retry policy, with a cap”",
+    ],
+    // The one checklist line whose subject cannot be looked up: the item is
+    // gone from the list, so the record's own `from` is the only thing that
+    // still knows what it said.
+    [
+      "checklist.<id>.removed",
+      { field: "checklist.ck_gone.removed", from: "Drop the old index" },
+      "removed “Drop the old index” from the checklist",
+    ],
   ];
 
   it.each(fields)("says a %s change in words", (_name, change, sentence) => {

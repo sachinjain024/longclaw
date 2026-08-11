@@ -251,6 +251,74 @@ describe("nothing here claims the file exists yet", () => {
   });
 
   /**
+   * The other half of LC-215: a draft row is retyped in place here too, so a
+   * typo caught while writing the ticket does not have to be removed and
+   * retyped. There is no write behind it — the row is a string in an array.
+   */
+  it("rewords a draft row in place", () => {
+    const onCreate = vi.fn();
+    render(createPanel({ onCreate }));
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Reworded" },
+    });
+    addChecklistItem("Frist");
+    addChecklistItem("Second");
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit Frist" }));
+    const field = screen.getByRole("textbox", { name: "Edit Frist" });
+    fireEvent.change(field, { target: { value: "First" } });
+    fireEvent.submit(field.closest("form")!);
+    fireEvent.click(screen.getByText("Create ticket"));
+
+    expect(onCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ checklist: ["First", "Second"] }),
+    );
+  });
+
+  it("leaves a draft row as it was when the field is abandoned", () => {
+    const onCreate = vi.fn();
+    render(createPanel({ onCreate }));
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Abandoned" },
+    });
+    addChecklistItem("First");
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit First" }));
+    const field = screen.getByRole("textbox", { name: "Edit First" });
+    fireEvent.change(field, { target: { value: "Something else" } });
+    fireEvent.keyDown(field, { key: "Escape" });
+    fireEvent.click(screen.getByText("Create ticket"));
+
+    expect(onCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ checklist: ["First"] }),
+    );
+  });
+
+  /**
+   * The field is where words are changed and `✕` is where a row is removed, in
+   * both surfaces. An empty commit is not a deletion in either.
+   */
+  it("leaves a row alone when the field is emptied rather than deleting it", () => {
+    const onCreate = vi.fn();
+    render(createPanel({ onCreate }));
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Emptied" },
+    });
+    addChecklistItem("First");
+    addChecklistItem("Second");
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit First" }));
+    const field = screen.getByRole("textbox", { name: "Edit First" });
+    fireEvent.change(field, { target: { value: "   " } });
+    fireEvent.submit(field.closest("form")!);
+    fireEvent.click(screen.getByText("Create ticket"));
+
+    expect(onCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ checklist: ["First", "Second"] }),
+    );
+  });
+
+  /**
    * The same two gestures the ticket panel's list has (LC-185), over rows that
    * are not a file yet: the order they are dragged into is the order they are
    * created in, and nothing is written until Create is.

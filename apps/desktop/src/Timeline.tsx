@@ -38,6 +38,7 @@ import type { ChangeGlyph } from "./timelineEvents";
 import {
   changeLines,
   entryShape,
+  isComment,
   sortActivity,
   unfamiliarKind,
 } from "./timelineEvents";
@@ -56,6 +57,16 @@ interface TimelineProps {
    * is not a record yet, and it says so rather than pretending to be one.
    */
   pendingComment?: string;
+  /**
+   * Whether a comment is drawn as the one line that says it happened rather
+   * than with its body (LC-211).
+   *
+   * This is what the Activity tab is: the same stream, with the words left to
+   * the tab that is about words. It is a property of the *view*, not of the
+   * record, which is why it is a prop here and not a kind in
+   * `timelineEvents.ts`.
+   */
+  commentsAsLines?: boolean;
 }
 
 export function Timeline(props: TimelineProps) {
@@ -68,10 +79,14 @@ export function Timeline(props: TimelineProps) {
           event={event}
           now={props.now}
           context={context}
+          commentsAsLines={props.commentsAsLines}
         />
       ))}
       {props.pendingComment !== undefined && (
-        <PendingComment body={props.pendingComment} />
+        <PendingComment
+          body={props.pendingComment}
+          asLine={props.commentsAsLines}
+        />
       )}
     </ol>
   );
@@ -81,14 +96,23 @@ function TimelineEntry({
   event,
   now,
   context,
+  commentsAsLines,
 }: {
   event: ActivityEvent;
   now: number;
   context: { labels?: Record<string, Label>; checklist?: ChecklistItem[] };
+  commentsAsLines?: boolean;
 }) {
   const actorType = event.actor.type;
-  const shape = entryShape(event.kind);
-  const prose = eventProse(event.body);
+  /**
+   * A comment drawn as one line (LC-211). Its body is left out with the shape:
+   * a change entry keeps its body — an update carrying a note is that note —
+   * but a comment's body *is* the comment, and a line above the whole of it
+   * would be the compact form saying the same thing twice.
+   */
+  const asLine = Boolean(commentsAsLines) && isComment(event.kind);
+  const shape = asLine ? "change" : entryShape(event.kind);
+  const prose = asLine ? "" : eventProse(event.body);
   const meta = [
     describeAge(Date.parse(event.occurredAt), now),
     // Where the change came from, not just when. An external change says it
@@ -186,7 +210,28 @@ function ChangeGlyphMark({ glyph }: { glyph: ChangeGlyph }) {
   );
 }
 
-function PendingComment({ body }: { body: string }) {
+function PendingComment({ body, asLine }: { body: string; asLine?: boolean }) {
+  // Under Activity a comment is the line that says one happened, and the one
+  // still being written is no exception: drawn with its body here, it would
+  // stand full-height among one-liners and then collapse into one the moment
+  // the file came back (LC-211).
+  if (asLine) {
+    return (
+      <li className="timeline-entry change pending">
+        <ul className="entry-changes">
+          <li>
+            <span className="change-glyph" aria-hidden="true">
+              ❝
+            </span>
+            <strong className="change-actor">You</strong>
+            <span>commented</span>
+          </li>
+        </ul>
+        {/* Said in words, so the dimming is not carrying it alone. */}
+        <p className="entry-meta change-meta">just now · posting</p>
+      </li>
+    );
+  }
   return (
     <li className="timeline-entry message pending">
       <div className="entry-heading">
@@ -194,7 +239,6 @@ function PendingComment({ body }: { body: string }) {
           {actorGlyph("human")}
         </span>
         <strong>You</strong>
-        {/* Said in words, so the dimming is not carrying it alone. */}
         <span className="entry-meta">just now · posting</span>
       </div>
       <MarkdownView

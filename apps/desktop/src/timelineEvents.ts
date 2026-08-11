@@ -45,6 +45,20 @@ export function entryShape(kind: ActivityKind): "message" | "change" {
     : "message";
 }
 
+/**
+ * Whether this record is a comment: somebody's words, rather than a report of
+ * something that happened to the ticket.
+ *
+ * It is the one message kind the app writes, and the one the Comments tab is a
+ * tab *of* (LC-211). A kind this build does not know is a message too — it is
+ * drawn with everything its author wrote — but it is not filed as a comment,
+ * because filing an unfamiliar record under a familiar name is the one thing
+ * `unfamiliarKind` exists to stop.
+ */
+export function isComment(kind: ActivityKind): boolean {
+  return kind === "comment";
+}
+
 /** The kind itself when this build does not know it, so the meta can say so. */
 export function unfamiliarKind(kind: ActivityKind): string | undefined {
   return KNOWN_KINDS.includes(kind) ? undefined : kind;
@@ -94,7 +108,7 @@ export interface ChangeContext {
   checklist?: readonly ChecklistItem[];
 }
 
-const CHECKLIST_FIELD = /^checklist\.(.+)\.(checked|added|moved)$/;
+const CHECKLIST_FIELD = /^checklist\.(.+)\.(checked|added|moved|text|removed)$/;
 
 /**
  * Every line one record puts on screen.
@@ -108,6 +122,14 @@ export function changeLines(
   context: ChangeContext = {},
 ): ChangeLine[] {
   const lines = event.changes.map((change) => describeChange(change, context));
+  // What a comment says when it is being described as a change rather than
+  // drawn as one: that somebody commented (LC-211). It carries no field changes
+  // of its own, so without this it would fall through to "updated this ticket"
+  // and describe itself as the wrong thing. The words are the entry's body, and
+  // whether they are on screen is the caller's question, not this one's.
+  if (isComment(event.kind)) {
+    return [{ glyph: char("❝"), text: "commented" }, ...lines];
+  }
   if (event.kind === "create") {
     return [{ glyph: char("✦"), text: "created this ticket" }, ...lines];
   }
@@ -173,7 +195,7 @@ export function describeChange(
   }
   const checklist = CHECKLIST_FIELD.exec(field);
   if (checklist) {
-    return describeChecklist(checklist[1], checklist[2], to, context);
+    return describeChecklist(checklist[1], checklist[2], from, to, context);
   }
   return describeUnknownField(field, from, to);
 }
@@ -207,10 +229,35 @@ function describeLabels(
 function describeChecklist(
   itemId: string,
   what: string,
+  from: string | undefined,
   to: string | undefined,
   context: ChangeContext,
 ): ChangeLine {
   const item = context.checklist?.find((entry) => entry.id === itemId);
+  if (what === "text") {
+    // The description's glyph, because it is the same news about a smaller
+    // thing: somebody changed what a line says.
+    const before = from ?? item?.text;
+    return {
+      glyph: char("✎"),
+      text:
+        before === undefined || to === undefined
+          ? "reworded a checklist item"
+          : `reworded ${quote(before)} to ${quote(to)}`,
+    };
+  }
+  if (what === "removed") {
+    // The only checklist line whose subject cannot be looked up — the item is
+    // out of the list — so the record's `from` is the one thing that still
+    // knows what the row said. That is why the removal records it.
+    return {
+      glyph: char("−"),
+      text:
+        from === undefined
+          ? "removed a checklist item"
+          : `removed ${quote(from)} from the checklist`,
+    };
+  }
   if (what === "added") {
     const text = to ?? item?.text;
     return {

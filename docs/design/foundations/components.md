@@ -219,7 +219,7 @@ hover `ink-3`).
 | **Checked by agent (acknowledged)** | fill `accent-agent`, mark `on-accent-agent` | `ink`, row bg `accent-agent-wash` (radius 6, -6px margin bleed), trailing mono `❯ just now` in `accent-agent-text` |
 
 Agent-acknowledged rows settle to the standard checked state once the ticket is
-viewed. Checking animates at `--lc-motion-state`. Rows reorder (LC-185): a grip in the gutter on hover or focus, the 2px `accent-human` insertion line above, and `⌥↑`/`⌥↓` on a focused row.
+viewed. Checking animates at `--lc-motion-state`. Rows reorder (LC-185): a grip in the gutter on hover or focus, the 2px `accent-human` insertion line above, and `⌥↑`/`⌥↓` on a focused row. Rows also reword and delete (LC-215): a 24px pencil and `✕` in the row's far edge, revealed with the grip, the pencil replacing the row with a bordered field that commits on `Enter` or blur and abandons on `Esc`; a deleted row's toast offers it back where it sat. Neither is offered on a row the file has minted no id for.
 
 ## Timeline (one merged stream, two voices apart)
 

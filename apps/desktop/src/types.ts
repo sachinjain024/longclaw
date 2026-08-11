@@ -149,6 +149,27 @@ export interface ChecklistMove {
   after: string | null;
 }
 
+/**
+ * New words for one row, keyed by the id that stays behind them: the box keeps
+ * its state and the history keeps its subject (`core/ticket.rs`,
+ * `ChecklistTextEdit`).
+ */
+export interface ChecklistTextEdit {
+  itemId: string;
+  text: string;
+}
+
+/**
+ * A removed row, put back. It carries no id — the old one left with the line —
+ * so what comes back is the row rather than the identifier (`core/ticket.rs`,
+ * `ChecklistRestore`).
+ */
+export interface ChecklistRestore {
+  text: string;
+  after: string | null;
+  checked: boolean;
+}
+
 export interface Attachment {
   id: string;
   file: string;
@@ -293,6 +314,12 @@ export interface TicketEdit {
   checklist?: { itemId: string; checked: boolean }[];
   /** One row's new place, named by the row it now follows (LC-185). */
   moveChecklistItem?: ChecklistMove;
+  /** One row's new wording. The id stays, so the box and the history do (LC-215). */
+  editChecklistItem?: ChecklistTextEdit;
+  /** The row to take out, by id. Its text is kept in the recorded change. */
+  removeChecklistItem?: string;
+  /** A removed row put back where it was, which is what undoes a removal. */
+  restoreChecklistItem?: ChecklistRestore;
   addChecklistItems?: string[];
   comment?: string;
 }
@@ -412,7 +439,6 @@ export interface VisibleUiProbe {
   rowCount: number;
   rowTitles: string[];
   lastSequence: number;
-  traceText: string;
   viewportWidth: number;
   viewportHeight: number;
 }

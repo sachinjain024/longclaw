@@ -58,7 +58,7 @@ groups; `←→`/`H L` are unbound. Group headers are not focus stops.
 | Key | Action |
 |---|---|
 | `Esc` | Close panel → focus returns to the originating card/row |
-| `Tab` | Natural order: ID chip → archive → close → title → status → priority → labels → description → checklist rows → add-item → composer → comment¹ |
+| `Tab` | Natural order: ID chip → archive → close → title → status → priority → labels → description → checklist rows (box → edit → remove, LC-215) → add-item → record tabs (one stop, `←`/`→` between Activity and Comments, LC-211) → composer → comment¹ |
 | `Enter` / `Space` · `⌥↑` / `⌥↓` on a checklist row | Toggle the item · move it one place (LC-185) |
 | `Enter` in add-item field | Append item, keep focus in the field |
 | `Enter` on a meta trigger | Open that menu |

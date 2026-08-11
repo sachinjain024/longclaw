@@ -917,8 +917,6 @@ export function App() {
     if (!activeProjectId) return;
     const frame = requestAnimationFrame(() => {
       const rows = Array.from(document.querySelectorAll<HTMLElement>(ROW));
-      const trace =
-        document.querySelector<HTMLElement>(".trace-status")?.innerText ?? "";
       void reportVisibleUi({
         projectId: activeProjectId,
         rowCount: rows.length,
@@ -926,7 +924,6 @@ export function App() {
           .map((row) => row.querySelector("strong")?.textContent ?? "")
           .filter(Boolean),
         lastSequence,
-        traceText: trace,
         viewportWidth: window.innerWidth,
         viewportHeight: window.innerHeight,
       });
@@ -1803,28 +1800,6 @@ export function App() {
                   showNoMatches && "workspace-state",
                 )}
               >
-                {DEV_CHROME && (
-                  <div
-                    className="trace-strip"
-                    aria-label="Project source of truth"
-                  >
-                    {/* The generation stamp lost its eyebrow when the header
-                        collapsed to one row; it belongs with the rest of the
-                        storage telemetry rather than above the board. */}
-                    <p className="eyebrow">GENERATION {generation}</p>
-                    <span className="trace-node">FOLDER</span>
-                    <span className="trace-arrow">/</span>
-                    <span className="trace-node">.longclaw</span>
-                    <span className="trace-arrow">/</span>
-                    <span className="trace-node active">tickets</span>
-                    <span className="trace-status">
-                      {lastEvent
-                        ? `event ${lastEvent.sequence} - ${lastEvent.event.type}`
-                        : "project files are the source of truth"}
-                    </span>
-                  </div>
-                )}
-
                 {showNoMatches && (
                   <NoMatches
                     query={filterQuery}

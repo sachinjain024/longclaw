@@ -361,7 +361,6 @@ pub struct VisibleUiProbe {
     pub row_count: usize,
     pub row_titles: Vec<String>,
     pub last_sequence: u64,
-    pub trace_text: String,
     pub viewport_width: u32,
     pub viewport_height: u32,
 }

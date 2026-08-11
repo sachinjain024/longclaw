@@ -885,53 +885,6 @@ button:disabled {
   display: none;
 }
 
-/* Dev builds only (devChrome.ts): its own box, because the workspace it sits
-   in has none — deliberately harness chrome, not the app's language. */
-.trace-strip {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  border: 1px solid var(--lc-line);
-  border-radius: var(--lc-radius-card);
-  margin-bottom: 10px;
-  padding: 8px 12px;
-  background: var(--lc-surface);
-}
-
-/* The generation stamp moved in here when the header collapsed to one row, and
-   an eyebrow's block margin would sit it off the strip's centre line. */
-.trace-strip .eyebrow {
-  margin: 0;
-}
-
-.trace-node,
-.trace-status {
-  font: var(--lc-type-kbd-weight) var(--lc-type-kbd-size) /
-    var(--lc-type-kbd-leading) var(--lc-type-kbd-font);
-}
-
-.trace-node {
-  border: 1px solid var(--lc-line-strong);
-  border-radius: var(--lc-radius-tile);
-  padding: 6px 8px;
-}
-
-.trace-node.active {
-  border-color: var(--lc-accent-agent-border);
-  color: var(--lc-accent-agent-text);
-  background: var(--lc-accent-agent-soft);
-}
-
-.trace-arrow,
-.trace-status {
-  color: var(--lc-ink-3);
-}
-
-.trace-status {
-  margin-left: auto;
-}
-
 .unreachable-panel {
   margin: 18px 0;
   border: 1px dashed var(--lc-line-strong);
@@ -1043,10 +996,8 @@ button:disabled {
    and 8 + 20 for `.board-grid`'s own padding — 142 in all, which is why the list
    spends the same token unmodified. It replaced a 360 sized to the two-row
    `project-toolbar` + `board-heading` LC-67 collapsed, plus the dev-only
-   `.trace-strip`. The strip is still there under `npm run dev`, so the trade now
-   runs the other way: the release build is exact and a dev board hangs ~54px
-   past the window. That is the right way round — the product is not sized to its
-   harness.
+   `.trace-strip`. LC-207 removed that strip, so the ~54px a dev board used to
+   hang past the window is gone with it and both builds now measure the same.
 
    Under a short board the cap never binds and nothing moves; over a tall one the
    stack scrolls inside it instead of stretching the page. */
@@ -1097,25 +1048,48 @@ button:disabled {
    Faded rather than `visibility: hidden`, which is what the prototype uses and
    this cannot: a hidden element takes no focus, and `keyboard-focus-map.md:44`
    gives these buttons a keyboard path. It holds its place in the header either
-   way, so revealing it moves nothing. */
+   way, so revealing it moves nothing.
+
+   Square at the shared small-control size rather than the prototype's 3px of
+   padding around a 13px glyph, which came out a 19px target — under the 24px
+   floor every other control in the app already sits on, and the smallest thing
+   on the board by some way (LC-209). The glyph is unchanged; only the box it is
+   centred in grew, so the header reads as it did and the hover wash is now a
+   square rather than a sliver. */
 .column-add {
   display: inline-flex;
+  width: var(--lc-size-control-sm);
+  height: var(--lc-size-control-sm);
+  align-items: center;
+  justify-content: center;
   margin-left: auto;
-  border-radius: var(--lc-radius-kbd);
-  padding: 3px;
+  border-radius: var(--lc-radius-control);
+  padding: 0;
   color: var(--lc-ink-3);
   opacity: 0;
-  transition: opacity var(--lc-motion-fast) var(--lc-motion-ease);
+  transition:
+    opacity var(--lc-motion-fast) var(--lc-motion-ease),
+    background var(--lc-motion-fast) var(--lc-motion-ease),
+    color var(--lc-motion-fast) var(--lc-motion-ease);
 }
 
+/* `:focus` and not only `:focus-visible`: a button reached by pointer keeps
+   focus without the visible ring, and an invisible control that is still the
+   focused one is the state this reveal exists to prevent. */
 .board-column:hover .column-add,
-.column-add:focus-visible {
+.column-add:focus {
   opacity: 1;
 }
 
 .column-add:hover {
   color: var(--lc-ink);
   background: var(--lc-wash);
+}
+
+/* The press feedback `.ghost` already spends, which is the class this control
+   would carry if it carried one. */
+.column-add:active {
+  background: var(--lc-line-soft);
 }
 
 /* Each column scrolls independently (screen-specs.md § Board), and the height it
@@ -2328,6 +2302,47 @@ button:disabled {
   font-size: 12px;
 }
 
+/* The record's two tabs stand where that section's heading used to (LC-211), so
+   they carry the heading's own size and colour rather than arriving as a control
+   strip: the pair still reads as the section's name, with the second name beside
+   the first.
+
+   The chip is the Description editor's, deliberately — the panel had one tab
+   idiom already and a second one would be a second thing to learn. What it drops
+   is that control's wash strip, which exists there to seat the tabs on the
+   editor's box and has nothing to seat them on here. */
+.panel-tabs {
+  display: flex;
+  gap: var(--lc-space-1);
+  align-items: center;
+  margin-bottom: var(--lc-space-2);
+}
+
+.panel-tab {
+  display: flex;
+  gap: var(--lc-space-2);
+  align-items: center;
+  height: var(--lc-size-control-sm);
+  border: 1px solid transparent;
+  border-radius: var(--lc-radius-control);
+  padding: 0 var(--lc-space-2);
+  color: var(--lc-ink-3);
+  background: transparent;
+  font-size: 12px;
+}
+
+.panel-tab:hover:not(.selected) {
+  color: var(--lc-ink-2);
+  background: var(--lc-wash);
+}
+
+.panel-tab.selected {
+  border-color: var(--lc-line);
+  color: var(--lc-ink-2);
+  background: var(--lc-surface);
+  box-shadow: var(--lc-shadow-card);
+}
+
 /* The mono count a section heading carries. One rule, because the checklist's
    `3/7` and the activity stream's entry count are the same object in the
    prototype (`prototype.js:729`, `:746`) and differ only in what they count. */
@@ -3050,10 +3065,51 @@ button:disabled {
 }
 
 /* Under the field it posts, at its right edge (`prototype.css:582`) — the end
-   of the thing being written, which is where the eye already is. */
-.composer button {
+   of the thing being written, which is where the eye already is. The row it
+   sits at the end of is `.composer-actions`, which the toolbar shares. */
+
+/* Under the field: the six formatting buttons at the left, the post button at
+   the right (LC-211). One row, so the two controls that follow the field read
+   left to right rather than stacking. */
+.composer-actions {
+  display: flex;
+  gap: var(--lc-space-2);
+  align-items: center;
+  justify-content: space-between;
   grid-column: 2;
-  justify-self: end;
+}
+
+/* Quiet until the composer is in use, which is `.row-actions`' treatment and
+   `.column-add`'s: a toolbar standing under every ticket at full strength is
+   chrome, and one that is *mounted* only while the field has focus is a group
+   Tab can never enter — the blur that would carry focus into it takes the
+   group off the page first. Faded, so it holds its place and its Tab stop. */
+.composer-toolbar {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity var(--lc-motion-fast) var(--lc-motion-ease);
+}
+
+.composer:focus-within .composer-toolbar,
+.composer:hover .composer-toolbar {
+  opacity: 1;
+}
+
+.composer-toolbar button {
+  display: grid;
+  place-items: center;
+  width: var(--lc-size-control-sm);
+  height: var(--lc-size-control-sm);
+  border: 0;
+  border-radius: var(--lc-radius-control);
+  color: var(--lc-ink-3);
+  background: transparent;
+}
+
+.composer-toolbar button:hover {
+  color: var(--lc-ink);
+  background: var(--lc-wash);
 }
 
 /* ------------------------------------------------- raw file view (degraded) */
@@ -3227,15 +3283,74 @@ button:disabled {
   opacity: 0.5;
 }
 
-.checklist-row .row-remove {
+/* A row's own two controls (LC-215), in the far edge the row reserves for them.
+   Quiet until the row is hovered or something in it holds focus, which is the
+   grip's treatment above and for the grip's reason: a list wearing two buttons
+   per row reads as a form rather than as a list.
+
+   Faded rather than hidden, so both stay reachable by Tab and the row does not
+   change width when they appear. The acknowledged note takes the same edge, so
+   it is the note that keeps `margin-left: auto` and this sits after it. */
+.row-actions {
+  display: flex;
+  gap: 2px;
+  align-items: center;
   margin-left: auto;
-  padding: 0 var(--lc-space-1);
+  opacity: 0;
+  transition: opacity var(--lc-motion-fast) var(--lc-motion-ease);
+}
+
+.checklist-row:hover .row-actions,
+.checklist-row:focus-within .row-actions {
+  opacity: 1;
+}
+
+.acknowledged-note + .row-actions {
+  margin-left: var(--lc-space-2);
+}
+
+.checklist-row .row-edit,
+.checklist-row .row-remove {
+  display: inline-flex;
+  width: var(--lc-size-control-sm);
+  height: var(--lc-size-control-sm);
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   color: var(--lc-ink-3);
 }
 
+.checklist-row .row-edit:hover,
+.checklist-row .row-edit:focus-visible,
 .checklist-row .row-remove:hover,
 .checklist-row .row-remove:focus-visible {
   color: var(--lc-ink);
+}
+
+/* The row being retyped stands where the row was, so the list does not reflow
+   around it: the field takes the width the text had and then some. It is the
+   add-row's field with a border, because it is the same act at the same size —
+   and unlike the add-row it is drawn at rest, since a field that replaced a row
+   has to look like the thing that is now editable. */
+.row-edit-form {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+.row-edit-field {
+  width: 100%;
+  height: var(--lc-size-control-sm);
+  border: 1px solid var(--lc-line-strong);
+  border-radius: var(--lc-radius-control);
+  padding: 0 var(--lc-space-1);
+  color: var(--lc-ink);
+  background: var(--lc-surface);
+  font-size: var(--lc-type-ui-size);
+}
+
+.row-edit-field:focus {
+  border-color: var(--lc-accent-human);
 }
 
 /* ----------------------------------------------------------- quick creation */
