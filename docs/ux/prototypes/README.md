@@ -16,4 +16,4 @@ is which.
 
 - [`LC-201-Bulk-Create-In-Quick-Create-Mode.html`](LC-201-Bulk-Create-In-Quick-Create-Mode.html)
   — quick create with a description, labels and a **Create more** loop
-  ([spec](../../plans/active/LC-201-Bulk-Create-In-Quick-Create-Mode.md)).
+  ([spec](../../plans/completed/LC-201-Bulk-Create-In-Quick-Create-Mode.md)).

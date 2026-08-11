@@ -1,7 +1,7 @@
 ---
 title: "Bulk create in quick create mode"
 product: LongClaw
-status: active
+status: completed
 ticket: LC-201
 owner_area: Frontend
 release_blocking: false
@@ -338,3 +338,57 @@ Revision 3 driven in WebKit over the app's own stylesheet:
 | Description edge | `1px solid #e3e5ee` — `--lc-line`, one step down the ramp |
 | `esc` | a `<button>`, `tabIndex` −1, no border, no background, no `text-transform`; clicking it closes a modal with a title typed into it |
 | The run | title and description cleared, status/priority/labels kept, key advanced, focus in the title field, one toast replacing the last |
+
+## Outcome
+
+Shipped as planned, with one decision sharpened, one defect fixed on the way and
+one stale citation found.
+
+**`createMore` did not go where this plan put it.** The plan said "a `createMore`
+flag on what `onCreate` sends", and the type boundary refused it: the first
+argument of `onCreate` is `Omit<CreateTicketRequest, "projectId">`, which is
+exactly what Rust is handed. A surface decision riding inside it would be a field
+to remember to strip at the IPC boundary, and `App` already had the right shape
+for this in `submitNewTicket`'s `openPanel`. So it is a second argument —
+`onCreate(request, { createMore })` — and the request stays the request. The test
+that pins it says so in its own comment.
+
+**`useAutoGrow` was two pixels short on any bordered field**, which the plan
+predicted and the measurement confirmed: `box-sizing: border-box` with `height =
+scrollHeight` leaves the content box short by the borders, so the field scrolls
+its own last line out of sight for as long as there is text in it. Every field
+the hook drove was borderless until this one, which is why it never showed;
+`.composer textarea` has carried it since it was written and is fixed with it.
+
+**A stale citation, surfaced rather than found.** `a11y-audit.mjs:411` cited
+`keyboard-focus-map.md:132` for "pick applies optimistically", but 132 is quick
+create's `Esc` row and always was — the menus' row is 140. `citation-guard`
+cannot catch this: it checks that a cited line's *text* has not moved, not that
+the *claim* matches. Rewriting 132 is what made it visible. Re-pointed to 140
+rather than re-pinned at 132.
+
+**Both design docs were edited at the same line count.** 52 citation spans point
+below the § Quick create block, and shifting them is the failure that once left
+160 citations pointing at the wrong prose, so the block was rewritten inside its
+own eight lines and the loop's prose appended at the end — the discipline
+`screen-specs.md` closes by asking for. No line number moved; the lock diff is
+ten re-pinned texts and one re-pointed citation.
+
+### Validation
+
+| | |
+|---|---|
+| `npm run verify` | green |
+| `npm run a11y:audit` | five rows green; A2's three new checks pass, two of the three go red under `--self-test` |
+| `npm run probe:checklist` | 60/60 across 8 sizes — the add-rows it drives are the panel's and full create's, neither of which this touches |
+| Frontend suite | 903 → 921 tests, all green |
+| The real component in WebKit | description 72px empty with a `--lc-line` edge, footer one row at 39px in the order **Open full editor → · Create more · Create `⌘↵`**, `esc` at `tabIndex` −1 |
+
+### Known, and deliberately not fixed here
+
+**A3 of the accessibility audit does not invert.** `npm run a11y:audit
+-- --self-test` reports `A3 passed against a broken build`: the row injects
+`*:focus { outline: none }` — the exact mistake it exists to catch — and still
+passes. This predates LC-201 (confirmed by running it at this branch's point),
+and it is the "blind probe" failure `AGENTS.md` warns about by name. It wants a
+ticket of its own; it is recorded here because this is the run that noticed.

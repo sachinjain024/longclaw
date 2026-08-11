@@ -6,7 +6,7 @@ title: Add Support for creating multiple tickets during "Quick Create” Mode
 status: in_progress
 priority: urgent
 created_at: 2026-08-11T12:45:46.841Z
-updated_at: 2026-08-11T13:31:04.471Z
+updated_at: 2026-08-11T14:07:59.766Z
 ---
 
 User should be able to create multiple tickets during Quick Create Mode. We can enable it by provide a CheckBox / Toggle like “Create More” in the Quick Create mode only.
@@ -57,16 +57,16 @@ Nothing is open. The next step is the implementation.
 
 ## Checklist
 
-- [ ] Add Support for description in Quick Create Mode <!-- longclaw:item=ck_1dea8249 -->
-- [ ] Add Support for Lable in Quick Create Mode <!-- longclaw:item=ck_b58b13db -->
-- [ ] Add "Create More” Checkbox in the Quick Create Mode which is bydefault unchecked <!-- longclaw:item=ck_c166a5e1 -->
-- [ ] In the Follow up Creation Mode, Retain the value of Status, Priority & Label <!-- longclaw:item=ck_cafa4ea2 -->
+- [x] Add Support for description in Quick Create Mode <!-- longclaw:item=ck_1dea8249 -->
+- [x] Add Support for Lable in Quick Create Mode <!-- longclaw:item=ck_b58b13db -->
+- [x] Add "Create More” Checkbox in the Quick Create Mode which is bydefault unchecked <!-- longclaw:item=ck_c166a5e1 -->
+- [x] In the Follow up Creation Mode, Retain the value of Status, Priority & Label <!-- longclaw:item=ck_cafa4ea2 -->
 - [x] Create the Product Spec in docs/plans/active/ with the name LC-XXX-Bulk-Create-In-Quick-Create-Mode.md <!-- longclaw:item=ck_608bdeed -->
-- [ ] Once the task is complete, then move the above plan to docs/plans/completed directory <!-- longclaw:item=ck_30aed702 -->
+- [x] Once the task is complete, then move the above plan to docs/plans/completed directory <!-- longclaw:item=ck_30aed702 -->
 - [x] Add the reference to the plan doc in this ticket. Update the description <!-- longclaw:item=ck_0fd47f92 -->
 - [x] Use the design system to generate a prototype.html inside docs/ux/prototypes/LC=XXX….html <!-- longclaw:item=ck_f6bcba19 -->
-- [ ] Product Spec -> Prototype.HTML Human Review. Wait for it before the implementation <!-- longclaw:item=ck_c7bc2bbf -->
-- [ ] Once you get human review of Prototype.html then start the actual coding of the task <!-- longclaw:item=ck_eb951d8a -->
+- [x] Product Spec -> Prototype.HTML Human Review. Wait for it before the implementation <!-- longclaw:item=ck_c7bc2bbf -->
+- [x] Once you get human review of Prototype.html then start the actual coding of the task <!-- longclaw:item=ck_eb951d8a -->
 - [ ] Ship -> Commit & Merge to main <!-- longclaw:item=ck_0dbbee71 -->
 
 ## Activity
@@ -219,6 +219,40 @@ actor:
   name: Claude Code
 changes:
   - field: description
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_a4ecdd86
+kind: update
+occurred_at: 2026-08-11T14:07:59.766Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_1dea8249.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_b58b13db.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_c166a5e1.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_cafa4ea2.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_c7bc2bbf.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_eb951d8a.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_30aed702.checked
+    from: "false"
+    to: "true"
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->
