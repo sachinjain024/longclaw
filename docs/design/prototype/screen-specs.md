@@ -121,9 +121,9 @@ movement. No custom-color affordance exists anywhere.
 
 - Horizontal scroller, padding 8px 24px 20px, column gap 12px.
 - **Column:** 264px fixed. Header row: status dot 14px + name 13px/500
-  `ink-2` + mono count 11px `ink-3` + hover-revealed `+` (quick create
-  preseeded with that column's status). Card stack gap 8px; each column
-  scrolls independently when tall.
+  `ink-2` + mono count 11px `ink-3` + hover-revealed `+`: quick create
+  preseeded with that column's status, a 24px square target on a 13px glyph
+  (LC-209). Card stack gap 8px; each column scrolls independently when tall.
 - Column order = status order: Backlog · Todo · In Progress · In Review ·
   Done · Canceled — the fixed v0 set; no status creation exists (ADR
   0002). The Canceled column renders only when it has tickets (it is

@@ -83,7 +83,10 @@ export function Timeline(props: TimelineProps) {
         />
       ))}
       {props.pendingComment !== undefined && (
-        <PendingComment body={props.pendingComment} />
+        <PendingComment
+          body={props.pendingComment}
+          asLine={props.commentsAsLines}
+        />
       )}
     </ol>
   );
@@ -207,7 +210,28 @@ function ChangeGlyphMark({ glyph }: { glyph: ChangeGlyph }) {
   );
 }
 
-function PendingComment({ body }: { body: string }) {
+function PendingComment({ body, asLine }: { body: string; asLine?: boolean }) {
+  // Under Activity a comment is the line that says one happened, and the one
+  // still being written is no exception: drawn with its body here, it would
+  // stand full-height among one-liners and then collapse into one the moment
+  // the file came back (LC-211).
+  if (asLine) {
+    return (
+      <li className="timeline-entry change pending">
+        <ul className="entry-changes">
+          <li>
+            <span className="change-glyph" aria-hidden="true">
+              ❝
+            </span>
+            <strong className="change-actor">You</strong>
+            <span>commented</span>
+          </li>
+        </ul>
+        {/* Said in words, so the dimming is not carrying it alone. */}
+        <p className="entry-meta change-meta">just now · posting</p>
+      </li>
+    );
+  }
   return (
     <li className="timeline-entry message pending">
       <div className="entry-heading">
@@ -215,7 +239,6 @@ function PendingComment({ body }: { body: string }) {
           {actorGlyph("human")}
         </span>
         <strong>You</strong>
-        {/* Said in words, so the dimming is not carrying it alone. */}
         <span className="entry-meta">just now · posting</span>
       </div>
       <MarkdownView

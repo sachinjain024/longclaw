@@ -11,6 +11,11 @@
  * What differs between them is what a commit *does*: the panel writes an edit
  * against an item id, and create replaces a string in an array. Neither of those
  * is here. The callbacks are.
+ *
+ * What must not differ is what a gesture *means*, and there is one rule both
+ * callers keep: an empty field leaves the row as it was. A field is where words
+ * are changed and `✕` is where a row is removed, so a field that also deleted
+ * would be two gestures wearing one control.
  */
 
 import { useRef, useState } from "react";

@@ -3065,10 +3065,51 @@ button:disabled {
 }
 
 /* Under the field it posts, at its right edge (`prototype.css:582`) — the end
-   of the thing being written, which is where the eye already is. */
-.composer button {
+   of the thing being written, which is where the eye already is. The row it
+   sits at the end of is `.composer-actions`, which the toolbar shares. */
+
+/* Under the field: the six formatting buttons at the left, the post button at
+   the right (LC-211). One row, so the two controls that follow the field read
+   left to right rather than stacking. */
+.composer-actions {
+  display: flex;
+  gap: var(--lc-space-2);
+  align-items: center;
+  justify-content: space-between;
   grid-column: 2;
-  justify-self: end;
+}
+
+/* Quiet until the composer is in use, which is `.row-actions`' treatment and
+   `.column-add`'s: a toolbar standing under every ticket at full strength is
+   chrome, and one that is *mounted* only while the field has focus is a group
+   Tab can never enter — the blur that would carry focus into it takes the
+   group off the page first. Faded, so it holds its place and its Tab stop. */
+.composer-toolbar {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity var(--lc-motion-fast) var(--lc-motion-ease);
+}
+
+.composer:focus-within .composer-toolbar,
+.composer:hover .composer-toolbar {
+  opacity: 1;
+}
+
+.composer-toolbar button {
+  display: grid;
+  place-items: center;
+  width: var(--lc-size-control-sm);
+  height: var(--lc-size-control-sm);
+  border: 0;
+  border-radius: var(--lc-radius-control);
+  color: var(--lc-ink-3);
+  background: transparent;
+}
+
+.composer-toolbar button:hover {
+  color: var(--lc-ink);
+  background: var(--lc-wash);
 }
 
 /* ------------------------------------------------- raw file view (degraded) */

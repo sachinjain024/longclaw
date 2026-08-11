@@ -294,7 +294,11 @@ describe("nothing here claims the file exists yet", () => {
     );
   });
 
-  it("drops a draft row emptied by the field rather than creating a blank one", () => {
+  /**
+   * The field is where words are changed and `✕` is where a row is removed, in
+   * both surfaces. An empty commit is not a deletion in either.
+   */
+  it("leaves a row alone when the field is emptied rather than deleting it", () => {
     const onCreate = vi.fn();
     render(createPanel({ onCreate }));
     fireEvent.change(screen.getByLabelText("Title"), {
@@ -310,7 +314,7 @@ describe("nothing here claims the file exists yet", () => {
     fireEvent.click(screen.getByText("Create ticket"));
 
     expect(onCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ checklist: ["Second"] }),
+      expect.objectContaining({ checklist: ["First", "Second"] }),
     );
   });
 

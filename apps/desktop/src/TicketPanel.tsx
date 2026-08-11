@@ -41,6 +41,8 @@ import { ConflictBanner } from "./ConflictBanner";
 import { DescriptionEditor } from "./DescriptionEditor";
 import { normalizeError } from "./errors";
 import { FolderGlyph } from "./FolderGlyph";
+import { FormattingToolbar } from "./FormattingToolbar";
+import { applyToolbarAction, type ToolbarAction } from "./markdownToolbar";
 import type { ExternalMark } from "./acknowledgement";
 import { acknowledgementInFull, newlyChecked } from "./acknowledgement";
 import { GhostBox } from "./GhostBox";
@@ -192,14 +194,19 @@ function HistoryTabs(props: {
     { id: "activity", label: "Activity", count: props.activityCount },
     { id: "comments", label: "Comments", count: props.commentCount },
   ];
+  const buttons = useRef(new Map<HistoryTab, HTMLButtonElement>());
   return (
     <div className="panel-tabs" role="tablist" aria-label="Ticket record">
-      {tabs.map(({ id, label, count }) => (
+      {tabs.map(({ id, label, count }, index) => (
         <button
           key={id}
           type="button"
           role="tab"
           id={`tab-${id}`}
+          ref={(node) => {
+            if (node) buttons.current.set(id, node);
+            else buttons.current.delete(id);
+          }}
           className={classes("panel-tab", props.tab === id && "selected")}
           aria-selected={props.tab === id}
           aria-controls={`panel-tab-${id}`}
@@ -207,13 +214,23 @@ function HistoryTabs(props: {
           tabIndex={props.tab === id ? 0 : -1}
           onClick={() => props.onPick(id)}
           onKeyDown={(event) => {
-            if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+            const step =
+              event.key === "ArrowRight"
+                ? 1
+                : event.key === "ArrowLeft"
+                  ? -1
+                  : 0;
+            if (step === 0) return;
             event.preventDefault();
-            const next = tabs[(tabs.findIndex((one) => one.id === id) + 1) % 2];
+            // Wraps in both directions, and counts the tabs rather than
+            // assuming there are two of them.
+            const next = tabs[(index + step + tabs.length) % tabs.length];
             props.onPick(next.id);
             // Selection follows focus, which is the pattern for a tabset whose
-            // panels are already rendered and cost nothing to show.
-            document.getElementById(`tab-${next.id}`)?.focus();
+            // panels are already rendered and cost nothing to show. Focus has
+            // to be moved by hand: the button keeping it is the one this press
+            // just unselected.
+            buttons.current.get(next.id)?.focus();
           }}
         >
           {label}
@@ -810,6 +827,36 @@ export function TicketPanel(props: TicketPanelProps) {
   const titleField = useAutoGrow(titleDraft);
   const commentField = useAutoGrow(commentDraft);
 
+  /**
+   * A formatting button, applied to the comment draft (LC-211).
+   *
+   * The same helper the description editor spends, and the same two-step it
+   * needs: the value is state, so the caret cannot be put back until React has
+   * rendered the new string. `markdownToolbar.ts` is what guarantees the rest of
+   * the draft is untouched on the way past.
+   */
+  const commentSelection = useRef<[number, number]>(undefined);
+  useEffect(() => {
+    const range = commentSelection.current;
+    const field = commentField.current;
+    if (!range || !field) return;
+    commentSelection.current = undefined;
+    field.focus();
+    field.setSelectionRange(range[0], range[1]);
+  }, [commentDraft, commentField]);
+
+  function formatComment(action: ToolbarAction) {
+    const field = commentField.current;
+    if (!field) return;
+    const next = applyToolbarAction(action, {
+      value: field.value,
+      start: field.selectionStart,
+      end: field.selectionEnd,
+    });
+    commentSelection.current = [next.start, next.end];
+    setCommentDraft(next.value);
+  }
+
   const ticket = detail?.ticket;
   /**
    * How many boxes are ticked, counted once. The heading's fraction and the
@@ -863,6 +910,27 @@ export function TicketPanel(props: TicketPanelProps) {
    * itself until it is committed, so a keystroke does not re-render the list.
    */
   const [editingItem, setEditingItem] = useState<string>();
+  /**
+   * A row whose edit button should take focus back, by id.
+   *
+   * Closing the field unmounts the element that holds focus, and focus that
+   * lands on nothing lands on `<body>` — which is the end of the keyboard's
+   * path through the list. The button that opened the field is where the human
+   * was, so it is where they are put back (`keyboard-focus-map.md:11-12`).
+   */
+  const [refocusItem, setRefocusItem] = useState<string>();
+  const checklistRows = useRef<HTMLUListElement>(null);
+  useEffect(() => {
+    if (refocusItem === undefined) return;
+    setRefocusItem(undefined);
+    // Found by reading the attribute rather than by a selector built from an
+    // id: `CSS.escape` is absent in jsdom, and an id the file minted is not a
+    // string this code gets to assume anything about.
+    [...(checklistRows.current?.children ?? [])]
+      .find((row) => row.getAttribute("data-item-id") === refocusItem)
+      ?.querySelector<HTMLElement>(".row-edit")
+      ?.focus();
+  }, [refocusItem]);
 
   /**
    * Writes one row's new wording (LC-215).
@@ -874,6 +942,7 @@ export function TicketPanel(props: TicketPanelProps) {
    */
   function editRow(itemId: string, was: string, text: string) {
     setEditingItem(undefined);
+    setRefocusItem(itemId);
     const next = text.trim();
     if (!next || next === was) return;
     void save(
@@ -902,17 +971,30 @@ export function TicketPanel(props: TicketPanelProps) {
     const item = checklist[index];
     const itemId = item.id;
     if (!itemId) return;
+    // Removing a row must not drop focus on the floor, and the add-row is the
+    // one control that is always there — the same answer create gives.
+    addField.current?.focus();
+    /**
+     * The row it sat after, or the top of the list. A row above that the file
+     * has minted no id for cannot be named, and a restore that quietly said
+     * "top" instead would put the row somewhere it never was — so the removal
+     * still happens and it is the *undo* that is not offered.
+     */
+    const above = checklist[index - 1];
+    const addressable = index === 0 || above?.id !== undefined;
     void save(
       { removeChecklistItem: itemId },
       {
         toast: `${ticketKey} removed · ${item.text}`,
-        inverse: {
-          restoreChecklistItem: {
-            text: item.text,
-            after: checklist[index - 1]?.id ?? null,
-            checked: isChecked(item),
-          },
-        },
+        inverse: addressable
+          ? {
+              restoreChecklistItem: {
+                text: item.text,
+                after: above?.id ?? null,
+                checked: isChecked(item),
+              },
+            }
+          : undefined,
         inverseToast: `${ticketKey} restored · ${item.text}`,
       },
     );
@@ -1396,6 +1478,7 @@ export function TicketPanel(props: TicketPanelProps) {
             </h3>
             <ul
               className="checklist"
+              ref={checklistRows}
               onDragStart={pickUpRow}
               onDragOver={overRow}
               onDrop={dropRow}
@@ -1667,17 +1750,37 @@ export function TicketPanel(props: TicketPanelProps) {
                   }
                 }}
               />
-              {/* ⌘↵ posts, so the button is the second way in rather than the
-                  first, and it arrives with the text it would post (LC-107). A
-                  disabled button standing over an empty field was a control
-                  that could never be pressed and a Tab stop that led nowhere;
-                  the quiet variant is the one the prototype gives this exact
-                  control (`prototype.js:753`, `btn btn-secondary btn-sm`). */}
-              {commentDraft.trim() ? (
-                <button tabIndex={0} className="secondary small" type="submit">
-                  Comment
-                </button>
-              ) : null}
+              <div className="composer-actions">
+                {/* A comment is Markdown — the timeline renders it as Markdown,
+                    and until LC-211 nothing on the way in said so. The same six
+                    buttons the description editor has, over the same helper.
+
+                    Always mounted and faded rather than mounted on focus, which
+                    is what `.row-actions` and `.column-add` do and for a reason
+                    this one learned the hard way: a group that unmounts on the
+                    field's blur is a group `Tab` can never reach, because the
+                    blur that would carry focus into it takes it off the page
+                    first. The accessibility audit's A1 walk found it. */}
+                <FormattingToolbar
+                  className="composer-toolbar"
+                  onFormat={formatComment}
+                />
+                {/* ⌘↵ posts, so the button is the second way in rather than the
+                    first, and it arrives with the text it would post (LC-107). A
+                    disabled button standing over an empty field was a control
+                    that could never be pressed and a Tab stop that led nowhere;
+                    the quiet variant is the one the prototype gives this exact
+                    control (`prototype.js:753`, `btn btn-secondary btn-sm`). */}
+                {commentDraft.trim() ? (
+                  <button
+                    tabIndex={0}
+                    className="secondary small"
+                    type="submit"
+                  >
+                    Comment
+                  </button>
+                ) : null}
+              </div>
             </form>
           </section>
         </>

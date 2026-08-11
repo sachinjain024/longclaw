@@ -1042,10 +1042,16 @@ impl TicketDocument {
                 }
                 let indent = &line[..line.len() - line.trim_start().len()];
                 let box_marker = if item.checked { "- [x] " } else { "- [ ] " };
-                let ending = if line.ends_with('\n') { "\n" } else { "" };
-                Some(format!(
-                    "{indent}{box_marker}{text} {ITEM_MARKER_OPEN}{item_id} {ITEM_MARKER_CLOSE}{ending}"
-                ))
+                // Everything from the id marker to the end of the line, taken
+                // whole: the marker itself, and whatever somebody wrote after
+                // it. Only the words between the box and the marker are this
+                // edit's business, and a line rendered fresh from the parser's
+                // pieces would drop the rest of it on the floor.
+                let tail = line
+                    .find(ITEM_MARKER_OPEN)
+                    .map(|open| &line[open..])
+                    .unwrap_or("");
+                Some(format!("{indent}{box_marker}{text} {tail}"))
             });
         }
     }
@@ -2611,6 +2617,31 @@ mod tests {
         assert_eq!(event.changes[0].field, "checklist.ck_0002.text");
         assert_eq!(event.changes[0].from.as_deref(), Some("second"));
         assert_eq!(event.changes[0].to.as_deref(), Some("second, reworded"));
+    }
+
+    /// The line is one line and only part of it is this edit's business: the
+    /// words change and everything from the id marker rightwards is carried
+    /// across untouched, including whatever a hand or another tool left there.
+    #[test]
+    fn editing_an_item_carries_the_rest_of_its_line_across() {
+        let raw = TICKET.replace(
+            "- [ ] first <!-- longclaw:item=ck_0001 -->\n",
+            "  - [ ] first <!-- longclaw:item=ck_0001 --> <!-- x-note: keep me -->\n",
+        );
+        let (rendered, next) = apply_to(
+            TicketDocument::parse(&raw, "LC-1").expect("the annotated fixture should parse"),
+            TicketEdit {
+                edit_checklist_item: Some(ChecklistTextEdit {
+                    item_id: "ck_0001".to_owned(),
+                    text: "first, reworded".to_owned(),
+                }),
+                ..TicketEdit::default()
+            },
+        );
+        assert!(rendered.contains(
+            "  - [ ] first, reworded <!-- longclaw:item=ck_0001 --> <!-- x-note: keep me -->\n"
+        ));
+        assert_eq!(next.ticket().checklist[0].text, "first, reworded");
     }
 
     #[test]

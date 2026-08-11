@@ -791,6 +791,64 @@ describe("editing and removing a checklist row (LC-215)", () => {
     });
   });
 
+  /**
+   * Closing the field unmounts what holds focus, and focus that lands on
+   * nothing lands on `<body>` — the end of the keyboard's path through the
+   * list.
+   */
+  it("puts focus back on the row's own button after a commit", async () => {
+    render(surface());
+    await screen.findByLabelText("Let an agent read this ticket");
+
+    const field = edit("Let an agent read this ticket");
+    fireEvent.change(field, { target: { value: "Let an agent read it" } });
+    fireEvent.submit(field.closest("form")!);
+
+    await waitFor(() =>
+      expect(document.activeElement?.getAttribute("aria-label")).toBe(
+        "Edit Let an agent read this ticket",
+      ),
+    );
+  });
+
+  it("puts focus on the add-row after a removal, not on the floor", async () => {
+    render(surface());
+    await screen.findByLabelText("Review what it changed");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove Review what it changed" }),
+    );
+
+    expect(document.activeElement?.getAttribute("aria-label")).toBe(
+      "Add a checklist item",
+    );
+  });
+
+  /**
+   * A restore names the row it followed. An agent's plain Markdown task has no
+   * id to be named by, so a removal under one cannot say where the row goes
+   * back — and "top of the list" would be a place it never was.
+   */
+  it("removes without offering undo when the row above cannot be named", async () => {
+    readTicketMock.mockResolvedValue(
+      detail({
+        checklist: [
+          { text: "Appended by an agent", checked: false },
+          { id: "ck_2", text: "Review what it changed", checked: false },
+        ],
+      }),
+    );
+    render(surface());
+    await screen.findByLabelText("Review what it changed");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove Review what it changed" }),
+    );
+
+    await screen.findByText(/LC-1 removed · Review what it changed/);
+    expect(screen.queryByRole("button", { name: /Undo/ })).toBeNull();
+  });
+
   it("names no neighbour when the row that went was the first one", async () => {
     render(surface());
     await screen.findByLabelText("Let an agent read this ticket");
@@ -950,7 +1008,7 @@ describe("the activity and comments tabs (LC-211)", () => {
    * has to be on screen under whichever tab is open — a count that named an
    * entry the reader cannot see is the argument LC-109 settled.
    */
-  it("shows the posting comment under Activity as well", async () => {
+  it("shows the posting comment under Activity, as the line it will become", async () => {
     editTicketMock.mockReturnValue(new Promise<WriteResult>(() => {}));
     render(surface());
     await ready();
@@ -959,7 +1017,14 @@ describe("the activity and comments tabs (LC-211)", () => {
     fireEvent.change(field, { target: { value: "Posting under Activity." } });
     fireEvent.keyDown(field, { key: "Enter", metaKey: true });
 
-    expect(document.querySelector(".timeline-entry.pending")).toBeTruthy();
+    const pending = document.querySelector(".timeline-entry.pending");
+    expect(pending).toBeTruthy();
+    // Compact, like every other comment on this tab — drawn with its body it
+    // would stand full-height among one-liners and then collapse into one the
+    // moment the file came back.
+    expect(pending?.className).toContain("change");
+    expect(pending?.textContent).not.toContain("Posting under Activity.");
+    expect(tabCount("Activity")).toBe("2");
     expect(tabCount("Comments")).toBe("2");
   });
 
@@ -987,6 +1052,66 @@ describe("the activity and comments tabs (LC-211)", () => {
 
     expect(tab("Activity").getAttribute("tabindex")).toBe("0");
     expect(tab("Comments").getAttribute("tabindex")).toBe("-1");
+  });
+
+  /**
+   * "Inside the comments section, user should be able to write markdown
+   * content" (LC-211). The timeline has always rendered a comment as Markdown;
+   * nothing on the way in said so until the composer got the six buttons the
+   * description editor has.
+   */
+  it("offers the formatting buttons under the composer, always reachable", async () => {
+    render(surface());
+    await ready();
+
+    const toolbar = document.querySelector(".composer-toolbar");
+    expect(toolbar).toBeTruthy();
+    // Mounted whether or not the field has focus. It is quiet until the
+    // composer is in use, and that is the stylesheet's job — a group that
+    // unmounted on blur would be one Tab could never enter, because the blur
+    // that would carry focus into it takes the group off the page first.
+    expect(toolbar?.querySelectorAll("button")).toHaveLength(6);
+    expect(
+      toolbar
+        ?.querySelector('button[tabindex="0"]')
+        ?.getAttribute("aria-label"),
+    ).toBe("Bold");
+  });
+
+  it("wraps the composer's selection rather than the rest of the draft", async () => {
+    render(surface());
+    await ready();
+
+    const field = screen.getByLabelText("Comment") as HTMLTextAreaElement;
+    fireEvent.change(field, { target: { value: "make this bold please" } });
+    field.setSelectionRange(10, 14);
+    fireEvent.focus(field);
+    fireEvent.click(screen.getByRole("button", { name: "Bold" }));
+
+    expect(
+      (screen.getByLabelText("Comment") as HTMLTextAreaElement).value,
+    ).toBe("make this **bold** please");
+  });
+
+  it("posts what the toolbar wrote", async () => {
+    editTicketMock.mockResolvedValue(writeResult());
+    render(surface());
+    await ready();
+
+    const field = screen.getByLabelText("Comment") as HTMLTextAreaElement;
+    fireEvent.change(field, { target: { value: "todo" } });
+    field.setSelectionRange(0, 4);
+    fireEvent.focus(field);
+    fireEvent.click(screen.getByRole("button", { name: "Task list" }));
+    fireEvent.keyDown(screen.getByLabelText("Comment"), {
+      key: "Enter",
+      metaKey: true,
+    });
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(1));
+    expect(editTicketMock.mock.calls[0][0].edit).toEqual({
+      comment: "- [ ] todo",
+    });
   });
 
   it("says the ticket's history is incomplete under Activity, where the record is", async () => {
@@ -1411,6 +1536,9 @@ describe("the panel's honesty about the file", () => {
     );
     render(surface());
     await ready();
+    // Under Comments, where a comment is drawn with its body: Activity draws
+    // this one as the line it will become (LC-211).
+    fireEvent.click(screen.getByRole("tab", { name: /^Comments/ }));
 
     const field = screen.getByLabelText("Comment");
     fireEvent.change(field, { target: { value: "Looks right to me." } });
@@ -2468,8 +2596,9 @@ describe("the description editor (V0-12)", () => {
       "ariaSelected",
       "true",
     );
-    // Six, no more and no fewer (`screen-specs.md:234-235`).
-    const toolbar = screen.getByRole("toolbar", { name: "Formatting" });
+    // Six, no more and no fewer (`screen-specs.md:234-235`). Scoped to the
+    // editor's own: the composer below has the same six now (LC-211).
+    const toolbar = document.querySelector(".editor-toolbar")!;
     expect(
       Array.from(toolbar.querySelectorAll("button")).map((button) =>
         button.getAttribute("aria-label"),
@@ -2560,7 +2689,12 @@ describe("the description editor (V0-12)", () => {
     const textarea = await openTheEditor("alpha beta gamma");
     textarea.setSelectionRange(6, 10);
 
-    fireEvent.click(screen.getByRole("button", { name: "Bold" }));
+    // The editor's Bold, not the composer's: both are on screen (LC-211).
+    fireEvent.click(
+      document.querySelector<HTMLButtonElement>(
+        '.editor-toolbar button[aria-label="Bold"]',
+      )!,
+    );
 
     expect(textarea.value).toBe("alpha **beta** gamma");
   });

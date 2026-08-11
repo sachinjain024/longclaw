@@ -106,21 +106,32 @@ export function CreatePanel(props: CreatePanelProps) {
 
   /** The row being retyped, by position — a draft row has no id to name. */
   const [editingRow, setEditingRow] = useState<number>();
+  /** A row whose edit button should take focus back, by position. */
+  const [refocusRow, setRefocusRow] = useState<number>();
+  useEffect(() => {
+    if (refocusRow === undefined) return;
+    setRefocusRow(undefined);
+    const buttons = rows.current?.querySelectorAll<HTMLElement>(".row-edit");
+    buttons?.[refocusRow]?.focus();
+  }, [refocusRow]);
 
   /**
-   * Replaces one draft row's text (LC-215). Emptying it removes the row: a
-   * blank row is not a task, and the panel would otherwise have to carry one to
-   * `create` and let Rust refuse the whole ticket over it.
+   * Replaces one draft row's text (LC-215). An empty field leaves the row as it
+   * was — the same answer the panel gives, and the reason is the same one: a
+   * field is where words are changed and `✕` is where a row is removed, so a
+   * field that also deleted would be two gestures wearing one control.
    */
   function editRow(index: number, text: string) {
     setEditingRow(undefined);
+    // Closing the field unmounts what holds focus, and focus on nothing is
+    // focus on `<body>` — the end of the keyboard's path through the list. The
+    // button that opened it is where the human was.
+    setRefocusRow(index);
     const next = text.trim();
+    if (!next) return;
     setChecklist((rows) =>
-      next
-        ? rows.map((row, position) => (position === index ? next : row))
-        : rows.filter((_, position) => position !== index),
+      rows.map((row, position) => (position === index ? next : row)),
     );
-    if (!next) addItem.current?.focus();
   }
 
   /** Takes a draft row off the list. Nothing is written; nothing was. */

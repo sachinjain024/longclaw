@@ -122,10 +122,11 @@ export function changeLines(
   context: ChangeContext = {},
 ): ChangeLine[] {
   const lines = event.changes.map((change) => describeChange(change, context));
-  // A comment reaches here only from the Activity tab, which draws it as the
-  // line that says one happened and leaves the words to the Comments tab
-  // (LC-211). It carries no field changes, so without this it would fall
-  // through to "updated this ticket" and describe itself as the wrong thing.
+  // What a comment says when it is being described as a change rather than
+  // drawn as one: that somebody commented (LC-211). It carries no field changes
+  // of its own, so without this it would fall through to "updated this ticket"
+  // and describe itself as the wrong thing. The words are the entry's body, and
+  // whether they are on screen is the caller's question, not this one's.
   if (isComment(event.kind)) {
     return [{ glyph: char("❝"), text: "commented" }, ...lines];
   }

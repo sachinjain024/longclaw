@@ -17,9 +17,9 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { MarkdownView } from "./MarkdownView";
-import { FormattingIcon } from "./FormattingIcon";
+import { FormattingToolbar } from "./FormattingToolbar";
 import type { ToolbarAction } from "./markdownToolbar";
-import { applyToolbarAction, TOOLBAR_ACTIONS } from "./markdownToolbar";
+import { applyToolbarAction } from "./markdownToolbar";
 
 const TABS = [
   { id: "write", label: "Write" },
@@ -67,12 +67,8 @@ export function DescriptionEditor(props: DescriptionEditorProps) {
   /** The other arm, for the one prop only create mode has. */
   const creating = props.writeOnly === true ? props : undefined;
   const [tab, setTab] = useState<Tab>("write");
-  // Roving tabindex on both groups, so the panel's tab order reaches the
-  // textarea in three presses rather than nine (`keyboard-focus-map.md:61`).
-  const [activeTool, setActiveTool] = useState(0);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const toolRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   // Entering edit puts the caret at the end (`keyboard-focus-map.md:91`). In
   // create mode there is nothing to enter — the editor is simply on screen, and
@@ -132,17 +128,6 @@ export function DescriptionEditor(props: DescriptionEditorProps) {
     }
   }
 
-  function onToolbarKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    const step =
-      event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
-    if (step === 0) return;
-    event.preventDefault();
-    const count = TOOLBAR_ACTIONS.length;
-    const next = (activeTool + step + count) % count;
-    setActiveTool(next);
-    toolRefs.current[next]?.focus();
-  }
-
   /**
    * Esc cancels the edit and stops there. Without this it reaches the panel's
    * document listener and closes the whole panel, which is not what
@@ -195,31 +180,9 @@ export function DescriptionEditor(props: DescriptionEditorProps) {
             ))}
           </div>
         )}
-        <div
-          className="editor-toolbar"
-          role="toolbar"
-          aria-label="Formatting"
-          onKeyDown={onToolbarKeyDown}
-        >
-          {TOOLBAR_ACTIONS.map((action, index) => (
-            <button
-              key={action.id}
-              type="button"
-              aria-label={action.label}
-              // A formatting button over a read-only projection has nothing to
-              // act on.
-              disabled={tab !== "write"}
-              tabIndex={index === activeTool ? 0 : -1}
-              ref={(element) => {
-                toolRefs.current[index] = element;
-              }}
-              onFocus={() => setActiveTool(index)}
-              onClick={() => format(action.id)}
-            >
-              <FormattingIcon action={action.id} />
-            </button>
-          ))}
-        </div>
+        {/* A formatting button over a read-only projection has nothing to act
+            on, so Preview disables the group rather than hiding it. */}
+        <FormattingToolbar onFormat={format} disabled={tab !== "write"} />
       </div>
 
       {/* With no tabstrip there is no tab for a panel to be labelled by, so in
