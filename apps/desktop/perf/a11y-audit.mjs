@@ -112,6 +112,9 @@ const focused = (page) =>
       // takes its name from the label around it, so it has neither an
       // `aria-label` nor text of its own to be recognised by (LC-185).
       itemId: element.closest?.(".checklist-row")?.dataset?.itemId,
+      // Quick create's **Create more**, recognised the same way and for the
+      // same reason (LC-201): it is a checkbox named by the label around it.
+      inCreateMore: !!element.closest?.(".create-more"),
       box: { x: box.x, y: box.y, width: box.width, height: box.height },
     };
   });
@@ -405,7 +408,7 @@ async function auditLifecycle(browser) {
         "picking a status moves the card across columns",
         before !== after && after !== "",
         `${before.trim()} → ${after.trim()}`,
-        "keyboard-focus-map.md:132 — pick applies optimistically",
+        "keyboard-focus-map.md:140 — pick applies optimistically",
       );
     }
 
@@ -656,6 +659,64 @@ async function auditFocusOrder(browser) {
       `focus=${afterSettings.label || afterSettings.className || afterSettings.tag}`,
       "keyboard-focus-map.md:166 — settings returns focus to its opener",
     );
+
+    // Quick create's Create more loop → the emptied title field (LC-201).
+    //
+    // The whole of this feature is a focus claim that jsdom cannot make: the
+    // modal stays up and the caret goes back to the title rather than to the
+    // new card. It is here rather than in A1 because it is a focus-return
+    // question, and because A2's self-test — every programmatic `focus()`
+    // becomes a no-op — is exactly the injury that breaks it.
+    await page.keyboard.press("c");
+    await settle(page);
+    // The walk is what says the box is reachable at all; WebKit skips
+    // checkboxes with macOS *Keyboard navigation* off, which is the half of
+    // `tab-order-guard.mjs` that hid in the checklist rows until LC-185.
+    const toCheckbox = await tabTo(page, (at) => at.inCreateMore === true, 12);
+    check(
+      "Tab reaches the Create more checkbox in quick create",
+      toCheckbox.found,
+      `${toCheckbox.presses} Tab presses → ${toCheckbox.found ? ".create-more input" : toCheckbox.at.className || toCheckbox.at.tag}`,
+      "keyboard-focus-map.md:133 — the modal's Tab order",
+    );
+    // `esc` is pointer-only by design: its keyboard path is the key it is named
+    // after, so a walk that reaches it is a walk that says the order grew a
+    // stop in front of the title.
+    const escInWalk = await page.evaluate(
+      () => document.querySelector(".quick-create-esc")?.tabIndex,
+    );
+    check(
+      "`esc` is a control but not a tab stop",
+      escInWalk === -1,
+      `tabIndex=${escInWalk}`,
+      "keyboard-focus-map.md:133 — every pointer action has a keyboard path, not a stop",
+    );
+    await page.keyboard.press("Space");
+    await settle(page);
+    // Back to the title the way a human would, then file one.
+    await page.keyboard.press("Shift+Tab");
+    for (let back = 0; back < 8; back += 1) {
+      const at = await focused(page);
+      if (at.label === "Title") break;
+      await page.keyboard.press("Shift+Tab");
+    }
+    await page.keyboard.type(`Bulk ${Date.now() % 100_000}`);
+    await page.keyboard.press("Meta+Enter");
+    await settle(page);
+    const inRun = await focused(page);
+    const emptied = await page.evaluate(
+      () => document.querySelector(".quick-create-title")?.value,
+    );
+    check(
+      "Create more keeps the modal up with the caret back in an emptied title",
+      (await visible(page, "form.quick-create-modal")) &&
+        inRun.label === "Title" &&
+        emptied === "",
+      `modal=${await visible(page, "form.quick-create-modal")} focus=${inRun.label || inRun.className || inRun.tag} title="${emptied}"`,
+      "keyboard-focus-map.md:164 — the created row, and the run's exception to it",
+    );
+    await page.keyboard.press("Escape");
+    await settle(page);
   } finally {
     await context.close();
   }

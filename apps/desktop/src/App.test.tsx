@@ -572,7 +572,9 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
       await openBoard();
 
       fireEvent.click(screen.getAllByText("New ticket")[0]);
-      fireEvent.change(titleField(), { target: { value: "Needs a checklist" } });
+      fireEvent.change(titleField(), {
+        target: { value: "Needs a checklist" },
+      });
       fireEvent.change(screen.getByLabelText("Description"), {
         target: { value: "Which lives over there." },
       });

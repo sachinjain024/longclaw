@@ -252,14 +252,14 @@ movement. No custom-color affordance exists anywhere.
 
 ## Quick create (`C` or palette)
 
-- 620px modal at 12vh. Row 1: mono context line `project · KEY-n` (the next
-  key, allocated on create). Row 2: borderless 15px title input. Row 3: status
-  trigger (defaults Todo; preseeded from a column `+`) then priority trigger
-  (defaults None) — the meta grid's order (LC-186). Footer: ghost **Open full
-  editor →** (carries all three), mono hints `↵ create · esc cancel`, **Create**.
-- Enter creates optimistically: card appears at top of its column, toast
-  `LC-n created` with Undo (`⌘Z`), modal closes, focus moves to the new
-  card. Creating never blocks on the disk write.
+- 620px modal at 12vh. Row 1: mono context `project · KEY-n` (the next key,
+  allocated on create) and `esc`. Row 2: borderless 15px title input. Row 3:
+  description. Row 4: status (defaults Todo; preseeded from a column `+`),
+  priority (defaults None), labels — the meta grid's order (LC-186, LC-201).
+  Footer: **Open full editor →** (carries all five), **Create more**, **Create** (`⌘↵`).
+- `↵` from the title or `⌘↵` from anywhere creates optimistically: card appears
+  at top of its column, toast `LC-n created` with Undo (`⌘Z`), modal closes,
+  focus moves to the new card. Creating never blocks on the disk write.
 
 ## Full create
 
@@ -394,3 +394,40 @@ across the repo, including the app's own source comments. The `NOT IN V0`
 markers above were written to occupy exactly the lines they replaced, and this
 section was appended at the end, so no citation moved. Prefer the same
 discipline over inserting prose mid-document.
+
+## Quick create's Create more loop (LC-201)
+
+Appended at the end for the reason the editing note above gives: the § Quick
+create rows were rewritten in place at the same line count, and this is the
+prose that would not fit in them.
+
+- **The two fields the modal grew.** The **description** is three lines to
+  start, growing with what is typed, capped so a long one scrolls itself rather
+  than pushing the footer off the modal — the app's existing markdown field, not
+  the Write/Preview editor, whose tabstrip and six formatting buttons belong to
+  full create. It takes the field box the title does not: at three lines an
+  unframed block reads as a gap. **Labels** are the project's own menu and never
+  a text box; V0-16 removed a comma-separated field, not the field itself, and a
+  slug `LabelMenuButton` produces is a slug `longclaw.yaml` carries. **The
+  checklist stays in full create** — draft rows, drag reordering and an add-row
+  that has to stay on screen are the shape of a surface you sit in.
+- **`esc` at the right of the context row is a control, not a chip.** The word,
+  in the eyebrow's register, and clicking it closes the modal. Quick create has
+  no **Cancel** and its scrim does not dismiss, so before it there was no exit
+  that was not a create. It is not a tab stop: its keyboard path is the key it
+  is named after.
+- **Create more is off on every open and is never persisted.** It is a mode for
+  the run in front of you, not a preference: a create surface that quietly
+  stayed in bulk mode would be one that files a ticket you thought you were
+  cancelling.
+- **With it ticked, Create writes the same optimistic ticket and then the modal
+  stays.** Title and description clear; status, priority and labels are kept,
+  because a run almost always shares them. The context line advances to the next
+  free key, and focus returns to the title.
+- **Focus never follows the card on that path.** Not optimistically, and not
+  when the write returns — which during a run is while the next ticket's title
+  is being typed, where a stolen caret reads as dropped keystrokes rather than
+  as a focus bug.
+- **Undo is still one deep** (`data-requirements.md:121`), so after a run of ten
+  `⌘Z` archives the tenth. A bulk surface invites the assumption of a bulk undo;
+  this is not one.

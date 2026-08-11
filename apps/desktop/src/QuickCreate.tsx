@@ -1,12 +1,23 @@
 /**
- * Quick create: title, status and priority, and nothing else
+ * Quick create: title, description, status, priority and labels — and a loop
  * (`screen-specs.md:253-262`).
  *
  * It used to ask for six fields, which made it the only create surface and made
  * it the wrong one — labels in particular were a comma-separated text box, typed
  * against definitions the project keeps in `longclaw.yaml` and the app has had a
- * real menu for since V0-10. Everything past those three now lives in full
- * create, and **Open full editor →** carries what has been typed there.
+ * real menu for since V0-10. V0-16 cut it to title and status, LC-186 put
+ * priority back, and LC-201 put description and labels back with it.
+ *
+ * **That last one is not the narrowing being undone.** Labels were cut because
+ * the *control* was wrong, and `LabelMenuButton` cannot produce a slug
+ * `longclaw.yaml` does not define, so the menu re-introduces nothing. The
+ * description was cut to keep quick create quick, which holds for one ticket
+ * and stops holding under **Create more**: a bulk run is where someone has
+ * eight small things in their head at once, and a line each is the difference
+ * between eight tickets an agent can start on and eight titles somebody has to
+ * reopen and explain. **The checklist stays in full create** — it is the one of
+ * the three whose case does not change, because draft rows, drag reordering and
+ * an add-row that has to stay on screen are the shape of a surface you sit in.
  *
  * **Priority is here because urgency is known when the ticket is thought of**
  * (LC-186). V0-16's narrowing kept status alone, and the cost was that every
@@ -14,13 +25,12 @@
  * to the panel for a fact the person filing it already had. It is the same
  * `MenuButton` over the same `PRIORITY_OPTIONS` as the panel and full create,
  * so there is one priority vocabulary in the app and quick create does not
- * introduce a second. What it is *not* is a door to the rest: labels,
- * description and checklist stay in full create, where the menus and drafts
- * that make them safe already are.
+ * introduce a second.
  *
  * The key is not asked for. Rust allocates it from the project's own directory
  * names, so two creations cannot claim the same one; the context line shows the
- * next one as a guess.
+ * next one as a guess — and during a run it counts up, because it is read off
+ * the rows on screen and the last create put one there.
  */
 
 import { useRef, useState } from "react";

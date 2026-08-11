@@ -128,9 +128,9 @@ rule; the list's Archived show/hide toggle is a focusable header button).
 
 | Key | Action |
 |---|---|
-| `Enter` | Create ticket → toast + Undo; focus moves to the new card |
-| `Esc` | Cancel, focus returns |
-| `Tab` | Title → status trigger → priority trigger → Open full editor → Create |
+| `Enter` · `⌘↵` | Create ticket → toast + Undo; focus moves to the new card. `Enter` from the title, `⌘↵` from anywhere (a description needs its newlines) |
+| `Esc` | Cancel, focus returns — as does the `esc` control at the top right, which is a button but never a tab stop |
+| `Tab` | Title → description → status → priority → labels → Open full editor → Create more → Create |
 
 ## Menus (status / priority / ordering / labels)
 
@@ -161,7 +161,7 @@ swatches (radio group, arrows move, space selects) → Create → Back.
 | Ticket panel | The card/row that opened it (survives re-render) |
 | Menu | Its trigger (meta row) or the focused card (single-key path) |
 | Palette | Whatever held focus before `⌘K` |
-| Quick create (created) | The new ticket's card |
+| Quick create (created) | The new ticket's card — or, with **Create more** ticked, the emptied title field, and focus never follows the card even when the write returns (LC-201) |
 | Quick create (canceled) | Prior focus |
 | Settings / waitlist / confirm / raw view | The opener (gear, footer button, degraded card) |
 | Folder picker (create flow) | The create form's name field |

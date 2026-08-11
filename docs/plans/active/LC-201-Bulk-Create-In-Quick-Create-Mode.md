@@ -165,7 +165,7 @@ the retention working, not the preseed leaking.
 ## `↵` when there is a textarea in the modal, and where the bindings are said
 
 Today the modal is a `<form>` and `↵` in the title input submits it; the hints
-say `↵ create · esc cancel` (`screen-specs.md:258-259`). A textarea does not submit
+said `↵ create · esc cancel`. A textarea does not submit
 on `↵` and must not — a description is markdown and needs its newlines. So the
 binding grows a second half, the one full create already has:
 

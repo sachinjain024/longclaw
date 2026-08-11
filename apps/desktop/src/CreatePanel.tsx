@@ -81,7 +81,9 @@ export function CreatePanel(props: CreatePanelProps) {
     props.initialPriority ?? "none",
   );
   const [labels, setLabels] = useState<string[]>(props.initialLabels ?? []);
-  const [description, setDescription] = useState(props.initialDescription ?? "");
+  const [description, setDescription] = useState(
+    props.initialDescription ?? "",
+  );
   const [checklist, setChecklist] = useState<string[]>([]);
   const [newItem, setNewItem] = useState("");
   /**

@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 
 /**
- * Quick create after V0-16 narrowed it and LC-186 widened it by one: title,
- * status and priority, and a door to the surface that owns everything else
- * (`screen-specs.md:253-262`).
+ * Quick create after V0-16 narrowed it, LC-186 widened it by one and LC-201
+ * widened it by two more and gave it a loop: title, description, status,
+ * priority and labels, a **Create more** checkbox, and a door to the surface
+ * that owns the checklist (`screen-specs.md:253-262`).
  */
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
