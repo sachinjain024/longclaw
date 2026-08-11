@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: af38e556-925f-447f-8af4-45e77414380c
 key: LC-177
 title: quick-create-guard reads declarations without a left boundary and misreports its count
-status: todo
+status: done
 priority: p3
 rank: a1
 labels:
   - frontend
 created_at: 2026-08-07T14:38:34.947Z
-updated_at: 2026-08-08T23:56:06.688Z
+updated_at: 2026-08-11T17:09:27Z
 ---
 
 Two defects in `apps/desktop/scripts/quick-create-guard.mjs`, both in the same
@@ -45,9 +45,9 @@ A two-axis review (standards + spec) of `fix/lc-113-lc-115-quick-create` against
 
 ## Checklist
 
-- [ ] Add the (?<![\w-]) left boundary to the declaration regex, matching what glyph-drift-guard already does. <!-- longclaw:item=ck_ca60e82e -->
-- [ ] Report the number of declarations actually checked rather than a hardcoded 2. <!-- longclaw:item=ck_ce367b4a -->
-- [ ] Lift the shared declaration reader into guard.mjs so the boundary is fixed once for both guards. <!-- longclaw:item=ck_74af1b9d -->
+- [x] Add the (?<![\w-]) left boundary to the declaration regex, matching what glyph-drift-guard already does. <!-- longclaw:item=ck_ca60e82e -->
+- [x] Report the number of declarations actually checked rather than a hardcoded 2. <!-- longclaw:item=ck_ce367b4a -->
+- [x] Lift the shared declaration reader into guard.mjs so the boundary is fixed once for both guards. <!-- longclaw:item=ck_74af1b9d -->
 
 ## Activity
 
@@ -125,4 +125,111 @@ Half of this ticket's title is no longer true, and the file it names no longer e
 Item 2 is left unticked on purpose. The number is still a literal rather than a count of the assertions — ten `requireDeclaration` calls stand behind a hand-written `4` — so it can go stale again the next time a row is added, which is exactly the failure that produced the original `2`. What has changed is that it is not wrong today.
 
 The other two items stand verbatim in the renamed file. `requireDeclaration` still builds ``new RegExp(`${property}\s*:\s*([^;]+)`, "g")`` with no left boundary (`create-surface-guard.mjs:39-41`), so a `border` assertion would still match a `-webkit-border-*` longhand and report clean; and `glyph-drift-guard.mjs` still carries its own `fromRules` with the `(?<![\w-])` this one lacks, so the seam the Approach section names is still two readers rather than one in `guard.mjs`. The boundary is the live half of this ticket.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_5c1d90ab
+kind: update
+occurred_at: 2026-08-11T16:55:00Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: in_review
+-->
+### Claude Code updated this ticket
+
+`declaredValues(rules, selector, property)` is now the one reader, in
+`guard.mjs` beside `declarationsOf`, and it carries the `(?<![\w-])` boundary.
+`create-surface-guard.mjs` had none and now takes it from there;
+`glyph-drift-guard.mjs`'s `fromRules` had its own copy and is now three lines
+over the shared one, so the boundary exists once rather than twice.
+
+The count is a count. `requireDeclaration` increments as it reads, and `report`
+takes that with `noun: "declarations"` — the gate prints "10 declarations clean"
+against the hand-written `4` the last comment left standing, and it moves on its
+own the next time a row is added.
+
+The boundary is proved rather than asserted: replacing `.quick-create-title`'s
+`padding: 0` with `scroll-padding: 0` used to satisfy the D-47 assertion and now
+fails it by name. `scripts/guard.test.mjs` pins that case and seven others —
+the vendor prefix, the longhand standing beside the property it shadows, both
+empty readings, and the descendant selector `declarationsOf` already refuses.
+
+Left alone deliberately: the pass line still names D-47, D-48, D-49 and D-4A in
+prose, so a fifth row would need that sentence edited. That is a smaller lie
+than the number was — the sentence is beside the assertions it describes — but
+it is the same kind, and it is not what this ticket was filed against.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_9b3e21c7
+kind: comment
+occurred_at: 2026-08-11T17:02:06Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+A two-axis review of the branch against `main` returned four things worth
+acting on, and one correction to the entry above.
+
+**The correction.** "The boundary exists once rather than twice" is true of the
+declaration reader and not of the file: `glyph-drift-guard.mjs`'s `attr` still
+carries its own `(?<![\w-])`, and should — it reads markup attributes, where the
+`width` inside `stroke-width` is the case it was written for, and CSS
+declarations are not what it parses. One reader was merged, not two.
+
+**The row list counts itself now.** The last entry left that standing as a
+smaller lie than the number had been; the review named it the same shape of
+drift this ticket was filed against, which is the more honest reading. The
+prototype-diff row is an argument to `requireDeclaration` rather than the first
+word of its `reason`, and the pass line joins the set the assertions built —
+"D-47, D-48, D-49, D-4A CSS contracts hold" is now derived end to end. Nothing
+in the `report` call is written down beside the thing it describes.
+
+**The happy path walks the rules once.** `declaredValues` calls
+`declarationsOf` itself, so asking whether the selector had a rule *first* read
+the sheet twice per assertion. The no-rule question is now asked only when the
+value is already wrong, which is the path that exits anyway.
+
+**Deliberately out of scope.** Two more readers of this shape exist and neither
+is a defect: `card-height-guard.mjs`'s `declaration()` anchors with `(?:^|;)`,
+which is stricter than the shared boundary rather than weaker, so moving it onto
+`declaredValues` would loosen it; and `stacking-guard.mjs` reads a fixed
+`z-index:` with no boundary, which is safe because no CSS property ends in
+`z-index`. Both are noted here rather than changed.
+
+The tests are the one thing in the branch this ticket did not ask for — the
+`/implement` run was told to work test-first, and `scripts/guard.test.mjs` is
+where that landed. They pin the false-pass the description spells out.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_7d40e6b2
+kind: update
+occurred_at: 2026-08-11T17:09:27Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### Claude Code updated this ticket
+
+Merged to `main` as `fix/lc-177-declaration-boundary`, two commits: the shared
+reader and the boundary, then the review's findings.
+
+`npm run verify` green on both — every guard clean, 911 tests across 37 files,
+the native watcher round trip passing. The gate now prints "10 declarations
+clean — D-47, D-48, D-49, D-4A CSS contracts hold", and both halves of that
+sentence are counted rather than written down.
 <!-- /longclaw:event -->

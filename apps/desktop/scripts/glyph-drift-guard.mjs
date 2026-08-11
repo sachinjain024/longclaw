@@ -65,7 +65,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { cssRules, declarationsOf, report } from "./guard.mjs";
+import { cssRules, declaredValues, report } from "./guard.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(here, "../../..");
@@ -322,10 +322,8 @@ function firstClass(markup) {
 /** `name: value` from the first of these selectors that declares it. */
 function fromRules(rules, selectors, name) {
   for (const selector of selectors) {
-    const declared = declarationsOf(rules, selector).match(
-      new RegExp(`(?<![\\w-])${name}\\s*:\\s*([^;]+)`),
-    );
-    if (declared) return declared[1].trim();
+    const [declared] = declaredValues(rules, selector, name);
+    if (declared !== undefined) return declared;
   }
   return null;
 }

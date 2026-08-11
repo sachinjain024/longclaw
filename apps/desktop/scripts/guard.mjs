@@ -121,6 +121,30 @@ export function declarationsOf(rules, selector) {
     .join(";");
 }
 
+/**
+ * Every value one selector declares for `property`, in source order.
+ *
+ * The name may not be preceded by a word character *or a hyphen*: `\b` alone
+ * matches the `padding` inside `scroll-padding` and the `border` inside
+ * `-webkit-border-before`, so a guard asserting the shorthand would be
+ * satisfied by a longhand and report clean over a declaration that had drifted.
+ *
+ * `glyph-drift-guard.mjs` (LC-111) learned that boundary in its own reader and
+ * `create-surface-guard.mjs` (LC-113) was written without it (LC-177). Both
+ * want the same sentence out of `declarationsOf` — find `property: value` —
+ * so the boundary lives here once rather than in each caller, which is where
+ * one of the two would go on missing it.
+ *
+ * A scanner, not a parser: a value runs to the next `;`, which is what both
+ * callers' declarations look like.
+ */
+export function declaredValues(rules, selector, property) {
+  const pattern = new RegExp(`(?<![\\w-])${property}\\s*:\\s*([^;]+)`, "g");
+  return [...declarationsOf(rules, selector).matchAll(pattern)].map(
+    ([, value]) => value.trim(),
+  );
+}
+
 /** `{ path, text, lines }` for one file, read once. */
 export function readSource(file) {
   const text = readFileSync(file, "utf8");
