@@ -126,7 +126,7 @@ nothing. Treat registered files as immutable: replacement means a new id.
 ```md
 ---
 format: longclaw.ticket/v1
-id: fdff88b2-cc82-4814-ac1d-1019a68b1a6e
+id: eb7a6224-9510-4f75-9e23-5d052737702a
 key: LC-1
 title: An example of the shape you are editing
 status: todo
@@ -139,12 +139,12 @@ The description is ordinary CommonMark.
 
 ## Checklist
 
-- [ ] An example task <!-- longclaw:item=ck_a62ef188 -->
+- [ ] An example task <!-- longclaw:item=ck_ce77555f -->
 
 ## Activity
 
 <!-- longclaw:event
-id: evt_4fb10e0a
+id: evt_cc17fecc
 kind: create
 occurred_at: 2026-07-29T00:00:00Z
 actor:

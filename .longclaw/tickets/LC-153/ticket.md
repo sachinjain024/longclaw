@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 39fda5f0-97b9-4895-8fbc-6c7ba879a08a
 key: LC-153
 title: Cross-cutting — native textarea resize grabbers are visible on the panel title, the comment composer, and the create-mode title
-status: in_review
+status: done
 priority: p2
 labels:
   - frontend
   - prototype-diff
 created_at: 2026-08-05T15:16:01.952Z
-updated_at: 2026-08-07T12:15:03.412Z
+updated_at: 2026-08-11T11:32:58.090Z
 ---
 
 **Finding.** Native textarea **resize grabbers** are visible on the panel title, the comment composer, and the create-mode title
@@ -55,4 +55,19 @@ changes:
 ### Claude Code updated this ticket
 
 Fixed: the create-mode title was the third field D-73 named, and the only one still clipping. The panel's title and composer had lost the grabber *and* gained an auto-grow (LC-108, LC-107); this one wears the same `.panel-title` rule, so it had `resize: none` over `overflow: hidden` and nothing sizing it — a long title disappeared into a two-row box. `useAutoGrow` moved to `autoGrow.ts` and the create title takes a ref from it; `rows` drops to 1, which it always meant. The description editor keeps its handle, as the spec says. `field-guard.mjs` now counts a call per field per component, so one CSS rule serving two components cannot half-apply again, and a test drives the growth with a stubbed `scrollHeight` since jsdom lays nothing out.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_fecea41f
+kind: update
+occurred_at: 2026-08-11T11:32:58.090Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

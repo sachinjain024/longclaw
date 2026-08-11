@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 1eac57ce-e258-4ba4-9e63-5c2d2c65913a
 key: LC-161
 title: "Workspace restoration was untestable: no localStorage in the test environment, and a catch that hid it"
-status: in_review
+status: done
 priority: p2
 labels:
   - frontend
   - platform
 created_at: 2026-08-06T13:58:51.187Z
-updated_at: 2026-08-06T13:59:11.079Z
+updated_at: 2026-08-11T11:33:43.605Z
 ---
 
 `agrees after a restart` (`App.test.tsx`, the V0-14 suite) failed on `main` from
@@ -138,4 +138,19 @@ Fixed on `fix/lc-161-test-localstorage`.
 `agrees after a restart` passes, and it passes for the right reason: the sole change that turned it green was giving the environment a working store. `npm run verify` is green at 562 tests, up one — the new case is a global that answers `undefined`, which is what actually happens here and what the existing 'storage disabled' test, a getter that throws, did not cover.
 
 The last item is left open on purpose. The narrowing has no behavioural seam — both paths degrade identically by design — so nothing at the module's surface can distinguish them, and whether an unpersistable session should announce itself is a product decision rather than a cleanup.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_081aedb1
+kind: update
+occurred_at: 2026-08-11T11:33:43.605Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

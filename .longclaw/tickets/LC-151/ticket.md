@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 9611513f-f3ca-46f4-8cf8-b102b3cb1cd7
 key: LC-151
 title: Cross-cutting — the open project is not restored on relaunch — it always falls back to the first registry entry
-status: in_review
+status: done
 priority: p2
 labels:
   - frontend
   - prototype-diff
 created_at: 2026-08-05T15:16:01.913Z
-updated_at: 2026-08-07T12:15:50.371Z
+updated_at: 2026-08-11T11:33:01.424Z
 ---
 
 **Finding.** **The open project is not restored on relaunch** — it always falls back to the first registry entry
@@ -59,4 +59,19 @@ Fixed with LC-150, and worth separating from it on cause. This one's cause is on
 So what LC-151 adds is that the value LC-49 started writing outlives the process by construction. The remembered id is part of the device-preferences document Rust keeps; it is still an opaque hint and not a second project reference, so startup asks the registry whether it is real and reachable before opening anything, which is the condition ADR 0006 attached to it and ADR 0012 keeps.
 
 Verified on the packaged bundle, since a relaunch with two projects registered is what this ticket is about: with the second project remembered, the app comes up on the second project; with nothing remembered, it opens the first registry entry and records it — the control that proves the file reflects which project actually opened. In the suite it is a test rather than a manual pass: the process forgets what it holds and reads the document again.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_e86b32f2
+kind: update
+occurred_at: 2026-08-11T11:33:01.424Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

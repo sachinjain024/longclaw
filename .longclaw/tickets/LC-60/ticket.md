@@ -3,10 +3,10 @@ format: longclaw.ticket/v1
 id: 57cb02e6-9e0d-49a7-bd3a-b2fbeb61d66c
 key: LC-60
 title: Can’t drag and drop the tickets between lanes
-status: in_review
+status: done
 priority: urgent
 created_at: 2026-08-05T14:42:42.594Z
-updated_at: 2026-08-07T09:07:10.433Z
+updated_at: 2026-08-11T11:29:53.800Z
 ---
 
 A card could not be dragged out of the column it was in. There were two causes, one in the board and one in the window, and only the first was visible from inside the code.
@@ -152,4 +152,19 @@ actor:
 ### Claude Code commented
 
 The board half is confirmed working in the app. The list half is not, and is now LC-174 — with a WebKit probe (`perf/drag-probe.mjs`) that shows the list accepting the drop in the engine, so the difference is something only the running app has.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_8c40ac74
+kind: update
+occurred_at: 2026-08-11T11:29:53.800Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

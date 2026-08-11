@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 68e8e508-b948-49a8-9d3f-b4c565d13473
 key: LC-187
 title: A Manual drop while a filter is on ranks only the rows that match
-status: in_review
+status: done
 priority: p3
 rank: Zw
 labels:
   - frontend
 created_at: 2026-08-09T00:57:08.052Z
-updated_at: 2026-08-11T11:23:42.154Z
+updated_at: 2026-08-11T11:32:17.479Z
 ---
 
 Found in LC-174's review, and not introduced by it.
@@ -103,4 +103,19 @@ Nothing about the *paint* changed: the drop line is still drawn in the gap the p
 - `npm run perf:list` — p95 17/18/23/17ms, within budget
 
 The two probe cases refuse to report on a column the query did not leave with a hidden row above the gap, or on one the surface is only drawing a window of — a filtered run over a solid column would pass whatever the app did.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_7e6d5c50
+kind: update
+occurred_at: 2026-08-11T11:32:17.479Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

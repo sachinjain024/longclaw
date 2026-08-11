@@ -3,12 +3,12 @@ format: longclaw.ticket/v1
 id: 13610936-d7c7-446f-9fe4-033eda2eea28
 key: LC-188
 title: Switching Project when Editor view is open leads to weird state
-status: in_review
+status: done
 priority: urgent
 labels:
   - frontend
 created_at: 2026-08-09T01:03:22.252Z
-updated_at: 2026-08-09T03:56:53.333Z
+updated_at: 2026-08-11T11:31:05.725Z
 ---
 
 Lets say I am on Project 1, I open the editor to create a ticket and then I switch the project from side pane and then I click on Create, it creates the ticket in different project.
@@ -126,4 +126,19 @@ Two untested paths the review named are covered now: full create across a switch
 One thing standing, for whoever picks this up: the prompt fires at **Create**, not at the switch. The switch itself is now visible in the surface — the context line re-labels to the new project and says `opening…` — but nobody is asked anything until they commit. Reading the request the other way (a question at the moment the sidebar is clicked) is a different interaction and was not built.
 
 Also found and fixed in passing: `screen-specs.md:214` is the ticket panel's geometry, not full create's ending. Four comments cited it; three predate this branch. Other stale citations in the same family are still out there (`CreatePanel.tsx:2` says `209-216`, its `initialTitle` says `202`) and were left alone.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_6ab700a7
+kind: update
+occurred_at: 2026-08-11T11:31:05.725Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### You updated this ticket
 <!-- /longclaw:event -->
