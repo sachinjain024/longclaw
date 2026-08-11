@@ -1050,12 +1050,16 @@ button:disabled {
    gives these buttons a keyboard path. It holds its place in the header either
    way, so revealing it moves nothing.
 
-   Square at the shared small-control size rather than the prototype's 3px of
-   padding around a 13px glyph, which came out a 19px target — under the 24px
-   floor every other control in the app already sits on, and the smallest thing
-   on the board by some way (LC-209). The glyph is unchanged; only the box it is
-   centred in grew, so the header reads as it did and the hover wash is now a
-   square rather than a sliver. */
+   The target is the shared small-control size rather than the prototype's 3px
+   of padding around a 13px glyph, which came out 19px — under the 24px floor
+   every other control in the app sits on, and the smallest thing on the board
+   by some way (LC-209).
+
+   **Nothing draws that box.** The size is hit area and hit area only: no fill,
+   no border, no press wash, so what is on screen is the glyph and the glyph is
+   what changes — `ink-3` at rest, `ink` under the pointer. A wash behind it
+   made a square appear beside a column heading that has no other box in it, and
+   the reason to grow the control was never to draw one. */
 .column-add {
   display: inline-flex;
   width: var(--lc-size-control-sm);
@@ -1063,13 +1067,13 @@ button:disabled {
   align-items: center;
   justify-content: center;
   margin-left: auto;
-  border-radius: var(--lc-radius-control);
+  border: 0;
   padding: 0;
   color: var(--lc-ink-3);
+  background: transparent;
   opacity: 0;
   transition:
     opacity var(--lc-motion-fast) var(--lc-motion-ease),
-    background var(--lc-motion-fast) var(--lc-motion-ease),
     color var(--lc-motion-fast) var(--lc-motion-ease);
 }
 
@@ -1081,15 +1085,14 @@ button:disabled {
   opacity: 1;
 }
 
+/* The glyph carries every state this control has, since it is the whole of
+   what is drawn: darker under the pointer, darker still while it is held. */
 .column-add:hover {
   color: var(--lc-ink);
-  background: var(--lc-wash);
 }
 
-/* The press feedback `.ghost` already spends, which is the class this control
-   would carry if it carried one. */
 .column-add:active {
-  background: var(--lc-line-soft);
+  color: var(--lc-accent-human-text);
 }
 
 /* Each column scrolls independently (screen-specs.md § Board), and the height it

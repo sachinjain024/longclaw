@@ -122,8 +122,8 @@ movement. No custom-color affordance exists anywhere.
 - Horizontal scroller, padding 8px 24px 20px, column gap 12px.
 - **Column:** 264px fixed. Header row: status dot 14px + name 13px/500
   `ink-2` + mono count 11px `ink-3` + hover-revealed `+`: quick create
-  preseeded with that column's status, a 24px square target on a 13px glyph
-  (LC-209). Card stack gap 8px; each column scrolls independently when tall.
+  preseeded with that column's status; a bare 13px glyph, no fill or border, in
+  a 24px hit area (LC-209). Card stack gap 8px; columns scroll independently.
 - Column order = status order: Backlog · Todo · In Progress · In Review ·
   Done · Canceled — the fixed v0 set; no status creation exists (ADR
   0002). The Canceled column renders only when it has tickets (it is
@@ -243,8 +243,8 @@ movement. No custom-color affordance exists anywhere.
   components.md § Checklist: reorderable (LC-185), rewordable and deletable (LC-215).
   Add-row: ghost checkbox + borderless input, Enter appends, focus stays.
 - **Activity · Comments:** two tabs over one record (LC-211). Activity is
-  selected on open and holds every entry per components.md § Timeline, a
-  comment among them as a one-line `commented`; Comments holds the bodies alone, and the composer sits under both. Sorted by time with ID
+  first and holds every entry per components.md § Timeline, a comment among
+  them as a one-line `commented`; Comments is selected on open and holds the bodies alone. The composer sits under both. Sorted by time with ID
   tie-break. Composer: avatar + auto-growing field, `⌘↵` posts, posting is
   optimistic.
 - **Conflict banner** renders pinned above the title when an external edit

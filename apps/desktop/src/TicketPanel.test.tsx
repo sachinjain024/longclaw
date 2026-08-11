@@ -932,18 +932,22 @@ describe("the activity and comments tabs (LC-211)", () => {
   }
 
   /**
-   * Activity opens, because the whole point of this panel is that an agent's
-   * changes arrive in it while somebody is looking at it. A panel that opened on
-   * a tab those changes are not on would hide its own subject.
+   * Comments opens and Activity is the tab beside it: the conversation is what
+   * a ticket is usually opened for, and the record is one click away rather
+   * than gone. The composer belongs to the section rather than to either tab,
+   * so it is under both either way.
    */
-  it("opens on Activity, with the composer under it", async () => {
+  it("opens on Comments, with Activity first and one click away", async () => {
     render(surface());
     await ready();
 
-    expect(tab("Activity").getAttribute("aria-selected")).toBe("true");
-    expect(tab("Comments").getAttribute("aria-selected")).toBe("false");
-    // The composer belongs to the section rather than to either tab, so
-    // commenting on what an agent just did costs no click.
+    expect(tab("Comments").getAttribute("aria-selected")).toBe("true");
+    expect(tab("Activity").getAttribute("aria-selected")).toBe("false");
+    // First in the DOM, so it is first in the reading order and first by Tab.
+    const names = [...document.querySelectorAll('[role="tab"]')].map((one) =>
+      one.textContent?.replace(/\d+$/, ""),
+    );
+    expect(names).toEqual(["Activity", "Comments"]);
     expect(screen.getByLabelText("Comment")).toBeTruthy();
   });
 
@@ -953,6 +957,7 @@ describe("the activity and comments tabs (LC-211)", () => {
     );
     render(surface());
     await ready();
+    fireEvent.click(tab("Activity"));
 
     // Both records are here — the change in full, the comment as the line that
     // says one happened, which is what a log of what happened owes it.
@@ -970,9 +975,7 @@ describe("the activity and comments tabs (LC-211)", () => {
     render(surface());
     await ready();
 
-    fireEvent.click(tab("Comments"));
-
-    // The person's words, in full.
+    // The person's words, in full — this is the tab the panel opens on.
     expect(screen.getByText("Starting on this.")).toBeTruthy();
     // The agent's status change is not a comment and is not here.
     expect(screen.queryByText(/In Progress/)).toBeNull();
@@ -983,7 +986,7 @@ describe("the activity and comments tabs (LC-211)", () => {
     render(surface());
     await ready();
 
-    fireEvent.click(tab("Comments"));
+    fireEvent.click(tab("Activity"));
 
     expect(screen.getByLabelText("Comment")).toBeTruthy();
   });
@@ -995,8 +998,8 @@ describe("the activity and comments tabs (LC-211)", () => {
     fireEvent.change(screen.getByLabelText("Comment"), {
       target: { value: "Halfway through a thought" },
     });
-    fireEvent.click(tab("Comments"));
     fireEvent.click(tab("Activity"));
+    fireEvent.click(tab("Comments"));
 
     expect(
       (screen.getByLabelText("Comment") as HTMLTextAreaElement).value,
@@ -1016,6 +1019,7 @@ describe("the activity and comments tabs (LC-211)", () => {
     const field = screen.getByLabelText("Comment");
     fireEvent.change(field, { target: { value: "Posting under Activity." } });
     fireEvent.keyDown(field, { key: "Enter", metaKey: true });
+    fireEvent.click(tab("Activity"));
 
     const pending = document.querySelector(".timeline-entry.pending");
     expect(pending).toBeTruthy();
@@ -1032,14 +1036,14 @@ describe("the activity and comments tabs (LC-211)", () => {
     render(surface());
     await ready();
 
-    tab("Activity").focus();
-    fireEvent.keyDown(tab("Activity"), { key: "ArrowRight" });
-
-    expect(tab("Comments").getAttribute("aria-selected")).toBe("true");
-    expect(document.activeElement).toBe(tab("Comments"));
-
+    tab("Comments").focus();
     fireEvent.keyDown(tab("Comments"), { key: "ArrowLeft" });
+
     expect(tab("Activity").getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(tab("Activity"));
+
+    fireEvent.keyDown(tab("Activity"), { key: "ArrowRight" });
+    expect(tab("Comments").getAttribute("aria-selected")).toBe("true");
   });
 
   /**
@@ -1050,8 +1054,8 @@ describe("the activity and comments tabs (LC-211)", () => {
     render(surface());
     await ready();
 
-    expect(tab("Activity").getAttribute("tabindex")).toBe("0");
-    expect(tab("Comments").getAttribute("tabindex")).toBe("-1");
+    expect(tab("Comments").getAttribute("tabindex")).toBe("0");
+    expect(tab("Activity").getAttribute("tabindex")).toBe("-1");
   });
 
   /**
@@ -1121,9 +1125,9 @@ describe("the activity and comments tabs (LC-211)", () => {
     render(surface());
     await ready();
 
-    expect(screen.getByText(/history is incomplete/)).toBeTruthy();
-    fireEvent.click(tab("Comments"));
     expect(screen.queryByText(/history is incomplete/)).toBeNull();
+    fireEvent.click(tab("Activity"));
+    expect(screen.getByText(/history is incomplete/)).toBeTruthy();
   });
 });
 
@@ -1452,6 +1456,10 @@ describe("the panel's honesty about the file", () => {
       detail({ activity: [humanEvent(), agentEvent()] }),
     );
     render(panel());
+    await ready();
+    // Under Activity, which is where an agent's change entry lives: Comments
+    // is the tab the panel opens on and holds comment bodies alone (LC-211).
+    fireEvent.click(screen.getByRole("tab", { name: /^Activity/ }));
 
     // The agent's record is an `update`, so it is a change entry: the rail and
     // the provenance, its status change as a sentence, and its note below.
@@ -1483,6 +1491,7 @@ describe("the panel's honesty about the file", () => {
     );
     render(panel());
     await ready();
+    fireEvent.click(screen.getByRole("tab", { name: /^Activity/ }));
 
     // The panel offers no assignee anywhere: not as a meta row, not as a
     // control, not as a word.
@@ -1536,9 +1545,6 @@ describe("the panel's honesty about the file", () => {
     );
     render(surface());
     await ready();
-    // Under Comments, where a comment is drawn with its body: Activity draws
-    // this one as the line it will become (LC-211).
-    fireEvent.click(screen.getByRole("tab", { name: /^Comments/ }));
 
     const field = screen.getByLabelText("Comment");
     fireEvent.change(field, { target: { value: "Looks right to me." } });
