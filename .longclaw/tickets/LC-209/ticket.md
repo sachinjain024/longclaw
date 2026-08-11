@@ -42,3 +42,17 @@ changes:
 
 The description was empty, so this was read as: the + is the smallest control on the board and the only one under the 24px target floor (it was 19px — a 13px glyph in 3px of padding). It is now a 24px square with the glyph centred, a press state matching .ghost, and it reveals on :focus rather than :focus-visible alone, because a button reached by pointer kept focus while invisible. The hover-reveal screen-specs.md asks for is unchanged, and that line now names the target. If you meant something else by 'improve the styling' — persistent rather than hover-revealed, a different glyph, a different weight — say so and I will take it further.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_5ef32a89
+kind: comment
+occurred_at: 2026-08-11T23:18:43.381Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Reworked on your note: no box around the +. The 24px was only ever meant to be hit area and had been drawing itself — a wash on hover, a darker one on press. Nothing draws it now: no fill, no border, no press wash. The glyph carries every state instead — ink-3 at rest, ink under the pointer, the human accent while held — and the 24px target stays, since it costs nothing to look at. screen-specs.md § Board says so.
+<!-- /longclaw:event -->

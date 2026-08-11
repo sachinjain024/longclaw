@@ -179,10 +179,10 @@ type HistoryTab = "comments" | "activity";
  * already use, and the one a screen reader announces as a set rather than as two
  * unrelated buttons.
  *
- * Activity is first and selected on open, because it is the whole record and
- * this panel's reason for existing is that an agent's changes arrive in it while
- * somebody is looking. Comments is the same stream with everything that is not
- * somebody's words taken out. The composer sits under both.
+ * Activity is first and Comments is selected: the record is the wider thing and
+ * reads first, and the conversation is what a ticket is usually opened for. The
+ * composer sits under both, so the two orders are a choice about what is on
+ * screen rather than about what is reachable.
  */
 function HistoryTabs(props: {
   tab: HistoryTab;
@@ -331,9 +331,9 @@ export function TicketPanel(props: TicketPanelProps) {
   /**
    * Which half of the record is showing (LC-211). Panel state rather than a
    * preference: it is a question about the ticket in front of the human, and
-   * the next ticket opens on the composer the same way this one did.
+   * the next ticket opens on the conversation the same way this one did.
    */
-  const [historyTab, setHistoryTab] = useState<HistoryTab>("activity");
+  const [historyTab, setHistoryTab] = useState<HistoryTab>("comments");
   /**
    * Whether a write of this panel's is out. One hash means one edit at a time,
    * and this is what every save is refused against.

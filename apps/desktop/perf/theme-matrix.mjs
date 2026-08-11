@@ -223,7 +223,6 @@ const STATES = [
       ".timeline-entry.agent .entry-heading strong",
       ".agent-badge",
       ".entry-meta",
-      ".change-actor",
       ".checklist label",
       // LC-97 and LC-98: both took `--lc-tile`, the one background token that
       // is near-black in *both* appearances, and left their ink to
@@ -280,6 +279,25 @@ const STATES = [
         b: { selector: ".markdown a", property: "color" },
       },
     ],
+  },
+  {
+    // The other half of the panel's timeline (LC-211). A change entry's
+    // anatomy — the actor name in its own accent, the badge beside it — is
+    // drawn under Activity, and the message anatomy above is drawn under
+    // Comments, so neither tab can report on both and the states are two.
+    name: "panel-activity",
+    contrast: [".change-actor", ".agent-badge", ".entry-meta"],
+    token: [
+      {
+        // The agent's own, not any actor's: `.change-actor` is the name on
+        // every change entry and a person's wears ink (`styles.css:3013`).
+        // The accent contract is about the one the agent wrote.
+        selector: ".timeline-entry.agent .change-actor",
+        property: "color",
+        token: "--lc-accent-agent-text",
+      },
+    ],
+    distinct: [],
   },
   {
     name: "menu",
@@ -695,8 +713,18 @@ try {
       await page.waitForSelector(".ticket-row");
 
       await page.click(".ticket-row");
+      // The panel opens on Comments (LC-211), which is where the message
+      // anatomy is: the tile, the name heading, the body and its code.
       await page.waitForSelector(".timeline-entry.agent");
       await check(state("panel"));
+
+      // And the change anatomy is under Activity — a comment is one line
+      // there, so the actor name in the agent accent is on a change entry or
+      // it is nowhere.
+      await page.click('[role="tab"]:has-text("Activity")');
+      await page.waitForSelector(".change-actor");
+      await check(state("panel-activity"));
+      await page.click('[role="tab"]:has-text("Comments")');
 
       await page.click(".meta-grid .menu-trigger");
       await page.waitForSelector(".menu-popover");
