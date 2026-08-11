@@ -111,8 +111,21 @@ wrong one here. Its tabstrip and six formatting buttons are nine controls, and
 this modal is meant to be crossed in a few presses of Tab; its Preview tab
 projects a file that does not exist yet; and a toolbar is an invitation to
 compose, which is the opposite of what a bulk run is. The bytes are the same
-markdown either way — nothing here normalizes the string — and the ticket that
-wants the toolbar has a door to it in the same footer.
+markdown either way, and the ticket that wants the toolbar has a door to it in
+the same footer.
+
+**Both create surfaces trim the description, and this one keeps doing that.**
+`CreatePanel.tsx:193` has sent `description.trim()` since V0-16, so quick create
+sending anything else would make the two surfaces disagree about the same field
+of the same file. What `DescriptionEditor` promises is narrower than "nothing is
+touched" and is worth stating precisely: **the textarea holds the raw string and
+nothing round-trips it through the parser** — the value saved is the value typed,
+never a re-render of the parsed tree (`DescriptionEditor.tsx:6-11`). Trimming the
+ends is not that. Nothing markdown means survives at the ends of a document
+anyway: a trailing hard break is two spaces before a newline that has no line
+after it, and leading blank lines render as nothing. If that ever stops being
+true, it changes for both surfaces at once, in `CreateTicketRequest`'s writer —
+not in one of them.
 
 ## The Create more loop
 
@@ -381,7 +394,7 @@ ten re-pinned texts and one re-pointed citation.
 | `npm run verify` | green |
 | `npm run a11y:audit` | five rows green; A2's three new checks pass, two of the three go red under `--self-test` |
 | `npm run probe:checklist` | 60/60 across 8 sizes — the add-rows it drives are the panel's and full create's, neither of which this touches |
-| Frontend suite | 903 → 921 tests, all green |
+| Frontend suite | 903 green, 22 of them new — `QuickCreate.test.tsx` 14 → 29, `App.test.tsx` 169 → 176 |
 | The real component in WebKit | description 72px empty with a `--lc-line` edge, footer one row at 39px in the order **Open full editor → · Create more · Create `⌘↵`**, `esc` at `tabIndex` −1 |
 
 ### Known, and deliberately not fixed here

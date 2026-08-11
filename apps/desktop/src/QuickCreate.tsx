@@ -42,6 +42,7 @@ import { ThemeDot } from "./ThemeSwatch";
 import type {
   CreateTicketRequest,
   Label,
+  TicketDraft,
   TicketPriority,
   TicketStatus,
 } from "./types";
@@ -102,13 +103,7 @@ interface QuickCreateProps {
    * getting there costs nothing — so it is the one place two of them must not
    * quietly go missing.
    */
-  onOpenFullEditor: (draft: {
-    title: string;
-    description: string;
-    status: TicketStatus;
-    priority: TicketPriority;
-    labels: string[];
-  }) => void;
+  onOpenFullEditor: (draft: TicketDraft) => void;
 }
 
 export function QuickCreate(props: QuickCreateProps) {

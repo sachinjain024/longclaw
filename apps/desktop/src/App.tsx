@@ -80,6 +80,7 @@ import type {
   HeldConflict,
   IndexedTicket,
   ProjectReference,
+  TicketDraft,
   TicketEdit,
   TicketPriority,
   TicketStatus,
@@ -241,13 +242,7 @@ export function App() {
    * `+` chooses a status and nothing else (LC-186). Absent means "nobody said",
    * and each surface's own default answers it.
    */
-  const [carriedDraft, setCarriedDraft] = useState<{
-    title: string;
-    description?: string;
-    status: TicketStatus;
-    priority?: TicketPriority;
-    labels?: string[];
-  }>();
+  const [carriedDraft, setCarriedDraft] = useState<TicketDraft>();
   /**
    * The project the open create surface was raised in.
    *
@@ -1863,7 +1858,17 @@ export function App() {
                     // arriving with the column it was pressed in already
                     // chosen (`keyboard-focus-map.md:44`).
                     onCreateInStatus={(status) => {
-                      setCarriedDraft({ title: "", status });
+                      // A whole draft, empty but for the column: "nothing
+                      // typed yet" is `""` and `[]` rather than absent, which
+                      // is what keeps one shape between the preseed and the
+                      // draft the door carries back.
+                      setCarriedDraft({
+                        title: "",
+                        description: "",
+                        status,
+                        priority: "none",
+                        labels: [],
+                      });
                       setCreateSurface("quick");
                     }}
                     onCreateFirst={guide}
@@ -2005,11 +2010,7 @@ export function App() {
           <CreatePanel
             provisionalKey={nextKey}
             labels={project.labels}
-            initialTitle={carriedDraft?.title}
-            initialDescription={carriedDraft?.description}
-            initialStatus={carriedDraft?.status}
-            initialPriority={carriedDraft?.priority}
-            initialLabels={carriedDraft?.labels}
+            initialDraft={carriedDraft}
             onCancel={closeCreateSurface}
             onCreate={(request) =>
               submitNewTicket(request, { openPanel: true })
