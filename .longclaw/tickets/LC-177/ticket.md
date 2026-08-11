@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: af38e556-925f-447f-8af4-45e77414380c
 key: LC-177
 title: quick-create-guard reads declarations without a left boundary and misreports its count
-status: in_review
+status: done
 priority: p3
 rank: a1
 labels:
   - frontend
 created_at: 2026-08-07T14:38:34.947Z
-updated_at: 2026-08-11T17:02:06Z
+updated_at: 2026-08-11T17:09:27Z
 ---
 
 Two defects in `apps/desktop/scripts/quick-create-guard.mjs`, both in the same
@@ -208,4 +208,28 @@ which is stricter than the shared boundary rather than weaker, so moving it onto
 The tests are the one thing in the branch this ticket did not ask for — the
 `/implement` run was told to work test-first, and `scripts/guard.test.mjs` is
 where that landed. They pin the false-pass the description spells out.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_7d40e6b2
+kind: update
+occurred_at: 2026-08-11T17:09:27Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### Claude Code updated this ticket
+
+Merged to `main` as `fix/lc-177-declaration-boundary`, two commits: the shared
+reader and the boundary, then the review's findings.
+
+`npm run verify` green on both — every guard clean, 911 tests across 37 files,
+the native watcher round trip passing. The gate now prints "10 declarations
+clean — D-47, D-48, D-49, D-4A CSS contracts hold", and both halves of that
+sentence are counted rather than written down.
 <!-- /longclaw:event -->
