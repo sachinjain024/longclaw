@@ -21,10 +21,19 @@
  * A group no status names — the synthetic unreadable one, the list's archived
  * one — takes nothing: there is no field a drop there could write. Neither does
  * a file this build cannot read, which has no frontmatter to write into.
+ *
+ * **A drop is decided over the whole group, not the drawn one (LC-187).** The
+ * surfaces are handed the rows a filter left (`App.tsx`), so the group they draw
+ * is a subset and the gap the pointer chose counts only the rows that matched. A
+ * rank allocated over that subset sorts the card above every hidden row that has
+ * none — rows the human never saw and did not move — so clearing the query showed
+ * an order nobody chose. So the pointer arrives in the terms the surface drew it
+ * in and is mapped here onto the whole group, which is what `unfiltered` is for.
  */
 
-import type { Seat, StatusGroup } from "./grouping";
+import { groupByStatus, type Seat, type StatusGroup } from "./grouping";
 import {
+  comparatorFor,
   rankForDrop,
   rankForInsert,
   type OrderingMode,
@@ -32,7 +41,7 @@ import {
   type RankPlan,
 } from "./ordering";
 import { isArchived } from "./tickets";
-import type { IndexedTicket, TicketStatus } from "./types";
+import type { IndexedTicket, TicketRow, TicketStatus } from "./types";
 
 /**
  * What a drop asks for: the group it landed in when that is not the one it came
@@ -107,25 +116,33 @@ export function takesDrop(
  * nothing, so a drop that would write nothing is never raised as one that
  * would. The ticket comes back with the move so a caller has no second chance
  * to disagree about which one it was.
+ *
+ * `unfiltered` is every row the project holds, drawn or not. Absent, the drawn
+ * group is taken to be the whole one — which is true whenever no query is on,
+ * and is what every caller but the two surfaces means.
  */
 export function moveForDrop(
   groups: StatusGroup[],
   from: Seat | undefined,
   spot: DropSpot,
   ordering: OrderingMode,
+  unfiltered?: TicketRow[],
 ): TicketDrop | undefined {
   const ticket = movable(groups, from);
   if (!ticket || !from || !takesDrop(groups, from, spot.group, ordering))
     return;
-  const landing = groups[spot.group];
+  const drawn = groups[spot.group];
+  // The group behind the one on screen, and the pointer in its terms.
+  const landing = wholeGroup(drawn, ordering, unfiltered);
+  const gap = gapInWhole(drawn.tickets, landing, spot.gap);
 
   if (from.group === spot.group) {
     // Back in its own group: a place in it, and only in Manual (ADR 0003).
-    const plan = rankForDrop(landing.tickets, ticket.key, spot.gap);
+    const plan = rankForDrop(landing, ticket.key, gap);
     return plan === undefined ? undefined : { ticket, move: asMove(plan) };
   }
   // `takesDrop` has already refused a group no status names.
-  const status = landing.status as TicketStatus;
+  const status = drawn.status as TicketStatus;
 
   return {
     ticket,
@@ -133,11 +150,61 @@ export function moveForDrop(
       status,
       // Priority allocates no rank, here as anywhere: the order inside the
       // group it arrives in is not something the human chose by dropping there.
-      ...(ordering === "manual"
-        ? asMove(rankForInsert(landing.tickets, spot.gap))
-        : {}),
+      ...(ordering === "manual" ? asMove(rankForInsert(landing, gap)) : {}),
     },
   };
+}
+
+/**
+ * The whole group behind the one the surface drew, in the order it is drawn in.
+ *
+ * Bucketed by `groupByStatus` rather than by filtering on the status field, so
+ * the rules about which group a row belongs to are stated once: a degraded row
+ * sits in the status its directory last read as, and an archived one is in no
+ * group at all (ADR 0004). One pass over the project, once per drop — the price
+ * of the drop meaning what it looks like it means.
+ */
+function wholeGroup(
+  drawn: StatusGroup,
+  ordering: OrderingMode,
+  unfiltered: TicketRow[] | undefined,
+): TicketRow[] {
+  if (!unfiltered) return drawn.tickets;
+  const whole = groupByStatus(unfiltered, {
+    compare: comparatorFor(ordering),
+    keepEmpty: true,
+  }).find((group) => group.id === drawn.id);
+  // `takesDrop` has already refused every group `groupByStatus` does not
+  // produce, so a miss here is not reachable; the drawn group is the honest
+  // answer if it ever were.
+  return whole?.tickets ?? drawn.tickets;
+}
+
+/**
+ * The gap in the whole group that a gap in the drawn one points at.
+ *
+ * A gap is named by the row above it — the one the card would come to rest
+ * under — so that row's seat in the whole group is the answer, and the gap is
+ * the one after it. At the top of the column there is no row above, so the row
+ * *below* names it instead and the card takes that row's seat: a card let go at
+ * the top of what the human can see goes above everything they can see, and not
+ * above the hidden rows over it, which it was never dropped over.
+ *
+ * A drawn group with nothing in it names no row either way, and its only gap is
+ * its top. Nothing is hidden when no query is on, and then every row's seat is
+ * its own index and this returns the gap it was given.
+ */
+function gapInWhole(
+  drawn: TicketRow[],
+  whole: TicketRow[],
+  gap: number,
+): number {
+  const at = Math.max(0, Math.min(gap, drawn.length));
+  const anchor = at > 0 ? drawn[at - 1] : drawn[0];
+  if (!anchor) return 0;
+  const seat = whole.findIndex((row) => row.key === anchor.key);
+  if (seat === -1) return at;
+  return at > 0 ? seat + 1 : seat;
 }
 
 /**

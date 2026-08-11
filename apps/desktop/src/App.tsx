@@ -1819,6 +1819,9 @@ export function App() {
                 {view === "board" ? (
                   <Board
                     tickets={visibleTickets}
+                    // What the surface draws is narrowed; what a drop is
+                    // decided over is not (LC-187, `ticketMove.ts`).
+                    unfiltered={tickets}
                     selectedKey={selectedKey}
                     marks={externalMarks}
                     labels={project.labels}
@@ -1851,6 +1854,7 @@ export function App() {
                   // rebuild — and now after a query.
                   <IssueList
                     tickets={visibleTickets}
+                    unfiltered={tickets}
                     selectedKey={selectedKey}
                     marks={externalMarks}
                     labels={project.labels}

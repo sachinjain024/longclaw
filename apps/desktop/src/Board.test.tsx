@@ -94,6 +94,7 @@ const DEFINITIONS: Record<string, Label> = {
 
 function board(props?: {
   tickets?: TicketRow[];
+  unfiltered?: TicketRow[];
   selectedKey?: string;
   marks?: ExternalMarks;
   labels?: Record<string, Label>;
@@ -107,6 +108,7 @@ function board(props?: {
   return (
     <Board
       tickets={props?.tickets ?? [row()]}
+      unfiltered={props?.unfiltered}
       selectedKey={props?.selectedKey}
       marks={props?.marks ?? {}}
       labels={props?.labels ?? DEFINITIONS}
@@ -1136,6 +1138,40 @@ describe("board ordering and drag-and-drop (V0-09)", () => {
     dragTo("LC-2", CARD_STRIDE + 4);
 
     expect(onMoveTicket).not.toHaveBeenCalled();
+  });
+
+  it("decides a drop over the whole column and not the drawn one (LC-187)", () => {
+    // A filter narrows what the board draws, and `unfiltered` is what it
+    // decides over. The argument for that is `ticketMove.ts`'s; what this
+    // holds is that the board passes it — a prop `App.tsx` forgot would put
+    // the ranks back over the matches alone, and nothing on screen would say
+    // so until the query was cleared.
+    const onMoveTicket = vi.fn();
+    const column = ["LC-1", "LC-2", "LC-3", "LC-4"].map((key) =>
+      row({ key, title: key, status: "todo", priority: "none" }),
+    );
+    render(
+      board({
+        // LC-2 and LC-4 matched nothing.
+        tickets: [column[0], column[2]],
+        unfiltered: column,
+        ordering: "manual",
+        onMoveTicket,
+      }),
+    );
+
+    // Let go under LC-3, which is the second and last card drawn.
+    dragTo("LC-1", 2 * CARD_STRIDE);
+
+    expect(onMoveTicket).toHaveBeenCalledTimes(1);
+    const [ticket, move] = onMoveTicket.mock.calls[0];
+    expect(ticket.key).toBe("LC-1");
+    // LC-2 is hidden, above the gap, and ranked with the rest: left alone it
+    // would have been the row the drop moved without being dropped on.
+    expect(move.backfill.map((one: { key: string }) => one.key)).toEqual([
+      "LC-2",
+      "LC-3",
+    ]);
   });
 
   it("shows where the card would land, and stops showing it on the way out", () => {
