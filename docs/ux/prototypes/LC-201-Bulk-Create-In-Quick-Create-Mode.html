@@ -19,19 +19,45 @@
      land, as written, in the sections named beside each rule.
      ==================================================================== -->
 <style id="proposed">
-/* Beside `.quick-create-title` — the description in the same register as the
-   title. Borderless for D-47's reason: the modal is the boundary, and a box
-   around one of two stacked fields would frame the wrong one. `resize: none`
-   with an auto-grow, which is the pair `field-guard.mjs` checks together. */
+/* `esc`, top right of the context row — the palette's own chip
+   (`CommandPalette.tsx:583`), so the app has one way of saying this rather than
+   two. Display only, like that one: `Esc` is the binding and the chip reports
+   it. The row is already a flex line, so `auto` is the whole placement. */
+.quick-create-esc {
+  margin-left: auto;
+  padding: 0 var(--lc-space-2);
+  line-height: 1.8;
+  text-transform: uppercase;
+}
+
+/* The description: three lines to start, growing with what is typed, capped so
+   a long one scrolls itself rather than pushing the footer off the modal. This
+   is `.composer textarea`'s shape and very nearly its rules — the app already
+   has a bordered, auto-growing, capped markdown field, and a second kind here
+   would be a second answer to a solved question.
+
+   It takes the box the title does not. D-47 leaves the title borderless because
+   "the modal is one field and two menus, so a box around the field is a frame
+   around nothing"; at three lines that argument inverts — an unframed block of
+   empty space under the title reads as a gap rather than as a field. The panel
+   makes the same split, with a bare `.panel-title` over a boxed editor.
+
+   `resize: none` with an auto-grow, which is the pair `field-guard.mjs` checks
+   together: the grabber is a diff (D-3F, D-3G) and a floor without the grow is
+   a field that clips. */
 .quick-create-description {
-  border: none;
-  padding: 0;
-  overflow: hidden;
-  color: var(--lc-ink-2);
-  background: none;
-  font-family: var(--lc-font-ui);
-  font-size: var(--lc-type-ui-size);
-  line-height: 1.5;
+  overflow: auto;
+  /* Three lines of the code type, which is the floor the field never goes
+     under however little is in it. */
+  min-height: calc(var(--lc-type-code-size) * var(--lc-type-code-leading) * 3);
+  max-height: 180px;
+  border: 1px solid var(--lc-line-strong);
+  border-radius: var(--lc-radius-control);
+  padding: var(--lc-space-2);
+  color: var(--lc-ink);
+  background: var(--lc-surface);
+  font: var(--lc-type-code-weight) var(--lc-type-code-size) /
+    var(--lc-type-code-leading) var(--lc-type-code-font);
   resize: none;
 }
 
@@ -47,13 +73,15 @@
   padding: 0;
 }
 
-/* **Create more** (LC-201). A checkbox and its word, first in the footer, so
-   Tab passes it on the way to the button it changes. `gap` rather than a
-   margin: the label is the control's own hit area and the two move together. */
+/* **Create more** (LC-201). A checkbox and its word, immediately left of
+   **Create** — the control it changes is the next thing the eye and the Tab key
+   reach. `gap` rather than a margin: the label is the control's own hit area
+   and the two move together. */
 .create-more {
   display: inline-flex;
   gap: 6px;
   align-items: center;
+  margin-left: auto;
   color: var(--lc-ink-2);
   font-size: var(--lc-type-micro-size);
   font-weight: 500;
@@ -109,7 +137,7 @@ body {
 }
 .driver .group { display: flex; gap: 4px; align-items: center; }
 .driver .sep { width: 1px; height: 14px; background: color-mix(in oklab, var(--lc-inverse-ink) 20%, transparent); }
-.driver .ask { color: var(--lc-accent-agent); border-color: color-mix(in oklab, var(--lc-accent-agent) 45%, transparent); }
+.driver .ask { color: var(--lc-accent-agent); }
 .driver strong { letter-spacing: .05em; text-transform: uppercase; font-weight: 600; }
 .driver .spacer { flex: 1; }
 .driver button {
@@ -172,11 +200,7 @@ body {
     <button data-drive="reset">reset the run</button>
   </span>
   <span class="sep" aria-hidden="true"></span>
-  <span class="group" role="group" aria-label="The three questions this review has to answer">
-    <button class="ask" data-drive="hints">1 · swap the hints</button>
-    <button class="ask" data-drive="placement">2 · move Create more to the meta row</button>
-    <button class="ask" data-drive="nodesc">3 · drop the description</button>
-  </span>
+  <span class="ask">revision 2 · the review's five changes are in</span>
   <span class="spacer"></span>
   <span class="swatches" role="group" aria-label="Project theme">
     <button class="swatch" data-theme-pick="ember" aria-pressed="true" title="Ember"><i data-theme="light" data-lc-theme="ember"></i></button>
@@ -198,27 +222,32 @@ body {
 
     <h2>Try this</h2>
     <ol>
-      <li>Type a title, pick <strong>P1</strong> and a label, tick <strong>Create&nbsp;more</strong>, press <kbd>↵</kbd>.</li>
+      <li>Type a title and three lines of description, pick <strong>P1</strong> and a label, tick <strong>Create&nbsp;more</strong>, press <kbd>↵</kbd>.</li>
       <li>The modal stays. Title and description are empty; status, priority and labels are exactly where you left them; the key has counted up.</li>
       <li>Do it four more times, then untick and press <kbd>↵</kbd> — the last one closes the modal, as it always has.</li>
-      <li>Put the caret in the description and press <kbd>↵</kbd>: it makes a newline. <kbd>⌘↵</kbd> creates from anywhere.</li>
+      <li>Put the caret in the description and press <kbd>↵</kbd>: it makes a newline. <kbd>⌘↵</kbd> creates from anywhere, which is what the <strong>Create</strong> button now says.</li>
+      <li>Keep typing past the fourth line — the field grows, then caps and scrolls itself rather than pushing the footer off.</li>
     </ol>
 
     <h2>What is new</h2>
     <ul>
-      <li>A <strong>description</strong> — a plain auto-growing field, not the Write/Preview editor. No toolbar, no tabs.</li>
+      <li>A <strong>description</strong> — three lines to start, growing, capped. The app's existing markdown field, not the Write/Preview editor: no toolbar, no tabs.</li>
       <li><strong>Labels</strong>, through the project's own menu. Never the comma-separated box V0-10 removed.</li>
       <li><strong>Create more</strong>, off on every open, never persisted.</li>
       <li>The checklist stays in full create.</li>
     </ul>
 
-    <h2>Please decide</h2>
-    <p>The three switches are in the bar above, numbered to match.</p>
+    <h2>Settled in review</h2>
     <ol>
-      <li class="q"><strong>The hints line.</strong> It reads <code>↵ create · ⌘↵ anywhere · esc cancel</code>, which is honest once a textarea is in the modal but long for a footer shared with three controls. The alternative is <code>⌘↵ create · esc cancel</code> — one binding, true everywhere, at the cost of a documented habit.</li>
-      <li class="q"><strong>Where Create more sits.</strong> The footer, beside the button it changes, or the right end of the meta row.</li>
-      <li class="q"><strong>Whether the description belongs here at all</strong>, or whether the loop alone answers the complaint. Dropping it leaves three fields plus labels, and makes this a much smaller change.</li>
+      <li class="q"><strong>The description is 3 lines and boxed.</strong> It takes the field treatment the title does not: at three lines an unframed block reads as a gap, and the panel makes the same split between a bare title and a boxed editor.</li>
+      <li class="q"><strong><kbd>⌘↵</kbd> is on the Create button</strong>, the way full create already writes it — so the binding is stated once, on the thing it does.</li>
+      <li class="q"><strong><kbd>esc</kbd> is a chip at the top right</strong>, the palette's own chip and not a second way of drawing one.</li>
+      <li class="q"><strong>Open full editor → is hard left</strong>, and <strong>Create more sits immediately left of Create</strong> — the toggle beside the button it changes.</li>
+      <li class="q">The mono hints line is gone: with both bindings now on controls of their own, it had nothing left to say.</li>
     </ol>
+
+    <h2>One question left</h2>
+    <p class="q">The <kbd>esc</kbd> chip is display-only, as the palette's is. Quick create has no <strong>Cancel</strong> button and its scrim does not dismiss, so <kbd>Esc</kbd> is the only way out that is not a create — should the chip also be clickable, or does a pointer-only user keep reaching for <strong>Open full editor →</strong>?</p>
 
     <h2>Worth watching</h2>
     <p>Each create replaces the toast, so the third ticket's <strong>Undo</strong> takes the second one's off the screen. Undo is the inverse of the <em>last</em> mutation — <code>data-requirements.md:121</code> scopes it one deep, and this ticket does not widen it.</p>
@@ -257,11 +286,6 @@ const LABELS = [
   ["design", "Design", "purple"], ["bug", "Bug", "red"], ["docs", "Docs", "amber"],
 ];
 
-const HINTS = {
-  long: "↵ create · ⌘↵ anywhere · esc cancel",
-  short: "⌘↵ create · esc cancel",
-};
-
 const app = {
   open: true,
   seq: 4,            // the next key the board would guess
@@ -272,10 +296,6 @@ const app = {
   labels: [],
   createMore: false,
   created: [],
-  // The three review switches.
-  hints: "long",
-  placement: "footer",
-  description_field: true,
   menu: undefined,   // {kind, anchorRect}
 };
 
@@ -336,12 +356,7 @@ function modalHTML() {
           ${app.labels.map((slug) => labelChip(slug)).join("")}
           <button type="button" tabindex="0" class="label-chip addable" data-menu="labels" aria-haspopup="menu" aria-expanded="false" aria-label="Labels: ${app.labels.length ? esc(app.labels.map((s) => labelOf(s)[1]).join(", ")) : "none"}">${plus}add</button>
         </div>
-        ${app.placement === "meta" ? `<span style="margin-left:auto">${createMoreHTML()}</span>` : ""}
       </div>`;
-
-  const description = app.description_field
-    ? `<textarea class="quick-create-description" rows="1" aria-label="Description" placeholder="What should happen? Agents read this before they start.">${esc(app.description)}</textarea>`
-    : "";
 
   return `
   <div class="modal-scrim" role="presentation">
@@ -349,15 +364,15 @@ function modalHTML() {
       <p class="eyebrow quick-create-context">
         <span class="theme-dot" data-lc-theme="${document.documentElement.dataset.lcTheme}" data-theme="${document.documentElement.dataset.theme}" aria-hidden="true"></span>
         Round Trip · RT-${app.seq}
+        <kbd class="kbd-chip quick-create-esc">esc</kbd>
       </p>
       <input class="quick-create-title" autofocus value="${esc(app.title)}" aria-label="Title" placeholder="Ticket title">
-      ${description}
+      <textarea class="quick-create-description" rows="3" aria-label="Description" placeholder="What should happen? Agents read this before they start.">${esc(app.description)}</textarea>
       ${meta}
       <div class="editor-footer">
-        ${app.placement === "footer" ? createMoreHTML() : ""}
         <button tabindex="0" class="ghost" type="button" data-role="full">Open full editor →</button>
-        <code>${esc(HINTS[app.hints])}</code>
-        <button tabindex="0" class="primary" type="submit"${app.title.trim() ? "" : " disabled"}>Create</button>
+        ${createMoreHTML()}
+        <button tabindex="0" class="primary" type="submit"${app.title.trim() ? "" : " disabled"}>Create <kbd aria-hidden="true">⌘↵</kbd></button>
       </div>
     </form>
   </div>`;
@@ -414,12 +429,25 @@ function render() {
   $("#count").textContent = String(app.created.length);
 }
 
-/** The auto-grow half of the pair `field-guard.mjs` checks (`useAutoGrow`). */
+/**
+ * The auto-grow half of the pair `field-guard.mjs` checks (`useAutoGrow`) —
+ * with the borders added back.
+ *
+ * `useAutoGrow` sets `height = scrollHeight`, which is exact for a field with
+ * no border and two pixels short for one with. Everything the hook drives today
+ * is borderless except `.composer textarea`, so nobody has had to notice; this
+ * field has a border, and two pixels short means it scrolls its own last line
+ * out of sight for as long as there is text in it. The stylesheet is
+ * `box-sizing: border-box`, so the height has to carry them.
+ */
 function grow() {
   const field = document.querySelector(".quick-create-description");
   if (!field) return;
+  const style = getComputedStyle(field);
+  const borders =
+    parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
   field.style.height = "auto";
-  field.style.height = field.scrollHeight + "px";
+  field.style.height = field.scrollHeight + borders + "px";
 }
 
 /* ------------------------------------------------------------- the loop */
@@ -524,20 +552,6 @@ document.addEventListener("click", (event) => {
     const what = drive.dataset.drive;
     if (what === "reopen") openQuickCreate();
     if (what === "reset") { app.created = []; app.seq = 4; openQuickCreate(); }
-    if (what === "hints") {
-      app.hints = app.hints === "long" ? "short" : "long";
-      drive.textContent = app.hints === "long" ? "1 · swap the hints" : "1 · put the hints back";
-    }
-    if (what === "placement") {
-      app.placement = app.placement === "footer" ? "meta" : "footer";
-      drive.textContent = app.placement === "footer"
-        ? "2 · move Create more to the meta row"
-        : "2 · put Create more back in the footer";
-    }
-    if (what === "nodesc") {
-      app.description_field = !app.description_field;
-      drive.textContent = app.description_field ? "3 · drop the description" : "3 · put the description back";
-    }
     return render();
   }
   if (pick) {

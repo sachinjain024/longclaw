@@ -6,7 +6,7 @@ title: Add Support for creating multiple tickets during "Quick Create” Mode
 status: in_progress
 priority: urgent
 created_at: 2026-08-11T12:45:46.841Z
-updated_at: 2026-08-11T13:02:41.137Z
+updated_at: 2026-08-11T13:17:51.380Z
 ---
 
 User should be able to create multiple tickets during Quick Create Mode. We can enable it by provide a CheckBox / Toggle like “Create More” in the Quick Create mode only.
@@ -18,8 +18,8 @@ When users have selected the option and the first ticket is created then Quick C
 - Product spec: `docs/plans/active/LC-201-Bulk-Create-In-Quick-Create-Mode.md`
 - Prototype: `docs/ux/prototypes/LC-201-Bulk-Create-In-Quick-Create-Mode.html`
 
-Both are on the `feat/lc-201-quick-create-multiple` branch and are waiting on the
-human review this ticket's checklist asks for before any code is written.
+Both are on the `feat/lc-201-quick-create-multiple` branch. Revision 2 carries
+the review's five layout changes; no implementation code is written yet.
 
 The spec widens quick create by two fields — a plain auto-growing **description**
 (not the Write/Preview editor, which stays in full create) and **labels** through
@@ -36,10 +36,18 @@ control was a comma-separated text box, not because the field was wrong, and
 `LabelMenuButton` cannot produce a slug `longclaw.yaml` does not define — so the
 menu re-introduces nothing. The description's case rests on Create more alone.
 
-Three questions are open for the review, and the prototype has a switch for each:
-the hints line now that a textarea is in the modal, whether **Create more** sits
-in the footer or on the meta row, and whether the description belongs in quick
-create at all.
+## Review, 2026-08-11
+
+Five changes, all in revision 2 of both documents: the description is three lines
+and takes a field box; `⌘↵` moves inside the **Create** button; `Esc` becomes a
+chip at the top right; **Open full editor →** goes hard left in the footer; and
+**Create more** sits immediately left of **Create**. The mono hints line goes
+with them, because both bindings it carried now sit on controls of their own.
+
+One question is left, and it does not block: the `esc` chip is drawn display-only
+as the palette's is, but quick create has no **Cancel** and its scrim does not
+dismiss, so a pointer-only human has no exit that is not a create. Making the
+chip a button is a two-line change and a new tab stop.
 
 ## Checklist
 
@@ -177,6 +185,20 @@ changes:
   - field: checklist.ck_0fd47f92.checked
     from: "false"
     to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_23abe3ed
+kind: update
+occurred_at: 2026-08-11T13:17:51.380Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->

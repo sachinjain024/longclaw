@@ -64,22 +64,34 @@ than three.
 
 620px modal at 12vh, unchanged. Rows, in order:
 
-1. **Context line** — dot · project · `KEY-n`. Unchanged. It re-reads the next
-   free key on every create, so during a run it counts up: `LC-201`, `LC-202`, …
-   Each is still a guess read off the rows on screen; Rust allocates the real
-   one.
+1. **Context line** — dot · project · `KEY-n`, and *new* an `esc` chip at the
+   right end. The key re-reads the next free one on every create, so during a
+   run it counts up: `LC-201`, `LC-202`, … Each is still a guess read off the
+   rows on screen; Rust allocates the real one.
 2. **Title** — borderless 15px input. Unchanged (D-47).
-3. **Description** — *new.* A borderless auto-growing textarea in the same
-   register as the title: no Write/Preview tabstrip, no formatting toolbar, no
-   footer. One row, growing as it is typed. Placeholder is D-4B's line, the same
-   one full create carries: *"What should happen? Agents read this before they
-   start."*
+3. **Description** — *new.* Three lines to start, growing with what is typed,
+   capped at 180px so a long one scrolls itself rather than pushing the footer
+   off the modal. No Write/Preview tabstrip, no formatting toolbar, no footer of
+   its own. Placeholder is D-4B's line, the same one full create carries:
+   *"What should happen? Agents read this before they start."*
 4. **Meta row** — status trigger, priority trigger, and *new* the label trigger,
    in the meta grid's order (`screen-specs.md:229`). All three wear D-49's bare
    treatment, which is already a rule on `.quick-create-meta .menu-trigger`, so
    the third one is bare for the same reason the first is.
-5. **Footer** — *new* **Create more** checkbox, then ghost **Open full
-   editor →**, then the mono hints, then primary **Create**.
+5. **Footer** — ghost **Open full editor →** hard left, then a gap, then *new*
+   the **Create more** checkbox, then primary **Create `⌘↵`**. No mono hints
+   line: both bindings it carried now sit on controls of their own.
+
+**The description takes a box; the title does not.** D-47 leaves the title
+borderless because "the modal is one field and two menus, so a box around the
+field is a frame around nothing" — at three lines that argument inverts, since an
+unframed block of empty space under the title reads as a gap rather than as a
+field. The panel makes the same split, with a bare `.panel-title` over a boxed
+editor. What the field wears is `.composer textarea`'s shape and very nearly its
+rules: hairline `line-strong`, `radius-control`, `space-2` of padding, the code
+type both existing description surfaces use, `resize: none` and an auto-grow. The
+app already has a bordered, auto-growing, capped markdown field; a second kind
+here would be a second answer to a solved question.
 
 **Why not `DescriptionEditor`.** It is the right component in full create and the
 wrong one here. Its tabstrip and six formatting buttons are nine controls, and
@@ -137,7 +149,7 @@ behind — full create closes on create, as it does today.
 is whatever the first one used, which may be the column that opened it. That is
 the retention working, not the preseed leaking.
 
-## `↵` when there is a textarea in the modal
+## `↵` when there is a textarea in the modal, and where the bindings are said
 
 Today the modal is a `<form>` and `↵` in the title input submits it; the hints
 say `↵ create · esc cancel` (`screen-specs.md:258-259`). A textarea does not submit
@@ -146,21 +158,30 @@ binding grows a second half, the one full create already has:
 
 - `↵` in the title creates, as it always has.
 - `⌘↵` creates from anywhere in the modal, including the description.
-- Hints read `↵ create · ⌘↵ anywhere · esc cancel`.
+- `Esc` closes, as it always has.
 
-This is the one visible change to a documented line that is not additive, and it
-is listed under **Open questions** below.
+**Each of those is said once, on the control it belongs to, rather than a fourth
+time in a mono line.** `⌘↵` goes inside **Create** as a `<kbd>`, which is exactly
+how full create's own footer writes it (`CreatePanel.tsx:408`). `Esc` becomes a
+`kbd-chip` at the right end of the context row, the same chip the palette carries
+(`CommandPalette.tsx:583`) — so the app has one way of drawing this and not two.
+With both moved, the mono hints line has nothing left to say and goes.
+
+`↵` from the title is the one binding no longer written on the screen. It is the
+habit rather than the discoverable path, `⌘↵` is stated and does the same thing
+from the same field, and the alternative — keeping a line that repeats what two
+controls now say — is the duplication the review asked to remove.
 
 ## Keyboard and focus
 
 Tab order, which `keyboard-focus-map.md:133` states and `a11y:audit` walks:
 
-> Title → description → status → priority → labels → Create more → Open full
-> editor → Create
+> Title → description → status → priority → labels → Open full editor →
+> Create more → Create
 
-Create more sits with the footer rather than with the fields because it modifies
-what **Create** does, and it is first in the footer so that Tab passes it on the
-way to the button it changes.
+Create more sits immediately left of **Create**: the control it changes is the
+next thing both the eye and the Tab key reach. The `esc` chip is display-only and
+not a stop, like the palette's.
 
 The checkbox carries an explicit `tabIndex={0}`. WebKit follows the macOS
 *Keyboard navigation* setting and skips both buttons and checkboxes with it off,
@@ -174,27 +195,41 @@ the title field, cleared.**
 ## Do this
 
 1. **`src/QuickCreate.tsx`** — description textarea, `LabelMenuButton` on the
-   meta row, the Create more checkbox, `⌘↵`, and a `createMore` flag on what
-   `onCreate` sends. On a create with the flag set, clear title and description
-   and keep the rest; the modal owns its own reset, so App never reaches in.
+   meta row, the `esc` chip on the context row, the Create more checkbox, `⌘↵`
+   on the **Create** button and in a panel-wide handler, and a `createMore` flag
+   on what `onCreate` sends. On a create with the flag set, clear title and
+   description and keep the rest; the modal owns its own reset, so App never
+   reaches in.
 2. **`src/App.tsx`** — `submitNewTicket`/`writeNewTicket` take a `keepOpen`
    option that skips `setCreateSurface(undefined)` and **both** `focusCard`
    calls. `PendingCreate` carries it too, so a run that crosses a project switch
    (LC-188) resumes into the same loop after the confirm.
-3. **`src/styles.css`** — the description field's borderless treatment, the
+3. **`src/styles.css`** — the description field, the `esc` chip's placement, the
    footer's checkbox, and the meta row with three triggers at 620px. No new
-   token; nothing here introduces a colour.
-4. **`src/QuickCreate.test.tsx`** — replace the "offers no description,
+   token; nothing here introduces a colour. The exact rules are the
+   `<style id="proposed">` block of the prototype, which is where they were
+   measured.
+4. **`src/autoGrow.ts`** — `useAutoGrow` sets `height = scrollHeight`, which is
+   exact for a borderless field and two pixels short for one with a border under
+   `box-sizing: border-box`. Every field it drives today is borderless except
+   `.composer textarea`, so nobody has had to notice; the description here has a
+   border, and two pixels short means it scrolls its own last line out of sight
+   for as long as there is text in it. Add the borders back in the hook, which
+   fixes the composer with it, rather than working around it in one caller.
+5. **`src/QuickCreate.test.tsx`** — replace the "offers no description,
    checklist or label field at all" test with the honest pair: no checklist
    here, and labels through the menu rather than a text box. Cover the loop:
    what is cleared, what is kept, and that `onCreate` is called once per press.
-5. **`src/App.test.tsx`** — the loop end to end: two creates from one open modal,
+6. **`src/App.test.tsx`** — the loop end to end: two creates from one open modal,
    two toasts, two cards, and the focus assertion that the write landing does
    not pull the caret out of the title field.
-6. **`perf/a11y-audit.mjs`** — a row for the loop beside the existing create
+7. **`perf/a11y-audit.mjs`** — a row for the loop beside the existing create
    row: `C`, tick Create more, type, `↵`, and assert focus is the emptied title
-   field rather than a card. Confirm it goes red under `--self-test`.
-7. **`docs/design/prototype/screen-specs.md`** and
+   field rather than a card. Confirm it goes red under `--self-test`. The Tab
+   walk in that section changes shape too, and the existing create row must stay
+   green: with the box unticked, `↵` still creates and focus still lands on the
+   new card.
+8. **`docs/design/prototype/screen-specs.md`** and
    **`keyboard-focus-map.md`** — the § Quick create rows, in place where the
    prose allows it, then `citations:update` for what genuinely moved. Both are
    line-cited and pinned by `citation-lock.json`; do not run `--update` to clear
@@ -228,17 +263,44 @@ the title field, cleared.**
   through React state; a second `↵` on an empty title must be refused by the same
   `canCreate` that refuses it today.
 
-## Open questions for the review gate
+## Settled at the review gate, 2026-08-11
 
-1. **The hints line.** `↵ create · ⌘↵ anywhere · esc cancel` is the honest
-   version once a textarea is in the modal, but it lengthens a line the footer
-   shares with three controls. The alternative is `⌘↵ create · esc cancel` — one
-   binding, true everywhere, and a quieter footer, at the cost of retiring a
-   documented habit.
-2. **Where Create more sits.** The footer (proposed, and what the prototype
-   shows) or the right end of the meta row. The meta row keeps the footer as it
-   is; the footer keeps the toggle beside the button it changes.
-3. **Whether the description belongs in quick create at all**, or whether the
-   Create more loop alone answers the ticket's real complaint. Dropping it would
-   leave the modal at three fields plus labels and make this a much smaller
-   change.
+The first three questions this plan opened are closed, and two more were decided
+with them. Revision 2 of the prototype is what they look like.
+
+1. **The description stays, at three lines**, growing and capped — so the first
+   question ("does it belong here at all") is answered yes, and its shape is
+   settled with it. It takes the field box the title does not; see *What the
+   surface becomes*.
+2. **`⌘↵` moves inside the Create button**, stated once on the thing it does
+   rather than a second time in a mono line.
+3. **`Esc` becomes a chip at the top right** of the context row, the palette's
+   own `kbd-chip`.
+4. **Open full editor → goes hard left** in the footer.
+5. **Create more sits immediately left of Create.** The second question — footer
+   or meta row — is answered footer, and more precisely than it was asked.
+
+The mono hints line goes with them, because both bindings it carried now sit on
+controls of their own.
+
+## Still open
+
+**Is the `esc` chip clickable?** It is drawn display-only, as the palette's is.
+But the palette has a visible list to click away from and quick create does not:
+this modal has no **Cancel**, and its scrim does not dismiss, so `Esc` is the
+only way out that is not a create. A pointer-only human's nearest exit today is
+**Open full editor →**, which is not an exit. Making the chip a button is a
+two-line change and a new tab stop; leaving it alone keeps the app's one way of
+drawing this. Not blocking — the implementation can carry either.
+
+## Measured, not assumed
+
+Revision 2 driven in WebKit over the app's own stylesheet:
+
+| | |
+|---|---|
+| Footer at 1440 / 1280 / 1024 / 900 / 760 / 640px | one row, 39px, no wrap, nothing off the window |
+| Description, empty | 72px — three lines of the code type, its floor |
+| Description, five lines | 108px, no scrollbar |
+| Description, twenty lines | 180px, scrolls itself; the modal does not |
+| The run | title and description cleared, status/priority/labels kept, key advanced, focus in the title field, one toast replacing the last |
