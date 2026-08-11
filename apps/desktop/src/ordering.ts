@@ -150,12 +150,16 @@ export interface RankPlan {
  * dragged. LC-174 is what that cost: on a column nobody has dragged in, which is
  * every column, a card let go three rows down did not move at all.
  *
- * Two rows above a gap cannot be given a position, and both keep the unranked
- * tail rather than being written to: a file this build cannot read has no
- * frontmatter to hold one, and `ordered` is the column **as the surface is
- * drawing it**, so a filter narrows what a drop can express. Both are the
- * ranked-before-unranked rule of `byRank` showing through, and neither is new
- * here — LC-187 is the open item for the filter one.
+ * A row above a gap that cannot be given a position keeps the unranked tail
+ * rather than being written to: a file this build cannot read has no frontmatter
+ * to hold one. That is the ranked-before-unranked rule of `byRank` showing
+ * through, and it is not new here.
+ *
+ * `ordered` is the whole column and never the drawn one. A filtered surface
+ * hands its subset to `ticketMove`, which maps the gap onto the group behind it
+ * before this is asked anything (LC-187): allocating over the subset ranked the
+ * matching rows above every hidden row that had none, which is this same rule
+ * showing through where nobody could see it.
  */
 export function rankForInsert(ordered: TicketRow[], index: number): RankPlan {
   const at = Math.max(0, Math.min(index, ordered.length));

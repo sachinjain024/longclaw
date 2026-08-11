@@ -1,15 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { seatsFor, type StatusGroup } from "./grouping";
-import { moveForDrop, takesDrop } from "./ticketMove";
-import type { IndexedTicket, TicketRow } from "./types";
+import { byRank, orderColumn } from "./ordering";
+import { moveForDrop, takesDrop, type TicketDrop } from "./ticketMove";
+import type { IndexedTicket, TicketRow, TicketStatus } from "./types";
 
-function row(key: string, rank?: string): TicketRow {
+function row(
+  key: string,
+  rank?: string,
+  status: TicketStatus = "todo",
+): TicketRow {
   return {
     state: "indexed",
     key,
     id: key.toLowerCase(),
     title: key,
-    status: "todo",
+    status,
     priority: "none",
     labels: [],
     rank,
@@ -226,5 +231,148 @@ describe("what letting go writes", () => {
     expect(
       moveForDrop(archived, seat, { group: 1, gap: 0 }, "priority"),
     ).toBeUndefined();
+  });
+});
+
+/**
+ * The column as it reads once the drop has been written and the query cleared:
+ * the ranks the move allocates, applied to the whole group, sorted the way
+ * Manual sorts it. What the human is left looking at is the assertion here — a
+ * rank string is an implementation detail of it.
+ */
+function afterDrop(whole: TicketRow[], drop: TicketDrop): string[] {
+  const ranks = new Map<string, string>(
+    (drop.move.backfill ?? []).map((one) => [one.key, one.rank]),
+  );
+  if (drop.move.rank) ranks.set(drop.ticket.key, drop.move.rank);
+  const written = whole.map((one) =>
+    one.state === "indexed" && ranks.has(one.key)
+      ? { ...one, rank: ranks.get(one.key) }
+      : one,
+  );
+  return orderColumn(written, byRank).map((one) => one.key);
+}
+
+describe("a drop while a filter is on (LC-187)", () => {
+  // Nothing here carries a rank, which is every column until somebody drags in
+  // it (ADR 0003), and is what makes the hidden rows moveable by accident: an
+  // unranked row sorts below every ranked one whether or not it was dropped on.
+  const whole = [
+    row("LC-1"),
+    row("LC-2"),
+    row("LC-3"),
+    row("LC-4"),
+    row("LC-5"),
+  ];
+  /** The query matched the first, the third and the fifth. */
+  const drawn: StatusGroup[] = [
+    {
+      id: "todo",
+      title: "Todo",
+      status: "todo",
+      tickets: [whole[0], whole[2], whole[4]],
+    },
+    { id: "done", title: "Done", status: "done", tickets: [] },
+  ];
+  const seats = seatsFor(drawn);
+  /** Let go in the gap between the two matches below it: LC-3 and LC-5. */
+  const spot = { group: 0, gap: 2 };
+
+  it("puts the card in the gap the human let go in, and not above the rows they could not see", () => {
+    const drop = moveForDrop(drawn, seats.get("LC-1"), spot, "manual", whole)!;
+
+    expect(afterDrop(whole, drop)).toEqual([
+      "LC-2",
+      "LC-3",
+      "LC-1",
+      "LC-4",
+      "LC-5",
+    ]);
+  });
+
+  it("gives a hidden row above the gap the position that keeps it where it was", () => {
+    const drop = moveForDrop(drawn, seats.get("LC-1"), spot, "manual", whole)!;
+
+    // LC-2 matched nothing and was never on screen. It is written anyway: it
+    // sits above the gap, and a row with no rank sorts below every row with
+    // one, so leaving it alone is what moved it (`ordering.ts`, LC-174).
+    expect(drop.move.backfill!.map((one) => one.key)).toEqual(["LC-2", "LC-3"]);
+  });
+
+  it("goes above what the query left, not above the rows over it, at the top of a group", () => {
+    const column = [row("LC-6"), row("LC-7"), row("LC-8"), row("LC-9")];
+    // LC-6 and LC-8 are hidden; the human sees LC-7 above LC-9 and drops LC-9
+    // over the top of the group — which is the top of what they can see.
+    const filtered: StatusGroup[] = [
+      {
+        id: "todo",
+        title: "Todo",
+        status: "todo",
+        tickets: [column[1], column[3]],
+      },
+    ];
+    const drop = moveForDrop(
+      filtered,
+      seatsFor(filtered).get("LC-9"),
+      { group: 0, gap: 0 },
+      "manual",
+      column,
+    )!;
+
+    expect(afterDrop(column, drop)).toEqual(["LC-6", "LC-9", "LC-7", "LC-8"]);
+  });
+
+  it("decides an arriving ticket's place over the whole group too", () => {
+    // Statuses are honest here, because the group behind the drawn one is
+    // bucketed from these rows rather than taken on the surface's word.
+    const project = [
+      row("LC-1"),
+      row("LC-2", undefined, "done"),
+      row("LC-3", undefined, "done"),
+      row("LC-4", undefined, "done"),
+    ];
+    const filtered: StatusGroup[] = [
+      { id: "todo", title: "Todo", status: "todo", tickets: [project[0]] },
+      {
+        id: "done",
+        title: "Done",
+        status: "done",
+        // LC-3 matched nothing, so Done draws two rows and holds three.
+        tickets: [project[1], project[3]],
+      },
+    ];
+    const drop = moveForDrop(
+      filtered,
+      seatsFor(filtered).get("LC-1"),
+      { group: 1, gap: 2 },
+      "manual",
+      project,
+    )!;
+
+    expect(drop.move.status).toBe("done");
+    // Done, once the card has arrived in it: the group it came from has no say
+    // in the order, only in which rows were on screen to be dropped between.
+    expect(afterDrop([...project.slice(1), project[0]], drop)).toEqual([
+      "LC-2",
+      "LC-3",
+      "LC-4",
+      "LC-1",
+    ]);
+  });
+
+  it("takes the drawn group for the whole one when it is not told otherwise", () => {
+    // Which is what every caller but the two surfaces means, and what both of
+    // them meant until this ticket: the same drop, decided over the matches
+    // alone, ranks LC-3 and LC-1 and nothing else — so both sort above LC-2,
+    // a row nobody dragged and nobody could see.
+    const drop = moveForDrop(drawn, seats.get("LC-1"), spot, "manual")!;
+
+    expect(afterDrop(whole, drop)).toEqual([
+      "LC-3",
+      "LC-1",
+      "LC-2",
+      "LC-4",
+      "LC-5",
+    ]);
   });
 });

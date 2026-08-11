@@ -192,6 +192,13 @@ const CARD = ".ticket-row";
 
 export function Board(props: {
   tickets: TicketRow[];
+  /**
+   * Every ticket the project holds, which `tickets` is the filtered view of.
+   * The board draws the filtered rows and decides a drop over these, so a card
+   * let go among the matches is not ranked above the rows a query is hiding
+   * (LC-187, `ticketMove.ts`). Absent means nothing is hidden.
+   */
+  unfiltered?: TicketRow[];
   selectedKey?: string;
   marks: ExternalMarks;
   /** The project's label definitions, for the chips a card's slugs resolve to. */
@@ -317,6 +324,7 @@ export function Board(props: {
       dragSeat,
       { group: columnIndex, gap },
       props.ordering,
+      props.unfiltered,
     );
     onDragCard(undefined);
     if (drop) props.onMoveTicket(drop.ticket, drop.move);

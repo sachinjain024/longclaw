@@ -127,6 +127,12 @@ const ROW = ".list-row";
 
 export function IssueList(props: {
   tickets: TicketRow[];
+  /**
+   * Every ticket the project holds, which `tickets` is the filtered view of —
+   * the same prop the board takes and for the same reason (LC-187,
+   * `ticketMove.ts`). Absent means nothing is hidden.
+   */
+  unfiltered?: TicketRow[];
   selectedKey?: string;
   marks: ExternalMarks;
   labels: Record<string, Label>;
@@ -313,7 +319,9 @@ export function IssueList(props: {
   function onDrop(event: DragEvent<HTMLDivElement>) {
     if (dragKey === undefined) return;
     const over = spotUnder(event);
-    const drop = over && moveForDrop(groups, dragSeat, over, props.ordering);
+    const drop =
+      over &&
+      moveForDrop(groups, dragSeat, over, props.ordering, props.unfiltered);
     event.preventDefault();
     driftBy(0);
     endDrag();
