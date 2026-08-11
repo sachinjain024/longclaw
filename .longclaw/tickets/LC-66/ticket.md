@@ -63,3 +63,23 @@ changes:
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_d636bf3e
+kind: comment
+occurred_at: 2026-08-11T14:04:41.728Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Still live — checked during a backlog sweep on 2026-08-11 and left open.
+
+Worth recording where the minting actually is, because it is not where this ticket points and the obvious grep says the bug is gone. `render_agent_contract` (`core/project.rs:425`) is now a pure `format!` over literals — the worked example's `ck_7d2a` and `evt_4b91c07a` are hardcoded in the template, and neither `Uuid::new_v4` nor `mint_id` appears anywhere in `project.rs`. A grep scoped to that file therefore reads clean.
+
+The non-determinism comes in one level down. The contract's `## A complete example` section is built by `example_ticket` (`core/project.rs:559`), which calls the real `render_new_ticket` — and that reaches `render_new_ticket_as` in `core/ticket.rs`, which mints `id: {Uuid::new_v4()}` (`:1199`) and `mint_id("ck")` (`:1225`). So the example ticket still gets fresh ids on every project write, which is exactly the diff this ticket recorded.
+
+The existing test (`the_generated_agent_contract_carries_a_readable_example`) asserts `ck_7d2a`, but that is the template's literal in the § Checking off a checklist item section, not the example ticket's — so it passes either way and does not cover this. The checklist's "a test that writes the same project twice and compares" is still the right shape and still absent.
+<!-- /longclaw:event -->
