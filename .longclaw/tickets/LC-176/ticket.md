@@ -10,7 +10,7 @@ labels:
   - frontend
   - prototype-diff
 created_at: 2026-08-07T14:38:25.000Z
-updated_at: 2026-08-09T07:36:47.617Z
+updated_at: 2026-08-11T14:24:51.651Z
 ---
 
 `docs/cc_screens_diff.md` D-47 reads **Fixed 2026-08-07 (LC-113)**, but the CSS
@@ -36,7 +36,7 @@ separately.
 ## Checklist
 
 - [ ] Correct D-47's note to credit quick-create-guard.mjs rather than a fix that predates the branch, and name the change that actually made the input borderless. <!-- longclaw:item=ck_14605b1a -->
-- [ ] Give LC-113's closing activity entry a body saying what landed, as LC-111, LC-112, and LC-175 do. <!-- longclaw:item=ck_33c8ff73 -->
+- [x] Give LC-113's closing activity entry a body saying what landed, as LC-111, LC-112, and LC-175 do. <!-- longclaw:item=ck_33c8ff73 -->
 
 ## Activity
 
@@ -79,4 +79,26 @@ changes:
     to: a0
 -->
 ### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_2a537304
+kind: update
+occurred_at: 2026-08-11T14:24:51.651Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_33c8ff73.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Checklist item 2 was already satisfied when this ticket was filed, so it is ticked rather than worked. LC-113 carries a closing body — `evt_c8c1ed2b`, a comment at 2026-08-07T14:11:41Z, 27 minutes before this ticket's own `evt_4b431df4` at 14:38:25 — and it says what the item asks for: "the borderless 15px CSS had already landed on main, but this branch now adds quick-create-guard.mjs coverage and closes D-47 in docs/cc_screens_diff.md so the ticket is backed by the gate and the design-diff ledger." The review that filed this had read the branch, not the ticket as it stood half an hour later.
+
+Item 1 stands, and the claim behind it is confirmed rather than taken on trust: `git show 9ea38c2:apps/desktop/src/styles.css` carries `.quick-create-title { border: none; padding: 0; … font-size: 15px }` at line 3266, before `fix/lc-113-lc-115-quick-create` started. `docs/cc_screens_diff.md:321` still opens **Fixed 2026-08-07 (LC-113)**, and still does not say the CSS predates the branch.
+
+One thing in that row has moved since, and the item's wording is now stale with it: `quick-create-guard.mjs` became `create-surface-guard.mjs` in 8b2f1aa, which grew it the two full-create rows and made the old name untrue. The note already names the new file. What is left to correct is only the date and the credit — the guard is the branch's contribution to D-47, and the change that actually made the input borderless is elsewhere and earlier.
 <!-- /longclaw:event -->

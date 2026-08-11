@@ -106,3 +106,23 @@ changes:
 -->
 ### You updated this ticket
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_82b6ba70
+kind: comment
+occurred_at: 2026-08-11T14:25:06.082Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Half of this ticket's title is no longer true, and the file it names no longer exists under that name.
+
+`quick-create-guard.mjs` became `create-surface-guard.mjs` in 8b2f1aa — the rename came with two full-create rows, and the old name had stopped being true. Its `report` call now passes `checked: 4` with `noun: "contracts"` against the four prototype-diff rows it holds, D-47, D-48, D-49 and D-4A, so the gate prints "4 contracts clean" and four is what actually held. The "2 contracts clean" this was filed against is gone.
+
+Item 2 is left unticked on purpose. The number is still a literal rather than a count of the assertions — ten `requireDeclaration` calls stand behind a hand-written `4` — so it can go stale again the next time a row is added, which is exactly the failure that produced the original `2`. What has changed is that it is not wrong today.
+
+The other two items stand verbatim in the renamed file. `requireDeclaration` still builds ``new RegExp(`${property}\s*:\s*([^;]+)`, "g")`` with no left boundary (`create-surface-guard.mjs:39-41`), so a `border` assertion would still match a `-webkit-border-*` longhand and report clean; and `glyph-drift-guard.mjs` still carries its own `fromRules` with the `(?<![\w-])` this one lacks, so the seam the Approach section names is still two readers rather than one in `guard.mjs`. The boundary is the live half of this ticket.
+<!-- /longclaw:event -->

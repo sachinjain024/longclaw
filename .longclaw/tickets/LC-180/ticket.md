@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 4b23309d-c23d-4347-8451-5252c5526bc9
 key: LC-180
 title: A multi-line raw HTML block collapses onto one line
-status: todo
+status: canceled
 priority: p3
 rank: a1G
 labels:
   - frontend
 created_at: 2026-08-08T08:05:56.718Z
-updated_at: 2026-08-09T07:36:41.657Z
+updated_at: 2026-08-11T14:24:22.076Z
 ---
 
 A multi-line raw HTML block collapses onto one line, the way a table did before LC-179.
@@ -80,4 +80,26 @@ changes:
     to: a1G
 -->
 ### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_f47d079b
+kind: update
+occurred_at: 2026-08-11T14:24:22.076Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: canceled
+-->
+### Claude Code updated this ticket
+
+The decision this ticket carries was recorded when it was filed, and the answer was no. `docs/plans/completed/18-markdown-editor.md:260-264` — the paragraph that names this ticket by key — states it: recognising a raw HTML block means CommonMark's HTML-block start conditions, "a parsing surface this subset does not have", and "the text is legible as source either way, which is not true of a table, whose whole value was the columns". That is checklist item 1; items 2 and 3 were conditional on it going the other way.
+
+Nothing has moved since. `markdown.ts:6-11` still has no `html` node in the union, so there is still no branch that could produce markup, and the fallback still renders raw HTML as text. And the case is still speculative in the way the ticket admitted: the only multi-line raw HTML block anywhere in the store is the `<details>` example inside this ticket's own fenced code block, which is not raw HTML on screen.
+
+Cancelled rather than done — nothing was fixed. What the ticket was really filed for is answered better where it now lives than it was here: a reader of `readTable` who wonders whether raw HTML was considered and refused finds the refusal, with its reason, in the plan document beside the table's fix. The reopen trigger is that document's own — a construct whose value is its line structure turning up in a real description.
 <!-- /longclaw:event -->
