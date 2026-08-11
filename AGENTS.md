@@ -73,6 +73,7 @@ npm run perf:board                          # board interaction budgets in WebKi
 npm run perf:list                           # the same, for the list surface
 npm run probe:header                        # the content header's geometry, mid-write
 npm run probe:drag                          # where a dragged ticket actually lands
+npm run probe:checklist                     # whether the add-row is still on screen
 npm run matrix                              # theme × appearance visual regression
 npm run a11y:audit                          # accessibility Part A, keyboard-only, in WebKit
 npm run a11y:audit -- --self-test           # the same, expecting every row to go red
@@ -128,6 +129,20 @@ reach. What a probe cannot reach it must not report on — its `visible` now mea
 inside the scroller _and_ inside the pane that scrolls the group sideways.
 Run it when you touch a drop handler, `ticketMove.ts`, `ordering.ts`, `rank.ts`
 or `checklistOrder.ts`, and quote the run.
+
+`probe:checklist` asks the same of the checklist's add-row: not whether the field
+**has** focus after Enter — a jsdom test has asserted that since LC-106 and it
+passes — but whether the human can still **see** it. The add-row is the list's
+next row, so an appended item lands where the field was standing and the field
+moves a row down a pane that does not follow it; from a panel scrolled so the
+field is the last thing in it, one Enter puts it under the edge, and LC-193 was
+filed as "the next input row isn't focussed". Only the frame after Enter is
+wrong — WebKit follows the caret on the next keystroke — which is why it reads as
+anything but scrolling. It drives both add-rows, the panel's and create's, at
+four window heights, and it **skips a height it cannot drive into that position
+rather than passing on it**; a run that skipped every height fails. Run it when
+you touch either add-row, `addRow.ts`, or the panel's scroll container, and quote
+the run.
 
 **The design docs are cited by line number, and `citation-guard` holds those
 lines still.** `screen-specs.md` closes by asking that edits occupy exactly the

@@ -23,6 +23,16 @@ export interface PerfBridge {
   loaded: Promise<void>;
   /** Delivers a project event the way the Tauri listener would. */
   emit: (envelope: StreamEnvelope) => void;
+  /**
+   * Holds every later write open for `ms` before it lands, from now until it is
+   * set back to 0.
+   *
+   * `?slow=N` does the same for a whole run, which is right for looking at the
+   * screen a write is on but wrong for a probe that needs one *step* to be slow:
+   * `checklist-probe` types two items through a single round trip, and a run
+   * that was slow throughout would spend minutes getting there.
+   */
+  holdWrites: (ms: number) => void;
   probes: ProbeRecord[];
   /**
    * Resolves after the browser has painted the frame that follows this call.
@@ -46,6 +56,10 @@ export const bridge: PerfBridge = {
   }),
   emit: () => {
     throw new Error("no project-event listener is registered yet");
+  },
+  // Replaced by `stubs/core.ts`, which is the half that serves the writes.
+  holdWrites: () => {
+    throw new Error("the write commands are not served; add `?rw=1`");
   },
   probes: [],
   afterPaint: () =>

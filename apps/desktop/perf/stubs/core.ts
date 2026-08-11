@@ -69,11 +69,16 @@ const FAIL_PARSE = params.get("fail") === "parse";
  * does optimistically still happens at once, which is the point — the state
  * being held is "written, not yet confirmed", not "the app is stalled".
  */
-const SLOW_WRITE_MS = Number(params.get("slow") ?? 0);
+let slowWriteMs = Number(params.get("slow") ?? 0);
 const settling = () =>
-  SLOW_WRITE_MS > 0
-    ? new Promise<void>((wake) => setTimeout(wake, SLOW_WRITE_MS))
+  slowWriteMs > 0
+    ? new Promise<void>((wake) => setTimeout(wake, slowWriteMs))
     : Promise.resolve();
+// The same delay, turned on for one step of a run rather than for all of it
+// (`bridge.ts`). `checklist-probe` needs a single write held open while it types
+// through it, and paying `?slow` for every write of the run instead would be
+// minutes of waiting to reach the one that matters.
+if (WRITABLE) bridge.holdWrites = (ms: number) => void (slowWriteMs = ms);
 
 export class Channel<T> {
   onmessage: (message: T) => void = () => {};
@@ -141,6 +146,17 @@ function editTicket(request: EditTicketRequest): WriteResult {
   }
   if (edit.addChecklistItems?.length) {
     row.checklistCount += edit.addChecklistItems.length;
+    // The item lands in the list the next read serves, not only in the card's
+    // count. A stub that moved the number and left the list alone would let a
+    // probe type into the add-field and never see the row it made — and the
+    // panel's re-render around that new row is exactly what LC-193 is about.
+    const key = request.ticketKey;
+    const items = [...(checklists.get(key) ?? baseChecklist(key))];
+    for (const text of edit.addChecklistItems) {
+      appended += 1;
+      items.push({ id: `ck_add${appended}`, text, checked: false });
+    }
+    checklists.set(key, items);
   }
   // The order the write settled on, kept so the next read serves it. Without
   // this a probe watching where a checklist row landed would be watching the
@@ -162,8 +178,10 @@ function editTicket(request: EditTicketRequest): WriteResult {
   return write(row);
 }
 
-/** Checklists a write has reordered, by ticket key. */
+/** Checklists a write has reordered or appended to, by ticket key. */
 const checklists = new Map<string, ChecklistItem[]>();
+/** Ids for appended items, unique across the run the way LongClaw's are. */
+let appended = 0;
 
 const baseChecklist = (key: string): ChecklistItem[] =>
   detail(key).ticket?.checklist ?? [];

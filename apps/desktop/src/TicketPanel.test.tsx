@@ -298,6 +298,12 @@ beforeEach(() => {
 });
 
 afterEach(cleanup);
+// jsdom does not define it, and the app's calls are guarded for that reason
+// (`addRow.ts`). A test that installs one hands the next suite a stub that lies
+// about what this environment can do, so it goes back afterwards.
+afterEach(() => {
+  Reflect.deleteProperty(Element.prototype, "scrollIntoView");
+});
 
 describe("who a checklist tick belongs to", () => {
   it("shows the human's own tick as an ordinary checked box", async () => {
@@ -2320,6 +2326,107 @@ describe("the panel's fields read as the record, not as a form", () => {
     // pass (`keyboard-focus-map.md:63`).
     expect(field.value).toBe("");
     expect(document.activeElement).toBe(field);
+  });
+
+  /**
+   * And rapid entry is what that focus is *for*, so the second item of it has to
+   * survive the first item's round trip. One hash means one edit at a time, and
+   * until LC-193 that meant the second Enter was refused in silence — the field
+   * had already been cleared, so the text was simply gone. It queues now, and
+   * goes as one edit the moment the disk is free.
+   */
+  it("keeps an item typed while the first one's write is out (LC-193)", async () => {
+    let land: (result: WriteResult) => void = () => {};
+    editTicketMock.mockReturnValueOnce(
+      new Promise<WriteResult>((resolve) => {
+        land = resolve;
+      }),
+    );
+    editTicketMock.mockResolvedValue(writeResult());
+    render(surface());
+    await ready();
+
+    const field = screen.getByLabelText<HTMLInputElement>(
+      "Add a checklist item",
+    );
+    field.focus();
+    fireEvent.change(field, { target: { value: "First" } });
+    fireEvent.submit(field.form!);
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(1));
+
+    // The disk still has the first one. This is the keystroke that used to
+    // vanish: the field clears, and nothing was written.
+    fireEvent.change(field, { target: { value: "Second" } });
+    fireEvent.submit(field.form!);
+    fireEvent.change(field, { target: { value: "Third" } });
+    fireEvent.submit(field.form!);
+    expect(field.value).toBe("");
+    expect(editTicketMock).toHaveBeenCalledTimes(1);
+
+    land(writeResult());
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
+    // Both of them, in the order they were typed, and in one write — the queue
+    // is what the disk was busy with, not two round trips.
+    expect(editTicketMock.mock.calls[1][0].edit).toEqual({
+      addChecklistItems: ["Second", "Third"],
+    });
+  });
+
+  /**
+   * The other half of that promise, and the half LC-193 was filed about: the
+   * appended row lands where the field was standing, so the field moves a row
+   * down a pane that does not follow it, and one Enter can put it under the
+   * bottom edge. jsdom lays nothing out, so what is held here is the call and
+   * the condition on it — `perf/checklist-probe.mjs` is what measures the boxes.
+   */
+  it("brings the add-row back into view as the list grows (LC-193)", async () => {
+    const scrolled = vi.fn();
+    Element.prototype.scrollIntoView = scrolled;
+    readTicketMock.mockResolvedValueOnce(detail()).mockResolvedValue(
+      detail({
+        checklist: [
+          ...detail().ticket!.checklist,
+          { id: "ck_3", text: "Walk the panel", checked: false },
+        ],
+      }),
+    );
+    editTicketMock.mockResolvedValue(writeResult());
+    render(surface());
+    await ready();
+
+    const field = screen.getByLabelText<HTMLInputElement>(
+      "Add a checklist item",
+    );
+    field.focus();
+    fireEvent.change(field, { target: { value: "Walk the panel" } });
+    fireEvent.submit(field.form!);
+
+    await waitFor(() => expect(scrolled).toHaveBeenCalled());
+    expect(scrolled.mock.instances[0]).toBe(field);
+    expect(scrolled.mock.calls[0][0]).toEqual({ block: "nearest" });
+  });
+
+  it("leaves the scroll alone when a list grows under somebody else (LC-193)", async () => {
+    const scrolled = vi.fn();
+    Element.prototype.scrollIntoView = scrolled;
+    readTicketMock.mockResolvedValue(detail());
+    const { rerender } = render(surface());
+    await ready();
+
+    // The field is not where the human is; an item an external write appended
+    // must not move the page under whatever they are reading.
+    readTicketMock.mockResolvedValue(
+      detail({
+        checklist: [
+          ...detail().ticket!.checklist,
+          { id: "ck_3", text: "Appended by an agent", checked: false },
+        ],
+      }),
+    );
+    rerender(surface({ reloadSignal: 2 }));
+
+    await screen.findByText("Appended by an agent");
+    expect(scrolled).not.toHaveBeenCalled();
   });
 
   it("holds the Comment button back until there is a comment (LC-107)", async () => {

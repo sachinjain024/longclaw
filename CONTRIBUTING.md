@@ -84,14 +84,15 @@ Test suites worth knowing about:
 | `npm run matrix`       | every theme preset × light and dark over nine core states, checking rendered contrast and actor distinction                                                                                                                                                                                                 |
 | `npm run probe:header` | the content header's geometry in WebKit while a real write is in flight, at every width the window can be (LC-149)                                                                                                                                                                                          |
 | `npm run probe:drag`   | where a dragged ticket actually lands, in WebKit with the write commands served: between columns and between groups, a place inside one in Manual (LC-174), a checklist row inside the panel's list (LC-185), and a drop into the far-right column, which the grid has to scroll sideways to reach (LC-190) |
+| `npm run probe:checklist` | whether the checklist's add-row is still on screen after an item is appended, in WebKit at four window heights and on both add-rows — the field keeps focus and loses the pane (LC-193) |
 
 One thing under `perf/` _is_ in `npm run verify`: `perf/preview-server.test.mjs`,
-which covers how all six harnesses get their server (LC-157). It spawns short
+which covers how all seven harnesses get their server (LC-157). It spawns short
 node processes and binds ephemeral sockets rather than driving a browser, so it
 costs about a second and belongs with the unit suite; the harnesses themselves
 stay outside the gate.
 
-`perf:board`, `perf:list` and the two probes need a WebKit build, once per machine:
+`perf:board`, `perf:list` and the three probes need a WebKit build, once per machine:
 
 ```sh
 npx playwright@1.62.1 install webkit
@@ -104,9 +105,9 @@ what storage does per ticket, `perf:board` or `perf:list` when you change what
 that surface renders, and `perf:startup` when you change what happens before the
 first board paint.
 
-`a11y:audit`, `matrix`, `probe:header` and `probe:drag` are not in `verify` for
-the same reason — all four drive WebKit — but none of them measures time, so all
-four hold on a CI runner and `matrix` already runs as one. **Run `a11y:audit` when you touch
+`a11y:audit`, `matrix`, `probe:header`, `probe:drag` and `probe:checklist` are
+not in `verify` for the same reason — all five drive WebKit — but none of them
+measures time, so all five hold on a CI runner and `matrix` already runs as one. **Run `a11y:audit` when you touch
 focus, a key handler, a modal, or a control's tab position**, and run
 `a11y:audit -- --self-test` after adding a probe: it breaks the build on purpose
 and fails if any row still passes, which is how two blind probes were caught the
@@ -126,6 +127,16 @@ cannot say the ticket landed where it was let go — the two defects that have h
 behind a green gate here are LC-60's window flag, where the page never saw a
 `dragover`, and LC-174's rank allocation, where every event was right and the row
 did not move. It carries a `--self-test` like the others.
+
+**Run `probe:checklist` when you touch either checklist add-row**, `addRow.ts`,
+or the panel's scroll container. It asks the question `npm test` cannot: not
+whether the add-field *has* focus after Enter — jsdom answers that, and has said
+yes since LC-106 — but whether the human can still see it. The appended item
+lands where the field was standing, so the field moves a row down a pane that
+does not follow it, and from a panel scrolled to the field one Enter puts it
+under the edge (LC-193). It skips a window height it cannot drive into that
+position rather than passing on it, fails a run in which every height skipped,
+and carries a `--self-test` like the others.
 
 **A `<button>` or a checkbox needs an explicit `tabIndex` and `npm run check`
 enforces it.** WebKit follows the macOS _Keyboard navigation_ setting, off by

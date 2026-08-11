@@ -17,15 +17,16 @@
     "lint": "npm --prefix apps/desktop run lint",
     "test": "npm --prefix apps/desktop run test",
     "verify": "npm --prefix apps/desktop run verify",
-    "a11y:audit": "npm --prefix apps/desktop run a11y:audit",
-    "matrix": "npm --prefix apps/desktop run matrix",
+    "a11y:audit": "npm --prefix apps/desktop run a11y:audit --",
+    "matrix": "npm --prefix apps/desktop run matrix --",
     "perf:rust": "npm --prefix apps/desktop run perf:rust",
     "perf:startup": "npm --prefix apps/desktop run perf:startup",
-    "perf:board": "npm --prefix apps/desktop run perf:board",
-    "perf:list": "npm --prefix apps/desktop run perf:list",
-    "probe:header": "npm --prefix apps/desktop run probe:header",
-    "probe:drag": "npm --prefix apps/desktop run probe:drag",
+    "perf:board": "npm --prefix apps/desktop run perf:board --",
+    "perf:list": "npm --prefix apps/desktop run perf:list --",
+    "probe:header": "npm --prefix apps/desktop run probe:header --",
+    "probe:drag": "npm --prefix apps/desktop run probe:drag --",
+    "probe:checklist": "npm --prefix apps/desktop run probe:checklist --",
     "release:binary-audit": "npm --prefix apps/desktop run release:binary-audit",
-    "audit:network": "npm --prefix apps/desktop run audit:network"
+    "audit:network": "npm --prefix apps/desktop run audit:network --"
   }
 }
