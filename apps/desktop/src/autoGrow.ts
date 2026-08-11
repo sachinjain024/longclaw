@@ -17,6 +17,24 @@ import { useEffect, useRef } from "react";
  * clips, which is worse than the grabber. `scripts/field-guard.mjs` holds the
  * pair.
  */
+/**
+ * The field's own top and bottom borders, which `scrollHeight` does not count.
+ *
+ * The stylesheet is `box-sizing: border-box`, so a height set to `scrollHeight`
+ * alone leaves the *content* box short by exactly the borders — and a field two
+ * pixels short scrolls its own last line out of sight for as long as there is
+ * text in it. Every field this hook drove was borderless until LC-201 put a
+ * bordered description in quick create, which is why it has never shown; the
+ * composer has carried the same two pixels since it was written.
+ */
+function borders(element: HTMLTextAreaElement): number {
+  const style = getComputedStyle(element);
+  return (
+    (parseFloat(style.borderTopWidth) || 0) +
+    (parseFloat(style.borderBottomWidth) || 0)
+  );
+}
+
 export function useAutoGrow(value: string) {
   const field = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
@@ -27,7 +45,7 @@ export function useAutoGrow(value: string) {
       // jsdom has no layout, so `scrollHeight` is 0 under test. Pinning the
       // field to nothing would be worse than leaving the stylesheet to size it.
       if (element.scrollHeight > 0) {
-        element.style.height = `${element.scrollHeight}px`;
+        element.style.height = `${element.scrollHeight + borders(element)}px`;
       }
     };
     fit();

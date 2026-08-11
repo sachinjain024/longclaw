@@ -345,8 +345,12 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
     expect(api.createTicket).toHaveBeenCalledWith({
       projectId: project.id,
       title: "Prove the round trip",
+      // Empty rather than omitted, for the reason `none` is sent rather than
+      // omitted: one create request shape rather than two (LC-201).
+      description: "",
       status: "todo",
       priority: "urgent",
+      labels: [],
     });
     // The card is the reason this matters: a create that dropped the priority
     // on the way would look right in the modal and wrong on the board.
@@ -450,6 +454,161 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
         (document.activeElement as HTMLElement | null)?.dataset.ticketKey,
       ).toBe("LC-31"),
     );
+  });
+
+  /**
+   * LC-201's Create more loop, at the seam that owns the surface.
+   *
+   * The modal's own half — what clears and what is kept — is covered in
+   * `QuickCreate.test.tsx`. What only this seam can say is that the *app* stops
+   * doing the two things it does on every other create: taking the surface off
+   * the screen, and moving focus to the new card.
+   */
+  describe("the Create more loop (LC-201)", () => {
+    function titleField() {
+      return screen.getByLabelText("Title") as HTMLInputElement;
+    }
+
+    /** Scoped to the modal: the shell has a `Create project` too. */
+    function createButton() {
+      return within(screen.getByLabelText("Create a ticket")).getByRole(
+        "button",
+        { name: /^Create/ },
+      );
+    }
+
+    /** Opens quick create and ticks the box, which is off on every open. */
+    function openRun() {
+      fireEvent.click(screen.getAllByText("New ticket")[0]);
+      fireEvent.click(screen.getByRole("checkbox", { name: "Create more" }));
+    }
+
+    function type(title: string) {
+      fireEvent.change(titleField(), { target: { value: title } });
+      fireEvent.click(createButton());
+    }
+
+    it("files two tickets from one open modal, and keeps it open", async () => {
+      vi.mocked(api.createTicket).mockResolvedValue(created());
+      await openBoard();
+
+      openRun();
+      type("First of the run");
+      type("Second of the run");
+
+      // Two writes, two optimistic cards, and the surface still standing.
+      expect(api.createTicket).toHaveBeenCalledTimes(2);
+      expect(screen.getByText("First of the run")).toBeTruthy();
+      expect(screen.getByText("Second of the run")).toBeTruthy();
+      expect(screen.getByLabelText("Create a ticket")).toBeTruthy();
+    });
+
+    it("advances the key it guesses, so the run does not file under one key", async () => {
+      vi.mocked(api.createTicket).mockReturnValue(new Promise(() => {}));
+      await openBoard();
+
+      openRun();
+      expect(screen.getByText("Fixture Project · LC-1")).toBeTruthy();
+      type("First of the run");
+
+      // Read off the rows on screen, which now include the card the first
+      // create raised. Still a guess; Rust allocates the real one.
+      expect(screen.getByText("Fixture Project · LC-2")).toBeTruthy();
+    });
+
+    it("leaves the caret in the title rather than moving it to the new card", async () => {
+      vi.mocked(api.createTicket).mockReturnValue(new Promise(() => {}));
+      await openBoard();
+
+      openRun();
+      type("First of the run");
+
+      expect(document.activeElement).toBe(titleField());
+    });
+
+    /**
+     * The defect this feature would have shipped with.
+     *
+     * `writeNewTicket` moves focus to the card twice — once optimistically and
+     * once in `onWritten`, when the disk write returns. During a run that
+     * second one lands *while the next title is being typed*, and a create that
+     * stole the caret mid-word would read as dropped keystrokes rather than as
+     * a focus bug. It will not reproduce on a fast disk with a small project
+     * unless a test holds the write open, which is what this does.
+     */
+    it("does not steal the caret when the write returns mid-word", async () => {
+      let settle: (result: WriteResult) => void = () => {};
+      vi.mocked(api.createTicket).mockReturnValue(
+        new Promise<WriteResult>((resolve) => {
+          settle = resolve;
+        }),
+      );
+      await openBoard();
+
+      openRun();
+      type("First of the run");
+      // The human is already typing the next one when the disk answers.
+      fireEvent.change(titleField(), { target: { value: "Second of the r" } });
+      settle(created());
+      await screen.findByText("LC-1 created");
+
+      expect(document.activeElement).toBe(titleField());
+      expect(titleField().value).toBe("Second of the r");
+    });
+
+    it("closes on the create whose box is not ticked, as it always has", async () => {
+      vi.mocked(api.createTicket).mockResolvedValue(created());
+      await openBoard();
+
+      openRun();
+      type("First of the run");
+      fireEvent.click(screen.getByRole("checkbox", { name: "Create more" }));
+      type("Last of the run");
+
+      expect(screen.queryByLabelText("Create a ticket")).toBeNull();
+    });
+
+    it("hands the description and labels through the door to full create", async () => {
+      await openBoard();
+
+      fireEvent.click(screen.getAllByText("New ticket")[0]);
+      fireEvent.change(titleField(), { target: { value: "Needs a checklist" } });
+      fireEvent.change(screen.getByLabelText("Description"), {
+        target: { value: "Which lives over there." },
+      });
+      fireEvent.click(screen.getByText("Open full editor →"));
+
+      // The door is what makes the narrow surface honest, so it may not be the
+      // place two of the five fields quietly go missing.
+      expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe(
+        "Needs a checklist",
+      );
+      expect(
+        (screen.getByLabelText("Description") as HTMLTextAreaElement).value,
+      ).toBe("Which lives over there.");
+    });
+
+    it("sends the description and labels the run is carrying", async () => {
+      vi.mocked(api.createTicket).mockReturnValue(new Promise(() => {}));
+      await openBoard();
+
+      openRun();
+      fireEvent.change(screen.getByLabelText("Description"), {
+        target: { value: "Agents read this before they start." },
+      });
+      type("First of the run");
+
+      // The whole path, not the modal's own state: what the modal held is what
+      // Rust is handed, and `createMore` is not part of it.
+      expect(api.createTicket).toHaveBeenCalledWith({
+        projectId: project.id,
+        title: "First of the run",
+        description: "Agents read this before they start.",
+        status: "todo",
+        priority: "none",
+        labels: [],
+      });
+    });
   });
 });
 
@@ -5059,8 +5218,10 @@ describe("a project switch under an open editor (LC-188)", () => {
     expect(api.createTicket).toHaveBeenCalledWith({
       projectId: bravo.id,
       title: "Filed while the sidebar moved",
+      description: "",
       status: "todo",
       priority: "none",
+      labels: [],
     });
     // The optimistic card takes the next key rather than one that is taken:
     // `addProvisionalTicket` keys by key, so a guess of `BR-1` would have put
@@ -5182,8 +5343,10 @@ describe("a project switch under an open editor (LC-188)", () => {
     expect(api.createTicket).toHaveBeenCalledWith({
       projectId: alpha.id,
       title: "An ordinary create",
+      description: "",
       status: "todo",
       priority: "none",
+      labels: [],
     });
   });
 

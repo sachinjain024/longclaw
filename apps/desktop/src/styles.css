@@ -3667,10 +3667,97 @@ html.theme-transition *::after {
   padding: var(--lc-space-2) 0 0;
 }
 
-/* The hints sit between the two actions, so `code` cannot take the whole gap
-   the panel's own footer gives it. */
-.quick-create-modal .editor-footer code {
-  margin: 0 auto;
+/* `esc`, at the right end of the context row (LC-201). The word, doing what it
+   says: this modal has no **Cancel** and its scrim does not dismiss, so before
+   this there was no exit that was not a create.
+
+   Not the palette's `.kbd-chip`. That one is a `<kbd>` in a bordered box
+   reporting a key it cannot perform, and a box up here competes with the two
+   fields under it for the only edge the modal has to spend. The row is already
+   a flex line, so `auto` is the whole placement. */
+.quick-create-esc {
+  margin-left: auto;
+  border: 0;
+  padding: 0;
+  color: var(--lc-ink-3);
+  background: none;
+  font: var(--lc-type-kbd-weight) var(--lc-type-kbd-size)
+    var(--lc-type-kbd-font);
+}
+
+.quick-create-esc:hover {
+  color: var(--lc-ink-2);
+}
+
+/* The description (LC-201): three lines to start, growing with what is typed,
+   capped so a long one scrolls itself rather than pushing the footer off the
+   modal. This is `.composer textarea`'s shape and very nearly its rules — the
+   app already has a bordered, auto-growing, capped markdown field, and a second
+   kind here would be a second answer to a solved question.
+
+   It takes the box the title does not. D-47 leaves the title borderless because
+   the modal is one field and two menus, so a box around the field is a frame
+   around nothing; at three lines that argument inverts, since an unframed block
+   of empty space under the title reads as a gap rather than as a field. The
+   panel makes the same split, with a bare `.panel-title` over a boxed editor.
+
+   The edge is `--lc-line`, not the `--lc-line-strong` of the field foundation:
+   the footer's own hairline sits directly under this one, and a stronger edge
+   than that reads as a frame. `resize: none` with `useAutoGrow` in the
+   component, which is the pair `field-guard.mjs` checks together. */
+.quick-create-description {
+  overflow: auto;
+  min-height: calc(var(--lc-type-code-size) * var(--lc-type-code-leading) * 3);
+  max-height: 180px;
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-control);
+  padding: var(--lc-space-2);
+  color: var(--lc-ink);
+  background: var(--lc-surface);
+  font: var(--lc-type-code-weight) var(--lc-type-code-size) /
+    var(--lc-type-code-leading) var(--lc-type-code-font);
+  resize: none;
+}
+
+.quick-create-description::placeholder {
+  color: var(--lc-ink-3);
+}
+
+/* Labels join status and priority on the meta row (LC-201). `.meta-labels` is a
+   value cell built for the panel's two-column grid, where its own padding sets
+   the row's height; on this row the two triggers beside it do that, so it gives
+   the padding back rather than making the row taller than the controls in it. */
+.quick-create-meta .meta-labels {
+  padding: 0;
+}
+
+/* **Create more** (LC-201), immediately left of **Create**: the control it
+   changes is the next thing both the eye and the Tab key reach. `margin-left`
+   is what pushes the pair right, now that the mono hints line that used to hold
+   the gap is gone. */
+.create-more {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  margin-left: auto;
+  color: var(--lc-ink-2);
+  font-size: var(--lc-type-micro-size);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* Sized, because `label input` is the app's *text field* foundation — 100%
+   wide, 30px tall, hairline border — and a checkbox inside a label collects it
+   and disappears. The checklist's rows answer this the same way, with the same
+   token and the same accent. */
+.create-more input {
+  width: var(--lc-size-checkbox);
+  height: var(--lc-size-checkbox);
+  flex: none;
+  margin: 0;
+  accent-color: var(--lc-accent-human);
+  cursor: pointer;
 }
 
 /* ------------------------------------------------------------------- toasts */
