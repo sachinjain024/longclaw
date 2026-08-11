@@ -21,7 +21,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { cssRules, declarationsOf, report } from "./guard.mjs";
+import { cssRules, declarationsOf, declaredValues, report } from "./guard.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const src = resolve(here, "../src");
@@ -30,16 +30,17 @@ const rules = cssRules(styles);
 
 const findings = [];
 
+/** Every declaration this file asserts, counted as it is read. */
+let checked = 0;
+
 function requireDeclaration(selector, property, expected, reason) {
-  const declarations = declarationsOf(rules, selector);
-  if (declarations.length === 0) {
+  checked += 1;
+  if (declarationsOf(rules, selector).length === 0) {
     findings.push(`${selector} has no rule; expected ${reason}`);
     return;
   }
 
-  const values = [
-    ...declarations.matchAll(new RegExp(`${property}\\s*:\\s*([^;]+)`, "g")),
-  ].map(([, value]) => value.trim());
+  const values = declaredValues(rules, selector, property);
   if (!values.includes(expected)) {
     findings.push(
       `${selector} declares ${property}: ${values.join(", ") || "<missing>"}; ` +
@@ -112,8 +113,8 @@ requireDeclaration(
 report({
   name: "create-surface-guard",
   findings,
-  checked: 4,
-  noun: "contracts",
+  checked,
+  noun: "declarations",
   remedy: "create-surface CSS contract(s) drifted",
   clean: "D-47, D-48, D-49 and D-4A CSS contracts hold",
 });
