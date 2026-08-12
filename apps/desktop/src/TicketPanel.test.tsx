@@ -307,6 +307,30 @@ afterEach(() => {
 });
 
 describe("who a checklist tick belongs to", () => {
+  /**
+   * LC-220. `states.md:62` names **check** as one of the mutations that raises
+   * **Undo ⌘Z**, and it was the one that could never run: a checkbox is an
+   * `<input>`, the guard asked for `input` whole, and clicking a box leaves
+   * focus on it. The most-offered undo in the app, dead on the most common
+   * gesture in the panel.
+   */
+  it("reaches undo from ⌘Z with focus still on the box that was ticked", async () => {
+    editTicketMock.mockResolvedValue(writeResult());
+    render(surface());
+
+    const box = await screen.findByLabelText("Review what it changed");
+    box.focus();
+    fireEvent.click(box);
+    await screen.findByText("LC-1 checked · Review what it changed");
+
+    fireEvent.keyDown(box, { key: "z", metaKey: true });
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
+    expect(editTicketMock.mock.calls[1][0]).toMatchObject({
+      edit: { checklist: [{ itemId: "ck_2", checked: false }] },
+    });
+  });
+
   it("shows the human's own tick as an ordinary checked box", async () => {
     const ticked = [
       { id: "ck_1", text: "Let an agent read this ticket", checked: true },
@@ -822,6 +846,39 @@ describe("editing and removing a checklist row (LC-215)", () => {
     expect(document.activeElement?.getAttribute("aria-label")).toBe(
       "Add a checklist item",
     );
+  });
+
+  /**
+   * LC-220. The add-row the removal hands focus to is a field, and `⌘Z` used to
+   * stand down for any focused field — so the one gesture in the panel that
+   * *moves* the caret into a box was also the one whose Undo the key could not
+   * reach. Nothing has been typed there, so the offer on screen is the only
+   * undo in play.
+   */
+  it("still reaches undo from ⌘Z with the caret parked in the add-row", async () => {
+    render(surface());
+    await screen.findByLabelText("Review what it changed");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove Review what it changed" }),
+    );
+    await screen.findByText(/LC-1 removed · Review what it changed/);
+
+    fireEvent.keyDown(screen.getByLabelText("Add a checklist item"), {
+      key: "z",
+      metaKey: true,
+    });
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
+    expect(editTicketMock.mock.calls[1][0]).toMatchObject({
+      edit: {
+        restoreChecklistItem: {
+          text: "Review what it changed",
+          after: "ck_1",
+          checked: false,
+        },
+      },
+    });
   });
 
   /**
@@ -1669,6 +1726,93 @@ describe("the status menu (V0-14 closed V0-08's open edge)", () => {
       expect(chevron?.getAttribute("aria-hidden")).toBe("true");
       expect(trigger.getAttribute("aria-haspopup")).toBe("menu");
     }
+  });
+});
+
+describe("taking back a rewrite of the ticket's own prose (LC-220)", () => {
+  it("offers the old title back after a rename", async () => {
+    editTicketMock.mockResolvedValue(writeResult());
+    render(surface());
+    await ready();
+
+    const title = screen.getByLabelText("Title");
+    fireEvent.change(title, {
+      target: { value: "Prove the agent round trips" },
+    });
+    fireEvent.blur(title);
+
+    await screen.findByText(/renamed · Prove the agent round trips/);
+    fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
+    expect(editTicketMock.mock.calls[1][0]).toEqual({
+      projectId: "project-1",
+      ticketKey: "LC-1",
+      // The hash the rename left behind, not the one it started from.
+      expectedHash: "hash-2",
+      edit: { title: "Prove the agent round trip" },
+    });
+    await screen.findByText(/title restored · Prove the agent round trip/);
+  });
+
+  it("offers the old description back after the editor saves over it", async () => {
+    editTicketMock.mockResolvedValue(writeResult());
+    readTicketMock.mockResolvedValue(detail({ description: "Before." }));
+    render(surface());
+    await ready();
+
+    fireEvent.click(screen.getByRole("button", { name: /Edit description/ }));
+    fireEvent.change(screen.getByLabelText("Description"), {
+      target: { value: "After." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Save/ }));
+
+    await screen.findByText("LC-1 description updated");
+    fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
+    // The prose the file held, byte for byte — the one thing the app cannot get
+    // back for the human once the editor has written over it.
+    expect(editTicketMock.mock.calls[1][0]).toMatchObject({
+      expectedHash: "hash-2",
+      edit: { description: "Before." },
+    });
+    await screen.findByText("LC-1 description restored");
+  });
+
+  it("runs both from ⌘Z, with the caret left where the save left it", async () => {
+    // The rename's own field still has focus when the toast goes up, and the
+    // draft in it is now what the file says — so the field has nothing of its
+    // own to take back and ⌘Z is the app's (LC-220).
+    editTicketMock.mockResolvedValue(writeResult());
+    render(surface());
+    await ready();
+
+    const title = screen.getByLabelText("Title");
+    fireEvent.change(title, { target: { value: "Renamed once" } });
+    fireEvent.blur(title);
+    await screen.findByText(/renamed · Renamed once/);
+
+    fireEvent.keyDown(document.body, { key: "z", metaKey: true });
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
+    expect(editTicketMock.mock.calls[1][0]).toMatchObject({
+      edit: { title: "Prove the agent round trip" },
+    });
+  });
+
+  it("says nothing and writes nothing when the title comes back unchanged", async () => {
+    render(surface());
+    await ready();
+
+    const title = screen.getByLabelText("Title");
+    fireEvent.change(title, {
+      target: { value: "Prove the agent round trip" },
+    });
+    fireEvent.blur(title);
+
+    expect(editTicketMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: /Undo/ })).toBeNull();
   });
 });
 

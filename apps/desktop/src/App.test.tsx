@@ -556,6 +556,59 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
       expect(titleField().value).toBe("Second of the r");
     });
 
+    /**
+     * LC-220. The run's own Undo, which the toast has always offered and the
+     * key could never reach.
+     *
+     * The loop ends by clearing the title and focusing it again, and `⌘Z` stood
+     * down for any focused field on the grounds that the field's own undo owns
+     * it — so during a run the offer was on screen and dead, which is worse
+     * than not offering it. The box the caret is in has nothing to take back
+     * here: the app emptied it, not the human.
+     */
+    it("undoes the create the run just filed, with the caret still in the title", async () => {
+      vi.mocked(api.createTicket).mockResolvedValue(created());
+      vi.mocked(api.editTicket).mockResolvedValue({
+        ...created(),
+        generation: 3,
+      });
+      await openBoard();
+
+      openRun();
+      // A real keystroke, because what the guard reads is the `input` event.
+      fireEvent.input(titleField(), { target: { value: "First of the run" } });
+      fireEvent.click(createButton());
+      await screen.findByText("LC-1 created");
+      expect(document.activeElement).toBe(titleField());
+
+      fireEvent.keyDown(titleField(), { key: "z", metaKey: true });
+
+      await waitFor(() => expect(api.editTicket).toHaveBeenCalledTimes(1));
+      expect(api.editTicket).toHaveBeenCalledWith({
+        projectId: project.id,
+        ticketKey: "LC-1",
+        expectedHash: "hash-created",
+        edit: { archived: true },
+      });
+    });
+
+    it("leaves ⌘Z to the title the human is part-way through typing", async () => {
+      vi.mocked(api.createTicket).mockResolvedValue(created());
+      await openBoard();
+
+      openRun();
+      fireEvent.input(titleField(), { target: { value: "First of the run" } });
+      fireEvent.click(createButton());
+      await screen.findByText("LC-1 created");
+      // The next title, typed while the first one's toast is still up. Now the
+      // field does have an edit of its own, and it keeps the key.
+      fireEvent.input(titleField(), { target: { value: "Second of the r" } });
+
+      fireEvent.keyDown(titleField(), { key: "z", metaKey: true });
+
+      expect(api.editTicket).not.toHaveBeenCalled();
+    });
+
     it("closes on the create whose box is not ticked, as it always has", async () => {
       vi.mocked(api.createTicket).mockResolvedValue(created());
       await openBoard();

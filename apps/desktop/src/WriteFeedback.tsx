@@ -9,7 +9,8 @@
 
 import { useEffect, useState } from "react";
 import { useMutationStore } from "./mutations";
-import { isChord, singleKeyShortcutAllowed } from "./keyContext";
+import { fieldOwnsUndo, trackFieldEdits } from "./fieldUndo";
+import { isChord } from "./keyContext";
 
 /**
  * How long a write may stay unsettled before it may spin. Below this the text
@@ -151,6 +152,11 @@ export function ToastStack() {
     return () => clearTimeout(timer);
   }, [toast, expires, dismiss]);
 
+  // Always on, not only while an undo is offered: the question it answers is
+  // what the person has typed *before* the toast went up, and a tracker that
+  // started with the offer would have missed it.
+  useEffect(trackFieldEdits, []);
+
   const undo = toast?.undo;
   const toastId = toast?.id;
   useEffect(() => {
@@ -158,8 +164,10 @@ export function ToastStack() {
     const onKeyDown = (event: KeyboardEvent) => {
       // `⌘`/`Ctrl` alike, the convention plan 24 picked for every chord.
       if (!isChord(event, "z")) return;
-      // ⌘Z inside a field is the field's own undo, not the app's.
-      if (!singleKeyShortcutAllowed(event.target)) return;
+      // ⌘Z inside a field is the field's own undo — while the field still has
+      // one. The app's own gestures end by putting the caret in an empty box,
+      // and there the offer on screen is the only undo there is (LC-220).
+      if (fieldOwnsUndo(event.target)) return;
       event.preventDefault();
       dismiss(toastId);
       undo();
