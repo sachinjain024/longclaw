@@ -1111,16 +1111,62 @@ describe("the project settings gear (LC-70)", () => {
     expect(
       within(header).queryByRole("button", { name: /^Star(?:red)?$/ }),
     ).toBeNull();
-    // What it opens is a dialog since LC-125, so it says `haspopup` rather than
-    // the `aria-expanded` an inline region under a trigger would carry.
-    expect(settings.getAttribute("aria-haspopup")).toBe("dialog");
-    expect(settings.getAttribute("aria-expanded")).toBeNull();
+    // What it opens is a menu since LC-208, so the expanded state is back: a
+    // menu *is* a region that stays under its trigger, which is the thing
+    // LC-125 removed `aria-expanded` for when the gear opened a dialog.
+    expect(settings.getAttribute("aria-haspopup")).toBe("menu");
+    expect(settings.getAttribute("aria-expanded")).toBe("false");
 
     fireEvent.click(settings);
+
+    expect(settings.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("menu", { name: "Project settings" })).toBeTruthy();
+    // The menu stands in front of the panel; nothing opens until a row is
+    // picked.
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    fireEvent.click(screen.getByRole("menuitem", { name: /All settings/ }));
 
     expect(
       screen.getByRole("dialog", { name: "Project settings" }),
     ).toBeTruthy();
+  });
+
+  /**
+   * The gear's menu is a rung of the `Esc` ladder, so the global single-key
+   * and chord shortcuts stand down under it (`keyboard-focus-map.md:19-21`).
+   *
+   * A menu row is a `<button>`, which is not a text input, so
+   * `singleKeyShortcutAllowed` says yes to `C` — the same hole the adjacent
+   * comment in `App.tsx` describes for palette rows and create-surface
+   * buttons. Without the menu in the guard, `C` opened quick create
+   * *underneath* the open menu.
+   */
+  it("stands the global shortcuts down while the gear's menu is open", async () => {
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project,
+      tickets: [],
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    render(<App />);
+    await screen.findByRole("button", { name: "Board", pressed: true });
+    fireEvent.click(screen.getByRole("button", { name: "Project settings" }));
+    const menu = screen.getByRole("menu", { name: "Project settings" });
+
+    fireEvent.keyDown(document, { key: "c" });
+    expect(screen.queryByRole("dialog", { name: /Create/i })).toBeNull();
+    expect(document.querySelector(".quick-create-modal")).toBeNull();
+
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+    expect(document.querySelector(".command-palette")).toBeNull();
+
+    // The menu is still the thing on screen, and still the thing `Esc` takes.
+    expect(menu).toBeTruthy();
+    fireEvent.keyDown(menu, { key: "Escape" });
+    expect(screen.queryByRole("menu")).toBeNull();
   });
 });
 
@@ -1154,7 +1200,15 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
     relativePath: ".longclaw/tickets/LC-1/ticket.md",
   };
 
-  async function openSettings(tickets: TicketRow[] = [ticket]) {
+  /**
+   * The real path since LC-208: the gear opens a menu, `All settings…` opens
+   * the panel, and the nav chooses the pane. Tests name the section they are
+   * about, because the panel shows exactly one of them at a time.
+   */
+  async function openSettings(
+    tickets: TicketRow[] = [ticket],
+    section = "General",
+  ) {
     vi.mocked(api.listProjects).mockResolvedValue([project]);
     vi.mocked(api.openProject).mockResolvedValue({
       project,
@@ -1166,16 +1220,22 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
     render(<App />);
     await screen.findByRole("button", { name: "Board", pressed: true });
     fireEvent.click(screen.getByRole("button", { name: "Project settings" }));
-    return screen.getByRole("dialog", { name: "Project settings" });
+    fireEvent.click(screen.getByRole("menuitem", { name: /All settings/ }));
+    const dialog = screen.getByRole("dialog", { name: "Project settings" });
+    if (section !== "General")
+      fireEvent.click(within(dialog).getByRole("tab", { name: section }));
+    return dialog;
   }
 
   const confirmDialog = () =>
     screen.queryByRole("dialog", { name: /from LongClaw\?$/ });
 
   it("D-40: opens on the scrim, over a board that stays where it was", async () => {
-    const dialog = await openSettings();
+    await openSettings();
 
-    expect(dialog.closest(".modal-scrim")).toBeTruthy();
+    // The scrim is a sibling since LC-208 — the panel is pinned to the right
+    // edge rather than centered inside it — so it is looked for where it is.
+    expect(document.querySelector(".modal-scrim.settings-scrim")).toBeTruthy();
     // The inline section this replaces lived in the main panel and pushed
     // everything below it down the page.
     expect(document.querySelector(".main-panel .settings-panel")).toBeNull();
@@ -1224,7 +1284,7 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
   });
 
   it("D-42: the appearance segment sets the app preference", async () => {
-    const dialog = await openSettings();
+    const dialog = await openSettings([ticket], "Theme");
 
     const segment = within(dialog).getByRole("group", { name: /^Appearance/ });
     // The exception the row states about itself, and the group's own name.
@@ -1247,7 +1307,7 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
   });
 
   it("D-44: removing states its guarantee and asks first", async () => {
-    const dialog = await openSettings();
+    const dialog = await openSettings([ticket], "Danger zone");
 
     expect(dialog.textContent).toContain(
       "Removing only forgets the project in LongClaw. Files on disk are never touched.",
@@ -1274,7 +1334,7 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
   });
 
   it("D-44: confirming forgets the project and closes the dialog", async () => {
-    const dialog = await openSettings();
+    const dialog = await openSettings([ticket], "Danger zone");
     fireEvent.click(
       within(dialog).getByRole("button", { name: "Remove from app" }),
     );
@@ -1312,19 +1372,32 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
     );
   });
 
-  it("Tab stays inside the dialog, and `Esc` still closes it from the body", async () => {
+  it("Tab stays inside the panel, and `Esc` still closes it from the body", async () => {
     const dialog = await openSettings();
 
     // "Modals hold focus until dismissed" (`keyboard-focus-map.md:23-24`): Tab
-    // off the last control wraps to the first — the Name field — rather than
+    // off the last control wraps to the first — the close ✕ — rather than
     // landing on the board behind the scrim, where every stop is hidden.
-    const done = within(dialog).getByRole("button", { name: "Done" });
-    done.focus();
-    fireEvent.keyDown(done, { key: "Tab" });
-    expect(document.activeElement).toBe(within(dialog).getByLabelText("Name"));
+    const last = within(dialog).getByRole("button", { name: "Locate…" });
+    last.focus();
+    fireEvent.keyDown(last, { key: "Tab" });
+    expect(document.activeElement).toBe(
+      within(dialog).getByRole("button", { name: "Close settings" }),
+    );
 
-    // Clicking the dialog's own heading leaves nothing focused, which used to
-    // strand the dialog: its `Esc` handler was on the element.
+    // And the nav is a roving group, so Tab crosses it in one step rather than
+    // stopping on all six: only the open section is a stop.
+    fireEvent.keyDown(document.activeElement!, { key: "Tab" });
+    expect(document.activeElement).toBe(
+      within(dialog).getByRole("tab", { name: "General" }),
+    );
+    fireEvent.keyDown(document.activeElement!, { key: "Tab" });
+    expect(within(dialog).getByRole("tab", { name: "Theme" })).not.toBe(
+      document.activeElement,
+    );
+
+    // Clicking the panel's own heading leaves nothing focused, which used to
+    // strand it: its `Esc` handler was on the element.
     (document.activeElement as HTMLElement | null)?.blur();
     fireEvent.keyDown(document.body, { key: "Escape" });
 
@@ -1335,11 +1408,20 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
     );
   });
 
-  it("D-4L: Done closes it and hands focus back to the gear", async () => {
+  /**
+   * The `Done` button in the footer is gone with the footer (LC-208): a panel
+   * pinned to an edge closes from the ✕ in its own header, the way the ticket
+   * panel does, and a footer holding one button cost a row of the pane the
+   * sections are read in.
+   */
+  it("D-4L: the close ✕ closes it and hands focus back to the gear", async () => {
     const dialog = await openSettings();
     const gear = screen.getByRole("button", { name: "Project settings" });
+    expect(within(dialog).queryByRole("button", { name: "Done" })).toBeNull();
 
-    fireEvent.click(within(dialog).getByRole("button", { name: "Done" }));
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Close settings" }),
+    );
 
     await waitFor(() =>
       expect(
@@ -1374,7 +1456,7 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
       ...project,
       labels: { backend: { name: "Backend", color: "purple" } },
     });
-    const dialog = await openSettings();
+    const dialog = await openSettings([ticket], "Labels");
 
     expect(dialog.querySelector("select")).toBeNull();
     expect(
@@ -1415,8 +1497,8 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
     );
   });
 
-  it("D-4J: `Esc` in a label name reverts the field and leaves the dialog up", async () => {
-    const dialog = await openSettings();
+  it("D-4J: `Esc` in a label name reverts the field and leaves the panel up", async () => {
+    const dialog = await openSettings([ticket], "Labels");
     const field = within(dialog).getByLabelText<HTMLInputElement>(
       "Name of label backend",
     );
@@ -1437,7 +1519,7 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
       ...project,
       labels: {},
     });
-    const dialog = await openSettings();
+    const dialog = await openSettings([ticket], "Labels");
     const field = within(dialog).getByLabelText("Name of label backend");
     fireEvent.change(field, { target: { value: "Platform" } });
 
@@ -1463,7 +1545,7 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
       ...project,
       labels: { backend: { name: "Platform", color: "blue" } },
     });
-    const dialog = await openSettings();
+    const dialog = await openSettings([ticket], "Labels");
     const field = within(dialog).getByLabelText("Name of label backend");
 
     fireEvent.blur(field);
@@ -1503,6 +1585,8 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
     fireEvent.click(
       within(header).getByRole("button", { name: "Project settings" }),
     );
+    fireEvent.click(screen.getByRole("menuitem", { name: /All settings/ }));
+    fireEvent.click(screen.getByRole("tab", { name: "Danger zone" }));
 
     fireEvent.click(screen.getByRole("button", { name: "Remove from app" }));
     expect(api.removeProject).not.toHaveBeenCalled();
@@ -2163,6 +2247,7 @@ describe("instant per-project theme selection (V0-36)", () => {
     document.documentElement.classList.remove("theme-transition");
   });
 
+  /** The gear → `All settings…` → `Theme` walk the picker now lives behind. */
   async function openSettings() {
     vi.mocked(api.listProjects).mockResolvedValue([project]);
     vi.mocked(api.openProject).mockResolvedValue({
@@ -2175,6 +2260,8 @@ describe("instant per-project theme selection (V0-36)", () => {
     render(<App />);
     await screen.findByRole("button", { name: "Board", pressed: true });
     fireEvent.click(screen.getByRole("button", { name: "Project settings" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /All settings/ }));
+    fireEvent.click(screen.getByRole("tab", { name: "Theme" }));
   }
 
   it("must-pass: a preset applies instantly and writes only the project file", async () => {
@@ -2331,6 +2418,9 @@ describe("label definitions in project settings (V0-10)", () => {
     render(<App />);
     await screen.findByRole("button", { name: "Board", pressed: true });
     fireEvent.click(screen.getByRole("button", { name: "Project settings" }));
+    // The menu's own `Labels` row, which is the short path the gear exists to
+    // offer: it opens the panel already standing on this section.
+    fireEvent.click(screen.getByRole("menuitem", { name: /^Labels/ }));
   }
 
   const chips = () =>
@@ -4101,7 +4191,7 @@ describe("project-scoped workspace restoration (LC-49)", () => {
     const firstLaunch = render(<App />);
     await screen.findByRole("heading", { name: "Project A" });
 
-    fireEvent.click(screen.getByRole("button", { name: /Project B/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Project B" }));
     await screen.findByRole("heading", { name: "Project B" });
 
     firstLaunch.unmount();
@@ -4124,7 +4214,7 @@ describe("project-scoped workspace restoration (LC-49)", () => {
     chooseOrdering("Manual");
     fireEvent.change(filter(), { target: { value: "alpha" } });
 
-    fireEvent.click(screen.getByRole("button", { name: /Project B/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Project B" }));
     await screen.findByRole("heading", { name: "Project B" });
     expect(
       screen.getByRole("button", { name: "Board", pressed: true }),
@@ -4135,7 +4225,7 @@ describe("project-scoped workspace restoration (LC-49)", () => {
     expect(filter().value).toBe("");
 
     fireEvent.change(filter(), { target: { value: "beta" } });
-    fireEvent.click(screen.getByRole("button", { name: /Project A/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Project A" }));
     await screen.findByRole("heading", { name: "Project A" });
 
     expect(
@@ -4152,10 +4242,10 @@ describe("project-scoped workspace restoration (LC-49)", () => {
     fireEvent.click(screen.getByRole("button", { name: "List" }));
     chooseOrdering("Manual");
     fireEvent.change(filter(), { target: { value: "alpha" } });
-    fireEvent.click(screen.getByRole("button", { name: /Project B/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Project B" }));
     await screen.findByRole("heading", { name: "Project B" });
     fireEvent.change(filter(), { target: { value: "beta" } });
-    fireEvent.click(screen.getByRole("button", { name: /Project A/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Project A" }));
     await screen.findByRole("heading", { name: "Project A" });
 
     firstLaunch.unmount();
@@ -4170,7 +4260,7 @@ describe("project-scoped workspace restoration (LC-49)", () => {
     await screen.findByRole("button", { name: "Order: Manual" });
     expect(filter().value).toBe("alpha");
 
-    fireEvent.click(screen.getByRole("button", { name: /Project B/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Project B" }));
     await screen.findByRole("heading", { name: "Project B" });
     expect(
       screen.getByRole("button", { name: "Board", pressed: true }),
@@ -4323,18 +4413,139 @@ describe("the side panel against its spec (Step 16a)", () => {
     expect(api.openProject).toHaveBeenCalledWith(unreachable.id);
   });
 
+  /**
+   * The star is a mark rather than a toggle since LC-208 — starring moved into
+   * the row's own `⋮` menu, where it can be named for what it does — so what
+   * the row owes is the same persistence in a different shape: a starred row
+   * shows the mark whether or not the pointer is on it, and an unstarred one
+   * shows nothing rather than a hollow `☆` waiting to be pressed.
+   */
   it("keeps a starred project's star visible when the row is not hovered", async () => {
     await renderPanel();
 
-    const star = (name: string) =>
-      [...localSection().querySelectorAll<HTMLElement>(".project-link")]
-        .find((link) => link.textContent?.includes(name))!
-        .querySelector<HTMLElement>(".star-button")!;
+    const link = (name: string) =>
+      [...localSection().querySelectorAll<HTMLElement>(".project-link")].find(
+        (element) => element.textContent?.includes(name),
+      )!;
 
-    // Hover reveals the affordance; starred state is persistent, so the class
-    // that opts out of the reveal has to be on the row that is starred.
-    expect(star("Reachable Project").className).toContain("starred");
-    expect(star("Moved Project").className).not.toContain("starred");
+    expect(link("Reachable Project").querySelector(".star-mark")).toBeTruthy();
+    // Said in words too: the mark is a glyph, and a glyph is never the only
+    // channel.
+    expect(link("Reachable Project").textContent).toContain("Starred");
+    expect(link("Moved Project").querySelector(".star-mark")).toBeNull();
+  });
+
+  /**
+   * The `⋮` the ticket asks for, on every row of both sections (LC-208). It is
+   * a sibling of the row rather than a child, so the row's accessible name is
+   * still the project's name and nothing else.
+   */
+  it("gives every project row a menu that does not rename it", async () => {
+    await renderPanel();
+
+    const menu = within(localSection()).getByRole("button", {
+      name: "Reachable Project menu",
+    });
+    expect(menu.getAttribute("aria-haspopup")).toBe("menu");
+    expect(menu.getAttribute("aria-expanded")).toBe("false");
+    // The row still announces itself as the project and nothing else — no
+    // trace of the button beside it, which is what nesting the `⋮` inside it
+    // would have cost.
+    const row = [
+      ...localSection().querySelectorAll<HTMLElement>(".project-link"),
+    ].find((element) => element.textContent?.includes("Reachable Project"))!;
+    expect(row.textContent).not.toContain("menu");
+
+    fireEvent.click(menu);
+
+    expect(menu.getAttribute("aria-expanded")).toBe("true");
+    const popover = screen.getByRole("menu", { name: "Project menu" });
+    expect(
+      within(popover).getByRole("menuitem", { name: /Unstar project/ }),
+    ).toBeTruthy();
+  });
+
+  /**
+   * The theme rows deliberately leave the menu up — trying presets against the
+   * board behind it is the whole reason they are in a menu — so the menu has
+   * to read the project as the store holds it *now*, not as it was when the
+   * `⋮` was pressed. Against a snapshot the check stays on the preset you just
+   * replaced, and the row that restyles a project without opening it is the
+   * one surface with no other way to see that the write took.
+   */
+  it("keeps the open menu reading the project its own writes changed", async () => {
+    await renderPanel();
+    vi.mocked(api.updateProjectTheme).mockResolvedValue({
+      ...reachable,
+      theme: "clay",
+    });
+
+    fireEvent.click(
+      within(localSection()).getByRole("button", {
+        name: "Reachable Project menu",
+      }),
+    );
+    fireEvent.click(
+      within(screen.getByRole("menu", { name: "Project menu" })).getByRole(
+        "menuitem",
+        { name: /Theme/ },
+      ),
+    );
+    const preset = (name: string) =>
+      within(screen.getByRole("menu", { name: "Theme" })).getByRole(
+        "menuitemradio",
+        { name },
+      );
+    // `reachable` is a plum project, so the check starts there.
+    expect(preset("Plum").getAttribute("aria-checked")).toBe("true");
+
+    fireEvent.click(preset("Clay"));
+
+    await waitFor(() =>
+      expect(api.updateProjectTheme).toHaveBeenCalledWith(reachable.id, "clay"),
+    );
+    // Still up, with the check where the write put it.
+    await waitFor(() =>
+      expect(preset("Clay").getAttribute("aria-checked")).toBe("true"),
+    );
+    expect(preset("Plum").getAttribute("aria-checked")).toBe("false");
+  });
+
+  /**
+   * Removing a project that is **not** the open one is a change to the sidebar
+   * and nothing else (LC-208). The removal path was written when settings was
+   * the only place that offered it, so it closed settings and sent focus to
+   * the welcome screen's first button — neither of which is on screen when the
+   * board of a different project is still up, which left focus on `<body>`.
+   */
+  it("removing another project from its ⋮ leaves the open board alone", async () => {
+    await renderPanel();
+    vi.mocked(api.removeProject).mockResolvedValue(undefined);
+    // `unreachable` ("Moved Project") is not the project the shell opened.
+    fireEvent.click(
+      within(localSection()).getByRole("button", {
+        name: "Moved Project menu",
+      }),
+    );
+    fireEvent.click(screen.getByRole("menuitem", { name: /Remove from app/ }));
+    fireEvent.click(
+      within(
+        await screen.findByRole("dialog", { name: /Moved Project/ }),
+      ).getByRole("button", { name: "Remove from app" }),
+    );
+
+    await waitFor(() =>
+      expect(api.removeProject).toHaveBeenCalledWith(unreachable.id),
+    );
+    // The row is gone and the one that was open is still listed.
+    await waitFor(() =>
+      expect(within(localSection()).queryByText("Moved Project")).toBeNull(),
+    );
+    expect(within(localSection()).getByText("Reachable Project")).toBeTruthy();
+    // No welcome screen: there is still a project open behind all this.
+    expect(document.querySelector(".welcome-actions")).toBeNull();
+    // And focus is somewhere a keyboard can carry on from.
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
   });
 });
 

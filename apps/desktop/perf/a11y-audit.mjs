@@ -126,9 +126,15 @@ const focused = (page) =>
  * can reach is a keyboard failure however good it looks — so the count is
  * recorded rather than hidden inside a wait.
  */
-async function tabTo(page, predicate, limit = 40) {
+/**
+ * `key` is `Tab` for the app's ordinary order and `ArrowDown` inside a menu,
+ * which is a roving group rather than a set of tab stops (LC-208): Tab walks
+ * past a menu entirely, so a walk that used it would report a row it never
+ * stood on as unreachable.
+ */
+async function tabTo(page, predicate, limit = 40, key = "Tab") {
   for (let presses = 1; presses <= limit; presses += 1) {
-    await page.keyboard.press("Tab");
+    await page.keyboard.press(key);
     const at = await focused(page);
     if (predicate(at)) return { found: true, presses, at };
   }
@@ -629,8 +635,9 @@ async function auditFocusOrder(browser) {
       "keyboard-focus-map.md:61 — the panel's natural order",
     );
 
-    // Settings → the gear (LC-125). Two presses because the Tab walk above ends
-    // inside the panel, and a field there answers the first `Esc` itself.
+    // Settings → the gear (LC-125), which opens a menu rather than the panel
+    // since LC-208. Two presses because the Tab walk above ends inside the
+    // ticket panel, and a field there answers the first `Esc` itself.
     await page.keyboard.press("Escape");
     await settle(page);
     await page.keyboard.press("Escape");
@@ -638,14 +645,60 @@ async function auditFocusOrder(browser) {
     const gear = await tabTo(page, (at) => at.label === "Project settings");
     await page.keyboard.press("Enter");
     await settle(page);
-    const settingsUp = await visible(page, ".settings-panel");
-    const inName = await page.evaluate(
-      () => !!document.activeElement?.closest(".settings-identity"),
+    const menuUp = await visible(page, ".menu-popover");
+    const onFirstRow = await page.evaluate(
+      () => !!document.activeElement?.closest(".menu-popover"),
     );
     check(
-      "the gear opens project settings with focus in its first field",
-      gear.found && settingsUp && inName,
-      `presses=${gear.presses} dialog=${settingsUp} focus=${inName ? "Name" : (await focused(page)).tag}`,
+      "the gear opens its menu with focus on the first row",
+      gear.found && menuUp && onFirstRow,
+      `presses=${gear.presses} menu=${menuUp} focus=${onFirstRow ? "menu row" : (await focused(page)).tag}`,
+      "keyboard-focus-map.md:143-147 — focus enters the first meaningful control",
+    );
+
+    // The theme submenu, which is the one thing the menu exists to make fast:
+    // both axes reachable without the panel opening at all (LC-208).
+    await page.keyboard.press("ArrowRight");
+    await settle(page);
+    const inSubmenu = await page.evaluate(
+      () => !!document.activeElement?.closest(".menu-sub"),
+    );
+    check(
+      "`ArrowRight` steps into the theme submenu",
+      (await visible(page, ".menu-sub")) && inSubmenu,
+      `submenu=${inSubmenu}`,
+      "keyboard-focus-map.md:139 — a menu's rows are the arrow keys'",
+    );
+    await page.keyboard.press("ArrowLeft");
+    await settle(page);
+    check(
+      "`ArrowLeft` steps back out to the row it came from",
+      !(await visible(page, ".menu-sub")) &&
+        (await focused(page)).text?.startsWith("Theme") === true,
+      `focus=${(await focused(page)).text}`,
+      "keyboard-focus-map.md:19-21 — the ladder walks one rung at a time",
+    );
+
+    // Down to `All settings…`, which is the menu's last row and the one that
+    // opens the panel.
+    const allSettings = await tabTo(
+      page,
+      (at) => at.text?.startsWith("All settings") === true,
+      12,
+      "ArrowDown",
+    );
+    await page.keyboard.press("Enter");
+    await settle(page);
+    const settingsUp = await visible(page, ".settings-panel");
+    // The first control of the section that was asked for, whichever it is —
+    // the panel shows one at a time now, so a fixed field is the wrong oracle.
+    const inSection = await page.evaluate(
+      () => !!document.activeElement?.closest(".settings-section"),
+    );
+    check(
+      "`All settings…` opens the panel with focus in the open section",
+      allSettings.found && settingsUp && inSection,
+      `presses=${allSettings.presses} panel=${settingsUp} focus=${inSection ? "section" : (await focused(page)).tag}`,
       "keyboard-focus-map.md:143-147 — focus enters the first meaningful control",
     );
 

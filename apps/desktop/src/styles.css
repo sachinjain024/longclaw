@@ -153,11 +153,33 @@ textarea:focus-visible,
    not on the row — the content header and settings both show it in full, and a
    truncated second line of it was telling the truth about nothing. It stays
    reachable as the row's title. */
+/* The row is a pair now: the project, and the `⋮` that opens its menu (LC-208).
+   They are siblings rather than nested, so neither one's accessible name is
+   part of the other's — and the row keeps its own hover as one surface. */
+.project-row {
+  display: flex;
+  align-items: center;
+  border-radius: var(--lc-radius-control);
+}
+
+.project-row:hover,
+.project-row:has(.row-menu-button.open) {
+  background: var(--lc-wash);
+}
+
+/* The active project, in the human accent — opening a project is a planning
+   act (`components.md:275`). On the pair rather than the name, so the accent
+   reaches the `⋮` at the row's end instead of stopping short of it. */
+.project-row.selected {
+  background: var(--lc-accent-human-soft);
+}
+
 .project-link {
   display: flex;
   gap: var(--lc-space-2);
   align-items: center;
   width: 100%;
+  min-width: 0;
   height: 28px;
   border: var(--lc-border-hairline) solid transparent;
   border-radius: var(--lc-radius-control);
@@ -168,15 +190,10 @@ textarea:focus-visible,
   transition: background var(--lc-motion-fast) var(--lc-motion-ease);
 }
 
-.project-link:hover {
-  background: var(--lc-wash);
-}
-
-/* The active project, in the human accent — opening a project is a planning
-   act (`components.md:275`). */
+/* The pair paints the hover and the selected accent; the name only carries the
+   ink and the weight, so the two backgrounds cannot stack on one row. */
 .project-link.selected {
   color: var(--lc-ink);
-  background: var(--lc-accent-human-soft);
   font-weight: 500;
 }
 
@@ -217,8 +234,20 @@ textarea:focus-visible,
   background: var(--lc-accent-human);
 }
 
-/* Revealed on hover, persistent once starred (`screen-specs.md:58-59`). */
-.star-button {
+/* Persistent once starred (`screen-specs.md:58-59`), and nothing when not: the
+   `☆` half of the old toggle was a control whose only name was its glyph, and
+   starring moved into the row's own menu (LC-208). What is left is a mark. */
+.star-mark {
+  flex: none;
+  color: var(--lc-accent-human-text);
+  font-size: 11px;
+  line-height: 1;
+}
+
+/* Revealed on hover, and held open while its menu is (LC-208). Same reveal the
+   star toggle had, for the same reason: 240px of sidebar cannot afford a
+   permanent control on every row, and the row itself is the primary target. */
+.row-menu-button {
   display: grid;
   width: var(--lc-size-control-sm);
   height: var(--lc-size-control-sm);
@@ -226,18 +255,25 @@ textarea:focus-visible,
   place-items: center;
   border-radius: var(--lc-radius-control);
   color: var(--lc-ink-3);
-  font-size: 14px;
   opacity: 0;
+  transition: background var(--lc-motion-fast) var(--lc-motion-ease);
 }
 
-.star-button.starred,
-.project-link:hover .star-button,
-.star-button:focus-visible {
+.row-menu-button.open,
+.project-row:hover .row-menu-button,
+.row-menu-button:focus-visible {
   opacity: 1;
 }
 
-.star-button.starred {
-  color: var(--lc-accent-human-text);
+.row-menu-button:hover,
+.row-menu-button.open {
+  color: var(--lc-ink);
+  background: var(--lc-line-soft);
+}
+
+.row-menu-button:focus-visible {
+  box-shadow: var(--lc-focus-ring);
+  outline: none;
 }
 
 /* Pinned to the foot with the trust line (`screen-specs.md:34`). The waitlist
@@ -720,8 +756,15 @@ button:disabled {
     color var(--lc-motion-fast) var(--lc-motion-ease);
 }
 
-.content-header .settings-button:hover {
+/* Held down while its menu is up (LC-208), because a menu anchored under a
+   control that looks untouched reads as belonging to whatever is behind it. */
+.content-header .settings-button:hover,
+.content-header .settings-button.open {
   color: var(--lc-ink);
+}
+
+.content-header .settings-button.open {
+  background: var(--lc-line-soft);
 }
 
 .content-header .settings-button:focus-visible {
@@ -4028,6 +4071,96 @@ html.theme-transition *::after {
   font: 400 10.5px var(--lc-type-code-font);
 }
 
+/* ---------------------------------------------- the settings menus (LC-208)
+
+   The gear's dropdown and the side panel's `⋮` menu, which are the same
+   popover as the status/priority one with three things it never needed: a
+   right-hand hint, a rule between groups of rows, and a submenu. */
+
+/* The row a submenu hangs off. `position: relative` is the whole trick — the
+   nested popover is placed against this rather than against the viewport, so
+   it follows its parent without measuring anything. */
+.menu-anchor {
+  position: relative;
+}
+
+/* Beside its row rather than under it, and pulled up by the popover's own
+   padding so the first submenu row lines up with the row that opened it.
+   It shares the popover layer with the menu it grows from — being a child of
+   that menu is what puts it in front, so it needs no step of its own. */
+.menu-popover .menu-sub {
+  position: absolute;
+  top: calc(var(--lc-space-1) * -1 - 1px);
+  left: 100%;
+  z-index: var(--lc-z-popover);
+  margin-left: 2px;
+  min-width: 190px;
+}
+
+/* The quiet right-hand note: a count, the current value, a shortcut. It is the
+   answer you would open the section to find, so the row can be read without
+   pressing it. */
+.menu-hint {
+  flex: none;
+  color: var(--lc-ink-3);
+  font-size: var(--lc-type-micro-size);
+}
+
+.menu-hint kbd,
+.menu-hint code {
+  color: var(--lc-ink-3);
+  font: var(--lc-type-kbd-weight) var(--lc-type-kbd-size) /
+    var(--lc-type-kbd-leading) var(--lc-type-kbd-font);
+}
+
+.menu-rule {
+  height: 1px;
+  border: 0;
+  margin: var(--lc-space-1) var(--lc-space-1);
+  background: var(--lc-line-soft);
+}
+
+/* Which of the two theme axes the rows under it set. Mono and micro, the same
+   type every eyebrow in the app wears. */
+.menu-caption {
+  padding: var(--lc-space-1) var(--lc-space-2) 2px;
+  color: var(--lc-ink-3);
+  font: var(--lc-type-kbd-weight) var(--lc-type-kbd-size) /
+    var(--lc-type-kbd-leading) var(--lc-type-kbd-font);
+  letter-spacing: var(--lc-type-kbd-tracking);
+}
+
+/* The one destructive row in either menu. Danger is the text, not a fill: it is
+   still just a row, and it opens a confirm rather than removing anything. */
+.menu-row.danger {
+  color: var(--lc-danger);
+}
+
+.menu-row .menu-chevron {
+  flex: none;
+  color: var(--lc-ink-3);
+}
+
+.menu-row .menu-star,
+.menu-row .menu-cross {
+  display: inline-flex;
+  width: 14px;
+  justify-content: center;
+  color: var(--lc-ink-3);
+  font-size: 12px;
+}
+
+.menu-row.danger .menu-cross {
+  color: inherit;
+}
+
+/* The swatch stands in for a glyph on the theme rows, at the size a glyph
+   would have been rather than the picker's 44×28. */
+.menu-row .theme-swatch {
+  width: 16px;
+  height: 11px;
+}
+
 .menu-trigger {
   display: inline-flex;
   height: var(--lc-size-control);
@@ -4161,37 +4294,61 @@ html.theme-transition *::after {
   flex: none;
 }
 
-/* --------------------------------------------------- project settings (LC-125)
+/* ------------------------------------- project settings (LC-125, LC-208)
 
-   The dialog `screen-specs.md:327-336` draws, on the scrim quick create and the
-   palette already use. It was an inline `<section>` in the main panel until
-   LC-125, which pushed the board ~430px down behind it (D-40).
+   The panel `screen-specs.md:327-336` draws, in the shape the ticket panel
+   established: the right edge, a header row, and `Esc`. LC-125 moved it out of
+   the main panel, where it pushed the board ~430px down behind it (D-40), onto
+   a centered modal; LC-208 moved it to the right edge and split it into a nav
+   and one section at a time, because a single scrolling column of every section
+   the project has made the gear the slowest control in the app.
 
-   It rises on open — the motion inventory's "modal rise"
-   (`screen-specs.md:364`) — on the keyframes the palette states, since it is
-   the same 8px arrival. */
-.settings-panel {
-  display: flex;
-  flex-direction: column;
-  width: min(560px, 92vw);
-  max-height: 76vh;
-  overflow: hidden;
-  border: 1px solid var(--lc-line);
-  border-radius: var(--lc-radius-modal);
-  padding: var(--lc-space-5);
-  background: var(--lc-surface);
-  box-shadow: var(--lc-shadow-modal);
-  animation: lc-palette-in var(--lc-motion-panel) ease-out;
+   The scrim stays. Without it two panels share the right edge and the ticket
+   panel is underneath, unreachable and half-covered — and the scrim is what
+   makes `keyboard-focus-map.md:143-148` true, since a trapped Tab over a
+   surface a person can still see and click is worse than either alone. */
+.settings-scrim {
+  display: block;
+  padding: 0;
 }
 
-/* The rows scroll; the footer does not. A `Done` under the fold is a way out
-   the pointer cannot see, and a sticky footer over the scroll painted itself
-   across the danger zone — this is the prototype's own modal anatomy
-   (`prototype.css:663-672`). */
-.settings-body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
+.settings-panel {
+  position: fixed;
+  z-index: var(--lc-z-modal);
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  width: min(620px, 92vw);
+  overflow: hidden;
+  border-left: 1px solid var(--lc-line);
+  background: var(--lc-surface);
+  box-shadow: var(--lc-shadow-overlay);
+  /* The panel slide, not the modal rise: it arrives from the edge it lives on,
+     which is the motion the ticket panel already states. */
+  animation: lc-panel-in var(--lc-motion-panel) ease-out;
+}
+
+/* The header row: what this is, where it is written, and the way out. */
+.settings-head {
+  display: flex;
+  height: 52px;
+  flex: none;
+  gap: var(--lc-space-2);
+  align-items: center;
+  border-bottom: 1px solid var(--lc-line);
+  padding: 0 var(--lc-space-4);
+}
+
+.settings-head .gear-glyph {
+  flex: none;
+  color: var(--lc-ink-2);
+}
+
+/* The close sits at the right end of the row, as the ticket panel's does. */
+.settings-head button {
+  margin-left: auto;
 }
 
 /* Title type, not display: display is the greeting and nothing else
@@ -4205,16 +4362,111 @@ html.theme-transition *::after {
   letter-spacing: var(--lc-type-title-tracking);
 }
 
-/* The sentence that says where all of this is written (D-4K). */
+/* The file every section writes to, said once at the top rather than under each
+   pane (D-4K). It is the claim the panel rests on: these are lines in a file
+   inside the folder, not rows in an app database somewhere else. */
+.settings-file {
+  flex: none;
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-control);
+  padding: 2px 7px;
+  color: var(--lc-ink-3);
+  background: var(--lc-wash);
+  font: var(--lc-type-kbd-weight) var(--lc-type-kbd-size) /
+    var(--lc-type-kbd-leading) var(--lc-type-kbd-font);
+}
+
+.settings-split {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* The side nav the ticket asks for. Fixed width: the section names are known
+   and short, and a nav that resized with its longest label would move the
+   content under it every time a section was added. */
+.settings-nav {
+  display: flex;
+  width: 152px;
+  flex: none;
+  flex-direction: column;
+  gap: 2px;
+  border-right: 1px solid var(--lc-line-soft);
+  padding: var(--lc-space-3) var(--lc-space-2);
+}
+
+.settings-nav-row {
+  display: flex;
+  height: var(--lc-size-control-sm);
+  align-items: center;
+  border: 0;
+  border-radius: var(--lc-radius-control);
+  padding: 0 10px;
+  color: var(--lc-ink-2);
+  background: none;
+  font-size: var(--lc-type-small-size);
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-nav-row:hover {
+  background: var(--lc-wash);
+}
+
+/* The open section, in the human accent — choosing what to edit is a planning
+   act, the same one opening a project is (`components.md:275`). */
+.settings-nav-row[aria-selected="true"] {
+  color: var(--lc-ink);
+  background: var(--lc-accent-human-soft);
+  font-weight: 600;
+}
+
+.settings-nav-row.danger {
+  color: var(--lc-danger);
+}
+
+.settings-nav-row:focus-visible {
+  box-shadow: var(--lc-focus-ring);
+  outline: none;
+}
+
+/* One section at a time, and it is the part that scrolls. */
+.settings-section {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: var(--lc-space-4) var(--lc-space-5);
+}
+
+.settings-section:focus-visible {
+  box-shadow: inset var(--lc-focus-ring);
+  outline: none;
+}
+
+/* The sentence a section opens with. */
 .settings-subhead {
-  margin-top: 6px;
+  margin-bottom: 16px;
   color: var(--lc-ink-2);
   font-size: 13px;
   line-height: 1.5;
 }
 
+/* The sentence a section closes with: the thing that is true about it and
+   cannot be discovered by using it. */
+.settings-note {
+  margin-top: 18px;
+  color: var(--lc-ink-3);
+  font-size: var(--lc-type-micro-size);
+  line-height: 1.55;
+}
+
 .settings-row {
   margin-top: 16px;
+}
+
+.settings-section > .settings-row:first-child {
+  margin-top: 0;
 }
 
 /* Name and Key on one line, the way the spec pairs them: the key is short and
@@ -4318,32 +4570,65 @@ html.theme-transition *::after {
   color: var(--lc-ink-3);
 }
 
-/* The guarantee, above the button it is about (D-44). */
-.danger-zone {
+/* The board's six columns, listed rather than editable: v0 ships the fixed set
+   and nothing can rename or recolor one (ADR 0002), so this section answers the
+   question instead of taking an edit. */
+.status-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lc-space-2);
+  list-style: none;
+}
+
+.status-list li {
   display: flex;
   gap: var(--lc-space-3);
   align-items: center;
-  border-top: 1px solid var(--lc-line-soft);
-  margin-top: 22px;
-  padding-top: 16px;
 }
 
-.danger-zone .micro {
+.status-list .status-name {
   flex: 1;
-  color: var(--lc-ink-3);
-  font-size: var(--lc-type-micro-size);
-  line-height: 1.5;
+  font-size: var(--lc-type-ui-size);
 }
 
-/* Actions right, as every footer in this app puts them (D-4L). */
-.settings-foot {
+/* The value the file actually carries, which is the half of this section an
+   agent's author needs. */
+.status-list code {
+  color: var(--lc-ink-3);
+  font-size: var(--lc-type-code-size);
+}
+
+/* Action left, keys right — the shape every shortcut sheet has, and the reason
+   a `<dl>` rather than a table: there is one term and one description per row. */
+.shortcut-list div {
   display: flex;
-  gap: 10px;
+  height: 34px;
+  gap: var(--lc-space-3);
   align-items: center;
-  justify-content: flex-end;
-  border-top: 1px solid var(--lc-line-soft);
-  margin-top: var(--lc-space-3);
-  padding-top: var(--lc-space-3);
+  border-bottom: 1px solid var(--lc-line-soft);
+}
+
+.shortcut-list dt {
+  flex: 1;
+  font-size: var(--lc-type-ui-size);
+}
+
+.shortcut-list dd {
+  display: flex;
+  flex: none;
+  gap: 4px;
+}
+
+.shortcut-list kbd {
+  min-width: 10px;
+  border: 1px solid var(--lc-line-strong);
+  border-radius: var(--lc-radius-kbd);
+  padding: 2px 6px;
+  color: var(--lc-ink-2);
+  background: var(--lc-wash);
+  font: var(--lc-type-kbd-weight) var(--lc-type-kbd-size) /
+    var(--lc-type-kbd-leading) var(--lc-type-kbd-font);
+  text-align: center;
 }
 
 /* Definition management, which is project data and so lives in settings. */
@@ -4351,20 +4636,19 @@ html.theme-transition *::after {
   display: flex;
   flex-direction: column;
   gap: var(--lc-space-2);
-  border-top: 1px solid var(--lc-line-soft);
-  margin-top: 22px;
-  padding-top: 16px;
-}
-
-.label-settings h3 {
-  color: var(--lc-ink-3);
-  font-size: 11px;
-  font-weight: 700;
 }
 
 .label-settings p {
   color: var(--lc-ink-3);
   font-size: var(--lc-type-micro-size);
+}
+
+/* The subhead is the section's opening sentence wherever it appears, including
+   inside the labels section's own `<section>`. */
+.label-settings .settings-subhead {
+  margin-bottom: 0;
+  color: var(--lc-ink-2);
+  font-size: 13px;
 }
 
 /* Four columns, and the last one is fixed rather than `max-content` so the
@@ -4456,11 +4740,23 @@ html.theme-transition *::after {
     grid-template-columns: 220px minmax(0, 1fr);
   }
 
-  /* Name over Key rather than beside it: the dialog is 92vw here and the pair
-     would leave the name field narrower than the key it sits next to. */
+  /* Name over Key rather than beside it: the panel is 92vw here and its nav
+     takes 152px of that, so the pair would leave the name field narrower than
+     the key it sits next to. */
   .settings-identity {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  /* The nav gives up width before the section does — a section is fields, and
+     a field that has run out of room is unusable in a way a shorter nav row
+     is not. */
+  .settings-nav {
+    width: 124px;
+  }
+
+  .settings-section {
+    padding: var(--lc-space-4);
   }
 }
 

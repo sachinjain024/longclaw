@@ -1,17 +1,27 @@
 /**
- * Project settings (`screen-specs.md:327-336`), as the modal the spec draws.
+ * Project settings (`screen-specs.md:327-336`), as a right-hand panel with a
+ * side nav (LC-208).
  *
- * It used to be a section that expanded *inside* the main panel, which pushed
- * the board about 430px down the page and left it there behind the controls
- * that were changing it (D-40). Everything here is one project's record, so it
- * belongs on a layer over the board rather than in the middle of it — and a
- * layer comes with the two things the inline section never had: a way out from
- * the inside (D-4L) and an `Esc` (`keyboard-focus-map.md:143-148`).
+ * Two shapes preceded it. It was a section that expanded *inside* the main
+ * panel, which pushed the board about 430px down the page and left it there
+ * behind the controls that were changing it (D-40); LC-125 made it a centered
+ * modal, which fixed that and introduced the next problem — one scrolling
+ * column holding every section the project has, so the gear was the slowest
+ * control in the app for the thing it is most often opened to do.
  *
- * The rows are the spec's, in its order: Name + Key, Folder, Theme, Appearance,
- * Labels, danger zone. Two of them are not project data and say so — appearance
- * is a device preference (D-42), and the key cannot be changed at all once a
- * ticket carries it (D-41).
+ * So the sections are a nav now, and the gear opens a menu in front of this
+ * (`SettingsMenu.tsx`) that lands on the one you asked for. The panel keeps the
+ * anatomy the ticket panel established — right edge, header row, `Esc` — which
+ * is the shape this app already means by *a record you are editing*.
+ *
+ * It stays a modal in the accessibility sense: a scrim, `role="dialog"`, and
+ * Tab held inside (`keyboard-focus-map.md:143-148`). The alternative is two
+ * panels sharing the right edge with the ticket panel underneath, which is
+ * neither readable nor reachable.
+ *
+ * What is *not* here is as deliberate as what is. Statuses are listed and not
+ * editable, because v0 ships the fixed set (ADR 0002) and a rename field would
+ * be a write with nowhere to land.
  */
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
@@ -19,23 +29,54 @@ import { addProjectLabel, removeProjectLabel, updateProjectLabel } from "./api";
 import { RemoveProjectConfirm } from "./ConfirmDialog";
 import { normalizeError } from "./errors";
 import { FolderGlyph } from "./FolderGlyph";
+import { GearGlyph } from "./SettingsGlyphs";
 import { FALLBACK_LABEL_COLOR, isRampColor, LABEL_COLORS } from "./labels";
+import { APPEARANCES, type SettingsSection } from "./SettingsMenu";
 import type { Appearance } from "./state";
+import { StatusDot } from "./StatusDot";
 import { ThemePicker, type ThemeOption } from "./ThemePicker";
+import { STATUSES } from "./tickets";
 import type { AppError, Label, ProjectReference } from "./types";
 
-const APPEARANCES: { id: Appearance; label: string }[] = [
-  { id: "system", label: "System" },
-  { id: "light", label: "Light" },
-  { id: "dark", label: "Dark" },
+/**
+ * The nav, in the order the panel reads: what the project *is*, then how it
+ * looks, then its vocabularies, then the reference section, then the way out.
+ *
+ * The menu offers the same sections in a different order, and deliberately:
+ * a nav is read top to bottom and so leads with identity, while a menu is
+ * aimed at and so leads with `Theme`, which is what the gear is most often
+ * opened for. The set is what must not drift, not the sequence.
+ */
+const SECTIONS: { id: SettingsSection; label: string }[] = [
+  { id: "general", label: "General" },
+  { id: "theme", label: "Theme" },
+  { id: "labels", label: "Labels" },
+  { id: "status", label: "Status fields" },
+  { id: "shortcuts", label: "Shortcuts" },
+  { id: "danger", label: "Danger zone" },
 ];
 
-/** Everything inside `container` that Tab can land on, in document order. */
+/**
+ * Everything inside `container` that Tab can land on, in document order.
+ *
+ * Two things this walk has to get right, and a selector list gets neither.
+ * `tabindex="-1"` has to lose to the element's own type — a `<button>` in a
+ * roving group is *not* a tab stop, and a four-clause selector whose first
+ * clause is `button` counted all six nav rows as stops rather than the one
+ * holding the group's stop. And the order has to be the document's: a selector
+ * list is evaluated clause by clause and concatenated by jsdom's engine, which
+ * put every button before every input regardless of where they sit, so a trap
+ * built on it wrapped to whatever happened to be first in the first clause.
+ * `"*"` is one selector, so the order is the tree's.
+ */
 function tabStops(container: HTMLElement) {
-  return Array.from(
-    container.querySelectorAll<HTMLElement>(
-      "button:not(:disabled), input:not(:disabled), [href], [tabindex]:not([tabindex='-1'])",
-    ),
+  return Array.from(container.querySelectorAll<HTMLElement>("*")).filter(
+    (element) => {
+      if (element.getAttribute("tabindex") === "-1") return false;
+      if (element.matches("button, input, select, textarea, [href]"))
+        return !element.matches(":disabled");
+      return element.hasAttribute("tabindex");
+    },
   );
 }
 
@@ -64,6 +105,13 @@ export function ProjectSettings(props: {
   hasTickets: boolean;
   appearance: Appearance;
   themes: ThemeOption[];
+  /**
+   * Which section is open. Controlled by `App`, because the menu that opens
+   * this panel picks the section — a row that named a section and then landed
+   * on `General` would be naming something else's row.
+   */
+  section: SettingsSection;
+  onSection: (section: SettingsSection) => void;
   onAppearance: (next: Appearance) => void;
   onRename: (name: string) => void;
   onTheme: (theme: string) => void;
@@ -73,34 +121,43 @@ export function ProjectSettings(props: {
   onError: (error: AppError) => void;
   onClose: () => void;
 }) {
-  const [name, setName] = useState(props.project.name);
   const [confirmingRemove, setConfirmingRemove] = useState(false);
-  const nameId = useId();
-  const keyId = useId();
-  const folderId = useId();
-  const appearanceId = useId();
   /** Where focus returns when the confirm dialog is dismissed without removing. */
   const removeButton = useRef<HTMLButtonElement>(null);
   const cancelConfirm = useCallback(() => {
     setConfirmingRemove(false);
     removeButton.current?.focus();
   }, []);
-
-  /** Renaming to nothing, or to the name it already has, writes nothing. */
-  function commitName() {
-    const next = name.trim();
-    if (!next || next === props.project.name) {
-      setName(props.project.name);
-      return;
-    }
-    props.onRename(next);
-  }
+  const panelId = useId();
+  const sectionPane = useRef<HTMLDivElement>(null);
 
   /**
-   * The `Esc` rung this layer owns, on the document rather than on the dialog.
+   * "Focus enters the first meaningful control"
+   * (`keyboard-focus-map.md:143-147`), which for this panel is the first
+   * control **of the section that was asked for** rather than a fixed field.
+   * The Name input carried `autoFocus` while every section was on screen at
+   * once; with a nav in front of them that would land a human who picked
+   * `Labels` in a field belonging to a pane they cannot see.
+   *
+   * Two sections have no control at all — statuses and shortcuts are both
+   * read-only — and the pane itself is the answer there. It is a scroll
+   * container with its own tab stop, so focus lands somewhere that can be read
+   * with the page keys rather than on `<body>`.
+   *
+   * On mount only. The nav selects on focus, so re-running this per section
+   * would pull focus out of the nav on the first arrow press.
+   */
+  useEffect(() => {
+    const pane = sectionPane.current;
+    if (!pane) return;
+    (tabStops(pane)[0] ?? pane).focus();
+  }, []);
+
+  /**
+   * The `Esc` rung this layer owns, on the document rather than on the panel.
    *
    * A handler on the element only fires while focus is inside it, and a click
-   * on the dialog's own heading puts focus on `body` — after which `Esc` closed
+   * on the panel's own heading puts focus on `body` — after which `Esc` closed
    * nothing, because `App`'s listener sees a layer open and stands down. One
    * press still closes one rung: a field mid-edit stops the event itself, and
    * the confirm is answered here rather than in a second listener, since two
@@ -122,178 +179,92 @@ export function ProjectSettings(props: {
 
   return (
     <>
-      <div className="modal-scrim centered" role="presentation">
-        <section
-          className="settings-panel"
-          role="dialog"
-          aria-label="Project settings"
-          onKeyDown={trapTab}
-        >
-          <div className="settings-body">
-            <h2>Project settings</h2>
-            {/* The sentence that makes the dialog trustworthy (D-4K): every field
-                below is a line in a file inside the folder, not a row in an app
-                database somewhere else. Appearance is the exception and carries
-                its own note. */}
-            <p className="settings-subhead">
-              Everything here is stored in <code>longclaw.yaml</code> inside the
-              project folder — portable with the files.
-            </p>
+      <div className="modal-scrim settings-scrim" role="presentation" />
+      <section
+        className="settings-panel"
+        role="dialog"
+        aria-label="Project settings"
+        onKeyDown={trapTab}
+      >
+        {/* The header the ticket panel established: what this is, where it is
+            written, and the way out — one row, on the right. */}
+        <header className="settings-head">
+          <GearGlyph />
+          <h2>Project settings</h2>
+          {/* The sentence that made the old dialog trustworthy (D-4K), as a
+              chip rather than a paragraph: every section below is a section of
+              one file inside the project folder, and saying so once at the top
+              beats repeating it under each. */}
+          <code className="settings-file">longclaw.yaml</code>
+          <button
+            tabIndex={0}
+            className="ghost"
+            aria-label="Close settings"
+            title="Close · Esc"
+            onClick={props.onClose}
+          >
+            ✕
+          </button>
+        </header>
 
-            <div className="settings-row settings-identity">
-              <div className="settings-field">
-                <label htmlFor={nameId}>Name</label>
-                <div className="field-row">
-                  {/* `Enter` or blur commits, as the panel's title does
-                      (`screen-specs.md:225`). The `Rename` button beside this
-                      was the only way to save it, and pressing `Done` with a
-                      typed name threw the name away without saying so. */}
-                  <input
-                    id={nameId}
-                    autoFocus
-                    value={name}
-                    spellCheck={false}
-                    onChange={(event) => setName(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        commitName();
-                        return;
-                      }
-                      // `Esc` reverts a field that has been typed into, and only
-                      // then: focus lands here when the dialog opens, so an
-                      // untouched field that swallowed the press would leave the
-                      // first `Esc` of every visit doing nothing.
-                      if (event.key !== "Escape" || name === props.project.name)
-                        return;
-                      event.stopPropagation();
-                      setName(props.project.name);
-                    }}
-                    onBlur={commitName}
-                  />
-                </div>
-              </div>
-              <div className="settings-field">
-                <label htmlFor={keyId}>Key</label>
-                <div className="field-row">
-                  {/* Shown rather than hidden (D-41). It is the one setting a
-                      user can never change — every ticket directory and every
-                      key in every file already carries it — so the honest thing
-                      is a locked field with the reason beside it, not a field
-                      that isn't there. */}
-                  <input
-                    id={keyId}
-                    className="key-field"
-                    value={props.project.key}
-                    disabled
-                    readOnly
-                  />
-                  <span className="lock-note">
-                    {props.hasTickets
-                      ? "locked after first ticket"
-                      : "set when the project was created"}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="settings-row">
-              {/* Not a `<label>`: the row's control is a button, and the path
-                  beside it is text rather than a field. */}
-              <span className="settings-label" id={folderId}>
-                Folder
-              </span>
-              <div className="path-row">
-                {/* The path itself, which the panel never showed — a `Locate
-                    folder` button alone asks you to re-point a folder without
-                    saying which one it is now (D-43). Full and selectable here,
-                    unlike the header chip, because this is the row that answers
-                    "where is this project?". */}
-                <span className="picked-path" title={props.project.rootPath}>
-                  <FolderGlyph />
-                  <span className="txt">{props.project.rootPath}</span>
-                </span>
-                <button
-                  tabIndex={0}
-                  className="secondary"
-                  aria-describedby={folderId}
-                  onClick={props.onLocate}
-                >
-                  Locate…
-                </button>
-              </div>
-            </div>
-
-            <div className="settings-row">
-              <ThemePicker
-                themes={props.themes}
-                value={props.project.theme}
-                onPick={props.onTheme}
+        <div className="settings-split">
+          <SectionNav
+            section={props.section}
+            panelId={panelId}
+            onPick={props.onSection}
+          />
+          <div
+            className="settings-section"
+            role="tabpanel"
+            ref={sectionPane}
+            id={`${panelId}-panel`}
+            aria-labelledby={`${panelId}-${props.section}`}
+            // The pane scrolls, so it is a scrollable region and owes the
+            // keyboard a way to reach it (`keyboard-focus-map.md` rule 1).
+            tabIndex={0}
+          >
+            {props.section === "general" && (
+              /* Keyed by project, so the name draft belongs to the project it
+                 was typed against. The `⋮` menu can open this panel on a
+                 project that is not the one on screen yet — it starts a load
+                 and opens the section in the same act (LC-208) — so without
+                 the key the field would keep the previous project's name and
+                 the next `Enter` or blur would rename the new one to it. */
+              <GeneralSection
+                key={props.project.id}
+                project={props.project}
+                hasTickets={props.hasTickets}
+                onRename={props.onRename}
+                onLocate={props.onLocate}
               />
-            </div>
-
-            <div className="settings-row">
-              <span className="settings-label" id={appearanceId}>
-                Appearance{" "}
-                <span className="settings-label-note">
-                  — app preference, not stored in the project
-                </span>
-              </span>
-              {/* The 3-up segment the spec puts here (D-42). It replaced a native
-                  `<select>` in the sidebar footer, which was the last piece of OS
-                  chrome in the shell (D-0A, D-72) and put a device preference
-                  where the project list lives. */}
-              <div
-                className="appearance-segment"
-                role="group"
-                aria-labelledby={appearanceId}
-              >
-                {APPEARANCES.map((option) => (
-                  <button
-                    tabIndex={0}
-                    key={option.id}
-                    className={props.appearance === option.id ? "selected" : ""}
-                    aria-pressed={props.appearance === option.id}
-                    onClick={() => props.onAppearance(option.id)}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <ProjectLabels
-              project={props.project}
-              onUpdated={props.onUpdated}
-              onError={props.onError}
-            />
-
-            {/* The guarantee, stated where the action is rather than only in the
-                confirm (D-44). This is the app's most destructive-looking button
-                and the least destructive thing it does. */}
-            <div className="danger-zone">
-              <p className="micro">
-                Removing only forgets the project in LongClaw. Files on disk are
-                never touched.
-              </p>
-              <button
-                tabIndex={0}
-                ref={removeButton}
-                className="danger"
-                onClick={() => setConfirmingRemove(true)}
-              >
-                Remove from app
-              </button>
-            </div>
+            )}
+            {props.section === "theme" && (
+              <ThemeSection
+                project={props.project}
+                themes={props.themes}
+                appearance={props.appearance}
+                onAppearance={props.onAppearance}
+                onTheme={props.onTheme}
+              />
+            )}
+            {props.section === "labels" && (
+              <ProjectLabels
+                project={props.project}
+                onUpdated={props.onUpdated}
+                onError={props.onError}
+              />
+            )}
+            {props.section === "status" && <StatusSection />}
+            {props.section === "shortcuts" && <ShortcutsSection />}
+            {props.section === "danger" && (
+              <DangerSection
+                removeButton={removeButton}
+                onConfirm={() => setConfirmingRemove(true)}
+              />
+            )}
           </div>
-
-          <div className="settings-foot">
-            <button tabIndex={0} className="secondary" onClick={props.onClose}>
-              Done
-            </button>
-          </div>
-        </section>
-      </div>
+        </div>
+      </section>
 
       {/* The app's own remove-confirm (LC-144), which the unreachable screen
           raises too: one guarantee in one set of words, from both places that
@@ -311,9 +282,354 @@ export function ProjectSettings(props: {
 }
 
 /**
+ * The side nav the ticket asks for: "a SideNavbar which shows all the Options
+ * and when user clicks on any option … user can edit that particular setting".
+ *
+ * A tablist, which is what it is — the panes are already built and cost nothing
+ * to show, so selection follows focus, exactly as the ticket panel's own tabs
+ * do. One tab stop for the set; the arrows own the rest.
+ */
+function SectionNav(props: {
+  section: SettingsSection;
+  panelId: string;
+  onPick: (section: SettingsSection) => void;
+}) {
+  const buttons = useRef(new Map<SettingsSection, HTMLButtonElement>());
+  return (
+    <nav
+      className="settings-nav"
+      role="tablist"
+      aria-label="Settings sections"
+      aria-orientation="vertical"
+    >
+      {SECTIONS.map((section, index) => (
+        <button
+          key={section.id}
+          type="button"
+          role="tab"
+          id={`${props.panelId}-${section.id}`}
+          ref={(node) => {
+            if (node) buttons.current.set(section.id, node);
+            else buttons.current.delete(section.id);
+          }}
+          className={
+            section.id === "danger"
+              ? "settings-nav-row danger"
+              : "settings-nav-row"
+          }
+          aria-selected={section.id === props.section}
+          aria-controls={`${props.panelId}-panel`}
+          tabIndex={section.id === props.section ? 0 : -1}
+          onClick={() => props.onPick(section.id)}
+          onKeyDown={(event) => {
+            const step =
+              event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
+            if (step === 0) return;
+            event.preventDefault();
+            // Wraps at both ends, and counts the sections rather than
+            // assuming how many there are.
+            const next =
+              SECTIONS[(index + step + SECTIONS.length) % SECTIONS.length];
+            props.onPick(next.id);
+            // Focus has to be moved by hand: the button keeping it is the one
+            // this press just unselected, and it is about to lose its stop.
+            buttons.current.get(next.id)?.focus();
+          }}
+        >
+          {section.label}
+        </button>
+      ))}
+    </nav>
+  );
+}
+
+/** Name, key, folder: what the project *is*, and the only writable identity. */
+function GeneralSection(props: {
+  project: ProjectReference;
+  hasTickets: boolean;
+  onRename: (name: string) => void;
+  onLocate: () => void;
+}) {
+  const [name, setName] = useState(props.project.name);
+  const nameId = useId();
+  const keyId = useId();
+  const folderId = useId();
+
+  /** Renaming to nothing, or to the name it already has, writes nothing. */
+  function commitName() {
+    const next = name.trim();
+    if (!next || next === props.project.name) {
+      setName(props.project.name);
+      return;
+    }
+    props.onRename(next);
+  }
+
+  return (
+    <>
+      {/* The claim the panel rests on (D-4K): these are lines in a file inside
+          the folder, not rows in an app database somewhere else. The header
+          chip names the file, so this says the part a filename cannot — that
+          the settings travel with the project rather than with the app. */}
+      <p className="settings-subhead">
+        The project&apos;s own record, written into the project folder and
+        portable with the files.
+      </p>
+
+      <div className="settings-row settings-identity">
+        <div className="settings-field">
+          <label htmlFor={nameId}>Name</label>
+          <div className="field-row">
+            {/* `Enter` or blur commits, as the panel's title does
+                (`screen-specs.md:225`). The `Rename` button beside this was the
+                only way to save it, and pressing `Done` with a typed name threw
+                the name away without saying so. */}
+            <input
+              id={nameId}
+              value={name}
+              spellCheck={false}
+              onChange={(event) => setName(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  commitName();
+                  return;
+                }
+                // `Esc` reverts a field that has been typed into, and only
+                // then, so an untouched field does not swallow the press the
+                // panel owes its own close.
+                if (event.key !== "Escape" || name === props.project.name)
+                  return;
+                event.stopPropagation();
+                setName(props.project.name);
+              }}
+              onBlur={commitName}
+            />
+          </div>
+        </div>
+        <div className="settings-field">
+          <label htmlFor={keyId}>Key</label>
+          <div className="field-row">
+            {/* Shown rather than hidden (D-41). It is the one setting a user
+                can never change — every ticket directory and every key in every
+                file already carries it — so the honest thing is a locked field
+                with the reason beside it, not a field that isn't there. */}
+            <input
+              id={keyId}
+              className="key-field"
+              value={props.project.key}
+              disabled
+              readOnly
+            />
+            <span className="lock-note">
+              {props.hasTickets
+                ? "locked after first ticket"
+                : "set when the project was created"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="settings-row">
+        {/* Not a `<label>`: the row's control is a button, and the path beside
+            it is text rather than a field. */}
+        <span className="settings-label" id={folderId}>
+          Folder
+        </span>
+        <div className="path-row">
+          {/* The path itself, which the panel never showed — a `Locate folder`
+              button alone asks you to re-point a folder without saying which
+              one it is now (D-43). Full and selectable here, unlike the header
+              chip, because this is the row that answers "where is this
+              project?". */}
+          <span className="picked-path" title={props.project.rootPath}>
+            <FolderGlyph />
+            <span className="txt">{props.project.rootPath}</span>
+          </span>
+          <button
+            tabIndex={0}
+            className="secondary"
+            aria-describedby={folderId}
+            onClick={props.onLocate}
+          >
+            Locate…
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+/**
+ * Both theme axes, and the sentence that says they are different things.
+ *
+ * The preset is project data and rides in `longclaw.yaml` with the files; the
+ * appearance is this device's (D-42). The menu's submenu says the same thing in
+ * two captions — this is where there is room to say it in words.
+ */
+function ThemeSection(props: {
+  project: ProjectReference;
+  themes: ThemeOption[];
+  appearance: Appearance;
+  onAppearance: (next: Appearance) => void;
+  onTheme: (theme: string) => void;
+}) {
+  const appearanceId = useId();
+  return (
+    <>
+      <div className="settings-row">
+        <span className="settings-label" id={appearanceId}>
+          Appearance{" "}
+          <span className="settings-label-note">
+            — app preference, not stored in the project
+          </span>
+        </span>
+        {/* The 3-up segment the spec puts here (D-42). It replaced a native
+            `<select>` in the sidebar footer, which was the last piece of OS
+            chrome in the shell (D-0A, D-72) and put a device preference where
+            the project list lives. */}
+        <div
+          className="appearance-segment"
+          role="group"
+          aria-labelledby={appearanceId}
+        >
+          {APPEARANCES.map((option) => (
+            <button
+              tabIndex={0}
+              key={option.id}
+              className={props.appearance === option.id ? "selected" : ""}
+              aria-pressed={props.appearance === option.id}
+              onClick={() => props.onAppearance(option.id)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="settings-row">
+        <ThemePicker
+          themes={props.themes}
+          value={props.project.theme}
+          onPick={props.onTheme}
+        />
+      </div>
+
+      {/* The one thing a person cannot discover by trying every preset: the
+          agent accent does not move. It is how agent presence reads the same in
+          a project you have never opened before. */}
+      <p className="settings-note">
+        The agent accent stays green in every preset, so agent activity reads
+        the same in every project.
+      </p>
+    </>
+  );
+}
+
+/**
+ * The board's columns, listed and not editable.
+ *
+ * v0 ships exactly the built-in set and nothing can create, rename or recolor
+ * one (ADR 0002), so this section exists to *answer* the question rather than
+ * to take an edit — the prototype's inline rename and `Add status` would be
+ * fields writing to a registry the file format does not have
+ * (`docs/file_format.md:128`).
+ */
+function StatusSection() {
+  return (
+    <>
+      <p className="settings-subhead">
+        The board&apos;s columns, in order. Agents read the same names from
+        disk.
+      </p>
+      <ul className="status-list">
+        {STATUSES.map((status) => (
+          <li key={status.id}>
+            <StatusDot status={status.id} decorative />
+            <span className="status-name">{status.label}</span>
+            <code>{status.id}</code>
+          </li>
+        ))}
+      </ul>
+      <p className="settings-note">
+        Fixed in v0 — a ticket&apos;s <code>status</code> is one of these six
+        (ADR 0002). Per-project statuses arrive with a later format version.
+      </p>
+    </>
+  );
+}
+
+/**
+ * The keyboard surface, as the reference `keyboard-focus-map.md` is for us.
+ *
+ * It is here because the menu offers it and because there is nowhere else: the
+ * palette lists commands, not their keys, and a shortcut nobody can look up is
+ * a shortcut only its author uses.
+ */
+const SHORTCUTS: { action: string; keys: string[] }[] = [
+  { action: "Quick create a ticket", keys: ["C"] },
+  { action: "Open command palette", keys: ["⌘", "K"] },
+  { action: "Focus the filter field", keys: ["⌘", "F"] },
+  { action: "Undo the last write", keys: ["⌘", "Z"] },
+  { action: "Project settings", keys: ["⌘", ","] },
+  { action: "Status menu on the focused ticket", keys: ["S"] },
+  { action: "Priority menu on the focused ticket", keys: ["P"] },
+  { action: "Open the focused ticket", keys: ["↵"] },
+  { action: "Move between tickets", keys: ["↑", "↓", "←", "→"] },
+  { action: "Close one layer", keys: ["Esc"] },
+];
+
+function ShortcutsSection() {
+  return (
+    <>
+      <p className="settings-subhead">
+        Single-key shortcuts stand down while a field has focus; the chords stay
+        live.
+      </p>
+      <dl className="shortcut-list">
+        {SHORTCUTS.map((shortcut) => (
+          <div key={shortcut.action}>
+            <dt>{shortcut.action}</dt>
+            <dd>
+              {shortcut.keys.map((key) => (
+                <kbd key={key}>{key}</kbd>
+              ))}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <p className="settings-note">Fixed in v0 — not remappable.</p>
+    </>
+  );
+}
+
+/** The guarantee, stated where the action is rather than only in the confirm. */
+function DangerSection(props: {
+  removeButton: React.RefObject<HTMLButtonElement | null>;
+  onConfirm: () => void;
+}) {
+  return (
+    <>
+      <p className="settings-subhead">
+        Removing only forgets the project in LongClaw. Files on disk are never
+        touched.
+      </p>
+      <button
+        tabIndex={0}
+        ref={props.removeButton}
+        className="danger"
+        onClick={props.onConfirm}
+      >
+        Remove from app
+      </button>
+    </>
+  );
+}
+
+/**
  * Label definitions, which are project data rather than ticket data
  * (`file_format.md:214-231`). `screen-specs.md` § Project settings never
- * mentions them, so they sit in the dialog that already owns the project file's
+ * mentions them, so they sit in the panel that already owns the project file's
  * other fields: the name, the theme, and the folder.
  *
  * Nothing here writes a ticket. A slug is not editable — it is what every ticket
@@ -347,7 +663,10 @@ function ProjectLabels(props: {
 
   return (
     <section className="label-settings" aria-label="Labels">
-      <h3>Labels</h3>
+      <p className="settings-subhead">
+        Slugs are what tickets store; display names and colors are how they
+        read.
+      </p>
       {definitions.length === 0 && (
         <p>No labels are defined in this project&apos;s longclaw.yaml yet.</p>
       )}
@@ -416,6 +735,10 @@ function ProjectLabels(props: {
           Add label
         </button>
       </form>
+      <p className="settings-note">
+        Removing a definition never rewrites a ticket — the slug renders as
+        itself.
+      </p>
     </section>
   );
 }
@@ -473,7 +796,7 @@ function LabelDefinition(props: {
           }
           // The row's own revert, and only for a field that has been typed
           // into: `Esc` puts the saved value back rather than closing the
-          // dialog around it, but an untouched field owes the dialog the press.
+          // panel around it, but an untouched field owes the panel the press.
           if (event.key !== "Escape" || name === props.label.name) return;
           event.stopPropagation();
           setName(props.label.name);

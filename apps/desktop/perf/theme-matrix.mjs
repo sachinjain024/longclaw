@@ -328,6 +328,21 @@ const STATES = [
     distinct: [],
   },
   {
+    // The gear's menu (LC-208), which is the first surface a person meets on
+    // the way to settings and takes ink of its own: rows, the quiet right-hand
+    // hints, and the captions that say which theme axis is which.
+    name: "settings-menu",
+    contrast: [".menu-popover .menu-label", ".menu-popover .menu-hint"],
+    token: [],
+    distinct: [],
+  },
+  {
+    name: "theme-submenu",
+    contrast: [".menu-sub .menu-label", ".menu-sub .menu-caption"],
+    token: [],
+    distinct: [],
+  },
+  {
     name: "settings",
     contrast: [".theme-option-name", ".settings-panel label"],
     token: [],
@@ -466,10 +481,23 @@ try {
       await page.waitForFunction(
         () => document.querySelectorAll(".ticket-row").length > 0,
       );
+      // The two attributes `App` actually stamps (`App.tsx:719,756`), in the
+      // right order: the preset is `data-lc-theme` and the appearance is
+      // `data-theme`, and the accent blocks are published on the **compound**
+      // `[data-theme][data-lc-theme]` selector (`appearance.ts:7-12`).
+      //
+      // This used to write `data-theme = <preset>` and `data-appearance =
+      // <light|dark>`. `data-appearance` is not a selector anywhere in the
+      // product, and `[data-theme="clay"]` alone matches no accent block, so
+      // every axis fell through to `:root` — light indigo. All eight rendered
+      // byte-identically and the run reported "8 axes × 12 states clean" for
+      // one axis checked eight times. Found while adding the settings menu's
+      // states (LC-208), whose whole subject is preset swatches: they were the
+      // one thing on screen that could not possibly have looked right.
       await page.evaluate(
         ([theme, appearance]) => {
-          document.documentElement.dataset.theme = theme;
-          document.documentElement.dataset.appearance = appearance;
+          document.documentElement.dataset.lcTheme = theme;
+          document.documentElement.dataset.theme = appearance;
         },
         [theme, appearance],
       );
@@ -756,20 +784,38 @@ try {
 
       // By class, not by text: the control is a gear icon button whose label is
       // an `aria-label`, so `:has-text()` cannot see it and the run died here
-      // for two weeks (LC-70 → LC-163).
+      // for two weeks (LC-70 → LC-163). It opens a menu since LC-208, and the
+      // menu is a surface of its own — the rows, the captions and the swatches
+      // all take colour, so it is checked before the panel it opens.
       await page.click(".settings-button");
+      await page.waitForSelector(".menu-popover");
+      await check(state("settings-menu"));
+
+      // Into the theme submenu, which is where both accents are drawn side by
+      // side in a popover rather than in a panel (LC-208).
+      await page.click('.menu-popover .menu-row:has-text("Theme")');
+      await page.waitForSelector(".menu-sub");
+      await check(state("theme-submenu"));
+      await page.keyboard.press("Escape");
+
+      // `All settings…` is the row that opens the panel; the nav lands on
+      // `Theme`, which is the section the picker lives in.
+      await page.click('.menu-popover .menu-row:has-text("All settings")');
+      await page.waitForSelector(".settings-panel");
+      await page.click('.settings-nav-row:has-text("Theme")');
       await page.waitForSelector(".theme-picker");
       await check(state("settings"));
 
-      // The name field by its row rather than by "the first input in the
-      // panel": the dialog carries a disabled Key field and two radio groups
-      // since LC-125, and only one input in it is meant to be typed into.
+      // Back to General for the rename, and by its row rather than by "the
+      // first input in the panel": the section carries a disabled Key field,
+      // and only one input in it is meant to be typed into.
+      await page.click('.settings-nav-row:has-text("General")');
       await page.fill(".settings-identity input:not([disabled])", "Renamed");
       // It commits on `Enter` — the `Rename` button beside it went with LC-125,
       // because pressing `Done` with a typed name used to discard it silently.
       await page.keyboard.press("Enter");
-      // The banner is on the main panel, behind the dialog — `Esc` takes the
-      // dialog down so the error state is rendered as a user would meet it.
+      // The banner is on the main panel, behind the panel — `Esc` takes the
+      // panel down so the error state is rendered as a user would meet it.
       await page.keyboard.press("Escape");
       await page.waitForSelector(".error-banner");
       await check(state("error"));
