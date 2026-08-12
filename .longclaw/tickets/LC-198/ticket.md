@@ -8,7 +8,7 @@ priority: p3
 labels:
   - frontend
 created_at: 2026-08-10T07:27:37.190Z
-updated_at: 2026-08-10T07:27:37.190Z
+updated_at: 2026-08-12T06:46:50.876Z
 ---
 
 The prototype does two jobs with one architecture, and only one of them suits it.
@@ -67,4 +67,32 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_aaf36b27
+kind: update
+occurred_at: 2026-08-12T06:46:47.187Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: checklist.ck_21e30f36.added
+    to: Test Item
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_5f5621af
+kind: update
+occurred_at: 2026-08-12T06:46:50.876Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: checklist.ck_21e30f36.removed
+    from: Test Item
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

@@ -61,3 +61,19 @@ actor:
 
 Reworked on your note: Comments is selected on open, Activity is still the first tab and one click away. The composer already sat under both, so this changed what is on screen rather than what is reachable. One knock-on worth knowing: the theme matrix probed the panel's message anatomy and change anatomy in one state, and those now live on different tabs — it is two states now, and its agent-accent probe moved to .timeline-entry.agent .change-actor, which is the selector the contract was always about.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_354dc594
+kind: comment
+occurred_at: 2026-08-12T06:48:03.083Z
+actor:
+  type: human
+  id: local
+-->
+### You commented
+
+## Item
+- Adding a test comment
+- To check the markdown formatting
+- Actually we don’t need the toolbar
+<!-- /longclaw:event -->

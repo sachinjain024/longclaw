@@ -9,7 +9,7 @@ labels:
   - frontend
   - design
 created_at: 2026-08-11T14:48:54.999Z
-updated_at: 2026-08-11T14:48:54.999Z
+updated_at: 2026-08-12T11:53:55.396Z
 ---
 
 - Prototype this in Claude Design. Once convinced in Claude Design, bring in Claude Code for implementation.
@@ -32,4 +32,32 @@ actor:
   id: local
 -->
 ### You created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_e478d659
+kind: update
+occurred_at: 2026-08-12T11:53:51.594Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: rank
+    to: Zz
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_a48cbbaa
+kind: update
+occurred_at: 2026-08-12T11:53:55.396Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: rank
+    from: Zz
+-->
+### You updated this ticket
 <!-- /longclaw:event -->
