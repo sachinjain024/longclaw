@@ -3,10 +3,10 @@ format: longclaw.ticket/v1
 id: 39f51e0f-bfd3-48f1-abed-fe7d3927c92b
 key: LC-220
 title: Implement Cmz+Z functionality
-status: in_review
+status: done
 priority: urgent
 created_at: 2026-08-12T06:50:37.442Z
-updated_at: 2026-08-12T07:15:33.636Z
+updated_at: 2026-08-12T11:54:48.331Z
 ---
 
 Right now the toast shows Cmd+Z at multiple places but it doesn’t really work in the app. Identify different actions where Cmd+Z is useful and then implement it.
@@ -56,4 +56,28 @@ Not undoable, and not from oversight: adding a checklist row is filed as LC-221,
 Gates: `npm run check` clean and the frontend suite at 958→973 green. `a11y:audit` re-run because this is a key handler — A1–A5 all pass, including its own `⌘Z` row. `test:rust` has one failure, `an_item_can_be_reworded_and_removed_by_id`, which reproduces on a clean `main` and belongs to the CLI's missing `--edit-item` flag.
 
 One thing deliberately left alone: `states.md:62` enumerates the toast set as "status, priority, archive/unarchive, create, check" and now under-counts by more than these two — LC-215's checklist toasts are already outside it. The line is cited by `citation-lock.json`, and rewording it is its own change.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_438f046a
+kind: update
+occurred_at: 2026-08-12T11:54:48.331Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### Claude Code updated this ticket
+
+Done. ⌘Z reaches every undo the app offers, and the two prose edits that had no way back have one.
+
+Landed in four commits: the fix and its tests; the comments corrected where review found one describing a blur reset the code does not have; the field vocabulary moved into `keyContext.ts` so one module says what a field is and two questions are asked over it; and `TEXTUAL` trimmed to the one input type the app actually ships.
+
+Verified: `npm run check` clean at 965 frontend tests, citation guard and tab-order guard green, and `a11y:audit` A1–A5 re-run twice — once for the key handler and once for the single-key rule every surface asks. Each of the three broken gestures has a test proven to fail against the old rule.
+
+Carried over unfixed, both pre-existing and neither caused here: `test:rust`'s `an_item_can_be_reworded_and_removed_by_id`, which reproduces on a clean `main` and belongs to the CLI's missing `--edit-item` flag; and `states.md:62`'s toast enumeration, which already under-counted before this change.
 <!-- /longclaw:event -->
