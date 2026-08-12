@@ -121,7 +121,7 @@ movement. No custom-color affordance exists anywhere.
 
 - Horizontal scroller, padding 8px 24px 20px, column gap 12px.
 - **Column:** 264px fixed. Header row: status dot 14px + name 13px/500
-  `ink-2` + mono count 11px `ink-3` + hover-revealed `+`: quick create
+  `ink-2` + mono count 11px `ink-3` + always-visible `+`: quick create
   preseeded with that column's status; a bare 13px glyph, no fill or border, in
   a 24px hit area (LC-209). Card stack gap 8px; columns scroll independently.
 - Column order = status order: Backlog · Todo · In Progress · In Review ·

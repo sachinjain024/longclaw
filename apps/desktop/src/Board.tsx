@@ -571,9 +571,10 @@ function BoardColumn(props: {
           {props.title}
           <span>{props.tickets.length}</span>
         </h3>
-        {/* The column's own control, revealed on hover or focus (prototype.css
-            `.col-add`). The synthetic unreadable column has none: it names no
-            status, so there is nothing a create here could be preseeded with. */}
+        {/* The column's own control, standing rather than hover-revealed
+            (prototype.css `.col-add`, LC-209). The synthetic unreadable column
+            has none: it names no status, so there is nothing a create here
+            could be preseeded with. */}
         {props.status && (
           <ColumnAdd
             title={props.title}
@@ -657,7 +658,9 @@ function BoardColumn(props: {
 
 /**
  * A column header's `+`: quick create, preseeded with that column's status
- * (`screen-specs.md` § Board, `keyboard-focus-map.md:44`).
+ * (`screen-specs.md` § Board, `keyboard-focus-map.md:44`). It stands at all
+ * times — see `.column-add` for why the board's most-reached action is not
+ * something you have to sweep a pointer over a heading to discover.
  *
  * It is named for the column rather than labelled `+`, because six of these sit
  * on the board and "New ticket" six times over says nothing about which one was
