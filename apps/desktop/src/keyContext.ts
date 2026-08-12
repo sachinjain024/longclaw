@@ -22,23 +22,19 @@
 const EDITABLE = "input, textarea, select, [contenteditable=true]";
 
 /**
- * The `input` types that hold text, and so hold a native undo stack.
+ * The `input` types that hold text, and so hold a native undo stack — which in
+ * this app is `text`, and a bare `<input>`, which reports itself as one.
+ * `<textarea>` never reaches this list: it is not an `input`, so it is taken by
+ * the element check rather than by a type.
  *
  * Named rather than excluded, because the two lists fail in opposite
- * directions: a type missing from this one is a field the app takes `⌘Z` from,
- * and a checkbox missing from a list of what to *skip* is LC-220 again. The app
- * ships `text` and `textarea` today; the rest are here so that adding a search
- * or a number box is not silently the second kind of mistake.
+ * directions: a type missing from this one costs that field its own undo, while
+ * a checkbox missing from a list of what to *skip* is LC-220 again. It names
+ * what the app ships rather than what it might, so **a search, number or email
+ * box added later has to be added here** — the failure is the recoverable one,
+ * but it is still a failure.
  */
-const TEXTUAL = new Set([
-  "text",
-  "search",
-  "url",
-  "tel",
-  "email",
-  "password",
-  "number",
-]);
+const TEXTUAL = new Set(["text"]);
 
 /** Single-key shortcuts are inactive while the user is editing a control. */
 export function singleKeyShortcutAllowed(target: EventTarget | null): boolean {

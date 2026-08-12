@@ -25,8 +25,10 @@ describe("single-key shortcut context", () => {
 
 describe("the field a keystroke could be undone in", () => {
   it("takes the text controls", () => {
+    // A bare `<input>` is the app's commonest field — the quick create title
+    // and the checklist add-row both are one — and reports itself as `text`.
     expect(textFieldAt(control("input"))).toBeTruthy();
-    expect(textFieldAt(control("input", "search"))).toBeTruthy();
+    expect(textFieldAt(control("input", "text"))).toBeTruthy();
     expect(textFieldAt(control("textarea"))).toBeTruthy();
   });
 
@@ -36,6 +38,15 @@ describe("the field a keystroke could be undone in", () => {
     expect(textFieldAt(control("select"))).toBeUndefined();
     expect(textFieldAt(control("button"))).toBeUndefined();
     expect(textFieldAt(null)).toBeUndefined();
+  });
+
+  /**
+   * Not because a search box could not hold an undo — it plainly could. The
+   * list names the types the app ships rather than the types that exist, so
+   * this is the reminder that adding one is two edits and not one.
+   */
+  it("refuses a textual type the app does not ship", () => {
+    expect(textFieldAt(control("input", "search"))).toBeUndefined();
   });
 
   /**
