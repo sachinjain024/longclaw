@@ -1296,7 +1296,18 @@ export function TicketPanel(props: TicketPanelProps) {
                 setTitleDraft(ticket.title);
                 return;
               }
-              void save({ title: next });
+              // The old wording is gone from the app the moment this lands, and
+              // the gesture that spends it is a blur — a click somewhere else,
+              // which is not a decision to keep it (LC-220).
+              const was = ticket.title;
+              void save(
+                { title: next },
+                {
+                  toast: `${ticketKey} renamed · ${next}`,
+                  inverse: { title: was },
+                  inverseToast: `${ticketKey} title restored · ${was}`,
+                },
+              );
             }}
           />
 
@@ -1411,9 +1422,20 @@ export function TicketPanel(props: TicketPanelProps) {
                 }}
                 onSave={() => {
                   closeDescriptionEditor();
+                  // The description the file held. Undo names neither version
+                  // in its copy: a description is prose of any length, and a
+                  // toast is one line at the bottom of the window.
+                  const was = ticket.description;
                   // The draft, not a re-render of the parsed tree: the bytes the
                   // human typed are the bytes that reach the file.
-                  void save({ description: descriptionDraft });
+                  void save(
+                    { description: descriptionDraft },
+                    {
+                      toast: `${ticketKey} description updated`,
+                      inverse: { description: was },
+                      inverseToast: `${ticketKey} description restored`,
+                    },
+                  );
                 }}
               />
             ) : ticket.description ? (

@@ -278,10 +278,10 @@ describe("the toast", () => {
       </>,
     );
 
-    fireEvent.keyDown(screen.getByLabelText("Comment"), {
-      key: "z",
-      metaKey: true,
-    });
+    const comment = screen.getByLabelText("Comment") as HTMLTextAreaElement;
+    comment.focus();
+    fireEvent.input(comment, { target: { value: "half a sentence" } });
+    fireEvent.keyDown(comment, { key: "z", metaKey: true });
     expect(undo).not.toHaveBeenCalled();
 
     fireEvent.keyDown(document.body, { key: "z", metaKey: true });
@@ -289,6 +289,52 @@ describe("the toast", () => {
     // The offer goes with the toast: a second ⌘Z cannot undo twice.
     expect(screen.queryByText("LC-1 → In Progress")).toBeNull();
     fireEvent.keyDown(document.body, { key: "z", metaKey: true });
+    expect(undo).toHaveBeenCalledTimes(1);
+  });
+
+  it("runs undo in a field the app has just emptied under the caret", () => {
+    // The shape of both gestures LC-220 was filed for: the write clears the box
+    // and focuses it again, so the caret is in a field with nothing of its own
+    // to take back while the toast on screen is offering ⌘Z.
+    const undo = vi.fn();
+    useMutationStore
+      .getState()
+      .raise({ message: "LC-1 created", tone: "default", undo });
+    render(
+      <>
+        <input aria-label="Title" />
+        <ToastStack />
+      </>,
+    );
+
+    const title = screen.getByLabelText("Title") as HTMLInputElement;
+    title.focus();
+    fireEvent.input(title, { target: { value: "Fix the login redirect" } });
+    // The submit handler's own reset, which fires no `input` event.
+    title.value = "";
+
+    fireEvent.keyDown(title, { key: "z", metaKey: true });
+    expect(undo).toHaveBeenCalledTimes(1);
+  });
+
+  it("runs undo in a field the caret has never been typing in", () => {
+    // Removing a checklist row hands focus to the add-row. Nothing was typed
+    // there, so the row's Undo is still the app's to give.
+    const undo = vi.fn();
+    useMutationStore
+      .getState()
+      .raise({ message: "LC-1 removed · Ship it", tone: "default", undo });
+    render(
+      <>
+        <input aria-label="Add a checklist item" />
+        <ToastStack />
+      </>,
+    );
+
+    const addRow = screen.getByLabelText("Add a checklist item");
+    addRow.focus();
+    fireEvent.keyDown(addRow, { key: "z", metaKey: true });
+
     expect(undo).toHaveBeenCalledTimes(1);
   });
 
