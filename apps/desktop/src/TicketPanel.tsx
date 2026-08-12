@@ -1756,11 +1756,11 @@ export function TicketPanel(props: TicketPanelProps) {
                     buttons the description editor has, over the same helper.
 
                     Always mounted and faded rather than mounted on focus, which
-                    is what `.row-actions` and `.column-add` do and for a reason
-                    this one learned the hard way: a group that unmounts on the
-                    field's blur is a group `Tab` can never reach, because the
-                    blur that would carry focus into it takes it off the page
-                    first. The accessibility audit's A1 walk found it. */}
+                    is what `.row-actions` does and for a reason this one learned
+                    the hard way: a group that unmounts on the field's blur is a
+                    group `Tab` can never reach, because the blur that would
+                    carry focus into it takes it off the page first. The
+                    accessibility audit's A1 walk found it. */}
                 <FormattingToolbar
                   className="composer-toolbar"
                   onFormat={formatComment}

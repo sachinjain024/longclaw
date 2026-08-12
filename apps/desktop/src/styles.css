@@ -1042,13 +1042,15 @@ button:disabled {
 }
 
 /* The column's own control, in the far edge the header reserves for it
-   (prototype.css `.col-add`): quiet until the column is hovered or the button
-   itself is focused.
+   (prototype.css `.col-add`): standing, at the header's own quiet weight.
 
-   Faded rather than `visibility: hidden`, which is what the prototype uses and
-   this cannot: a hidden element takes no focus, and `keyboard-focus-map.md:44`
-   gives these buttons a keyboard path. It holds its place in the header either
-   way, so revealing it moves nothing.
+   Not hover-revealed, which is what the prototype does and what this did until
+   LC-209. Creating a ticket in a named column is the board's most-reached
+   action, and an affordance you have to find by sweeping the pointer over a
+   heading is one most people never learn is there. `ink-3` is already the
+   quietest ink in the header — quieter than the count beside it — so it can
+   stand without competing with the status name. There is nothing left to
+   reveal, so nothing fades and nothing moves.
 
    The target is the shared small-control size rather than the prototype's 3px
    of padding around a 13px glyph, which came out 19px — under the 24px floor
@@ -1071,18 +1073,7 @@ button:disabled {
   padding: 0;
   color: var(--lc-ink-3);
   background: transparent;
-  opacity: 0;
-  transition:
-    opacity var(--lc-motion-fast) var(--lc-motion-ease),
-    color var(--lc-motion-fast) var(--lc-motion-ease);
-}
-
-/* `:focus` and not only `:focus-visible`: a button reached by pointer keeps
-   focus without the visible ring, and an invisible control that is still the
-   focused one is the state this reveal exists to prevent. */
-.board-column:hover .column-add,
-.column-add:focus {
-  opacity: 1;
+  transition: color var(--lc-motion-fast) var(--lc-motion-ease);
 }
 
 /* The glyph carries every state this control has, since it is the whole of
@@ -3082,11 +3073,11 @@ button:disabled {
   grid-column: 2;
 }
 
-/* Quiet until the composer is in use, which is `.row-actions`' treatment and
-   `.column-add`'s: a toolbar standing under every ticket at full strength is
-   chrome, and one that is *mounted* only while the field has focus is a group
-   Tab can never enter — the blur that would carry focus into it takes the
-   group off the page first. Faded, so it holds its place and its Tab stop. */
+/* Quiet until the composer is in use, which is `.row-actions`' treatment: a
+   toolbar standing under every ticket at full strength is chrome, and one that
+   is *mounted* only while the field has focus is a group Tab can never enter —
+   the blur that would carry focus into it takes the group off the page first.
+   Faded, so it holds its place and its Tab stop. */
 .composer-toolbar {
   display: flex;
   gap: 2px;
