@@ -13,8 +13,10 @@
  * offer at all.
  *
  * The OS owns the key while the field has an edit of its own to give back, and
- * that is what this measures rather than guessing from focus. A field is asked
- * one question: *is what is on screen still what the person typed?*
+ * that is what this measures rather than guessing from focus. *Which* controls
+ * can hold such an edit is `keyContext.ts`'s to say — this module is the state
+ * that has to be watched to answer for one. A field is asked one question:
+ * *is what is on screen still what the person typed?*
  *
  * - Never typed in since it took focus → nothing to take back, the app's.
  * - Typed in, and the text is still theirs → the field's, including text they
@@ -47,42 +49,17 @@
  * has no inverse to be.
  */
 
-/** What the last keystroke left in the field the caret is in. */
-let typed: { field: Element; value: string | undefined } | undefined;
+import { textFieldAt } from "./keyContext";
 
 /**
- * `keyContext.ts`'s selector without `select`, which the app does not have and
- * which holds no text to undo. `[contenteditable=true]` is kept for parity with
- * it, so the two do not drift into disagreeing about anything but the one thing
- * they disagree about on purpose.
- */
-const FIELDS = "input, textarea, [contenteditable=true]";
-
-/**
- * The `input` types that hold text, and so hold an undo stack.
+ * Where the last keystroke landed, and what it left in the box.
  *
- * `singleKeyShortcutAllowed` asks `input` whole, which is right for the
- * single-key rule — `S` must not type an `s`, whatever the box is for. It is
- * wrong for `⌘Z`, and a checkbox is why: ticking a checklist row leaves focus
- * on the box, and `states.md:62-63` names **check** among the mutations that
- * "raise a toast with **Undo ⌘Z**", so the app's most-offered undo was standing
- * down for a control with no undo of its own to stand down for (LC-220).
- *
- * Named rather than excluded, because the two lists fail in opposite
- * directions: an unlisted type here is one the app takes the key for, and an
- * unlisted checkbox in a list of what to *skip* is LC-220 again. The app ships
- * `text` and `textarea` today; the rest are here so that adding a search or a
- * number box is not silently the second kind of mistake.
+ * The pair is the whole measurement: the field alone would say a keystroke
+ * happened somewhere, and the value alone could not say whose. Together they
+ * are the claim `fieldOwnsUndo` checks — *this* field, still holding what the
+ * person typed into it.
  */
-const TEXTUAL = new Set([
-  "text",
-  "search",
-  "url",
-  "tel",
-  "email",
-  "password",
-  "number",
-]);
+let lastKeystroke: { field: Element; value: string | undefined } | undefined;
 
 /** The value to compare against later, or `undefined` where there is none. */
 function valueOf(field: Element): string | undefined {
@@ -90,16 +67,6 @@ function valueOf(field: Element): string | undefined {
     field instanceof HTMLTextAreaElement
     ? field.value
     : undefined;
-}
-
-/** The text field this element sits in, if it is in one at all. */
-function textFieldAt(target: HTMLElement): Element | undefined {
-  const field = target.closest(FIELDS);
-  if (!field) return undefined;
-  if (field instanceof HTMLInputElement && !TEXTUAL.has(field.type)) {
-    return undefined;
-  }
-  return field;
 }
 
 /**
@@ -110,17 +77,17 @@ function textFieldAt(target: HTMLElement): Element | undefined {
 export function trackFieldEdits(): () => void {
   // A new field starts with no edit of its own, whatever the last one had.
   const onFocus = () => {
-    typed = undefined;
+    lastKeystroke = undefined;
   };
   const onInput = (event: Event) => {
     const field = event.target;
     if (!(field instanceof Element)) return;
-    typed = { field, value: valueOf(field) };
+    lastKeystroke = { field, value: valueOf(field) };
   };
   document.addEventListener("focusin", onFocus);
   document.addEventListener("input", onInput);
   return () => {
-    typed = undefined;
+    lastKeystroke = undefined;
     document.removeEventListener("focusin", onFocus);
     document.removeEventListener("input", onInput);
   };
@@ -133,10 +100,11 @@ export function trackFieldEdits(): () => void {
  * has always run: a card, a button, the board itself.
  */
 export function fieldOwnsUndo(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
   const field = textFieldAt(target);
-  if (!field || field !== typed?.field) return false;
+  if (!field || field !== lastKeystroke?.field) return false;
   // A `contenteditable` has no `value` to compare, so an edit in one is taken
   // at its word — the app never resets one under the caret.
-  return typed.value === undefined || typed.value === valueOf(field);
+  return (
+    lastKeystroke.value === undefined || lastKeystroke.value === valueOf(field)
+  );
 }
