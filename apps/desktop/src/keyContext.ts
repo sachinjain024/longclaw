@@ -8,7 +8,14 @@
  * ad-hoc `closest()` call in one component the others disagreed with it.
  */
 
-/** Single-key shortcuts are inactive while the user is editing a control. */
+/**
+ * Single-key shortcuts are inactive while the user is editing a control.
+ *
+ * `⌘Z` asks `fieldUndo.ts` instead, and the difference is deliberate: this one
+ * asks whether a keystroke would be *typed*, which any focusable control can
+ * do something with, while undo asks whether the field has an edit to take
+ * back — a question a checkbox and an untouched box both answer no to (LC-220).
+ */
 export function singleKeyShortcutAllowed(target: EventTarget | null): boolean {
   return !(
     target instanceof HTMLElement &&

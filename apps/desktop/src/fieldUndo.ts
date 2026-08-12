@@ -23,18 +23,39 @@
  *   programmatic reset does not fire `input`, so a value that no longer matches
  *   what the last keystroke left is the app having cleared the box underneath.
  *
- * The record lives only while the caret is in the field, and a blur ends it.
- * That is a choice, and it is not what a native text field does — a real undo
- * stack survives a blur. It is right here because these fields are drafts over
- * a file rather than documents: the panel re-seeds every one of them from what
- * was read, and a title that has already been written is a stack describing an
- * edit the app has committed. Letting it claim the key after the write would
- * take the toast's own Undo away from the gesture that raised it.
+ * One record, for the field the caret is in — taking focus elsewhere replaces
+ * it, and it is only ever read for the field the keystroke actually landed in,
+ * so a record left behind by a blur to nothing can never answer for anybody.
+ * That a field loses its claim by being left is a choice, and not what a native
+ * one does: a real undo stack survives a blur. It is right here because these
+ * are drafts over a file rather than documents — the panel re-seeds every one
+ * of them from what was read, so a title that has already been written is a
+ * stack describing an edit the app has committed, and letting it claim the key
+ * back would take Undo from the toast of the very gesture that raised it.
+ *
+ * One tracker, for the app's one `ToastStack` (`App.tsx:2091`). A second live
+ * instance would install a second pair of listeners and the first to unmount
+ * would clear the record the other was still reading, so this is a constraint
+ * rather than a component that happens to be mounted once.
+ *
+ * What it does not attempt: choosing between two *different* undoable things.
+ * A gesture that clears a field while an unrelated toast is still up — posting
+ * a comment during another mutation's five seconds — hands `⌘Z` to that toast,
+ * because the toast is the offer on screen and `keyboard-focus-map.md:30`
+ * pairs the key to it. That is the last mutation, which is the whole scope
+ * (`data-requirements.md:121`); the comment's own text is not a mutation and
+ * has no inverse to be.
  */
 
 /** What the last keystroke left in the field the caret is in. */
 let typed: { field: Element; value: string | undefined } | undefined;
 
+/**
+ * `keyContext.ts`'s selector without `select`, which the app does not have and
+ * which holds no text to undo. `[contenteditable=true]` is kept for parity with
+ * it, so the two do not drift into disagreeing about anything but the one thing
+ * they disagree about on purpose.
+ */
 const FIELDS = "input, textarea, [contenteditable=true]";
 
 /**
@@ -43,9 +64,15 @@ const FIELDS = "input, textarea, [contenteditable=true]";
  * `singleKeyShortcutAllowed` asks `input` whole, which is right for the
  * single-key rule — `S` must not type an `s`, whatever the box is for. It is
  * wrong for `⌘Z`, and a checkbox is why: ticking a checklist row leaves focus
- * on the box, and `states.md:62` names **check** as one of the mutations that
- * raises **Undo ⌘Z**, so the app's most-offered undo was standing down for a
- * control with no undo of its own to stand down for (LC-220).
+ * on the box, and `states.md:62-63` names **check** among the mutations that
+ * "raise a toast with **Undo ⌘Z**", so the app's most-offered undo was standing
+ * down for a control with no undo of its own to stand down for (LC-220).
+ *
+ * Named rather than excluded, because the two lists fail in opposite
+ * directions: an unlisted type here is one the app takes the key for, and an
+ * unlisted checkbox in a list of what to *skip* is LC-220 again. The app ships
+ * `text` and `textarea` today; the rest are here so that adding a search or a
+ * number box is not silently the second kind of mistake.
  */
 const TEXTUAL = new Set([
   "text",
