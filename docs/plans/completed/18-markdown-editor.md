@@ -290,11 +290,14 @@ and nothing above it knew a cell from its boundary. `splitCells` is that
 something: it splits on unescaped pipes only and hands the backslash through, so
 a pipe the author escaped arrives inside the cell.
 
-**LC-180 is not**, and still has its own ticket. A multi-line raw HTML block —
-`<details>`, its `<summary>`, its closing tag — still arrives as one line of shown
-text. Recognising it would mean CommonMark's HTML-block start conditions, a
-parsing surface this subset does not have, and the text is legible as source
-either way, which was never true of a table.
+**LC-180 is not**, and is not waiting on one either — it was cancelled as
+wontfix on 2026-08-11, and this section is where its answer lives now. A
+multi-line raw HTML block — `<details>`, its `<summary>`, its closing tag —
+still arrives as one line of shown text. Recognising it would mean CommonMark's
+HTML-block start conditions, a parsing surface this subset does not have, and
+the text is legible as source either way, which was never true of a table. What
+would reopen it is a construct whose value is its line structure turning up in a
+real description, the way LC-178's table did.
 
 The security invariant is untouched and is still structural. A cell holds
 `Inline[]` like every other run of text, so the grid lives in the tree's shape and
