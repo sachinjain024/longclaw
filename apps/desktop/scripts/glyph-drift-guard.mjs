@@ -150,6 +150,12 @@ const COPIES = [
     varies: ["fill", "stroke-dasharray"],
   },
   { symbols: ["priority-urgent"], copies: [["component", PRIORITY, "mark"]] },
+  {
+    // The column header's plain 8px dot (LC-223) — its own master, not an
+    // eighth shape in the status family above.
+    symbols: ["column-dot"],
+    copies: [["component", "apps/desktop/src/ColumnDot.tsx"]],
+  },
 ];
 
 /** Masters with no SVG copy in the app, and the reason there is none. */

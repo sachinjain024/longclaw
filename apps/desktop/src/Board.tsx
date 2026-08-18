@@ -92,7 +92,7 @@ import { PriorityGlyph } from "./PriorityGlyph";
 import { PulseDot } from "./PulseDot";
 import { itemFor, moveFor, useRovingFocus } from "./rovingFocus";
 import type { FocusRequest } from "./rovingFocus";
-import { StatusDot } from "./StatusDot";
+import { ColumnDot } from "./ColumnDot";
 import {
   metaFieldFor,
   TicketMetaMenu,
@@ -567,7 +567,7 @@ function BoardColumn(props: {
         <h3>
           {/* The dot the status wears everywhere; the header beside it names it,
               which is the one place the dot is allowed to go unlabelled. */}
-          {props.status && <StatusDot status={props.status} decorative plain />}
+          {props.status && <ColumnDot status={props.status} />}
           {props.title}
           <span>· {props.tickets.length}</span>
         </h3>
