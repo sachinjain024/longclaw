@@ -3760,8 +3760,7 @@ button:disabled {
 
 .theme-option-name {
   color: var(--lc-ink-3);
-  font: var(--lc-type-micro-weight) var(--lc-type-micro-size) /
-    var(--lc-type-micro-leading) var(--lc-type-micro-font);
+  font: 500 11.5px/1.35 var(--lc-font-ui);
 }
 
 .theme-option.selected .theme-option-name {
@@ -3956,7 +3955,7 @@ html.theme-transition *::after {
   align-items: center;
   margin-left: auto;
   color: var(--lc-ink-2);
-  font-size: var(--lc-type-micro-size);
+  font-size: 11.5px;
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
@@ -4190,7 +4189,7 @@ html.theme-transition *::after {
 .menu-hint {
   flex: none;
   color: var(--lc-ink-3);
-  font-size: var(--lc-type-micro-size);
+  font-size: 11.5px;
 }
 
 .menu-hint kbd,
@@ -4276,7 +4275,8 @@ html.theme-transition *::after {
 }
 
 /* Label chip — components.md:75-80. The dot is reinforcement; the text is the
-   identifier, so it is always drawn. */
+   identifier, so it is always drawn. Chip text is the DS Chip's own 11.5/500,
+   not the micro role — micro is the 10.5 mono voice again (F6, LC-223). */
 .label-chip {
   display: inline-flex;
   height: 22px;
@@ -4288,7 +4288,7 @@ html.theme-transition *::after {
   color: var(--lc-ink-2);
   background: var(--lc-surface);
   font-family: var(--lc-font-ui);
-  font-size: var(--lc-type-micro-size);
+  font-size: 11.5px;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -4572,7 +4572,7 @@ html.theme-transition *::after {
 .settings-note {
   margin-top: 18px;
   color: var(--lc-ink-3);
-  font-size: var(--lc-type-micro-size);
+  font-size: 11.5px;
   line-height: 1.55;
 }
 
@@ -4601,7 +4601,7 @@ html.theme-transition *::after {
   display: block;
   margin-bottom: 6px;
   color: var(--lc-ink-3);
-  font-size: var(--lc-type-micro-size);
+  font-size: 11.5px;
   font-weight: 500;
 }
 
@@ -4755,7 +4755,7 @@ html.theme-transition *::after {
 
 .label-settings p {
   color: var(--lc-ink-3);
-  font-size: var(--lc-type-micro-size);
+  font-size: 11.5px;
 }
 
 /* The subhead is the section's opening sentence wherever it appears, including

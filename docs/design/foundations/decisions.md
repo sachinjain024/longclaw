@@ -352,3 +352,15 @@ with the token; board card titles stay in the UI face (they are `ui` role,
 exactly — display 700 at 15.5px, −0.03em — and the 700 weight ships as a
 real latin subset (OFL, Google Fonts v11) in both copies of `fonts.css`,
 because `font-synthesis: none` would otherwise render a silent 600.
+
+## D20 — The type scale's F-group residue · accepted (LC-223, F4–F6)
+
+Three values return to the DS scale: `micro` is the 10.5px mono voice
+again ("card IDs, tiny meta" — the 11.5px UI size it had drifted to was
+really chip text, which now lives on the Chip component as its own
+11.5/500, exactly what the DS Chip specifies); the `label` role tracks
+at +0.09em; `display` tightens to −0.02em. Re-pointed off the role and
+pinned at 11.5px UI: label chips, menu hints, settings notes and field
+labels, the create-more label, and the theme preset names (the preset
+cards item redraws those). The degraded list row keeps the role — it
+renders a path, and 10.5 mono is exactly that voice.

@@ -15,7 +15,7 @@
   --lc-type-display-size: 26px;
   --lc-type-display-weight: 600;
   --lc-type-display-leading: 1.2;
-  --lc-type-display-tracking: -0.015em;
+  --lc-type-display-tracking: -0.02em;
   --lc-type-title-font: var(--lc-font-display);
   --lc-type-title-size: 17px;
   --lc-type-title-weight: 600;
@@ -41,8 +41,8 @@
   --lc-type-small-weight: 400;
   --lc-type-small-leading: 1.45;
   --lc-type-small-tracking: 0;
-  --lc-type-micro-font: var(--lc-font-ui);
-  --lc-type-micro-size: 11.5px;
+  --lc-type-micro-font: var(--lc-font-mono);
+  --lc-type-micro-size: 10.5px;
   --lc-type-micro-weight: 500;
   --lc-type-micro-leading: 1.35;
   --lc-type-micro-tracking: 0;
@@ -50,7 +50,7 @@
   --lc-type-label-size: 11px;
   --lc-type-label-weight: 500;
   --lc-type-label-leading: 1.3;
-  --lc-type-label-tracking: 0.06em;
+  --lc-type-label-tracking: 0.09em;
   --lc-type-code-font: var(--lc-font-mono);
   --lc-type-code-size: 12px;
   --lc-type-code-weight: 400;

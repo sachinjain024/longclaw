@@ -24,7 +24,7 @@
       "size": 26,
       "weight": 600,
       "lineHeight": 1.2,
-      "tracking": "-0.015em"
+      "tracking": "-0.02em"
     },
     "title": {
       "font": "display",
@@ -62,8 +62,8 @@
       "tracking": "0"
     },
     "micro": {
-      "font": "ui",
-      "size": 11.5,
+      "font": "mono",
+      "size": 10.5,
       "weight": 500,
       "lineHeight": 1.35,
       "tracking": "0"
@@ -73,7 +73,7 @@
       "size": 11,
       "weight": 500,
       "lineHeight": 1.3,
-      "tracking": "0.06em",
+      "tracking": "0.09em",
       "transform": "uppercase"
     },
     "code": {

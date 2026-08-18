@@ -9,7 +9,7 @@ labels:
   - design
   - frontend
 created_at: 2026-08-18T06:50:53.264Z
-updated_at: 2026-08-18T09:04:23.146Z
+updated_at: 2026-08-18T09:25:42.329Z
 ---
 
 A complete design audit of the app against the Claude Design settings prototype
@@ -226,7 +226,7 @@ Bottom-up, so each layer inherits the one below and nothing is painted twice:
 
 - [x] Tokens: resolve LC-195 groups E/F/G prototype-first — adopt the DS value where it clears the AA/CVD checker, else the nearest passing value, recorded in decisions.md <!-- longclaw:item=ck_fa00916e -->
 - [x] Tokens: move the title/heading roles to Familjen Grotesk (F1) — panel titles, board title, wordmark weights per the prototype <!-- longclaw:item=ck_73ab0e74 -->
-- [ ] Tokens: restore the 10.5px mono micro role (F6) and 0.09em label tracking (F5); display tracking to -0.02em (F4) <!-- longclaw:item=ck_0a6b25f5 -->
+- [x] Tokens: restore the 10.5px mono micro role (F6) and 0.09em label tracking (F5); display tracking to -0.02em (F4) <!-- longclaw:item=ck_0a6b25f5 -->
 - [ ] Tokens: align the label ramp to the prototype hues where the checker allows (E13) <!-- longclaw:item=ck_fcbfda98 -->
 - [ ] Controls: add a real input class per the DS Input spec (30px, line-strong border, radius 5, ui 13, focus = accent border + 3px ring; 28px/12.5 compact and mono variants) and apply it to every settings and labels field — the label-descendant selector reaches none of them today <!-- longclaw:item=ck_137b0ebc -->
 - [ ] Controls: button small variant drops its text to 11.5px <!-- longclaw:item=ck_dea5e6e8 -->
@@ -332,4 +332,22 @@ changes:
 ### Claude Code updated this ticket
 
 Item 2 done — the title role wears the display face (F1): board title, panel titles, create-form heading and the ticket title editor all render Familjen Grotesk 600 via the one token flip; card titles stay ui 13 as the DS BoardCard specifies. Wordmark takes the DS lockup exactly (display 700 / 15.5 / -0.03em) and the 700 weight ships as a real OFL latin subset in both fonts.css copies — font-synthesis: none would have faked it at 600 otherwise. D19 records the call.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_17808128
+kind: update
+occurred_at: 2026-08-18T09:25:42.329Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_0a6b25f5.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Item 3 done — F4/F5/F6 resolved. micro is the 10.5 mono voice again; chip text and the other UI-voice consumers (menu hints, settings notes/labels, create-more, preset names) re-pointed to their own 11.5 ui values per the DS Chip spec; the degraded list row keeps the role since it renders a path. Sidebar section labels now track at +0.09em via the label role; display tightens to -0.02em. D20 records it.
 <!-- /longclaw:event -->

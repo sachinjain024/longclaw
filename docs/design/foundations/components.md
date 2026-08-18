@@ -291,7 +291,7 @@ the common case for an agent working a ticket. Full reasoning in
 
 Row of preset swatches (no wheel, no custom colors): 44×28px, radius 5px,
 each showing the pair — left ⅔ human accent, right ⅓ agent accent — with the
-preset name in `--lc-type-micro` below. Selected: 1px `accent-human` border +
+preset name in 11.5px `ui` below. Selected: 1px `accent-human` border +
 focus ring. Appears in project creation (Indigo preselected — never a
 decision gate) and project settings. Switching applies instantly: a 150ms
 crossfade of accent surfaces only; nothing moves.
