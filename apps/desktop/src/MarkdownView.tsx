@@ -12,8 +12,20 @@
  */
 
 import { useMemo } from "react";
-import type { Block, Inline } from "./markdown";
+import type { Block, ColumnAlignment, Inline, TableRow } from "./markdown";
 import { parseMarkdown } from "./markdown";
+
+/**
+ * The delimiter row's colons, as the one class that carries them.
+ *
+ * Named rather than built from the value, so the three classes `styles.css`
+ * defines are the three a search for them finds.
+ */
+const ALIGNMENT_CLASS: Record<NonNullable<ColumnAlignment>, string> = {
+  left: "markdown-table-left",
+  center: "markdown-table-center",
+  right: "markdown-table-right",
+};
 
 interface MarkdownViewProps {
   source: string;
@@ -100,6 +112,35 @@ function Blocks({ blocks, offset }: { blocks: Block[]; offset: number }) {
             </List>
           );
         }
+        if (block.type === "table") {
+          // A real `<table>`, because the grid is the content: a row of `<td>`s
+          // is what puts a column under a heading, and `<th scope="col">` is
+          // what tells a screen reader which heading a cell sits under — the
+          // half of "scan down a column" that has nothing to do with sight.
+          // Nothing in here is a tab stop, so `keyboard-focus-map.md` is
+          // unchanged by a description that holds one.
+          return (
+            <table key={key} className="markdown-table">
+              <thead>
+                <Cells
+                  row={block.header}
+                  alignments={block.alignments}
+                  as="th"
+                />
+              </thead>
+              <tbody>
+                {block.rows.map((row, rowIndex) => (
+                  <Cells
+                    key={rowIndex}
+                    row={row}
+                    alignments={block.alignments}
+                    as="td"
+                  />
+                ))}
+              </tbody>
+            </table>
+          );
+        }
         return (
           <p key={key}>
             <InlineNodes nodes={block.children} />
@@ -107,6 +148,38 @@ function Blocks({ blocks, offset }: { blocks: Block[]; offset: number }) {
         );
       })}
     </>
+  );
+}
+
+/**
+ * One `<tr>`. `readTable` has already squared the block off, so the cells and
+ * the alignments line up by index and neither side can run out first.
+ */
+function Cells({
+  row,
+  alignments,
+  as,
+}: {
+  row: TableRow;
+  alignments: ColumnAlignment[];
+  as: "th" | "td";
+}) {
+  const Cell = as;
+  return (
+    <tr>
+      {row.cells.map((cell, index) => {
+        const alignment = alignments[index];
+        return (
+          <Cell
+            key={index}
+            scope={as === "th" ? "col" : undefined}
+            className={alignment ? ALIGNMENT_CLASS[alignment] : undefined}
+          >
+            <InlineNodes nodes={cell} />
+          </Cell>
+        );
+      })}
+    </tr>
   );
 }
 

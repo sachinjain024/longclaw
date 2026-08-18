@@ -2726,6 +2726,62 @@ button:disabled {
   margin-left: calc(-1 * var(--lc-space-4));
 }
 
+/* A table, marked by rules rather than by fills — the same call the quote above
+   makes, for the same reason: a description is prose with a grid in it, not a
+   spreadsheet embedded in a panel, and a tinted header band would read as a
+   second surface floating on the panel's own.
+
+   `table-layout: auto` is doing the load-bearing work and is why there is no
+   horizontal scroller here (LC-179). The panel is narrow and the table's rows
+   are long — LC-178's own recording table has a four-character Time column
+   beside a hundred-character State column — so letting the browser measure the
+   columns gives the short one the width it needs and the long one everything
+   left, and the long cells wrap *inside their column* instead of pushing the
+   grid off the side. A table that fits beats a table that scrolls, and it also
+   means this adds no scroll region, which would have owed the keyboard a stop
+   it has no other reason to have. */
+.markdown-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.markdown-table th,
+.markdown-table td {
+  border-bottom: 1px solid var(--lc-line);
+  padding: var(--lc-space-1) var(--lc-space-2);
+  overflow-wrap: break-word;
+  text-align: left;
+  vertical-align: top;
+}
+
+/* The header is the row the delimiter line declared, so it is allowed to look
+   declared: the heading weight, and the stronger of the two rules under it. */
+.markdown-table th {
+  border-bottom: 1px solid var(--lc-line-strong);
+  color: var(--lc-ink);
+  font-weight: 620;
+}
+
+/* The rule between rows is a separator, so the last row has nothing to separate
+   itself from and the table ends on its content. */
+.markdown-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* The delimiter row's colons. `left` is the default and is still declared,
+   because a column that asked for it should not depend on the default holding. */
+.markdown-table .markdown-table-left {
+  text-align: left;
+}
+
+.markdown-table .markdown-table-center {
+  text-align: center;
+}
+
+.markdown-table .markdown-table-right {
+  text-align: right;
+}
+
 .markdown a {
   color: var(--lc-accent-human-text);
 }

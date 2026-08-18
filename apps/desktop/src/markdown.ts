@@ -20,18 +20,30 @@
  * stopped being academic: an agent narrating a change writes numbered steps and
  * quotes the error it saw, and both were rendering as literal `1.` and `>`.
  *
- * Everything else — thematic breaks, setext headings, tables, raw HTML, HTML
- * comments — is neither dropped nor executed. It comes back out as the paragraph
- * text its author typed. The editor never writes this tree back to disk, so an
+ * Everything else — thematic breaks, setext headings, raw HTML, HTML comments —
+ * is neither dropped nor executed. It comes back out as the paragraph text its
+ * author typed. The editor never writes this tree back to disk, so an
  * unsupported construct is a rendering gap and can never be data loss.
  *
- * A table is the only one of those that is more than one line, and "the text its
- * author typed" has to mean the lines they typed or it means nothing: a soft
- * newline is a space on screen, so a nine-row table was arriving as one run-on
- * paragraph with the delimiter row inline in the middle of it (LC-179). So
- * `readTable` recognises the construct only far enough to keep its rows apart.
- * Rendering an actual `<table>` stays out of the subset — see
- * `docs/plans/completed/18-markdown-editor.md`.
+ * Tables were on that list and are the one construct it could not carry. LC-179
+ * is the whole argument: a table is more than one line, and "the text its author
+ * typed" has to mean the lines they typed or it means nothing — a soft newline
+ * is a space on screen, so a nine-row table arrived as one run-on paragraph with
+ * the delimiter row inline in the middle of it. Keeping the rows apart was the
+ * first answer and it was half of one. What makes a table worth writing is that
+ * a reader can run their eye down a column, and nine lines of pipes in a
+ * proportional font have no column in them; the rows that matter are also the
+ * long ones, so each wrapped and ran back into its neighbour.
+ *
+ * So `readTable` reads cells, and `TableBlock` is the one node in the union that
+ * is a grid rather than a run of text. Two things follow that the fallback had
+ * no way to express: an escaped `\|` is a pipe *inside* a cell rather than the
+ * wall it looked like (LC-181), and the walls themselves stop being characters,
+ * because a cell boundary is a `<td>` edge now.
+ *
+ * The security invariant is untouched and is still structural. A cell holds
+ * `Inline[]` like every other run of text, so no branch gained the ability to
+ * produce markup — the grid is in the tree's shape, never in a string.
  */
 
 export interface TextNode {
@@ -109,8 +121,38 @@ export interface BlockquoteBlock {
   children: Block[];
 }
 
+/**
+ * What a delimiter row's colons asked of a column — `:--`, `:-:`, `--:` — or
+ * `null` where it asked nothing and the renderer's own default stands.
+ */
+export type ColumnAlignment = "left" | "center" | "right" | null;
+
+/** A row is its cells, and a cell is inlines like any other run of text. */
+export interface TableRow {
+  cells: Inline[][];
+}
+
+/**
+ * A grid, and the only node here that is one.
+ *
+ * `header`, every row, and `alignments` are all the same length — `readTable`
+ * squares the block off — so the renderer walks a rectangle and never asks what
+ * a short row means.
+ */
+export interface TableBlock {
+  type: "table";
+  header: TableRow;
+  rows: TableRow[];
+  alignments: ColumnAlignment[];
+}
+
 export type Block =
-  HeadingBlock | ParagraphBlock | CodeBlock | ListBlock | BlockquoteBlock;
+  | HeadingBlock
+  | ParagraphBlock
+  | CodeBlock
+  | ListBlock
+  | BlockquoteBlock
+  | TableBlock;
 
 const FENCE = /^ {0,3}(`{3,}|~{3,})(.*)$/;
 const ATX = /^ {0,3}(#{1,6})(?:[ \t]+(.*?))?[ \t]*$/;
@@ -317,40 +359,127 @@ function startsTable(lines: string[], index: number): boolean {
 }
 
 /**
- * A table, kept as the block of lines it was typed as and nothing more.
+ * A table, read as the grid it was drawn as.
  *
- * There is no `TableBlock` in the union and no `<table>` on screen: the cells go
- * through `parseInline` like any other text, so a code span in one is still a
- * code span, and the pipes stay visible as the boundaries the author drew — an
- * escaped `\|` among them, since nothing here knows a cell from its wall. What
- * this adds over a plain paragraph is a `break` between rows, which is the
- * difference between a table a reader can scan down and one run-on line.
+ * The delimiter row is consumed rather than shown: it was never content, it was
+ * the author saying which row was the header and which way each column reads,
+ * and both of those are in the block now.
  *
- * The delimiter row is shown too. Hiding it would be rendering half a table, and
- * a reader who sees the dashes can tell the app kept the text rather than
- * understood it.
+ * Cells go through `parseInline` like any other text, so a code span in one is
+ * still a code span and a link in one is still a link. What a cell cannot hold
+ * is a block — no fence, no list, no nested table — which is GFM's own rule and
+ * also the whole reason a cell can stay `Inline[]`.
  */
 function readTable(lines: string[], start: number, blocks: Block[]): number {
   // The delimiter row is taken on `startsTable`'s word: a table written without
   // leading pipes has a `- | -` under it, which `interruptsParagraph` would
   // read as a bullet.
-  const rows = [lines[start], lines[start + 1]];
+  const header = splitCells(lines[start]);
+  const alignments = splitCells(lines[start + 1]).map(readAlignment);
+  const body: string[][] = [];
   let index = start + 2;
   while (
     index < lines.length &&
     !interruptsParagraph(lines[index]) &&
     isRow(lines[index])
   ) {
-    rows.push(lines[index]);
+    body.push(splitCells(lines[index]));
     index += 1;
   }
-  const children: Inline[] = [];
-  for (const [position, row] of rows.entries()) {
-    if (position > 0) children.push({ type: "break" });
-    children.push(...parseInline(row));
-  }
-  blocks.push({ type: "paragraph", children });
+
+  // GFM squares a ragged table off by *truncating* a row that runs past the
+  // header. Nothing here may drop text an author typed — that is the rule the
+  // whole fallback list is built on — so the widest row sets the width instead
+  // and every other row is padded out to it. A cell nobody typed is empty; a
+  // cell somebody typed is on screen.
+  const width = Math.max(
+    header.length,
+    ...body.map((cells) => cells.length),
+    alignments.length,
+  );
+  const square = (cells: string[]): TableRow => ({
+    cells: pad(cells, width, "").map(parseInline),
+  });
+  blocks.push({
+    type: "table",
+    header: square(header),
+    rows: body.map(square),
+    alignments: pad(alignments, width, null),
+  });
   return index;
+}
+
+function pad<T>(values: T[], width: number, filler: T): T[] {
+  return values.concat(
+    Array<T>(Math.max(0, width - values.length)).fill(filler),
+  );
+}
+
+/**
+ * A row's cells, split on the pipes the author did not escape.
+ *
+ * GFM makes the outer pipes optional, and they are walls rather than cells, so
+ * one leading and one trailing pipe come off before the split — otherwise every
+ * `| a | b |` would open and close with a cell nobody typed.
+ *
+ * A `\|` is not a wall, and this is the first place in the file that can tell
+ * the difference — the gap LC-181 was filed against. The backslash is carried
+ * through the split intact and `parseInline` unescapes it, so a pipe the author
+ * escaped to keep inside a cell arrives as a pipe inside that cell.
+ */
+function splitCells(line: string): string[] {
+  const source = trimWalls(line.trim());
+  const cells: string[] = [];
+  let cell = "";
+  let index = 0;
+  while (index < source.length) {
+    const char = source[index];
+    // Taken in pairs, so the `|` of a `\|` never reaches the test below and a
+    // `\\` cannot make a wall look escaped.
+    if (char === "\\" && index + 1 < source.length) {
+      cell += char + source[index + 1];
+      index += 2;
+      continue;
+    }
+    if (char === "|") {
+      cells.push(cell);
+      cell = "";
+      index += 1;
+      continue;
+    }
+    cell += char;
+    index += 1;
+  }
+  cells.push(cell);
+  return cells.map((text) => text.trim());
+}
+
+/** The outer walls, if the author drew them. An escaped pipe is not one. */
+function trimWalls(line: string): string {
+  let text = line;
+  if (text.startsWith("|")) text = text.slice(1);
+  if (text.endsWith("|") && !isEscaped(text, text.length - 1)) {
+    text = text.slice(0, -1);
+  }
+  return text;
+}
+
+/** Odd run of backslashes before it, which is what an escape actually is. */
+function isEscaped(text: string, index: number): boolean {
+  let backslashes = 0;
+  for (let at = index - 1; at >= 0 && text[at] === "\\"; at -= 1)
+    backslashes += 1;
+  return backslashes % 2 === 1;
+}
+
+/** `:-:` is center, `--:` is right, `:--` is left, and `---` asked for nothing. */
+function readAlignment(spec: string): ColumnAlignment {
+  const left = spec.startsWith(":");
+  const right = spec.endsWith(":");
+  if (left && right) return "center";
+  if (right) return "right";
+  if (left) return "left";
+  return null;
 }
 
 export function parseInline(source: string): Inline[] {
