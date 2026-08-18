@@ -31,7 +31,13 @@
   "bundle": {
     "active": true,
     "targets": ["app", "dmg"],
-    "icon": ["icons/icon.png"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
     "shortDescription": "Local-first project manager for humans and AI agents",
     "longDescription": "LongClaw keeps tickets as portable Markdown files beside your code, so humans plan and stay accountable while agents read and update the same records. No account, no telemetry, no network required.",
     "copyright": "Licensed under the Mozilla Public License 2.0",
