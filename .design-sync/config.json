@@ -1,0 +1,12 @@
+{
+  "projectId": "d34ededb-196a-431f-b064-1ab2ef09bfe1",
+  "projectName": "LongClaw DS v3 — system",
+  "mode": "token-layer-only",
+  "shape": "none",
+  "tokenSource": "apps/desktop/src/tokens/claude-design",
+  "tokenTargets": {
+    "apps/desktop/src/tokens/claude-design/themes.css": "tokens/themes.css",
+    "apps/desktop/src/tokens/claude-design/colors.css": "tokens/colors.css",
+    "apps/desktop/src/tokens/claude-design/typography.css": "tokens/typography.css"
+  }
+}
