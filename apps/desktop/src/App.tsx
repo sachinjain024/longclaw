@@ -1821,7 +1821,34 @@ export function App() {
                   left and took a line of its own below 830px, putting a third
                   row under a header the spec draws as one. */}
               <div className="header-identity">
-                <h1>{project.name}</h1>
+                {/* The prototype's title stack: the name over its path, the
+                    gear beside the stack (LC-223, item 20). */}
+                <div className="title-stack">
+                  <h1>{project.name}</h1>
+                  <div className="path-line">
+                    <PathChip path={project.rootPath} homePath={homePath} />
+                    {/* One disk-state line, beside the path chip and before the
+                    spacer, where `screen-specs.md:44-53` puts it — and silent
+                    when the disk is quiet (D-07). The `● watching` chip this
+                    replaces said the same thing at every idle moment, which
+                    is a dev trace rather than designed chrome. `reading` is
+                    the one word here D-07 did not ask for: the design answers
+                    a load with a board skeleton (`states.md:45-52`) that is
+                    not built, so until LC-159 builds it this line is the only
+                    thing that says a read is in flight. */}
+                    {project.reachable && (
+                      <WriteIndicator
+                        busy={
+                          reconciling
+                            ? "reconciling"
+                            : loading
+                              ? "reading"
+                              : undefined
+                        }
+                      />
+                    )}
+                  </div>
+                </div>
                 {/* `aria-haspopup="menu"` and a real `aria-expanded`: what the
                     gear opens is a menu now (LC-208), which is a region that
                     stays part of the page under its trigger — the very thing
@@ -1864,27 +1891,6 @@ export function App() {
                         .catch((error) => setError(normalizeError(error)));
                     }}
                     onClose={() => setSettingsMenuOpen(false)}
-                  />
-                )}
-                <PathChip path={project.rootPath} homePath={homePath} />
-                {/* One disk-state line, beside the path chip and before the
-                    spacer, where `screen-specs.md:44-53` puts it — and silent
-                    when the disk is quiet (D-07). The `● watching` chip this
-                    replaces said the same thing at every idle moment, which
-                    is a dev trace rather than designed chrome. `reading` is
-                    the one word here D-07 did not ask for: the design answers
-                    a load with a board skeleton (`states.md:45-52`) that is
-                    not built, so until LC-159 builds it this line is the only
-                    thing that says a read is in flight. */}
-                {project.reachable && (
-                  <WriteIndicator
-                    busy={
-                      reconciling
-                        ? "reconciling"
-                        : loading
-                          ? "reading"
-                          : undefined
-                    }
                   />
                 )}
               </div>

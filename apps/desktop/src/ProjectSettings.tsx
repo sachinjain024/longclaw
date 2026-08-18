@@ -712,7 +712,7 @@ function ProjectLabels(props: {
           onChange={(event) => setName(event.target.value)}
         />
         <LabelColors label="New label color" value={color} onPick={setColor} />
-        <button tabIndex={0} className="secondary" type="submit">
+        <button tabIndex={0} className="secondary small" type="submit">
           Add label
         </button>
       </form>

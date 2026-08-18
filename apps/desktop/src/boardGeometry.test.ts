@@ -163,10 +163,11 @@ describe("the card heights the stylesheet pins", () => {
   // collapsed. Written as the addition, the same edit fails here rather than
   // shipping columns that end short of the window.
   it("reserves the chrome above and below the region, and nothing else", () => {
-    const mainPanelInset = 28; // `.main-panel` padding-block, top and bottom
-    const contentHeader = 16 + 30 + 12; // its padding around a control row
+    // The header band owns the top edge (LC-223): no main-panel inset above.
+    const mainPanelInset = 0 + 24; // `.main-panel` padding-block
+    const contentHeader = 62 + 1; // the prototype's band and its hairline
     const boardGridPadding = tokens.space["2"] + tokens.space["5"];
-    const reserve = mainPanelInset * 2 + contentHeader + boardGridPadding;
+    const reserve = mainPanelInset + contentHeader + boardGridPadding;
     expect(tokens.size["board-stack"]).toBe(`calc(100vh - ${reserve}px)`);
   });
 

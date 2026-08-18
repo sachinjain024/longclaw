@@ -61,9 +61,9 @@
   triangle in `--lc-warn` and dim the name to `ink-3`; the row stays in
   place and stays clickable.
 - **Active row:** `line-soft` bg, `ink` text, 600 weight.
-- **Content header:** padding 16px 24px 12px. Project name
-  (`--lc-type-title`), settings gear (ghost icon button), path chip (mono
-  12px, folder glyph, click copies, hover `wash`), disk-state indicator
+- **Content header:** a 62px band, hairline below, 24px sides. Project
+  name (`--lc-type-title` at 16.5px) stacked over the path chip (mono
+  10.5px, folder glyph, click copies, hover `wash`); gear 26px, hover fills; disk-state indicator
   (below), spacer, filter field (180×30px), **ordering control** (ghost,
   `Order: Priority|Manual`, opens the ordering menu — ADR 0003), view
   segment (Board | List), primary **New ticket** button with `C` kbd chip.

@@ -380,3 +380,12 @@ Dark siblings derive by applying each old pair's oklab light→dark lift to
 the new light hue. The DS's own `--label-watcher: #E1703C` disagrees with
 its prototype's picker (`#E0762F`); the picker is the newer artifact and
 wins, and the sync push carries the resolution back.
+
+## D22 — The header takes the prototype's band · accepted (LC-223, supersedes D16)
+
+A 62px band with a full-width hairline below, the project name (16.5px,
+display face) stacked over its path line (mono 10.5 `ink-3`), and the gear
+at 26px whose hover fills `line-soft` like every other icon button — the
+prototype's header, replacing the padded block. D16 accepted the gear's
+colour-only hover as a reference divergence; the divergence is retired
+with the rest of them.

@@ -120,7 +120,7 @@
     "card-pad-y": 10,
     "board-card": 108,
     "board-card-acknowledged": 136,
-    "board-stack": "calc(100vh - 142px)",
+    "board-stack": "calc(100vh - 115px)",
     "panel-gutter": 16,
     "panel-gutter-lg": 24
   },
@@ -162,16 +162,18 @@
     "light": {
       "card": "0 1px 2px rgba(23, 25, 35, 0.04)",
       "raised": "0 1px 3px rgba(23, 25, 35, 0.10)",
+      "menu": "0 6px 18px rgba(23, 25, 35, 0.14)",
       "overlay": "0 6px 18px rgba(23, 25, 35, 0.22)",
       "modal": "0 16px 48px rgba(23, 25, 35, 0.28)"
     },
     "dark": {
       "card": "none",
       "raised": "0 1px 3px rgba(0, 0, 0, 0.40)",
+      "menu": "0 6px 18px rgba(0, 0, 0, 0.40)",
       "overlay": "0 6px 18px rgba(0, 0, 0, 0.40)",
       "modal": "0 16px 48px rgba(0, 0, 0, 0.55)"
     },
-    "note": "Dark surfaces carry elevation with the raised color and hairlines, not shadow. Cards in dark have no shadow. `raised` is the DS single-step lift (LC-223, G10); nothing consumes it yet."
+    "note": "Dark surfaces carry elevation with the raised color and hairlines, not shadow. Cards in dark have no shadow. `raised` is the DS single-step lift (LC-223, G10); nothing consumes it yet. `menu` is the prototype's popover shadow — a step softer than `overlay`, which menus wore before LC-223."
   },
 
   "mix": {

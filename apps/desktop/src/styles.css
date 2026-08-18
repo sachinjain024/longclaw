@@ -139,6 +139,8 @@ textarea:focus-visible,
   color: var(--lc-ink-3);
   font: var(--lc-type-label-weight) var(--lc-type-label-size) /
     var(--lc-type-label-leading) var(--lc-type-label-font);
+  /* The prototype sets these one size down from the label role. */
+  font-size: 10px;
   letter-spacing: var(--lc-type-label-tracking);
   text-transform: uppercase;
 }
@@ -295,9 +297,8 @@ textarea:focus-visible,
 
 .trust-line {
   padding: 0 var(--lc-space-2);
-  color: var(--lc-ink-disabled);
-  font: var(--lc-type-kbd-weight) var(--lc-type-kbd-size) /
-    var(--lc-type-kbd-leading) var(--lc-type-kbd-font);
+  color: var(--lc-ink-3);
+  font: 500 10.5px / var(--lc-type-kbd-leading) var(--lc-type-kbd-font);
   letter-spacing: var(--lc-type-kbd-tracking);
 }
 
@@ -374,7 +375,8 @@ textarea::placeholder {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  padding: 28px 24px;
+  /* No inset above the header band — it owns the top edge (LC-223). */
+  padding: 0 24px 24px;
 }
 
 .eyebrow {
@@ -747,10 +749,10 @@ button:disabled {
   min-width: 0;
 }
 
-/* 56px, which is the spec's number and not a coincidence: 16px above a 30px
-   control row and 12px below (`screen-specs.md:64`). The 24px side inset the
-   same line asks for comes from `.main-panel`, which insets every region in
-   this column at once rather than each one repeating it.
+/* The prototype's 62px band (`screen-specs.md:64`), hairline below, running
+   the main region's full width: the band escapes `.main-panel`'s side inset
+   with negative margins and restates it as padding, so its border reaches
+   both edges while its content stays aligned with the board.
 
    Wrapping is the last resort, not the layout: at any width that fits, this is
    one line. When it genuinely cannot be, the control row moves down whole —
@@ -761,12 +763,36 @@ button:disabled {
 .content-header {
   flex-wrap: wrap;
   gap: 12px;
-  padding: 16px 0 12px;
+  align-items: center;
+  min-height: 62px;
+  margin: 0 calc(-1 * var(--lc-size-panel-gutter-lg));
+  border-bottom: 1px solid var(--lc-line);
+  padding: 8px var(--lc-size-panel-gutter-lg);
+}
+
+.title-stack {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.path-line {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+}
+
+.content-header .path-chip {
+  color: var(--lc-ink-3);
+  font-size: 10.5px;
 }
 
 /* The row's own height comes from the 30px controls in it, so the name gives up
    the block margin it carries everywhere else. */
 .content-header h1 {
+  font-size: 16.5px;
   margin-bottom: 0;
   white-space: nowrap;
 }
@@ -778,9 +804,10 @@ button:disabled {
   align-items: center;
   justify-content: center;
   /* Square, so the shared 0 9px small padding (components.md:44) would skew it. */
-  width: var(--lc-size-control-sm);
+  width: 26px;
+  min-height: 26px;
   padding: 0;
-  color: var(--lc-ink-3);
+  color: var(--lc-ink-2);
   /* Only the gear reads as ink on hover, so the colour fade is scoped here
      rather than added to the shared foundation, where it would have put a
      third animated property on `button:disabled` — a state components.md:32
@@ -796,12 +823,11 @@ button:disabled {
 
 /* Held down while its menu is up (LC-208), because a menu anchored under a
    control that looks untouched reads as belonging to whatever is behind it. */
+/* Hover fills like every icon button now — the prototype's gear (D22,
+   superseding D16's colour-only fade). */
 .content-header .settings-button:hover,
 .content-header .settings-button.open {
   color: var(--lc-ink);
-}
-
-.content-header .settings-button.open {
   background: var(--lc-line-soft);
 }
 
@@ -2094,6 +2120,15 @@ button:disabled {
    sliced in half. Nothing in the panel is elastic: it scrolls instead. */
 .ticket-panel > * {
   flex: none;
+}
+
+/* The prototype's menu entrance: a 3px drop and a fade, over the state
+   window — `lcMenuIn 120ms` in the prototype's own terms. */
+@keyframes lc-menu-in {
+  from {
+    transform: translateY(-3px);
+    opacity: 0;
+  }
 }
 
 @keyframes lc-panel-in {
@@ -4129,7 +4164,8 @@ html.theme-transition *::after {
   border-radius: var(--lc-radius-panel);
   padding: 5px;
   background: var(--lc-raised);
-  box-shadow: var(--lc-shadow-overlay);
+  box-shadow: var(--lc-shadow-menu);
+  animation: lc-menu-in var(--lc-motion-state) var(--lc-motion-ease);
 }
 
 /* `width: 100%` is load-bearing, not belt-and-braces. A `<button>` sizes to
@@ -4150,9 +4186,15 @@ html.theme-transition *::after {
   padding: 0 var(--lc-space-2);
   color: var(--lc-ink);
   background: none;
-  font-size: var(--lc-type-small-size);
+  font-size: var(--lc-type-ui-size);
   text-align: left;
   cursor: pointer;
+}
+
+/* The submenu's rows sit a step tighter than its parent's (the prototype's
+   28 against 30) — a child surface, not a second menu. */
+.menu-sub .menu-row {
+  height: 28px;
 }
 
 /* The popover is `raised`, so its rows hover to the raised step for the same
@@ -4243,7 +4285,7 @@ html.theme-transition *::after {
 .menu-rule {
   height: 1px;
   border: 0;
-  margin: var(--lc-space-1) var(--lc-space-1);
+  margin: 5px var(--lc-space-1);
   background: var(--lc-line-soft);
 }
 
@@ -4363,34 +4405,42 @@ html.theme-transition *::after {
 }
 
 .label-dot.label-blue {
+  color: var(--lc-label-blue);
   background: var(--lc-label-blue);
 }
 
 .label-dot.label-cyan {
+  color: var(--lc-label-cyan);
   background: var(--lc-label-cyan);
 }
 
 .label-dot.label-purple {
+  color: var(--lc-label-purple);
   background: var(--lc-label-purple);
 }
 
 .label-dot.label-pink {
+  color: var(--lc-label-pink);
   background: var(--lc-label-pink);
 }
 
 .label-dot.label-red {
+  color: var(--lc-label-red);
   background: var(--lc-label-red);
 }
 
 .label-dot.label-orange {
+  color: var(--lc-label-orange);
   background: var(--lc-label-orange);
 }
 
 .label-dot.label-amber {
+  color: var(--lc-label-amber);
   background: var(--lc-label-amber);
 }
 
 .label-dot.label-gray {
+  color: var(--lc-label-gray);
   background: var(--lc-label-gray);
 }
 
@@ -4851,7 +4901,7 @@ html.theme-transition *::after {
 
 .label-row .row-remove:hover,
 .label-row .row-remove:focus-visible {
-  color: var(--lc-ink);
+  color: var(--lc-danger);
 }
 
 /* One dot and a chevron, in the field box every other control in this panel
@@ -4896,7 +4946,7 @@ html.theme-transition *::after {
   border-radius: var(--lc-radius-card);
   padding: 9px 10px;
   background: var(--lc-raised);
-  box-shadow: var(--lc-shadow-overlay);
+  box-shadow: var(--lc-shadow-menu);
 }
 
 .label-color-swatch {
@@ -4911,12 +4961,27 @@ html.theme-transition *::after {
   cursor: pointer;
 }
 
+.label-color-trigger .label-dot {
+  width: 9px;
+  height: 9px;
+}
+
+.label-color-menu .label-dot {
+  width: 11px;
+  height: 11px;
+}
+
 .label-color-swatch:hover {
   border-color: var(--lc-line-strong);
 }
 
-.label-color-swatch.selected {
-  border-color: var(--lc-accent-human);
+/* Selection is a halo in the swatch's own hue (the prototype's
+   `0 0 0 2px surface, 0 0 0 3.5px color`), not the human accent — picking a
+   colour is about the colour. The hue classes set `color` for this ring. */
+.label-color-swatch.selected .label-dot {
+  box-shadow:
+    0 0 0 2px var(--lc-surface),
+    0 0 0 3.5px currentColor;
 }
 
 .label-color-swatch:focus-visible {

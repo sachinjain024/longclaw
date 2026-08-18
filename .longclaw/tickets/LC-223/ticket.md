@@ -9,7 +9,7 @@ labels:
   - design
   - frontend
 created_at: 2026-08-18T06:50:53.264Z
-updated_at: 2026-08-18T10:07:46.043Z
+updated_at: 2026-08-18T10:42:00.786Z
 ---
 
 A complete design audit of the app against the Claude Design settings prototype
@@ -240,10 +240,10 @@ Bottom-up, so each layer inherits the one below and nothing is painted twice:
 - [x] Settings: appearance segment at 28px with segment separators and neutral selection <!-- longclaw:item=ck_26c0eb6c -->
 - [x] Settings: theme picker becomes the prototype preset cards (36×22 split swatch, name, check; selected = accent border + ring) <!-- longclaw:item=ck_24a56617 -->
 - [x] Settings: shortcuts kbd chips to mono 10.5 / radius 4 / bg fill / ctrl-border <!-- longclaw:item=ck_37275d06 -->
-- [ ] Menus: shadow softens to the prototype 0 6px 18px 14%, entrance gets lcMenuIn 120ms, submenu rows 28px, separator margins 5px 4px <!-- longclaw:item=ck_5759b020 -->
-- [ ] Labels: 9px trigger dot, selection ring in the swatch's own hue, Add label goes small, remove hover turns danger <!-- longclaw:item=ck_3e7941ef -->
-- [ ] Sidebar: wordmark 700 / 15.5 / -0.03em; section labels mono 10 +0.09em; footer mono 10.5 ink-3 <!-- longclaw:item=ck_c35c4f27 -->
-- [ ] Header: 62px band with full-width hairline, path stacked under the title in mono 10.5 ink-3, gear 26px with hover fill <!-- longclaw:item=ck_441f2e5b -->
+- [x] Menus: shadow softens to the prototype 0 6px 18px 14%, entrance gets lcMenuIn 120ms, submenu rows 28px, separator margins 5px 4px <!-- longclaw:item=ck_5759b020 -->
+- [x] Labels: 9px trigger dot, selection ring in the swatch's own hue, Add label goes small, remove hover turns danger <!-- longclaw:item=ck_3e7941ef -->
+- [x] Sidebar: wordmark 700 / 15.5 / -0.03em; section labels mono 10 +0.09em; footer mono 10.5 ink-3 <!-- longclaw:item=ck_c35c4f27 -->
+- [x] Header: 62px band with full-width hairline, path stacked under the title in mono 10.5 ink-3, gear 26px with hover fill <!-- longclaw:item=ck_441f2e5b -->
 - [x] Header: filter field becomes the DS Input (30px, ctrl-border, 180px) and the order trigger returns to 30px <!-- longclaw:item=ck_1ab64970 -->
 - [ ] Components: board column headers go mono 11 +0.09em uppercase with the plain 8px status dot; columns 258px / 16px gap / 16px 18px scroller padding; empty state mono 10.5 ink-4 <!-- longclaw:item=ck_d8a2d43d -->
 - [ ] Components: card label chips at 10.5px with 0 7px padding <!-- longclaw:item=ck_e69bcf29 -->
@@ -467,4 +467,31 @@ changes:
 ### Claude Code updated this ticket
 
 Settings batch done (items 10-12, 14-16). The panel is in-flow — the shell's third grid column, no scrim, no shadow, board live beside it; the Tab trap went with the scrim and the right edge holds one record at a time (opening settings closes the ticket panel; new test). Header: Familjen 15px title, 24px close, longclaw.yaml chip at mono 10.5/radius-4/canvas fill. Text scale: labels 12px ink-2, intros 12.5/1.55, content pad 18/20. Segments (view+appearance): 28px, separators, ink-2 unselected. Theme picker is the prototype's preset cards (36x22 swatch, name, check, accent border+ring on the card) — shared with project creation. Shortcuts kbds at mono 10.5/radius-4/canvas. keyboard-focus-map modal section, screen-specs and components.md updated; citations re-pinned. a11y:audit A1-A5 pass, matrix clean, 1024 tests.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_72682727
+kind: update
+occurred_at: 2026-08-18T10:42:00.786Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_5759b020.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_3e7941ef.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_c35c4f27.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_441f2e5b.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Items 17-20 done. Menus: new shadow-menu token (0 6px 18px 14%), lc-menu-in 120ms entrance, 28px submenu rows, 5px separator margins, rows at the prototype's 13px; the colour dropdown shares the shadow. Labels: 9px trigger dot, 11px strip dots, selection halo in the swatch's own hue via currentColor plumbing on the hue classes, Add label small, remove-cross hovers danger. Sidebar: section labels at the prototype's 10px, footer mono 10.5 ink-3. Header: the 62px band with full-width hairline, title stacked over the path (16.5 display over mono 10.5 ink-3), gear 26px whose hover fills (D22, superseding D16), main-panel top inset removed, board-stack re-derived as the sum 24+63+28=115 with the geometry test rewritten as that sum. Also fixed a color-guard break that rode in from main (a hex in an OwlMark comment). matrix, a11y:audit A1-A5, probe:header 98/98, 1024 tests.
 <!-- /longclaw:event -->

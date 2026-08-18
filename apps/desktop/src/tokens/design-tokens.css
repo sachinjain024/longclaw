@@ -85,7 +85,7 @@
   --lc-size-card-pad-y: 10px;
   --lc-size-board-card: 108px;
   --lc-size-board-card-acknowledged: 136px;
-  --lc-size-board-stack: calc(100vh - 142px);
+  --lc-size-board-stack: calc(100vh - 115px);
   --lc-size-panel-gutter: 16px;
   --lc-size-panel-gutter-lg: 24px;
   --lc-radius-kbd: 3px;
@@ -162,6 +162,7 @@
   --lc-label-gray: #878ca0;
   --lc-shadow-card: 0 1px 2px rgba(23, 25, 35, 0.04);
   --lc-shadow-raised: 0 1px 3px rgba(23, 25, 35, 0.1);
+  --lc-shadow-menu: 0 6px 18px rgba(23, 25, 35, 0.14);
   --lc-shadow-overlay: 0 6px 18px rgba(23, 25, 35, 0.22);
   --lc-shadow-modal: 0 16px 48px rgba(23, 25, 35, 0.28);
   --lc-mix-soft: 10%;
@@ -229,6 +230,7 @@
   --lc-label-gray: #878ca0;
   --lc-shadow-card: 0 1px 2px rgba(23, 25, 35, 0.04);
   --lc-shadow-raised: 0 1px 3px rgba(23, 25, 35, 0.1);
+  --lc-shadow-menu: 0 6px 18px rgba(23, 25, 35, 0.14);
   --lc-shadow-overlay: 0 6px 18px rgba(23, 25, 35, 0.22);
   --lc-shadow-modal: 0 16px 48px rgba(23, 25, 35, 0.28);
   --lc-mix-soft: 10%;
@@ -290,6 +292,7 @@
   --lc-label-gray: #9a9eb0;
   --lc-shadow-card: none;
   --lc-shadow-raised: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --lc-shadow-menu: 0 6px 18px rgba(0, 0, 0, 0.4);
   --lc-shadow-overlay: 0 6px 18px rgba(0, 0, 0, 0.4);
   --lc-shadow-modal: 0 16px 48px rgba(0, 0, 0, 0.55);
   --lc-mix-soft: 15%;
