@@ -39,7 +39,14 @@ const requireAppearances = (path, value) => {
 };
 
 /* `note` keys are prose; `status.done` derives from the human accent. */
-for (const group of ["neutral", "status", "priority", "feedback", "label"]) {
+for (const group of [
+  "neutral",
+  "status",
+  "priority",
+  "feedback",
+  "label",
+  "avatar",
+]) {
   for (const [k, v] of Object.entries(t.color[group])) {
     if (k === "note" || (group === "status" && k === "done")) continue;
     requireAppearances(`color.${group}.${k}`, v);
@@ -140,6 +147,10 @@ const appearanceLines = (app) => {
   for (const [k, v] of Object.entries(t.color.label)) {
     if (k === "note") continue;
     out.push(line(`label-${k}`, v[app]));
+  }
+  for (const [k, v] of Object.entries(t.color.avatar)) {
+    if (k === "note") continue;
+    out.push(line(`avatar-${k}`, v[app]));
   }
   for (const [k, v] of Object.entries(t.elevation[app]))
     out.push(line(`shadow-${k}`, v));

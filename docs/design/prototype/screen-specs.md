@@ -61,7 +61,7 @@
   triangle in `--lc-warn` and dim the name to `ink-3`; the row stays in
   place and stays clickable.
 - **Active row:** `line-soft` bg, `ink` text, 600 weight.
-- **Content header:** a 62px band, hairline below, 24px sides. Project
+- **Content header:** a 62px band, hairline below, 18px sides. Project
   name (`--lc-type-title` at 16.5px) stacked over the path chip (mono
   10.5px, folder glyph, click copies, hover `wash`); gear 26px, hover fills; disk-state indicator
   (below), spacer, filter field (180×30px), **ordering control** (ghost,
@@ -119,9 +119,9 @@ movement. No custom-color affordance exists anywhere.
 
 ## Board
 
-- Horizontal scroller, padding 8px 24px 20px, column gap 12px.
-- **Column:** 264px fixed. Header row: status dot 14px + name 13px/500
-  `ink-2` + mono count 11px `ink-3` + always-visible `+`: quick create
+- Horizontal scroller, padding 16px 18px 20px, column gap 16px.
+- **Column:** 258px fixed. Header row: plain 8px status dot + one mono
+  11px +0.09em uppercase `ink-3` run of name · count + always-visible `+`: quick create
   preseeded with that column's status; a bare 13px glyph, no fill or border, in
   a 24px hit area (LC-209). Card stack gap 8px; columns scroll independently.
 - Column order = status order: Backlog · Todo · In Progress · In Review ·

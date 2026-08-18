@@ -324,13 +324,13 @@ describe("the board's own shape", () => {
     );
 
     const todo = screen.getByRole("heading", { name: /Todo/ });
-    expect(todo.textContent).toBe("Todo2");
+    expect(todo.textContent).toBe("Todo· 2");
     expect(
       screen.getByRole("heading", { name: /In Progress/ }).textContent,
-    ).toBe("In Progress1");
+    ).toBe("In Progress· 1");
     // Every fixed status keeps its column, empty or not (ADR 0002).
     expect(screen.getByRole("heading", { name: /Canceled/ }).textContent).toBe(
-      "Canceled0",
+      "Canceled· 0",
     );
   });
 
@@ -367,7 +367,7 @@ describe("the board's own shape", () => {
     const titles = Array.from(
       document.querySelectorAll<HTMLElement>(".board-column h3"),
     ).map((heading) => heading.textContent);
-    expect(titles.at(-1)).toBe("Unreadable1");
+    expect(titles.at(-1)).toBe("Unreadable· 1");
   });
 
   /**
@@ -403,7 +403,7 @@ describe("the board's own shape", () => {
     // In Progress holds both, and no synthetic column is drawn at all.
     expect(
       screen.getByRole("heading", { name: /In Progress/ }).textContent,
-    ).toBe("In Progress2");
+    ).toBe("In Progress· 2");
     expect(screen.queryByRole("heading", { name: /Unreadable/ })).toBeNull();
     // Still a degraded card wherever it sits: the seat is borrowed, the anatomy
     // is the file's own.
@@ -473,7 +473,7 @@ describe("a column holding more cards than it can show", () => {
     expect(rendered.length).toBeLessThan(400);
     // It still says how many tickets are in the column, not how many it drew.
     expect(screen.getByRole("heading", { name: /Todo/ }).textContent).toBe(
-      "Todo400",
+      "Todo· 400",
     );
   });
 
@@ -613,7 +613,7 @@ describe("a column the filter has narrowed (LC-178)", () => {
     }
 
     expect(screen.getByRole("heading", { name: /Todo/ }).textContent).toBe(
-      "Todo4",
+      "Todo· 4",
     );
     expect([...reached].sort()).toStrictEqual(matchedKeys);
   });
@@ -952,7 +952,7 @@ describe("archived tickets never reach the board (V0-11)", () => {
     expect(card("LC-1")).toBeTruthy();
     expect(document.querySelector('[data-ticket-key="LC-2"]')).toBeNull();
     expect(screen.getByRole("heading", { name: /^Todo/ }).textContent).toBe(
-      "Todo1",
+      "Todo· 1",
     );
   });
 
@@ -1467,7 +1467,7 @@ describe("the column header's + (LC-83)", () => {
     render(board({ onCreateInStatus: noop }));
 
     const heading = screen.getByRole("heading", { name: /^Todo/ });
-    expect(heading.textContent).toBe("Todo0");
+    expect(heading.textContent).toBe("Todo· 0");
     expect(heading.querySelector(".column-add")).toBeNull();
   });
 

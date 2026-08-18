@@ -364,9 +364,9 @@ textarea::placeholder {
   color: var(--lc-ink-3);
 }
 
-/* 24px of side inset, because that is what the content header and the board are
-   both specified against (`screen-specs.md:44`, `:122`) and every region in this
-   column shares it.
+/* 18px of side inset — the prototype's number for the header band and the
+   board scroller alike (`screen-specs.md:64`, `:122`) — and every region in
+   this column shares it.
 
    A column, so a region that asks for the height below the header can have it:
    `.workspace-state` is the one that does (LC-91). Every other child sizes to
@@ -376,7 +376,7 @@ textarea::placeholder {
   min-width: 0;
   flex-direction: column;
   /* No inset above the header band — it owns the top edge (LC-223). */
-  padding: 0 24px 24px;
+  padding: 0 18px 24px;
 }
 
 .eyebrow {
@@ -765,9 +765,9 @@ button:disabled {
   gap: 12px;
   align-items: center;
   min-height: 62px;
-  margin: 0 calc(-1 * var(--lc-size-panel-gutter-lg));
+  margin: 0 -18px;
   border-bottom: 1px solid var(--lc-line);
-  padding: 8px var(--lc-size-panel-gutter-lg);
+  padding: 8px 18px;
 }
 
 .title-stack {
@@ -1078,9 +1078,9 @@ button:disabled {
    the cards carry the surface and float on --lc-bg. */
 .board-grid {
   display: flex;
-  gap: var(--lc-space-3);
+  gap: var(--lc-space-4);
   align-items: flex-start;
-  padding: var(--lc-space-2) 0 var(--lc-space-5);
+  padding: var(--lc-space-4) 0 var(--lc-space-5);
   overflow-x: auto;
 }
 
@@ -1110,7 +1110,7 @@ button:disabled {
    stack scrolls inside it instead of stretching the page. */
 .board-column {
   display: flex;
-  width: 264px;
+  width: 258px;
   max-height: var(--lc-size-board-stack);
   flex: none;
   flex-direction: column;
@@ -1137,15 +1137,17 @@ button:disabled {
   align-items: center;
   gap: 7px;
   margin-bottom: 0;
-  color: var(--lc-ink-2);
-  font-size: var(--lc-type-ui-size);
-  font-weight: 500;
+  /* The prototype's column header: the mono label voice, one run with its
+     count, beside a plain filled dot (LC-223, item 22). */
+  color: var(--lc-ink-3);
+  font: var(--lc-type-label-weight) 11px / var(--lc-type-label-leading)
+    var(--lc-type-label-font);
+  letter-spacing: var(--lc-type-label-tracking);
+  text-transform: uppercase;
 }
 
 .board-column h3 span {
   color: var(--lc-ink-3);
-  font-family: var(--lc-type-code-font);
-  font-size: 11px;
 }
 
 /* The column's own control, in the far edge the header reserves for it
@@ -1230,10 +1232,14 @@ button:disabled {
   width: 100%;
   border: 1px dashed var(--lc-line-strong);
   border-radius: var(--lc-radius-card);
-  padding: 22px 12px;
+  padding: 16px 12px;
   color: var(--lc-ink-3);
   text-align: center;
   background: transparent;
+  /* The prototype's empty column speaks the tiny mono voice. Its ink-4 is
+     not taken: this card is interactive, and text below AA has no business
+     inviting a press. */
+  font: 500 10.5px/1.5 var(--lc-font-mono);
 }
 
 .guide-card:hover {
@@ -1254,8 +1260,8 @@ button:disabled {
 
 .guide-card strong {
   color: var(--lc-ink-2);
-  font-size: var(--lc-type-ui-size);
-  font-weight: var(--lc-type-ui-weight);
+  font-size: 11px;
+  font-weight: 600;
 }
 
 /* Anatomy from `.kbd-chip`; the placement is this card's. The chip is the whole
@@ -2873,10 +2879,46 @@ button:disabled {
   font-weight: 400;
 }
 
-.checklist-row input {
+/* The DS checkbox pair (components.md § Checklist, LC-223): open is a
+   `check-border` frame, done is an `ink-3` fill with a surface check. Drawn on
+   the native input — appearance none, the check as two gradient strokes,
+   because WKWebView paints no pseudo-elements on <input>. */
+.checklist-row input,
+.create-more input {
   width: var(--lc-size-checkbox);
   height: var(--lc-size-checkbox);
-  accent-color: var(--lc-accent-human);
+  flex: none;
+  margin: 0;
+  appearance: none;
+  border: var(--lc-border-ring) solid var(--lc-check-border);
+  border-radius: var(--lc-radius-kbd);
+  background-color: var(--lc-surface);
+}
+
+.checklist-row input:checked,
+.create-more input:checked {
+  border-color: var(--lc-ink-3);
+  background-color: var(--lc-ink-3);
+  background-image:
+    linear-gradient(
+      45deg,
+      transparent calc(50% - 0.8px),
+      var(--lc-surface) calc(50% - 0.8px) calc(50% + 0.8px),
+      transparent calc(50% + 0.8px)
+    ),
+    linear-gradient(
+      135deg,
+      transparent calc(50% - 0.8px),
+      var(--lc-surface) calc(50% - 0.8px) calc(50% + 0.8px),
+      transparent calc(50% + 0.8px)
+    );
+  background-repeat: no-repeat;
+  background-position:
+    1.6px 5.6px,
+    4.4px 2.4px;
+  background-size:
+    3.4px 3.4px,
+    6.2px 6.2px;
 }
 
 /* Settled and done: an `ink-3` box and `ink-3` text with a line through it
@@ -2895,7 +2937,7 @@ button:disabled {
 }
 
 .checklist-row.checked input {
-  accent-color: var(--lc-ink-3);
+  border-color: var(--lc-ink-3);
 }
 
 /* A row an external write just ticked, until the ticket settles — in the colour
@@ -2906,24 +2948,27 @@ button:disabled {
   background: var(--lc-accent-agent-wash);
 }
 
-.checklist-row.acknowledged.acknowledged-agent input {
-  accent-color: var(--lc-accent-agent);
+.checklist-row.acknowledged.acknowledged-agent input:checked {
+  border-color: var(--lc-accent-agent);
+  background-color: var(--lc-accent-agent);
 }
 
 .checklist-row.acknowledged.acknowledged-human {
   background: var(--lc-accent-human-wash);
 }
 
-.checklist-row.acknowledged.acknowledged-human input {
-  accent-color: var(--lc-accent-human);
+.checklist-row.acknowledged.acknowledged-human input:checked {
+  border-color: var(--lc-accent-human);
+  background-color: var(--lc-accent-human);
 }
 
 .checklist-row.acknowledged.acknowledged-unknown {
   background: var(--lc-warn-surface);
 }
 
-.checklist-row.acknowledged.acknowledged-unknown input {
-  accent-color: var(--lc-warn);
+.checklist-row.acknowledged.acknowledged-unknown input:checked {
+  border-color: var(--lc-warn);
+  background-color: var(--lc-warn);
 }
 
 /* The acknowledgement outranks checked (`components.md:219`): a row an agent ticked while the
@@ -3099,6 +3144,24 @@ button:disabled {
   border: var(--lc-border-hairline) solid var(--lc-line-strong);
   border-radius: 50%;
   color: var(--lc-ink-3);
+}
+
+/* Humans are filled circles in the DS hue pairs (E14, LC-223); the border
+   goes — the fill is the shape. The agent tile stays exactly as it is. */
+.actor-tile.human-1,
+.actor-tile.human-2 {
+  border: 0;
+  font-weight: 600;
+}
+
+.actor-tile.human-1 {
+  color: var(--lc-avatar-1-fg);
+  background: var(--lc-avatar-1-bg);
+}
+
+.actor-tile.human-2 {
+  color: var(--lc-avatar-2-fg);
+  background: var(--lc-avatar-2-bg);
   font-size: 11px;
 }
 
@@ -4040,14 +4103,6 @@ html.theme-transition *::after {
    wide, 30px tall, hairline border — and a checkbox inside a label collects it
    and disappears. The checklist's rows answer this the same way, with the same
    token and the same accent. */
-.create-more input {
-  width: var(--lc-size-checkbox);
-  height: var(--lc-size-checkbox);
-  flex: none;
-  margin: 0;
-  accent-color: var(--lc-accent-human);
-  cursor: pointer;
-}
 
 /* ------------------------------------------------------------------- toasts */
 
@@ -4377,6 +4432,8 @@ html.theme-transition *::after {
 }
 
 .label-chip.small {
+  padding: 0 7px;
+  font-size: 10.5px;
   height: 19px;
   padding: 0 6px;
 }

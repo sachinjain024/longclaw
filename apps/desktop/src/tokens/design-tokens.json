@@ -120,7 +120,7 @@
     "card-pad-y": 10,
     "board-card": 108,
     "board-card-acknowledged": 136,
-    "board-stack": "calc(100vh - 115px)",
+    "board-stack": "calc(100vh - 123px)",
     "panel-gutter": 16,
     "panel-gutter-lg": 24
   },
@@ -262,6 +262,11 @@
         "dark": "#2C2F3C",
         "role": "control borders"
       },
+      "check-border": {
+        "light": "#C9CCDA",
+        "dark": "#3A3D4D",
+        "role": "the open checkbox frame (DS E15, LC-223)"
+      },
       "scrim": {
         "light": "rgba(23, 25, 35, 0.40)",
         "dark": "rgba(0, 0, 0, 0.55)",
@@ -369,6 +374,13 @@
       "orange": { "light": "#E0762F", "dark": "#E48B44" },
       "amber": { "light": "#DFA412", "dark": "#E6B039" },
       "gray": { "light": "#878CA0", "dark": "#9A9EB0" }
+    },
+    "avatar": {
+      "note": "The DS human-avatar pairs (E14, LC-223): filled circles for people. Two of the DS trio are taken verbatim; its third (#D8EDE4/#1B6B50) sits inside the green band D12 excludes — green is the agent's alone — and is corrected on the DS side with the sync push. The agent tile never draws from these.",
+      "1-bg": { "light": "#DDE0F6", "dark": "#31345C" },
+      "1-fg": { "light": "#4043B8", "dark": "#B9BCF3" },
+      "2-bg": { "light": "#F3DFD2", "dark": "#4A3524" },
+      "2-fg": { "light": "#9A5A22", "dark": "#E5B98A" }
     }
   },
 

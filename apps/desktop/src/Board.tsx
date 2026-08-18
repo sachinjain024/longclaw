@@ -567,9 +567,9 @@ function BoardColumn(props: {
         <h3>
           {/* The dot the status wears everywhere; the header beside it names it,
               which is the one place the dot is allowed to go unlabelled. */}
-          {props.status && <StatusDot status={props.status} decorative />}
+          {props.status && <StatusDot status={props.status} decorative plain />}
           {props.title}
-          <span>{props.tickets.length}</span>
+          <span>· {props.tickets.length}</span>
         </h3>
         {/* The column's own control, standing rather than hover-revealed
             (prototype.css `.col-add`, LC-209). The synthetic unreadable column

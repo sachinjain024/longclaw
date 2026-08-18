@@ -9,7 +9,7 @@ labels:
   - design
   - frontend
 created_at: 2026-08-18T06:50:53.264Z
-updated_at: 2026-08-18T10:42:00.786Z
+updated_at: 2026-08-18T10:58:48.514Z
 ---
 
 A complete design audit of the app against the Claude Design settings prototype
@@ -245,10 +245,10 @@ Bottom-up, so each layer inherits the one below and nothing is painted twice:
 - [x] Sidebar: wordmark 700 / 15.5 / -0.03em; section labels mono 10 +0.09em; footer mono 10.5 ink-3 <!-- longclaw:item=ck_c35c4f27 -->
 - [x] Header: 62px band with full-width hairline, path stacked under the title in mono 10.5 ink-3, gear 26px with hover fill <!-- longclaw:item=ck_441f2e5b -->
 - [x] Header: filter field becomes the DS Input (30px, ctrl-border, 180px) and the order trigger returns to 30px <!-- longclaw:item=ck_1ab64970 -->
-- [ ] Components: board column headers go mono 11 +0.09em uppercase with the plain 8px status dot; columns 258px / 16px gap / 16px 18px scroller padding; empty state mono 10.5 ink-4 <!-- longclaw:item=ck_d8a2d43d -->
-- [ ] Components: card label chips at 10.5px with 0 7px padding <!-- longclaw:item=ck_e69bcf29 -->
-- [ ] Components: checklist checkboxes become the DS 15px SVG pair (check-border open, ink-3 fill + white check) — needs the E15 check-border token <!-- longclaw:item=ck_18536917 -->
-- [ ] Components: human avatars adopt the DS filled hue trio (E14 tokens); agent tiles stay exactly as they are <!-- longclaw:item=ck_f5ac2e17 -->
+- [x] Components: board column headers go mono 11 +0.09em uppercase with the plain 8px status dot; columns 258px / 16px gap / 16px 18px scroller padding; empty state mono 10.5 ink-4 <!-- longclaw:item=ck_d8a2d43d -->
+- [x] Components: card label chips at 10.5px with 0 7px padding <!-- longclaw:item=ck_e69bcf29 -->
+- [x] Components: checklist checkboxes become the DS 15px SVG pair (check-border open, ink-3 fill + white check) — needs the E15 check-border token <!-- longclaw:item=ck_18536917 -->
+- [x] Components: human avatars adopt the DS filled hue trio (E14 tokens); agent tiles stay exactly as they are <!-- longclaw:item=ck_f5ac2e17 -->
 - [ ] Sync: correct the DS BoardCard's always-green progress to the app's actor-conditional rule (D2) as part of the push <!-- longclaw:item=ck_267157f5 -->
 - [ ] Sync: run design:emit and /design-sync to push the resolved system to Claude Design (LongClaw DS v3 — system, d34ededb…) — AA neutrals, status hues, typography and the LC-196 retirements ride along <!-- longclaw:item=ck_6347bbb6 -->
 - [ ] Sync: extend the generated token layer beyond accents (neutrals, status, type) so the E-group cannot drift again <!-- longclaw:item=ck_ad86f82a -->
@@ -494,4 +494,31 @@ changes:
 ### Claude Code updated this ticket
 
 Items 17-20 done. Menus: new shadow-menu token (0 6px 18px 14%), lc-menu-in 120ms entrance, 28px submenu rows, 5px separator margins, rows at the prototype's 13px; the colour dropdown shares the shadow. Labels: 9px trigger dot, 11px strip dots, selection halo in the swatch's own hue via currentColor plumbing on the hue classes, Add label small, remove-cross hovers danger. Sidebar: section labels at the prototype's 10px, footer mono 10.5 ink-3. Header: the 62px band with full-width hairline, title stacked over the path (16.5 display over mono 10.5 ink-3), gear 26px whose hover fills (D22, superseding D16), main-panel top inset removed, board-stack re-derived as the sum 24+63+28=115 with the geometry test rewritten as that sum. Also fixed a color-guard break that rode in from main (a hex in an OwlMark comment). matrix, a11y:audit A1-A5, probe:header 98/98, 1024 tests.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_1bbc8576
+kind: update
+occurred_at: 2026-08-18T10:58:48.514Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_d8a2d43d.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_e69bcf29.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_18536917.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_f5ac2e17.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Components batch done (items 22-25). Columns: mono 11 +0.09em uppercase headers as one name-count run beside a plain 8px dot (StatusDot grew a plain variant; the ring/pie geometry stays on cards), 258px columns, 16px gaps, 16px scroller top, and the side inset moved to the prototype's 18px for header and board together; the board-stack reserve re-derived (123) through its sum test. Empty state speaks mono 10.5 — ink-3, not the prototype's ink-4, because the card is interactive and AA binds. Card chips 10.5/0-7px. Checkboxes are the DS pair drawn on the native input (appearance none; check as two surface gradient strokes since WKWebView paints no input pseudo-elements) with the E15 check-border token; acknowledged actors recolor the fill. Avatars: E14 pair tokens adopted, humans are filled hue circles by stable name hash; the DS trio's third pair sits in D12's excluded green band and is corrected DS-side with the sync. Verified in the matrix render; a11y A1-A5, probe:header 98/98, probe:checklist 60/60, 1024 tests.
 <!-- /longclaw:event -->

@@ -29,6 +29,9 @@ export function StatusDot(props: {
   /** 13px rather than 14px, the size a list row uses. */
   small?: boolean;
   decorative?: boolean;
+  /** The board column header's dot: plain, filled, 8px — the header text
+   *  beside it is the identity, so the glyph geometry stays home (LC-223). */
+  plain?: boolean;
 }) {
   const naming = props.decorative
     ? { "aria-hidden": true as const }
@@ -37,6 +40,18 @@ export function StatusDot(props: {
         "aria-label": `Status: ${statusLabel(props.status)}`,
       };
   const size = props.small ? 13 : 14;
+  if (props.plain)
+    return (
+      <svg
+        className={`status-dot status-${tokenName(props.status)}`}
+        width={8}
+        height={8}
+        viewBox="0 0 8 8"
+        {...naming}
+      >
+        <circle cx="4" cy="4" r="4" fill="currentColor" />
+      </svg>
+    );
   const open = props.status === "todo" || props.status === "backlog";
 
   return (

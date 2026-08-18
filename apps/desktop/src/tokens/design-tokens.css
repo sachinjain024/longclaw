@@ -85,7 +85,7 @@
   --lc-size-card-pad-y: 10px;
   --lc-size-board-card: 108px;
   --lc-size-board-card-acknowledged: 136px;
-  --lc-size-board-stack: calc(100vh - 115px);
+  --lc-size-board-stack: calc(100vh - 123px);
   --lc-size-panel-gutter: 16px;
   --lc-size-panel-gutter-lg: 24px;
   --lc-radius-kbd: 3px;
@@ -129,6 +129,7 @@
   --lc-line: #e3e5ee;
   --lc-line-soft: #eef0f5;
   --lc-line-strong: #dcdfe9;
+  --lc-check-border: #c9ccda;
   --lc-scrim: rgba(23, 25, 35, 0.4);
   --lc-tile: #171923;
   --lc-inverse-surface: #171923;
@@ -160,6 +161,10 @@
   --lc-label-orange: #e0762f;
   --lc-label-amber: #dfa412;
   --lc-label-gray: #878ca0;
+  --lc-avatar-1-bg: #dde0f6;
+  --lc-avatar-1-fg: #4043b8;
+  --lc-avatar-2-bg: #f3dfd2;
+  --lc-avatar-2-fg: #9a5a22;
   --lc-shadow-card: 0 1px 2px rgba(23, 25, 35, 0.04);
   --lc-shadow-raised: 0 1px 3px rgba(23, 25, 35, 0.1);
   --lc-shadow-menu: 0 6px 18px rgba(23, 25, 35, 0.14);
@@ -197,6 +202,7 @@
   --lc-line: #e3e5ee;
   --lc-line-soft: #eef0f5;
   --lc-line-strong: #dcdfe9;
+  --lc-check-border: #c9ccda;
   --lc-scrim: rgba(23, 25, 35, 0.4);
   --lc-tile: #171923;
   --lc-inverse-surface: #171923;
@@ -228,6 +234,10 @@
   --lc-label-orange: #e0762f;
   --lc-label-amber: #dfa412;
   --lc-label-gray: #878ca0;
+  --lc-avatar-1-bg: #dde0f6;
+  --lc-avatar-1-fg: #4043b8;
+  --lc-avatar-2-bg: #f3dfd2;
+  --lc-avatar-2-fg: #9a5a22;
   --lc-shadow-card: 0 1px 2px rgba(23, 25, 35, 0.04);
   --lc-shadow-raised: 0 1px 3px rgba(23, 25, 35, 0.1);
   --lc-shadow-menu: 0 6px 18px rgba(23, 25, 35, 0.14);
@@ -259,6 +269,7 @@
   --lc-line: #262935;
   --lc-line-soft: #232633;
   --lc-line-strong: #2c2f3c;
+  --lc-check-border: #3a3d4d;
   --lc-scrim: rgba(0, 0, 0, 0.55);
   --lc-tile: #060709;
   --lc-inverse-surface: #e9eaf2;
@@ -290,6 +301,10 @@
   --lc-label-orange: #e48b44;
   --lc-label-amber: #e6b039;
   --lc-label-gray: #9a9eb0;
+  --lc-avatar-1-bg: #31345c;
+  --lc-avatar-1-fg: #b9bcf3;
+  --lc-avatar-2-bg: #4a3524;
+  --lc-avatar-2-fg: #e5b98a;
   --lc-shadow-card: none;
   --lc-shadow-raised: 0 1px 3px rgba(0, 0, 0, 0.4);
   --lc-shadow-menu: 0 6px 18px rgba(0, 0, 0, 0.4);

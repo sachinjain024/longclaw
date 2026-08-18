@@ -5281,12 +5281,12 @@ describe("a project with no tickets (LC-86 … LC-89)", () => {
       document.querySelectorAll<HTMLElement>(".board-column h3"),
     ).map((heading) => heading.textContent);
     expect(columns).toEqual([
-      "Backlog0",
-      "Todo0",
-      "In Progress0",
-      "In Review0",
-      "Done0",
-      "Canceled0",
+      "Backlog· 0",
+      "Todo· 0",
+      "In Progress· 0",
+      "In Review· 0",
+      "Done· 0",
+      "Canceled· 0",
     ]);
     const todo = screen
       .getByRole("heading", { name: /^Todo/ })
