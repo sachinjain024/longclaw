@@ -72,8 +72,9 @@ textarea:focus-visible,
 }
 
 .brand-lockup strong {
-  font: var(--lc-type-heading-weight) var(--lc-type-heading-size) /
-    var(--lc-type-heading-leading) var(--lc-font-display);
+  /* The DS wordmark: display 700 at 15.5, tightened -0.03em (LC-223, F1). */
+  font: 700 15.5px / var(--lc-type-heading-leading) var(--lc-font-display);
+  letter-spacing: -0.03em;
 }
 
 .owl-mark {

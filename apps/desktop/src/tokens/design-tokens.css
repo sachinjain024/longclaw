@@ -16,7 +16,7 @@
   --lc-type-display-weight: 600;
   --lc-type-display-leading: 1.2;
   --lc-type-display-tracking: -0.015em;
-  --lc-type-title-font: var(--lc-font-ui);
+  --lc-type-title-font: var(--lc-font-display);
   --lc-type-title-size: 17px;
   --lc-type-title-weight: 600;
   --lc-type-title-leading: 1.35;

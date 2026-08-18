@@ -340,3 +340,15 @@ from the repo's side of the fence:
 Checker after the change: 186 contrast pairs + 40 CVD pairs, all pass;
 `accessibility.md` regenerated. The push of these resolved values back to
 Claude Design rides LC-223's sync items.
+
+## D19 — Titles wear the display face · accepted (LC-223, F1)
+
+The one F-group conflict LC-195 flagged as a design call, now called: the
+`title` role moves from Geist to Familjen Grotesk, as the DS always
+specified (`typography.css`: "title 17 · display 600"). Panel titles, the
+board title, the create form's heading and the ticket title editor flip
+with the token; board card titles stay in the UI face (they are `ui` role,
+13px, and the DS BoardCard agrees). The wordmark takes the DS lockup
+exactly — display 700 at 15.5px, −0.03em — and the 700 weight ships as a
+real latin subset (OFL, Google Fonts v11) in both copies of `fonts.css`,
+because `font-synthesis: none` would otherwise render a silent 600.

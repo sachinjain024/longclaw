@@ -27,7 +27,7 @@
       "tracking": "-0.015em"
     },
     "title": {
-      "font": "ui",
+      "font": "display",
       "size": 17,
       "weight": 600,
       "lineHeight": 1.35,

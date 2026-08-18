@@ -28,7 +28,7 @@
 ```
 
 - **Side panel:** 240px fixed, `--lc-bg`, right hairline `--lc-line`.
-  Padding 16px 12px. Logo row (22px owl + Familjen Grotesk 14.5/600),
+  Padding 16px 12px. Logo row (22px owl + Familjen Grotesk 15.5/700),
   **project actions** (below), section headers mono 10.5px uppercase `ink-3`
   (12px 8px 6px padding), project rows 28px (spec in components.md § App
   shell). Footer pinned to bottom: mono micro line `v0 · local · no account`

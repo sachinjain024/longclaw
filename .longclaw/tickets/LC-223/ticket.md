@@ -9,7 +9,7 @@ labels:
   - design
   - frontend
 created_at: 2026-08-18T06:50:53.264Z
-updated_at: 2026-08-18T08:37:44.374Z
+updated_at: 2026-08-18T09:04:23.146Z
 ---
 
 A complete design audit of the app against the Claude Design settings prototype
@@ -225,7 +225,7 @@ Bottom-up, so each layer inherits the one below and nothing is painted twice:
 ## Checklist
 
 - [x] Tokens: resolve LC-195 groups E/F/G prototype-first — adopt the DS value where it clears the AA/CVD checker, else the nearest passing value, recorded in decisions.md <!-- longclaw:item=ck_fa00916e -->
-- [ ] Tokens: move the title/heading roles to Familjen Grotesk (F1) — panel titles, board title, wordmark weights per the prototype <!-- longclaw:item=ck_73ab0e74 -->
+- [x] Tokens: move the title/heading roles to Familjen Grotesk (F1) — panel titles, board title, wordmark weights per the prototype <!-- longclaw:item=ck_73ab0e74 -->
 - [ ] Tokens: restore the 10.5px mono micro role (F6) and 0.09em label tracking (F5); display tracking to -0.02em (F4) <!-- longclaw:item=ck_0a6b25f5 -->
 - [ ] Tokens: align the label ramp to the prototype hues where the checker allows (E13) <!-- longclaw:item=ck_fcbfda98 -->
 - [ ] Controls: add a real input class per the DS Input spec (30px, line-strong border, radius 5, ui 13, focus = accent border + 3px ring; 28px/12.5 compact and mono variants) and apply it to every settings and labels field — the label-descendant selector reaches none of them today <!-- longclaw:item=ck_137b0ebc -->
@@ -314,4 +314,22 @@ changes:
 ### Claude Code updated this ticket
 
 Item 1 done — E/F/G re-derived prototype-first. DS values adopted as-is: warn #B45309, todo/backlog grey #878CA0, ink-disabled pair, dark todo #7E8398. Derived to the gate boundary toward the DS hue: in-review #DF6E23, in-progress #C28000, urgent #DB7129, danger #C9393B, ink-3 #686D80/#7F8599, dark backlog/canceled #5F6375. Pulse follows the DS spec again (1.8s, loops until the state decays); shadow-raised joined the scale. Not adopted (gates bind): distinct backlog/todo/canceled greys, retired-glyph recolors. Checker 226/226; D18 records it all.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_8251a795
+kind: update
+occurred_at: 2026-08-18T09:04:23.146Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_73ab0e74.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Item 2 done — the title role wears the display face (F1): board title, panel titles, create-form heading and the ticket title editor all render Familjen Grotesk 600 via the one token flip; card titles stay ui 13 as the DS BoardCard specifies. Wordmark takes the DS lockup exactly (display 700 / 15.5 / -0.03em) and the 700 weight ships as a real OFL latin subset in both fonts.css copies — font-synthesis: none would have faked it at 600 otherwise. D19 records the call.
 <!-- /longclaw:event -->
