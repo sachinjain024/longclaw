@@ -362,7 +362,7 @@ movement. No custom-color affordance exists anywhere.
 | Hover/press feedback | `--lc-motion-fast` 80ms | bg/border only, no transforms |
 | Checklist check, status change, card reorder | `--lc-motion-state` 120ms | |
 | Panel slide-in, modal rise, palette, theme crossfade, appearance switch | `--lc-motion-panel` 150ms | theme/appearance transition colors only — nothing moves |
-| Agent pulse | `lc-pulse` 900ms × 2 | the one long motion; never loops beyond two beats |
+| Agent pulse | `lc-pulse` 1.8s loop | the one long motion; ends when the state decays    |
 | Skeleton shimmer | 1.2s linear | loading only |
 
 All motion communicates a state change; nothing is ornamental. Nothing

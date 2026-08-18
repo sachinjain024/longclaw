@@ -149,7 +149,7 @@ silent re-render**.
   unknown actor).
 - **Card:** border → `accent-agent-acknowledged-border`, 3px
   `accent-agent-acknowledged-ring`, 8px pulse dot beside the ID (`lc-pulse`
-  900ms × exactly 2 — never loops), footer line `❯ updated by agent · 12s`
+  1.8s ease-out, looping until decay), footer line `❯ updated by agent · 12s`
   (mono, `accent-agent-text`) above a soft divider. Checklist fraction and
   progress fill switch to `accent-agent` while acknowledged. If the change moved
   the ticket's status, the card moves columns with the standard 120ms

@@ -145,22 +145,22 @@ delete — flagged for explicit founder confirmation.
 
 ## D10 — Accessibility adjustments to reference values · adjusted
 
-The approved reference is the visual truth, but seven of its values missed
+The approved reference is the visual truth, but several of its values missed
 WCAG AA when tested (`scripts/a11y-check.mjs`, results in
-`accessibility.md`). Production values were nudged the minimum distance to
-clear the gates; the look stays calm.
+`accessibility.md`). LC-223 re-derived each production value as the nearest
+point toward the DS hue that clears its gate; the look stays calm.
 
 | Token                        | Reference                       | Production          | Why                                           |
 | ---------------------------- | ------------------------------- | ------------------- | --------------------------------------------- |
-| `ink-3` light                | `#878CA0`                       | `#666B80`           | 4.5:1 as meta text on wash/bg/surface         |
-| `ink-3` dark                 | `#676C80`                       | `#8A8FA3`           | same, on dark surfaces                        |
-| `status-backlog/todo` light  | `#A9ADC0`/`#878CA0`             | `#82879B`           | 3:1 glyph stroke on bg                        |
-| `status-in-progress` light   | `#DE9B0D`                       | `#B47D0A`           | amber failed 3:1 badly (2.1)                  |
-| `status-in-review` light     | `#E5732A`                       | `#C25C1B`           | 3:1 on bg                                     |
-| `status-canceled` light/dark | `#C7CAD6`/`#3A3D4D`             | `#82879B`/`#767B90` | fill 3:1 + X mark 3:1 on fill                 |
-| `priority-urgent` light      | `#E0762F`                       | `#C2591D`           | fill and white mark both 3:1                  |
-| `warn` light                 | `#B45309`                       | `#9A5008`           | 4.5:1 as banner text                          |
-| `danger` light               | `#D64545`                       | `#C43A3A`           | 4.5:1 as button text                          |
+| `ink-3` light                | `#878CA0`                       | `#686D80`           | 4.5:1 as meta text on wash/bg/surface         |
+| `ink-3` dark                 | `#676C80`                       | `#7F8599`           | same, on dark surfaces                        |
+| `status-backlog/todo` light  | `#A9ADC0`/`#878CA0`             | `#878CA0`           | todo grey passes 3:1; backlog shares it       |
+| `status-in-progress` light   | `#DE9B0D`                       | `#C28000`           | amber lifted back to the 3:1 boundary         |
+| `status-in-review` light     | `#E5732A`                       | `#DF6E23`           | 3:1 on bg                                     |
+| `status-canceled` light/dark | `#C7CAD6`/`#3A3D4D`             | `#878CA0`/`#5F6375` | fill 3:1 + X mark 3:1 on fill                 |
+| `priority-urgent` light      | `#E0762F`                       | `#DB7129`           | fill and white mark both 3:1                  |
+| `warn` light                 | `#B45309`                       | `#B45309`           | the reference itself clears 4.5:1 (LC-223)    |
+| `danger` light               | `#D64545`                       | `#C9393B`           | 4.5:1 as button text                          |
 | Clay human light             | `#A9482C` (brief working value) | `#9C4126`           | deuteranopia ΔL 9.6 → 13.3 vs agent green     |
 | Clay human dark              | — (unspecified in brief)        | `#C57A55`           | deuteranopia ΔE 20.8 (clears the strict tier) |
 | dark toast secondary         | `#5A5F75`                       | `#4C5165`           | 4.5:1 on inverse surface                      |
@@ -303,3 +303,40 @@ proof pages and the checker now read `apps/desktop/src/tokens/`, and
 
 > Filed as LC-192. The full item-by-item comparison is
 > `.longclaw/tickets/LC-192/conflicts.md`.
+
+## D18 — Prototype-first re-derivation of the adjusted values · accepted (LC-223)
+
+LC-223 set the direction for every value D10 adjusted: the Claude Design
+rendering wins wherever the checker allows it. Each adjusted value was
+re-derived as the nearest point toward the DS hue (an oklab lightness
+search) that still clears its gate, replacing nudges that had been made
+from the repo's side of the fence:
+
+- `warn` light returns to the reference `#B45309` — it clears 4.5:1; the
+  earlier `#9A5008` had over-darkened.
+- `todo`/`backlog` light take the DS todo grey `#878CA0` outright (3.34:1
+  and 3.06:1 on bg and surface); `canceled` light shares it, keeping the
+  D10 collapse. Dark: todo `#7E8398` (DS as-is), backlog/canceled
+  `#5F6375` (derived).
+- `in-review` light `#DF6E23`, `in-progress` light `#C28000`,
+  `priority-urgent` light `#DB7129`, `danger` light `#C9393B` — each the
+  boundary value toward the DS hue.
+- `ink-3` barely moves (`#686D80` light, `#7F8599` dark): 4.5:1 as meta
+  text binds, and the DS greys sit far outside it. This is the one place
+  the prototype's lighter voice cannot be had without giving up AA.
+- `ink-disabled` adopts the DS values as-is (`#B7BBC9` / `#4A4E60`) — WCAG
+  exempts disabled elements, so no gate binds.
+- The agent pulse follows the DS spec again (G8): 1.8s ease-out, looping
+  while the acknowledged state lasts; the state decays on open or after
+  two minutes, which ends the loop.
+- `shadow.raised` (`0 1px 3px` at .10 light / .40 dark) joins the
+  elevation scale from the DS (G10). `shadow-icon` stays out — it exists
+  for the marketing app-icon tile, which the app never draws.
+- Not adopted, gates unmoved: distinct backlog/todo/canceled greys
+  (indistinguishable once each is forced to 3:1), and `priority-off` /
+  `priority-none` recolors (those values belong to the D4-retired bar
+  glyphs and have no rendering in the prototype).
+
+Checker after the change: 186 contrast pairs + 40 CVD pairs, all pass;
+`accessibility.md` regenerated. The push of these resolved values back to
+Claude Design rides LC-223's sync items.

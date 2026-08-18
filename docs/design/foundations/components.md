@@ -31,12 +31,12 @@ color-vision deficiency (see `accessibility.md`).
 | Selected | `--lc-accent-human-soft` background; selection never relies on color alone (checkmark or border accompanies it) | `--lc-motion-state` (120ms) |
 | Disabled | Text/glyphs `--lc-ink-disabled`; fills `--lc-wash`; no hover response; `cursor: default` | none |
 | Loading | Optimistic UI first — mutations render immediately; a 500ms-delayed spinner appears only if the write hasn't settled | `--lc-motion-state` |
-| Acknowledged (agent) | See § Agent presence — ring, border, pulse dot, footer | `lc-pulse` 900ms × 2 |
+| Acknowledged (agent) | See § Agent presence — ring, border, pulse dot, footer | `lc-pulse` 1.8s loop |
 
 - Every pointer action has a keyboard path (§ Shortcuts).
 - Motion communicates state, never decorates: 80ms hover/press, 120ms state
   change/reorder, 150ms panel/palette, ease `--lc-motion-ease`. The agent
-  pulse (2 × 900ms) is the one exception, and it never loops beyond two beats.
+  pulse (1.8s, looping while the acknowledged state lasts) is the exception.
 - `prefers-reduced-motion` zeroes all motion tokens (generated in the CSS).
 
 ## Buttons
@@ -199,7 +199,7 @@ assignee (ADR 0001).
 | Focused (keyboard) | focus ring + 1px `accent-human` border |
 | Selected | 1px `accent-human` border + `accent-human-soft` header wash |
 | Dragging | lift with `--lc-shadow-overlay`, 2° nothing — no rotation; drop targets show 2px `accent-human` insertion line |
-| **Acknowledged agent activity** | border `accent-agent-acknowledged-border`, `box-shadow: 0 0 0 3px var(--lc-accent-agent-acknowledged-ring)`, 8px pulse dot (`accent-agent`, `lc-pulse` 900ms × 2) **before** the ID, footer line `❯ updated by agent · 12s` (mono 10.5px `accent-agent-text`) above a `line-soft` divider. Checklist fraction + progress fill switch to `accent-agent` while acknowledged. Decays to resting when the ticket is opened or after 2 minutes |
+| **Acknowledged agent activity** | border `accent-agent-acknowledged-border`, `box-shadow: 0 0 0 3px var(--lc-accent-agent-acknowledged-ring)`, 8px pulse dot (`accent-agent`, `lc-pulse` 1.8s loop) **before** the ID, footer line `❯ updated by agent · 12s` (mono 10.5px `accent-agent-text`) above a `line-soft` divider. Checklist fraction + progress fill switch to `accent-agent` while acknowledged. Decays to resting when the ticket is opened or after 2 minutes |
 | **Acknowledged, other attributions** | The same anatomy in the colour of whoever the file named, because `states.md:148-149` triggers the state on "an external change to a ticket (agent **or unknown** actor)" and green is the agent's alone. A person's file edit: `accent-human-border`, `accent-human-soft` ring, `lc-pulse-human`, `• changed on disk · 12s`. A change nothing claimed: `warn-acknowledged-border`, `warn-acknowledged-ring`, `lc-pulse-warn`, `⚠ file changed · 12s` — the warn vocabulary `states.md:172-173` gives it, never green under a warn triangle. The card is 264px, which is why the unattributed line is the short one; the panel banner and the timeline say `file changed on disk — actor unknown` in full |
 | Degraded (unparseable file) | border 1px `danger-border`, ID row shows warn triangle in `danger`, title falls back to filename in mono, single action: "View raw file". **Non-destructive always** |
 

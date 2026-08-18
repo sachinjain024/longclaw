@@ -334,7 +334,7 @@ out.push(
 );
 out.push("   declared here and nowhere else (token-guard.mjs).");
 out.push(
-  `   Play ${t.motion["pulse-iterations"]} iterations of ${t.motion["pulse-duration"]}; never loop forever. */`,
+  `   Runs ${t.motion["pulse-duration"]} ease-out × ${t.motion["pulse-iterations"]} — the DS freshness spec (LC-223); the acknowledged state itself decays, ending the loop. */`,
 );
 /* `lc-pulse` keeps its bare name for the agent: it is the animation the
    prototype and `components.md:202` name, and the agent write is the moment the

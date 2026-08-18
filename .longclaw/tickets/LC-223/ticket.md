@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 3d5c26b8-3b6b-40e0-bdf5-e0d9fb3cdb56
 key: LC-223
 title: "Design audit: converge the app on the Claude Design prototype"
-status: todo
-priority: p1
+status: in_progress
+priority: urgent
 labels:
   - design
   - frontend
 created_at: 2026-08-18T06:50:53.264Z
-updated_at: 2026-08-18T06:50:53.264Z
+updated_at: 2026-08-18T08:37:44.374Z
 ---
 
 A complete design audit of the app against the Claude Design settings prototype
@@ -224,7 +224,7 @@ Bottom-up, so each layer inherits the one below and nothing is painted twice:
 
 ## Checklist
 
-- [ ] Tokens: resolve LC-195 groups E/F/G prototype-first — adopt the DS value where it clears the AA/CVD checker, else the nearest passing value, recorded in decisions.md <!-- longclaw:item=ck_fa00916e -->
+- [x] Tokens: resolve LC-195 groups E/F/G prototype-first — adopt the DS value where it clears the AA/CVD checker, else the nearest passing value, recorded in decisions.md <!-- longclaw:item=ck_fa00916e -->
 - [ ] Tokens: move the title/heading roles to Familjen Grotesk (F1) — panel titles, board title, wordmark weights per the prototype <!-- longclaw:item=ck_73ab0e74 -->
 - [ ] Tokens: restore the 10.5px mono micro role (F6) and 0.09em label tracking (F5); display tracking to -0.02em (F4) <!-- longclaw:item=ck_0a6b25f5 -->
 - [ ] Tokens: align the label ramp to the prototype hues where the checker allows (E13) <!-- longclaw:item=ck_fcbfda98 -->
@@ -266,4 +266,52 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_4fb84ec3
+kind: update
+occurred_at: 2026-08-18T06:58:09.483Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: todo
+    to: in_progress
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_dc678d86
+kind: update
+occurred_at: 2026-08-18T06:58:11.029Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: priority
+    from: p1
+    to: urgent
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_902b0940
+kind: update
+occurred_at: 2026-08-18T08:37:44.374Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_fa00916e.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Item 1 done — E/F/G re-derived prototype-first. DS values adopted as-is: warn #B45309, todo/backlog grey #878CA0, ink-disabled pair, dark todo #7E8398. Derived to the gate boundary toward the DS hue: in-review #DF6E23, in-progress #C28000, urgent #DB7129, danger #C9393B, ink-3 #686D80/#7F8599, dark backlog/canceled #5F6375. Pulse follows the DS spec again (1.8s, loops until the state decays); shadow-raised joined the scale. Not adopted (gates bind): distinct backlog/todo/canceled greys, retired-glyph recolors. Checker 226/226; D18 records it all.
 <!-- /longclaw:event -->
