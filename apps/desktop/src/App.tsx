@@ -147,9 +147,6 @@ const THEMES = [
 const PROJECT_FILE = "longclaw.yaml";
 
 /** The note `screen-specs.md:324-325` puts under the ordering menu, verbatim. */
-const ORDERING_FOOTNOTE =
-  "Ordering is a view preference on this board — it never rewrites files.";
-
 /**
  * Every row on every surface carries its ticket key, which is what lets one
  * selector serve the board's cards and the list's rows: the two never render at
@@ -1772,9 +1769,6 @@ export function App() {
               was the only OS chrome left in the sidebar (LC-72). Until the
               settings modal carries the segment (LC-127), the palette's
               `Toggle appearance` command is the control. */}
-          {/* The claim the whole product rests on, stated where the shell can
-              always show it (`screen-specs.md:34`). */}
-          <p className="trust-line">v0 · local · no account</p>
         </div>
       </aside>
 
@@ -1849,50 +1843,6 @@ export function App() {
                     )}
                   </div>
                 </div>
-                {/* `aria-haspopup="menu"` and a real `aria-expanded`: what the
-                    gear opens is a menu now (LC-208), which is a region that
-                    stays part of the page under its trigger — the very thing
-                    LC-125 removed the expanded state for when this opened a
-                    dialog instead. The menu is what opens the dialog. */}
-                <button
-                  tabIndex={0}
-                  ref={settingsButton}
-                  className={classes(
-                    "ghost small settings-button",
-                    settingsMenuOpen && "open",
-                  )}
-                  aria-label="Project settings"
-                  aria-haspopup="menu"
-                  aria-expanded={settingsMenuOpen}
-                  title="Project settings"
-                  onClick={() => setSettingsMenuOpen(!settingsMenuOpen)}
-                >
-                  <GearGlyph />
-                </button>
-                {settingsMenuOpen && (
-                  <SettingsMenu
-                    project={project}
-                    themes={THEMES}
-                    appearance={appearance}
-                    anchor={settingsButton.current}
-                    onAppearance={setAppearance}
-                    onTheme={(theme) => void changeTheme(project, theme)}
-                    onOpenSection={(section) => {
-                      closeTicket();
-                      setSettingsSection(section);
-                    }}
-                    // The board's own re-read (ADR 0006), which the menu is the
-                    // first surface to offer by hand: the watcher is what
-                    // normally keeps this current, and this is the way back
-                    // when a person has reason to doubt it.
-                    onReload={() => {
-                      void reconcileProject(project.id)
-                        .then(applySnapshot)
-                        .catch((error) => setError(normalizeError(error)));
-                    }}
-                    onClose={() => setSettingsMenuOpen(false)}
-                  />
-                )}
               </div>
               {/* The controls belong to the board, so they appear only when
                   there is one: an unreachable project keeps its identity row and
@@ -1943,7 +1893,6 @@ export function App() {
                       label="Order"
                       options={ORDERINGS}
                       value={ordering}
-                      footnote={ORDERING_FOOTNOTE}
                       onPick={(next) => updateWorkspace({ ordering: next })}
                     />
                   </div>
@@ -1972,6 +1921,54 @@ export function App() {
                     <kbd aria-hidden="true">C</kbd>
                   </button>
                 </div>
+              )}
+              {/* The gear, last in the row at the user's direction (LC-223
+                  review) — after New ticket when the board renders, and still
+                  here when the project is unreachable, because settings holds
+                  `Locate…`, the way back. */}
+              {/* `aria-haspopup="menu"` and a real `aria-expanded`: what the
+                  gear opens is a menu now (LC-208), which is a region that
+                  stays part of the page under its trigger — the very thing
+                  LC-125 removed the expanded state for when this opened a
+                  dialog instead. The menu is what opens the dialog. */}
+              <button
+                tabIndex={0}
+                ref={settingsButton}
+                className={classes(
+                  "ghost small settings-button",
+                  settingsMenuOpen && "open",
+                )}
+                aria-label="Project settings"
+                aria-haspopup="menu"
+                aria-expanded={settingsMenuOpen}
+                title="Project settings"
+                onClick={() => setSettingsMenuOpen(!settingsMenuOpen)}
+              >
+                <GearGlyph />
+              </button>
+              {settingsMenuOpen && (
+                <SettingsMenu
+                  project={project}
+                  themes={THEMES}
+                  appearance={appearance}
+                  anchor={settingsButton.current}
+                  onAppearance={setAppearance}
+                  onTheme={(theme) => void changeTheme(project, theme)}
+                  onOpenSection={(section) => {
+                    closeTicket();
+                    setSettingsSection(section);
+                  }}
+                  // The board's own re-read (ADR 0006), which the menu is the
+                  // first surface to offer by hand: the watcher is what
+                  // normally keeps this current, and this is the way back
+                  // when a person has reason to doubt it.
+                  onReload={() => {
+                    void reconcileProject(project.id)
+                      .then(applySnapshot)
+                      .catch((error) => setError(normalizeError(error)));
+                  }}
+                  onClose={() => setSettingsMenuOpen(false)}
+                />
               )}
             </header>
 

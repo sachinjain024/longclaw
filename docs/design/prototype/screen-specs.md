@@ -31,8 +31,8 @@
   Padding 16px 12px. Logo row (22px owl + Familjen Grotesk 15.5/700),
   **project actions** (below), section headers mono 10.5px uppercase `ink-3`
   (12px 8px 6px padding), project rows 28px (spec in components.md § App
-  shell). Footer pinned to bottom: mono micro line `v0 · local · no account`
-  (`ink-disabled`), then the waitlist ghost button (30px) — NOT IN V0. In v0:
+  shell). Footer: none — the trust line came off the shell (LC-223 review);
+  the waitlist ghost button beneath it was already NOT IN V0. In v0:
   **Starred**, **Local** — nothing else, no Teams stubs.
 - **Project actions:** directly under the lockup and above the sections,
   separated from them by a bottom hairline `--lc-line` (16px padding below).
@@ -321,8 +321,8 @@ movement. No custom-color affordance exists anywhere.
   glyph; current value shows a trailing human-accent check. Arrow keys
   cycle, Enter picks, Esc returns focus to the trigger. Opened from the
   keyboard (`S`/`P`) the menu anchors to the focused card/row. The
-  ordering menu carries the mono footnote "Ordering is a view preference
-  on this board — it never rewrites files."
+  ordering menu offers **Priority** and **Manual** and nothing else — the
+  footnote it carried came off at the LC-223 review.
 
 ## Project settings
 

@@ -3538,16 +3538,17 @@ describe("board ordering and manual reordering (V0-09)", () => {
     expect(api.updateProjectName).not.toHaveBeenCalled();
   });
 
-  it("says in the menu that the choice never rewrites files", async () => {
+  it("offers Priority and Manual and nothing else (LC-223 review)", async () => {
     await openBoard([row("LC-1")]);
 
     fireEvent.click(screen.getByRole("button", { name: /^Order:/ }));
 
     expect(
-      screen.getByText(
-        "Ordering is a view preference on this board — it never rewrites files.",
-      ),
+      screen.getByRole("menuitemradio", { name: "Priority" }),
     ).toBeTruthy();
+    expect(screen.getByRole("menuitemradio", { name: "Manual" })).toBeTruthy();
+    // The footnote came off at the review: two options say everything.
+    expect(document.querySelector(".menu-footnote")).toBeNull();
   });
 
   it("keeps the choice for this project, and only this project", async () => {
@@ -4837,14 +4838,12 @@ describe("the app shell against its spec (LC-71, LC-72, LC-73)", () => {
     it("is the trust line and nothing else", async () => {
       await openBoard();
 
-      // `toBe`, not `toContain`. The spec draws a waitlist ghost button beneath
-      // this line, and LC-75 closed that as **cut from v0** on 2026-08-06 — so
-      // the footer's exact text is now a decision worth pinning rather than an
-      // open question to leave room for. Re-opening it means unparking Step 15
-      // and reviewing a submission endpoint (V0-38) first; this assertion is
-      // meant to be in the way until then.
-      const footer = document.querySelector(".side-panel-footer")!;
-      expect(footer.textContent).toBe("v0 · local · no account");
+      // The trust line came off the shell at the LC-223 review (2026-08-18):
+      // the sidebar footer holds nothing in v0, and the welcome screen is the
+      // one place the claim still renders. This assertion pins the absence the
+      // same way the old one pinned the text.
+      const footer = document.querySelector(".side-panel-footer");
+      expect(footer?.querySelector(".trust-line")).toBeFalsy();
     });
 
     it("offers no waitlist signup", async () => {

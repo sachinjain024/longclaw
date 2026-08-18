@@ -52,7 +52,9 @@ const app = readFileSync(resolve(src, "App.tsx"), "utf8");
 const rules = cssRules(styles);
 
 /** Where a trust line stands, and therefore what may be scoped over it. */
-const CONTAINERS = [".side-panel-footer", ".welcome-panel"];
+/* The sidebar footer's line came off the shell at the LC-223 review
+   (2026-08-18) — the welcome screen is where the claim renders in v0. */
+const CONTAINERS = [".welcome-panel"];
 
 const findings = [];
 

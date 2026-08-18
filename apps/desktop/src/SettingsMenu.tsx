@@ -12,7 +12,7 @@
  * gear on the board and is about the project you are looking at: its sections,
  * its theme, its files. The **project menu** hangs off the `⋮` on a side-panel
  * row and is about a project you may not have open: rename it, restyle it, star
- * it, forget it. `Theme` and `All settings…` are on both, which is deliberate —
+ * it, forget it. `Theme` and `All settings` are on both, which is deliberate —
  * they are the two things worth reaching from either place.
  *
  * Everything here is presentation over callbacks. Nothing in this file writes,
@@ -368,7 +368,7 @@ function allSettings(context: MenuContext): MenuItem {
     kind: "action",
     id: "all",
     glyph: <GearGlyph />,
-    label: "All settings…",
+    label: "All settings",
     hint: <kbd>⌘,</kbd>,
     run: () => context.onOpenSection(LANDING_SECTION),
   };
@@ -404,7 +404,7 @@ export function SettingsMenu(
   },
 ) {
   useFocusReturn(props.anchor);
-  const position = usePopoverPlacement(props.anchor);
+  const position = usePopoverPlacement(props.anchor, 236);
   const labelCount = Object.keys(props.project.labels).length;
   const items: MenuItem[] = [
     themeSubmenu(props),
@@ -475,7 +475,7 @@ export function ProjectMenu(
       // The pencil the panel's editable title wears, from the one file that
       // draws it — this row had its own, subtly different, path.
       glyph: <PencilGlyph />,
-      label: "Rename…",
+      label: "Rename",
       // The name field lives in General and commits on `Enter` or blur; a
       // second inline editor on the row would be a second way to write the
       // same line of `longclaw.yaml`.
@@ -507,7 +507,7 @@ export function ProjectMenu(
       ),
       // The ellipsis is the promise: this raises the confirm that names the
       // path and repeats the guarantee (`screen-specs.md:335-336`).
-      label: "Remove from app…",
+      label: "Remove from app",
       run: props.onRemove,
     },
     { kind: "rule", id: "all-rule" },

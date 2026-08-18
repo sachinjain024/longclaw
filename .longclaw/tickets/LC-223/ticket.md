@@ -522,3 +522,17 @@ changes:
 
 Components batch done (items 22-25). Columns: mono 11 +0.09em uppercase headers as one name-count run beside a plain 8px dot (StatusDot grew a plain variant; the ring/pie geometry stays on cards), 258px columns, 16px gaps, 16px scroller top, and the side inset moved to the prototype's 18px for header and board together; the board-stack reserve re-derived (123) through its sum test. Empty state speaks mono 10.5 — ink-3, not the prototype's ink-4, because the card is interactive and AA binds. Card chips 10.5/0-7px. Checkboxes are the DS pair drawn on the native input (appearance none; check as two surface gradient strokes since WKWebView paints no input pseudo-elements) with the E15 check-border token; acknowledged actors recolor the fill. Avatars: E14 pair tokens adopted, humans are filled hue circles by stable name hash; the DS trio's third pair sits in D12's excluded green band and is corrected DS-side with the sync. Verified in the matrix render; a11y A1-A5, probe:header 98/98, probe:checklist 60/60, 1024 tests.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_cf8b3b74
+kind: comment
+occurred_at: 2026-08-18T11:18:48.151Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Review feedback round (2026-08-18): the gear moved to the row's far end after New ticket (still rendered for unreachable projects — settings holds Locate; the menu right-aligns from its trigger via the placement hook), menu labels lost their ellipses, the ordering menu is just Priority and Manual, the sidebar's trust line came off (guard and pinned test updated to guard the absence), the header band is sticky and flush to the top edge, and the root antialiases like the prototype — the heaviness on dark cards was macOS subpixel rendering, not a weight difference. Matrix, a11y A1-A5, probe:header 98/98, 1024 tests.
+<!-- /longclaw:event -->

@@ -26,11 +26,18 @@ export const POPOVER_GAP = 4;
  * mid-write and pushes the identity box around — so a popover that re-measured
  * on every render would walk out from under the pointer that is using it.
  */
-export function usePopoverPlacement(anchor: HTMLElement | null) {
+export function usePopoverPlacement(
+  anchor: HTMLElement | null,
+  /** Right-align: the popover's right edge sits on the anchor's, for a
+   *  trigger at the window's far edge (the header gear). The caller states
+   *  the popover's width — measured after render would move it a frame late. */
+  width?: number,
+) {
   const placed = useRef<{ top: number; left: number } | undefined>(undefined);
   if (!placed.current && anchor) {
     const rect = anchor.getBoundingClientRect();
-    placed.current = { top: rect.bottom + POPOVER_GAP, left: rect.left };
+    const left = width ? Math.max(8, rect.right - width) : rect.left;
+    placed.current = { top: rect.bottom + POPOVER_GAP, left };
   }
   return placed.current;
 }

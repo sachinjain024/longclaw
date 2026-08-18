@@ -6,6 +6,11 @@
   color: var(--lc-ink);
   background: var(--lc-bg);
   font-synthesis: none;
+  /* The prototype antialiases at its root — without this, macOS subpixel
+     rendering thickens every stem, most visibly light text on dark card
+     surfaces (LC-223 review). */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 * {
@@ -763,11 +768,15 @@ button:disabled {
 .content-header {
   flex-wrap: wrap;
   gap: 12px;
+  position: sticky;
+  z-index: var(--lc-z-sticky);
+  top: 0;
   align-items: center;
   min-height: 62px;
   margin: 0 -18px;
   border-bottom: 1px solid var(--lc-line);
-  padding: 8px 18px;
+  padding: 0 18px;
+  background: var(--lc-bg);
 }
 
 .title-stack {
