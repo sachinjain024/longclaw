@@ -168,6 +168,28 @@ describe("the settings panel as a right-hand panel (LC-208)", () => {
   });
 });
 
+describe("the field foundation reaches every settings input (LC-223)", () => {
+  // The audit's headline bug: the app's field styling bound to `label input`,
+  // and every input here uses a sibling label or a bare aria-label, so the
+  // Name field, Key field and the labels editor all rendered browser-default
+  // boxes at 16px. The `input` class is the contract that styles them.
+  it("General's fields wear the input class", () => {
+    render(<Harness section="general" />);
+    for (const box of screen.getAllByRole("textbox", { hidden: true })) {
+      expect(box.classList.contains("input")).toBe(true);
+    }
+    expect(screen.getByLabelText("Key").classList.contains("input")).toBe(true);
+  });
+
+  it("the labels editor's fields wear the compact input class", () => {
+    render(<Harness section="labels" />);
+    for (const box of screen.getAllByRole("textbox")) {
+      expect(box.classList.contains("input")).toBe(true);
+      expect(box.classList.contains("compact")).toBe(true);
+    }
+  });
+});
+
 describe("the sections (LC-208)", () => {
   it("General holds the name, the locked key, and the folder", () => {
     render(<Harness />);

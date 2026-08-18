@@ -64,7 +64,7 @@
 - **Content header:** padding 16px 24px 12px. Project name
   (`--lc-type-title`), settings gear (ghost icon button), path chip (mono
   12px, folder glyph, click copies, hover `wash`), disk-state indicator
-  (below), spacer, filter field (190×28px), **ordering control** (ghost,
+  (below), spacer, filter field (180×30px), **ordering control** (ghost,
   `Order: Priority|Manual`, opens the ordering menu — ADR 0003), view
   segment (Board | List), primary **New ticket** button with `C` kbd chip.
 - **Disk-state indicator:** mono 10px. While a write is in flight:

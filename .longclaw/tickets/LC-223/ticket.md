@@ -9,7 +9,7 @@ labels:
   - design
   - frontend
 created_at: 2026-08-18T06:50:53.264Z
-updated_at: 2026-08-18T09:35:51.913Z
+updated_at: 2026-08-18T09:45:01.159Z
 ---
 
 A complete design audit of the app against the Claude Design settings prototype
@@ -228,15 +228,15 @@ Bottom-up, so each layer inherits the one below and nothing is painted twice:
 - [x] Tokens: move the title/heading roles to Familjen Grotesk (F1) — panel titles, board title, wordmark weights per the prototype <!-- longclaw:item=ck_73ab0e74 -->
 - [x] Tokens: restore the 10.5px mono micro role (F6) and 0.09em label tracking (F5); display tracking to -0.02em (F4) <!-- longclaw:item=ck_0a6b25f5 -->
 - [x] Tokens: align the label ramp to the prototype hues where the checker allows (E13) <!-- longclaw:item=ck_fcbfda98 -->
-- [ ] Controls: add a real input class per the DS Input spec (30px, line-strong border, radius 5, ui 13, focus = accent border + 3px ring; 28px/12.5 compact and mono variants) and apply it to every settings and labels field — the label-descendant selector reaches none of them today <!-- longclaw:item=ck_137b0ebc -->
+- [x] Controls: add a real input class per the DS Input spec (30px, line-strong border, radius 5, ui 13, focus = accent border + 3px ring; 28px/12.5 compact and mono variants) and apply it to every settings and labels field — the label-descendant selector reaches none of them today <!-- longclaw:item=ck_137b0ebc -->
 - [ ] Controls: button small variant drops its text to 11.5px <!-- longclaw:item=ck_dea5e6e8 -->
-- [ ] Controls: replace the offset focus outline with the DS hugging ring (accent border + 3px ring) app-wide <!-- longclaw:item=ck_e1996b6e -->
+- [x] Controls: replace the offset focus outline with the DS hugging ring (accent border + 3px ring) app-wide <!-- longclaw:item=ck_e1996b6e -->
 - [ ] Controls: menu-trigger to 30px with 0 10px padding; toast padding to 9px 12px <!-- longclaw:item=ck_34703d66 -->
 - [ ] Accent: selected-state goes neutral (line-soft + ink + 600) in the sidebar rows, view segment and appearance segment; sidebar star back to ink-2 <!-- longclaw:item=ck_bfecfa01 -->
 - [ ] Settings: panel becomes in-flow beside the board like TicketPanel — border-left only, no scrim, no overlay shadow <!-- longclaw:item=ck_16e34461 -->
 - [ ] Settings: header — Familjen 15px title, 24×24 close affordance, longclaw.yaml chip at mono 10.5 / radius 4 / bg fill <!-- longclaw:item=ck_ec91d2dc -->
 - [ ] Settings: text scale — field labels 12px ink-2, section intros 12.5px lh 1.55, content padding 18px 20px <!-- longclaw:item=ck_08031445 -->
-- [ ] Settings: key field 44px centered mono on bg fill; folder path mono 11px ink-2 on bg fill with line border <!-- longclaw:item=ck_74e52921 -->
+- [x] Settings: key field 44px centered mono on bg fill; folder path mono 11px ink-2 on bg fill with line border <!-- longclaw:item=ck_74e52921 -->
 - [ ] Settings: appearance segment at 28px with segment separators and neutral selection <!-- longclaw:item=ck_26c0eb6c -->
 - [ ] Settings: theme picker becomes the prototype preset cards (36×22 split swatch, name, check; selected = accent border + ring) <!-- longclaw:item=ck_24a56617 -->
 - [ ] Settings: shortcuts kbd chips to mono 10.5 / radius 4 / bg fill / ctrl-border <!-- longclaw:item=ck_37275d06 -->
@@ -244,7 +244,7 @@ Bottom-up, so each layer inherits the one below and nothing is painted twice:
 - [ ] Labels: 9px trigger dot, selection ring in the swatch's own hue, Add label goes small, remove hover turns danger <!-- longclaw:item=ck_3e7941ef -->
 - [ ] Sidebar: wordmark 700 / 15.5 / -0.03em; section labels mono 10 +0.09em; footer mono 10.5 ink-3 <!-- longclaw:item=ck_c35c4f27 -->
 - [ ] Header: 62px band with full-width hairline, path stacked under the title in mono 10.5 ink-3, gear 26px with hover fill <!-- longclaw:item=ck_441f2e5b -->
-- [ ] Header: filter field becomes the DS Input (30px, ctrl-border, 180px) and the order trigger returns to 30px <!-- longclaw:item=ck_1ab64970 -->
+- [x] Header: filter field becomes the DS Input (30px, ctrl-border, 180px) and the order trigger returns to 30px <!-- longclaw:item=ck_1ab64970 -->
 - [ ] Components: board column headers go mono 11 +0.09em uppercase with the plain 8px status dot; columns 258px / 16px gap / 16px 18px scroller padding; empty state mono 10.5 ink-4 <!-- longclaw:item=ck_d8a2d43d -->
 - [ ] Components: card label chips at 10.5px with 0 7px padding <!-- longclaw:item=ck_e69bcf29 -->
 - [ ] Components: checklist checkboxes become the DS 15px SVG pair (check-border open, ink-3 fill + white check) — needs the E15 check-border token <!-- longclaw:item=ck_18536917 -->
@@ -368,4 +368,31 @@ changes:
 ### Claude Code updated this ticket
 
 Item 4 done — the ramp is the prototype's picker strip verbatim: cyan #2AA8A0, purple #8B6CF0, red #E05B5B, orange #E0762F, amber #DFA412, gray #878CA0 (blue/pink already matched). Checked before adopting: cyan sits at hue 176, outside D12's excluded 120-165 green band, and holds dE >= 20 vs agent green under normal/protan/deutan; its tritanopia 9.4 merely matches the old cyan's 8.9. Dark siblings derive by each old pair's oklab lift. D21 records it, including the DS's own label-watcher disagreeing with its prototype's picker.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_144d0311
+kind: update
+occurred_at: 2026-08-18T09:45:01.159Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_137b0ebc.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_e1996b6e.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_74e52921.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_1ab64970.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Items 5, 7, 13, 21 done — the input work as one pass. The field foundation now reaches the orphans via an .input class (30px box, 400-weight content text, compact 28px and mono variants), applied to the Name field, key field, both label-editor add inputs and the label name inputs; two tests pin the reach. Focus is the DS hugging ring app-wide (components.md:30 was already the contract) with box-shadow reasserted on cards/rows/tabs that carry their own. Key field is the prototype's 44px centred mono on canvas fill; folder path drops to mono 11 on canvas fill with the quiet line border. The filter field rides the foundation at 180x30 with the 9.5px prototype chip, and the ordering trigger returns to the full 30px control. Gates: 1023 tests, matrix 8x12, a11y:audit 5/5 (52 checks), probe:header 98/98, citations re-pinned after the screen-specs filter line moved to 180x30.
 <!-- /longclaw:event -->

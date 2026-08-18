@@ -373,6 +373,7 @@ function GeneralSection(props: {
                 the name away without saying so. */}
             <input
               id={nameId}
+              className="input"
               value={name}
               spellCheck={false}
               onChange={(event) => setName(event.target.value)}
@@ -403,7 +404,7 @@ function GeneralSection(props: {
                 with the reason beside it, not a field that isn't there. */}
             <input
               id={keyId}
-              className="key-field"
+              className="input mono key-field"
               value={props.project.key}
               disabled
               readOnly
@@ -718,12 +719,14 @@ function ProjectLabels(props: {
       >
         <input
           ref={addSlug}
+          className="input compact mono"
           value={slug}
           aria-label="New label slug"
           placeholder="slug"
           onChange={(event) => setSlug(event.target.value)}
         />
         <input
+          className="input compact"
           value={name}
           aria-label="New label name"
           placeholder="Display name"
@@ -784,6 +787,7 @@ function LabelDefinition(props: {
     <div className="label-row">
       <code>{props.slug}</code>
       <input
+        className="input compact"
         value={name}
         aria-label={`Name of label ${props.slug}`}
         onChange={(event) => setName(event.target.value)}

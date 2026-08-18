@@ -1911,7 +1911,7 @@ export function App() {
                         request is why the other two are here. */}
                     <input
                       ref={filterField}
-                      className="filter-field"
+                      className="input filter-field"
                       type="text"
                       name="longclaw-filter"
                       autoComplete="off"
