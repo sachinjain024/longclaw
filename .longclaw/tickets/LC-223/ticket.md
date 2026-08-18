@@ -9,7 +9,7 @@ labels:
   - design
   - frontend
 created_at: 2026-08-18T06:50:53.264Z
-updated_at: 2026-08-18T10:58:48.514Z
+updated_at: 2026-08-18T11:26:00.303Z
 ---
 
 A complete design audit of the app against the Claude Design settings prototype
@@ -249,9 +249,9 @@ Bottom-up, so each layer inherits the one below and nothing is painted twice:
 - [x] Components: card label chips at 10.5px with 0 7px padding <!-- longclaw:item=ck_e69bcf29 -->
 - [x] Components: checklist checkboxes become the DS 15px SVG pair (check-border open, ink-3 fill + white check) — needs the E15 check-border token <!-- longclaw:item=ck_18536917 -->
 - [x] Components: human avatars adopt the DS filled hue trio (E14 tokens); agent tiles stay exactly as they are <!-- longclaw:item=ck_f5ac2e17 -->
-- [ ] Sync: correct the DS BoardCard's always-green progress to the app's actor-conditional rule (D2) as part of the push <!-- longclaw:item=ck_267157f5 -->
-- [ ] Sync: run design:emit and /design-sync to push the resolved system to Claude Design (LongClaw DS v3 — system, d34ededb…) — AA neutrals, status hues, typography and the LC-196 retirements ride along <!-- longclaw:item=ck_6347bbb6 -->
-- [ ] Sync: extend the generated token layer beyond accents (neutrals, status, type) so the E-group cannot drift again <!-- longclaw:item=ck_ad86f82a -->
+- [x] Sync: correct the DS BoardCard's always-green progress to the app's actor-conditional rule (D2) as part of the push <!-- longclaw:item=ck_267157f5 -->
+- [x] Sync: run design:emit and /design-sync to push the resolved system to Claude Design (LongClaw DS v3 — system, d34ededb…) — AA neutrals, status hues, typography and the LC-196 retirements ride along <!-- longclaw:item=ck_6347bbb6 -->
+- [x] Sync: extend the generated token layer beyond accents (neutrals, status, type) so the E-group cannot drift again <!-- longclaw:item=ck_ad86f82a -->
 - [ ] Gates: npm run check, matrix and a11y:audit green; citations re-pinned; screen-specs.md and components.md updated wherever a resolution changes the documented contract <!-- longclaw:item=ck_9a71d64e -->
 
 ## Activity
@@ -535,4 +535,28 @@ actor:
 ### Claude Code commented
 
 Review feedback round (2026-08-18): the gear moved to the row's far end after New ticket (still rendered for unreachable projects — settings holds Locate; the menu right-aligns from its trigger via the placement hook), menu labels lost their ellipses, the ordering menu is just Priority and Manual, the sidebar's trust line came off (guard and pinned test updated to guard the absence), the header band is sticky and flush to the top edge, and the root antialiases like the prototype — the heaviness on dark cards was macOS subpixel rendering, not a weight difference. Matrix, a11y A1-A5, probe:header 98/98, 1024 tests.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_2d3acb04
+kind: update
+occurred_at: 2026-08-18T11:26:00.303Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_267157f5.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_6347bbb6.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_ad86f82a.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Sync items done. The emitter now generates the whole reconciled layer — colors.css (neutrals, status, priority, labels, avatars, toast, in the DS's unprefixed dialect, with the retired glyph tokens kept as deprecated aliases until LC-196 rewrites their components) and typography.css (micro at 10.5 mono, the title on the display face) alongside themes.css — and design:check diffs the whole directory, so the E-group can never drift again. Pushed to LongClaw DS v3 — system via design-sync: the three token files, the D2-corrected BoardCard (progress neutral until agentFresh, with avatar-3 re-derived from the ramp's purple in colors.css), and a readme whose LC-192 open-work markers now read resolved. The doc project's vendored _ds snapshot still needs a re-sync by hand in the Claude Design UI (LC-196's last item).
 <!-- /longclaw:event -->

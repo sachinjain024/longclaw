@@ -1,0 +1,28 @@
+/* LongClaw type tokens — generated from apps/desktop/src/tokens/design-tokens.json.
+ * DO NOT EDIT BY HAND. Regenerate with `npm run design:emit` in apps/desktop.
+ * Three voices; sizes are fractional — never round them. */
+:root {
+  --font-display:
+    "Familjen Grotesk", "Familjen Grotesk Fallback", -apple-system, "Segoe UI",
+    sans-serif;
+  --font-ui:
+    Geist, "Geist Fallback", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  /* scale */
+  --size-hero: 46px; /* marketing/specimen only — not in the app scale */
+  --size-h2: 27px; /* marketing/specimen only — not in the app scale */
+  --size-display: 26px;
+  --size-title: 17px; /* the display face since D19 */
+  --size-heading: 14.5px;
+  --size-body: 13.5px;
+  --size-ui: 13px;
+  --size-small: 12.5px;
+  --size-code: 12px;
+  --size-label: 11px;
+  --size-micro: 10.5px; /* mono again since D20 (F6) */
+  --track-display: -0.02em;
+  --track-title: -0.01em;
+  --track-label: 0.09em;
+  --lh-body: 1.5;
+  --lh-title: 1.35;
+}

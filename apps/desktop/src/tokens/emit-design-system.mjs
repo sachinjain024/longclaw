@@ -15,16 +15,18 @@
  * dialect would reproduce the same failure across the network instead of across
  * a directory.
  *
- * What is deliberately NOT emitted: neutrals, status, priority, feedback and
- * label ramps. Those are where the repo's AA adjustments live (decisions.md
- * D10), and pushing them would overwrite the design system's own values in a
- * direction nobody has yet approved — E1–E12 of the LC-192 conflict list are
- * still open. This emitter carries exactly what D17 settled: the accent layer.
+ * Since LC-223 it carries the whole reconciled layer, not just accents:
+ * D18 resolved E1–E12 prototype-first, so `colors.css` (neutrals, status,
+ * priority, labels, avatars, toast) and `typography.css` (the type scale,
+ * micro back at 10.5 mono, the title on the display face) are generated
+ * too, in the DS's own unprefixed dialect. The retired glyph sets' tokens
+ * (`--priority`, `--priority-off`) stay emitted as deprecated aliases so
+ * the not-yet-rewritten v1 components keep rendering until LC-196 lands.
  *
- * Output is `claude-design/themes.css`, checked in and verified by
- * `design:check` the same way `design-tokens.css` is verified by
- * `tokens:check` — regenerate, diff, fail on drift. The upload itself is a
- * separate step; this only makes the payload reproducible.
+ * Output is `claude-design/{themes,colors,typography}.css`, checked in and
+ * verified by `design:check` the same way `design-tokens.css` is verified
+ * by `tokens:check` — regenerate, diff, fail on drift. The upload itself is
+ * a separate step; this only makes the payload reproducible.
  *
  * Usage: node src/tokens/emit-design-system.mjs
  */
@@ -116,9 +118,133 @@ for (const theme of themes) {
   }
 }
 
+/* ---- colors.css — the DS dialect of the reconciled non-accent layer ---- */
+
+const N = (name, app) => t.color.neutral[name][app];
+const S = (name, app) => t.color.status[name][app];
+const F = (name, app) => t.color.feedback[name][app];
+const P = (name, app) => t.color.priority[name][app];
+const L = (name, app) => t.color.label[name][app];
+const A = (name, app) => t.color.avatar[name][app];
+
+function colorsBlock(app) {
+  return [
+    `  /* neutrals */`,
+    `  --bg: ${N("bg", app)};`,
+    `  --surface: ${N("surface", app)};`,
+    `  --raised: ${N("raised", app)};`,
+    `  --ink: ${N("ink", app)};`,
+    `  --ink-2: ${N("ink-2", app)};`,
+    `  --ink-3: ${N("ink-3", app)};`,
+    `  --ink-4: ${N("ink-disabled", app)};`,
+    `  --line: ${N("line", app)};`,
+    `  --line-soft: ${N("line-soft", app)};`,
+    `  --ctrl-border: ${N("line-strong", app)};`,
+    `  --check-border: ${N("check-border", app)};`,
+    `  /* feedback */`,
+    `  --warn: ${F("warn", app)};`,
+    `  --warn-bg: ${F("warn-surface", app)};`,
+    `  --warn-border: ${F("warn-border", app)};`,
+    `  --warn-btn-border: ${F("warn-border-strong", app)};`,
+    `  --danger: ${F("danger", app)};`,
+    `  --danger-border: ${F("danger-border", app)};`,
+    `  /* status — done lives in themes.css as the human accent */`,
+    `  --status-backlog: ${S("backlog", app)};`,
+    `  --status-todo: ${S("todo", app)};`,
+    `  --status-progress: ${S("in-progress", app)};`,
+    `  --status-review: ${S("in-review", app)};`,
+    `  --status-canceled: ${S("canceled", app)};`,
+    `  --status-canceled-x: ${N("surface", app)};`,
+    `  /* priority — Urgent · P1–P4 · None (D4); the bar-glyph names are`,
+    `     deprecated aliases for the v1 components LC-196 has yet to rewrite */`,
+    `  --priority-urgent: ${P("urgent", app)};`,
+    `  --priority-urgent-fg: ${t.color.priority.urgent[`mark-${app}`]};`,
+    `  --priority-none: ${P("none", app)};`,
+    `  --priority: ${P("chip-text", app)};`,
+    `  --priority-off: ${P("chip-border", app)};`,
+    `  /* label ramp — 8 fixed hues, no green band (D12) */`,
+    ...Object.keys(t.color.label)
+      .filter((k) => k !== "note")
+      .map((k) => `  --label-${k}: ${L(k, app)};`),
+    `  /* v1 label aliases */`,
+    `  --label-infra: var(--label-blue);`,
+    `  --label-watcher: var(--label-orange);`,
+    `  --label-design: var(--label-pink);`,
+    `  /* avatars — humans are filled circles; the third pair derives from the`,
+    `     ramp because the DS's green pair sits in the band D12 keeps for the`,
+    `     agent */`,
+    `  --avatar-1-bg: ${A("1-bg", app)};`,
+    `  --avatar-1-fg: ${A("1-fg", app)};`,
+    `  --avatar-2-bg: ${A("2-bg", app)};`,
+    `  --avatar-2-fg: ${A("2-fg", app)};`,
+    `  --avatar-3-bg: ${mix("var(--label-purple)", "18%", "var(--surface)")};`,
+    `  --avatar-3-fg: ${mix("var(--label-purple)", "58%", "var(--ink)")};`,
+    `  --avatar-agent-bg: ${N("tile", app)};`,
+    `  /* toast is inverted */`,
+    `  --toast-bg: ${N("inverse-surface", app)};`,
+    `  --toast-fg: ${N("inverse-ink", app)};`,
+    `  --toast-kbd: ${mix("var(--toast-fg)", "14%", "transparent")};`,
+    `  --toast-muted: ${N("inverse-ink-2", app)};`,
+    `  /* text aliases */`,
+    `  --text-primary: var(--ink);`,
+    `  --text-secondary: var(--ink-2);`,
+    `  --text-meta: var(--ink-3);`,
+    `  --surface-card: var(--surface);`,
+  ].join("\n");
+}
+
+const colorsOut = [
+  "/* LongClaw color tokens — generated from apps/desktop/src/tokens/design-tokens.json.",
+  " * DO NOT EDIT BY HAND. Regenerate with `npm run design:emit` in apps/desktop.",
+  " * The AA/CVD-checked values (decisions.md D10, D18): what the app renders",
+  " * is what this file says, so what is designed here looks like the app. */",
+  ":root {",
+  colorsBlock("light"),
+  "}",
+  '[data-theme="dark"] {',
+  colorsBlock("dark"),
+  "}",
+  "",
+];
+
+/* ---- typography.css — the scale in the DS dialect ---- */
+
+const ty = t.type;
+const track = (role) => ty[role].tracking ?? "0";
+const typographyOut = [
+  "/* LongClaw type tokens — generated from apps/desktop/src/tokens/design-tokens.json.",
+  " * DO NOT EDIT BY HAND. Regenerate with `npm run design:emit` in apps/desktop.",
+  " * Three voices; sizes are fractional — never round them. */",
+  ":root {",
+  `  --font-display: ${t.font.display};`,
+  `  --font-ui: ${t.font.ui};`,
+  `  --font-mono: ${t.font.mono};`,
+  "  /* scale */",
+  "  --size-hero: 46px; /* marketing/specimen only — not in the app scale */",
+  "  --size-h2: 27px; /* marketing/specimen only — not in the app scale */",
+  `  --size-display: ${ty.display.size}px;`,
+  `  --size-title: ${ty.title.size}px; /* the display face since D19 */`,
+  `  --size-heading: ${ty.heading.size}px;`,
+  `  --size-body: ${ty.body.size}px;`,
+  `  --size-ui: ${ty.ui.size}px;`,
+  `  --size-small: ${ty.small.size}px;`,
+  `  --size-code: ${ty.code.size}px;`,
+  `  --size-label: ${ty.label.size}px;`,
+  `  --size-micro: ${ty.micro.size}px; /* mono again since D20 (F6) */`,
+  `  --track-display: ${track("display")};`,
+  `  --track-title: ${track("title")};`,
+  `  --track-label: ${track("label")};`,
+  `  --lh-body: ${ty.body.lineHeight};`,
+  `  --lh-title: ${ty.title.lineHeight};`,
+  "}",
+  "",
+];
+
 const dir = join(here, "claude-design");
 mkdirSync(dir, { recursive: true });
 writeFileSync(join(dir, "themes.css"), out.join("\n"));
+writeFileSync(join(dir, "colors.css"), colorsOut.join("\n"));
+writeFileSync(join(dir, "typography.css"), typographyOut.join("\n"));
 console.log(
-  `emit-design-system: wrote claude-design/themes.css (${themes.length} presets × ${APPEARANCES.length} appearances)`,
+  `emit-design-system: wrote claude-design/{themes,colors,typography}.css (${themes.length} presets × ${APPEARANCES.length} appearances)`,
 );

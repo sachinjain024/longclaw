@@ -1,0 +1,140 @@
+/* LongClaw color tokens — generated from apps/desktop/src/tokens/design-tokens.json.
+ * DO NOT EDIT BY HAND. Regenerate with `npm run design:emit` in apps/desktop.
+ * The AA/CVD-checked values (decisions.md D10, D18): what the app renders
+ * is what this file says, so what is designed here looks like the app. */
+:root {
+  /* neutrals */
+  --bg: #f4f5f8;
+  --surface: #ffffff;
+  --raised: #ffffff;
+  --ink: #171923;
+  --ink-2: #4c5165;
+  --ink-3: #686d80;
+  --ink-4: #b7bbc9;
+  --line: #e3e5ee;
+  --line-soft: #eef0f5;
+  --ctrl-border: #dcdfe9;
+  --check-border: #c9ccda;
+  /* feedback */
+  --warn: #b45309;
+  --warn-bg: #fbf3e8;
+  --warn-border: #ebd5b5;
+  --warn-btn-border: #e0c9a6;
+  --danger: #c9393b;
+  --danger-border: #efd3d3;
+  /* status — done lives in themes.css as the human accent */
+  --status-backlog: #878ca0;
+  --status-todo: #878ca0;
+  --status-progress: #c28000;
+  --status-review: #df6e23;
+  --status-canceled: #878ca0;
+  --status-canceled-x: #ffffff;
+  /* priority — Urgent · P1–P4 · None (D4); the bar-glyph names are
+     deprecated aliases for the v1 components LC-196 has yet to rewrite */
+  --priority-urgent: #db7129;
+  --priority-urgent-fg: #ffffff;
+  --priority-none: #8a8fa3;
+  --priority: #5a5f75;
+  --priority-off: #b9bdcc;
+  /* label ramp — 8 fixed hues, no green band (D12) */
+  --label-blue: #4e9cf5;
+  --label-cyan: #2aa8a0;
+  --label-purple: #8b6cf0;
+  --label-pink: #c94c86;
+  --label-red: #e05b5b;
+  --label-orange: #e0762f;
+  --label-amber: #dfa412;
+  --label-gray: #878ca0;
+  /* v1 label aliases */
+  --label-infra: var(--label-blue);
+  --label-watcher: var(--label-orange);
+  --label-design: var(--label-pink);
+  /* avatars — humans are filled circles; the third pair derives from the
+     ramp because the DS's green pair sits in the band D12 keeps for the
+     agent */
+  --avatar-1-bg: #dde0f6;
+  --avatar-1-fg: #4043b8;
+  --avatar-2-bg: #f3dfd2;
+  --avatar-2-fg: #9a5a22;
+  --avatar-3-bg: color-mix(in oklab, var(--label-purple) 18%, var(--surface));
+  --avatar-3-fg: color-mix(in oklab, var(--label-purple) 58%, var(--ink));
+  --avatar-agent-bg: #171923;
+  /* toast is inverted */
+  --toast-bg: #171923;
+  --toast-fg: #ffffff;
+  --toast-kbd: color-mix(in oklab, var(--toast-fg) 14%, transparent);
+  --toast-muted: #a6aabc;
+  /* text aliases */
+  --text-primary: var(--ink);
+  --text-secondary: var(--ink-2);
+  --text-meta: var(--ink-3);
+  --surface-card: var(--surface);
+}
+[data-theme="dark"] {
+  /* neutrals */
+  --bg: #0f1015;
+  --surface: #16171e;
+  --raised: #1c1e27;
+  --ink: #e9eaf2;
+  --ink-2: #a6aabc;
+  --ink-3: #7f8599;
+  --ink-4: #4a4e60;
+  --line: #262935;
+  --line-soft: #232633;
+  --ctrl-border: #2c2f3c;
+  --check-border: #3a3d4d;
+  /* feedback */
+  --warn: #d98e3e;
+  --warn-bg: #2a2119;
+  --warn-border: #4a3a24;
+  --warn-btn-border: #4a3a24;
+  --danger: #e06c6c;
+  --danger-border: #4a2a2e;
+  /* status — done lives in themes.css as the human accent */
+  --status-backlog: #5f6375;
+  --status-todo: #7e8398;
+  --status-progress: #e7b23a;
+  --status-review: #ec8b4c;
+  --status-canceled: #5f6375;
+  --status-canceled-x: #16171e;
+  /* priority — Urgent · P1–P4 · None (D4); the bar-glyph names are
+     deprecated aliases for the v1 components LC-196 has yet to rewrite */
+  --priority-urgent: #e0762f;
+  --priority-urgent-fg: #101116;
+  --priority-none: #767b90;
+  --priority: #9da2b5;
+  --priority-off: #3f4354;
+  /* label ramp — 8 fixed hues, no green band (D12) */
+  --label-blue: #5fa8f7;
+  --label-cyan: #4ec0b5;
+  --label-purple: #9982f2;
+  --label-pink: #d66a9c;
+  --label-red: #e47373;
+  --label-orange: #e48b44;
+  --label-amber: #e6b039;
+  --label-gray: #9a9eb0;
+  /* v1 label aliases */
+  --label-infra: var(--label-blue);
+  --label-watcher: var(--label-orange);
+  --label-design: var(--label-pink);
+  /* avatars — humans are filled circles; the third pair derives from the
+     ramp because the DS's green pair sits in the band D12 keeps for the
+     agent */
+  --avatar-1-bg: #31345c;
+  --avatar-1-fg: #b9bcf3;
+  --avatar-2-bg: #4a3524;
+  --avatar-2-fg: #e5b98a;
+  --avatar-3-bg: color-mix(in oklab, var(--label-purple) 18%, var(--surface));
+  --avatar-3-fg: color-mix(in oklab, var(--label-purple) 58%, var(--ink));
+  --avatar-agent-bg: #060709;
+  /* toast is inverted */
+  --toast-bg: #e9eaf2;
+  --toast-fg: #171923;
+  --toast-kbd: color-mix(in oklab, var(--toast-fg) 14%, transparent);
+  --toast-muted: #5a5f75;
+  /* text aliases */
+  --text-primary: var(--ink);
+  --text-secondary: var(--ink-2);
+  --text-meta: var(--ink-3);
+  --surface-card: var(--surface);
+}
