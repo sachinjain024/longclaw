@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 3d5c26b8-3b6b-40e0-bdf5-e0d9fb3cdb56
 key: LC-223
 title: "Design audit: converge the app on the Claude Design prototype"
-status: in_progress
+status: done
 priority: urgent
 labels:
   - design
   - frontend
 created_at: 2026-08-18T06:50:53.264Z
-updated_at: 2026-08-18T11:26:00.303Z
+updated_at: 2026-08-18T11:35:40.576Z
 ---
 
 A complete design audit of the app against the Claude Design settings prototype
@@ -252,7 +252,7 @@ Bottom-up, so each layer inherits the one below and nothing is painted twice:
 - [x] Sync: correct the DS BoardCard's always-green progress to the app's actor-conditional rule (D2) as part of the push <!-- longclaw:item=ck_267157f5 -->
 - [x] Sync: run design:emit and /design-sync to push the resolved system to Claude Design (LongClaw DS v3 — system, d34ededb…) — AA neutrals, status hues, typography and the LC-196 retirements ride along <!-- longclaw:item=ck_6347bbb6 -->
 - [x] Sync: extend the generated token layer beyond accents (neutrals, status, type) so the E-group cannot drift again <!-- longclaw:item=ck_ad86f82a -->
-- [ ] Gates: npm run check, matrix and a11y:audit green; citations re-pinned; screen-specs.md and components.md updated wherever a resolution changes the documented contract <!-- longclaw:item=ck_9a71d64e -->
+- [x] Gates: npm run check, matrix and a11y:audit green; citations re-pinned; screen-specs.md and components.md updated wherever a resolution changes the documented contract <!-- longclaw:item=ck_9a71d64e -->
 
 ## Activity
 
@@ -559,4 +559,25 @@ changes:
 ### Claude Code updated this ticket
 
 Sync items done. The emitter now generates the whole reconciled layer — colors.css (neutrals, status, priority, labels, avatars, toast, in the DS's unprefixed dialect, with the retired glyph tokens kept as deprecated aliases until LC-196 rewrites their components) and typography.css (micro at 10.5 mono, the title on the display face) alongside themes.css — and design:check diffs the whole directory, so the E-group can never drift again. Pushed to LongClaw DS v3 — system via design-sync: the three token files, the D2-corrected BoardCard (progress neutral until agentFresh, with avatar-3 re-derived from the ramp's purple in colors.css), and a readme whose LC-192 open-work markers now read resolved. The doc project's vendored _ds snapshot still needs a re-sync by hand in the Claude Design UI (LC-196's last item).
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_566d1c1d
+kind: update
+occurred_at: 2026-08-18T11:35:40.576Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_progress
+    to: done
+  - field: checklist.ck_9a71d64e.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Final gates sweep: every guard, format, lint (eslint + clippy), typecheck, 1024 frontend tests, all Rust suites (the one pre-existing --edit-item CLI failure stands, documented on LC-208), vite build, the native watcher round trip, matrix 8 axes x 12 states, a11y:audit A1-A5, probe:header 98/98, probe:checklist 60/60, 465 citations, design:check. The sweep caught two reds the earlier pipe-masked runs had hidden: the bundle icon list missing icons/icon.png (LC-62's file, now listed) and glyph-drift on the plain column dot, which is now its own registered master (column-dot) with its own component rather than an eighth shape in the status family. 29/29 done.
 <!-- /longclaw:event -->
