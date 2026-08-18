@@ -8,7 +8,7 @@ priority: p2
 labels:
   - frontend
 created_at: 2026-08-07T16:12:05.944Z
-updated_at: 2026-08-18T09:30:53.831Z
+updated_at: 2026-08-18T09:31:55.778Z
 ---
 
 `markdown.ts` parses no table, and that is a decision rather than an oversight — its header says tables are "neither dropped nor executed. It comes back out as the paragraph text its author typed" (`markdown.ts:23`), and `markdown.test.ts:175` pins the promise with `| a | b |\n| - | - |`. The promise holds in the tree and breaks on screen.
@@ -56,8 +56,10 @@ Three calls in there are not GFM's, and they are the same call three times:
 LC-181 falls out of the structure rather than needing a patch of its own:
 `splitCells` is the first thing in the file that can tell a wall from a pipe the
 author escaped to keep inside a cell, so `x \| y` is one cell again. LC-180 does
-not — a multi-line raw HTML block still collapses onto one line, and that is
-still its own ticket.
+not — a multi-line raw HTML block still collapses onto one line — and it is not
+waiting on a ticket either: it was cancelled as wontfix on 2026-08-11, and
+`18-markdown-editor.md` § On tables is where its answer lives now, together with
+what would reopen it.
 
 The security invariant is unchanged and is still structural. A cell holds
 `Inline[]` like every other run of text, so the grid lives in the tree's shape
@@ -246,4 +248,22 @@ Closed. Signed off by the user, and checked against the tree rather than against
 - `npm run verify` is green on the merge.
 
 Merged to `main` as `4e6e363`. This is the second round of the ticket — the first closed on 2026-08-08 and was reopened on 2026-08-18 because keeping the lines was not keeping the columns — and the reversal it records is what let LC-181 close as done rather than as the wontfix it had been cancelled as.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_d2c835a0
+kind: update
+occurred_at: 2026-08-18T09:31:55.778Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+-->
+### Claude Code updated this ticket
+
+Aligned the LC-180 sentence with `18-markdown-editor.md` § On tables. It read "that is still its own ticket", which was already wrong when this description was written on 2026-08-18 — LC-180 had been cancelled as wontfix a week earlier, on 2026-08-11. It now says that, and points at the section where the answer and the reopen trigger live.
+
+One sentence, and nothing else in the description moves. The claim next to it — that LC-181 falls out of the structure rather than needing a patch — held up, and LC-181 closed as done on that basis.
 <!-- /longclaw:event -->
