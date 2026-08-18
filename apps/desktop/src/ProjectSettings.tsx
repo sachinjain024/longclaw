@@ -14,10 +14,11 @@
  * anatomy the ticket panel established — right edge, header row, `Esc` — which
  * is the shape this app already means by *a record you are editing*.
  *
- * It stays a modal in the accessibility sense: a scrim, `role="dialog"`, and
- * Tab held inside (`keyboard-focus-map.md:143-148`). The alternative is two
- * panels sharing the right edge with the ticket panel underneath, which is
- * neither readable nor reachable.
+ * It is a panel beside the board, not a modal over it (LC-223, the
+ * prototype's arrangement): no scrim, no Tab trap, the board stays live so a
+ * theme can be tried against it. The right edge holds one record at a time —
+ * opening settings closes the ticket panel (`App.tsx`) — and `Esc` still
+ * closes with focus returning to the gear.
  *
  * What is *not* here is as deliberate as what is. Statuses are listed and not
  * editable, because v0 ships the fixed set (ADR 0002) and a rename field would
@@ -45,22 +46,6 @@ import { tabStops } from "./tabStops";
 import { ThemePicker, type ThemeOption } from "./ThemePicker";
 import { STATUSES } from "./tickets";
 import type { Label, ProjectReference } from "./types";
-
-/**
- * "Modals hold focus until dismissed" (`keyboard-focus-map.md:23-24`), which a
- * dialog only does if Tab wraps inside it — the palette does the same walk.
- * Without this, Tab off the last control lands on the board behind the scrim,
- * where every stop is hidden under it.
- */
-function trapTab(event: React.KeyboardEvent<HTMLElement>) {
-  if (event.key !== "Tab") return;
-  const stops = tabStops(event.currentTarget);
-  if (stops.length === 0) return;
-  event.preventDefault();
-  const at = stops.indexOf(document.activeElement as HTMLElement);
-  const step = event.shiftKey ? -1 : 1;
-  stops[(at + step + stops.length) % stops.length]?.focus();
-}
 
 export function ProjectSettings(props: {
   project: ProjectReference;
@@ -154,13 +139,7 @@ export function ProjectSettings(props: {
 
   return (
     <>
-      <div className="modal-scrim settings-scrim" role="presentation" />
-      <section
-        className="settings-panel"
-        role="dialog"
-        aria-label="Project settings"
-        onKeyDown={trapTab}
-      >
+      <section className="settings-panel" aria-label="Project settings">
         {/* The header the ticket panel established: what this is, where it is
             written, and the way out — one row, on the right. */}
         <header className="settings-head">
@@ -173,7 +152,7 @@ export function ProjectSettings(props: {
           <code className="settings-file">longclaw.yaml</code>
           <button
             tabIndex={0}
-            className="ghost"
+            className="ghost small settings-close"
             aria-label="Close settings"
             title="Close · Esc"
             onClick={props.onClose}

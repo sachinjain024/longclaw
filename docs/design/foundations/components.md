@@ -289,11 +289,11 @@ the common case for an agent working a ticket. Full reasoning in
 
 ## Theme picker
 
-Row of preset swatches (no wheel, no custom colors): 44×28px, radius 5px,
-each showing the pair — left ⅔ human accent, right ⅓ agent accent — with the
-preset name in 11.5px `ui` below. Selected: 1px `accent-human` border +
-focus ring. Appears in project creation (Indigo preselected — never a
-decision gate) and project settings. Switching applies instantly: a 150ms
+Stack of preset cards (no wheel, no custom colors): each a 36×22px pair
+swatch — left ⅔ human accent, right ⅓ agent accent — beside its name in
+12.5px `ui`, the chosen card wearing the accent border, focus ring and ✓.
+Appears in project creation (Indigo preselected — never a decision gate)
+and project settings. Switching applies instantly: a 150ms
 crossfade of accent surfaces only; nothing moves.
 
 ## Command palette

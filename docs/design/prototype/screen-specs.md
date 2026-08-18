@@ -111,9 +111,9 @@
 
 ## Theme picker (creation · settings · palette)
 
-Per components.md: 44×28px pair swatches (⅔ human / ⅓ agent), radius 5,
-preset name in `--lc-type-micro` below, selected = `accent-human` border +
-focus ring. Four presets: Indigo (default) · Clay · Slate · Plum. Selection
+Per components.md: a stack of preset cards, each a 36×22px pair swatch
+(⅔ human / ⅓ agent) beside its 12.5px name, the chosen card wearing the
+accent border, ring and ✓. Presets: Indigo (default) · Clay · Slate · Plum. Selection
 applies instantly — a 150ms crossfade of accent surfaces only; no layout
 movement. No custom-color affordance exists anywhere.
 
@@ -326,7 +326,7 @@ movement. No custom-color affordance exists anywhere.
 
 ## Project settings
 
-- Right-hand panel over a scrim, with a side nav of sections (LC-208),
+- Right-hand panel beside the live board, with a side nav of sections (LC-208),
   opened from the gear's menu or `⌘,`. General: Name + Key (key input disabled once any ticket exists, mono note "locked after first ticket") · Folder (read-only
   mono path + **Locate…**) · Theme picker · Appearance segment (System /
   Light / Dark — explicitly labeled an app preference, not project data) ·

@@ -678,6 +678,7 @@ export function App() {
         // Whichever menu advertised the chord goes with the panel opening.
         setSettingsMenuOpen(false);
         setProjectMenu(undefined);
+        closeTicket();
         setSettingsSection((current) => current ?? LANDING_SECTION);
         return;
       }
@@ -1849,7 +1850,10 @@ export function App() {
                     anchor={settingsButton.current}
                     onAppearance={setAppearance}
                     onTheme={(theme) => void changeTheme(project, theme)}
-                    onOpenSection={setSettingsSection}
+                    onOpenSection={(section) => {
+                      closeTicket();
+                      setSettingsSection(section);
+                    }}
                     // The board's own re-read (ADR 0006), which the menu is the
                     // first surface to offer by hand: the watcher is what
                     // normally keeps this current, and this is the way back
@@ -2112,8 +2116,10 @@ export function App() {
           />
         )}
 
-      {/* Settings is a layer over the board rather than a section inside it
-          (LC-125), so it is built here with the app's other modals — and it
+      {/* Settings sits beside the board as the shell's third grid column
+          (LC-223, the prototype's arrangement) — the board stays live so a
+          preset can be tried against it. The right edge holds one record at a
+          time, so every opener closes the ticket panel first — and the panel
           stays mounted over an unreachable project, which is one of the two
           screens that needs `Locate…` most. */}
       {project && settingsSection !== undefined && (
@@ -2160,6 +2166,7 @@ export function App() {
           onOpenSection={(section) => {
             if (menuProject.id !== activeProjectId)
               void loadProject(menuProject.id);
+            closeTicket();
             setSettingsSection(section);
           }}
           onStar={() => void toggleStar(menuProject)}

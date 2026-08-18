@@ -76,7 +76,7 @@ function Harness(props: {
 }
 
 function panel() {
-  return screen.getByRole("dialog", { name: "Project settings" });
+  return screen.getByRole("region", { name: "Project settings" });
 }
 
 function nav() {

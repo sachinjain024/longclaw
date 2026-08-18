@@ -9,7 +9,7 @@ labels:
   - design
   - frontend
 created_at: 2026-08-18T06:50:53.264Z
-updated_at: 2026-08-18T09:52:28.155Z
+updated_at: 2026-08-18T10:07:46.043Z
 ---
 
 A complete design audit of the app against the Claude Design settings prototype
@@ -233,13 +233,13 @@ Bottom-up, so each layer inherits the one below and nothing is painted twice:
 - [x] Controls: replace the offset focus outline with the DS hugging ring (accent border + 3px ring) app-wide <!-- longclaw:item=ck_e1996b6e -->
 - [x] Controls: menu-trigger to 30px with 0 10px padding; toast padding to 9px 12px <!-- longclaw:item=ck_34703d66 -->
 - [x] Accent: selected-state goes neutral (line-soft + ink + 600) in the sidebar rows, view segment and appearance segment; sidebar star back to ink-2 <!-- longclaw:item=ck_bfecfa01 -->
-- [ ] Settings: panel becomes in-flow beside the board like TicketPanel — border-left only, no scrim, no overlay shadow <!-- longclaw:item=ck_16e34461 -->
-- [ ] Settings: header — Familjen 15px title, 24×24 close affordance, longclaw.yaml chip at mono 10.5 / radius 4 / bg fill <!-- longclaw:item=ck_ec91d2dc -->
-- [ ] Settings: text scale — field labels 12px ink-2, section intros 12.5px lh 1.55, content padding 18px 20px <!-- longclaw:item=ck_08031445 -->
+- [x] Settings: panel becomes in-flow beside the board like TicketPanel — border-left only, no scrim, no overlay shadow <!-- longclaw:item=ck_16e34461 -->
+- [x] Settings: header — Familjen 15px title, 24×24 close affordance, longclaw.yaml chip at mono 10.5 / radius 4 / bg fill <!-- longclaw:item=ck_ec91d2dc -->
+- [x] Settings: text scale — field labels 12px ink-2, section intros 12.5px lh 1.55, content padding 18px 20px <!-- longclaw:item=ck_08031445 -->
 - [x] Settings: key field 44px centered mono on bg fill; folder path mono 11px ink-2 on bg fill with line border <!-- longclaw:item=ck_74e52921 -->
-- [ ] Settings: appearance segment at 28px with segment separators and neutral selection <!-- longclaw:item=ck_26c0eb6c -->
-- [ ] Settings: theme picker becomes the prototype preset cards (36×22 split swatch, name, check; selected = accent border + ring) <!-- longclaw:item=ck_24a56617 -->
-- [ ] Settings: shortcuts kbd chips to mono 10.5 / radius 4 / bg fill / ctrl-border <!-- longclaw:item=ck_37275d06 -->
+- [x] Settings: appearance segment at 28px with segment separators and neutral selection <!-- longclaw:item=ck_26c0eb6c -->
+- [x] Settings: theme picker becomes the prototype preset cards (36×22 split swatch, name, check; selected = accent border + ring) <!-- longclaw:item=ck_24a56617 -->
+- [x] Settings: shortcuts kbd chips to mono 10.5 / radius 4 / bg fill / ctrl-border <!-- longclaw:item=ck_37275d06 -->
 - [ ] Menus: shadow softens to the prototype 0 6px 18px 14%, entrance gets lcMenuIn 120ms, submenu rows 28px, separator margins 5px 4px <!-- longclaw:item=ck_5759b020 -->
 - [ ] Labels: 9px trigger dot, selection ring in the swatch's own hue, Add label goes small, remove hover turns danger <!-- longclaw:item=ck_3e7941ef -->
 - [ ] Sidebar: wordmark 700 / 15.5 / -0.03em; section labels mono 10 +0.09em; footer mono 10.5 ink-3 <!-- longclaw:item=ck_c35c4f27 -->
@@ -434,4 +434,37 @@ changes:
 ### Claude Code updated this ticket
 
 Item 9 done — the accent spends on actors, not location. Sidebar selected row, view segment and appearance segment all go neutral (line-soft + ink + 600, hover the same fill told apart by weight); the sidebar star returns to ink-2; the theme dot stays accent, as the one actor-meaningful mark on the row. Content selection (cards, list rows, palette) keeps accent-human-soft deliberately. Contract lines in components.md (States table, tab-strip note, side panel) and screen-specs (active row) updated; citations re-pinned.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_cc604f83
+kind: update
+occurred_at: 2026-08-18T10:07:46.043Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_16e34461.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_ec91d2dc.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_08031445.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_26c0eb6c.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_24a56617.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_37275d06.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Settings batch done (items 10-12, 14-16). The panel is in-flow — the shell's third grid column, no scrim, no shadow, board live beside it; the Tab trap went with the scrim and the right edge holds one record at a time (opening settings closes the ticket panel; new test). Header: Familjen 15px title, 24px close, longclaw.yaml chip at mono 10.5/radius-4/canvas fill. Text scale: labels 12px ink-2, intros 12.5/1.55, content pad 18/20. Segments (view+appearance): 28px, separators, ink-2 unselected. Theme picker is the prototype's preset cards (36x22 swatch, name, check, accent border+ring on the card) — shared with project creation. Shortcuts kbds at mono 10.5/radius-4/canvas. keyboard-focus-map modal section, screen-specs and components.md updated; citations re-pinned. a11y:audit A1-A5 pass, matrix clean, 1024 tests.
 <!-- /longclaw:event -->

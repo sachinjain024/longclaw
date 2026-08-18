@@ -45,7 +45,7 @@ textarea:focus-visible,
 /* 240px side panel and a flexible main region (`screen-specs.md:20-30`). */
 .app-shell {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: 240px minmax(0, 1fr) auto;
   min-height: 100vh;
 }
 
@@ -1763,19 +1763,26 @@ button:disabled {
 .view-segment,
 .appearance-segment {
   display: inline-flex;
-  border: 1px solid var(--lc-line);
+  border: 1px solid var(--lc-line-strong);
   border-radius: var(--lc-radius-control);
   overflow: hidden;
 }
 
 .view-segment button,
 .appearance-segment button {
-  height: var(--lc-size-control-sm);
+  height: 28px;
   border: 0;
-  padding: 0 10px;
-  color: var(--lc-ink-3);
+  padding: 0 12px;
+  color: var(--lc-ink-2);
   background: transparent;
-  font-size: 12px;
+  font-size: var(--lc-type-small-size);
+}
+
+/* The prototype rules a hairline between neighbours — the segments read as
+   one control with internal walls, not a row of buttons. */
+.view-segment button + button,
+.appearance-segment button + button {
+  border-left: 1px solid var(--lc-line-strong);
 }
 
 .view-segment button:hover,
@@ -1790,12 +1797,10 @@ button:disabled {
   font-weight: 600;
 }
 
-/* The dialog's is the full-size control: it stands on its own row rather than
-   beside a filter field, and 24px reads as a chip there. */
+/* The dialog's stands on its own row rather than beside a filter field, and
+   takes the prototype's roomier 16px sides. */
 .appearance-segment button {
-  height: var(--lc-size-control);
-  padding: 0 14px;
-  font-size: 12.5px;
+  padding: 0 16px;
 }
 
 /* One scroller for every group, unlike the board's six (screen-specs.md:169).
@@ -3711,9 +3716,9 @@ button:disabled {
   background: var(--lc-accent-agent);
 }
 
-/* The theme picker (`screen-specs.md:112-118`): 44×28 pair swatches, radius 5,
-   preset name in micro type below, selected = human-accent border + ring.
-   The radio itself is visually hidden; the label is the target. */
+/* The theme picker (`screen-specs.md:112-118`): a stack of preset cards,
+   36×22 pair swatch beside the name, selected = accent border, ring and ✓.
+   The radio itself is visually hidden; the card label is the target. */
 .theme-picker {
   margin: 0;
   border: 0;
@@ -3721,23 +3726,45 @@ button:disabled {
 }
 
 .theme-picker legend {
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   padding: 0;
   color: var(--lc-ink-2);
-  font: var(--lc-type-ui-weight) var(--lc-type-ui-size) /
-    var(--lc-type-ui-leading) var(--lc-type-ui-font);
+  font: 500 12px/1.4 var(--lc-font-ui);
 }
 
+/* The prototype's preset cards: a vertical stack of rows, each a swatch pair
+   beside its name, the chosen one wearing the accent border, ring and check.
+   Replaces the bare horizontal swatch strip (LC-223, item 15). */
 .theme-picker-options {
-  display: flex;
-  gap: 10px;
+  display: grid;
+  gap: 6px;
+  max-width: 280px;
 }
 
 .theme-option {
-  display: grid;
-  justify-items: center;
-  gap: 4px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  border: var(--lc-border-ring) solid var(--lc-line-strong);
+  border-radius: var(--lc-radius-control);
+  padding: 5px 10px;
+  background: var(--lc-surface);
   cursor: pointer;
+}
+
+.theme-option.selected {
+  border-color: var(--lc-accent-human);
+  box-shadow: var(--lc-focus-ring);
+}
+
+.theme-option:has(input:focus-visible) {
+  border-color: var(--lc-accent-human);
+  box-shadow: var(--lc-focus-ring);
+}
+
+.theme-option-check {
+  margin-left: auto;
+  color: var(--lc-accent-human-text);
 }
 
 .theme-option input {
@@ -3765,27 +3792,19 @@ button:disabled {
 }
 
 .theme-option .theme-swatch {
-  width: 44px;
-  height: 28px;
-  border-radius: var(--lc-radius-control);
-}
-
-.theme-option.selected .theme-swatch {
-  border-color: var(--lc-accent-human);
-  box-shadow: var(--lc-focus-ring);
-}
-
-.theme-option input:focus-visible + .theme-swatch {
-  box-shadow: var(--lc-focus-ring);
+  width: 36px;
+  height: 22px;
+  border-radius: var(--lc-radius-tile);
 }
 
 .theme-option-name {
-  color: var(--lc-ink-3);
-  font: 500 11.5px/1.35 var(--lc-font-ui);
+  color: var(--lc-ink-2);
+  font: 400 var(--lc-type-small-size) / 1.35 var(--lc-font-ui);
 }
 
 .theme-option.selected .theme-option-name {
   color: var(--lc-ink);
+  font-weight: 600;
 }
 
 /* The 150ms theme/appearance crossfade (`screen-specs.md:364`): while the root
@@ -4266,7 +4285,7 @@ html.theme-transition *::after {
 }
 
 /* The swatch stands in for a glyph on the theme rows, at the size a glyph
-   would have been rather than the picker's 44×28. */
+   would have been rather than the picker card's 36×22. */
 .menu-row .theme-swatch {
   width: 16px;
   height: 11px;
@@ -4415,28 +4434,20 @@ html.theme-transition *::after {
    and one section at a time, because a single scrolling column of every section
    the project has made the gear the slowest control in the app.
 
-   The scrim stays. Without it two panels share the right edge and the ticket
-   panel is underneath, unreachable and half-covered — and the scrim is what
-   makes `keyboard-focus-map.md:143-148` true, since a trapped Tab over a
-   surface a person can still see and click is worse than either alone. */
-.settings-scrim {
-  display: block;
-  padding: 0;
-}
-
+   The scrim is gone with LC-223: the panel sits in the shell's third grid
+   column, the prototype's arrangement, so the board compresses beside it and
+   stays live — a preset can be tried against the surface it changes. The
+   right edge holds one record at a time (opening settings closes the ticket
+   panel in `App.tsx`), which is what the scrim existed to fake. */
 .settings-panel {
-  position: fixed;
-  z-index: var(--lc-z-modal);
-  top: 0;
-  right: 0;
-  bottom: 0;
+  grid-area: 1 / 3;
   display: flex;
   flex-direction: column;
-  width: min(620px, 92vw);
+  width: min(620px, 48vw);
+  height: 100vh;
   overflow: hidden;
   border-left: 1px solid var(--lc-line);
   background: var(--lc-surface);
-  box-shadow: var(--lc-shadow-overlay);
   /* The panel slide, not the modal rise: it arrives from the edge it lives on,
      which is the motion the ticket panel already states. */
   animation: lc-panel-in var(--lc-motion-panel) ease-out;
@@ -4477,15 +4488,23 @@ html.theme-transition *::after {
 /* The file every section writes to, said once at the top rather than under each
    pane (D-4K). It is the claim the panel rests on: these are lines in a file
    inside the folder, not rows in an app database somewhere else. */
+.settings-head h2 {
+  font-size: 15px;
+}
+
+.settings-close {
+  width: var(--lc-size-control-sm);
+  padding: 0;
+}
+
 .settings-file {
   flex: none;
   border: 1px solid var(--lc-line);
-  border-radius: var(--lc-radius-control);
+  border-radius: var(--lc-radius-tile);
   padding: 2px 7px;
   color: var(--lc-ink-3);
-  background: var(--lc-wash);
-  font: var(--lc-type-kbd-weight) var(--lc-type-kbd-size) /
-    var(--lc-type-kbd-leading) var(--lc-type-kbd-font);
+  background: var(--lc-bg);
+  font: 500 10.5px/1.2 var(--lc-font-mono);
 }
 
 .settings-split {
@@ -4573,7 +4592,7 @@ html.theme-transition *::after {
   flex: 1;
   min-width: 0;
   overflow-y: auto;
-  padding: var(--lc-space-4) var(--lc-space-5);
+  padding: 18px var(--lc-space-5);
 }
 
 .settings-section:focus-visible {
@@ -4585,8 +4604,8 @@ html.theme-transition *::after {
 .settings-subhead {
   margin-bottom: 16px;
   color: var(--lc-ink-2);
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: var(--lc-type-small-size);
+  line-height: 1.55;
 }
 
 /* The sentence a section closes with: the thing that is true about it and
@@ -4622,13 +4641,14 @@ html.theme-transition *::after {
 .settings-label {
   display: block;
   margin-bottom: 6px;
-  color: var(--lc-ink-3);
-  font-size: 11.5px;
+  color: var(--lc-ink-2);
+  font-size: 12px;
   font-weight: 500;
 }
 
 /* The exception a row carries when what it sets is not project data (D-42). */
 .settings-label-note {
+  color: var(--lc-ink-3);
   font-weight: 400;
 }
 
@@ -4767,12 +4787,11 @@ html.theme-transition *::after {
 .shortcut-list kbd {
   min-width: 10px;
   border: 1px solid var(--lc-line-strong);
-  border-radius: var(--lc-radius-kbd);
+  border-radius: var(--lc-radius-tile);
   padding: 2px 6px;
   color: var(--lc-ink-2);
-  background: var(--lc-wash);
-  font: var(--lc-type-kbd-weight) var(--lc-type-kbd-size) /
-    var(--lc-type-kbd-leading) var(--lc-type-kbd-font);
+  background: var(--lc-bg);
+  font: 500 10.5px/1.2 var(--lc-font-mono);
   text-align: center;
 }
 
