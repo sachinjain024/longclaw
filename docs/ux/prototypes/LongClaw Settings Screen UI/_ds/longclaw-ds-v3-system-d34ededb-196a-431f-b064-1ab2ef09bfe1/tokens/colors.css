@@ -1,0 +1,57 @@
+/* LongClaw color tokens — source: Fable LongClaw Design System v0.1 (Claude Design artifact) */
+:root{
+  /* two-actor accents: indigo = human planned it, green = agent did it */
+  --human:#6B5CF6; --agent:#279E52;
+  --on-human:#FFFFFF; --on-agent:#FFFFFF;
+  /* neutrals */
+  --bg:#F4F5F8; --surface:#FFFFFF; --raised:#FFFFFF;
+  --ink:#171923; --ink-2:#4C5165; --ink-3:#878CA0; --ink-4:#B7BBC9;
+  --line:#E3E5EE; --line-soft:#EEF0F5; --ctrl-border:#DCDFE9; --check-border:#C9CCDA;
+  /* semantic status of the system itself */
+  --warn:#B45309; --warn-bg:#FBF3E8; --warn-border:#EBD5B5; --warn-btn-border:#E0C9A6;
+  --danger:#D64545; --danger-border:#EFD3D3;
+  /* ticket status */
+  --status-backlog:#A9ADC0; --status-todo:#878CA0; --status-progress:#DE9B0D; --status-review:#E5732A; --status-done:var(--human); --status-canceled:#C7CAD6; --status-canceled-x:#FFFFFF;
+  /* priority glyph bars */
+  --priority:#5A5F75; --priority-off:#DCDFE9; --priority-urgent:#E0762F; --priority-urgent-fg:#FFFFFF; --priority-none:#A9ADC0;
+  /* label dot hues */
+  --label-infra:#4E9CF5; --label-watcher:#E1703C; --label-design:#C94C86;
+  /* avatars: humans are circles */
+  --avatar-1-bg:#DDE0F6; --avatar-1-fg:#4043B8;
+  --avatar-2-bg:#F3DFD2; --avatar-2-fg:#9A5A22;
+  --avatar-3-bg:#D8EDE4; --avatar-3-fg:#1B6B50;
+  /* agents are not: terminal tile */
+  --avatar-agent-bg:#171923;
+  /* derived tints */
+  --human-tint:color-mix(in oklab,var(--human) 9%,#FFFFFF);
+  --agent-tint:color-mix(in oklab,var(--agent) 10%,#FFFFFF);
+  --focus-ring:color-mix(in oklab,var(--human) 14%,transparent);
+  --agent-ring:color-mix(in oklab,var(--agent) 10%,transparent);
+  --agent-border:color-mix(in oklab,var(--agent) 38%,var(--line));
+  /* toast is inverted */
+  --toast-bg:#171923; --toast-fg:#FFFFFF; --toast-kbd:rgba(255,255,255,.14); --toast-muted:#A6AABC;
+  /* text aliases */
+  --text-primary:var(--ink); --text-secondary:var(--ink-2); --text-meta:var(--ink-3);
+  --surface-card:var(--surface);
+}
+[data-theme="dark"]{
+  --human:#887DF2; --agent:#6CD592;
+  --on-human:#101116; --on-agent:#0F1015;
+  --bg:#0F1015; --surface:#16171E; --raised:#1C1E27;
+  --ink:#E9EAF2; --ink-2:#A6AABC; --ink-3:#676C80; --ink-4:#4A4E60;
+  --line:#262935; --line-soft:#23262F; --ctrl-border:#2C2F3C; --check-border:#3A3D4D;
+  --warn:#D98E3E; --warn-bg:#2A2119; --warn-border:#4A3A24; --warn-btn-border:#4A3A24;
+  --danger:#E06C6C; --danger-border:#4A2A2E;
+  --status-backlog:#4A4E60; --status-todo:#7E8398; --status-progress:#E7B23A; --status-review:#EC8B4C; --status-canceled:#3A3D4D; --status-canceled-x:#0F1015;
+  --priority:#9DA2B5; --priority-off:#2C2F3C; --priority-urgent:#E0762F; --priority-urgent-fg:#101116; --priority-none:#4A4E60;
+  --avatar-1-bg:#31345C; --avatar-1-fg:#B9BCF3;
+  --avatar-2-bg:#4A3524; --avatar-2-fg:#E5B98A;
+  --avatar-3-bg:#1D3A2F; --avatar-3-fg:#8FD4B7;
+  --avatar-agent-bg:#060709;
+  --human-tint:color-mix(in oklab,var(--human) 15%,#16171E);
+  --agent-tint:color-mix(in oklab,var(--agent) 16%,#16171E);
+  --focus-ring:color-mix(in oklab,var(--human) 18%,transparent);
+  --agent-ring:color-mix(in oklab,var(--agent) 13%,transparent);
+  --agent-border:color-mix(in oklab,var(--agent) 42%,var(--line));
+  --toast-bg:#E9EAF2; --toast-fg:#171923; --toast-kbd:rgba(23,25,35,.1); --toast-muted:#5A5F75;
+}

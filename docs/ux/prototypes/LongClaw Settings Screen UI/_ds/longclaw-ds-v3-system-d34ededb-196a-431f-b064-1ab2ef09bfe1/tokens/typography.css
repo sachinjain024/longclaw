@@ -1,0 +1,20 @@
+/* LongClaw type tokens — three voices */
+:root{
+  --font-display:'Familjen Grotesk',sans-serif; /* panel titles, empty states, welcome. 600-700 only */
+  --font-ui:'Geist',system-ui,sans-serif;       /* every row, button, menu. 13-13.5px desktop density */
+  --font-mono:'JetBrains Mono',monospace;       /* wherever the disk shows through: IDs, paths, labels, kbd */
+  /* scale (exact, never rounded) */
+  --size-hero:46px;    /* display 700, -0.025em, lh 1.08 — marketing/welcome only */
+  --size-h2:27px;      /* display 600, -0.015em */
+  --size-display:26px; /* display 600, -0.02em */
+  --size-title:17px;   /* display 600, -0.01em — ticket titles */
+  --size-body:13.5px;  /* ui 400 */
+  --size-ui:13px;      /* ui 500 — buttons, rows */
+  --size-small:12.5px; /* ui 400 — meta sentences */
+  --size-code:12px;    /* mono 400 — paths, inline code */
+  --size-label:11px;   /* mono 500, uppercase, +0.09em — section labels, counts */
+  --size-micro:10.5px; /* mono — card IDs, tiny meta */
+  --track-display:-0.02em; --track-title:-0.01em; --track-label:0.09em;
+  --lh-body:1.5; /* @kind other */
+  --lh-title:1.35; /* @kind other */
+}

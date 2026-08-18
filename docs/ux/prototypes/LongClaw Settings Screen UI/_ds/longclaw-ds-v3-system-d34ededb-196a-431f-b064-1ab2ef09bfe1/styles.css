@@ -1,0 +1,8 @@
+@import url('tokens/fonts.css');
+@import url('tokens/colors.css');
+@import url('tokens/typography.css');
+@import url('tokens/spacing.css');
+/* themes.css is generated from the repo's design-tokens.json (LC-192).
+   It loads last because its v1 aliases override the hardcoded accent pair
+   in colors.css. Do not hand-edit — see apps/desktop/src/tokens/. */
+@import url('tokens/themes.css');

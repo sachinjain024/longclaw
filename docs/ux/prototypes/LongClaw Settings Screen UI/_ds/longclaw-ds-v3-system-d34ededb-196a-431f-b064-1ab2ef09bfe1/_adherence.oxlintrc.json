@@ -1,0 +1,387 @@
+{
+  "plugins": [
+    "react",
+    "import"
+  ],
+  "rules": {
+    "react/forbid-elements": [
+      "warn",
+      {
+        "forbid": []
+      }
+    ],
+    "no-restricted-imports": [
+      "warn",
+      {
+        "patterns": [
+          {
+            "group": [
+              "components/actions/**",
+              "components/avatars/**",
+              "components/cards/**",
+              "components/chips/**",
+              "components/feedback/**",
+              "components/forms/**",
+              "components/indicators/**",
+              "components/timeline/**"
+            ],
+            "message": "Import design-system components from 'index.js', not component internals."
+          }
+        ]
+      }
+    ],
+    "no-restricted-syntax": [
+      "warn",
+      {
+        "selector": "Literal[value=/#[0-9a-fA-F]{3,8}\\b/]",
+        "message": "Raw hex color — use a design-system color token via var()."
+      },
+      {
+        "selector": "Literal[value=/\\b\\d+px\\b/]",
+        "message": "Raw px value — use a design-system spacing token via var()."
+      },
+      {
+        "selector": "Literal[value=/font-family\\s*:\\s*(?!['\\\"]?(?:Familjen Grotesk|Geist|JetBrains Mono))/i]",
+        "message": "Font not provided by the design system. Available: Familjen Grotesk, Geist, JetBrains Mono."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Avatar'] > JSXAttribute > JSXIdentifier[name!=/^(?:initials|hue|agent|size|key|ref|className|style|children)$/]",
+        "message": "<Avatar> doesn't accept that prop. Declared props: initials, hue, agent, size."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Banner'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|actions|style|key|ref|className|style|children)$/]",
+        "message": "<Banner> doesn't accept that prop. Declared props: children, actions, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='BoardCard'] > JSXAttribute > JSXIdentifier[name!=/^(?:id|title|status|priority|label|assignee|progress|agentFresh|agentNote|style|key|ref|className|style|children)$/]",
+        "message": "<BoardCard> doesn't accept that prop. Declared props: id, title, status, priority, label, assignee, progress, agentFresh, agentNote, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='BoardCard'] > JSXAttribute[name.name='status'] > Literal[value!=/^(?:backlog|todo|in-progress|in-review|done|canceled)$/]",
+        "message": "<BoardCard> status must be one of 'backlog' | 'todo' | 'in-progress' | 'in-review' | 'done' | 'canceled'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='BoardCard'] > JSXAttribute[name.name='priority'] > Literal[value!=/^(?:urgent|high|medium|low|none)$/]",
+        "message": "<BoardCard> priority must be one of 'urgent' | 'high' | 'medium' | 'low' | 'none'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Button'] > JSXAttribute > JSXIdentifier[name!=/^(?:variant|size|hint|disabled|children|style|onClick|key|ref|className|style|children)$/]",
+        "message": "<Button> doesn't accept that prop. Declared props: variant, size, hint, disabled, children, style, onClick."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Button'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:primary|secondary|ghost|danger)$/]",
+        "message": "<Button> variant must be one of 'primary' | 'secondary' | 'ghost' | 'danger'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Button'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:default|small)$/]",
+        "message": "<Button> size must be one of 'default' | 'small'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Checklist'] > JSXAttribute > JSXIdentifier[name!=/^(?:items|style|key|ref|className|style|children)$/]",
+        "message": "<Checklist> doesn't accept that prop. Declared props: items, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Chip'] > JSXAttribute > JSXIdentifier[name!=/^(?:variant|dot|children|style|key|ref|className|style|children)$/]",
+        "message": "<Chip> doesn't accept that prop. Declared props: variant, dot, children, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Chip'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:label|agent|id)$/]",
+        "message": "<Chip> variant must be one of 'label' | 'agent' | 'id'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Input'] > JSXAttribute > JSXIdentifier[name!=/^(?:variant|placeholder|value|defaultValue|onChange|style|inputStyle|key|ref|className|style|children)$/]",
+        "message": "<Input> doesn't accept that prop. Declared props: variant, placeholder, value, defaultValue, onChange, style, inputStyle."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Input'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:default|path)$/]",
+        "message": "<Input> variant must be one of 'default' | 'path'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='PriorityIcon'] > JSXAttribute > JSXIdentifier[name!=/^(?:priority|size|key|ref|className|style|children)$/]",
+        "message": "<PriorityIcon> doesn't accept that prop. Declared props: priority, size."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='PriorityIcon'] > JSXAttribute[name.name='priority'] > Literal[value!=/^(?:urgent|high|medium|low|none)$/]",
+        "message": "<PriorityIcon> priority must be one of 'urgent' | 'high' | 'medium' | 'low' | 'none'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='StatusIcon'] > JSXAttribute > JSXIdentifier[name!=/^(?:status|size|key|ref|className|style|children)$/]",
+        "message": "<StatusIcon> doesn't accept that prop. Declared props: status, size."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='StatusIcon'] > JSXAttribute[name.name='status'] > Literal[value!=/^(?:backlog|todo|in-progress|in-review|done|canceled)$/]",
+        "message": "<StatusIcon> status must be one of 'backlog' | 'todo' | 'in-progress' | 'in-review' | 'done' | 'canceled'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TimelineEntry'] > JSXAttribute > JSXIdentifier[name!=/^(?:variant|author|time|via|children|style|key|ref|className|style|children)$/]",
+        "message": "<TimelineEntry> doesn't accept that prop. Declared props: variant, author, time, via, children, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TimelineEntry'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:human|agent|event)$/]",
+        "message": "<TimelineEntry> variant must be one of 'human' | 'agent' | 'event'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Toast'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|kbd|action|style|key|ref|className|style|children)$/]",
+        "message": "<Toast> doesn't accept that prop. Declared props: children, kbd, action, style."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "**/index.js"
+      ],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ],
+  "x-omelette": {
+    "components": {
+      "Avatar": {
+        "replaces": []
+      },
+      "Banner": {
+        "replaces": []
+      },
+      "BoardCard": {
+        "replaces": []
+      },
+      "Button": {
+        "replaces": []
+      },
+      "Checklist": {
+        "replaces": []
+      },
+      "Chip": {
+        "replaces": []
+      },
+      "Input": {
+        "replaces": []
+      },
+      "PriorityIcon": {
+        "replaces": []
+      },
+      "StatusIcon": {
+        "replaces": []
+      },
+      "TimelineEntry": {
+        "replaces": []
+      },
+      "Toast": {
+        "replaces": []
+      }
+    },
+    "tokens": [
+      "--agent",
+      "--agent-border",
+      "--agent-ring",
+      "--agent-tint",
+      "--avatar-1-bg",
+      "--avatar-1-fg",
+      "--avatar-2-bg",
+      "--avatar-2-fg",
+      "--avatar-3-bg",
+      "--avatar-3-fg",
+      "--avatar-agent-bg",
+      "--bg",
+      "--check-border",
+      "--ctrl-border",
+      "--danger",
+      "--danger-border",
+      "--ease",
+      "--focus-ring",
+      "--font-display",
+      "--font-mono",
+      "--font-ui",
+      "--gutter",
+      "--gutter-wide",
+      "--human",
+      "--human-tint",
+      "--ink",
+      "--ink-2",
+      "--ink-3",
+      "--ink-4",
+      "--label-design",
+      "--label-infra",
+      "--label-watcher",
+      "--lh-body",
+      "--lh-title",
+      "--line",
+      "--line-soft",
+      "--on-agent",
+      "--on-human",
+      "--pad-card",
+      "--priority",
+      "--priority-none",
+      "--priority-off",
+      "--priority-urgent",
+      "--priority-urgent-fg",
+      "--radius-card",
+      "--radius-chip",
+      "--radius-control",
+      "--radius-kbd",
+      "--radius-modal",
+      "--radius-panel",
+      "--raised",
+      "--row-control",
+      "--row-list",
+      "--shadow-card",
+      "--shadow-icon",
+      "--shadow-raised",
+      "--shadow-toast",
+      "--size-body",
+      "--size-code",
+      "--size-display",
+      "--size-h2",
+      "--size-hero",
+      "--size-label",
+      "--size-micro",
+      "--size-small",
+      "--size-title",
+      "--size-ui",
+      "--space-1",
+      "--space-10",
+      "--space-2",
+      "--space-3",
+      "--space-4",
+      "--space-5",
+      "--space-6",
+      "--space-8",
+      "--status-backlog",
+      "--status-canceled",
+      "--status-canceled-x",
+      "--status-done",
+      "--status-progress",
+      "--status-review",
+      "--status-todo",
+      "--surface",
+      "--surface-card",
+      "--t-hover",
+      "--t-panel",
+      "--t-state",
+      "--text-meta",
+      "--text-primary",
+      "--text-secondary",
+      "--toast-bg",
+      "--toast-fg",
+      "--toast-kbd",
+      "--toast-muted",
+      "--track-display",
+      "--track-label",
+      "--track-title",
+      "--warn",
+      "--warn-bg",
+      "--warn-border",
+      "--warn-btn-border"
+    ],
+    "tokenKinds": {
+      "--human": "color",
+      "--agent": "color",
+      "--on-human": "color",
+      "--on-agent": "color",
+      "--bg": "color",
+      "--surface": "color",
+      "--raised": "color",
+      "--ink": "color",
+      "--ink-2": "color",
+      "--ink-3": "color",
+      "--ink-4": "color",
+      "--line": "color",
+      "--line-soft": "color",
+      "--ctrl-border": "color",
+      "--check-border": "color",
+      "--warn": "color",
+      "--warn-bg": "color",
+      "--warn-border": "color",
+      "--warn-btn-border": "color",
+      "--danger": "color",
+      "--danger-border": "color",
+      "--status-backlog": "color",
+      "--status-todo": "color",
+      "--status-progress": "color",
+      "--status-review": "color",
+      "--status-done": "color",
+      "--status-canceled": "color",
+      "--status-canceled-x": "color",
+      "--priority": "color",
+      "--priority-off": "color",
+      "--priority-urgent": "color",
+      "--priority-urgent-fg": "color",
+      "--priority-none": "color",
+      "--label-infra": "color",
+      "--label-watcher": "color",
+      "--label-design": "color",
+      "--avatar-1-bg": "color",
+      "--avatar-1-fg": "color",
+      "--avatar-2-bg": "color",
+      "--avatar-2-fg": "color",
+      "--avatar-3-bg": "color",
+      "--avatar-3-fg": "color",
+      "--avatar-agent-bg": "color",
+      "--human-tint": "color",
+      "--agent-tint": "color",
+      "--focus-ring": "color",
+      "--agent-ring": "color",
+      "--agent-border": "color",
+      "--toast-bg": "color",
+      "--toast-fg": "color",
+      "--toast-kbd": "color",
+      "--toast-muted": "color",
+      "--text-primary": "font",
+      "--text-secondary": "font",
+      "--text-meta": "font",
+      "--surface-card": "color",
+      "--font-display": "font",
+      "--font-ui": "font",
+      "--font-mono": "font",
+      "--size-hero": "spacing",
+      "--size-h2": "spacing",
+      "--size-display": "spacing",
+      "--size-title": "spacing",
+      "--size-body": "spacing",
+      "--size-ui": "spacing",
+      "--size-small": "spacing",
+      "--size-code": "spacing",
+      "--size-label": "spacing",
+      "--size-micro": "spacing",
+      "--track-display": "spacing",
+      "--track-title": "spacing",
+      "--track-label": "spacing",
+      "--lh-body": "other",
+      "--lh-title": "other",
+      "--space-1": "spacing",
+      "--space-2": "spacing",
+      "--space-3": "spacing",
+      "--space-4": "spacing",
+      "--space-5": "spacing",
+      "--space-6": "spacing",
+      "--space-8": "spacing",
+      "--space-10": "spacing",
+      "--row-list": "spacing",
+      "--row-control": "spacing",
+      "--pad-card": "spacing",
+      "--gutter": "spacing",
+      "--gutter-wide": "spacing",
+      "--radius-control": "radius",
+      "--radius-card": "radius",
+      "--radius-panel": "radius",
+      "--radius-modal": "radius",
+      "--radius-chip": "radius",
+      "--radius-kbd": "radius",
+      "--ease": "other",
+      "--t-hover": "other",
+      "--t-state": "other",
+      "--t-panel": "other",
+      "--shadow-card": "shadow",
+      "--shadow-raised": "shadow",
+      "--shadow-toast": "shadow",
+      "--shadow-icon": "shadow"
+    },
+    "fontFamilies": [
+      "Familjen Grotesk",
+      "Geist",
+      "JetBrains Mono"
+    ]
+  }
+}
