@@ -1,11 +1,15 @@
 /**
- * The LongClaw mark — variant A "talon", the Step 1 deliverable at
- * `docs/design/foundations/assets/owl-mark.svg` (decisions.md D13).
+ * The LongClaw mark — chevron-and-ring, product-icon variant 4, the canonical
+ * asset at `docs/design/foundations/assets/owl-mark.svg` (LC-62, selected
+ * 2026-08-13; replaces variant A "talon" of decisions.md D13). The same mark
+ * the OS shows: the app icon renders it white on #B45F06
+ * (`assets/brand/app-icon/`).
  *
- * Single-color by construction: every path fills with `currentColor`, so the
- * mark sits on any surface and takes whatever ink the chrome around it is set
- * in. The duotone pupil variant is reserved for marketing and never appears in
- * app chrome, which is why there is no accent prop here.
+ * Single-color by construction: the fills and the ring stroke all take
+ * `currentColor`, so the mark sits on any surface and takes whatever ink the
+ * chrome around it is set in. The white/ochre PNG variants in
+ * `assets/brand/app-icon/in-app/` are for surfaces outside app chrome
+ * (marketing, splash) and never replace this component.
  *
  * Kept as a component rather than an imported asset because it is drawn at two
  * sizes on two surfaces (22px in the side panel, 52px on welcome) and the size
@@ -23,14 +27,15 @@ export function OwlMark({ size }: { size: number }) {
     >
       <path
         fill="currentColor"
-        fillRule="evenodd"
-        d="M9 7 L32 16 L55 7 L55 40 L32 59 L9 40 Z
-           M22.5 22 a7.5 7.5 0 1 0 0 15 a7.5 7.5 0 1 0 0 -15 Z
-           M41.5 22 a7.5 7.5 0 1 0 0 15 a7.5 7.5 0 1 0 0 -15 Z
-           M32 39.5 L36 45 L32 51.5 L28 45 Z"
+        d="M1 1 L32 18.8 L63 1 L61.5 12.2 L35.2 27.5 L32 34 L28.8 27.5 L2.5 12.2 Z"
       />
-      <circle cx="22.5" cy="29.5" r="3" fill="currentColor" />
-      <circle cx="41.5" cy="29.5" r="3" fill="currentColor" />
+      <path fill="currentColor" d="M32 35.3 L35.6 40.6 L32 47.5 L28.4 40.6 Z" />
+      <path
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="7"
+        d="M52.13 20.43 A24 24 0 1 1 11.87 20.43"
+      />
     </svg>
   );
 }
