@@ -9,7 +9,7 @@ labels:
   - design
   - frontend
 created_at: 2026-08-18T06:50:53.264Z
-updated_at: 2026-08-18T09:48:20.681Z
+updated_at: 2026-08-18T09:52:28.155Z
 ---
 
 A complete design audit of the app against the Claude Design settings prototype
@@ -232,7 +232,7 @@ Bottom-up, so each layer inherits the one below and nothing is painted twice:
 - [x] Controls: button small variant drops its text to 11.5px <!-- longclaw:item=ck_dea5e6e8 -->
 - [x] Controls: replace the offset focus outline with the DS hugging ring (accent border + 3px ring) app-wide <!-- longclaw:item=ck_e1996b6e -->
 - [x] Controls: menu-trigger to 30px with 0 10px padding; toast padding to 9px 12px <!-- longclaw:item=ck_34703d66 -->
-- [ ] Accent: selected-state goes neutral (line-soft + ink + 600) in the sidebar rows, view segment and appearance segment; sidebar star back to ink-2 <!-- longclaw:item=ck_bfecfa01 -->
+- [x] Accent: selected-state goes neutral (line-soft + ink + 600) in the sidebar rows, view segment and appearance segment; sidebar star back to ink-2 <!-- longclaw:item=ck_bfecfa01 -->
 - [ ] Settings: panel becomes in-flow beside the board like TicketPanel — border-left only, no scrim, no overlay shadow <!-- longclaw:item=ck_16e34461 -->
 - [ ] Settings: header — Familjen 15px title, 24×24 close affordance, longclaw.yaml chip at mono 10.5 / radius 4 / bg fill <!-- longclaw:item=ck_ec91d2dc -->
 - [ ] Settings: text scale — field labels 12px ink-2, section intros 12.5px lh 1.55, content padding 18px 20px <!-- longclaw:item=ck_08031445 -->
@@ -416,4 +416,22 @@ changes:
 ### Claude Code updated this ticket
 
 Items 6 and 8 done — the small button variants (secondary/danger/ghost) drop their text to the prototype's 11.5px; the menu-trigger pads 0 10px like the prototype's Order control; the toast takes the DS Toast's own 9px 12px with the 10px gap. All gates green, matrix clean.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_4566373b
+kind: update
+occurred_at: 2026-08-18T09:52:28.155Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_bfecfa01.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Item 9 done — the accent spends on actors, not location. Sidebar selected row, view segment and appearance segment all go neutral (line-soft + ink + 600, hover the same fill told apart by weight); the sidebar star returns to ink-2; the theme dot stays accent, as the one actor-meaningful mark on the row. Content selection (cards, list rows, palette) keeps accent-human-soft deliberately. Contract lines in components.md (States table, tab-strip note, side panel) and screen-specs (active row) updated; citations re-pinned.
 <!-- /longclaw:event -->

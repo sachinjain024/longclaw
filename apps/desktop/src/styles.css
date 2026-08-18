@@ -165,14 +165,17 @@ textarea:focus-visible,
 
 .project-row:hover,
 .project-row:has(.row-menu-button.open) {
-  background: var(--lc-wash);
+  background: var(--lc-line-soft);
 }
 
 /* The active project, in the human accent — opening a project is a planning
    act (`components.md:275`). On the pair rather than the name, so the accent
    reaches the `⋮` at the row's end instead of stopping short of it. */
+/* The prototype's rule: accent means an actor acted; where-you-are renders
+   in neutrals. Selected is the hover fill made permanent, told apart by ink
+   and weight — the same grammar as the settings nav (LC-223, item 9). */
 .project-row.selected {
-  background: var(--lc-accent-human-soft);
+  background: var(--lc-line-soft);
 }
 
 .project-link {
@@ -191,11 +194,11 @@ textarea:focus-visible,
   transition: background var(--lc-motion-fast) var(--lc-motion-ease);
 }
 
-/* The pair paints the hover and the selected accent; the name only carries the
+/* The pair paints the hover and the selected fill; the name only carries the
    ink and the weight, so the two backgrounds cannot stack on one row. */
 .project-link.selected {
   color: var(--lc-ink);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .project-link strong {
@@ -240,7 +243,7 @@ textarea:focus-visible,
    starring moved into the row's own menu (LC-208). What is left is a mark. */
 .star-mark {
   flex: none;
-  color: var(--lc-accent-human-text);
+  color: var(--lc-ink-2);
   font-size: 11px;
   line-height: 1;
 }
@@ -1782,9 +1785,9 @@ button:disabled {
 
 .view-segment button.selected,
 .appearance-segment button.selected {
-  color: var(--lc-accent-human-text);
-  background: var(--lc-accent-human-soft);
-  font-weight: 500;
+  color: var(--lc-ink);
+  background: var(--lc-line-soft);
+  font-weight: 600;
 }
 
 /* The dialog's is the full-size control: it stands on its own row rather than

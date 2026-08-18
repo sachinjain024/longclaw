@@ -60,7 +60,7 @@
   holds starring, hovering to `line-strong` — a step above the row's own `wash`, or pointing at the control reads as pointing at the row (LC-208). Unreachable projects swap the dot for a 12px warn
   triangle in `--lc-warn` and dim the name to `ink-3`; the row stays in
   place and stays clickable.
-- **Active row:** `accent-human-soft` bg, `ink` text, 500 weight.
+- **Active row:** `line-soft` bg, `ink` text, 600 weight.
 - **Content header:** padding 16px 24px 12px. Project name
   (`--lc-type-title`), settings gear (ghost icon button), path chip (mono
   12px, folder glyph, click copies, hover `wash`), disk-state indicator

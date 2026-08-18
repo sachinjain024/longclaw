@@ -28,7 +28,7 @@ color-vision deficiency (see `accessibility.md`).
 | Hover | Background shifts one step (`--lc-wash` on quiet surfaces, `--lc-raised` + `--lc-shadow-overlay` on popovers); accent fills shift to `--lc-accent-*-hover` | `--lc-motion-fast` (80ms) |
 | Active/pressed | Accent fills shift to `--lc-accent-*-active`; no scale transforms | `--lc-motion-fast` |
 | Focus (keyboard) | `box-shadow: var(--lc-focus-ring)` **plus** a 1px `--lc-accent-human` border on the focused control. Focus is human-accent everywhere — focus is a planning act | none |
-| Selected | `--lc-accent-human-soft` background; selection never relies on color alone (checkmark or border accompanies it) | `--lc-motion-state` (120ms) |
+| Selected | Content (cards, rows, palette) takes `--lc-accent-human-soft`; a place to stand (nav rows, segments) takes `line-soft` + `ink` + 600 — neither relies on color alone | `--lc-motion-state` (120ms) |
 | Disabled | Text/glyphs `--lc-ink-disabled`; fills `--lc-wash`; no hover response; `cursor: default` | none |
 | Loading | Optimistic UI first — mutations render immediately; a 500ms-delayed spinner appears only if the write hasn't settled | `--lc-motion-state` |
 | Acknowledged (agent) | See § Agent presence — ring, border, pulse dot, footer | `lc-pulse` 1.8s loop |
@@ -135,7 +135,7 @@ and `format-link` in `assets/glyphs.svg`, drawn in the third preview row. They
 stroke `--lc-ink-2`; a component copying the geometry uses `currentColor`
 instead, because the button owns its hover and disabled states.
 
-**The selected tab is the one Selected that is not `accent-human-soft.`** Write
+**The selected tab is lifted, never tinted — no fill states this choice.** Write
 and Preview are panes, not choices, so the active one is lifted off the strip
 rather than tinted on it: `--lc-surface` with a `--lc-line` border and
 `--lc-shadow-card`, which is what the specimen above and `prototype.css:500`
@@ -273,7 +273,7 @@ the common case for an agent working a ticket. Full reasoning in
 
 - Side panel 240px, bg `bg`, main content on `surface` panels, gutters
   16/24px. Rows 28px: section headers mono 10.5px uppercase `ink-3`; project
-  rows 13px `ink-2`, active row `accent-human-soft` bg + `ink` text.
+  rows 13px `ink-2`, active row `line-soft` bg + `ink` text at 600.
 - **Project theme marker:** 6px dot (`--lc-size-theme-dot`) in the project's
   own `accent-human`, sitting left of the project name. Subtle wayfinding —
   the only place another project's theme leaks into the current window. The
