@@ -140,13 +140,13 @@ rule; the list's Archived show/hide toggle is a focusable header button).
 | `Enter` | Pick → apply optimistically → close → focus returns to trigger/card |
 | `Esc` | Close without change → focus returns |
 
-## Modals (settings · waitlist · confirm · raw file · folder picker)
+## Modals (waitlist · confirm · raw file · folder picker) · settings panel
 
 `Esc` closes (confirm dialogs cancel). `Enter` in the waitlist email field
 submits. Focus enters the first meaningful control (email field, first
-folder row, primary button) and returns to the opener on close. The raw
-file view scrolls with the page keys; `Retry parse` is the default-focused
-action.
+folder row, primary button, the asked-for settings section) and returns to
+the opener on close. The settings panel sits beside a live board with no Tab
+trap; the raw file view scrolls with page keys; `Retry parse` is default-focused.
 
 ## First launch
 

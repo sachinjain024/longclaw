@@ -1,0 +1,25 @@
+/* LongClaw space, radius, motion, shadow */
+:root{
+  /* 4px base */
+  --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-5:20px; --space-6:24px; --space-8:32px; --space-10:40px;
+  --row-list:36px; --row-control:30px; --pad-card:12px; --gutter:16px; --gutter-wide:24px;
+  /* radius: controls 5 · cards 8 · panels 10 · modals & palette 14. Never pill-shaped containers */
+  --radius-control:5px; --radius-card:8px; --radius-panel:10px; --radius-modal:14px; --radius-chip:11px; --radius-kbd:3px;
+  /* motion: state, never decoration */
+  --ease:cubic-bezier(0.2,0,0,1); /* @kind other */
+  --t-hover:80ms; /* @kind other */
+  --t-state:120ms; /* @kind other */
+  --t-panel:150ms; /* @kind other */
+  /* shadows */
+  --shadow-card:0 1px 2px rgba(23,25,35,.04);
+  --shadow-raised:0 1px 3px rgba(23,25,35,.10);
+  --shadow-toast:0 6px 18px rgba(23,25,35,.22);
+  --shadow-icon:0 4px 14px rgba(15,16,21,.28);
+}
+[data-theme="dark"]{
+  --shadow-card:none;
+  --shadow-raised:0 1px 3px rgba(0,0,0,.4);
+  --shadow-toast:0 6px 18px rgba(0,0,0,.4);
+}
+/* the one animated exception: agent freshness pulse — 1.8s ease-out infinite */
+@keyframes lcPulse{0%{box-shadow:0 0 0 0 rgba(18,148,106,.38)}70%{box-shadow:0 0 0 9px rgba(18,148,106,0)}100%{box-shadow:0 0 0 0 rgba(18,148,106,0)}}

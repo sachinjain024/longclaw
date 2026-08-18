@@ -69,6 +69,13 @@ interface TimelineProps {
   commentsAsLines?: boolean;
 }
 
+/** Which of the DS's human hue pairs a name wears — stable, so the same
+ *  person is the same colour across the record (LC-223, E14). */
+function humanHue(name: string): "human-1" | "human-2" {
+  const seed = name.length + (name.charCodeAt(0) || 0);
+  return seed % 2 === 0 ? "human-1" : "human-2";
+}
+
 export function Timeline(props: TimelineProps) {
   const context = { labels: props.labels, checklist: props.checklist };
   return (
@@ -151,7 +158,9 @@ function TimelineEntry({
         <div className="entry-heading">
           <span
             className={
-              actorType === "human" ? "actor-tile" : `actor-tile ${actorType}`
+              actorType === "human"
+                ? `actor-tile ${humanHue(actorName(event))}`
+                : `actor-tile ${actorType}`
             }
             aria-hidden="true"
           >
@@ -235,7 +244,7 @@ function PendingComment({ body, asLine }: { body: string; asLine?: boolean }) {
   return (
     <li className="timeline-entry message pending">
       <div className="entry-heading">
-        <span className="actor-tile" aria-hidden="true">
+        <span className={`actor-tile ${humanHue("You")}`} aria-hidden="true">
           {actorGlyph("human")}
         </span>
         <strong>You</strong>

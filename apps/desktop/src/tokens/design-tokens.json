@@ -1,8 +1,8 @@
 {
   "$meta": {
     "name": "LongClaw design tokens",
-    "version": "1.1.0",
-    "source": "docs/design/fable-design-system-v1.mhtml (approved reference) + docs/design_brief.md (final iteration) + Claude Design 'LongClaw DS v3 — system' (d34ededb-196a-431f-b064-1ab2ef09bfe1), reconciled in LC-192",
+    "version": "1.2.0",
+    "source": "docs/design/fable-design-system-v1.mhtml (approved reference) + docs/design_brief.md (final iteration) + Claude Design 'LongClaw DS v3 — system' (d34ededb-196a-431f-b064-1ab2ef09bfe1), reconciled in LC-192, re-derived prototype-first in LC-223",
     "prefix": "--lc-",
     "axes": {
       "appearance": ["light", "dark"],
@@ -24,10 +24,10 @@
       "size": 26,
       "weight": 600,
       "lineHeight": 1.2,
-      "tracking": "-0.015em"
+      "tracking": "-0.02em"
     },
     "title": {
-      "font": "ui",
+      "font": "display",
       "size": 17,
       "weight": 600,
       "lineHeight": 1.35,
@@ -62,8 +62,8 @@
       "tracking": "0"
     },
     "micro": {
-      "font": "ui",
-      "size": 11.5,
+      "font": "mono",
+      "size": 10.5,
       "weight": 500,
       "lineHeight": 1.35,
       "tracking": "0"
@@ -73,7 +73,7 @@
       "size": 11,
       "weight": 500,
       "lineHeight": 1.3,
-      "tracking": "0.06em",
+      "tracking": "0.09em",
       "transform": "uppercase"
     },
     "code": {
@@ -120,7 +120,7 @@
     "card-pad-y": 10,
     "board-card": 108,
     "board-card-acknowledged": 136,
-    "board-stack": "calc(100vh - 142px)",
+    "board-stack": "calc(100vh - 123px)",
     "panel-gutter": 16,
     "panel-gutter-lg": 24
   },
@@ -152,24 +152,28 @@
     "state": "120ms",
     "panel": "150ms",
     "ease": "cubic-bezier(0.2, 0, 0, 1)",
-    "pulse-duration": "900ms",
-    "pulse-iterations": 2,
+    "pulse-duration": "1800ms",
+    "pulse-iterations": "infinite",
     "spinner": "900ms",
-    "note": "Motion communicates state, never decorates. The agent pulse (900ms ease-out, two beats) is the one exception to the sub-150ms rule: it is the designed acknowledgement of an external file edit. `spinner` is the delayed write indicator's rotation — the same period as the pulse but a separate token, because reusing the pulse's would tie a loading spin to the agent's acknowledgement and neither could then be retuned alone."
+    "note": "Motion communicates state, never decorates. The agent pulse (1.8s ease-out, looping while the acknowledged state lasts — the DS spec, adopted in LC-223) is the one exception to the sub-150ms rule: it is the designed acknowledgement of an external file edit, and the state itself decays (open or 2 minutes), so the loop ends with it. `spinner` is the delayed write indicator's rotation — the same period as the pulse but a separate token, because reusing the pulse's would tie a loading spin to the agent's acknowledgement and neither could then be retuned alone."
   },
 
   "elevation": {
     "light": {
       "card": "0 1px 2px rgba(23, 25, 35, 0.04)",
+      "raised": "0 1px 3px rgba(23, 25, 35, 0.10)",
+      "menu": "0 6px 18px rgba(23, 25, 35, 0.14)",
       "overlay": "0 6px 18px rgba(23, 25, 35, 0.22)",
       "modal": "0 16px 48px rgba(23, 25, 35, 0.28)"
     },
     "dark": {
       "card": "none",
+      "raised": "0 1px 3px rgba(0, 0, 0, 0.40)",
+      "menu": "0 6px 18px rgba(0, 0, 0, 0.40)",
       "overlay": "0 6px 18px rgba(0, 0, 0, 0.40)",
       "modal": "0 16px 48px rgba(0, 0, 0, 0.55)"
     },
-    "note": "Dark surfaces carry elevation with the raised color and hairlines, not shadow. Cards in dark have no shadow."
+    "note": "Dark surfaces carry elevation with the raised color and hairlines, not shadow. Cards in dark have no shadow. `raised` is the DS single-step lift (LC-223, G10); nothing consumes it yet. `menu` is the prototype's popover shadow — a step softer than `overlay`, which menus wore before LC-223."
   },
 
   "mix": {
@@ -234,14 +238,14 @@
         "role": "body, secondary text"
       },
       "ink-3": {
-        "light": "#666B80",
-        "dark": "#8A8FA3",
-        "role": "meta, timestamps, placeholders — AA-adjusted from reference #878CA0/#676C80"
+        "light": "#686D80",
+        "dark": "#7F8599",
+        "role": "meta, timestamps, placeholders — nearest-passing to the DS #878CA0/#676C80 (LC-223); AA 4.5 on wash binds"
       },
       "ink-disabled": {
-        "light": "#A9ADC0",
-        "dark": "#565B6E",
-        "role": "disabled text/glyphs only (WCAG-exempt)"
+        "light": "#B7BBC9",
+        "dark": "#4A4E60",
+        "role": "disabled text/glyphs only (WCAG-exempt) — DS values adopted as-is (LC-223)"
       },
       "line": {
         "light": "#E3E5EE",
@@ -257,6 +261,11 @@
         "light": "#DCDFE9",
         "dark": "#2C2F3C",
         "role": "control borders"
+      },
+      "check-border": {
+        "light": "#C9CCDA",
+        "dark": "#3A3D4D",
+        "role": "the open checkbox frame (DS E15, LC-223)"
       },
       "scrim": {
         "light": "rgba(23, 25, 35, 0.40)",
@@ -288,24 +297,24 @@
     "status": {
       "note": "Status = color dot + text label (founder revision 2026-07-28, decisions.md D3 — retires the reference's pie/check/X glyphs). One dot geometry: the default state is an unfilled ring (today's Todo); every other state is the same dot filled with the status color. Statuses are user-definable: a new status always gets a color, defaulting to the grey ring; user choices come from the label ramp. The dot never appears without its label except on the board, where the column header names it. Done still routes to the human accent (D5) and green is never offered. Theme-independent except done. AA: built-in dot colors ≥ 3:1 against surface and bg; user-ramp dots lean on the mandatory label, like label chips.",
       "backlog": {
-        "light": "#82879B",
-        "dark": "#767B90",
+        "light": "#878CA0",
+        "dark": "#5F6375",
         "glyph": "dashed ring — before the default state; the dash survives every CVD type"
       },
       "todo": {
-        "light": "#82879B",
-        "dark": "#8A8FA3",
+        "light": "#878CA0",
+        "dark": "#7E8398",
         "glyph": "open ring — THE default state and the default for new statuses"
       },
       "in-progress": {
-        "light": "#B47D0A",
+        "light": "#C28000",
         "dark": "#E7B23A",
-        "glyph": "filled dot — AA-adjusted from reference #DE9B0D in light"
+        "glyph": "filled dot — nearest-passing to the DS #DE9B0D in light (LC-223)"
       },
       "in-review": {
-        "light": "#C25C1B",
+        "light": "#DF6E23",
         "dark": "#EC8B4C",
-        "glyph": "filled dot — AA-adjusted from reference #E5732A in light"
+        "glyph": "filled dot — nearest-passing to the DS #E5732A in light (LC-223)"
       },
       "done": {
         "light": "accent.human",
@@ -313,8 +322,8 @@
         "glyph": "filled dot in the human accent"
       },
       "canceled": {
-        "light": "#82879B",
-        "dark": "#767B90",
+        "light": "#878CA0",
+        "dark": "#5F6375",
         "glyph": "filled dot, grey"
       }
     },
@@ -322,7 +331,7 @@
     "priority": {
       "note": "Six levels: Urgent · P1 · P2 · P3 · P4 · None (founder revision 2026-07-28, decisions.md D4 — replaces the reference's High/Medium/Low bar glyphs). P1–P4 are bordered mono chips, monochrome except urgent; the number carries the level. Chip text is real text, held to 4.5:1; the border is a decorative container.",
       "urgent": {
-        "light": "#C2591D",
+        "light": "#DB7129",
         "dark": "#E0762F",
         "mark-light": "#FFFFFF",
         "mark-dark": "#101116"
@@ -334,9 +343,9 @@
 
     "feedback": {
       "warn": {
-        "light": "#9A5008",
+        "light": "#B45309",
         "dark": "#D98E3E",
-        "role": "conflicts, unreachable folder — AA-adjusted from reference #B45309 in light"
+        "role": "conflicts, unreachable folder — the DS value itself clears AA; the earlier #9A5008 over-darkened (LC-223)"
       },
       "warn-surface": { "light": "#FBF3E8", "dark": "#2A2119" },
       "warn-border": { "light": "#EBD5B5", "dark": "#4A3A24" },
@@ -347,24 +356,31 @@
         "role": "secondary action text inside warn banners"
       },
       "danger": {
-        "light": "#C43A3A",
+        "light": "#C9393B",
         "dark": "#E06C6C",
-        "role": "destructive actions, parse errors — AA-adjusted from reference #D64545 in light"
+        "role": "destructive actions, parse errors — nearest-passing to the DS #D64545 in light (LC-223)"
       },
       "danger-surface": { "light": "#FBEFEF", "dark": "#2A1B1D" },
       "danger-border": { "light": "#EFD3D3", "dark": "#4A2A2E" }
     },
 
     "label": {
-      "note": "Fixed system ramp for project labels; never themed. Dots are reinforcement only — the chip text is the identifier — so dots are not held to 3:1. The green band (hue 120–165) is excluded: green belongs to the agent, exclusively.",
+      "note": "Fixed system ramp for project labels; never themed. Dots are reinforcement only — the chip text is the identifier — so dots are not held to 3:1. The green band (hue 120–165) is excluded: green belongs to the agent, exclusively. Light hues are the settings prototype's picker strip verbatim (LC-223, E13); darks derive by each pair's former oklab lift.",
       "blue": { "light": "#4E9CF5", "dark": "#5FA8F7" },
-      "cyan": { "light": "#2E9BB8", "dark": "#4FB3CE" },
-      "purple": { "light": "#9A6BF3", "dark": "#A981F5" },
+      "cyan": { "light": "#2AA8A0", "dark": "#4EC0B5" },
+      "purple": { "light": "#8B6CF0", "dark": "#9982F2" },
       "pink": { "light": "#C94C86", "dark": "#D66A9C" },
-      "red": { "light": "#E15B5B", "dark": "#E57373" },
-      "orange": { "light": "#E1703C", "dark": "#E5854F" },
-      "amber": { "light": "#D9A514", "dark": "#E0B13A" },
-      "gray": { "light": "#8A90A5", "dark": "#9DA2B5" }
+      "red": { "light": "#E05B5B", "dark": "#E47373" },
+      "orange": { "light": "#E0762F", "dark": "#E48B44" },
+      "amber": { "light": "#DFA412", "dark": "#E6B039" },
+      "gray": { "light": "#878CA0", "dark": "#9A9EB0" }
+    },
+    "avatar": {
+      "note": "The DS human-avatar pairs (E14, LC-223): filled circles for people. Two of the DS trio are taken verbatim; its third (#D8EDE4/#1B6B50) sits inside the green band D12 excludes — green is the agent's alone — and is corrected on the DS side with the sync push. The agent tile never draws from these.",
+      "1-bg": { "light": "#DDE0F6", "dark": "#31345C" },
+      "1-fg": { "light": "#4043B8", "dark": "#B9BCF3" },
+      "2-bg": { "light": "#F3DFD2", "dark": "#4A3524" },
+      "2-fg": { "light": "#9A5A22", "dark": "#E5B98A" }
     }
   },
 

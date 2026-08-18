@@ -28,11 +28,11 @@
 ```
 
 - **Side panel:** 240px fixed, `--lc-bg`, right hairline `--lc-line`.
-  Padding 16px 12px. Logo row (22px owl + Familjen Grotesk 14.5/600),
+  Padding 16px 12px. Logo row (22px owl + Familjen Grotesk 15.5/700),
   **project actions** (below), section headers mono 10.5px uppercase `ink-3`
   (12px 8px 6px padding), project rows 28px (spec in components.md § App
-  shell). Footer pinned to bottom: mono micro line `v0 · local · no account`
-  (`ink-disabled`), then the waitlist ghost button (30px) — NOT IN V0. In v0:
+  shell). Footer: none — the trust line came off the shell (LC-223 review);
+  the waitlist ghost button beneath it was already NOT IN V0. In v0:
   **Starred**, **Local** — nothing else, no Teams stubs.
 - **Project actions:** directly under the lockup and above the sections,
   separated from them by a bottom hairline `--lc-line` (16px padding below).
@@ -60,11 +60,11 @@
   holds starring, hovering to `line-strong` — a step above the row's own `wash`, or pointing at the control reads as pointing at the row (LC-208). Unreachable projects swap the dot for a 12px warn
   triangle in `--lc-warn` and dim the name to `ink-3`; the row stays in
   place and stays clickable.
-- **Active row:** `accent-human-soft` bg, `ink` text, 500 weight.
-- **Content header:** padding 16px 24px 12px. Project name
-  (`--lc-type-title`), settings gear (ghost icon button), path chip (mono
-  12px, folder glyph, click copies, hover `wash`), disk-state indicator
-  (below), spacer, filter field (190×28px), **ordering control** (ghost,
+- **Active row:** `line-soft` bg, `ink` text, 600 weight.
+- **Content header:** a 62px band, hairline below, 18px sides. Project
+  name (`--lc-type-title` at 16.5px) stacked over the path chip (mono
+  10.5px, folder glyph, click copies, hover `wash`); gear 26px, hover fills; disk-state indicator
+  (below), spacer, filter field (180×30px), **ordering control** (ghost,
   `Order: Priority|Manual`, opens the ordering menu — ADR 0003), view
   segment (Board | List), primary **New ticket** button with `C` kbd chip.
 - **Disk-state indicator:** mono 10px. While a write is in flight:
@@ -111,17 +111,17 @@
 
 ## Theme picker (creation · settings · palette)
 
-Per components.md: 44×28px pair swatches (⅔ human / ⅓ agent), radius 5,
-preset name in `--lc-type-micro` below, selected = `accent-human` border +
-focus ring. Four presets: Indigo (default) · Clay · Slate · Plum. Selection
+Per components.md: a stack of preset cards, each a 36×22px pair swatch
+(⅔ human / ⅓ agent) beside its 12.5px name, the chosen card wearing the
+accent border, ring and ✓. Presets: Indigo (default) · Clay · Slate · Plum. Selection
 applies instantly — a 150ms crossfade of accent surfaces only; no layout
 movement. No custom-color affordance exists anywhere.
 
 ## Board
 
-- Horizontal scroller, padding 8px 24px 20px, column gap 12px.
-- **Column:** 264px fixed. Header row: status dot 14px + name 13px/500
-  `ink-2` + mono count 11px `ink-3` + always-visible `+`: quick create
+- Horizontal scroller, padding 16px 18px 20px, column gap 16px.
+- **Column:** 258px fixed. Header row: plain 8px status dot + one mono
+  11px +0.09em uppercase `ink-3` run of name · count + always-visible `+`: quick create
   preseeded with that column's status; a bare 13px glyph, no fill or border, in
   a 24px hit area (LC-209). Card stack gap 8px; columns scroll independently.
 - Column order = status order: Backlog · Todo · In Progress · In Review ·
@@ -321,12 +321,12 @@ movement. No custom-color affordance exists anywhere.
   glyph; current value shows a trailing human-accent check. Arrow keys
   cycle, Enter picks, Esc returns focus to the trigger. Opened from the
   keyboard (`S`/`P`) the menu anchors to the focused card/row. The
-  ordering menu carries the mono footnote "Ordering is a view preference
-  on this board — it never rewrites files."
+  ordering menu offers **Priority** and **Manual** and nothing else — the
+  footnote it carried came off at the LC-223 review.
 
 ## Project settings
 
-- Right-hand panel over a scrim, with a side nav of sections (LC-208),
+- Right-hand panel beside the live board, with a side nav of sections (LC-208),
   opened from the gear's menu or `⌘,`. General: Name + Key (key input disabled once any ticket exists, mono note "locked after first ticket") · Folder (read-only
   mono path + **Locate…**) · Theme picker · Appearance segment (System /
   Light / Dark — explicitly labeled an app preference, not project data) ·
@@ -362,7 +362,7 @@ movement. No custom-color affordance exists anywhere.
 | Hover/press feedback | `--lc-motion-fast` 80ms | bg/border only, no transforms |
 | Checklist check, status change, card reorder | `--lc-motion-state` 120ms | |
 | Panel slide-in, modal rise, palette, theme crossfade, appearance switch | `--lc-motion-panel` 150ms | theme/appearance transition colors only — nothing moves |
-| Agent pulse | `lc-pulse` 900ms × 2 | the one long motion; never loops beyond two beats |
+| Agent pulse | `lc-pulse` 1.8s loop | the one long motion; ends when the state decays    |
 | Skeleton shimmer | 1.2s linear | loading only |
 
 All motion communicates a state change; nothing is ornamental. Nothing

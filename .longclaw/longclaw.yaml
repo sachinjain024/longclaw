@@ -2,7 +2,7 @@ format: longclaw.project/v1
 id: dbcd4374-b77f-44a5-b926-bfbda808f056
 name: LongClaw
 key: LC
-theme: graphite
+theme: clay
 created_at: 2026-08-05T14:15:23Z
 people: {}
 labels:

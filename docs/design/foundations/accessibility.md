@@ -16,34 +16,34 @@
 |---|---|---|---:|---|
 | system · light | ink on bg | `#171923` on `#F4F5F8` | 16.06 | pass |
 | system · light | ink-2 on bg | `#4C5165` on `#F4F5F8` | 7.21 | pass |
-| system · light | ink-3 on bg | `#666B80` on `#F4F5F8` | 4.84 | pass |
+| system · light | ink-3 on bg | `#686D80` on `#F4F5F8` | 4.71 | pass |
 | system · light | ink on surface | `#171923` on `#FFFFFF` | 17.50 | pass |
 | system · light | ink-2 on surface | `#4C5165` on `#FFFFFF` | 7.86 | pass |
-| system · light | ink-3 on surface | `#666B80` on `#FFFFFF` | 5.28 | pass |
+| system · light | ink-3 on surface | `#686D80` on `#FFFFFF` | 5.14 | pass |
 | system · light | ink on wash | `#171923` on `#EEF0F5` | 15.35 | pass |
 | system · light | ink-2 on wash | `#4C5165` on `#EEF0F5` | 6.89 | pass |
-| system · light | ink-3 on wash | `#666B80` on `#EEF0F5` | 4.63 | pass |
+| system · light | ink-3 on wash | `#686D80` on `#EEF0F5` | 4.51 | pass |
 | system · light | toast text on toast | `#FFFFFF` on `#171923` | 17.50 | pass |
 | system · light | toast secondary on toast | `#A6AABC` on `#171923` | 7.58 | pass |
-| system · light | warn text on surface | `#9A5008` on `#FFFFFF` | 5.96 | pass |
-| system · light | warn text on warn banner | `#9A5008` on `#FBF3E8` | 5.41 | pass |
+| system · light | warn text on surface | `#B45309` on `#FFFFFF` | 5.02 | pass |
+| system · light | warn text on warn banner | `#B45309` on `#FBF3E8` | 4.56 | pass |
 | system · light | warn secondary on warn banner | `#7D5F33` on `#FBF3E8` | 5.37 | pass |
-| system · light | danger text on surface | `#C43A3A` on `#FFFFFF` | 5.23 | pass |
-| system · light | danger text on danger surface | `#C43A3A` on `#FBEFEF` | 4.66 | pass |
+| system · light | danger text on surface | `#C9393B` on `#FFFFFF` | 5.08 | pass |
+| system · light | danger text on danger surface | `#C9393B` on `#FBEFEF` | 4.52 | pass |
 | system · light | priority P1–P4 chip text on bg | `#5A5F75` on `#F4F5F8` | 5.79 | pass |
 | system · light | priority P1–P4 chip text on surface | `#5A5F75` on `#FFFFFF` | 6.31 | pass |
 | system · dark | ink on bg | `#E9EAF2` on `#0F1015` | 15.85 | pass |
 | system · dark | ink-2 on bg | `#A6AABC` on `#0F1015` | 8.23 | pass |
-| system · dark | ink-3 on bg | `#8A8FA3` on `#0F1015` | 5.92 | pass |
+| system · dark | ink-3 on bg | `#7F8599` on `#0F1015` | 5.17 | pass |
 | system · dark | ink on surface | `#E9EAF2` on `#16171E` | 14.90 | pass |
 | system · dark | ink-2 on surface | `#A6AABC` on `#16171E` | 7.74 | pass |
-| system · dark | ink-3 on surface | `#8A8FA3` on `#16171E` | 5.56 | pass |
+| system · dark | ink-3 on surface | `#7F8599` on `#16171E` | 4.86 | pass |
 | system · dark | ink on raised | `#E9EAF2` on `#1C1E27` | 13.85 | pass |
 | system · dark | ink-2 on raised | `#A6AABC` on `#1C1E27` | 7.20 | pass |
-| system · dark | ink-3 on raised | `#8A8FA3` on `#1C1E27` | 5.17 | pass |
+| system · dark | ink-3 on raised | `#7F8599` on `#1C1E27` | 4.52 | pass |
 | system · dark | ink on wash | `#E9EAF2` on `#1C1E27` | 13.85 | pass |
 | system · dark | ink-2 on wash | `#A6AABC` on `#1C1E27` | 7.20 | pass |
-| system · dark | ink-3 on wash | `#8A8FA3` on `#1C1E27` | 5.17 | pass |
+| system · dark | ink-3 on wash | `#7F8599` on `#1C1E27` | 4.52 | pass |
 | system · dark | toast text on toast | `#171923` on `#E9EAF2` | 14.60 | pass |
 | system · dark | toast secondary on toast | `#5A5F75` on `#E9EAF2` | 5.26 | pass |
 | system · dark | warn text on surface | `#D98E3E` on `#16171E` | 6.71 | pass |
@@ -119,30 +119,30 @@
 
 | Scope | Pair | Colors | Ratio | Result |
 |---|---|---|---:|---|
-| system · light | status backlog on bg | `#82879B` on `#F4F5F8` | 3.27 | pass |
-| system · light | status todo on bg | `#82879B` on `#F4F5F8` | 3.27 | pass |
-| system · light | status in-progress on bg | `#B47D0A` on `#F4F5F8` | 3.28 | pass |
-| system · light | status in-review on bg | `#C25C1B` on `#F4F5F8` | 3.98 | pass |
-| system · light | status canceled on bg | `#82879B` on `#F4F5F8` | 3.27 | pass |
-| system · light | priority urgent on bg | `#C2591D` on `#F4F5F8` | 4.06 | pass |
-| system · light | status backlog on surface | `#82879B` on `#FFFFFF` | 3.57 | pass |
-| system · light | status todo on surface | `#82879B` on `#FFFFFF` | 3.57 | pass |
-| system · light | status in-progress on surface | `#B47D0A` on `#FFFFFF` | 3.57 | pass |
-| system · light | status in-review on surface | `#C25C1B` on `#FFFFFF` | 4.34 | pass |
-| system · light | status canceled on surface | `#82879B` on `#FFFFFF` | 3.57 | pass |
-| system · light | priority urgent on surface | `#C2591D` on `#FFFFFF` | 4.43 | pass |
-| system · light | urgent mark on urgent fill | `#FFFFFF` on `#C2591D` | 4.43 | pass |
-| system · dark | status backlog on bg | `#767B90` on `#0F1015` | 4.53 | pass |
-| system · dark | status todo on bg | `#8A8FA3` on `#0F1015` | 5.92 | pass |
+| system · light | status backlog on bg | `#878CA0` on `#F4F5F8` | 3.06 | pass |
+| system · light | status todo on bg | `#878CA0` on `#F4F5F8` | 3.06 | pass |
+| system · light | status in-progress on bg | `#C28000` on `#F4F5F8` | 3.02 | pass |
+| system · light | status in-review on bg | `#DF6E23` on `#F4F5F8` | 3.01 | pass |
+| system · light | status canceled on bg | `#878CA0` on `#F4F5F8` | 3.06 | pass |
+| system · light | priority urgent on bg | `#DB7129` on `#F4F5F8` | 3.01 | pass |
+| system · light | status backlog on surface | `#878CA0` on `#FFFFFF` | 3.34 | pass |
+| system · light | status todo on surface | `#878CA0` on `#FFFFFF` | 3.34 | pass |
+| system · light | status in-progress on surface | `#C28000` on `#FFFFFF` | 3.29 | pass |
+| system · light | status in-review on surface | `#DF6E23` on `#FFFFFF` | 3.29 | pass |
+| system · light | status canceled on surface | `#878CA0` on `#FFFFFF` | 3.34 | pass |
+| system · light | priority urgent on surface | `#DB7129` on `#FFFFFF` | 3.28 | pass |
+| system · light | urgent mark on urgent fill | `#FFFFFF` on `#DB7129` | 3.28 | pass |
+| system · dark | status backlog on bg | `#5F6375` on `#0F1015` | 3.19 | pass |
+| system · dark | status todo on bg | `#7E8398` on `#0F1015` | 5.05 | pass |
 | system · dark | status in-progress on bg | `#E7B23A` on `#0F1015` | 9.80 | pass |
 | system · dark | status in-review on bg | `#EC8B4C` on `#0F1015` | 7.57 | pass |
-| system · dark | status canceled on bg | `#767B90` on `#0F1015` | 4.53 | pass |
+| system · dark | status canceled on bg | `#5F6375` on `#0F1015` | 3.19 | pass |
 | system · dark | priority urgent on bg | `#E0762F` on `#0F1015` | 6.15 | pass |
-| system · dark | status backlog on surface | `#767B90` on `#16171E` | 4.26 | pass |
-| system · dark | status todo on surface | `#8A8FA3` on `#16171E` | 5.56 | pass |
+| system · dark | status backlog on surface | `#5F6375` on `#16171E` | 3.00 | pass |
+| system · dark | status todo on surface | `#7E8398` on `#16171E` | 4.75 | pass |
 | system · dark | status in-progress on surface | `#E7B23A` on `#16171E` | 9.21 | pass |
 | system · dark | status in-review on surface | `#EC8B4C` on `#16171E` | 7.12 | pass |
-| system · dark | status canceled on surface | `#767B90` on `#16171E` | 4.26 | pass |
+| system · dark | status canceled on surface | `#5F6375` on `#16171E` | 3.00 | pass |
 | system · dark | priority urgent on surface | `#E0762F` on `#16171E` | 5.79 | pass |
 | system · dark | urgent mark on urgent fill | `#101116` on `#E0762F` | 6.11 | pass |
 | indigo · light | human accent fill (done dot, selection) on surface | `#5B4DEF` on `#FFFFFF` | 5.60 | pass |

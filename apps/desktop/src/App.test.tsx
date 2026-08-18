@@ -1128,7 +1128,7 @@ describe("the project settings gear (LC-70)", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: /All settings/ }));
 
     expect(
-      screen.getByRole("dialog", { name: "Project settings" }),
+      screen.getByRole("region", { name: "Project settings" }),
     ).toBeTruthy();
   });
 
@@ -1187,14 +1187,14 @@ describe("the project settings gear (LC-70)", () => {
     await boardWithGear();
 
     fireEvent.keyDown(document, { key: ",", metaKey: true });
-    const panel = screen.getByRole("dialog", { name: "Project settings" });
+    const panel = screen.getByRole("region", { name: "Project settings" });
     expect(within(panel).getByRole("tab", { name: "General" })).toBeTruthy();
 
     // Pressing it again is a no-op: the panel's way out is `Esc`, and a chord
     // that also closed would fight the section the human just picked.
     fireEvent.keyDown(document, { key: ",", metaKey: true });
     expect(
-      screen.getByRole("dialog", { name: "Project settings" }),
+      screen.getByRole("region", { name: "Project settings" }),
     ).toBeTruthy();
   });
 
@@ -1216,7 +1216,7 @@ describe("the project settings gear (LC-70)", () => {
     fireEvent.keyDown(document, { key: ",", metaKey: true });
 
     expect(
-      screen.queryByRole("dialog", { name: "Project settings" }),
+      screen.queryByRole("region", { name: "Project settings" }),
     ).toBeNull();
     // The palette is still the layer, and still the only one.
     expect(document.querySelector(".command-palette")).toBeTruthy();
@@ -1231,7 +1231,7 @@ describe("the project settings gear (LC-70)", () => {
     fireEvent.keyDown(document, { key: ",", metaKey: true });
 
     expect(
-      screen.queryByRole("dialog", { name: "Project settings" }),
+      screen.queryByRole("region", { name: "Project settings" }),
     ).toBeNull();
     expect(screen.getByLabelText("Create a ticket")).toBeTruthy();
   });
@@ -1288,7 +1288,7 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
     await screen.findByRole("button", { name: "Board", pressed: true });
     fireEvent.click(screen.getByRole("button", { name: "Project settings" }));
     fireEvent.click(screen.getByRole("menuitem", { name: /All settings/ }));
-    const dialog = screen.getByRole("dialog", { name: "Project settings" });
+    const dialog = screen.getByRole("region", { name: "Project settings" });
     if (section !== "General")
       fireEvent.click(within(dialog).getByRole("tab", { name: section }));
     return dialog;
@@ -1297,16 +1297,37 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
   const confirmDialog = () =>
     screen.queryByRole("dialog", { name: /from LongClaw\?$/ });
 
-  it("D-40: opens on the scrim, over a board that stays where it was", async () => {
+  it("D-40: sits beside the board, which stays where it was", async () => {
     await openSettings();
 
-    // The scrim is a sibling since LC-208 — the panel is pinned to the right
-    // edge rather than centered inside it — so it is looked for where it is.
-    expect(document.querySelector(".modal-scrim.settings-scrim")).toBeTruthy();
+    // The scrim is gone (LC-223): the panel is the shell's third grid column,
+    // so the board compresses beside it and stays live instead of being
+    // covered by a click-away sheet.
+    expect(document.querySelector(".modal-scrim.settings-scrim")).toBeNull();
     // The inline section this replaces lived in the main panel and pushed
     // everything below it down the page.
     expect(document.querySelector(".main-panel .settings-panel")).toBeNull();
     expect(document.querySelector("[data-ticket-key]")).toBeTruthy();
+  });
+
+  it("closes the ticket panel when it opens — one record on the right edge", async () => {
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project,
+      tickets: [ticket],
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    render(<App />);
+    await screen.findByRole("button", { name: "Board", pressed: true });
+    fireEvent.click(document.querySelector("[data-ticket-key]")!);
+    expect(document.querySelector(".ticket-panel")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Project settings" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /All settings/ }));
+    screen.getByRole("region", { name: "Project settings" });
+    expect(document.querySelector(".ticket-panel")).toBeNull();
   });
 
   it("D-4K: says where every setting is written", async () => {
@@ -1395,7 +1416,7 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
     fireEvent.keyDown(confirm, { key: "Escape" });
     expect(confirmDialog()).toBeNull();
     expect(
-      screen.getByRole("dialog", { name: "Project settings" }),
+      screen.getByRole("region", { name: "Project settings" }),
     ).toBeTruthy();
     expect(api.removeProject).not.toHaveBeenCalled();
   });
@@ -1414,7 +1435,7 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
     );
     await waitFor(() =>
       expect(
-        screen.queryByRole("dialog", { name: "Project settings" }),
+        screen.queryByRole("region", { name: "Project settings" }),
       ).toBeNull(),
     );
   });
@@ -1439,29 +1460,18 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
     );
   });
 
-  it("Tab stays inside the panel, and `Esc` still closes it from the body", async () => {
+  it("Tab is free to leave the panel, and `Esc` still closes it from the body", async () => {
     const dialog = await openSettings();
 
-    // "Modals hold focus until dismissed" (`keyboard-focus-map.md:23-24`): Tab
-    // off the last control wraps to the first — the close ✕ — rather than
-    // landing on the board behind the scrim, where every stop is hidden.
+    // The trap went with the scrim (LC-223): the board beside the panel is
+    // live, so Tab is free to walk out of the panel instead of wrapping. The
+    // panel must not redirect the press — jsdom moves no focus on its own, so
+    // any movement here would be a handler still trapping.
     const last = within(dialog).getByRole("button", { name: "Locate…" });
     last.focus();
-    fireEvent.keyDown(last, { key: "Tab" });
-    expect(document.activeElement).toBe(
-      within(dialog).getByRole("button", { name: "Close settings" }),
-    );
-
-    // And the nav is a roving group, so Tab crosses it in one step rather than
-    // stopping on all six: only the open section is a stop.
-    fireEvent.keyDown(document.activeElement!, { key: "Tab" });
-    expect(document.activeElement).toBe(
-      within(dialog).getByRole("tab", { name: "General" }),
-    );
-    fireEvent.keyDown(document.activeElement!, { key: "Tab" });
-    expect(within(dialog).getByRole("tab", { name: "Theme" })).not.toBe(
-      document.activeElement,
-    );
+    const free = fireEvent.keyDown(last, { key: "Tab" });
+    expect(document.activeElement).toBe(last);
+    expect(free).toBe(true);
 
     // Clicking the panel's own heading leaves nothing focused, which used to
     // strand it: its `Esc` handler was on the element.
@@ -1470,7 +1480,7 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
 
     await waitFor(() =>
       expect(
-        screen.queryByRole("dialog", { name: "Project settings" }),
+        screen.queryByRole("region", { name: "Project settings" }),
       ).toBeNull(),
     );
   });
@@ -1492,7 +1502,7 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
 
     await waitFor(() =>
       expect(
-        screen.queryByRole("dialog", { name: "Project settings" }),
+        screen.queryByRole("region", { name: "Project settings" }),
       ).toBeNull(),
     );
     await waitFor(() => expect(document.activeElement).toBe(gear));
@@ -1510,7 +1520,7 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
 
     await waitFor(() =>
       expect(
-        screen.queryByRole("dialog", { name: "Project settings" }),
+        screen.queryByRole("region", { name: "Project settings" }),
       ).toBeNull(),
     );
     expect(
@@ -1652,7 +1662,7 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
     expect(api.updateProjectLabel).not.toHaveBeenCalled();
     // One press, one rung: the field answered it, so the dialog did not.
     expect(
-      screen.getByRole("dialog", { name: "Project settings" }),
+      screen.getByRole("region", { name: "Project settings" }),
     ).toBeTruthy();
   });
 
@@ -3528,16 +3538,17 @@ describe("board ordering and manual reordering (V0-09)", () => {
     expect(api.updateProjectName).not.toHaveBeenCalled();
   });
 
-  it("says in the menu that the choice never rewrites files", async () => {
+  it("offers Priority and Manual and nothing else (LC-223 review)", async () => {
     await openBoard([row("LC-1")]);
 
     fireEvent.click(screen.getByRole("button", { name: /^Order:/ }));
 
     expect(
-      screen.getByText(
-        "Ordering is a view preference on this board — it never rewrites files.",
-      ),
+      screen.getByRole("menuitemradio", { name: "Priority" }),
     ).toBeTruthy();
+    expect(screen.getByRole("menuitemradio", { name: "Manual" })).toBeTruthy();
+    // The footnote came off at the review: two options say everything.
+    expect(document.querySelector(".menu-footnote")).toBeNull();
   });
 
   it("keeps the choice for this project, and only this project", async () => {
@@ -4827,14 +4838,12 @@ describe("the app shell against its spec (LC-71, LC-72, LC-73)", () => {
     it("is the trust line and nothing else", async () => {
       await openBoard();
 
-      // `toBe`, not `toContain`. The spec draws a waitlist ghost button beneath
-      // this line, and LC-75 closed that as **cut from v0** on 2026-08-06 — so
-      // the footer's exact text is now a decision worth pinning rather than an
-      // open question to leave room for. Re-opening it means unparking Step 15
-      // and reviewing a submission endpoint (V0-38) first; this assertion is
-      // meant to be in the way until then.
-      const footer = document.querySelector(".side-panel-footer")!;
-      expect(footer.textContent).toBe("v0 · local · no account");
+      // The trust line came off the shell at the LC-223 review (2026-08-18):
+      // the sidebar footer holds nothing in v0, and the welcome screen is the
+      // one place the claim still renders. This assertion pins the absence the
+      // same way the old one pinned the text.
+      const footer = document.querySelector(".side-panel-footer");
+      expect(footer?.querySelector(".trust-line")).toBeFalsy();
     });
 
     it("offers no waitlist signup", async () => {
@@ -5271,12 +5280,12 @@ describe("a project with no tickets (LC-86 … LC-89)", () => {
       document.querySelectorAll<HTMLElement>(".board-column h3"),
     ).map((heading) => heading.textContent);
     expect(columns).toEqual([
-      "Backlog0",
-      "Todo0",
-      "In Progress0",
-      "In Review0",
-      "Done0",
-      "Canceled0",
+      "Backlog· 0",
+      "Todo· 0",
+      "In Progress· 0",
+      "In Review· 0",
+      "Done· 0",
+      "Canceled· 0",
     ]);
     const todo = screen
       .getByRole("heading", { name: /^Todo/ })

@@ -18,6 +18,12 @@
     <symbol id="status-todo" viewBox="0 0 14 14">
       <circle cx="7" cy="7" r="5" fill="none" stroke="var(--lc-status-todo, #82879B)" stroke-width="1.6"/>
     </symbol>
+    <!-- The board column header's dot: plain and filled, 8px — the header
+         text beside it is the identity (LC-223, screen-specs § Board). One
+         mark for every status; the status hue is the only variance. -->
+    <symbol id="column-dot" viewBox="0 0 8 8">
+      <circle cx="4" cy="4" r="4" fill="var(--lc-status-todo, #878CA0)"/>
+    </symbol>
     <!-- Non-default statuses: the same dot, filled with the status color
          (founder revision, decisions.md D3). Fill + same-color stroke so the
          visual weight matches the unfilled ring. -->

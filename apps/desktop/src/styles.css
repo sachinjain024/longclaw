@@ -6,6 +6,11 @@
   color: var(--lc-ink);
   background: var(--lc-bg);
   font-synthesis: none;
+  /* The prototype antialiases at its root — without this, macOS subpixel
+     rendering thickens every stem, most visibly light text on dark card
+     surfaces (LC-223 review). */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 * {
@@ -38,14 +43,14 @@ textarea:focus-visible,
 /* A scroll container the keyboard can reach is a stop like any other, and the
    raw file view's block is the one of those the app has (`RawFileView.tsx`). */
 [tabindex="0"]:focus-visible {
-  outline: var(--lc-border-focus) solid var(--lc-accent-human-ring);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: var(--lc-focus-ring);
 }
 
 /* 240px side panel and a flexible main region (`screen-specs.md:20-30`). */
 .app-shell {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: 240px minmax(0, 1fr) auto;
   min-height: 100vh;
 }
 
@@ -72,8 +77,9 @@ textarea:focus-visible,
 }
 
 .brand-lockup strong {
-  font: var(--lc-type-heading-weight) var(--lc-type-heading-size) /
-    var(--lc-type-heading-leading) var(--lc-font-display);
+  /* The DS wordmark: display 700 at 15.5, tightened -0.03em (LC-223, F1). */
+  font: 700 15.5px / var(--lc-type-heading-leading) var(--lc-font-display);
+  letter-spacing: -0.03em;
 }
 
 .owl-mark {
@@ -138,6 +144,8 @@ textarea:focus-visible,
   color: var(--lc-ink-3);
   font: var(--lc-type-label-weight) var(--lc-type-label-size) /
     var(--lc-type-label-leading) var(--lc-type-label-font);
+  /* The prototype sets these one size down from the label role. */
+  font-size: 10px;
   letter-spacing: var(--lc-type-label-tracking);
   text-transform: uppercase;
 }
@@ -164,14 +172,17 @@ textarea:focus-visible,
 
 .project-row:hover,
 .project-row:has(.row-menu-button.open) {
-  background: var(--lc-wash);
+  background: var(--lc-line-soft);
 }
 
 /* The active project, in the human accent — opening a project is a planning
    act (`components.md:275`). On the pair rather than the name, so the accent
    reaches the `⋮` at the row's end instead of stopping short of it. */
+/* The prototype's rule: accent means an actor acted; where-you-are renders
+   in neutrals. Selected is the hover fill made permanent, told apart by ink
+   and weight — the same grammar as the settings nav (LC-223, item 9). */
 .project-row.selected {
-  background: var(--lc-accent-human-soft);
+  background: var(--lc-line-soft);
 }
 
 .project-link {
@@ -190,11 +201,11 @@ textarea:focus-visible,
   transition: background var(--lc-motion-fast) var(--lc-motion-ease);
 }
 
-/* The pair paints the hover and the selected accent; the name only carries the
+/* The pair paints the hover and the selected fill; the name only carries the
    ink and the weight, so the two backgrounds cannot stack on one row. */
 .project-link.selected {
   color: var(--lc-ink);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .project-link strong {
@@ -239,7 +250,7 @@ textarea:focus-visible,
    starring moved into the row's own menu (LC-208). What is left is a mark. */
 .star-mark {
   flex: none;
-  color: var(--lc-accent-human-text);
+  color: var(--lc-ink-2);
   font-size: 11px;
   line-height: 1;
 }
@@ -291,30 +302,57 @@ textarea:focus-visible,
 
 .trust-line {
   padding: 0 var(--lc-space-2);
-  color: var(--lc-ink-disabled);
-  font: var(--lc-type-kbd-weight) var(--lc-type-kbd-size) /
-    var(--lc-type-kbd-leading) var(--lc-type-kbd-font);
+  color: var(--lc-ink-3);
+  font: 500 10.5px / var(--lc-type-kbd-leading) var(--lc-type-kbd-font);
   letter-spacing: var(--lc-type-kbd-tracking);
 }
 
 /* Field foundations — components.md:59-72. One box for every text control in
-   the app: 30px, 5px radius, 10px of padding, UI type, hairline `line-strong`. */
+   the app: 30px, 5px radius, 10px of padding, UI type, hairline `line-strong`.
+   `.input` is the same box as a class, for the fields that are not label
+   descendants — the settings and labels editors' inputs rendered browser
+   chrome at 16px before it existed (LC-223). Input text is content, so it
+   sits at 400; selects are pickers and keep the control voice. */
 label input,
 label select,
-label textarea {
+label textarea,
+.input {
   width: 100%;
   border: var(--lc-border-hairline) solid var(--lc-line-strong);
   border-radius: var(--lc-radius-control);
   color: var(--lc-ink);
   background: var(--lc-surface);
-  font: var(--lc-type-ui-weight) var(--lc-type-ui-size) /
-    var(--lc-type-ui-leading) var(--lc-type-ui-font);
+  font: 400 var(--lc-type-ui-size) / var(--lc-type-ui-leading)
+    var(--lc-type-ui-font);
+}
+
+label select {
+  font-weight: var(--lc-type-ui-weight);
 }
 
 label input,
-label select {
+label select,
+.input {
   height: var(--lc-size-control);
   padding: 0 10px;
+}
+
+/* Dense rows — the labels editor — take the prototype's 28px compact box. */
+.input.compact {
+  height: 28px;
+  padding: 0 9px;
+  font-size: var(--lc-type-small-size);
+}
+
+/* Where the value is really a file, the disk shows through (components.md:67). */
+.input.mono {
+  font-family: var(--lc-font-mono);
+  font-size: var(--lc-type-code-size);
+}
+
+.input.compact.mono {
+  padding: 0 8px;
+  font-size: 11px;
 }
 
 /* The focus treatment is the ring *and* an accent border on the control itself
@@ -331,9 +369,9 @@ textarea::placeholder {
   color: var(--lc-ink-3);
 }
 
-/* 24px of side inset, because that is what the content header and the board are
-   both specified against (`screen-specs.md:44`, `:122`) and every region in this
-   column shares it.
+/* 18px of side inset — the prototype's number for the header band and the
+   board scroller alike (`screen-specs.md:64`, `:122`) — and every region in
+   this column shares it.
 
    A column, so a region that asks for the height below the header can have it:
    `.workspace-state` is the one that does (LC-91). Every other child sizes to
@@ -342,7 +380,8 @@ textarea::placeholder {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  padding: 28px 24px;
+  /* No inset above the header band — it owns the top edge (LC-223). */
+  padding: 0 18px 24px;
 }
 
 .eyebrow {
@@ -393,6 +432,7 @@ h1 {
 .ghost.small {
   min-height: var(--lc-size-control-sm);
   padding: 0 9px;
+  font-size: 11.5px;
 }
 
 /* Chip anatomy, `components.md:85`: mono 10px/500 on `wash`, radius 3px,
@@ -714,10 +754,10 @@ button:disabled {
   min-width: 0;
 }
 
-/* 56px, which is the spec's number and not a coincidence: 16px above a 30px
-   control row and 12px below (`screen-specs.md:64`). The 24px side inset the
-   same line asks for comes from `.main-panel`, which insets every region in
-   this column at once rather than each one repeating it.
+/* The prototype's 62px band (`screen-specs.md:64`), hairline below, running
+   the main region's full width: the band escapes `.main-panel`'s side inset
+   with negative margins and restates it as padding, so its border reaches
+   both edges while its content stays aligned with the board.
 
    Wrapping is the last resort, not the layout: at any width that fits, this is
    one line. When it genuinely cannot be, the control row moves down whole —
@@ -728,12 +768,40 @@ button:disabled {
 .content-header {
   flex-wrap: wrap;
   gap: 12px;
-  padding: 16px 0 12px;
+  position: sticky;
+  z-index: var(--lc-z-sticky);
+  top: 0;
+  align-items: center;
+  min-height: 62px;
+  margin: 0 -18px;
+  border-bottom: 1px solid var(--lc-line);
+  padding: 0 18px;
+  background: var(--lc-bg);
+}
+
+.title-stack {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.path-line {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+}
+
+.content-header .path-chip {
+  color: var(--lc-ink-3);
+  font-size: 10.5px;
 }
 
 /* The row's own height comes from the 30px controls in it, so the name gives up
    the block margin it carries everywhere else. */
 .content-header h1 {
+  font-size: 16.5px;
   margin-bottom: 0;
   white-space: nowrap;
 }
@@ -745,9 +813,10 @@ button:disabled {
   align-items: center;
   justify-content: center;
   /* Square, so the shared 0 9px small padding (components.md:44) would skew it. */
-  width: var(--lc-size-control-sm);
+  width: 26px;
+  min-height: 26px;
   padding: 0;
-  color: var(--lc-ink-3);
+  color: var(--lc-ink-2);
   /* Only the gear reads as ink on hover, so the colour fade is scoped here
      rather than added to the shared foundation, where it would have put a
      third animated property on `button:disabled` — a state components.md:32
@@ -763,12 +832,11 @@ button:disabled {
 
 /* Held down while its menu is up (LC-208), because a menu anchored under a
    control that looks untouched reads as belonging to whatever is behind it. */
+/* Hover fills like every icon button now — the prototype's gear (D22,
+   superseding D16's colour-only fade). */
 .content-header .settings-button:hover,
 .content-header .settings-button.open {
   color: var(--lc-ink);
-}
-
-.content-header .settings-button.open {
   background: var(--lc-line-soft);
 }
 
@@ -1019,9 +1087,9 @@ button:disabled {
    the cards carry the surface and float on --lc-bg. */
 .board-grid {
   display: flex;
-  gap: var(--lc-space-3);
+  gap: var(--lc-space-4);
   align-items: flex-start;
-  padding: var(--lc-space-2) 0 var(--lc-space-5);
+  padding: var(--lc-space-4) 0 var(--lc-space-5);
   overflow-x: auto;
 }
 
@@ -1051,7 +1119,7 @@ button:disabled {
    stack scrolls inside it instead of stretching the page. */
 .board-column {
   display: flex;
-  width: 264px;
+  width: 258px;
   max-height: var(--lc-size-board-stack);
   flex: none;
   flex-direction: column;
@@ -1078,15 +1146,17 @@ button:disabled {
   align-items: center;
   gap: 7px;
   margin-bottom: 0;
-  color: var(--lc-ink-2);
-  font-size: var(--lc-type-ui-size);
-  font-weight: 500;
+  /* The prototype's column header: the mono label voice, one run with its
+     count, beside a plain filled dot (LC-223, item 22). */
+  color: var(--lc-ink-3);
+  font: var(--lc-type-label-weight) 11px / var(--lc-type-label-leading)
+    var(--lc-type-label-font);
+  letter-spacing: var(--lc-type-label-tracking);
+  text-transform: uppercase;
 }
 
 .board-column h3 span {
   color: var(--lc-ink-3);
-  font-family: var(--lc-type-code-font);
-  font-size: 11px;
 }
 
 /* The column's own control, in the far edge the header reserves for it
@@ -1171,10 +1241,14 @@ button:disabled {
   width: 100%;
   border: 1px dashed var(--lc-line-strong);
   border-radius: var(--lc-radius-card);
-  padding: 22px 12px;
+  padding: 16px 12px;
   color: var(--lc-ink-3);
   text-align: center;
   background: transparent;
+  /* The prototype's empty column speaks the tiny mono voice. Its ink-4 is
+     not taken: this card is interactive, and text below AA has no business
+     inviting a press. */
+  font: 500 10.5px/1.5 var(--lc-font-mono);
 }
 
 .guide-card:hover {
@@ -1190,12 +1264,13 @@ button:disabled {
   border-color: var(--lc-accent-human);
   outline: var(--lc-border-focus) solid var(--lc-accent-human-ring);
   outline-offset: calc(-1 * var(--lc-border-focus));
+  box-shadow: none;
 }
 
 .guide-card strong {
   color: var(--lc-ink-2);
-  font-size: var(--lc-type-ui-size);
-  font-weight: var(--lc-type-ui-weight);
+  font-size: 11px;
+  font-weight: 600;
 }
 
 /* Anatomy from `.kbd-chip`; the placement is this card's. The chip is the whole
@@ -1554,6 +1629,7 @@ button:disabled {
   border-color: var(--lc-accent-human);
   outline: var(--lc-border-focus) solid var(--lc-accent-human-ring);
   outline-offset: calc(-1 * var(--lc-border-focus));
+  box-shadow: var(--lc-shadow-card);
 }
 
 /* Spacing is the key row's, not the dot's: the dot leads the ID on a card
@@ -1644,36 +1720,25 @@ button:disabled {
    the *width* of that box is the wrapper's below, not this rule's, because the
    wrapper is what the control row can ask to give some of it up (LC-149). */
 .filter-field {
-  width: 100%;
   /* A definite width is a flex item's automatic minimum, and `100%` of a
      wrapper that has shrunk is the number this should follow. */
   min-width: 0;
-  height: 28px;
-  border: 1px solid var(--lc-line);
-  border-radius: var(--lc-radius-control);
   /* Right padding clears the ⌘F chip, so a long query runs under the chip
-     instead of colliding with it. */
-  padding: 0 34px 0 9px;
-  color: var(--lc-ink);
-  background: var(--lc-surface);
-  font-size: 12px;
-}
-
-.filter-field::placeholder {
-  color: var(--lc-ink-3);
+     instead of colliding with it. The box itself is the field foundation. */
+  padding-right: 34px;
 }
 
 /* The chip sits inside the field's right edge (`prototype.css:328`). It is
    `pointer-events: none` so the whole box still focuses the input — a chip that
    swallowed the click would make the last 34px of the field dead (LC-71).
-   190px wide, which is the field's own number (`screen-specs.md` § Content
+   180px wide, which is the field's own number (`screen-specs.md` § Content
    header): the chip
    is drawn inside the field, so the two are one box and only one of them can
    state its width. */
 .filter-wrap {
   position: relative;
   display: inline-flex;
-  width: 190px;
+  width: 180px;
   /* How short the field may get when the header is short of width (LC-149).
      Two things inside it are fixed whatever happens to the rest — 34px of right
      padding under the ⌘F chip and 9px of left padding — so 120px leaves ~77px
@@ -1696,7 +1761,11 @@ button:disabled {
   top: 50%;
   right: 6px;
   transform: translateY(-50%);
+  border-color: var(--lc-line-strong);
+  border-radius: var(--lc-radius-tile);
   padding: 1.5px 5px;
+  background: var(--lc-bg);
+  font-size: 9.5px;
   letter-spacing: var(--lc-type-kbd-tracking);
   pointer-events: none;
 }
@@ -1729,32 +1798,32 @@ button:disabled {
   font-weight: 700;
 }
 
-/* The header's ordering trigger is the small variant of the same control; it
-   states its height and its quieter border and borrows the type. */
-.ordering-control .menu-trigger {
-  height: var(--lc-size-control-sm);
-  border-color: var(--lc-line);
-}
-
 /* The segmented control, in the header for the view and in project settings for
    appearance (`screen-specs.md:331-332`, D-42). One rule for both: they are the
    same control — a short row of places to stand, one of them pressed. */
 .view-segment,
 .appearance-segment {
   display: inline-flex;
-  border: 1px solid var(--lc-line);
+  border: 1px solid var(--lc-line-strong);
   border-radius: var(--lc-radius-control);
   overflow: hidden;
 }
 
 .view-segment button,
 .appearance-segment button {
-  height: var(--lc-size-control-sm);
+  height: 28px;
   border: 0;
-  padding: 0 10px;
-  color: var(--lc-ink-3);
+  padding: 0 12px;
+  color: var(--lc-ink-2);
   background: transparent;
-  font-size: 12px;
+  font-size: var(--lc-type-small-size);
+}
+
+/* The prototype rules a hairline between neighbours — the segments read as
+   one control with internal walls, not a row of buttons. */
+.view-segment button + button,
+.appearance-segment button + button {
+  border-left: 1px solid var(--lc-line-strong);
 }
 
 .view-segment button:hover,
@@ -1764,17 +1833,15 @@ button:disabled {
 
 .view-segment button.selected,
 .appearance-segment button.selected {
-  color: var(--lc-accent-human-text);
-  background: var(--lc-accent-human-soft);
-  font-weight: 500;
+  color: var(--lc-ink);
+  background: var(--lc-line-soft);
+  font-weight: 600;
 }
 
-/* The dialog's is the full-size control: it stands on its own row rather than
-   beside a filter field, and 24px reads as a chip there. */
+/* The dialog's stands on its own row rather than beside a filter field, and
+   takes the prototype's roomier 16px sides. */
 .appearance-segment button {
-  height: var(--lc-size-control);
-  padding: 0 14px;
-  font-size: 12.5px;
+  padding: 0 16px;
 }
 
 /* One scroller for every group, unlike the board's six (screen-specs.md:169).
@@ -1969,6 +2036,7 @@ button:disabled {
 .list-row:focus-visible {
   outline: var(--lc-border-focus) solid var(--lc-accent-human-ring);
   outline-offset: -3px;
+  box-shadow: none;
 }
 
 .list-row.selected {
@@ -2067,6 +2135,15 @@ button:disabled {
    sliced in half. Nothing in the panel is elastic: it scrolls instead. */
 .ticket-panel > * {
   flex: none;
+}
+
+/* The prototype's menu entrance: a 3px drop and a fade, over the state
+   window — `lcMenuIn 120ms` in the prototype's own terms. */
+@keyframes lc-menu-in {
+  from {
+    transform: translateY(-3px);
+    opacity: 0;
+  }
 }
 
 @keyframes lc-panel-in {
@@ -2811,10 +2888,49 @@ button:disabled {
   font-weight: 400;
 }
 
-.checklist-row input {
+/* The DS checkbox pair (components.md § Checklist, LC-223): open is a
+   `check-border` frame, done is an `ink-3` fill with a surface check. Drawn on
+   the native input — appearance none, the check as two gradient strokes,
+   because WKWebView paints no pseudo-elements on <input>. */
+.checklist-row input,
+.create-more input {
   width: var(--lc-size-checkbox);
   height: var(--lc-size-checkbox);
-  accent-color: var(--lc-accent-human);
+  flex: none;
+  margin: 0;
+  /* The label-input foundation pads 0 10px, and border-box can shrink no
+     narrower than its padding — a 15px box rendered 23px wide without this. */
+  padding: 0;
+  appearance: none;
+  border: var(--lc-border-ring) solid var(--lc-check-border);
+  border-radius: var(--lc-radius-kbd);
+  background-color: var(--lc-surface);
+}
+
+.checklist-row input:checked,
+.create-more input:checked {
+  border-color: var(--lc-ink-3);
+  background-color: var(--lc-ink-3);
+  background-image:
+    linear-gradient(
+      45deg,
+      transparent calc(50% - 0.8px),
+      var(--lc-surface) calc(50% - 0.8px) calc(50% + 0.8px),
+      transparent calc(50% + 0.8px)
+    ),
+    linear-gradient(
+      135deg,
+      transparent calc(50% - 0.8px),
+      var(--lc-surface) calc(50% - 0.8px) calc(50% + 0.8px),
+      transparent calc(50% + 0.8px)
+    );
+  background-repeat: no-repeat;
+  background-position:
+    1.6px 5.6px,
+    4.4px 2.4px;
+  background-size:
+    3.4px 3.4px,
+    6.2px 6.2px;
 }
 
 /* Settled and done: an `ink-3` box and `ink-3` text with a line through it
@@ -2833,7 +2949,7 @@ button:disabled {
 }
 
 .checklist-row.checked input {
-  accent-color: var(--lc-ink-3);
+  border-color: var(--lc-ink-3);
 }
 
 /* A row an external write just ticked, until the ticket settles — in the colour
@@ -2844,24 +2960,27 @@ button:disabled {
   background: var(--lc-accent-agent-wash);
 }
 
-.checklist-row.acknowledged.acknowledged-agent input {
-  accent-color: var(--lc-accent-agent);
+.checklist-row.acknowledged.acknowledged-agent input:checked {
+  border-color: var(--lc-accent-agent);
+  background-color: var(--lc-accent-agent);
 }
 
 .checklist-row.acknowledged.acknowledged-human {
   background: var(--lc-accent-human-wash);
 }
 
-.checklist-row.acknowledged.acknowledged-human input {
-  accent-color: var(--lc-accent-human);
+.checklist-row.acknowledged.acknowledged-human input:checked {
+  border-color: var(--lc-accent-human);
+  background-color: var(--lc-accent-human);
 }
 
 .checklist-row.acknowledged.acknowledged-unknown {
   background: var(--lc-warn-surface);
 }
 
-.checklist-row.acknowledged.acknowledged-unknown input {
-  accent-color: var(--lc-warn);
+.checklist-row.acknowledged.acknowledged-unknown input:checked {
+  border-color: var(--lc-warn);
+  background-color: var(--lc-warn);
 }
 
 /* The acknowledgement outranks checked (`components.md:219`): a row an agent ticked while the
@@ -3037,6 +3156,24 @@ button:disabled {
   border: var(--lc-border-hairline) solid var(--lc-line-strong);
   border-radius: 50%;
   color: var(--lc-ink-3);
+}
+
+/* Humans are filled circles in the DS hue pairs (E14, LC-223); the border
+   goes — the fill is the shape. The agent tile stays exactly as it is. */
+.actor-tile.human-1,
+.actor-tile.human-2 {
+  border: 0;
+  font-weight: 600;
+}
+
+.actor-tile.human-1 {
+  color: var(--lc-avatar-1-fg);
+  background: var(--lc-avatar-1-bg);
+}
+
+.actor-tile.human-2 {
+  color: var(--lc-avatar-2-fg);
+  background: var(--lc-avatar-2-bg);
   font-size: 11px;
 }
 
@@ -3689,9 +3826,9 @@ button:disabled {
   background: var(--lc-accent-agent);
 }
 
-/* The theme picker (`screen-specs.md:112-118`): 44×28 pair swatches, radius 5,
-   preset name in micro type below, selected = human-accent border + ring.
-   The radio itself is visually hidden; the label is the target. */
+/* The theme picker (`screen-specs.md:112-118`): a stack of preset cards,
+   36×22 pair swatch beside the name, selected = accent border, ring and ✓.
+   The radio itself is visually hidden; the card label is the target. */
 .theme-picker {
   margin: 0;
   border: 0;
@@ -3699,23 +3836,45 @@ button:disabled {
 }
 
 .theme-picker legend {
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   padding: 0;
   color: var(--lc-ink-2);
-  font: var(--lc-type-ui-weight) var(--lc-type-ui-size) /
-    var(--lc-type-ui-leading) var(--lc-type-ui-font);
+  font: 500 12px/1.4 var(--lc-font-ui);
 }
 
+/* The prototype's preset cards: a vertical stack of rows, each a swatch pair
+   beside its name, the chosen one wearing the accent border, ring and check.
+   Replaces the bare horizontal swatch strip (LC-223, item 15). */
 .theme-picker-options {
-  display: flex;
-  gap: 10px;
+  display: grid;
+  gap: 6px;
+  max-width: 280px;
 }
 
 .theme-option {
-  display: grid;
-  justify-items: center;
-  gap: 4px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  border: var(--lc-border-ring) solid var(--lc-line-strong);
+  border-radius: var(--lc-radius-control);
+  padding: 5px 10px;
+  background: var(--lc-surface);
   cursor: pointer;
+}
+
+.theme-option.selected {
+  border-color: var(--lc-accent-human);
+  box-shadow: var(--lc-focus-ring);
+}
+
+.theme-option:has(input:focus-visible) {
+  border-color: var(--lc-accent-human);
+  box-shadow: var(--lc-focus-ring);
+}
+
+.theme-option-check {
+  margin-left: auto;
+  color: var(--lc-accent-human-text);
 }
 
 .theme-option input {
@@ -3743,28 +3902,19 @@ button:disabled {
 }
 
 .theme-option .theme-swatch {
-  width: 44px;
-  height: 28px;
-  border-radius: var(--lc-radius-control);
-}
-
-.theme-option.selected .theme-swatch {
-  border-color: var(--lc-accent-human);
-  box-shadow: var(--lc-focus-ring);
-}
-
-.theme-option input:focus-visible + .theme-swatch {
-  box-shadow: var(--lc-focus-ring);
+  width: 36px;
+  height: 22px;
+  border-radius: var(--lc-radius-tile);
 }
 
 .theme-option-name {
-  color: var(--lc-ink-3);
-  font: var(--lc-type-micro-weight) var(--lc-type-micro-size) /
-    var(--lc-type-micro-leading) var(--lc-type-micro-font);
+  color: var(--lc-ink-2);
+  font: 400 var(--lc-type-small-size) / 1.35 var(--lc-font-ui);
 }
 
 .theme-option.selected .theme-option-name {
   color: var(--lc-ink);
+  font-weight: 600;
 }
 
 /* The 150ms theme/appearance crossfade (`screen-specs.md:364`): while the root
@@ -3955,22 +4105,9 @@ html.theme-transition *::after {
   align-items: center;
   margin-left: auto;
   color: var(--lc-ink-2);
-  font-size: var(--lc-type-micro-size);
+  font-size: 11.5px;
   font-weight: 500;
   white-space: nowrap;
-  cursor: pointer;
-}
-
-/* Sized, because `label input` is the app's *text field* foundation — 100%
-   wide, 30px tall, hairline border — and a checkbox inside a label collects it
-   and disappears. The checklist's rows answer this the same way, with the same
-   token and the same accent. */
-.create-more input {
-  width: var(--lc-size-checkbox);
-  height: var(--lc-size-checkbox);
-  flex: none;
-  margin: 0;
-  accent-color: var(--lc-accent-human);
   cursor: pointer;
 }
 
@@ -3987,10 +4124,11 @@ html.theme-transition *::after {
 
 .toast {
   display: flex;
-  gap: var(--lc-space-3);
+  gap: 10px;
   align-items: center;
   border-radius: var(--lc-radius-card);
-  padding: var(--lc-space-2) var(--lc-space-4);
+  /* The DS Toast's own numbers — 9px 12px, 10px gap — not the space scale. */
+  padding: 9px 12px;
   color: var(--lc-inverse-ink);
   background: var(--lc-inverse-surface);
   box-shadow: var(--lc-shadow-overlay);
@@ -4088,7 +4226,8 @@ html.theme-transition *::after {
   border-radius: var(--lc-radius-panel);
   padding: 5px;
   background: var(--lc-raised);
-  box-shadow: var(--lc-shadow-overlay);
+  box-shadow: var(--lc-shadow-menu);
+  animation: lc-menu-in var(--lc-motion-state) var(--lc-motion-ease);
 }
 
 /* `width: 100%` is load-bearing, not belt-and-braces. A `<button>` sizes to
@@ -4109,9 +4248,15 @@ html.theme-transition *::after {
   padding: 0 var(--lc-space-2);
   color: var(--lc-ink);
   background: none;
-  font-size: var(--lc-type-small-size);
+  font-size: var(--lc-type-ui-size);
   text-align: left;
   cursor: pointer;
+}
+
+/* The submenu's rows sit a step tighter than its parent's (the prototype's
+   28 against 30) — a child surface, not a second menu. */
+.menu-sub .menu-row {
+  height: 28px;
 }
 
 /* The popover is `raised`, so its rows hover to the raised step for the same
@@ -4189,7 +4334,7 @@ html.theme-transition *::after {
 .menu-hint {
   flex: none;
   color: var(--lc-ink-3);
-  font-size: var(--lc-type-micro-size);
+  font-size: 11.5px;
 }
 
 .menu-hint kbd,
@@ -4202,7 +4347,7 @@ html.theme-transition *::after {
 .menu-rule {
   height: 1px;
   border: 0;
-  margin: var(--lc-space-1) var(--lc-space-1);
+  margin: 5px var(--lc-space-1);
   background: var(--lc-line-soft);
 }
 
@@ -4244,7 +4389,7 @@ html.theme-transition *::after {
 }
 
 /* The swatch stands in for a glyph on the theme rows, at the size a glyph
-   would have been rather than the picker's 44×28. */
+   would have been rather than the picker card's 36×22. */
 .menu-row .theme-swatch {
   width: 16px;
   height: 11px;
@@ -4257,7 +4402,7 @@ html.theme-transition *::after {
   align-items: center;
   border: 1px solid var(--lc-line-strong);
   border-radius: var(--lc-radius-control);
-  padding: 0 var(--lc-space-2);
+  padding: 0 10px;
   color: var(--lc-ink);
   background: var(--lc-surface);
   font: var(--lc-type-ui-weight) var(--lc-type-ui-size) /
@@ -4275,7 +4420,8 @@ html.theme-transition *::after {
 }
 
 /* Label chip — components.md:75-80. The dot is reinforcement; the text is the
-   identifier, so it is always drawn. */
+   identifier, so it is always drawn. Chip text is the DS Chip's own 11.5/500,
+   not the micro role — micro is the 10.5 mono voice again (F6, LC-223). */
 .label-chip {
   display: inline-flex;
   height: 22px;
@@ -4287,12 +4433,14 @@ html.theme-transition *::after {
   color: var(--lc-ink-2);
   background: var(--lc-surface);
   font-family: var(--lc-font-ui);
-  font-size: var(--lc-type-micro-size);
+  font-size: 11.5px;
   font-weight: 500;
   white-space: nowrap;
 }
 
 .label-chip.small {
+  padding: 0 7px;
+  font-size: 10.5px;
   height: 19px;
   padding: 0 6px;
 }
@@ -4321,34 +4469,42 @@ html.theme-transition *::after {
 }
 
 .label-dot.label-blue {
+  color: var(--lc-label-blue);
   background: var(--lc-label-blue);
 }
 
 .label-dot.label-cyan {
+  color: var(--lc-label-cyan);
   background: var(--lc-label-cyan);
 }
 
 .label-dot.label-purple {
+  color: var(--lc-label-purple);
   background: var(--lc-label-purple);
 }
 
 .label-dot.label-pink {
+  color: var(--lc-label-pink);
   background: var(--lc-label-pink);
 }
 
 .label-dot.label-red {
+  color: var(--lc-label-red);
   background: var(--lc-label-red);
 }
 
 .label-dot.label-orange {
+  color: var(--lc-label-orange);
   background: var(--lc-label-orange);
 }
 
 .label-dot.label-amber {
+  color: var(--lc-label-amber);
   background: var(--lc-label-amber);
 }
 
 .label-dot.label-gray {
+  color: var(--lc-label-gray);
   background: var(--lc-label-gray);
 }
 
@@ -4392,28 +4548,20 @@ html.theme-transition *::after {
    and one section at a time, because a single scrolling column of every section
    the project has made the gear the slowest control in the app.
 
-   The scrim stays. Without it two panels share the right edge and the ticket
-   panel is underneath, unreachable and half-covered — and the scrim is what
-   makes `keyboard-focus-map.md:143-148` true, since a trapped Tab over a
-   surface a person can still see and click is worse than either alone. */
-.settings-scrim {
-  display: block;
-  padding: 0;
-}
-
+   The scrim is gone with LC-223: the panel sits in the shell's third grid
+   column, the prototype's arrangement, so the board compresses beside it and
+   stays live — a preset can be tried against the surface it changes. The
+   right edge holds one record at a time (opening settings closes the ticket
+   panel in `App.tsx`), which is what the scrim existed to fake. */
 .settings-panel {
-  position: fixed;
-  z-index: var(--lc-z-modal);
-  top: 0;
-  right: 0;
-  bottom: 0;
+  grid-area: 1 / 3;
   display: flex;
   flex-direction: column;
-  width: min(620px, 92vw);
+  width: min(620px, 48vw);
+  height: 100vh;
   overflow: hidden;
   border-left: 1px solid var(--lc-line);
   background: var(--lc-surface);
-  box-shadow: var(--lc-shadow-overlay);
   /* The panel slide, not the modal rise: it arrives from the edge it lives on,
      which is the motion the ticket panel already states. */
   animation: lc-panel-in var(--lc-motion-panel) ease-out;
@@ -4454,15 +4602,23 @@ html.theme-transition *::after {
 /* The file every section writes to, said once at the top rather than under each
    pane (D-4K). It is the claim the panel rests on: these are lines in a file
    inside the folder, not rows in an app database somewhere else. */
+.settings-head h2 {
+  font-size: 15px;
+}
+
+.settings-close {
+  width: var(--lc-size-control-sm);
+  padding: 0;
+}
+
 .settings-file {
   flex: none;
   border: 1px solid var(--lc-line);
-  border-radius: var(--lc-radius-control);
+  border-radius: var(--lc-radius-tile);
   padding: 2px 7px;
   color: var(--lc-ink-3);
-  background: var(--lc-wash);
-  font: var(--lc-type-kbd-weight) var(--lc-type-kbd-size) /
-    var(--lc-type-kbd-leading) var(--lc-type-kbd-font);
+  background: var(--lc-bg);
+  font: 500 10.5px/1.2 var(--lc-font-mono);
 }
 
 .settings-split {
@@ -4550,7 +4706,7 @@ html.theme-transition *::after {
   flex: 1;
   min-width: 0;
   overflow-y: auto;
-  padding: var(--lc-space-4) var(--lc-space-5);
+  padding: 18px var(--lc-space-5);
 }
 
 .settings-section:focus-visible {
@@ -4562,8 +4718,8 @@ html.theme-transition *::after {
 .settings-subhead {
   margin-bottom: 16px;
   color: var(--lc-ink-2);
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: var(--lc-type-small-size);
+  line-height: 1.55;
 }
 
 /* The sentence a section closes with: the thing that is true about it and
@@ -4571,7 +4727,7 @@ html.theme-transition *::after {
 .settings-note {
   margin-top: 18px;
   color: var(--lc-ink-3);
-  font-size: var(--lc-type-micro-size);
+  font-size: 11.5px;
   line-height: 1.55;
 }
 
@@ -4599,13 +4755,14 @@ html.theme-transition *::after {
 .settings-label {
   display: block;
   margin-bottom: 6px;
-  color: var(--lc-ink-3);
-  font-size: var(--lc-type-micro-size);
+  color: var(--lc-ink-2);
+  font-size: 12px;
   font-weight: 500;
 }
 
 /* The exception a row carries when what it sets is not project data (D-42). */
 .settings-label-note {
+  color: var(--lc-ink-3);
   font-weight: 400;
 }
 
@@ -4621,9 +4778,17 @@ html.theme-transition *::after {
 
 /* Locked, and shown locked (D-41): the one setting nothing in the app can
    change, in the mono type every other key in the product wears. */
-.key-field {
-  width: 82px;
-  font-family: var(--lc-font-mono);
+/* The prototype's locked key: 44px, centred mono on the canvas fill,
+   quiet line border — a value on display, not a field inviting edits. */
+.input.key-field {
+  width: 44px;
+  height: 28px;
+  padding: 0;
+  text-align: center;
+  color: var(--lc-ink-3);
+  background: var(--lc-bg);
+  border-color: var(--lc-line);
+  font-size: var(--lc-type-code-size);
   text-transform: uppercase;
 }
 
@@ -4651,9 +4816,9 @@ html.theme-transition *::after {
   border-radius: var(--lc-radius-control);
   padding: 0 10px;
   color: var(--lc-ink-2);
-  background: var(--lc-wash);
+  background: var(--lc-bg);
   font-family: var(--lc-font-mono);
-  font-size: var(--lc-type-code-size);
+  font-size: 11px;
 }
 
 .picked-path .txt {
@@ -4736,12 +4901,11 @@ html.theme-transition *::after {
 .shortcut-list kbd {
   min-width: 10px;
   border: 1px solid var(--lc-line-strong);
-  border-radius: var(--lc-radius-kbd);
+  border-radius: var(--lc-radius-tile);
   padding: 2px 6px;
   color: var(--lc-ink-2);
-  background: var(--lc-wash);
-  font: var(--lc-type-kbd-weight) var(--lc-type-kbd-size) /
-    var(--lc-type-kbd-leading) var(--lc-type-kbd-font);
+  background: var(--lc-bg);
+  font: 500 10.5px/1.2 var(--lc-font-mono);
   text-align: center;
 }
 
@@ -4754,7 +4918,7 @@ html.theme-transition *::after {
 
 .label-settings p {
   color: var(--lc-ink-3);
-  font-size: var(--lc-type-micro-size);
+  font-size: 11.5px;
 }
 
 /* The subhead is the section's opening sentence wherever it appears, including
@@ -4801,7 +4965,7 @@ html.theme-transition *::after {
 
 .label-row .row-remove:hover,
 .label-row .row-remove:focus-visible {
-  color: var(--lc-ink);
+  color: var(--lc-danger);
 }
 
 /* One dot and a chevron, in the field box every other control in this panel
@@ -4846,7 +5010,7 @@ html.theme-transition *::after {
   border-radius: var(--lc-radius-card);
   padding: 9px 10px;
   background: var(--lc-raised);
-  box-shadow: var(--lc-shadow-overlay);
+  box-shadow: var(--lc-shadow-menu);
 }
 
 .label-color-swatch {
@@ -4861,12 +5025,27 @@ html.theme-transition *::after {
   cursor: pointer;
 }
 
+.label-color-trigger .label-dot {
+  width: 9px;
+  height: 9px;
+}
+
+.label-color-menu .label-dot {
+  width: 11px;
+  height: 11px;
+}
+
 .label-color-swatch:hover {
   border-color: var(--lc-line-strong);
 }
 
-.label-color-swatch.selected {
-  border-color: var(--lc-accent-human);
+/* Selection is a halo in the swatch's own hue (the prototype's
+   `0 0 0 2px surface, 0 0 0 3.5px color`), not the human accent — picking a
+   colour is about the colour. The hue classes set `color` for this ring. */
+.label-color-swatch.selected .label-dot {
+  box-shadow:
+    0 0 0 2px var(--lc-surface),
+    0 0 0 3.5px currentColor;
 }
 
 .label-color-swatch:focus-visible {

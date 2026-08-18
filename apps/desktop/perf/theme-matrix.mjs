@@ -320,7 +320,7 @@ const STATES = [
   },
   {
     name: "ordering-menu",
-    contrast: [".menu-popover .menu-label", ".menu-footnote"],
+    contrast: [".menu-popover .menu-label"],
     token: [],
     distinct: [],
   },

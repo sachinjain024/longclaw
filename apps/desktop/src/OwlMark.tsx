@@ -2,7 +2,7 @@
  * The LongClaw mark — chevron-and-ring, product-icon variant 4, the canonical
  * asset at `docs/design/foundations/assets/owl-mark.svg` (LC-62, selected
  * 2026-08-13; replaces variant A "talon" of decisions.md D13). The same mark
- * the OS shows: the app icon renders it white on #B45F06
+ * the OS shows: the app icon renders it white on the brand orange
  * (`assets/brand/app-icon/`).
  *
  * Single-color by construction: the fills and the ring stroke all take

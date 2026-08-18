@@ -1,0 +1,662 @@
+/* LongClaw theme tokens — generated from apps/desktop/src/tokens/design-tokens.json.
+ * DO NOT EDIT BY HAND. Regenerate with `npm run design:emit` in apps/desktop.
+ *
+ * Presets: indigo · clay · slate · plum · graphite (indigo is the default).
+ * The agent accent is constant across every preset — agent presence must read
+ * the same in every project (decisions.md D2).
+ *
+ * Contract: data-lc-theme="<preset>" is the theme, data-theme="light|dark" the
+ * appearance. Both may sit on the same element or on an ancestor.
+ * Load AFTER tokens/colors.css — these aliases override its hardcoded pair.
+ */
+
+/* fallback: indigo, light — so a bare document still renders */
+:root {
+  --accent-human: #5b4def;
+  --accent-human-text: #5b4def;
+  --accent-human-hover: color-mix(
+    in oklab,
+    var(--accent-human) 90%,
+    var(--ink)
+  );
+  --accent-human-active: color-mix(
+    in oklab,
+    var(--accent-human) 82%,
+    var(--ink)
+  );
+  --accent-human-soft: color-mix(
+    in oklab,
+    var(--accent-human) 10%,
+    var(--surface)
+  );
+  --on-accent-human: #ffffff;
+  --accent-agent: #12946a;
+  --accent-agent-text: #0b7d59;
+  --accent-agent-hover: color-mix(
+    in oklab,
+    var(--accent-agent) 90%,
+    var(--ink)
+  );
+  --accent-agent-active: color-mix(
+    in oklab,
+    var(--accent-agent) 82%,
+    var(--ink)
+  );
+  --accent-agent-soft: color-mix(
+    in oklab,
+    var(--accent-agent) 10%,
+    var(--surface)
+  );
+  --on-accent-agent: #ffffff;
+  /* v1 aliases — every component in this project reads these names. */
+  --human: var(--accent-human);
+  --agent: var(--accent-agent);
+  --on-human: var(--on-accent-human);
+  --on-agent: var(--on-accent-agent);
+  --human-tint: var(--accent-human-soft);
+  --agent-tint: var(--accent-agent-soft);
+  --focus-ring: color-mix(in oklab, var(--accent-human) 14%, transparent);
+  --agent-ring: color-mix(in oklab, var(--accent-agent) 10%, transparent);
+  --agent-border: color-mix(in oklab, var(--accent-agent) 38%, var(--line));
+  --status-done: var(--accent-human);
+}
+
+[data-theme="light"] {
+  --accent-human: #5b4def;
+  --accent-human-text: #5b4def;
+  --accent-human-hover: color-mix(
+    in oklab,
+    var(--accent-human) 90%,
+    var(--ink)
+  );
+  --accent-human-active: color-mix(
+    in oklab,
+    var(--accent-human) 82%,
+    var(--ink)
+  );
+  --accent-human-soft: color-mix(
+    in oklab,
+    var(--accent-human) 10%,
+    var(--surface)
+  );
+  --on-accent-human: #ffffff;
+  --accent-agent: #12946a;
+  --accent-agent-text: #0b7d59;
+  --accent-agent-hover: color-mix(
+    in oklab,
+    var(--accent-agent) 90%,
+    var(--ink)
+  );
+  --accent-agent-active: color-mix(
+    in oklab,
+    var(--accent-agent) 82%,
+    var(--ink)
+  );
+  --accent-agent-soft: color-mix(
+    in oklab,
+    var(--accent-agent) 10%,
+    var(--surface)
+  );
+  --on-accent-agent: #ffffff;
+  /* v1 aliases — every component in this project reads these names. */
+  --human: var(--accent-human);
+  --agent: var(--accent-agent);
+  --on-human: var(--on-accent-human);
+  --on-agent: var(--on-accent-agent);
+  --human-tint: var(--accent-human-soft);
+  --agent-tint: var(--accent-agent-soft);
+  --focus-ring: color-mix(in oklab, var(--accent-human) 14%, transparent);
+  --agent-ring: color-mix(in oklab, var(--accent-agent) 10%, transparent);
+  --agent-border: color-mix(in oklab, var(--accent-agent) 38%, var(--line));
+  --status-done: var(--accent-human);
+}
+
+[data-theme="dark"] {
+  --accent-human: #887df2;
+  --accent-human-text: #9c93f4;
+  --accent-human-hover: color-mix(
+    in oklab,
+    var(--accent-human) 90%,
+    var(--ink)
+  );
+  --accent-human-active: color-mix(
+    in oklab,
+    var(--accent-human) 82%,
+    var(--ink)
+  );
+  --accent-human-soft: color-mix(
+    in oklab,
+    var(--accent-human) 15%,
+    var(--surface)
+  );
+  --on-accent-human: #101116;
+  --accent-agent: #66d4a1;
+  --accent-agent-text: #66d4a1;
+  --accent-agent-hover: color-mix(
+    in oklab,
+    var(--accent-agent) 90%,
+    var(--ink)
+  );
+  --accent-agent-active: color-mix(
+    in oklab,
+    var(--accent-agent) 82%,
+    var(--ink)
+  );
+  --accent-agent-soft: color-mix(
+    in oklab,
+    var(--accent-agent) 15%,
+    var(--surface)
+  );
+  --on-accent-agent: #101116;
+  /* v1 aliases — every component in this project reads these names. */
+  --human: var(--accent-human);
+  --agent: var(--accent-agent);
+  --on-human: var(--on-accent-human);
+  --on-agent: var(--on-accent-agent);
+  --human-tint: var(--accent-human-soft);
+  --agent-tint: var(--accent-agent-soft);
+  --focus-ring: color-mix(in oklab, var(--accent-human) 18%, transparent);
+  --agent-ring: color-mix(in oklab, var(--accent-agent) 13%, transparent);
+  --agent-border: color-mix(in oklab, var(--accent-agent) 42%, var(--line));
+  --status-done: var(--accent-human);
+}
+
+[data-theme="light"][data-lc-theme="indigo"] {
+  --accent-human: #5b4def;
+  --accent-human-text: #5b4def;
+  --accent-human-hover: color-mix(
+    in oklab,
+    var(--accent-human) 90%,
+    var(--ink)
+  );
+  --accent-human-active: color-mix(
+    in oklab,
+    var(--accent-human) 82%,
+    var(--ink)
+  );
+  --accent-human-soft: color-mix(
+    in oklab,
+    var(--accent-human) 10%,
+    var(--surface)
+  );
+  --on-accent-human: #ffffff;
+  --accent-agent: #12946a;
+  --accent-agent-text: #0b7d59;
+  --accent-agent-hover: color-mix(
+    in oklab,
+    var(--accent-agent) 90%,
+    var(--ink)
+  );
+  --accent-agent-active: color-mix(
+    in oklab,
+    var(--accent-agent) 82%,
+    var(--ink)
+  );
+  --accent-agent-soft: color-mix(
+    in oklab,
+    var(--accent-agent) 10%,
+    var(--surface)
+  );
+  --on-accent-agent: #ffffff;
+  /* v1 aliases — every component in this project reads these names. */
+  --human: var(--accent-human);
+  --agent: var(--accent-agent);
+  --on-human: var(--on-accent-human);
+  --on-agent: var(--on-accent-agent);
+  --human-tint: var(--accent-human-soft);
+  --agent-tint: var(--accent-agent-soft);
+  --focus-ring: color-mix(in oklab, var(--accent-human) 14%, transparent);
+  --agent-ring: color-mix(in oklab, var(--accent-agent) 10%, transparent);
+  --agent-border: color-mix(in oklab, var(--accent-agent) 38%, var(--line));
+  --status-done: var(--accent-human);
+}
+
+[data-theme="dark"][data-lc-theme="indigo"] {
+  --accent-human: #887df2;
+  --accent-human-text: #9c93f4;
+  --accent-human-hover: color-mix(
+    in oklab,
+    var(--accent-human) 90%,
+    var(--ink)
+  );
+  --accent-human-active: color-mix(
+    in oklab,
+    var(--accent-human) 82%,
+    var(--ink)
+  );
+  --accent-human-soft: color-mix(
+    in oklab,
+    var(--accent-human) 15%,
+    var(--surface)
+  );
+  --on-accent-human: #101116;
+  --accent-agent: #66d4a1;
+  --accent-agent-text: #66d4a1;
+  --accent-agent-hover: color-mix(
+    in oklab,
+    var(--accent-agent) 90%,
+    var(--ink)
+  );
+  --accent-agent-active: color-mix(
+    in oklab,
+    var(--accent-agent) 82%,
+    var(--ink)
+  );
+  --accent-agent-soft: color-mix(
+    in oklab,
+    var(--accent-agent) 15%,
+    var(--surface)
+  );
+  --on-accent-agent: #101116;
+  /* v1 aliases — every component in this project reads these names. */
+  --human: var(--accent-human);
+  --agent: var(--accent-agent);
+  --on-human: var(--on-accent-human);
+  --on-agent: var(--on-accent-agent);
+  --human-tint: var(--accent-human-soft);
+  --agent-tint: var(--accent-agent-soft);
+  --focus-ring: color-mix(in oklab, var(--accent-human) 18%, transparent);
+  --agent-ring: color-mix(in oklab, var(--accent-agent) 13%, transparent);
+  --agent-border: color-mix(in oklab, var(--accent-agent) 42%, var(--line));
+  --status-done: var(--accent-human);
+}
+
+[data-theme="light"][data-lc-theme="clay"] {
+  --accent-human: #a9482c;
+  --accent-human-text: #a9482c;
+  --accent-human-hover: color-mix(
+    in oklab,
+    var(--accent-human) 90%,
+    var(--ink)
+  );
+  --accent-human-active: color-mix(
+    in oklab,
+    var(--accent-human) 82%,
+    var(--ink)
+  );
+  --accent-human-soft: color-mix(
+    in oklab,
+    var(--accent-human) 10%,
+    var(--surface)
+  );
+  --on-accent-human: #ffffff;
+  --accent-agent: #12946a;
+  --accent-agent-text: #0b7d59;
+  --accent-agent-hover: color-mix(
+    in oklab,
+    var(--accent-agent) 90%,
+    var(--ink)
+  );
+  --accent-agent-active: color-mix(
+    in oklab,
+    var(--accent-agent) 82%,
+    var(--ink)
+  );
+  --accent-agent-soft: color-mix(
+    in oklab,
+    var(--accent-agent) 10%,
+    var(--surface)
+  );
+  --on-accent-agent: #ffffff;
+  /* v1 aliases — every component in this project reads these names. */
+  --human: var(--accent-human);
+  --agent: var(--accent-agent);
+  --on-human: var(--on-accent-human);
+  --on-agent: var(--on-accent-agent);
+  --human-tint: var(--accent-human-soft);
+  --agent-tint: var(--accent-agent-soft);
+  --focus-ring: color-mix(in oklab, var(--accent-human) 14%, transparent);
+  --agent-ring: color-mix(in oklab, var(--accent-agent) 10%, transparent);
+  --agent-border: color-mix(in oklab, var(--accent-agent) 38%, var(--line));
+  --status-done: var(--accent-human);
+}
+
+[data-theme="dark"][data-lc-theme="clay"] {
+  --accent-human: #dd8a6c;
+  --accent-human-text: #dd8a6c;
+  --accent-human-hover: color-mix(
+    in oklab,
+    var(--accent-human) 90%,
+    var(--ink)
+  );
+  --accent-human-active: color-mix(
+    in oklab,
+    var(--accent-human) 82%,
+    var(--ink)
+  );
+  --accent-human-soft: color-mix(
+    in oklab,
+    var(--accent-human) 15%,
+    var(--surface)
+  );
+  --on-accent-human: #101116;
+  --accent-agent: #66d4a1;
+  --accent-agent-text: #66d4a1;
+  --accent-agent-hover: color-mix(
+    in oklab,
+    var(--accent-agent) 90%,
+    var(--ink)
+  );
+  --accent-agent-active: color-mix(
+    in oklab,
+    var(--accent-agent) 82%,
+    var(--ink)
+  );
+  --accent-agent-soft: color-mix(
+    in oklab,
+    var(--accent-agent) 15%,
+    var(--surface)
+  );
+  --on-accent-agent: #101116;
+  /* v1 aliases — every component in this project reads these names. */
+  --human: var(--accent-human);
+  --agent: var(--accent-agent);
+  --on-human: var(--on-accent-human);
+  --on-agent: var(--on-accent-agent);
+  --human-tint: var(--accent-human-soft);
+  --agent-tint: var(--accent-agent-soft);
+  --focus-ring: color-mix(in oklab, var(--accent-human) 18%, transparent);
+  --agent-ring: color-mix(in oklab, var(--accent-agent) 13%, transparent);
+  --agent-border: color-mix(in oklab, var(--accent-agent) 42%, var(--line));
+  --status-done: var(--accent-human);
+}
+
+[data-theme="light"][data-lc-theme="slate"] {
+  --accent-human: #3a62be;
+  --accent-human-text: #3a62be;
+  --accent-human-hover: color-mix(
+    in oklab,
+    var(--accent-human) 90%,
+    var(--ink)
+  );
+  --accent-human-active: color-mix(
+    in oklab,
+    var(--accent-human) 82%,
+    var(--ink)
+  );
+  --accent-human-soft: color-mix(
+    in oklab,
+    var(--accent-human) 10%,
+    var(--surface)
+  );
+  --on-accent-human: #ffffff;
+  --accent-agent: #12946a;
+  --accent-agent-text: #0b7d59;
+  --accent-agent-hover: color-mix(
+    in oklab,
+    var(--accent-agent) 90%,
+    var(--ink)
+  );
+  --accent-agent-active: color-mix(
+    in oklab,
+    var(--accent-agent) 82%,
+    var(--ink)
+  );
+  --accent-agent-soft: color-mix(
+    in oklab,
+    var(--accent-agent) 10%,
+    var(--surface)
+  );
+  --on-accent-agent: #ffffff;
+  /* v1 aliases — every component in this project reads these names. */
+  --human: var(--accent-human);
+  --agent: var(--accent-agent);
+  --on-human: var(--on-accent-human);
+  --on-agent: var(--on-accent-agent);
+  --human-tint: var(--accent-human-soft);
+  --agent-tint: var(--accent-agent-soft);
+  --focus-ring: color-mix(in oklab, var(--accent-human) 14%, transparent);
+  --agent-ring: color-mix(in oklab, var(--accent-agent) 10%, transparent);
+  --agent-border: color-mix(in oklab, var(--accent-agent) 38%, var(--line));
+  --status-done: var(--accent-human);
+}
+
+[data-theme="dark"][data-lc-theme="slate"] {
+  --accent-human: #85a7ec;
+  --accent-human-text: #93b0ee;
+  --accent-human-hover: color-mix(
+    in oklab,
+    var(--accent-human) 90%,
+    var(--ink)
+  );
+  --accent-human-active: color-mix(
+    in oklab,
+    var(--accent-human) 82%,
+    var(--ink)
+  );
+  --accent-human-soft: color-mix(
+    in oklab,
+    var(--accent-human) 15%,
+    var(--surface)
+  );
+  --on-accent-human: #101116;
+  --accent-agent: #66d4a1;
+  --accent-agent-text: #66d4a1;
+  --accent-agent-hover: color-mix(
+    in oklab,
+    var(--accent-agent) 90%,
+    var(--ink)
+  );
+  --accent-agent-active: color-mix(
+    in oklab,
+    var(--accent-agent) 82%,
+    var(--ink)
+  );
+  --accent-agent-soft: color-mix(
+    in oklab,
+    var(--accent-agent) 15%,
+    var(--surface)
+  );
+  --on-accent-agent: #101116;
+  /* v1 aliases — every component in this project reads these names. */
+  --human: var(--accent-human);
+  --agent: var(--accent-agent);
+  --on-human: var(--on-accent-human);
+  --on-agent: var(--on-accent-agent);
+  --human-tint: var(--accent-human-soft);
+  --agent-tint: var(--accent-agent-soft);
+  --focus-ring: color-mix(in oklab, var(--accent-human) 18%, transparent);
+  --agent-ring: color-mix(in oklab, var(--accent-agent) 13%, transparent);
+  --agent-border: color-mix(in oklab, var(--accent-agent) 42%, var(--line));
+  --status-done: var(--accent-human);
+}
+
+[data-theme="light"][data-lc-theme="plum"] {
+  --accent-human: #a23f9c;
+  --accent-human-text: #9c3b96;
+  --accent-human-hover: color-mix(
+    in oklab,
+    var(--accent-human) 90%,
+    var(--ink)
+  );
+  --accent-human-active: color-mix(
+    in oklab,
+    var(--accent-human) 82%,
+    var(--ink)
+  );
+  --accent-human-soft: color-mix(
+    in oklab,
+    var(--accent-human) 10%,
+    var(--surface)
+  );
+  --on-accent-human: #ffffff;
+  --accent-agent: #12946a;
+  --accent-agent-text: #0b7d59;
+  --accent-agent-hover: color-mix(
+    in oklab,
+    var(--accent-agent) 90%,
+    var(--ink)
+  );
+  --accent-agent-active: color-mix(
+    in oklab,
+    var(--accent-agent) 82%,
+    var(--ink)
+  );
+  --accent-agent-soft: color-mix(
+    in oklab,
+    var(--accent-agent) 10%,
+    var(--surface)
+  );
+  --on-accent-agent: #ffffff;
+  /* v1 aliases — every component in this project reads these names. */
+  --human: var(--accent-human);
+  --agent: var(--accent-agent);
+  --on-human: var(--on-accent-human);
+  --on-agent: var(--on-accent-agent);
+  --human-tint: var(--accent-human-soft);
+  --agent-tint: var(--accent-agent-soft);
+  --focus-ring: color-mix(in oklab, var(--accent-human) 14%, transparent);
+  --agent-ring: color-mix(in oklab, var(--accent-agent) 10%, transparent);
+  --agent-border: color-mix(in oklab, var(--accent-agent) 38%, var(--line));
+  --status-done: var(--accent-human);
+}
+
+[data-theme="dark"][data-lc-theme="plum"] {
+  --accent-human: #d48bd0;
+  --accent-human-text: #d897d5;
+  --accent-human-hover: color-mix(
+    in oklab,
+    var(--accent-human) 90%,
+    var(--ink)
+  );
+  --accent-human-active: color-mix(
+    in oklab,
+    var(--accent-human) 82%,
+    var(--ink)
+  );
+  --accent-human-soft: color-mix(
+    in oklab,
+    var(--accent-human) 15%,
+    var(--surface)
+  );
+  --on-accent-human: #101116;
+  --accent-agent: #66d4a1;
+  --accent-agent-text: #66d4a1;
+  --accent-agent-hover: color-mix(
+    in oklab,
+    var(--accent-agent) 90%,
+    var(--ink)
+  );
+  --accent-agent-active: color-mix(
+    in oklab,
+    var(--accent-agent) 82%,
+    var(--ink)
+  );
+  --accent-agent-soft: color-mix(
+    in oklab,
+    var(--accent-agent) 15%,
+    var(--surface)
+  );
+  --on-accent-agent: #101116;
+  /* v1 aliases — every component in this project reads these names. */
+  --human: var(--accent-human);
+  --agent: var(--accent-agent);
+  --on-human: var(--on-accent-human);
+  --on-agent: var(--on-accent-agent);
+  --human-tint: var(--accent-human-soft);
+  --agent-tint: var(--accent-agent-soft);
+  --focus-ring: color-mix(in oklab, var(--accent-human) 18%, transparent);
+  --agent-ring: color-mix(in oklab, var(--accent-agent) 13%, transparent);
+  --agent-border: color-mix(in oklab, var(--accent-agent) 42%, var(--line));
+  --status-done: var(--accent-human);
+}
+
+[data-theme="light"][data-lc-theme="graphite"] {
+  --accent-human: #525a6e;
+  --accent-human-text: #525a6e;
+  --accent-human-hover: color-mix(
+    in oklab,
+    var(--accent-human) 90%,
+    var(--ink)
+  );
+  --accent-human-active: color-mix(
+    in oklab,
+    var(--accent-human) 82%,
+    var(--ink)
+  );
+  --accent-human-soft: color-mix(
+    in oklab,
+    var(--accent-human) 10%,
+    var(--surface)
+  );
+  --on-accent-human: #ffffff;
+  --accent-agent: #12946a;
+  --accent-agent-text: #0b7d59;
+  --accent-agent-hover: color-mix(
+    in oklab,
+    var(--accent-agent) 90%,
+    var(--ink)
+  );
+  --accent-agent-active: color-mix(
+    in oklab,
+    var(--accent-agent) 82%,
+    var(--ink)
+  );
+  --accent-agent-soft: color-mix(
+    in oklab,
+    var(--accent-agent) 10%,
+    var(--surface)
+  );
+  --on-accent-agent: #ffffff;
+  /* v1 aliases — every component in this project reads these names. */
+  --human: var(--accent-human);
+  --agent: var(--accent-agent);
+  --on-human: var(--on-accent-human);
+  --on-agent: var(--on-accent-agent);
+  --human-tint: var(--accent-human-soft);
+  --agent-tint: var(--accent-agent-soft);
+  --focus-ring: color-mix(in oklab, var(--accent-human) 14%, transparent);
+  --agent-ring: color-mix(in oklab, var(--accent-agent) 10%, transparent);
+  --agent-border: color-mix(in oklab, var(--accent-agent) 38%, var(--line));
+  --status-done: var(--accent-human);
+}
+
+[data-theme="dark"][data-lc-theme="graphite"] {
+  --accent-human: #a9afc4;
+  --accent-human-text: #a9afc4;
+  --accent-human-hover: color-mix(
+    in oklab,
+    var(--accent-human) 90%,
+    var(--ink)
+  );
+  --accent-human-active: color-mix(
+    in oklab,
+    var(--accent-human) 82%,
+    var(--ink)
+  );
+  --accent-human-soft: color-mix(
+    in oklab,
+    var(--accent-human) 15%,
+    var(--surface)
+  );
+  --on-accent-human: #101116;
+  --accent-agent: #66d4a1;
+  --accent-agent-text: #66d4a1;
+  --accent-agent-hover: color-mix(
+    in oklab,
+    var(--accent-agent) 90%,
+    var(--ink)
+  );
+  --accent-agent-active: color-mix(
+    in oklab,
+    var(--accent-agent) 82%,
+    var(--ink)
+  );
+  --accent-agent-soft: color-mix(
+    in oklab,
+    var(--accent-agent) 15%,
+    var(--surface)
+  );
+  --on-accent-agent: #101116;
+  /* v1 aliases — every component in this project reads these names. */
+  --human: var(--accent-human);
+  --agent: var(--accent-agent);
+  --on-human: var(--on-accent-human);
+  --on-agent: var(--on-accent-agent);
+  --human-tint: var(--accent-human-soft);
+  --agent-tint: var(--accent-agent-soft);
+  --focus-ring: color-mix(in oklab, var(--accent-human) 18%, transparent);
+  --agent-ring: color-mix(in oklab, var(--accent-agent) 13%, transparent);
+  --agent-border: color-mix(in oklab, var(--accent-agent) 42%, var(--line));
+  --status-done: var(--accent-human);
+}

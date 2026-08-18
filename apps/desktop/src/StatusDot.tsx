@@ -20,7 +20,7 @@ import { statusLabel } from "./tickets";
 import type { TicketStatus } from "./types";
 
 /** The token suffix: the CSS custom properties are hyphenated, the ids are not. */
-function tokenName(status: TicketStatus): string {
+export function tokenName(status: TicketStatus): string {
   return status.replaceAll("_", "-");
 }
 

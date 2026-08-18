@@ -42,6 +42,11 @@ export function ThemePicker(props: {
             />
             <ThemeSwatch theme={theme.id} />
             <span className="theme-option-name">{theme.label}</span>
+            {theme.id === props.value && (
+              <span className="theme-option-check" aria-hidden="true">
+                ✓
+              </span>
+            )}
           </label>
         ))}
       </div>
