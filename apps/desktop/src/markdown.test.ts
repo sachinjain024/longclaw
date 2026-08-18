@@ -39,7 +39,18 @@ function shownText(block: Block): string {
   if (block.type === "blockquote") {
     return block.children.map(shownText).join("\n");
   }
+  if (block.type === "table") {
+    return [block.header, ...block.rows]
+      .map((row) => row.cells.map(textOf).join(" | "))
+      .join("\n");
+  }
   return textOf(block.children);
+}
+
+/** A table's cells as plain strings, header row first — the grid, in a literal. */
+function gridOf(block: Block): string[][] {
+  if (block.type !== "table") throw new Error("expected a table");
+  return [block.header, ...block.rows].map((row) => row.cells.map(textOf));
 }
 
 function shapeOf(block: Block): string {
@@ -82,6 +93,8 @@ describe("the constructs the format documents", () => {
     ],
     ["image", "![Failure state](./attachments/att_8e31.png)", "paragraph"],
     ["hard break", "first  \nsecond", "paragraph"],
+    ["table", "| a | b |\n| - | - |\n| 1 | 2 |", "table"],
+    ["table with no outer walls", "a | b\n- | -\n1 | 2", "table"],
   ];
 
   it.each(documented)("renders a %s", (_name, source, shapes) => {
@@ -163,6 +176,116 @@ describe("the constructs the format documents", () => {
   });
 });
 
+/**
+ * The construct LC-179 moved into the subset, and the reason it moved: a table
+ * is worth writing because a reader can run their eye down a column, and no
+ * amount of kept line structure puts a column on screen. These assert the grid —
+ * `MarkdownView.test.tsx` asserts what the DOM makes of it.
+ */
+describe("the grid a table becomes", () => {
+  it("reads the cells of every row, header first", () => {
+    const [table] = parseMarkdown(
+      "| Time | State |\n| ---- | ----- |\n| 0:00 | four cards |\n| 0:05 | five |",
+    );
+    expect(gridOf(table)).toEqual([
+      ["Time", "State"],
+      ["0:00", "four cards"],
+      ["0:05", "five"],
+    ]);
+  });
+
+  it("consumes the delimiter row rather than showing it", () => {
+    // The dashes were never content: they said which row was the header, and
+    // that is in the block's shape now.
+    const [table] = parseMarkdown("| a |\n| - |\n| 1 |");
+    expect(shownText(table)).not.toContain("-");
+  });
+
+  it("takes the delimiter row's alignments", () => {
+    const [table] = parseMarkdown(
+      "| l | c | r | n |\n| :-- | :-: | --: | --- |\n| 1 | 2 | 3 | 4 |",
+    );
+    if (table.type !== "table") throw new Error("expected a table");
+    expect(table.alignments).toEqual(["left", "center", "right", null]);
+  });
+
+  it("reads a table written without its outer walls", () => {
+    // GFM makes them optional, and the delimiter row under one starts with a
+    // `- `, which is the shape `interruptsParagraph` would call a bullet.
+    const [table] = parseMarkdown("a | b\n- | -\n1 | 2");
+    expect(gridOf(table)).toEqual([
+      ["a", "b"],
+      ["1", "2"],
+    ]);
+  });
+
+  it("keeps an escaped pipe inside its cell", () => {
+    // LC-181: with no table structure there was nothing that could tell a wall
+    // from a pipe the author escaped to keep out of one. There is now.
+    const [table] = parseMarkdown("| a | b |\n| - | - |\n| x \\| y | z |");
+    expect(gridOf(table)[1]).toEqual(["x | y", "z"]);
+  });
+
+  it("parses a cell's inlines like any other run of text", () => {
+    const [table] = parseMarkdown(
+      "| what | where |\n| - | - |\n| `filterTickets` | **[docs](https://example.com/x)** |",
+    );
+    if (table.type !== "table") throw new Error("expected a table");
+    expect(table.rows[0].cells[0].map((node) => node.type)).toEqual(["code"]);
+    expect(table.rows[0].cells[1].map((node) => node.type)).toEqual(["strong"]);
+  });
+
+  it("squares a ragged table off without dropping a cell", () => {
+    // GFM truncates a row that runs past the header. Nothing here may drop text
+    // an author typed, so the widest row sets the width and the rest are padded.
+    const [table] = parseMarkdown("| a | b |\n| - | - |\n| 1 |\n| 2 | 3 | 4 |");
+    expect(gridOf(table)).toEqual([
+      ["a", "b", ""],
+      ["1", "", ""],
+      ["2", "3", "4"],
+    ]);
+  });
+
+  it("takes the table out of the line that led into it", () => {
+    // Nobody leaves a blank line before a table they just announced, and cmark
+    // reads the delimiter row the same way: the row above it is the header, and
+    // the sentence above that is still a sentence.
+    const blocks = parseMarkdown(
+      "Here is the recording:\n| a | b |\n| - | - |\n| 1 | 2 |",
+    );
+    expect(blocks.map(shapeOf)).toEqual(["paragraph", "table"]);
+    expect(shownText(blocks[0])).toBe("Here is the recording:");
+  });
+
+  it("ends the table where the author stopped writing rows", () => {
+    const blocks = parseMarkdown(
+      "| a | b |\n| - | - |\n| 1 | 2 |\n## After\nProse.",
+    );
+    expect(blocks.map(shapeOf)).toEqual(["table", "heading2", "paragraph"]);
+  });
+
+  it("reads a table inside a block quote, which is where a comment puts one", () => {
+    const quoted = ["| a | b |", "| - | - |", "| 1 | 2 |"]
+      .map((row) => `> ${row}`)
+      .join("\n");
+    const [quote] = parseMarkdown(quoted);
+    if (quote.type !== "blockquote") throw new Error("expected a blockquote");
+    expect(quote.children.map(shapeOf)).toEqual(["table"]);
+  });
+
+  it("still has no node type that could become markup", () => {
+    // The security property survives the new node: a cell is `Inline[]`, so the
+    // grid is in the tree's shape and never in a string.
+    const [table] = parseMarkdown(
+      "| a |\n| - |\n| <script>alert(1)</script> |",
+    );
+    if (table.type !== "table") throw new Error("expected a table");
+    expect(table.rows[0].cells[0]).toEqual([
+      { type: "text", value: "<script>alert(1)</script>" },
+    ]);
+  });
+});
+
 describe("what happens to everything else", () => {
   /**
    * The rule: not rendered is not the same as not shown. Each of these comes
@@ -172,7 +295,6 @@ describe("what happens to everything else", () => {
   const outside: [string, string][] = [
     ["thematic break", "---"],
     ["setext heading", "Title\n====="],
-    ["table", "| a | b |\n| - | - |"],
     ["raw HTML", "<img src=x onerror=alert(1)>"],
     ["HTML comment", "<!-- longclaw:item=ck_7d2a -->"],
     ["a script tag", "<script>alert(1)</script>"],
@@ -197,59 +319,7 @@ describe("what happens to everything else", () => {
     expect(types).toEqual(["paragraph", "paragraph"]);
   });
 
-  /**
-   * A table is the one unsupported construct that is more than one line, so it
-   * is the one whose fallback has to carry line structure. A `\n` left inside a
-   * text node is not line structure: the webview collapses it (LC-179), which
-   * is why the claim below is about `break` nodes and `MarkdownView.test.tsx`
-   * makes it again in lines on screen.
-   */
-  it("separates a table's rows with breaks rather than a bare newline", () => {
-    const rows = [
-      "| Time | State |",
-      "| ---- | ----- |",
-      "| 0:00 | four cards |",
-      "| 0:05 | five cards |",
-    ];
-    const [paragraph] = parseMarkdown(rows.join("\n"));
-    if (paragraph.type !== "paragraph") throw new Error("expected a paragraph");
-    expect(
-      paragraph.children.filter((node) => node.type === "break"),
-    ).toHaveLength(rows.length - 1);
-    // The failure this replaces: every row present, every `\n` still inside a
-    // text node, and one line on screen.
-    expect(
-      paragraph.children.filter(
-        (node) => node.type === "text" && node.value.includes("\n"),
-      ),
-    ).toEqual([]);
-  });
-
-  it("takes the table out of the line that led into it", () => {
-    // Nobody leaves a blank line before a table they just announced, and cmark
-    // reads the delimiter row the same way: the row above it is the header, and
-    // the sentence above that is still a sentence.
-    const blocks = parseMarkdown(
-      "Here is the recording:\n| a | b |\n| - | - |\n| 1 | 2 |",
-    );
-    expect(blocks.map(shownText)).toEqual([
-      "Here is the recording:",
-      "| a | b |\n| - | - |\n| 1 | 2 |",
-    ]);
-  });
-
-  it("ends the table where the author stopped writing rows", () => {
-    const blocks = parseMarkdown(
-      "| a | b |\n| - | - |\n| 1 | 2 |\n## After\nProse.",
-    );
-    expect(blocks.map((block) => block.type)).toEqual([
-      "paragraph",
-      "heading",
-      "paragraph",
-    ]);
-  });
-
-  it("leaves a thematic break and a setext underline out of it", () => {
+  it("does not read a thematic break or a setext underline as a table", () => {
     // Neither line holds a pipe, so neither can be read as a delimiter row and
     // both stay the paragraph text they were.
     const blocks = parseMarkdown("Title\n-----\n\n---");

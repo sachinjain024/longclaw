@@ -58,6 +58,7 @@ uses. Those, plus what the toolbar writes, are the subset:
 | Strong `**`, emphasis `*` | the toolbar's `**` and `*` buttons |
 | Link | relative attachment links (`:272`) and the toolbar's link button |
 | Hard line break | two trailing spaces, or a trailing backslash |
+| Pipe table | not asked for by the format, and written anyway wherever a reader has to scan a column — see [On tables](#on-tables-lc-179) |
 
 Three deliberate exclusions, each with a reason:
 
@@ -73,14 +74,14 @@ Three deliberate exclusions, each with a reason:
   obvious attack. Everything else renders as the literal `[text](dest)` its
   author typed — readable, and nothing is lost.
 
-Everything outside the subset — ordered lists, block quotes, thematic breaks,
-setext headings, tables, raw HTML, HTML comments — is **not** dropped and **not**
-executed. It comes out as the paragraph text its author typed. The editor never
-writes the tree back, so an unsupported construct is a rendering gap, never data
-loss.
+Everything outside the subset — thematic breaks, setext headings, raw HTML, HTML
+comments — is **not** dropped and **not** executed. It comes out as the paragraph
+text its author typed. The editor never writes the tree back, so an unsupported
+construct is a rendering gap, never data loss.
 
-(V0-13 moved ordered lists and block quotes into the subset. Tables stayed out,
-and LC-179 is what that cost and what was done about it — see
+(V0-13 moved ordered lists and block quotes into the subset. Tables followed, on
+LC-179, and they are the one construct that came in because the fallback could
+not carry it rather than because the format asked for it — see
 [On tables](#on-tables-lc-179) below.)
 
 ## The seams
@@ -245,35 +246,63 @@ nine-row table into a single wrapped line with the delimiter row sitting inline
 as punctuation. The existing test could not see it: it asserted on node values,
 and the `\n` was still in the string.
 
-**A real `TableBlock` stays out of scope.** It is a new member of the union, a
-cell-and-alignment parser, and column styling from nothing — `styles.css` carries
-no `table`, `th`, or `td` rule anywhere — for a construct that appears in one
-ticket on disk. What shipped instead is the smaller half: `readTable` recognises
-a header row followed by a delimiter row and emits `break` nodes between the
-rows, so a table stays as many lines as it was typed and the pipes still mark the
-columns. Prose keeps its own rule: a soft-wrapped paragraph still joins into one
-line, or a paragraph hard-wrapped at 80 columns would break at its wrap points.
+**The first fix kept the lines, and lines were not the unit.** `readTable`
+recognised a header row followed by a delimiter row and emitted `break` nodes
+between the rows, so a table stayed as many lines as it was typed. That is a real
+improvement over one run-on line and it still did not render a table. What makes
+a table worth writing is that a reader can run their eye *down* a column, and
+nine lines of pipes in a proportional font have no column in them — the pipes
+land wherever the text puts them. The rows that carry the most also carry the
+most text, so in a panel this narrow each one wrapped and ran back into its
+neighbour, and the delimiter row was still on screen as a line of dashes. LC-179
+was reopened on exactly that.
 
-Two things that follows from, each carried by its own ticket rather than by this
-paragraph:
+**So the table is a table.** `TableBlock` joins the union as the one node that is
+a grid: a header row, body rows, and one alignment per column. `readTable` splits
+cells on the pipes the author did not escape, reads `:--`/`:-:`/`--:` off the
+delimiter row, and consumes that row rather than showing it — it was never
+content, it was the author saying which row was the header and which way each
+column reads, and both of those are in the block now. `MarkdownView` renders
+`<table>`/`<th scope="col">`/`<td>`, and `styles.css` gained the `.markdown-table`
+rules it had never had.
 
-- **A multi-line raw HTML block still collapses** (LC-180). `<details>`, its
-  `<summary>`, and its closing tag arrive as one line of shown text. Recognising
-  it would mean CommonMark's HTML-block start conditions, a parsing surface this
-  subset does not have — and the text is legible as source either way, which is
-  not true of a table, whose whole value was the columns.
-- **An escaped `\|` is indistinguishable from a boundary** (LC-181).
-  `parseInline` drops the backslash, as it does for every escape, so a pipe the
-  author escaped to keep out of a cell looks like the cell wall it was escaping.
-  There is no table structure here to tell the two apart; a real `TableBlock` is
-  what would, which is what makes LC-181 the marker for that decision.
+Three decisions inside that are not GFM's:
 
-The security invariant is untouched and structural: no new node type, and a table
-is still a `paragraph` of inlines, so there is still no branch that could produce
-markup.
+- **A ragged row is padded, never truncated.** GFM squares a table off by
+  dropping the cells that run past the header. Nothing here may drop text an
+  author typed — that is the rule the whole fallback list is built on — so the
+  widest row sets the width and every other row is padded out to it.
+- **A near-miss is still a table.** GFM refuses one whose delimiter row has a
+  different cell count from its header. Refusing here would drop that table back
+  onto the paragraph fallback, which is the collapse this section is about, so
+  the count is squared off instead. The failure mode of being lenient is an empty
+  column; the failure mode of being strict is the original bug.
+- **No horizontal scroller.** `table-layout: auto` lets the browser measure the
+  columns, so LC-178's four-character Time column takes four characters and its
+  hundred-character State column takes the rest and wraps inside itself. A table
+  that fits beats a table that scrolls in a panel this width, and it also means
+  the description gained no scroll region, which would have owed the keyboard a
+  stop that `keyboard-focus-map.md` has no reason to describe.
 
-What would reopen it: tables written for alignment rather than for reading — a
-numeric column a reader wants to compare down — since the pipes carry the
-boundary but not the alignment. The line-structure test to extend then is
-`MarkdownView.test.tsx`, which asserts in lines on screen rather than in nodes,
-which is the unit this bug lived in.
+**LC-181 is answered by the structure rather than by a patch.** An escaped `\|`
+was indistinguishable from a cell wall because `parseInline` drops the backslash
+and nothing above it knew a cell from its boundary. `splitCells` is that
+something: it splits on unescaped pipes only and hands the backslash through, so
+a pipe the author escaped arrives inside the cell.
+
+**LC-180 is not**, and still has its own ticket. A multi-line raw HTML block —
+`<details>`, its `<summary>`, its closing tag — still arrives as one line of shown
+text. Recognising it would mean CommonMark's HTML-block start conditions, a
+parsing surface this subset does not have, and the text is legible as source
+either way, which was never true of a table.
+
+The security invariant is untouched and is still structural. A cell holds
+`Inline[]` like every other run of text, so the grid lives in the tree's shape and
+never in a string, and no branch gained the ability to produce markup —
+`markdown.test.ts` § "still has no node type that could become markup" and
+`MarkdownView.test.tsx` § "renders no markup a cell's text happened to spell" are
+that claim at both levels.
+
+What is still out: a cell may not hold a block. No fence, no list, no nested
+table — GFM's own rule, and also the reason a cell can stay `Inline[]`. The
+toolbar writes no table either; a table is something an author types.
