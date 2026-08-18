@@ -364,3 +364,19 @@ pinned at 11.5px UI: label chips, menu hints, settings notes and field
 labels, the create-more label, and the theme preset names (the preset
 cards item redraws those). The degraded list row keeps the role — it
 renders a path, and 10.5 mono is exactly that voice.
+
+## D21 — The label ramp takes the prototype's picker strip · accepted (LC-223, E13)
+
+The settings prototype's colour picker is the ramp's reference now: cyan
+`#2AA8A0`, purple `#8B6CF0`, red `#E05B5B`, orange `#E0762F`, amber
+`#DFA412`, gray `#878CA0` (blue and pink already matched). No gate binds
+label dots — they are reinforcement beside mandatory chip text — but two
+rules were checked before adopting: the prototype cyan sits at hue 176°,
+outside D12's excluded green band (120–165); and against agent green it
+holds ΔE 22.0 / 21.1 / 20.2 under normal, protanopia and deuteranopia —
+the checker's clearly-distinct tier — while its tritanopia ΔE 9.4 merely
+matches the old cyan's 8.9, where hue was never the distinction anyway.
+Dark siblings derive by applying each old pair's oklab light→dark lift to
+the new light hue. The DS's own `--label-watcher: #E1703C` disagrees with
+its prototype's picker (`#E0762F`); the picker is the newer artifact and
+wins, and the sync push carries the resolution back.

@@ -9,7 +9,7 @@ labels:
   - design
   - frontend
 created_at: 2026-08-18T06:50:53.264Z
-updated_at: 2026-08-18T09:25:42.329Z
+updated_at: 2026-08-18T09:35:51.913Z
 ---
 
 A complete design audit of the app against the Claude Design settings prototype
@@ -227,7 +227,7 @@ Bottom-up, so each layer inherits the one below and nothing is painted twice:
 - [x] Tokens: resolve LC-195 groups E/F/G prototype-first — adopt the DS value where it clears the AA/CVD checker, else the nearest passing value, recorded in decisions.md <!-- longclaw:item=ck_fa00916e -->
 - [x] Tokens: move the title/heading roles to Familjen Grotesk (F1) — panel titles, board title, wordmark weights per the prototype <!-- longclaw:item=ck_73ab0e74 -->
 - [x] Tokens: restore the 10.5px mono micro role (F6) and 0.09em label tracking (F5); display tracking to -0.02em (F4) <!-- longclaw:item=ck_0a6b25f5 -->
-- [ ] Tokens: align the label ramp to the prototype hues where the checker allows (E13) <!-- longclaw:item=ck_fcbfda98 -->
+- [x] Tokens: align the label ramp to the prototype hues where the checker allows (E13) <!-- longclaw:item=ck_fcbfda98 -->
 - [ ] Controls: add a real input class per the DS Input spec (30px, line-strong border, radius 5, ui 13, focus = accent border + 3px ring; 28px/12.5 compact and mono variants) and apply it to every settings and labels field — the label-descendant selector reaches none of them today <!-- longclaw:item=ck_137b0ebc -->
 - [ ] Controls: button small variant drops its text to 11.5px <!-- longclaw:item=ck_dea5e6e8 -->
 - [ ] Controls: replace the offset focus outline with the DS hugging ring (accent border + 3px ring) app-wide <!-- longclaw:item=ck_e1996b6e -->
@@ -350,4 +350,22 @@ changes:
 ### Claude Code updated this ticket
 
 Item 3 done — F4/F5/F6 resolved. micro is the 10.5 mono voice again; chip text and the other UI-voice consumers (menu hints, settings notes/labels, create-more, preset names) re-pointed to their own 11.5 ui values per the DS Chip spec; the degraded list row keeps the role since it renders a path. Sidebar section labels now track at +0.09em via the label role; display tightens to -0.02em. D20 records it.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_20324da1
+kind: update
+occurred_at: 2026-08-18T09:35:51.913Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_fcbfda98.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Item 4 done — the ramp is the prototype's picker strip verbatim: cyan #2AA8A0, purple #8B6CF0, red #E05B5B, orange #E0762F, amber #DFA412, gray #878CA0 (blue/pink already matched). Checked before adopting: cyan sits at hue 176, outside D12's excluded 120-165 green band, and holds dE >= 20 vs agent green under normal/protan/deutan; its tritanopia 9.4 merely matches the old cyan's 8.9. Dark siblings derive by each old pair's oklab lift. D21 records it, including the DS's own label-watcher disagreeing with its prototype's picker.
 <!-- /longclaw:event -->

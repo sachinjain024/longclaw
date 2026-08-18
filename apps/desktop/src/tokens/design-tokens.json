@@ -358,15 +358,15 @@
     },
 
     "label": {
-      "note": "Fixed system ramp for project labels; never themed. Dots are reinforcement only — the chip text is the identifier — so dots are not held to 3:1. The green band (hue 120–165) is excluded: green belongs to the agent, exclusively.",
+      "note": "Fixed system ramp for project labels; never themed. Dots are reinforcement only — the chip text is the identifier — so dots are not held to 3:1. The green band (hue 120–165) is excluded: green belongs to the agent, exclusively. Light hues are the settings prototype's picker strip verbatim (LC-223, E13); darks derive by each pair's former oklab lift.",
       "blue": { "light": "#4E9CF5", "dark": "#5FA8F7" },
-      "cyan": { "light": "#2E9BB8", "dark": "#4FB3CE" },
-      "purple": { "light": "#9A6BF3", "dark": "#A981F5" },
+      "cyan": { "light": "#2AA8A0", "dark": "#4EC0B5" },
+      "purple": { "light": "#8B6CF0", "dark": "#9982F2" },
       "pink": { "light": "#C94C86", "dark": "#D66A9C" },
-      "red": { "light": "#E15B5B", "dark": "#E57373" },
-      "orange": { "light": "#E1703C", "dark": "#E5854F" },
-      "amber": { "light": "#D9A514", "dark": "#E0B13A" },
-      "gray": { "light": "#8A90A5", "dark": "#9DA2B5" }
+      "red": { "light": "#E05B5B", "dark": "#E47373" },
+      "orange": { "light": "#E0762F", "dark": "#E48B44" },
+      "amber": { "light": "#DFA412", "dark": "#E6B039" },
+      "gray": { "light": "#878CA0", "dark": "#9A9EB0" }
     }
   },
 
