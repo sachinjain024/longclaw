@@ -422,6 +422,7 @@ h1 {
 .ghost.small {
   min-height: var(--lc-size-control-sm);
   padding: 0 9px;
+  font-size: 11.5px;
 }
 
 /* Chip anatomy, `components.md:85`: mono 10px/500 on `wash`, radius 3px,
@@ -4004,10 +4005,11 @@ html.theme-transition *::after {
 
 .toast {
   display: flex;
-  gap: var(--lc-space-3);
+  gap: 10px;
   align-items: center;
   border-radius: var(--lc-radius-card);
-  padding: var(--lc-space-2) var(--lc-space-4);
+  /* The DS Toast's own numbers — 9px 12px, 10px gap — not the space scale. */
+  padding: 9px 12px;
   color: var(--lc-inverse-ink);
   background: var(--lc-inverse-surface);
   box-shadow: var(--lc-shadow-overlay);
@@ -4274,7 +4276,7 @@ html.theme-transition *::after {
   align-items: center;
   border: 1px solid var(--lc-line-strong);
   border-radius: var(--lc-radius-control);
-  padding: 0 var(--lc-space-2);
+  padding: 0 10px;
   color: var(--lc-ink);
   background: var(--lc-surface);
   font: var(--lc-type-ui-weight) var(--lc-type-ui-size) /

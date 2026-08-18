@@ -9,7 +9,7 @@ labels:
   - design
   - frontend
 created_at: 2026-08-18T06:50:53.264Z
-updated_at: 2026-08-18T09:45:01.159Z
+updated_at: 2026-08-18T09:48:20.681Z
 ---
 
 A complete design audit of the app against the Claude Design settings prototype
@@ -229,9 +229,9 @@ Bottom-up, so each layer inherits the one below and nothing is painted twice:
 - [x] Tokens: restore the 10.5px mono micro role (F6) and 0.09em label tracking (F5); display tracking to -0.02em (F4) <!-- longclaw:item=ck_0a6b25f5 -->
 - [x] Tokens: align the label ramp to the prototype hues where the checker allows (E13) <!-- longclaw:item=ck_fcbfda98 -->
 - [x] Controls: add a real input class per the DS Input spec (30px, line-strong border, radius 5, ui 13, focus = accent border + 3px ring; 28px/12.5 compact and mono variants) and apply it to every settings and labels field — the label-descendant selector reaches none of them today <!-- longclaw:item=ck_137b0ebc -->
-- [ ] Controls: button small variant drops its text to 11.5px <!-- longclaw:item=ck_dea5e6e8 -->
+- [x] Controls: button small variant drops its text to 11.5px <!-- longclaw:item=ck_dea5e6e8 -->
 - [x] Controls: replace the offset focus outline with the DS hugging ring (accent border + 3px ring) app-wide <!-- longclaw:item=ck_e1996b6e -->
-- [ ] Controls: menu-trigger to 30px with 0 10px padding; toast padding to 9px 12px <!-- longclaw:item=ck_34703d66 -->
+- [x] Controls: menu-trigger to 30px with 0 10px padding; toast padding to 9px 12px <!-- longclaw:item=ck_34703d66 -->
 - [ ] Accent: selected-state goes neutral (line-soft + ink + 600) in the sidebar rows, view segment and appearance segment; sidebar star back to ink-2 <!-- longclaw:item=ck_bfecfa01 -->
 - [ ] Settings: panel becomes in-flow beside the board like TicketPanel — border-left only, no scrim, no overlay shadow <!-- longclaw:item=ck_16e34461 -->
 - [ ] Settings: header — Familjen 15px title, 24×24 close affordance, longclaw.yaml chip at mono 10.5 / radius 4 / bg fill <!-- longclaw:item=ck_ec91d2dc -->
@@ -395,4 +395,25 @@ changes:
 ### Claude Code updated this ticket
 
 Items 5, 7, 13, 21 done — the input work as one pass. The field foundation now reaches the orphans via an .input class (30px box, 400-weight content text, compact 28px and mono variants), applied to the Name field, key field, both label-editor add inputs and the label name inputs; two tests pin the reach. Focus is the DS hugging ring app-wide (components.md:30 was already the contract) with box-shadow reasserted on cards/rows/tabs that carry their own. Key field is the prototype's 44px centred mono on canvas fill; folder path drops to mono 11 on canvas fill with the quiet line border. The filter field rides the foundation at 180x30 with the 9.5px prototype chip, and the ordering trigger returns to the full 30px control. Gates: 1023 tests, matrix 8x12, a11y:audit 5/5 (52 checks), probe:header 98/98, citations re-pinned after the screen-specs filter line moved to 180x30.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_cb3ec271
+kind: update
+occurred_at: 2026-08-18T09:48:20.681Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_dea5e6e8.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_34703d66.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Items 6 and 8 done — the small button variants (secondary/danger/ghost) drop their text to the prototype's 11.5px; the menu-trigger pads 0 10px like the prototype's Order control; the toast takes the DS Toast's own 9px 12px with the 10px gap. All gates green, matrix clean.
 <!-- /longclaw:event -->
