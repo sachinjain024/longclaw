@@ -3,12 +3,12 @@ format: longclaw.ticket/v1
 id: 6ba18bfc-8cbd-441c-a9f4-87005fb3d081
 key: LC-179
 title: A Markdown table in a description collapses into one run-on line
-status: in_review
+status: done
 priority: p2
 labels:
   - frontend
 created_at: 2026-08-07T16:12:05.944Z
-updated_at: 2026-08-18T07:28:49.051Z
+updated_at: 2026-08-18T09:30:53.831Z
 ---
 
 `markdown.ts` parses no table, and that is a decision rather than an oversight — its header says tables are "neither dropped nor executed. It comes back out as the paragraph text its author typed" (`markdown.ts:23`), and `markdown.test.ts:175` pins the promise with `| a | b |\n| - | - |`. The promise holds in the tree and breaks on screen.
@@ -220,4 +220,30 @@ The three checklist items above the new ones stay ticked and stay true — that 
 Where the tests moved: a table is no longer in the "what happens to everything else" table in `markdown.test.ts`, it is in the documented-constructs one. The new assertions are § "the grid a table becomes" there and § "the grid a reader gets" in `MarkdownView.test.tsx`, which reads the rendered `<tr>`s rather than the node values — the same reason that file exists at all. `npm run verify` is green.
 
 `docs/plans/completed/18-markdown-editor.md` § On tables now records the reversal rather than the exclusion.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_7e918fdd
+kind: update
+occurred_at: 2026-08-18T09:30:53.831Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### Claude Code updated this ticket
+
+Closed. Signed off by the user, and checked against the tree rather than against the in-review note that claimed it:
+
+- `TableBlock` is in the union (`markdown.ts:142`, `:155`), and `readTable` (`:373`) reads a header, one alignment per column off the delimiter row, and body rows through `splitCells` (`:430`).
+- `MarkdownView.tsx:115-141` renders a real `<table>`, with `scope="col"` on the header cells (`:175`), so the column a sighted reader scans down is the one a screen reader announces.
+- `styles.css:2743` carries `.markdown-table` and the alignment classes, which that file had never had.
+- The assertions are where the note said: § "the grid a table becomes" (`markdown.test.ts:185`) and § "the grid a reader gets" (`MarkdownView.test.tsx:160`), the second reading rendered `<tr>`s rather than node values.
+- `npm run verify` is green on the merge.
+
+Merged to `main` as `4e6e363`. This is the second round of the ticket — the first closed on 2026-08-08 and was reopened on 2026-08-18 because keeping the lines was not keeping the columns — and the reversal it records is what let LC-181 close as done rather than as the wontfix it had been cancelled as.
 <!-- /longclaw:event -->
