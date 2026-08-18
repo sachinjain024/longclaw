@@ -54,6 +54,7 @@ import {
 } from "./failure";
 import { filterTickets, isFiltering } from "./filtering";
 import { FolderGlyph } from "./FolderGlyph";
+import { GearGlyph, KebabGlyph } from "./SettingsGlyphs";
 import { IssueList } from "./IssueList";
 import { isChord, singleKeyShortcutAllowed } from "./keyContext";
 import { MenuButton } from "./Menu";
@@ -63,6 +64,8 @@ import { OwlMark } from "./OwlMark";
 import { ProjectSettings } from "./ProjectSettings";
 import { QuickCreate } from "./QuickCreate";
 import type { FocusRequest } from "./rovingFocus";
+import { ProjectMenu, SettingsMenu } from "./SettingsMenu";
+import { LANDING_SECTION, type SettingsSection } from "./settingsSections";
 import type { TicketMove } from "./ticketMove";
 import { useLongClawStore } from "./state";
 import { ThemeDot } from "./ThemeSwatch";
@@ -135,6 +138,13 @@ const THEMES = [
   { id: "plum", label: "Plum" },
   { id: "graphite", label: "Graphite" },
 ];
+
+/**
+ * The file every settings write lands in, for the header's disk-state
+ * indicator — which says `writing ticket.md…` by default and would otherwise
+ * name a ticket for a write that never touched one.
+ */
+const PROJECT_FILE = "longclaw.yaml";
 
 /** The note `screen-specs.md:324-325` puts under the ordering menu, verbatim. */
 const ORDERING_FOOTNOTE =
@@ -277,10 +287,35 @@ export function App() {
   const [projectWorkspaces, setProjectWorkspaces] = useState<
     Record<string, ProjectWorkspace>
   >(readProjectWorkspaces);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  /* Settings' own **Remove from app** waits on its answer inside the dialog
-     that offers it (`ProjectSettings.tsx`); the unreachable screen keeps its
-     own. Both raise the same `RemoveProjectConfirm`. */
+  /**
+   * Which settings section is open, and whether settings is open at all — one
+   * piece of state, because they are one question (LC-208). A menu row names a
+   * section, so opening the panel and choosing its pane is a single act.
+   */
+  const [settingsSection, setSettingsSection] = useState<SettingsSection>();
+  const settingsOpen = settingsSection !== undefined;
+  /** The gear's dropdown, which stands between the gear and the panel now. */
+  const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
+  /**
+   * The side-panel row whose `⋮` is open, and the button it hangs off.
+   *
+   * The **id**, not the project: this menu writes to the project it is open on
+   * and stays up while the write lands, so a captured `ProjectReference` would
+   * be a snapshot of the project as it was before its own edits. The theme
+   * check would sit on the preset you just replaced, the star row would go on
+   * offering `Unstar project` after unstarring — and, worse than either,
+   * `toggleStar` reads `starred` off what it is handed, so a second press
+   * would re-send the same value instead of putting it back.
+   */
+  const [projectMenu, setProjectMenu] = useState<{
+    projectId: string;
+    anchor: HTMLElement;
+  }>();
+  /** A removal raised from the `⋮` menu, waiting on the confirm that names it. */
+  const [removingProject, setRemovingProject] = useState<ProjectReference>();
+  /* Settings' own **Remove from app** waits on its answer inside the panel
+     that offers it (`ProjectSettings.tsx`); the unreachable screen and the `⋮`
+     menu keep their own. All three raise the same `RemoveProjectConfirm`. */
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [paletteTicketKey, setPaletteTicketKey] = useState<string>();
   const [paletteSearchResults, setPaletteSearchResults] =
@@ -299,6 +334,10 @@ export function App() {
   const settingsButton = useRef<HTMLButtonElement>(null);
 
   const project = projects.find((item) => item.id === activeProjectId);
+  /** The project whose `⋮` menu is open, as the store holds it *now*. */
+  const menuProject = projects.find(
+    (item) => item.id === projectMenu?.projectId,
+  );
   /**
    * A project whose folder the last read could not reach.
    *
@@ -564,10 +603,17 @@ export function App() {
    * the panel closes on `Esc` without preventing anything.
    */
   useEffect(() => {
+    /**
+     * The gear's menu or a row's `⋮` (LC-208). They are the ladder's *top*
+     * rung, and they stop their own `Esc` — but a rung still has to be counted
+     * here, because everything below reads this to stand down.
+     */
+    const menuOpen = settingsMenuOpen || projectMenu !== undefined;
     const layerOpen =
       selectedKey !== undefined ||
       createSurface !== undefined ||
       paletteOpen ||
+      menuOpen ||
       // Settings is a modal since LC-125, so it takes a rung of this ladder:
       // its own `Esc` closes it, and that press must not also empty the filter
       // on the board behind it.
@@ -577,6 +623,8 @@ export function App() {
       if (isChord(event, "k")) {
         event.preventDefault();
         if (paletteOpen) return;
+        // A menu is a layer, and the palette must not arrive underneath one.
+        if (menuOpen) return;
         paletteReturnFocus.current =
           document.activeElement instanceof HTMLElement
             ? document.activeElement
@@ -590,12 +638,14 @@ export function App() {
       // `C` is global (`keyboard-focus-map.md:32`) but not *above* a modal: a
       // palette row and a create surface's buttons are focusable and are not
       // text inputs, so the suspension rule alone would let `C` open quick
-      // create underneath whatever is already up.
+      // create underneath whatever is already up. A menu row is a `<button>`
+      // and so is exactly that case again (LC-208).
       if (
         project &&
         !unreachable &&
         !paletteOpen &&
         !settingsOpen &&
+        !menuOpen &&
         createSurface === undefined &&
         singleKeyShortcutAllowed(event.target) &&
         event.key.toLowerCase() === "c" &&
@@ -607,12 +657,37 @@ export function App() {
         setCreateSurface("quick");
         return;
       }
+      // `⌘,` is the platform's own settings chord, and both menus advertise it
+      // (LC-208). It opens the panel on `General` from anywhere a layer is not
+      // already up — including from inside a field, since it is a chord
+      // (`keyboard-focus-map.md:12-14`) — and closes nothing: pressing it with
+      // settings already open is a no-op rather than a toggle, because the
+      // panel's way out is `Esc` and a chord that also closed would fight the
+      // section the human just picked.
+      //
+      // "From anywhere" stops at the palette and quick create, and has to. The
+      // palette stops only `⌘K`, `Tab` and `Esc`, so this handler still sees
+      // the press underneath it; `.settings-panel` and `.modal-scrim` are both
+      // `--lc-z-modal` and the palette renders later in this file, so the panel
+      // would open *behind* the surface that is holding focus — a layer nobody
+      // can see, reach, or `Esc` past in one press. The menus go on advertising
+      // it because they are the layer it dismisses.
+      if (isChord(event, ",")) {
+        if (!project || paletteOpen || createSurface !== undefined) return;
+        event.preventDefault();
+        // Whichever menu advertised the chord goes with the panel opening.
+        setSettingsMenuOpen(false);
+        setProjectMenu(undefined);
+        setSettingsSection((current) => current ?? LANDING_SECTION);
+        return;
+      }
       if (isChord(event, "f")) {
         const field = filterField.current;
         if (
           !field ||
           createSurface !== undefined ||
           paletteOpen ||
+          menuOpen ||
           settingsOpen
         )
           return;
@@ -639,7 +714,9 @@ export function App() {
     filtering,
     paletteOpen,
     project,
+    projectMenu,
     selectedKey,
+    settingsMenuOpen,
     settingsOpen,
     unreachable,
   ]);
@@ -1020,12 +1097,54 @@ export function App() {
     }
   }
 
-  async function toggleStar(project: ProjectReference) {
+  /**
+   * A write to `longclaw.yaml`, with the acknowledgement every other write in
+   * this app already gets (LC-208).
+   *
+   * The settings writes went out through bare `await`s: the header's disk-state
+   * indicator never moved, no toast was raised, and a rename that landed looked
+   * exactly like a rename that was dropped — the field simply kept the name you
+   * typed. `mutate()` cannot serve them, because it is built around a
+   * `WriteResult` for one ticket and an `expectedHash` a project file has no
+   * equivalent of. This is the same contract at project scale: mark the disk
+   * busy, say what changed and where it landed, and put the previous value
+   * behind an Undo when the change is one field with one inverse.
+   */
+  async function writeProjectFile<T>(options: {
+    /** Present tense, for the toast: `Renamed to "Longclaw"`. */
+    message: string;
+    write: () => Promise<T>;
+    onWritten: (result: T) => void;
+    /** The inverse, where there is a one-field one. `⌘Z` runs it. */
+    undo?: () => void;
+    /** Runs before the write, and again with `false` if it is refused. */
+    optimistic?: (applied: boolean) => void;
+  }) {
+    const { beginWrite, endWrite, raise } = useMutationStore.getState();
+    options.optimistic?.(true);
+    beginWrite(PROJECT_FILE);
     try {
-      upsertProject(await setProjectStarred(project.id, !project.starred));
+      options.onWritten(await options.write());
+      endWrite(PROJECT_FILE);
+      raise({ message: options.message, tone: "default", undo: options.undo });
+      return true;
     } catch (error) {
+      options.optimistic?.(false);
+      endWrite();
       setError(normalizeError(error));
+      return false;
     }
+  }
+
+  async function toggleStar(project: ProjectReference) {
+    await writeProjectFile({
+      message: project.starred
+        ? `Unstarred ${project.name}`
+        : `Starred ${project.name}`,
+      write: () => setProjectStarred(project.id, !project.starred),
+      onWritten: upsertProject,
+      undo: () => void toggleStar({ ...project, starred: !project.starred }),
+    });
   }
 
   /**
@@ -1035,44 +1154,93 @@ export function App() {
    * is a fact about `longclaw.yaml`, not about tickets, so re-loading the
    * project would only put a skeleton where the spec puts a color transition.
    */
-  async function changeTheme(theme: string) {
-    if (!project || project.theme === theme) return;
-    const previous = project;
-    upsertProject({ ...project, theme });
-    try {
-      const updated = await updateProjectTheme(project.id, theme);
-      upsertProject(updated);
-    } catch (error) {
-      upsertProject(previous);
-      setError(normalizeError(error));
-    }
+  /**
+   * The project is a parameter rather than the open one, because the side
+   * panel's `⋮` menu restyles a row without opening it (LC-208) — a project's
+   * dot in the sidebar carries its own preset, so the change is visible from
+   * there without a switch.
+   */
+  async function changeTheme(
+    target: ProjectReference | undefined,
+    theme: string,
+  ) {
+    if (!target || target.theme === theme) return;
+    const previous = target;
+    const label = THEMES.find((option) => option.id === theme)?.label ?? theme;
+    await writeProjectFile({
+      message: `Theme set to ${label}`,
+      // The crossfade is the *instant* acknowledgement the spec asks for; the
+      // toast is the durable one, and the only thing that says the preset
+      // reached the file rather than just the window.
+      optimistic: (applied) =>
+        upsertProject(applied ? { ...target, theme } : previous),
+      write: () => updateProjectTheme(target.id, theme),
+      onWritten: upsertProject,
+      undo: () => void changeTheme({ ...target, theme }, previous.theme),
+    });
   }
 
   async function renameProject(name: string) {
     if (!project || name.trim() === project.name) return;
-    try {
-      const updated = await updateProjectName(project.id, name);
+    const previous = project;
+    const adopt = (updated: ProjectReference) => {
       upsertProject(updated);
-      await loadProject(updated.id);
-    } catch (error) {
-      setError(normalizeError(error));
-    }
+      void loadProject(updated.id);
+    };
+    await writeProjectFile({
+      message: `Renamed to ${name.trim()}`,
+      write: () => updateProjectName(previous.id, name),
+      onWritten: adopt,
+      // Its own write, not a second call to this function. `renameProject`
+      // reads the open project from the render it was defined in, and the undo
+      // runs from the render *before* the rename landed — so the guard at the
+      // top would compare the old name against the old name and return, and
+      // Undo would be a button that does nothing.
+      undo: () =>
+        void writeProjectFile({
+          message: `Renamed back to ${previous.name}`,
+          write: () => updateProjectName(previous.id, previous.name),
+          onWritten: adopt,
+        }),
+    });
   }
 
-  /** Closes the settings dialog and hands focus back to the gear that opened it. */
+  /** Closes the settings panel and hands focus back to the gear that opened it. */
   function closeSettings() {
-    setSettingsOpen(false);
+    setSettingsSection(undefined);
     requestAnimationFrame(() => settingsButton.current?.focus());
   }
 
+  /**
+   * Forgets a project, from settings' danger zone or a row's `⋮` (LC-208).
+   *
+   * The two are not the same removal, and the difference is which project it
+   * was. Removing the **open** one takes its board with it, so the settings
+   * panel has nothing left to describe and the gear it was opened from is
+   * gone — the shell falls back to the welcome column, whose first control is
+   * where focus has to land. Removing **another** one is a change to the
+   * sidebar and nothing else: whatever was on screen stays, settings stays
+   * open if it was open, and focus belongs back where the sidebar can still
+   * take it rather than on a welcome screen that is not being shown.
+   */
   async function forgetProject(projectId: string) {
+    const wasOpen = projectId === activeProjectId;
     try {
       await removeProject(projectId);
       removeProjectReference(projectId);
-      // The gear this dialog was opened from goes with the project, so the
-      // ordinary focus return has nothing to return to: the welcome screen is
-      // what the shell shows next, and its first control is where focus lands.
-      setSettingsOpen(false);
+      setRemovingProject(undefined);
+      setProjectMenu(undefined);
+      if (!wasOpen) {
+        // The `⋮` this was raised from went with its row, so focus is placed
+        // on the surface that is still there rather than left on `<body>`.
+        requestAnimationFrame(() =>
+          document
+            .querySelector<HTMLElement>(".project-nav .project-link")
+            ?.focus(),
+        );
+        return;
+      }
+      setSettingsSection(undefined);
       requestAnimationFrame(() =>
         document.querySelector<HTMLElement>(".welcome-actions button")?.focus(),
       );
@@ -1576,7 +1744,11 @@ export function App() {
             projects={starredProjects}
             activeProjectId={activeProjectId}
             onOpen={(id) => void loadProject(id)}
-            onStar={(project) => void toggleStar(project)}
+            menuFor={projectMenu?.projectId}
+            onMenu={(project, anchor) =>
+              setProjectMenu({ projectId: project.id, anchor })
+            }
+            onCloseMenu={() => setProjectMenu(undefined)}
           />
           <ProjectSection
             title="Local"
@@ -1584,7 +1756,11 @@ export function App() {
             projects={localProjects}
             activeProjectId={activeProjectId}
             onOpen={(id) => void loadProject(id)}
-            onStar={(project) => void toggleStar(project)}
+            menuFor={projectMenu?.projectId}
+            onMenu={(project, anchor) =>
+              setProjectMenu({ projectId: project.id, anchor })
+            }
+            onCloseMenu={() => setProjectMenu(undefined)}
           />
         </nav>
 
@@ -1645,42 +1821,47 @@ export function App() {
                   row under a header the spec draws as one. */}
               <div className="header-identity">
                 <h1>{project.name}</h1>
-                {/* `aria-haspopup`, not the `aria-expanded` this carried while
-                    settings was an inline section: what it opens is a modal
-                    dialog now, and an expanded state describes a region that
-                    stays part of the page under its trigger (LC-125). */}
+                {/* `aria-haspopup="menu"` and a real `aria-expanded`: what the
+                    gear opens is a menu now (LC-208), which is a region that
+                    stays part of the page under its trigger — the very thing
+                    LC-125 removed the expanded state for when this opened a
+                    dialog instead. The menu is what opens the dialog. */}
                 <button
                   tabIndex={0}
                   ref={settingsButton}
-                  className="ghost small settings-button"
+                  className={classes(
+                    "ghost small settings-button",
+                    settingsMenuOpen && "open",
+                  )}
                   aria-label="Project settings"
-                  aria-haspopup="dialog"
+                  aria-haspopup="menu"
+                  aria-expanded={settingsMenuOpen}
                   title="Project settings"
-                  onClick={() => setSettingsOpen(true)}
+                  onClick={() => setSettingsMenuOpen(!settingsMenuOpen)}
                 >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 14 14"
-                    aria-hidden="true"
-                  >
-                    <circle
-                      cx="7"
-                      cy="7"
-                      r="2.1"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.3"
-                    />
-                    <path
-                      d="M7 1.6 V3.4 M7 10.6 V12.4 M1.6 7 H3.4 M10.6 7 H12.4 M3.2 3.2 L4.5 4.5 M9.5 9.5 L10.8 10.8 M10.8 3.2 L9.5 4.5 M4.5 9.5 L3.2 10.8"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.3"
-                      strokeLinecap="round"
-                    />
-                  </svg>
+                  <GearGlyph />
                 </button>
+                {settingsMenuOpen && (
+                  <SettingsMenu
+                    project={project}
+                    themes={THEMES}
+                    appearance={appearance}
+                    anchor={settingsButton.current}
+                    onAppearance={setAppearance}
+                    onTheme={(theme) => void changeTheme(project, theme)}
+                    onOpenSection={setSettingsSection}
+                    // The board's own re-read (ADR 0006), which the menu is the
+                    // first surface to offer by hand: the watcher is what
+                    // normally keeps this current, and this is the way back
+                    // when a person has reason to doubt it.
+                    onReload={() => {
+                      void reconcileProject(project.id)
+                        .then(applySnapshot)
+                        .catch((error) => setError(normalizeError(error)));
+                    }}
+                    onClose={() => setSettingsMenuOpen(false)}
+                  />
+                )}
                 <PathChip path={project.rootPath} homePath={homePath} />
                 {/* One disk-state line, beside the path chip and before the
                     spacer, where `screen-specs.md:44-53` puts it — and silent
@@ -1935,20 +2116,66 @@ export function App() {
           (LC-125), so it is built here with the app's other modals — and it
           stays mounted over an unreachable project, which is one of the two
           screens that needs `Locate…` most. */}
-      {project && settingsOpen && (
+      {project && settingsSection !== undefined && (
         <ProjectSettings
           project={project}
           hasTickets={tickets.length > 0}
           appearance={appearance}
           themes={THEMES}
+          section={settingsSection}
+          onSection={setSettingsSection}
           onAppearance={setAppearance}
           onRename={(name) => void renameProject(name)}
-          onTheme={(theme) => void changeTheme(theme)}
+          onTheme={(theme) => void changeTheme(project, theme)}
           onLocate={() => void relocateActiveProject(project.id)}
           onRemove={() => void forgetProject(project.id)}
-          onUpdated={upsertProject}
-          onError={setError}
+          onWrite={(message, write) =>
+            writeProjectFile({ message, write, onWritten: upsertProject })
+          }
           onClose={closeSettings}
+        />
+      )}
+
+      {/* The side panel's own settings reach (LC-208). It is built here rather
+          than inside `ProjectSection` so that one menu is open at a time across
+          both sections, and so its rows can reach `App`'s writes without the
+          list having to carry six more props per row. */}
+      {/* Read fresh on every render, so the menu's own writes are visible in
+          it. A project removed while its menu is up takes the menu with it,
+          which is the same answer by the same route. */}
+      {menuProject && projectMenu && (
+        <ProjectMenu
+          project={menuProject}
+          themes={THEMES}
+          appearance={appearance}
+          anchor={projectMenu.anchor}
+          onAppearance={setAppearance}
+          // The row's own project, which may not be the open one — a preset is
+          // visible from the sidebar without switching, since every row's dot
+          // carries its project's own theme.
+          onTheme={(theme) => void changeTheme(menuProject, theme)}
+          // A section, on the other hand, is about a project you are looking
+          // at: the panel shows the open project, so the row opens first and
+          // the section lands on it.
+          onOpenSection={(section) => {
+            if (menuProject.id !== activeProjectId)
+              void loadProject(menuProject.id);
+            setSettingsSection(section);
+          }}
+          onStar={() => void toggleStar(menuProject)}
+          onRemove={() => setRemovingProject(menuProject)}
+          onClose={() => setProjectMenu(undefined)}
+        />
+      )}
+
+      {/* The `⋮` menu's removal, behind the confirm that names the path and
+          repeats the guarantee — the same one settings and the unreachable
+          screen raise (LC-144). */}
+      {removingProject && (
+        <RemoveProjectConfirm
+          project={removingProject}
+          onCancel={() => setRemovingProject(undefined)}
+          onConfirm={() => void forgetProject(removingProject.id)}
         />
       )}
 
@@ -2070,7 +2297,7 @@ export function App() {
                   : "system",
             )
           }
-          onTheme={(theme) => void changeTheme(theme)}
+          onTheme={(theme) => void changeTheme(project, theme)}
           onView={(next) => setView(next)}
           view={view}
           onArchive={() => {
@@ -2171,7 +2398,12 @@ function ProjectSection(props: {
   projects: ProjectReference[];
   activeProjectId?: string;
   onOpen: (projectId: string) => void;
-  onStar: (project: ProjectReference) => void;
+  /** The row's `⋮`, handed the project and the button to hang the menu off. */
+  onMenu: (project: ProjectReference, anchor: HTMLElement) => void;
+  /** The same `⋮` pressed again, which takes its own menu back down. */
+  onCloseMenu: () => void;
+  /** Which row's menu is up, so its `⋮` can hold the pressed state. */
+  menuFor?: string;
 }) {
   return (
     <section className="project-section">
@@ -2180,63 +2412,104 @@ function ProjectSection(props: {
         <p>{props.empty}</p>
       ) : (
         props.projects.map((project) => (
-          <button
-            tabIndex={0}
+          /* Two buttons side by side, not one inside the other. The star used
+             to be a span carrying `role="button"` *inside* the row's own
+             button — interactive content nested in a button, which is invalid
+             HTML, and whose accessible name leaked into the row's. With the
+             `⋮` beside it that started to matter: the row would have announced
+             itself as "Fixture Project, Fixture Project menu" (LC-208). */
+          <div
             key={project.id}
-            className={[
-              "project-link",
-              project.id === props.activeProjectId ? "selected" : "",
-              !project.reachable ? "unreachable" : "",
-            ]
-              .filter(Boolean)
-              .join(" ")}
-            // The path is the row's whole subject and does not fit on it; the
-            // content header and settings show it in full.
-            title={
-              project.reachable
-                ? project.rootPath
-                : `Unreachable · ${project.rootPath}`
-            }
-            onClick={() => props.onOpen(project.id)}
-          >
-            {/* The dot carries the project's own preset, so a row can show a
-                theme this window is not currently wearing. Unreachable swaps it
-                for the warn triangle (`screen-specs.md:60`) — said in words too,
-                because a glyph is never the only channel. */}
-            {project.reachable ? (
-              <ThemeDot theme={project.theme} />
-            ) : (
-              <>
-                <span className="project-warn" aria-hidden="true">
-                  ⚠
-                </span>
-                {/* The glyph is decoration; this is the channel that actually
-                    reaches a screen reader. `aria-label` on a bare span is not
-                    reliably exposed, so the word is real text. */}
-                <span className="visually-hidden">Unreachable</span>
-              </>
+            className={classes(
+              "project-row",
+              project.id === props.activeProjectId && "selected",
             )}
-            <strong>{project.name}</strong>
-            <span
-              role="button"
+          >
+            <button
               tabIndex={0}
-              className={
-                project.starred ? "star-button starred" : "star-button"
+              className={classes(
+                "project-link",
+                project.id === props.activeProjectId && "selected",
+                !project.reachable && "unreachable",
+              )}
+              // The path is the row's whole subject and does not fit on it; the
+              // content header and settings show it in full.
+              title={
+                project.reachable
+                  ? project.rootPath
+                  : `Unreachable · ${project.rootPath}`
               }
-              onClick={(event) => {
-                event.stopPropagation();
-                props.onStar(project);
-              }}
-              onKeyDown={(event) => {
-                if (event.key !== "Enter" && event.key !== " ") return;
-                event.preventDefault();
-                event.stopPropagation();
-                props.onStar(project);
-              }}
+              onClick={() => props.onOpen(project.id)}
             >
-              {project.starred ? "★" : "☆"}
-            </span>
-          </button>
+              {/* The dot carries the project's own preset, so a row can show a
+                  theme this window is not currently wearing. Unreachable swaps
+                  it for the warn triangle (`screen-specs.md:60`) — said in
+                  words too, because a glyph is never the only channel. */}
+              {project.reachable ? (
+                <ThemeDot theme={project.theme} />
+              ) : (
+                <>
+                  <span className="project-warn" aria-hidden="true">
+                    ⚠
+                  </span>
+                  {/* The glyph is decoration; this is the channel that actually
+                      reaches a screen reader. `aria-label` on a bare span is not
+                      reliably exposed, so the word is real text. */}
+                  <span className="visually-hidden">Unreachable</span>
+                </>
+              )}
+              <strong>{project.name}</strong>
+              {/* The star is a mark now, not a control (LC-208). It was a
+                  `★`/`☆` toggle whose only name was the glyph, which says the
+                  state and never the action; the `⋮` beside it offers `Star
+                  project` / `Unstar project` in words. A row that is not
+                  starred shows nothing here, so the mark means something. */}
+              {project.starred && (
+                <span className="star-mark">
+                  <span aria-hidden="true">★</span>
+                  {/* The glyph is decoration; this is the channel that reaches
+                      a screen reader, in the same shape the unreachable row's
+                      `Unreachable` uses — real text, because an `aria-label` on
+                      a bare span is not reliably exposed. */}
+                  <span className="visually-hidden">Starred</span>
+                </span>
+              )}
+            </button>
+            {/* The ticket's second home for settings: "the Menu which gets
+                opened through 3 vertical dots in front of Project Name". */}
+            <button
+              tabIndex={0}
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded={props.menuFor === project.id}
+              // Named for its row, because a sidebar of identical `Project
+              // menu` buttons is a list nobody can navigate by name.
+              aria-label={`${project.name} menu`}
+              title="Project menu"
+              // Not `ghost`: that variant is a 30px labelled control, and its
+              // `min-height` and its `:hover:not(:disabled)` — a full step of
+              // specificity above anything this class can say — were quietly
+              // winning. The `⋮` came out 30px tall instead of 20 and hovered
+              // to the same `wash` its row hovers to, which is *why* pointing
+              // at it looked like pointing at the row. It is not a button
+              // variant; it is a row affordance, and it says so itself.
+              className={classes(
+                "row-menu-button",
+                props.menuFor === project.id && "open",
+              )}
+              // A toggle, as the gear is. Click-away runs on `mousedown` and
+              // excludes the anchor (`popover.ts`), so a `⋮` that only ever
+              // opened could not be closed by pressing it again — the press
+              // that opened it was the only one it answered.
+              onClick={(event) =>
+                props.menuFor === project.id
+                  ? props.onCloseMenu()
+                  : props.onMenu(project, event.currentTarget)
+              }
+            >
+              <KebabGlyph />
+            </button>
+          </div>
         ))
       )}
     </section>

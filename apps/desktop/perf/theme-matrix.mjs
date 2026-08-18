@@ -132,6 +132,19 @@ const BOARD_FEEDBACK = [
     property: "border-top-color",
     action: "focus",
   },
+  {
+    // The `⋮` on a side-panel project row (LC-208). It is a control sitting
+    // inside a row that has a hover of its own, so its own hover has to be a
+    // visible step *above* the row's — they were both `line-soft`, which made
+    // pointing at the control look exactly like pointing at the row, and it
+    // was the first thing a person noticed about the menu.
+    selector: ".row-menu-button",
+    property: "background-color",
+    action: "hover",
+    // The two fills a project row can be wearing under it: `wash` when hovered
+    // and `accent-human-soft` when it is the open project.
+    distinctFromTokens: ["--lc-wash", "--lc-accent-human-soft"],
+  },
 ];
 
 const STATES = [
@@ -328,6 +341,21 @@ const STATES = [
     distinct: [],
   },
   {
+    // The gear's menu (LC-208), which is the first surface a person meets on
+    // the way to settings and takes ink of its own: rows, the quiet right-hand
+    // hints, and the captions that say which theme axis is which.
+    name: "settings-menu",
+    contrast: [".menu-popover .menu-label", ".menu-popover .menu-hint"],
+    token: [],
+    distinct: [],
+  },
+  {
+    name: "theme-submenu",
+    contrast: [".menu-sub .menu-label", ".menu-sub .menu-caption"],
+    token: [],
+    distinct: [],
+  },
+  {
     name: "settings",
     contrast: [".theme-option-name", ".settings-panel label"],
     token: [],
@@ -432,6 +460,27 @@ const SAMPLER = `(() => {
       disabled: element.matches(":disabled, [aria-disabled='true']"),
     };
   };
+  /*
+   * A token resolved the way the page would paint it, which __matrixToken
+   * cannot do: half this system's surface tokens are color-mix(), and
+   * getPropertyValue hands those back unresolved. Painting one on a throwaway
+   * element and reading it back is what turns it into channels.
+   *
+   * No backticks and no interpolation in here: this whole block is a template
+   * literal on the Node side, so either would be read at build time.
+   */
+  window.__matrixColor = (token) => {
+    const probe = document.createElement("span");
+    probe.style.position = "fixed";
+    probe.style.width = "1px";
+    probe.style.height = "1px";
+    probe.style.pointerEvents = "none";
+    probe.style.backgroundColor = "var(" + token + ")";
+    document.body.appendChild(probe);
+    const value = parse(getComputedStyle(probe).backgroundColor);
+    probe.remove();
+    return value ? { value } : { raw: token };
+  };
   window.__matrixToken = (token) => {
     const raw = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
     const hex = raw.match(/^#([0-9a-fA-F]{6})$/);
@@ -466,10 +515,23 @@ try {
       await page.waitForFunction(
         () => document.querySelectorAll(".ticket-row").length > 0,
       );
+      // The two attributes `App` actually stamps (`App.tsx:745,782`), in the
+      // right order: the preset is `data-lc-theme` and the appearance is
+      // `data-theme`, and the accent blocks are published on the **compound**
+      // `[data-theme][data-lc-theme]` selector (`appearance.ts:7-12`).
+      //
+      // This used to write `data-theme = <preset>` and `data-appearance =
+      // <light|dark>`. `data-appearance` is not a selector anywhere in the
+      // product, and `[data-theme="clay"]` alone matches no accent block, so
+      // every axis fell through to `:root` — light indigo. All eight rendered
+      // byte-identically and the run reported "8 axes × 12 states clean" for
+      // one axis checked eight times. Found while adding the settings menu's
+      // states (LC-208), whose whole subject is preset swatches: they were the
+      // one thing on screen that could not possibly have looked right.
       await page.evaluate(
         ([theme, appearance]) => {
-          document.documentElement.dataset.theme = theme;
-          document.documentElement.dataset.appearance = appearance;
+          document.documentElement.dataset.lcTheme = theme;
+          document.documentElement.dataset.theme = appearance;
         },
         [theme, appearance],
       );
@@ -694,6 +756,41 @@ try {
             `${label} — no visible feedback (moved ${moved.toFixed(0)}/765)`,
           );
         }
+
+        // A control that sits *inside* something with a hover of its own has a
+        // second thing to prove: that its lit fill is not the same colour as
+        // the fill its container is wearing underneath it. Moving off its own
+        // resting value is not enough — the `⋮` moved from transparent to
+        // `line-soft`, which in light is the very same colour as the `wash` its
+        // row hovers to, so the control was invisible at the one moment it is
+        // meant to be visible.
+        //
+        // Against the *tokens* rather than against the parent as rendered,
+        // because a row can be wearing either of two fills and the harness only
+        // ever shows one of them: its board has a single project, so the only
+        // row on screen is the selected one (`accent-human-soft`) and a probe
+        // that read the live parent would never see the unselected case
+        // (`wash`) — which is the case that was broken.
+        for (const token of probe.distinctFromTokens ?? []) {
+          const other = await page.evaluate(
+            ([name]) => window.__matrixColor(name),
+            [token],
+          );
+          if (!other.value) {
+            failures.push(`${label} — ${token} is ${other.raw || "unset"}`);
+            continue;
+          }
+          const apart = ["r", "g", "b"].reduce(
+            (total, channel) =>
+              total + Math.abs(acted.value[channel] - other.value[channel]),
+            0,
+          );
+          if (apart < MIN_FEEDBACK_DELTA) {
+            failures.push(
+              `${label} — its fill is ${token} (${apart.toFixed(0)}/765 apart), so it vanishes on a row wearing that`,
+            );
+          }
+        }
       };
 
       const state = (name) => STATES.find((entry) => entry.name === name);
@@ -756,20 +853,38 @@ try {
 
       // By class, not by text: the control is a gear icon button whose label is
       // an `aria-label`, so `:has-text()` cannot see it and the run died here
-      // for two weeks (LC-70 → LC-163).
+      // for two weeks (LC-70 → LC-163). It opens a menu since LC-208, and the
+      // menu is a surface of its own — the rows, the captions and the swatches
+      // all take colour, so it is checked before the panel it opens.
       await page.click(".settings-button");
+      await page.waitForSelector(".menu-popover");
+      await check(state("settings-menu"));
+
+      // Into the theme submenu, which is where both accents are drawn side by
+      // side in a popover rather than in a panel (LC-208).
+      await page.click('.menu-popover .menu-row:has-text("Theme")');
+      await page.waitForSelector(".menu-sub");
+      await check(state("theme-submenu"));
+      await page.keyboard.press("Escape");
+
+      // `All settings…` is the row that opens the panel; the nav lands on
+      // `Theme`, which is the section the picker lives in.
+      await page.click('.menu-popover .menu-row:has-text("All settings")');
+      await page.waitForSelector(".settings-panel");
+      await page.click('.settings-nav-row:has-text("Theme")');
       await page.waitForSelector(".theme-picker");
       await check(state("settings"));
 
-      // The name field by its row rather than by "the first input in the
-      // panel": the dialog carries a disabled Key field and two radio groups
-      // since LC-125, and only one input in it is meant to be typed into.
+      // Back to General for the rename, and by its row rather than by "the
+      // first input in the panel": the section carries a disabled Key field,
+      // and only one input in it is meant to be typed into.
+      await page.click('.settings-nav-row:has-text("General")');
       await page.fill(".settings-identity input:not([disabled])", "Renamed");
       // It commits on `Enter` — the `Rename` button beside it went with LC-125,
       // because pressing `Done` with a typed name used to discard it silently.
       await page.keyboard.press("Enter");
-      // The banner is on the main panel, behind the dialog — `Esc` takes the
-      // dialog down so the error state is rendered as a user would meet it.
+      // The banner is on the main panel, behind the panel — `Esc` takes the
+      // panel down so the error state is rendered as a user would meet it.
       await page.keyboard.press("Escape");
       await page.waitForSelector(".error-banner");
       await check(state("error"));

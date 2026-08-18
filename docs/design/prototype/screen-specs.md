@@ -56,8 +56,8 @@
   `cc_screens_diff.md` D-0B records the reversal.
 - **Project row anatomy:** 6px theme dot in the *project's own* human accent
   (rendered by scoping that project's `data-lc-theme` on the dot), name 13px
-  `ink-2`, star affordance revealed on hover (persistent when starred, in
-  `accent-human`). Unreachable projects swap the dot for a 12px warn
+  `ink-2`, star **mark** when starred (`accent-human`); a persistent 20px `⋮`
+  holds starring, hovering to `line-strong` — a step above the row's own `wash`, or pointing at the control reads as pointing at the row (LC-208). Unreachable projects swap the dot for a 12px warn
   triangle in `--lc-warn` and dim the name to `ink-3`; the row stays in
   place and stays clickable.
 - **Active row:** `accent-human-soft` bg, `ink` text, 500 weight.
@@ -314,7 +314,7 @@ movement. No custom-color affordance exists anywhere.
   dot + mono key + title (archived tickets tagged `· archived`), Enter
   opens the panel.
 
-## Menus (status · priority · ordering · labels)
+## Menus (status · priority · ordering · labels · settings · project row)
 
 - Anchored popover: min 220px, `raised` bg, hairline, radius 10,
   `--lc-shadow-overlay`, 5px padding. Rows 30px with the option's own
@@ -326,12 +326,12 @@ movement. No custom-color affordance exists anywhere.
 
 ## Project settings
 
-- Centered modal dialog. Sections: Name + Key (key input disabled once any
-  ticket exists, mono note "locked after first ticket") · Folder (read-only
+- Right-hand panel over a scrim, with a side nav of sections (LC-208),
+  opened from the gear's menu or `⌘,`. General: Name + Key (key input disabled once any ticket exists, mono note "locked after first ticket") · Folder (read-only
   mono path + **Locate…**) · Theme picker · Appearance segment (System /
   Light / Dark — explicitly labeled an app preference, not project data) ·
   danger zone: **Remove from app** with the copy "Removing only forgets the
-  project in LongClaw. Files on disk are never touched."
+  project in LongClaw. Files on disk are never touched." Labels, Status fields (read-only — v0 ships the fixed set, ADR 0002) and Shortcuts are sections of the same nav.
 - Remove confirms via a dialog that names the path and repeats the
   non-destructive guarantee; the confirm button is the danger variant.
 

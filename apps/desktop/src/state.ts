@@ -18,6 +18,20 @@ import type {
  */
 export type Appearance = "light" | "dark" | "system";
 
+/**
+ * The three, in the order every surface draws them: the settings panel's 3-up
+ * segment and the theme submenu's choice rows (LC-208).
+ *
+ * Beside the union rather than beside either surface, for the reason the union
+ * is here at all — two lists that could drift are two chances to disagree about
+ * what `System` means, and neither surface owns the answer.
+ */
+export const APPEARANCES: { id: Appearance; label: string }[] = [
+  { id: "system", label: "System" },
+  { id: "light", label: "Light" },
+  { id: "dark", label: "Dark" },
+];
+
 interface LongClawState {
   projects: ProjectReference[];
   activeProjectId?: string;
