@@ -33,6 +33,7 @@ import type { ViewMode } from "./devicePreferences";
 import { FolderGlyph } from "./FolderGlyph";
 import { PriorityGlyph } from "./PriorityGlyph";
 import { StatusDot } from "./StatusDot";
+import { tabStops } from "./tabStops";
 import { ThemeSwatch } from "./ThemeSwatch";
 import type {
   IndexedTicket,
@@ -472,18 +473,19 @@ export function CommandPalette(props: {
     subMode?.run(row);
   }
 
-  function keyDown(event: React.KeyboardEvent) {
+  function keyDown(event: React.KeyboardEvent<HTMLDivElement>) {
     if (event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey)) {
       event.preventDefault();
       event.stopPropagation();
       return;
     }
     if (event.key === "Tab") {
-      const focusable = Array.from(
-        event.currentTarget.querySelectorAll<HTMLElement>(
-          "button:not(:disabled), input, [href], [tabindex]:not([tabindex='-1'])",
-        ),
-      );
+      // `tabStops`, not a selector list: every option row below is a
+      // `tabIndex={-1}` `<button>` by design, and a list whose first clause is
+      // `button` counted all of them — so Tab off the input walked into the
+      // rows the input is already driving through `aria-activedescendant`,
+      // in whatever order jsdom's engine concatenated the clauses (LC-208).
+      const focusable = tabStops(event.currentTarget);
       if (focusable.length > 0) {
         event.preventDefault();
         const current = focusable.indexOf(

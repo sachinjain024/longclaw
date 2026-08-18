@@ -1,11 +1,14 @@
 /**
  * The marks the settings surfaces wear (LC-208) — the gear and the `⋮` that
- * open them, and the five that name a row inside them.
+ * open them, and the four that name a row inside them.
  *
- * One file rather than seven, and named for the surface rather than for any
- * one mark: these exist only because the settings menus and panel do, they
- * change together when those change, and `FolderGlyph`/`WarnGlyph`'s
- * one-mark-per-file shape is for marks the whole app reuses.
+ * One file rather than six, and named for the surface rather than for any one
+ * mark: these exist only because the settings menus and panel do, they change
+ * together when those change, and `FolderGlyph`/`WarnGlyph`'s one-mark-per-file
+ * shape is for marks the whole app reuses.
+ *
+ * A mark the app already draws belongs to whichever file already draws it —
+ * `Rename…` wears `PencilGlyph`, not a second pencil written here.
  */
 
 /**
@@ -21,13 +24,12 @@
  * `aria-label`, the menu row's text, the panel header's heading — so a glyph
  * that also announced "settings" would say it twice (`accessibility.md`).
  */
-export function GearGlyph(props: { size?: number }) {
-  const size = props.size ?? 14;
+export function GearGlyph() {
   return (
     <svg
       className="gear-glyph"
-      width={size}
-      height={size}
+      width="14"
+      height="14"
       viewBox="0 0 14 14"
       aria-hidden="true"
     >
@@ -144,21 +146,6 @@ export function KeyboardGlyph() {
         stroke="currentColor"
         strokeWidth="1.2"
         strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-/** The pencil on `Rename`, the same one the panel's editable title wears. */
-export function RenameGlyph() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-      <path
-        d="M2.5 11.5 L3.1 9.3 L9.7 2.7 A1.05 1.05 0 0 1 11.2 4.2 L4.6 10.8 L2.5 11.5 Z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.3"
-        strokeLinejoin="round"
       />
     </svg>
   );

@@ -667,7 +667,7 @@ async function auditFocusOrder(browser) {
       "`ArrowRight` steps into the theme submenu",
       (await visible(page, ".menu-sub")) && inSubmenu,
       `submenu=${inSubmenu}`,
-      "keyboard-focus-map.md:139 — a menu's rows are the arrow keys'",
+      "keyboard-focus-map.md:139 — `→` opens a submenu",
     );
     await page.keyboard.press("ArrowLeft");
     await settle(page);
@@ -822,6 +822,25 @@ async function auditRawFileFocus(browser) {
 async function auditVisibleFocus(browser) {
   row("A3", "Visible focus survives panels, overlays, and scroll containers");
   const { context, page } = await board(browser, {
+    /**
+     * KNOWN BLIND, and blind on `main` too — `--self-test` has been reporting
+     * `A3 passed against a broken build` since this row was written, which
+     * nothing caught because the inversion had never been run (found while
+     * reviewing LC-208; it reproduces identically on `origin/main`).
+     *
+     * The break below cannot bite, and no small edit to it can. Focus in this
+     * app has **two** independent carriers by rule 3 of the focus map —
+     * `--lc-focus-ring` *and* a 1px `accent-human` border — so removing the
+     * ring leaves the border still repainting the card, and `paints()` goes on
+     * seeing a difference, correctly. Forcing the border off as well is worse:
+     * `border-color: transparent` differs from the unfocused border, so focusing
+     * still changes pixels and the row still passes.
+     *
+     * Making this row red needs the injected state to *equal* the unfocused one,
+     * which is a change to what the break is rather than a line of CSS. Left
+     * failing and named rather than quietly weakened, because a green
+     * `--self-test` here would be the claim the row is not blind.
+     */
     selfTest: (target) =>
       target.addStyleTag({
         // The exact mistake this row exists to catch.

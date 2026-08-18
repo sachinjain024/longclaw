@@ -64,11 +64,8 @@ import { OwlMark } from "./OwlMark";
 import { ProjectSettings } from "./ProjectSettings";
 import { QuickCreate } from "./QuickCreate";
 import type { FocusRequest } from "./rovingFocus";
-import {
-  ProjectMenu,
-  SettingsMenu,
-  type SettingsSection,
-} from "./SettingsMenu";
+import { ProjectMenu, SettingsMenu } from "./SettingsMenu";
+import { LANDING_SECTION, type SettingsSection } from "./settingsSections";
 import type { TicketMove } from "./ticketMove";
 import { useLongClawStore } from "./state";
 import { ThemeDot } from "./ThemeSwatch";
@@ -141,6 +138,13 @@ const THEMES = [
   { id: "plum", label: "Plum" },
   { id: "graphite", label: "Graphite" },
 ];
+
+/**
+ * The file every settings write lands in, for the header's disk-state
+ * indicator — which says `writing ticket.md…` by default and would otherwise
+ * name a ticket for a write that never touched one.
+ */
+const PROJECT_FILE = "longclaw.yaml";
 
 /** The note `screen-specs.md:324-325` puts under the ordering menu, verbatim. */
 const ORDERING_FOOTNOTE =
@@ -654,18 +658,27 @@ export function App() {
         return;
       }
       // `⌘,` is the platform's own settings chord, and both menus advertise it
-      // (LC-208). It opens the panel on `General` from anywhere — including
-      // from inside a field, since it is a chord (`keyboard-focus-map.md:12-14`)
-      // — and closes nothing: pressing it with settings already open is a
-      // no-op rather than a toggle, because the panel's way out is `Esc` and a
-      // chord that also closed would fight the section the human just picked.
+      // (LC-208). It opens the panel on `General` from anywhere a layer is not
+      // already up — including from inside a field, since it is a chord
+      // (`keyboard-focus-map.md:12-14`) — and closes nothing: pressing it with
+      // settings already open is a no-op rather than a toggle, because the
+      // panel's way out is `Esc` and a chord that also closed would fight the
+      // section the human just picked.
+      //
+      // "From anywhere" stops at the palette and quick create, and has to. The
+      // palette stops only `⌘K`, `Tab` and `Esc`, so this handler still sees
+      // the press underneath it; `.settings-panel` and `.modal-scrim` are both
+      // `--lc-z-modal` and the palette renders later in this file, so the panel
+      // would open *behind* the surface that is holding focus — a layer nobody
+      // can see, reach, or `Esc` past in one press. The menus go on advertising
+      // it because they are the layer it dismisses.
       if (isChord(event, ",")) {
-        if (!project) return;
+        if (!project || paletteOpen || createSurface !== undefined) return;
         event.preventDefault();
         // Whichever menu advertised the chord goes with the panel opening.
         setSettingsMenuOpen(false);
         setProjectMenu(undefined);
-        setSettingsSection((current) => current ?? "general");
+        setSettingsSection((current) => current ?? LANDING_SECTION);
         return;
       }
       if (isChord(event, "f")) {
@@ -1084,12 +1097,54 @@ export function App() {
     }
   }
 
-  async function toggleStar(project: ProjectReference) {
+  /**
+   * A write to `longclaw.yaml`, with the acknowledgement every other write in
+   * this app already gets (LC-208).
+   *
+   * The settings writes went out through bare `await`s: the header's disk-state
+   * indicator never moved, no toast was raised, and a rename that landed looked
+   * exactly like a rename that was dropped — the field simply kept the name you
+   * typed. `mutate()` cannot serve them, because it is built around a
+   * `WriteResult` for one ticket and an `expectedHash` a project file has no
+   * equivalent of. This is the same contract at project scale: mark the disk
+   * busy, say what changed and where it landed, and put the previous value
+   * behind an Undo when the change is one field with one inverse.
+   */
+  async function writeProjectFile<T>(options: {
+    /** Present tense, for the toast: `Renamed to "Longclaw"`. */
+    message: string;
+    write: () => Promise<T>;
+    onWritten: (result: T) => void;
+    /** The inverse, where there is a one-field one. `⌘Z` runs it. */
+    undo?: () => void;
+    /** Runs before the write, and again with `false` if it is refused. */
+    optimistic?: (applied: boolean) => void;
+  }) {
+    const { beginWrite, endWrite, raise } = useMutationStore.getState();
+    options.optimistic?.(true);
+    beginWrite(PROJECT_FILE);
     try {
-      upsertProject(await setProjectStarred(project.id, !project.starred));
+      options.onWritten(await options.write());
+      endWrite(PROJECT_FILE);
+      raise({ message: options.message, tone: "default", undo: options.undo });
+      return true;
     } catch (error) {
+      options.optimistic?.(false);
+      endWrite();
       setError(normalizeError(error));
+      return false;
     }
+  }
+
+  async function toggleStar(project: ProjectReference) {
+    await writeProjectFile({
+      message: project.starred
+        ? `Unstarred ${project.name}`
+        : `Starred ${project.name}`,
+      write: () => setProjectStarred(project.id, !project.starred),
+      onWritten: upsertProject,
+      undo: () => void toggleStar({ ...project, starred: !project.starred }),
+    });
   }
 
   /**
@@ -1111,25 +1166,43 @@ export function App() {
   ) {
     if (!target || target.theme === theme) return;
     const previous = target;
-    upsertProject({ ...target, theme });
-    try {
-      const updated = await updateProjectTheme(target.id, theme);
-      upsertProject(updated);
-    } catch (error) {
-      upsertProject(previous);
-      setError(normalizeError(error));
-    }
+    const label = THEMES.find((option) => option.id === theme)?.label ?? theme;
+    await writeProjectFile({
+      message: `Theme set to ${label}`,
+      // The crossfade is the *instant* acknowledgement the spec asks for; the
+      // toast is the durable one, and the only thing that says the preset
+      // reached the file rather than just the window.
+      optimistic: (applied) =>
+        upsertProject(applied ? { ...target, theme } : previous),
+      write: () => updateProjectTheme(target.id, theme),
+      onWritten: upsertProject,
+      undo: () => void changeTheme({ ...target, theme }, previous.theme),
+    });
   }
 
   async function renameProject(name: string) {
     if (!project || name.trim() === project.name) return;
-    try {
-      const updated = await updateProjectName(project.id, name);
+    const previous = project;
+    const adopt = (updated: ProjectReference) => {
       upsertProject(updated);
-      await loadProject(updated.id);
-    } catch (error) {
-      setError(normalizeError(error));
-    }
+      void loadProject(updated.id);
+    };
+    await writeProjectFile({
+      message: `Renamed to ${name.trim()}`,
+      write: () => updateProjectName(previous.id, name),
+      onWritten: adopt,
+      // Its own write, not a second call to this function. `renameProject`
+      // reads the open project from the render it was defined in, and the undo
+      // runs from the render *before* the rename landed — so the guard at the
+      // top would compare the old name against the old name and return, and
+      // Undo would be a button that does nothing.
+      undo: () =>
+        void writeProjectFile({
+          message: `Renamed back to ${previous.name}`,
+          write: () => updateProjectName(previous.id, previous.name),
+          onWritten: adopt,
+        }),
+    });
   }
 
   /** Closes the settings panel and hands focus back to the gear that opened it. */
@@ -1675,6 +1748,7 @@ export function App() {
             onMenu={(project, anchor) =>
               setProjectMenu({ projectId: project.id, anchor })
             }
+            onCloseMenu={() => setProjectMenu(undefined)}
           />
           <ProjectSection
             title="Local"
@@ -1686,6 +1760,7 @@ export function App() {
             onMenu={(project, anchor) =>
               setProjectMenu({ projectId: project.id, anchor })
             }
+            onCloseMenu={() => setProjectMenu(undefined)}
           />
         </nav>
 
@@ -2054,8 +2129,9 @@ export function App() {
           onTheme={(theme) => void changeTheme(project, theme)}
           onLocate={() => void relocateActiveProject(project.id)}
           onRemove={() => void forgetProject(project.id)}
-          onUpdated={upsertProject}
-          onError={setError}
+          onWrite={(message, write) =>
+            writeProjectFile({ message, write, onWritten: upsertProject })
+          }
           onClose={closeSettings}
         />
       )}
@@ -2324,6 +2400,8 @@ function ProjectSection(props: {
   onOpen: (projectId: string) => void;
   /** The row's `⋮`, handed the project and the button to hang the menu off. */
   onMenu: (project: ProjectReference, anchor: HTMLElement) => void;
+  /** The same `⋮` pressed again, which takes its own menu back down. */
+  onCloseMenu: () => void;
   /** Which row's menu is up, so its `⋮` can hold the pressed state. */
   menuFor?: string;
 }) {
@@ -2408,11 +2486,26 @@ function ProjectSection(props: {
               // menu` buttons is a list nobody can navigate by name.
               aria-label={`${project.name} menu`}
               title="Project menu"
+              // Not `ghost`: that variant is a 30px labelled control, and its
+              // `min-height` and its `:hover:not(:disabled)` — a full step of
+              // specificity above anything this class can say — were quietly
+              // winning. The `⋮` came out 30px tall instead of 20 and hovered
+              // to the same `wash` its row hovers to, which is *why* pointing
+              // at it looked like pointing at the row. It is not a button
+              // variant; it is a row affordance, and it says so itself.
               className={classes(
-                "ghost row-menu-button",
+                "row-menu-button",
                 props.menuFor === project.id && "open",
               )}
-              onClick={(event) => props.onMenu(project, event.currentTarget)}
+              // A toggle, as the gear is. Click-away runs on `mousedown` and
+              // excludes the anchor (`popover.ts`), so a `⋮` that only ever
+              // opened could not be closed by pressing it again — the press
+              // that opened it was the only one it answered.
+              onClick={(event) =>
+                props.menuFor === project.id
+                  ? props.onCloseMenu()
+                  : props.onMenu(project, event.currentTarget)
+              }
             >
               <KebabGlyph />
             </button>

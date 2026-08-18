@@ -1168,6 +1168,73 @@ describe("the project settings gear (LC-70)", () => {
     fireEvent.keyDown(menu, { key: "Escape" });
     expect(screen.queryByRole("menu")).toBeNull();
   });
+
+  /** The board, with the gear on it and nothing else up. */
+  async function boardWithGear() {
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project,
+      tickets: [],
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    render(<App />);
+    await screen.findByRole("button", { name: "Board", pressed: true });
+  }
+
+  it("opens settings on `⌘,` from the board, and does not toggle", async () => {
+    await boardWithGear();
+
+    fireEvent.keyDown(document, { key: ",", metaKey: true });
+    const panel = screen.getByRole("dialog", { name: "Project settings" });
+    expect(within(panel).getByRole("tab", { name: "General" })).toBeTruthy();
+
+    // Pressing it again is a no-op: the panel's way out is `Esc`, and a chord
+    // that also closed would fight the section the human just picked.
+    fireEvent.keyDown(document, { key: ",", metaKey: true });
+    expect(
+      screen.getByRole("dialog", { name: "Project settings" }),
+    ).toBeTruthy();
+  });
+
+  /**
+   * `⌘,` said "from anywhere", and the palette is the one place that cannot be.
+   *
+   * `CommandPalette` stops `⌘K`, `Tab` and `Esc` and lets everything else
+   * through, so this handler still saw the press underneath it. `.settings-panel`
+   * and `.modal-scrim` are both `--lc-z-modal` and the palette renders later in
+   * `App`, so the panel opened *behind* the surface holding focus — a layer
+   * nobody could see, reach, or `Esc` past in one press.
+   */
+  it("leaves `⌘,` alone while the palette is up", async () => {
+    await boardWithGear();
+
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+    expect(document.querySelector(".command-palette")).toBeTruthy();
+
+    fireEvent.keyDown(document, { key: ",", metaKey: true });
+
+    expect(
+      screen.queryByRole("dialog", { name: "Project settings" }),
+    ).toBeNull();
+    // The palette is still the layer, and still the only one.
+    expect(document.querySelector(".command-palette")).toBeTruthy();
+  });
+
+  it("leaves `⌘,` alone while quick create is up", async () => {
+    await boardWithGear();
+
+    fireEvent.keyDown(document, { key: "c" });
+    expect(screen.getByLabelText("Create a ticket")).toBeTruthy();
+
+    fireEvent.keyDown(document, { key: ",", metaKey: true });
+
+    expect(
+      screen.queryByRole("dialog", { name: "Project settings" }),
+    ).toBeNull();
+    expect(screen.getByLabelText("Create a ticket")).toBeTruthy();
+  });
 });
 
 describe("project settings as a modal (LC-125 … LC-132)", () => {
@@ -1451,7 +1518,13 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
     ).toBe("round");
   });
 
-  it("D-4J / D-72: label colours are swatches, and a row carries one button", async () => {
+  /**
+   * The colour is a dropdown since LC-208 — one dot and a chevron, opening the
+   * eight — where it was eight swatches laid out inline. Still no OS `<select>`
+   * (D-72), still one button per row (D-4J), and still every hue named for
+   * anything that is not looking at it.
+   */
+  it("D-4J / D-72: a label's colour is a dropdown of the ramp", async () => {
     vi.mocked(api.updateProjectLabel).mockResolvedValue({
       ...project,
       labels: { backend: { name: "Backend", color: "purple" } },
@@ -1466,13 +1539,22 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
       within(dialog).getByRole("button", { name: "Remove label backend" }),
     ).toBeTruthy();
 
-    const hues = within(dialog).getByRole("group", {
-      name: "Color of label backend",
+    // At rest the row shows one colour: the one the label is.
+    const trigger = within(dialog).getByRole("button", {
+      name: "Color of label backend: blue",
     });
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(
+      within(dialog).queryByRole("menuitemradio", { name: "purple" }),
+    ).toBeNull();
+
+    fireEvent.click(trigger);
+
+    const hues = screen.getByRole("menu", { name: "Color of label backend" });
     expect(
       within(hues)
-        .getAllByRole("radio")
-        .map((radio) => (radio as HTMLInputElement).value),
+        .getAllByRole("menuitemradio")
+        .map((swatch) => swatch.getAttribute("aria-label")),
     ).toEqual([
       "blue",
       "cyan",
@@ -1485,7 +1567,9 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
     ]);
 
     // A picked hue applies at once, the way the theme picker does.
-    fireEvent.click(within(hues).getByRole("radio", { name: "purple" }));
+    fireEvent.click(
+      within(hues).getByRole("menuitemradio", { name: "purple" }),
+    );
 
     await waitFor(() =>
       expect(api.updateProjectLabel).toHaveBeenCalledWith({
@@ -1495,6 +1579,64 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
         color: "purple",
       }),
     );
+    // And the strip goes with the decision.
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  /**
+   * Every settings write is acknowledged (LC-208). They went out through bare
+   * `await`s: the disk-state indicator never moved and no toast was raised, so
+   * a rename that landed looked exactly like one that was dropped — the field
+   * simply kept what you typed either way.
+   */
+  it("says what changed, and offers to take it back", async () => {
+    vi.mocked(api.updateProjectName).mockResolvedValue({
+      ...project,
+      name: "Renamed",
+    });
+    const dialog = await openSettings();
+
+    const field = within(dialog).getByLabelText("Name");
+    fireEvent.change(field, { target: { value: "Renamed" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+
+    const toast = await screen.findByRole("status");
+    expect(toast.textContent).toContain("Renamed to Renamed");
+    // The write is named for the file it lands in, not for a ticket — the
+    // header's disk-state indicator said `ticket.md` for every settings write
+    // that reached it, because that is what it says when nothing names a path.
+    await waitFor(() =>
+      expect(
+        document.querySelector(".content-header .disk-path")?.textContent,
+      ).toContain("longclaw.yaml"),
+    );
+
+    // And the previous name is one press away, as every other write's is.
+    vi.mocked(api.updateProjectName).mockResolvedValue(project);
+    fireEvent.click(within(toast).getByRole("button", { name: /^Undo/ }));
+    await waitFor(() =>
+      expect(api.updateProjectName).toHaveBeenLastCalledWith(
+        project.id,
+        project.name,
+      ),
+    );
+  });
+
+  it("acknowledges a label definition landing too", async () => {
+    vi.mocked(api.removeProjectLabel).mockResolvedValue({
+      ...project,
+      labels: {},
+    });
+    const dialog = await openSettings([ticket], "Labels");
+
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Remove label backend" }),
+    );
+
+    const toast = await screen.findByRole("status");
+    // "Removed the definition", not "deleted the label": the slug stays on
+    // every ticket carrying it, which is the whole guarantee of this section.
+    expect(toast.textContent).toContain("Removed the backend label definition");
   });
 
   it("D-4J: `Esc` in a label name reverts the field and leaves the panel up", async () => {
@@ -2444,11 +2586,14 @@ describe("label definitions in project settings (V0-10)", () => {
     fireEvent.change(screen.getByLabelText("New label name"), {
       target: { value: "Reliability" },
     });
-    // A swatch, not an OS dropdown (LC-130): the hue is picked by name inside
-    // the group the fieldset's legend names.
+    // The app's own dropdown, never an OS one (LC-130, LC-208): the trigger
+    // shows the hue it is set to, and the strip names every hue it offers.
     fireEvent.click(
-      within(screen.getByRole("group", { name: "New label color" })).getByRole(
-        "radio",
+      screen.getByRole("button", { name: "New label color: blue" }),
+    );
+    fireEvent.click(
+      within(screen.getByRole("menu", { name: "New label color" })).getByRole(
+        "menuitemradio",
         { name: "amber" },
       ),
     );
@@ -4463,6 +4608,35 @@ describe("the side panel against its spec (Step 16a)", () => {
     expect(
       within(popover).getByRole("menuitem", { name: /Unstar project/ }),
     ).toBeTruthy();
+  });
+
+  /**
+   * The `⋮` is a toggle, as the gear is.
+   *
+   * Click-away runs on `mousedown` and excludes the anchor (`popover.ts`), so a
+   * `⋮` whose handler only ever *opened* could not be closed by pressing it
+   * again: the dismissal never fired, and the handler re-set the state it was
+   * already in. `SettingsMenu.test.tsx` asserts the toggle against a harness
+   * that implements one, so only the shell can see this.
+   */
+  it("closes the row's menu when its own ⋮ is pressed a second time", async () => {
+    await renderPanel();
+
+    const kebab = within(localSection()).getByRole("button", {
+      name: "Reachable Project menu",
+    });
+    const press = () => {
+      fireEvent.mouseDown(kebab);
+      fireEvent.mouseUp(kebab);
+      fireEvent.click(kebab);
+    };
+
+    press();
+    expect(screen.getByRole("menu", { name: "Project menu" })).toBeTruthy();
+
+    press();
+    expect(screen.queryByRole("menu", { name: "Project menu" })).toBeNull();
+    expect(kebab.getAttribute("aria-expanded")).toBe("false");
   });
 
   /**

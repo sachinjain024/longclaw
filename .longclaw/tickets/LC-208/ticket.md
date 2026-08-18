@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: aa30d102-2d8f-499e-9745-5d581eb9a2d1
 key: LC-208
 title: Improve the UI and UX of Project Settings
-status: in_progress
+status: in_review
 priority: urgent
 labels:
   - frontend
   - design
 created_at: 2026-08-11T14:48:54.999Z
-updated_at: 2026-08-12T11:57:07.823Z
+updated_at: 2026-08-12T13:06:25.739Z
 ---
 
 - Prototype this in Claude Design. Once convinced in Claude Design, bring in Claude Code for implementation.
@@ -143,4 +143,19 @@ Implemented on `feat/lc-208-settings-ux` (21ae275).
 - `keyboard-focus-map.md` § Global has no `⌘,` row and no rung for the menu layer. Adding one shifts the file, and 124 citations name lines below it — a mechanical but separate re-point.
 - `screen-specs.md:59` still specifies the star as a hover-revealed affordance; it is a mark now.
 - Pre-existing and unrelated: `cargo test --test cli an_item_can_be_reworded_and_removed_by_id` fails on main — the CLI has no `--edit-item`/`--move-item`/`--after`.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_be599a58
+kind: update
+occurred_at: 2026-08-12T13:06:25.739Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_progress
+    to: in_review
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

@@ -20,6 +20,7 @@
  */
 
 import { useEffect, useRef } from "react";
+import { tabStops } from "./tabStops";
 import type { TicketDetail } from "./types";
 import { WarnGlyph } from "./WarnGlyph";
 
@@ -144,31 +145,6 @@ export function RawFileView(props: {
   }, [detail]);
 
   /**
-   * Everything `Tab` can land on inside the dialog, in document order.
-   *
-   * One attribute selector rather than the list the settings dialog and the
-   * palette use, for two reasons. Every control in this repo declares its own
-   * `tabIndex` — `scripts/tab-order-guard.mjs` fails the build otherwise — so
-   * one selector reaches all of them. And a selector *list* is grouped per
-   * selector by jsdom rather than returned in document order, which would put
-   * the file block after the footer's buttons in the test and before them in
-   * WebKit: a Tab order that differs between the thing asserting it and the
-   * thing shipping it.
-   *
-   * `disabled` is dropped for the same reason the others drop it: `Retry parse`
-   * is disabled while a retry is out, and focusing it there is a no-op that
-   * leaves focus on `<body>` behind the scrim — the one thing a trap exists to
-   * prevent.
-   */
-  function tabStops() {
-    return Array.from(
-      dialog.current?.querySelectorAll<HTMLElement>(
-        "[tabindex]:not([tabindex='-1'])",
-      ) ?? [],
-    ).filter((stop) => !stop.hasAttribute("disabled"));
-  }
-
-  /**
    * Rule 5 of the focus map: a modal holds focus until it is dismissed. Without
    * it, `Tab` off the last button walks into the board behind the scrim — which
    * is the surface this file's ticket is not on.
@@ -190,7 +166,10 @@ export function RawFileView(props: {
       return;
     }
     if (event.key !== "Tab") return;
-    const stops = tabStops();
+    // Document order and no disabled stops — `Retry parse` is disabled while a
+    // retry is out, and focusing it there leaves focus on `<body>` behind the
+    // scrim, the one thing a trap exists to prevent (`tabStops.ts`).
+    const stops = dialog.current ? tabStops(dialog.current) : [];
     if (stops.length === 0) return;
     event.preventDefault();
     const here = stops.indexOf(document.activeElement as HTMLElement);

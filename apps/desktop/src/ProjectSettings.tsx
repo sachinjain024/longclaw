@@ -24,61 +24,27 @@
  * be a write with nowhere to land.
  */
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { addProjectLabel, removeProjectLabel, updateProjectLabel } from "./api";
 import { RemoveProjectConfirm } from "./ConfirmDialog";
-import { normalizeError } from "./errors";
 import { FolderGlyph } from "./FolderGlyph";
 import { GearGlyph } from "./SettingsGlyphs";
 import { FALLBACK_LABEL_COLOR, isRampColor, LABEL_COLORS } from "./labels";
-import { APPEARANCES, type SettingsSection } from "./SettingsMenu";
-import type { Appearance } from "./state";
+import { useDismissOnPressOutside, useFocusReturn } from "./popover";
+import { SETTINGS_SECTIONS, type SettingsSection } from "./settingsSections";
+import { APPEARANCES, type Appearance } from "./state";
 import { StatusDot } from "./StatusDot";
+import { tabStops } from "./tabStops";
 import { ThemePicker, type ThemeOption } from "./ThemePicker";
 import { STATUSES } from "./tickets";
-import type { AppError, Label, ProjectReference } from "./types";
-
-/**
- * The nav, in the order the panel reads: what the project *is*, then how it
- * looks, then its vocabularies, then the reference section, then the way out.
- *
- * The menu offers the same sections in a different order, and deliberately:
- * a nav is read top to bottom and so leads with identity, while a menu is
- * aimed at and so leads with `Theme`, which is what the gear is most often
- * opened for. The set is what must not drift, not the sequence.
- */
-const SECTIONS: { id: SettingsSection; label: string }[] = [
-  { id: "general", label: "General" },
-  { id: "theme", label: "Theme" },
-  { id: "labels", label: "Labels" },
-  { id: "status", label: "Status fields" },
-  { id: "shortcuts", label: "Shortcuts" },
-  { id: "danger", label: "Danger zone" },
-];
-
-/**
- * Everything inside `container` that Tab can land on, in document order.
- *
- * Two things this walk has to get right, and a selector list gets neither.
- * `tabindex="-1"` has to lose to the element's own type — a `<button>` in a
- * roving group is *not* a tab stop, and a four-clause selector whose first
- * clause is `button` counted all six nav rows as stops rather than the one
- * holding the group's stop. And the order has to be the document's: a selector
- * list is evaluated clause by clause and concatenated by jsdom's engine, which
- * put every button before every input regardless of where they sit, so a trap
- * built on it wrapped to whatever happened to be first in the first clause.
- * `"*"` is one selector, so the order is the tree's.
- */
-function tabStops(container: HTMLElement) {
-  return Array.from(container.querySelectorAll<HTMLElement>("*")).filter(
-    (element) => {
-      if (element.getAttribute("tabindex") === "-1") return false;
-      if (element.matches("button, input, select, textarea, [href]"))
-        return !element.matches(":disabled");
-      return element.hasAttribute("tabindex");
-    },
-  );
-}
+import type { Label, ProjectReference } from "./types";
 
 /**
  * "Modals hold focus until dismissed" (`keyboard-focus-map.md:23-24`), which a
@@ -117,8 +83,16 @@ export function ProjectSettings(props: {
   onTheme: (theme: string) => void;
   onLocate: () => void;
   onRemove: () => void;
-  onUpdated: (project: ProjectReference) => void;
-  onError: (error: AppError) => void;
+  /**
+   * A write to the project file, acknowledged the way every other write in the
+   * app is: `App` marks the disk busy, adopts what landed, raises the toast and
+   * owns the refusal. Returns whether it landed, which the add-a-label row
+   * reads to decide if it may clear what was typed.
+   */
+  onWrite: (
+    message: string,
+    write: () => Promise<ProjectReference>,
+  ) => Promise<boolean>;
   onClose: () => void;
 }) {
   const [confirmingRemove, setConfirmingRemove] = useState(false);
@@ -144,8 +118,9 @@ export function ProjectSettings(props: {
    * container with its own tab stop, so focus lands somewhere that can be read
    * with the page keys rather than on `<body>`.
    *
-   * On mount only. The nav selects on focus, so re-running this per section
-   * would pull focus out of the nav on the first arrow press.
+   * On mount only. An arrow press in the nav both selects a section and moves
+   * focus onto its row, so a version of this that re-ran per section would take
+   * that focus straight back out of the nav again.
    */
   useEffect(() => {
     const pane = sectionPane.current;
@@ -248,11 +223,7 @@ export function ProjectSettings(props: {
               />
             )}
             {props.section === "labels" && (
-              <ProjectLabels
-                project={props.project}
-                onUpdated={props.onUpdated}
-                onError={props.onError}
-              />
+              <ProjectLabels project={props.project} onWrite={props.onWrite} />
             )}
             {props.section === "status" && <StatusSection />}
             {props.section === "shortcuts" && <ShortcutsSection />}
@@ -288,6 +259,9 @@ export function ProjectSettings(props: {
  * A tablist, which is what it is — the panes are already built and cost nothing
  * to show, so selection follows focus, exactly as the ticket panel's own tabs
  * do. One tab stop for the set; the arrows own the rest.
+ *
+ * The rows are `settingsSections.ts`'s, so the nav and the gear's menu cannot
+ * come to name the same pane two different things.
  */
 function SectionNav(props: {
   section: SettingsSection;
@@ -302,7 +276,7 @@ function SectionNav(props: {
       aria-label="Settings sections"
       aria-orientation="vertical"
     >
-      {SECTIONS.map((section, index) => (
+      {SETTINGS_SECTIONS.map((section, index) => (
         <button
           key={section.id}
           type="button"
@@ -329,16 +303,29 @@ function SectionNav(props: {
             // Wraps at both ends, and counts the sections rather than
             // assuming how many there are.
             const next =
-              SECTIONS[(index + step + SECTIONS.length) % SECTIONS.length];
+              SETTINGS_SECTIONS[
+                (index + step + SETTINGS_SECTIONS.length) %
+                  SETTINGS_SECTIONS.length
+              ];
             props.onPick(next.id);
             // Focus has to be moved by hand: the button keeping it is the one
             // this press just unselected, and it is about to lose its stop.
             buttons.current.get(next.id)?.focus();
           }}
         >
-          {section.label}
+          {section.navLabel}
         </button>
       ))}
+      {/* Pinned to the foot of the nav, the way the side panel's trust line is
+          pinned to the foot of the shell — and saying the same kind of thing.
+          The header's chip names the file; this says the panes above it are
+          *that file*, which is the claim D-4K asks the panel to keep making
+          while a person is editing rather than only when it opens. */}
+      <p className="settings-nav-note">
+        stored in
+        <br />
+        longclaw.yaml
+      </p>
     </nav>
   );
 }
@@ -565,18 +552,30 @@ function StatusSection() {
  * It is here because the menu offers it and because there is nowhere else: the
  * palette lists commands, not their keys, and a shortcut nobody can look up is
  * a shortcut only its author uses.
+ *
+ * It is a hand-copy of the map's § Global and § Board tables
+ * (`keyboard-focus-map.md:29-34`, `:39-44`) and there is no way for it not to
+ * be — the map is prose for people, not a module. So it is written to be
+ * *checkable* instead: one row per row of those two tables, in their order,
+ * and it shipped missing `⌘↵` and the `J K H L` half of board movement.
+ * Re-read them together when either changes.
  */
 const SHORTCUTS: { action: string; keys: string[] }[] = [
-  { action: "Quick create a ticket", keys: ["C"] },
   { action: "Open command palette", keys: ["⌘", "K"] },
-  { action: "Focus the filter field", keys: ["⌘", "F"] },
   { action: "Undo the last write", keys: ["⌘", "Z"] },
+  { action: "Focus the filter field", keys: ["⌘", "F"] },
+  { action: "Quick create a ticket", keys: ["C"] },
   { action: "Project settings", keys: ["⌘", ","] },
+  { action: "Close one layer", keys: ["Esc"] },
+  { action: "Move between tickets", keys: ["↑", "↓", "←", "→"] },
+  { action: "…or without leaving the home row", keys: ["K", "J", "H", "L"] },
+  { action: "Open the focused ticket", keys: ["↵"] },
+  {
+    action: "Create from the quick-create form, from any field",
+    keys: ["⌘", "↵"],
+  },
   { action: "Status menu on the focused ticket", keys: ["S"] },
   { action: "Priority menu on the focused ticket", keys: ["P"] },
-  { action: "Open the focused ticket", keys: ["↵"] },
-  { action: "Move between tickets", keys: ["↑", "↓", "←", "→"] },
-  { action: "Close one layer", keys: ["Esc"] },
 ];
 
 function ShortcutsSection() {
@@ -638,8 +637,10 @@ function DangerSection(props: {
  */
 function ProjectLabels(props: {
   project: ProjectReference;
-  onUpdated: (project: ProjectReference) => void;
-  onError: (error: AppError) => void;
+  onWrite: (
+    message: string,
+    write: () => Promise<ProjectReference>,
+  ) => Promise<boolean>;
 }) {
   const [slug, setSlug] = useState("");
   const [name, setName] = useState("");
@@ -648,18 +649,14 @@ function ProjectLabels(props: {
   /** Where focus goes when the row holding it is taken away. */
   const addSlug = useRef<HTMLInputElement>(null);
 
-  /** Every write here returns the project as the file now reads. */
-  async function run(write: () => Promise<ProjectReference>) {
-    try {
-      props.onUpdated(await write());
-      return true;
-    } catch (error) {
-      // Rust owns the slug grammar and the name and colour rules, so its
-      // refusal is the message — this never guesses at one of its own.
-      props.onError(normalizeError(error));
-      return false;
-    }
-  }
+  /**
+   * Every write here returns the project as the file now reads, and every one
+   * of them says so: a definition added, renamed, recoloured or removed used to
+   * land in silence, which on the remove is the difference between "gone" and
+   * "did that work?". Rust owns the slug grammar and the name and colour rules,
+   * so its refusal is the message — nothing here guesses at one of its own.
+   */
+  const run = props.onWrite;
 
   return (
     <section className="label-settings" aria-label="Labels">
@@ -676,7 +673,7 @@ function ProjectLabels(props: {
           slug={definedSlug}
           label={label}
           onSave={(next) =>
-            void run(() =>
+            void run(`Label ${definedSlug} updated`, () =>
               updateProjectLabel({
                 projectId: props.project.id,
                 slug: definedSlug,
@@ -685,7 +682,9 @@ function ProjectLabels(props: {
             )
           }
           onRemove={() => {
-            void run(() =>
+            // "Removed" and not "deleted": the definition goes, and every
+            // ticket carrying the slug keeps it (`file_format.md:214-231`).
+            void run(`Removed the ${definedSlug} label definition`, () =>
               removeProjectLabel({
                 projectId: props.project.id,
                 slug: definedSlug,
@@ -703,7 +702,7 @@ function ProjectLabels(props: {
           event.preventDefault();
           if (!slug.trim() || !name.trim()) return;
           void (async () => {
-            const added = await run(() =>
+            const added = await run(`Added the ${slug.trim()} label`, () =>
               addProjectLabel({
                 projectId: props.project.id,
                 slug: slug.trim(),
@@ -837,53 +836,179 @@ function LabelDefinition(props: {
 }
 
 /**
- * The eight ramp hues as swatches (D12, `labels.ts:22-31`) — the OS `<select>`
- * this replaces was one of the two places the app rendered native chrome
- * (D-72), and it named its colours in words while every other surface draws
- * them as dots.
+ * The colour a label reads as, behind a dropdown (D12, `labels.ts:22-31`).
  *
- * Native radios in a fieldset, like the theme picker: the group label, the
- * arrow keys, and the single tab stop are the platform's.
+ * It was eight swatches laid out inline, which is what LC-208 inherited from
+ * V0-10 and carried into the new panel unchanged — and a row of eight dots per
+ * label is 48 dots down a six-label list, none of which is the answer to
+ * "what colour is `design`?". The prototype draws one dot and a chevron, and
+ * that is the right trade: the resting state says the colour, and the eight
+ * are a decision you have opened rather than a decision on permanent display.
+ *
+ * What the swatch row *did* get right and this keeps: the OS `<select>` it
+ * replaced was one of the two places the app rendered native chrome (D-72),
+ * and it named its colours in words while every other surface draws them as
+ * dots. Every dot here carries its name for anything that is not looking.
  */
 function LabelColors(props: {
   label: string;
   value: string;
   onPick: (color: string) => void;
 }) {
-  const name = useId();
+  const [open, setOpen] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
   // A colour the ramp does not hold is still shown and still selected, or
   // renaming a label would silently recolour it. It wears the fallback dot,
   // which is what every other surface draws it as (`labels.ts:40`).
   const hues: readonly string[] = isRampColor(props.value)
     ? LABEL_COLORS
     : [props.value, ...LABEL_COLORS];
+  const dot = (hue: string) =>
+    `label-dot label-${isRampColor(hue) ? hue : FALLBACK_LABEL_COLOR}`;
   return (
-    <fieldset className="label-colors">
-      <legend className="visually-hidden">{props.label}</legend>
-      {hues.map((hue) => (
-        <label
+    <span className="label-color-field">
+      <button
+        tabIndex={0}
+        type="button"
+        ref={trigger}
+        className="label-color-trigger"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        // The name carries the value, because the trigger's whole content is a
+        // colour: `Color of label design: orange`.
+        aria-label={`${props.label}: ${props.value}`}
+        onClick={() => setOpen(!open)}
+      >
+        <span className={dot(props.value)} aria-hidden="true" />
+        <ChevronGlyph />
+      </button>
+      {open && (
+        <LabelColorMenu
+          label={props.label}
+          hues={hues}
+          value={props.value}
+          anchor={trigger.current}
+          dot={dot}
+          onPick={(hue) => {
+            props.onPick(hue);
+            setOpen(false);
+          }}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </span>
+  );
+}
+
+/**
+ * The eight, in one row, as the prototype draws them.
+ *
+ * A strip rather than a list of named rows: the thing being chosen *is* a
+ * colour, so the swatch is the label and a column of colour words would be a
+ * worse version of the `<select>` D-72 removed. The names are still there for
+ * anything not looking at it — on each dot, not beside it.
+ *
+ * Roving focus, one tab stop, arrows along the strip, `Esc` back to the
+ * trigger: the contract `keyboard-focus-map.md:139-141` gives every menu, on
+ * the horizontal axis this one is drawn along.
+ */
+function LabelColorMenu(props: {
+  label: string;
+  hues: readonly string[];
+  value: string;
+  anchor: HTMLElement | null;
+  dot: (hue: string) => string;
+  onPick: (hue: string) => void;
+  onClose: () => void;
+}) {
+  const popover = useRef<HTMLDivElement>(null);
+  const swatches = useRef<(HTMLButtonElement | null)[]>([]);
+  const at = props.hues.indexOf(props.value);
+  const [active, setActive] = useState(at === -1 ? 0 : at);
+  useFocusReturn(props.anchor);
+  useDismissOnPressOutside({
+    popover,
+    anchor: props.anchor,
+    onDismiss: props.onClose,
+  });
+  useLayoutEffect(() => {
+    swatches.current[active]?.focus();
+  }, [active]);
+
+  return (
+    <div
+      className="label-color-menu"
+      role="menu"
+      aria-label={props.label}
+      ref={popover}
+      onKeyDown={(event) => {
+        if (event.metaKey || event.ctrlKey || event.altKey) return;
+        const step =
+          event.key === "ArrowRight" || event.key === "ArrowDown"
+            ? 1
+            : event.key === "ArrowLeft" || event.key === "ArrowUp"
+              ? -1
+              : 0;
+        if (step !== 0) {
+          event.preventDefault();
+          event.stopPropagation();
+          // Wraps at both ends, as every other menu in the app does.
+          setActive(
+            (index) => (index + step + props.hues.length) % props.hues.length,
+          );
+          return;
+        }
+        if (event.key !== "Escape") return;
+        event.preventDefault();
+        // Spent here: the panel behind this must not also close.
+        event.stopPropagation();
+        props.onClose();
+      }}
+    >
+      {props.hues.map((hue, index) => (
+        <button
           key={hue}
+          type="button"
+          role="menuitemradio"
+          aria-checked={hue === props.value}
+          aria-label={hue}
+          tabIndex={index === active ? 0 : -1}
+          ref={(element) => {
+            swatches.current[index] = element;
+          }}
           className={
-            hue === props.value ? "label-color selected" : "label-color"
+            hue === props.value
+              ? "label-color-swatch selected"
+              : "label-color-swatch"
           }
-          title={hue}
+          onFocus={() => setActive(index)}
+          onClick={() => props.onPick(hue)}
         >
-          <input
-            type="radio"
-            name={name}
-            value={hue}
-            checked={hue === props.value}
-            onChange={() => props.onPick(hue)}
-          />
-          <span
-            className={`label-dot label-${isRampColor(hue) ? hue : FALLBACK_LABEL_COLOR}`}
-            aria-hidden="true"
-          />
-          {/* The dot is the channel a sighted user reads; this is the one that
-              reaches everyone else. */}
-          <span className="visually-hidden">{hue}</span>
-        </label>
+          <span className={props.dot(hue)} aria-hidden="true" />
+        </button>
       ))}
-    </fieldset>
+    </div>
+  );
+}
+
+/** The mark that says a control opens something (`components.md` § Menus). */
+function ChevronGlyph() {
+  return (
+    <svg
+      className="label-color-chevron"
+      width="9"
+      height="9"
+      viewBox="0 0 14 14"
+      aria-hidden="true"
+    >
+      <path
+        d="M3 5 L7 9.5 L11 5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }

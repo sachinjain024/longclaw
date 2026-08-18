@@ -30,8 +30,8 @@
 | `⌘Z` | Undo last mutation (paired with the toast) |
 | `⌘F` | Focus the filter field (selects existing query) |
 | `C` | Quick create (in the current project) |
+| `⌘,` | Open project settings on General; a no-op while it is already open |
 | `Esc` | Ladder rule 4 |
-
 ## Board
 
 | Key | Action |
@@ -132,11 +132,11 @@ rule; the list's Archived show/hide toggle is a focusable header button).
 | `Esc` | Cancel, focus returns — as does the `esc` control at the top right, which is a button but never a tab stop |
 | `Tab` | Title → description → status → priority → labels → Open full editor → Create more → Create |
 
-## Menus (status / priority / ordering / labels)
-
+## Menus (status / priority / ordering / labels / settings / project row)
 | Key | Action |
 |---|---|
 | `↑↓` | Cycle rows (wraps) |
+| `→` `←` | Open a submenu; step back out to the row it hangs off |
 | `Enter` | Pick → apply optimistically → close → focus returns to trigger/card |
 | `Esc` | Close without change → focus returns |
 

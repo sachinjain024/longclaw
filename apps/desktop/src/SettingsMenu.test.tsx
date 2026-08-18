@@ -23,6 +23,7 @@ import {
 import { useRef, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProjectMenu, SettingsMenu } from "./SettingsMenu";
+import { SETTINGS_SECTIONS } from "./settingsSections";
 import type { ProjectReference } from "./types";
 
 afterEach(cleanup);
@@ -70,7 +71,13 @@ function Harness(props: {
   return (
     <>
       {/* A toggle, as both real triggers are (`App.tsx`): a harness that only
-          ever opened could not see a menu that refuses to close. */}
+          ever opened could not see a menu that refuses to close.
+
+          It is a harness, though, so what it proves is that `MenuList` lets a
+          trigger close it — not that either real trigger asks. The `⋮` did not:
+          its handler only ever opened, and this file went on passing while the
+          shell's `⋮` could be shut by nothing but `Esc` or a click elsewhere.
+          `App.test.tsx` owns that question now, for both triggers. */}
       <button ref={anchor} onClick={() => setOpen(!open)}>
         Project settings
       </button>
@@ -94,6 +101,63 @@ function openMenu(props: Parameters<typeof Harness>[0] = {}) {
   fireEvent.click(screen.getByRole("button", { name: "Project settings" }));
   return screen.getByRole("menu", { name: /settings|Project menu/i });
 }
+
+/**
+ * The two surfaces name one set of panes, and `settingsSections.ts` is what
+ * keeps that true — they had drifted the first time they were written apart,
+ * `Shortcuts` in the nav against `Keyboard shortcuts` in the menu, which is two
+ * names for one pane in two surfaces a person crosses in a single gesture.
+ *
+ * The menu offers a subset in a different order on purpose: a nav is read top to
+ * bottom and leads with identity, a menu is aimed at and leads with `Theme`. So
+ * this asserts the *set* rather than the sequence, and pins the one deliberate
+ * omission — `danger`, whose only control removes a project, is not one press
+ * from the gear.
+ */
+describe("the sections the two surfaces agree on (LC-208)", () => {
+  /** `danger` is the one pane the gear deliberately does not offer. */
+  const OFFERED = SETTINGS_SECTIONS.filter(
+    (section) => section.id !== "danger",
+  );
+
+  it("gives every pane the menu offers the label the nav gives it", () => {
+    const menu = openMenu();
+    const rows = [
+      ...within(menu).getAllByRole("menuitem"),
+      ...within(menu).queryAllByRole("menuitemradio"),
+    ].map((row) => row.textContent ?? "");
+
+    for (const section of OFFERED) {
+      expect(
+        rows.some((row) => row.includes(section.menuLabel)),
+        `${section.id} is missing from the gear's menu`,
+      ).toBe(true);
+    }
+    expect(rows.some((row) => row.includes("Danger zone"))).toBe(false);
+  });
+
+  /**
+   * One render per row, because an `action` row closes the menu behind it —
+   * which is the behaviour, not an obstacle to it.
+   */
+  it("opens each pane on the id the nav selects it by", () => {
+    for (const section of OFFERED) {
+      // `Theme` is a submenu rather than a row that opens the panel.
+      if (section.id === "theme") continue;
+      const opened: string[] = [];
+      const menu = openMenu({ onOpenSection: (id) => opened.push(id) });
+      fireEvent.click(
+        within(menu).getByRole("menuitem", {
+          name: new RegExp(section.menuLabel),
+        }),
+      );
+      expect(opened, `${section.menuLabel} opened the wrong pane`).toEqual([
+        section.id,
+      ]);
+      cleanup();
+    }
+  });
+});
 
 describe("the settings dropdown (LC-208)", () => {
   it("opens a menu rather than the dialog the gear used to open", () => {

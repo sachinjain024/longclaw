@@ -20,7 +20,7 @@ import {
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProjectSettings } from "./ProjectSettings";
-import type { SettingsSection } from "./SettingsMenu";
+import type { SettingsSection } from "./settingsSections";
 import type { ProjectReference } from "./types";
 
 afterEach(cleanup);
@@ -48,6 +48,10 @@ function Harness(props: {
   onTheme?: (theme: string) => void;
   onAppearance?: (appearance: "light" | "dark" | "system") => void;
   onRemove?: () => void;
+  onWrite?: (
+    message: string,
+    write: () => Promise<ProjectReference>,
+  ) => Promise<boolean>;
 }) {
   const [section, setSection] = useState<SettingsSection>(
     props.section ?? "general",
@@ -65,8 +69,7 @@ function Harness(props: {
       onTheme={props.onTheme ?? (() => {})}
       onLocate={() => {}}
       onRemove={props.onRemove ?? (() => {})}
-      onUpdated={() => {}}
-      onError={() => {}}
+      onWrite={props.onWrite ?? (() => Promise.resolve(true))}
       onClose={props.onClose ?? (() => {})}
     />
   );

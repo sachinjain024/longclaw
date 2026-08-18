@@ -20,39 +20,31 @@
  * `ProjectSettings` owns the sections themselves.
  */
 
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
+import { PencilGlyph } from "./PencilGlyph";
+import {
+  useDismissOnPressOutside,
+  useFocusReturn,
+  usePopoverPlacement,
+} from "./popover";
 import {
   ColumnsGlyph,
   GearGlyph,
   KeyboardGlyph,
   ReloadGlyph,
-  RenameGlyph,
   TagGlyph,
 } from "./SettingsGlyphs";
-import type { Appearance } from "./state";
+import {
+  LANDING_SECTION,
+  settingsSection,
+  type SettingsSection,
+} from "./settingsSections";
+import { APPEARANCES, type Appearance } from "./state";
 import type { ThemeOption } from "./ThemePicker";
 import { ThemeSwatch } from "./ThemeSwatch";
 import { STATUSES } from "./tickets";
 import type { ProjectReference } from "./types";
-
-/**
- * A pane of the settings panel, and the thing a menu row opens it on.
- *
- * `general` is the panel's own landing section, so it is what the rows that do
- * not name a section — `All settings…`, `Rename` — open.
- */
-export type SettingsSection =
-  "general" | "theme" | "labels" | "status" | "shortcuts" | "danger";
-
-/** How far below (or beside) its anchor a popover sits. */
-const GAP = 4;
 
 /**
  * One row. `action` runs and closes, `choice` runs and stays — the difference
@@ -112,16 +104,7 @@ function MenuList(props: {
   position?: { top: number; left: number };
   /** `Escape`, `ArrowLeft`, or a pick: what takes this list down. */
   onDismiss: () => void;
-  /**
-   * The control this list hangs off, excluded from click-away.
-   *
-   * Without it a trigger cannot close its own menu: the press dismisses on
-   * `mousedown`, React re-renders with the menu shut, and the `click` that
-   * follows lands on a handler that now reads `open === false` and opens it
-   * straight back up. `Menu.tsx` has always excluded its anchor for this
-   * reason; the gear and the `⋮` both went two rounds of review with a menu
-   * that could only be closed by `Esc` or by clicking somewhere else.
-   */
+  /** The control this list hangs off, excluded from click-away (`popover.ts`). */
   anchor?: HTMLElement | null;
   /** A submenu, which owes `ArrowLeft` a step back rather than a close. */
   nested?: boolean;
@@ -182,26 +165,25 @@ function MenuList(props: {
   }
 
   const popover = useRef<HTMLDivElement>(null);
-  const { anchor } = props;
-  useEffect(() => {
+  useDismissOnPressOutside({
+    popover,
+    anchor: props.anchor ?? null,
+    onDismiss,
     // Click-away belongs to the outermost list only. A press inside a submenu
     // is inside this one too, since the submenu is rendered within it.
-    if (props.nested) return;
-    const onPointerDown = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (popover.current?.contains(target)) return;
-      // The trigger's own press is its toggle, not a dismissal.
-      if (anchor?.contains(target)) return;
-      onDismiss();
-    };
-    document.addEventListener("mousedown", onPointerDown);
-    return () => document.removeEventListener("mousedown", onPointerDown);
-  }, [anchor, onDismiss, props.nested]);
+    enabled: !props.nested,
+  });
 
   let index = -1;
   return (
     <div
-      className={props.nested ? "menu-popover menu-sub" : "menu-popover"}
+      // `menu-settings` widens the root list: these rows carry a trailing hint
+      // (`name · key · folder`, `Graphite · System`) that the status and
+      // priority menus have no equivalent of, and at the shared 220px the hint
+      // sat on top of the label.
+      className={
+        props.nested ? "menu-popover menu-sub" : "menu-popover menu-settings"
+      }
       role="menu"
       aria-label={props.label}
       ref={popover}
@@ -320,18 +302,6 @@ interface MenuContext {
 }
 
 /**
- * The three appearances, in the order the segment and the submenu both draw
- * them. Exported because `ProjectSettings` renders the same three as a 3-up
- * segment, and two lists that could drift are two chances to disagree about
- * what `System` means.
- */
-export const APPEARANCES: { id: Appearance; label: string }[] = [
-  { id: "system", label: "System" },
-  { id: "light", label: "Light" },
-  { id: "dark", label: "Dark" },
-];
-
-/**
  * The `Theme ▸` row, shared by both menus.
  *
  * It carries **both** axes, which is what the ticket asks for and what makes it
@@ -385,51 +355,38 @@ function themeSubmenu(context: MenuContext): MenuItem {
   };
 }
 
-/** The row every menu ends on, and the shortcut that reaches it directly. */
+/**
+ * The row every menu ends on, and the shortcut that reaches it directly.
+ *
+ * It wears the gear, which is the ticket's "Settings Icon" in the second of the
+ * two places it asks for it: the `⋮` menu's own settings row. Every other row
+ * in both menus carries a mark, so the one that opens settings outright was the
+ * only unmarked row in either.
+ */
 function allSettings(context: MenuContext): MenuItem {
   return {
     kind: "action",
     id: "all",
+    glyph: <GearGlyph />,
     label: "All settings…",
     hint: <kbd>⌘,</kbd>,
-    run: () => context.onOpenSection("general"),
+    run: () => context.onOpenSection(LANDING_SECTION),
   };
 }
 
-/**
- * Where the popover goes: under the gear, left edges aligned.
- *
- * Measured once, when it opens, for the reason `Menu` measures once — the row
- * it hangs off can move underneath it (the header's disk-state line arrives
- * mid-write and pushes the identity box around), and a popover that re-measured
- * on every render would walk out from under the pointer that is using it.
- */
-function usePlacement(anchor: HTMLElement | null) {
-  const placed = useRef<{ top: number; left: number } | undefined>(undefined);
-  if (!placed.current && anchor) {
-    const rect = anchor.getBoundingClientRect();
-    placed.current = { top: rect.bottom + GAP, left: rect.left };
-  }
-  return placed.current;
-}
-
-/**
- * Focus back where it came from when the menu goes, whatever took it down —
- * a pick, `Escape`, or a click on the board. Captured on open, because by the
- * time this runs the menu holds focus itself.
- */
-function useFocusReturn(anchor: HTMLElement | null) {
-  const returnTo = useRef<HTMLElement | null | undefined>(undefined);
-  if (returnTo.current === undefined) {
-    returnTo.current = anchor ?? (document.activeElement as HTMLElement | null);
-  }
-  useEffect(
-    () => () => {
-      const element = returnTo.current;
-      if (element?.isConnected) element.focus();
-    },
-    [],
-  );
+/** A row that opens one pane, named as `settingsSections.ts` names it. */
+function sectionRow(
+  context: MenuContext,
+  id: SettingsSection,
+  extras: { glyph?: ReactNode; hint?: ReactNode } = {},
+): MenuItem {
+  return {
+    kind: "action",
+    id,
+    label: settingsSection(id).menuLabel,
+    ...extras,
+    run: () => context.onOpenSection(id),
+  };
 }
 
 /**
@@ -447,45 +404,31 @@ export function SettingsMenu(
   },
 ) {
   useFocusReturn(props.anchor);
-  const position = usePlacement(props.anchor);
+  const position = usePopoverPlacement(props.anchor);
   const labelCount = Object.keys(props.project.labels).length;
   const items: MenuItem[] = [
     themeSubmenu(props),
     { kind: "rule", id: "sections-rule" },
-    {
-      kind: "action",
-      id: "general",
+    // Every pane except `danger`, whose one control removes a project: that
+    // belongs behind the panel's own nav rather than one press from the gear.
+    // The labels come from `settingsSections.ts`, so a pane cannot be renamed
+    // here and not there.
+    sectionRow(props, "general", {
       glyph: <GearGlyph />,
-      label: "General",
       hint: "name · key · folder",
-      run: () => props.onOpenSection("general"),
-    },
-    {
-      kind: "action",
-      id: "labels",
+    }),
+    sectionRow(props, "labels", {
       glyph: <TagGlyph />,
-      label: "Labels",
       hint: <code>{labelCount}</code>,
-      run: () => props.onOpenSection("labels"),
-    },
-    {
-      kind: "action",
-      id: "status",
+    }),
+    sectionRow(props, "status", {
       glyph: <ColumnsGlyph />,
-      label: "Status fields",
       // The count its neighbour has, from the one list the board is built
       // from — the six are fixed in v0 (ADR 0002), so this is a constant, but
       // reading it off `STATUSES` is what keeps it true when they stop being.
       hint: <code>{STATUSES.length}</code>,
-      run: () => props.onOpenSection("status"),
-    },
-    {
-      kind: "action",
-      id: "shortcuts",
-      glyph: <KeyboardGlyph />,
-      label: "Keyboard shortcuts",
-      run: () => props.onOpenSection("shortcuts"),
-    },
+    }),
+    sectionRow(props, "shortcuts", { glyph: <KeyboardGlyph /> }),
     { kind: "rule", id: "disk-rule" },
     {
       kind: "action",
@@ -524,17 +467,19 @@ export function ProjectMenu(
   },
 ) {
   useFocusReturn(props.anchor);
-  const position = usePlacement(props.anchor);
+  const position = usePopoverPlacement(props.anchor);
   const items: MenuItem[] = [
     {
       kind: "action",
       id: "rename",
-      glyph: <RenameGlyph />,
+      // The pencil the panel's editable title wears, from the one file that
+      // draws it — this row had its own, subtly different, path.
+      glyph: <PencilGlyph />,
       label: "Rename…",
       // The name field lives in General and commits on `Enter` or blur; a
       // second inline editor on the row would be a second way to write the
       // same line of `longclaw.yaml`.
-      run: () => props.onOpenSection("general"),
+      run: () => props.onOpenSection(LANDING_SECTION),
     },
     themeSubmenu(props),
     { kind: "rule", id: "star-rule" },

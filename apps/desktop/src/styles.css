@@ -247,28 +247,33 @@ textarea:focus-visible,
 /* Revealed on hover, and held open while its menu is (LC-208). Same reveal the
    star toggle had, for the same reason: 240px of sidebar cannot afford a
    permanent control on every row, and the row itself is the primary target. */
+/* 20px, not the 24px control size: it sits *inside* a 28px row beside a name,
+   and at 24 its hover fill all but filled the row's height, which is what made
+   pointing at it read as selecting the project rather than reaching a control
+   on it. The prototype draws it at 20 with a 4px radius for the same reason —
+   the fill has to look like a chip on the row, not a second row. */
 .row-menu-button {
   display: grid;
-  width: var(--lc-size-control-sm);
-  height: var(--lc-size-control-sm);
+  width: 20px;
+  height: 20px;
   flex: none;
   place-items: center;
-  border-radius: var(--lc-radius-control);
+  border: 0;
+  border-radius: var(--lc-radius-tile);
+  padding: 0;
   color: var(--lc-ink-3);
-  opacity: 0;
+  background: transparent;
   transition: background var(--lc-motion-fast) var(--lc-motion-ease);
 }
 
-.row-menu-button.open,
-.project-row:hover .row-menu-button,
-.row-menu-button:focus-visible {
-  opacity: 1;
-}
-
+/* Hover lands on `line-strong`, the app's control border — a full step above
+   the `line-soft` the row itself hovers to, so the control reads as raised out
+   of a row that is already lit rather than blending into it. `line-soft` for
+   both was the "hover doesn't look right" of LC-208's review. */
 .row-menu-button:hover,
 .row-menu-button.open {
   color: var(--lc-ink);
-  background: var(--lc-line-soft);
+  background: var(--lc-line-strong);
 }
 
 .row-menu-button:focus-visible {
@@ -3666,11 +3671,12 @@ button:disabled {
   white-space: nowrap;
 }
 
-/* Text that exists for assistive technology and not for the eye — the word
-   beside a glyph that carries meaning — and the radio behind a swatch, which is
-   the label's target rather than its own. Same recipe as the visually hidden
-   theme radio above; kept as a class because more than one caller needs it. */
-.label-color input,
+/* Text that exists for assistive technology and not for the eye: the word
+   beside a glyph that carries meaning. Same recipe as the visually hidden theme
+   radio above; kept as a class because more than one caller needs it. (It once
+   also hid the radio behind a label swatch — the swatch row became a dropdown
+   whose swatches are buttons carrying their own names, so there is no longer a
+   radio to hide.) */
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -4029,8 +4035,16 @@ html.theme-transition *::after {
   box-shadow: var(--lc-shadow-overlay);
 }
 
+/* `width: 100%` is load-bearing, not belt-and-braces. A `<button>` sizes to
+   its content even at `display: flex`, and it only filled the popover here
+   because the status/priority menu makes its rows *direct* flex children,
+   where stretch does the work. The settings menus wrap each row in a element of
+   their own — a submenu needs something positioned to hang off — which takes
+   the row out of that flex context and left the hover fill ending after the
+   label, so pointing anywhere right of the text lit nothing (LC-208). */
 .menu-row {
   display: flex;
+  width: 100%;
   height: var(--lc-size-control);
   gap: var(--lc-space-2);
   align-items: center;
@@ -4051,8 +4065,15 @@ html.theme-transition *::after {
   background: var(--lc-raised-hover);
 }
 
+/* A fixed box, so every row's mark sits on one column whatever its intrinsic
+   size is — `PencilGlyph` is 12px because the description header draws it at
+   12px, and its neighbours here are 14px. */
 .menu-glyph {
   display: inline-flex;
+  flex: none;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
   align-items: center;
 }
 
@@ -4084,17 +4105,26 @@ html.theme-transition *::after {
   position: relative;
 }
 
+/* The settings menus are wider than the shared popover: their rows carry a
+   trailing hint the status and priority menus have nothing like. */
+.menu-popover.menu-settings {
+  min-width: 236px;
+}
+
 /* Beside its row rather than under it, and pulled up by the popover's own
    padding so the first submenu row lines up with the row that opened it.
    It shares the popover layer with the menu it grows from — being a child of
    that menu is what puts it in front, so it needs no step of its own. */
 .menu-popover .menu-sub {
   position: absolute;
-  top: calc(var(--lc-space-1) * -1 - 1px);
+  /* -6px: the popover's own 5px padding plus its 1px border, so the submenu's
+     first row sits level with the row that opened it rather than a notch
+     below. */
+  top: -6px;
   left: 100%;
   z-index: var(--lc-z-popover);
   margin-left: 2px;
-  min-width: 190px;
+  width: 200px;
 }
 
 /* The quiet right-hand note: a count, the current value, a shortcut. It is the
@@ -4123,11 +4153,14 @@ html.theme-transition *::after {
 /* Which of the two theme axes the rows under it set. Mono and micro, the same
    type every eyebrow in the app wears. */
 .menu-caption {
-  padding: var(--lc-space-1) var(--lc-space-2) 2px;
+  padding: 5px var(--lc-space-2) 3px;
   color: var(--lc-ink-3);
   font: var(--lc-type-kbd-weight) var(--lc-type-kbd-size) /
     var(--lc-type-kbd-leading) var(--lc-type-kbd-font);
-  letter-spacing: var(--lc-type-kbd-tracking);
+  /* Wider than the shared kbd tracking: this is an eyebrow over a group of
+     rows, not a keycap, and it is set at the same 0.08em the side panel's
+     section headers use. */
+  letter-spacing: 0.08em;
 }
 
 /* The one destructive row in either menu. Danger is the text, not a fill: it is
@@ -4387,17 +4420,21 @@ html.theme-transition *::after {
    content under it every time a section was added. */
 .settings-nav {
   display: flex;
-  width: 152px;
+  width: 148px;
   flex: none;
   flex-direction: column;
   gap: 2px;
   border-right: 1px solid var(--lc-line-soft);
-  padding: var(--lc-space-3) var(--lc-space-2);
+  padding: 10px var(--lc-space-2);
 }
 
+/* 28px, the height the side panel's project rows already use — these are the
+   same kind of row (a name you pick from a column), and the prototype draws
+   both at 28. It was `--lc-size-control-sm` (24px), which made the nav read
+   tighter than anything else in the app. */
 .settings-nav-row {
   display: flex;
-  height: var(--lc-size-control-sm);
+  height: 28px;
   align-items: center;
   border: 0;
   border-radius: var(--lc-radius-control);
@@ -4411,19 +4448,40 @@ html.theme-transition *::after {
 }
 
 .settings-nav-row:hover {
-  background: var(--lc-wash);
+  background: var(--lc-line-soft);
 }
 
-/* The open section, in the human accent — choosing what to edit is a planning
-   act, the same one opening a project is (`components.md:275`). */
+/* The open section wears a neutral fill and says which it is in weight and ink,
+   which is how the prototype draws it. It carried `accent-human-soft` — the
+   selected treatment the sidebar's *project* rows use (`components.md:275`) —
+   and that is the wrong borrowing: a project row's accent answers "which
+   project am I in", a question the window's whole colour scheme is already
+   answering. A settings pane is a place inside one panel, and the panel's
+   accent belongs to the controls being set, not to the nav pointing at them. */
 .settings-nav-row[aria-selected="true"] {
   color: var(--lc-ink);
-  background: var(--lc-accent-human-soft);
+  background: var(--lc-line-soft);
   font-weight: 600;
+}
+
+/* Hover has to stay distinguishable from the open pane, and both are
+   `line-soft`: the weight and the ink are what separate them, so an unselected
+   row must not borrow either on hover. */
+.settings-nav-row:not([aria-selected="true"]):hover {
+  color: var(--lc-ink-2);
+  font-weight: 500;
 }
 
 .settings-nav-row.danger {
   color: var(--lc-danger);
+}
+
+/* The foot of the nav, below a spacer that pushes it there. */
+.settings-nav-note {
+  margin-top: auto;
+  padding: 0 10px;
+  color: var(--lc-ink-disabled);
+  font: var(--lc-type-kbd-weight) 9.5px / 1.5 var(--lc-type-kbd-font);
 }
 
 .settings-nav-row:focus-visible {
@@ -4653,11 +4711,23 @@ html.theme-transition *::after {
 
 /* Four columns, and the last one is fixed rather than `max-content` so the
    swatches line up between the rows and the wider add-row button below them. */
+/* The prototype's four columns: slug, name, colour, and the way out. The name
+   takes everything the other three do not, which is what makes a six-label
+   list read as a list of names rather than as a grid of controls. */
 .label-row {
   display: grid;
-  gap: var(--lc-space-2);
-  grid-template-columns: minmax(60px, 88px) minmax(90px, 1fr) max-content 84px;
+  gap: var(--lc-space-3);
+  grid-template-columns: 86px minmax(90px, 1fr) max-content 18px;
   align-items: center;
+}
+
+/* The add-row ends in a button rather than a remove, so its last column is the
+   width of that button instead of a glyph. */
+.label-add {
+  grid-template-columns: 86px minmax(90px, 1fr) max-content max-content;
+  border-top: 1px solid var(--lc-line-soft);
+  margin-top: var(--lc-space-1);
+  padding-top: var(--lc-space-3);
 }
 
 .label-row code {
@@ -4665,10 +4735,6 @@ html.theme-transition *::after {
   color: var(--lc-ink-3);
   font-size: 11px;
   text-overflow: ellipsis;
-}
-
-.label-add button {
-  width: 100%;
 }
 
 .label-row .row-remove {
@@ -4682,46 +4748,75 @@ html.theme-transition *::after {
   color: var(--lc-ink);
 }
 
-/* The ramp as swatches rather than an OS dropdown (D-4J, D-72). The radio is
-   hidden and the dot is the target, exactly as the theme picker does it. */
-.label-colors {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-  margin: 0;
-  border: 0;
-  padding: 0;
+/* One dot and a chevron, in the field box every other control in this panel
+   wears (D-4J, D-72) — not the eight-swatch row this replaced, which put 48
+   dots down a six-label list and answered nothing at rest. */
+.label-color-field {
+  position: relative;
+  display: inline-flex;
 }
 
-.label-color {
+.label-color-trigger {
+  display: inline-flex;
+  height: 28px;
+  gap: 7px;
+  align-items: center;
+  border: var(--lc-border-hairline) solid var(--lc-line-strong);
+  border-radius: var(--lc-radius-control);
+  padding: 0 9px;
+  background: var(--lc-surface);
+  cursor: pointer;
+}
+
+.label-color-trigger:hover {
+  background: var(--lc-line-soft);
+}
+
+.label-color-chevron {
+  color: var(--lc-ink-3);
+}
+
+/* The eight in one row, under the trigger and right-aligned to it: the strip is
+   wider than the control it hangs off, and the panel's own right edge is close
+   enough that a left-aligned one would run past it. */
+.label-color-menu {
+  position: absolute;
+  z-index: var(--lc-z-popover);
+  top: calc(100% + 3px);
+  right: 0;
+  display: flex;
+  gap: 9px;
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-card);
+  padding: 9px 10px;
+  background: var(--lc-raised);
+  box-shadow: var(--lc-shadow-overlay);
+}
+
+.label-color-swatch {
   display: grid;
   place-items: center;
   width: 18px;
   height: 18px;
   border: 1px solid transparent;
   border-radius: var(--lc-radius-full);
+  padding: 0;
+  background: none;
   cursor: pointer;
 }
 
-.label-color input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
-
-.label-color:hover {
+.label-color-swatch:hover {
   border-color: var(--lc-line-strong);
 }
 
-.label-color.selected {
+.label-color-swatch.selected {
   border-color: var(--lc-accent-human);
 }
 
-.label-color input:focus-visible + .label-dot {
+.label-color-swatch:focus-visible {
+  border-color: var(--lc-accent-human);
   box-shadow: var(--lc-focus-ring);
+  outline: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

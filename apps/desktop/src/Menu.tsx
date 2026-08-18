@@ -13,8 +13,13 @@
  * a human who pressed `P` on a card is still standing on that card afterwards.
  */
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
+import {
+  useDismissOnPressOutside,
+  useFocusReturn,
+  usePopoverPlacement,
+} from "./popover";
 
 export interface MenuOption<T extends string> {
   id: T;
@@ -39,9 +44,6 @@ interface MenuProps<T extends string> {
   onClose: () => void;
 }
 
-/** How far below the anchor the popover sits. */
-const GAP = 4;
-
 export function Menu<T extends string>(props: MenuProps<T>) {
   const { anchor, multiple, onClose } = props;
   const popover = useRef<HTMLDivElement>(null);
@@ -51,55 +53,22 @@ export function Menu<T extends string>(props: MenuProps<T>) {
   );
   const [active, setActive] = useState(first === -1 ? 0 : first);
 
-  // Where focus goes when the menu closes, read before the menu takes it. The
-  // anchor is the answer whenever there is one; what had focus at the moment of
-  // opening is the honest fallback. A card that has since scrolled out of its
-  // column is not somewhere to send anything.
-  const returnTo = useRef<HTMLElement | null | undefined>(undefined);
-  if (returnTo.current === undefined) {
-    returnTo.current = anchor ?? (document.activeElement as HTMLElement | null);
-  }
-  useEffect(
-    () => () => {
-      const element = returnTo.current;
-      if (element?.isConnected) element.focus();
-    },
-    [],
-  );
+  // Placement, focus return and click-away are the same three every anchored
+  // popover in the app does, and live in `popover.ts` since LC-208.
+  const returnTo = useFocusReturn(anchor);
+  const position = usePopoverPlacement(anchor);
+  useDismissOnPressOutside({
+    popover,
+    // What focus will go back to, which is the anchor whenever there is one —
+    // a board card's menu opens with no trigger element, and the card itself
+    // is then the thing whose own press must not read as a dismissal.
+    anchor: returnTo.current ?? null,
+    onDismiss: onClose,
+  });
 
   useLayoutEffect(() => {
     rows.current[active]?.focus();
   }, [active]);
-
-  // Anchored, not attached: the popover is fixed to the viewport so a column's
-  // own scrolling cannot carry it away from the card it belongs to. Measured
-  // once, when it opens — the same capture-on-open `returnTo` above does, and
-  // for a related reason.
-  //
-  // A multi-select menu stays up while its own picks change the row underneath
-  // it. The labels row grows a chip per tick and the `+ add` this hangs off is
-  // last in that row (D-3C), so it moves right by a chip every time — and
-  // re-measuring on each render would walk the popover sideways, out from under
-  // the pointer that is still ticking rows.
-  const placed = useRef<{ top: number; left: number } | undefined>(undefined);
-  if (!placed.current && anchor) {
-    const rect = anchor.getBoundingClientRect();
-    placed.current = { top: rect.bottom + GAP, left: rect.left };
-  }
-  const position = placed.current;
-
-  useEffect(() => {
-    const onPointerDown = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (popover.current?.contains(target)) return;
-      // The anchor is excluded so that a trigger's own click toggles the menu
-      // shut instead of closing it and immediately reopening it.
-      if (returnTo.current?.contains(target)) return;
-      onClose();
-    };
-    document.addEventListener("mousedown", onPointerDown);
-    return () => document.removeEventListener("mousedown", onPointerDown);
-  }, [onClose]);
 
   function pick(id: T) {
     props.onPick(id);

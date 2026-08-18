@@ -132,6 +132,19 @@ const BOARD_FEEDBACK = [
     property: "border-top-color",
     action: "focus",
   },
+  {
+    // The `⋮` on a side-panel project row (LC-208). It is a control sitting
+    // inside a row that has a hover of its own, so its own hover has to be a
+    // visible step *above* the row's — they were both `line-soft`, which made
+    // pointing at the control look exactly like pointing at the row, and it
+    // was the first thing a person noticed about the menu.
+    selector: ".row-menu-button",
+    property: "background-color",
+    action: "hover",
+    // The two fills a project row can be wearing under it: `wash` when hovered
+    // and `accent-human-soft` when it is the open project.
+    distinctFromTokens: ["--lc-wash", "--lc-accent-human-soft"],
+  },
 ];
 
 const STATES = [
@@ -447,6 +460,27 @@ const SAMPLER = `(() => {
       disabled: element.matches(":disabled, [aria-disabled='true']"),
     };
   };
+  /*
+   * A token resolved the way the page would paint it, which __matrixToken
+   * cannot do: half this system's surface tokens are color-mix(), and
+   * getPropertyValue hands those back unresolved. Painting one on a throwaway
+   * element and reading it back is what turns it into channels.
+   *
+   * No backticks and no interpolation in here: this whole block is a template
+   * literal on the Node side, so either would be read at build time.
+   */
+  window.__matrixColor = (token) => {
+    const probe = document.createElement("span");
+    probe.style.position = "fixed";
+    probe.style.width = "1px";
+    probe.style.height = "1px";
+    probe.style.pointerEvents = "none";
+    probe.style.backgroundColor = "var(" + token + ")";
+    document.body.appendChild(probe);
+    const value = parse(getComputedStyle(probe).backgroundColor);
+    probe.remove();
+    return value ? { value } : { raw: token };
+  };
   window.__matrixToken = (token) => {
     const raw = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
     const hex = raw.match(/^#([0-9a-fA-F]{6})$/);
@@ -481,7 +515,7 @@ try {
       await page.waitForFunction(
         () => document.querySelectorAll(".ticket-row").length > 0,
       );
-      // The two attributes `App` actually stamps (`App.tsx:719,756`), in the
+      // The two attributes `App` actually stamps (`App.tsx:745,782`), in the
       // right order: the preset is `data-lc-theme` and the appearance is
       // `data-theme`, and the accent blocks are published on the **compound**
       // `[data-theme][data-lc-theme]` selector (`appearance.ts:7-12`).
@@ -721,6 +755,41 @@ try {
           failures.push(
             `${label} — no visible feedback (moved ${moved.toFixed(0)}/765)`,
           );
+        }
+
+        // A control that sits *inside* something with a hover of its own has a
+        // second thing to prove: that its lit fill is not the same colour as
+        // the fill its container is wearing underneath it. Moving off its own
+        // resting value is not enough — the `⋮` moved from transparent to
+        // `line-soft`, which in light is the very same colour as the `wash` its
+        // row hovers to, so the control was invisible at the one moment it is
+        // meant to be visible.
+        //
+        // Against the *tokens* rather than against the parent as rendered,
+        // because a row can be wearing either of two fills and the harness only
+        // ever shows one of them: its board has a single project, so the only
+        // row on screen is the selected one (`accent-human-soft`) and a probe
+        // that read the live parent would never see the unselected case
+        // (`wash`) — which is the case that was broken.
+        for (const token of probe.distinctFromTokens ?? []) {
+          const other = await page.evaluate(
+            ([name]) => window.__matrixColor(name),
+            [token],
+          );
+          if (!other.value) {
+            failures.push(`${label} — ${token} is ${other.raw || "unset"}`);
+            continue;
+          }
+          const apart = ["r", "g", "b"].reduce(
+            (total, channel) =>
+              total + Math.abs(acted.value[channel] - other.value[channel]),
+            0,
+          );
+          if (apart < MIN_FEEDBACK_DELTA) {
+            failures.push(
+              `${label} — its fill is ${token} (${apart.toFixed(0)}/765 apart), so it vanishes on a row wearing that`,
+            );
+          }
         }
       };
 
