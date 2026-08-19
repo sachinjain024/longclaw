@@ -389,3 +389,28 @@ at 26px whose hover fills `line-soft` like every other icon button — the
 prototype's header, replacing the padded block. D16 accepted the gear's
 colour-only hover as a reference divergence; the divergence is retired
 with the rest of them.
+
+## D23 — The E16/G11 residue: feedback tokens cross, the modal shadow stays · accepted (LC-195)
+
+The last two open rows of LC-192's conflict table, resolved at LC-195's
+close-out:
+
+- **E16 — pushed.** `warn-ink` ("secondary action text inside warn
+  banners") and `danger-surface` (the danger-zone fill) join the generated
+  feedback palette as `--warn-ink` and `--danger-surface`. They are
+  checker-verified values the DS side will need the day a warn banner or
+  danger zone is designed there; leaving them repo-only was exactly the
+  drift LC-192 exists to prevent. `warn-border-strong` had already crossed
+  as `--warn-btn-border`.
+- **G11 — stays repo-only, on D18's own precedent.** `shadow.modal`
+  (`0 16px 48px`) elevates a surface the kit does not draw: the DS has no
+  modal component, and its elevation tokens are hand-authored in the
+  project's `spacing.css`, outside the generated layer. Like `shadow-icon`
+  staying out of the repo ("it exists for the marketing app-icon tile,
+  which the app never draws"), the modal shadow joins the DS when a modal
+  does.
+
+With these two, and LC-196 retiring the bar-glyph aliases
+(`--priority`/`--priority-off` → `--priority-chip-text`/`-border` under
+their real names), every row of LC-192's E/F/G table has a recorded
+resolution.

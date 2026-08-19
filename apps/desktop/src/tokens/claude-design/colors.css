@@ -20,8 +20,10 @@
   --warn-bg: #fbf3e8;
   --warn-border: #ebd5b5;
   --warn-btn-border: #e0c9a6;
+  --warn-ink: #7d5f33;
   --danger: #c9393b;
   --danger-border: #efd3d3;
+  --danger-surface: #fbefef;
   /* status — done lives in themes.css as the human accent */
   --status-backlog: #878ca0;
   --status-todo: #878ca0;
@@ -29,13 +31,14 @@
   --status-review: #df6e23;
   --status-canceled: #878ca0;
   --status-canceled-x: #ffffff;
-  /* priority — Urgent · P1–P4 · None (D4); the bar-glyph names are
-     deprecated aliases for the v1 components LC-196 has yet to rewrite */
+  /* priority — Urgent · P1–P4 · None (D4): exclamation square, bordered
+     mono chips, framed dash (LC-85). The bar-glyph aliases left with the
+     v1 components (LC-196) */
   --priority-urgent: #db7129;
   --priority-urgent-fg: #ffffff;
   --priority-none: #8a8fa3;
-  --priority: #5a5f75;
-  --priority-off: #b9bdcc;
+  --priority-chip-text: #5a5f75;
+  --priority-chip-border: #b9bdcc;
   /* label ramp — 8 fixed hues, no green band (D12) */
   --label-blue: #4e9cf5;
   --label-cyan: #2aa8a0;
@@ -88,8 +91,10 @@
   --warn-bg: #2a2119;
   --warn-border: #4a3a24;
   --warn-btn-border: #4a3a24;
+  --warn-ink: #c89a62;
   --danger: #e06c6c;
   --danger-border: #4a2a2e;
+  --danger-surface: #2a1b1d;
   /* status — done lives in themes.css as the human accent */
   --status-backlog: #5f6375;
   --status-todo: #7e8398;
@@ -97,13 +102,14 @@
   --status-review: #ec8b4c;
   --status-canceled: #5f6375;
   --status-canceled-x: #16171e;
-  /* priority — Urgent · P1–P4 · None (D4); the bar-glyph names are
-     deprecated aliases for the v1 components LC-196 has yet to rewrite */
+  /* priority — Urgent · P1–P4 · None (D4): exclamation square, bordered
+     mono chips, framed dash (LC-85). The bar-glyph aliases left with the
+     v1 components (LC-196) */
   --priority-urgent: #e0762f;
   --priority-urgent-fg: #101116;
   --priority-none: #767b90;
-  --priority: #9da2b5;
-  --priority-off: #3f4354;
+  --priority-chip-text: #9da2b5;
+  --priority-chip-border: #3f4354;
   /* label ramp — 8 fixed hues, no green band (D12) */
   --label-blue: #5fa8f7;
   --label-cyan: #4ec0b5;

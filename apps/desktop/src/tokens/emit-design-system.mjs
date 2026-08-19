@@ -19,9 +19,13 @@
  * D18 resolved E1–E12 prototype-first, so `colors.css` (neutrals, status,
  * priority, labels, avatars, toast) and `typography.css` (the type scale,
  * micro back at 10.5 mono, the title on the display face) are generated
- * too, in the DS's own unprefixed dialect. The retired glyph sets' tokens
- * (`--priority`, `--priority-off`) stay emitted as deprecated aliases so
- * the not-yet-rewritten v1 components keep rendering until LC-196 lands.
+ * too, in the DS's own unprefixed dialect. LC-196 rewrote the v1 glyph
+ * components to D3/D4, so the chip tokens are emitted under their real
+ * names (`--priority-chip-text/-border`) and the retired bar-glyph
+ * aliases (`--priority`, `--priority-off`) left with the old components.
+ * D23 closed the E16/G11 residue: `--warn-ink` and `--danger-surface`
+ * join the feedback palette; the modal elevation stays repo-only until
+ * the DS draws a modal.
  *
  * Output is `claude-design/{themes,colors,typography}.css`, checked in and
  * verified by `design:check` the same way `design-tokens.css` is verified
@@ -146,8 +150,10 @@ function colorsBlock(app) {
     `  --warn-bg: ${F("warn-surface", app)};`,
     `  --warn-border: ${F("warn-border", app)};`,
     `  --warn-btn-border: ${F("warn-border-strong", app)};`,
+    `  --warn-ink: ${F("warn-ink", app)};`,
     `  --danger: ${F("danger", app)};`,
     `  --danger-border: ${F("danger-border", app)};`,
+    `  --danger-surface: ${F("danger-surface", app)};`,
     `  /* status — done lives in themes.css as the human accent */`,
     `  --status-backlog: ${S("backlog", app)};`,
     `  --status-todo: ${S("todo", app)};`,
@@ -155,13 +161,14 @@ function colorsBlock(app) {
     `  --status-review: ${S("in-review", app)};`,
     `  --status-canceled: ${S("canceled", app)};`,
     `  --status-canceled-x: ${N("surface", app)};`,
-    `  /* priority — Urgent · P1–P4 · None (D4); the bar-glyph names are`,
-    `     deprecated aliases for the v1 components LC-196 has yet to rewrite */`,
+    `  /* priority — Urgent · P1–P4 · None (D4): exclamation square, bordered`,
+    `     mono chips, framed dash (LC-85). The bar-glyph aliases left with the`,
+    `     v1 components (LC-196) */`,
     `  --priority-urgent: ${P("urgent", app)};`,
     `  --priority-urgent-fg: ${t.color.priority.urgent[`mark-${app}`]};`,
     `  --priority-none: ${P("none", app)};`,
-    `  --priority: ${P("chip-text", app)};`,
-    `  --priority-off: ${P("chip-border", app)};`,
+    `  --priority-chip-text: ${P("chip-text", app)};`,
+    `  --priority-chip-border: ${P("chip-border", app)};`,
     `  /* label ramp — 8 fixed hues, no green band (D12) */`,
     ...Object.keys(t.color.label)
       .filter((k) => k !== "note")

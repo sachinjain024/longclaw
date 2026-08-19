@@ -3,12 +3,12 @@ format: longclaw.ticket/v1
 id: 9ac1e5d3-8285-4317-8f8c-d5981ecf1cd0
 key: LC-195
 title: "Finish the LC-192 reconciliation: the token conflicts left open"
-status: todo
+status: done
 priority: p1
 labels:
   - design
 created_at: 2026-08-10T07:26:38.475Z
-updated_at: 2026-08-10T07:26:38.475Z
+updated_at: 2026-08-19T05:08:12.000Z
 ---
 
 The token conflicts LC-192 identified but did not resolve. Its accent layer
@@ -37,15 +37,15 @@ prose called safe (LC-192, D17).
 
 ## Checklist
 
-- [ ] E1-E12: push the repo's AA-adjusted neutrals, status and priority hues to the design system <!-- longclaw:item=ck_8addf878 -->
-- [ ] E13: label ramp — the repo's 8 fixed hues vs the design system's 3 named labels <!-- longclaw:item=ck_6b577d78 -->
-- [ ] E14: human avatar hue trio (--avatar-1/2/3) exists in the design system, has no repo equivalent <!-- longclaw:item=ck_6e45dddf -->
-- [ ] E15-E16: check-border (design system only); warn-ink, warn-border-strong, danger-surface (repo only) <!-- longclaw:item=ck_d820f2f8 -->
-- [ ] F1: decide the title face — Familjen Grotesk (design system) or Geist (app) <!-- longclaw:item=ck_15da5619 -->
-- [ ] F2-F5: hero 46 and h2 27 absent from the repo; display and label tracking differ <!-- longclaw:item=ck_9a51fd77 -->
-- [ ] F6: 'micro' means 10.5px mono in the design system, 11.5px UI in the repo — one has to move <!-- longclaw:item=ck_6504a42c -->
-- [ ] G8: agent pulse — lcPulse 1.8s infinite vs the repo's 900ms x 2 beats <!-- longclaw:item=ck_06f9aa58 -->
-- [ ] G10-G11: shadow-raised and shadow-icon (design system only) vs modal elevation (repo only) <!-- longclaw:item=ck_2798cc45 -->
+- [x] E1-E12: push the repo's AA-adjusted neutrals, status and priority hues to the design system <!-- longclaw:item=ck_8addf878 -->
+- [x] E13: label ramp — the repo's 8 fixed hues vs the design system's 3 named labels <!-- longclaw:item=ck_6b577d78 -->
+- [x] E14: human avatar hue trio (--avatar-1/2/3) exists in the design system, has no repo equivalent <!-- longclaw:item=ck_6e45dddf -->
+- [x] E15-E16: check-border (design system only); warn-ink, warn-border-strong, danger-surface (repo only) <!-- longclaw:item=ck_d820f2f8 -->
+- [x] F1: decide the title face — Familjen Grotesk (design system) or Geist (app) <!-- longclaw:item=ck_15da5619 -->
+- [x] F2-F5: hero 46 and h2 27 absent from the repo; display and label tracking differ <!-- longclaw:item=ck_9a51fd77 -->
+- [x] F6: 'micro' means 10.5px mono in the design system, 11.5px UI in the repo — one has to move <!-- longclaw:item=ck_6504a42c -->
+- [x] G8: agent pulse — lcPulse 1.8s infinite vs the repo's 900ms x 2 beats <!-- longclaw:item=ck_06f9aa58 -->
+- [x] G10-G11: shadow-raised and shadow-icon (design system only) vs modal elevation (repo only) <!-- longclaw:item=ck_2798cc45 -->
 
 ## Activity
 
@@ -59,4 +59,34 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_f383bd69
+kind: comment
+occurred_at: 2026-08-19T05:08:12.000Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+E1–E12, E13, E14, E15, F1–F6, G8 and G10 were resolved by LC-223's prototype-first pass (D18–D21) and shipped in the generated token layer — this checklist just never recorded it. Closed out today with the last residue, recorded as D23: E16's `warn-ink` and `danger-surface` cross into the generated feedback palette as `--warn-ink` / `--danger-surface` (`warn-border-strong` had already crossed as `--warn-btn-border`), and G11's modal shadow stays repo-only on D18's own precedent — the DS draws no modal, and its elevation scale is hand-authored in the project's `spacing.css`. Tokens re-emitted and pushed to *LongClaw DS v3 — system*. Every row of LC-192's E/F/G table now has a recorded resolution.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_4e30edc6
+kind: update
+occurred_at: 2026-08-19T05:08:12.000Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: done
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->

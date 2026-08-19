@@ -3,12 +3,12 @@ format: longclaw.ticket/v1
 id: ff43ee1f-17f2-40d3-bc11-5dd2b97412c4
 key: LC-196
 title: Retire the superseded components in the Claude Design system
-status: todo
+status: done
 priority: p2
 labels:
   - design
 created_at: 2026-08-10T07:27:01.524Z
-updated_at: 2026-08-10T07:27:01.524Z
+updated_at: 2026-08-19T05:08:12.000Z
 ---
 
 Three founder decisions overruled the design system after it was authored, and
@@ -38,11 +38,11 @@ not show any of this until it is re-synced by hand in the Claude Design UI.
 
 ## Checklist
 
-- [ ] StatusIcon: replace the pie/ring/check/X set with dot + label (D3) <!-- longclaw:item=ck_e5b91e4c -->
-- [ ] PriorityIcon: replace High/Medium/Low bars with Urgent/P1-P4/None chips (D4) <!-- longclaw:item=ck_445f835b -->
-- [ ] Avatar: drop the assignee-slot rule — there is no assignee in local mode (ADR 0001) <!-- longclaw:item=ck_b56fe648 -->
-- [ ] Replace uploads/design-brief-v3.html with the canonical docs/design_brief.md <!-- longclaw:item=ck_f7e04085 -->
-- [ ] Re-sync the LC Fable v3 Design System document so its vendored _ds/ snapshot picks all this up <!-- longclaw:item=ck_60efb10b -->
+- [x] StatusIcon: replace the pie/ring/check/X set with dot + label (D3) <!-- longclaw:item=ck_e5b91e4c -->
+- [x] PriorityIcon: replace High/Medium/Low bars with Urgent/P1-P4/None chips (D4) <!-- longclaw:item=ck_445f835b -->
+- [x] Avatar: drop the assignee-slot rule — there is no assignee in local mode (ADR 0001) <!-- longclaw:item=ck_b56fe648 -->
+- [x] Replace uploads/design-brief-v3.html with the canonical docs/design_brief.md <!-- longclaw:item=ck_f7e04085 -->
+- [x] Re-sync the LC Fable v3 Design System document so its vendored _ds/ snapshot picks all this up <!-- longclaw:item=ck_60efb10b -->
 
 ## Activity
 
@@ -56,4 +56,34 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_962398a2
+kind: comment
+occurred_at: 2026-08-19T05:08:12.000Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+All three retirements landed in *LongClaw DS v3 — system*, and `_ds_bundle.js` was rebuilt — the LC-223 push had updated `BoardCard.jsx`'s source but not the bundle, so rendered designs still drew the old always-green meter; the rebuild fixes that too. `StatusIcon` now draws D3's dot + label geometry (ring todo, dashed backlog, filled dot otherwise). `PriorityIcon` draws D4's Urgent · P1–P4 · None — bordered mono chips, None's dash in the same frame (LC-85) — reading the newly emitted `--priority-chip-text/-border`; the deprecated `--priority`/`--priority-off` aliases left with the bars. The assignee slot is gone from `BoardCard`, `Avatar`'s contract/docs, and the ui_kit (ADR 0001). `readme.md`'s [superseded] section is replaced by the retirement record. Verified by headless WebKit render of all four affected cards in both themes, zero bundle errors. Document project *LC Fable v3 Design System*: `uploads/design-brief-v3.html` replaced by the canonical `docs/design_brief.md`, and the vendored `_ds/` snapshot refreshed — bundle, readme, styles and all five token files (`themes.css` had been missing from it entirely). The snapshot's `_ds_manifest.json` is app-generated and was left as-is; the card set is unchanged.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_cdf68c9b
+kind: update
+occurred_at: 2026-08-19T05:08:12.000Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: done
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->
