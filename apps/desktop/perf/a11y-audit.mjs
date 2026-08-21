@@ -607,7 +607,7 @@ async function auditFocusOrder(browser) {
       "`Shift`+`F10` opens the focused card's context menu, focused",
       contextLabel === `${card} actions` && inContextMenu.role === "menuitem",
       `label=${contextLabel || "none"} focus=${inContextMenu.role || inContextMenu.tag}`,
-      "keyboard-focus-map.md:47",
+      "keyboard-focus-map.md:49",
     );
     await page.keyboard.press("Escape");
     await settle(page);

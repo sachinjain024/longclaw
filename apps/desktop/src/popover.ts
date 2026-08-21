@@ -104,6 +104,26 @@ export function usePointPlacement(
 }
 
 /**
+ * Where a popover hung under an anchor starts: the anchored placement as a
+ * point, so that the hook below and the context menu — which places a point
+ * whatever produced it — work from one piece of arithmetic.
+ */
+export function belowAnchor(
+  anchor: HTMLElement | null,
+  /** Right-align: the popover's right edge sits on the anchor's, for a
+   *  trigger at the window's far edge (the header gear). The caller states
+   *  the popover's width — measured after render would move it a frame late. */
+  width?: number,
+): Point | undefined {
+  const box = anchor?.getBoundingClientRect();
+  if (!box) return undefined;
+  return {
+    x: width ? Math.max(VIEWPORT_MARGIN, box.right - width) : box.left,
+    y: box.bottom + POPOVER_GAP,
+  };
+}
+
+/**
  * Where the popover goes: under its anchor, left edges aligned, in fixed
  * viewport coordinates so a scrolling column cannot carry it away from what it
  * belongs to.
@@ -116,16 +136,12 @@ export function usePointPlacement(
  */
 export function usePopoverPlacement(
   anchor: HTMLElement | null,
-  /** Right-align: the popover's right edge sits on the anchor's, for a
-   *  trigger at the window's far edge (the header gear). The caller states
-   *  the popover's width — measured after render would move it a frame late. */
   width?: number,
 ) {
   const placed = useRef<{ top: number; left: number } | undefined>(undefined);
-  if (!placed.current && anchor) {
-    const rect = anchor.getBoundingClientRect();
-    const left = width ? Math.max(8, rect.right - width) : rect.left;
-    placed.current = { top: rect.bottom + POPOVER_GAP, left };
+  if (!placed.current) {
+    const point = belowAnchor(anchor, width);
+    if (point) placed.current = { top: point.y, left: point.x };
   }
   return placed.current;
 }

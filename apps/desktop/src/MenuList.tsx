@@ -89,7 +89,7 @@ export function MenuList(props: {
   /** A submenu, which owes `ArrowLeft` a step back rather than a close. */
   nested?: boolean;
   /** A submenu with no room to its parent's right, opening on the other side. */
-  left?: boolean;
+  openLeft?: boolean;
   /**
    * The popover element, for a caller that has to measure it — the context
    * menu, which cannot know where to put a list until it knows how tall it is
@@ -103,8 +103,8 @@ export function MenuList(props: {
   const rows = useRef<(HTMLButtonElement | null)[]>([]);
   const [active, setActive] = useState(0);
   const [openSub, setOpenSub] = useState<string>();
-  /** Whether that submenu opens to the left; see `enter`. */
-  const [subLeft, setSubLeft] = useState(false);
+  /** Whether an opened submenu goes on the parent's left; see `enter`. */
+  const [subOpensLeft, setSubOpensLeft] = useState(false);
   const { onDismiss } = props;
 
   useLayoutEffect(() => {
@@ -130,7 +130,7 @@ export function MenuList(props: {
    */
   function enter(id: string) {
     const box = popover.current?.getBoundingClientRect();
-    setSubLeft(
+    setSubOpensLeft(
       box !== undefined && box.right + SUBMENU_WIDTH > window.innerWidth,
     );
     setOpenSub(id);
@@ -189,7 +189,7 @@ export function MenuList(props: {
       className={classes(
         "menu-popover",
         props.nested ? "menu-sub" : "menu-hinted",
-        props.nested && props.left && "menu-sub-left",
+        props.nested && props.openLeft && "menu-sub-left",
       )}
       role="menu"
       aria-label={props.label}
@@ -261,7 +261,7 @@ export function MenuList(props: {
             {item.kind === "submenu" && openSub === item.id && (
               <MenuList
                 nested
-                left={subLeft}
+                openLeft={subOpensLeft}
                 label={item.label}
                 items={item.items}
                 onDismiss={leave}

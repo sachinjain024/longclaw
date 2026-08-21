@@ -44,9 +44,9 @@
 | `C` | Quick create (column `+` buttons preseed that column's status) |
 
 Focus entry: the first card of the first non-empty column on first arrow
-press. `Shift`+`F10`, or `ContextMenu`, opens that card's own menu of
-actions; on a degraded card `S`/`P` are inert and `Enter` opens the raw
-file view. Focus order matches the visual order, ordering included (ADR 0003).
+press. A degraded card accepts focus; `Enter` opens the raw file view; the
+`S`/`P` actions are inert on it. Focus order always matches the visual
+order, including the board-ordering preference (ADR 0003). `Shift`+`F10`, or `ContextMenu`, opens the focused card's own menu of actions (LC-222).
 
 ## Issue list
 

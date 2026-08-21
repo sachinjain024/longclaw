@@ -33,11 +33,7 @@
  */
 
 import { memo, useMemo, useRef, useState } from "react";
-import type {
-  DragEvent,
-  KeyboardEvent,
-  MouseEvent as ReactMouseEvent,
-} from "react";
+import type { DragEvent, KeyboardEvent } from "react";
 import { acknowledgementClass } from "./attribution";
 import { windowFor } from "./boardGeometry";
 import { classes } from "./classes";
@@ -69,10 +65,9 @@ import type { FocusRequest } from "./rovingFocus";
 import { StatusDot } from "./StatusDot";
 import { isArchived } from "./tickets";
 import {
-  contextMenuTarget,
   opensContextMenu,
   TicketContextMenu,
-  type ContextMenuTarget,
+  useTicketContextMenu,
 } from "./TicketContextMenu";
 import {
   metaFieldFor,
@@ -184,8 +179,6 @@ export function IssueList(props: {
   const [archiveOpen, setArchiveOpen] = useState(false);
   /** The row whose `S`/`P` menu is open, and which of the two it is. */
   const [metaMenu, setMetaMenu] = useState<MetaMenuTarget>();
-  /** The row whose context menu is open, and where it was asked for. */
-  const [contextMenu, setContextMenu] = useState<ContextMenuTarget>();
   const scroller = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const viewport = useViewportHeight(scroller);
@@ -247,6 +240,13 @@ export function IssueList(props: {
     root: scroller,
     selector: ROW,
     request: props.focusRequest,
+  });
+
+  /** The row whose context menu is open, and everything that opens or closes it. */
+  const contextMenu = useTicketContextMenu({
+    root: scroller,
+    selector: ROW,
+    requestFocus,
   });
 
   const range = windowFor(offsets, scrollTop, viewport, OVERSCAN);
@@ -365,7 +365,7 @@ export function IssueList(props: {
       // one is the file's path, which is what a degraded row has
       // (`ticketMenu.tsx`).
       event.preventDefault();
-      setContextMenu({ key: fromKey });
+      contextMenu.openOn(fromKey);
       return;
     }
 
@@ -389,24 +389,12 @@ export function IssueList(props: {
     requestFocus(next);
   }
 
-  /**
-   * A right-click on a row, and only on a row. A press on a group header, the
-   * archived toggle or the space below the last group is left to the platform's
-   * own menu — the same line the board draws.
-   */
-  function onContextMenu(event: ReactMouseEvent<HTMLDivElement>) {
-    const target = contextMenuTarget(event, ROW);
-    if (!target) return;
-    event.preventDefault();
-    setContextMenu(target);
-  }
-
   return (
     <div
       className="issue-list"
       ref={scroller}
       onKeyDown={onKeyDown}
-      onContextMenu={onContextMenu}
+      onContextMenu={contextMenu.onContextMenu}
       onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
@@ -461,22 +449,18 @@ export function IssueList(props: {
           onFocusRow={onFocusRow}
         />
       ))}
-      {contextMenu && (
+      {contextMenu.target && (
         <TicketContextMenu
-          target={contextMenu}
+          key={contextMenu.instance}
+          target={contextMenu.target}
           tickets={props.tickets}
-          anchor={itemFor(scroller.current, ROW, contextMenu.key) ?? null}
+          anchor={contextMenu.anchor}
           onOpen={props.onSelect}
           onChangeStatus={props.onChangeStatus}
           onChangePriority={props.onChangePriority}
           onArchive={props.onArchive}
           onCopyPath={props.onCopyPath}
-          onClose={() => {
-            setContextMenu(undefined);
-            // A pick re-buckets the row, so it is asked for by key again rather
-            // than left to whatever node the menu was hanging off.
-            requestFocus(contextMenu.key);
-          }}
+          onClose={contextMenu.close}
         />
       )}
       {metaMenu && (

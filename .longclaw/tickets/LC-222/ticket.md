@@ -3,12 +3,12 @@ format: longclaw.ticket/v1
 id: d967df78-e663-4d22-8991-c49ec134eb79
 key: LC-222
 title: Implement Right Click Context Menu on Tickets
-status: in_review
+status: done
 priority: urgent
 labels:
   - design
 created_at: 2026-08-12T12:00:56.769Z
-updated_at: 2026-08-21T13:30:54.641Z
+updated_at: 2026-08-21T13:47:47.005Z
 ---
 
 Quick Actions like
@@ -106,4 +106,64 @@ nothing lands outside the window.
 same four lines, to name the two keys. The key table itself was left alone: a
 seventh row would shift every pinned line under it, and ~120 source citations
 name lines further down that file.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_7ce5faaf
+kind: update
+occurred_at: 2026-08-21T13:47:47.005Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### Claude Code updated this ticket
+
+The review round. Two axes ran against `main`; both found things, and one of
+them was a bug the tests could not have caught.
+
+**The board and the list had already drifted, one gesture in.** The board's
+closing menu asked its roving focus for *whatever card the arrows last left
+behind*; the list asked for the row that had been acted on. Same gesture, two
+meanings — the drift `TicketMetaMenu` was extracted to prevent. The four pieces
+each surface held (the open target, the press, the key, the anchor) are now one
+`useTicketContextMenu` hook, so there is one `close()` and it asks by key.
+
+**A second right-click drew the wrong menu.** Where the menu goes and what it
+hands focus back to are both captured when it opens, and React was handing the
+*same* component a new target rather than mounting a new one — so right-clicking
+card B while card A's menu was up drew B's rows at A's point and would have
+returned focus to A. The surfaces now key the component on the target. This one
+has a test that fails without the fix (`Board.test.tsx`, `10px` vs `300px`), and
+it was confirmed in WebKit: the second menu opens at 840, on the card pressed.
+
+**The doc edit had deleted a claim four files cite.** Rewriting
+`keyboard-focus-map.md`'s § Board paragraph in place cost the sentence "A
+degraded card accepts focus", which `Board.tsx:383`, `Board.tsx:706`,
+`IssueList.tsx:375` and two tests lean on at `:48` — and `citation-guard` was
+green over it, because it pins text to a line and not a claim to a line. The
+three cited lines are now restored byte for byte and the two keys are appended
+to line 49, which nothing cites.
+
+Also: `belowAnchor` in `popover.ts` is now the one piece of under-an-anchor
+arithmetic, rather than `usePopoverPlacement` and the context menu each having
+their own; App's archive toggle is named once instead of written twice; the
+copy-path row takes the folder as an argument, so there is no branch that
+quietly copies nothing; and `MenuList`'s `left` prop is `openLeft`, which says
+what it holds.
+
+**The one finding that did not hold.** The review expected WebKit to send
+`contextmenu` before `mousedown`, which would have had the dismiss listener
+close the menu the same press had just opened. It sends
+`mousedown → contextmenu → mouseup`, driven and printed in WebKit; and even
+were it the other way, the listener is attached by an effect that has not run
+when the first press arrives. Checked in the same run: a press outside
+dismisses, `Escape` returns focus to the card that was pressed, and the second
+right-click re-places the menu.
+
+`npm run verify` green (1064 frontend tests); `a11y:audit` green.
 <!-- /longclaw:event -->

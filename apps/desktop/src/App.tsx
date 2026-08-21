@@ -1647,13 +1647,22 @@ export function App() {
    * string for the same key in every project there has ever been. The folder is
    * what makes it a file, and the folder is App's — which is why this is here
    * and not on the surface that drew the row.
+   *
+   * The folder is a parameter rather than read off `project` here, so there is
+   * no branch for a project that is not open: the surfaces that draw this row
+   * are inside the render that has one, and a copy row that quietly did nothing
+   * is the state `clipboard.ts` exists to refuse.
    */
-  function copyTicketPath(ticket: TicketRow) {
-    if (!project) return;
-    void copyToClipboard(ticketPath(project.rootPath, ticket.relativePath), {
+  function copyTicketPath(rootPath: string, ticket: TicketRow) {
+    void copyToClipboard(ticketPath(rootPath, ticket.relativePath), {
       done: "Path copied",
       failed: "Could not copy path",
     });
+  }
+
+  /** The archive row on both surfaces' context menus: whichever it is not. */
+  function toggleArchived(ticket: IndexedTicket) {
+    setArchived(ticket, !isArchived(ticket));
   }
 
   /* First launch is the whole window (`screen-specs.md:88`, D-10). The shell
@@ -2037,10 +2046,10 @@ export function App() {
                     // The context menu's two rows that are App's to answer: one
                     // writes, and one needs the project folder a surface has
                     // never been told (LC-222).
-                    onArchive={(ticket) =>
-                      setArchived(ticket, !isArchived(ticket))
+                    onArchive={toggleArchived}
+                    onCopyPath={(ticket) =>
+                      copyTicketPath(project.rootPath, ticket)
                     }
-                    onCopyPath={copyTicketPath}
                     onMoveTicket={moveCard}
                     // A column's `+` is the same quick create `C` opens,
                     // arriving with the column it was pressed in already
@@ -2078,10 +2087,10 @@ export function App() {
                     onSelect={openTicket}
                     onChangePriority={changePriority}
                     onChangeStatus={changeStatus}
-                    onArchive={(ticket) =>
-                      setArchived(ticket, !isArchived(ticket))
+                    onArchive={toggleArchived}
+                    onCopyPath={(ticket) =>
+                      copyTicketPath(project.rootPath, ticket)
                     }
-                    onCopyPath={copyTicketPath}
                     // The same move the board raises, because the same gesture
                     // means the same thing on both projections (`ticketMove.ts`).
                     onMoveTicket={moveCard}

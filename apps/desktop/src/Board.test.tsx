@@ -1704,6 +1704,22 @@ describe("the context menu on a card (LC-222)", () => {
     expect(screen.getByRole("menu", { name: "LC-2 actions" })).toBeTruthy();
   });
 
+  it("re-places itself when a second card is pressed under an open menu", () => {
+    // Where a menu goes and what it hands focus back to are both captured when
+    // it opens, so a second press has to be a second menu rather than the first
+    // one handed a new ticket: otherwise it draws the new card's rows at the
+    // old card's point.
+    render(board({ tickets: column }));
+
+    rightClick(card("LC-1"), { clientX: 10, clientY: 20 });
+    rightClick(card("LC-2"), { clientX: 300, clientY: 400 });
+
+    const menu = screen.getByRole("menu");
+    expect(menu.getAttribute("aria-label")).toBe("LC-2 actions");
+    expect(menu.style.left).toBe("300px");
+    expect(menu.style.top).toBe("400px");
+  });
+
   it("hands the card its focus back when the menu closes", () => {
     render(board({ tickets: column }));
     card("LC-2").focus();
