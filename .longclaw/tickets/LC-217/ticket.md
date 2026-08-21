@@ -3,12 +3,12 @@ format: longclaw.ticket/v1
 id: 50b39ead-8cb4-4622-968d-cd37c43d9293
 key: LC-217
 title: Do a repo audit
-status: in_progress
+status: in_review
 priority: urgent
 labels:
   - release
 created_at: 2026-08-11T14:59:39.137Z
-updated_at: 2026-08-21T09:54:24.071Z
+updated_at: 2026-08-21T10:00:22.233Z
 ---
 
 Repo audit, completed 2026-08-21. Original questions: can we remove some files, is everything structured properly, is the README up to date? Answers below; actionable fixes are in the checklist.
@@ -62,8 +62,8 @@ README last touched 2026-08-04 (commit 1ff010b); 386 commits since. Nothing in i
 - [x] Remove spikes/ (preserved in tag tauri-v2-architecture-m2); repoint docs/architecture-spike-report.md:171 and decide fate of archived-spikes:check <!-- longclaw:item=ck_96606385 -->
 - [x] Remove docs/matt_pocock_skills.md (orphaned; skills-lock.json is the authority) <!-- longclaw:item=ck_2323ee86 -->
 - [x] Retitle docs/plans/active/README.md as an archived record and strip plan-authoring instructions (citation-guard.mjs:87 walks the dir — do not delete it); repoint LC-201 spec link to the ticket <!-- longclaw:item=ck_1f22d398 -->
-- [ ] Rewrite README.md: feature list, longclaw CLI section, corrected verify gate description, macOS 13+ Apple Silicon line, post-Aug-4 doc links, logo/screenshot, .longclaw layout with longclaw.yaml and AGENTS.md <!-- longclaw:item=ck_0a608942 -->
-- [ ] Standardize on 'npm --prefix apps/desktop ci' in README and CONTRIBUTING; fix CONTRIBUTING's playwright install line to playwright-core <!-- longclaw:item=ck_93430349 -->
+- [x] Rewrite README.md: feature list, longclaw CLI section, corrected verify gate description, macOS 13+ Apple Silicon line, post-Aug-4 doc links, logo/screenshot, .longclaw layout with longclaw.yaml and AGENTS.md <!-- longclaw:item=ck_0a608942 -->
+- [x] Standardize on 'npm --prefix apps/desktop ci' in README and CONTRIBUTING; fix CONTRIBUTING's playwright install line to playwright-core <!-- longclaw:item=ck_93430349 -->
 - [x] Update stale verify gate list copies in CONTRIBUTING.md and apps/desktop/README.md (or stop enumerating and link CONTRIBUTING) <!-- longclaw:item=ck_e8bb87fa -->
 - [x] Update docs/acceptance/README.md index to the 2026-08-05 records; fix broken ../active/09 link in docs/plans/completed/00-confirm-ci-on-main.md <!-- longclaw:item=ck_4c1f2e93 -->
 - [x] Declare assets/brand/app-icon as icon source of truth in its README (or gitignore the generated src-tauri copy) <!-- longclaw:item=ck_041c2252 -->
@@ -192,4 +192,34 @@ changes:
 ### Claude Code updated this ticket
 
 Batch 2, commit f91fb57. The gate is now described once in CONTRIBUTING, grouped by what each stage protects; README and apps/desktop/README point at it rather than keeping their own copies, which is how all three came to name eleven of eighteen checks. CONTRIBUTING also gained the two rules that lived only in AGENTS.md — file a ticket through the CLI, and branch before changing anything — plus playwright-core and the macOS 13 Apple Silicon line. Root package.json declares that it is deliberately not a workspace and forwards the five scripts AGENTS.md spelled out by hand; its empty package-lock.json and the dependabot entry watching it are gone. Acceptance index now lists all four runs with the 2026-08-05 pair as current. CONTEXT.md gained Project, Status, Priority, Label, Checklist item, Archive and Field, each checked against the code rather than invented. domain.md no longer diagrams a root src/. All 12 ADRs carry a Status line. Remaining: the README rewrite.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_baa78e6f
+kind: update
+occurred_at: 2026-08-21T10:00:22.233Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_progress
+    to: in_review
+  - field: checklist.ck_0a608942.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_93430349.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+All 14 items done, commit abc797d. The README is rewritten against what ships: a feature list (board, list, panel, checklists, palette, quick create, watcher and acknowledgement, five themes), a longclaw CLI section, the corrected platform and install lines, the post-Aug-4 doc index, the .longclaw layout including longclaw.yaml and AGENTS.md, and the mark that shipped on 2026-08-13. The CLI example is verified by running it — project init, label add, ticket create, ticket edit, ticket list in a temp directory, producing the tree the layout section draws. The first draft was wrong in the way this audit was about: it carried --label storage into a project with no labels defined, which the CLI refuses; running it is what found that.
+
+npm run verify passes end to end: exit 0, 15 guards clean, 1024 frontend tests, 157 Rust tests, watcher integration green.
+
+One finding is filed separately rather than fixed here: LC-225, screen-specs.md:114 still lists four theme presets while the app ships five (Graphite arrived with LC-192). It is left open because screen-specs.md is a pinned citation document, so the fix requires a reviewed citations:update rather than a one-line edit.
+
+Work is on branch chore/lc-217-repo-audit, three commits, not merged.
 <!-- /longclaw:event -->
