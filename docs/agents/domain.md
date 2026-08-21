@@ -11,13 +11,18 @@ If these files do not exist, proceed silently. Domain-modeling skills create the
 
 ## File structure
 
-This is a single-context repository:
+This is a single-context repository. There is no root `src/`; the application
+lives under `apps/desktop`:
 
+```
 /
-├── CONTEXT.md
+├── CONTEXT.md              the glossary — the vocabulary every output uses
 ├── docs/
-│   └── adr/
-└── src/
+│   └── adr/                the decisions, 0001–0012
+└── apps/desktop/
+    ├── src/                the frontend
+    └── src-tauri/src/      the Rust backend and the longclaw CLI
+```
 
 ## Use the glossary's vocabulary
 

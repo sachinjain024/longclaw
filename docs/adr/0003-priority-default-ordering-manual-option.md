@@ -1,5 +1,7 @@
 # Tickets order by priority by default, with a per-board Manual option
 
+**Status:** accepted 2026-07-29, and propagated through the prototype and specs in the same change.
+
 Within a board column, tickets are ordered by priority by default (Urgent → P1 → P2 → P3 → P4 → None). A board-level control lets the user switch the ordering type between **Priority** and **Manual**. Manual ordering uses the per-ticket `rank` field from the file format; the selected ordering type is a view preference held in device-local app state, not project data.
 
 ## Consequences

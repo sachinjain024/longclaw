@@ -59,26 +59,29 @@ Two traps: Homebrew runs under Rosetta on this Mac, so installs need
 `npm --prefix apps/desktop ci` first.
 
 ```sh
-npm run verify   # tokens, archived-spike scope, release audit, format, lint,
-                 # typecheck, tests, vite build, native watcher
-npm run dev      # launch the app
-npm --prefix apps/desktop run test:rust     # cargo test alone
-npm --prefix apps/desktop run test:frontend # vitest alone
-npm --prefix apps/desktop run test:watcher  # the native watcher round trip alone
-npm --prefix apps/desktop run citations:check      # the design docs' line citations
-npm --prefix apps/desktop run citations:update     # re-pin them after editing a doc
-npm --prefix apps/desktop run perf:rust     # performance budgets, ignored by default
-npm --prefix apps/desktop run perf:startup  # startup budgets, needs a built app
-npm run perf:board                          # board interaction budgets in WebKit
-npm run perf:list                           # the same, for the list surface
-npm run probe:header                        # the content header's geometry, mid-write
-npm run probe:drag                          # where a dragged ticket actually lands
-npm run probe:checklist                     # whether the add-row is still on screen
-npm run matrix                              # theme × appearance visual regression
-npm run a11y:audit                          # accessibility Part A, keyboard-only, in WebKit
-npm run a11y:audit -- --self-test           # the same, expecting every row to go red
-npm run audit:network                       # runtime network audit, needs a built app
-npm run audit:network -- --self-test        # the same, expecting an injected peer to be caught
+npm run verify                        # the whole gate: tokens, structural guards,
+                                      # release audit, format, lint, typecheck,
+                                      # tests, vite build, native watcher
+npm run dev                           # launch the app
+
+npm run test:rust                     # cargo test alone
+npm run test:frontend                 # vitest alone
+npm run test:watcher                  # the native watcher round trip alone
+npm run citations:check               # the design docs' line citations
+npm run citations:update              # re-pin them after editing a doc
+
+npm run perf:rust                     # performance budgets, ignored by default
+npm run perf:startup                  # startup budgets, needs a built app
+npm run perf:board                    # board interaction budgets in WebKit
+npm run perf:list                     # the same, for the list surface
+npm run probe:header                  # the content header's geometry, mid-write
+npm run probe:drag                    # where a dragged ticket actually lands
+npm run probe:checklist               # whether the add-row is still on screen
+npm run matrix                        # theme × appearance visual regression
+npm run a11y:audit                    # accessibility Part A, keyboard-only, in WebKit
+npm run a11y:audit -- --self-test     # the same, expecting every row to go red
+npm run audit:network                 # runtime network audit, needs a built app
+npm run audit:network -- --self-test  # the same, expecting an injected peer to be caught
 ```
 
 `audit:network` is the release gate's process-monitor pass. It needs a person to

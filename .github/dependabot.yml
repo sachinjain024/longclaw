@@ -1,11 +1,8 @@
 version: 2
+# The repository root has no npm entry on purpose: its package.json declares no
+# dependencies and only forwards scripts to apps/desktop, so an ecosystem there
+# would never have anything to update.
 updates:
-  - package-ecosystem: npm
-    directory: /
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
-
   - package-ecosystem: npm
     directory: /apps/desktop
     schedule:

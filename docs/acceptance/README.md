@@ -20,9 +20,17 @@ unchanged acceptance criteria is a re-ranked backlog nobody can check.
 | [The pilot macOS build](pilot-build.md) | A build a participant can install and run, with its limitations stated up front so feedback separates missing breadth from a broken thesis | Before handing a build to anyone |
 | [The release-candidate build](release-candidate.md) | The Step 16b quality, accessibility, privacy/filesystem, packaging, documentation, and known-issues gate | Before Step 17 final acceptance |
 
-Records of particular runs live beside the gate they were run against. The
-current one is [final acceptance, 2026-08-04](final-acceptance-2026-08-04.md) —
-Step 17's pass, and the file that says what still blocks the release.
+## Records of particular runs
+
+They live beside the gate they were run against, newest last. **The current
+state of the release is the 2026-08-05 pair: all four blockers are closed.**
+
+| Record | What it was | Standing |
+|---|---|---|
+| [release candidate, 2026-08-04](release-candidate-2026-08-04.md) | The Step 16b gate run | Record |
+| [final acceptance, 2026-08-04](final-acceptance-2026-08-04.md) | Step 17's first pass | **Partly superseded.** Two of its conclusions — that `perf:startup` and DMG bundling need a human — were about the machine, not the product, and are wrong. Its own header says so |
+| [final acceptance, 2026-08-05](final-acceptance-2026-08-05.md) | Step 17's second pass | Current. Closed two of the three blockers, and fixed the defect that made the bundle unopenable for anyone who downloaded it |
+| [clean-machine pass, 2026-08-05](clean-machine-2026-08-05.md) | The packaged app on a machine that had never run it | Current. Every row passes; the last blocker closed |
 
 The round-trip document also carries the current map of what the automated suite
 covers and what only a human can prove. That table is the authority on the
@@ -37,7 +45,7 @@ machine that has never run it.
 ## Running the checks
 
 ```sh
-npm run check         # tokens, archived-spike scope, release audit, format, lint, typecheck, tests, build
+npm run check         # tokens, structural guards, release audit, format, lint, typecheck, tests, build
 npm run test:watcher  # the native FSEvents test, ignored by default
 npm run verify        # both of the above
 npm run perf:rust     # the storage performance budgets, ignored by default

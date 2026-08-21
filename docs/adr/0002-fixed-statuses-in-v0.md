@@ -1,5 +1,7 @@
 # Statuses are fixed in v0; user-defined statuses come later, per project
 
+**Status:** accepted 2026-07-29, and propagated through the prototype and specs in the same change.
+
 v0 ships exactly the built-in status set — Backlog · Todo · In Progress · In Review · Done · Canceled — and users cannot create, rename, or recolor statuses. User-defined statuses arrive in a later version as per-project data stored in that project's settings, not in `longclaw.yaml`; their exact on-disk representation is specified when the feature ships.
 
 ## Consequences

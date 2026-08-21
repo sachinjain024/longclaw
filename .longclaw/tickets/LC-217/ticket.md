@@ -3,12 +3,12 @@ format: longclaw.ticket/v1
 id: 50b39ead-8cb4-4622-968d-cd37c43d9293
 key: LC-217
 title: Do a repo audit
-status: todo
+status: in_progress
 priority: urgent
 labels:
   - release
 created_at: 2026-08-11T14:59:39.137Z
-updated_at: 2026-08-21T08:50:10.802Z
+updated_at: 2026-08-21T09:48:30.600Z
 ---
 
 Repo audit, completed 2026-08-21. Original questions: can we remove some files, is everything structured properly, is the README up to date? Answers below; actionable fixes are in the checklist.
@@ -56,12 +56,12 @@ README last touched 2026-08-04 (commit 1ff010b); 386 commits since. Nothing in i
 
 ## Checklist
 
-- [ ] Fix root CLAUDE.md: replace bare 'AGENTS.md' text with '@AGENTS.md' import so Claude Code loads the rules <!-- longclaw:item=ck_4cae3235 -->
-- [ ] Remove assets/brand/concepts/ (11 MB dated brand explorations; chosen mark already materialized) <!-- longclaw:item=ck_1a576e48 -->
-- [ ] Remove docs/ux/prototypes 'LongClaw Settings Screen UI.zip' and stray .thumbnail; index the unpacked prototype in the prototypes README <!-- longclaw:item=ck_ca56608d -->
-- [ ] Remove spikes/ (preserved in tag tauri-v2-architecture-m2); repoint docs/architecture-spike-report.md:171 and decide fate of archived-spikes:check <!-- longclaw:item=ck_96606385 -->
-- [ ] Remove docs/matt_pocock_skills.md (orphaned; skills-lock.json is the authority) <!-- longclaw:item=ck_2323ee86 -->
-- [ ] Retitle docs/plans/active/README.md as an archived record and strip plan-authoring instructions (citation-guard.mjs:87 walks the dir — do not delete it); repoint LC-201 spec link to the ticket <!-- longclaw:item=ck_1f22d398 -->
+- [x] Fix root CLAUDE.md: replace bare 'AGENTS.md' text with '@AGENTS.md' import so Claude Code loads the rules <!-- longclaw:item=ck_4cae3235 -->
+- [x] Remove assets/brand/concepts/ (11 MB dated brand explorations; chosen mark already materialized) <!-- longclaw:item=ck_1a576e48 -->
+- [x] Remove docs/ux/prototypes 'LongClaw Settings Screen UI.zip' and stray .thumbnail; index the unpacked prototype in the prototypes README <!-- longclaw:item=ck_ca56608d -->
+- [x] Remove spikes/ (preserved in tag tauri-v2-architecture-m2); repoint docs/architecture-spike-report.md:171 and decide fate of archived-spikes:check <!-- longclaw:item=ck_96606385 -->
+- [x] Remove docs/matt_pocock_skills.md (orphaned; skills-lock.json is the authority) <!-- longclaw:item=ck_2323ee86 -->
+- [x] Retitle docs/plans/active/README.md as an archived record and strip plan-authoring instructions (citation-guard.mjs:87 walks the dir — do not delete it); repoint LC-201 spec link to the ticket <!-- longclaw:item=ck_1f22d398 -->
 - [ ] Rewrite README.md: feature list, longclaw CLI section, corrected verify gate description, macOS 13+ Apple Silicon line, post-Aug-4 doc links, logo/screenshot, .longclaw layout with longclaw.yaml and AGENTS.md <!-- longclaw:item=ck_0a608942 -->
 - [ ] Standardize on 'npm --prefix apps/desktop ci' in README and CONTRIBUTING; fix CONTRIBUTING's playwright install line to playwright-core <!-- longclaw:item=ck_93430349 -->
 - [ ] Update stale verify gate list copies in CONTRIBUTING.md and apps/desktop/README.md (or stop enumerating and link CONTRIBUTING) <!-- longclaw:item=ck_e8bb87fa -->
@@ -123,4 +123,40 @@ changes:
     to: Backfill **Status:** lines on ADRs 0001-0005 and 0011
 -->
 ### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_3290d12e
+kind: update
+occurred_at: 2026-08-21T09:48:30.600Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: in_progress
+  - field: checklist.ck_4cae3235.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_1a576e48.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_ca56608d.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_96606385.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_2323ee86.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_1f22d398.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Batch 1 on branch chore/lc-217-repo-audit, commit 83e5a81. CLAUDE.md now imports @AGENTS.md. Removed assets/brand/concepts/, the settings-prototype zip and its .thumbnail, spikes/, and docs/matt_pocock_skills.md — 62 files, 11,211 lines. Deleting spikes/ also cleared 4.5 GB of orphaned untracked build output and retires the LC-155 trap where tauri dev from the repo root found the spike's tauri.conf.json first. spike-manifest-guard.mjs and its archived-spikes:check left the gate with the directory it guarded. docs/architecture-spike-report.md now points reviewers at tag tauri-v2-architecture-m2 instead of an npm install that could not work. docs/plans/active/README.md is status: record with the plan-authoring procedure retired; the directory stays because citation-guard walks it without an existence check. citations:check and format:check pass.
 <!-- /longclaw:event -->

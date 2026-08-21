@@ -18,10 +18,13 @@ local project registry and native folder selection only.
 
 ## Quality gate
 
-`npm run verify` checks token generation, archived-spike manifest scope, the
-release privacy/filesystem audit, formatting, linting, TypeScript types,
-frontend tests, Rust tests, Clippy, watcher integration coverage, and the Vite
-production build.
+`npm run verify` must pass before a change lands. It is the design-token and
+structural guards, the release audit, formatting, lint, types, the frontend and
+Rust suites, the Vite production build, and the watcher integration round trip.
+
+The gate is described once, in [CONTRIBUTING](../../CONTRIBUTING.md#quality-gates)
+— including which guard rejects what. Enumerating it here as well is how this
+paragraph came to name a check that no longer exists.
 
 ## Privacy boundary
 
