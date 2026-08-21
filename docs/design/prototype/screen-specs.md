@@ -111,9 +111,9 @@
 
 ## Theme picker (creation · settings · palette)
 
-Per components.md: a stack of preset cards, each a 36×22px pair swatch
-(⅔ human / ⅓ agent) beside its 12.5px name, the chosen card wearing the
-accent border, ring and ✓. Presets: Indigo (default) · Clay · Slate · Plum. Selection
+Per components.md: a stack of preset cards, each a 36×22px pair swatch (⅔ human /
+⅓ agent) beside its 12.5px name, the chosen card wearing the accent border, ring
+and ✓. Presets: Indigo (default) · Clay · Slate · Plum · Graphite. Selection
 applies instantly — a 150ms crossfade of accent surfaces only; no layout
 movement. No custom-color affordance exists anywhere.
 

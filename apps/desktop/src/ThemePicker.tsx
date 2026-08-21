@@ -7,7 +7,7 @@ export type ThemeOption = { id: string; label: string };
 /**
  * The theme picker `screen-specs.md:112-118` specifies for creation, settings,
  * and the palette's theme rows: 44×28px pair swatches, the preset name in
- * micro type below, selected = `accent-human` border + focus ring. Four
+ * micro type below, selected = `accent-human` border + focus ring. Five
  * presets, no custom-color affordance — the options are the props and nothing
  * here can mint one.
  *

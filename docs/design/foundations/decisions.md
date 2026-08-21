@@ -225,7 +225,7 @@ palette per the brief's proposal.
 ## D15 — Token architecture · accepted (hard requirement, verified)
 
 Two independent axes on the root element: `data-theme` (light/dark) ×
-`data-lc-theme` (indigo/clay/slate/plum). A preset supplies **six values per
+`data-lc-theme` (indigo/clay/slate/plum/graphite). A preset supplies **six values per
 appearance** (accent, text variant, on-accent × two actors); every
 soft/hover/ring/rail/wash variant derives via `color-mix(in oklab, …)` in
 generated CSS. Neutrals, status, warn/error, and label colors are
