@@ -1,4 +1,4 @@
-<img src="assets/brand/app-icon/in-app/longclaw-mark-ochre.png" alt="" width="72" align="left" hspace="12" vspace="4">
+<img src="assets/brand/app-icon/in-app/app-tile-rounded-512.png" alt="LongClaw" width="76" align="left" hspace="14" vspace="4">
 
 # LongClaw
 
