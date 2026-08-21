@@ -38,7 +38,7 @@
     "109": "target is < 60s and ≤ 4 interactions from launch to board; the prototype",
     "110": "driver counts and displays both.",
     "112": "## Theme picker (creation · settings · palette)",
-    "116": "accent border, ring and ✓. Presets: Indigo (default) · Clay · Slate · Plum. Selection",
+    "116": "and ✓. Presets: Indigo (default) · Clay · Slate · Plum · Graphite. Selection",
     "118": "movement. No custom-color affordance exists anywhere.",
     "123": "- **Column:** 258px fixed. Header row: plain 8px status dot + one mono",
     "132": "default (Urgent → P1 → P2 → P3 → P4 → None, stable within a level).",
