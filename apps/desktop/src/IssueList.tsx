@@ -33,7 +33,11 @@
  */
 
 import { memo, useMemo, useRef, useState } from "react";
-import type { DragEvent, KeyboardEvent } from "react";
+import type {
+  DragEvent,
+  KeyboardEvent,
+  MouseEvent as ReactMouseEvent,
+} from "react";
 import { acknowledgementClass } from "./attribution";
 import { windowFor } from "./boardGeometry";
 import { classes } from "./classes";
@@ -64,6 +68,12 @@ import { itemFor, moveFor, useRovingFocus } from "./rovingFocus";
 import type { FocusRequest } from "./rovingFocus";
 import { StatusDot } from "./StatusDot";
 import { isArchived } from "./tickets";
+import {
+  contextMenuTarget,
+  opensContextMenu,
+  TicketContextMenu,
+  type ContextMenuTarget,
+} from "./TicketContextMenu";
 import {
   metaFieldFor,
   TicketMetaMenu,
@@ -148,6 +158,13 @@ export function IssueList(props: {
   onChangePriority: (ticket: IndexedTicket, next: TicketPriority) => void;
   /** Raised by the `S` menu, on the same terms. */
   onChangeStatus: (ticket: IndexedTicket, next: TicketStatus) => void;
+  /** Raised by the context menu's archive row, which is App's to write. */
+  onArchive: (ticket: IndexedTicket) => void;
+  /**
+   * Raised by the context menu's Copy file path row. The path a row holds is
+   * relative to a project folder the list has never been told (LC-222).
+   */
+  onCopyPath: (ticket: TicketRow) => void;
   /**
    * Raised by a drop: a group, a place in one, or both (`ticketMove.ts`). The
    * board raises the same move for the same gesture, because a group here and a
@@ -167,6 +184,8 @@ export function IssueList(props: {
   const [archiveOpen, setArchiveOpen] = useState(false);
   /** The row whose `S`/`P` menu is open, and which of the two it is. */
   const [metaMenu, setMetaMenu] = useState<MetaMenuTarget>();
+  /** The row whose context menu is open, and where it was asked for. */
+  const [contextMenu, setContextMenu] = useState<ContextMenuTarget>();
   const scroller = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const viewport = useViewportHeight(scroller);
@@ -337,7 +356,18 @@ export function IssueList(props: {
     const on = (event.target as HTMLElement).closest?.(ROW);
     const fromKey = (on as HTMLElement | null)?.dataset.ticketKey;
     const from = fromKey === undefined ? undefined : seats.get(fromKey);
-    if (!from) return;
+    // `fromKey` is named in the second half so what follows can read it: a seat
+    // only exists for a row that had one, but nothing in the type says so.
+    if (!from || fromKey === undefined) return;
+
+    if (opensContextMenu(event)) {
+      // Offered on a degraded row too, unlike `S` and `P`: what it holds for
+      // one is the file's path, which is what a degraded row has
+      // (`ticketMenu.tsx`).
+      event.preventDefault();
+      setContextMenu({ key: fromKey });
+      return;
+    }
 
     const field = metaFieldFor(event.key);
     if (field) {
@@ -359,11 +389,24 @@ export function IssueList(props: {
     requestFocus(next);
   }
 
+  /**
+   * A right-click on a row, and only on a row. A press on a group header, the
+   * archived toggle or the space below the last group is left to the platform's
+   * own menu — the same line the board draws.
+   */
+  function onContextMenu(event: ReactMouseEvent<HTMLDivElement>) {
+    const target = contextMenuTarget(event, ROW);
+    if (!target) return;
+    event.preventDefault();
+    setContextMenu(target);
+  }
+
   return (
     <div
       className="issue-list"
       ref={scroller}
       onKeyDown={onKeyDown}
+      onContextMenu={onContextMenu}
       onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
@@ -418,6 +461,24 @@ export function IssueList(props: {
           onFocusRow={onFocusRow}
         />
       ))}
+      {contextMenu && (
+        <TicketContextMenu
+          target={contextMenu}
+          tickets={props.tickets}
+          anchor={itemFor(scroller.current, ROW, contextMenu.key) ?? null}
+          onOpen={props.onSelect}
+          onChangeStatus={props.onChangeStatus}
+          onChangePriority={props.onChangePriority}
+          onArchive={props.onArchive}
+          onCopyPath={props.onCopyPath}
+          onClose={() => {
+            setContextMenu(undefined);
+            // A pick re-buckets the row, so it is asked for by key again rather
+            // than left to whatever node the menu was hanging off.
+            requestFocus(contextMenu.key);
+          }}
+        />
+      )}
       {metaMenu && (
         <TicketMetaMenu
           target={metaMenu}

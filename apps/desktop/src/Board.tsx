@@ -64,7 +64,11 @@
  */
 
 import { memo, useCallback, useMemo, useRef, useState } from "react";
-import type { DragEvent, KeyboardEvent } from "react";
+import type {
+  DragEvent,
+  KeyboardEvent,
+  MouseEvent as ReactMouseEvent,
+} from "react";
 import { acknowledgementClass } from "./attribution";
 import { presentCard } from "./boardCard";
 import {
@@ -93,6 +97,12 @@ import { PulseDot } from "./PulseDot";
 import { itemFor, moveFor, useRovingFocus } from "./rovingFocus";
 import type { FocusRequest } from "./rovingFocus";
 import { ColumnDot } from "./ColumnDot";
+import {
+  contextMenuTarget,
+  opensContextMenu,
+  TicketContextMenu,
+  type ContextMenuTarget,
+} from "./TicketContextMenu";
 import {
   metaFieldFor,
   TicketMetaMenu,
@@ -218,6 +228,13 @@ export function Board(props: {
   onChangePriority: (ticket: IndexedTicket, next: TicketPriority) => void;
   /** Raised by the `S` menu, on the same terms. */
   onChangeStatus: (ticket: IndexedTicket, next: TicketStatus) => void;
+  /** Raised by the context menu's archive row, which is App's to write. */
+  onArchive: (ticket: IndexedTicket) => void;
+  /**
+   * Raised by the context menu's Copy file path row. The path a card holds is
+   * relative to a project folder the board has never been told (LC-222).
+   */
+  onCopyPath: (ticket: TicketRow) => void;
   /**
    * Raised by a drop: a column, a place in one, or both (`ticketMove.ts`). The
    * rank is allocated here — LongClaw owns rank allocation in v0 — and the
@@ -250,6 +267,8 @@ export function Board(props: {
   );
   /** The card whose `S`/`P` menu is open, and which of the two it is. */
   const [metaMenu, setMetaMenu] = useState<MetaMenuTarget>();
+  /** The card whose context menu is open, and where it was asked for. */
+  const [contextMenu, setContextMenu] = useState<ContextMenuTarget>();
   /** The card being dragged, and which gap of which column it is hanging over. */
   const [dragKey, setDragKey] = useState<string>();
   const [hover, setHover] = useState<{ column: number; gap: number }>();
@@ -349,6 +368,15 @@ export function Board(props: {
     const from = fromKey === undefined ? undefined : seats.get(fromKey);
     if (!from || fromKey === undefined) return;
 
+    if (opensContextMenu(event)) {
+      // Unlike `S` and `P`, this one opens on a card the file behind which
+      // would not read: what it offers such a card is the file's path, which is
+      // the one thing a degraded card has (`ticketMenu.tsx`).
+      event.preventDefault();
+      setContextMenu({ key: fromKey });
+      return;
+    }
+
     const field = metaFieldFor(event.key);
     if (field) {
       // Inert on a file that would not read: there is no field to write to
@@ -394,11 +422,26 @@ export function Board(props: {
     if (box) driftAcross(towardsEdge(event.clientX, box.left, box.right));
   }
 
+  /**
+   * A right-click on a card, and only on a card. The press is read where it
+   * landed rather than against the roving key, for the reason the keys are: a
+   * card can be pressed without ever having been focused. Anywhere else on the
+   * board — a header, a gap, the background — is left to the platform's own
+   * menu, which is not this board's to swallow.
+   */
+  function onContextMenu(event: ReactMouseEvent<HTMLDivElement>) {
+    const target = contextMenuTarget(event, CARD);
+    if (!target) return;
+    event.preventDefault();
+    setContextMenu(target);
+  }
+
   return (
     <div
       className="board-grid"
       ref={grid}
       onKeyDown={onKeyDown}
+      onContextMenu={onContextMenu}
       onDragStart={onDragStart}
       onDragOver={onGridDragOver}
       // The columns stop their own drift; this one belongs to the board, so it
@@ -442,6 +485,24 @@ export function Board(props: {
           onDropCard={(gap) => onDrop(columnIndex, gap)}
         />
       ))}
+      {contextMenu && (
+        <TicketContextMenu
+          target={contextMenu}
+          tickets={props.tickets}
+          anchor={itemFor(grid.current, CARD, contextMenu.key) ?? null}
+          onOpen={props.onSelect}
+          onChangeStatus={props.onChangeStatus}
+          onChangePriority={props.onChangePriority}
+          onArchive={props.onArchive}
+          onCopyPath={props.onCopyPath}
+          onClose={() => {
+            setContextMenu(undefined);
+            // A pick re-sorts the column, so the card is asked for by key again
+            // rather than left to whatever node the menu was hanging off.
+            requestFocus();
+          }}
+        />
+      )}
       {metaMenu && (
         <TicketMetaMenu
           target={metaMenu}

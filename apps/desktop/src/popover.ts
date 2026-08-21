@@ -1,6 +1,6 @@
 /**
- * The three things every anchored popover in this app does, and got wrong
- * separately before it did them here.
+ * The three things every popover in this app does, and got wrong separately
+ * before it did them here.
  *
  * `Menu` (status · priority · ordering · labels) and `SettingsMenu` (the gear's
  * dropdown and a project row's `⋮`) are different components on purpose — one
@@ -8,12 +8,100 @@
  * captions, rules and a submenu. What they are not different about is where the
  * popover goes, where focus came from, and what a press outside it means, and
  * each had its own copy of all three (LC-208).
+ *
+ * Placement comes in two kinds, and only the first was here until LC-222: under
+ * an **anchor**, which is where a menu with a trigger goes, and at a **point**,
+ * which is where a menu with no trigger at all goes — the ticket context menu,
+ * which opens wherever the pointer was and so is the only one that can be asked
+ * to draw itself off the side of the window.
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 /** How far below (or beside) its anchor a popover sits. */
 export const POPOVER_GAP = 4;
+
+/** How close to the window's edge a popover is allowed to stand. */
+const VIEWPORT_MARGIN = 8;
+
+/** Where a popover was asked for, in viewport coordinates. */
+export interface Point {
+  x: number;
+  y: number;
+}
+
+interface Box {
+  width: number;
+  height: number;
+}
+
+/**
+ * Where a popover opened **at a point** goes (LC-222).
+ *
+ * The anchored placement below does no viewport arithmetic at all, and is right
+ * not to: a trigger is somewhere a person could reach, so a menu hung under one
+ * is somewhere they can see. A context menu has no such guarantee — it opens
+ * where the pointer was, and the pointer can be a row above the bottom of the
+ * window — so this flips the popover back over the point rather than letting it
+ * run off, which is the gesture every platform's own context menu makes.
+ *
+ * Pure, and the whole of the decision: the hook below is measurement and state.
+ */
+export function placeAtPoint(
+  point: Point,
+  size: Box,
+  viewport: Box,
+): { top: number; left: number } {
+  return {
+    left: fitAxis(point.x, size.width, viewport.width),
+    top: fitAxis(point.y, size.height, viewport.height),
+  };
+}
+
+/**
+ * One axis: start at the point, and when that would run past the far edge, end
+ * at it instead. A popover with room on neither side stands at the margin —
+ * cut off at the bottom, where the rows it loses are the ones a person can
+ * scroll or resize to, rather than at the top, where they simply are not there.
+ */
+function fitAxis(at: number, extent: number, limit: number): number {
+  if (at + extent <= limit - VIEWPORT_MARGIN) return at;
+  return Math.max(
+    VIEWPORT_MARGIN,
+    Math.min(at - extent, limit - VIEWPORT_MARGIN - extent),
+  );
+}
+
+/**
+ * `placeAtPoint`, measured against the popover it is placing.
+ *
+ * Two passes rather than one: nothing knows how tall a menu is until its rows
+ * exist, so it is drawn at the point and corrected in a layout effect — before
+ * paint, so the correction is not a frame the human sees. The alternative is
+ * arithmetic over row counts and CSS variables, which would be a second opinion
+ * about the menu's height and would go stale the first time a row grew.
+ */
+export function usePointPlacement(
+  point: Point,
+  popover: React.RefObject<HTMLElement | null>,
+) {
+  const [position, setPosition] = useState({ top: point.y, left: point.x });
+  useLayoutEffect(() => {
+    const box = popover.current?.getBoundingClientRect();
+    if (!box) return;
+    const next = placeAtPoint(point, box, {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    });
+    setPosition((held) =>
+      held.top === next.top && held.left === next.left ? held : next,
+    );
+    // The point, not the box: a menu that grew a row — a submenu opening
+    // beside it does not — is not a reason to walk out from under the pointer
+    // that is using it, which is the same rule the anchored placement keeps.
+  }, [point.x, point.y, popover]);
+  return position;
+}
 
 /**
  * Where the popover goes: under its anchor, left edges aligned, in fixed

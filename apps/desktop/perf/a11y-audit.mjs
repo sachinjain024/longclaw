@@ -588,6 +588,37 @@ async function auditFocusOrder(browser) {
       "keyboard-focus-map.md:153",
     );
 
+    // The context menu → the card it was opened on (LC-222). A right-click is
+    // a pointer gesture, so the whole of what it offers has to be reachable
+    // without one, and the menu it opens owes the card its focus back like
+    // every other popover in the app.
+    await page.keyboard.press("Shift+F10");
+    await settle(page);
+    const contextLabel = await page.evaluate(
+      () =>
+        document.querySelector(".menu-popover")?.getAttribute("aria-label") ??
+        "",
+    );
+    // Focus, not just the popover: a menu that opens without taking focus is a
+    // menu the keyboard cannot use, and it is the half of this that a broken
+    // focus return would leave standing.
+    const inContextMenu = await focused(page);
+    check(
+      "`Shift`+`F10` opens the focused card's context menu, focused",
+      contextLabel === `${card} actions` && inContextMenu.role === "menuitem",
+      `label=${contextLabel || "none"} focus=${inContextMenu.role || inContextMenu.tag}`,
+      "keyboard-focus-map.md:47",
+    );
+    await page.keyboard.press("Escape");
+    await settle(page);
+    const afterContext = await focused(page);
+    check(
+      "closing the context menu returns focus to the card it was opened on",
+      afterContext.ticketKey === card,
+      `${card} → ${afterContext.ticketKey ?? (afterContext.className || afterContext.tag)}`,
+      "keyboard-focus-map.md:153",
+    );
+
     // Ticket panel → the card that opened it.
     await page.keyboard.press("Enter");
     await settle(page);

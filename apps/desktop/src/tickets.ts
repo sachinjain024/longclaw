@@ -55,6 +55,23 @@ export function isArchived(ticket: TicketRow): boolean {
 }
 
 /**
+ * Where a ticket's file actually is, for the clipboard (LC-222).
+ *
+ * A row carries `relativePath` — `.longclaw/tickets/LC-1/ticket.md`, which is
+ * the same string in every project there has ever been — so a Copy file path
+ * row that copied it would put something on the clipboard that names no file.
+ * The project's folder is what makes it one.
+ *
+ * String work rather than a path library: the frontend has no `node:path`, and
+ * the one case that is not concatenation is a `relativePath` that is already
+ * absolute, which nothing writes and which is left alone rather than corrupted.
+ */
+export function ticketPath(rootPath: string, relativePath: string): string {
+  if (relativePath.startsWith("/")) return relativePath;
+  return `${rootPath.replace(/\/+$/, "")}/${relativePath}`;
+}
+
+/**
  * `1/3`, and empty for a ticket with no checklist: the fraction surfaces only
  * when there is a checklist to count (`components.md:190`). Shared by the card
  * and the row, which must not be able to disagree about when it appears — the
