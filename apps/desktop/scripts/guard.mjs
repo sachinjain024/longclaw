@@ -21,11 +21,13 @@
  * shape, and reaches across languages for its second half: a `resize: none` in
  * the stylesheet is only safe while the component still auto-grows the field,
  * so it reads `TicketPanel.tsx` for the other end of the pair.
- * `state-panel-guard.mjs` (LC-91) and `trust-line-guard.mjs` (LC-82) are the
- * same shape again, and share a subject: a rule that is correct read alone and
- * wrong read against its neighbours — a container coming back around a state
- * panel, a descendant selector out-specifying the one class that decides a
- * font. Neither is visible to the vitest suite, which loads no stylesheet.
+ * `state-panel-guard.mjs` (LC-91), `trust-line-guard.mjs` (LC-82) and
+ * `row-editor-guard.mjs` (LC-215) are the same shape again, and share a
+ * subject: a rule that is correct read alone and wrong read against its
+ * neighbours — a container coming back around a state panel, a descendant
+ * selector out-specifying the one class that decides a font, or the one that
+ * decides a text field's box. None is visible to the vitest suite, which
+ * loads no stylesheet.
  *
  * `glyph-drift-guard.mjs` (LC-111) takes `report` alone and reads further out
  * than any of them: `docs/design/foundations/`, which is not app source at all.
@@ -143,6 +145,45 @@ export function declaredValues(rules, selector, property) {
   return [...declarationsOf(rules, selector).matchAll(pattern)].map(
     ([, value]) => value.trim(),
   );
+}
+
+/**
+ * `[ids, classes, types]`, counted the way the cascade counts them —
+ * pseudo-classes with classes, so `.welcome-panel p:first-child` is not
+ * mistaken for a weaker rule than it is.
+ *
+ * Two guards now ask which of a pair of rules the cascade lets win —
+ * `trust-line-guard.mjs` over the trust line's font, `row-editor-guard.mjs`
+ * over the checklist editor's box — and the counter lives here for
+ * `declaredValues`' reason: each copy had already grown a caveat the other
+ * lacked, which is how one of them misses the next boundary fix (LC-177).
+ * Both caveats, then: pseudo-*elements* are overcounted as classes rather
+ * than types, and attribute selectors are miscounted outright. Neither
+ * matters to either caller — no selector ending in a pseudo-element reaches
+ * their comparisons, and a selector carrying `[type=` is refused as unable
+ * to match the editor before its specificity is ever asked for — but a new
+ * caller must check it can say the same.
+ */
+export function specificityOf(selector) {
+  const score = [0, 0, 0];
+  for (const simple of selector.match(/[#.:]?[\w-]+(\([^)]*\))?/g) ?? []) {
+    if (simple.startsWith("#")) score[0] += 1;
+    else if (simple.startsWith(".") || simple.startsWith(":")) score[1] += 1;
+    else score[2] += 1;
+  }
+  return score;
+}
+
+/**
+ * Does `challenger` beat `owner` on specificity alone? Equal specificity is
+ * the owner's own rules — which may legitimately have the last word among
+ * themselves, in source order — so it answers no.
+ */
+export function outranks(challenger, owner) {
+  for (let rank = 0; rank < owner.length; rank += 1) {
+    if (challenger[rank] !== owner[rank]) return challenger[rank] > owner[rank];
+  }
+  return false;
 }
 
 /** `{ path, text, lines }` for one file, read once. */
