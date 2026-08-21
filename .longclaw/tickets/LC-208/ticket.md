@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: aa30d102-2d8f-499e-9745-5d581eb9a2d1
 key: LC-208
 title: Improve the UI and UX of Project Settings
-status: in_review
+status: done
 priority: urgent
 labels:
   - frontend
   - design
 created_at: 2026-08-11T14:48:54.999Z
-updated_at: 2026-08-12T13:06:25.739Z
+updated_at: 2026-08-21T06:47:23.429Z
 ---
 
 - Prototype this in Claude Design. Once convinced in Claude Design, bring in Claude Code for implementation.
@@ -158,4 +158,20 @@ changes:
     to: in_review
 -->
 ### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_2b8a6752
+kind: update
+occurred_at: 2026-08-21T06:47:23.429Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->

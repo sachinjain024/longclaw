@@ -3,10 +3,10 @@ format: longclaw.ticket/v1
 id: 3061ef92-576f-47b4-bf6e-6ebeedb9ce9d
 key: LC-62
 title: Implement the LongClaw logo
-status: in_review
+status: done
 priority: none
 created_at: 2026-08-05T14:44:43.929Z
-updated_at: 2026-08-18T09:47:50Z
+updated_at: 2026-08-21T06:47:23.480Z
 ---
 
 Reopened 2026-08-18: a new mark was selected from the Aug 13 concept round —
@@ -146,4 +146,20 @@ The icon set is installed at `apps/desktop/src-tauri/icons/` and `bundle.icon` n
 `OwlMark.tsx` and the canonical `owl-mark.svg` are redrawn to the new construction — constant-thickness chevron band with a centre drop point, open ring (midline r=24, stroke 7, gap ±57°), kite beak — verified against the reference PNG by rasterising the draft. The `size` prop, `currentColor`, `role="img"`/`aria-label` contract is unchanged, so both use sites needed no edits. tsc, eslint, prettier, glyph-drift-guard, and all 1021 frontend tests pass.
 
 In review rather than done: the bundle icon hasn't been seen in a real `tauri build` yet — the Dock/Finder icon is the remaining thing to eyeball.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_9d93f680
+kind: update
+occurred_at: 2026-08-21T06:47:23.480Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->
