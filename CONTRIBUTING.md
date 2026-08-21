@@ -5,7 +5,7 @@ not require an account, analytics, telemetry, or a network service.
 
 ## Prerequisites
 
-- macOS for the supported desktop target.
+- macOS 13 or newer on Apple Silicon — the only target the app is built for.
 - Node.js 22 or newer.
 - Rust with Cargo and Clippy.
 - Tauri v2 platform prerequisites for macOS.
@@ -13,9 +13,36 @@ not require an account, analytics, telemetry, or a network service.
 ## Setup
 
 ```sh
-npm --prefix apps/desktop install
+npm --prefix apps/desktop ci
 npm run verify
 ```
+
+`ci` rather than `install`: `apps/desktop/package-lock.json` is committed, and
+this is what `.github/workflows/ci.yml` runs, so it is the reproducible one.
+
+## Filing work, and branching
+
+Work is tracked in LongClaw itself, not in GitHub issues and not as Markdown
+under `docs/plans/`. Every item lives at `.longclaw/tickets/<KEY>/ticket.md`, so
+a ticket named in a conversation is read straight from disk.
+
+The `longclaw` CLI is the one surface allowed to allocate a key — never create a
+ticket directory by hand:
+
+```sh
+cargo build --release --manifest-path apps/desktop/src-tauri/Cargo.toml --bin longclaw
+apps/desktop/src-tauri/target/release/longclaw ticket create --title "…" --label frontend
+```
+
+Automated contributors must pass `--agent-id` and `--agent-name`; without them
+the activity entry claims a human did the work, and the file format's rule is
+that an actor is declared and never inferred. See
+[ADR 0011](docs/adr/0011-cli-is-the-creation-surface-agents-use.md) for why the
+CLI exists and `docs/agents/issue-tracker.md` for the rest of the surface.
+
+Branch before you change anything. Update `main` from `origin/main`, cut a topic
+branch from it, and commit only there — not on `main`, and never merge to `main`
+without being asked.
 
 ## Development
 
@@ -42,10 +69,29 @@ Run the full local gate before committing:
 npm run verify
 ```
 
-The gate covers token generation, archived-spike manifest scope, the release
-privacy/filesystem audit, formatting, linting, TypeScript type checking,
-frontend unit and component tests, Rust unit/integration tests, watcher
-integration coverage, Clippy, and the Vite production build.
+`verify` is `check` plus the watcher integration round trip. `check` runs, in
+order and stopping at the first failure:
+
+1. **Tokens** (`tokens:check`) — regenerates `src/tokens/design-tokens.css` and
+   fails if the committed file differs, then the colour, token, stacking,
+   tile-contrast and token-source guards, the WCAG contrast check, and the
+   Claude Design re-emit.
+2. **Structural guards** — tab order, fields, state panels, trust line, row
+   editor, create surface, glyph drift, design-doc citations, and card height.
+   Each is a `scripts/*-guard.mjs` that reads the shipping tree and fails on
+   drift from a written spec.
+3. **Release audit** — the privacy and filesystem boundary.
+4. **Formatting** — Prettier over the frontend, `cargo fmt` over the Rust.
+5. **Lint and types** — ESLint, then `tsc`.
+6. **Tests** — Vitest, then `cargo test` (which is where Clippy-adjacent Rust
+   coverage and the integration tests live).
+7. **Build** — the Vite production build.
+
+The guards are the part that surprises people: a change can be correct, typed
+and green in tests and still be rejected for a literal radius outside
+`src/tokens/`, a card height that drifted, or a design-doc citation whose line
+moved. That is deliberate — see the header comment in each guard for what it
+protects and why.
 
 `npm run release:binary-audit` is deliberately outside that gate: it reads the
 compiled binary's symbols and linked libraries, so it needs a bundle that only
@@ -92,10 +138,12 @@ node processes and binds ephemeral sockets rather than driving a browser, so it
 costs about a second and belongs with the unit suite; the harnesses themselves
 stay outside the gate.
 
-`perf:board`, `perf:list` and the three probes need a WebKit build, once per machine:
+`perf:board`, `perf:list` and the three probes need a WebKit build, once per
+machine. `playwright-core` is the pinned devDependency and what CI installs, so
+the browser it fetches is the one the harnesses run against:
 
 ```sh
-npx playwright@1.62.1 install webkit
+npx playwright-core install webkit
 ```
 
 None of the four performance harnesses is part of `npm run verify`: each takes

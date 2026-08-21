@@ -1,5 +1,7 @@
 # The CLI is the creation surface agents use, and it is not a second implementation
 
+**Status:** accepted 2026-08-05, on [a recorded scope decision](../pilot/response-memo.md#scope-decisions); the CLI shipped the same day.
+
 Ticket and project creation are reachable from a `longclaw` command-line binary as well as from the app's window. The binary links the same crate the window does, so key allocation, the write seams, and the file format have exactly one implementation; the CLI adds argument parsing, a JSON projection of the records it touched, and one thing the app never needed — a way for a writer to declare that it is an agent.
 
 It exists because the alternative was worse than the rule it broke. The issue-tracker rules give key allocation to LongClaw and forbid an agent creating `.longclaw/tickets/<KEY>/` directly, which is right; with the window as the only creation surface, the consequence was that a defect found while building LongClaw was written into `docs/plans/` and this repository could not track its own work. That was recorded as [the CLI caveat](../backlog/v0-backlog.md#the-cli-caveat-recorded-rather-than-resolved) and deferred as P9 and P11. The founder accepted it on 2026-08-05; the decision is [in the memo](../pilot/response-memo.md#scope-decisions), which is where the caveat said it had to be.

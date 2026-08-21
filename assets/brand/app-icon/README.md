@@ -1,11 +1,19 @@
 # LongClaw app icon — "White on Orange" (#FFFFFF on #B45F06)
 
 Generated from the LongClaw owl mark, product-icon variant 4, selected from
-the Aug 13 2026 concept round in `../concepts/`.
+the Aug 13 2026 concept round (LC-62). The concept sheets themselves were not
+kept.
 
 ## icons/
-The complete Tauri set; installed as `apps/desktop/src-tauri/icons/` (copy the
-whole folder there when it changes). Standard Tauri set:
+
+**This directory is the source of truth for the app icon.**
+`apps/desktop/src-tauri/icons/` is a copy of it — the two are byte-identical
+except for `icon.png`, the 1024 master, which is gitignored on the app side
+(`apps/desktop/.gitignore`) and tracked only here. Change the icon here, then
+copy the whole folder over; never edit the copy, because nothing would tell you
+the two had diverged.
+
+The complete Tauri set:
 - icon.png (1024, master), 32x32.png, 128x128.png, 128x128@2x.png — Linux/general
 - icon.ico — Windows (16-256 px, PNG-compressed)
 - icon.icns — macOS (rounded corners + Apple 824/1024 inset baked in)

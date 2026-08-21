@@ -91,7 +91,7 @@ at `Run quality gate` with exit code 101, so it never reached `build:app`. It
 failed on a watcher rename test that received an `indexRebuilt` with
 `reason: "overflow"` where it expected an incremental pair. The full step log and
 the panic are quoted once, in
-[item 09](../active/09-rename-is-not-an-overflow.md#evidence); this outcome does
+[item 09](09-rename-is-not-an-overflow.md#evidence); this outcome does
 not repeat them.
 
 **Cite the attempt, not just the run.** That run was retried during this
@@ -114,7 +114,7 @@ went green through `build:app`. Two independent demonstrations that the tree is
 fine and the gate is not.
 
 The cause is real and is now
-[item 09](../active/09-rename-is-not-an-overflow.md): `collect_event`
+[item 09](09-rename-is-not-an-overflow.md): `collect_event`
 (`engine.rs:675-678`) escalates *every* watcher error to
 `RebuildReason::Overflow`, and the polling adapter's content-comparing walk emits
 a `NotFound` whenever a test renames a ticket directory mid-poll. A standalone
