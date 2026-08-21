@@ -3,12 +3,12 @@ format: longclaw.ticket/v1
 id: 1866aa1a-b288-4195-977e-fce9dda8b1a0
 key: LC-224
 title: "Checklist rows grew 14px: the row buttons ignore their own 24px"
-status: in_review
+status: done
 priority: urgent
 labels:
   - frontend
 created_at: 2026-08-21T06:32:14.091Z
-updated_at: 2026-08-21T06:36:35.685Z
+updated_at: 2026-08-21T06:39:39.986Z
 ---
 
 Found while validating LC-215's field fix: at-rest checklist rows render 38px tall where they were 24px before the LC-215 batch (62fd2fb) added the pencil and cross. Measured in WebKit against the real stylesheet: label-only row 24px, with row-actions 38px, list gap 4px throughout — the buttons stay in flow at rest (deliberately, for Tab reach and no hover jump), so their box sets every row's height all the time.
@@ -22,6 +22,7 @@ The design system already has the way down: the `.small` button variant (`.ghost
 
 - [ ] Test 1 <!-- longclaw:item=ck_7b9d6ab4 -->
 - [ ] Test 2 <!-- longclaw:item=ck_55252162 -->
+- [ ] Writing a long description so that we can span across 2 rows. Let’s see how it is visible in the checklist items component <!-- longclaw:item=ck_89cff6b2 -->
 ## Activity
 
 <!-- longclaw:event
@@ -95,4 +96,77 @@ changes:
 ### Claude Code updated this ticket
 
 Fixed by wearing the DS's own `small` variant on both row buttons — the 24px `components.md:222` states, which `.ghost`'s 30px floor had been silently overruling. Measured in WebKit against the real stylesheet: rest rows 38px → 32px, list gap 4px unchanged, and a row now holds 32px whether at rest or retyping, so the pencil no longer moves the list at all. `row-editor-guard.mjs` grew a chrome contract holding the pair — each button carries `small`, and `.ghost.small` still resolves min-height to control-sm — red before the class change, green after. Restoring the pre-LC-215 24px rows would mean taking the buttons out of the row's height math; left as the design decision this ticket declines to take. On branch `fix/lc-215-row-editor-field` (commit 3771222), verify green.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_08b3aa7c
+kind: update
+occurred_at: 2026-08-21T06:37:06.847Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: checklist.ck_fe4b7de2.added
+    to: Test 3
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_16173104
+kind: update
+occurred_at: 2026-08-21T06:38:28.421Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: checklist.ck_fe4b7de2.text
+    from: Test 3
+    to: Writing a long description so that we can span across 2 rows. Let’s see how it is visible in the checklist items component
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_8418890c
+kind: update
+occurred_at: 2026-08-21T06:38:43.449Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: checklist.ck_fe4b7de2.removed
+    from: Writing a long description so that we can span across 2 rows. Let’s see how it is visible in the checklist items component
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_1153a18a
+kind: update
+occurred_at: 2026-08-21T06:38:44.870Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: checklist.ck_89cff6b2.added
+    to: Writing a long description so that we can span across 2 rows. Let’s see how it is visible in the checklist items component
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_dc08de86
+kind: update
+occurred_at: 2026-08-21T06:39:39.986Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->
