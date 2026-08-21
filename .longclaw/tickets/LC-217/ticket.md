@@ -3,12 +3,12 @@ format: longclaw.ticket/v1
 id: 50b39ead-8cb4-4622-968d-cd37c43d9293
 key: LC-217
 title: Do a repo audit
-status: in_review
+status: done
 priority: urgent
 labels:
   - release
 created_at: 2026-08-11T14:59:39.137Z
-updated_at: 2026-08-21T10:00:22.233Z
+updated_at: 2026-08-21T10:20:00.231Z
 ---
 
 Repo audit, completed 2026-08-21. Original questions: can we remove some files, is everything structured properly, is the README up to date? Answers below; actionable fixes are in the checklist.
@@ -236,4 +236,28 @@ actor:
 ### Claude Code commented
 
 Follow-up on the README header image. The first version used longclaw-mark-ochre.png, which assets/brand/app-icon/README.md scopes to paper/white surfaces — but a README renders in the reader's GitHub theme, and that mark is transparent, so on dark it sat around 4.2:1. Switched to app-tile-rounded-512.png, which carries its own ochre ground and so renders identically in both themes without a <picture> swap, and is the icon users recognise from the dock. Commit 47a84cb.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_0cbc60ae
+kind: update
+occurred_at: 2026-08-21T10:20:00.231Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### Claude Code updated this ticket
+
+Complete. All 14 checklist items done across six commits on chore/lc-217-repo-audit, merged to main.
+
+Net effect: 54 tracked files removed (11,326 lines) plus 4.5 GB of orphaned untracked build output; 861 tracked files remain, down from 915. The root CLAUDE.md now actually imports AGENTS.md, so agent sessions in this repository load its rules instead of the single word 'AGENTS.md'. The verify gate is described once, in CONTRIBUTING, rather than in three places that had each rotted to naming 11 of 18 checks. The README states what the app does, documents the longclaw CLI with an example proven by running it, and carries the app tile.
+
+npm run verify passes: exit 0, 15 guards clean, 1024 frontend tests, 157 Rust tests, watcher integration green.
+
+One finding was filed rather than fixed: LC-225, screen-specs.md still lists four theme presets while the app ships five. It stays open because screen-specs.md is a pinned citation document and the fix needs a reviewed citations:update.
 <!-- /longclaw:event -->
