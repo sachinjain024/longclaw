@@ -223,3 +223,17 @@ One finding is filed separately rather than fixed here: LC-225, screen-specs.md:
 
 Work is on branch chore/lc-217-repo-audit, three commits, not merged.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_a1e94a09
+kind: comment
+occurred_at: 2026-08-21T10:11:11.699Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Follow-up on the README header image. The first version used longclaw-mark-ochre.png, which assets/brand/app-icon/README.md scopes to paper/white surfaces — but a README renders in the reader's GitHub theme, and that mark is transparent, so on dark it sat around 4.2:1. Switched to app-tile-rounded-512.png, which carries its own ochre ground and so renders identically in both themes without a <picture> swap, and is the icon users recognise from the dock. Commit 47a84cb.
+<!-- /longclaw:event -->
