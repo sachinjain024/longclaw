@@ -2891,8 +2891,13 @@ button:disabled {
 /* The DS checkbox pair (components.md § Checklist, LC-223): open is a
    `check-border` frame, done is an `ink-3` fill with a surface check. Drawn on
    the native input — appearance none, the check as two gradient strokes,
-   because WKWebView paints no pseudo-elements on <input>. */
-.checklist-row input,
+   because WKWebView paints no pseudo-elements on <input>.
+
+   Addressed by type, because the row holds a second input the moment its
+   pencil is clicked: `input` alone matched the editor's field too and dressed
+   it as the box — a text field 15px wide, showing none of the text it opened
+   to change (LC-215). `row-editor-guard.mjs` holds the scoping. */
+.checklist-row input[type="checkbox"],
 .create-more input {
   width: var(--lc-size-checkbox);
   height: var(--lc-size-checkbox);
@@ -2907,7 +2912,7 @@ button:disabled {
   background-color: var(--lc-surface);
 }
 
-.checklist-row input:checked,
+.checklist-row input[type="checkbox"]:checked,
 .create-more input:checked {
   border-color: var(--lc-ink-3);
   background-color: var(--lc-ink-3);
@@ -2948,7 +2953,7 @@ button:disabled {
   text-decoration: line-through;
 }
 
-.checklist-row.checked input {
+.checklist-row.checked input[type="checkbox"] {
   border-color: var(--lc-ink-3);
 }
 
@@ -3513,8 +3518,10 @@ button:disabled {
 }
 
 /* A draft row's box cannot be ticked: a created checklist item is always open,
-   so an enabled checkbox would offer something the create cannot carry. */
-.checklist-row.draft input {
+   so an enabled checkbox would offer something the create cannot carry. The
+   type keeps the fade off the editor's field, which is the one input in a
+   draft row that is being used, not declined (LC-215). */
+.checklist-row.draft input[type="checkbox"] {
   opacity: 0.5;
 }
 
