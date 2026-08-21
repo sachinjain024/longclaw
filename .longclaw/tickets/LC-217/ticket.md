@@ -8,7 +8,7 @@ priority: urgent
 labels:
   - release
 created_at: 2026-08-11T14:59:39.137Z
-updated_at: 2026-08-21T09:48:30.600Z
+updated_at: 2026-08-21T09:54:24.071Z
 ---
 
 Repo audit, completed 2026-08-21. Original questions: can we remove some files, is everything structured properly, is the README up to date? Answers below; actionable fixes are in the checklist.
@@ -64,12 +64,12 @@ README last touched 2026-08-04 (commit 1ff010b); 386 commits since. Nothing in i
 - [x] Retitle docs/plans/active/README.md as an archived record and strip plan-authoring instructions (citation-guard.mjs:87 walks the dir — do not delete it); repoint LC-201 spec link to the ticket <!-- longclaw:item=ck_1f22d398 -->
 - [ ] Rewrite README.md: feature list, longclaw CLI section, corrected verify gate description, macOS 13+ Apple Silicon line, post-Aug-4 doc links, logo/screenshot, .longclaw layout with longclaw.yaml and AGENTS.md <!-- longclaw:item=ck_0a608942 -->
 - [ ] Standardize on 'npm --prefix apps/desktop ci' in README and CONTRIBUTING; fix CONTRIBUTING's playwright install line to playwright-core <!-- longclaw:item=ck_93430349 -->
-- [ ] Update stale verify gate list copies in CONTRIBUTING.md and apps/desktop/README.md (or stop enumerating and link CONTRIBUTING) <!-- longclaw:item=ck_e8bb87fa -->
-- [ ] Update docs/acceptance/README.md index to the 2026-08-05 records; fix broken ../active/09 link in docs/plans/completed/00-confirm-ci-on-main.md <!-- longclaw:item=ck_4c1f2e93 -->
-- [ ] Declare assets/brand/app-icon as icon source of truth in its README (or gitignore the generated src-tauri copy) <!-- longclaw:item=ck_041c2252 -->
-- [ ] Root package hygiene: adopt workspaces or document the forwarder; drop vestigial root package-lock.json and the dependabot npm root entry <!-- longclaw:item=ck_a8043a4f -->
-- [ ] Refresh CONTEXT.md glossary (Project, Label, Status/Priority, Checklist item, Archive, Field) and fix docs/agents/domain.md repo diagram <!-- longclaw:item=ck_0c8004c2 -->
-- [ ] Backfill **Status:** lines on ADRs 0001-0005 and 0011 <!-- longclaw:item=ck_1b3d95a3 -->
+- [x] Update stale verify gate list copies in CONTRIBUTING.md and apps/desktop/README.md (or stop enumerating and link CONTRIBUTING) <!-- longclaw:item=ck_e8bb87fa -->
+- [x] Update docs/acceptance/README.md index to the 2026-08-05 records; fix broken ../active/09 link in docs/plans/completed/00-confirm-ci-on-main.md <!-- longclaw:item=ck_4c1f2e93 -->
+- [x] Declare assets/brand/app-icon as icon source of truth in its README (or gitignore the generated src-tauri copy) <!-- longclaw:item=ck_041c2252 -->
+- [x] Root package hygiene: adopt workspaces or document the forwarder; drop vestigial root package-lock.json and the dependabot npm root entry <!-- longclaw:item=ck_a8043a4f -->
+- [x] Refresh CONTEXT.md glossary (Project, Label, Status/Priority, Checklist item, Archive, Field) and fix docs/agents/domain.md repo diagram <!-- longclaw:item=ck_0c8004c2 -->
+- [x] Backfill **Status:** lines on ADRs 0001-0005 and 0011 <!-- longclaw:item=ck_1b3d95a3 -->
 ## Activity
 
 <!-- longclaw:event
@@ -159,4 +159,37 @@ changes:
 ### Claude Code updated this ticket
 
 Batch 1 on branch chore/lc-217-repo-audit, commit 83e5a81. CLAUDE.md now imports @AGENTS.md. Removed assets/brand/concepts/, the settings-prototype zip and its .thumbnail, spikes/, and docs/matt_pocock_skills.md — 62 files, 11,211 lines. Deleting spikes/ also cleared 4.5 GB of orphaned untracked build output and retires the LC-155 trap where tauri dev from the repo root found the spike's tauri.conf.json first. spike-manifest-guard.mjs and its archived-spikes:check left the gate with the directory it guarded. docs/architecture-spike-report.md now points reviewers at tag tauri-v2-architecture-m2 instead of an npm install that could not work. docs/plans/active/README.md is status: record with the plan-authoring procedure retired; the directory stays because citation-guard walks it without an existence check. citations:check and format:check pass.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_00c4b7f4
+kind: update
+occurred_at: 2026-08-21T09:54:24.071Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_e8bb87fa.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_4c1f2e93.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_041c2252.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_a8043a4f.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_0c8004c2.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_1b3d95a3.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Batch 2, commit f91fb57. The gate is now described once in CONTRIBUTING, grouped by what each stage protects; README and apps/desktop/README point at it rather than keeping their own copies, which is how all three came to name eleven of eighteen checks. CONTRIBUTING also gained the two rules that lived only in AGENTS.md — file a ticket through the CLI, and branch before changing anything — plus playwright-core and the macOS 13 Apple Silicon line. Root package.json declares that it is deliberately not a workspace and forwards the five scripts AGENTS.md spelled out by hand; its empty package-lock.json and the dependabot entry watching it are gone. Acceptance index now lists all four runs with the 2026-08-05 pair as current. CONTEXT.md gained Project, Status, Priority, Label, Checklist item, Archive and Field, each checked against the code rather than invented. domain.md no longer diagrams a root src/. All 12 ADRs carry a Status line. Remaining: the README rewrite.
 <!-- /longclaw:event -->
