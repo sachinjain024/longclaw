@@ -15,7 +15,7 @@
  *
  * That is also the half no test can see. jsdom loads no stylesheet, so the
  * vitest suite proves the field holds the row's text and never which width
- * the cascade lands on. Three checks:
+ * the cascade lands on. Four checks:
  *
  *   owner    — `.row-edit-field` declares `width: 100%` and `.row-edit-form`
  *              `flex: 1`, the pair that hands the field the row's width. The
@@ -37,6 +37,15 @@
  *              surfaces mount one `RowEditor` in their row, and the field
  *              still carries its class. Moving it fails the run rather than
  *              silently checking a cascade over markup that no longer has it.
+ *   chrome   — the row's own two buttons render the 24px `components.md:222`
+ *              states. The same defect family caught them from the other
+ *              side (LC-224): `.checklist-row .row-edit` asks for
+ *              `height: --lc-size-control-sm`, but the buttons wear `.ghost`,
+ *              whose `min-height: --lc-size-control` (30px) wins — min-height
+ *              always beats height — and every at-rest row stood 38px tall on
+ *              a 30px button nothing had asked for. The `small` variant is
+ *              the DS's way down, so the pair is what is checked: each button
+ *              carries it, and it still resolves to control-sm.
  *
  * Usage: node scripts/row-editor-guard.mjs   (exits non-zero on any finding)
  */
@@ -86,6 +95,41 @@ if (!checklistRow.includes('className="row-edit-field"')) {
   findings.push(
     "ChecklistRow.tsx no longer names its input `row-edit-field` — the class " +
       "this whole guard is about has moved, so move the guard with it",
+  );
+}
+
+/** The row's two buttons, named as their class names ChecklistRow.tsx uses. */
+const BUTTONS = ["row-edit", "row-remove"];
+
+for (const button of BUTTONS) {
+  const className =
+    checklistRow.match(
+      new RegExp(`className="([^"]*\\b${button}\\b[^"]*)"`),
+    )?.[1] ?? "";
+  if (className === "") {
+    findings.push(
+      `ChecklistRow.tsx no longer has a \`${button}\` button — the control ` +
+        "this guard sizes has moved, so move the guard with it (LC-224)",
+    );
+  } else if (!className.split(/\s+/).includes("small")) {
+    findings.push(
+      `ChecklistRow.tsx's \`${button}\` is a ghost without \`small\` — ` +
+        "`.ghost`'s 30px min-height beats the 24px height the row rule asks, " +
+        "and every at-rest row stands 38px tall on it (components.md:222, " +
+        "LC-224)",
+    );
+  }
+}
+
+if (
+  !declaredValues(rules, ".ghost.small", "min-height").includes(
+    "var(--lc-size-control-sm)",
+  )
+) {
+  findings.push(
+    "`.ghost.small` no longer resolves min-height to `--lc-size-control-sm` " +
+      "— the variant the row's buttons rely on to render the 24px " +
+      "`components.md:222` states (LC-224)",
   );
 }
 
@@ -161,13 +205,15 @@ report({
   name: "row-editor-guard",
   findings,
   // Everything the run held still, counted as it ran: a mount pin per
-  // surface, the field's class, the two owner declarations, and the cascade
-  // over each container — `report`'s own warning is that a pass line
-  // counting the wrong thing is a small lie in the one sentence a reader
-  // actually sees.
-  checked: Object.keys(MOUNTS).length + 1 + 2 + CONTAINERS.length,
+  // surface, the field's class, each button's variant and the variant's own
+  // declaration, the two owner declarations, and the cascade over each
+  // container — `report`'s own warning is that a pass line counting the
+  // wrong thing is a small lie in the one sentence a reader actually sees.
+  checked:
+    Object.keys(MOUNTS).length + 1 + BUTTONS.length + 1 + 2 + CONTAINERS.length,
   noun: "contracts",
-  remedy: "row-editor defect(s) — see LC-215",
+  remedy: "row-editor defect(s) — see LC-215 and LC-224",
   clean:
-    "the retyped row is a text field, and only `.row-edit-field` decides its box",
+    "the retyped row is a text field, only `.row-edit-field` decides its " +
+    "box, and the row's buttons are the 24px the design states",
 });

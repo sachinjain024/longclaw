@@ -45,7 +45,9 @@ export function RowActions(props: {
       <button
         type="button"
         tabIndex={0}
-        className="ghost row-edit"
+        // `small`, or `.ghost`'s 30px min-height beats the 24px the row rule
+        // asks for and every at-rest row stands on it (LC-224).
+        className="ghost small row-edit"
         title={`Edit ${props.text}`}
         aria-label={`Edit ${props.text}`}
         onClick={props.onEdit}
@@ -55,7 +57,7 @@ export function RowActions(props: {
       <button
         type="button"
         tabIndex={0}
-        className="ghost row-remove"
+        className="ghost small row-remove"
         title={`Remove ${props.text}`}
         aria-label={`Remove ${props.text}`}
         onClick={props.onRemove}
