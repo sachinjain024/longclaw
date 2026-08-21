@@ -1,17 +1,27 @@
 ---
-title: "Active plans"
+title: "Plans — the retired workflow, kept as a record"
 product: LongClaw
-status: active
+status: record
 milestone: "M5 — Feature-complete v0 (Steps 11–15)"
 written: 2026-08-01
+retired: 2026-08-05
+superseded_by: ".longclaw/tickets/"
 applies_to: "wave-1-ticket-domain-and-surfaces @ eb54bac"
 ---
 
-# Active plans
+# Plans — the retired workflow, kept as a record
 
-One file per piece of pending work. Each is self-contained: it carries its own
-working rules, the current behaviour with file and line, what to change, and what
-has to pass before it is done. Pick one and execute it without reading the others.
+**This directory is closed. Do not write a plan.** Since 2026-08-05 new work is
+filed as a LongClaw ticket under `.longclaw/tickets/` through the `longclaw` CLI
+(see [AGENTS.md](../../../AGENTS.md) and
+[ADR 0011](../../adr/0011-cli-is-the-creation-surface-agents-use.md)). This file
+is kept because it is the narrative of how M4 and M5 were actually sequenced, and
+because the shipping tree cites it; the process it describes no longer runs.
+
+The workflow it records, for reading the completed plans in `../completed/`: one
+file per piece of pending work, each self-contained, carrying its own working
+rules, the current behaviour with file and line, what to change, and what had to
+pass before it was done.
 
 **Step 12 and plans 24 through 30 are complete as of 2026-08-01.** Everything
 before them is closed, Wave 0 is clear, and M4 closed on 2026-07-31 when the
@@ -442,9 +452,10 @@ runner-stable interaction-budget gate, not recovery behavior.
 
 What remains is ordinary sequencing. Wave 2 was written all at once on 2026-08-01
 because the founder asked for it; **that is the exception, and the § Step 12 note
-above records what it costs.** For Wave 3, write a plan when you pick an item up,
-not thirteen plans in advance — the backlog rows already carry the must-pass check
-and the reason each exists, which is most of what a plan needs. Take them roughly
+above records what it costs.** For Wave 3 the rule was to write a plan when you picked an
+item up, not thirteen plans in advance — the backlog rows already carried the
+must-pass check and the reason each exists, which is most of what a plan needed.
+That rule is retired with the rest of this workflow; a ticket now carries it. Take them roughly
 in order; that order is final rather than provisional, and
 [the retired handoff](../completed/pending-work-after-step-10.md) says what that
 is worth, which is not much: it was never tested against a user.
@@ -459,11 +470,14 @@ were not regenerated and still show an assignee, which V0-19's must-pass counts 
 a screen that shows one; that half is now **V0-41** in Wave 3, beside V0-37, which
 needs the same missing pipeline.
 
-## When a plan is done
+## How a plan was closed — retired 2026-08-05
 
-1. Its must-pass checks are in the suite and green, and `npm run verify` passes.
-2. Add a `## Outcome` section to the plan: what shipped, what you decided, what you
-   found that was not in the plan.
-3. Move the file to `docs/plans/completed/`.
-4. Update the row in [the backlog](../../backlog/v0-backlog.md) and, if it retired
-   one, [the release risks](../../release-risks.md).
+Recorded so the shape of `../completed/` reads correctly. This is not a procedure
+to follow; a LongClaw ticket is closed through the CLI instead.
+
+1. Its must-pass checks were in the suite and green, and `npm run verify` passed.
+2. A `## Outcome` section was added to the plan: what shipped, what was decided,
+   what was found that was not in the plan.
+3. The file moved to `docs/plans/completed/`.
+4. The row in [the backlog](../../backlog/v0-backlog.md) was updated and, if it
+   retired one, [the release risks](../../release-risks.md).

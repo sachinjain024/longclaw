@@ -1,7 +1,8 @@
 # LongClaw app icon — "White on Orange" (#FFFFFF on #B45F06)
 
 Generated from the LongClaw owl mark, product-icon variant 4, selected from
-the Aug 13 2026 concept round in `../concepts/`.
+the Aug 13 2026 concept round (LC-62). The concept sheets themselves were
+not kept; this directory is the source of truth for the shipped icon.
 
 ## icons/
 The complete Tauri set; installed as `apps/desktop/src-tauri/icons/` (copy the
