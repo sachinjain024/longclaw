@@ -160,8 +160,13 @@ for (const [selector, body] of rules) {
 report({
   name: "row-editor-guard",
   findings,
-  checked: CONTAINERS.length + 1,
-  noun: "cascades",
+  // Everything the run held still, counted as it ran: a mount pin per
+  // surface, the field's class, the two owner declarations, and the cascade
+  // over each container — `report`'s own warning is that a pass line
+  // counting the wrong thing is a small lie in the one sentence a reader
+  // actually sees.
+  checked: Object.keys(MOUNTS).length + 1 + 2 + CONTAINERS.length,
+  noun: "contracts",
   remedy: "row-editor defect(s) — see LC-215",
   clean:
     "the retyped row is a text field, and only `.row-edit-field` decides its box",
