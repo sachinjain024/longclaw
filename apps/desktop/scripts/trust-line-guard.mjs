@@ -42,7 +42,13 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { cssRules, declarationsOf, report } from "./guard.mjs";
+import {
+  cssRules,
+  declarationsOf,
+  outranks,
+  report,
+  specificityOf,
+} from "./guard.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const src = resolve(here, "../src");
@@ -130,36 +136,8 @@ if (family === null) {
   );
 }
 
-/**
- * `[ids, classes, types]`, counted the way the cascade counts them —
- * pseudo-classes with classes, so `.welcome-panel p:first-child` is not
- * mistaken for a weaker rule than it is.
- *
- * Pseudo-*elements* are overcounted as classes rather than types. It does not
- * matter here: a pseudo-element is never the trust line, so no selector ending
- * in one reaches this comparison.
- */
-function specificityOf(selector) {
-  const score = [0, 0, 0];
-  for (const simple of selector.match(/[#.:]?[\w-]+(\([^)]*\))?/g) ?? []) {
-    if (simple.startsWith("#")) score[0] += 1;
-    else if (simple.startsWith(".") || simple.startsWith(":")) score[1] += 1;
-    else score[2] += 1;
-  }
-  return score;
-}
-
 /** What a rule has to beat to take the trust line's font away from it. */
 const OWNER = specificityOf(".trust-line");
-
-function outranks(challenger, owner) {
-  for (let rank = 0; rank < owner.length; rank += 1) {
-    if (challenger[rank] !== owner[rank]) return challenger[rank] > owner[rank];
-  }
-  // Equal specificity is the `.trust-line` rule itself, or a second one that
-  // may legitimately have the last word. `declarationsOf` reads those together.
-  return false;
-}
 
 /**
  * Can this selector match `<p class="trust-line">` where one actually stands?

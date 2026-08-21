@@ -44,7 +44,13 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { cssRules, declaredValues, report } from "./guard.mjs";
+import {
+  cssRules,
+  declaredValues,
+  outranks,
+  report,
+  specificityOf,
+} from "./guard.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const src = resolve(here, "../src");
@@ -97,34 +103,8 @@ if (!declaredValues(rules, ".row-edit-form", "flex").includes("1")) {
   );
 }
 
-/**
- * `[ids, classes, types]`, counted the way the cascade counts them — the same
- * counter `trust-line-guard.mjs` carries, with the same caveat: attribute
- * selectors are miscounted, and it does not matter here, because a selector
- * carrying `[type=` is refused as unable to match the editor before its
- * specificity is ever asked for.
- */
-function specificityOf(selector) {
-  const score = [0, 0, 0];
-  for (const simple of selector.match(/[#.:]?[\w-]+(\([^)]*\))?/g) ?? []) {
-    if (simple.startsWith("#")) score[0] += 1;
-    else if (simple.startsWith(".") || simple.startsWith(":")) score[1] += 1;
-    else score[2] += 1;
-  }
-  return score;
-}
-
 /** What a rule has to beat to take the editor's box away from it. */
 const OWNER = specificityOf(".row-edit-field");
-
-function outranks(challenger, owner) {
-  for (let rank = 0; rank < owner.length; rank += 1) {
-    if (challenger[rank] !== owner[rank]) return challenger[rank] > owner[rank];
-  }
-  // Equal specificity is `.row-edit-field`'s own rules, which may
-  // legitimately have the last word among themselves.
-  return false;
-}
 
 /**
  * Can this compound match the editor's `<input>` itself?

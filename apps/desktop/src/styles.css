@@ -2893,10 +2893,11 @@ button:disabled {
    the native input — appearance none, the check as two gradient strokes,
    because WKWebView paints no pseudo-elements on <input>.
 
-   Addressed by type, because the row holds a second input the moment its
-   pencil is clicked: `input` alone matched the editor's field too and dressed
-   it as the box — a text field 15px wide, showing none of the text it opened
-   to change (LC-215). `row-editor-guard.mjs` holds the scoping. */
+   Addressed by type, because the pencil swaps this box out for the editor's
+   field — while a row is being retyped, its one input is a text field, and
+   `input` alone dressed that field as the box: 15px wide, showing none of the
+   text it opened to change (LC-215). `row-editor-guard.mjs` holds the
+   scoping. */
 .checklist-row input[type="checkbox"],
 .create-more input {
   width: var(--lc-size-checkbox);
