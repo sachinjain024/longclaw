@@ -1597,7 +1597,11 @@ describe("the context menu on a card (LC-222)", () => {
     rightClick(card("LC-2"));
 
     expect(screen.getByRole("menu", { name: "LC-2 actions" })).toBeTruthy();
-    expect(screen.getByRole("menuitem", { name: /Open ticket/ })).toBeTruthy();
+    // LC-2 is the P2 card and LC-1 the one with no priority, so the hint on the
+    // Priority row is the menu saying which card it belongs to.
+    expect(
+      screen.getByRole("menuitem", { name: /Priority/ }).textContent,
+    ).toContain("P2");
   });
 
   it("moves the ticket from the Move to submenu", () => {
@@ -1661,14 +1665,16 @@ describe("the context menu on a card (LC-222)", () => {
     ).toContain("LC-2");
   });
 
-  it("opens the ticket from its own row", () => {
-    const onSelect = vi.fn();
-    render(board({ tickets: column, onSelect }));
+  it("does not offer to open the ticket, which the card's own click does", () => {
+    render(board({ tickets: column }));
 
     rightClick(card("LC-2"));
-    fireEvent.click(screen.getByRole("menuitem", { name: /Open ticket/ }));
 
-    expect(onSelect).toHaveBeenCalledWith("LC-2");
+    expect(screen.queryByRole("menuitem", { name: /Open ticket/ })).toBeNull();
+    // The first row is the first keyboard stop, and it is now a decision.
+    expect(screen.getAllByRole("menuitem")[0]?.textContent).toContain(
+      "Move to",
+    );
   });
 
   it("leaves a press on the board itself to the platform", () => {

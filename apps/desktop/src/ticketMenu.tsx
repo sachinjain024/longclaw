@@ -11,9 +11,16 @@
  * file path. It also asked *what else*, and the answer is bounded by a rule —
  * only actions the app already has, reachable from somewhere else, so the menu
  * is a shortcut rather than a second place where things are decided. That admits
- * opening the ticket (the click), archiving it (the palette), and copying the
- * key (the panel's chip). It excludes labels, which no surface but the panel can
- * write today, and deleting, which the app does not do at all.
+ * archiving it (the palette) and copying the key (the panel's chip). It excludes
+ * labels, which no surface but the panel can write today, and deleting, which
+ * the app does not do at all.
+ *
+ * An `Open ticket` row was here and came off: the card is a `<button>` and a
+ * left-click on it already opens the panel, so the row spent the top of the
+ * menu — and its first keyboard stop — on the one action a person right-clicking
+ * a ticket has demonstrably not chosen. A degraded file keeps its `Open file`,
+ * which is not the same offer: the row it belongs to opens a raw file view, and
+ * that row is the only other thing the menu has to say.
  *
  * Nothing here writes. Every row raises what it means to `App`, which owns
  * `mutate()`, exactly as the `S`/`P` menu does.
@@ -30,6 +37,7 @@ import type { TicketPriority, TicketRow, TicketStatus } from "./types";
 
 /** What the rows raise. The surface wires each to `App` and closes the menu. */
 export interface TicketMenuActions {
+  /** The degraded menu's `Open file`, which is the only row that still opens. */
   onOpen: () => void;
   onChangeStatus: (next: TicketStatus) => void;
   onChangePriority: (next: TicketPriority) => void;
@@ -69,18 +77,6 @@ export function ticketMenuItems(
   }
 
   return [
-    {
-      kind: "action",
-      id: "open",
-      label: "Open ticket",
-      glyph: <OpenGlyph />,
-      // The card is a `<button>`, so this is the row that names what the card
-      // already does — including from the keyboard, which is where a person
-      // who opened this menu without a mouse is standing.
-      hint: <kbd>⏎</kbd>,
-      run: run.onOpen,
-    },
-    { kind: "rule", id: "open-rule" },
     {
       kind: "submenu",
       id: "status",

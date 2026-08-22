@@ -71,15 +71,21 @@ function labelOf(item: MenuItem): string {
 }
 
 describe("a ticket's context menu", () => {
-  it("offers the three the ticket asks for, plus opening and the key", () => {
+  it("offers the three the ticket asks for, plus archiving and the key", () => {
     expect(ids(INDEXED)).toEqual([
-      "open",
       "status",
       "priority",
       "archive",
       "copy-key",
       "copy-path",
     ]);
+  });
+
+  it("does not offer to open a ticket the card's own click opens", () => {
+    // The `Open ticket` row came off: a left-click on the card already opens
+    // the panel, so the row spent the menu's first keyboard stop on the action
+    // a person who right-clicked has not chosen.
+    expect(ids(INDEXED)).not.toContain("open");
   });
 
   it("lists every status under Move to, with the ticket's own ticked", () => {
@@ -159,15 +165,22 @@ describe("a ticket's context menu", () => {
   it("runs the action every leaf row was built with", () => {
     const run = actions();
     const items = ticketMenuItems(INDEXED, run);
-    for (const id of ["open", "archive", "copy-key", "copy-path"]) {
+    for (const id of ["archive", "copy-key", "copy-path"]) {
       const item = itemFor(items, id);
       if (item.kind !== "action") throw new Error(`${id} is not an action`);
       item.run();
     }
 
-    expect(run.onOpen).toHaveBeenCalledTimes(1);
     expect(run.onArchive).toHaveBeenCalledTimes(1);
     expect(run.onCopyKey).toHaveBeenCalledTimes(1);
     expect(run.onCopyPath).toHaveBeenCalledTimes(1);
+
+    // The degraded menu is where `onOpen` still lives, and it is the whole
+    // reason the callback survives the row's removal.
+    const open = itemFor(ticketMenuItems(DEGRADED, run), "open");
+    if (open.kind !== "action") throw new Error("open is not an action");
+    open.run();
+
+    expect(run.onOpen).toHaveBeenCalledTimes(1);
   });
 });
