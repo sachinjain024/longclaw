@@ -3,12 +3,12 @@ format: longclaw.ticket/v1
 id: d967df78-e663-4d22-8991-c49ec134eb79
 key: LC-222
 title: Implement Right Click Context Menu on Tickets
-status: in_review
+status: done
 priority: urgent
 labels:
   - design
 created_at: 2026-08-12T12:00:56.769Z
-updated_at: 2026-08-22T06:24:56.352Z
+updated_at: 2026-08-22T08:07:26.892Z
 ---
 
 Quick Actions like
@@ -254,4 +254,44 @@ changes:
 ### Claude Code updated this ticket
 
 Moved to In Review for a human read of the branch: three commits on `feat/lc-222-ticket-context-menu`, two review rounds answered, and LC-226 filed for the one hole left open.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_1e38f71b
+kind: comment
+occurred_at: 2026-08-22T07:17:15.505Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+The `Open ticket` row came off, at the user's ask, on branch `feat/lc-222-drop-open-row`.
+
+It was the first row and so the menu's first keyboard stop, and it named the one action a person who right-clicked has demonstrably not taken — the card is a `<button>` and a left-click already opens the panel. Its rule went with it; `Move to` is now the first row, and the menu is five rows of decisions rather than six.
+
+**A degraded file keeps `Open file`.** That row is not the same offer: it opens the raw file view, and it is one of only two things that menu has to say. `onOpen` therefore survives for it alone, which the leaf-row test now states rather than leaves implied.
+
+**Verified**: `verify` green (1072 frontend tests, 43 files); `a11y:audit` green — the A2 pair added for this menu still passes with the new first row, opening focused on a `menuitem` (`Move to`) and returning focus to the card on close. Two tests changed with the rows: the board's "holding that card's values" now reads the Priority hint rather than the open row, and "opens the ticket from its own row" is replaced by one asserting the row is gone and the first stop is `Move to`.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_a97bb4a9
+kind: update
+occurred_at: 2026-08-22T08:07:26.892Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### Claude Code updated this ticket
+
+Done. The menu shipped over three commits on `feat/lc-222-ticket-context-menu` and two review rounds, and the `Open ticket` row came off in `feat/lc-222-drop-open-row` at the user's ask — the last change the ticket was holding In Review for.
+
+`verify` green (1072 frontend tests, 43 files) and `a11y:audit` green on that branch. LC-226 stays open for the single-key shortcuts that still fire under an open menu; it is a decision of its own and not this ticket's to close.
 <!-- /longclaw:event -->

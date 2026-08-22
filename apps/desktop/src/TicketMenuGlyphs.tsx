@@ -14,7 +14,8 @@
  */
 
 /**
- * `Open ticket`: a box with a corner let out and an arrow leaving through it,
+ * `Open file`, the degraded menu's row and now the only one that opens
+ * anything: a box with a corner let out and an arrow leaving through it,
  * which is the shape the eye reads as *this goes somewhere* at 14px. The panel
  * it opens is beside the board rather than over it, so the arrow points that
  * way rather than up.
