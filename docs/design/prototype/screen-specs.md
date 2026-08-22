@@ -314,13 +314,13 @@ movement. No custom-color affordance exists anywhere.
   dot + mono key + title (archived tickets tagged `· archived`), Enter
   opens the panel.
 
-## Menus (status · priority · ordering · labels · settings · project row)
+## Menus (status · priority · ordering · labels · settings · project row · ticket)
 
 - Anchored popover: min 220px, `raised` bg, hairline, radius 10,
   `--lc-shadow-overlay`, 5px padding. Rows 30px with the option's own
   glyph; current value shows a trailing human-accent check. Arrow keys
-  cycle, Enter picks, Esc returns focus to the trigger. Opened from the
-  keyboard (`S`/`P`) the menu anchors to the focused card/row. The
+  cycle, Enter picks, Esc returns focus to the trigger. `S`/`P`/`⇧F10` anchor
+  one to the focused card/row; a right-click places one at the pointer. The
   ordering menu offers **Priority** and **Manual** and nothing else — the
   footnote it carried came off at the LC-223 review.
 

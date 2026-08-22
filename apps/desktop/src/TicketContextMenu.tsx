@@ -15,7 +15,7 @@
  * holds one — which is the same reason the board raises status and priority.
  */
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { copyToClipboard } from "./clipboard";
 import { MenuList } from "./MenuList";
@@ -53,27 +53,53 @@ export function opensContextMenu(event: {
 }
 
 /**
- * Everything a surface needs to hold a context menu, held once.
+ * The five things a surface can raise about a ticket but cannot answer.
  *
- * The board and the list each grew the same four pieces of this — the open
- * target, the press that opens it, the key that opens it, and the anchor it
- * hangs off — and written twice they were already different: one handed the
- * closing menu the key it had acted on and the other handed it nothing, so the
- * board bumped focus to whatever card the arrows had last left behind. That is
- * the drift `TicketMetaMenu` was extracted to prevent, one gesture later.
+ * One type rather than five parameters, because they travel together: the board
+ * takes them, the list takes them, and the context menu is handed the whole set
+ * (`Board`'s own props are these plus the board's).
+ */
+export interface TicketActions {
+  /** Open it in the panel — what a click on the row already does. */
+  onSelect: (key: string) => void;
+  /** Raised by the `S` menu and by `Move to`. A surface writes nothing. */
+  onChangeStatus: (ticket: IndexedTicket, next: TicketStatus) => void;
+  /** Raised by the `P` menu and by `Priority`, on the same terms. */
+  onChangePriority: (ticket: IndexedTicket, next: TicketPriority) => void;
+  /** Raised by the context menu's archive row, which is App's to write. */
+  onArchive: (ticket: IndexedTicket) => void;
+  /**
+   * Raised by the context menu's Copy file path row. The path a row holds is
+   * relative to a project folder no surface has ever been told (LC-222).
+   */
+  onCopyPath: (ticket: TicketRow) => void;
+}
+
+/**
+ * The whole of a surface's context menu: the press that opens it, the key that
+ * opens it, and the menu itself.
  *
- * The surface still renders the menu itself: which callbacks it forwards is the
- * one thing the two surfaces genuinely say differently.
+ * The board and the list each grew the same pieces of this — the open target,
+ * the press, the key, the anchor, and the element — and written twice they were
+ * already different: one handed the closing menu the key it had acted on and
+ * the other handed it nothing, so the board asked its roving focus for whatever
+ * card the arrows had last left behind. That is the drift `TicketMetaMenu` was
+ * extracted to prevent, one gesture later, which is why even the element is
+ * here rather than in two files that must remember to agree.
  */
 export function useTicketContextMenu(props: {
   /** The scroller or grid the rows live in, for finding the anchor by key. */
   root: React.RefObject<HTMLElement | null>;
   /** `.ticket-row` on the board, `.list-row` on the list. */
   selector: string;
+  /** Every row the surface holds, the same list the `S`/`P` menu reads. */
+  tickets: TicketRow[];
+  /** What the rows raise. Both surfaces have these as their own props. */
+  actions: TicketActions;
   /** The surface's roving focus, asked for the row by key once the menu goes. */
   requestFocus: (key?: string) => void;
 }) {
-  const { root, selector, requestFocus } = props;
+  const { root, selector, tickets, actions, requestFocus } = props;
   const [target, setTarget] = useState<ContextMenuTarget>();
 
   /**
@@ -82,11 +108,19 @@ export function useTicketContextMenu(props: {
    * row can be pressed without ever having been focused. Anywhere else — a
    * column header, a gap, the background — is left to the platform's own menu,
    * which is not a surface's to swallow.
+   *
+   * The exception is a press inside the menu already up. That one is taken and
+   * dropped: a menu row is not a row, so nothing would open, and left alone the
+   * platform would draw its own menu over ours.
    */
   const onContextMenu = useCallback(
     (event: ReactMouseEvent) => {
-      const on = (event.target as HTMLElement).closest?.(selector) as
-        HTMLElement | undefined;
+      const from = event.target as HTMLElement;
+      if (from.closest?.(".menu-popover")) {
+        event.preventDefault();
+        return;
+      }
+      const on = from.closest?.(selector) as HTMLElement | undefined;
       const key = on?.dataset.ticketKey;
       if (key === undefined) return;
       event.preventDefault();
@@ -100,54 +134,69 @@ export function useTicketContextMenu(props: {
 
   const close = useCallback(() => {
     setTarget(undefined);
-    // Asked for by key: a pick re-sorts the surface under the menu, and the
-    // press that opened it may have landed on a row that never held focus.
+    // Asked for by key rather than left to the popover's own focus return: a
+    // pick re-sorts the surface under the menu, and the card the menu was
+    // hanging off is not in the document to be focused once it has moved.
     requestFocus(target?.key);
   }, [requestFocus, target?.key]);
 
+  /**
+   * Looked up once per menu rather than once per render: the surface re-renders
+   * while a menu is up — a write lands, a watcher event arrives — and the
+   * anchor is read exactly once, when the menu mounts.
+   */
+  const anchor = useMemo(
+    () =>
+      target ? (itemFor(root.current, selector, target.key) ?? null) : null,
+    // The key is what makes this a different anchor: `root` and `selector` are
+    // fixed for a surface, and the element behind a key is read when the menu
+    // opens and not again.
+    [target?.key, root, selector],
+  );
+
+  // Where the menu goes, decided before it exists: the pointer's own position,
+  // or — for the keyboard, which has no pointer — under the row itself. A row
+  // that is in neither place is a row there is nowhere to put a menu for, and
+  // opening one in the corner of the window would be worse than not opening it.
+  const origin = target?.point ?? belowAnchor(anchor);
+
   return {
-    target,
     onContextMenu,
     openOn,
-    close,
-    anchor: target
-      ? (itemFor(root.current, selector, target.key) ?? null)
-      : null,
-    /**
-     * What makes a second right-click a second menu. Everything inside is
-     * captured when it mounts — the point it is placed at, the element focus
-     * goes back to — so a menu asked for on another row while one is up has to
-     * be a new component rather than the old one handed new props.
-     */
-    instance: target
-      ? `${target.key}@${target.point ? `${target.point.x},${target.point.y}` : "keyboard"}`
-      : "",
+    /** Whether one is up, for a surface that has to say so. */
+    open: target !== undefined,
+    menu:
+      target && origin ? (
+        <TicketContextMenu
+          // A second press is a second menu. Everything inside is captured when
+          // it mounts — the point it is placed at, the element focus goes back
+          // to — so a menu asked for on another row while one is up has to be a
+          // new component rather than the old one handed new props.
+          key={`${target.key}@${origin.x},${origin.y}`}
+          target={target}
+          origin={origin}
+          anchor={anchor}
+          tickets={tickets}
+          actions={actions}
+          onClose={close}
+        />
+      ) : null,
   };
 }
 
-export function TicketContextMenu(props: {
+function TicketContextMenu(props: {
   target: ContextMenuTarget;
+  /** Where it goes: the pointer, or under the row for a keyboard press. */
+  origin: Point;
   /** Every row the surface holds, the same list the `S`/`P` menu reads. */
   tickets: TicketRow[];
   /** The card or row it belongs to, and the element focus returns to. */
   anchor: HTMLElement | null;
-  onOpen: (key: string) => void;
-  onChangeStatus: (ticket: IndexedTicket, next: TicketStatus) => void;
-  onChangePriority: (ticket: IndexedTicket, next: TicketPriority) => void;
-  onArchive: (ticket: IndexedTicket) => void;
-  onCopyPath: (ticket: TicketRow) => void;
+  actions: TicketActions;
   onClose: () => void;
 }) {
   const popover = useRef<HTMLDivElement>(null);
-  const origin = useRef<Point | undefined>(undefined);
-  // Read once, on the way up: the pointer has moved on by the time anything
-  // renders, and a card underneath a menu can be re-sorted out from under it by
-  // the menu's own pick. Once per *menu* — the surface keys this component on
-  // the target, so a right-click on another row mounts a new one.
-  if (!origin.current)
-    origin.current = props.target.point ??
-      belowAnchor(props.anchor) ?? { x: 0, y: 0 };
-  const position = usePointPlacement(origin.current, popover);
+  const position = usePointPlacement(props.origin, popover);
   useFocusReturn(props.anchor);
 
   const ticket = props.tickets.find(
@@ -164,13 +213,14 @@ export function TicketContextMenu(props: {
     props.onClose();
   }
 
+  const act = props.actions;
   const items = ticketMenuItems(ticket, {
-    onOpen: () => ran(() => props.onOpen(props.target.key)),
+    onOpen: () => ran(() => act.onSelect(props.target.key)),
     onChangeStatus: (next) =>
-      ran(() => indexed && props.onChangeStatus(indexed, next)),
+      ran(() => indexed && act.onChangeStatus(indexed, next)),
     onChangePriority: (next) =>
-      ran(() => indexed && props.onChangePriority(indexed, next)),
-    onArchive: () => ran(() => indexed && props.onArchive(indexed)),
+      ran(() => indexed && act.onChangePriority(indexed, next)),
+    onArchive: () => ran(() => indexed && act.onArchive(indexed)),
     onCopyKey: () =>
       ran(
         () =>
@@ -179,7 +229,7 @@ export function TicketContextMenu(props: {
             failed: `Could not copy ${ticket.key}`,
           }),
       ),
-    onCopyPath: () => ran(() => props.onCopyPath(ticket)),
+    onCopyPath: () => ran(() => act.onCopyPath(ticket)),
   });
 
   return (

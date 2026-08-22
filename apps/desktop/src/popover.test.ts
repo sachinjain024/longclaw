@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { placeAtPoint } from "./popover";
+import { fitsBeside, liftIntoView, placeAtPoint } from "./popover";
 
 const VIEWPORT = { width: 1000, height: 800 };
 const MENU = { width: 220, height: 300 };
@@ -59,5 +59,40 @@ describe("placeAtPoint", () => {
     expect(
       placeAtPoint({ x: 640, y: 700 }, { width: 0, height: 0 }, VIEWPORT),
     ).toEqual({ left: 640, top: 700 });
+  });
+});
+
+/**
+ * The two decisions a submenu makes about where it can go. Both are measured
+ * against a live box in the app and neither can be reached by a test that
+ * measures one — jsdom lays nothing out, so `getBoundingClientRect` is all
+ * zeroes and every submenu in every test has infinite room (LC-222's review).
+ */
+describe("where a submenu fits", () => {
+  it("takes its parent's right side when the window has room for it", () => {
+    expect(fitsBeside(700, 200, 1440)).toBe(true);
+  });
+
+  it("refuses the right side when the submenu would end outside the window", () => {
+    expect(fitsBeside(1300, 200, 1440)).toBe(false);
+    // Exactly flush is inside, and is the case the board's last column makes.
+    expect(fitsBeside(1240, 200, 1440)).toBe(true);
+  });
+
+  it("lifts a submenu that hangs below the window by exactly its overhang", () => {
+    // 918 in an 900-tall window: 18 past the edge, plus the 8px margin.
+    expect(liftIntoView({ top: 738, bottom: 918 }, 900)).toBe(26);
+  });
+
+  it("lifts nothing when the submenu already ends inside the window", () => {
+    expect(liftIntoView({ top: 200, bottom: 380 }, 900)).toBe(0);
+    expect(liftIntoView({ top: 200, bottom: 892 }, 900)).toBe(0);
+  });
+
+  it("never lifts a submenu past the top of the window", () => {
+    // Taller than the window: the rows nearest its parent are the ones the
+    // pointer is on, so it keeps those and loses the far end.
+    expect(liftIntoView({ top: 20, bottom: 1200 }, 900)).toBe(12);
+    expect(liftIntoView({ top: 4, bottom: 1200 }, 900)).toBe(0);
   });
 });

@@ -1704,6 +1704,38 @@ describe("the context menu on a card (LC-222)", () => {
     expect(screen.getByRole("menu", { name: "LC-2 actions" })).toBeTruthy();
   });
 
+  it("follows the card to the column a pick moved it to", () => {
+    // The card the menu was hanging off is not in the document once the pick
+    // has re-sorted it, so the popover's own focus return has nothing to give
+    // focus back to. The closing menu asks the surface for the card by key,
+    // which is the one path that finds it in its new column.
+    //
+    // The re-sort runs inside the pick, which is where it runs in the app: the
+    // optimistic write lands in the store before the click is over, so the card
+    // has already moved by the time focus is handed back.
+    let moved = () => {};
+    const onChangeStatus = vi.fn(() => moved());
+    const { rerender } = render(board({ tickets: column, onChangeStatus }));
+    moved = () =>
+      rerender(
+        board({
+          tickets: [
+            column[0],
+            { ...(column[1] as IndexedTicket), status: "done" },
+          ],
+          onChangeStatus,
+        }),
+      );
+    card("LC-1").focus();
+
+    rightClick(card("LC-2"));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Move to/ }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Done/ }));
+
+    expect(stack("Done").contains(card("LC-2"))).toBe(true);
+    expect(document.activeElement).toBe(card("LC-2"));
+  });
+
   it("re-places itself when a second card is pressed under an open menu", () => {
     // Where a menu goes and what it hands focus back to are both captured when
     // it opens, so a second press has to be a second menu rather than the first

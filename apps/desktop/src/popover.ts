@@ -73,6 +73,41 @@ function fitAxis(at: number, extent: number, limit: number): number {
 }
 
 /**
+ * Whether a submenu has room on its parent's right, where CSS hangs it.
+ *
+ * Pure and stated in numbers rather than measured in place, because the only
+ * engine that measures is the one nothing runs in a test: jsdom lays nothing
+ * out, so a decision left inline here is a decision no test can reach
+ * (LC-222's review).
+ */
+export function fitsBeside(
+  parentRight: number,
+  width: number,
+  viewportWidth: number,
+): boolean {
+  return parentRight + width <= viewportWidth;
+}
+
+/**
+ * How far a popover has to come up to sit inside the window.
+ *
+ * A submenu is placed against its parent's first row and grows downward from
+ * there, so the further down the window its parent is, the further past the
+ * bottom it goes — the horizontal flip does nothing about it, and a submenu
+ * opened on a card near the bottom of the board loses its last rows off the
+ * edge. Never lifted past the top: the rows nearest the parent are the ones the
+ * pointer is on, and they are the ones a lift too far would take away.
+ */
+export function liftIntoView(
+  box: { top: number; bottom: number },
+  viewportHeight: number,
+): number {
+  const over = box.bottom - (viewportHeight - VIEWPORT_MARGIN);
+  if (over <= 0) return 0;
+  return Math.max(0, Math.min(over, box.top - VIEWPORT_MARGIN));
+}
+
+/**
  * `placeAtPoint`, measured against the popover it is placing.
  *
  * Two passes rather than one: nothing knows how tall a menu is until its rows
@@ -136,6 +171,7 @@ export function belowAnchor(
  */
 export function usePopoverPlacement(
   anchor: HTMLElement | null,
+  /** Right-aligns the popover on its anchor; see `belowAnchor`. */
   width?: number,
 ) {
   const placed = useRef<{ top: number; left: number } | undefined>(undefined);

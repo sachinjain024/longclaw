@@ -16,7 +16,7 @@
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
 import { classes } from "./classes";
-import { useDismissOnPressOutside } from "./popover";
+import { fitsBeside, liftIntoView, useDismissOnPressOutside } from "./popover";
 
 /**
  * One row. `action` runs and closes, `choice` runs and stays — the difference
@@ -105,6 +105,8 @@ export function MenuList(props: {
   const [openSub, setOpenSub] = useState<string>();
   /** Whether an opened submenu goes on the parent's left; see `enter`. */
   const [subOpensLeft, setSubOpensLeft] = useState(false);
+  /** How far this list — a submenu — has been pulled up to fit; see below. */
+  const [lift, setLift] = useState(0);
   const { onDismiss } = props;
 
   useLayoutEffect(() => {
@@ -112,6 +114,27 @@ export function MenuList(props: {
     // pull focus back out of it on every render.
     if (openSub === undefined) rows.current[active]?.focus();
   }, [active, openSub]);
+
+  /**
+   * A submenu hangs off its parent's first row and grows down from there, so
+   * how far past the bottom of the window it goes is not known until its own
+   * rows exist — the side it opens on can be decided from the parent alone
+   * (`enter`), and this cannot. Measured here, in a layout effect, so the
+   * correction lands before paint rather than a frame later.
+   *
+   * The root list needs none of this: `usePointPlacement` already fits it.
+   */
+  useLayoutEffect(() => {
+    if (!props.nested) return;
+    const box = popover.current?.getBoundingClientRect();
+    if (!box) return;
+    setLift((held) => {
+      // Measured where it is *now*, so the lift already applied is added back
+      // before asking again — otherwise a second pass would lift it twice.
+      const at = { top: box.top - held, bottom: box.bottom - held };
+      return liftIntoView(at, window.innerHeight);
+    });
+  }, [props.nested, props.items]);
 
   function move(step: number) {
     setActive((index) => (index + step + stops.length) % stops.length);
@@ -131,7 +154,8 @@ export function MenuList(props: {
   function enter(id: string) {
     const box = popover.current?.getBoundingClientRect();
     setSubOpensLeft(
-      box !== undefined && box.right + SUBMENU_WIDTH > window.innerWidth,
+      box !== undefined &&
+        !fitsBeside(box.right, SUBMENU_WIDTH, window.innerWidth),
     );
     setOpenSub(id);
   }
@@ -194,7 +218,16 @@ export function MenuList(props: {
       role="menu"
       aria-label={props.label}
       ref={popover}
-      style={props.position}
+      // The root is placed in viewport coordinates; a submenu is placed by CSS
+      // against its parent, and moves only when it has to be pulled back into
+      // the window.
+      style={
+        props.nested
+          ? lift
+            ? { transform: `translateY(${-lift}px)` }
+            : undefined
+          : props.position
+      }
       onKeyDown={onKeyDown}
     >
       {props.items.map((item) => {

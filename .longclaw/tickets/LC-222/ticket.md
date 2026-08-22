@@ -167,3 +167,73 @@ right-click re-places the menu.
 
 `npm run verify` green (1064 frontend tests); `a11y:audit` green.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_ab2e0dde
+kind: comment
+occurred_at: 2026-08-22T06:19:40.366Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+The second review round, on the branch as it stood after the first.
+
+**A submenu had no vertical fit.** The flip added in the first round was
+horizontal only: a submenu hangs off its parent's third row and grows down from
+there, so how far past the bottom of the window it goes cannot be known from the
+parent alone. `MenuList` now measures itself in a layout effect and lifts,
+against `liftIntoView` in `popover.ts` — pure, so it has tests, which is the
+half neither the flip nor the lift had before: jsdom lays nothing out, so every
+submenu in every test has infinite room and the geometry was reachable by no
+test at all. `fitsBeside` gives the horizontal flip the same treatment.
+
+Driven in WebKit at the lowest row a pointer can actually reach on both
+surfaces — the list clips its rows at 839 of a 900-tall window, the board's
+columns stop ~90px short — where the parent ends at 821 and its submenu at 847,
+both inside the window. **I could not reproduce the review's own 918px
+overflow** at 1440×900: with today's six rows the submenu overhangs its parent
+by 26px and both scrollers leave more than that below them. The lift is
+therefore defensive at this size rather than proven in place — and one row added
+to either menu is what makes it load-bearing.
+
+**The hook stopped one line short.** Both surfaces still built the same
+thirteen-line element, and only one of them had a test for it. The hook now
+returns the menu itself, which takes the sentinel key, the corner-of-the-window
+fallback for a row with no anchor, and a `querySelectorAll` that ran on every
+render while a menu was up. The five callbacks that travel everywhere together
+are one `TicketActions`, which both surfaces' props now extend.
+
+**The first round's focus fix had no honest test.** Deleting `requestFocus` left
+all 146 surface tests green, because the popover's own focus return covers the
+easy case. The case it does not cover is the one the fix is for: a pick
+re-sorts the card into another column, the node the menu was hanging off is gone,
+and only asking the surface by key finds it. `Board.test.tsx` now drives that —
+re-sorting inside the pick, where the app does it — and fails without the fix.
+
+**Also**: the degraded menu's `Open file` row had no glyph, so its label sat
+22px left of `Copy file path` — there is now a test that every row wears a mark;
+`screen-specs.md`'s § Menus names the ticket menu and says a right-click places
+one at the pointer, rewritten in place on its own lines; and
+`keyboard-focus-map.md:49` is shorter. My earlier claim that line 49 "nothing
+cites" was wrong the moment I wrote it — the a11y probe in the same commit cites
+it, and the lock pins it.
+
+**Verified**: `verify` green; `a11y:audit` green; `perf:board` and `perf:list`
+quoted below, both within budget, which the surfaces' render path earned by
+changing. The gate went red twice on `test:watcher` and green on the third run,
+with the same test passing alone every time and `verify` green on `main` — the
+flake AGENTS.md says to suspect the environment for, and I had left a stray
+`vite preview` running from a probe, which is exactly the thing
+`preview-server.mjs` exists to stop. Killed.
+
+    perf:board  scroll p50 17 p95 18 · filter p50 15 p95 28 · external write p50 14 p95 16
+    perf:list   arrow p50 14 p95 17 · scroll p50 17 p95 18 · filter p50 15 p95 23
+
+**Filed rather than fixed**: LC-226. With any menu open, the window's single-key
+shortcuts still fire under it — `c` opens quick create behind the status menu
+today. Pre-existing for `S`/`P`; this ticket adds a third menu with the same
+hole rather than a new one, and where the guard belongs is a decision of its own.
+<!-- /longclaw:event -->

@@ -66,8 +66,8 @@ import { StatusDot } from "./StatusDot";
 import { isArchived } from "./tickets";
 import {
   opensContextMenu,
-  TicketContextMenu,
   useTicketContextMenu,
+  type TicketActions,
 } from "./TicketContextMenu";
 import {
   metaFieldFor,
@@ -80,13 +80,7 @@ import {
   type DropSpot,
   type TicketMove,
 } from "./ticketMove";
-import type {
-  IndexedTicket,
-  Label,
-  TicketPriority,
-  TicketRow,
-  TicketStatus,
-} from "./types";
+import type { IndexedTicket, Label, TicketRow } from "./types";
 import { useViewportHeight } from "./viewportHeight";
 
 /** Rows rendered beyond each edge of the viewport, so a scroll shows no gap. */
@@ -130,52 +124,42 @@ function moveTo(
 /** The class a row wears, which is also how the roving focus finds one. */
 const ROW = ".list-row";
 
-export function IssueList(props: {
-  tickets: TicketRow[];
-  /**
-   * Every ticket the project holds, which `tickets` is the filtered view of —
-   * the same prop the board takes and for the same reason (LC-187,
-   * `ticketMove.ts`). Absent means nothing is hidden.
-   */
-  unfiltered?: TicketRow[];
-  selectedKey?: string;
-  marks: ExternalMarks;
-  labels: Record<string, Label>;
-  /**
-   * The board's ordering preference, which the rows inside a group follow too
-   * (`screen-specs.md:146`) — and which decides, here as there, whether a place
-   * inside a group is a thing a drop can write (ADR 0003).
-   */
-  ordering: OrderingMode;
-  now: number;
-  onSelect: (key: string) => void;
-  /** Raised by the `P` menu. The list holds no project id and writes nothing. */
-  onChangePriority: (ticket: IndexedTicket, next: TicketPriority) => void;
-  /** Raised by the `S` menu, on the same terms. */
-  onChangeStatus: (ticket: IndexedTicket, next: TicketStatus) => void;
-  /** Raised by the context menu's archive row, which is App's to write. */
-  onArchive: (ticket: IndexedTicket) => void;
-  /**
-   * Raised by the context menu's Copy file path row. The path a row holds is
-   * relative to a project folder the list has never been told (LC-222).
-   */
-  onCopyPath: (ticket: TicketRow) => void;
-  /**
-   * Raised by a drop: a group, a place in one, or both (`ticketMove.ts`). The
-   * board raises the same move for the same gesture, because a group here and a
-   * column there are the same status.
-   */
-  onMoveTicket: (ticket: IndexedTicket, move: TicketMove) => void;
-  /**
-   * Present only in the empty-project state. The list has no Todo column to
-   * host the guide, so it sits in a card frame of the list's own — the same
-   * `surface` a group body wears — rather than replacing the surface with a
-   * full-width panel (D-26/LC-89).
-   */
-  onCreateFirst?: () => void;
-  /** Focus a row from outside the list; see `Board`'s own, and `rovingFocus.ts`. */
-  focusRequest?: FocusRequest;
-}) {
+export function IssueList(
+  props: TicketActions & {
+    tickets: TicketRow[];
+    /**
+     * Every ticket the project holds, which `tickets` is the filtered view of —
+     * the same prop the board takes and for the same reason (LC-187,
+     * `ticketMove.ts`). Absent means nothing is hidden.
+     */
+    unfiltered?: TicketRow[];
+    selectedKey?: string;
+    marks: ExternalMarks;
+    labels: Record<string, Label>;
+    /**
+     * The board's ordering preference, which the rows inside a group follow too
+     * (`screen-specs.md:146`) — and which decides, here as there, whether a place
+     * inside a group is a thing a drop can write (ADR 0003).
+     */
+    ordering: OrderingMode;
+    now: number;
+    /**
+     * Raised by a drop: a group, a place in one, or both (`ticketMove.ts`). The
+     * board raises the same move for the same gesture, because a group here and a
+     * column there are the same status.
+     */
+    onMoveTicket: (ticket: IndexedTicket, move: TicketMove) => void;
+    /**
+     * Present only in the empty-project state. The list has no Todo column to
+     * host the guide, so it sits in a card frame of the list's own — the same
+     * `surface` a group body wears — rather than replacing the surface with a
+     * full-width panel (D-26/LC-89).
+     */
+    onCreateFirst?: () => void;
+    /** Focus a row from outside the list; see `Board`'s own, and `rovingFocus.ts`. */
+    focusRequest?: FocusRequest;
+  },
+) {
   const [archiveOpen, setArchiveOpen] = useState(false);
   /** The row whose `S`/`P` menu is open, and which of the two it is. */
   const [metaMenu, setMetaMenu] = useState<MetaMenuTarget>();
@@ -246,6 +230,8 @@ export function IssueList(props: {
   const contextMenu = useTicketContextMenu({
     root: scroller,
     selector: ROW,
+    tickets: props.tickets,
+    actions: props,
     requestFocus,
   });
 
@@ -449,20 +435,7 @@ export function IssueList(props: {
           onFocusRow={onFocusRow}
         />
       ))}
-      {contextMenu.target && (
-        <TicketContextMenu
-          key={contextMenu.instance}
-          target={contextMenu.target}
-          tickets={props.tickets}
-          anchor={contextMenu.anchor}
-          onOpen={props.onSelect}
-          onChangeStatus={props.onChangeStatus}
-          onChangePriority={props.onChangePriority}
-          onArchive={props.onArchive}
-          onCopyPath={props.onCopyPath}
-          onClose={contextMenu.close}
-        />
-      )}
+      {contextMenu.menu}
       {metaMenu && (
         <TicketMetaMenu
           target={metaMenu}

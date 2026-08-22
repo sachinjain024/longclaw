@@ -56,7 +56,13 @@ export function ticketMenuItems(
   // path is most of the reason to right-click one.
   if (ticket.state === "degraded") {
     return [
-      { kind: "action", id: "open", label: "Open file", run: run.onOpen },
+      {
+        kind: "action",
+        id: "open",
+        label: "Open file",
+        glyph: <OpenGlyph />,
+        run: run.onOpen,
+      },
       { kind: "rule", id: "open-rule" },
       copyPath,
     ];

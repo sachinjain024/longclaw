@@ -129,6 +129,18 @@ describe("a ticket's context menu", () => {
     ).toBe("Unarchive ticket");
   });
 
+  it("gives every row a mark, so no label stands out of the column", () => {
+    // `.menu-glyph` is a fixed 14px box: a row without one starts 22px left of
+    // its neighbours, which on a six-row menu reads as a mistake. The degraded
+    // menu is the one that had it — two rows, one marked (LC-222's review).
+    for (const ticket of [INDEXED, DEGRADED]) {
+      for (const item of ticketMenuItems(ticket, actions())) {
+        if (item.kind === "rule" || item.kind === "group") continue;
+        expect([item.id, item.glyph !== undefined]).toEqual([item.id, true]);
+      }
+    }
+  });
+
   it("offers a file it could not read only what a file has", () => {
     // `keyboard-focus-map.md:48`: a degraded row takes focus, and there is no
     // status, priority or archive flag in it to write. The path is the one
