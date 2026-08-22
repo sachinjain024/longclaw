@@ -9,7 +9,7 @@ labels:
   - release
   - post-mvp
 created_at: 2026-08-05T14:23:17Z
-updated_at: 2026-08-22T08:13:22.932Z
+updated_at: 2026-08-22T08:45:34.230Z
 ---
 
 **Signing and notarization.** v0 ships unsigned with a documented Gatekeeper route
@@ -92,7 +92,12 @@ The expected result is now **no dialog at all** — a first launch that simply o
 
 ## Checklist
 
-- [ ] A Developer ID identity and a notarization request are recorded, and the release notes' § Opening the app the first time is deleted rather than softened <!-- longclaw:item=ck_c8bff8b2 -->
+- [ ] Apple Developer Program membership is active, a Developer ID Application certificate is issued, and the notarytool credentials, the Team ID, and the private key backup location are recorded <!-- longclaw:item=ck_c8bff8b2 -->
+- [ ] The build signs with that identity and notarizes and staples both the .app and the DMG, and `npm run build:app` on a machine holding no certificate still produces an openable ad-hoc bundle, because CI runs it on every PR <!-- longclaw:item=ck_39bdc0a1 -->
+- [ ] Where the signing credentials live is decided and written down, and no pull-request job can reach them <!-- longclaw:item=ck_1adc935f -->
+- [ ] binary-audit.mjs requires `spctl` acceptance, a Developer ID authority chain, the runtime flag, and `stapler validate` on both artefacts, and its --self-test fails when the bundle is unsigned <!-- longclaw:item=ck_ffe5a28f -->
+- [ ] A quarantined DMG opens with no dialog at all, offline as well as online, recorded in an acceptance file <!-- longclaw:item=ck_92a13965 -->
+- [ ] Section Opening the app the first time is deleted from the release notes rather than softened, the acceptance table takes the signed branch, the release-risks row is retired with its evidence, and a signing runbook exists for the next release <!-- longclaw:item=ck_73bee0af -->
 
 ## Activity
 
@@ -118,6 +123,32 @@ actor:
   name: Claude Code
 changes:
   - field: description
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_78ca8126
+kind: update
+occurred_at: 2026-08-22T08:45:34.230Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_c8bff8b2.text
+    from: A Developer ID identity and a notarization request are recorded, and the release notes' § Opening the app the first time is deleted rather than softened
+    to: Apple Developer Program membership is active, a Developer ID Application certificate is issued, and the notarytool credentials, the Team ID, and the private key backup location are recorded
+  - field: checklist.ck_39bdc0a1.added
+    to: The build signs with that identity and notarizes and staples both the .app and the DMG, and `npm run build:app` on a machine holding no certificate still produces an openable ad-hoc bundle, because CI runs it on every PR
+  - field: checklist.ck_1adc935f.added
+    to: Where the signing credentials live is decided and written down, and no pull-request job can reach them
+  - field: checklist.ck_ffe5a28f.added
+    to: binary-audit.mjs requires `spctl` acceptance, a Developer ID authority chain, the runtime flag, and `stapler validate` on both artefacts, and its --self-test fails when the bundle is unsigned
+  - field: checklist.ck_92a13965.added
+    to: A quarantined DMG opens with no dialog at all, offline as well as online, recorded in an acceptance file
+  - field: checklist.ck_73bee0af.added
+    to: Section Opening the app the first time is deleted from the release notes rather than softened, the acceptance table takes the signed branch, the release-risks row is retired with its evidence, and a signing runbook exists for the next release
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->
