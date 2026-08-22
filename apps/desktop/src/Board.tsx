@@ -94,18 +94,17 @@ import { itemFor, moveFor, useRovingFocus } from "./rovingFocus";
 import type { FocusRequest } from "./rovingFocus";
 import { ColumnDot } from "./ColumnDot";
 import {
+  opensContextMenu,
+  useTicketContextMenu,
+  type TicketActions,
+} from "./TicketContextMenu";
+import {
   metaFieldFor,
   TicketMetaMenu,
   type MetaMenuTarget,
 } from "./TicketMetaMenu";
 import { moveForDrop, takesDrop, type TicketMove } from "./ticketMove";
-import type {
-  IndexedTicket,
-  Label,
-  TicketPriority,
-  TicketRow,
-  TicketStatus,
-} from "./types";
+import type { IndexedTicket, Label, TicketRow, TicketStatus } from "./types";
 import { useViewportHeight } from "./viewportHeight";
 
 /** Cards rendered beyond each edge of the viewport, so a scroll shows no gap. */
@@ -190,59 +189,56 @@ function moveTo(
 /** The class a card wears, which is also how the roving focus finds one. */
 const CARD = ".ticket-row";
 
-export function Board(props: {
-  tickets: TicketRow[];
-  /**
-   * Every ticket the project holds, which `tickets` is the filtered view of.
-   * The board draws the filtered rows and decides a drop over these, so a card
-   * let go among the matches is not ranked above the rows a query is hiding
-   * (LC-187, `ticketMove.ts`). Absent means nothing is hidden.
-   */
-  unfiltered?: TicketRow[];
-  selectedKey?: string;
-  marks: ExternalMarks;
-  /** The project's label definitions, for the chips a card's slugs resolve to. */
-  labels: Record<string, Label>;
-  /** Priority or Manual: a device-local view preference, never project data. */
-  ordering: OrderingMode;
-  /**
-   * Whether to keep a column for a status holding nothing — the fixed v0 set as
-   * a scaffold (ADR 0002), which is the board's default and the point of it.
-   * `App.tsx` drops it in exactly one case: a filter that matched nothing, where
-   * six empty columns would be the empty board the designed state replaces.
-   */
-  scaffold?: boolean;
-  now: number;
-  onSelect: (key: string) => void;
-  /** Raised by the `P` menu. The board holds no project id and writes nothing. */
-  onChangePriority: (ticket: IndexedTicket, next: TicketPriority) => void;
-  /** Raised by the `S` menu, on the same terms. */
-  onChangeStatus: (ticket: IndexedTicket, next: TicketStatus) => void;
-  /**
-   * Raised by a drop: a column, a place in one, or both (`ticketMove.ts`). The
-   * rank is allocated here — LongClaw owns rank allocation in v0 — and the
-   * write is App's.
-   */
-  onMoveTicket: (ticket: IndexedTicket, move: TicketMove) => void;
-  /**
-   * Raised by a column's `+`, with that column's status
-   * (`keyboard-focus-map.md:44`). The board opens no surface of its own; App
-   * decides that a create preseeded with a status is quick create.
-   */
-  onCreateInStatus: (status: TicketStatus) => void;
-  /**
-   * Present only in the empty-project state, where it puts the guide card in
-   * the Todo column as that column's only child. The board stays whole around
-   * it: the scaffold is what the state is (`states.md:28-35`, D-20/LC-86).
-   */
-  onCreateFirst?: () => void;
-  /**
-   * Focus a card from outside the board — the new card after a create, the card
-   * behind a closing panel. It goes through the roving focus rather than the DOM
-   * because a card past the window is not in the DOM to be focused.
-   */
-  focusRequest?: FocusRequest;
-}) {
+export function Board(
+  props: TicketActions & {
+    tickets: TicketRow[];
+    /**
+     * Every ticket the project holds, which `tickets` is the filtered view of.
+     * The board draws the filtered rows and decides a drop over these, so a card
+     * let go among the matches is not ranked above the rows a query is hiding
+     * (LC-187, `ticketMove.ts`). Absent means nothing is hidden.
+     */
+    unfiltered?: TicketRow[];
+    selectedKey?: string;
+    marks: ExternalMarks;
+    /** The project's label definitions, for the chips a card's slugs resolve to. */
+    labels: Record<string, Label>;
+    /** Priority or Manual: a device-local view preference, never project data. */
+    ordering: OrderingMode;
+    /**
+     * Whether to keep a column for a status holding nothing — the fixed v0 set as
+     * a scaffold (ADR 0002), which is the board's default and the point of it.
+     * `App.tsx` drops it in exactly one case: a filter that matched nothing, where
+     * six empty columns would be the empty board the designed state replaces.
+     */
+    scaffold?: boolean;
+    now: number;
+    /**
+     * Raised by a drop: a column, a place in one, or both (`ticketMove.ts`). The
+     * rank is allocated here — LongClaw owns rank allocation in v0 — and the
+     * write is App's.
+     */
+    onMoveTicket: (ticket: IndexedTicket, move: TicketMove) => void;
+    /**
+     * Raised by a column's `+`, with that column's status
+     * (`keyboard-focus-map.md:44`). The board opens no surface of its own; App
+     * decides that a create preseeded with a status is quick create.
+     */
+    onCreateInStatus: (status: TicketStatus) => void;
+    /**
+     * Present only in the empty-project state, where it puts the guide card in
+     * the Todo column as that column's only child. The board stays whole around
+     * it: the scaffold is what the state is (`states.md:28-35`, D-20/LC-86).
+     */
+    onCreateFirst?: () => void;
+    /**
+     * Focus a card from outside the board — the new card after a create, the card
+     * behind a closing panel. It goes through the roving focus rather than the DOM
+     * because a card past the window is not in the DOM to be focused.
+     */
+    focusRequest?: FocusRequest;
+  },
+) {
   const scaffold = props.scaffold ?? true;
   const { columns, seats } = useMemo(
     () => layOutColumns(props.tickets, props.ordering, scaffold),
@@ -272,6 +268,15 @@ export function Board(props: {
     root: grid,
     selector: CARD,
     request: props.focusRequest,
+  });
+
+  /** The card whose context menu is open, and everything that opens or closes it. */
+  const contextMenu = useTicketContextMenu({
+    root: grid,
+    selector: CARD,
+    tickets: props.tickets,
+    actions: props,
+    requestFocus,
   });
 
   // Stable, so `draggable` and its two handlers cost the memoized cards nothing:
@@ -349,6 +354,15 @@ export function Board(props: {
     const from = fromKey === undefined ? undefined : seats.get(fromKey);
     if (!from || fromKey === undefined) return;
 
+    if (opensContextMenu(event)) {
+      // Unlike `S` and `P`, this one opens on a card the file behind which
+      // would not read: what it offers such a card is the file's path, which is
+      // the one thing a degraded card has (`ticketMenu.tsx`).
+      event.preventDefault();
+      contextMenu.openOn(fromKey);
+      return;
+    }
+
     const field = metaFieldFor(event.key);
     if (field) {
       // Inert on a file that would not read: there is no field to write to
@@ -399,6 +413,7 @@ export function Board(props: {
       className="board-grid"
       ref={grid}
       onKeyDown={onKeyDown}
+      onContextMenu={contextMenu.onContextMenu}
       onDragStart={onDragStart}
       onDragOver={onGridDragOver}
       // The columns stop their own drift; this one belongs to the board, so it
@@ -442,6 +457,7 @@ export function Board(props: {
           onDropCard={(gap) => onDrop(columnIndex, gap)}
         />
       ))}
+      {contextMenu.menu}
       {metaMenu && (
         <TicketMetaMenu
           target={metaMenu}

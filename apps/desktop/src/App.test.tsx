@@ -5823,3 +5823,128 @@ describe("a project switch under an open editor (LC-188)", () => {
     await screen.findByText("Bravo already has this one");
   });
 });
+
+/**
+ * The two rows of a ticket's context menu that only App can answer (LC-222):
+ * the archive, which is a write, and the path, which needs the project folder
+ * neither surface has ever been told.
+ */
+describe("the ticket context menu, end to end (LC-222)", () => {
+  const project: ProjectReference = {
+    id: "project-context",
+    name: "Context Fixture",
+    rootPath: "/tmp/LongClaw Fixture",
+    key: "LC",
+    theme: "indigo",
+    starred: false,
+    reachable: true,
+    labels: {},
+  };
+
+  function row(key: string, overrides?: Partial<IndexedTicket>): TicketRow {
+    return {
+      state: "indexed",
+      key,
+      id: `id-${key}`,
+      title: `Ticket ${key}`,
+      status: "todo",
+      priority: "none",
+      labels: [],
+      createdAt: "2026-07-31T09:00:00Z",
+      updatedAt: "2026-07-31T09:00:00Z",
+      checkedCount: 0,
+      checklistCount: 0,
+      commentCount: 0,
+      attachmentCount: 0,
+      contentHash: `hash-${key}`,
+      relativePath: `.longclaw/tickets/${key}/ticket.md`,
+      ...overrides,
+    };
+  }
+
+  async function openBoard(tickets: TicketRow[] = [row("LC-1")]) {
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project,
+      tickets,
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    render(<App />);
+    await screen.findByRole("button", { name: "Board", pressed: true });
+  }
+
+  function card(key: string): HTMLElement {
+    const element = document.querySelector<HTMLElement>(
+      `[data-ticket-key="${key}"]`,
+    );
+    if (!element) throw new Error(`no card for ${key}`);
+    return element;
+  }
+
+  it("copies the ticket's whole path, not the one the row carries", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    await openBoard();
+
+    fireEvent.contextMenu(card("LC-1"), { clientX: 30, clientY: 40 });
+    fireEvent.click(screen.getByRole("menuitem", { name: /Copy file path/ }));
+
+    expect(writeText).toHaveBeenCalledWith(
+      "/tmp/LongClaw Fixture/.longclaw/tickets/LC-1/ticket.md",
+    );
+    await screen.findByText("Path copied");
+  });
+
+  it("archives from the menu, through the write path the panel uses", async () => {
+    vi.mocked(api.editTicket).mockResolvedValue({
+      ticket: row("LC-1", {
+        contentHash: "hash-LC-1-written",
+        archivedAt: "2026-07-31T10:00:00Z",
+      }),
+      generation: 2,
+      changes: [],
+    });
+    await openBoard();
+
+    fireEvent.contextMenu(card("LC-1"));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Archive ticket/ }));
+
+    await screen.findByText("LC-1 archived");
+    expect(api.editTicket).toHaveBeenCalledWith({
+      projectId: project.id,
+      ticketKey: "LC-1",
+      expectedHash: "hash-LC-1",
+      edit: { archived: true },
+    });
+    // Archived tickets are not on the board (ADR 0004), so the card goes.
+    await waitFor(() =>
+      expect(document.querySelector('[data-ticket-key="LC-1"]')).toBeNull(),
+    );
+  });
+
+  it("moves the ticket from the menu's Move to submenu", async () => {
+    vi.mocked(api.editTicket).mockResolvedValue({
+      ticket: row("LC-1", {
+        contentHash: "hash-LC-1-written",
+        status: "in_progress",
+      }),
+      generation: 2,
+      changes: [],
+    });
+    await openBoard();
+
+    fireEvent.contextMenu(card("LC-1"));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Move to/ }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /In Progress/ }));
+
+    await screen.findByText("LC-1 → In Progress");
+    expect(api.editTicket).toHaveBeenCalledWith({
+      projectId: project.id,
+      ticketKey: "LC-1",
+      expectedHash: "hash-LC-1",
+      edit: { status: "in_progress" },
+    });
+  });
+});

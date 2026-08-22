@@ -46,7 +46,7 @@
 Focus entry: the first card of the first non-empty column on first arrow
 press. A degraded card accepts focus; `Enter` opens the raw file view; the
 `S`/`P` actions are inert on it. Focus order always matches the visual
-order, including the board-ordering preference (ADR 0003).
+order, including the board-ordering preference (ADR 0003). `⇧F10` or `ContextMenu` opens the focused card's own menu (LC-222).
 
 ## Issue list
 

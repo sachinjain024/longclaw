@@ -86,6 +86,8 @@ function list(props?: {
   onSelect?: (key: string) => void;
   onChangePriority?: (ticket: IndexedTicket, next: TicketPriority) => void;
   onChangeStatus?: (ticket: IndexedTicket, next: TicketStatus) => void;
+  onArchive?: (ticket: IndexedTicket) => void;
+  onCopyPath?: (ticket: TicketRow) => void;
   onMoveTicket?: (ticket: IndexedTicket, move: TicketMove) => void;
   onCreateFirst?: () => void;
 }) {
@@ -100,6 +102,8 @@ function list(props?: {
       onSelect={props?.onSelect ?? noop}
       onChangePriority={props?.onChangePriority ?? noop}
       onChangeStatus={props?.onChangeStatus ?? noop}
+      onArchive={props?.onArchive ?? noop}
+      onCopyPath={props?.onCopyPath ?? noop}
       onMoveTicket={props?.onMoveTicket ?? noop}
       onCreateFirst={props?.onCreateFirst}
     />
@@ -1035,5 +1039,90 @@ describe("dragging a row to another group (LC-60)", () => {
     dragAt("dragOver", 596);
 
     expect(scrolled).toBeGreaterThan(0);
+  });
+});
+
+describe("the context menu on a row (LC-222)", () => {
+  const rows = [
+    row({ key: "LC-1", title: "One", status: "todo", priority: "none" }),
+    row({ key: "LC-2", title: "Two", status: "todo", priority: "p2" }),
+  ];
+
+  it("opens on the row that was pressed", () => {
+    render(list({ tickets: rows }));
+
+    fireEvent.contextMenu(listRow("LC-2"), { clientX: 40, clientY: 90 });
+
+    expect(screen.getByRole("menu", { name: "LC-2 actions" })).toBeTruthy();
+  });
+
+  it("moves the ticket from the Move to submenu", () => {
+    const onChangeStatus = vi.fn();
+    render(list({ tickets: rows, onChangeStatus }));
+
+    fireEvent.contextMenu(listRow("LC-1"));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Move to/ }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Done/ }));
+
+    expect(onChangeStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ key: "LC-1" }),
+      "done",
+    );
+  });
+
+  it("raises the archive and the path to the surface above it", () => {
+    const onArchive = vi.fn();
+    const onCopyPath = vi.fn();
+    render(list({ tickets: rows, onArchive, onCopyPath }));
+
+    fireEvent.contextMenu(listRow("LC-1"));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Archive ticket/ }));
+    fireEvent.contextMenu(listRow("LC-1"));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Copy file path/ }));
+
+    expect(onArchive).toHaveBeenCalledWith(
+      expect.objectContaining({ key: "LC-1" }),
+    );
+    expect(onCopyPath).toHaveBeenCalledWith(
+      expect.objectContaining({ key: "LC-1" }),
+    );
+  });
+
+  it("names the row for what pressing it does on an archived ticket", () => {
+    // The list is the one surface an archived ticket appears on (ADR 0004), so
+    // it is the only place the row can say `Unarchive`.
+    render(
+      list({
+        tickets: [row({ key: "LC-9", archivedAt: "2026-08-01T10:00:00Z" })],
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Archived/ }));
+
+    fireEvent.contextMenu(listRow("LC-9"));
+
+    expect(
+      screen.getByRole("menuitem", { name: /Unarchive ticket/ }),
+    ).toBeTruthy();
+  });
+
+  it("opens on the focused row from the keyboard", () => {
+    render(list({ tickets: rows }));
+    listRow("LC-2").focus();
+
+    fireEvent.keyDown(listRow("LC-2"), { key: "F10", shiftKey: true });
+
+    expect(screen.getByRole("menu", { name: "LC-2 actions" })).toBeTruthy();
+  });
+
+  it("leaves a press on the list's own background to the platform", () => {
+    render(list({ tickets: rows }));
+
+    const scroller = document.querySelector<HTMLElement>(".issue-list");
+    if (!scroller) throw new Error("no list");
+    const event = createEvent.contextMenu(scroller);
+    fireEvent(scroller, event);
+
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(event.defaultPrevented).toBe(false);
   });
 });

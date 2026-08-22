@@ -37,6 +37,7 @@ import {
 } from "./checklistOrder";
 import { RowActions, RowEditor } from "./ChecklistRow";
 import { classes } from "./classes";
+import { copyToClipboard } from "./clipboard";
 import { ConflictBanner } from "./ConflictBanner";
 import { DescriptionEditor } from "./DescriptionEditor";
 import { normalizeError } from "./errors";
@@ -128,15 +129,11 @@ type LoadMode = "open" | "external" | "local";
  * and it is the panel's first Tab stop (`keyboard-focus-map.md:61`).
  */
 function IdChip(props: { ticketKey: string }) {
-  const raise = useMutationStore((state) => state.raise);
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(props.ticketKey);
-      raise({ message: `${props.ticketKey} copied`, tone: "default" });
-    } catch {
-      raise({ message: `Could not copy ${props.ticketKey}`, tone: "danger" });
-    }
-  };
+  const copy = () =>
+    copyToClipboard(props.ticketKey, {
+      done: `${props.ticketKey} copied`,
+      failed: `Could not copy ${props.ticketKey}`,
+    });
   return (
     <button
       tabIndex={0}

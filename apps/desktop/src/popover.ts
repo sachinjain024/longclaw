@@ -1,6 +1,6 @@
 /**
- * The three things every anchored popover in this app does, and got wrong
- * separately before it did them here.
+ * The three things every popover in this app does, and got wrong separately
+ * before it did them here.
  *
  * `Menu` (status · priority · ordering · labels) and `SettingsMenu` (the gear's
  * dropdown and a project row's `⋮`) are different components on purpose — one
@@ -8,12 +8,155 @@
  * captions, rules and a submenu. What they are not different about is where the
  * popover goes, where focus came from, and what a press outside it means, and
  * each had its own copy of all three (LC-208).
+ *
+ * Placement comes in two kinds, and only the first was here until LC-222: under
+ * an **anchor**, which is where a menu with a trigger goes, and at a **point**,
+ * which is where a menu with no trigger at all goes — the ticket context menu,
+ * which opens wherever the pointer was and so is the only one that can be asked
+ * to draw itself off the side of the window.
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 /** How far below (or beside) its anchor a popover sits. */
 export const POPOVER_GAP = 4;
+
+/** How close to the window's edge a popover is allowed to stand. */
+const VIEWPORT_MARGIN = 8;
+
+/** Where a popover was asked for, in viewport coordinates. */
+export interface Point {
+  x: number;
+  y: number;
+}
+
+interface Box {
+  width: number;
+  height: number;
+}
+
+/**
+ * Where a popover opened **at a point** goes (LC-222).
+ *
+ * The anchored placement below does no viewport arithmetic at all, and is right
+ * not to: a trigger is somewhere a person could reach, so a menu hung under one
+ * is somewhere they can see. A context menu has no such guarantee — it opens
+ * where the pointer was, and the pointer can be a row above the bottom of the
+ * window — so this flips the popover back over the point rather than letting it
+ * run off, which is the gesture every platform's own context menu makes.
+ *
+ * Pure, and the whole of the decision: the hook below is measurement and state.
+ */
+export function placeAtPoint(
+  point: Point,
+  size: Box,
+  viewport: Box,
+): { top: number; left: number } {
+  return {
+    left: fitAxis(point.x, size.width, viewport.width),
+    top: fitAxis(point.y, size.height, viewport.height),
+  };
+}
+
+/**
+ * One axis: start at the point, and when that would run past the far edge, end
+ * at it instead. A popover with room on neither side stands at the margin —
+ * cut off at the bottom, where the rows it loses are the ones a person can
+ * scroll or resize to, rather than at the top, where they simply are not there.
+ */
+function fitAxis(at: number, extent: number, limit: number): number {
+  if (at + extent <= limit - VIEWPORT_MARGIN) return at;
+  return Math.max(
+    VIEWPORT_MARGIN,
+    Math.min(at - extent, limit - VIEWPORT_MARGIN - extent),
+  );
+}
+
+/**
+ * Whether a submenu has room on its parent's right, where CSS hangs it.
+ *
+ * Pure and stated in numbers rather than measured in place, because the only
+ * engine that measures is the one nothing runs in a test: jsdom lays nothing
+ * out, so a decision left inline here is a decision no test can reach
+ * (LC-222's review).
+ */
+export function fitsBeside(
+  parentRight: number,
+  width: number,
+  viewportWidth: number,
+): boolean {
+  return parentRight + width <= viewportWidth;
+}
+
+/**
+ * How far a popover has to come up to sit inside the window.
+ *
+ * A submenu is placed against its parent's first row and grows downward from
+ * there, so the further down the window its parent is, the further past the
+ * bottom it goes — the horizontal flip does nothing about it, and a submenu
+ * opened on a card near the bottom of the board loses its last rows off the
+ * edge. Never lifted past the top: the rows nearest the parent are the ones the
+ * pointer is on, and they are the ones a lift too far would take away.
+ */
+export function liftIntoView(
+  box: { top: number; bottom: number },
+  viewportHeight: number,
+): number {
+  const over = box.bottom - (viewportHeight - VIEWPORT_MARGIN);
+  if (over <= 0) return 0;
+  return Math.max(0, Math.min(over, box.top - VIEWPORT_MARGIN));
+}
+
+/**
+ * `placeAtPoint`, measured against the popover it is placing.
+ *
+ * Two passes rather than one: nothing knows how tall a menu is until its rows
+ * exist, so it is drawn at the point and corrected in a layout effect — before
+ * paint, so the correction is not a frame the human sees. The alternative is
+ * arithmetic over row counts and CSS variables, which would be a second opinion
+ * about the menu's height and would go stale the first time a row grew.
+ */
+export function usePointPlacement(
+  point: Point,
+  popover: React.RefObject<HTMLElement | null>,
+) {
+  const [position, setPosition] = useState({ top: point.y, left: point.x });
+  useLayoutEffect(() => {
+    const box = popover.current?.getBoundingClientRect();
+    if (!box) return;
+    const next = placeAtPoint(point, box, {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    });
+    setPosition((held) =>
+      held.top === next.top && held.left === next.left ? held : next,
+    );
+    // The point, not the box: a menu that grew a row — a submenu opening
+    // beside it does not — is not a reason to walk out from under the pointer
+    // that is using it, which is the same rule the anchored placement keeps.
+  }, [point.x, point.y, popover]);
+  return position;
+}
+
+/**
+ * Where a popover hung under an anchor starts: the anchored placement as a
+ * point, so that the hook below and the context menu — which places a point
+ * whatever produced it — work from one piece of arithmetic.
+ */
+export function belowAnchor(
+  anchor: HTMLElement | null,
+  /** Right-align: the popover's right edge sits on the anchor's, for a
+   *  trigger at the window's far edge (the header gear). The caller states
+   *  the popover's width — measured after render would move it a frame late. */
+  width?: number,
+): Point | undefined {
+  const box = anchor?.getBoundingClientRect();
+  if (!box) return undefined;
+  return {
+    x: width ? Math.max(VIEWPORT_MARGIN, box.right - width) : box.left,
+    y: box.bottom + POPOVER_GAP,
+  };
+}
 
 /**
  * Where the popover goes: under its anchor, left edges aligned, in fixed
@@ -28,16 +171,13 @@ export const POPOVER_GAP = 4;
  */
 export function usePopoverPlacement(
   anchor: HTMLElement | null,
-  /** Right-align: the popover's right edge sits on the anchor's, for a
-   *  trigger at the window's far edge (the header gear). The caller states
-   *  the popover's width — measured after render would move it a frame late. */
+  /** Right-aligns the popover on its anchor; see `belowAnchor`. */
   width?: number,
 ) {
   const placed = useRef<{ top: number; left: number } | undefined>(undefined);
-  if (!placed.current && anchor) {
-    const rect = anchor.getBoundingClientRect();
-    const left = width ? Math.max(8, rect.right - width) : rect.left;
-    placed.current = { top: rect.bottom + POPOVER_GAP, left };
+  if (!placed.current) {
+    const point = belowAnchor(anchor, width);
+    if (point) placed.current = { top: point.y, left: point.x };
   }
   return placed.current;
 }

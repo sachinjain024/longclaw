@@ -30,6 +30,7 @@ import {
 } from "./api";
 import { Board } from "./Board";
 import { classes } from "./classes";
+import { copyToClipboard } from "./clipboard";
 import { CommandPalette } from "./CommandPalette";
 import { ConfirmDialog, RemoveProjectConfirm } from "./ConfirmDialog";
 import { CreatePanel } from "./CreatePanel";
@@ -76,6 +77,7 @@ import {
   provisionalTicket,
   provisionalTicketKey,
   statusLabel,
+  ticketPath,
 } from "./tickets";
 import type {
   AppError,
@@ -1638,6 +1640,31 @@ export function App() {
     );
   }
 
+  /**
+   * The context menu's Copy file path row (LC-222).
+   *
+   * A row carries the path its file has *inside the project*, which is the same
+   * string for the same key in every project there has ever been. The folder is
+   * what makes it a file, and the folder is App's — which is why this is here
+   * and not on the surface that drew the row.
+   *
+   * The folder is a parameter rather than read off `project` here, so there is
+   * no branch for a project that is not open: the surfaces that draw this row
+   * are inside the render that has one, and a copy row that quietly did nothing
+   * is the state `clipboard.ts` exists to refuse.
+   */
+  function copyTicketPath(rootPath: string, ticket: TicketRow) {
+    void copyToClipboard(ticketPath(rootPath, ticket.relativePath), {
+      done: "Path copied",
+      failed: "Could not copy path",
+    });
+  }
+
+  /** The archive row on both surfaces' context menus: whichever it is not. */
+  function toggleArchived(ticket: IndexedTicket) {
+    setArchived(ticket, !isArchived(ticket));
+  }
+
   /* First launch is the whole window (`screen-specs.md:88`, D-10). The shell
      used to stay up around it: a 240px sidebar reading `No starred projects`
      and `No local projects` beside a screen whose entire subject is that there
@@ -2016,6 +2043,13 @@ export function App() {
                     onSelect={openTicket}
                     onChangePriority={changePriority}
                     onChangeStatus={changeStatus}
+                    // The context menu's two rows that are App's to answer: one
+                    // writes, and one needs the project folder a surface has
+                    // never been told (LC-222).
+                    onArchive={toggleArchived}
+                    onCopyPath={(ticket) =>
+                      copyTicketPath(project.rootPath, ticket)
+                    }
                     onMoveTicket={moveCard}
                     // A column's `+` is the same quick create `C` opens,
                     // arriving with the column it was pressed in already
@@ -2053,6 +2087,10 @@ export function App() {
                     onSelect={openTicket}
                     onChangePriority={changePriority}
                     onChangeStatus={changeStatus}
+                    onArchive={toggleArchived}
+                    onCopyPath={(ticket) =>
+                      copyTicketPath(project.rootPath, ticket)
+                    }
                     // The same move the board raises, because the same gesture
                     // means the same thing on both projections (`ticketMove.ts`).
                     onMoveTicket={moveCard}
@@ -2379,15 +2417,14 @@ function tildeAbbreviate(path: string, home: string | null): string {
  * full path.
  */
 function PathChip(props: { path: string; homePath: string | null }) {
-  const raise = useMutationStore((state) => state.raise);
-  const copy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(props.path);
-      raise({ message: "Path copied", tone: "default" });
-    } catch {
-      raise({ message: "Could not copy path", tone: "danger" });
-    }
-  }, [props.path, raise]);
+  const copy = useCallback(
+    () =>
+      copyToClipboard(props.path, {
+        done: "Path copied",
+        failed: "Could not copy path",
+      }),
+    [props.path],
+  );
   return (
     <button
       tabIndex={0}

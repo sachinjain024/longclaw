@@ -99,8 +99,11 @@ function board(props?: {
   marks?: ExternalMarks;
   labels?: Record<string, Label>;
   ordering?: OrderingMode;
+  onSelect?: (key: string) => void;
   onChangePriority?: (ticket: IndexedTicket, next: TicketPriority) => void;
   onChangeStatus?: (ticket: IndexedTicket, next: TicketStatus) => void;
+  onArchive?: (ticket: IndexedTicket) => void;
+  onCopyPath?: (ticket: TicketRow) => void;
   onMoveTicket?: (ticket: IndexedTicket, move: TicketMove) => void;
   onCreateInStatus?: (status: TicketStatus) => void;
   onCreateFirst?: () => void;
@@ -114,9 +117,11 @@ function board(props?: {
       labels={props?.labels ?? DEFINITIONS}
       ordering={props?.ordering ?? "priority"}
       now={NOW}
-      onSelect={noop}
+      onSelect={props?.onSelect ?? noop}
       onChangePriority={props?.onChangePriority ?? noop}
       onChangeStatus={props?.onChangeStatus ?? noop}
+      onArchive={props?.onArchive ?? noop}
+      onCopyPath={props?.onCopyPath ?? noop}
       onMoveTicket={props?.onMoveTicket ?? noop}
       onCreateInStatus={props?.onCreateInStatus ?? noop}
       onCreateFirst={props?.onCreateFirst}
@@ -293,6 +298,8 @@ describe("the pulse, which says a change just landed", () => {
         onChangePriority={noop}
         onChangeStatus={noop}
         onMoveTicket={noop}
+        onArchive={noop}
+        onCopyPath={noop}
         onCreateInStatus={noop}
       />,
     );
@@ -452,6 +459,8 @@ describe("the board's own shape", () => {
         onChangePriority={noop}
         onChangeStatus={noop}
         onMoveTicket={noop}
+        onArchive={noop}
+        onCopyPath={noop}
         onCreateInStatus={noop}
       />,
     );
@@ -524,6 +533,8 @@ describe("focus on a column that is being scrolled", () => {
         onChangePriority={noop}
         onChangeStatus={noop}
         onMoveTicket={noop}
+        onArchive={noop}
+        onCopyPath={noop}
         onCreateInStatus={noop}
       />,
     );
@@ -736,6 +747,8 @@ describe("what a change to one ticket costs", () => {
         onChangePriority={noop}
         onChangeStatus={noop}
         onMoveTicket={noop}
+        onArchive={noop}
+        onCopyPath={noop}
         onCreateInStatus={noop}
       />,
     );
@@ -754,6 +767,8 @@ describe("what a change to one ticket costs", () => {
         onChangePriority={noop}
         onChangeStatus={noop}
         onMoveTicket={noop}
+        onArchive={noop}
+        onCopyPath={noop}
         onCreateInStatus={noop}
       />,
     );
@@ -1557,5 +1572,219 @@ describe("the empty-project guide", () => {
     render(board({ tickets: columnOf(2) }));
 
     expect(guide()).toBeUndefined();
+  });
+});
+
+describe("the context menu on a card (LC-222)", () => {
+  const column = [
+    row({ key: "LC-1", title: "One", status: "todo", priority: "none" }),
+    row({ key: "LC-2", title: "Two", status: "todo", priority: "p2" }),
+  ];
+
+  function rightClick(element: HTMLElement, at = { clientX: 40, clientY: 90 }) {
+    fireEvent.contextMenu(element, at);
+  }
+
+  function grid(): HTMLElement {
+    const element = document.querySelector<HTMLElement>(".board-grid");
+    if (!element) throw new Error("no board grid");
+    return element;
+  }
+
+  it("opens on the card that was pressed, holding that card's values", () => {
+    render(board({ tickets: column }));
+
+    rightClick(card("LC-2"));
+
+    expect(screen.getByRole("menu", { name: "LC-2 actions" })).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: /Open ticket/ })).toBeTruthy();
+  });
+
+  it("moves the ticket from the Move to submenu", () => {
+    const onChangeStatus = vi.fn();
+    render(board({ tickets: column, onChangeStatus }));
+
+    rightClick(card("LC-2"));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Move to/ }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Done/ }));
+
+    expect(onChangeStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ key: "LC-2" }),
+      "done",
+    );
+    // The pick closes the whole menu, not just the submenu it was in: the
+    // ticket has been moved and there is nothing left to decide about it.
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("sets priority from the Priority submenu", () => {
+    const onChangePriority = vi.fn();
+    render(board({ tickets: column, onChangePriority }));
+
+    rightClick(card("LC-1"));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Priority/ }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Urgent/ }));
+
+    expect(onChangePriority).toHaveBeenCalledWith(
+      expect.objectContaining({ key: "LC-1" }),
+      "urgent",
+    );
+  });
+
+  it("raises the ticket, not the key, for the rows App owns", () => {
+    const onArchive = vi.fn();
+    const onCopyPath = vi.fn();
+    render(board({ tickets: column, onArchive, onCopyPath }));
+
+    rightClick(card("LC-1"));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Archive ticket/ }));
+    rightClick(card("LC-1"));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Copy file path/ }));
+
+    expect(onArchive).toHaveBeenCalledWith(
+      expect.objectContaining({ key: "LC-1" }),
+    );
+    expect(onCopyPath).toHaveBeenCalledWith(
+      expect.objectContaining({ key: "LC-1" }),
+    );
+  });
+
+  it("names the key on the row that copies it", () => {
+    // The row is `Copy key`, and which key is the question a menu open on one
+    // card among six columns has to answer.
+    render(board({ tickets: column }));
+
+    rightClick(card("LC-2"));
+
+    expect(
+      screen.getByRole("menuitem", { name: /Copy key/ }).textContent,
+    ).toContain("LC-2");
+  });
+
+  it("opens the ticket from its own row", () => {
+    const onSelect = vi.fn();
+    render(board({ tickets: column, onSelect }));
+
+    rightClick(card("LC-2"));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Open ticket/ }));
+
+    expect(onSelect).toHaveBeenCalledWith("LC-2");
+  });
+
+  it("leaves a press on the board itself to the platform", () => {
+    // Right-clicking the background is not a gesture about any ticket, and
+    // swallowing it would take away the webview's own menu for no gain.
+    render(board({ tickets: column }));
+
+    const event = createEvent.contextMenu(grid());
+    fireEvent(grid(), event);
+
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it("takes the press on a card, so the platform menu does not also open", () => {
+    render(board({ tickets: column }));
+
+    const event = createEvent.contextMenu(card("LC-1"));
+    fireEvent(card("LC-1"), event);
+
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("opens on the focused card from the keyboard", () => {
+    // The gesture is a pointer's, and everything the menu holds must still be
+    // reachable without one (`keyboard-focus-map.md`). Shift+F10 is what macOS
+    // and Windows both send, and the `ContextMenu` key is the dedicated one.
+    render(board({ tickets: column }));
+    card("LC-2").focus();
+
+    fireEvent.keyDown(card("LC-2"), { key: "F10", shiftKey: true });
+
+    expect(screen.getByRole("menu", { name: "LC-2 actions" })).toBeTruthy();
+  });
+
+  it("follows the card to the column a pick moved it to", () => {
+    // The card the menu was hanging off is not in the document once the pick
+    // has re-sorted it, so the popover's own focus return has nothing to give
+    // focus back to. The closing menu asks the surface for the card by key,
+    // which is the one path that finds it in its new column.
+    //
+    // The re-sort runs inside the pick, which is where it runs in the app: the
+    // optimistic write lands in the store before the click is over, so the card
+    // has already moved by the time focus is handed back.
+    let moved = () => {};
+    const onChangeStatus = vi.fn(() => moved());
+    const { rerender } = render(board({ tickets: column, onChangeStatus }));
+    moved = () =>
+      rerender(
+        board({
+          tickets: [
+            column[0],
+            { ...(column[1] as IndexedTicket), status: "done" },
+          ],
+          onChangeStatus,
+        }),
+      );
+    card("LC-1").focus();
+
+    rightClick(card("LC-2"));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Move to/ }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Done/ }));
+
+    expect(stack("Done").contains(card("LC-2"))).toBe(true);
+    expect(document.activeElement).toBe(card("LC-2"));
+  });
+
+  it("re-places itself when a second card is pressed under an open menu", () => {
+    // Where a menu goes and what it hands focus back to are both captured when
+    // it opens, so a second press has to be a second menu rather than the first
+    // one handed a new ticket: otherwise it draws the new card's rows at the
+    // old card's point.
+    render(board({ tickets: column }));
+
+    rightClick(card("LC-1"), { clientX: 10, clientY: 20 });
+    rightClick(card("LC-2"), { clientX: 300, clientY: 400 });
+
+    const menu = screen.getByRole("menu");
+    expect(menu.getAttribute("aria-label")).toBe("LC-2 actions");
+    expect(menu.style.left).toBe("300px");
+    expect(menu.style.top).toBe("400px");
+  });
+
+  it("hands the card its focus back when the menu closes", () => {
+    render(board({ tickets: column }));
+    card("LC-2").focus();
+
+    fireEvent.keyDown(card("LC-2"), { key: "ContextMenu" });
+    fireEvent.keyDown(screen.getAllByRole("menuitem")[0], { key: "Escape" });
+
+    expect(document.activeElement).toBe(card("LC-2"));
+  });
+
+  it("offers a file it could not read only what a file has", () => {
+    render(
+      board({
+        tickets: [
+          {
+            state: "degraded",
+            key: "LC-98",
+            contentHash: "hash-98",
+            relativePath: ".longclaw/tickets/LC-98/ticket.md",
+            byteLength: 220,
+            readOnly: false,
+            diagnostic: { code: "parse_failed", message: "no frontmatter" },
+          },
+        ],
+      }),
+    );
+
+    rightClick(card("LC-98"));
+
+    expect(screen.getByRole("menu", { name: "LC-98 actions" })).toBeTruthy();
+    expect(screen.queryByRole("menuitem", { name: /Move to/ })).toBeNull();
+    expect(
+      screen.getByRole("menuitem", { name: /Copy file path/ }),
+    ).toBeTruthy();
   });
 });

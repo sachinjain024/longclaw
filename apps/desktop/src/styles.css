@@ -4314,9 +4314,10 @@ html.theme-transition *::after {
   position: relative;
 }
 
-/* The settings menus are wider than the shared popover: their rows carry a
-   trailing hint the status and priority menus have nothing like. */
-.menu-popover.menu-settings {
+/* A list of mixed rows is wider than the shared popover: its rows carry a
+   trailing hint — a count, the current value, a ticket's key — that the status
+   and priority menus have nothing like. */
+.menu-popover.menu-hinted {
   min-width: 236px;
 }
 
@@ -4334,6 +4335,17 @@ html.theme-transition *::after {
   z-index: var(--lc-z-popover);
   margin-left: 2px;
   width: 200px;
+}
+
+/* The same submenu on the other side of its parent, for a menu opened at the
+   pointer against the right edge of the window (LC-222). `MenuList` measures
+   which it is; there is no CSS that can, and a submenu drawn off the window is
+   rows nobody can reach. */
+.menu-popover .menu-sub.menu-sub-left {
+  right: 100%;
+  left: auto;
+  margin-right: 2px;
+  margin-left: 0;
 }
 
 /* The quiet right-hand note: a count, the current value, a shortcut. It is the
