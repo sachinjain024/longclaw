@@ -3,12 +3,12 @@ format: longclaw.ticket/v1
 id: d967df78-e663-4d22-8991-c49ec134eb79
 key: LC-222
 title: Implement Right Click Context Menu on Tickets
-status: done
+status: in_review
 priority: urgent
 labels:
   - design
 created_at: 2026-08-12T12:00:56.769Z
-updated_at: 2026-08-21T13:47:47.005Z
+updated_at: 2026-08-22T06:24:56.352Z
 ---
 
 Quick Actions like
@@ -236,4 +236,22 @@ flake AGENTS.md says to suspect the environment for, and I had left a stray
 shortcuts still fire under it — `c` opens quick create behind the status menu
 today. Pre-existing for `S`/`P`; this ticket adds a third menu with the same
 hole rather than a new one, and where the guard belongs is a decision of its own.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_1e8b9fda
+kind: update
+occurred_at: 2026-08-22T06:24:56.352Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: done
+    to: in_review
+-->
+### Claude Code updated this ticket
+
+Moved to In Review for a human read of the branch: three commits on `feat/lc-222-ticket-context-menu`, two review rounds answered, and LC-226 filed for the one hole left open.
 <!-- /longclaw:event -->
