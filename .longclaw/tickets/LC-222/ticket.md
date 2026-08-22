@@ -255,3 +255,23 @@ changes:
 
 Moved to In Review for a human read of the branch: three commits on `feat/lc-222-ticket-context-menu`, two review rounds answered, and LC-226 filed for the one hole left open.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_1e38f71b
+kind: comment
+occurred_at: 2026-08-22T07:17:15.505Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+The `Open ticket` row came off, at the user's ask, on branch `feat/lc-222-drop-open-row`.
+
+It was the first row and so the menu's first keyboard stop, and it named the one action a person who right-clicked has demonstrably not taken — the card is a `<button>` and a left-click already opens the panel. Its rule went with it; `Move to` is now the first row, and the menu is five rows of decisions rather than six.
+
+**A degraded file keeps `Open file`.** That row is not the same offer: it opens the raw file view, and it is one of only two things that menu has to say. `onOpen` therefore survives for it alone, which the leaf-row test now states rather than leaves implied.
+
+**Verified**: `verify` green (1072 frontend tests, 43 files); `a11y:audit` green — the A2 pair added for this menu still passes with the new first row, opening focused on a `menuitem` (`Move to`) and returning focus to the card on close. Two tests changed with the rows: the board's "holding that card's values" now reads the Priority hint rather than the open row, and "opens the ticket from its own row" is replaced by one asserting the row is gone and the first stop is `Move to`.
+<!-- /longclaw:event -->
