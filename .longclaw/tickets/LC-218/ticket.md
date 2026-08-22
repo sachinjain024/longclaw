@@ -5,10 +5,8 @@ key: LC-218
 title: Create the AI Harness Pipeline
 status: todo
 priority: urgent
-labels:
-  - release
 created_at: 2026-08-11T15:01:39.874Z
-updated_at: 2026-08-11T15:01:39.874Z
+updated_at: 2026-08-21T12:58:24.316Z
 ---
 
 - Todo
@@ -39,4 +37,19 @@ actor:
   id: local
 -->
 ### You created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_3d532d5f
+kind: update
+occurred_at: 2026-08-21T12:58:24.316Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: labels
+    from: release
+    to: ""
+-->
+### You updated this ticket
 <!-- /longclaw:event -->
