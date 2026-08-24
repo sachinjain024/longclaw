@@ -1,0 +1,29 @@
+---
+import { docsNeighbours } from '../lib/site';
+
+/** Previous/next links at the foot of a docs page, derived from DOCS_NAV. */
+interface Props {
+  path: string;
+}
+
+const { previous, next } = docsNeighbours(Astro.props.path);
+---
+
+{
+  (previous || next) && (
+    <nav class="pagenav" aria-label="Documentation pages">
+      {previous && (
+        <a class="pagenav__link" href={previous.href}>
+          <span class="pagenav__kicker">Previous</span>
+          <span class="pagenav__title">← {previous.label}</span>
+        </a>
+      )}
+      {next && (
+        <a class="pagenav__link pagenav__link--next" href={next.href}>
+          <span class="pagenav__kicker">Next</span>
+          <span class="pagenav__title">{next.label} →</span>
+        </a>
+      )}
+    </nav>
+  )
+}

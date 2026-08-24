@@ -1,0 +1,107 @@
+---
+import AppWindow from './AppWindow.astro';
+
+/**
+ * The hero's product tour: the recreated window plus the pills that walk it
+ * through five stages, auto-advancing until someone takes over.
+ *
+ * The window itself is a recreation of a UI, not information — a screen reader
+ * reading forty invented ticket titles would be noise, so it is hidden from
+ * the accessibility tree and the live caption carries the meaning instead.
+ * The pills stay real buttons: they work by keyboard and announce the stage
+ * they moved to.
+ */
+const stages = [
+  { key: 'projects', label: 'Projects', caption: 'Multiple projects, all local. Star the ones you live in.' },
+  { key: 'board', label: 'Board view', caption: 'The board, grouped by status.' },
+  { key: 'list', label: 'List view', caption: 'The dense list. Readable at a few thousand rows.' },
+  { key: 'panel', label: 'Ticket panel', caption: 'The ticket panel edits in place.' },
+  { key: 'search', label: 'Quick search', caption: '⌘K opens a palette over every action.' },
+] as const;
+
+const initial = stages[0];
+---
+
+<figure class="hero-tour" data-hero-tour style="margin:0;">
+  <div aria-hidden="true">
+    <AppWindow stage={initial.key} />
+  </div>
+
+  <div class="stage-pills">
+    <div class="stage-pills__row" role="group" aria-label="Preview a part of the app">
+      {
+        stages.map((stage) => (
+          <button
+            type="button"
+            class="stage-pill"
+            data-stage-pill={stage.key}
+            data-caption={stage.caption}
+            aria-selected={stage.key === initial.key ? 'true' : 'false'}
+          >
+            {stage.label}
+          </button>
+        ))
+      }
+    </div>
+    <figcaption class="stage-caption" data-stage-caption aria-live="polite">
+      {initial.caption}
+    </figcaption>
+  </div>
+</figure>
+
+<script>
+  const ADVANCE_MS = 4200;
+
+  document.querySelectorAll<HTMLElement>('[data-hero-tour]').forEach((tour) => {
+    const win = tour.querySelector<HTMLElement>('[data-appwin]');
+    const caption = tour.querySelector<HTMLElement>('[data-stage-caption]');
+    const pills = Array.from(tour.querySelectorAll<HTMLButtonElement>('[data-stage-pill]'));
+    if (!win || !caption || pills.length === 0) return;
+
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let index = 0;
+    let timer: number | undefined;
+
+    function show(next: number) {
+      index = (next + pills.length) % pills.length;
+      const pill = pills[index]!;
+      win!.dataset.stage = pill.dataset.stagePill ?? 'board';
+      caption!.textContent = pill.dataset.caption ?? '';
+      pills.forEach((p, i) => p.setAttribute('aria-selected', String(i === index)));
+    }
+
+    function schedule() {
+      window.clearTimeout(timer);
+      // Motion-sensitive visitors get the default stage and the pills, but no
+      // carousel advancing under them.
+      if (reduced.matches) return;
+      timer = window.setTimeout(() => {
+        show(index + 1);
+        schedule();
+      }, ADVANCE_MS);
+    }
+
+    pills.forEach((pill, i) => {
+      pill.addEventListener('click', () => {
+        show(i);
+        schedule();
+      });
+    });
+
+    // Pause while the pointer is over the window: nobody wants the thing they
+    // are reading to change under them.
+    tour.addEventListener('mouseenter', () => window.clearTimeout(timer));
+    tour.addEventListener('mouseleave', schedule);
+    tour.addEventListener('focusin', () => window.clearTimeout(timer));
+
+    // Stop entirely when the hero scrolls away, and resume when it returns.
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(
+        ([entry]) => (entry?.isIntersecting ? schedule() : window.clearTimeout(timer)),
+        { threshold: 0.2 }
+      ).observe(tour);
+    } else {
+      schedule();
+    }
+  });
+</script>

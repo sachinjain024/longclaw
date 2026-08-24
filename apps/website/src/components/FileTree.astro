@@ -1,0 +1,66 @@
+---
+/**
+ * A mono file tree — the site's most-repeated product visual.
+ *
+ * Notes are aligned into a column the component computes, so a caller adds a
+ * row without counting spaces and the alignment cannot rot when a filename
+ * changes length.
+ *
+ * The rows are assembled as an escaped HTML string rather than as template
+ * markup: the block is `white-space: pre`, so every newline and indent between
+ * two tags in an .astro template would render as real whitespace and shatter
+ * the tree.
+ */
+export interface TreeLine {
+  /** The box-drawing prefix, e.g. '    ├── '. Rendered faint. */
+  rule?: string;
+  name: string;
+  /** Trailing comment, rendered faint in the aligned column. */
+  note?: string;
+  /** Renders the name in the accent colour — for the one row that matters. */
+  highlight?: boolean;
+  /** Renders the whole row faint — for the root. */
+  muted?: boolean;
+}
+
+interface Props {
+  lines: TreeLine[];
+  class?: string;
+  /** Accessible label; the tree is read as one preformatted block. */
+  label?: string;
+}
+
+const { lines, class: className, label = 'Project layout on disk' } = Astro.props;
+
+const escape = (value: string) =>
+  value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/** Notes start two spaces past the longest name that has one. */
+const gutter =
+  Math.max(
+    0,
+    ...lines.filter((line) => line.note).map((line) => (line.rule?.length ?? 0) + line.name.length)
+  ) + 5;
+
+const html = lines
+  .map((line) => {
+    const rule = line.rule ? `<span class="filetree__rule">${escape(line.rule)}</span>` : '';
+    const nameClass = line.highlight
+      ? ' class="filetree__highlight"'
+      : line.muted
+        ? ' class="filetree__rule"'
+        : '';
+    const name = `<span${nameClass}>${escape(line.name)}</span>`;
+
+    if (!line.note) return `<span class="filetree__line">${rule}${name}</span>`;
+
+    const pad = ' '.repeat(Math.max(2, gutter - (line.rule?.length ?? 0) - line.name.length));
+    const note = `<span class="filetree__note">${pad}${escape(line.note)}</span>`;
+    return `<span class="filetree__line">${rule}${name}${note}</span>`;
+  })
+  .join('');
+---
+
+<div class:list={['filetree', className]}>
+  <pre class="filetree__body" aria-label={label} set:html={html} />
+</div>

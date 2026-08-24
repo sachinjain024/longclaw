@@ -111,6 +111,26 @@ and recovery.
 - The desktop experience targets Linear-grade speed and polish.
 - Local use requires no account or telemetry.
 
+## The website
+
+[longclaw.io](https://longclaw.io) — the marketing home, product documentation,
+CLI reference, blog and changelog — lives in [`apps/website`](apps/website) as a
+static Astro site, and deploys to GitHub Pages on every push to `main` that
+touches it.
+
+```sh
+npm --prefix apps/website ci
+npm run site:dev       # localhost:4321
+npm run site:verify    # type-check and build, what CI runs
+```
+
+Its product visuals — the board, the ticket panel, file trees, terminal blocks
+and the owl mark — are HTML and CSS built from design tokens rather than
+screenshots, so they re-render in light and dark and stay crisp at any size.
+Docs pages, blog posts and release notes are each one Markdown file. See
+[the website README](apps/website/README.md) for the layout and the rules it is
+built to.
+
 ## Development
 
 Prerequisites:
@@ -162,6 +182,7 @@ no telemetry or analytics are sent.
 - [Design docs](docs/design/) — the prototype bundle the app was built from
 - [Contributor setup and the quality gate](CONTRIBUTING.md)
 - [App-specific notes](apps/desktop/README.md) — registry recovery, device preferences
+- [The website](apps/website/README.md) — longclaw.io: structure, content model, deployment
 
 **Working with agents**
 

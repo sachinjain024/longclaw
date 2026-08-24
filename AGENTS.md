@@ -30,6 +30,30 @@ Five canonical triage roles map to LongClaw label slugs. See `docs/agents/triage
 
 This is a single-context repository. See `docs/agents/domain.md`.
 
+### The website
+
+`apps/website` is the public site (longclaw.io), a static Astro build deployed
+to GitHub Pages. It has **its own `node_modules` and lockfile** — run
+`npm --prefix apps/website ci` before touching it, and `npm run site:verify`
+before you commit. It is not part of `npm run verify`, which is the app's gate.
+
+Read [`apps/website/README.md`](apps/website/README.md) first. Four rules there
+are easy to break by accident:
+
+- **Design tokens are transcribed, not authored.** `src/styles/tokens/` mirrors
+  the Claude Design export in `docs/ux/prototypes/website-and-docs/`. Do not
+  introduce a raw colour anywhere else.
+- **No screenshots and no raster product imagery.** The board, panel, file
+  trees, terminal blocks and the owl mark are token-driven HTML, CSS and SVG.
+- **The copy may not oversell v0.1.0** — no terminals, sync, teams, accounts,
+  Windows, Linux, Intel, custom themes, or hard deletion. See
+  `docs/design/website-content-brief.md` §6.
+- **`/roadmap` is designed but unpublished.** It is out of both navigations,
+  the sitemap and the index. Linking it is a decision, not a fix.
+
+Adding a docs page, a blog post or a release note is one Markdown file plus, for
+docs, one line in `DOCS_NAV` (`src/lib/site.ts`).
+
 ## Git workflow
 
 Agents must always create a topic branch before making changes.

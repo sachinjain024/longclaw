@@ -1,0 +1,17 @@
+/*
+ * LongClaw effects tokens. Brand rule: NO gradients, NO drop shadows —
+ * depth comes from surface steps and 1px warm borders.
+ */
+
+:root {
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 20px; /* app-icon style containers */
+  --radius-pill: 999px;
+  --border-width: 1px;
+  --shadow-none: none;
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+}

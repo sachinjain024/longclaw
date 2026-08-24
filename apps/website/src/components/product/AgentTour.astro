@@ -1,0 +1,280 @@
+---
+import '../../styles/product.css';
+
+/**
+ * "The context layer for your AI agents" — a four-state feature tour.
+ *
+ * Left: four tiles with tab semantics. Right: one constant ticket.md card
+ * whose body swaps. States auto-advance every 6s with a progress fill; hover
+ * pauses; a click selects and stops auto-advance permanently; reduced motion
+ * disables the advance entirely. State 1 renders without JavaScript.
+ *
+ * Interaction spec from docs/design/website-prompts.md, Prompt 1a.
+ */
+const INTERVAL_MS = 6000;
+
+const tiles = [
+  { id: 'description', title: 'A living description', sub: 'Agents update the description as their understanding evolves.' },
+  { id: 'references', title: 'References', sub: 'Commits, PRs, product plans, wireframes — linked from the ticket.' },
+  { id: 'plan', title: 'Execution plan', sub: 'Agents build the checklist and check items off as they work.' },
+  { id: 'collab', title: 'Humans and agents, collaborating', sub: 'Feedback flows through the ticket, both directions.' },
+] as const;
+---
+
+<div class="tour" data-agent-tour data-paused="false" style={`--tour-interval:${INTERVAL_MS}ms`}>
+  <div class="tour__tabs" role="tablist" aria-label="What lives on the ticket">
+    {
+      tiles.map((tile, i) => (
+        <button
+          type="button"
+          role="tab"
+          class="tour__tab"
+          id={`tour-tab-${tile.id}`}
+          aria-controls={`tour-panel-${tile.id}`}
+          aria-selected={i === 0 ? 'true' : 'false'}
+          tabindex={i === 0 ? 0 : -1}
+          data-autoplay="running"
+        >
+          <span class="tour__tab-title">{tile.title}</span>
+          <span class="tour__tab-sub">{tile.sub}</span>
+          <span class="tour__rail" aria-hidden="true" />
+          <span class="tour__fill" aria-hidden="true" />
+        </button>
+      ))
+    }
+  </div>
+
+  <div class="tour__card">
+    <div class="tour__card-head">
+      <span class="tour__card-key">LC-42</span>
+      <span class="tour__card-path">tickets/LC-42/ticket.md</span>
+      <span class="panel__spacer"></span>
+      <span class="panel__action">Archive</span>
+      <span class="panel__close">✕</span>
+    </div>
+
+    <div class="tour__stage">
+      {/* State 1 — a living description. */}
+      <div class="tour__panel" role="tabpanel" id="tour-panel-description" aria-labelledby="tour-tab-description">
+        <div class="fieldgrid fieldgrid--tour">
+          <span>Status</span>
+          <span class="field-pill"
+            ><span class="field-pill__dot"></span>In Progress <span class="field-pill__caret">›</span></span
+          >
+          <span>Priority</span>
+          <span class="field-pill"
+            ><span class="prio">P1</span>Urgent <span class="field-pill__caret">›</span></span
+          >
+          <span>Labels</span>
+          <span style="display:flex;gap:6px;align-items:center;">
+            <span class="chip"><span class="chip__dot chip__dot--agent"></span>Platform</span>
+            <span class="chip chip--add">+ add</span>
+          </span>
+        </div>
+        <div style="border-top:1px solid var(--border);padding-top:12px;">
+          <div class="tour__label">Description</div>
+          <p>
+            Coalesce rapid file events into one board update: a 300ms debounce per ticket
+            directory, behind the watcher seam.
+          </p>
+          <p style="margin-bottom:12px;">
+            Nuance: editors save via atomic rename, so watch the parent directory, not the file.
+            Descoped: network-volume polling, moved to <span class="code-chip">LC-58</span>.
+          </p>
+          <div class="tour__attribution">
+            Description updated by <strong>Claude Code</strong>
+            <span class="agent-tag agent-tag--solid">AGENT</span> · via file edit
+          </div>
+        </div>
+      </div>
+
+      {/* State 2 — references. */}
+      <div class="tour__panel" role="tabpanel" id="tour-panel-references" aria-labelledby="tour-tab-references" hidden>
+        <div class="tour__label">Description</div>
+        <p style="margin-bottom:14px;">
+          Coalesce rapid file events into one board update: a 300ms debounce per ticket directory,
+          behind the watcher seam.
+        </p>
+        <div class="tour__section-title">Spec</div>
+        <ul class="tour__refs">
+          <li><span>Product spec: <span class="tour__ref">docs/product-plan.md</span></span></li>
+          <li><span>Wireframe: <span class="tour__ref">ux/wireframe-v2.png</span></span></li>
+          <li><span>Execution plan: <span class="tour__ref">docs/execution-plan.md</span></span></li>
+          <li><span>Review: <span class="tour__ref">PR #214</span></span></li>
+        </ul>
+        <p class="tour__foot">Every reference travels with the ticket, in the repo.</p>
+      </div>
+
+      {/* State 3 — execution plan. */}
+      <div class="tour__panel" role="tabpanel" id="tour-panel-plan" aria-labelledby="tour-tab-plan" hidden>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+          <span class="tour__label" style="margin:0;">Checklist</span>
+          <span class="progress">2/4<span class="progress__track"
+              ><span class="progress__fill" style="width:50%;background:var(--agent);"></span></span
+            ></span>
+        </div>
+        <div class="checklist">
+          <div class="checklist__row checklist__row--done">
+            <span class="checklist__box checklist__box--done">✓</span>
+            <span>Reproduce the double-fire with atomic saves</span>
+          </div>
+          <div class="checklist__row checklist__row--done">
+            <span class="checklist__box checklist__box--done">✓</span>
+            <span>Add the 300ms debounce behind the watcher seam</span>
+          </div>
+          <div class="checklist__row">
+            <span class="checklist__box"></span>
+            <span>Flush pending events on window blur</span>
+          </div>
+          <div class="checklist__row checklist__row--gate">
+            <span class="checklist__box"></span>
+            <span>HUMAN GATE: approve copy tone</span>
+          </div>
+        </div>
+        <p class="tour__foot">Agents check items off as they work. Gates stay yours.</p>
+      </div>
+
+      {/* State 4 — collaboration. */}
+      <div class="tour__panel" role="tabpanel" id="tour-panel-collab" aria-labelledby="tour-tab-collab" hidden>
+        <div class="panel__tabs">
+          <span class="panel__tab panel__tab--active">Activity <span class="mono">4</span></span>
+          <span class="panel__tab">Comments <span class="mono">2</span></span>
+        </div>
+        <div class="thread">
+          <div class="thread__row">
+            <span class="thread__dot"></span>
+            <span
+              ><strong>You</strong> <span class="event__age">14d</span><br />The debounce eats the
+              first event on a cold start. Flush immediately when the queue was empty?</span
+            >
+          </div>
+          <div class="thread__reply">
+            <strong>Claude Code</strong> <span class="agent-tag agent-tag--solid">AGENT</span>
+            <span class="event__age" style="color:var(--agent-text);">13d · via file edit</span><br
+            />Changed: leading-edge flush on an empty queue, trailing debounce after. Description
+            updated, checked 1 item.
+          </div>
+          <div class="thread__row">
+            <span class="thread__dot"></span>
+            <span
+              ><strong>You</strong> <span class="event__age">13d</span><br />Confirmed on a
+              2k-ticket repo. Ship it.</span
+            >
+          </div>
+        </div>
+        <p class="tour__foot tour__foot--mono">
+          16:04 · claude-code · appended comment, checked 1 item
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const INTERVAL_MS = 6000;
+
+  document.querySelectorAll<HTMLElement>('[data-agent-tour]').forEach((tour) => {
+    const tabs = Array.from(tour.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+    const panels = Array.from(tour.querySelectorAll<HTMLElement>('[role="tabpanel"]'));
+    if (tabs.length !== panels.length || tabs.length === 0) return;
+
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let index = 0;
+    /** A manual click stops the carousel for good — the visitor is driving now. */
+    let stopped = reduced.matches;
+    let timer: number | undefined;
+
+    function select(next: number, focusTab = false) {
+      const previous = index;
+      index = (next + tabs.length) % tabs.length;
+      if (previous === index && panels[index]!.hidden === false) return;
+
+      tabs.forEach((tab, i) => {
+        const on = i === index;
+        tab.setAttribute('aria-selected', String(on));
+        tab.tabIndex = on ? 0 : -1;
+        tab.dataset.autoplay = !stopped && on ? 'running' : 'stopped';
+        // Restart the fill animation by letting the element re-enter the
+        // selected state on a fresh frame.
+        if (on && !stopped && !reduced.matches) {
+          const fill = tab.querySelector<HTMLElement>('.tour__fill');
+          if (fill) {
+            fill.style.animation = 'none';
+            void fill.offsetWidth;
+            fill.style.animation = '';
+          }
+        }
+      });
+
+      panels.forEach((panel, i) => {
+        if (i === index) {
+          panel.hidden = false;
+          if (!reduced.matches) {
+            panel.classList.add('is-entering');
+            requestAnimationFrame(() => requestAnimationFrame(() => panel.classList.remove('is-entering')));
+          }
+        } else {
+          panel.hidden = true;
+          panel.classList.remove('is-entering');
+        }
+      });
+
+      if (focusTab) tabs[index]!.focus();
+    }
+
+    function schedule() {
+      window.clearTimeout(timer);
+      if (stopped) return;
+      timer = window.setTimeout(() => {
+        select(index + 1);
+        schedule();
+      }, INTERVAL_MS);
+    }
+
+    tabs.forEach((tab, i) => {
+      tab.addEventListener('click', () => {
+        stopped = true;
+        window.clearTimeout(timer);
+        tour.dataset.paused = 'false';
+        select(i);
+      });
+    });
+
+    tour.addEventListener('keydown', (event) => {
+      const key = (event as KeyboardEvent).key;
+      const delta =
+        key === 'ArrowDown' || key === 'ArrowRight'
+          ? 1
+          : key === 'ArrowUp' || key === 'ArrowLeft'
+            ? -1
+            : 0;
+      if (delta === 0) return;
+      if (!(event.target as HTMLElement)?.closest('[role="tab"]')) return;
+      event.preventDefault();
+      stopped = true;
+      window.clearTimeout(timer);
+      select(index + delta, true);
+    });
+
+    // Hover pauses rather than stops: the fill freezes and picks up again.
+    tour.addEventListener('mouseenter', () => {
+      if (stopped) return;
+      window.clearTimeout(timer);
+      tour.dataset.paused = 'true';
+    });
+    tour.addEventListener('mouseleave', () => {
+      if (stopped) return;
+      tour.dataset.paused = 'false';
+      schedule();
+    });
+
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(
+        ([entry]) => (entry?.isIntersecting ? schedule() : window.clearTimeout(timer)),
+        { threshold: 0.25 }
+      ).observe(tour);
+    } else {
+      schedule();
+    }
+  });
+</script>

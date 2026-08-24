@@ -27,3 +27,6 @@ coverage/
 # Rust and Tauri build output
 target/
 
+
+# Unpacked design-tool exports are derived from the committed archive.
+_unzipped/

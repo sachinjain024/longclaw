@@ -1,0 +1,80 @@
+---
+import { getCollection, render } from 'astro:content';
+import SiteFooter from '../../components/SiteFooter.astro';
+import SiteHeader from '../../components/SiteHeader.astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { formatDate, versionAnchor } from '../../lib/format';
+import { SITE, absolute } from '../../lib/site';
+
+const entries = (await getCollection('changelog')).sort(
+  (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
+);
+
+/* Each entry's body is Markdown, so a release note is written the same way a
+   ticket is — and rendered here rather than being retyped into the page. */
+const releases = await Promise.all(
+  entries.map(async (entry) => ({ entry, Content: (await render(entry)).Content }))
+);
+
+const description = 'Every LongClaw release, in order, with what changed and what it does not do yet.';
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: `${SITE.name} changelog`,
+    description,
+    url: absolute('/changelog'),
+  },
+];
+---
+
+<BaseLayout title="Changelog" description={description} path="/changelog" jsonLd={jsonLd}>
+  <SiteHeader path="/changelog" />
+
+  <main class="text-page text-page--wide" id="main">
+    <div class="eyebrow">Changelog</div>
+    <h1 class="h-page">What changed</h1>
+    <p class="lead" style="margin-bottom:48px;">Every release, in order. Version numbers are anchors.</p>
+
+    {
+      releases.map(({ entry, Content }) => {
+        const anchor = versionAnchor(entry.data.version);
+        return (
+          <section class="release" id={anchor}>
+            <div class="release__anchor">
+              <a class="release__version" href={`#${anchor}`}>
+                v{entry.data.version}
+              </a>
+              <time class="release__date" datetime={entry.data.date.toISOString().slice(0, 10)}>
+                {formatDate(entry.data.date)}
+              </time>
+            </div>
+
+            <div class="release__body doc-body">
+              <h2>{entry.data.title}</h2>
+              <Content />
+
+              {entry.data.limitations && (
+                <div class="release__note">
+                  <div class="release__note-label">Known limitations</div>
+                  <p>{entry.data.limitations}</p>
+                </div>
+              )}
+              {entry.data.requirements && (
+                <div class="fineprint">Requirements: {entry.data.requirements}</div>
+              )}
+            </div>
+          </section>
+        );
+      })
+    }
+    <div style="border-top:1px solid var(--border);"></div>
+
+    <p class="fineprint" style="margin-top:32px;">
+      <a href="/changelog/rss.xml">RSS feed</a>
+    </p>
+  </main>
+
+  <SiteFooter />
+</BaseLayout>

@@ -123,8 +123,10 @@ in the ticket's history, separately from yours. That separation is the point —
 you stay accountable for the plan, and the record shows which changes were not
 yours.
 
-**Agents do not create tickets.** You create them in the app; agents work on
-them. This keeps key allocation in one place and keeps the plan yours.
+**Agents create tickets through the `longclaw` CLI.** The CLI is the creation
+surface agents use — it allocates the ticket key, so an agent never invents one,
+and it requires `--agent-id`, so every agent-filed ticket is attributed as agent
+work. You create tickets in the app; either way, the plan stays yours to review.
 
 ---
 

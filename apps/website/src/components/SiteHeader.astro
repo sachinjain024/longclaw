@@ -1,0 +1,67 @@
+---
+import { NAV, SITE } from '../lib/site';
+import Button from './Button.astro';
+import Icon from './Icon.astro';
+import Mark from './Mark.astro';
+import ThemeToggle from './ThemeToggle.astro';
+
+interface Props {
+  /** 'docs' swaps the link list for the compact docs bar. */
+  variant?: 'marketing' | 'docs';
+  /** Current path, used to mark the active nav item. */
+  path?: string;
+}
+
+const { variant = 'marketing', path = '' } = Astro.props;
+
+/** /docs/cli is its own nav item, so only it may claim the CLI link. */
+function isCurrent(href: string): boolean {
+  if (href === '/docs') return path === '/docs' || (path.startsWith('/docs/') && path !== '/docs/cli');
+  return path === href || path.startsWith(`${href}/`);
+}
+---
+
+<header class:list={['site-header', variant === 'docs' && 'site-header--docs']}>
+  <div class:list={['site-header__inner', variant === 'docs' ? 'container--wide' : 'container']}>
+    <a class="wordmark" href="/">
+      <Mark size={variant === 'docs' ? 24 : 26} />
+      <span class="wordmark__text">{SITE.name}</span>
+    </a>
+
+    {
+      variant === 'docs' ? (
+        <>
+          <span class="header-divider" />
+          <span class="header-label">Docs</span>
+          <span class="spacer" />
+          <nav class="site-nav site-nav--right" aria-label="Site">
+            <a class="site-nav__link" href="/blog">
+              Blog
+            </a>
+            <a class="site-nav__link" href="/changelog">
+              Changelog
+            </a>
+          </nav>
+        </>
+      ) : (
+        <nav class="site-nav" aria-label="Site">
+          {NAV.map((item) => (
+            <a
+              class="site-nav__link"
+              href={item.href}
+              aria-current={isCurrent(item.href) ? 'page' : undefined}
+            >
+              {item.label}
+            </a>
+          ))}
+        </nav>
+      )
+    }
+
+    <a class="icon-link" href={SITE.repo} rel="noopener" aria-label="LongClaw on GitHub">
+      <Icon name="github" size={18} />
+    </a>
+    <ThemeToggle />
+    <Button href={SITE.releases} size="sm" external>Download for Mac</Button>
+  </div>
+</header>

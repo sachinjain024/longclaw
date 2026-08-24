@@ -1,0 +1,32 @@
+---
+import { SITE } from '../lib/site';
+
+/**
+ * One footer, on every page: the colophon line from the design's home page.
+ *
+ * The export carries two footer treatments — a link row on the docs, blog and
+ * changelog pages, and this colophon on the home page. Rendering both stacked
+ * reads as two footers, so this is the one that ships. The nav lives in the
+ * header on every page, and the repo is the GitHub icon there.
+ */
+interface Props {
+  /** 'docs' widens the container to match the docs shell above it. */
+  variant?: 'marketing' | 'docs';
+}
+
+const { variant = 'marketing' } = Astro.props;
+const year = 2026;
+---
+
+<footer class="site-footer">
+  <div class:list={['site-footer__inner', variant === 'docs' ? 'container--wide' : 'container']}>
+    {/* Non-breaking spaces around the emoji: the pair is one phrase, and a
+        newline in this template gets trimmed rather than kept as a space. */}
+    <span>Proudly built with&nbsp;<span role="img" aria-label="love">❤️</span>&nbsp;in&nbsp;<span
+        role="img"
+        aria-label="India">🇮🇳</span></span>
+    <span>
+      <a href={`mailto:${SITE.contact}`}>{SITE.contact}</a> · © {year} {SITE.name}
+    </span>
+  </div>
+</footer>

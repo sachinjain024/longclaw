@@ -1,0 +1,151 @@
+/*
+ * LongClaw website colour tokens.
+ *
+ * Values are taken from the "LongClaw Website" design system (Claude Design,
+ * ochre marketing palette) — see docs/ux/prototypes/website-and-docs/. Do not
+ * hand-tune a value here; change it in the design system and re-export, or the
+ * site and the design drift.
+ *
+ * Two values do deviate, and each says why inline: --text-faint, which failed
+ * WCAG AA in both appearances, and --surface-alt, which resolves a runtime
+ * color-mix into a plain token. Fold both back into the design system when it
+ * is next revised.
+ *
+ * Warm paper + ochre + near-black. Two actors, two hues: ochre is the human
+ * accent, green (--agent) marks agent activity and is constant everywhere.
+ *
+ * Cascade: light is the bare :root default, so a token always has a value.
+ * The OS preference applies unless the page has explicitly opted into light,
+ * and an explicit [data-theme="dark"] wins over both.
+ */
+
+:root {
+  /* base palette */
+  --lc-ochre-700: #b45f06; /* brand hue — the mark's ochre */
+  --lc-ochre-800: #96500a; /* AA text step on paper/white */
+  --lc-ochre-600: #d97706; /* accent-hover */
+  --lc-ochre-400: #e89b2f; /* accent-strong / CTA on dark */
+  --lc-agent-600: #12946a; /* agent actor — constant brand hook */
+  --lc-agent-700: #0e7a57; /* AA agent text on light */
+  --lc-agent-400: #2fbf8f; /* agent on dark */
+  --lc-paper-50: #faf6ef; /* surface-base */
+  --lc-white: #ffffff;
+  --lc-ink-900: #17150f; /* ink-primary */
+  --lc-coal-900: #1a1812; /* base-dark, elevated dark surfaces */
+  --lc-coal-950: #14120d; /* surface-dark */
+  /* derived warm neutrals, interpolated between paper and ink */
+  --lc-sand-100: #f3ede2;
+  --lc-sand-200: #e7dfd2;
+  --lc-stone-500: #6e6558;
+  --lc-stone-400: #8a8072;
+
+  /* semantic aliases — light */
+  --accent: var(--lc-ochre-700);
+  --accent-hover: var(--lc-ochre-600);
+  --accent-strong: var(--lc-ochre-400);
+  --accent-text: var(--lc-ochre-800); /* ochre as running text — AA on paper & white */
+  --accent-contrast: #ffffff;
+  --accent-wash: #f6e8d5;
+  --agent: var(--lc-agent-600);
+  --agent-text: var(--lc-agent-700);
+  --agent-contrast: #ffffff;
+  --agent-wash: #e3f0e9;
+  --surface-base: var(--lc-paper-50);
+  --surface-card: var(--lc-white);
+  --surface-sunken: var(--lc-sand-100);
+  /* The alternating section ground: 55% sunken over base, resolved once. */
+  --surface-alt: #f6f1e8;
+  --text-body: var(--lc-ink-900);
+  --text-muted: var(--lc-stone-500);
+  /* Deviation from the export, on purpose: --lc-stone-400 (#8A8072) is
+     3.6:1 on paper and 3.9:1 on a card, and this step carries real
+     information — the requirements line, file-tree comments, docs rail
+     labels. Darkened to the lightest warm grey that clears WCAG AA (4.5:1)
+     at small sizes. The stone ramp is a derived neutral rather than a brand
+     colour, so this changes nothing the brand sheet specifies. */
+  --text-faint: #787060;
+  --text-inverse: var(--lc-paper-50);
+  --border: var(--lc-sand-200);
+  --border-strong: #d5cbb9;
+  --focus-ring: var(--lc-ochre-600);
+  --danger: #b3402a;
+  --danger-surface: #f7e7e1;
+  --success: #5c7a3f;
+  --success-surface: #edf0e1;
+
+  /* The dark terminal chrome is a constant, not a themed surface: a command
+     block reads as a terminal in both appearances. */
+  --terminal-surface: var(--lc-coal-900);
+  --terminal-border: #3d392e;
+  --terminal-text: var(--lc-paper-50);
+  --terminal-muted: #a99c88;
+  --terminal-prompt: var(--lc-ochre-400);
+
+  color-scheme: light;
+}
+
+/* Dark tokens live in one custom property block, applied by both selectors
+   below so the two can never drift apart. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --accent: var(--lc-ochre-400);
+    --accent-hover: #f0ac4b;
+    --accent-strong: var(--lc-ochre-400);
+    --accent-text: var(--lc-ochre-400);
+    --accent-contrast: #17150f;
+    --accent-wash: #2e2212;
+    --agent: var(--lc-agent-400);
+    --agent-text: var(--lc-agent-400);
+    --agent-contrast: #14120d;
+    --agent-wash: #152a21;
+    --surface-base: var(--lc-coal-950);
+    --surface-card: var(--lc-coal-900);
+    --surface-sunken: #0f0d09;
+    --surface-alt: #110f0b;
+    --text-body: var(--lc-paper-50);
+    --text-muted: #a99c88;
+    /* Same correction on the dark side: #7E7463 is 4.1:1 on coal. */
+    --text-faint: var(--lc-stone-400);
+    --text-inverse: var(--lc-ink-900);
+    --border: #2b2820;
+    --border-strong: #3d392e;
+    --focus-ring: var(--lc-ochre-400);
+    --danger: #d96c52;
+    --danger-surface: #33201a;
+    --success: #8fae6b;
+    --success-surface: #232b18;
+
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --accent: var(--lc-ochre-400);
+  --accent-hover: #f0ac4b;
+  --accent-strong: var(--lc-ochre-400);
+  --accent-text: var(--lc-ochre-400);
+  --accent-contrast: #17150f;
+  --accent-wash: #2e2212;
+  --agent: var(--lc-agent-400);
+  --agent-text: var(--lc-agent-400);
+  --agent-contrast: #14120d;
+  --agent-wash: #152a21;
+  --surface-base: var(--lc-coal-950);
+  --surface-card: var(--lc-coal-900);
+  --surface-sunken: #0f0d09;
+  --surface-alt: #110f0b;
+  --text-body: var(--lc-paper-50);
+  --text-muted: #a99c88;
+  /* Same correction on the dark side: #7E7463 is 4.1:1 on coal. */
+  --text-faint: var(--lc-stone-400);
+  --text-inverse: var(--lc-ink-900);
+  --border: #2b2820;
+  --border-strong: #3d392e;
+  --focus-ring: var(--lc-ochre-400);
+  --danger: #d96c52;
+  --danger-surface: #33201a;
+  --success: #8fae6b;
+  --success-surface: #232b18;
+
+  color-scheme: dark;
+}

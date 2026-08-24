@@ -1,0 +1,54 @@
+---
+title: Your project folder
+description: A LongClaw project is any folder you choose. The .longclaw/ directory inside it is what makes it one — and it is the only thing LongClaw writes.
+eyebrow: Guide
+---
+
+import FileTree from '../../components/FileTree.astro';
+
+## What gets created
+
+When you point LongClaw at a folder, it creates one directory inside it:
+
+<FileTree lines={[
+  { name: 'your-project/', muted: true },
+  { rule: '└── ', name: '.longclaw/' },
+  { rule: '    ├── ', name: 'longclaw.yaml', note: "the project's name, key, theme, people, and labels" },
+  { rule: '    ├── ', name: 'AGENTS.md', note: 'the editing contract agents read' },
+  { rule: '    └── ', name: 'tickets/' },
+  { rule: '        └── ', name: 'LC-1/' },
+  { rule: '            ├── ', name: 'ticket.md', note: 'the whole ticket', highlight: true },
+  { rule: '            └── ', name: 'attachments/', note: 'files attached to it' },
+]} />
+
+That is everything.
+
+## LongClaw writes inside `.longclaw/` and nowhere else
+
+It does not touch your source files, your `README`, or a root `AGENTS.md` you
+already keep. The contract it maintains is `.longclaw/AGENTS.md`, which is a
+different file on purpose.
+
+## The project key
+
+The `LC` in `LC-1` prefixes every ticket key and every ticket directory name.
+
+A key is one or more characters, uppercase ASCII letters and digits only,
+starting with a letter — `LC`, `LC2`, `L`. A ticket key is `<KEY>-<n>` where
+`n` carries no leading zero. The creation surfaces cap a new key at five
+characters for readability.
+
+**The key becomes immutable once the first ticket exists.** Changing it would
+mean renaming every human-facing ticket key and every directory.
+
+Because the prefix is the project key, it also says which project a ticket
+directory belongs to. A directory under `.longclaw/tickets/` whose prefix is
+not this project's key is not this project's ticket, however well-formed its
+contents are — it is shown as degraded with a diagnostic naming both keys,
+rather than indexed. It is never renamed, moved, or rewritten into conformity.
+
+## What lives outside your project
+
+One thing: the list of folders you have opened, in
+`~/Library/Application Support/io.longclaw.desktop/`. Losing it costs you
+nothing but re-opening your folders. **No ticket data lives there.**

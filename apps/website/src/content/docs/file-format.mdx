@@ -1,0 +1,151 @@
+---
+title: File format reference
+description: The on-disk contract. Every claim the app makes about your files — atomic writes, preserved unknown fields, degraded rather than repaired — is specified here.
+eyebrow: Reference
+---
+
+import FileTree from '../../components/FileTree.astro';
+
+This page condenses the canonical specification, which lives in the repository
+as [`docs/file_format.md`](https://github.com/sachinjain024/longclaw/blob/main/docs/file_format.md).
+Where the two disagree, the repository is right.
+
+## Layout
+
+<FileTree lines={[
+  { name: '.longclaw/' },
+  { rule: '├── ', name: 'longclaw.yaml', note: 'project identity, people, label definitions' },
+  { rule: '├── ', name: 'AGENTS.md', note: 'the generated editing contract' },
+  { rule: '└── ', name: 'tickets/' },
+  { rule: '    └── ', name: 'LC-42/' },
+  { rule: '        ├── ', name: 'ticket.md', note: 'the complete record', highlight: true },
+  { rule: '        └── ', name: 'attachments/' },
+]} />
+
+The directory name contains only the immutable human key, never the title.
+
+## `ticket.md`
+
+```md
+---
+format: longclaw.ticket/v1
+id: 019c8c7e-5f42-7b09-a07c-7411ef79e129
+key: LC-42
+title: Add retry support to the sync worker
+status: in_progress
+priority: p1
+assignee: sachin
+labels:
+  - reliability
+  - backend
+rank: "a0V"
+created_at: 2026-07-27T08:20:00Z
+updated_at: 2026-07-27T09:12:31Z
+---
+
+The worker currently fails permanently after a transient network error.
+
+## Checklist
+
+- [x] Add retry policy <!-- longclaw:item=ck_7d2a -->
+- [ ] Add failure metrics <!-- longclaw:item=ck_8e31 -->
+```
+
+- `status` is one of `backlog`, `todo`, `in_progress`, `in_review`, `done`,
+  `canceled`.
+- `priority` is one of `urgent`, `p1`, `p2`, `p3`, `p4`, `none`. Priority order
+  is the default board order.
+- `rank` is optional and lives on the ticket, so board order never becomes a
+  shared conflict hotspot. It affects order only in **Manual** sort. In v0
+  LongClaw owns rank allocation; agents preserve existing ranks and do not
+  invent them.
+- Every canonical structured record declares its own versioned `format`.
+
+## `longclaw.yaml`
+
+```yaml
+format: longclaw.project/v1
+id: 019c8c31-4d7e-71ad-8997-e67700962b55
+name: LongClaw
+key: LC
+theme: indigo
+created_at: 2026-07-27T08:00:00Z
+people:
+  sachin:
+    name: Sachin Jain
+labels:
+  backend:
+    name: Backend
+    color: blue
+  reliability:
+    name: Reliability
+    color: amber
+```
+
+Tickets store label *slugs*, so a label's display name or colour can change
+without rewriting every ticket that carries it. Assignees refer to stable IDs
+in `people`, and only registered people are valid assignees. Agents appear as
+explicitly typed actors in activity events but never in `people`.
+
+## Attachments
+
+Attachments live with the ticket that owns them and are registered in
+`ticket.md`:
+
+```md
+<!-- longclaw:attachment
+id: att_7d2a
+file: attachments/att_7d2a-debug-log.txt
+name: debug-log.txt
+media_type: text/plain
+size: 18432
+added_at: 2026-07-27T09:10:00Z
+added_by:
+  type: human
+  id: sachin
+-->
+[debug-log.txt](./attachments/att_7d2a-debug-log.txt)
+<!-- /longclaw:attachment -->
+```
+
+Adding an attachment spans two files, so it is not a filesystem transaction:
+the app copies the bytes first and registers them second. An interrupted
+operation leaves a recoverable orphan rather than a registry entry pointing at
+bytes that were never copied.
+
+Removing an attachment does not destroy its bytes. There is no purge operation
+in v0.
+
+## Write and conflict rules
+
+- The app writes atomically: a sibling temporary file, then a rename.
+- Parsers tolerate short-lived partial files from external editors, and
+  debounce filesystem events before reporting a stable parse error.
+- A content hash is recorded when an edit begins and compared with disk before
+  saving. **A stale in-app edit is never silently written over a newer external
+  edit.**
+- Unknown supported fields are preserved through read-modify-write.
+- A newer unsupported `format` version is shown read-only, never migrated.
+- An unparseable ticket stays visible as a degraded ticket with its raw
+  contents and the parse error.
+- A ticket directory whose key prefix names another project degrades with a
+  diagnostic naming both keys. It is never renamed, moved, rewritten, or
+  written to.
+- Attachment and activity records validate independently: one invalid record
+  degrades only itself.
+- Ticket creation holds an exclusive project-scoped lock and scans active,
+  archived and recoverably deleted tickets. It never trusts the disposable
+  index alone when allocating a key.
+
+## Recovery asymmetry
+
+Current state and embedded activity share one atomic `ticket.md` write, and
+their recovery rule is deliberately asymmetric:
+
+- a valid mutation without an event updates state but leaves history
+  incomplete;
+- a change event without the corresponding mutation is historical narration
+  only and never applies the change;
+- a comment event requires no state mutation at all.
+
+An event can describe the past. It can never rewrite the present.
