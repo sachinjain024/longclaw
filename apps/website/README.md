@@ -122,10 +122,35 @@ home page, `TechArticle` + `BreadcrumbList` in docs, `BlogPosting` on posts);
 
 ## Deployment
 
-GitHub Pages, custom domain, served from `public/CNAME`. The build uses
-`base: '/'`, so every internal link is written root-relative — if the site ever
-moves to a project path, `base` and that file are the two things to change.
+GitHub Pages, built by Actions, served at the apex domain `longclaw.io`.
 
-Point `longclaw.io` at GitHub Pages with an `ALIAS`/`ANAME` record (or four
-`A` records to GitHub's apex addresses), enable Pages with the **GitHub
-Actions** source, and tick *Enforce HTTPS* once the certificate is issued.
+**The custom domain is a repository setting, not `public/CNAME`.** When Pages
+builds from a workflow it ignores the `CNAME` file in the artifact — that file
+is only read by the legacy branch-based build. The file is kept because it
+still records the intent and would take effect if the source ever changed, but
+the setting under **Settings → Pages → Custom domain** is what governs. Getting
+this wrong is not subtle: with no domain set, Pages serves the site at
+`/longclaw/` while the build assumes `base: '/'`, so every asset and link 404s.
+
+The build uses `base: '/'` and every internal link is written root-relative. If
+the site ever has to live at a project path, `base` in `astro.config.mjs` is the
+one thing to change.
+
+Setting it up from scratch:
+
+1. Enable Pages with the **GitHub Actions** source.
+2. Set the custom domain to `longclaw.io`.
+3. At the DNS host, point the apex at GitHub Pages — an `ALIAS`/`ANAME` to
+   `sachinjain024.github.io`, or four `A` records:
+
+   ```text
+   185.199.108.153
+   185.199.109.153
+   185.199.110.153
+   185.199.111.153
+   ```
+
+   Optionally a `CNAME` for `www` to `sachinjain024.github.io`.
+4. Once DNS resolves, GitHub issues the certificate; then tick **Enforce
+   HTTPS**. Until DNS resolves the domain is set but unreachable, which is
+   expected rather than broken.
