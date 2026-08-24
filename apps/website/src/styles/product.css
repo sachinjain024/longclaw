@@ -1,0 +1,1324 @@
+/*
+ * Recreated product visuals — the app window, board, list, ticket panel and
+ * command palette, plus the "built for agents" ticket card.
+ *
+ * These are HTML and CSS built from design tokens, never screenshots
+ * (LC-205 product-visuals policy). That is what lets them re-render correctly
+ * in light and dark, stay crisp at any DPI, and cost a few kilobytes.
+ *
+ * They are deliberately simplified and idealised: legible at marketing scale,
+ * faithful in structure and accent usage, not pixel replicas that drift from
+ * the app as it changes.
+ */
+
+/* ---------------------------------------------------------- macOS window */
+
+.appwin {
+  max-width: 1160px;
+  margin: clamp(36px, 5vw, 60px) auto 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+  overflow: hidden;
+  text-align: left;
+}
+
+.appwin__titlebar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* macOS's own traffic-light colours, not LongClaw's palette. */
+.appwin__dot {
+  width: 11px;
+  height: 11px;
+  border-radius: var(--radius-pill);
+  flex: none;
+}
+
+.appwin__dot--close {
+  background: #ec6a5e;
+}
+.appwin__dot--min {
+  background: #f4bf4f;
+}
+.appwin__dot--max {
+  background: #61c554;
+}
+
+.appwin__title {
+  flex: 1;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-right: 57px;
+}
+
+.appwin__body {
+  display: flex;
+  align-items: stretch;
+  min-height: 470px;
+}
+
+/* ------------------------------------------------------- project sidebar */
+
+.appwin__sidebar {
+  flex: 0 0 185px;
+  border-right: 1px solid var(--border);
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--surface-base);
+}
+
+.appwin__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-1);
+  font-size: 13px;
+  font-weight: var(--weight-semibold);
+}
+
+.appwin__brand .mark {
+  --mark-size: 18px;
+}
+
+.appwin__cta {
+  border: 1px solid var(--border-strong);
+  background: var(--surface-card);
+  border-radius: 6px;
+  padding: 5px 0;
+  text-align: center;
+  font-size: 11.5px;
+  font-weight: var(--weight-medium);
+}
+
+.appwin__cta-quiet {
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.appwin__projects {
+  outline: 2px solid transparent;
+  outline-offset: 3px;
+  border-radius: 6px;
+  transition: outline-color var(--duration-base) var(--ease-out);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 2px;
+}
+
+.appwin__group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.appwin__group-label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-faint);
+  padding: 0 6px 4px;
+}
+
+.appwin__project {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 6px;
+  border-radius: 5px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.appwin__project--current {
+  font-weight: var(--weight-semibold);
+  color: var(--text-body);
+  background: var(--surface-sunken);
+}
+
+.appwin__project-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--text-faint);
+  flex: none;
+}
+
+.appwin__project--current .appwin__project-dot {
+  background: var(--accent);
+}
+
+/* --accent-text, not --accent: raw ochre is 4.26:1 on paper, and the design
+   system reserves the brand hue for marks, buttons and washes. */
+.appwin__star {
+  color: var(--accent-text);
+  font-size: 10px;
+  margin-left: auto;
+}
+
+/* --------------------------------------------------------- content header */
+
+.appwin__content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.appwin__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.appwin__header-name {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.appwin__header-title {
+  font-size: 13.5px;
+  font-weight: var(--weight-semibold);
+}
+
+.appwin__header-path {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+
+.appwin__filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 9px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-left: auto;
+}
+
+.kbd {
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0 4px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+}
+
+.appwin__viewtabs {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  overflow: hidden;
+  font-size: 11.5px;
+  font-weight: var(--weight-medium);
+}
+
+.appwin__viewtab {
+  padding: 4px 11px;
+  color: var(--text-muted);
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.appwin__viewtab.is-active {
+  background: var(--surface-sunken);
+  color: var(--text-body);
+}
+
+.appwin__new {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: var(--weight-semibold);
+}
+
+.appwin__new .kbd {
+  border-color: color-mix(in srgb, var(--accent-contrast) 45%, transparent);
+}
+
+/* -------------------------------------------------------------- surfaces */
+
+.appwin__stage {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  background: var(--surface-base);
+}
+
+/* Each stage layer sits in the same box and cross-fades. Only the visible one
+   is reachable, and the hidden ones are hidden from assistive tech too. */
+.stage-layer {
+  transition: opacity var(--duration-base) var(--ease-out);
+}
+
+.stage-layer[hidden] {
+  display: none;
+}
+
+.stage-layer--overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--surface-base);
+  padding: 14px 16px;
+}
+
+/* ----------------------------------------------------------------- board */
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  gap: 14px;
+  padding: 16px;
+  height: 100%;
+}
+
+.board__col {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+}
+
+.col-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.col-head__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--text-faint);
+  flex: none;
+}
+
+.col-head__dot--progress {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.col-head__dot--done {
+  background: var(--success);
+  border-color: var(--success);
+}
+
+.col-head__add {
+  margin-left: auto;
+  color: var(--text-faint);
+}
+
+/* ------------------------------------------------------------ ticket card */
+
+.tcard {
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.tcard__top {
+  display: flex;
+  align-items: center;
+}
+
+.tcard__id {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+
+.tcard__title {
+  font-size: 13px;
+  font-weight: var(--weight-medium);
+  line-height: 1.4;
+}
+
+.tcard__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* How an agent edit reads on a card. The app also draws a decaying ring around
+   the card itself; the recreation leaves it off, because the hero tour already
+   spends a ring per stage on whatever that stage is about, and a second one
+   competes with it. The AGENT chip carries the point on its own. */
+.tcard__ack {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border-top: 1px solid var(--border);
+  padding-top: 7px;
+}
+
+.prio {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--text-faint);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 0 4px;
+  flex: none;
+}
+
+.prio--urgent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: var(--weight-bold);
+  padding: 0;
+}
+
+.progress {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+.progress__track {
+  width: 34px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--surface-sunken);
+  overflow: hidden;
+  display: inline-flex;
+}
+
+.progress__fill {
+  background: var(--accent);
+}
+
+.progress__fill--done {
+  background: var(--success);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 1px 8px;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.chip__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--text-faint);
+  flex: none;
+}
+
+.chip__dot--accent {
+  background: var(--accent);
+}
+.chip__dot--agent {
+  background: var(--agent);
+}
+.chip__dot--danger {
+  background: var(--danger);
+}
+
+.agent-tag {
+  background: var(--agent-wash);
+  color: var(--agent-text);
+  border-radius: var(--radius-sm);
+  padding: 0 5px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  font-weight: var(--weight-semibold);
+  flex: none;
+}
+
+/* The AA-safe green as the ground: white on --agent (#12946A) is 3.84:1, and
+   this chip is 9px. --agent-text is the step the design system already
+   designates as passing, and it is unchanged on the dark side. */
+.agent-tag--solid {
+  background: var(--agent-text);
+  color: var(--agent-contrast);
+  padding: 0 5px;
+  font-size: 9px;
+  /* Inline beside an actor name — the gap is the component's, not the
+     template's, so a formatter collapsing whitespace cannot close it. */
+  margin-inline: 4px 2px;
+}
+
+.agent-note {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--agent-text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ list */
+
+.list-group + .list-group {
+  margin-top: 14px;
+}
+
+.list-group__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  padding: 2px 4px 8px;
+}
+
+.list-rows {
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.list-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  font-size: 12.5px;
+}
+
+.list-row + .list-row {
+  border-top: 1px solid var(--border);
+}
+
+.list-row__id {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-faint);
+  width: 44px;
+  flex: none;
+}
+
+.list-row__title {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.list-row__age {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-faint);
+  flex: none;
+}
+
+.list-row .prio {
+  margin-left: 0;
+}
+
+/* ---------------------------------------------------------- ticket panel */
+
+.panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(390px, 72%);
+  background: var(--surface-card);
+  border-left: 1px solid var(--border-strong);
+  padding: 16px 18px;
+  overflow: hidden;
+}
+
+.panel__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.panel__key {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  color: var(--text-muted);
+}
+
+.panel__path {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-faint);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.panel__spacer {
+  flex: 1;
+}
+
+.panel__action {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.panel__close {
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+}
+
+.panel__title {
+  font-size: 15px;
+  font-weight: var(--weight-semibold);
+  line-height: 1.35;
+  margin-bottom: 14px;
+}
+
+.fieldgrid {
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  gap: 9px 12px;
+  align-items: center;
+  margin-bottom: 14px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.fieldgrid--tour {
+  grid-template-columns: 58px auto;
+  gap: 9px 14px;
+  font-size: var(--text-xs);
+  margin-bottom: 14px;
+}
+
+.field-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 2px 9px;
+  font-size: 11.5px;
+  font-weight: var(--weight-medium);
+  color: var(--text-body);
+  justify-self: start;
+}
+
+.field-pill__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  flex: none;
+}
+
+.field-pill__caret {
+  color: var(--text-faint);
+}
+
+.field-pill__flag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  font-weight: var(--weight-bold);
+}
+
+.chip--add {
+  border-style: dashed;
+  border-color: var(--border-strong);
+  color: var(--text-faint);
+}
+
+.panel__block {
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.panel__block-label {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.panel__desc {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-body);
+}
+
+.panel__tabs {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.panel__tab {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.panel__tab--active {
+  font-weight: var(--weight-semibold);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 2px 8px;
+  color: var(--text-body);
+}
+
+.panel__tab .mono {
+  color: var(--text-faint);
+}
+
+.event {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-bottom: var(--space-2);
+}
+
+.event strong {
+  color: var(--text-body);
+}
+
+/* An agent's activity entry: the wash and the green name carry the
+   attribution. No left rail — the hero tour spends at most one accent edge per
+   stage on whatever that stage is about, and a rail here competes with it. */
+.event--agent {
+  background: var(--agent-wash);
+  padding: 6px 10px;
+  font-size: var(--text-xs);
+  color: var(--text-body);
+  border-radius: 5px;
+  margin-bottom: 0;
+}
+
+.event--agent strong {
+  color: var(--agent-text);
+}
+
+.event__age {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+.event--agent .event__age {
+  color: var(--agent-text);
+}
+
+/* -------------------------------------------------------- command palette */
+
+.palette-scrim {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--lc-ink-900) 42%, transparent);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 34px;
+}
+
+.palette {
+  width: min(430px, 86%);
+  background: var(--surface-card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.palette__input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.palette__glyph {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--text-faint);
+}
+
+.palette__placeholder {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
+.palette__esc {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: var(--text-faint);
+}
+
+.palette__rows {
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+}
+
+.palette__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.palette__row--active {
+  background: var(--surface-sunken);
+  font-weight: var(--weight-medium);
+  color: var(--text-body);
+}
+
+.palette__row-glyph {
+  font-family: var(--font-mono);
+  color: var(--text-faint);
+}
+
+.palette__row--active .palette__row-glyph {
+  color: var(--accent-text);
+}
+
+.palette__row-key {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+
+.palette__foot {
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+/* ----------------------------------------------------------- stage pills */
+
+.stage-pills {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: var(--space-5);
+}
+
+.stage-pills__row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.stage-pill {
+  border: 1px solid var(--border-strong);
+  background: var(--surface-card);
+  color: var(--text-muted);
+  border-radius: var(--radius-pill);
+  padding: 4px 13px;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.stage-pill[aria-selected='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.stage-caption {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-align: center;
+  min-height: 1.55em;
+}
+
+/*
+ * The window is a fixed-geometry recreation: below its natural width the
+ * columns would collapse into unreadable slivers. Rather than reflow it into
+ * something the app never looks like, it scrolls horizontally inside its own
+ * frame, and the project sidebar drops out first.
+ */
+@media (max-width: 1000px) {
+  .appwin__sidebar {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .appwin {
+    border-radius: var(--radius-md);
+  }
+  .appwin__scroller {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .appwin__body {
+    min-width: 620px;
+    min-height: 420px;
+  }
+  .appwin__title {
+    margin-right: 0;
+  }
+}
+
+/* ------------------------------------------------------- agent tour card */
+
+.tour {
+  display: grid;
+  /* min() in the track floor is what lets the column collapse on a narrow
+     screen: a bare minmax(Npx, 1fr) cannot go below N and pushes the page
+     wider than the viewport. */
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
+  gap: clamp(24px, 3vw, 48px);
+  align-items: stretch;
+}
+
+.tour__tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tour__tab {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  text-align: left;
+  border: 1px solid var(--border);
+  background: transparent;
+  border-radius: var(--radius-md);
+  padding: 14px 16px 15px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  transition:
+    border-color var(--duration-base) var(--ease-out),
+    background var(--duration-base) var(--ease-out);
+}
+
+.tour__tab[aria-selected='true'] {
+  border-color: var(--border-strong);
+  background: var(--surface-card);
+}
+
+.tour__tab-title {
+  font-size: 15px;
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
+  transition: color var(--duration-base) var(--ease-out);
+}
+
+.tour__tab[aria-selected='true'] .tour__tab-title {
+  color: var(--text-body);
+}
+
+.tour__tab-sub {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  text-wrap: pretty;
+}
+
+.tour__rail {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: transparent;
+  transition: background var(--duration-base) var(--ease-out);
+}
+
+.tour__tab[aria-selected='true'] .tour__rail {
+  background: var(--accent);
+}
+
+.tour__fill {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 0;
+  background: var(--accent);
+  opacity: 0.55;
+}
+
+@keyframes tourfill {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.tour__tab[aria-selected='true'][data-autoplay='running'] .tour__fill {
+  animation: tourfill var(--tour-interval, 6000ms) linear forwards;
+}
+
+.tour[data-paused='true'] .tour__fill {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour__fill {
+    animation: none !important;
+  }
+}
+
+.tour__card {
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.tour__card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tour__card-key {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  background: var(--accent-wash);
+  color: var(--accent-text);
+  border-radius: 5px;
+  padding: 2px 7px;
+  font-weight: var(--weight-semibold);
+}
+
+.tour__card-path {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-faint);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* One fixed-height box; only the body swaps, so the section never jumps. */
+.tour__stage {
+  position: relative;
+  height: 340px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.tour__panel {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  padding: 16px 18px;
+  opacity: 1;
+  transition: opacity 250ms var(--ease-out);
+}
+
+.tour__panel[hidden] {
+  display: none;
+}
+
+.tour__panel.is-entering {
+  opacity: 0;
+}
+
+.tour__panel p {
+  margin: 0 0 10px;
+  color: var(--text-body);
+  text-wrap: pretty;
+}
+
+.tour__attribution {
+  background: var(--agent-wash);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: var(--text-xs);
+  color: var(--agent-text);
+}
+
+.tour__section-title {
+  font-weight: var(--weight-semibold);
+  font-size: 13px;
+  margin-bottom: var(--space-2);
+  color: var(--text-body);
+}
+
+.tour__label {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-bottom: var(--space-2);
+}
+
+.tour__refs {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  color: var(--text-body);
+}
+
+.tour__refs li {
+  display: flex;
+  gap: 10px;
+}
+
+.tour__refs li::before {
+  content: '·';
+  color: var(--text-faint);
+}
+
+.tour__ref {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0 5px;
+  color: var(--accent-text);
+}
+
+.tour__foot {
+  margin: 14px 0 0 !important;
+  font-size: var(--text-xs);
+  color: var(--text-faint) !important;
+}
+
+.tour__foot--mono {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.checklist__row {
+  display: flex;
+  gap: 10px;
+}
+
+.checklist__box {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border-strong);
+  margin-top: 3px;
+}
+
+.checklist__box--done {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: var(--agent);
+  color: var(--agent-contrast);
+  font-size: 10px;
+  font-weight: var(--weight-bold);
+}
+
+.checklist__row--done span:last-child {
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+
+.checklist__row--gate {
+  background: var(--accent-wash);
+  border-left: 2px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+  padding: 7px 10px;
+}
+
+.checklist__row--gate span:last-child {
+  color: var(--accent-text);
+  font-weight: var(--weight-medium);
+}
+
+.thread {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.thread__row {
+  display: flex;
+  gap: 10px;
+}
+
+.thread__dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  margin-top: 7px;
+}
+
+.thread__reply {
+  background: var(--agent-wash);
+  border-left: 2px solid var(--agent);
+  border-radius: 0 6px 6px 0;
+  padding: 8px 10px;
+  color: var(--text-body);
+}
+
+.thread__reply strong {
+  color: var(--agent-text);
+}
+
+/* --------------------------------------------------------- closing pull  */
+
+.pullquote {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: clamp(32px, 4vw, 48px);
+}
+
+.pullquote__diamond {
+  width: 9px;
+  height: 9px;
+  background: var(--accent);
+  transform: rotate(45deg);
+}
+
+.pullquote p {
+  margin: 0;
+  text-align: center;
+  max-width: 44ch;
+  font-size: clamp(16px, 1.9vw, 20px);
+  line-height: 1.55;
+  letter-spacing: -0.01em;
+  color: var(--text-muted);
+  text-wrap: balance;
+}
+
+.pullquote strong {
+  color: var(--text-body);
+  font-weight: var(--weight-semibold);
+}
+
+/* ------------------------------------------------------- stage switching */
+
+/*
+ * Which stage is showing is one attribute on the window root, so the server
+ * renders a correct, complete frame and the script only ever flips a string.
+ * Layers cross-fade on opacity and are taken out of the tab order and the
+ * accessibility tree with visibility, which display:none cannot animate.
+ */
+.stage-layer {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.appwin[data-stage='list'] .stage-layer--list,
+.appwin[data-stage='panel'] .stage-layer--panel,
+.appwin[data-stage='search'] .stage-layer--palette {
+  opacity: 1;
+  visibility: visible;
+}
+
+.appwin[data-stage='projects'] .appwin__projects {
+  outline-color: var(--accent);
+}
+
+/* The Board/List segmented control follows the stage. */
+.appwin[data-stage='list'] .appwin__viewtab--board {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.appwin:not([data-stage='list']) .appwin__viewtab--board,
+.appwin[data-stage='list'] .appwin__viewtab--list {
+  background: var(--surface-sunken);
+  color: var(--text-body);
+}

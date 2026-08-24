@@ -1,0 +1,40 @@
+---
+/**
+ * The design system's Button, as an anchor or a button element.
+ *
+ * Variants and sizes mirror `components/actions/Button.jsx` in the exported
+ * design system: primary (ochre fill), secondary (card + strong border);
+ * sm / md / lg.
+ */
+interface Props {
+  href?: string;
+  variant?: 'primary' | 'secondary';
+  size?: 'sm' | 'md' | 'lg';
+  class?: string;
+  /** Set for links leaving the site; adds rel and lets callers style them. */
+  external?: boolean;
+  [key: string]: unknown;
+}
+
+const {
+  href,
+  variant = 'primary',
+  size = 'md',
+  class: className,
+  external = false,
+  ...rest
+} = Astro.props;
+
+const Tag = href ? 'a' : 'button';
+const classes = ['btn', `btn--${variant}`, `btn--${size}`, className];
+---
+
+<Tag
+  class:list={classes}
+  href={href}
+  rel={external ? 'noopener' : undefined}
+  type={href ? undefined : 'button'}
+  {...rest}
+>
+  <slot />
+</Tag>

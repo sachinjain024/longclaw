@@ -1,0 +1,33 @@
+{
+  "name": "@longclaw/website",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "The public LongClaw website (longclaw.io): marketing, product docs, CLI reference, blog and changelog. Static output, deployed to GitHub Pages.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check",
+    "verify": "npm run check && npm run build"
+  },
+  "dependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@astrojs/mdx": "^7.0.7",
+    "@astrojs/rss": "^4.0.19",
+    "@astrojs/sitemap": "^3.7.3",
+    "@fontsource-variable/ibm-plex-sans": "^5.3.0",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@resvg/resvg-js": "^2.6.2",
+    "astro": "^7.2.4",
+    "rehype-autolink-headings": "^7.1.0",
+    "satori": "^0.33.3",
+    "typescript": "^6.0.3"
+  },
+  "devDependencies": {
+    "@fontsource/ibm-plex-sans": "^5.3.0"
+  }
+}

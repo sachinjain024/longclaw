@@ -1,0 +1,44 @@
+---
+import Icon from './Icon.astro';
+
+/**
+ * Light/dark toggle.
+ *
+ * The page follows the OS by default and only pins an appearance once someone
+ * asks for one — matching the app, which follows system appearance. The choice
+ * is remembered in localStorage and re-applied by the inline script in
+ * BaseLayout before first paint, so there is no flash of the wrong theme.
+ *
+ * Which glyph shows is decided in CSS from `data-theme` and
+ * `prefers-color-scheme` (see .theme-toggle in global.css), so the button is
+ * correct on a static page with JavaScript still parsing — or disabled.
+ */
+---
+
+<button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle appearance">
+  <Icon name="moon" size={15} class="icon-moon" />
+  <Icon name="sun" size={15} class="icon-sun" />
+</button>
+
+<script>
+  const KEY = 'longclaw-theme';
+
+  function systemPrefersDark(): boolean {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+
+  document.querySelectorAll<HTMLButtonElement>('[data-theme-toggle]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const pinned = document.documentElement.dataset.theme;
+      const isDark = pinned ? pinned === 'dark' : systemPrefersDark();
+      const next = isDark ? 'light' : 'dark';
+      document.documentElement.dataset.theme = next;
+      try {
+        localStorage.setItem(KEY, next);
+      } catch {
+        // Private browsing or a storage-blocked context: the toggle still
+        // works for this page, it just will not be remembered.
+      }
+    });
+  });
+</script>

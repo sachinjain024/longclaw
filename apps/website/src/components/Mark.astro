@@ -1,0 +1,49 @@
+---
+/**
+ * The LongClaw owl mark, as vector geometry rather than the brand PNG.
+ *
+ * No SVG master was ever supplied — the design system ships two raster marks
+ * (ochre and amber) and swaps them on theme. The paths below were traced from
+ * the alpha channel of `longclaw-mark-ochre.png` and refitted to the shapes
+ * the mark is actually made of: two straight-edged ear tufts, a true circular
+ * annulus cut parallel to the tufts, and a kite beak. Tracing rather than
+ * embedding means one shape in `currentColor` covers both appearances, scales
+ * to any size, and costs about 400 bytes.
+ *
+ * viewBox is 100 × 98.28 — the mark's real aspect ratio (872 × 857 in the
+ * source PNG). Ring: centre (50, 54.66), outer r 43.74, inner r 29.65.
+ *
+ * Brand rules from the design system: approved colours only, never skew,
+ * stretch, recolour outside the palette, or enclose in a circle.
+ */
+interface Props {
+  /** Rendered height in px. Width follows the aspect ratio. */
+  size?: number;
+  /** Accessible name. Omit for a decorative mark sitting beside a wordmark. */
+  title?: string;
+  class?: string;
+}
+
+const { size = 26, title, class: className } = Astro.props;
+---
+
+<svg
+  class:list={['mark', className]}
+  style={`--mark-size:${size}px`}
+  viewBox="0 0 100 98.28"
+  role={title ? 'img' : 'presentation'}
+  aria-label={title}
+  aria-hidden={title ? undefined : 'true'}
+  fill="currentColor"
+  focusable="false"
+>
+  {title && <title>{title}</title>}
+  {/* Ear tufts — one chevron, tapering to a point above the beak. */}
+  <path d="M0 0 50 30.07 100 0 96.61 18.67 55.98 43.05 50 53.07 44.02 43.05 3.39 18.67Z"></path>
+  {/* Face ring — an annulus open at the top, both ends cut on the tuft angle. */}
+  <path
+    d="M14.03 29.84A43.74 43.74 0 1 0 85.97 29.84L73.83 37.14A29.65 29.65 0 1 1 26.17 37.14Z"
+  ></path>
+  {/* Beak. */}
+  <path d="M50 55.92 43.95 60.93 50 73.72 56.05 60.93Z"></path>
+</svg>

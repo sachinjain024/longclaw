@@ -1,0 +1,72 @@
+---
+title: When something goes wrong
+description: LongClaw is built to fail visibly and without destroying anything. In every case below, your file is left exactly as it is.
+eyebrow: Guide
+---
+
+## A ticket someone edited while you had it open
+
+LongClaw notices the file changed underneath you and says *"Changed on disk"*
+rather than overwriting it. It never silently discards either version — you are
+shown the conflict and choose.
+
+## A ticket that will not parse
+
+A malformed `ticket.md` stays visible as a degraded ticket, in the column it
+was already in, instead of vanishing from the board. Opening it shows the file
+itself, line-numbered with the offending line marked, and the error names the
+line it happened on.
+
+**Open in editor** hands the file to whatever you open Markdown with; fix it
+there and it returns on its own, or press **Retry parse** rather than waiting.
+
+LongClaw will not "repair" it for you, because a repair is a guess about what
+you meant.
+
+## A ticket from a newer version of LongClaw
+
+Shown read-only — *"Newer format, shown read-only"* — rather than migrated.
+Upgrade the app to edit it.
+
+## A project folder that moved
+
+The project is marked unreachable rather than forgotten, and you can point
+LongClaw at its new location. Nothing is deleted; it stopped being able to find
+your folder, not your work.
+
+## The project list itself is corrupt
+
+LongClaw fails closed: it will not reset the file or silently forget your
+projects. Quit the app, and in
+`~/Library/Application Support/io.longclaw.desktop/` copy
+`project-registry.backup.json` over `project-registry.json`, then restart.
+
+If the backup is unusable too, just open your project folders again — **this
+list is not your data.** Your tickets are in your project, untouched.
+
+## The window comes back on the wrong appearance or the wrong project
+
+Those choices live in `device-preferences.json`, in the same folder as the
+project list. Unlike the list, it fails open: one LongClaw cannot read is
+renamed to `device-preferences.invalid.json` and the app starts on its defaults
+rather than refusing to start.
+
+Deleting it is a supported way to start over — it holds no ticket, and nothing
+in it is your data.
+
+## Anything else
+
+LongClaw says what it was doing, which file it was doing it to, and what to
+try. If you want more than the window shows, launch it from a terminal:
+
+```sh
+LONGCLAW_LOCAL_DIAGNOSTIC=1 \
+  /Applications/LongClaw.app/Contents/MacOS/longclaw-desktop
+```
+
+It prints lines prefixed with `LONGCLAW_LOCAL_DIAGNOSTIC` to stdout and sends
+them nowhere — they go to your terminal and stop there. Expect a small channel
+rather than a log: how long the first board took to appear, and a line if the
+watcher ever loses filesystem events and rebuilds the index.
+
+If you are reporting a problem, this is the output worth pasting.

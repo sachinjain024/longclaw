@@ -1,0 +1,106 @@
+---
+title: What a ticket is
+description: One ticket is one directory, and ticket.md is the whole record — fields at the top, then the description, checklist, attachments, comments, and history.
+eyebrow: Guide
+---
+
+## One file holds everything
+
+```markdown
+---
+format: longclaw.ticket/v1
+id: 019c8c7e-5f42-7b09-a07c-7411ef79e129
+key: LC-1
+title: Load canonical ticket files
+status: in_progress
+priority: p2
+labels:
+  - storage
+created_at: 2026-07-29T00:00:00Z
+updated_at: 2026-07-29T09:12:31Z
+---
+
+The description goes here, as ordinary Markdown.
+
+## Checklist
+
+- [ ] Something to do
+```
+
+It is a text file. You can read it in any editor, grep it, diff it, and open it
+on a machine that has never heard of LongClaw. Nothing is stored in a database
+that the files do not already say.
+
+## The fields
+
+| Field | What it holds |
+| --- | --- |
+| `format` | The record's own versioned format, `longclaw.ticket/v1`. |
+| `id` | Globally unique identity. Never changes. |
+| `key` | The human-facing identifier, `LC-42`. Also the directory name. |
+| `title` | Free text. Renaming a title never renames a path. |
+| `status` | `backlog`, `todo`, `in_progress`, `in_review`, `done`, or `canceled`. |
+| `priority` | `urgent`, `p1`, `p2`, `p3`, `p4`, or `none`. The default board order. |
+| `assignee` | A person ID from `longclaw.yaml`. Always a human. |
+| `labels` | Label slugs, defined once in `longclaw.yaml`. |
+| `rank` | Optional. Affects order only when the board's sort is **Manual**. |
+| `created_at` / `updated_at` | RFC 3339 timestamps. |
+
+Derived values — checklist progress, comment count, last activity — are not
+stored. They are computed from what the file already says.
+
+## Checklists
+
+Checklist items are ordinary Markdown tasks with an invisible stable ID:
+
+```markdown
+## Checklist
+
+- [x] Add retry policy <!-- longclaw:item=ck_7d2a -->
+- [ ] Add failure metrics <!-- longclaw:item=ck_8e31 -->
+```
+
+An agent can safely change `[ ]` to `[x]` and the app still knows which item
+moved. The order of the lines is the order of the list, so reordering moves a
+line whole and its ID travels with it.
+
+## Activity
+
+Every change appends an event. Events are structured in an HTML comment and
+narrated in Markdown beneath it, so the file stays readable either way:
+
+```markdown
+<!-- longclaw:event
+id: evt_f83f615b
+kind: update
+occurred_at: 2026-07-27T09:12:31Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: in_progress
+-->
+### Claude Code updated this ticket
+
+Implemented the retry policy. Metrics still need to be added.
+<!-- /longclaw:event -->
+```
+
+**The actor is declared, never inferred.** That is why an agent must pass
+`--agent-id` when it writes: without it the entry claims a human did the work.
+
+## Cancel, archive, delete
+
+These are three different things, on purpose:
+
+- `status: canceled` records a workflow outcome and keeps the ticket active in
+  history and search.
+- `archived_at` hides an old ticket from ordinary views without moving or
+  deleting its directory — so relative links from source files, comments or
+  commits keep resolving.
+- Hard deletion is not part of the workflow, and is not in v0.
+
+The complete contract is in the [file format reference](/docs/file-format).

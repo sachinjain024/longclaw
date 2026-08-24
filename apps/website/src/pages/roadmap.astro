@@ -1,0 +1,65 @@
+---
+import SiteFooter from '../components/SiteFooter.astro';
+import SiteHeader from '../components/SiteHeader.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+/**
+ * Designed for completeness, deliberately unpublished (LC-205 §4.6).
+ *
+ * It is not in the nav, not in the sitemap (see astro.config.mjs), and carries
+ * a noindex. Statements of sequence, not schedule: no dates, no progress bars,
+ * no committed promises. Linking it from anywhere is the decision to publish
+ * it.
+ */
+const columns = [
+  {
+    title: 'Shipped',
+    modifier: 'shipped',
+    items: ['v0 — the local core. The app described on the home page.'],
+  },
+  {
+    title: 'Next',
+    items: ['Integrated terminals: launch an agent run for a ticket from inside the app.'],
+  },
+  {
+    title: 'Later',
+    items: ['Cloud sync and teams, opt-in per project. Local stays free forever.'],
+  },
+  { title: 'Someday', items: ['Windows and Linux.', 'Custom themes.'] },
+];
+---
+
+<BaseLayout
+  title="Roadmap"
+  description="Where LongClaw is going, as a sequence rather than a schedule."
+  path="/roadmap"
+  noindex
+>
+  <SiteHeader path="/roadmap" />
+
+  <main class="text-page text-page--wide" id="main">
+    <div class="eyebrow">Roadmap</div>
+    <h1 class="h-page">What comes next</h1>
+    <p class="lead" style="margin-bottom:48px;">
+      Statements of sequence, not schedule. No dates and no committed promises — what is shipped is
+      on the home page, and everything else moves when it is ready.
+    </p>
+
+    <div class="roadmap">
+      {
+        columns.map((column) => (
+          <section class:list={['roadmap__col', column.modifier && `roadmap__col--${column.modifier}`]}>
+            <h2>{column.title}</h2>
+            <ul class="dot-list">
+              {column.items.map((item) => (
+                <li>{item}</li>
+              ))}
+            </ul>
+          </section>
+        ))
+      }
+    </div>
+  </main>
+
+  <SiteFooter />
+</BaseLayout>

@@ -1,0 +1,109 @@
+---
+title: The longclaw command
+description: The same crate the app uses ships as a command-line binary — key allocation, the write seams, and the file format have exactly one implementation. This is how an agent files and updates work.
+navLabel: CLI
+eyebrow: CLI
+---
+
+import CommandBlock from '../../components/CommandBlock.astro';
+
+## Build it
+
+The binary is built from the same workspace as the app:
+
+```sh
+cargo build --release \
+  --manifest-path apps/desktop/src-tauri/Cargo.toml --bin longclaw
+```
+
+Run `longclaw` with no arguments for the full surface.
+
+## A project, start to finish
+
+<CommandBlock
+  id="cmd-init"
+  desc="Create the project record — longclaw.yaml — and choose the key every ticket ID starts with."
+  cmd={'longclaw project init --name "My Project" --key MP'}
+  output={`{
+  "ok": true,
+  "project": { "name": "My Project", "key": "MP", "path": ".longclaw/" }
+}`}
+/>
+
+<CommandBlock
+  id="cmd-label"
+  desc="Define a label before anything uses it."
+  cmd="longclaw label add --slug storage --name Storage"
+  output={`{
+  "ok": true,
+  "label": { "slug": "storage", "name": "Storage" }
+}`}
+/>
+
+<CommandBlock
+  id="cmd-create"
+  desc="File a ticket as an agent. The CLI allocates the key and records exactly who created it."
+  cmd={'longclaw ticket create --title "Fix the retry policy" --label storage \\\n  --checklist "Reproduce it" --agent-id claude-code --agent-name "Claude Code"'}
+  output={`{
+  "ok": true,
+  "ticket": {
+    "key": "MP-1",
+    "status": "todo",
+    "actor": { "kind": "agent", "id": "claude-code", "name": "Claude Code" }
+  }
+}`}
+/>
+
+<CommandBlock
+  id="cmd-edit"
+  desc="Move it. The status change lands in the ticket's activity, attributed to the agent."
+  cmd="longclaw ticket edit MP-1 --status in_progress --agent-id claude-code"
+  output={`{
+  "ok": true,
+  "ticket": { "key": "MP-1", "status": "in_progress" },
+  "event": "status_changed"
+}`}
+/>
+
+<CommandBlock
+  id="cmd-list"
+  desc="Read the backlog the way the app sees it."
+  cmd="longclaw ticket list"
+  output={`{
+  "ok": true,
+  "count": 1,
+  "tickets": [
+    { "key": "MP-1", "title": "Fix the retry policy", "status": "in_progress" }
+  ]
+}`}
+/>
+
+## The rules
+
+<div class="rule-cards">
+  <div class="rule-card">
+    <h3>JSON on stdout</h3>
+    <p>Every command prints JSON and exits non-zero with a typed error on failure.</p>
+  </div>
+  <div class="rule-card">
+    <h3>Labels are defined before use</h3>
+    <p>The CLI refuses a slug the project does not define, so a label cannot be created by using it.</p>
+  </div>
+  <div class="rule-card">
+    <h3>Agents pass --agent-id</h3>
+    <p>The file format declares an actor and never infers one; without it, the activity entry claims a human did the work. The CLI is the creation surface agents use: it allocates the ticket key, so an agent never invents one.</p>
+  </div>
+</div>
+
+## Why the CLI, and not the app
+
+Agents create tickets through the CLI rather than through the window so that
+key allocation stays in a single implementation. Two surfaces allocating keys
+is two chances to allocate the same one.
+
+That decision is recorded as
+[ADR 0011](https://github.com/sachinjain024/longclaw/blob/main/docs/adr/0011-cli-is-the-creation-surface-agents-use.md).
+
+This repository tracks its own work this way. Every `LC-*` item under
+`.longclaw/tickets/` was filed through this CLI, and the agent-authored entries
+in those files were written by agents reading the same contract yours will.

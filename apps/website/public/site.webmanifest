@@ -1,0 +1,13 @@
+{
+  "name": "LongClaw",
+  "short_name": "LongClaw",
+  "description": "Local-first issue tracker for AI coding agents.",
+  "start_url": "/",
+  "display": "browser",
+  "background_color": "#faf6ef",
+  "theme_color": "#b45f06",
+  "icons": [
+    { "src": "/favicon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any" },
+    { "src": "/apple-touch-icon.png", "type": "image/png", "sizes": "180x180" }
+  ]
+}

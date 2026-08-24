@@ -1,0 +1,85 @@
+---
+title: Introducing LongClaw
+description: One canvas where humans plan and agents execute. LongClaw 0.1.0 is out today — a local-first project manager for macOS, open source under MPL 2.0.
+date: 2026-08-22
+author: Sachin Jain
+---
+
+import Button from '../../components/Button.astro';
+import FileTree from '../../components/FileTree.astro';
+
+One canvas where humans plan and agents execute. LongClaw 0.1.0 is out today —
+a local-first project manager for macOS, open source under MPL 2.0.
+
+The split it fixes is simple to describe. Planning happens in a cloud tracker;
+execution happens in the git repo, increasingly by agents. The ticket becomes a
+stub, and the agent starts every session blind. LongClaw puts the plan where
+the work is: every ticket is a directory of plain Markdown inside your project,
+readable by you in an editor and by an agent in the same session that writes
+the code.
+
+## Your tickets are files
+
+Point LongClaw at a folder and it creates `.longclaw/` — and writes nowhere
+else.
+
+<FileTree lines={[
+  { name: 'your-project/', muted: true },
+  { rule: '└── ', name: '.longclaw/' },
+  { rule: '    ├── ', name: 'longclaw.yaml', note: 'project identity, people, labels' },
+  { rule: '    ├── ', name: 'AGENTS.md', note: 'the editing contract agents read' },
+  { rule: '    └── ', name: 'tickets/' },
+  { rule: '        └── ', name: 'LC-42/' },
+  { rule: '            ├── ', name: 'ticket.md', note: 'the complete record', highlight: true },
+  { rule: '            └── ', name: 'attachments/' },
+]} />
+
+One `ticket.md` holds everything: metadata, description, checklist, comments,
+activity. It diffs in review, commits with the work it describes, and outlives
+the app.
+
+## Agents are first-class
+
+Every project gets a generated `.longclaw/AGENTS.md` — the editing contract an
+agent reads before touching a ticket. Activity is append-only and attributed,
+human or agent, never guessed. Agents create tickets through the CLI, which
+allocates the key and requires `--agent-id`:
+
+```sh
+longclaw ticket create --title "Fix the retry policy" \
+  --agent-id claude-code --agent-name "Claude Code"
+```
+
+When an agent edits a file directly, a native watcher updates the board without
+a refresh and shows the edit with an acknowledgement ring in the agent's green
+— visually distinct from human changes, everywhere it matters.
+
+## What 0.1.0 does
+
+A board and a dense list over the same tickets. A ticket panel that edits in
+place. A `⌘K` palette over every action. The file watcher, the agent contract,
+and the `longclaw` CLI — the same crate as the app. Five themes across light,
+dark, and system appearance.
+
+It works with no account and no network connection. No sign-in, no cloud, no
+telemetry, no crash reporting. Nothing about your projects leaves your machine
+— and this repository tracks its own work with LongClaw, through the same
+contract your agents will read.
+
+## What is deliberately not here
+
+No terminals inside the app; that is Phase 2. No sync, teams, accounts or
+billing; that is Phase 3. No Windows or Linux build, no Intel binary, no custom
+themes, no hard deletion. These are separate phases, not partial features —
+nothing in this release is a preview of them.
+
+The build is also unsigned, which macOS will tell you about on first launch.
+[Getting started](/docs) walks through approving it without weakening anything
+else on your machine.
+
+<div class="post__footer">
+  <Button href="https://github.com/sachinjain024/longclaw/releases" external>Download for Mac</Button>
+  <a href="https://github.com/sachinjain024/longclaw" rel="noopener" class="no-underline" style="font-size:14.5px;font-weight:500;">View on GitHub →</a>
+  <span class="spacer"></span>
+  <span class="fineprint">macOS 13+ · Apple Silicon</span>
+</div>

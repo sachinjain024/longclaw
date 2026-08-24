@@ -1,0 +1,40 @@
+---
+title: Backups and version control
+description: Commit .longclaw/ to git. It is the recommended backup, and it is the reason the format is text — tickets diff, merge, review, and revert like the rest of your project.
+eyebrow: Guide
+---
+
+## Commit `.longclaw/` to git
+
+A ticket's history is visible in `git log` the same way your code's is. Tickets
+travel with the branch that changes them, land in the same review, and revert
+with the same command.
+
+There is nothing else to back up.
+
+## The one thing outside your project
+
+LongClaw keeps a list of which folders you have opened, in
+`~/Library/Application Support/io.longclaw.desktop/`. Losing it costs you
+nothing but re-opening your folders. **No ticket data lives there.**
+
+## If you would rather not commit them
+
+They are still just files. Copy the folder, or let whatever backs up the rest
+of your disk back them up too.
+
+## Merge conflicts
+
+`ticket.md` is one file per ticket, so two people editing two tickets never
+collide. Two people editing the *same* ticket produce an ordinary text
+conflict, in a file whose structure a human can read:
+
+- Frontmatter fields conflict line by line, like any YAML.
+- Activity is append-only, so both sides' events usually both survive — keep
+  them both, in timestamp order.
+- Checklist items carry stable IDs, so a moved line and an edited line are
+  distinguishable.
+
+LongClaw never rewrites a file it did not expect to see. If a merge leaves a
+`ticket.md` unparseable, it is shown as a degraded ticket with the raw file and
+the offending line, and left exactly as it is until you fix it.

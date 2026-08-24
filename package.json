@@ -2,7 +2,7 @@
   "name": "longclaw",
   "private": true,
   "version": "0.1.0",
-  "description": "Repository root. This is deliberately NOT an npm workspace: the app owns its own node_modules and lockfile at apps/desktop, which is what CI installs and caches. Every script below forwards there, so adding one means adding it in both files.",
+  "description": "Repository root. This is deliberately NOT an npm workspace: each app owns its own node_modules and lockfile (apps/desktop, apps/website), which is what CI installs and caches. Every script below forwards to one of them, so adding one means adding it in both files.",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -33,6 +33,10 @@
     "probe:drag": "npm --prefix apps/desktop run probe:drag --",
     "probe:checklist": "npm --prefix apps/desktop run probe:checklist --",
     "release:binary-audit": "npm --prefix apps/desktop run release:binary-audit",
-    "audit:network": "npm --prefix apps/desktop run audit:network --"
+    "audit:network": "npm --prefix apps/desktop run audit:network --",
+    "site:dev": "npm --prefix apps/website run dev",
+    "site:build": "npm --prefix apps/website run build",
+    "site:preview": "npm --prefix apps/website run preview",
+    "site:verify": "npm --prefix apps/website run verify"
   }
 }

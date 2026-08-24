@@ -1,0 +1,96 @@
+---
+title: Install LongClaw and open your first project
+description: LongClaw is a single Mac app. There is no account to create and nothing to configure before you start — download it, approve it once, and point it at a folder.
+navLabel: Getting started
+eyebrow: Getting started
+---
+
+import Callout from '../../components/Callout.astro';
+import FileTree from '../../components/FileTree.astro';
+
+## Requirements
+
+<div class="callout callout--note">
+  <p class="mono">macOS 13 or later · Apple Silicon (M1 or newer)</p>
+</div>
+
+There is no Intel or universal binary in this release, and no Windows or Linux
+build.
+
+## Download
+
+Download `LongClaw_0.1.0_aarch64.dmg` from
+[GitHub Releases](https://github.com/sachinjain024/longclaw/releases), open it,
+and drag LongClaw into Applications.
+
+If you would rather not run a binary someone else built, the repository is the
+same code — see [building from source](#building-from-source) below.
+
+## Opening the app the first time
+
+This build is not signed with an Apple Developer certificate, so macOS will
+warn you the first time. The warning is Gatekeeper reporting that Apple has not
+certified who built the app — not that anything is wrong with it. Approving it
+takes about thirty seconds.
+
+<ol class="steps">
+  <li>
+    <p>Open LongClaw. macOS says it can't verify the app is free of malware. Click <strong>Done</strong> — and never <strong>Move to Bin</strong>, which deletes the app.</p>
+  </li>
+  <li>
+    <p>Open <strong>System Settings → Privacy &amp; Security</strong>, scroll to the Security section. You'll see "LongClaw" was blocked. Click <strong>Open Anyway</strong> and authenticate.</p>
+    <p>Do this soon after step 1: the button refers to the most recent blocked app and does not stay indefinitely.</p>
+  </li>
+  <li>
+    <p>Confirm in the dialog that follows. macOS remembers the decision — you won't be asked again for this copy of the app.</p>
+  </li>
+</ol>
+
+<Callout tone="warning">
+  <p>Do not disable Gatekeeper system-wide. Both routes above approve this one app only, and leave every other app on your machine as protected as it was.</p>
+</Callout>
+
+On macOS 14 and earlier you can instead Control-click the app and choose
+**Open**. That route was removed in macOS 15 — on current systems, System
+Settings is the only way.
+
+If macOS instead says LongClaw **"is damaged and can't be opened"** and offers
+only *Move to Bin*, that is a different message and it is not what this build
+should do. It means the copy you have was built without a valid bundle
+signature. Do not work around it by stripping the quarantine attribute; get a
+build whose `codesign --verify --deep --strict` passes.
+
+## Point it at a folder
+
+Launch LongClaw and choose any folder — a git repo or an empty directory. It
+creates `.longclaw/` inside it and writes nowhere else.
+
+<FileTree lines={[
+  { name: 'your-project/', muted: true },
+  { rule: '└── ', name: '.longclaw/' },
+  { rule: '    ├── ', name: 'longclaw.yaml', note: 'project identity, people, labels' },
+  { rule: '    ├── ', name: 'AGENTS.md', note: 'the editing contract agents read' },
+  { rule: '    └── ', name: 'tickets/' },
+]} />
+
+Point it at the same folder as your code. The tickets then live beside the work
+they describe, which is what lets an agent read a ticket and the code it refers
+to in one place.
+
+**The project key** — the `LC` in `LC-1` — prefixes every ticket. Pick it when
+you create the project; it becomes permanent once the first ticket exists,
+because changing it would rename every ticket and every directory.
+
+## Building from source
+
+The desktop app lives in `apps/desktop` and targets Tauri v2 on macOS. You need
+Node.js 22 or newer, Rust with Cargo, and the Tauri v2 macOS prerequisites.
+
+```sh
+git clone https://github.com/sachinjain024/longclaw.git
+cd longclaw
+npm --prefix apps/desktop ci
+npm run build:app
+```
+
+LongClaw source is licensed under the Mozilla Public License 2.0.

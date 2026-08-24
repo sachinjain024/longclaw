@@ -1,0 +1,413 @@
+---
+import Mark from '../Mark.astro';
+import '../../styles/product.css';
+
+/**
+ * The LongClaw window, recreated in HTML from design tokens.
+ *
+ * Five stages live in one frame — the project sidebar, the board, the dense
+ * list, the ticket panel and the ⌘K palette — and `data-stage` on the root
+ * decides which is showing. Rendering all five server-side means the frame is
+ * complete and correct before any script runs; HeroTour only ever rewrites
+ * that one attribute.
+ *
+ * The ticket data below is illustrative but real in shape: keys, statuses,
+ * priorities and labels follow the file format (docs/file_format.md), and the
+ * agent-edited card carries the attribution row the app shows when a file
+ * changes underneath you.
+ */
+interface Props {
+  /** Stage rendered before the script takes over. */
+  stage?: 'projects' | 'board' | 'list' | 'panel' | 'search';
+}
+
+const { stage = 'projects' } = Astro.props;
+
+const projects = {
+  starred: ['checkout-service'],
+  local: ['marketing-site', 'ios-app', 'checkout-service', 'LongClaw', 'infra-tooling'],
+};
+
+const board = [
+  {
+    status: 'Todo',
+    count: 3,
+    dot: '',
+    cards: [
+      {
+        key: 'LC-47',
+        title: 'Signing and notarization',
+        priority: 'P1',
+        progress: { done: 0, total: 1 },
+        label: { name: 'Release Blocker', tone: 'danger' },
+      },
+      {
+        key: 'LC-48',
+        title: 'An in-app route to the documentation',
+        priority: 'P1',
+        progress: { done: 0, total: 1 },
+        label: { name: 'Design', tone: 'accent' },
+      },
+      {
+        key: 'LC-50',
+        title: 'Shortcut reference overlay',
+        priority: 'P2',
+        label: { name: 'Product', tone: 'neutral' },
+      },
+    ],
+  },
+  {
+    status: 'In Progress',
+    count: 2,
+    dot: 'progress',
+    cards: [
+      {
+        key: 'LC-42',
+        title: 'Watcher: debounce rapid file events',
+        priority: 'urgent',
+        progress: { done: 1, total: 3 },
+        label: { name: 'Platform', tone: 'neutral' },
+        agentAck: 'claude-code · via file edit',
+      },
+      {
+        key: 'LC-45',
+        title: 'Filter chips overflow on a narrow panel',
+        priority: 'P1',
+        label: { name: 'Frontend', tone: 'agent' },
+      },
+    ],
+  },
+  {
+    status: 'Done',
+    count: 175,
+    dot: 'done',
+    cards: [
+      {
+        key: 'LC-1',
+        title: 'Close the atomic-replace race',
+        priority: 'urgent',
+        progress: { done: 1, total: 1 },
+        label: { name: 'Storage', tone: 'neutral' },
+      },
+      {
+        key: 'LC-7',
+        title: 'Attribute a change from newly appended event IDs only',
+        priority: 'P2',
+        progress: { done: 1, total: 1 },
+        label: { name: 'Domain', tone: 'neutral' },
+      },
+      {
+        key: 'LC-4',
+        title: 'Watcher recovery on wake',
+        priority: 'P2',
+        label: { name: 'Frontend', tone: 'agent' },
+      },
+    ],
+  },
+] as const;
+
+const listGroups = [
+  {
+    status: 'Backlog',
+    count: 17,
+    rows: [
+      {
+        key: 'LC-44',
+        priority: 'P1',
+        title: 'Part B of the accessibility audit, VoiceOver semantics',
+        label: { name: 'Design', tone: 'accent' },
+        age: '16d',
+      },
+      {
+        key: 'LC-45',
+        priority: 'P1',
+        title: 'A medium real project against the budgets',
+        label: { name: 'Frontend', tone: 'agent' },
+        age: '16d',
+      },
+      {
+        key: 'LC-47',
+        priority: 'P1',
+        title: 'Signing and notarization',
+        label: { name: 'Release Blocker', tone: 'danger' },
+        age: '16d',
+      },
+      {
+        key: 'LC-25',
+        priority: 'P2',
+        title: 'Shortcut reference',
+        label: { name: 'Design', tone: 'accent' },
+        age: '16d',
+      },
+    ],
+  },
+  {
+    status: 'Todo',
+    count: 28,
+    rows: [
+      { key: 'LC-204', priority: 'urgent', title: 'Transfer repo to the.infin8y account', age: '9d' },
+      {
+        key: 'LC-213',
+        priority: 'urgent',
+        title: 'Define ADHD skill and update agents instructions',
+        label: { name: 'Release Blocker', tone: 'danger' },
+        age: '10d',
+      },
+      { key: 'LC-218', priority: 'urgent', title: 'Create the AI harness pipeline', age: '17h' },
+    ],
+  },
+] as const;
+
+const paletteRows: { glyph: string; label: string; key?: string; active?: boolean }[] = [
+  { glyph: '+', label: 'Create ticket', key: 'C', active: true },
+  { glyph: '→', label: 'Go to project…' },
+  { glyph: '○', label: 'Change status…', key: 'S' },
+  { glyph: '☾', label: 'Toggle appearance (dark)' },
+  { glyph: '≡', label: 'Switch to board view' },
+];
+
+const toneClass = (tone: string) =>
+  tone === 'accent'
+    ? 'chip__dot--accent'
+    : tone === 'agent'
+      ? 'chip__dot--agent'
+      : tone === 'danger'
+        ? 'chip__dot--danger'
+        : '';
+---
+
+<div class="appwin" data-stage={stage} data-appwin>
+  <div class="appwin__titlebar">
+    <span class="appwin__dot appwin__dot--close"></span>
+    <span class="appwin__dot appwin__dot--min"></span>
+    <span class="appwin__dot appwin__dot--max"></span>
+    <span class="appwin__title">LongClaw</span>
+  </div>
+
+  <div class="appwin__scroller">
+    <div class="appwin__body">
+      <div class="appwin__sidebar">
+        <div class="appwin__brand">
+          <Mark size={18} />
+          <span>LongClaw</span>
+        </div>
+        <span class="appwin__cta">Create project</span>
+        <span class="appwin__cta-quiet">Open folder</span>
+
+        <div class="appwin__projects">
+          <div class="appwin__group">
+            <span class="appwin__group-label">STARRED</span>
+            {
+              projects.starred.map((name) => (
+                <span class="appwin__project">
+                  <span class="appwin__project-dot" />
+                  {name}
+                  <span class="appwin__star">★</span>
+                </span>
+              ))
+            }
+          </div>
+          <div class="appwin__group">
+            <span class="appwin__group-label">LOCAL</span>
+            {
+              projects.local.map((name) => (
+                <span
+                  class:list={['appwin__project', name === 'LongClaw' && 'appwin__project--current']}
+                >
+                  <span class="appwin__project-dot" />
+                  {name}
+                  {name === 'checkout-service' && <span class="appwin__star">★</span>}
+                </span>
+              ))
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="appwin__content">
+        <div class="appwin__header">
+          <div class="appwin__header-name">
+            <span class="appwin__header-title">LongClaw</span>
+            <span class="appwin__header-path">~/personal/repo/longclaw</span>
+          </div>
+          <span class="appwin__filter">Filter tickets <span class="kbd">⌘F</span></span>
+          <span class="appwin__viewtabs">
+            <span class="appwin__viewtab appwin__viewtab--board">Board</span>
+            <span class="appwin__viewtab appwin__viewtab--list">List</span>
+          </span>
+          <span class="appwin__new">New ticket <span class="kbd">C</span></span>
+        </div>
+
+        <div class="appwin__stage">
+          {/* Board — the base layer, always painted. */}
+          <div class="board">
+            {
+              board.map((column) => (
+                <div class="board__col">
+                  <div class="col-head">
+                    <span class:list={['col-head__dot', column.dot && `col-head__dot--${column.dot}`]} />
+                    {column.status} · {column.count}
+                    <span class="col-head__add">+</span>
+                  </div>
+                  {column.cards.map((card) => (
+                    <div class="tcard">
+                      <div class="tcard__top">
+                        <span class="tcard__id">{card.key}</span>
+                        {card.priority === 'urgent' ? (
+                          <span class="prio prio--urgent">!</span>
+                        ) : (
+                          <span class="prio">{card.priority}</span>
+                        )}
+                      </div>
+                      <div class="tcard__title">{card.title}</div>
+                      <div class="tcard__meta">
+                        {'progress' in card && card.progress && (
+                          <span class="progress">
+                            {card.progress.done}/{card.progress.total}
+                            <span class="progress__track">
+                              <span
+                                class:list={[
+                                  'progress__fill',
+                                  card.progress.done === card.progress.total && 'progress__fill--done',
+                                ]}
+                                style={`width:${(card.progress.done / card.progress.total) * 100}%`}
+                              />
+                            </span>
+                          </span>
+                        )}
+                        <span class="chip">
+                          <span class:list={['chip__dot', toneClass(card.label.tone)]} />
+                          {card.label.name}
+                        </span>
+                      </div>
+                      {'agentAck' in card && (
+                        <div class="tcard__ack">
+                          <span class="agent-tag">AGENT</span>
+                          <span class="agent-note">{card.agentAck}</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ))
+            }
+          </div>
+
+          {/* Dense list. */}
+          <div class="stage-layer stage-layer--overlay stage-layer--list">
+            {
+              listGroups.map((group) => (
+                <div class="list-group">
+                  <div class="list-group__head">
+                    <span class="col-head__dot" />
+                    {group.status} · {group.count}
+                  </div>
+                  <div class="list-rows">
+                    {group.rows.map((row) => (
+                      <div class="list-row">
+                        <span class="list-row__id">{row.key}</span>
+                        {row.priority === 'urgent' ? (
+                          <span class="prio prio--urgent">!</span>
+                        ) : (
+                          <span class="prio">{row.priority}</span>
+                        )}
+                        <span class="list-row__title">{row.title}</span>
+                        {'label' in row && row.label && (
+                          <span class="chip">
+                            <span class:list={['chip__dot', toneClass(row.label.tone)]} />
+                            {row.label.name}
+                          </span>
+                        )}
+                        <span class="list-row__age">{row.age}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+
+          {/* Ticket panel. */}
+          <div class="stage-layer stage-layer--panel panel">
+            <div class="panel__head">
+              <span class="panel__key">LC-42</span>
+              <span class="panel__path">tickets/LC-42/ticket.md</span>
+              <span class="panel__spacer"></span>
+              <span class="panel__action">Archive</span>
+              <span class="panel__close">✕</span>
+            </div>
+            <div class="panel__title">Watcher: debounce rapid file events</div>
+            <div class="fieldgrid">
+              <span>Status</span>
+              <span
+                ><span class="field-pill"
+                  ><span class="field-pill__dot"></span>In Progress <span class="field-pill__caret"
+                    >›</span
+                  ></span
+                ></span
+              >
+              <span>Priority</span>
+              <span
+                ><span class="field-pill"
+                  ><span class="field-pill__flag">!</span>Urgent <span class="field-pill__caret"
+                    >›</span
+                  ></span
+                ></span
+              >
+              <span>Labels</span>
+              <span style="display:flex;gap:6px;">
+                <span class="chip"><span class="chip__dot"></span>Platform</span>
+                <span class="chip chip--add">+ add</span>
+              </span>
+            </div>
+            <div class="panel__block">
+              <div class="panel__block-label">Description</div>
+              <div class="panel__desc">
+                Coalesce watcher events within 300ms before rebuilding board state, so bulk agent
+                edits land as one update.
+              </div>
+            </div>
+            <div class="panel__block" style="margin-bottom:0;">
+              <div class="panel__tabs">
+                <span class="panel__tab panel__tab--active"
+                  >Activity <span class="mono">4</span></span
+                >
+                <span class="panel__tab">Comments <span class="mono">2</span></span>
+              </div>
+              <div class="event">
+                <strong>You</strong> created this ticket <span class="event__age">· 2d</span>
+              </div>
+              <div class="event event--agent">
+                <strong>Claude Code</strong> <span class="agent-tag agent-tag--solid">AGENT</span> moved
+                this to In Progress <span class="event__age">· 17h · via file edit</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ⌘K palette. */}
+          <div class="stage-layer stage-layer--palette palette-scrim">
+            <div class="palette">
+              <div class="palette__input">
+                <span class="palette__glyph">⌕</span>
+                <span class="palette__placeholder">Type a command…</span>
+                <span class="palette__esc">ESC</span>
+              </div>
+              <div class="palette__rows">
+                {
+                  paletteRows.map((row) => (
+                    <span class:list={['palette__row', row.active && 'palette__row--active']}>
+                      <span class="palette__row-glyph">{row.glyph}</span>
+                      {row.label}
+                      {row.key && <span class="palette__row-key">{row.key}</span>}
+                    </span>
+                  ))
+                }
+              </div>
+              <div class="palette__foot">↑↓ navigate · ↵ run · esc close</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

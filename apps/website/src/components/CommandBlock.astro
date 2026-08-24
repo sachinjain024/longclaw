@@ -1,0 +1,62 @@
+---
+/**
+ * A terminal command block with a copy button, and optionally the JSON the
+ * command prints.
+ *
+ * The copied text un-wraps backslash continuations, so pasting a wrapped
+ * command into a shell gives one working line rather than the pretty version.
+ */
+interface Props {
+  /** The command, with `\` + newline where it wraps for display. */
+  cmd: string;
+  /** One line above the block saying what it does. */
+  desc?: string;
+  /** stdout to show beneath, usually JSON. */
+  output?: string;
+  id?: string;
+  class?: string;
+}
+
+const { cmd, desc, output, id, class: className } = Astro.props;
+---
+
+<div class:list={['cmd', output && 'cmd--with-output', className]} id={id}>
+  {desc && <p class="cmd__desc">{desc}</p>}
+
+  <div class="cmd__shell">
+    <div class="cmd__line">
+      <span class="cmd__prompt" aria-hidden="true">$</span>
+      <pre class="cmd__code" data-cmd-source>{cmd}</pre>
+      <button type="button" class="cmd__copy" data-copy-button aria-label="Copy command">copy</button>
+    </div>
+  </div>
+
+  {
+    output && (
+      <div class="cmd__out">
+        <div class="cmd__out-label">stdout</div>
+        <pre class="cmd__out-code">{output}</pre>
+      </div>
+    )
+  }
+</div>
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>('[data-copy-button]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const source = button.closest('.cmd')?.querySelector<HTMLElement>('[data-cmd-source]');
+      if (!source) return;
+      // Join display-wrapped lines back into one runnable command.
+      const text = (source.textContent ?? '').replace(/\\\n\s+/g, ' ');
+      try {
+        await navigator.clipboard.writeText(text);
+        button.textContent = 'copied';
+      } catch {
+        button.textContent = 'select it';
+      }
+      window.setTimeout(() => {
+        button.textContent = 'copy';
+      }, 1600);
+    });
+  });
+</script>

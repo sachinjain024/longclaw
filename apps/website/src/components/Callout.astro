@@ -1,0 +1,20 @@
+---
+/**
+ * A quiet bordered note. The docs voice does not shout: a warning is an ochre
+ * left rail and a mono label, not a coloured alarm panel.
+ */
+interface Props {
+  /** Uppercase mono label. */
+  label?: string;
+  tone?: 'warning' | 'note';
+  class?: string;
+}
+
+const { label, tone = 'note', class: className } = Astro.props;
+const resolvedLabel = label ?? (tone === 'warning' ? 'Warning' : 'Note');
+---
+
+<aside class:list={['callout', `callout--${tone}`, className]}>
+  <div class="callout__label">{resolvedLabel}</div>
+  <slot />
+</aside>

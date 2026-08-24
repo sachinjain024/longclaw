@@ -1,0 +1,78 @@
+---
+title: Working with agents
+description: An agent with access to your project folder can read and update tickets directly, and its edits appear in the app without a refresh — attributed to it, not to you.
+eyebrow: Guide
+---
+
+import Callout from '../../components/Callout.astro';
+
+This is what LongClaw is for.
+
+## Point your agent at the tickets once
+
+Add a short section to the file your agent already reads — `AGENTS.md`,
+`CLAUDE.md`, or whatever it is — telling it where the tickets are and to read
+the contract first. There is a copyable example in
+[`examples/agent-context/AGENTS.md`](https://github.com/sachinjain024/longclaw/blob/main/examples/agent-context/AGENTS.md)
+in the repository.
+
+## `.longclaw/AGENTS.md` is the contract, and the app maintains it
+
+You do not write it and should not need to edit it. It is generated into every
+project so an agent that has never seen LongClaw can read and edit tickets
+correctly without being told how. It covers:
+
+- which files are canonical;
+- which fields agents may change;
+- actor and timestamp rules;
+- how to check off a checklist item;
+- how to append a bounded activity entry;
+- how to register and safely read an attachment;
+- how unknown fields must be preserved;
+- atomic-write expectations;
+- invalid or partial-file behaviour;
+- before-and-after examples of safe mutations.
+
+LongClaw owns `.longclaw/AGENTS.md` and will not create or overwrite an
+unrelated `AGENTS.md` at your repository root.
+
+## Agents create tickets through the CLI
+
+The CLI is the one creation surface agents use. It allocates the ticket key, so
+an agent never invents one, and it requires `--agent-id`, so every agent-filed
+ticket is attributed as agent work:
+
+```sh
+longclaw ticket create --title "Fix the retry policy" --label storage \
+  --agent-id claude-code --agent-name "Claude Code"
+```
+
+You create tickets in the app. Either way, the plan stays yours to review. See
+the [CLI reference](/docs/cli) for the rest of the surface.
+
+<Callout tone="warning" label="Attribution">
+  <p>An agent that omits <code>--agent-id</code> writes an activity entry that claims a human did the work. The file format declares an actor and never infers one — there is no heuristic to fall back on, which is the point.</p>
+</Callout>
+
+## You will see who did what
+
+Edits made by an agent are attributed to an agent in the ticket's history,
+separately from yours. That separation is the point: you stay accountable for
+the plan, and the record shows which changes were not yours.
+
+A ticket changed outside the app wears a decaying acknowledgement — a ring and
+a pulse on its card, the actor and the age, and agent-checked rows in its panel
+— that fades when you open the ticket, or two minutes after the change.
+
+## Conflicts are shown, never resolved for you
+
+The app records a content hash when an edit begins and compares it with what is
+on disk before saving. A stale in-app edit is never silently written over a
+newer external one: you get a conflict banner showing the file before anything
+is overwritten, and you choose.
+
+## Assignees stay human
+
+Agents comment, update descriptions, and check off checklist items. They appear
+as explicitly typed actors in activity events, and never in the assignable
+people registry. Accountability stays with a person.

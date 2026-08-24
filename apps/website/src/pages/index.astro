@@ -1,0 +1,164 @@
+---
+import Button from '../components/Button.astro';
+import FileTree from '../components/FileTree.astro';
+import Icon from '../components/Icon.astro';
+import Mark from '../components/Mark.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+import SiteHeader from '../components/SiteHeader.astro';
+import AgentTour from '../components/product/AgentTour.astro';
+import HeroTour from '../components/product/HeroTour.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { SITE, absolute } from '../lib/site';
+
+const description =
+  'Agents execute and write back context to the same ticket record, in plain Markdown files sitting alongside your code. A local-first issue tracker for macOS. No account, no telemetry, open source.';
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: SITE.name,
+    applicationCategory: 'DeveloperApplication',
+    operatingSystem: 'macOS 13 or later, Apple Silicon',
+    softwareVersion: SITE.version,
+    description,
+    url: absolute('/'),
+    downloadUrl: SITE.releases,
+    license: SITE.licenseUrl,
+    isAccessibleForFree: true,
+    author: { '@type': 'Person', name: SITE.author },
+    /* Free and locally installed. Stating that is a fact about v0, not a
+       pricing claim — there is no paid tier to compare it against. */
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: SITE.name,
+    url: absolute('/'),
+    description: SITE.description,
+  },
+];
+
+const claims = [
+  { icon: 'wifi-off', label: 'Fully offline' },
+  { icon: 'zap', label: 'Blazing fast' },
+  { icon: 'activity-off', label: 'No telemetry' },
+  { icon: 'code', label: 'Open source' },
+] as const;
+---
+
+<BaseLayout title={`${SITE.name} — ${SITE.tagline}`} description={description} path="/" jsonLd={jsonLd}>
+  <SiteHeader path="/" />
+
+  <main id="main">
+    <section class="hero container container--hero" id="top">
+      <h1 class="h-display">Local-first issue tracker for AI coding agents.</h1>
+      <p class="hero__sub">
+        Agents execute and write back context to the same ticket record in the plain Markdown files
+        sitting along with the code.
+      </p>
+
+      <div class="cta-row">
+        <Button href={SITE.releases} size="lg" external>
+          <Icon name="apple" size={16} />
+          Download for Mac
+        </Button>
+        <Button href={SITE.repo} size="lg" variant="secondary" external>
+          <Icon name="github" size={16} />
+          View on GitHub
+        </Button>
+      </div>
+      <p class="fineprint hero__fineprint">{SITE.requirements}</p>
+
+      <HeroTour />
+    </section>
+
+    <section class="section" aria-labelledby="files-heading">
+      <div class="container section__inner split split--tree">
+        <div>
+          <div class="eyebrow">Your tickets are files</div>
+          <h2 class="h-section" id="files-heading">Plain Markdown, beside the code</h2>
+          <p style="margin:0 0 14px;line-height:1.65;color:var(--text-muted);text-wrap:pretty;">
+            A ticket is a directory of plain Markdown inside your project.
+          </p>
+          <ul class="dot-list dot-list--accent">
+            <li>Readable in an editor, diffable in review, committed with the work it describes.</li>
+            <li>One file holds everything: metadata, description, checklist, comments, activity.</li>
+            <li>The record outlives the app.</li>
+          </ul>
+        </div>
+
+        <FileTree
+          lines={[
+            { name: 'your-project/', muted: true },
+            { rule: '└── ', name: '.longclaw/' },
+            { rule: '    ├── ', name: 'longclaw.yaml', note: 'project identity, people, labels' },
+            { rule: '    ├── ', name: 'AGENTS.md', note: 'the editing contract agents read' },
+            { rule: '    └── ', name: 'tickets/' },
+            { rule: '        └── ', name: 'LC-42/' },
+            { rule: '            ├── ', name: 'ticket.md', note: 'the complete record', highlight: true },
+            { rule: '            └── ', name: 'attachments/' },
+          ]}
+        />
+      </div>
+    </section>
+
+    <section class="section section--alt" aria-labelledby="agents-heading">
+      <div class="container section__inner">
+        <div class="section-head">
+          <div class="eyebrow eyebrow--agent">Built for agents</div>
+          <h2 class="h-section" id="agents-heading">The context layer for your AI agents</h2>
+          <p class="lead">
+            Everything an agent needs, and everything it learns, lives on the ticket. Structured
+            Markdown in your repo, not scattered across chat threads and doc tools.
+          </p>
+        </div>
+
+        <AgentTour />
+
+        <div class="pullquote">
+          <span class="pullquote__diamond" aria-hidden="true"></span>
+          <p>
+            The ticket is committed with the code.<br />
+            <strong>The full context gets structure, attribution, and permanence.</strong>
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="download" aria-labelledby="download-heading">
+      <div class="container closing">
+        <Mark size={44} />
+        <h2 class="closing__title" id="download-heading">
+          An issue tracking system your AI agents will love.
+        </h2>
+
+        <div class="cta-row">
+          <Button href={SITE.releases} size="lg" external>
+            <Icon name="apple" size={16} />
+            Download for Mac
+          </Button>
+          <Button href={SITE.repo} size="lg" variant="secondary" external>
+            <Icon name="github" size={16} />
+            View on GitHub
+          </Button>
+        </div>
+        <p class="fineprint hero__fineprint">{SITE.requirements}</p>
+
+        <ul class="pill-row">
+          {
+            claims.map((claim) => (
+              <li class="pill">
+                <Icon name={claim.icon} size={15} />
+                {claim.label}
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <SiteFooter />
+</BaseLayout>
