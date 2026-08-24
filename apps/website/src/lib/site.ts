@@ -63,7 +63,18 @@ export function docsNeighbours(href: string): {
   return { previous: DOCS_NAV[i - 1], next: DOCS_NAV[i + 1] };
 }
 
-/** Absolute URL for `path`, for canonical links and structured data. */
+/**
+ * Absolute URL for `path`, for canonical links and structured data.
+ *
+ * Pages build to directories, so the URL that actually serves is the one with
+ * the trailing slash — `/docs` 301s to `/docs/`, and the sitemap emits the
+ * slashed form. A canonical pointing at the redirecting form makes the two
+ * signals disagree, so the slash is added here.
+ *
+ * Anything carrying a file extension is an asset (`/og.png`) and is left alone.
+ */
 export function absolute(path: string): string {
-  return new URL(path, SITE_URL).href;
+  const isAsset = /\.[a-z0-9]+$/i.test(path);
+  const normalised = isAsset || path.endsWith('/') ? path : `${path}/`;
+  return new URL(normalised, SITE_URL).href;
 }
