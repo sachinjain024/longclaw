@@ -357,11 +357,19 @@ label select,
 
 /* The focus treatment is the ring *and* an accent border on the control itself
    (components.md:30) — the ring says where focus is, the border says what it
-   is on. */
+   is on.
+
+   The caret is the third of them (components.md:59-72, § Inputs), and it was
+   the one no field in the app had: every text field in the product blinked the
+   OS default, which is `ink`. Width is not ours to set — the spec's 1.5px is
+   the platform's business — but the colour is, and it belongs here rather than
+   on any one field, because "the caret is human accent" is a statement about
+   fields and not about the ticket title that LC-229 asked after. */
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
   border-color: var(--lc-accent-human);
+  caret-color: var(--lc-accent-human);
 }
 
 input::placeholder,
@@ -2360,15 +2368,39 @@ button:disabled {
   font-size: 12px;
 }
 
+/* Borderless textarea in `--lc-type-title`, hover `wash`, focus the field
+   treatment (`screen-specs.md:224-225`). Borderless is the whole difficulty:
+   the box only appears under the pointer or the caret, so every number below is
+   about what happens when it does — and three of them were wrong until LC-229.
+
+   The padded box bleeds `--lc-space-2` past each side and the negative inline
+   margin gives it straight back, which is the prototype's `padding: 4px 8px`
+   over `margin: … -8px …`. What has to line up is the *text*: the meta grid,
+   the description and the checklist all sit flush against the panel's own
+   padding, so a title with 8px of padding and nothing cancelling it started 9px
+   further in than everything below it — on the largest piece of text the panel
+   draws, and on the one line a reader uses to find the left edge. `width` is
+   resolved against the parent's content box, so it has to grow by both margins
+   or the bleed lands on one side only. */
 .panel-title {
-  width: 100%;
+  width: calc(100% + 2 * var(--lc-space-2));
+  margin-inline: calc(-1 * var(--lc-space-2));
   border: 1px solid transparent;
   border-radius: var(--lc-radius-control);
-  padding: var(--lc-space-2);
+  /* 4px, not 8px: the field foundation's box is 30px tall (components.md:59-72)
+     and the title's own line is 23, so 8px all round drew a 41px slab of `wash`
+     around a single line of text. */
+  padding: var(--lc-space-1) var(--lc-space-2);
   color: var(--lc-ink);
   background: transparent;
   font: var(--lc-type-title-weight) var(--lc-type-title-size) /
     var(--lc-type-title-leading) var(--lc-type-title-font);
+  /* `--lc-type-title` is four values and the `font` shorthand carries three, so
+     the tracking has to be said separately. Every other place the app sets
+     title type says it — `h1`, `.create-form h2`, `.settings-panel h2` — and
+     this rule did not, which left the panel's title as the one piece of the
+     face rendering at the browser's default tracking instead of -0.01em. */
+  letter-spacing: var(--lc-type-title-tracking);
   /* No grabber (LC-108). The prototype's title is a borderless textarea with
      nothing to drag, and the handle it was drawing here was the one piece of
      native chrome on the panel's largest piece of text. `useAutoGrow` sizes it
@@ -2381,6 +2413,17 @@ button:disabled {
 
 .panel-title:hover {
   background: var(--lc-wash);
+}
+
+/* Focus is the field treatment, and on a field with no resting box of its own
+   that has to include the background — the ring and the accent border arrive
+   from the shared `textarea:focus-visible` rules, but they arrive over whatever
+   `:hover` last painted. The two are both (0,2,0), so this wins on source order
+   alone and must stay below `:hover`: a title being typed into was coloured
+   `wash`, like a row sitting under the pointer, for as long as the pointer
+   stayed where the click that focused it had left it. */
+.panel-title:focus-visible {
+  background: var(--lc-surface);
 }
 
 .meta-grid {
@@ -2556,10 +2599,13 @@ button:disabled {
   opacity: 1;
 }
 
+/* `.panel-title` is deliberately not in this list. It is the one field here
+   that is wider than its parent's content box — it bleeds its padding into the
+   panel's own — and this rule sits far enough below its own that a plain `100%`
+   here would quietly win on source order and put the text back out of line. */
 .description-editor textarea,
 .composer textarea,
-.checklist-add-field,
-.panel-title {
+.checklist-add-field {
   width: 100%;
 }
 

@@ -39,7 +39,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { cssRules, filesUnder, report } from "./guard.mjs";
+import { cssRules, declaredValues, filesUnder, report } from "./guard.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const src = resolve(here, "../src");
@@ -84,6 +84,90 @@ for (const [selector, prose] of Object.entries(FIELDS)) {
   }
 }
 
+/* The borderless title's three numbers (LC-229). It is spec'd as a field —
+   `--lc-type-title`, hover `wash`, focus the field treatment
+   (`screen-specs.md:224-225`) — and being borderless is what let it drift off
+   that spec without anything looking broken: a box nobody can see at rest is a
+   box nobody checks, and all three of these were wrong for as long as the rule
+   has existed. Each is a static fact about the cascade, which is why they read
+   the stylesheet rather than measuring a render. */
+const TITLE = ".panel-title";
+const rules = cssRules(styles);
+const order = (selector) => rules.findIndex(([at]) => at === selector);
+
+/**
+ * The inline half of a `padding` shorthand. One value is all four sides and so
+ * is its own inline value; two and four both put it second. Three is `a b c`,
+ * where `b` is still the inline one.
+ */
+const inlineOf = (value) => {
+  const parts = value.trim().split(/\s+/);
+  return parts.length === 1 ? parts[0] : parts[1];
+};
+
+const TITLE_CHECKS = [
+  /* The `font` shorthand carries size, weight and leading; `--lc-type-title` is
+     four values, so the tracking has to be said separately or it is not said. */
+  () =>
+    declaredValues(rules, TITLE, "letter-spacing").length
+      ? null
+      : `${TITLE} declares no letter-spacing — the font shorthand cannot ` +
+        `carry it, so --lc-type-title renders at the browser's default ` +
+        `tracking instead of --lc-type-title-tracking`,
+
+  /* The title bleeds its inline padding past the panel's content box so the
+     hover wash has room, and gives it straight back as negative margin so the
+     *text* stays flush with the meta grid below it. Padding without the margin
+     is the defect LC-229 was filed on; margin without the padding is the same
+     defect mirrored. Neither half means anything alone, so they are asked for
+     as a pair. */
+  () => {
+    const padding = declaredValues(rules, TITLE, "padding")
+      .map(inlineOf)
+      .at(-1);
+    const margin = declaredValues(rules, TITLE, "margin-inline").at(-1);
+    if (padding === undefined) {
+      return `${TITLE} declares no padding — the hover box has no room`;
+    }
+    if (margin === undefined) {
+      return (
+        `${TITLE} pads its sides by ${padding} and declares no margin-inline ` +
+        `to give it back — its text then starts further in than the meta ` +
+        `grid and the description under it`
+      );
+    }
+    return margin.includes(padding)
+      ? null
+      : `${TITLE} pads its sides by ${padding} but its margin-inline is ` +
+          `${margin} — the two must cancel, or the text does not line up ` +
+          `with the rest of the panel`;
+  },
+
+  /* Focus beats hover here only by sitting below it: both are (0,2,0), so the
+     order in the file is the whole contract and it is invisible at the point of
+     editing. Moving the block up is a silent revert, so the order is checked
+     and not just the declaration. */
+  () => {
+    const focus = `${TITLE}:focus-visible`;
+    if (
+      !declaredValues(rules, focus, "background").includes("var(--lc-surface)")
+    ) {
+      return (
+        `${focus} does not set background: var(--lc-surface) — a focused ` +
+        `title keeps whatever :hover painted, so typing into it looks like ` +
+        `hovering a row`
+      );
+    }
+    return order(focus) > order(`${TITLE}:hover`)
+      ? null
+      : `${focus} is declared above ${TITLE}:hover — they tie on ` +
+          `specificity, so hover wins on source order and the focus ` +
+          `background never paints`;
+  },
+];
+
+findings.push(...TITLE_CHECKS.map((check) => check()).filter(Boolean));
+
 /* The half the stylesheet cannot state: a field with no handle has to find its
    own height. Every field takes its ref from the same hook, so counting the
    call sites — the assignments, not the declaration in `autoGrow.ts` — is the
@@ -122,8 +206,13 @@ report({
   findings,
   checked:
     Object.values(GROWN).reduce((total, count) => total + count, 0) +
-    components.length,
-  noun: "auto-grown fields and components",
+    components.length +
+    /* The title's tracking, its padding/margin pair, and its focus background —
+       counted here rather than written as a literal, for the reason
+       `create-surface-guard.mjs` gives: a hand-written total goes stale the
+       moment somebody adds a fourth. */
+    TITLE_CHECKS.length,
+  noun: "auto-grown fields, title rules and components",
   remedy: "field defect(s) — see cc_screens_diff.md D-3F / D-3G / D-72",
   clean: "each grows to its own text and wears no native chrome",
 });

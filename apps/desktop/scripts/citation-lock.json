@@ -63,6 +63,7 @@
     "219": "path `tickets/LC-128/ticket.md` — the disk made visible — an `archived`",
     "221": "(ADR 0004), close. Archiving closes the panel, hides the ticket from",
     "223": "activity event; the directory never moves.",
+    "224": "- **Title:** borderless textarea, `--lc-type-title`, hover `wash`, focus =",
     "225": "field treatment. Enter or blur commits (activity: \"renamed\"); Esc",
     "227": "- **Meta grid:** 84px label column, 12px gap. Rows: Status, Priority,",
     "228": "Labels — each value a 26px menu trigger (hover `wash`). There is no",
