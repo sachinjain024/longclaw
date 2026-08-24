@@ -44,6 +44,8 @@ import { cssRules, declaredValues, filesUnder, report } from "./guard.mjs";
 const here = dirname(fileURLToPath(import.meta.url));
 const src = resolve(here, "../src");
 const styles = readFileSync(join(src, "styles.css"), "utf8");
+/** Parsed once: every check below reads the same stylesheet. */
+const sheet = cssRules(styles);
 
 /** Selector → what the field is, for a finding that says which one broke. */
 const FIELDS = {
@@ -64,7 +66,7 @@ const GROWN = {
 const findings = [];
 
 for (const [selector, prose] of Object.entries(FIELDS)) {
-  const rules = cssRules(styles).filter(([at]) => at === selector);
+  const rules = sheet.filter(([at]) => at === selector);
   if (rules.length === 0) {
     findings.push(`${selector} (${prose}) has no rule at all`);
     continue;
@@ -84,63 +86,142 @@ for (const [selector, prose] of Object.entries(FIELDS)) {
   }
 }
 
-/* The borderless title's three numbers (LC-229). It is spec'd as a field —
+/* Four facts about the cascade that no test in `verify` can see (LC-229).
+   Three are the borderless title's: it is spec'd as a field —
    `--lc-type-title`, hover `wash`, focus the field treatment
    (`screen-specs.md:224-225`) — and being borderless is what let it drift off
-   that spec without anything looking broken: a box nobody can see at rest is a
-   box nobody checks, and all three of these were wrong for as long as the rule
-   has existed. Each is a static fact about the cascade, which is why they read
-   the stylesheet rather than measuring a render. */
+   that spec without anything looking broken, because a box nobody can see at
+   rest is a box nobody checks. All three were wrong for as long as the rule had
+   existed. The fourth is the caret the whole field foundation asks for
+   (`components.md:66`), which no field in the app had.
+
+   These read the stylesheet rather than a render because each is a static fact
+   about what the cascade resolves to. The geometry they produce is not static,
+   and is not claimed here: what a probe measured once is recorded in the
+   commit, not asserted every run. */
 const TITLE = ".panel-title";
-const rules = cssRules(styles);
-const order = (selector) => rules.findIndex(([at]) => at === selector);
 
 /**
- * The inline half of a `padding` shorthand. One value is all four sides and so
- * is its own inline value; two and four both put it second. Three is `a b c`,
- * where `b` is still the inline one.
+ * Where a selector's rule sits in the file, `-1` when nothing declares it.
+ *
+ * Comma-split for `declarationsOf`'s reason: a selector merged into a list is
+ * the same rule, and an identity test would stop finding it. That matters more
+ * here than it looks — the only caller compares two positions, so a selector
+ * that quietly stopped being found would compare against `-1` and pass.
  */
-const inlineOf = (value) => {
-  const parts = value.trim().split(/\s+/);
-  return parts.length === 1 ? parts[0] : parts[1];
+const order = (selector) =>
+  sheet.findIndex(([at]) =>
+    at.split(",").some((one) => one.trim() === selector),
+  );
+
+/**
+ * A shorthand's space-separated parts, with parenthesised values kept whole:
+ * `calc(-1 * var(--x))` is one part and not four.
+ *
+ * `split(/\s+/)` is the obvious reader and it is wrong for `declaredValues`'
+ * reason — it silently mangles exactly the values this file exists to compare,
+ * and reports clean over the wreckage.
+ */
+const parts = (value) => {
+  const found = [];
+  let depth = 0;
+  let current = "";
+  for (const character of value.trim()) {
+    if (character === "(") depth += 1;
+    if (character === ")") depth -= 1;
+    if (depth === 0 && /\s/.test(character)) {
+      if (current) found.push(current);
+      current = "";
+      continue;
+    }
+    current += character;
+  }
+  if (current) found.push(current);
+  return found;
 };
 
-const TITLE_CHECKS = [
+/**
+ * The inline (left and right) value of a `padding` shorthand, or `null` when
+ * the two sides are not the same value.
+ *
+ * One value is all four sides; two and three put the inline one second; four is
+ * top/right/bottom/left, where the two sides are separate and a title padded
+ * unevenly has no single value for a margin to cancel.
+ */
+const inlinePadding = (value) => {
+  const found = parts(value);
+  if (found.length === 1) return found[0];
+  if (found.length === 2 || found.length === 3) return found[1];
+  if (found.length === 4) return found[1] === found[3] ? found[1] : null;
+  return null;
+};
+
+/** Whitespace is not meaning in a CSS value, and the spellings below differ in it. */
+const flat = (value) => value.replace(/\s+/g, "");
+
+/**
+ * Does `margin` undo `padding`? Asked as "is it one of the spellings that
+ * negate it", not "does it mention it".
+ *
+ * The substring test this replaces could not see a sign: it passed
+ * `calc(1 * var(--lc-space-2))` — the LC-229 defect doubled rather than
+ * cancelled — and `calc(-2 * …)`, and reported both clean. A guard that cannot
+ * fail on the defect it was written for is worse than no guard, because the
+ * green run is what stops anyone looking.
+ */
+const cancels = (margin, padding) =>
+  [
+    `calc(-1*${padding})`,
+    `calc(${padding}*-1)`,
+    padding.startsWith("-") ? padding.slice(1) : `-${padding}`,
+  ].some((spelling) => flat(margin) === flat(spelling));
+
+const CASCADE_CHECKS = [
   /* The `font` shorthand carries size, weight and leading; `--lc-type-title` is
      four values, so the tracking has to be said separately or it is not said. */
   () =>
-    declaredValues(rules, TITLE, "letter-spacing").length
+    declaredValues(sheet, TITLE, "letter-spacing").length
       ? null
       : `${TITLE} declares no letter-spacing — the font shorthand cannot ` +
         `carry it, so --lc-type-title renders at the browser's default ` +
         `tracking instead of --lc-type-title-tracking`,
 
   /* The title bleeds its inline padding past the panel's content box so the
-     hover wash has room, and gives it straight back as negative margin so the
-     *text* stays flush with the meta grid below it. Padding without the margin
-     is the defect LC-229 was filed on; margin without the padding is the same
-     defect mirrored. Neither half means anything alone, so they are asked for
-     as a pair. */
+     hover wash has room, and takes it back as negative margin so the *text*
+     lands where the meta grid and the description below it start. (Within the
+     1px transparent border, which is not cancelled and is the prototype's
+     behaviour too.) Padding without the margin is the defect LC-229 was filed
+     on; margin without the padding is the same defect mirrored. Neither half
+     means anything alone, so they are asked for as a pair. */
   () => {
-    const padding = declaredValues(rules, TITLE, "padding")
-      .map(inlineOf)
-      .at(-1);
-    const margin = declaredValues(rules, TITLE, "margin-inline").at(-1);
-    if (padding === undefined) {
+    const declared = [
+      ...declaredValues(sheet, TITLE, "padding"),
+      ...declaredValues(sheet, TITLE, "padding-inline"),
+    ];
+    const padding = declared.map(inlinePadding).at(-1);
+    const margin = declaredValues(sheet, TITLE, "margin-inline").at(-1);
+    if (declared.length === 0) {
       return `${TITLE} declares no padding — the hover box has no room`;
+    }
+    if (padding === null) {
+      return (
+        `${TITLE} pads its two sides differently (${declared.at(-1)}) — one ` +
+        `margin-inline cannot cancel both, so one side of the text is out of ` +
+        `line whatever it is set to`
+      );
     }
     if (margin === undefined) {
       return (
         `${TITLE} pads its sides by ${padding} and declares no margin-inline ` +
-        `to give it back — its text then starts further in than the meta ` +
+        `to take it back — its text then starts further in than the meta ` +
         `grid and the description under it`
       );
     }
-    return margin.includes(padding)
+    return cancels(margin, padding)
       ? null
       : `${TITLE} pads its sides by ${padding} but its margin-inline is ` +
-          `${margin} — the two must cancel, or the text does not line up ` +
-          `with the rest of the panel`;
+          `${margin} — it has to negate the padding (calc(-1 * ${padding})), ` +
+          `or the text does not line up with the rest of the panel`;
   },
 
   /* Focus beats hover here only by sitting below it: both are (0,2,0), so the
@@ -150,7 +231,7 @@ const TITLE_CHECKS = [
   () => {
     const focus = `${TITLE}:focus-visible`;
     if (
-      !declaredValues(rules, focus, "background").includes("var(--lc-surface)")
+      !declaredValues(sheet, focus, "background").includes("var(--lc-surface)")
     ) {
       return (
         `${focus} does not set background: var(--lc-surface) — a focused ` +
@@ -158,15 +239,38 @@ const TITLE_CHECKS = [
         `hovering a row`
       );
     }
-    return order(focus) > order(`${TITLE}:hover`)
+    const hover = `${TITLE}:hover`;
+    if (order(hover) === -1) {
+      return `${hover} has no rule — the focus background has nothing to beat`;
+    }
+    return order(focus) > order(hover)
       ? null
-      : `${focus} is declared above ${TITLE}:hover — they tie on ` +
-          `specificity, so hover wins on source order and the focus ` +
-          `background never paints`;
+      : `${focus} is declared above ${hover} — they tie on specificity, so ` +
+          `hover wins on source order and the focus background never paints`;
+  },
+
+  /* The caret is the third of the focus treatment's three parts
+     (`components.md:66`), and the one that was missing everywhere rather than
+     on the title alone: every text field in the product blinked the OS default.
+     It belongs on the shared rule beside the ring and the border, so that is
+     where it is asked for — naming the two selectors that can actually show a
+     caret, since `select` cannot. */
+  () => {
+    const without = ["input:focus-visible", "textarea:focus-visible"].filter(
+      (selector) =>
+        !declaredValues(sheet, selector, "caret-color").includes(
+          "var(--lc-accent-human)",
+        ),
+    );
+    return without.length === 0
+      ? null
+      : `${without.join(" and ")} do(es) not set caret-color: ` +
+          `var(--lc-accent-human) — the field foundation asks for a human-` +
+          `accent caret and the OS default is ink`;
   },
 ];
 
-findings.push(...TITLE_CHECKS.map((check) => check()).filter(Boolean));
+findings.push(...CASCADE_CHECKS.map((check) => check()).filter(Boolean));
 
 /* The half the stylesheet cannot state: a field with no handle has to find its
    own height. Every field takes its ref from the same hook, so counting the
@@ -207,12 +311,11 @@ report({
   checked:
     Object.values(GROWN).reduce((total, count) => total + count, 0) +
     components.length +
-    /* The title's tracking, its padding/margin pair, and its focus background —
-       counted here rather than written as a literal, for the reason
+    /* Counted rather than written as a literal, for the reason
        `create-surface-guard.mjs` gives: a hand-written total goes stale the
-       moment somebody adds a fourth. */
-    TITLE_CHECKS.length,
-  noun: "auto-grown fields, title rules and components",
+       moment somebody adds one. */
+    CASCADE_CHECKS.length,
+  noun: "auto-grown fields, cascade contracts and components",
   remedy: "field defect(s) — see cc_screens_diff.md D-3F / D-3G / D-72",
   clean: "each grows to its own text and wears no native chrome",
 });

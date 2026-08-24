@@ -359,12 +359,13 @@ label select,
    (components.md:30) — the ring says where focus is, the border says what it
    is on.
 
-   The caret is the third of them (components.md:59-72, § Inputs), and it was
-   the one no field in the app had: every text field in the product blinked the
-   OS default, which is `ink`. Width is not ours to set — the spec's 1.5px is
-   the platform's business — but the colour is, and it belongs here rather than
-   on any one field, because "the caret is human accent" is a statement about
-   fields and not about the ticket title that LC-229 asked after. */
+   The caret is the third of them (`components.md:66`), and it was the one no
+   field in the app had: every text field in the product blinked the OS default,
+   which is `ink`. Width is not ours to set — CSS has no `caret-width`, so the
+   spec's 1.5px is unreachable rather than skipped — but the colour is, and it
+   belongs here rather than on any one field, because "the caret is human
+   accent" is a statement about fields and not about the ticket title LC-229
+   asked after. */
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
@@ -2374,14 +2375,22 @@ button:disabled {
    about what happens when it does — and three of them were wrong until LC-229.
 
    The padded box bleeds `--lc-space-2` past each side and the negative inline
-   margin gives it straight back, which is the prototype's `padding: 4px 8px`
-   over `margin: … -8px …`. What has to line up is the *text*: the meta grid,
-   the description and the checklist all sit flush against the panel's own
-   padding, so a title with 8px of padding and nothing cancelling it started 9px
-   further in than everything below it — on the largest piece of text the panel
-   draws, and on the one line a reader uses to find the left edge. `width` is
-   resolved against the parent's content box, so it has to grow by both margins
-   or the bleed lands on one side only. */
+   margin takes it back, which is the inline half of the prototype's
+   `padding: 4px 8px` over `margin: 2px -8px 6px`. Only the inline half: the
+   block margins are the panel's own `gap`, which is how this column spaces its
+   children and the prototype's was not.
+
+   What has to line up is the *text*. The meta grid, the description and the
+   checklist all sit flush against the panel's padding, so a title with 8px of
+   padding and nothing cancelling it started 9px further in than everything
+   below it — on the largest piece of text the panel draws, and on the one line
+   a reader uses to find the left edge. The 1px transparent border is not
+   cancelled, so the text lands 1px in rather than dead flush; that is what the
+   prototype does too, and it is below the threshold the eye reads as an indent.
+
+   `width` is resolved against the parent's content box, so it has to grow by
+   both margins. The prototype leaves it at `100%` and takes an 8px bleed on the
+   left with none on the right; symmetry is worth the one departure. */
 .panel-title {
   width: calc(100% + 2 * var(--lc-space-2));
   margin-inline: calc(-1 * var(--lc-space-2));

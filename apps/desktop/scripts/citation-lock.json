@@ -193,6 +193,7 @@
     "56": "Embedded kbd hint: `--lc-type-kbd` mono on 20%-white (light primary) /",
     "57": "18%-ink (dark primary) chip, radius `--lc-radius-kbd`.",
     "59": "## Inputs",
+    "66": "caret `accent-human` (1.5px).",
     "67": "- **Path/mono inputs** (folder pickers, IDs): `--lc-type-code`, folder glyph",
     "72": "",
     "75": "- **Label chip:** height 22px (19px on cards), pill radius (`radius-full` —",
