@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 016ec3ad-8e3f-4477-8b2e-0b5e1790132f
 key: LC-47
 title: Signing and notarization
-status: backlog
+status: in_progress
 priority: p1
 labels:
   - release
   - post-mvp
 created_at: 2026-08-05T14:23:17Z
-updated_at: 2026-08-22T08:45:34.230Z
+updated_at: 2026-08-24T15:15:50.319Z
 ---
 
 **Signing and notarization.** v0 ships unsigned with a documented Gatekeeper route
@@ -151,4 +151,19 @@ changes:
     to: Section Opening the app the first time is deleted from the release notes rather than softened, the acceptance table takes the signed branch, the release-risks row is retired with its evidence, and a signing runbook exists for the next release
 -->
 ### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_ff734c48
+kind: update
+occurred_at: 2026-08-24T15:15:50.319Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: backlog
+    to: in_progress
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

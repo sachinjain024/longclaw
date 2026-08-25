@@ -194,3 +194,79 @@ Note this is the marketing recreation only — the app still draws the decaying 
 
 Re-verified: no broken links, WCAG AA in both appearances, no external hosts, astro check clean.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_6e0fba15
+kind: comment
+occurred_at: 2026-08-24T12:26:55.402Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Merged to main as 415d2b0 (three commits, rebased onto f1a044d first). Both gates green on the merged main.
+
+The Website workflow fired and could not start: "The job was not started because recent account payments have failed or your spending limit needs to be increased." That is an Actions billing state on the account, not the workflow — no job ran, so nothing was built or deployed. GitHub Pages is also not configured yet (the pages API 404s).
+
+To go live: clear the Actions billing state, enable Pages with the GitHub Actions source, re-run the Website workflow, then point longclaw.io DNS at Pages and tick Enforce HTTPS.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_ad852716
+kind: comment
+occurred_at: 2026-08-24T14:33:49.654Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Deploy is green on the GitHub side. Two repo settings had to be changed to get there, both named by the failing step: Pages enabled with the GitHub Actions source, and the custom domain set to longclaw.io.
+
+The second one was a real trap worth recording. public/CNAME does nothing when Pages builds from a workflow — that file is only read by the legacy branch-based build, and the domain comes from the repository setting instead. With no domain set, Pages served the site at /longclaw/ while the build assumes base: '/', so every asset and link 404'd on a page that otherwise looked live and returned 200. Corrected in apps/website/README.md (6a198f1), which had claimed the file was what served the domain.
+
+Remaining blocker is DNS, and it is not something the repo can fix: longclaw.io still resolves to Porkbun parking (207.207.210.107/229) rather than GitHub Pages (185.199.108-111.153). Until the apex is repointed the domain is set but unreachable, which is expected rather than broken. Once DNS resolves, GitHub issues the certificate and Enforce HTTPS can be turned on.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_cece7837
+kind: comment
+occurred_at: 2026-08-24T15:22:18.637Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+longclaw.io is live. DNS resolves to GitHub Pages on every resolver checked, the apex serves the site, and assets resolve — the earlier /longclaw/ base-path breakage is gone now the custom domain is set.
+
+Verified against the live deployment, not the local build: every route 200s, sitemap, robots.txt, both RSS feeds, the OG card, favicon and touch icon all serve with the right content types; /roadmap carries its noindex; no broken links, one h1 per page, accessible names everywhere, no horizontal overflow, no console errors.
+
+Checking the live site found one defect the local build could not show: Pages 301s /docs to /docs/, and the sitemap emits the slashed form, but the canonical link and og:url were emitting the unslashed one — a canonical pointing at a URL that redirects. absolute() now adds the trailing slash and leaves asset paths alone (2e3fbd3, deployed).
+
+Outstanding: the TLS certificate has not been issued yet, so the site is HTTP only and Enforce HTTPS stays off. GitHub had not started provisioning as of the last check; re-saving the domain to re-trigger the DNS check did not move it. This is normal within the first hour of a domain being pointed. Enforce HTTPS should be turned on once the certificate appears.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_3c3eb87e
+kind: comment
+occurred_at: 2026-08-25T06:46:38.460Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+https://longclaw.io is live and the implementation half of this ticket is done.
+
+The certificate issued at 05:45 UTC on 25 Aug — Let's Encrypt, CN=longclaw.io, valid to 23 Nov — after GitHub's DNS check went green. Enforce HTTPS is on, so http 301s to https and www 301s to the apex. Provisioning took a few hours from DNS landing, with GitHub not creating a certificate request at all for the first ninety minutes; nothing needed fixing, only waiting.
+
+Verified over TLS: every route 200s, both feeds, the sitemap, robots.txt and the OG card serve, no broken links, one h1 per page, accessible names everywhere, no horizontal overflow, no console errors, and no third-party host contacted on any page.
+
+What remains on LC-205: the maintenance skills for generating docs, changelog entries, website changes and roadmap updates — the content model is built for them (one Markdown file, plus one line in DOCS_NAV for a docs page), but the skills themselves are not written. The Download CTA also points at GitHub Releases, which needs a real release to exist; the release notes are still draft with acceptance blockers open.
+<!-- /longclaw:event -->
