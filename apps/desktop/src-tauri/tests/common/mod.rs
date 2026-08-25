@@ -105,40 +105,47 @@ pub fn ticket_path(root: &Path, key: &str) -> PathBuf {
     root.join(".longclaw/tickets").join(key).join("ticket.md")
 }
 
+/// A ticket key's number and its trailing character, if it carries one.
+///
+/// The grammar's own rule — at most one character, and it is the last one — held
+/// here rather than approximated, so a helper cannot accept a key the format
+/// would refuse (`core/storage.rs`'s `split_key_suffix`).
+fn split_key(key: &str) -> (u64, Option<char>) {
+    let sequence = key
+        .split_once('-')
+        .unwrap_or_else(|| panic!("{key} is a ticket key"))
+        .1;
+    let (number, suffix) = match sequence.chars().next_back() {
+        Some(last) if last.is_ascii_alphabetic() => {
+            (&sequence[..sequence.len() - last.len_utf8()], Some(last))
+        }
+        _ => (sequence, None),
+    };
+    (
+        number
+            .parse()
+            .unwrap_or_else(|_| panic!("{key} carries a number")),
+        suffix,
+    )
+}
+
 /// The number a ticket key spends, without its trailing character.
 ///
 /// A minted key carries a randomly drawn suffix (LC-232), so a test that means
 /// "the next number after LC-99" asserts on this rather than on the whole key.
 /// The key itself is never composed by a test — it comes back from the create.
 pub fn number_of(key: &str) -> u64 {
-    let sequence = key
-        .split_once('-')
-        .unwrap_or_else(|| panic!("{key} is a ticket key"))
-        .1;
-    sequence
-        .trim_end_matches(|character: char| character.is_ascii_alphabetic())
-        .parse()
-        .unwrap_or_else(|_| panic!("{key} carries a number"))
+    split_key(key).0
 }
 
 /// Asserts that `key` is a freshly minted key spending `number`: the number the
 /// caller expects, and exactly one lowercase trailing character.
 pub fn assert_minted(key: &str, number: u64) {
-    assert_eq!(number_of(key), number, "{key} should spend {number}");
-    let suffix = key
-        .split_once('-')
-        .expect("a ticket key")
-        .1
-        .trim_start_matches(|character: char| character.is_ascii_digit());
-    assert_eq!(
-        suffix.chars().count(),
-        1,
-        "{key} carries one trailing character"
-    );
+    let (spent, suffix) = split_key(key);
+    assert_eq!(spent, number, "{key} should spend {number}");
+    let suffix = suffix.unwrap_or_else(|| panic!("{key} carries a trailing character"));
     assert!(
-        suffix
-            .chars()
-            .all(|character| character.is_ascii_lowercase()),
+        suffix.is_ascii_lowercase(),
         "{key} carries a lowercase trailing character"
     );
 }

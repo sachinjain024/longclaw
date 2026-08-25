@@ -527,6 +527,12 @@ fn renumber_rekeys_one_of_a_pair_and_reports_what_still_names_the_old_key() {
         format!("See {key} for the rest.\n")
     );
     assert_eq!(renumbered["referencesTruncated"], false);
+    // Nothing here was too big to open, so the report says so rather than
+    // leaving "no more references" to mean "none in the files I chose to read".
+    assert_eq!(
+        renumbered["referencesUnread"].as_array().map(Vec::len),
+        Some(0)
+    );
 
     // The renumbered ticket's own file names the old key on purpose, so it is not
     // reported as a reference that needs following.
@@ -539,6 +545,46 @@ fn renumber_rekeys_one_of_a_pair_and_reports_what_still_names_the_old_key() {
     // other half of the collision keeps the key every reference already names.
     fs::create_dir_all(root.join(".longclaw/tickets").join(&key))
         .expect("the freed key is available");
+}
+
+/// A file the scan will not open is named rather than passed over. "No
+/// references left" has to mean the scan looked, and a 2 MB cap means there are
+/// files it did not — so those come back in their own list.
+#[test]
+fn renumber_names_the_files_its_reference_scan_would_not_open() {
+    let (_temp, root) = common::new_project("renumber-big", "LC");
+    let created = run(&root, &["ticket", "create", "--title", "Watched"]);
+    let key = key_of(&created);
+    let id = created["ticket"]["id"].as_str().expect("an id").to_owned();
+
+    // Over the scan's file limit, and holding the key — so a silent skip would
+    // report a clean sweep over a file that still names it.
+    let padding = "This line is filler for a file the scan will not open.\n".repeat(45_000);
+    fs::write(
+        root.join("huge.log"),
+        format!("{padding}{key} is in here.\n"),
+    )
+    .expect("a file past the scan's limit");
+
+    let renumbered = run(
+        &root,
+        &["ticket", "renumber", key.as_str(), "--id", id.as_str()],
+    );
+    let unread: Vec<&str> = renumbered["referencesUnread"]
+        .as_array()
+        .expect("a list of files the scan did not open")
+        .iter()
+        .map(|path| path.as_str().expect("a path"))
+        .collect();
+    assert!(unread.contains(&"huge.log"), "{unread:?}");
+    assert!(
+        !renumbered["references"]
+            .as_array()
+            .expect("a reference list")
+            .iter()
+            .any(|path| path == "huge.log"),
+        "a file the scan did not open is not a file it found the key in"
+    );
 }
 
 /// The id is what says *which* of the two, and a mismatch is refused rather than

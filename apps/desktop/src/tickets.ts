@@ -84,20 +84,55 @@ export function checklistFraction(ticket: IndexedTicket): string {
 }
 
 /**
+ * A ticket key taken apart: its project prefix, the number it spends, and the
+ * trailing character it carries if it carries one.
+ *
+ * `<PREFIX>-<n>` or `<PREFIX>-<n><s>`, `n` without leading zeros and `s` a single
+ * lowercase letter (`core/storage.rs:92`, `file_format.md:223`). Both forms,
+ * because `LC-1` … `LC-233` were minted before `s` existed and keep the keys they
+ * were minted with (LC-232).
+ *
+ * The one place this file reads a key apart. LC-232 found two copies of the old
+ * shape here — an optimistic key computed from a maximum of zero, and a palette
+ * that could not find a suffixed ticket — because the rule was written twice as a
+ * regex rather than once as a function.
+ *
+ * The prefix carries no `-`, because a project key is letters and digits
+ * (`core/project.rs`, `file_format.md:223`) — which is what keeps `LC-42-1` from
+ * being read as ticket 1 of a project called `LC-42`.
+ *
+ * Case is taken as typed and normalized by the caller. This says how a key comes
+ * apart, not whose it is or whether it was written the way the directory is: the
+ * palette accepts `lc-60` on purpose (LC-171), and the directory grammar that
+ * refuses it is Rust's (`core/storage.rs:92`).
+ */
+export function splitTicketKey(
+  key: string,
+): { prefix: string; number: number; suffix: string } | undefined {
+  const match = /^([A-Za-z][A-Za-z0-9]*)-([1-9][0-9]*)([A-Za-z]?)$/.exec(key);
+  if (!match) return undefined;
+  return { prefix: match[1], number: Number(match[2]), suffix: match[3] };
+}
+
+/**
  * The key a create is about to be given, read off the rows already on screen.
  *
  * Rust allocates the real key from the project's own directory names, and that
  * is the one that lasts — this exists only so the card can appear before the
  * write returns, and it is replaced by whatever comes back.
+ *
+ * The number is all this can guess. The real key's trailing character is drawn
+ * when the directory is claimed (LC-232), so the placeholder wears none rather
+ * than inventing one that the write would then contradict.
  */
 export function provisionalTicketKey(
   projectKey: string,
   tickets: TicketRow[],
 ): string {
   const highest = tickets.reduce((max, ticket) => {
-    const match = /^(.+)-(\d+)$/.exec(ticket.key);
-    if (!match || match[1] !== projectKey) return max;
-    return Math.max(max, Number(match[2]));
+    const parts = splitTicketKey(ticket.key);
+    if (!parts || parts.prefix !== projectKey) return max;
+    return Math.max(max, parts.number);
   }, 0);
   return `${projectKey}-${highest + 1}`;
 }
@@ -121,10 +156,17 @@ export function provisionalTicketKey(
  *   offering to look for it would promise a search that must come back empty.
  *   The query goes back to filtering commands, which is what it did before.
  *
- * The shape is the file format's own (`core/storage.rs:74`): `<PREFIX>-<n>`,
- * `n` without leading zeros. Case is not part of it — the index lowercases both
- * sides (`core/storage.rs:265-274`) and so does the header filter, so a key
- * typed in the case it is easiest to type is still that key.
+ * The shape is the file format's own (`core/storage.rs:92`): `<PREFIX>-<n>` or
+ * `<PREFIX>-<n><s>`, `n` without leading zeros and `s` a single lowercase
+ * letter. Case is not part of it — the index lowercases both sides
+ * (`core/storage.rs:328-337`) and so does the header filter, so a key typed in
+ * the case it is easiest to type is still that key.
+ *
+ * A typed trailing character is kept, and its absence is not one: `LC-234` names
+ * `LC-234x`, because the number is what a person reads off a commit message or
+ * hears out loud and the character is the part they will not have (LC-232).
+ * [`ticketKeyNames`] is the other half of that — this normalizes what was typed,
+ * and that decides which row it names.
  */
 export function ticketKeyQuery(
   query: string,
@@ -132,10 +174,29 @@ export function ticketKeyQuery(
 ): string | undefined {
   const typed = query.trim();
   if (/^[1-9][0-9]*$/.test(typed)) return `${projectKey}-${typed}`;
-  const match = /^(.+)-([1-9][0-9]*)$/.exec(typed);
-  if (!match || match[1].toLowerCase() !== projectKey.toLowerCase())
+  const parts = splitTicketKey(typed);
+  if (!parts || parts.prefix.toLowerCase() !== projectKey.toLowerCase())
     return undefined;
-  return `${projectKey}-${match[2]}`;
+  return `${projectKey}-${parts.number}${parts.suffix.toLowerCase()}`;
+}
+
+/**
+ * Whether a query that resolved to `queried` names the ticket keyed `key`.
+ *
+ * Exact when the query carried a trailing character, and otherwise the number
+ * alone: `LC-234` names `LC-234x`, and `LC-6` still does not name `LC-60` —
+ * which is the distinction the palette's exact match was written for (LC-171).
+ *
+ * A number that two tickets carry names the first of them, which is the state
+ * `npm run ticket-keys:check` fails on: a key claimed twice is ambiguous by
+ * definition, and the palette is not where that gets resolved.
+ */
+export function ticketKeyNames(queried: string, key: string): boolean {
+  if (queried === key) return true;
+  const parts = splitTicketKey(queried);
+  const target = splitTicketKey(key);
+  if (!parts || !target || parts.suffix !== "") return false;
+  return parts.prefix === target.prefix && parts.number === target.number;
 }
 
 /** The row an optimistic create shows while its file is being written. */

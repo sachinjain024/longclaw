@@ -1162,14 +1162,19 @@ pub struct Renumbered {
     pub references: Vec<String>,
     /// True when the scan stopped at [`REFERENCE_LIMIT`] and there are more.
     pub references_truncated: bool,
+    /// Files the scan skipped for size, so the report never passes off "did not
+    /// look" as "nothing there". A key would be a strange thing to find in one,
+    /// and the caller is told where they are rather than trusted to assume.
+    pub references_unread: Vec<String>,
 }
 
 /// How many referencing paths a renumber reports before it stops counting.
-pub const REFERENCE_LIMIT: usize = 500;
+const REFERENCE_LIMIT: usize = 500;
 
 /// How much of a file the reference scan reads. A key is quoted in prose and in
 /// source, not in a bundle or a database, and reading every large file under a
 /// project root to find one would make the command's cost the repository's size.
+/// Anything over this is named in `references_unread` rather than dropped.
 const REFERENCE_FILE_LIMIT: u64 = 2 * 1024 * 1024;
 
 /// Directories the reference scan does not descend into: generated trees where a
@@ -1251,10 +1256,17 @@ pub fn renumber_ticket_as(
     // that proves a key was free at the moment it stopped being free. Walking the
     // alphabet from a random start rather than from `a` keeps a second collision
     // on the same number from being handed the same answer twice.
+    //
+    // One draw, held in a local. Drawing inside the search predicate would redraw
+    // per element: each letter would then match with probability 1/24 on its own
+    // turn, so the search would fall through to `a` about 36% of the time and
+    // start early far more often than that — a bias in exactly the direction that
+    // makes two renumbers agree.
     let alphabet = KEY_SUFFIX_ALPHABET;
+    let drawn = random_key_suffix();
     let start = alphabet
         .iter()
-        .position(|byte| char::from(*byte) == random_key_suffix())
+        .position(|byte| char::from(*byte) == drawn)
         .unwrap_or(0);
     let mut claimed = None;
     for offset in 0..alphabet.len() {
@@ -1321,15 +1333,22 @@ pub fn renumber_ticket_as(
         return Err(error);
     }
 
-    let (references, references_truncated) =
-        paths_mentioning_key(project_root, key, &new_directory);
+    let scan = paths_mentioning_key(project_root, key, &new_directory);
     Ok(Renumbered {
         from: key.to_owned(),
         to: new_key,
         path: relative_to(project_root, &new_path),
-        references,
-        references_truncated,
+        references: scan.found,
+        references_truncated: scan.truncated,
+        references_unread: scan.unread,
     })
+}
+
+/// What a reference scan found, and what it could not look at.
+struct ReferenceScan {
+    found: Vec<String>,
+    truncated: bool,
+    unread: Vec<String>,
 }
 
 /// Every text file under `project_root` that still names `key`, project-relative
@@ -1337,8 +1356,14 @@ pub fn renumber_ticket_as(
 ///
 /// A match is bounded on both sides, so renumbering `LC-230` does not report
 /// `LC-2301` or the `LC-230q` that now holds the other half of the collision.
-pub fn paths_mentioning_key(project_root: &Path, key: &str, skip: &Path) -> (Vec<String>, bool) {
+///
+/// What it cannot read it names rather than passes over. A scan that quietly
+/// skipped a file would let "no references left" mean "none in the files I chose
+/// to open", which is the shape of claim this repository refuses elsewhere — the
+/// network audit fails a run rather than reporting a silence it cannot back up.
+fn paths_mentioning_key(project_root: &Path, key: &str, skip: &Path) -> ReferenceScan {
     let mut found = Vec::new();
+    let mut unread = Vec::new();
     let mut truncated = false;
     let walk = WalkDir::new(project_root)
         .into_iter()
@@ -1360,10 +1385,12 @@ pub fn paths_mentioning_key(project_root: &Path, key: &str, skip: &Path) -> (Vec
             .metadata()
             .is_ok_and(|metadata| metadata.len() > REFERENCE_FILE_LIMIT)
         {
+            unread.push(relative_to(project_root, entry.path()));
             continue;
         }
-        // Unreadable or not UTF-8: a key is quoted in text, so this is not a file
-        // that can be holding one.
+        // Not UTF-8, or gone since the walk listed it. A key is quoted in text, so
+        // a file that is not text is not one that can be holding a reference
+        // anybody maintains.
         let Ok(contents) = fs::read_to_string(entry.path()) else {
             continue;
         };
@@ -1376,7 +1403,12 @@ pub fn paths_mentioning_key(project_root: &Path, key: &str, skip: &Path) -> (Vec
         }
     }
     found.sort();
-    (found, truncated)
+    unread.sort();
+    ReferenceScan {
+        found,
+        truncated,
+        unread,
+    }
 }
 
 /// Whether `haystack` names `key` as a key rather than as the head of a longer
@@ -1857,13 +1889,71 @@ mod tests {
         assert!(seen.len() > 1, "the suffix is drawn, not fixed: {seen:?}");
     }
 
+    /// The start of the alphabet walk is drawn once, not once per letter.
+    ///
+    /// This is a real defect caught in review rather than a hypothetical: drawing
+    /// inside `position`'s predicate gives each letter its own 1-in-24 chance on
+    /// its own turn, so the search misses entirely about 36% of the time and
+    /// falls back to `a` — roughly 40% of renumbers landing on one letter against
+    /// the 4% the design records, which is 4x the re-collision rate the whole
+    /// suffix exists to lower.
+    ///
+    /// Sixty draws with a threshold of fifteen separates the two: the fixed
+    /// allocator lands on `a` 2.5 times on average and clears fifteen about once
+    /// in a hundred million runs, while the redrawing one averages twenty-four
+    /// and falls below fifteen about once in seventy.
+    #[test]
+    fn a_renumber_does_not_keep_landing_on_the_first_letter() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut first_letter = 0;
+        let mut seen = std::collections::BTreeSet::new();
+        for index in 0..60 {
+            let project = temp.path().join(format!("project-{index}"));
+            fs::create_dir_all(project.join(".longclaw/tickets")).unwrap();
+            let write = prepare_new_ticket(
+                &project,
+                "LC",
+                &NewTicket {
+                    title: "Collided".to_owned(),
+                    ..NewTicket::default()
+                },
+                "2026-08-25T09:00:00Z",
+            )
+            .unwrap();
+            fs::write(&write.path, &write.bytes).unwrap();
+            let id = read_ticket_detail(&project, "LC", &write.key)
+                .unwrap()
+                .ticket
+                .expect("a readable ticket")
+                .id;
+            let renumbered = super::renumber_ticket_as(
+                &project,
+                "LC",
+                &write.key,
+                &id,
+                "2026-08-25T09:01:00Z",
+                &super::Actor::local_human(),
+            )
+            .unwrap();
+            let letter = renumbered.to.chars().next_back().unwrap();
+            if letter == 'a' {
+                first_letter += 1;
+            }
+            seen.insert(letter);
+        }
+        assert!(
+            first_letter < 15,
+            "{first_letter} of 60 renumbers landed on `a`; the walk starts from one \
+             draw, not one per letter"
+        );
+        assert!(seen.len() > 1, "the start is drawn, not fixed: {seen:?}");
+    }
+
     /// The number a key spends, for assertions that must not depend on the draw.
+    /// Reads it with the module's own splitter rather than a second rule.
     fn number_of(key: &str) -> u64 {
         let sequence = key.split_once('-').expect(key).1;
-        sequence
-            .trim_end_matches(|character: char| character.is_ascii_alphabetic())
-            .parse()
-            .expect(key)
+        super::split_key_suffix(sequence).0.parse().expect(key)
     }
 
     #[test]

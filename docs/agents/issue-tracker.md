@@ -48,6 +48,9 @@ path and differs only in `id`; read it from the frontmatter of the file you
 mean. The command moves the directory, rewrites the `key` field, records the old
 key in the activity, and then prints every path in the repository that still
 names it — those are yours to follow, because they are not files LongClaw owns.
+It prints `referencesUnread` beside them: files it would not open, because it
+skips `.git`, `node_modules`, `target`, `dist` and anything over 2 MB, and "no
+references left" has to mean it looked.
 `npm run ticket-keys:check` (part of `npm run verify`) fails on a collision that
 was resolved by taking one side.
 

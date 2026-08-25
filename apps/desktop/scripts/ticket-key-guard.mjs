@@ -84,9 +84,10 @@ function claimedKey(file) {
   return null;
 }
 
-/** `{ findings, checked }` for one `.longclaw/tickets` directory. */
+/** `{ findings, checked, unreadable }` for one `.longclaw/tickets` directory. */
 function scan(tickets, base) {
   const findings = [];
+  let unreadable = 0;
   const directories = existsSync(tickets)
     ? readdirSync(tickets)
         .filter((entry) => statSync(join(tickets, entry)).isDirectory())
@@ -101,7 +102,12 @@ function scan(tickets, base) {
     const key = claimedKey(file);
     const where = relative(base, file);
     if (key === null) {
-      findings.push(`${where} has no readable key field`);
+      // Not this guard's finding. A ticket file with no readable key field is a
+      // file the app already shows as a degraded row with its own diagnostic,
+      // and failing `verify` on it would make this guard the reporter of every
+      // malformed ticket rather than of the one thing it was written for. It is
+      // counted so the pass line never implies it was read.
+      unreadable += 1;
       continue;
     }
     if (key !== directory) {
@@ -121,7 +127,7 @@ function scan(tickets, base) {
       );
     }
   }
-  return { findings, checked: directories.length };
+  return { findings, checked: directories.length, unreadable };
 }
 
 /**
@@ -177,17 +183,23 @@ function selfTest() {
 if (process.argv.includes("--self-test")) {
   selfTest();
 } else {
-  const { findings, checked } = scan(join(repo, ".longclaw/tickets"), repo);
+  const { findings, checked, unreadable } = scan(
+    join(repo, ".longclaw/tickets"),
+    repo,
+  );
   report({
     name: "ticket-key-guard",
     findings,
-    checked,
+    checked: checked - unreadable,
     noun: "ticket directories",
     remedy:
       "ticket key collisions. Re-key one side with `longclaw ticket renumber <KEY> --id <uuid>`, " +
       "which moves the directory and rewrites the field together and then reports every path that " +
       "still names the old key:",
     clean:
-      "every key field agrees with its directory and no key is claimed twice",
+      "every key field agrees with its directory and no key is claimed twice" +
+      (unreadable > 0
+        ? ` (${unreadable} with no readable key field, which the app reports as degraded rows)`
+        : ""),
   });
 }
