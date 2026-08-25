@@ -9,14 +9,14 @@ backlogs were imported on 2026-08-05 as `LC-1`…`LC-58`; file new work as a tic
 rather than as a Markdown file under `docs/plans/`.
 
 **A key minted from 2026-08-25 carries a trailing letter** — `LC-233` was the
-last of the old shape, and the next one looks like `LC-234x`. Keys are allocated from the
-directories in one working tree, so two branches off the same `main` both take
-max+1 and mint the same key; the letter is drawn at random so they differ anyway
-(LC-232, `file_format.md:223`). Both forms are keys and both are taken everywhere
-a key is: `LC-69` and `LC-211p` are equally valid arguments to `ticket show`,
-`edit` and `--after`. Nothing renumbers `LC-1`…`LC-233` to match. When two
-branches collide anyway, `longclaw ticket renumber <KEY> --id <uuid>` re-keys one
-side and reports every path that still names the old key — see
+last of the old shape, and the next one looks like `LC-234x`. Keys are allocated
+from the directories in one working tree, so two branches off the same `main`
+both take max+1 and mint the same key; the letter is drawn at random so they
+differ anyway (LC-232, `file_format.md:223`). Both forms are keys and both are
+taken everywhere a key is: `LC-69` and `LC-211p` are equally valid arguments to
+`ticket show`, `edit` and `--after`. Nothing renumbers `LC-1`…`LC-233` to match.
+When two branches collide anyway, `longclaw ticket renumber <KEY> --id <uuid>`
+re-keys one side and reports every path that still names the old key — see
 `docs/agents/issue-tracker.md`.
 
 File it with the CLI, which is the one surface allowed to allocate a key — never

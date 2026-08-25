@@ -187,9 +187,12 @@ export function ticketKeyQuery(
  * alone: `LC-234` names `LC-234x`, and `LC-6` still does not name `LC-60` —
  * which is the distinction the palette's exact match was written for (LC-171).
  *
- * A number that two tickets carry names the first of them, which is the state
- * `npm run ticket-keys:check` fails on: a key claimed twice is ambiguous by
- * definition, and the palette is not where that gets resolved.
+ * Two tickets can share a number and that is not a defect — it is the feature
+ * working, two branches landing on 234 and coming out `LC-234x` and `LC-234q`
+ * rather than colliding. So the number is not an identifier here: a query that
+ * gives only the number opens the first row carrying it, and typing the
+ * character is how a person names the other. (`ticket-keys:check` is about a
+ * *key* claimed twice, which is a different and genuinely broken state.)
  */
 export function ticketKeyNames(queried: string, key: string): boolean {
   if (queried === key) return true;

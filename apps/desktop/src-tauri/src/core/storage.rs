@@ -124,7 +124,7 @@ pub fn valid_ticket_key(key: &str) -> bool {
 /// Splits a key's sequence into its number and its trailing character, if it has
 /// one. Uppercase is split off too so that `valid_ticket_key` can refuse it as a
 /// suffix rather than silently reading `LC-42P` as an unparseable number.
-fn split_key_suffix(sequence: &str) -> (&str, Option<char>) {
+pub fn split_key_suffix(sequence: &str) -> (&str, Option<char>) {
     match sequence.chars().next_back() {
         Some(last) if last.is_ascii_alphabetic() => {
             (&sequence[..sequence.len() - last.len_utf8()], Some(last))
@@ -1059,15 +1059,46 @@ pub fn prepare_new_ticket_as(
         // the whole uniqueness domain the scan can see; a sibling branch, a
         // worktree or a second clone reads its own maximum and lands on the same
         // number. The trailing character is what makes those two keys different
-        // (LC-232), and it is redrawn on each attempt so a retry is not another
-        // process's number with the same letter on it.
-        let key = format!("{project_key}-{sequence}{}", random_key_suffix());
-        if !valid_ticket_key(&key) {
-            return Err(key_error(&key));
+        // (LC-232).
+        //
+        // The *number* is what gets claimed, under its bare name, and the letter
+        // arrives by renaming the claim. That ordering is load-bearing. Claiming
+        // the suffixed name directly would leave `create_dir` proving only that
+        // this letter on this number was free, so two CLI processes in one
+        // checkout that both read max+1 would both succeed — two tickets numbered
+        // 234, no error, no merge involved, and the atomic claim this scheme
+        // rests on quietly reduced to a 1-in-24 coin flip.
+        //
+        // `LC-234` can only be held by one of them at a time, and that is what
+        // makes the check below decisive rather than a race of its own.
+        let claim = format!("{project_key}-{sequence}");
+        if !valid_ticket_key(&claim) {
+            return Err(key_error(&claim));
         }
-        let directory = tickets.join(&key);
-        match fs::create_dir(&directory) {
+        let claimed = tickets.join(&claim);
+        match fs::create_dir(&claimed) {
             Ok(()) => {
+                // Holding the claim is not yet holding the number. The bare name
+                // is let go by the rename below, so a writer whose scan is a
+                // moment stale can claim `LC-234` again *after* this one renamed
+                // it to `LC-234q` — and its own `create_dir` would say the number
+                // was free. Asking again while the bare name is held is what
+                // settles it: at most one writer holds `LC-234` at a time, so at
+                // most one is asking, and by then the other's `LC-234q` is on
+                // disk to be seen.
+                if spends_the_number(project_root, project_key, sequence, &claim)? {
+                    let _ = fs::remove_dir(&claimed);
+                    sequence += 1;
+                    continue;
+                }
+                let Some((key, directory)) = name_the_claim(&claimed, project_key, sequence) else {
+                    // Every letter on this number is taken by a directory that is
+                    // not ours — a merge brought in a full number. Hand the claim
+                    // back and take the next one.
+                    let _ = fs::remove_dir(&claimed);
+                    sequence += 1;
+                    continue;
+                };
                 let path = directory.join(TICKET_FILE);
                 let rendered = super::ticket::render_new_ticket_as(
                     &key,
@@ -1116,7 +1147,7 @@ pub fn prepare_new_ticket_as(
             Err(error) => {
                 return Err(AppError::io(
                     "Creating the ticket directory",
-                    &directory,
+                    &claimed,
                     error,
                 ))
             }
@@ -1127,6 +1158,55 @@ pub fn prepare_new_ticket_as(
         "Could not claim a free ticket key",
         true,
     ))
+}
+
+/// Whether any ticket directory other than `claim` already spends `sequence`.
+///
+/// Read while the caller holds `claim`, which is what makes the answer usable:
+/// the bare name is exclusive, so no second writer is between its own claim and
+/// its own rename at the same time on the same number.
+fn spends_the_number(
+    project_root: &Path,
+    project_key: &str,
+    sequence: u64,
+    claim: &str,
+) -> AppResult<bool> {
+    Ok(scan_ticket_directory_names(project_root)?
+        .iter()
+        .any(|name| name != claim && next_sequence_of(name, project_key) == Some(sequence)))
+}
+
+/// Renames a claimed number to the key it will carry, and answers with both.
+///
+/// The claim is already exclusive — nobody else holds this number — so the only
+/// thing that can refuse the rename is a directory another *tree* brought in on
+/// the same number and letter. `rename` replaces a directory only while it is
+/// empty, so the one thing this can destroy is residue from a create that died
+/// between its claim and its write, which is what
+/// [`discard_claimed_ticket_directory`] removes on the paths that do not die.
+///
+/// `None` means all twenty-four letters on this number are held by real
+/// directories, which is the caller's cue to take the next number.
+fn name_the_claim(claimed: &Path, project_key: &str, sequence: u64) -> Option<(String, PathBuf)> {
+    let tickets = claimed.parent()?;
+    let alphabet = KEY_SUFFIX_ALPHABET;
+    let drawn = random_key_suffix();
+    let start = alphabet
+        .iter()
+        .position(|byte| char::from(*byte) == drawn)
+        .unwrap_or(0);
+    for offset in 0..alphabet.len() {
+        let suffix = char::from(alphabet[(start + offset) % alphabet.len()]);
+        let key = format!("{project_key}-{sequence}{suffix}");
+        let directory = tickets.join(&key);
+        if directory.exists() {
+            continue;
+        }
+        if fs::rename(claimed, &directory).is_ok() {
+            return Some((key, directory));
+        }
+    }
+    None
 }
 
 /// The number a ticket directory spends, ignoring the trailing character.
@@ -1167,21 +1247,6 @@ pub struct Renumbered {
     /// and the caller is told where they are rather than trusted to assume.
     pub references_unread: Vec<String>,
 }
-
-/// How many referencing paths a renumber reports before it stops counting.
-const REFERENCE_LIMIT: usize = 500;
-
-/// How much of a file the reference scan reads. A key is quoted in prose and in
-/// source, not in a bundle or a database, and reading every large file under a
-/// project root to find one would make the command's cost the repository's size.
-/// Anything over this is named in `references_unread` rather than dropped.
-const REFERENCE_FILE_LIMIT: u64 = 2 * 1024 * 1024;
-
-/// Directories the reference scan does not descend into: generated trees where a
-/// hit is a copy of a hit somewhere else, and `.git`, where a hit is history that
-/// cannot be edited anyway.
-const REFERENCE_SKIPPED_DIRECTORIES: &[&str] =
-    &[".git", "node_modules", "target", "dist", ".next", ".venv"];
 
 /// Re-keys one of two tickets that were minted with the same key, and moves its
 /// directory to match.
@@ -1333,109 +1398,15 @@ pub fn renumber_ticket_as(
         return Err(error);
     }
 
-    let scan = paths_mentioning_key(project_root, key, &new_directory);
+    let scan = super::references::paths_mentioning_key(project_root, key, &new_directory);
     Ok(Renumbered {
         from: key.to_owned(),
         to: new_key,
-        path: relative_to(project_root, &new_path),
+        path: super::references::relative_to(project_root, &new_path),
         references: scan.found,
         references_truncated: scan.truncated,
         references_unread: scan.unread,
     })
-}
-
-/// What a reference scan found, and what it could not look at.
-struct ReferenceScan {
-    found: Vec<String>,
-    truncated: bool,
-    unread: Vec<String>,
-}
-
-/// Every text file under `project_root` that still names `key`, project-relative
-/// and sorted, with `skip` left out.
-///
-/// A match is bounded on both sides, so renumbering `LC-230` does not report
-/// `LC-2301` or the `LC-230q` that now holds the other half of the collision.
-///
-/// What it cannot read it names rather than passes over. A scan that quietly
-/// skipped a file would let "no references left" mean "none in the files I chose
-/// to open", which is the shape of claim this repository refuses elsewhere — the
-/// network audit fails a run rather than reporting a silence it cannot back up.
-fn paths_mentioning_key(project_root: &Path, key: &str, skip: &Path) -> ReferenceScan {
-    let mut found = Vec::new();
-    let mut unread = Vec::new();
-    let mut truncated = false;
-    let walk = WalkDir::new(project_root)
-        .into_iter()
-        .filter_entry(|entry| {
-            if entry.path() == skip {
-                return false;
-            }
-            !(entry.file_type().is_dir()
-                && entry
-                    .file_name()
-                    .to_str()
-                    .is_some_and(|name| REFERENCE_SKIPPED_DIRECTORIES.contains(&name)))
-        });
-    for entry in walk.flatten() {
-        if !entry.file_type().is_file() {
-            continue;
-        }
-        if entry
-            .metadata()
-            .is_ok_and(|metadata| metadata.len() > REFERENCE_FILE_LIMIT)
-        {
-            unread.push(relative_to(project_root, entry.path()));
-            continue;
-        }
-        // Not UTF-8, or gone since the walk listed it. A key is quoted in text, so
-        // a file that is not text is not one that can be holding a reference
-        // anybody maintains.
-        let Ok(contents) = fs::read_to_string(entry.path()) else {
-            continue;
-        };
-        if mentions_key(&contents, key) {
-            if found.len() == REFERENCE_LIMIT {
-                truncated = true;
-                break;
-            }
-            found.push(relative_to(project_root, entry.path()));
-        }
-    }
-    found.sort();
-    unread.sort();
-    ReferenceScan {
-        found,
-        truncated,
-        unread,
-    }
-}
-
-/// Whether `haystack` names `key` as a key rather than as the head of a longer
-/// one. `LC-230` is in `LC-2301` and in `LC-230q` as text and in neither as a
-/// reference.
-fn mentions_key(haystack: &str, key: &str) -> bool {
-    let bounded = |character: Option<char>| {
-        character.is_none_or(|character| !character.is_ascii_alphanumeric())
-    };
-    let mut from = 0;
-    while let Some(offset) = haystack[from..].find(key) {
-        let at = from + offset;
-        let after = at + key.len();
-        if bounded(haystack[..at].chars().next_back()) && bounded(haystack[after..].chars().next())
-        {
-            return true;
-        }
-        from = after;
-    }
-    false
-}
-
-fn relative_to(project_root: &Path, path: &Path) -> String {
-    path.strip_prefix(project_root)
-        .unwrap_or(path)
-        .display()
-        .to_string()
 }
 
 /// Removes a ticket directory that was claimed but never written, so a failed
@@ -1887,6 +1858,66 @@ mod tests {
         // constant, not a coincidence; the odds of this failing honestly are
         // 24 / 24^40.
         assert!(seen.len() > 1, "the suffix is drawn, not fixed: {seen:?}");
+    }
+
+    /// Two writers in one checkout never spend one number twice.
+    ///
+    /// The property predates the suffix — `create_dir` on the key was the claim,
+    /// and the loser bumped — and LC-232 could have quietly taken it away, because
+    /// two processes claiming `LC-234q` and `LC-234x` both succeed. Threads here
+    /// stand in for the two `longclaw ticket create` processes that have no lock
+    /// between them; the app's own creates are serialized by the engine's, so this
+    /// is the harder of the two cases.
+    #[test]
+    fn two_writers_with_no_lock_between_them_never_spend_one_number_twice() {
+        let temp = tempfile::tempdir().unwrap();
+        let project = temp.path().join("project");
+        fs::create_dir_all(project.join(".longclaw/tickets")).unwrap();
+
+        let keys: Vec<String> = std::thread::scope(|scope| {
+            let writers: Vec<_> = (0..8)
+                .map(|writer| {
+                    let project = project.clone();
+                    scope.spawn(move || {
+                        (0..4)
+                            .map(|round| {
+                                let write = prepare_new_ticket(
+                                    &project,
+                                    "LC",
+                                    &NewTicket {
+                                        title: format!("Writer {writer} round {round}"),
+                                        ..NewTicket::default()
+                                    },
+                                    "2026-08-25T09:00:00Z",
+                                )
+                                .expect("every create should be allocated a key");
+                                fs::write(&write.path, &write.bytes).unwrap();
+                                write.key
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                })
+                .collect();
+            writers
+                .into_iter()
+                .flat_map(|writer| writer.join().expect("a writer thread"))
+                .collect()
+        });
+
+        assert_eq!(keys.len(), 32);
+        let numbers: std::collections::BTreeSet<u64> =
+            keys.iter().map(|key| number_of(key)).collect();
+        assert_eq!(
+            numbers.len(),
+            keys.len(),
+            "two tickets in one tree spent one number: {keys:?}"
+        );
+        // And every number from 1 up is spent, because the loser of a race takes
+        // the next one rather than skipping past it.
+        assert_eq!(numbers.iter().copied().max(), Some(32), "{numbers:?}");
+        for key in &keys {
+            assert!(valid_ticket_key(key), "{key}");
+        }
     }
 
     /// The start of the alphabet walk is drawn once, not once per letter.

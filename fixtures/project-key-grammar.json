@@ -6,7 +6,7 @@
   "fallbackKey": "LC",
   "readers": [
     "apps/desktop/src/projectKey.ts via apps/desktop/src/projectKey.test.ts",
-    "apps/desktop/src/tickets.ts via apps/desktop/src/tickets.test.ts",
+    "apps/desktop/src/tickets.ts via apps/desktop/src/tickets.test.ts (the valid ticketKeys and the ticketKeySuffix block; the invalid rows are the directory grammar's, and the palette deliberately accepts more — it takes lc-42 and LC-211P, which a folder name may not be)",
     "apps/desktop/src-tauri/tests/project_key_grammar.rs"
   ],
   "keys": [

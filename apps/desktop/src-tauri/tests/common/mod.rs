@@ -107,20 +107,15 @@ pub fn ticket_path(root: &Path, key: &str) -> PathBuf {
 
 /// A ticket key's number and its trailing character, if it carries one.
 ///
-/// The grammar's own rule — at most one character, and it is the last one — held
-/// here rather than approximated, so a helper cannot accept a key the format
-/// would refuse (`core/storage.rs`'s `split_key_suffix`).
+/// Read with the grammar's own splitter rather than a second copy of the rule.
+/// A helper that approximated it — "trim the trailing letters" — would accept
+/// keys the format refuses and quietly pass tests about keys that cannot exist.
 fn split_key(key: &str) -> (u64, Option<char>) {
     let sequence = key
         .split_once('-')
         .unwrap_or_else(|| panic!("{key} is a ticket key"))
         .1;
-    let (number, suffix) = match sequence.chars().next_back() {
-        Some(last) if last.is_ascii_alphabetic() => {
-            (&sequence[..sequence.len() - last.len_utf8()], Some(last))
-        }
-        _ => (sequence, None),
-    };
+    let (number, suffix) = longclaw_desktop_lib::core::storage::split_key_suffix(sequence);
     (
         number
             .parse()

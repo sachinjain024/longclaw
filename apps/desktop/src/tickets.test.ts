@@ -72,6 +72,13 @@ describe("the ticket a resolved key names", () => {
     expect(ticketKeyNames("LC-233", "LC-233")).toBe(true);
   });
 
+  it("lets the character pick between two tickets sharing a number", () => {
+    // Not a broken state: it is what two branches landing on 234 look like
+    // after they merge without colliding.
+    expect(ticketKeyNames("LC-234q", "LC-234x")).toBe(false);
+    expect(ticketKeyNames("LC-234q", "LC-234q")).toBe(true);
+  });
+
   it("still refuses the longer number the exact match was written for", () => {
     // LC-171's rule survives the suffix: `LC-6` must not offer `LC-60`.
     expect(ticketKeyNames("LC-6", "LC-60")).toBe(false);
