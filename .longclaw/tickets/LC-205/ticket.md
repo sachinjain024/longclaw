@@ -270,3 +270,23 @@ Verified over TLS: every route 200s, both feeds, the sitemap, robots.txt and the
 
 What remains on LC-205: the maintenance skills for generating docs, changelog entries, website changes and roadmap updates — the content model is built for them (one Markdown file, plus one line in DOCS_NAV for a docs page), but the skills themselves are not written. The Download CTA also points at GitHub Releases, which needs a real release to exist; the release notes are still draft with acceptance blockers open.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_48fe4298
+kind: comment
+occurred_at: 2026-08-25T07:33:28.945Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Maintenance skills done, and the last open item split out.
+
+Four first-party skills in .agents/skills/, symlinked into .claude/skills/ the way the vendored ones are: website-change (layout, components, styles, copy, SEO, nav), product-docs (a page under /docs), changelog-entry (a release entry), roadmap-update (the roadmap and the decision to publish it). They point at apps/website/README.md for the shared rules rather than restating them, and each carries the traps a green build does not catch — template whitespace eaten inside a <pre>, grid floors that cannot shrink below a phone, prose styles leaking into a component's own <pre>, and defects that only exist once Pages is serving the site. AGENTS.md and README.md name them; CLAUDE.md is a one-line include of AGENTS.md, so it needed no edit.
+
+The Download CTA is now LC-234i, with the three things gating it written down: the release notes are still draft with acceptance blockers open, the build is unsigned (LC-47 is in progress and may change what the CTA says), and the asset name LongClaw_0.1.0_aarch64.dmg is already published in Getting started and the changelog, so the release has to match it.
+
+Also brought the site back in step with LC-232, which landed on main while this was in flight: ticket keys now carry an optional random lowercase trailing character, so the key grammar on /docs/project-folder was incomplete, and /docs/cli now documents longclaw ticket renumber for the collisions that survive it. That drift is exactly what the product-docs skill is written to catch.
+<!-- /longclaw:event -->

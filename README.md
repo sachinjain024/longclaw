@@ -131,6 +131,11 @@ Docs pages, blog posts and release notes are each one Markdown file. See
 [the website README](apps/website/README.md) for the layout and the rules it is
 built to.
 
+Four agent skills cover the routine work on it — `website-change`,
+`product-docs`, `changelog-entry` and `roadmap-update`, in
+[`.agents/skills/`](.agents/skills/). They carry the rules the site is built to
+and the defects a green build does not catch.
+
 ## Development
 
 Prerequisites:
@@ -183,6 +188,7 @@ no telemetry or analytics are sent.
 - [Contributor setup and the quality gate](CONTRIBUTING.md)
 - [App-specific notes](apps/desktop/README.md) — registry recovery, device preferences
 - [The website](apps/website/README.md) — longclaw.io: structure, content model, deployment
+- [Website skills](.agents/skills/) — `website-change`, `product-docs`, `changelog-entry`, `roadmap-update`
 
 **Working with agents**
 

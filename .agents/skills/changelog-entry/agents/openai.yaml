@@ -1,0 +1,3 @@
+interface:
+  display_name: "Changelog Entry"
+  short_description: "Publish a release to the changelog"

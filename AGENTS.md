@@ -65,6 +65,22 @@ are easy to break by accident:
 Adding a docs page, a blog post or a release note is one Markdown file plus, for
 docs, one line in `DOCS_NAV` (`src/lib/site.ts`).
 
+**Four skills cover the routine work; use them rather than working from memory.**
+They are the only first-party skills in `.agents/skills/` — everything else there
+is vendored from `mattpocock/skills` and tracked in `skills-lock.json`.
+
+| Skill | For |
+|---|---|
+| `website-change` | Layout, components, styles, copy, SEO, navigation |
+| `product-docs` | A page under `/docs` |
+| `changelog-entry` | A release entry on `/changelog` |
+| `roadmap-update` | The roadmap, and the decision to publish it |
+
+Each names the traps that a green build does not catch — template whitespace
+eaten inside a `<pre>`, grid floors that cannot shrink below a phone, prose
+styles leaking into a component's own `<pre>`, and defects that exist only once
+Pages is serving the site.
+
 ## Git workflow
 
 Agents must always create a topic branch before making changes.
