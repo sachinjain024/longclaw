@@ -23,6 +23,7 @@
     "test:watcher": "npm --prefix apps/desktop run test:watcher",
     "citations:check": "npm --prefix apps/desktop run citations:check",
     "citations:update": "npm --prefix apps/desktop run citations:update",
+    "ticket-keys:check": "npm --prefix apps/desktop run ticket-keys:check",
     "a11y:audit": "npm --prefix apps/desktop run a11y:audit --",
     "matrix": "npm --prefix apps/desktop run matrix --",
     "perf:rust": "npm --prefix apps/desktop run perf:rust",

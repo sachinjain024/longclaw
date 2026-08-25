@@ -976,6 +976,66 @@ impl TicketDocument {
         })
     }
 
+    /// Re-keys the ticket: the frontmatter `key`, and an activity entry naming
+    /// the key it used to carry.
+    ///
+    /// This is not a [`TicketEdit`] field, and it must not become one. A key is
+    /// immutable in ordinary editing — the directory name and the frontmatter key
+    /// are one identity, so changing one without the other produces a file this
+    /// build refuses to parse. The only reason it can change at all is that two
+    /// branches can mint the same key (LC-232), and the only caller is
+    /// `storage::renumber_ticket_as`, which moves the directory in the same
+    /// operation.
+    ///
+    /// The old key survives in the history rather than only in git: someone
+    /// following a link to `LC-230` needs the ticket that is now `LC-230q` to say
+    /// so in the file they land in.
+    pub fn rekey_as(
+        &self,
+        new_key: &str,
+        now: &str,
+        author: &Actor,
+    ) -> Result<AppliedEdit, Diagnostic> {
+        let old_key = self.ticket.key.clone();
+        if new_key == old_key {
+            return Err(Diagnostic::parse(format!(
+                "{new_key} is the key this ticket already carries"
+            )));
+        }
+        let mut next = self.clone();
+        next.frontmatter.set_scalar("key", new_key);
+        next.frontmatter.set_scalar("updated_at", now);
+        let changes = vec![FieldChange::new(
+            "key",
+            Some(old_key.clone()),
+            Some(new_key.to_owned()),
+        )];
+        next.append_activity(&render_event(
+            &EventKind::Update,
+            now,
+            &changes,
+            author,
+            &format!("renumbered this ticket from {old_key}"),
+            "",
+        ));
+
+        let rendered = next.render();
+        // Parsed against the *new* key, which is the check that matters: the
+        // parser refuses a frontmatter key that disagrees with its directory, so
+        // this proves the file will read back from the directory it is about to
+        // be moved into.
+        let document = Self::parse(&rendered, new_key).map_err(|error| {
+            Diagnostic::parse(format!(
+                "Refusing to write a ticket this build cannot read back: {error}"
+            ))
+        })?;
+        Ok(AppliedEdit {
+            bytes: rendered.into_bytes(),
+            changes,
+            document,
+        })
+    }
+
     fn chunk_mut(&mut self, role: Role) -> Option<&mut Chunk> {
         self.chunks.iter_mut().find(|chunk| chunk.role == role)
     }

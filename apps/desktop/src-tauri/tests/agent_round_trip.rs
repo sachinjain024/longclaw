@@ -13,7 +13,8 @@ use std::sync::mpsc::Receiver;
 use std::time::Duration;
 
 use common::{
-    editor_atomic_replace, new_project, serially, start_engine, ticket_path, POLL_INTERVAL_MS,
+    assert_minted, editor_atomic_replace, new_project, serially, start_engine, ticket_path,
+    POLL_INTERVAL_MS,
 };
 use longclaw_desktop_lib::core::storage::NewTicket;
 use longclaw_desktop_lib::core::ticket::{ActorType, Status, TicketEdit};
@@ -156,14 +157,17 @@ fn a_ticket_a_human_created_comes_back_changed_by_an_agent_and_survives_a_restar
 
     let (engine, events) = start_engine(&root);
     let created = create_first_ticket(&engine);
-    assert_eq!(created.key, "RT-1");
+    // The number, not the whole key: the trailing character is drawn at random
+    // when the key is minted (LC-232), and the caller reads it back from here.
+    let key = created.key.clone();
+    assert_minted(&key, 1);
     assert_eq!(created.status, Status::Todo);
     assert_eq!(created.checklist_count, 2);
 
     // The human's creation is a real file, in the documented place.
-    let path = ticket_path(&root, "RT-1");
+    let path = ticket_path(&root, &key);
     let raw = fs::read_to_string(&path).expect("ticket.md");
-    assert!(raw.contains("key: RT-1\n"));
+    assert!(raw.contains(&format!("key: {key}\n")));
     assert!(raw.contains("title: Prove the agent round trip\n"));
     assert!(raw.contains("- [ ] Let an agent read this ticket <!-- longclaw:item="));
     assert!(raw.contains("### You created this ticket"));
@@ -188,7 +192,7 @@ fn a_ticket_a_human_created_comes_back_changed_by_an_agent_and_survives_a_restar
         TicketRow::Indexed(row) => row.clone(),
         TicketRow::Degraded(row) => panic!("the agent's write should parse: {row:?}"),
     };
-    assert_eq!(row.key, "RT-1");
+    assert_eq!(row.key, key);
     assert_eq!(row.status, Status::InProgress);
     assert_eq!(row.checked_count, 1);
     let activity = row.last_activity.clone().expect("the agent's own record");
@@ -198,9 +202,7 @@ fn a_ticket_a_human_created_comes_back_changed_by_an_agent_and_survives_a_restar
 
     // The panel reads the file itself, so it shows the agent's description and its
     // timeline entry — and no assignee, whatever the agent wrote there.
-    let detail = engine
-        .detail("RT-1")
-        .expect("the panel should read the file");
+    let detail = engine.detail(&key).expect("the panel should read the file");
     let ticket = detail.ticket.expect("a readable ticket");
     assert_eq!(ticket.description, agent_description);
     assert_eq!(ticket.assignee.as_deref(), Some("claude-code"));
@@ -215,12 +217,12 @@ fn a_ticket_a_human_created_comes_back_changed_by_an_agent_and_survives_a_restar
 
     // A restart and a full index rebuild both reproduce the same visible state.
     let (restarted, _events) = start_engine(&root);
-    let after_restart = indexed(&restarted.snapshot().tickets, "RT-1");
+    let after_restart = indexed(&restarted.snapshot().tickets, &key);
     assert_eq!(after_restart, row);
     let rebuilt = restarted
         .rebuild(RebuildReason::Manual, false)
         .expect("the index should rebuild from the files");
-    assert_eq!(indexed(&rebuilt.tickets, "RT-1"), row);
+    assert_eq!(indexed(&rebuilt.tickets, &key), row);
 }
 
 #[test]
@@ -228,8 +230,8 @@ fn a_human_reply_to_an_agent_change_keeps_both_voices_in_the_file() {
     let _serial = serially();
     let (_temp, root) = new_project("round-trip-reply", "RT");
     let (engine, events) = start_engine(&root);
-    create_first_ticket(&engine);
-    let path = ticket_path(&root, "RT-1");
+    let key = create_first_ticket(&engine).key.clone();
+    let path = ticket_path(&root, &key);
 
     editor_atomic_replace(
         &path,
@@ -247,7 +249,7 @@ fn a_human_reply_to_an_agent_change_keeps_both_voices_in_the_file() {
     // The human answers from the panel, carrying the hash the panel read.
     let result = engine
         .edit_ticket(
-            "RT-1",
+            &key,
             &TicketEdit {
                 status: Some(Status::InReview),
                 comment: Some("Thanks — moving this to review.".to_owned()),

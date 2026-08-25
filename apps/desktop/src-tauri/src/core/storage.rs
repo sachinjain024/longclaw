@@ -71,9 +71,38 @@ pub fn agent_contract_path(project_root: &Path) -> PathBuf {
         .join(AGENT_CONTRACT_FILE)
 }
 
-/// `<PREFIX>-<n>`, where the prefix is the project key and `n` has no leading
-/// zero. Anything else cannot be a ticket directory, which is what stops a
-/// caller-supplied key from becoming a path.
+/// The alphabet a newly minted key's trailing character is drawn from.
+///
+/// Lowercase only, and that is not a style choice. `fs::create_dir` is how a key
+/// is claimed, and macOS folds case, so `LC-211p` and `LC-211P` are two keys and
+/// one directory — a mixed-case alphabet would manufacture the collision the
+/// suffix exists to prevent, on the one platform the app ships on.
+///
+/// `l` and `o` are dropped because a key is read aloud, typed into `ticket show`
+/// and pasted into commit messages, where they sit next to the `1` and the `0`
+/// already in it.
+///
+/// Twenty-four characters, one of them: two branches that both take max+1 agree
+/// on the number and then differ on the letter 23 times out of 24, so about 4%
+/// of the collisions this prevents survive it. [`prepare_ticket_renumber`] is
+/// what carries that remainder — one character was the founder's call, made with
+/// the number in view (LC-232).
+pub const KEY_SUFFIX_ALPHABET: &[u8] = b"abcdefghijkmnpqrstuvwxyz";
+
+/// `<PREFIX>-<n>` or `<PREFIX>-<n><s>`, where the prefix is the project key, `n`
+/// has no leading zero, and `s` is a single lowercase ASCII letter. Anything else
+/// cannot be a ticket directory, which is what stops a caller-supplied key from
+/// becoming a path.
+///
+/// Both forms, because `LC-1` … `LC-233` were minted before the suffix existed
+/// and are never renumbered to acquire one (`file_format.md:223`). A key is minted
+/// once and never reused, so the grammar is the union of what has been minted.
+///
+/// The suffix is any lowercase letter rather than only a
+/// [`KEY_SUFFIX_ALPHABET`] one: the alphabet is what allocation *draws* from, and
+/// holding the reader to it as well would turn a hand-typed `LC-42o` into a
+/// directory the app cannot see. Uppercase stays refused — see the alphabet's
+/// note on what macOS does with case.
 ///
 /// The prefix is held to `project::is_project_key` rather than a looser local
 /// rule. When the two disagreed, this validator accepted ticket directories
@@ -82,11 +111,46 @@ pub fn valid_ticket_key(key: &str) -> bool {
     let Some((prefix, sequence)) = key.split_once('-') else {
         return false;
     };
+    let (number, suffix) = split_key_suffix(sequence);
     is_project_key(prefix)
-        && !sequence.is_empty()
-        && sequence.bytes().all(|byte| byte.is_ascii_digit())
-        && !sequence.starts_with('0')
-        && !sequence.contains('-')
+        && !number.is_empty()
+        // Subsumes the old `!sequence.contains('-')`: a `-` is not a digit, so
+        // `LC-42-1` and `LC-42-1x` both fail here.
+        && number.bytes().all(|byte| byte.is_ascii_digit())
+        && !number.starts_with('0')
+        && suffix.is_none_or(|character| character.is_ascii_lowercase())
+}
+
+/// Splits a key's sequence into its number and its trailing character, if it has
+/// one. Uppercase is split off too so that `valid_ticket_key` can refuse it as a
+/// suffix rather than silently reading `LC-42P` as an unparseable number.
+fn split_key_suffix(sequence: &str) -> (&str, Option<char>) {
+    match sequence.chars().next_back() {
+        Some(last) if last.is_ascii_alphabetic() => {
+            (&sequence[..sequence.len() - last.len_utf8()], Some(last))
+        }
+        _ => (sequence, None),
+    }
+}
+
+/// A trailing character drawn at random from [`KEY_SUFFIX_ALPHABET`].
+///
+/// The randomness is v4 UUID randomness, which this crate already depends on for
+/// ticket and event ids, rather than a second random-number dependency. Bytes
+/// at or above the largest multiple of the alphabet length are rejected instead
+/// of folded, because `byte % 24` would hand out the first sixteen letters more
+/// often than the last eight — a bias in exactly the direction that makes two
+/// branches agree.
+pub fn random_key_suffix() -> char {
+    let alphabet = KEY_SUFFIX_ALPHABET;
+    let limit = (u16::from(u8::MAX) + 1) / alphabet.len() as u16 * alphabet.len() as u16;
+    loop {
+        for byte in Uuid::new_v4().as_bytes() {
+            if u16::from(*byte) < limit {
+                return char::from(alphabet[usize::from(*byte) % alphabet.len()]);
+            }
+        }
+    }
 }
 
 /// Whether a ticket directory belongs to the project keyed `project_key`.
@@ -991,7 +1055,13 @@ pub fn prepare_new_ticket_as(
         + 1;
 
     for _ in 0..64 {
-        let key = format!("{project_key}-{sequence}");
+        // The number comes from the directories in *this* working tree, which is
+        // the whole uniqueness domain the scan can see; a sibling branch, a
+        // worktree or a second clone reads its own maximum and lands on the same
+        // number. The trailing character is what makes those two keys different
+        // (LC-232), and it is redrawn on each attempt so a retry is not another
+        // process's number with the same letter on it.
+        let key = format!("{project_key}-{sequence}{}", random_key_suffix());
         if !valid_ticket_key(&key) {
             return Err(key_error(&key));
         }
@@ -1059,12 +1129,281 @@ pub fn prepare_new_ticket_as(
     ))
 }
 
+/// The number a ticket directory spends, ignoring the trailing character.
+///
+/// Stripping the suffix is load-bearing rather than tidy. This reads the whole
+/// sequence as a `u64`, so `211p` does not parse; an untaught version drops every
+/// suffixed directory out of the `max()` below, which makes the maximum 0 once
+/// every ticket carries one, and hands the next ticket `LC-1` — then walks it up
+/// one directory at a time and gives up after 64 tries.
 fn next_sequence_of(directory_name: &str, project_key: &str) -> Option<u64> {
-    directory_name
+    let sequence = directory_name
         .strip_prefix(project_key)?
-        .strip_prefix('-')?
-        .parse()
-        .ok()
+        .strip_prefix('-')?;
+    split_key_suffix(sequence).0.parse().ok()
+}
+
+/// What a renumber did: the key that was given up, the key that was claimed, and
+/// every path in the project that still names the old one.
+///
+/// The references are the human's next job, not LongClaw's. A ticket key is
+/// quoted in commit messages, design docs, source comments and other tickets, and
+/// none of those are files this app owns — so it finds them and says where they
+/// are rather than rewriting them (ADR 0010).
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Renumbered {
+    pub from: String,
+    pub to: String,
+    /// The renumbered ticket's file, at its new path.
+    pub path: String,
+    /// Project-relative paths, sorted, excluding the renumbered ticket's own
+    /// directory — its activity entry names the old key on purpose.
+    pub references: Vec<String>,
+    /// True when the scan stopped at [`REFERENCE_LIMIT`] and there are more.
+    pub references_truncated: bool,
+}
+
+/// How many referencing paths a renumber reports before it stops counting.
+pub const REFERENCE_LIMIT: usize = 500;
+
+/// How much of a file the reference scan reads. A key is quoted in prose and in
+/// source, not in a bundle or a database, and reading every large file under a
+/// project root to find one would make the command's cost the repository's size.
+const REFERENCE_FILE_LIMIT: u64 = 2 * 1024 * 1024;
+
+/// Directories the reference scan does not descend into: generated trees where a
+/// hit is a copy of a hit somewhere else, and `.git`, where a hit is history that
+/// cannot be edited anyway.
+const REFERENCE_SKIPPED_DIRECTORIES: &[&str] =
+    &[".git", "node_modules", "target", "dist", ".next", ".venv"];
+
+/// Re-keys one of two tickets that were minted with the same key, and moves its
+/// directory to match.
+///
+/// The suffix makes this rare rather than impossible: two branches that both take
+/// max+1 agree on the number and then differ on the letter 23 times out of 24, so
+/// about 4% of the collisions it prevents still land (`KEY_SUFFIX_ALPHABET`). This
+/// is what carries that remainder, and it exists as a command because the editing
+/// rule is that a ticket's key and directory path are immutable — a human moving
+/// the folder by hand would have to rewrite the frontmatter in the same breath or
+/// leave a file the parser refuses.
+///
+/// `expected_id` is the confirmation, and it is not ceremony. The two tickets in a
+/// collision have the same key and the same path and differ only in their `id`, so
+/// naming the key alone does not say which one is meant; a resolution that took
+/// the wrong side would be silent. The `id` is in the frontmatter of the file the
+/// caller is looking at.
+///
+/// Unlike the `prepare_*` seams this performs its own write, because the rename
+/// and the rewrite are one change: a moved directory whose frontmatter still holds
+/// the old key is a ticket this build refuses to parse. The order is claim, move,
+/// write, and a write that is refused moves the directory back.
+pub fn renumber_ticket_as(
+    project_root: &Path,
+    project_key: &str,
+    key: &str,
+    expected_id: &str,
+    now: &str,
+    author: &Actor,
+) -> AppResult<Renumbered> {
+    let path = resolve_ticket_path(project_root, key)?;
+    let file = read_ticket_file(&path, project_key)?;
+    let document = file.parsed.as_ref().map_err(|diagnostic| {
+        AppError::from(Diagnostic {
+            code: diagnostic.code,
+            message: format!(
+                "LongClaw will not renumber a ticket it cannot parse. Fix {key} in an editor \
+                 first: {}",
+                diagnostic.message
+            ),
+            line: diagnostic.line,
+        })
+        .with_context("ticketKey", key.to_owned())
+    })?;
+    let actual_id = document.ticket().id.clone();
+    if actual_id != expected_id {
+        return Err(AppError::new(
+            ErrorCode::ParseFailed,
+            format!(
+                "{key} carries id {actual_id}, and --id named {expected_id}. Two tickets that \
+                 collided share a key and a path and differ only in their id, so the id is what \
+                 says which of them this renumbers. Read it from the frontmatter of the file you \
+                 mean.",
+            ),
+            true,
+        )
+        .with_context("ticketKey", key.to_owned())
+        .with_context("actualId", actual_id));
+    }
+
+    let old_directory = path.parent().map(Path::to_path_buf).ok_or_else(|| {
+        AppError::new(
+            ErrorCode::Io,
+            format!("{key} has no ticket directory"),
+            false,
+        )
+    })?;
+    let tickets = tickets_root(project_root);
+    let (number, _) = split_key_suffix(key.split_once('-').ok_or_else(|| key_error(key))?.1);
+
+    // The claim is `create_dir`, exactly as it is in allocation: the one operation
+    // that proves a key was free at the moment it stopped being free. Walking the
+    // alphabet from a random start rather than from `a` keeps a second collision
+    // on the same number from being handed the same answer twice.
+    let alphabet = KEY_SUFFIX_ALPHABET;
+    let start = alphabet
+        .iter()
+        .position(|byte| char::from(*byte) == random_key_suffix())
+        .unwrap_or(0);
+    let mut claimed = None;
+    for offset in 0..alphabet.len() {
+        let suffix = char::from(alphabet[(start + offset) % alphabet.len()]);
+        let candidate = format!("{project_key}-{number}{suffix}");
+        if candidate == key {
+            continue;
+        }
+        if !valid_ticket_key(&candidate) {
+            return Err(key_error(&candidate));
+        }
+        let directory = tickets.join(&candidate);
+        match fs::create_dir(&directory) {
+            Ok(()) => {
+                claimed = Some((candidate, directory));
+                break;
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => {
+                return Err(AppError::io(
+                    "Claiming the renumbered ticket directory",
+                    &directory,
+                    error,
+                ))
+            }
+        }
+    }
+    let Some((new_key, new_directory)) = claimed else {
+        return Err(AppError::new(
+            ErrorCode::Io,
+            format!(
+                "Every key on number {number} is already taken, so {key} has nowhere to go. \
+                 Renumber one of the others first.",
+            ),
+            true,
+        )
+        .with_context("ticketKey", key.to_owned()));
+    };
+
+    let applied = document
+        .rekey_as(&new_key, now, author)
+        .map_err(|diagnostic| {
+            let _ = fs::remove_dir(&new_directory);
+            AppError::from(diagnostic).with_context("ticketKey", key.to_owned())
+        })?;
+
+    // `rename` onto a directory succeeds only while that directory is empty, and
+    // the one claimed above is one this call created a moment ago and never wrote
+    // to. Nothing another process could have put there is destroyed by this.
+    if let Err(error) = fs::rename(&old_directory, &new_directory) {
+        let _ = fs::remove_dir(&new_directory);
+        return Err(AppError::io(
+            "Moving the ticket directory",
+            &old_directory,
+            error,
+        ));
+    }
+    let new_path = new_directory.join(TICKET_FILE);
+    if let Err(error) = atomic_replace(&new_path, &applied.bytes, &file.content_hash) {
+        // The file moved but its frontmatter still names the old key, which is a
+        // ticket the parser refuses. Put it back where it parses and report the
+        // conflict, rather than leaving the collision *and* an unreadable ticket.
+        let _ = fs::rename(&new_directory, &old_directory);
+        return Err(error);
+    }
+
+    let (references, references_truncated) =
+        paths_mentioning_key(project_root, key, &new_directory);
+    Ok(Renumbered {
+        from: key.to_owned(),
+        to: new_key,
+        path: relative_to(project_root, &new_path),
+        references,
+        references_truncated,
+    })
+}
+
+/// Every text file under `project_root` that still names `key`, project-relative
+/// and sorted, with `skip` left out.
+///
+/// A match is bounded on both sides, so renumbering `LC-230` does not report
+/// `LC-2301` or the `LC-230q` that now holds the other half of the collision.
+pub fn paths_mentioning_key(project_root: &Path, key: &str, skip: &Path) -> (Vec<String>, bool) {
+    let mut found = Vec::new();
+    let mut truncated = false;
+    let walk = WalkDir::new(project_root)
+        .into_iter()
+        .filter_entry(|entry| {
+            if entry.path() == skip {
+                return false;
+            }
+            !(entry.file_type().is_dir()
+                && entry
+                    .file_name()
+                    .to_str()
+                    .is_some_and(|name| REFERENCE_SKIPPED_DIRECTORIES.contains(&name)))
+        });
+    for entry in walk.flatten() {
+        if !entry.file_type().is_file() {
+            continue;
+        }
+        if entry
+            .metadata()
+            .is_ok_and(|metadata| metadata.len() > REFERENCE_FILE_LIMIT)
+        {
+            continue;
+        }
+        // Unreadable or not UTF-8: a key is quoted in text, so this is not a file
+        // that can be holding one.
+        let Ok(contents) = fs::read_to_string(entry.path()) else {
+            continue;
+        };
+        if mentions_key(&contents, key) {
+            if found.len() == REFERENCE_LIMIT {
+                truncated = true;
+                break;
+            }
+            found.push(relative_to(project_root, entry.path()));
+        }
+    }
+    found.sort();
+    (found, truncated)
+}
+
+/// Whether `haystack` names `key` as a key rather than as the head of a longer
+/// one. `LC-230` is in `LC-2301` and in `LC-230q` as text and in neither as a
+/// reference.
+fn mentions_key(haystack: &str, key: &str) -> bool {
+    let bounded = |character: Option<char>| {
+        character.is_none_or(|character| !character.is_ascii_alphanumeric())
+    };
+    let mut from = 0;
+    while let Some(offset) = haystack[from..].find(key) {
+        let at = from + offset;
+        let after = at + key.len();
+        if bounded(haystack[..at].chars().next_back()) && bounded(haystack[after..].chars().next())
+        {
+            return true;
+        }
+        from = after;
+    }
+    false
+}
+
+fn relative_to(project_root: &Path, path: &Path) -> String {
+    path.strip_prefix(project_root)
+        .unwrap_or(path)
+        .display()
+        .to_string()
 }
 
 /// Removes a ticket directory that was claimed but never written, so a failed
@@ -1410,10 +1749,131 @@ mod tests {
         assert!(!valid_ticket_key(""));
     }
 
+    /// Both forms, because `LC-1` … `LC-233` predate the suffix and keep their
+    /// keys. Everything the unsuffixed form refused, the suffixed form refuses
+    /// too — the trailing character is one more character, not an escape hatch.
+    #[test]
+    fn the_key_grammar_takes_a_trailing_character_and_still_refuses_the_rest() {
+        assert!(valid_ticket_key("LC-211p"));
+        assert!(valid_ticket_key("LC2-42q"));
+        assert!(valid_ticket_key("LC-1z"));
+        // Not in the minting alphabet, and still readable: the alphabet is what
+        // allocation draws from, not what the reader accepts.
+        assert!(valid_ticket_key("LC-42o"));
+        assert!(valid_ticket_key("LC-42l"));
+
+        // macOS folds case, so an uppercase suffix would be a second key on one
+        // directory. One case only.
+        assert!(!valid_ticket_key("LC-211P"));
+        assert!(!valid_ticket_key("LC-0p"));
+        assert!(!valid_ticket_key("LC-42-1x"));
+        assert!(!valid_ticket_key("LC-p"));
+        assert!(!valid_ticket_key("lc-42p"));
+        assert!(!valid_ticket_key("../LC-42p"));
+        // Two characters is not the length that was chosen.
+        assert!(!valid_ticket_key("LC-42pq"));
+        assert!(!valid_ticket_key("LC-42_"));
+    }
+
+    /// The allocator's silent break. `next_sequence_of` parses the sequence as a
+    /// `u64`, so an untaught version drops every suffixed directory out of the
+    /// `max()`, reads the store as empty, and hands out `LC-1` — which is taken,
+    /// so it walks up one directory at a time. Both keys here are suffixed, so a
+    /// regression fails on the number rather than on the shape.
+    #[test]
+    fn allocation_reads_a_store_whose_tickets_are_all_suffixed() {
+        let temp = tempfile::tempdir().unwrap();
+        let project = temp.path().join("project");
+        let tickets = project.join(".longclaw/tickets");
+        fs::create_dir_all(tickets.join("LC-7q")).unwrap();
+        fs::create_dir_all(tickets.join("LC-40b")).unwrap();
+
+        let first = prepare_new_ticket(
+            &project,
+            "LC",
+            &NewTicket {
+                title: "After a suffixed store".to_owned(),
+                ..NewTicket::default()
+            },
+            "2026-08-25T09:00:00Z",
+        )
+        .unwrap();
+        fs::write(&first.path, &first.bytes).unwrap();
+        let second = prepare_new_ticket(
+            &project,
+            "LC",
+            &NewTicket {
+                title: "And again".to_owned(),
+                ..NewTicket::default()
+            },
+            "2026-08-25T09:01:00Z",
+        )
+        .unwrap();
+        fs::write(&second.path, &second.bytes).unwrap();
+
+        assert_eq!(number_of(&first.key), 41, "{} follows LC-40b", first.key);
+        assert_eq!(
+            number_of(&second.key),
+            42,
+            "{} follows {}",
+            second.key,
+            first.key
+        );
+        assert!(valid_ticket_key(&first.key));
+        assert!(valid_ticket_key(&second.key));
+    }
+
+    /// A minted key carries exactly one trailing character, and it comes out of
+    /// the alphabet the format documents.
+    #[test]
+    fn a_minted_key_carries_one_character_from_the_alphabet() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut seen = std::collections::BTreeSet::new();
+        for index in 0..40 {
+            let project = temp.path().join(format!("project-{index}"));
+            fs::create_dir_all(project.join(".longclaw/tickets")).unwrap();
+            let write = prepare_new_ticket(
+                &project,
+                "LC",
+                &NewTicket {
+                    title: "One of many".to_owned(),
+                    ..NewTicket::default()
+                },
+                "2026-08-25T09:00:00Z",
+            )
+            .unwrap();
+            let suffix = write.key.strip_prefix("LC-1").expect(&write.key);
+            assert_eq!(suffix.chars().count(), 1, "{} is one character", write.key);
+            let character = suffix.chars().next().unwrap();
+            assert!(
+                super::KEY_SUFFIX_ALPHABET.contains(&(character as u8)),
+                "{character} is not in the alphabet"
+            );
+            seen.insert(character);
+        }
+        // 40 draws from 24 characters landing on one letter every time is a
+        // constant, not a coincidence; the odds of this failing honestly are
+        // 24 / 24^40.
+        assert!(seen.len() > 1, "the suffix is drawn, not fixed: {seen:?}");
+    }
+
+    /// The number a key spends, for assertions that must not depend on the draw.
+    fn number_of(key: &str) -> u64 {
+        let sequence = key.split_once('-').expect(key).1;
+        sequence
+            .trim_end_matches(|character: char| character.is_ascii_alphabetic())
+            .parse()
+            .expect(key)
+    }
+
     #[test]
     fn ownership_is_about_whose_key_it_is_and_not_about_the_grammar() {
         assert!(belongs_to_project("LC", "LC-1"));
         assert!(belongs_to_project("LC", "LC-4210"));
+        // The trailing character sits behind the first `-`, so ownership never
+        // sees it.
+        assert!(belongs_to_project("LC", "LC-211p"));
+        assert!(!belongs_to_project("LC", "ZZ-211p"));
         // Shape is `valid_ticket_key`'s job, and these are still not ours.
         assert!(!belongs_to_project("LC", "ZZ-1"));
         assert!(!belongs_to_project("LC", "LCX-1"));
@@ -1623,7 +2083,7 @@ mod tests {
             "2026-07-30T09:00:00Z",
         )
         .unwrap();
-        assert_eq!(write.key, "LC-2");
+        assert_eq!(number_of(&write.key), 2, "{}", write.key);
         assert!(tickets.join("ZZ-9").is_dir());
     }
 

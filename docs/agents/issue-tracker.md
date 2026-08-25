@@ -11,6 +11,8 @@ Tickets and specs for this repository use the LongClaw files under `.longclaw/`,
 
 The ticket directory is the unit of context. In v0, `ticket.md` is authoritative for current state, description, checklist, attachment registry, comments, and activity. Attachment bytes live under the owning ticket's `attachments/` directory.
 
+`<KEY>` is `LC-<n>` or `LC-<n><s>`, where `s` is one lowercase letter — `LC-211p`. Keys are allocated from the ticket directories in *this* working tree, so a second branch, worktree or clone reads a lower maximum and mints the same number again; `s` is drawn at random so the two keys differ anyway (`file_format.md:223`). `LC-1` through `LC-233` predate it and keep the keys they were minted with, so both forms are keys, both are accepted everywhere a key is taken, and neither is ever renamed to look like the other.
+
 ## Reading a ticket
 
 1. Read `.longclaw/AGENTS.md`.
@@ -26,12 +28,28 @@ The creation surface is the `longclaw` CLI ([ADR 0011](../adr/0011-cli-is-the-cr
 ```sh
 longclaw ticket create --title "…" --description "…" --label storage \
   --checklist "…" --agent-id claude-code --agent-name "Claude Code"
-longclaw ticket edit LC-42 --status in_progress --agent-id claude-code
-longclaw ticket edit LC-42 --move-item ck_7d2a --after ck_0f19   # reorder; no --after is the top
-longclaw ticket show LC-42
+longclaw ticket edit LC-211p --status in_progress --agent-id claude-code
+longclaw ticket edit LC-42 --move-item ck_7d2a --after ck_0f19   # both key forms are taken
+longclaw ticket show LC-211p
 longclaw ticket list
 longclaw                     # the full surface
 ```
+
+When two branches mint the same key anyway — about 4% of the time they land on
+the same number — re-key one side rather than resolving the add/add conflict by
+taking one:
+
+```sh
+longclaw ticket renumber LC-230 --id <uuid> --agent-id claude-code
+```
+
+`--id` names *which* of the two, because a collided pair shares its key and its
+path and differs only in `id`; read it from the frontmatter of the file you
+mean. The command moves the directory, rewrites the `key` field, records the old
+key in the activity, and then prints every path in the repository that still
+names it — those are yours to follow, because they are not files LongClaw owns.
+`npm run ticket-keys:check` (part of `npm run verify`) fails on a collision that
+was resolved by taking one side.
 
 When a skill says to publish a spec or ticket:
 
@@ -44,7 +62,7 @@ Specs live in the Markdown body of `ticket.md`. Additional headings such as `## 
 
 ## Editing rules
 
-- Preserve immutable `id`, `key`, and ticket-directory paths.
+- Preserve immutable `id`, `key`, and ticket-directory paths. `longclaw ticket renumber` is the one exception, and it is a command precisely because a folder rename and a frontmatter edit have to happen together.
 - Preserve unknown supported frontmatter fields.
 - Use the constrained YAML subset documented in `docs/file_format.md`.
 - Change checklist state without removing its `longclaw:item` marker.

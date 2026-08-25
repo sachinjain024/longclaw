@@ -9,49 +9,185 @@
     "apps/desktop/src-tauri/tests/project_key_grammar.rs"
   ],
   "keys": [
-    { "key": "LC", "valid": true, "note": "the canonical example" },
-    { "key": "L", "valid": true, "note": "one letter is a key" },
-    { "key": "LC2", "valid": true, "note": "digits are legal after the first character" },
-    { "key": "ABCDE", "valid": true, "note": "the creation cap" },
+    {
+      "key": "LC",
+      "valid": true,
+      "note": "the canonical example"
+    },
+    {
+      "key": "L",
+      "valid": true,
+      "note": "one letter is a key"
+    },
+    {
+      "key": "LC2",
+      "valid": true,
+      "note": "digits are legal after the first character"
+    },
+    {
+      "key": "ABCDE",
+      "valid": true,
+      "note": "the creation cap"
+    },
     {
       "key": "LONGCLAWPROJECT",
       "valid": true,
       "note": "longer than the creation cap; the grammar still accepts it, so an existing project stays openable"
     },
-    { "key": "", "valid": false, "note": "a key is never empty" },
+    {
+      "key": "",
+      "valid": false,
+      "note": "a key is never empty"
+    },
     {
       "key": "3J4",
       "valid": false,
       "note": "the reported bug: derived from the name '30 July 4PM' and then refused"
     },
-    { "key": "3", "valid": false, "note": "a digit is not a first character" },
-    { "key": "2R", "valid": false, "note": "derived from '2026 roadmap'" },
-    { "key": "lc", "valid": false, "note": "lowercase is not uppercase" },
-    { "key": "Lc", "valid": false, "note": "one lowercase character is enough to fail" },
-    { "key": "L-C", "valid": false, "note": "the hyphen separates a ticket key from its number" },
-    { "key": "L C", "valid": false, "note": "no whitespace" },
-    { "key": "LC ", "valid": false, "note": "no trailing whitespace" },
-    { "key": "LC_1", "valid": false, "note": "no punctuation" },
-    { "key": "LÇ", "valid": false, "note": "ASCII only; the key is a path component" },
-    { "key": "..", "valid": false, "note": "a key can never become a path traversal" },
-    { "key": "L/C", "valid": false, "note": "a key can never carry a separator" }
+    {
+      "key": "3",
+      "valid": false,
+      "note": "a digit is not a first character"
+    },
+    {
+      "key": "2R",
+      "valid": false,
+      "note": "derived from '2026 roadmap'"
+    },
+    {
+      "key": "lc",
+      "valid": false,
+      "note": "lowercase is not uppercase"
+    },
+    {
+      "key": "Lc",
+      "valid": false,
+      "note": "one lowercase character is enough to fail"
+    },
+    {
+      "key": "L-C",
+      "valid": false,
+      "note": "the hyphen separates a ticket key from its number"
+    },
+    {
+      "key": "L C",
+      "valid": false,
+      "note": "no whitespace"
+    },
+    {
+      "key": "LC ",
+      "valid": false,
+      "note": "no trailing whitespace"
+    },
+    {
+      "key": "LC_1",
+      "valid": false,
+      "note": "no punctuation"
+    },
+    {
+      "key": "L\u00c7",
+      "valid": false,
+      "note": "ASCII only; the key is a path component"
+    },
+    {
+      "key": "..",
+      "valid": false,
+      "note": "a key can never become a path traversal"
+    },
+    {
+      "key": "L/C",
+      "valid": false,
+      "note": "a key can never carry a separator"
+    }
   ],
   "ticketKeys": [
-    { "ticketKey": "LC-42", "valid": true },
-    { "ticketKey": "LC2-42", "valid": true, "note": "a digit inside the prefix is legal" },
-    { "ticketKey": "L-1", "valid": true },
+    {
+      "ticketKey": "LC-42",
+      "valid": true
+    },
+    {
+      "ticketKey": "LC2-42",
+      "valid": true,
+      "note": "a digit inside the prefix is legal"
+    },
+    {
+      "ticketKey": "L-1",
+      "valid": true
+    },
     {
       "ticketKey": "3J4-1",
       "valid": false,
       "note": "the prefix must satisfy the project-key grammar, so the two validators cannot disagree"
     },
-    { "ticketKey": "lc-42", "valid": false },
-    { "ticketKey": "LC-0", "valid": false, "note": "no leading zero in the number" },
-    { "ticketKey": "LC-", "valid": false },
-    { "ticketKey": "-42", "valid": false },
-    { "ticketKey": "LC-42-1", "valid": false },
-    { "ticketKey": "../LC-42", "valid": false },
-    { "ticketKey": "LC/42", "valid": false }
+    {
+      "ticketKey": "lc-42",
+      "valid": false
+    },
+    {
+      "ticketKey": "LC-0",
+      "valid": false,
+      "note": "no leading zero in the number"
+    },
+    {
+      "ticketKey": "LC-",
+      "valid": false
+    },
+    {
+      "ticketKey": "-42",
+      "valid": false
+    },
+    {
+      "ticketKey": "LC-42-1",
+      "valid": false
+    },
+    {
+      "ticketKey": "../LC-42",
+      "valid": false
+    },
+    {
+      "ticketKey": "LC/42",
+      "valid": false
+    },
+    {
+      "ticketKey": "LC-211p",
+      "valid": true,
+      "note": "the minted shape: a number and one lowercase trailing character (LC-232)"
+    },
+    {
+      "ticketKey": "LC2-42q",
+      "valid": true,
+      "note": "a suffix sits behind a prefix that carries a digit"
+    },
+    {
+      "ticketKey": "LC-42o",
+      "valid": true,
+      "note": "o is dropped from the minting alphabet as a confusable, and is still readable: the reader accepts more than the allocator draws"
+    },
+    {
+      "ticketKey": "LC-211P",
+      "valid": false,
+      "note": "macOS folds case, so an uppercase suffix would be a second key on one directory"
+    },
+    {
+      "ticketKey": "LC-0p",
+      "valid": false,
+      "note": "the no-leading-zero rule survives the suffix"
+    },
+    {
+      "ticketKey": "LC-p",
+      "valid": false,
+      "note": "a suffix is not a number"
+    },
+    {
+      "ticketKey": "LC-42pq",
+      "valid": false,
+      "note": "one character is the length that was chosen"
+    },
+    {
+      "ticketKey": "LC-42-1x",
+      "valid": false,
+      "note": "a suffix does not make a second segment legal"
+    }
   ],
   "derivations": [
     {
@@ -59,29 +195,89 @@
       "key": "J4",
       "note": "the reported bug: initials '3J4' began with a digit, so the leading digit is dropped"
     },
-    { "name": "2026 roadmap", "key": "R" },
-    { "name": "3rd party audit", "key": "PA" },
+    {
+      "name": "2026 roadmap",
+      "key": "R"
+    },
+    {
+      "name": "3rd party audit",
+      "key": "PA"
+    },
     {
       "name": "3j4",
       "key": "LC",
       "note": "one word whose initial is a digit leaves nothing, so the fallback applies"
     },
-    { "name": "My Project", "key": "MP" },
-    { "name": "longclaw", "key": "L" },
-    { "name": "  spaced   out  ", "key": "SO", "note": "surrounding whitespace is not a word" },
-    { "name": "alpha beta gamma delta epsilon", "key": "ABGD", "note": "the derivation cap" },
+    {
+      "name": "My Project",
+      "key": "MP"
+    },
+    {
+      "name": "longclaw",
+      "key": "L"
+    },
+    {
+      "name": "  spaced   out  ",
+      "key": "SO",
+      "note": "surrounding whitespace is not a word"
+    },
+    {
+      "name": "alpha beta gamma delta epsilon",
+      "key": "ABGD",
+      "note": "the derivation cap"
+    },
     {
       "name": "release-2026",
       "key": "R2",
       "note": "a hyphen is a word break, not a character to delete. It was one until the create form began prefilling the name from the chosen folder, which is where hyphens and underscores live"
     },
-    { "name": "my-app", "key": "MA", "note": "the common folder name" },
-    { "name": "long_claw", "key": "LC" },
-    { "name": "site.v2", "key": "SV", "note": "a dot breaks a word too" },
-    { "name": "it's fine", "key": "IF", "note": "punctuation that is not a separator still joins the word it sits in" },
-    { "name": "日本語プロジェクト", "key": "LC", "note": "nothing survives the ASCII filter" },
-    { "name": "4", "key": "LC" },
-    { "name": "", "key": "LC" },
-    { "name": "   ", "key": "LC" }
-  ]
+    {
+      "name": "my-app",
+      "key": "MA",
+      "note": "the common folder name"
+    },
+    {
+      "name": "long_claw",
+      "key": "LC"
+    },
+    {
+      "name": "site.v2",
+      "key": "SV",
+      "note": "a dot breaks a word too"
+    },
+    {
+      "name": "it's fine",
+      "key": "IF",
+      "note": "punctuation that is not a separator still joins the word it sits in"
+    },
+    {
+      "name": "\u65e5\u672c\u8a9e\u30d7\u30ed\u30b8\u30a7\u30af\u30c8",
+      "key": "LC",
+      "note": "nothing survives the ASCII filter"
+    },
+    {
+      "name": "4",
+      "key": "LC"
+    },
+    {
+      "name": "",
+      "key": "LC"
+    },
+    {
+      "name": "   ",
+      "key": "LC"
+    }
+  ],
+  "ticketKeySuffix": {
+    "statement": "A ticket key is <KEY>-<n> or <KEY>-<n><s>, where n carries no leading zero and s is a single lowercase ASCII letter. Keys minted from 2026-08-25 carry s; LC-1 through LC-233 predate it and keep the keys they were minted with, so the reader accepts both forms.",
+    "mintingAlphabet": "abcdefghijkmnpqrstuvwxyz",
+    "length": 1,
+    "caseNote": "Lowercase only. fs::create_dir is how a key is claimed and macOS folds case, so LC-211p and LC-211P would be two keys on one directory.",
+    "droppedLetters": "lo",
+    "droppedNote": "l and o sit next to the 1 and the 0 already in a key that people read aloud, type into `ticket show`, and paste into commit messages.",
+    "collisionOdds": "Two branches that both take max+1 agree on the number and then differ on the letter 23 times out of 24 \u2014 about 4% of those collisions survive. `longclaw ticket renumber` carries the remainder.",
+    "readers": [
+      "apps/desktop/src-tauri/src/core/storage.rs via apps/desktop/src-tauri/tests/project_key_grammar.rs"
+    ]
+  }
 }

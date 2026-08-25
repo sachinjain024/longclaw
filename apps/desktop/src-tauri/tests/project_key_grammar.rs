@@ -12,7 +12,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use longclaw_desktop_lib::core::project::is_project_key;
-use longclaw_desktop_lib::core::storage::valid_ticket_key;
+use longclaw_desktop_lib::core::storage::{
+    random_key_suffix, valid_ticket_key, KEY_SUFFIX_ALPHABET,
+};
 use serde_json::Value;
 
 fn repository_root() -> PathBuf {
@@ -95,6 +97,75 @@ fn every_key_the_form_can_derive_is_a_key_this_build_accepts() {
             "the form derives {derived:?} from {name:?}, so creation must accept it"
         );
     }
+}
+
+/// The suffix half of the ticket-key grammar, held to the fixture rather than to
+/// a second copy of the rule. The allocator draws from `mintingAlphabet`; the
+/// reader accepts any lowercase letter, so every character the allocator can draw
+/// has to be a character `valid_ticket_key` takes.
+#[test]
+fn every_character_the_allocator_can_draw_is_one_the_reader_accepts() {
+    let fixture = grammar();
+    let suffix = &fixture["ticketKeySuffix"];
+    let alphabet = suffix["mintingAlphabet"]
+        .as_str()
+        .expect("the minting alphabet");
+    let dropped = suffix["droppedLetters"]
+        .as_str()
+        .expect("the dropped letters");
+
+    assert_eq!(
+        alphabet.as_bytes(),
+        KEY_SUFFIX_ALPHABET,
+        "the fixture and the allocator name the same alphabet"
+    );
+    assert_eq!(
+        suffix["length"].as_u64(),
+        Some(1),
+        "one character is the length that was chosen"
+    );
+    assert_eq!(
+        alphabet.len(),
+        26 - dropped.len(),
+        "the alphabet is the lowercase letters minus {dropped:?}"
+    );
+
+    for character in alphabet.chars() {
+        assert!(
+            character.is_ascii_lowercase(),
+            "{character} is lowercase, because macOS folds case onto one directory"
+        );
+        assert!(
+            !dropped.contains(character),
+            "{character} is a confusable and should not be drawable"
+        );
+        assert!(
+            valid_ticket_key(&format!("LC-211{character}")),
+            "the reader must accept LC-211{character}, which the allocator can mint"
+        );
+    }
+    for character in dropped.chars() {
+        assert!(
+            !alphabet.contains(character),
+            "{character} is dropped from the alphabet"
+        );
+    }
+}
+
+/// Forty draws is not a distribution test; it is enough to fail a constant.
+#[test]
+fn a_drawn_suffix_comes_out_of_the_alphabet() {
+    let alphabet = KEY_SUFFIX_ALPHABET;
+    let mut seen = std::collections::BTreeSet::new();
+    for _ in 0..40 {
+        let drawn = random_key_suffix();
+        assert!(
+            alphabet.contains(&(drawn as u8)),
+            "{drawn} is not in the alphabet"
+        );
+        seen.insert(drawn);
+    }
+    assert!(seen.len() > 1, "the suffix is drawn, not fixed: {seen:?}");
 }
 
 #[test]

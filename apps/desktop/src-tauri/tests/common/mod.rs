@@ -105,6 +105,44 @@ pub fn ticket_path(root: &Path, key: &str) -> PathBuf {
     root.join(".longclaw/tickets").join(key).join("ticket.md")
 }
 
+/// The number a ticket key spends, without its trailing character.
+///
+/// A minted key carries a randomly drawn suffix (LC-232), so a test that means
+/// "the next number after LC-99" asserts on this rather than on the whole key.
+/// The key itself is never composed by a test — it comes back from the create.
+pub fn number_of(key: &str) -> u64 {
+    let sequence = key
+        .split_once('-')
+        .unwrap_or_else(|| panic!("{key} is a ticket key"))
+        .1;
+    sequence
+        .trim_end_matches(|character: char| character.is_ascii_alphabetic())
+        .parse()
+        .unwrap_or_else(|_| panic!("{key} carries a number"))
+}
+
+/// Asserts that `key` is a freshly minted key spending `number`: the number the
+/// caller expects, and exactly one lowercase trailing character.
+pub fn assert_minted(key: &str, number: u64) {
+    assert_eq!(number_of(key), number, "{key} should spend {number}");
+    let suffix = key
+        .split_once('-')
+        .expect("a ticket key")
+        .1
+        .trim_start_matches(|character: char| character.is_ascii_digit());
+    assert_eq!(
+        suffix.chars().count(),
+        1,
+        "{key} carries one trailing character"
+    );
+    assert!(
+        suffix
+            .chars()
+            .all(|character| character.is_ascii_lowercase()),
+        "{key} carries a lowercase trailing character"
+    );
+}
+
 /// Replaces a file the way an ordinary editor does: write a temporary file next to
 /// it, then rename it into place.
 pub fn editor_atomic_replace(path: &Path, contents: &str, sequence: usize) {
