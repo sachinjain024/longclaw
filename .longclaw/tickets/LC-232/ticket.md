@@ -182,3 +182,44 @@ Three things this turned up that the ticket did not anticipate. The frontend was
 
 npm run verify passes, including the native watcher.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_04c19d45
+kind: comment
+occurred_at: 2026-08-25T01:24:02.245Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+## What landed
+
+The key grammar is `<KEY>-<n>` or `<KEY>-<n><s>`. `s` is drawn at random from the 24 lowercase letters minus `l` and `o`; `file_format.md:223` was replaced in place, one line for one line, and re-pinned. `valid_ticket_key` takes the optional character, `next_sequence_of` strips it before parsing, `belongs_to_project` never sees it. `longclaw ticket renumber <KEY> --id <uuid>` carries the ~4% of collisions one character does not, and `npm run ticket-keys:check` is in `verify` with a `--self-test`.
+
+## Three things this ticket got wrong
+
+**"The frontend needs nothing — it carries the key as an opaque string, no parsing, no regex, no numeric sort."** It parsed keys in two places and both broke. `provisionalTicketKey`'s `/^(.+)-(\d+)$/` skipped every suffixed row, so once every ticket carried a character the maximum was 0 and each optimistic card claimed `LC-1`. `ticketKeyQuery` could not resolve `LC-211p` at all. Both now go through one `splitTicketKey`.
+
+**The numeric sort the ticket said did not exist is in Rust, not the frontend.** `core/index.rs`'s `compare_keys` parsed the sequence as a `u64`, so `LC-234q` fell to byte order while its neighbours were compared numerically — an actual cycle: `LC-234q` < `LC-9` by bytes, `LC-9` < `LC-10` by number, `LC-10` < `LC-234q` by bytes. `sort_by` given a cycle may return an arbitrary permutation or panic outright, and both callers are a render: `State::rows` is the board and the list, and `search` truncates to `SEARCH_LIMIT` after sorting, so a wrong order is also the wrong hundred rows. The comparator now ranks each name into one tuple instead of dispatching to one of two comparisons, which closes the same hole for a directory name that is not a key at all. A test walks every triple.
+
+**Putting the letter in the claimed directory name silently cost a property this ticket records as true** — "two CLI processes in one checkout can never collide". Both read max=233, both mint 234, and 23 times out of 24 both `create_dir` calls succeed: two tickets numbered 234, no error, no merge involved. The number is now claimed under its bare name (`create_dir("LC-234")` is exclusive again) and the letter arrives by renaming the claim. The rename releases the bare name, so a writer whose scan is a moment stale can re-claim it — which is why the claim is confirmed while it is held: at most one writer holds `LC-234` at a time, so at most one is asking, and by then the other's `LC-234q` is on disk to be seen. Eight threads with no lock between them take 32 distinct numbers.
+
+## Nuances worth knowing
+
+- **The reader accepts more than the allocator draws.** The grammar takes any single lowercase letter; the mint alphabet excludes `l` and `o`. Holding the reader to the alphabet too would turn a hand-typed `LC-42o` into a directory the app cannot see. Uppercase stays refused — macOS folds case, so `LC-211p` and `LC-211P` would be two keys on one directory.
+- **A number is no longer an identifier.** Two tickets sharing a number is the feature working, not a defect. The palette resolves a bare number to the first row carrying it, and typing the character is how you name the other. `ticket-keys:check` is about a *key* claimed twice, which is a different and genuinely broken state.
+- **`renumber` reports references, it does not rewrite them.** They are not files LongClaw owns (ADR 0009). It also prints `referencesUnread`: files inside the sweep it meant to read and could not — over 2 MB, unreadable, or a directory it could not open — so "no references left" cannot mean "none in the files I happened to open". The sweep skips `.git`, `node_modules`, `target`, `dist`, `.next` and `.venv`, which is a fixed list rather than a silence.
+- **`--id` is not ceremony.** A collided pair shares its key and its path and differs only in `id`, so naming the key alone does not say which one is meant.
+
+## One gap left open
+
+`fixtures/representative-project/.longclaw/tickets/` still holds six unsuffixed keys and no suffixed one. The new shape is covered by unit tests, CLI tests and `tickets.test.ts`, but the shared fixture the Rust integration suite and `npm run dev:fixture` both run against never exercises it. Left deliberately: several suites assert against that fixture and changing it is a wider blast radius than this warranted. Worth a follow-up.
+
+## Two defects introduced and caught in review
+
+The alphabet walk drew its start inside `position`'s predicate, so each letter matched with its own 1-in-24 chance on its own turn: the search missed entirely ~36% of the time and fell back to `a`, making ~40% of renumbers start at one letter against the 4% the design records. One draw, held in a local, in one shared `alphabet_from_a_random_start`. And six source line citations went stale — four mine, two caused by adding a `use` line to `index.rs` and six comment lines to `CommandPalette.tsx`. `citation-guard` pins the six design docs, not citations into source, so nothing would have caught them.
+
+`npm run verify` passes, including the native watcher.
+<!-- /longclaw:event -->
