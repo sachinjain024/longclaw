@@ -4,7 +4,8 @@
 //! minted with the same key, and the key it gave up is quoted in commit
 //! messages, design docs, source comments and other tickets. Those are the
 //! human's next job, not LongClaw's — so this finds them and says where they
-//! are, and nothing here writes (ADR 0010).
+//! are, and nothing here writes (ADR 0009: Rust owns filesystem authority, and
+//! this half of it owns none of these files).
 //!
 //! It lives beside `storage` rather than inside it because it is a different
 //! kind of question. `storage` decides paths and reads ticket files; this reads
@@ -68,22 +69,46 @@ pub fn paths_mentioning_key(project_root: &Path, key: &str, skip: &Path) -> Refe
                     .to_str()
                     .is_some_and(|name| REFERENCE_SKIPPED_DIRECTORIES.contains(&name)))
         });
-    for entry in walk.flatten() {
+    for step in walk {
+        // A directory the walk could not open takes its whole subtree with it, so
+        // dropping the error would be the largest silence this scan could keep.
+        // `walkdir` gives the path when it has one; when it does not, the failure
+        // is the root itself.
+        let entry = match step {
+            Ok(entry) => entry,
+            Err(error) => {
+                unread.push(relative_to(
+                    project_root,
+                    error.path().unwrap_or(project_root),
+                ));
+                continue;
+            }
+        };
         if !entry.file_type().is_file() {
             continue;
         }
-        if entry
-            .metadata()
-            .is_ok_and(|metadata| metadata.len() > REFERENCE_FILE_LIMIT)
-        {
-            unread.push(relative_to(project_root, entry.path()));
-            continue;
+        match entry.metadata() {
+            Ok(metadata) if metadata.len() > REFERENCE_FILE_LIMIT => {
+                unread.push(relative_to(project_root, entry.path()));
+                continue;
+            }
+            Ok(_) => {}
+            Err(_) => {
+                unread.push(relative_to(project_root, entry.path()));
+                continue;
+            }
         }
-        // Not UTF-8, or gone since the walk listed it. A key is quoted in text, so
-        // a file that is not text is not one that can be holding a reference
-        // anybody maintains.
-        let Ok(contents) = fs::read_to_string(entry.path()) else {
-            continue;
+        let contents = match fs::read_to_string(entry.path()) {
+            Ok(contents) => contents,
+            // Not UTF-8 is the ordinary case and not a silence: a key is quoted
+            // in text, so a file that is not text holds no reference anyone
+            // maintains. Anything else — a permission, a file gone since the walk
+            // listed it — is a file the scan meant to read and did not.
+            Err(error) if error.kind() == std::io::ErrorKind::InvalidData => continue,
+            Err(_) => {
+                unread.push(relative_to(project_root, entry.path()));
+                continue;
+            }
         };
         if mentions_key(&contents, key) {
             if found.len() == REFERENCE_LIMIT {

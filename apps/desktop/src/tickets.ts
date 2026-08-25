@@ -108,10 +108,20 @@ export function checklistFraction(ticket: IndexedTicket): string {
  */
 export function splitTicketKey(
   key: string,
-): { prefix: string; number: number; suffix: string } | undefined {
+):
+  | { prefix: string; number: number; digits: string; suffix: string }
+  | undefined {
   const match = /^([A-Za-z][A-Za-z0-9]*)-([1-9][0-9]*)([A-Za-z]?)$/.exec(key);
   if (!match) return undefined;
-  return { prefix: match[1], number: Number(match[2]), suffix: match[3] };
+  // `digits` as typed and `number` for comparing. A key past 2^53 is absurd and
+  // reachable by typing, and rebuilding one from its `Number` would answer a
+  // query about `LC-12345678901234567890` with a different key.
+  return {
+    prefix: match[1],
+    number: Number(match[2]),
+    digits: match[2],
+    suffix: match[3],
+  };
 }
 
 /**
@@ -177,7 +187,7 @@ export function ticketKeyQuery(
   const parts = splitTicketKey(typed);
   if (!parts || parts.prefix.toLowerCase() !== projectKey.toLowerCase())
     return undefined;
-  return `${projectKey}-${parts.number}${parts.suffix.toLowerCase()}`;
+  return `${projectKey}-${parts.digits}${parts.suffix.toLowerCase()}`;
 }
 
 /**
@@ -199,7 +209,7 @@ export function ticketKeyNames(queried: string, key: string): boolean {
   const parts = splitTicketKey(queried);
   const target = splitTicketKey(key);
   if (!parts || !target || parts.suffix !== "") return false;
-  return parts.prefix === target.prefix && parts.number === target.number;
+  return parts.prefix === target.prefix && parts.digits === target.digits;
 }
 
 /** The row an optimistic create shows while its file is being written. */

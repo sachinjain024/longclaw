@@ -1091,7 +1091,11 @@ pub fn prepare_new_ticket_as(
                     sequence += 1;
                     continue;
                 }
-                let Some((key, directory)) = name_the_claim(&claimed, project_key, sequence) else {
+                let Some((key, directory)) = name_the_claim(&claimed, project_key, sequence)
+                    .inspect_err(|_| {
+                        let _ = fs::remove_dir(&claimed);
+                    })?
+                else {
                     // Every letter on this number is taken by a directory that is
                     // not ours — a merge brought in a full number. Hand the claim
                     // back and take the next one.
@@ -1185,28 +1189,63 @@ fn spends_the_number(
 /// between its claim and its write, which is what
 /// [`discard_claimed_ticket_directory`] removes on the paths that do not die.
 ///
-/// `None` means all twenty-four letters on this number are held by real
-/// directories, which is the caller's cue to take the next number.
-fn name_the_claim(claimed: &Path, project_key: &str, sequence: u64) -> Option<(String, PathBuf)> {
-    let tickets = claimed.parent()?;
+/// `Ok(None)` means all twenty-four letters on this number are held by real
+/// directories, which is the caller's cue to take the next number. A rename that
+/// failed for any *other* reason is an error rather than a letter to skip: a
+/// read-only folder or a full volume would otherwise be reported as "could not
+/// claim a free ticket key" after silently burning sixty-four numbers, and ADR
+/// 0010 exists because permission and conflict are not one state.
+fn name_the_claim(
+    claimed: &Path,
+    project_key: &str,
+    sequence: u64,
+) -> AppResult<Option<(String, PathBuf)>> {
+    let Some(tickets) = claimed.parent() else {
+        return Ok(None);
+    };
+    for suffix in alphabet_from_a_random_start() {
+        let key = format!("{project_key}-{sequence}{suffix}");
+        let directory = tickets.join(&key);
+        match fs::rename(claimed, &directory) {
+            Ok(()) => return Ok(Some((key, directory))),
+            // The letter is taken by a directory another tree brought in.
+            // `rename` replaces a directory only while it is empty, so this is
+            // the answer for every real ticket already sitting on this key.
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    std::io::ErrorKind::DirectoryNotEmpty | std::io::ErrorKind::AlreadyExists
+                ) =>
+            {
+                continue
+            }
+            Err(error) => {
+                return Err(AppError::io(
+                    "Naming the claimed ticket directory",
+                    &directory,
+                    error,
+                ))
+            }
+        }
+    }
+    Ok(None)
+}
+
+/// The suffix alphabet, walked from a character drawn once.
+///
+/// One draw, taken here rather than in each caller's search predicate. Drawing
+/// per element gives each letter its own 1-in-24 chance on its own turn, so the
+/// search misses entirely about 36% of the time and falls back to `a` — which is
+/// a real defect this had, in this exact shape, and having one copy of the walk
+/// is what keeps it from coming back in only one of the two callers.
+fn alphabet_from_a_random_start() -> impl Iterator<Item = char> {
     let alphabet = KEY_SUFFIX_ALPHABET;
     let drawn = random_key_suffix();
     let start = alphabet
         .iter()
         .position(|byte| char::from(*byte) == drawn)
         .unwrap_or(0);
-    for offset in 0..alphabet.len() {
-        let suffix = char::from(alphabet[(start + offset) % alphabet.len()]);
-        let key = format!("{project_key}-{sequence}{suffix}");
-        let directory = tickets.join(&key);
-        if directory.exists() {
-            continue;
-        }
-        if fs::rename(claimed, &directory).is_ok() {
-            return Some((key, directory));
-        }
-    }
-    None
+    (0..alphabet.len()).map(move |offset| char::from(alphabet[(start + offset) % alphabet.len()]))
 }
 
 /// The number a ticket directory spends, ignoring the trailing character.
@@ -1229,7 +1268,7 @@ fn next_sequence_of(directory_name: &str, project_key: &str) -> Option<u64> {
 /// The references are the human's next job, not LongClaw's. A ticket key is
 /// quoted in commit messages, design docs, source comments and other tickets, and
 /// none of those are files this app owns — so it finds them and says where they
-/// are rather than rewriting them (ADR 0010).
+/// are rather than rewriting them (ADR 0009).
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Renumbered {
@@ -1319,23 +1358,10 @@ pub fn renumber_ticket_as(
 
     // The claim is `create_dir`, exactly as it is in allocation: the one operation
     // that proves a key was free at the moment it stopped being free. Walking the
-    // alphabet from a random start rather than from `a` keeps a second collision
-    // on the same number from being handed the same answer twice.
-    //
-    // One draw, held in a local. Drawing inside the search predicate would redraw
-    // per element: each letter would then match with probability 1/24 on its own
-    // turn, so the search would fall through to `a` about 36% of the time and
-    // start early far more often than that — a bias in exactly the direction that
-    // makes two renumbers agree.
-    let alphabet = KEY_SUFFIX_ALPHABET;
-    let drawn = random_key_suffix();
-    let start = alphabet
-        .iter()
-        .position(|byte| char::from(*byte) == drawn)
-        .unwrap_or(0);
+    // alphabet from a drawn start rather than from `a` keeps a second collision on
+    // the same number from being handed the same answer twice.
     let mut claimed = None;
-    for offset in 0..alphabet.len() {
-        let suffix = char::from(alphabet[(start + offset) % alphabet.len()]);
+    for suffix in alphabet_from_a_random_start() {
         let candidate = format!("{project_key}-{number}{suffix}");
         if candidate == key {
             continue;

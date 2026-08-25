@@ -53,6 +53,14 @@ describe("a query shaped like a ticket key", () => {
    * random, and `LC-1` … `LC-233` do not — so both forms reach the palette, and
    * the number is the part a person has when they type one.
    */
+  it("carries a number back whole, however long it was typed", () => {
+    // Rebuilt from the digits as typed, not from a `Number` that has lost the
+    // low end of them: the answer is a key, and it has to be the one asked for.
+    expect(ticketKeyQuery("LC-12345678901234567890", "LC")).toBe(
+      "LC-12345678901234567890",
+    );
+  });
+
   it("takes a key that carries a trailing character", () => {
     expect(ticketKeyQuery("LC-211p", "LC")).toBe("LC-211p");
     expect(ticketKeyQuery("lc-211P", "LC")).toBe("LC-211p");
