@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 0812868f-47e0-4270-aa3c-71a36ba59d57
 key: LC-232
 title: Ticket keys carry a random suffix so two branches cannot mint the same one
-status: todo
+status: in_review
 priority: none
 labels:
   - storage
   - platform
 created_at: 2026-08-24T23:31:28.384Z
-updated_at: 2026-08-24T23:31:28.384Z
+updated_at: 2026-08-25T00:58:58.118Z
 ---
 
 Two branches off the same `main` mint the same ticket key. It happened while
@@ -110,15 +110,15 @@ that quietly kept one side.
 
 ## Checklist
 
-- [ ] The alphabet and length are decided and written into file_format.md: one case only because macOS folds LC-211p and LC-211P onto one directory, confusable letters dropped, and the collision odds of the chosen length stated <!-- longclaw:item=ck_9418c4d4 -->
-- [ ] valid_ticket_key accepts an optional trailing suffix and still rejects lc-42, LC-42-1, LC-, LC-0 and ../LC-42; belongs_to_project gains a suffixed case <!-- longclaw:item=ck_15ffa4d3 -->
-- [ ] next_sequence_of strips the suffix before parsing, with a test that allocates twice against a store whose only tickets are suffixed — the untaught version drops every suffixed directory from max() and hands out LC-1 <!-- longclaw:item=ck_f19874ae -->
-- [ ] Newly minted keys carry the suffix; LC-1 through LC-231 are left untouched and both forms parse everywhere <!-- longclaw:item=ck_54b4cc02 -->
-- [ ] The CLI takes both forms as arguments — ticket show, edit, --after — and its output and errors quote keys whole <!-- longclaw:item=ck_58284d47 -->
-- [ ] longclaw ticket renumber <KEY> --id <uuid> re-keys one of a colliding pair: moves the directory, rewrites the key field, appends an activity entry naming the old key, refuses a key already taken, and reports every path in the repo still mentioning the old one <!-- longclaw:item=ck_14e7fb20 -->
-- [ ] A guard in verify fails when two ticket directories claim the same key, or when a key field disagrees with its directory name <!-- longclaw:item=ck_6de97504 -->
-- [ ] file_format.md:223's grammar sentence is replaced in place, AGENTS.md and docs/agents/issue-tracker.md show the new shape, and npm run citations:check is green after re-pinning <!-- longclaw:item=ck_3c38883e -->
-- [ ] npm run verify passes, including cargo tests for the allocator against a suffixed store <!-- longclaw:item=ck_e589a0ad -->
+- [x] The alphabet and length are decided and written into file_format.md: one case only because macOS folds LC-211p and LC-211P onto one directory, confusable letters dropped, and the collision odds of the chosen length stated <!-- longclaw:item=ck_9418c4d4 -->
+- [x] valid_ticket_key accepts an optional trailing suffix and still rejects lc-42, LC-42-1, LC-, LC-0 and ../LC-42; belongs_to_project gains a suffixed case <!-- longclaw:item=ck_15ffa4d3 -->
+- [x] next_sequence_of strips the suffix before parsing, with a test that allocates twice against a store whose only tickets are suffixed — the untaught version drops every suffixed directory from max() and hands out LC-1 <!-- longclaw:item=ck_f19874ae -->
+- [x] Newly minted keys carry the suffix; LC-1 through LC-231 are left untouched and both forms parse everywhere <!-- longclaw:item=ck_54b4cc02 -->
+- [x] The CLI takes both forms as arguments — ticket show, edit, --after — and its output and errors quote keys whole <!-- longclaw:item=ck_58284d47 -->
+- [x] longclaw ticket renumber <KEY> --id <uuid> re-keys one of a colliding pair: moves the directory, rewrites the key field, appends an activity entry naming the old key, refuses a key already taken, and reports every path in the repo still mentioning the old one <!-- longclaw:item=ck_14e7fb20 -->
+- [x] A guard in verify fails when two ticket directories claim the same key, or when a key field disagrees with its directory name <!-- longclaw:item=ck_6de97504 -->
+- [x] file_format.md:223's grammar sentence is replaced in place, AGENTS.md and docs/agents/issue-tracker.md show the new shape, and npm run citations:check is green after re-pinning <!-- longclaw:item=ck_3c38883e -->
+- [x] npm run verify passes, including cargo tests for the allocator against a suffixed store <!-- longclaw:item=ck_e589a0ad -->
 
 ## Activity
 
@@ -132,4 +132,53 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_253a8db9
+kind: update
+occurred_at: 2026-08-25T00:58:58.118Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: in_review
+  - field: checklist.ck_9418c4d4.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_15ffa4d3.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_f19874ae.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_54b4cc02.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_58284d47.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_14e7fb20.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_6de97504.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_3c38883e.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_e589a0ad.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Implemented on feat/lc-232-ticket-key-suffix. The alphabet is the 24 lowercase letters minus l and o, written into file_format.md:223 in place. valid_ticket_key takes an optional trailing character and next_sequence_of strips it; LC-1..LC-233 keep their keys and both forms are accepted everywhere, including the palette and the index's key order. longclaw ticket renumber re-keys one of a pair, and ticket-keys:check is in verify with a --self-test.
+
+Three things this turned up that the ticket did not anticipate. The frontend was said to need nothing; it parsed keys in two places, and both were broken by the suffix. The index's key comparator became intransitive once a key stopped parsing as a u64, which sort_by may answer with a panic. And putting the letter in the claimed directory name quietly cost the property the ticket records as true — that two CLI processes in one checkout can never collide — so the number is now claimed under its bare name and the letter arrives by renaming the claim.
+
+npm run verify passes, including the native watcher.
 <!-- /longclaw:event -->
