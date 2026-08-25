@@ -3,12 +3,12 @@ format: longclaw.ticket/v1
 id: a82268bf-447d-45a8-81f8-0f26cf8a7d22
 key: LC-205
 title: Generate Website & Documentation
-status: in_progress
+status: done
 priority: urgent
 labels:
   - release
 created_at: 2026-08-11T14:37:24.881Z
-updated_at: 2026-08-22T07:36:15Z
+updated_at: 2026-08-25T08:20:34.530Z
 ---
 
 Build the public LongClaw website — a single home for everything: product docs, blog, changelog, and public roadmap.
@@ -289,4 +289,33 @@ Four first-party skills in .agents/skills/, symlinked into .claude/skills/ the w
 The Download CTA is now LC-234i, with the three things gating it written down: the release notes are still draft with acceptance blockers open, the build is unsigned (LC-47 is in progress and may change what the CTA says), and the asset name LongClaw_0.1.0_aarch64.dmg is already published in Getting started and the changelog, so the release has to match it.
 
 Also brought the site back in step with LC-232, which landed on main while this was in flight: ticket keys now carry an optional random lowercase trailing character, so the key grammar on /docs/project-folder was incomplete, and /docs/cli now documents longclaw ticket renumber for the collisions that survive it. That drift is exactly what the product-docs skill is written to catch.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_8acb046d
+kind: update
+occurred_at: 2026-08-25T08:20:34.530Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_progress
+    to: done
+-->
+### Claude Code updated this ticket
+
+Closing. Both halves are delivered.
+
+Design: the content brief and the Claude Design prompts are committed under docs/design/, and the exported bundle under docs/ux/prototypes/website-and-docs/.
+
+Implementation: apps/website is live at https://longclaw.io — marketing home, eight docs pages including the CLI reference, blog and post, changelog, an unpublished roadmap, and a 404. Static Astro, deployed to GitHub Pages by .github/workflows/website.yml, custom domain with TLS enforced. Verified over TLS: every route serves, no broken links, one h1 per page, accessible names throughout, no horizontal overflow, WCAG AA in both appearances, and no third-party host contacted on any page.
+
+Skills: website-change, product-docs, changelog-entry and roadmap-update in .agents/skills/, symlinked into .claude/skills/, named in AGENTS.md and README.md.
+
+Carried forward rather than dropped:
+- LC-234i — point the Download CTA at a real release. Blocked on the 0.1.0 release notes leaving draft, and on LC-47 (signing), which may change what the CTA says.
+
+Left unresolved, and not carried anywhere: the Open question in this description — whether the public roadmap should be published from the LongClaw project itself, maintained on GitHub, or on an external service. It was parked at the launch decision to show no upcoming features, and closing this ticket does not answer it. The page exists and is suppressed in four places; roadmap-update documents what publishing would take.
 <!-- /longclaw:event -->
