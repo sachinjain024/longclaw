@@ -34,9 +34,17 @@ different file on purpose.
 The `LC` in `LC-1` prefixes every ticket key and every ticket directory name.
 
 A key is one or more characters, uppercase ASCII letters and digits only,
-starting with a letter — `LC`, `LC2`, `L`. A ticket key is `<KEY>-<n>` where
-`n` carries no leading zero. The creation surfaces cap a new key at five
+starting with a letter — `LC`, `LC2`, `L`. A ticket key is `<KEY>-<n>` or
+`<KEY>-<n><s>`, where `n` carries no leading zero and `s` is a single lowercase
+letter — `LC-42`, `LC-211p`. The creation surfaces cap a new key at five
 characters for readability.
+
+**Both forms are keys.** The trailing letter exists because keys are allocated
+from the ticket directories in one working tree, so a second branch, worktree
+or clone reads a lower maximum and mints the same number again. The letter is
+drawn at random, so the two keys differ even when the numbers collide. Tickets
+minted before it existed keep the keys they were minted with — a key is never
+reused and never renamed.
 
 **The key becomes immutable once the first ticket exists.** Changing it would
 mean renaming every human-facing ticket key and every directory.

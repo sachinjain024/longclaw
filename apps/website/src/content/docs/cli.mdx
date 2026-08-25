@@ -95,6 +95,23 @@ Run `longclaw` with no arguments for the full surface.
   </div>
 </div>
 
+## When two branches mint the same key
+
+Keys are allocated from the ticket directories in one working tree, so a second
+branch, worktree or clone reads a lower maximum and can mint the same number
+again. The random trailing letter usually makes the two differ anyway; when it
+does not, re-key one side rather than resolving the conflict by taking one:
+
+<CommandBlock
+  id="cmd-renumber"
+  desc="Re-key one of a collided pair. --id names which one, because the pair shares its key and its path and differs only in id — read it from the file's frontmatter."
+  cmd="longclaw ticket renumber LC-230 --id <uuid> --agent-id claude-code"
+/>
+
+It moves the directory, rewrites the `key` field, records the old key in the
+activity, and then prints every path in the repository that still names it —
+those are yours to follow, because they are not files LongClaw owns.
+
 ## Why the CLI, and not the app
 
 Agents create tickets through the CLI rather than through the window so that
