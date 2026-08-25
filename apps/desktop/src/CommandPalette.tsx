@@ -74,7 +74,7 @@ type PaletteRow = {
 const SEARCH_DEBOUNCE_MS = 150;
 
 /**
- * `TicketIndex::search` truncates at this many rows (`core/index.rs:24`) and
+ * `TicketIndex::search` truncates at this many rows (`core/index.rs:25`) and
  * says nothing about having done it, so the surface has to. Kept in step with
  * the Rust constant by hand: a result set of exactly this size is reported as
  * capped, which is the honest reading of a silent truncation.

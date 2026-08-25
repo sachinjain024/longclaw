@@ -17,7 +17,7 @@
  * A lowercased, whitespace-collapsed substring over the row's key, title, and
  * label slugs.
  *
- * That is `TicketIndex::search`'s rule (`src-tauri/src/core/index.rs:179-198`)
+ * That is `TicketIndex::search`'s rule (`src-tauri/src/core/index.rs:180-199`)
  * minus the description, because a `TicketRow` does not carry one and putting a
  * bounded copy of every description on every row would grow every snapshot for a
  * field no surface renders. **This runs here rather than through `search_tickets`

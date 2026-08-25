@@ -162,14 +162,14 @@ export function provisionalTicketKey(
  *   the active project and never another, so its key is the only prefix a
  *   number could mean.
  * - **A foreign prefix does not.** Every ticket of a project carries that
- *   project's key (`core/storage.rs:102`), so `AB-1` cannot be a ticket here;
+ *   project's key (`core/storage.rs:163`), so `AB-1` cannot be a ticket here;
  *   offering to look for it would promise a search that must come back empty.
  *   The query goes back to filtering commands, which is what it did before.
  *
  * The shape is the file format's own (`core/storage.rs:92`): `<PREFIX>-<n>` or
  * `<PREFIX>-<n><s>`, `n` without leading zeros and `s` a single lowercase
  * letter. Case is not part of it — the index lowercases both sides
- * (`core/storage.rs:328-337`) and so does the header filter, so a key typed in
+ * (`core/storage.rs:329-338`) and so does the header filter, so a key typed in
  * the case it is easiest to type is still that key.
  *
  * A typed trailing character is kept, and its absence is not one: `LC-234` names
