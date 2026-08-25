@@ -319,3 +319,17 @@ Carried forward rather than dropped:
 
 Left unresolved, and not carried anywhere: the Open question in this description — whether the public roadmap should be published from the LongClaw project itself, maintained on GitHub, or on an external service. It was parked at the launch decision to show no upcoming features, and closing this ticket does not answer it. The page exists and is suppressed in four places; roadmap-update documents what publishing would take.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_83b41360
+kind: comment
+occurred_at: 2026-08-25T08:23:19.902Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+The Open question in this description is now LC-235n — decide where the public roadmap lives. It was the one thing that closed with this ticket without an owner; it has one now.
+<!-- /longclaw:event -->
