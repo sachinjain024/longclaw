@@ -9,7 +9,9 @@ use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use common::{copy_representative_project, project_reference, start_engine, ticket_path};
+use common::{
+    assert_minted, copy_representative_project, project_reference, start_engine, ticket_path,
+};
 use longclaw_desktop_lib::core::storage::{self, NewTicket};
 use longclaw_desktop_lib::core::ticket::{ChecklistToggle, Priority, Status, TicketEdit};
 use longclaw_desktop_lib::core::{
@@ -337,7 +339,7 @@ fn a_foreign_prefix_directory_does_not_consume_this_project_s_next_key() {
             ..NewTicket::default()
         })
         .expect("a ticket should be created");
-    assert_eq!(created.ticket.key(), "LC-100");
+    assert_minted(created.ticket.key(), 100);
     assert!(ticket_path(&root, "ZZ-98").is_file());
 }
 
@@ -560,14 +562,16 @@ fn creating_tickets_allocates_keys_from_the_files_and_never_reuses_one() {
             checklist: vec!["Parse".to_owned(), "Write".to_owned()],
         })
         .expect("creation should be accepted");
-    assert_eq!(created.ticket.key(), "LC-100");
+    // The number is this project's; the trailing character is drawn (LC-232).
+    let key = created.ticket.key().to_owned();
+    assert_minted(&key, 100);
 
-    let raw = fs::read_to_string(ticket_path(&root, "LC-100")).expect("the new ticket.md");
+    let raw = fs::read_to_string(ticket_path(&root, &key)).expect("the new ticket.md");
     assert!(raw.starts_with("---\nformat: longclaw.ticket/v1\n"));
-    assert!(raw.contains("key: LC-100\n"));
+    assert!(raw.contains(&format!("key: {key}\n")));
     assert!(raw.contains("kind: create\n"));
     let snapshot = engine.snapshot();
-    let row = indexed(&snapshot.tickets, "LC-100");
+    let row = indexed(&snapshot.tickets, &key);
     assert_eq!(row.title, "Ship the storage engine");
     assert_eq!(row.checklist_count, 2);
     assert_eq!(row.priority, Priority::P1);
@@ -577,22 +581,23 @@ fn creating_tickets_allocates_keys_from_the_files_and_never_reuses_one() {
     // it issued: v0 has no delete operation. A directory removed outside the app is
     // no longer canonical state, and its number becomes available again — the honest
     // consequence of trusting the files rather than a device-local counter.
-    fs::remove_dir_all(root.join(".longclaw/tickets/LC-100")).expect("remove the directory");
+    fs::remove_dir_all(root.join(".longclaw/tickets").join(&key)).expect("remove the directory");
     let after_external_removal = engine
         .create_ticket(&NewTicket {
             title: "After a directory was removed outside the app".to_owned(),
             ..NewTicket::default()
         })
         .expect("creation should be accepted");
-    assert_eq!(after_external_removal.ticket.key(), "LC-100");
+    let reissued = after_external_removal.ticket.key().to_owned();
+    assert_minted(&reissued, 100);
 
     // Archiving is the app's own way of retiring a ticket, and it never frees a key.
-    let archived = indexed(&engine.snapshot().tickets, "LC-100")
+    let archived = indexed(&engine.snapshot().tickets, &reissued)
         .content_hash
         .clone();
     engine
         .edit_ticket(
-            "LC-100",
+            &reissued,
             &TicketEdit {
                 archived: Some(true),
                 ..TicketEdit::default()
@@ -606,7 +611,7 @@ fn creating_tickets_allocates_keys_from_the_files_and_never_reuses_one() {
             ..NewTicket::default()
         })
         .expect("creation should be accepted");
-    assert_eq!(next.ticket.key(), "LC-101");
+    assert_minted(next.ticket.key(), 101);
 }
 
 #[test]
@@ -625,7 +630,7 @@ fn creation_scans_the_files_rather_than_trusting_the_index() {
             ..NewTicket::default()
         })
         .expect("creation should be accepted");
-    assert_eq!(created.ticket.key(), "LC-501");
+    assert_minted(created.ticket.key(), 501);
 }
 
 /// The project-settings surface is Step 7's. What Step 6 owes it is a write that

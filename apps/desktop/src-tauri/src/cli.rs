@@ -78,6 +78,11 @@ TICKETS
                     [--archive | --unarchive] [--path <dir>]
   ticket list       [--path <dir>]
   ticket show <KEY> [--path <dir>]
+  ticket renumber <KEY> --id <uuid> [--path <dir>]
+                    Give one of two tickets that were minted with the same key
+                    a different trailing character. --id names which of them,
+                    because a collided pair shares everything else. Prints the
+                    new key and every path that still mentions the old one.
 
   status    backlog | todo | in_progress | in_review | done | canceled
   priority  urgent | p1 | p2 | p3 | p4 | none
@@ -141,6 +146,7 @@ pub fn dispatch(arguments: &[String]) -> AppResult<Option<Value>> {
         ("ticket", "edit") => ticket_edit(rest).map(Some),
         ("ticket", "list") => ticket_list(rest).map(Some),
         ("ticket", "show") => ticket_show(rest).map(Some),
+        ("ticket", "renumber") => ticket_renumber(rest).map(Some),
         _ => Err(usage_error(format!(
             "Unknown command {:?}",
             words.join(" ").trim()
@@ -349,6 +355,27 @@ fn ticket_show(arguments: &[String]) -> AppResult<Value> {
         &root,
         &document.project().key,
         &key
+    )?))
+}
+
+/// The other half of the suffix (LC-232): one character makes two branches agree
+/// about 4% of the time, and this is what a person runs when they do.
+///
+/// It is a command rather than an instruction to move the folder because a ticket
+/// key and its directory are one identity — renaming the folder alone leaves a
+/// file the parser refuses, and rewriting the frontmatter alone leaves the same.
+fn ticket_renumber(arguments: &[String]) -> AppResult<Value> {
+    let options = Options::parse(arguments, &["path", "id", "agent-id", "agent-name"], &[])?;
+    let key = options.subject()?;
+    let (root, document) = open_project(&options)?;
+    let id = options.require("id")?;
+    Ok(json!(storage::renumber_ticket_as(
+        &root,
+        &document.project().key,
+        &key,
+        id,
+        &now(),
+        &author(&options)?,
     )?))
 }
 

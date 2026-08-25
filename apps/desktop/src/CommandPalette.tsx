@@ -27,7 +27,7 @@
  */
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { STATUS_OPTIONS, PRIORITY_OPTIONS } from "./metaOptions";
-import { ticketKeyQuery } from "./tickets";
+import { ticketKeyNames, ticketKeyQuery } from "./tickets";
 import { ORDERINGS, type OrderingMode } from "./ordering";
 import type { ViewMode } from "./devicePreferences";
 import { FolderGlyph } from "./FolderGlyph";
@@ -74,7 +74,7 @@ type PaletteRow = {
 const SEARCH_DEBOUNCE_MS = 150;
 
 /**
- * `TicketIndex::search` truncates at this many rows (`core/index.rs:24`) and
+ * `TicketIndex::search` truncates at this many rows (`core/index.rs:25`) and
  * says nothing about having done it, so the surface has to. Kept in step with
  * the Rust constant by hand: a result set of exactly this size is reported as
  * capped, which is the honest reading of a silent truncation.
@@ -221,11 +221,14 @@ export function CommandPalette(props: {
   /**
    * The ticket that key names, or nothing when the project has no such ticket.
    *
-   * Exact rather than a substring match: the query resolved to one key, and
-   * `LC-6` must not offer `LC-60` as the ticket the human named.
+   * By key rather than by substring: the query resolved to one key, and `LC-6`
+   * must not offer `LC-60` as the ticket the human named. `ticketKeyNames` is
+   * where that comparison lives, because a key minted from 2026-08-25 carries a
+   * trailing character the person typing the number will not have (LC-232) —
+   * `LC-234` has to find `LC-234x` without `LC-6` finding `LC-60`.
    */
   const rootKeyMatch = rootKey
-    ? props.tickets.find((ticket) => ticket.key === rootKey)
+    ? props.tickets.find((ticket) => ticketKeyNames(rootKey, ticket.key))
     : undefined;
 
   const unreachable = !props.project.reachable;

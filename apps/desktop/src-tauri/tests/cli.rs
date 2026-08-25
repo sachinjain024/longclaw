@@ -49,6 +49,16 @@ fn read(root: &Path, key: &str) -> String {
     fs::read_to_string(common::ticket_path(root, key)).expect("the ticket should be readable")
 }
 
+/// The key a create returned. Nothing below composes one: a minted key carries
+/// a trailing character drawn at random (LC-232), so the caller learns its key
+/// from the surface that allocated it — which is the point of the surface.
+fn key_of(created: &Value) -> String {
+    created["key"]
+        .as_str()
+        .unwrap_or_else(|| panic!("a create returns a key, got {created:?}"))
+        .to_owned()
+}
+
 fn defined_label(root: &Path, slug: &str) {
     run(root, &["label", "add", "--slug", slug, "--name", "Storage"]);
 }
@@ -63,10 +73,13 @@ fn longclaw_allocates_the_key_and_the_caller_never_names_one() {
     let first = run(&root, &["ticket", "create", "--title", "First"]);
     let second = run(&root, &["ticket", "create", "--title", "Second"]);
 
-    assert_eq!(first["key"], "LC-1");
-    assert_eq!(second["key"], "LC-2");
-    assert!(common::ticket_path(&root, "LC-1").is_file());
-    assert!(common::ticket_path(&root, "LC-2").is_file());
+    common::assert_minted(&key_of(&first), 1);
+    common::assert_minted(&key_of(&second), 2);
+    assert!(common::ticket_path(&root, &key_of(&first)).is_file());
+    assert!(common::ticket_path(&root, &key_of(&second)).is_file());
+    // The two keys differ in more than their number, which is the collision
+    // this suffix exists to survive when the numbers agree.
+    assert_ne!(key_of(&first), key_of(&second));
 }
 
 /// The format contract's rule, held at the surface that made it reachable: an
@@ -76,7 +89,7 @@ fn longclaw_allocates_the_key_and_the_caller_never_names_one() {
 fn an_agent_is_recorded_as_an_agent_and_a_person_as_themselves() {
     let (_temp, root) = common::new_project("actors", "LC");
 
-    run(
+    let agent_ticket = run(
         &root,
         &[
             "ticket",
@@ -89,12 +102,12 @@ fn an_agent_is_recorded_as_an_agent_and_a_person_as_themselves() {
             "Claude Code",
         ],
     );
-    run(
+    let human_ticket = run(
         &root,
         &["ticket", "create", "--title", "Written by a person"],
     );
 
-    let agent = read(&root, "LC-1");
+    let agent = read(&root, &key_of(&agent_ticket));
     assert!(agent.contains("actor:\n  type: agent\n"), "{agent}");
     assert!(agent.contains("  id: claude-code\n"), "{agent}");
     assert!(agent.contains("  name: Claude Code\n"), "{agent}");
@@ -103,7 +116,7 @@ fn an_agent_is_recorded_as_an_agent_and_a_person_as_themselves() {
         "{agent}"
     );
 
-    let person = read(&root, "LC-2");
+    let person = read(&root, &key_of(&human_ticket));
     assert!(person.contains("actor:\n  type: human\n"), "{person}");
     assert!(person.contains("  id: local\n"), "{person}");
     assert!(person.contains("### You created this ticket"), "{person}");
@@ -130,6 +143,7 @@ fn an_item_moves_to_the_place_the_command_names() {
             "third",
         ],
     );
+    let key = key_of(&created);
     let ids: Vec<String> = created["ticket"]["checklist"]
         .as_array()
         .expect("a created checklist")
@@ -150,7 +164,7 @@ fn an_item_moves_to_the_place_the_command_names() {
         &[
             "ticket",
             "edit",
-            "LC-1",
+            key.as_str(),
             "--move-item",
             &ids[2],
             "--after",
@@ -159,17 +173,20 @@ fn an_item_moves_to_the_place_the_command_names() {
     );
     assert_eq!(texts(&moved), ["first", "third", "second"]);
 
-    let promoted = run(&root, &["ticket", "edit", "LC-1", "--move-item", &ids[1]]);
+    let promoted = run(
+        &root,
+        &["ticket", "edit", key.as_str(), "--move-item", &ids[1]],
+    );
     assert_eq!(texts(&promoted), ["second", "first", "third"]);
 
-    let raw = read(&root, "LC-1");
+    let raw = read(&root, &key);
     assert!(
         raw.contains(&format!("field: checklist.{}.moved", ids[1])),
         "{raw}"
     );
 
     assert_eq!(
-        refuse(&root, &["ticket", "edit", "LC-1", "--after", &ids[0]]),
+        refuse(&root, &["ticket", "edit", key.as_str(), "--after", &ids[0]]),
         "--after needs --move-item"
     );
 }
@@ -193,6 +210,7 @@ fn an_item_can_be_reworded_and_removed_by_id() {
             "second",
         ],
     );
+    let key = key_of(&created);
     let ids: Vec<String> = created["ticket"]["checklist"]
         .as_array()
         .expect("a created checklist")
@@ -205,7 +223,7 @@ fn an_item_can_be_reworded_and_removed_by_id() {
         &[
             "ticket",
             "edit",
-            "LC-1",
+            key.as_str(),
             "--edit-item",
             &ids[0],
             "--item-text",
@@ -220,14 +238,17 @@ fn an_item_can_be_reworded_and_removed_by_id() {
     // command rather than an edit to the line.
     assert_eq!(items[0]["id"], ids[0].as_str());
 
-    let removed = run(&root, &["ticket", "edit", "LC-1", "--remove-item", &ids[0]]);
+    let removed = run(
+        &root,
+        &["ticket", "edit", key.as_str(), "--remove-item", &ids[0]],
+    );
     let left = removed["ticket"]["checklist"]
         .as_array()
         .expect("a checklist");
     assert_eq!(left.len(), 1);
     assert_eq!(left[0]["id"], ids[1].as_str());
 
-    let raw = read(&root, "LC-1");
+    let raw = read(&root, &key);
     assert!(
         raw.contains(&format!("field: checklist.{}.removed", ids[0])),
         "{raw}"
@@ -235,13 +256,16 @@ fn an_item_can_be_reworded_and_removed_by_id() {
     assert!(!raw.contains(&format!("longclaw:item={}", ids[0])), "{raw}");
 
     assert_eq!(
-        refuse(&root, &["ticket", "edit", "LC-1", "--edit-item", &ids[1]]),
+        refuse(
+            &root,
+            &["ticket", "edit", key.as_str(), "--edit-item", &ids[1]]
+        ),
         "--edit-item needs --item-text"
     );
     assert_eq!(
         refuse(
             &root,
-            &["ticket", "edit", "LC-1", "--item-text", "orphaned"]
+            &["ticket", "edit", key.as_str(), "--item-text", "orphaned"]
         ),
         "--item-text needs --edit-item"
     );
@@ -262,6 +286,7 @@ fn an_agent_edit_appends_an_agent_authored_event() {
             "Prove it",
         ],
     );
+    let key = key_of(&created);
     let item = created["ticket"]["checklist"][0]["id"]
         .as_str()
         .expect("a created checklist item carries an id")
@@ -272,7 +297,7 @@ fn an_agent_edit_appends_an_agent_authored_event() {
         &[
             "ticket",
             "edit",
-            "LC-1",
+            key.as_str(),
             "--check",
             &item,
             "--status",
@@ -286,7 +311,7 @@ fn an_agent_edit_appends_an_agent_authored_event() {
 
     assert_eq!(edited["ticket"]["status"], "done");
     assert_eq!(edited["ticket"]["checklist"][0]["checked"], true);
-    let raw = read(&root, "LC-1");
+    let raw = read(&root, &key);
     assert!(raw.contains("kind: update"), "{raw}");
     assert!(raw.contains("### claude-code updated this ticket"), "{raw}");
     assert!(raw.contains("Verified."), "{raw}");
@@ -299,17 +324,17 @@ fn an_agent_edit_appends_an_agent_authored_event() {
 #[test]
 fn an_edit_built_from_bytes_that_moved_is_a_conflict() {
     let (_temp, root) = common::new_project("conflict", "LC");
-    run(&root, &["ticket", "create", "--title", "Contended"]);
-    let stale = storage::read_ticket_detail(&root, "LC", "LC-1")
+    let key = key_of(&run(&root, &["ticket", "create", "--title", "Contended"]));
+    let stale = storage::read_ticket_detail(&root, "LC", &key)
         .expect("the ticket reads")
         .content_hash;
 
-    run(&root, &["ticket", "edit", "LC-1", "--priority", "p1"]);
+    run(&root, &["ticket", "edit", key.as_str(), "--priority", "p1"]);
 
     let error = storage::prepare_ticket_edit(
         &root,
         "LC",
-        "LC-1",
+        &key,
         &longclaw_desktop_lib::core::ticket::TicketEdit {
             title: Some("Written from a stale read".to_owned()),
             ..Default::default()
@@ -321,7 +346,7 @@ fn an_edit_built_from_bytes_that_moved_is_a_conflict() {
     assert_eq!(error.code, longclaw_desktop_lib::core::ErrorCode::Conflict);
 
     // And the file still holds what the edit that was not stale wrote.
-    let raw = read(&root, "LC-1");
+    let raw = read(&root, &key);
     assert!(raw.contains("priority: p1"), "{raw}");
     assert!(raw.contains("title: Contended"), "{raw}");
 }
@@ -339,7 +364,9 @@ fn an_undefined_label_is_refused_before_a_key_is_spent() {
     );
     assert!(message.contains("storgae"), "{message}");
     assert!(message.contains("longclaw label add"), "{message}");
-    assert!(!common::ticket_path(&root, "LC-1").exists());
+    assert!(storage::scan_ticket_paths(&root)
+        .expect("the tickets folder reads")
+        .is_empty());
 
     let created = run(
         &root,
@@ -347,7 +374,7 @@ fn an_undefined_label_is_refused_before_a_key_is_spent() {
             "ticket", "create", "--title", "Correct", "--label", "storage",
         ],
     );
-    assert_eq!(created["key"], "LC-1");
+    common::assert_minted(&key_of(&created), 1);
 }
 
 /// A description holding a reserved heading would come back truncated, so the
@@ -375,10 +402,12 @@ fn a_reserved_heading_in_a_description_is_refused_and_hands_the_directory_back()
         ],
     );
     assert!(message.contains("reserved heading"), "{message}");
-    assert!(!root.join(".longclaw/tickets/LC-1").exists());
+    assert!(storage::scan_ticket_paths(&root)
+        .expect("the tickets folder reads")
+        .is_empty());
 
     let next = run(&root, &["ticket", "create", "--title", "After the refusal"]);
-    assert_eq!(next["key"], "LC-1");
+    common::assert_minted(&key_of(&next), 1);
     assert_eq!(next["ticket"]["title"], "After the refusal");
 }
 
@@ -405,7 +434,8 @@ fn a_description_round_trips_through_the_file() {
     );
 
     assert_eq!(created["ticket"]["description"], description);
-    let reread = run(&root, &["ticket", "show", "LC-1"]);
+    // `ticket show` takes the key the create handed back, suffix and all.
+    let reread = run(&root, &["ticket", "show", key_of(&created).as_str()]);
     assert_eq!(reread["ticket"]["description"], description);
 }
 
@@ -413,7 +443,9 @@ fn a_description_round_trips_through_the_file() {
 #[test]
 fn list_reports_every_ticket_including_one_it_cannot_parse() {
     let (_temp, root) = common::new_project("list", "LC");
-    run(&root, &["ticket", "create", "--title", "Readable"]);
+    let readable = key_of(&run(&root, &["ticket", "create", "--title", "Readable"]));
+    // An unsuffixed directory alongside a suffixed one: both forms are keys, and
+    // the older shape has to keep reading (LC-232).
     fs::create_dir_all(root.join(".longclaw/tickets/LC-2")).expect("a second ticket directory");
     fs::write(common::ticket_path(&root, "LC-2"), "not a ticket at all")
         .expect("the degraded ticket writes");
@@ -424,10 +456,222 @@ fn list_reports_every_ticket_including_one_it_cannot_parse() {
     assert_eq!(rows.len(), 2);
     assert!(rows
         .iter()
-        .any(|row| row["key"] == "LC-1" && row["title"] == "Readable"));
+        .any(|row| row["key"] == readable.as_str() && row["title"] == "Readable"));
     assert!(rows
         .iter()
         .any(|row| row["key"] == "LC-2" && row["diagnostic"].is_object()));
+}
+
+/// The fallback the suffix leaves behind (LC-232). One character makes two
+/// branches agree about 4% of the time; this is what a person runs when they do.
+#[test]
+fn renumber_rekeys_one_of_a_pair_and_reports_what_still_names_the_old_key() {
+    let (_temp, root) = common::new_project("renumber", "LC");
+    let created = run(&root, &["ticket", "create", "--title", "The survivor"]);
+    let key = key_of(&created);
+    let id = created["ticket"]["id"]
+        .as_str()
+        .expect("a ticket carries an id")
+        .to_owned();
+
+    // A file that quotes the key, a file that quotes a key the old one is a
+    // prefix of, and a file that quotes neither.
+    fs::write(root.join("plan.md"), format!("See {key} for the rest.\n"))
+        .expect("a referencing file");
+    fs::write(
+        root.join("longer.md"),
+        format!("{key}9 and {key}z are other keys.\n"),
+    )
+    .expect("a near-miss file");
+    fs::write(root.join("unrelated.md"), "Nothing to do with it.\n").expect("a quiet file");
+
+    let renumbered = run(
+        &root,
+        &["ticket", "renumber", key.as_str(), "--id", id.as_str()],
+    );
+    let new_key = renumbered["to"].as_str().expect("a new key").to_owned();
+
+    assert_eq!(renumbered["from"], key.as_str());
+    assert_ne!(new_key, key);
+    // The number is kept and only the trailing character moves, so a reference
+    // that names the number is still pointing at the right work.
+    assert_eq!(common::number_of(&new_key), common::number_of(&key));
+    common::assert_minted(&new_key, common::number_of(&key));
+
+    // The directory moved rather than being copied.
+    assert!(!root.join(".longclaw/tickets").join(&key).exists());
+    let raw = read(&root, &new_key);
+    assert!(raw.contains(&format!("key: {new_key}\n")), "{raw}");
+    assert!(raw.contains(&format!("id: {id}\n")), "{raw}");
+    // The history names the key it used to carry, so someone following a link to
+    // the old one lands in a file that says what happened.
+    assert!(
+        raw.contains(&format!("### You renumbered this ticket from {key}")),
+        "{raw}"
+    );
+    assert!(raw.contains(&format!("    from: {key}\n")), "{raw}");
+    assert!(raw.contains(&format!("    to: {new_key}\n")), "{raw}");
+
+    // The references are reported, not rewritten: they are not this app's files.
+    let references: Vec<&str> = renumbered["references"]
+        .as_array()
+        .expect("a reference list")
+        .iter()
+        .map(|path| path.as_str().expect("a path"))
+        .collect();
+    assert!(references.contains(&"plan.md"), "{references:?}");
+    assert!(!references.contains(&"longer.md"), "{references:?}");
+    assert!(!references.contains(&"unrelated.md"), "{references:?}");
+    assert_eq!(
+        fs::read_to_string(root.join("plan.md")).unwrap(),
+        format!("See {key} for the rest.\n")
+    );
+    assert_eq!(renumbered["referencesTruncated"], false);
+    // Nothing here was too big to open, so the report says so rather than
+    // leaving "no more references" to mean "none in the files I chose to read".
+    assert_eq!(
+        renumbered["referencesUnread"].as_array().map(Vec::len),
+        Some(0)
+    );
+
+    // The renumbered ticket's own file names the old key on purpose, so it is not
+    // reported as a reference that needs following.
+    assert!(
+        !references.iter().any(|path| path.contains(&new_key)),
+        "{references:?}"
+    );
+
+    // And the key it left behind is free again, which is the whole point: the
+    // other half of the collision keeps the key every reference already names.
+    fs::create_dir_all(root.join(".longclaw/tickets").join(&key))
+        .expect("the freed key is available");
+}
+
+/// A file the scan will not open is named rather than passed over. "No
+/// references left" has to mean the scan looked, and a 2 MB cap means there are
+/// files it did not — so those come back in their own list.
+#[test]
+fn renumber_names_the_files_its_reference_scan_would_not_open() {
+    let (_temp, root) = common::new_project("renumber-big", "LC");
+    let created = run(&root, &["ticket", "create", "--title", "Watched"]);
+    let key = key_of(&created);
+    let id = created["ticket"]["id"].as_str().expect("an id").to_owned();
+
+    // Over the scan's file limit, and holding the key — so a silent skip would
+    // report a clean sweep over a file that still names it.
+    let padding = "This line is filler for a file the scan will not open.\n".repeat(45_000);
+    fs::write(
+        root.join("huge.log"),
+        format!("{padding}{key} is in here.\n"),
+    )
+    .expect("a file past the scan's limit");
+
+    let renumbered = run(
+        &root,
+        &["ticket", "renumber", key.as_str(), "--id", id.as_str()],
+    );
+    let unread: Vec<&str> = renumbered["referencesUnread"]
+        .as_array()
+        .expect("a list of files the scan did not open")
+        .iter()
+        .map(|path| path.as_str().expect("a path"))
+        .collect();
+    assert!(unread.contains(&"huge.log"), "{unread:?}");
+    assert!(
+        !renumbered["references"]
+            .as_array()
+            .expect("a reference list")
+            .iter()
+            .any(|path| path == "huge.log"),
+        "a file the scan did not open is not a file it found the key in"
+    );
+}
+
+/// The id is what says *which* of the two, and a mismatch is refused rather than
+/// resolved. Two collided tickets share a key and a path; the id is the only
+/// thing that tells them apart.
+#[test]
+fn renumber_refuses_a_ticket_whose_id_is_not_the_one_named() {
+    let (_temp, root) = common::new_project("renumber-id", "LC");
+    let created = run(&root, &["ticket", "create", "--title", "Not this one"]);
+    let key = key_of(&created);
+
+    let message = refuse(
+        &root,
+        &[
+            "ticket",
+            "renumber",
+            key.as_str(),
+            "--id",
+            "00000000-0000-4000-8000-000000000000",
+        ],
+    );
+    assert!(message.contains(&key), "{message}");
+    assert!(
+        message.contains("00000000-0000-4000-8000-000000000000"),
+        "{message}"
+    );
+    // Nothing moved.
+    assert!(common::ticket_path(&root, &key).is_file());
+
+    assert_eq!(
+        refuse(&root, &["ticket", "renumber", key.as_str()]),
+        "--id is required"
+    );
+}
+
+/// Both forms are keys, so the command takes the ones minted before the suffix
+/// existed as readily as the ones minted after it (LC-232).
+#[test]
+fn renumber_takes_a_key_that_was_minted_before_the_suffix() {
+    let (_temp, root) = common::new_project("renumber-old", "LC");
+    let created = run(&root, &["ticket", "create", "--title", "Older shape"]);
+    let minted = key_of(&created);
+
+    // The shape `LC-1` … `LC-233` are in: a directory and a frontmatter key with
+    // no trailing character.
+    let unsuffixed = "LC-1";
+    let raw = read(&root, &minted).replace(&format!("key: {minted}"), "key: LC-1");
+    fs::create_dir_all(root.join(".longclaw/tickets").join(unsuffixed)).expect("the old shape");
+    fs::write(common::ticket_path(&root, unsuffixed), &raw).expect("the old ticket writes");
+    fs::remove_dir_all(root.join(".longclaw/tickets").join(&minted)).expect("only one of them");
+
+    let id = created["ticket"]["id"].as_str().expect("an id").to_owned();
+    let renumbered = run(
+        &root,
+        &["ticket", "renumber", unsuffixed, "--id", id.as_str()],
+    );
+    let new_key = renumbered["to"].as_str().expect("a new key");
+    common::assert_minted(new_key, 1);
+    assert!(common::ticket_path(&root, new_key).is_file());
+    assert!(!common::ticket_path(&root, unsuffixed).exists());
+}
+
+/// A key with nowhere to go is refused rather than silently reused. Every
+/// trailing character on the number is taken, so the answer is to renumber one of
+/// the others first.
+#[test]
+fn renumber_refuses_when_the_whole_number_is_taken() {
+    let (_temp, root) = common::new_project("renumber-full", "LC");
+    let created = run(&root, &["ticket", "create", "--title", "Crowded"]);
+    let key = key_of(&created);
+    let id = created["ticket"]["id"].as_str().expect("an id").to_owned();
+
+    for character in "abcdefghijklmnopqrstuvwxyz".chars() {
+        let taken = root
+            .join(".longclaw/tickets")
+            .join(format!("LC-1{character}"));
+        if !taken.exists() {
+            fs::create_dir_all(&taken).expect("a taken key");
+        }
+    }
+
+    let message = refuse(
+        &root,
+        &["ticket", "renumber", key.as_str(), "--id", id.as_str()],
+    );
+    assert!(message.contains("already taken"), "{message}");
+    assert!(common::ticket_path(&root, &key).is_file(), "nothing moved");
 }
 
 /// A folder that is not a project says so, rather than being turned into one by

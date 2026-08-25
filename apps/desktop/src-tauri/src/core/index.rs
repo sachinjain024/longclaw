@@ -18,6 +18,7 @@ use parking_lot::RwLock;
 use super::attribution::attribute_change;
 use super::error::AppResult;
 use super::model::{ActivitySummary, IndexSnapshot, SearchResult, TicketRow};
+use super::storage;
 use super::storage::{collapse_whitespace, read_ticket_file, scan_ticket_paths};
 use super::ticket::Status;
 
@@ -252,26 +253,48 @@ impl TicketIndex {
     }
 }
 
-/// Orders `LC-9` before `LC-10`, which plain string ordering does not.
+/// Orders `LC-9` before `LC-10`, which plain string ordering does not, and
+/// `LC-99x` before `LC-100`, which neither does.
+///
+/// Every name is ranked into one comparable tuple rather than dispatched to one
+/// of two comparisons, and that shape is the whole point. The version that
+/// compared *pairs* — numerically when both parsed, byte-wise otherwise — was not
+/// a total order, because a name that did not parse was byte-compared against
+/// keys that were being compared numerically to each other. `LC-234q` walked
+/// straight into it when keys grew a trailing character (LC-232): `LC-234q` <
+/// `LC-9` by bytes, `LC-9` < `LC-10` by number, `LC-10` < `LC-234q` by bytes.
+///
+/// `sort_by` given a cycle may return an arbitrary permutation or panic — "user-
+/// provided comparison function does not correctly implement a total order" —
+/// and both callers here are a render: `State::rows` is the board and the list,
+/// and `Index::search` truncates to `SEARCH_LIMIT` *after* sorting, so a wrong
+/// order is also the wrong hundred rows.
+///
+/// A name that is not a key sorts after every name that is, and then by its
+/// bytes. Those are directory names the app is showing as degraded rows; they
+/// have no number to be in sequence with.
 fn compare_keys(left: &str, right: &str) -> std::cmp::Ordering {
-    let split = |key: &str| {
-        key.rsplit_once('-').and_then(|(prefix, sequence)| {
-            sequence
+    /// `(is_not_a_key, prefix, number, trailing character, name)`.
+    fn rank(key: &str) -> (u8, &str, u64, Option<char>, &str) {
+        let parsed = key.rsplit_once('-').and_then(|(prefix, sequence)| {
+            let (number, suffix) = storage::split_key_suffix(sequence);
+            number
                 .parse::<u64>()
                 .ok()
-                .map(|number| (prefix.to_owned(), number))
-        })
-    };
-    match (split(left), split(right)) {
-        (Some((left_prefix, left_number)), Some((right_prefix, right_number))) => left_prefix
-            .cmp(&right_prefix)
-            .then(left_number.cmp(&right_number)),
-        _ => left.cmp(right),
+                .map(|number| (prefix, number, suffix))
+        });
+        match parsed {
+            Some((prefix, number, suffix)) => (0, prefix, number, suffix, key),
+            None => (1, "", 0, None, key),
+        }
     }
+    rank(left).cmp(&rank(right))
 }
 
 #[cfg(test)]
 mod tests {
+    use std::cmp::Ordering;
+
     use super::compare_keys;
 
     #[test]
@@ -286,5 +309,79 @@ mod tests {
         let mut keys = vec!["LC-2", "not-a-key", "LC-1"];
         keys.sort_by(|left, right| compare_keys(left, right));
         assert_eq!(keys, vec!["LC-1", "LC-2", "not-a-key"]);
+    }
+
+    /// A key that carries a trailing character sorts by its number like every
+    /// other key (LC-232).
+    #[test]
+    fn a_suffixed_key_orders_by_its_number_and_not_by_its_bytes() {
+        let mut keys = vec!["LC-234q", "LC-9", "LC-10", "LC-99x", "LC-100", "LC-1000a"];
+        keys.sort_by(|left, right| compare_keys(left, right));
+        assert_eq!(
+            keys,
+            vec!["LC-9", "LC-10", "LC-99x", "LC-100", "LC-234q", "LC-1000a"]
+        );
+    }
+
+    /// Two keys on one number are what two branches landing on 234 look like,
+    /// and the order between them has to be *an* order rather than none.
+    #[test]
+    fn two_keys_on_one_number_order_by_their_trailing_character() {
+        let mut keys = vec!["LC-234q", "LC-234b", "LC-234"];
+        keys.sort_by(|left, right| compare_keys(left, right));
+        assert_eq!(keys, vec!["LC-234", "LC-234b", "LC-234q"]);
+    }
+
+    /// The comparator is a total order, and this is not a stylistic point.
+    ///
+    /// `sort_by` with an intransitive comparator may return an arbitrary
+    /// permutation or panic outright — "user-provided comparison function does not
+    /// correctly implement a total order" — which on this path takes out the
+    /// board's whole render. An unparseable directory name reached the byte-order
+    /// fallback while its neighbours were compared numerically, and `LC-234q`
+    /// joined it the moment keys grew a trailing character: `LC-234q < LC-9` by
+    /// bytes, `LC-9 < LC-10` by number, `LC-10 < LC-234q` by bytes is a cycle.
+    ///
+    /// Every triple of a set holding both shapes, checked rather than argued.
+    #[test]
+    fn the_order_is_total_over_keys_and_over_names_that_are_not_keys() {
+        let keys = [
+            "LC-9",
+            "LC-10",
+            "LC-234q",
+            "LC-234b",
+            "LC-100",
+            "AB-2",
+            "AB-2z",
+            "not-a-key",
+            "LC-2-bad",
+            "LC-0",
+            "",
+        ];
+        for left in keys {
+            assert_eq!(
+                compare_keys(left, left),
+                Ordering::Equal,
+                "{left:?} is not equal to itself"
+            );
+            for right in keys {
+                assert_eq!(
+                    compare_keys(left, right),
+                    compare_keys(right, left).reverse(),
+                    "{left:?} and {right:?} disagree about which comes first"
+                );
+                for third in keys {
+                    if compare_keys(left, right) != Ordering::Greater
+                        && compare_keys(right, third) != Ordering::Greater
+                    {
+                        assert_ne!(
+                            compare_keys(left, third),
+                            Ordering::Greater,
+                            "{left:?} <= {right:?} <= {third:?}, but {left:?} > {third:?}"
+                        );
+                    }
+                }
+            }
+        }
     }
 }

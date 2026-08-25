@@ -105,6 +105,46 @@ pub fn ticket_path(root: &Path, key: &str) -> PathBuf {
     root.join(".longclaw/tickets").join(key).join("ticket.md")
 }
 
+/// A ticket key's number and its trailing character, if it carries one.
+///
+/// Read with the grammar's own splitter rather than a second copy of the rule.
+/// A helper that approximated it — "trim the trailing letters" — would accept
+/// keys the format refuses and quietly pass tests about keys that cannot exist.
+fn split_key(key: &str) -> (u64, Option<char>) {
+    let sequence = key
+        .split_once('-')
+        .unwrap_or_else(|| panic!("{key} is a ticket key"))
+        .1;
+    let (number, suffix) = longclaw_desktop_lib::core::storage::split_key_suffix(sequence);
+    (
+        number
+            .parse()
+            .unwrap_or_else(|_| panic!("{key} carries a number")),
+        suffix,
+    )
+}
+
+/// The number a ticket key spends, without its trailing character.
+///
+/// A minted key carries a randomly drawn suffix (LC-232), so a test that means
+/// "the next number after LC-99" asserts on this rather than on the whole key.
+/// The key itself is never composed by a test — it comes back from the create.
+pub fn number_of(key: &str) -> u64 {
+    split_key(key).0
+}
+
+/// Asserts that `key` is a freshly minted key spending `number`: the number the
+/// caller expects, and exactly one lowercase trailing character.
+pub fn assert_minted(key: &str, number: u64) {
+    let (spent, suffix) = split_key(key);
+    assert_eq!(spent, number, "{key} should spend {number}");
+    let suffix = suffix.unwrap_or_else(|| panic!("{key} carries a trailing character"));
+    assert!(
+        suffix.is_ascii_lowercase(),
+        "{key} carries a lowercase trailing character"
+    );
+}
+
 /// Replaces a file the way an ordinary editor does: write a temporary file next to
 /// it, then rename it into place.
 pub fn editor_atomic_replace(path: &Path, contents: &str, sequence: usize) {
