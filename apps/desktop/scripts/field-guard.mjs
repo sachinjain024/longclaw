@@ -319,10 +319,31 @@ const CASCADE_CHECKS = [
      prototype cancels it (`prototype.css:702`) and leaves focus to the accent
      caret the shared rule also sets.
 
-     Specificity settles this one rather than source order — (0,2,0) against the
+     Borderless is checked first, because it is the premise and not a
+     decoration: cancelling the ring is only right while there is no box, and
+     the boxed field this modal deliberately does not have (`screen-specs.md:256`,
+     D-47) is a standing suggestion. A field that grew a border under a
+     cancelled ring would be the one field in the app with a visible edge and
+     no focus indicator at all — worse than the square this check was written
+     to remove, and silent. So the two are asked for together, the way the
+     title's padding and margin are.
+
+     `border: none` or `0`, spelled on the shorthand. `border-width: 0` says the
+     same thing and is refused: the narrow spelling fails red rather than green,
+     which is the safe direction for a premise.
+
+     Specificity settles the ring rather than source order — (0,2,0) against the
      shared rule's (0,1,1) — so unlike the panel title's background there is no
      position to hold still, and only the declaration is asked for. */
   () => {
+    const border = declaredValues(sheet, QUICK_TITLE, "border").at(-1);
+    if (border !== "none" && border !== "0") {
+      return (
+        `${QUICK_TITLE} declares border: ${border ?? "nothing"} — the ring ` +
+        `this field cancels is cancelled on the premise that it has no box, ` +
+        `so a bordered one has a visible edge and no focus indicator at all`
+      );
+    }
     const focus = `${QUICK_TITLE}:focus-visible`;
     const shadow = declaredValues(sheet, focus, "box-shadow").at(-1);
     return shadow === "none"
