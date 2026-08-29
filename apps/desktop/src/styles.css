@@ -4066,13 +4066,44 @@ html.theme-transition *::after {
 }
 
 /* Borderless 15px title (`screen-specs.md:256`): the modal is one field and two
-   menus, so a box around the field is a frame around nothing. */
+   menus, so a box around the field is a frame around nothing.
+
+   500 (`prototype.css:700`). Weight is what a borderless field has instead of
+   a box: with no border, no fill and no padding, type is the whole of what
+   marks this out as the modal's primary line, and it was rendering at the
+   body's inherited 400 — the field's own half of that spec unsaid. */
 .quick-create-title {
   border: none;
   padding: 0;
   color: var(--lc-ink);
   background: none;
   font-size: 15px;
+  font-weight: 500;
+}
+
+/* Colour arrives from the shared `input::placeholder`; the weight cannot,
+   because a placeholder inherits the field's and the field is now 500
+   (`prototype.css:701`). Unsaid, "Ticket title" would render in the medium a
+   typed title gets — an empty modal wearing a filled one's type, which is the
+   one state a placeholder exists to distinguish. */
+.quick-create-title::placeholder {
+  font-weight: 400;
+}
+
+/* The one field in the app that turns the shared focus ring off, because it is
+   the one field with nothing for a ring to trace. The rule at the top of this
+   sheet rings every input, which is right wherever there is a box — but this
+   field has no border and no radius, so the ring resolved to a hard-cornered
+   3px rectangle around a bare line of text, and the field `autoFocus`es, so
+   that square was the first thing the modal drew. The prototype cancels the
+   ring here (`prototype.css:702`) and leaves focus to the accent caret, which
+   the shared `input:focus-visible` rule sets (`components.md:66`) and which
+   the prototype paints on this field at rest (`prototype.css:700`).
+
+   Specificity decides this, not source order: (0,2,0) against the shared
+   rule's (0,1,1). */
+.quick-create-title:focus-visible {
+  box-shadow: none;
 }
 
 /* Status and priority (LC-186). Two bare triggers with nothing between them
