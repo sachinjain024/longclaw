@@ -75,3 +75,41 @@ Left alone deliberately, and worth a decision rather than a fix:
 - components.md:70-71 asks for an invalid state (danger border + message, never colour-only). An empty title still reverts silently on blur. That is a behaviour change, not a style one.
 - The title renders in the display face via --lc-type-title-font where the prototype used the UI face. Pre-existing and consistent with h1 and the settings headings.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_eb2f40e1
+kind: comment
+occurred_at: 2026-08-29T20:17:14.928Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+The parked item is answered, and the answer was again no — in two ways, on the other title.
+
+The founder's report was that the input where a ticket title is entered does not match the design spec. Two fields carry that placeholder: `.panel-title`, which this ticket already fixed, and the quick create modal's `.quick-create-title`, which it left alone as "a decision rather than a fix". The second is the one that was still wrong.
+
+The decision was put to the founder as a choice between matching the prototype and giving the field the boxed `components.md` § Inputs treatment. They chose the prototype: it stays borderless per `screen-specs.md:256`, because that modal is one field and two menus and a box around the field is a frame around nothing.
+
+Borderless was never the whole spec, though, and both of its other halves had drifted. Measured in WebKit with the modal open (indigo light, 1440x900):
+
+  font-weight    400, where `prototype.css:700` draws it at 500
+  ::placeholder  no weight of its own
+  box-shadow     0 0 0 3px, at border-radius 0
+  caret          accent — correct, from the shared rule this ticket added
+  text left edge 431, flush with the description — correct
+
+The ring is the one a person sees, and it is the first thing the modal draws: the field `autoFocus`es, so opening quick create painted a hard-cornered 3px rectangle around a bare line of text with no box under it. The shared focus rule rings every input, which is right wherever there is a box to trace; this is the one field in the app without one, and it is now the one field that turns the ring off. Focus is carried by the accent caret instead, which is what `prototype.css:702` does and what the field foundation's third part is for (`components.md:66`). Specificity settles it — (0,2,0) against the shared rule's (0,1,1) — so unlike the panel title's focus background there is no source order to hold still.
+
+The weight is a pair: a placeholder inherits the field's, so setting 500 without saying 400 below it would draw "Ticket title" in the medium a typed title gets — an empty modal wearing a filled one's type.
+
+field-guard grew two cascade assertions, and a second commit made the ring's assertion state the premise it rests on: cancelling the ring is only correct while the field has no box, and a field that later grew a border under a cancelled ring would be the one field in the app with a visible edge and no focus indicator at all. The border is asked for first and the ring second, the way the title's padding and margin already are. Nine mutations, each confirmed red.
+
+Gate: every guard, format, lint, typecheck, vite build, Rust suite and native watcher green; a11y:audit A1-A5 pass; matrix 8 axes x 12 states clean. `npm run test`'s jsdom suite is flaky in this environment independently of this change — with the change stashed it failed the same 2 of 333 on the same files, on different tests each run, all 5000ms timeouts. `styles.css` reaches that suite only through `main.tsx`, which no test renders.
+
+Still parked, still a decision rather than a fix:
+- `components.md:70-71`'s invalid state. An empty title reverts silently on blur in both the panel and this modal. Behaviour, not style.
+- The panel title renders in the display face where the prototype used the UI face. Pre-existing and consistent with h1.
+<!-- /longclaw:event -->
