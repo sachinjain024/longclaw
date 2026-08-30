@@ -2965,7 +2965,22 @@ mod tests {
         // record keeps both: the timeline still sorts on the first.
         assert_eq!(event.occurred_at, posted);
         assert_eq!(event.edited_at.as_deref(), Some(NOW));
-        assert!(rendered.contains(&format!("edited_at: {NOW}\n")));
+        // The whole record, because where the stamp goes is part of the format
+        // contract (`file_format.md:186`) and "contains an edited_at somewhere"
+        // would pass with it written into the middle of the actor block.
+        assert!(
+            rendered.contains(&format!(
+                "kind: comment\n\
+                 occurred_at: {posted}\n\
+                 edited_at: {NOW}\n\
+                 actor:\n  type: human\n  id: local\n\
+                 -->\n\
+                 ### You commented\n\n\
+                 First draft.\n\
+                 <!-- /longclaw:event -->\n"
+            )),
+            "{rendered}"
+        );
     }
 
     #[test]
