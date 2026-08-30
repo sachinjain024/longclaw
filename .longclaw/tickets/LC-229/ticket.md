@@ -89,7 +89,7 @@ actor:
 
 The parked item is answered, and the answer was again no — in two ways, on the other title.
 
-The founder's report was that the input where a ticket title is entered does not match the design spec. Two fields carry that placeholder: `.panel-title`, which this ticket already fixed, and the quick create modal's `.quick-create-title`, which it left alone as "a decision rather than a fix". The second is the one that was still wrong.
+The founder's report was that the field where a ticket title is entered does not match the design spec. Two fields carry that placeholder: `.panel-title`, which this ticket already fixed, and the quick create modal's `.quick-create-title`, which it left alone as "a decision rather than a fix". The second is the one that was still wrong.
 
 The decision was put to the founder as a choice between matching the prototype and giving the field the boxed `components.md` § Inputs treatment. They chose the prototype: it stays borderless per `screen-specs.md:256`, because that modal is one field and two menus and a box around the field is a frame around nothing.
 
@@ -101,7 +101,7 @@ Borderless was never the whole spec, though, and both of its other halves had dr
   caret          accent — correct, from the shared rule this ticket added
   text left edge 431, flush with the description — correct
 
-The ring is the one a person sees, and it is the first thing the modal draws: the field `autoFocus`es, so opening quick create painted a hard-cornered 3px rectangle around a bare line of text with no box under it. The shared focus rule rings every input, which is right wherever there is a box to trace; this is the one field in the app without one, and it is now the one field that turns the ring off. Focus is carried by the accent caret instead, which is what `prototype.css:702` does and what the field foundation's third part is for (`components.md:66`). Specificity settles it — (0,2,0) against the shared rule's (0,1,1) — so unlike the panel title's focus background there is no source order to hold still.
+The ring is the one a person sees, and it is the first thing the modal draws: the field `autoFocus`es, so opening quick create painted a hard-cornered 3px rectangle around a bare line of text with no box under it. The shared focus rule rings every field and control, which is right wherever there is a box to trace; this is the one field in the app without one, and it is now the one field that turns the ring off. Focus is carried by the accent caret instead, which is what `prototype.css:702` does and what the field foundation's third part is for (`components.md:66`). Specificity settles it — (0,2,0) against the shared rule's (0,1,1) — so unlike the panel title's focus background there is no source order to hold still.
 
 The weight is a pair: a placeholder inherits the field's, so setting 500 without saying 400 below it would draw "Ticket title" in the medium a typed title gets — an empty modal wearing a filled one's type.
 

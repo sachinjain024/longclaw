@@ -98,8 +98,8 @@ for (const [selector, prose] of Object.entries(FIELDS)) {
    The last two are the *other* title's, the quick create modal's, which the
    first pass left alone as a decision rather than a fix. It is a different
    field on a different spec — `screen-specs.md:256` asks for a borderless 15px
-   input, because that modal is one field and two menus and a box around the
-   field is a frame around nothing — but borderless earns it the same blind
+   title field, because that modal is one field and two menus and a box around
+   it is a frame around nothing — but borderless earns it the same blind
    spot, and it had drifted off the prototype in the two ways below.
 
    These read the stylesheet rather than a render because each is a static fact
@@ -311,8 +311,8 @@ const CASCADE_CHECKS = [
           `typed title gets (prototype.css:701)`;
   },
 
-  /* The shared focus rule rings every input in the app, and that rule is right
-     for every field that has a box. This one has none — no border and no
+  /* The shared focus rule rings every field and control in the app, and that
+     rule is right for every one of them that has a box. This one has none — no border and no
      border-radius — so the ring resolves to a hard-cornered 3px rectangle
      traced around a line of text with nothing under it, and the field
      `autoFocus`es, which makes that the first thing the modal draws. The
@@ -349,9 +349,9 @@ const CASCADE_CHECKS = [
     return shadow === "none"
       ? null
       : `${focus} does not set box-shadow: none (it sets ` +
-          `${shadow ?? "nothing"}) — the shared focus rule rings every input, ` +
-          `and a borderless field with no radius takes that ring as a square ` +
-          `drawn around text with no box under it`;
+          `${shadow ?? "nothing"}) — the shared focus rule rings every field ` +
+          `and control, and a borderless one with no radius takes that ring ` +
+          `as a square drawn around text with no box under it`;
   },
 ];
 

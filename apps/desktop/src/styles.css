@@ -4092,7 +4092,8 @@ html.theme-transition *::after {
 
 /* The one field in the app that turns the shared focus ring off, because it is
    the one field with nothing for a ring to trace. The rule at the top of this
-   sheet rings every input, which is right wherever there is a box — but this
+   sheet rings every field and control, which is right wherever there is a box
+   — but this
    field has no border and no radius, so the ring resolved to a hard-cornered
    3px rectangle around a bare line of text, and the field `autoFocus`es, so
    that square was the first thing the modal drew. The prototype cancels the
