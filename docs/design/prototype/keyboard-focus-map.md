@@ -17,7 +17,7 @@
    `--lc-focus-ring` + 1px `accent-human` border (focus is a planning act).
    Closing any layer returns focus to the element that opened it.
 4. **`Esc` walks the ladder one rung at a time:** menu → overlay/modal
-   (palette sub-mode steps back to root first) → description edit (cancel)
+   (palette sub-mode steps back to root first) → description or comment edit (cancel)
    → ticket panel → active filter → nothing.
 5. **Focus is roving, not trapped, on the board/list**: one ticket carries
    focus; arrows/`J K H L` move it. Modals hold focus until dismissed.
@@ -58,7 +58,7 @@ groups; `←→`/`H L` are unbound. Group headers are not focus stops.
 | Key | Action |
 |---|---|
 | `Esc` | Close panel → focus returns to the originating card/row |
-| `Tab` | Natural order: ID chip → archive → close → title → status → priority → labels → description → checklist rows (box → edit → remove, LC-215) → add-item → record tabs (one stop, `←`/`→` between Activity and Comments, LC-211) → composer → comment¹ |
+| `Tab` | Natural order: ID chip → archive → close → title → status → priority → labels → description → checklist rows (box → edit → remove, LC-215) → add-item → record tabs (one stop, `←`/`→` between Activity and Comments, LC-211) → under Comments, each of your own comments (edit → delete, LC-241q) → composer → comment¹ |
 | `Enter` / `Space` · `⌥↑` / `⌥↓` on a checklist row | Toggle the item · move it one place (LC-185) |
 | `Enter` in add-item field | Append item, keep focus in the field |
 | `Enter` on a meta trigger | Open that menu |
@@ -91,15 +91,15 @@ local mode (ADR 0001); the key returns with team projects.
 Entering edit focuses the textarea with the caret at the end. Saving or
 canceling returns focus to the description block.
 
-## Comment composer
+## Comment composer, and a comment being rewritten
 
 | Key | Action |
 |---|---|
-| `⌘↵` | Post comment (optimistic) |
-| `Esc` | Blur composer (draft kept until panel closes) |
+| `⌘↵` | Post the composer's comment (optimistic) · save a comment being rewritten in place (LC-241q) |
+| `Esc` | Blur composer (draft kept until panel closes) · cancel a rewrite, leaving the words as the file has them |
 
 The field names `⌘↵` in its own placeholder, because the `Comment` button that
-would otherwise stand for the action is not on screen until there is text.
+would otherwise stand for the action is not on screen until there is text. A comment being rewritten names both ways out as buttons instead — **Save** and **Cancel** — because `Enter` in it has to make a newline.
 
 ## Command palette
 

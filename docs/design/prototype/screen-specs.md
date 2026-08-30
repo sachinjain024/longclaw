@@ -244,7 +244,7 @@ movement. No custom-color affordance exists anywhere.
   Add-row: ghost checkbox + borderless input, Enter appends, focus stays.
 - **Activity · Comments:** two tabs over one record (LC-211). Activity is
   first and holds every entry per components.md § Timeline, a comment among
-  them as a one-line `commented`; Comments is selected on open and holds the bodies alone. The composer sits under both. Sorted by time with ID
+  them as a one-line `commented`; Comments is selected on open and holds the bodies alone. Under Comments, your own comment is rewordable and deletable in place (LC-241q); an agent's carries neither control. Under either tab, an edited comment says so beside its age. The composer sits under both. Sorted by time with ID
   tie-break. Composer: avatar + auto-growing field, `⌘↵` posts, posting is
   optimistic.
 - **Conflict banner** renders pinned above the title when an external edit

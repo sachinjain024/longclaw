@@ -109,6 +109,12 @@ export interface ChangeContext {
 }
 
 const CHECKLIST_FIELD = /^checklist\.(.+)\.(checked|added|moved|text|removed)$/;
+/**
+ * What a write did to a comment already in the history (LC-241q). `restored`
+ * names no record because the one it puts back is a fresh one — the id left
+ * with the record it was withdrawn from.
+ */
+const COMMENT_FIELD = /^comment\.(?:(.+)\.(edited|removed)|(restored))$/;
 
 /**
  * Every line one record puts on screen.
@@ -196,6 +202,10 @@ export function describeChange(
   const checklist = CHECKLIST_FIELD.exec(field);
   if (checklist) {
     return describeChecklist(checklist[1], checklist[2], from, to, context);
+  }
+  const comment = COMMENT_FIELD.exec(field);
+  if (comment) {
+    return describeComment(comment[2] ?? comment[3]);
   }
   return describeUnknownField(field, from, to);
 }
@@ -290,6 +300,33 @@ function describeChecklist(
         ? `${verb} a checklist item`
         : `${verb} ${quote(item.text)}`,
   };
+}
+
+/**
+ * What a write did to a comment, as a sentence (LC-241q).
+ *
+ * None of these reaches a timeline entry from a LongClaw write: rewording a
+ * comment appends no record, because the record it reworded carries the whole
+ * of what happened to it. They are here because the write still reports them —
+ * a toast names what it is offering to take back — and because an outside
+ * writer may put one in a record of its own, and a raw dotted path on screen is
+ * the failure this enumeration exists to prevent.
+ *
+ * The words themselves are not quoted into any of them. A comment is prose of
+ * any length, and a line that swallowed a paragraph would be the one entry in
+ * the stream that is not one line.
+ */
+function describeComment(what: string): ChangeLine {
+  if (what === "removed") {
+    return { glyph: char("−"), text: "withdrew a comment" };
+  }
+  if (what === "restored") {
+    return { glyph: char("❝"), text: "restored a comment" };
+  }
+  // Not `reworded`, which is the checklist row's word: this is the word the
+  // record itself uses in `edited_at` and the word the entry wears beside its
+  // age, and one gesture should not be called two things.
+  return { glyph: char("✎"), text: "edited a comment" };
 }
 
 /**

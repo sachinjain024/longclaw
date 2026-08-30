@@ -260,6 +260,16 @@ pub struct ActivityEvent {
     pub id: String,
     pub kind: EventKind,
     pub occurred_at: String,
+    /// When this record's words were last rewritten by their author, absent
+    /// until they are. Only a comment can carry one: an entry reporting what
+    /// happened to the ticket is not somebody's words to revise (LC-241q).
+    ///
+    /// It is a second timestamp rather than a replacement for `occurred_at`,
+    /// because the timeline sorts on when a thing was *said*. A comment that
+    /// jumped to the end of the stream every time a typo was fixed would
+    /// rearrange a conversation to report an edit to one line of it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub edited_at: Option<String>,
     pub actor: Actor,
     pub changes: Vec<FieldChange>,
     pub body: String,
@@ -380,6 +390,19 @@ pub struct TicketEdit {
     #[serde(default)]
     pub add_checklist_items: Vec<String>,
     pub comment: Option<String>,
+    /// New words for one comment already in the history, named by its record id
+    /// (LC-241q). One rather than a list, for the reason a checklist reword is
+    /// one: a person retypes one at a time.
+    pub edit_comment: Option<CommentTextEdit>,
+    /// The comment to take out, by record id. The record leaves whole — this is
+    /// the one thing in a ticket file the app removes rather than supersedes.
+    pub remove_comment: Option<String>,
+    /// A withdrawn comment put back at the instant it was first said, so an
+    /// accidental `✕` is one `⌘Z` rather than a hole in a conversation. It is
+    /// here for the reason `restore_checklist_item` is, and re-posting is not a
+    /// substitute: a plain comment lands at the end of the stream, which is not
+    /// where the one just withdrawn was.
+    pub restore_comment: Option<CommentRestore>,
 }
 
 /// Reads a field that may be absent or explicitly null as two distinct answers.
@@ -442,6 +465,34 @@ pub struct ChecklistRestore {
     pub checked: bool,
 }
 
+/// New words for one comment, keyed by the record id that stays behind them.
+///
+/// The id is the whole point: the record keeps its place in the stream, its
+/// instant, and whatever anything else in the file said about it. A reword that
+/// deleted and re-posted would satisfy "the words changed" and lose all three.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CommentTextEdit {
+    pub event_id: String,
+    pub text: String,
+}
+
+/// A withdrawn comment, put back.
+///
+/// It carries the instant it was first said rather than an id, for the same
+/// reason `ChecklistRestore` carries a neighbour: the id left with the record
+/// and nothing refers to it any more, but the instant is what the timeline
+/// orders on, so restoring with it is what puts the comment back into the
+/// conversation where it was rather than at the end of it.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CommentRestore {
+    pub text: String,
+    pub occurred_at: String,
+    #[serde(default)]
+    pub edited_at: Option<String>,
+}
+
 impl TicketEdit {
     fn is_empty(&self) -> bool {
         self.title.is_none()
@@ -458,6 +509,9 @@ impl TicketEdit {
             && self.restore_checklist_item.is_none()
             && self.add_checklist_items.is_empty()
             && self.comment.is_none()
+            && self.edit_comment.is_none()
+            && self.remove_comment.is_none()
+            && self.restore_comment.is_none()
     }
 }
 
@@ -913,6 +967,71 @@ impl TicketDocument {
         // write is what makes that item addressable afterwards.
         next.adopt_checklist_ids();
 
+        // What this edit did to comments already in the history, kept apart from
+        // `changes` on purpose (LC-241q). `changes` is what the appended update
+        // event narrates and what moves `updated_at`, and a comment's words are
+        // neither: they are narration, not state. Rewording one and announcing
+        // it as a change to the ticket would bury the comment under a report of
+        // itself, and would mark the history incomplete for a file whose
+        // history did not move. These still reach the caller — a toast names
+        // what it is offering to undo — they just do not reach the record.
+        let mut comment_changes = Vec::new();
+        // What this same edit wrote into a comment, keyed by record id. `next`
+        // holds the new bytes but `next.ticket` is still the parse this edit
+        // started from, so a removal that follows a reword would otherwise
+        // record the words the reword had already replaced.
+        let mut reworded: Option<(&str, &str)> = None;
+        if let Some(edited) = &edit.edit_comment {
+            let text = comment_text(&edited.text)?;
+            let event = own_comment(current, &edited.event_id, author)?;
+            let was = event_prose(&event.body);
+            if was != text {
+                if !next.set_comment_body(&edited.event_id, text, now) {
+                    return Err(record_vanished(&edited.event_id));
+                }
+                reworded = Some((edited.event_id.as_str(), text));
+                comment_changes.push(FieldChange::new(
+                    format!("comment.{}.edited", edited.event_id),
+                    Some(was.to_owned()),
+                    Some(text.to_owned()),
+                ));
+            }
+        }
+        if let Some(event_id) = &edit.remove_comment {
+            let event = own_comment(current, event_id, author)?;
+            let was = match reworded {
+                Some((id, text)) if id == event_id => text,
+                _ => event_prose(&event.body),
+            }
+            .to_owned();
+            if !next.remove_activity_record(event_id) {
+                return Err(record_vanished(event_id));
+            }
+            comment_changes.push(FieldChange::new(
+                format!("comment.{event_id}.removed"),
+                Some(was),
+                None,
+            ));
+        }
+        if let Some(restored) = &edit.restore_comment {
+            let text = comment_text(&restored.text)?;
+            restorable(restored, now)?;
+            next.append_activity(&render_event(
+                &EventKind::Comment,
+                &restored.occurred_at,
+                restored.edited_at.as_deref(),
+                &[],
+                author,
+                "commented",
+                text,
+            ));
+            comment_changes.push(FieldChange::new(
+                "comment.restored",
+                None,
+                Some(text.to_owned()),
+            ));
+        }
+
         let comment = match &edit.comment {
             Some(comment) if comment.trim().is_empty() => {
                 return Err(Diagnostic::parse("A comment needs text"))
@@ -920,7 +1039,7 @@ impl TicketDocument {
             Some(comment) => comment.trim(),
             None => "",
         };
-        if changes.is_empty() && comment.is_empty() {
+        if changes.is_empty() && comment.is_empty() && comment_changes.is_empty() {
             return Err(Diagnostic::parse(
                 "The ticket already matches this edit; nothing was written",
             ));
@@ -931,25 +1050,37 @@ impl TicketDocument {
         // timestamp would leave their order to the id tie-breaker, so the timeline
         // would not reliably read in the order the change happened.
         if changes.is_empty() {
-            next.append_activity(&render_event(
-                &EventKind::Comment,
-                now,
-                &[],
-                author,
-                "commented",
-                comment,
-            ));
+            // An edit that only reworded or withdrew a comment appends nothing:
+            // there is no state change to report, and the record it touched
+            // already carries the whole of what happened to it.
+            if !comment.is_empty() {
+                next.append_activity(&render_event(
+                    &EventKind::Comment,
+                    now,
+                    None,
+                    &[],
+                    author,
+                    "commented",
+                    comment,
+                ));
+            }
         } else {
             next.frontmatter.set_scalar("updated_at", now);
             next.append_activity(&render_event(
                 &EventKind::Update,
                 now,
+                None,
                 &changes,
                 author,
                 "updated this ticket",
                 comment,
             ));
         }
+
+        // After the event is rendered, never before: what a comment revision
+        // did belongs in the answer this write gives its caller, and not in the
+        // record narrating a state change it was not part of.
+        changes.extend(comment_changes);
 
         let rendered = next.render();
         let document = Self::parse(&rendered, &self.ticket.key).map_err(|error| {
@@ -1013,6 +1144,7 @@ impl TicketDocument {
         next.append_activity(&render_event(
             &EventKind::Update,
             now,
+            None,
             &changes,
             author,
             &format!("renumbered this ticket from {old_key}"),
@@ -1279,6 +1411,98 @@ impl TicketDocument {
         }
     }
 
+    /// Rewrites one comment's words where they stand, and stamps `edited_at`
+    /// on the record while it is there (LC-241q).
+    ///
+    /// Everything else in the record survives: its id, its `occurred_at`, its
+    /// actor, and its heading line. The heading is left alone deliberately —
+    /// it is the sentence its author wrote, and an app that re-rendered it
+    /// would be restating somebody else's claim about who did what. Only the
+    /// prose under it is this edit's business.
+    ///
+    /// Answers whether it found the record to rewrite.
+    fn set_comment_body(&mut self, event_id: &str, text: &str, edited_at: &str) -> bool {
+        self.rewrite_record(event_id, |lines, span| {
+            let mut body = Vec::new();
+            // The heading, if the record has one. `eventProse` on the frontend
+            // makes the same cut from the other side.
+            if let Some(heading) = lines
+                .get(span.terminator + 1)
+                .filter(|line| line.trim_start().starts_with('#'))
+            {
+                body.push(heading.clone());
+                body.push("\n".to_owned());
+            }
+            for line in text.trim().split('\n') {
+                body.push(format!("{line}\n"));
+            }
+            lines.splice(span.terminator + 1..span.close, body);
+            stamp_edited_at(lines, span.open, span.terminator, edited_at);
+        })
+    }
+
+    /// Takes one activity record out of the file, whole.
+    ///
+    /// This is the only thing the app removes from a ticket rather than
+    /// supersedes, and it is deliberately not general: `apply` lets nothing but
+    /// a comment reach here. The blank line between two records goes with it,
+    /// so withdrawing a comment does not leave a widening gap behind — the one
+    /// after it, or the one before it when the record was last.
+    ///
+    /// Answers whether it found the record to remove.
+    fn remove_activity_record(&mut self, event_id: &str) -> bool {
+        self.rewrite_record(event_id, |lines, span| {
+            let mut from = span.open;
+            let mut to = span.close + 1;
+            if lines.get(to).is_some_and(|line| line.trim().is_empty()) {
+                to += 1;
+            } else if from > 0 && lines[from - 1].trim().is_empty() {
+                from -= 1;
+            }
+            // A last line with no ending carries the file's own missing
+            // newline. If that is what is leaving, the line above inherits the
+            // absence rather than the file quietly gaining a newline.
+            let took_the_last_ending = to == lines.len() && !lines[to - 1].ends_with('\n');
+            lines.drain(from..to);
+            if took_the_last_ending {
+                if let Some(last) = lines.last_mut() {
+                    while last.ends_with('\n') {
+                        last.pop();
+                    }
+                }
+            }
+        })
+    }
+
+    /// Finds the activity record `event_id` names and hands its lines to
+    /// `rewrite`, which edits them in place. Answers whether it found one.
+    ///
+    /// The two callers above are the only writers that reach inside a record
+    /// that is already on disk, and both need the same four steps around the
+    /// one that differs — pick the Activity chunks, split them into lines that
+    /// still carry their endings, locate the record, and put the lines back.
+    /// Only what happens between the third and the fourth is theirs.
+    fn rewrite_record(
+        &mut self,
+        event_id: &str,
+        rewrite: impl FnOnce(&mut Vec<String>, &RecordSpan),
+    ) -> bool {
+        for chunk in self
+            .chunks
+            .iter_mut()
+            .filter(|chunk| chunk.role == Role::Activity)
+        {
+            let mut lines = chunk_lines(&chunk.raw);
+            let Some(span) = record_span(&lines, event_id) else {
+                continue;
+            };
+            rewrite(&mut lines, &span);
+            chunk.raw = lines.concat();
+            return true;
+        }
+        false
+    }
+
     fn append_activity(&mut self, record: &str) {
         match self.chunk_mut(Role::Activity) {
             Some(chunk) => {
@@ -1309,9 +1533,11 @@ impl TicketDocument {
 
 /// Renders one bounded activity record. Structured metadata lives inside the
 /// markers; the Markdown underneath is what a human reads.
+#[allow(clippy::too_many_arguments)]
 fn render_event(
     kind: &EventKind,
     occurred_at: &str,
+    edited_at: Option<&str>,
     changes: &[FieldChange],
     author: &Actor,
     sentence: &str,
@@ -1323,6 +1549,12 @@ fn render_event(
     record.push_str(&format!("id: {}\n", mint_id("evt")));
     record.push_str(&format!("kind: {}\n", kind.as_str()));
     record.push_str(&format!("occurred_at: {}\n", encode_scalar(occurred_at)));
+    // Directly under `occurred_at`, which is where `set_comment_body` puts one
+    // too: a restored comment and a reworded one are the same record shape, so
+    // the two writers must not lay it out differently.
+    if let Some(edited_at) = edited_at {
+        record.push_str(&format!("edited_at: {}\n", encode_scalar(edited_at)));
+    }
     record.push_str(&format!("actor:\n  type: {}\n", author.actor_type.as_str()));
     if let Some(id) = &author.id {
         record.push_str(&format!("  id: {}\n", encode_scalar(id)));
@@ -1451,6 +1683,7 @@ pub fn render_new_ticket_as(
     rendered.push_str(&render_event(
         &EventKind::Create,
         now,
+        None,
         &[],
         author,
         "created this ticket",
@@ -1782,6 +2015,212 @@ fn insertion_offset_after_last_item(raw: &str) -> usize {
     insert_at.unwrap_or(raw.len())
 }
 
+/// The words of a comment, or the refusal that an empty one is not a comment.
+///
+/// Clearing the field is not how a comment is withdrawn — `✕` is — for the
+/// reason a checklist row's field is not a delete either: one control, one
+/// gesture. A field that also deleted would make an accidental select-all a
+/// destructive act.
+fn comment_text(text: &str) -> Result<&str, Diagnostic> {
+    let text = text.trim();
+    if text.is_empty() {
+        return Err(Diagnostic::parse("A comment needs text"));
+    }
+    Ok(text)
+}
+
+/// The record `event_id` names, once it is established that it exists, that it
+/// is a comment, and that this writer is the one who wrote it.
+///
+/// All three refusals live here rather than in the surface that hides the
+/// buttons, because a surface can only decline to offer a gesture — it cannot
+/// make the gesture impossible. Rewording somebody else's comment is putting
+/// words in their mouth, and the file is the record; whether the app happens to
+/// draw a pencil on the row is not what should be standing between the two.
+///
+/// Two actors are the same author when they declare the same type and the same
+/// id. The name is not part of it: an agent may be introduced differently from
+/// one run to the next, and the id is what it is identified by.
+fn own_comment<'a>(
+    ticket: &'a Ticket,
+    event_id: &str,
+    author: &Actor,
+) -> Result<&'a ActivityEvent, Diagnostic> {
+    let event = ticket
+        .activity
+        .iter()
+        .find(|event| event.id == event_id)
+        .ok_or_else(|| record_vanished(event_id))?;
+    if !matches!(event.kind, EventKind::Comment) {
+        return Err(Diagnostic::parse(format!(
+            "Activity record {event_id} is not a comment. An entry reporting what \
+             happened to a ticket is corrected by a later entry, never rewritten."
+        )));
+    }
+    if event.actor.actor_type != author.actor_type || event.actor.id != author.id {
+        return Err(Diagnostic::parse(format!(
+            "Comment {event_id} is only its author's to change"
+        )));
+    }
+    Ok(event)
+}
+
+/// Whether a restore describes an instant a comment could actually have been
+/// said at.
+///
+/// This is the one field that puts a record into the *past*, so it is the one
+/// that could invent history. `file_format.md` is explicit that where the app
+/// did not observe something it "must not invent an actor, timestamp, or
+/// field-level historical detail", and the app's own caller does not — it
+/// replays a record it removed a moment ago. The checks are here so that stays
+/// true of every caller: a comment cannot be dated after the write restoring
+/// it, and cannot claim it was edited before it was written.
+///
+/// What is deliberately not checked is that a matching comment was ever
+/// withdrawn. One write cannot know what an earlier one removed, and a rule
+/// this function cannot enforce is worse than one it does not claim.
+fn restorable(restored: &CommentRestore, now: &str) -> Result<(), Diagnostic> {
+    validate_timestamp("occurredAt", &restored.occurred_at)
+        .map_err(|error| Diagnostic::parse(error.message))?;
+    if instant_of(&restored.occurred_at) > instant_of(now) {
+        return Err(Diagnostic::parse(
+            "A comment cannot be restored to an instant in the future",
+        ));
+    }
+    let Some(edited_at) = &restored.edited_at else {
+        return Ok(());
+    };
+    validate_timestamp("editedAt", edited_at).map_err(|error| Diagnostic::parse(error.message))?;
+    if instant_of(edited_at) < instant_of(&restored.occurred_at) {
+        return Err(Diagnostic::parse(
+            "A comment cannot have been edited before it was written",
+        ));
+    }
+    if instant_of(edited_at) > instant_of(now) {
+        return Err(Diagnostic::parse(
+            "A comment cannot have been edited in the future",
+        ));
+    }
+    Ok(())
+}
+
+/// The refusal for a record that was found and then could not be written to.
+///
+/// Unreachable through `apply`: `own_comment` and `rewrite_record` look in the
+/// same file for the same id, so a writer reaches this only if the two
+/// disagree. It is stated rather than unwrapped because a panic is the worst
+/// possible answer to "this file is shaped in a way I did not expect" — the
+/// write is refused, and the file is left exactly as it was.
+fn record_vanished(event_id: &str) -> Diagnostic {
+    Diagnostic::parse(format!("Comment {event_id} is not in this ticket"))
+}
+
+/// An activity record's body without the heading its author wrote — the same
+/// cut `attribution.ts:eventProse` makes on the frontend, so the words this
+/// build compares are the words the timeline shows.
+fn event_prose(body: &str) -> &str {
+    match body.split_once('\n') {
+        Some((first, rest)) if first.starts_with('#') => rest.trim(),
+        _ if body.starts_with('#') => "",
+        _ => body.trim(),
+    }
+}
+
+/// A chunk's raw text as lines that still carry their endings, so concatenating
+/// them is the identity. Every in-place record rewrite works this way, for the
+/// reason the checklist's do: the bytes this edit did not name must come back
+/// exactly as they were.
+fn chunk_lines(raw: &str) -> Vec<String> {
+    lines_with_endings(raw)
+        .into_iter()
+        .map(|(_, line)| line.to_owned())
+        .collect()
+}
+
+/// Where one activity record sits in a chunk's lines: its opening marker, its
+/// header terminator, and its closing marker.
+struct RecordSpan {
+    open: usize,
+    terminator: usize,
+    close: usize,
+}
+
+/// Finds the record carrying `event_id`, by reading each record's header with
+/// the same parser the reader uses rather than by matching an `id:` line.
+///
+/// The difference matters: a quoted id, or an `id` written inside the actor
+/// block, would both fool a line match, and a rewrite aimed at the wrong record
+/// would edit somebody else's words. A record whose header will not parse is
+/// skipped — the reader has already filed a diagnostic for it, and it is not a
+/// record this edit can claim to have identified.
+fn record_span(lines: &[String], event_id: &str) -> Option<RecordSpan> {
+    let mut open = None;
+    let mut terminator = None;
+    let mut header = String::new();
+    for (index, line) in lines.iter().enumerate() {
+        let trimmed = line.trim();
+        if trimmed.starts_with(EVENT_OPEN) {
+            open = Some(index);
+            terminator = None;
+            header.clear();
+            continue;
+        }
+        let Some(start) = open else { continue };
+        match terminator {
+            None => {
+                if trimmed == HEADER_TERMINATOR {
+                    terminator = Some(index);
+                } else {
+                    header.push_str(line);
+                }
+            }
+            Some(terminator_at) => {
+                if trimmed != EVENT_CLOSE {
+                    continue;
+                }
+                let names_it = validate_subset(&header).is_ok()
+                    && serde_yaml::from_str::<EventHeader>(&header)
+                        .is_ok_and(|parsed| parsed.id == event_id);
+                if names_it {
+                    return Some(RecordSpan {
+                        open: start,
+                        terminator: terminator_at,
+                        close: index,
+                    });
+                }
+                open = None;
+                terminator = None;
+            }
+        }
+    }
+    None
+}
+
+/// Sets or replaces `edited_at` in one record's header, directly under
+/// `occurred_at` — the place `render_event` writes it, so a reworded record and
+/// a restored one are laid out the same way.
+fn stamp_edited_at(lines: &mut Vec<String>, open: usize, terminator: usize, edited_at: &str) {
+    let stamp = format!("edited_at: {}\n", encode_scalar(edited_at));
+    let header = open + 1..terminator;
+    let at = |prefix: &str| {
+        lines[header.clone()]
+            .iter()
+            .position(|line| line.starts_with(prefix))
+            .map(|offset| open + 1 + offset)
+    };
+    match at("edited_at:") {
+        Some(index) => lines[index] = stamp,
+        // Under `occurred_at`; failing that, last in the header. A record with
+        // no `occurred_at` line does not parse, so the fallback is unreachable
+        // through `apply` — it is here so this cannot silently write a header
+        // key into the middle of the actor block.
+        None => lines.insert(
+            at("occurred_at:").map_or(terminator, |index| index + 1),
+            stamp,
+        ),
+    }
+}
+
 /// One bounded record's header YAML, Markdown body, and position.
 struct RawRecord {
     header: String,
@@ -1892,6 +2331,8 @@ struct EventHeader {
     id: String,
     kind: String,
     occurred_at: String,
+    #[serde(default)]
+    edited_at: Option<String>,
     actor: ActorHeader,
     #[serde(default)]
     changes: Vec<ChangeHeader>,
@@ -1943,11 +2384,15 @@ fn parse_event(record: &RawRecord) -> Result<ActivityEvent, Diagnostic> {
     require_non_empty("id", &header.id).map_err(|error| describe(error.message))?;
     validate_timestamp("occurred_at", &header.occurred_at)
         .map_err(|error| describe(error.message))?;
+    if let Some(edited_at) = &header.edited_at {
+        validate_timestamp("edited_at", edited_at).map_err(|error| describe(error.message))?;
+    }
     let actor = header.actor.into_actor().map_err(describe)?;
     Ok(ActivityEvent {
         id: header.id,
         kind: EventKind::parse(&header.kind),
         occurred_at: header.occurred_at,
+        edited_at: header.edited_at,
         actor,
         changes: header
             .changes
@@ -2014,8 +2459,9 @@ fn parse_attachment(record: &RawRecord) -> Result<Attachment, Diagnostic> {
 #[cfg(test)]
 mod tests {
     use super::{
-        render_new_ticket, ChecklistMove, ChecklistRestore, ChecklistTextEdit, ChecklistToggle,
-        Priority, Status, TicketDocument, TicketEdit, TICKET_FORMAT,
+        render_new_ticket, Actor, ChecklistMove, ChecklistRestore, ChecklistTextEdit,
+        ChecklistToggle, CommentRestore, CommentTextEdit, Priority, Status, TicketDocument,
+        TicketEdit, TICKET_FORMAT,
     };
 
     const NOW: &str = "2026-07-30T10:00:00.000Z";
@@ -2142,7 +2588,7 @@ mod tests {
     #[test]
     fn json_contract_applied_field_changes() {
         let applied = document()
-            .apply(
+            .apply_as(
                 &TicketEdit {
                     title: Some("Renamed by the fixture".to_owned()),
                     status: Some(Status::InReview),
@@ -2173,8 +2619,24 @@ mod tests {
                     }),
                     add_checklist_items: vec!["Write the migration".to_owned()],
                     comment: None,
+                    // The fixture's one comment, reworded and then withdrawn by
+                    // the actor that wrote it — which is why this applies as the
+                    // fixture agent rather than as the local human. Both name
+                    // the same record on purpose: it is the only comment there
+                    // is, and the pinned order is the order they apply in.
+                    edit_comment: Some(CommentTextEdit {
+                        event_id: "evt_0001".to_owned(),
+                        text: "Reworded by the fixture".to_owned(),
+                    }),
+                    remove_comment: Some("evt_0001".to_owned()),
+                    restore_comment: Some(CommentRestore {
+                        text: "Restored by the fixture".to_owned(),
+                        occurred_at: "2026-07-29T01:00:00Z".to_owned(),
+                        edited_at: None,
+                    }),
                 },
                 NOW,
+                &Actor::agent("fixture-agent", None),
             )
             .expect("the every-field edit should be accepted");
 
@@ -2486,6 +2948,434 @@ mod tests {
             event.body,
             "### You commented\n\nLooked at this with fresh eyes."
         );
+    }
+
+    /// Posts a comment as the local human and hands back the document holding
+    /// it, with the id the record was written under. Every rewording test needs
+    /// one of these first: the fixture's only comment belongs to an agent, and
+    /// the whole point of the authorship rule is that it is not yours to edit.
+    fn with_own_comment(body: &str) -> (TicketDocument, String) {
+        let (_, next) = apply(TicketEdit {
+            comment: Some(body.to_owned()),
+            ..TicketEdit::default()
+        });
+        let id = next
+            .ticket()
+            .last_activity()
+            .expect("the posted comment")
+            .id
+            .clone();
+        (next, id)
+    }
+
+    #[test]
+    fn rewording_a_comment_rewrites_the_record_it_names() {
+        let (document, id) = with_own_comment("Frist draft.");
+        let (rendered, next) = apply_to(
+            document,
+            TicketEdit {
+                edit_comment: Some(CommentTextEdit {
+                    event_id: id.clone(),
+                    text: "First draft.".to_owned(),
+                }),
+                ..TicketEdit::default()
+            },
+        );
+
+        // The record is the same record: same id, same place, same instant. An
+        // edit that appended and deleted would satisfy "the words changed" and
+        // lose all three.
+        assert_eq!(next.ticket().activity.len(), 2);
+        let event = next.ticket().last_activity().expect("the reworded comment");
+        assert_eq!(event.id, id);
+        assert_eq!(event.kind.as_str(), "comment");
+        assert_eq!(event.body, "### You commented\n\nFirst draft.");
+        assert!(!rendered.contains("Frist draft."));
+        assert_eq!(
+            rendered.matches("<!-- longclaw:event").count(),
+            2,
+            "a reword writes no second record"
+        );
+    }
+
+    #[test]
+    fn a_reworded_comment_says_it_was_edited() {
+        let (document, id) = with_own_comment("Frist draft.");
+        let posted = document
+            .ticket()
+            .last_activity()
+            .expect("the posted comment")
+            .occurred_at
+            .clone();
+        let (rendered, next) = apply_to(
+            document,
+            TicketEdit {
+                edit_comment: Some(CommentTextEdit {
+                    event_id: id,
+                    text: "First draft.".to_owned(),
+                }),
+                ..TicketEdit::default()
+            },
+        );
+        let event = next.ticket().last_activity().expect("the reworded comment");
+        // When it was said and when it was last changed are two facts, and the
+        // record keeps both: the timeline still sorts on the first.
+        assert_eq!(event.occurred_at, posted);
+        assert_eq!(event.edited_at.as_deref(), Some(NOW));
+        // The whole record, because where the stamp goes is part of the format
+        // contract (`file_format.md:186`) and "contains an edited_at somewhere"
+        // would pass with it written into the middle of the actor block.
+        assert!(
+            rendered.contains(&format!(
+                "kind: comment\n\
+                 occurred_at: {posted}\n\
+                 edited_at: {NOW}\n\
+                 actor:\n  type: human\n  id: local\n\
+                 -->\n\
+                 ### You commented\n\n\
+                 First draft.\n\
+                 <!-- /longclaw:event -->\n"
+            )),
+            "{rendered}"
+        );
+    }
+
+    #[test]
+    fn rewording_a_comment_leaves_the_ticket_alone() {
+        let (document, id) = with_own_comment("Frist draft.");
+        let (rendered, next) = apply_to(
+            document,
+            TicketEdit {
+                edit_comment: Some(CommentTextEdit {
+                    event_id: id,
+                    text: "First draft.".to_owned(),
+                }),
+                ..TicketEdit::default()
+            },
+        );
+        // A comment's words are narration, not state. Bumping `updated_at`
+        // would say the ticket changed; appending an event to announce the
+        // rewording would say it twice and bury the comment under a report of
+        // itself. `edited_at` on the record is the whole of the announcement.
+        assert_eq!(next.ticket().updated_at, "2026-07-29T00:00:00Z");
+        assert!(rendered.contains("updated_at: 2026-07-29T00:00:00Z\n"));
+        assert!(!next.ticket().history_incomplete);
+        assert_eq!(next.ticket().activity.len(), 2);
+    }
+
+    #[test]
+    fn withdrawing_a_comment_takes_its_record_out_of_the_file() {
+        let (document, id) = with_own_comment("Never mind.");
+        let (rendered, next) = apply_to(
+            document,
+            TicketEdit {
+                remove_comment: Some(id),
+                ..TicketEdit::default()
+            },
+        );
+        assert_eq!(next.ticket().activity.len(), 1);
+        assert!(!rendered.contains("Never mind."));
+        assert_eq!(rendered.matches("<!-- longclaw:event").count(), 1);
+        assert_eq!(
+            rendered.matches("<!-- /longclaw:event -->").count(),
+            1,
+            "the record leaves whole, closing marker and all"
+        );
+        // The heading stays even when the section empties, for the reason the
+        // checklist's does: there is still a place for the next one to land.
+        assert!(rendered.contains("## Activity\n"));
+        assert!(!next.ticket().history_incomplete);
+    }
+
+    #[test]
+    fn a_withdrawn_comment_can_be_put_back_where_it_was() {
+        let (document, id) = with_own_comment("Never mind.");
+        let posted = document
+            .ticket()
+            .last_activity()
+            .expect("the posted comment")
+            .occurred_at
+            .clone();
+        let (_, without) = apply_to(
+            document,
+            TicketEdit {
+                remove_comment: Some(id),
+                ..TicketEdit::default()
+            },
+        );
+        let (_, restored) = apply_to(
+            without,
+            TicketEdit {
+                restore_comment: Some(CommentRestore {
+                    text: "Never mind.".to_owned(),
+                    occurred_at: posted.clone(),
+                    edited_at: None,
+                }),
+                ..TicketEdit::default()
+            },
+        );
+        assert_eq!(restored.ticket().activity.len(), 2);
+        let event = restored.ticket().last_activity().expect("the comment back");
+        // The instant is what puts it back in the stream; the id is not, and a
+        // fresh one is minted because the old one left with the record.
+        assert_eq!(event.occurred_at, posted);
+        assert_eq!(event.kind.as_str(), "comment");
+        assert_eq!(event.body, "### You commented\n\nNever mind.");
+        assert_eq!(event.actor, Actor::local_human());
+    }
+
+    #[test]
+    fn a_restore_carries_back_the_edit_the_comment_had_taken() {
+        let (document, id) = with_own_comment("Frist draft.");
+        let (_, edited) = apply_to(
+            document,
+            TicketEdit {
+                edit_comment: Some(CommentTextEdit {
+                    event_id: id.clone(),
+                    text: "First draft.".to_owned(),
+                }),
+                ..TicketEdit::default()
+            },
+        );
+        let event = edited.ticket().last_activity().expect("the edited comment");
+        let occurred_at = event.occurred_at.clone();
+        let edited_at = event.edited_at.clone();
+        let fresh_id = event.id.clone();
+        let (_, without) = apply_to(
+            edited,
+            TicketEdit {
+                remove_comment: Some(fresh_id),
+                ..TicketEdit::default()
+            },
+        );
+        let (_, restored) = apply_to(
+            without,
+            TicketEdit {
+                restore_comment: Some(CommentRestore {
+                    text: "First draft.".to_owned(),
+                    occurred_at,
+                    edited_at,
+                }),
+                ..TicketEdit::default()
+            },
+        );
+        let back = restored.ticket().last_activity().expect("the comment back");
+        assert_eq!(back.edited_at.as_deref(), Some(NOW));
+    }
+
+    #[test]
+    fn a_restore_cannot_invent_an_instant_a_comment_was_never_said_at() {
+        // The one field that writes into the past, so the one that could
+        // fabricate history. The app's own caller replays a record it removed a
+        // moment ago; these hold for every other caller too.
+        for (restore, refusal) in [
+            (
+                CommentRestore {
+                    text: "From the future.".to_owned(),
+                    occurred_at: "2099-01-01T00:00:00Z".to_owned(),
+                    edited_at: None,
+                },
+                "instant in the future",
+            ),
+            (
+                CommentRestore {
+                    text: "Edited before it existed.".to_owned(),
+                    occurred_at: "2026-07-29T05:00:00Z".to_owned(),
+                    edited_at: Some("2026-07-29T04:00:00Z".to_owned()),
+                },
+                "edited before it was written",
+            ),
+            (
+                CommentRestore {
+                    text: "Edited in the future.".to_owned(),
+                    occurred_at: "2026-07-29T05:00:00Z".to_owned(),
+                    edited_at: Some("2099-01-01T00:00:00Z".to_owned()),
+                },
+                "edited in the future",
+            ),
+            (
+                CommentRestore {
+                    text: "Not a timestamp.".to_owned(),
+                    occurred_at: "yesterday".to_owned(),
+                    edited_at: None,
+                },
+                "occurredAt",
+            ),
+        ] {
+            let error = document()
+                .apply(
+                    &TicketEdit {
+                        restore_comment: Some(restore),
+                        ..TicketEdit::default()
+                    },
+                    NOW,
+                )
+                .expect_err("an invented instant");
+            assert!(error.message.contains(refusal), "{error}");
+        }
+    }
+
+    #[test]
+    fn a_reword_and_a_withdrawal_in_one_edit_record_the_words_that_actually_went() {
+        // Nothing sends both, and the contract fixture does. `next` holds the
+        // new bytes while `next.ticket()` is still the parse the edit started
+        // from, so the removal used to report the words the reword had already
+        // replaced.
+        let (document, id) = with_own_comment("Frist draft.");
+        let applied = document
+            .apply(
+                &TicketEdit {
+                    edit_comment: Some(CommentTextEdit {
+                        event_id: id.clone(),
+                        text: "First draft.".to_owned(),
+                    }),
+                    remove_comment: Some(id.clone()),
+                    ..TicketEdit::default()
+                },
+                NOW,
+            )
+            .expect("the edit should be accepted");
+        assert_eq!(applied.document.ticket().activity.len(), 1);
+        let removed = applied
+            .changes
+            .iter()
+            .find(|change| change.field == format!("comment.{id}.removed"))
+            .expect("the removal should be recorded");
+        assert_eq!(removed.from.as_deref(), Some("First draft."));
+    }
+
+    #[test]
+    fn a_comment_is_only_its_own_authors_to_change() {
+        // `evt_0001` is the fixture agent's. The app writes as the local human,
+        // so neither gesture is offered on it — and the refusal is here rather
+        // than only in the surface that hides the buttons.
+        for edit in [
+            TicketEdit {
+                edit_comment: Some(CommentTextEdit {
+                    event_id: "evt_0001".to_owned(),
+                    text: "I did not say this.".to_owned(),
+                }),
+                ..TicketEdit::default()
+            },
+            TicketEdit {
+                remove_comment: Some("evt_0001".to_owned()),
+                ..TicketEdit::default()
+            },
+        ] {
+            let error = document()
+                .apply(&edit, NOW)
+                .expect_err("somebody else's comment");
+            assert!(
+                error.message.contains("is only its author's to change"),
+                "{error}"
+            );
+        }
+    }
+
+    #[test]
+    fn only_a_comment_can_be_reworded_or_withdrawn() {
+        // An update event this same local human wrote, so authorship is not
+        // what stops this: an entry reporting what happened to the ticket is
+        // not somebody's words to take back, whoever wrote it.
+        let (_, next) = apply(TicketEdit {
+            status: Some(Status::InProgress),
+            ..TicketEdit::default()
+        });
+        let update = next
+            .ticket()
+            .last_activity()
+            .expect("the update")
+            .id
+            .clone();
+        let error = next
+            .apply(
+                &TicketEdit {
+                    remove_comment: Some(update),
+                    ..TicketEdit::default()
+                },
+                NOW,
+            )
+            .expect_err("an update event is not a comment");
+        assert!(error.message.contains("is not a comment"), "{error}");
+    }
+
+    #[test]
+    fn a_reword_that_names_no_record_is_refused() {
+        let error = document()
+            .apply(
+                &TicketEdit {
+                    edit_comment: Some(CommentTextEdit {
+                        event_id: "evt_nothing".to_owned(),
+                        text: "Into the void.".to_owned(),
+                    }),
+                    ..TicketEdit::default()
+                },
+                NOW,
+            )
+            .expect_err("no such record");
+        assert!(error.message.contains("is not in this ticket"), "{error}");
+    }
+
+    #[test]
+    fn a_comment_cannot_be_reworded_into_nothing() {
+        let (document, id) = with_own_comment("Something.");
+        let error = document
+            .apply(
+                &TicketEdit {
+                    edit_comment: Some(CommentTextEdit {
+                        event_id: id,
+                        text: "   ".to_owned(),
+                    }),
+                    ..TicketEdit::default()
+                },
+                NOW,
+            )
+            .expect_err("an empty reword");
+        // Emptying the field is not how a comment is withdrawn — `✕` is — for
+        // the reason the checklist row's field is not a delete either.
+        assert!(error.message.contains("A comment needs text"), "{error}");
+    }
+
+    #[test]
+    fn a_reword_to_the_same_words_writes_nothing() {
+        let (document, id) = with_own_comment("Unchanged.");
+        let error = document
+            .apply(
+                &TicketEdit {
+                    edit_comment: Some(CommentTextEdit {
+                        event_id: id,
+                        text: "Unchanged.".to_owned(),
+                    }),
+                    ..TicketEdit::default()
+                },
+                NOW,
+            )
+            .expect_err("nothing to write");
+        assert!(error.message.contains("already matches"), "{error}");
+    }
+
+    #[test]
+    fn a_multi_line_comment_survives_a_reword() {
+        let (document, id) = with_own_comment("One.\n\nTwo.");
+        let (rendered, next) = apply_to(
+            document,
+            TicketEdit {
+                edit_comment: Some(CommentTextEdit {
+                    event_id: id,
+                    text: "One.\n\n- two\n- three\n\n### Not a heading of ours".to_owned(),
+                }),
+                ..TicketEdit::default()
+            },
+        );
+        let event = next.ticket().last_activity().expect("the reworded comment");
+        assert_eq!(
+            event.body,
+            "### You commented\n\nOne.\n\n- two\n- three\n\n### Not a heading of ours"
+        );
+        // The record's own boundaries are what bound it, so a heading inside a
+        // comment is text rather than the start of a section.
+        assert_eq!(rendered.matches("<!-- longclaw:event").count(), 2);
+        assert!(!next.ticket().description.contains("Not a heading"));
     }
 
     #[test]

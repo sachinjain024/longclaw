@@ -10,7 +10,7 @@
  * this one holds what reaches the DOM.
  */
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { Timeline } from "./Timeline";
 import type {
@@ -351,5 +351,185 @@ describe("a comment that has not reached the disk yet", () => {
     expect(entries[1].textContent).toContain("typed just now");
     // Said in words, not by the dimming alone.
     expect(entries[1].textContent).toContain("posting");
+  });
+});
+
+/**
+ * Rewording and withdrawing a comment (LC-241q).
+ *
+ * The timeline is where the gesture lives, because the comment is what it acts
+ * on — and it is offered on your own words only. `Timeline` decides what to
+ * show and nothing else: what a commit writes is `TicketPanel`'s, which is why
+ * every test here asserts on the callback rather than on a file.
+ */
+describe("a comment's own controls", () => {
+  function editable(events: ActivityEvent[], asLines?: boolean) {
+    const edited: [string, string][] = [];
+    const removed: string[] = [];
+    render(
+      <Timeline
+        events={events}
+        now={NOW}
+        labels={LABELS}
+        checklist={CHECKLIST}
+        commentsAsLines={asLines}
+        onEditComment={(id, text) => edited.push([id, text])}
+        onRemoveComment={(id) => removed.push(id)}
+      />,
+    );
+    return { edited, removed };
+  }
+
+  const MINE = event({
+    kind: "comment",
+    body: "### You commented\n\nFrist draft.",
+  });
+
+  it("offers them on your own comment", () => {
+    editable([MINE]);
+    expect(
+      screen.getByRole("button", { name: "Edit your comment" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Delete your comment" }),
+    ).toBeTruthy();
+  });
+
+  it("offers neither on an agent's", () => {
+    editable([
+      event({
+        kind: "comment",
+        actor: AGENT,
+        body: "### Claude Code commented\n\nDone.",
+      }),
+    ]);
+    expect(screen.queryByRole("button", { name: /comment/ })).toBeNull();
+  });
+
+  it("offers neither on a change entry, whoever wrote it", () => {
+    editable([
+      event({
+        kind: "update",
+        changes: [{ field: "status", from: "todo", to: "done" }],
+      }),
+    ]);
+    expect(screen.queryByRole("button", { name: /comment/ })).toBeNull();
+  });
+
+  it("offers neither when the caller has no handler for them", () => {
+    // The Activity tab draws the same records with no composer and no gestures;
+    // a button that called nothing would be a control that does nothing.
+    render(<Timeline events={[MINE]} now={NOW} />);
+    expect(screen.queryByRole("button", { name: /comment/ })).toBeNull();
+  });
+
+  it("offers neither where a comment is drawn as one line", () => {
+    // Under Activity a comment is the line saying one happened, and its words
+    // are not on screen to be edited.
+    editable([MINE], true);
+    expect(screen.queryByRole("button", { name: /comment/ })).toBeNull();
+  });
+
+  function openEditor() {
+    fireEvent.click(screen.getByRole("button", { name: "Edit your comment" }));
+    return screen.getByRole("textbox", {
+      name: "Edit your comment",
+    }) as HTMLTextAreaElement;
+  }
+
+  it("hands the new words back with the record they belong to", () => {
+    const { edited } = editable([MINE]);
+    const field = openEditor();
+    fireEvent.change(field, { target: { value: "First draft." } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(edited).toEqual([["evt_1", "First draft."]]);
+  });
+
+  it("opens the field on the words that are there, not on an empty box", () => {
+    editable([MINE]);
+    expect(openEditor().value).toBe("Frist draft.");
+  });
+
+  it("saves on ⌘↵, which is what the composer below it takes", () => {
+    const { edited } = editable([MINE]);
+    const field = openEditor();
+    fireEvent.change(field, { target: { value: "First draft." } });
+    fireEvent.keyDown(field, { key: "Enter", metaKey: true });
+    expect(edited).toEqual([["evt_1", "First draft."]]);
+  });
+
+  it("abandons the edit on Escape, writing nothing", () => {
+    const { edited } = editable([MINE]);
+    const field = openEditor();
+    fireEvent.change(field, { target: { value: "Frist draft. And more." } });
+    fireEvent.keyDown(field, { key: "Escape" });
+    expect(edited).toEqual([]);
+    // Back to the comment, and back to the words the file has.
+    expect(entry().textContent).toContain("Frist draft.");
+  });
+
+  it("writes nothing when the words did not change", () => {
+    const { edited } = editable([MINE]);
+    const field = openEditor();
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(field.isConnected).toBe(false);
+    expect(edited).toEqual([]);
+  });
+
+  it("refuses to save an empty comment, because ✕ is where one is withdrawn", () => {
+    const { edited, removed } = editable([MINE]);
+    const field = openEditor();
+    fireEvent.change(field, { target: { value: "   " } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(edited).toEqual([]);
+    expect(removed).toEqual([]);
+  });
+
+  it("withdraws on the delete button, naming the record", () => {
+    const { removed } = editable([MINE]);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Delete your comment" }),
+    );
+    expect(removed).toEqual(["evt_1"]);
+  });
+
+  it("still says edited where the comment is drawn as one line", () => {
+    // The Activity tab leaves the words to the tab that is about words, but
+    // *that it was edited* is news either way — and the meta is where the age
+    // already is (`screen-specs.md:247`).
+    editable(
+      [
+        event({
+          kind: "comment",
+          editedAt: "2026-08-01T11:59:00Z",
+          body: "### You commented\n\nFirst draft.",
+        }),
+      ],
+      true,
+    );
+    expect(entry().textContent).toContain("edited");
+    expect(entry().textContent).not.toContain("First draft.");
+  });
+
+  it("says a comment was edited, without moving it in the stream", () => {
+    editable([
+      event({
+        kind: "comment",
+        occurredAt: "2026-08-01T09:00:00Z",
+        editedAt: "2026-08-01T11:59:00Z",
+        body: "### You commented\n\nFirst draft.",
+      }),
+      event({
+        id: "evt_2",
+        kind: "comment",
+        occurredAt: "2026-08-01T10:00:00Z",
+        body: "### You commented\n\nSecond.",
+      }),
+    ]);
+    const entries = document.querySelectorAll(".timeline > li");
+    // Sorted on when it was said, so the edit did not move it.
+    expect(entries[0].textContent).toContain("First draft.");
+    expect(entries[0].textContent).toContain("edited");
+    expect(entries[1].textContent).not.toContain("edited");
   });
 });

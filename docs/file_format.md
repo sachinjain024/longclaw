@@ -183,7 +183,7 @@ The activity model follows these rules:
 
 - `ticket.md` is authoritative for current state.
 - The embedded activity section is authoritative for historical narration in v0.
-- Activity entries are semantically append-only. A correction appends another event instead of editing an existing event.
+- Activity entries are semantically append-only **about the ticket**: a correction to what an entry reports appends another event rather than editing an existing one. A comment's words are the one exception, because they belong to their author rather than to the record of what happened — the actor that wrote a comment may reword it in place, which writes an optional `edited_at` directly under that entry's `occurred_at` and changes nothing else, or withdraw it, which removes the entry whole. `occurred_at` never moves, so fixing a typo does not send a comment to the end of the conversation. No other entry kind may be rewritten or removed, and no actor may touch another's comment (LC-241q).
 - The parser uses the `longclaw:event` boundaries rather than visible headings, so event bodies may contain arbitrary Markdown headings.
 - Activity never drives or rolls back ticket state.
 - If state changes without a matching activity entry, preserve the state and mark the history as incomplete. Never roll the state back to match the history.
@@ -407,7 +407,7 @@ Before agents can create tickets or team sync is introduced, the allocation poli
 
 1. A ticket's internal `id`, human `key`, and directory path do not change after creation.
 2. In v0, `ticket.md` is the sole canonical structured record for current state, description, checklist, attachment registry, comments, and activity.
-3. Each activity entry has a globally unique ID and is semantically append-only.
+3. Each activity entry has a globally unique ID, and is semantically append-only except that a comment's author may reword or withdraw their own comment.
 4. Every actor explicitly declares whether it is a human or an agent.
 5. Only registered humans can be assignees.
 6. Checklist items have stable IDs even though they render as ordinary Markdown tasks.

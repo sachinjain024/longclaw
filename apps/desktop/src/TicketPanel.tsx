@@ -22,6 +22,7 @@ import type { DragEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { editTicket, openTicketFile, readTicket } from "./api";
 import {
   actorGlyph,
+  eventProse,
   externalEditConflict,
   acknowledgementClass,
 } from "./attribution";
@@ -998,6 +999,77 @@ export function TicketPanel(props: TicketPanelProps) {
   }
 
   /**
+   * Writes one comment's new words (LC-241q).
+   *
+   * The record id is what makes this an edit rather than a withdrawal and a
+   * re-post: the entry keeps its place in the stream, its instant, and its
+   * author. Rust refuses any comment but the writer's own, so the buttons the
+   * timeline draws and the write it sends are answering the same question.
+   */
+  /**
+   * The record a comment gesture names, and the words in it — the pair both
+   * gestures need before they can offer anything back. Absent when the panel
+   * cannot see the record, which is the case each caller declines to offer an
+   * undo for rather than guessing at.
+   */
+  function commentAt(eventId: string) {
+    const event = ticket?.activity.find((entry) => entry.id === eventId);
+    const text = eventProse(event?.body ?? "");
+    return event && text ? { event, text } : undefined;
+  }
+
+  function editComment(eventId: string, text: string) {
+    const was = commentAt(eventId)?.text;
+    void save(
+      { editComment: { eventId, text } },
+      {
+        toast: `${ticketKey} comment edited`,
+        // Only when there is something to go back to. A comment whose record
+        // the panel cannot find is one this build should not claim to know the
+        // previous words of, so the write still happens and the undo does not.
+        inverse: was ? { editComment: { eventId, text: was } } : undefined,
+        inverseToast: `${ticketKey} comment restored`,
+      },
+    );
+  }
+
+  /**
+   * Takes one comment out of the history, and offers it back.
+   *
+   * The undo is a restore carrying the instant the comment was first said,
+   * rather than a fresh comment: a new one lands at the end of the stream, and
+   * the one just withdrawn was in the middle of a conversation. It is the same
+   * argument `removeRow` makes for naming a neighbour instead of appending.
+   *
+   * Nothing is held optimistically. An entry that vanished and came back is the
+   * stream rearranging itself twice, which is the reason a removed checklist
+   * row is not held either.
+   */
+  function removeComment(eventId: string) {
+    const found = commentAt(eventId);
+    void save(
+      { removeComment: eventId },
+      {
+        toast: `${ticketKey} comment deleted`,
+        // A comment whose words or instant the panel cannot see is one it
+        // cannot put back, so it says so by not offering — the removal still
+        // happens, the same way a row with no addressable neighbour is still
+        // removed.
+        inverse: found
+          ? {
+              restoreComment: {
+                text: found.text,
+                occurredAt: found.event.occurredAt,
+                editedAt: found.event.editedAt,
+              },
+            }
+          : undefined,
+        inverseToast: `${ticketKey} comment restored`,
+      },
+    );
+  }
+
+  /**
    * Writes one row's new place, wherever the gesture came from.
    *
    * Both gestures end here because they are one change — and because the undo
@@ -1710,6 +1782,11 @@ export function TicketPanel(props: TicketPanelProps) {
                   labels={props.labels}
                   checklist={ticket.checklist}
                   pendingComment={pendingComment}
+                  // Only here, and not on the Activity tab beside it: there a
+                  // comment is the one line saying it happened, and its words
+                  // are not on screen to be rewritten (LC-241q).
+                  onEditComment={editComment}
+                  onRemoveComment={removeComment}
                 />
               </div>
             )}
