@@ -3158,3 +3158,171 @@ describe("the panel's fields read as the record, not as a form", () => {
     ).not.toContain("acknowledged");
   });
 });
+
+/**
+ * Rewording and withdrawing a comment, as writes (LC-241q).
+ *
+ * `Timeline.test.tsx` holds which entries carry the two buttons and what a
+ * commit hands back. This holds what reaches the file, and the half that only
+ * the panel knows: the inverse each gesture is offered back by.
+ */
+describe("a comment the human wrote", () => {
+  function edited(): ActivityEvent {
+    return {
+      ...humanEvent(),
+      editedAt: "2026-07-30T11:59:30Z",
+    };
+  }
+
+  function openEditor() {
+    fireEvent.click(screen.getByRole("button", { name: "Edit your comment" }));
+    return screen.getByLabelText("Edit your comment") as HTMLTextAreaElement;
+  }
+
+  beforeEach(() => {
+    editTicketMock.mockResolvedValue(writeResult());
+  });
+
+  it("writes the new words against the record they replace", async () => {
+    render(surface());
+    await ready();
+
+    const field = openEditor();
+    fireEvent.change(field, { target: { value: "Started on this." } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(1));
+    expect(editTicketMock.mock.calls[0][0]).toMatchObject({
+      expectedHash: "hash-1",
+      edit: {
+        editComment: { eventId: "evt_human", text: "Started on this." },
+      },
+    });
+  });
+
+  it("offers the words it replaced back", async () => {
+    render(surface());
+    await ready();
+
+    const field = openEditor();
+    fireEvent.change(field, { target: { value: "Started on this." } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByText(/LC-1 comment edited/);
+    fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
+    expect(editTicketMock.mock.calls[1][0]).toMatchObject({
+      edit: {
+        editComment: { eventId: "evt_human", text: "Starting on this." },
+      },
+    });
+  });
+
+  it("withdraws the record it names", async () => {
+    render(surface());
+    await ready();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Delete your comment" }),
+    );
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(1));
+    expect(editTicketMock.mock.calls[0][0]).toMatchObject({
+      edit: { removeComment: "evt_human" },
+    });
+  });
+
+  /**
+   * The instant, not a fresh comment. A re-post would land at the end of the
+   * stream, and the comment that was withdrawn was in the middle of one — the
+   * same argument a removed checklist row's restore makes for naming the row it
+   * followed instead of appending.
+   */
+  it("puts a withdrawn comment back where it was said", async () => {
+    render(surface());
+    await ready();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Delete your comment" }),
+    );
+    await screen.findByText(/LC-1 comment deleted/);
+    fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
+    expect(editTicketMock.mock.calls[1][0]).toMatchObject({
+      edit: {
+        restoreComment: {
+          text: "Starting on this.",
+          occurredAt: "2026-07-30T11:58:00Z",
+        },
+      },
+    });
+  });
+
+  it("carries an edit back with the comment it was made on", async () => {
+    readTicketMock.mockResolvedValue(detail({ activity: [edited()] }));
+    render(surface());
+    await ready();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Delete your comment" }),
+    );
+    await screen.findByText(/LC-1 comment deleted/);
+    fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
+    expect(editTicketMock.mock.calls[1][0]).toMatchObject({
+      edit: { restoreComment: { editedAt: "2026-07-30T11:59:30Z" } },
+    });
+  });
+
+  it("says an edited comment was edited, beside its age", async () => {
+    readTicketMock.mockResolvedValue(detail({ activity: [edited()] }));
+    render(surface());
+    await ready();
+
+    expect(screen.getByText(/· edited$/)).toBeTruthy();
+  });
+
+  it("leaves an agent's comment alone", async () => {
+    readTicketMock.mockResolvedValue(
+      detail({
+        activity: [
+          {
+            id: "evt_said",
+            kind: "comment",
+            occurredAt: "2026-07-30T11:57:00Z",
+            actor: { type: "agent", id: "claude-code", name: "Claude Code" },
+            changes: [],
+            body: "### Claude Code commented\n\nPicked this up.",
+          },
+        ],
+      }),
+    );
+    render(surface());
+    await ready();
+
+    expect(screen.getByText("Picked this up.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /your comment/ })).toBeNull();
+  });
+
+  /**
+   * The banner, not a toast — a comment edit is refused for the same reason
+   * every other write is, and V0-29's argument does not stop at state.
+   */
+  it("raises the conflict banner when the file moved under it", async () => {
+    editTicketMock.mockRejectedValue({
+      code: "conflict",
+      message: "The file changed on disk",
+      recoverable: true,
+    });
+    render(surface());
+    await ready();
+
+    const field = openEditor();
+    fireEvent.change(field, { target: { value: "Started on this." } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await screen.findByRole("button", { name: /Keep mine/ });
+  });
+});

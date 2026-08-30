@@ -308,6 +308,15 @@ fn ticket_edit(arguments: &[String]) -> AppResult<Value> {
         restore_checklist_item: None,
         add_checklist_items: options.many("add-checklist"),
         comment: options.one("comment")?.map(str::to_owned),
+        // Not offered, for the reason `restore_checklist_item` is not: these
+        // three exist so the app's own gestures — the pencil, the cross, and
+        // the undo that takes it back — can be written (LC-241q). An agent
+        // that wants to say something else can say it in a new comment, which
+        // is what an append-only history is for; the core would refuse it any
+        // comment but its own in any case.
+        edit_comment: None,
+        remove_comment: None,
+        restore_comment: None,
     };
 
     // Read, then write against the hash that read saw. The gap between them is

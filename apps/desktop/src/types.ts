@@ -124,6 +124,15 @@ export interface ActivitySummary {
   id: string;
   kind: ActivityKind;
   occurredAt: string;
+  /**
+   * When a comment's words were last rewritten by their author, absent until
+   * they are (LC-241q). Only a comment carries one.
+   *
+   * It never replaces `occurredAt`, which is what the timeline sorts on: a
+   * comment that jumped to the end of the stream every time a typo was fixed
+   * would rearrange a conversation to report an edit to one line of it.
+   */
+  editedAt?: string;
   actor: Actor;
 }
 
@@ -322,6 +331,34 @@ export interface TicketEdit {
   restoreChecklistItem?: ChecklistRestore;
   addChecklistItems?: string[];
   comment?: string;
+  /** New words for one comment already in the history (LC-241q). */
+  editComment?: CommentTextEdit;
+  /** The comment to withdraw, by record id. Its words go into the change. */
+  removeComment?: string;
+  /** A withdrawn comment put back at the instant it was said, which undoes it. */
+  restoreComment?: CommentRestore;
+}
+
+/**
+ * New words for one comment, keyed by the record id that stays behind them: the
+ * entry keeps its place in the stream, its instant, and its author
+ * (`core/ticket.rs`, `CommentTextEdit`).
+ */
+export interface CommentTextEdit {
+  eventId: string;
+  text: string;
+}
+
+/**
+ * A withdrawn comment, put back. It carries the instant it was first said
+ * rather than an id — the id left with the record — and the instant is what the
+ * timeline orders on, so this puts the comment back into the conversation where
+ * it was rather than at the end of it (`core/ticket.rs`, `CommentRestore`).
+ */
+export interface CommentRestore {
+  text: string;
+  occurredAt: string;
+  editedAt?: string;
 }
 
 export interface EditTicketRequest {

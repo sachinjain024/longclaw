@@ -3343,6 +3343,75 @@ button:disabled {
   padding-left: calc(12px + var(--lc-space-2));
 }
 
+/* A comment's own pencil and cross (LC-241q), on the same terms `.row-actions`
+   sets for a checklist row: faded rather than hidden, so both stay reachable by
+   Tab and the heading does not change width when they appear. They take the
+   edge the meta would otherwise run to, so this carries `margin-left: auto` and
+   the meta sits before it. */
+.entry-actions {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity var(--lc-motion-fast) var(--lc-motion-ease);
+}
+
+.timeline-entry:hover .entry-actions,
+.timeline-entry:focus-within .entry-actions {
+  opacity: 1;
+}
+
+.entry-actions .row-edit,
+.entry-actions .row-remove {
+  display: inline-flex;
+  width: var(--lc-size-control-sm);
+  height: var(--lc-size-control-sm);
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--lc-ink-3);
+}
+
+.entry-actions .row-edit:hover,
+.entry-actions .row-edit:focus-visible,
+.entry-actions .row-remove:hover,
+.entry-actions .row-remove:focus-visible {
+  color: var(--lc-ink);
+}
+
+/* The comment being rewritten stands where the comment was, indented to the
+   same column its words were in — so the stream does not reflow around it and
+   the field lines up with the paragraph it replaced. */
+.comment-edit-form {
+  display: grid;
+  gap: var(--lc-space-1);
+  margin: var(--lc-space-1) 0 0;
+  padding-left: calc(var(--lc-size-avatar) + var(--lc-space-2));
+}
+
+.comment-edit-field {
+  width: 100%;
+  border: 1px solid var(--lc-line-strong);
+  border-radius: var(--lc-radius-control);
+  padding: var(--lc-space-1);
+  color: var(--lc-ink);
+  background: var(--lc-surface);
+  font-family: inherit;
+  font-size: var(--lc-type-ui-size);
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.comment-edit-field:focus {
+  border-color: var(--lc-accent-human);
+}
+
+.comment-edit-actions {
+  display: flex;
+  gap: var(--lc-space-1);
+}
+
 /* On screen before the file has it, and saying so rather than looking settled. */
 .timeline-entry.pending {
   opacity: 0.62;
