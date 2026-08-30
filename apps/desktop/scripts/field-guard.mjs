@@ -86,7 +86,7 @@ for (const [selector, prose] of Object.entries(FIELDS)) {
   }
 }
 
-/* Four facts about the cascade that no test in `verify` can see (LC-229).
+/* Six facts about the cascade that no test in `verify` can see (LC-229).
    Three are the borderless title's: it is spec'd as a field —
    `--lc-type-title`, hover `wash`, focus the field treatment
    (`screen-specs.md:224-225`) — and being borderless is what let it drift off
@@ -95,11 +95,19 @@ for (const [selector, prose] of Object.entries(FIELDS)) {
    existed. The fourth is the caret the whole field foundation asks for
    (`components.md:66`), which no field in the app had.
 
+   The last two are the *other* title's, the quick create modal's, which the
+   first pass left alone as a decision rather than a fix. It is a different
+   field on a different spec — `screen-specs.md:256` asks for a borderless 15px
+   title field, because that modal is one field and two menus and a box around
+   it is a frame around nothing — but borderless earns it the same blind
+   spot, and it had drifted off the prototype in the two ways below.
+
    These read the stylesheet rather than a render because each is a static fact
    about what the cascade resolves to. The geometry they produce is not static,
    and is not claimed here: what a probe measured once is recorded in the
    commit, not asserted every run. */
 const TITLE = ".panel-title";
+const QUICK_TITLE = ".quick-create-title";
 
 /**
  * Where a selector's rule sits in the file, `-1` when nothing declares it.
@@ -267,6 +275,102 @@ const CASCADE_CHECKS = [
       : `${without.join(" and ")} do(es) not set caret-color: ` +
           `var(--lc-accent-human) — the field foundation asks for a human-` +
           `accent caret and the OS default is ink`;
+  },
+
+  /* The quick create title's type: the size the spec states, the weight the
+     prototype draws, and the placeholder weight that follows from it.
+
+     The size is asked for first because it is the one number
+     `screen-specs.md:256` actually writes down — "Row 2: borderless 15px title
+     input" — and because 15px is not a step on any scale in this app. Every
+     other field here takes its size from a token, so this one reads as an
+     arbitrary number to anybody tidying up, and the tidy is to replace it with
+     the 13px of the field foundation (`components.md:59`). That would be a
+     silent revert of the spec's own figure.
+
+     Weight and the placeholder's are then a pair, for the padding/margin
+     pair's reason: neither states the design alone. The prototype draws the
+     field at 500 and the placeholder at 400 (`prototype.css:700-701`), and a
+     placeholder inherits the field's weight, so setting the first without the
+     second draws "Ticket title" in the same medium a typed title gets — an
+     empty modal wearing a filled one's type. */
+  () => {
+    const size = declaredValues(sheet, QUICK_TITLE, "font-size").at(-1);
+    if (size !== "15px") {
+      return (
+        `${QUICK_TITLE} declares font-size: ${size ?? "nothing"} — ` +
+        `screen-specs.md:256 asks for a borderless 15px title field, and 15px ` +
+        `is the only measurement that line states`
+      );
+    }
+    const weight = declaredValues(sheet, QUICK_TITLE, "font-weight").at(-1);
+    if (weight === undefined) {
+      return (
+        `${QUICK_TITLE} declares no font-weight — it inherits the body's 400 ` +
+        `where the prototype draws the modal's one field at 500 ` +
+        `(prototype.css:700)`
+      );
+    }
+    if (weight !== "500") {
+      return (
+        `${QUICK_TITLE} declares font-weight: ${weight} where the prototype ` +
+        `draws it at 500 (prototype.css:700)`
+      );
+    }
+    const placeholder = declaredValues(
+      sheet,
+      `${QUICK_TITLE}::placeholder`,
+      "font-weight",
+    ).at(-1);
+    return placeholder === "400"
+      ? null
+      : `${QUICK_TITLE}::placeholder declares font-weight: ` +
+          `${placeholder ?? "nothing"} — a placeholder inherits the field's ` +
+          `${weight}, so the empty modal draws its prompt in the weight a ` +
+          `typed title gets (prototype.css:701)`;
+  },
+
+  /* The shared focus rule rings every field and control in the app, and that
+     rule is right for every one of them that has a box. This one has none — no border and no
+     border-radius — so the ring resolves to a hard-cornered 3px rectangle
+     traced around a line of text with nothing under it, and the field
+     `autoFocus`es, which makes that the first thing the modal draws. The
+     prototype cancels it (`prototype.css:702`) and leaves focus to the accent
+     caret the shared rule also sets.
+
+     Borderless is checked first, because it is the premise and not a
+     decoration: cancelling the ring is only right while there is no box, and
+     the boxed field this modal deliberately does not have (`screen-specs.md:256`,
+     D-47) is a standing suggestion. A field that grew a border under a
+     cancelled ring would be the one field in the app with a visible edge and
+     no focus indicator at all — worse than the square this check was written
+     to remove, and silent. So the two are asked for together, the way the
+     title's padding and margin are.
+
+     `border: none` or `0`, spelled on the shorthand. `border-width: 0` says the
+     same thing and is refused: the narrow spelling fails red rather than green,
+     which is the safe direction for a premise.
+
+     Specificity settles the ring rather than source order — (0,2,0) against the
+     shared rule's (0,1,1) — so unlike the panel title's background there is no
+     position to hold still, and only the declaration is asked for. */
+  () => {
+    const border = declaredValues(sheet, QUICK_TITLE, "border").at(-1);
+    if (border !== "none" && border !== "0") {
+      return (
+        `${QUICK_TITLE} declares border: ${border ?? "nothing"} — the ring ` +
+        `this field cancels is cancelled on the premise that it has no box, ` +
+        `so a bordered one has a visible edge and no focus indicator at all`
+      );
+    }
+    const focus = `${QUICK_TITLE}:focus-visible`;
+    const shadow = declaredValues(sheet, focus, "box-shadow").at(-1);
+    return shadow === "none"
+      ? null
+      : `${focus} does not set box-shadow: none (it sets ` +
+          `${shadow ?? "nothing"}) — the shared focus rule rings every field ` +
+          `and control, and a borderless one with no radius takes that ring ` +
+          `as a square drawn around text with no box under it`;
   },
 ];
 
