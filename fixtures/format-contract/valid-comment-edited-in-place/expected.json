@@ -1,0 +1,27 @@
+{
+  "summary": "A comment may carry edited_at beside occurred_at; the stream still orders on occurred_at, so a reworded comment does not move.",
+  "key": "LC-31",
+  "outcome": "valid",
+  "ticket": {
+    "activity": [
+      {
+        "id": "evt_11111111",
+        "kind": "comment",
+        "occurredAt": "2026-07-29T01:00:00Z",
+        "editedAt": "2026-07-29T04:00:00Z",
+        "actorType": "human",
+        "actorId": "local",
+        "body": "### You commented\n\nThe words as they now read."
+      },
+      {
+        "id": "evt_22222222",
+        "kind": "comment",
+        "occurredAt": "2026-07-29T02:00:00Z",
+        "editedAt": null,
+        "actorType": "agent",
+        "actorId": "quiet-agent"
+      }
+    ],
+    "recordDiagnostics": []
+  }
+}

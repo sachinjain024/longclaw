@@ -493,6 +493,24 @@ describe("a comment's own controls", () => {
     expect(removed).toEqual(["evt_1"]);
   });
 
+  it("still says edited where the comment is drawn as one line", () => {
+    // The Activity tab leaves the words to the tab that is about words, but
+    // *that it was edited* is news either way — and the meta is where the age
+    // already is (`screen-specs.md:247`).
+    editable(
+      [
+        event({
+          kind: "comment",
+          editedAt: "2026-08-01T11:59:00Z",
+          body: "### You commented\n\nFirst draft.",
+        }),
+      ],
+      true,
+    );
+    expect(entry().textContent).toContain("edited");
+    expect(entry().textContent).not.toContain("First draft.");
+  });
+
   it("says a comment was edited, without moving it in the stream", () => {
     editable([
       event({

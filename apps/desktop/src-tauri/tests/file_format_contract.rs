@@ -115,6 +115,10 @@ struct ExpectedEvent {
     kind: String,
     #[serde(default)]
     occurred_at: Option<String>,
+    /// `null` asserts the record carries no `edited_at`, which is what every
+    /// entry but a reworded comment must read as (LC-241q).
+    #[serde(default, deserialize_with = "nullable")]
+    edited_at: Option<Option<String>>,
     actor_type: String,
     #[serde(default)]
     actor_id: Option<String>,
@@ -374,6 +378,9 @@ fn check_ticket(
             );
             if let Some(occurred_at) = &expected.occurred_at {
                 report.equal(name, "event occurredAt", &actual.occurred_at, occurred_at);
+            }
+            if let Some(edited_at) = &expected.edited_at {
+                report.equal(name, "event editedAt", &actual.edited_at, edited_at);
             }
             report.equal(
                 name,

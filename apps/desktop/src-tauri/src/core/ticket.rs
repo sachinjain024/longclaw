@@ -976,17 +976,20 @@ impl TicketDocument {
         // history did not move. These still reach the caller — a toast names
         // what it is offering to undo — they just do not reach the record.
         let mut comment_changes = Vec::new();
+        // What this same edit wrote into a comment, keyed by record id. `next`
+        // holds the new bytes but `next.ticket` is still the parse this edit
+        // started from, so a removal that follows a reword would otherwise
+        // record the words the reword had already replaced.
+        let mut reworded: Option<(&str, &str)> = None;
         if let Some(edited) = &edit.edit_comment {
             let text = comment_text(&edited.text)?;
             let event = own_comment(current, &edited.event_id, author)?;
             let was = event_prose(&event.body);
             if was != text {
                 if !next.set_comment_body(&edited.event_id, text, now) {
-                    return Err(Diagnostic::parse(format!(
-                        "Comment {} is not in this ticket",
-                        edited.event_id
-                    )));
+                    return Err(record_vanished(&edited.event_id));
                 }
+                reworded = Some((edited.event_id.as_str(), text));
                 comment_changes.push(FieldChange::new(
                     format!("comment.{}.edited", edited.event_id),
                     Some(was.to_owned()),
@@ -996,11 +999,13 @@ impl TicketDocument {
         }
         if let Some(event_id) = &edit.remove_comment {
             let event = own_comment(current, event_id, author)?;
-            let was = event_prose(&event.body).to_owned();
+            let was = match reworded {
+                Some((id, text)) if id == event_id => text,
+                _ => event_prose(&event.body),
+            }
+            .to_owned();
             if !next.remove_activity_record(event_id) {
-                return Err(Diagnostic::parse(format!(
-                    "Comment {event_id} is not in this ticket"
-                )));
+                return Err(record_vanished(event_id));
             }
             comment_changes.push(FieldChange::new(
                 format!("comment.{event_id}.removed"),
@@ -1010,12 +1015,7 @@ impl TicketDocument {
         }
         if let Some(restored) = &edit.restore_comment {
             let text = comment_text(&restored.text)?;
-            validate_timestamp("occurredAt", &restored.occurred_at)
-                .map_err(|error| Diagnostic::parse(error.message))?;
-            if let Some(edited_at) = &restored.edited_at {
-                validate_timestamp("editedAt", edited_at)
-                    .map_err(|error| Diagnostic::parse(error.message))?;
-            }
+            restorable(restored, now)?;
             next.append_activity(&render_event(
                 &EventKind::Comment,
                 &restored.occurred_at,
@@ -1422,15 +1422,7 @@ impl TicketDocument {
     ///
     /// Answers whether it found the record to rewrite.
     fn set_comment_body(&mut self, event_id: &str, text: &str, edited_at: &str) -> bool {
-        for chunk in self
-            .chunks
-            .iter_mut()
-            .filter(|chunk| chunk.role == Role::Activity)
-        {
-            let mut lines = chunk_lines(&chunk.raw);
-            let Some(span) = record_span(&lines, event_id) else {
-                continue;
-            };
+        self.rewrite_record(event_id, |lines, span| {
             let mut body = Vec::new();
             // The heading, if the record has one. `eventProse` on the frontend
             // makes the same cut from the other side.
@@ -1445,11 +1437,8 @@ impl TicketDocument {
                 body.push(format!("{line}\n"));
             }
             lines.splice(span.terminator + 1..span.close, body);
-            stamp_edited_at(&mut lines, span.open, span.terminator, edited_at);
-            chunk.raw = lines.concat();
-            return true;
-        }
-        false
+            stamp_edited_at(lines, span.open, span.terminator, edited_at);
+        })
     }
 
     /// Takes one activity record out of the file, whole.
@@ -1462,15 +1451,7 @@ impl TicketDocument {
     ///
     /// Answers whether it found the record to remove.
     fn remove_activity_record(&mut self, event_id: &str) -> bool {
-        for chunk in self
-            .chunks
-            .iter_mut()
-            .filter(|chunk| chunk.role == Role::Activity)
-        {
-            let mut lines = chunk_lines(&chunk.raw);
-            let Some(span) = record_span(&lines, event_id) else {
-                continue;
-            };
+        self.rewrite_record(event_id, |lines, span| {
             let mut from = span.open;
             let mut to = span.close + 1;
             if lines.get(to).is_some_and(|line| line.trim().is_empty()) {
@@ -1490,6 +1471,32 @@ impl TicketDocument {
                     }
                 }
             }
+        })
+    }
+
+    /// Finds the activity record `event_id` names and hands its lines to
+    /// `rewrite`, which edits them in place. Answers whether it found one.
+    ///
+    /// The two callers above are the only writers that reach inside a record
+    /// that is already on disk, and both need the same four steps around the
+    /// one that differs — pick the Activity chunks, split them into lines that
+    /// still carry their endings, locate the record, and put the lines back.
+    /// Only what happens between the third and the fourth is theirs.
+    fn rewrite_record(
+        &mut self,
+        event_id: &str,
+        rewrite: impl FnOnce(&mut Vec<String>, &RecordSpan),
+    ) -> bool {
+        for chunk in self
+            .chunks
+            .iter_mut()
+            .filter(|chunk| chunk.role == Role::Activity)
+        {
+            let mut lines = chunk_lines(&chunk.raw);
+            let Some(span) = record_span(&lines, event_id) else {
+                continue;
+            };
+            rewrite(&mut lines, &span);
             chunk.raw = lines.concat();
             return true;
         }
@@ -2043,7 +2050,7 @@ fn own_comment<'a>(
         .activity
         .iter()
         .find(|event| event.id == event_id)
-        .ok_or_else(|| Diagnostic::parse(format!("Comment {event_id} is not in this ticket")))?;
+        .ok_or_else(|| record_vanished(event_id))?;
     if !matches!(event.kind, EventKind::Comment) {
         return Err(Diagnostic::parse(format!(
             "Activity record {event_id} is not a comment. An entry reporting what \
@@ -2056,6 +2063,56 @@ fn own_comment<'a>(
         )));
     }
     Ok(event)
+}
+
+/// Whether a restore describes an instant a comment could actually have been
+/// said at.
+///
+/// This is the one field that puts a record into the *past*, so it is the one
+/// that could invent history. `file_format.md` is explicit that where the app
+/// did not observe something it "must not invent an actor, timestamp, or
+/// field-level historical detail", and the app's own caller does not — it
+/// replays a record it removed a moment ago. The checks are here so that stays
+/// true of every caller: a comment cannot be dated after the write restoring
+/// it, and cannot claim it was edited before it was written.
+///
+/// What is deliberately not checked is that a matching comment was ever
+/// withdrawn. One write cannot know what an earlier one removed, and a rule
+/// this function cannot enforce is worse than one it does not claim.
+fn restorable(restored: &CommentRestore, now: &str) -> Result<(), Diagnostic> {
+    validate_timestamp("occurredAt", &restored.occurred_at)
+        .map_err(|error| Diagnostic::parse(error.message))?;
+    if instant_of(&restored.occurred_at) > instant_of(now) {
+        return Err(Diagnostic::parse(
+            "A comment cannot be restored to an instant in the future",
+        ));
+    }
+    let Some(edited_at) = &restored.edited_at else {
+        return Ok(());
+    };
+    validate_timestamp("editedAt", edited_at).map_err(|error| Diagnostic::parse(error.message))?;
+    if instant_of(edited_at) < instant_of(&restored.occurred_at) {
+        return Err(Diagnostic::parse(
+            "A comment cannot have been edited before it was written",
+        ));
+    }
+    if instant_of(edited_at) > instant_of(now) {
+        return Err(Diagnostic::parse(
+            "A comment cannot have been edited in the future",
+        ));
+    }
+    Ok(())
+}
+
+/// The refusal for a record that was found and then could not be written to.
+///
+/// Unreachable through `apply`: `own_comment` and `rewrite_record` look in the
+/// same file for the same id, so a writer reaches this only if the two
+/// disagree. It is stated rather than unwrapped because a panic is the worst
+/// possible answer to "this file is shaped in a way I did not expect" — the
+/// write is refused, and the file is left exactly as it was.
+fn record_vanished(event_id: &str) -> Diagnostic {
+    Diagnostic::parse(format!("Comment {event_id} is not in this ticket"))
 }
 
 /// An activity record's body without the heading its author wrote — the same
@@ -3104,6 +3161,87 @@ mod tests {
         );
         let back = restored.ticket().last_activity().expect("the comment back");
         assert_eq!(back.edited_at.as_deref(), Some(NOW));
+    }
+
+    #[test]
+    fn a_restore_cannot_invent_an_instant_a_comment_was_never_said_at() {
+        // The one field that writes into the past, so the one that could
+        // fabricate history. The app's own caller replays a record it removed a
+        // moment ago; these hold for every other caller too.
+        for (restore, refusal) in [
+            (
+                CommentRestore {
+                    text: "From the future.".to_owned(),
+                    occurred_at: "2099-01-01T00:00:00Z".to_owned(),
+                    edited_at: None,
+                },
+                "instant in the future",
+            ),
+            (
+                CommentRestore {
+                    text: "Edited before it existed.".to_owned(),
+                    occurred_at: "2026-07-29T05:00:00Z".to_owned(),
+                    edited_at: Some("2026-07-29T04:00:00Z".to_owned()),
+                },
+                "edited before it was written",
+            ),
+            (
+                CommentRestore {
+                    text: "Edited in the future.".to_owned(),
+                    occurred_at: "2026-07-29T05:00:00Z".to_owned(),
+                    edited_at: Some("2099-01-01T00:00:00Z".to_owned()),
+                },
+                "edited in the future",
+            ),
+            (
+                CommentRestore {
+                    text: "Not a timestamp.".to_owned(),
+                    occurred_at: "yesterday".to_owned(),
+                    edited_at: None,
+                },
+                "occurredAt",
+            ),
+        ] {
+            let error = document()
+                .apply(
+                    &TicketEdit {
+                        restore_comment: Some(restore),
+                        ..TicketEdit::default()
+                    },
+                    NOW,
+                )
+                .expect_err("an invented instant");
+            assert!(error.message.contains(refusal), "{error}");
+        }
+    }
+
+    #[test]
+    fn a_reword_and_a_withdrawal_in_one_edit_record_the_words_that_actually_went() {
+        // Nothing sends both, and the contract fixture does. `next` holds the
+        // new bytes while `next.ticket()` is still the parse the edit started
+        // from, so the removal used to report the words the reword had already
+        // replaced.
+        let (document, id) = with_own_comment("Frist draft.");
+        let applied = document
+            .apply(
+                &TicketEdit {
+                    edit_comment: Some(CommentTextEdit {
+                        event_id: id.clone(),
+                        text: "First draft.".to_owned(),
+                    }),
+                    remove_comment: Some(id.clone()),
+                    ..TicketEdit::default()
+                },
+                NOW,
+            )
+            .expect("the edit should be accepted");
+        assert_eq!(applied.document.ticket().activity.len(), 1);
+        let removed = applied
+            .changes
+            .iter()
+            .find(|change| change.field == format!("comment.{id}.removed"))
+            .expect("the removal should be recorded");
+        assert_eq!(removed.from.as_deref(), Some("First draft."));
     }
 
     #[test]

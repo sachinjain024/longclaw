@@ -1006,10 +1006,20 @@ export function TicketPanel(props: TicketPanelProps) {
    * author. Rust refuses any comment but the writer's own, so the buttons the
    * timeline draws and the write it sends are answering the same question.
    */
+  /**
+   * The record a comment gesture names, and the words in it — the pair both
+   * gestures need before they can offer anything back. Absent when the panel
+   * cannot see the record, which is the case each caller declines to offer an
+   * undo for rather than guessing at.
+   */
+  function commentAt(eventId: string) {
+    const event = ticket?.activity.find((entry) => entry.id === eventId);
+    const text = eventProse(event?.body ?? "");
+    return event && text ? { event, text } : undefined;
+  }
+
   function editComment(eventId: string, text: string) {
-    const was = eventProse(
-      ticket?.activity.find((event) => event.id === eventId)?.body ?? "",
-    );
+    const was = commentAt(eventId)?.text;
     void save(
       { editComment: { eventId, text } },
       {
@@ -1036,8 +1046,7 @@ export function TicketPanel(props: TicketPanelProps) {
    * row is not held either.
    */
   function removeComment(eventId: string) {
-    const event = ticket?.activity.find((entry) => entry.id === eventId);
-    const text = eventProse(event?.body ?? "");
+    const found = commentAt(eventId);
     void save(
       { removeComment: eventId },
       {
@@ -1046,16 +1055,15 @@ export function TicketPanel(props: TicketPanelProps) {
         // cannot put back, so it says so by not offering — the removal still
         // happens, the same way a row with no addressable neighbour is still
         // removed.
-        inverse:
-          event && text
-            ? {
-                restoreComment: {
-                  text,
-                  occurredAt: event.occurredAt,
-                  editedAt: event.editedAt,
-                },
-              }
-            : undefined,
+        inverse: found
+          ? {
+              restoreComment: {
+                text: found.text,
+                occurredAt: found.event.occurredAt,
+                editedAt: found.event.editedAt,
+              },
+            }
+          : undefined,
         inverseToast: `${ticketKey} comment restored`,
       },
     );

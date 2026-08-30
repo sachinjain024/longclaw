@@ -3343,43 +3343,6 @@ button:disabled {
   padding-left: calc(12px + var(--lc-space-2));
 }
 
-/* A comment's own pencil and cross (LC-241q), on the same terms `.row-actions`
-   sets for a checklist row: faded rather than hidden, so both stay reachable by
-   Tab and the heading does not change width when they appear. They take the
-   edge the meta would otherwise run to, so this carries `margin-left: auto` and
-   the meta sits before it. */
-.entry-actions {
-  display: flex;
-  gap: 2px;
-  align-items: center;
-  margin-left: auto;
-  opacity: 0;
-  transition: opacity var(--lc-motion-fast) var(--lc-motion-ease);
-}
-
-.timeline-entry:hover .entry-actions,
-.timeline-entry:focus-within .entry-actions {
-  opacity: 1;
-}
-
-.entry-actions .row-edit,
-.entry-actions .row-remove {
-  display: inline-flex;
-  width: var(--lc-size-control-sm);
-  height: var(--lc-size-control-sm);
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  color: var(--lc-ink-3);
-}
-
-.entry-actions .row-edit:hover,
-.entry-actions .row-edit:focus-visible,
-.entry-actions .row-remove:hover,
-.entry-actions .row-remove:focus-visible {
-  color: var(--lc-ink);
-}
-
 /* The comment being rewritten stands where the comment was, indented to the
    same column its words were in — so the stream does not reflow around it and
    the field lines up with the paragraph it replaced. */
@@ -3401,10 +3364,6 @@ button:disabled {
   font-size: var(--lc-type-ui-size);
   line-height: 1.5;
   resize: vertical;
-}
-
-.comment-edit-field:focus {
-  border-color: var(--lc-accent-human);
 }
 
 .comment-edit-actions {
@@ -3658,7 +3617,12 @@ button:disabled {
    Faded rather than hidden, so both stay reachable by Tab and the row does not
    change width when they appear. The acknowledged note takes the same edge, so
    it is the note that keeps `margin-left: auto` and this sits after it. */
-.row-actions {
+/* `.entry-actions` is a comment's own pencil and cross (LC-241q). It is the
+   same treatment on the same terms — the only difference is which row has to be
+   hovered — so it shares the rules rather than restating them, and a change to
+   how a row's controls behave cannot reach one surface and miss the other. */
+.row-actions,
+.entry-actions {
   display: flex;
   gap: 2px;
   align-items: center;
@@ -3668,7 +3632,9 @@ button:disabled {
 }
 
 .checklist-row:hover .row-actions,
-.checklist-row:focus-within .row-actions {
+.checklist-row:focus-within .row-actions,
+.timeline-entry:hover .entry-actions,
+.timeline-entry:focus-within .entry-actions {
   opacity: 1;
 }
 
@@ -3677,7 +3643,9 @@ button:disabled {
 }
 
 .checklist-row .row-edit,
-.checklist-row .row-remove {
+.checklist-row .row-remove,
+.entry-actions .row-edit,
+.entry-actions .row-remove {
   display: inline-flex;
   width: var(--lc-size-control-sm);
   height: var(--lc-size-control-sm);
@@ -3690,7 +3658,11 @@ button:disabled {
 .checklist-row .row-edit:hover,
 .checklist-row .row-edit:focus-visible,
 .checklist-row .row-remove:hover,
-.checklist-row .row-remove:focus-visible {
+.checklist-row .row-remove:focus-visible,
+.entry-actions .row-edit:hover,
+.entry-actions .row-edit:focus-visible,
+.entry-actions .row-remove:hover,
+.entry-actions .row-remove:focus-visible {
   color: var(--lc-ink);
 }
 
@@ -3716,7 +3688,8 @@ button:disabled {
   font-size: var(--lc-type-ui-size);
 }
 
-.row-edit-field:focus {
+.row-edit-field:focus,
+.comment-edit-field:focus {
   border-color: var(--lc-accent-human);
 }
 
