@@ -124,6 +124,10 @@ export interface ActivitySummary {
   id: string;
   kind: ActivityKind;
   occurredAt: string;
+  actor: Actor;
+}
+
+export interface ActivityEvent extends ActivitySummary {
   /**
    * When a comment's words were last rewritten by their author, absent until
    * they are (LC-241q). Only a comment carries one.
@@ -131,12 +135,13 @@ export interface ActivitySummary {
    * It never replaces `occurredAt`, which is what the timeline sorts on: a
    * comment that jumped to the end of the stream every time a typo was fixed
    * would rearrange a conversation to report an edit to one line of it.
+   *
+   * Here rather than on the summary above, because `core/model.rs`'s
+   * `ActivitySummary` is four fields and this is not one of them: a board row's
+   * `lastActivity` can never carry it, and a type that offered it there would
+   * be describing a wire value that does not exist.
    */
   editedAt?: string;
-  actor: Actor;
-}
-
-export interface ActivityEvent extends ActivitySummary {
   changes: FieldChange[];
   body: string;
 }
