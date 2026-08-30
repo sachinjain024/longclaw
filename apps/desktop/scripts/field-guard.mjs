@@ -277,13 +277,32 @@ const CASCADE_CHECKS = [
           `accent caret and the OS default is ink`;
   },
 
-  /* The quick create title's weight, and its placeholder's, which are a pair
-     for the padding/margin pair's reason: neither states the design alone. The
-     prototype draws the field at 500 and the placeholder at 400
-     (`prototype.css:700-701`). A placeholder inherits the field's weight, so
-     setting the first without the second draws "Ticket title" in the same
-     medium a typed title gets — an empty modal wearing a filled one's type. */
+  /* The quick create title's type: the size the spec states, the weight the
+     prototype draws, and the placeholder weight that follows from it.
+
+     The size is asked for first because it is the one number
+     `screen-specs.md:256` actually writes down — "Row 2: borderless 15px title
+     input" — and because 15px is not a step on any scale in this app. Every
+     other field here takes its size from a token, so this one reads as an
+     arbitrary number to anybody tidying up, and the tidy is to replace it with
+     the 13px of the field foundation (`components.md:59`). That would be a
+     silent revert of the spec's own figure.
+
+     Weight and the placeholder's are then a pair, for the padding/margin
+     pair's reason: neither states the design alone. The prototype draws the
+     field at 500 and the placeholder at 400 (`prototype.css:700-701`), and a
+     placeholder inherits the field's weight, so setting the first without the
+     second draws "Ticket title" in the same medium a typed title gets — an
+     empty modal wearing a filled one's type. */
   () => {
+    const size = declaredValues(sheet, QUICK_TITLE, "font-size").at(-1);
+    if (size !== "15px") {
+      return (
+        `${QUICK_TITLE} declares font-size: ${size ?? "nothing"} — ` +
+        `screen-specs.md:256 asks for a borderless 15px title field, and 15px ` +
+        `is the only measurement that line states`
+      );
+    }
     const weight = declaredValues(sheet, QUICK_TITLE, "font-weight").at(-1);
     if (weight === undefined) {
       return (

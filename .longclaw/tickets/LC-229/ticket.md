@@ -110,6 +110,14 @@ field-guard grew two cascade assertions, and a second commit made the ring's ass
 Gate: every guard, format, lint, typecheck, vite build, Rust suite and native watcher green; a11y:audit A1-A5 pass; matrix 8 axes x 12 states clean. `npm run test`'s jsdom suite is flaky in this environment independently of this change — with the change stashed it failed the same 2 of 333 on the same files, on different tests each run, all 5000ms timeouts. `styles.css` reaches that suite only through `main.tsx`, which no test renders.
 
 Still parked, still a decision rather than a fix:
-- `components.md:70-71`'s invalid state. An empty title reverts silently on blur in both the panel and this modal. Behaviour, not style.
+- `components.md:70-71`'s invalid state ("never colour-only (icon + text)"). Neither field states it, but they fail differently and an earlier draft of this entry got the modal wrong: the panel's title reverts silently on blur, while quick create has no `onBlur` at all and instead disables **Create** on an empty title (`QuickCreate.tsx:152,328`). Disabled-with-no-reason is the colour-only failure that line names. Behaviour, not style, in both.
 - The panel title renders in the display face where the prototype used the UI face. Pre-existing and consistent with h1.
+
+One thing this change decides rather than parks, and it should be on the record as an exception rather than left to be rediscovered as a defect:
+
+`keyboard-focus-map.md:16-17` states the invariant as "Focus is visible, human-accent, and never lost. Keyboard focus = `--lc-focus-ring` + 1px `accent-human` border", and `components.md:65` says the same for a field. This field now has neither: the ring is cancelled here, and `border: none` makes the shared rule's `border-color: accent-human` inert. It keeps the third clause of that sentence alone — the accent caret (`components.md:66`).
+
+That is the prototype's own behaviour (`prototype.css:702`) and it is what the founder chose, so it is not a defect; a blinking accent caret is a real focus indicator in a text field, and WCAG treats the text cursor as one. But it is the only `box-shadow: none` focus cancellation in the stylesheet, and `.panel-title` — the same ticket, also borderless — keeps its ring, so the two titles now answer the same question differently.
+
+Two things follow. Neither doc records the carve-out, and no `a11y:audit` row asserts that a focused field paints a ring — A3 checks that focus "paints something" on a card and on a panel control, not here — so the A1-A5 pass quoted above is not evidence about this field either way. Worth a decision: either record the exception in `keyboard-focus-map.md` beside the invariant, or grow an A3 row that asserts the caret is the indicator here.
 <!-- /longclaw:event -->
