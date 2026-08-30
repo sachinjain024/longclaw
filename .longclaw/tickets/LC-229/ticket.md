@@ -3,12 +3,12 @@ format: longclaw.ticket/v1
 id: 3e39bb56-ceaf-4410-82f9-3a03513e9439
 key: LC-229
 title: Is Ticket Title input following the right input style as per design system?
-status: in_review
+status: done
 priority: urgent
 labels:
   - release
 created_at: 2026-08-22T06:46:07.140Z
-updated_at: 2026-08-24T15:18:58.423Z
+updated_at: 2026-08-30T07:24:59.186Z
 ---
 
 Filed by the founder in the app on 2026-08-22 at 06:12:40 UTC, originally allocated LC-226.
@@ -120,4 +120,20 @@ One thing this change decides rather than parks, and it should be on the record 
 That is the prototype's own behaviour (`prototype.css:702`) and it is what the founder chose, so it is not a defect; a blinking accent caret is a real focus indicator in a text field, and WCAG treats the text cursor as one. But it is the only `box-shadow: none` focus cancellation in the stylesheet, and `.panel-title` — the same ticket, also borderless — keeps its ring, so the two titles now answer the same question differently.
 
 Two things follow. Neither doc records the carve-out, and no `a11y:audit` row asserts that a focused field paints a ring — A3 checks that focus "paints something" on a card and on a panel control, not here — so the A1-A5 pass quoted above is not evidence about this field either way. Worth a decision: either record the exception in `keyboard-focus-map.md` beside the invariant, or grow an A3 row that asserts the caret is the indicator here.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_b60634d5
+kind: update
+occurred_at: 2026-08-30T07:24:59.186Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->
