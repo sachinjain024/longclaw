@@ -89,10 +89,11 @@ export const PROJECT_CHORD_COUNT = 9;
  * convention wrong.
  *
  * `0` is not in the range: there is no zeroth row, and a chord that quietly
- * rounded to the first would be worse than one that does nothing. The pattern's
- * upper bound is `PROJECT_CHORD_COUNT` written the one way a regex can say it,
- * and `keyContext.test.ts` reads the constant to check the range it accepts, so
- * the two cannot part company without the gate going red.
+ * rounded to the first would be worse than one that does nothing.
+ *
+ * The pattern and `PROJECT_CHORD_COUNT` are two statements of one bound — a
+ * regex cannot read the constant — so `keyContext.test.ts` compares the set
+ * this accepts against the constant rather than trusting them to agree.
  */
 const CHORD_DIGIT = /^[1-9]$/;
 

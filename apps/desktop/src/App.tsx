@@ -561,15 +561,24 @@ export function App() {
   );
 
   async function loadProject(projectId: string) {
-    const knownProject = useLongClawStore
-      .getState()
-      .projects.find((project) => project.id === projectId);
+    // Both fields off one read of the store, rather than the projects from the
+    // store and the active id from whichever render's closure the caller is
+    // holding. The global key listener is the caller that made the difference
+    // matter: it is installed by an effect that does not list this function,
+    // and stayed correct only because `project` happens to track the active id
+    // for it (LC-230). An invariant that holds by coincidence is the shape the
+    // note under that dep array records going wrong once already.
+    const { projects: knownProjects, activeProjectId: activeNow } =
+      useLongClawStore.getState();
+    const knownProject = knownProjects.find(
+      (project) => project.id === projectId,
+    );
     // A ticket panel is open on a key, and a key belongs to one project. Left
     // open across a switch it re-aims at the new project and asks it for a
     // ticket that was never in it, which is the second half of LC-188. A
     // relocate and a rename both re-load the project they are already on, so
     // this is a switch and not every load.
-    if (projectId !== activeProjectId) {
+    if (projectId !== activeNow) {
       closeTicket();
       setPaletteTicketKey(undefined);
     }
@@ -773,7 +782,7 @@ export function App() {
     setPaletteSearchResults(undefined);
   }
 
-  /** Dismiss plus the focus return the map owes an ordinary close (`:148`). */
+  /** Dismiss plus the focus return the map owes an ordinary close (`:149`). */
   function closePalette() {
     dismissPalette();
     requestAnimationFrame(() => paletteReturnFocus.current?.focus());

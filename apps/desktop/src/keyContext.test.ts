@@ -88,17 +88,25 @@ describe("the project chord's digit", () => {
     chordDigit(new KeyboardEvent("keydown", init));
 
   /**
-   * Read off the constant rather than a literal `9`, because the constant is
-   * what the sidebar badges with — this is the check that keeps the pattern's
-   * upper bound and `PROJECT_CHORD_COUNT` from parting company.
+   * The set the pattern accepts, read against the constant the sidebar badges
+   * with — this is what keeps those two from parting company.
+   *
+   * It asks every digit key there is rather than probing
+   * `PROJECT_CHORD_COUNT + 1`, which proves nothing at 9: `"10"` is two
+   * characters and would be refused for its length whatever the range said.
+   * Comparing the whole accepted set fails in both directions — a pattern that
+   * stopped at 8, or a constant that claimed 8 while the pattern took 9.
    */
-  it("accepts exactly 1 through PROJECT_CHORD_COUNT", () => {
-    for (let digit = 1; digit <= PROJECT_CHORD_COUNT; digit += 1) {
-      expect(press({ key: String(digit), metaKey: true })).toBe(digit);
-    }
-    expect(
-      press({ key: String(PROJECT_CHORD_COUNT + 1), metaKey: true }),
-    ).toBeUndefined();
+  it("accepts exactly the digits 1 through PROJECT_CHORD_COUNT", () => {
+    const accepted = "0123456789"
+      .split("")
+      .filter((key) => press({ key, metaKey: true }) !== undefined);
+
+    expect(accepted).toEqual(
+      Array.from({ length: PROJECT_CHORD_COUNT }, (_, index) =>
+        String(index + 1),
+      ),
+    );
   });
 
   /** `⌘` or `Ctrl` alike, the same convention `isChord` reads (plan 24). */
