@@ -246,12 +246,18 @@ describe("nothing here claims the file exists yet", () => {
     // A real Tab stop, like the panel's own box (LC-185): WebKit skips a
     // checkbox on a default Mac, so a box without this is pointer-only.
     expect(box.getAttribute("tabindex")).toBe("0");
-    expect(box.getAttribute("aria-label")).toBe(
-      "Done Let an agent read this ticket",
-    );
+    // Named by its row, through the wrapping label — the panel's box takes its
+    // name the same way, so there is one vocabulary for this control.
+    expect(box.getAttribute("aria-label")).toBeNull();
+    expect(
+      screen.getByRole("checkbox", { name: "Let an agent read this ticket" }),
+    ).toBe(box);
 
     fireEvent.click(box);
     expect(box.checked).toBe(true);
+    // The drawn half of the state (`components.md:218`), which the row carries
+    // and the box alone cannot show.
+    expect(box.closest("li")!.classList.contains("checked")).toBe(true);
 
     expect(
       screen.getByRole("button", {
@@ -274,7 +280,7 @@ describe("nothing here claims the file exists yet", () => {
     addChecklistItem("Parse");
     addChecklistItem("Write");
 
-    fireEvent.click(screen.getByRole("checkbox", { name: "Done Parse" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Parse" }));
     fireEvent.click(screen.getByText("Create ticket"));
 
     expect(onCreate).toHaveBeenCalledWith(
@@ -301,7 +307,7 @@ describe("nothing here claims the file exists yet", () => {
     addChecklistItem("Parse");
     addChecklistItem("Write");
 
-    fireEvent.click(screen.getByRole("checkbox", { name: "Done Parse" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Parse" }));
 
     // Reword the ticked row.
     fireEvent.click(screen.getByRole("button", { name: "Edit Parse" }));
@@ -310,7 +316,7 @@ describe("nothing here claims the file exists yet", () => {
     fireEvent.submit(field.closest("form")!);
     expect(
       screen.getByRole<HTMLInputElement>("checkbox", {
-        name: "Done Parse the file",
+        name: "Parse the file",
       }).checked,
     ).toBe(true);
 
@@ -552,11 +558,10 @@ describe("nothing here claims the file exists yet", () => {
 
   /**
    * D-4D (LC-119). The prototype draws no counter in create mode at any length,
-   * and that is what settled the row. LC-242h retired the second argument it
-   * carried — draft items are no longer all open by construction, so the
-   * numerator can move — without disturbing the first: `0/0` was a count of
-   * nothing that read as a checklist left unfinished, and every row a fraction
-   * would count is on screen a few pixels below with its box beside it.
+   * and that cell is what settled the row. LC-242h retired the second argument
+   * D-4D offered alongside it — draft items are no longer all open by
+   * construction, so the numerator does move — and the row stands on the
+   * prototype cell alone. Ticking a box here still draws no fraction.
    */
   it("shows no checklist fraction, however many items are drafted or ticked", () => {
     render(createPanel());
@@ -567,7 +572,7 @@ describe("nothing here claims the file exists yet", () => {
     addChecklistItem("Let an agent read this ticket");
     addChecklistItem("Review what it changed");
     fireEvent.click(
-      screen.getByRole("checkbox", { name: "Done Review what it changed" }),
+      screen.getByRole("checkbox", { name: "Review what it changed" }),
     );
 
     expect(section.querySelector(".section-count")).toBeNull();

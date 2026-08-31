@@ -347,12 +347,11 @@ export function CreatePanel(props: CreatePanelProps) {
 
       <section className="panel-section">
         {/* Still no fraction here, at any length (D-4D, `prototype.js:889`).
-            The prototype draws none in create mode and that is what the row was
-            settled on; what has changed is only the second argument it offered.
-            Draft items are no longer all open by construction (LC-242h), so the
-            numerator can move now — but every row it would count is on screen a
-            few pixels below, boxes and all, which is the case the panel's own
-            count does not have. */}
+            The prototype draws none in create mode, and that cell is what
+            settled the row. The second argument D-4D offered alongside it is
+            retired: draft items are no longer all open by construction
+            (LC-242h), so the numerator does move. Adding a counter here would
+            be reopening a decision this ticket did not ask about. */}
         <h3>Checklist</h3>
         <ul
           className="checklist"
@@ -380,6 +379,11 @@ export function CreatePanel(props: CreatePanelProps) {
                 reorderable && "draggable",
                 index === dragRow && "dragging",
                 dropEdge(index, checklist.length, dropGap),
+                // The drawn half of a tick (`components.md:218`): ink-3 and a
+                // line through the text. The panel's rows have carried it
+                // since LC-185, and a box that moved while the row it belongs
+                // to did not would be half a state on screen.
+                item.checked && "checked",
               )}
               key={index}
               data-row-index={index}
@@ -407,9 +411,12 @@ export function CreatePanel(props: CreatePanelProps) {
                       // reach is a box only a mouse can tick.
                       tabIndex={0}
                       checked={item.checked}
-                      // Named for its row, like the two buttons beside it: six
-                      // rows of "Done" says nothing about which one was reached.
-                      aria-label={`Done ${item.text}`}
+                      // No `aria-label`: the wrapping label holds the row's
+                      // text, which is what names the panel's own box too
+                      // (`TicketPanel.tsx`). A second name for the same control
+                      // in the second surface would be two vocabularies for one
+                      // gesture, which is what quick create refused for
+                      // priority.
                       onChange={(event) =>
                         toggleRow(index, event.target.checked)
                       }

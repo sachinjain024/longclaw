@@ -35,7 +35,10 @@ fn the_create_request_the_full_create_surface_sends() {
     // Both halves of a row cross the wire (LC-242h): a create filed over work
     // already half done says which half, and a list of strings could not.
     assert_eq!(request.ticket.checklist.len(), 2);
-    assert_eq!(request.ticket.checklist[0].text, "Let an agent read this ticket");
+    assert_eq!(
+        request.ticket.checklist[0].text,
+        "Let an agent read this ticket"
+    );
     assert!(request.ticket.checklist[0].checked);
     assert!(!request.ticket.checklist[1].checked);
 }

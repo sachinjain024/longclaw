@@ -413,7 +413,7 @@ pub struct ChecklistToggle {
 /// There is no id here. Ids are minted by the render, which is the one place
 /// that can promise they are unique in the file — a draft row has nothing to be
 /// named by yet, which is also why the create panel keys its rows by position.
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct NewChecklistItem {
     pub text: String,
@@ -1414,7 +1414,11 @@ pub fn render_new_ticket(
 /// row to describe: every item comes out open. [`render_new_ticket_as`] is where
 /// a create that does carry ticks goes (LC-242h).
 fn all_open(checklist: &[String]) -> Vec<NewChecklistItem> {
-    checklist.iter().cloned().map(NewChecklistItem::open).collect()
+    checklist
+        .iter()
+        .cloned()
+        .map(NewChecklistItem::open)
+        .collect()
 }
 
 /// The app's own create, attributed to the local human actor (ADR 0001).
