@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 78898c9d-b123-47bb-970d-86f761c0a54b
 key: LC-230
 title: ⌘1…⌘9 switches to the nth project
-status: in_review
+status: todo
 priority: none
 labels:
   - frontend
   - design
 created_at: 2026-08-24T23:01:51.163Z
-updated_at: 2026-08-31T13:49:16.022Z
+updated_at: 2026-08-31T23:10:42.632Z
 ---
 
 Switching projects is pointer-only today: the sidebar row, or the palette. Give
@@ -224,4 +224,48 @@ restored.
 
 Final state: `npm run verify` green with 1105 frontend tests over 43 files,
 166 Rust, `citation-guard` at 496 citations. `npm run a11y:audit` green, A1-A5.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_f0e2c9e8
+kind: update
+occurred_at: 2026-08-31T23:10:42.632Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_review
+    to: todo
+-->
+### Claude Code updated this ticket
+
+## UX feedback after the merge
+
+From Sachin, on the shipped behaviour (merged as #18, `8470048`):
+
+1. **The `⌘n` badge belongs on the left**, immediately after the coloured theme
+   dot, rather than at the right-hand end of the row.
+2. **Starred rows should carry the same badge as their Local row.** If `⌘6`
+   appears against Project P1 under Local, the Starred section should show `⌘6`
+   against it too — a Starred entry is the same row pinned to the top, not a
+   separate one.
+
+**This reverses two decisions written into this ticket's own spec**, and is
+recorded here so the two do not silently disagree. The spec says "Each of the
+first nine Local rows shows its number beside the project name" and, above it,
+"A starred project appears twice in the sidebar but carries one number and only
+one: its Local row's. The Starred section shows no badges." Checklist item 3
+states the same thing as an acceptance condition. That reading treated Starred
+as a second list to be counted; the feedback's reading is that it is one row
+drawn twice, which is also what `sortedProjects(projects.filter(starred))`
+actually builds it from.
+
+The number itself does not change under either reading — it stays the row's
+place in the Local list, which is the whole registry in draw order — so the
+chord, and `keyboard-focus-map.md:34`, are unaffected. What changes is which
+rows are allowed to show it, and where on the row it sits.
+
+Re-opened to `todo` for that work.
 <!-- /longclaw:event -->

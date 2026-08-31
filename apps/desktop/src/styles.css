@@ -255,8 +255,11 @@ textarea:focus-visible,
   line-height: 1;
 }
 
-/* The `⌘n` chord, on the first nine Local rows (LC-230), so the key is legible
-   where it is used and not only in settings.
+/* The `⌘n` chord, on the rows that have one (LC-230), so the key is legible
+   where it is used and not only in settings. It sits between the dot and the
+   name rather than at the row's end: the name is the one thing on the row whose
+   width is not fixed, so behind it the badges landed at nine different offsets,
+   and in front of it they line up into a column the eye can run down.
 
    Anatomy from `.kbd-chip` minus its box: nine bordered chips down a 240px
    sidebar would read as a column of controls beside a column of names, and the
@@ -268,7 +271,9 @@ textarea:focus-visible,
    than folding it into the shared base and retuning every chip that ships.
 
    `flex: none` beside a `strong` that is `flex: 1; min-width: 0`, so the badge
-   takes its width from the name and the name goes on truncating into it. */
+   takes its width from the name and the name goes on truncating into it —
+   which is true on either side of it, the name being the only thing that
+   gives. */
 .project-number {
   flex: none;
   color: var(--lc-ink-3);

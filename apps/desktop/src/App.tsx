@@ -559,6 +559,25 @@ export function App() {
     () => sortedProjects(projects.filter((candidate) => candidate.starred)),
     [projects],
   );
+  /**
+   * Which project each `⌘n` reaches, keyed by id rather than by position
+   * (LC-230). The number is the row's place in **Local**, which is the whole
+   * registry in draw order, and Starred is that same row pinned to the top
+   * rather than a second list — so it is looked up, not counted again, and a
+   * project shows one number wherever it is drawn.
+   *
+   * Keying by id is also what keeps the badge and the chord honest: both read
+   * this, so a row cannot advertise a key that lands somewhere else.
+   */
+  const projectChords = useMemo(
+    () =>
+      new Map(
+        localProjects
+          .slice(0, PROJECT_CHORD_COUNT)
+          .map((project, index) => [project.id, index + 1] as const),
+      ),
+    [localProjects],
+  );
 
   async function loadProject(projectId: string) {
     // Both fields off one read of the store, rather than the projects from the
@@ -1835,6 +1854,7 @@ export function App() {
           <ProjectSection
             title="Starred"
             empty="No starred projects"
+            chords={projectChords}
             projects={starredProjects}
             activeProjectId={activeProjectId}
             onOpen={(id) => void loadProject(id)}
@@ -1847,7 +1867,7 @@ export function App() {
           <ProjectSection
             title="Local"
             empty="No local projects"
-            numbered
+            chords={projectChords}
             projects={localProjects}
             activeProjectId={activeProjectId}
             onOpen={(id) => void loadProject(id)}
@@ -2509,20 +2529,6 @@ function PathChip(props: { path: string; homePath: string | null }) {
   );
 }
 
-/**
- * Whether this row gets a `⌘n` chord: the first `PROJECT_CHORD_COUNT` of a
- * numbered section (LC-230). The row after them and everything under it are
- * plain — the chords run out, and a badge for a key that does not exist is
- * worse than no badge. The bound is `keyContext`'s rather than a `9` written
- * here, so the badges and the keys that answer them cannot disagree.
- *
- * One predicate for the badge and for `aria-keyshortcuts`, so those two cannot
- * come apart either and announce a key the row does not show.
- */
-function chordFor(numbered: boolean | undefined, index: number): boolean {
-  return numbered === true && index < PROJECT_CHORD_COUNT;
-}
-
 function ProjectSection(props: {
   title: string;
   empty: string;
@@ -2536,12 +2542,11 @@ function ProjectSection(props: {
   /** Which row's menu is up, so its `⋮` can hold the pressed state. */
   menuFor?: string;
   /**
-   * Whether this section's rows carry the `⌘n` badge (LC-230). Only **Local**
-   * does: it is the list the chord counts, and it lists every project exactly
-   * once. Starred is a second view of some of those same rows, so numbering it
-   * too would give a starred project two numbers, one of them wrong.
+   * Each project's `⌘n`, by id, for the rows that have one (LC-230). Both
+   * sections are handed the same map: a Starred row is the same project pinned
+   * to the top, so it shows the same key rather than none.
    */
-  numbered?: boolean;
+  chords: ReadonlyMap<string, number>;
 }) {
   return (
     <section className="project-section">
@@ -2549,7 +2554,7 @@ function ProjectSection(props: {
       {props.projects.length === 0 ? (
         <p>{props.empty}</p>
       ) : (
-        props.projects.map((project, index) => (
+        props.projects.map((project) => (
           /* Two buttons side by side, not one inside the other. The star used
              to be a span carrying `role="button"` *inside* the row's own
              button — interactive content nested in a button, which is invalid
@@ -2571,12 +2576,12 @@ function ProjectSection(props: {
                 !project.reachable && "unreachable",
               )}
               // What actually announces the chord (`GuideCard.tsx`, LC-71).
-              // The badge below is decoration, because a glyph inside the row's
-              // own button lands in its accessible name and the row announces
+              // The badge is decoration, because a glyph inside the row's own
+              // button lands in its accessible name and the row announces
               // itself twice (LC-208).
               aria-keyshortcuts={
-                chordFor(props.numbered, index)
-                  ? `Meta+${index + 1}`
+                props.chords.has(project.id)
+                  ? `Meta+${props.chords.get(project.id)}`
                   : undefined
               }
               // The path is the row's whole subject and does not fit on it; the
@@ -2605,6 +2610,20 @@ function ProjectSection(props: {
                   <span className="visually-hidden">Unreachable</span>
                 </>
               )}
+              {/* The chord, beside the dot rather than at the row's end: it
+                  belongs to the row as a whole, and read down the sidebar the
+                  nine of them line up into a column you can scan (LC-230's UX
+                  round). At the end they sat behind a name of any length, which
+                  is the one thing on the row whose width is not fixed.
+
+                  Decorative: `aria-keyshortcuts` above is the channel that
+                  reaches a screen reader, and this would otherwise read out as
+                  part of the project's name. */}
+              {props.chords.has(project.id) && (
+                <span className="project-number" aria-hidden="true">
+                  ⌘{props.chords.get(project.id)}
+                </span>
+              )}
               <strong>{project.name}</strong>
               {/* The star is a mark now, not a control (LC-208). It was a
                   `★`/`☆` toggle whose only name was the glyph, which says the
@@ -2619,15 +2638,6 @@ function ProjectSection(props: {
                       `Unreachable` uses — real text, because an `aria-label` on
                       a bare span is not reliably exposed. */}
                   <span className="visually-hidden">Starred</span>
-                </span>
-              )}
-              {/* The chord, shown where it is used rather than only in
-                  settings (LC-230). Decorative: `aria-keyshortcuts` above is
-                  the channel that reaches a screen reader, and this box would
-                  otherwise read out as part of the project's name. */}
-              {chordFor(props.numbered, index) && (
-                <span className="project-number" aria-hidden="true">
-                  ⌘{index + 1}
                 </span>
               )}
             </button>

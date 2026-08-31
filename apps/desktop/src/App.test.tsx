@@ -6221,7 +6221,7 @@ describe("switching project by chord (LC-230)", () => {
     expect(api.openProject).not.toHaveBeenCalled();
   });
 
-  it("badges the first nine Local rows and nothing else", async () => {
+  it("badges the first nine Local rows, and the tenth not at all", async () => {
     await openRegistry();
 
     expect(badges("Local")).toEqual([
@@ -6235,16 +6235,46 @@ describe("switching project by chord (LC-230)", () => {
       "⌘8",
       "⌘9",
     ]);
-    // The tenth row is plain, and Starred is a second view rather than a
-    // second list — Project 03 is numbered once, on its Local row.
-    expect(badges("Starred")).toEqual([]);
-    // The star is said in words on the row, so the Starred view's copy of
-    // Project 03 answers to that name — and to no chord.
+  });
+
+  /**
+   * A Starred row is the same project pinned to the top, not a second one, so
+   * it shows the same key rather than none. Project 03 is third in Local and
+   * is the starred one, so `⌘3` is what has to appear in both places — the
+   * number is looked up by project rather than counted per section, which is
+   * why the Starred row cannot say `⌘1` for being first in its own list.
+   */
+  it("shows a starred project the same badge in both sections", async () => {
+    await openRegistry();
+
+    expect(badges("Starred")).toEqual(["⌘3"]);
+    expect(badges("Local")[2]).toBe("⌘3");
+
+    // The star is said in words on the row, so the Starred copy answers to
+    // that name — and it claims the same key as its Local row.
     expect(
-      within(section("Starred")).getByRole("button", {
-        name: "Project 03Starred",
-      }),
-    ).toBeTruthy();
+      within(section("Starred"))
+        .getByRole("button", { name: "Project 03Starred" })
+        .getAttribute("aria-keyshortcuts"),
+    ).toBe("Meta+3");
+  });
+
+  /**
+   * Beside the dot, before the name (LC-230's UX round). At the row's end the
+   * badge sat behind the one element whose width is not fixed, so where it
+   * landed depended on the project's name.
+   */
+  it("draws the badge between the dot and the name", async () => {
+    await openRegistry();
+
+    const row = within(section("Local")).getByRole("button", {
+      name: "Project 01",
+    });
+    const order = [...row.children].map((child) => child.className);
+
+    expect(order[0]).toContain("theme-dot");
+    expect(order[1]).toContain("project-number");
+    expect(row.children[2].tagName).toBe("STRONG");
   });
 
   /**
@@ -6263,11 +6293,11 @@ describe("switching project by chord (LC-230)", () => {
     expect(
       row.querySelector(".project-number")?.getAttribute("aria-hidden"),
     ).toBe("true");
-    // The tenth row claims no key at all.
-    expect(
-      within(section("Local"))
-        .getByRole("button", { name: "Project 10" })
-        .hasAttribute("aria-keyshortcuts"),
-    ).toBe(false);
+    // The tenth row claims no key at all, and shows none.
+    const tenth = within(section("Local")).getByRole("button", {
+      name: "Project 10",
+    });
+    expect(tenth.hasAttribute("aria-keyshortcuts")).toBe(false);
+    expect(tenth.querySelector(".project-number")).toBeNull();
   });
 });
