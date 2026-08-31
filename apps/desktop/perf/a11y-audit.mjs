@@ -198,7 +198,7 @@ async function auditLifecycle(browser) {
       "the board takes focus from the keyboard",
       entry.found && isCard(entry.at),
       `${entry.presses} Tab presses, then ArrowDown → ${entry.at.ticketKey ?? entry.at.tag}`,
-      "keyboard-focus-map.md:39 — arrows move focus within the column",
+      "keyboard-focus-map.md:40 — arrows move focus within the column",
     );
 
     // Create (§ Global `C`, § Quick create `Enter`).
@@ -222,7 +222,7 @@ async function auditLifecycle(browser) {
       "`Enter` creates the ticket and focus moves to the new card",
       createdKey !== undefined,
       `focus=${createdKey ?? (afterCreate.className || afterCreate.tag)}`,
-      "keyboard-focus-map.md:131,164 — focus moves to the new card",
+      "keyboard-focus-map.md:132,164 — focus moves to the new card",
     );
 
     // Find (§ Global `⌘F`, and the filter's rung of the `Esc` ladder).
@@ -259,7 +259,7 @@ async function auditLifecycle(browser) {
       "`Enter` opens the focused ticket in the panel",
       await visible(page, ".ticket-panel"),
       `opened from ${onCard.at.ticketKey}`,
-      "keyboard-focus-map.md:41",
+      "keyboard-focus-map.md:42",
     );
 
     // Edit (§ Ticket panel `Tab`, § Description editor `⌘↵`).
@@ -270,7 +270,7 @@ async function auditLifecycle(browser) {
       "the description editor is reachable by Tab inside the panel",
       toEdit.found,
       `${toEdit.presses} presses`,
-      "keyboard-focus-map.md:61",
+      "keyboard-focus-map.md:62",
     );
     if (toEdit.found) {
       await page.keyboard.press("Enter");
@@ -280,7 +280,7 @@ async function auditLifecycle(browser) {
         "entering edit focuses the textarea",
         inTextarea.label === "Description",
         `focus=${inTextarea.label || inTextarea.tag}`,
-        "keyboard-focus-map.md:91-92",
+        "keyboard-focus-map.md:92-93",
       );
       await page.keyboard.type(" Edited with the keyboard.");
       await page.keyboard.press("Meta+Enter");
@@ -293,7 +293,7 @@ async function auditLifecycle(browser) {
         "`⌘↵` saves and leaves edit mode",
         !stillEditing,
         `textarea still up: ${stillEditing}`,
-        "keyboard-focus-map.md:87",
+        "keyboard-focus-map.md:88",
       );
     }
 
@@ -339,7 +339,7 @@ async function auditLifecycle(browser) {
       "a checklist row is reachable by Tab inside the panel",
       toRow.found,
       `${toRow.presses} presses → ${toRow.at.itemId ?? toRow.at.tag}`,
-      "keyboard-focus-map.md:61",
+      "keyboard-focus-map.md:62",
     );
     if (toRow.found) {
       const order = () =>
@@ -359,7 +359,7 @@ async function auditLifecycle(browser) {
           after[1] === before[0] &&
           after[1] === toRow.at.itemId,
         `${before.join(",")} → ${after.join(",")}`,
-        "keyboard-focus-map.md:62",
+        "keyboard-focus-map.md:63",
       );
       const stillOn = await focused(page);
       check(
@@ -378,7 +378,7 @@ async function auditLifecycle(browser) {
       "`Esc` closes the panel and focus returns to the card that opened it",
       isCard(backOnCard),
       `focus=${backOnCard.ticketKey ?? (backOnCard.className || backOnCard.tag)}`,
-      "keyboard-focus-map.md:60,161",
+      "keyboard-focus-map.md:61,161",
     );
     const movedFrom = backOnCard.ticketKey;
     await page.keyboard.press("s");
@@ -388,7 +388,7 @@ async function auditLifecycle(browser) {
       "`S` opens the status menu on the focused card",
       menuUp,
       `menu=${menuUp}`,
-      "keyboard-focus-map.md:42",
+      "keyboard-focus-map.md:43",
     );
     if (menuUp) {
       const before = await page.evaluate(
@@ -414,7 +414,7 @@ async function auditLifecycle(browser) {
         "picking a status moves the card across columns",
         before !== after && after !== "",
         `${before.trim()} → ${after.trim()}`,
-        "keyboard-focus-map.md:140 — pick applies optimistically",
+        "keyboard-focus-map.md:141 — pick applies optimistically",
       );
     }
 
@@ -443,7 +443,7 @@ async function auditLifecycle(browser) {
         "a ticket key typed at the root offers that ticket first",
         offered === "PF-12",
         `first row=${offered || "(no ticket row)"}`,
-        "keyboard-focus-map.md:109,114-118",
+        "keyboard-focus-map.md:110,114-118",
       );
       if (offered === "PF-12") {
         await page.keyboard.press("Enter");
@@ -458,7 +458,7 @@ async function auditLifecycle(browser) {
           "`Enter` on it opens that ticket, on the search row's own path",
           opened === "Ticket PF-12",
           `panel=${opened || "(none)"}`,
-          "keyboard-focus-map.md:114-118",
+          "keyboard-focus-map.md:115-119",
         );
       }
       // Back to the board and into the palette again, so the sub-mode below
@@ -481,7 +481,7 @@ async function auditLifecycle(browser) {
         "search reaches the ticket the keyboard created",
         hits > 0,
         `${hits} results for the created title`,
-        "keyboard-focus-map.md:106-112",
+        "keyboard-focus-map.md:107-113",
       );
       if (hits > 0) {
         await page.keyboard.press("Enter");
@@ -490,7 +490,7 @@ async function auditLifecycle(browser) {
           "`Enter` on a result opens the ticket panel",
           await visible(page, ".ticket-panel"),
           `panel=${await visible(page, ".ticket-panel")}`,
-          "keyboard-focus-map.md:111",
+          "keyboard-focus-map.md:112",
         );
       }
     }
@@ -508,7 +508,7 @@ async function auditLifecycle(browser) {
       "the palette archives the ticket",
       /archiv/i.test(archivedToast),
       archivedToast || "(no toast)",
-      "keyboard-focus-map.md:120-125 — the palette is archive's keyboard path",
+      "keyboard-focus-map.md:121-126 — the palette is archive's keyboard path",
     );
     await page.keyboard.press("Meta+z");
     await settle(page);
@@ -559,7 +559,7 @@ async function auditFocusOrder(browser) {
       "closing the palette returns focus to what held it before `⌘K`",
       afterPalette.ticketKey === card,
       `${card} → ${afterPalette.ticketKey ?? (afterPalette.className || afterPalette.tag)}`,
-      "keyboard-focus-map.md:154",
+      "keyboard-focus-map.md:155",
     );
 
     // Quick create (canceled) → prior focus.
@@ -572,7 +572,7 @@ async function auditFocusOrder(browser) {
       "canceling quick create returns focus to where it was",
       afterCancel.ticketKey === card,
       `${card} → ${afterCancel.ticketKey ?? (afterCancel.className || afterCancel.tag)}`,
-      "keyboard-focus-map.md:157",
+      "keyboard-focus-map.md:158",
     );
 
     // Menu → the focused card (the single-key path).
@@ -585,7 +585,7 @@ async function auditFocusOrder(browser) {
       "closing a menu returns focus to the card it was anchored to",
       afterMenu.ticketKey === card,
       `${card} → ${afterMenu.ticketKey ?? (afterMenu.className || afterMenu.tag)}`,
-      "keyboard-focus-map.md:153",
+      "keyboard-focus-map.md:154",
     );
 
     // The context menu → the card it was opened on (LC-222). A right-click is
@@ -607,7 +607,7 @@ async function auditFocusOrder(browser) {
       "`Shift`+`F10` opens the focused card's context menu, focused",
       contextLabel === `${card} actions` && inContextMenu.role === "menuitem",
       `label=${contextLabel || "none"} focus=${inContextMenu.role || inContextMenu.tag}`,
-      "keyboard-focus-map.md:49",
+      "keyboard-focus-map.md:50",
     );
     await page.keyboard.press("Escape");
     await settle(page);
@@ -616,7 +616,7 @@ async function auditFocusOrder(browser) {
       "closing the context menu returns focus to the card it was opened on",
       afterContext.ticketKey === card,
       `${card} → ${afterContext.ticketKey ?? (afterContext.className || afterContext.tag)}`,
-      "keyboard-focus-map.md:153",
+      "keyboard-focus-map.md:154",
     );
 
     // Ticket panel → the card that opened it.
@@ -630,7 +630,7 @@ async function auditFocusOrder(browser) {
       "closing the ticket panel returns focus to the card that opened it",
       opened && afterPanel.ticketKey === card,
       `${card} → ${afterPanel.ticketKey ?? (afterPanel.className || afterPanel.tag)}`,
-      "keyboard-focus-map.md:161",
+      "keyboard-focus-map.md:162",
     );
 
     // Reading order inside the panel: the Tab sequence must run down the page.
@@ -663,7 +663,7 @@ async function auditFocusOrder(browser) {
         (backwards.length
           ? `: ${backwards.map((at) => at.label || at.text || at.className).join(", ")}`
           : ""),
-      "keyboard-focus-map.md:61 — the panel's natural order",
+      "keyboard-focus-map.md:62 — the panel's natural order",
     );
 
     // Settings → the gear (LC-125), which opens a menu rather than the panel
@@ -684,7 +684,7 @@ async function auditFocusOrder(browser) {
       "the gear opens its menu with focus on the first row",
       gear.found && menuUp && onFirstRow,
       `presses=${gear.presses} menu=${menuUp} focus=${onFirstRow ? "menu row" : (await focused(page)).tag}`,
-      "keyboard-focus-map.md:143-147 — focus enters the first meaningful control",
+      "keyboard-focus-map.md:144-148 — focus enters the first meaningful control",
     );
 
     // The theme submenu, which is the one thing the menu exists to make fast:
@@ -698,7 +698,7 @@ async function auditFocusOrder(browser) {
       "`ArrowRight` steps into the theme submenu",
       (await visible(page, ".menu-sub")) && inSubmenu,
       `submenu=${inSubmenu}`,
-      "keyboard-focus-map.md:139 — `→` opens a submenu",
+      "keyboard-focus-map.md:140 — `→` opens a submenu",
     );
     await page.keyboard.press("ArrowLeft");
     await settle(page);
@@ -730,7 +730,7 @@ async function auditFocusOrder(browser) {
       "`All settings…` opens the panel with focus in the open section",
       allSettings.found && settingsUp && inSection,
       `presses=${allSettings.presses} panel=${settingsUp} focus=${inSection ? "section" : (await focused(page)).tag}`,
-      "keyboard-focus-map.md:143-147 — focus enters the first meaningful control",
+      "keyboard-focus-map.md:144-148 — focus enters the first meaningful control",
     );
 
     await page.keyboard.press("Escape");
@@ -741,7 +741,7 @@ async function auditFocusOrder(browser) {
       !(await visible(page, ".settings-panel")) &&
         afterSettings.label === "Project settings",
       `focus=${afterSettings.label || afterSettings.className || afterSettings.tag}`,
-      "keyboard-focus-map.md:166 — settings returns focus to its opener",
+      "keyboard-focus-map.md:167 — settings returns focus to its opener",
     );
 
     // Quick create's Create more loop → the emptied title field (LC-201).
@@ -761,7 +761,7 @@ async function auditFocusOrder(browser) {
       "Tab reaches the Create more checkbox in quick create",
       toCheckbox.found,
       `${toCheckbox.presses} Tab presses → ${toCheckbox.found ? ".create-more input" : toCheckbox.at.className || toCheckbox.at.tag}`,
-      "keyboard-focus-map.md:133 — the modal's Tab order",
+      "keyboard-focus-map.md:134 — the modal's Tab order",
     );
     // `esc` is pointer-only by design: its keyboard path is the key it is named
     // after, so a walk that reaches it is a walk that says the order grew a
@@ -773,7 +773,7 @@ async function auditFocusOrder(browser) {
       "`esc` is a control but not a tab stop",
       escInWalk === -1,
       `tabIndex=${escInWalk}`,
-      "keyboard-focus-map.md:133 — every pointer action has a keyboard path, not a stop",
+      "keyboard-focus-map.md:134 — every pointer action has a keyboard path, not a stop",
     );
     await page.keyboard.press("Space");
     await settle(page);
@@ -797,7 +797,7 @@ async function auditFocusOrder(browser) {
         inRun.label === "Title" &&
         emptied === "",
       `modal=${await visible(page, "form.quick-create-modal")} focus=${inRun.label || inRun.className || inRun.tag} title="${emptied}"`,
-      "keyboard-focus-map.md:164 — the created row, and the run's exception to it",
+      "keyboard-focus-map.md:165 — the created row, and the run's exception to it",
     );
     await page.keyboard.press("Escape");
     await settle(page);
@@ -812,7 +812,7 @@ async function auditFocusOrder(browser) {
  *
  * A file that will not parse has none of the panel's ordinary stops — no title,
  * no status, no checklist — so the only keyboard question it raises is which
- * control the view opens on, and `keyboard-focus-map.md:148-149` answers it:
+ * control the view opens on, and `keyboard-focus-map.md:149-150` answers it:
  * `Retry parse`. It is a second page rather than a step in the walk above,
  * because `?fail=parse` degrades every read and the checks before it need a
  * ticket that parses.
@@ -835,7 +835,7 @@ async function auditRawFileFocus(browser) {
       "the raw file view opens with `Retry parse` focused",
       shown && at.text === "Retry parse",
       `raw view=${shown} focus=${at.text || at.label || at.className || at.tag}`,
-      "keyboard-focus-map.md:148-149 — `Retry parse` is the default-focused action",
+      "keyboard-focus-map.md:149-150 — `Retry parse` is the default-focused action",
     );
   } finally {
     await context.close();

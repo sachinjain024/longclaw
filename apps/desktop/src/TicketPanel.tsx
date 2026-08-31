@@ -126,7 +126,7 @@ type LoadMode = "open" | "external" | "local";
  * The same bargain as the header's path chip: a piece of identity that reads as
  * text, and one click to take it somewhere else — a terminal, a commit message,
  * a prompt. It wears the human accent because copying is a person's own action,
- * and it is the panel's first Tab stop (`keyboard-focus-map.md:61`).
+ * and it is the panel's first Tab stop (`keyboard-focus-map.md:62`).
  */
 function IdChip(props: { ticketKey: string }) {
   const copy = () =>
@@ -551,7 +551,7 @@ export function TicketPanel(props: TicketPanelProps) {
   }, [onClose]);
 
   /**
-   * `S`/`P` with the panel open (`keyboard-focus-map.md:71-74`): "they target
+   * `S`/`P` with the panel open (`keyboard-focus-map.md:72-75`): "they target
    * the open ticket". The board and the list bind them on their own containers,
    * and focus is in neither while the panel is up, so the binding is here — and
    * it opens the panel's *own* menus, because their picks carry the conflict
@@ -712,7 +712,7 @@ export function TicketPanel(props: TicketPanelProps) {
    * block was a *drop*: the submit handler had already cleared the field, so an
    * item typed during the round trip left the field empty, never reached the
    * file, and said nothing about it. Rapid entry is the whole reason Enter
-   * leaves focus where it is (`keyboard-focus-map.md:63`), and a surface that
+   * leaves focus where it is (`keyboard-focus-map.md:64`), and a surface that
    * loses the second item of it is not offering rapid entry.
    *
    * A ref, not state: nothing renders it, and the queue has to be exact at the
@@ -790,7 +790,7 @@ export function TicketPanel(props: TicketPanelProps) {
 
   /**
    * Where focus goes when the editor closes: back to the description block
-   * (`keyboard-focus-map.md:91`), but only when the human closed it themselves.
+   * (`keyboard-focus-map.md:92`), but only when the human closed it themselves.
    * A reload that drops the editor should not steal focus from wherever they
    * are.
    */
@@ -1070,7 +1070,7 @@ export function TicketPanel(props: TicketPanelProps) {
 
   /**
    * `⌥↑` / `⌥↓` on a row, which is the whole of the keyboard's reorder
-   * (`keyboard-focus-map.md:62`). The row keeps focus across the move because
+   * (`keyboard-focus-map.md:63`). The row keeps focus across the move because
    * React keys the list by item id and moves the node rather than rewriting it.
    */
   function moveByKey(event: ReactKeyboardEvent<HTMLElement>) {
@@ -1540,7 +1540,7 @@ export function TicketPanel(props: TicketPanelProps) {
                     {/* The affordance, not the mechanism: the row is what is
                         draggable, and this is what says so. Decorative, because
                         the keyboard's way in is `⌥↑`/`⌥↓` on the row itself
-                        (`keyboard-focus-map.md:62`) — a grip that took a Tab
+                        (`keyboard-focus-map.md:63`) — a grip that took a Tab
                         stop of its own would put a second stop on every row to
                         offer what the row already answers. */}
                     {reorderable && (
@@ -1564,7 +1564,7 @@ export function TicketPanel(props: TicketPanelProps) {
                             // exactly as a button is (`tab-order-guard.mjs`), so
                             // without this the rows are pointer-only — against the
                             // panel's Tab order and the two gestures bound to a
-                            // focused row (`keyboard-focus-map.md:61-62`). The
+                            // focused row (`keyboard-focus-map.md:62-63`). The
                             // accessibility audit found it while proving `⌥↓`
                             // reachable, which it was not (LC-185).
                             tabIndex={0}
@@ -1632,7 +1632,7 @@ export function TicketPanel(props: TicketPanelProps) {
                 const text = newItem.trim();
                 if (!text) return;
                 // Enter appends and leaves focus where it is, for rapid entry
-                // (`keyboard-focus-map.md:63`) — nothing here blurs the field.
+                // (`keyboard-focus-map.md:64`) — nothing here blurs the field.
                 setNewItem("");
                 // Queued rather than written, because the field is cleared
                 // either way and a write already out would otherwise refuse this

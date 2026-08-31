@@ -31,7 +31,7 @@
  * is back — the surface having dropped them and picked them up again, which reads
  * as nothing to do with scrolling at all.
  *
- * The oracle is `keyboard-focus-map.md:63` — "Append item, keep focus in the
+ * The oracle is `keyboard-focus-map.md:64` — "Append item, keep focus in the
  * field" — read as the promise it is rather than as a property of
  * `document.activeElement`: a field that keeps focus under the bottom edge keeps
  * the letter of that line and none of it.

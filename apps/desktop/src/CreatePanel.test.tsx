@@ -218,7 +218,7 @@ describe("nothing here claims the file exists yet", () => {
     const chip = screen.getByText(/RT-4/);
     expect(chip.textContent).toBe("RT-4 · new");
     expect(chip.classList.contains("id-chip")).toBe(true);
-    // Display only (`keyboard-focus-map.md:61`): the ID chip in view mode is a
+    // Display only (`keyboard-focus-map.md:62`): the ID chip in view mode is a
     // stop because it is the ticket's key, and it copies. This one is not the
     // ticket's key — copying it would hand out a guess — so it is neither.
     expect(chip.closest("button")).toBeNull();
@@ -307,7 +307,7 @@ describe("nothing here claims the file exists yet", () => {
    * while the text inside it changes and focus has to be put back by hand. Doing
    * that unconditionally on `✕` was harmless while the box was not a tab stop —
    * the only origins were the two buttons. LC-242h made the box a stop and the
-   * natural place to press `⌥↓` from (`keyboard-focus-map.md:62`), and a
+   * natural place to press `⌥↓` from (`keyboard-focus-map.md:63`), and a
    * gesture that quietly parks the human on a destructive button turns the next
    * `Space` — pressed to untick — into a removal.
    */
