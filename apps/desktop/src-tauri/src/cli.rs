@@ -42,7 +42,8 @@ use crate::app_state::AppState;
 use crate::core::project::{ProjectDocument, DEFAULT_LABEL_COLOR};
 use crate::core::storage::{self, NewTicket};
 use crate::core::ticket::{
-    Actor, ChecklistMove, ChecklistTextEdit, ChecklistToggle, Priority, Status, TicketEdit,
+    Actor, ChecklistMove, ChecklistTextEdit, ChecklistToggle, NewChecklistItem, Priority, Status,
+    TicketEdit,
 };
 use crate::core::{AppError, AppResult, ErrorCode, ProjectReference};
 
@@ -225,7 +226,16 @@ fn ticket_create(arguments: &[String]) -> AppResult<Value> {
         status: status(&options)?,
         priority: priority(&options)?,
         labels,
-        checklist: options.many("checklist"),
+        // `--checklist` gives text and nothing else, so every row it files is
+        // open. LC-242h put the gesture on the create panel, where a human is
+        // describing work they have already partly done; a flag that let an
+        // agent file a ticked row is a decision of its own and has not been
+        // asked for (ADR 0011 makes this the surface agents create through).
+        checklist: options
+            .many("checklist")
+            .into_iter()
+            .map(NewChecklistItem::open)
+            .collect(),
     };
     let project_key = document.project().key.clone();
     let write =

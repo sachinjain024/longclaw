@@ -3573,14 +3573,6 @@ button:disabled {
   font-weight: 400;
 }
 
-/* A draft row's box cannot be ticked: a created checklist item is always open,
-   so an enabled checkbox would offer something the create cannot carry. The
-   type keeps the fade off the editor's field, which is the one input in a
-   draft row that is being used, not declined (LC-215). */
-.checklist-row.draft input[type="checkbox"] {
-  opacity: 0.5;
-}
-
 /* A row's own two controls (LC-215), in the far edge the row reserves for them.
    Quiet until the row is hovered or something in it holds focus, which is the
    grip's treatment above and for the grip's reason: a list wearing two buttons

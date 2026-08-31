@@ -17,7 +17,7 @@ use common::{
     POLL_INTERVAL_MS,
 };
 use longclaw_desktop_lib::core::storage::NewTicket;
-use longclaw_desktop_lib::core::ticket::{ActorType, Status, TicketEdit};
+use longclaw_desktop_lib::core::ticket::{ActorType, NewChecklistItem, Status, TicketEdit};
 use longclaw_desktop_lib::core::{
     IndexedRow, ProjectEvent, RebuildReason, StreamEnvelope, TicketRow,
 };
@@ -132,8 +132,8 @@ fn create_first_ticket(engine: &longclaw_desktop_lib::engine::ProjectEngine) -> 
             priority: None,
             labels: vec![],
             checklist: vec![
-                "Let an agent read this ticket".to_owned(),
-                "Review what it changed".to_owned(),
+                NewChecklistItem::open("Let an agent read this ticket"),
+                NewChecklistItem::open("Review what it changed"),
             ],
         })
         .expect("the app should create the ticket");

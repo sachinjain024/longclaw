@@ -33,7 +33,9 @@ use super::project::{
     is_project_key, is_project_name, is_theme_id, render_agent_contract, render_new_project,
     ProjectDocument, DEFAULT_THEME, PROJECT_NAME_RULE,
 };
-use super::ticket::{Actor, Priority, Status, Ticket, TicketDocument, TicketEdit};
+use super::ticket::{
+    Actor, NewChecklistItem, Priority, Status, Ticket, TicketDocument, TicketEdit,
+};
 
 const PROJECT_DIRECTORY: &str = ".longclaw";
 const PROJECT_FILE: &str = "longclaw.yaml";
@@ -999,8 +1001,12 @@ pub struct NewTicket {
     pub priority: Option<Priority>,
     #[serde(default)]
     pub labels: Vec<String>,
+    /// Rows, each of which may already be ticked (LC-242h). Text alone was the
+    /// shape until a ticket filed over half-finished work needed to say which
+    /// half; [`NewChecklistItem`] carries both, and `checked` defaults to false
+    /// so a caller with nothing to tick writes the same file it always did.
     #[serde(default)]
-    pub checklist: Vec<String>,
+    pub checklist: Vec<NewChecklistItem>,
 }
 
 /// Allocates the next key, creates the ticket directory, and returns the bytes to

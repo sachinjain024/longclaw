@@ -332,6 +332,24 @@ export interface EditTicketRequest {
   edit: TicketEdit;
 }
 
+/**
+ * One row of a create's checklist, before there is a file to put it in.
+ *
+ * Text alone was enough while every row a create could produce was open by
+ * construction. That held only for a ticket filed before its work began; one
+ * filed over work already half done has finished rows to describe, and asking
+ * the human to tick them again once the file lands is asking them to restate
+ * what they just typed (LC-242h).
+ *
+ * There is no id. Ids are minted by the render in Rust, which is the only place
+ * that can promise they are unique in the file — which is also why the create
+ * panel keys these rows by position rather than by anything they carry.
+ */
+export interface NewChecklistItem {
+  text: string;
+  checked: boolean;
+}
+
 export interface CreateTicketRequest {
   projectId: string;
   title: string;
@@ -339,7 +357,7 @@ export interface CreateTicketRequest {
   status?: TicketStatus;
   priority?: TicketPriority;
   labels?: string[];
-  checklist?: string[];
+  checklist?: NewChecklistItem[];
 }
 
 /**

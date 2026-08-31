@@ -63,6 +63,22 @@ function pick(field: "Status" | "Priority", option: string) {
   fireEvent.click(screen.getByRole("menuitemradio", { name: option }));
 }
 
+/**
+ * The rows a create sends when nothing was ticked (LC-242h). Most of these
+ * tests are about a row's words or its place, not its box, and spelling
+ * `checked: false` out on each one would bury what they are checking.
+ */
+function openRows(...texts: string[]) {
+  return texts.map((text) => ({ text, checked: false }));
+}
+
+/** The drafted rows, in the order the list is drawing them. */
+function draftedRows(): string[] {
+  return [...document.querySelectorAll(".checklist-row label span")].map(
+    (node) => node.textContent ?? "",
+  );
+}
+
 function addChecklistItem(text: string) {
   const field = screen.getByLabelText("Add a checklist item");
   fireEvent.change(field, { target: { value: text } });
@@ -99,7 +115,10 @@ describe("every approved field, in one create", () => {
       priority: "p1",
       labels: ["backend", "reliability"],
       description: "Check whether the round trip holds.",
-      checklist: ["Let an agent read this ticket", "Review what it changed"],
+      checklist: openRows(
+        "Let an agent read this ticket",
+        "Review what it changed",
+      ),
     });
   });
 
@@ -217,19 +236,159 @@ describe("nothing here claims the file exists yet", () => {
     expect(screen.getByRole("toolbar", { name: "Formatting" })).toBeTruthy();
   });
 
-  it("draws checklist drafts that cannot be ticked, only removed", () => {
+  /**
+   * LC-242h. A ticket filed over work already half done has finished rows to
+   * describe, and the box is where that is said. The row is still a draft — it
+   * is removable and rewordable as it was — so what changed is one thing: the
+   * box answers.
+   */
+  it("draws checklist drafts whose boxes tick, and start open", () => {
     render(createPanel());
     addChecklistItem("Let an agent read this ticket");
 
-    const box = screen.getByRole("checkbox");
-    // `NewTicket.checklist` is a list of strings, so a created item is always
-    // open. An enabled box would offer something the create cannot carry.
-    expect(box.hasAttribute("disabled")).toBe(true);
+    const box = screen.getByRole<HTMLInputElement>("checkbox");
+    // Appended open: a row is ticked by ticking it, never by typing it.
+    expect(box.checked).toBe(false);
+    expect(box.hasAttribute("disabled")).toBe(false);
+    // A real Tab stop, like the panel's own box (LC-185): WebKit skips a
+    // checkbox on a default Mac, so a box without this is pointer-only.
+    expect(box.getAttribute("tabindex")).toBe("0");
+    // Named by its row, through the wrapping label — the panel's box takes its
+    // name the same way, so there is one vocabulary for this control.
+    expect(box.getAttribute("aria-label")).toBeNull();
+    expect(
+      screen.getByRole("checkbox", { name: "Let an agent read this ticket" }),
+    ).toBe(box);
+
+    fireEvent.click(box);
+    expect(box.checked).toBe(true);
+    // The drawn half of the state (`components.md:218`), which the row carries
+    // and the box alone cannot show.
+    expect(box.closest("li")!.classList.contains("checked")).toBe(true);
+
     expect(
       screen.getByRole("button", {
         name: "Remove Let an agent read this ticket",
       }),
     ).toBeTruthy();
+  });
+
+  /**
+   * The whole of what the tick is for: it has to reach Rust, which mints the
+   * ids and writes `- [x]`. A tick the create dropped on the floor would be a
+   * box that moved and changed nothing.
+   */
+  it("sends each drafted row with the state its box is in", () => {
+    const onCreate = vi.fn();
+    render(createPanel({ onCreate }));
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Filed over work already started" },
+    });
+    addChecklistItem("Parse");
+    addChecklistItem("Write");
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Parse" }));
+    fireEvent.click(screen.getByText("Create ticket"));
+
+    expect(onCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        checklist: [
+          { text: "Parse", checked: true },
+          { text: "Write", checked: false },
+        ],
+      }),
+    );
+  });
+
+  /**
+   * `⌥↓` hands focus back to the control it was pressed from, not to `✕`.
+   *
+   * The rows key by position, so the element the human is on keeps its place
+   * while the text inside it changes and focus has to be put back by hand. Doing
+   * that unconditionally on `✕` was harmless while the box was not a tab stop —
+   * the only origins were the two buttons. LC-242h made the box a stop and the
+   * natural place to press `⌥↓` from (`keyboard-focus-map.md:62`), and a
+   * gesture that quietly parks the human on a destructive button turns the next
+   * `Space` — pressed to untick — into a removal.
+   */
+  it("returns focus to the control a keyboard move was pressed from", () => {
+    render(createPanel());
+    addChecklistItem("Parse");
+    addChecklistItem("Write");
+
+    const box = screen.getByRole<HTMLInputElement>("checkbox", {
+      name: "Parse",
+    });
+    box.focus();
+    fireEvent.keyDown(box, { key: "ArrowDown", altKey: true });
+
+    // The row moved under "Write"...
+    expect(draftedRows()).toEqual(["Write", "Parse"]);
+    // ...and focus is on that row's box, not on the `✕` beside it.
+    const moved = screen.getByRole("checkbox", { name: "Parse" });
+    expect(document.activeElement).toBe(moved);
+    expect(
+      (document.activeElement as HTMLElement).classList.contains("row-remove"),
+    ).toBe(false);
+  });
+
+  it("still returns focus to Remove when the move came from Remove", () => {
+    render(createPanel());
+    addChecklistItem("Parse");
+    addChecklistItem("Write");
+
+    const remove = screen.getByRole("button", { name: "Remove Parse" });
+    remove.focus();
+    fireEvent.keyDown(remove, { key: "ArrowDown", altKey: true });
+
+    expect(draftedRows()).toEqual(["Write", "Parse"]);
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Remove Parse" }),
+    );
+  });
+
+  /**
+   * Two gestures that move a row's words or its place must not move its tick:
+   * changing what a row says, or where it sits, is not changing whether it is
+   * done (the reason the panel's own reword keeps the item id, LC-215).
+   */
+  it("keeps a row ticked through a reword and a reorder", () => {
+    const onCreate = vi.fn();
+    render(createPanel({ onCreate }));
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Still done afterwards" },
+    });
+    addChecklistItem("Parse");
+    addChecklistItem("Write");
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Parse" }));
+
+    // Reword the ticked row.
+    fireEvent.click(screen.getByRole("button", { name: "Edit Parse" }));
+    const field = screen.getByRole("textbox", { name: "Edit Parse" });
+    fireEvent.change(field, { target: { value: "Parse the file" } });
+    fireEvent.submit(field.closest("form")!);
+    expect(
+      screen.getByRole<HTMLInputElement>("checkbox", {
+        name: "Parse the file",
+      }).checked,
+    ).toBe(true);
+
+    // Then move it under the other one, with the binding the panel's list has.
+    fireEvent.keyDown(
+      screen.getByRole("button", { name: "Remove Parse the file" }),
+      { key: "ArrowDown", altKey: true },
+    );
+
+    fireEvent.click(screen.getByText("Create ticket"));
+    expect(onCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        checklist: [
+          { text: "Write", checked: false },
+          { text: "Parse the file", checked: true },
+        ],
+      }),
+    );
   });
 
   it("removes a draft row without touching the others", () => {
@@ -246,7 +405,7 @@ describe("nothing here claims the file exists yet", () => {
     fireEvent.click(screen.getByText("Create ticket"));
 
     expect(onCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ checklist: ["First", "Third"] }),
+      expect.objectContaining({ checklist: openRows("First", "Third") }),
     );
   });
 
@@ -271,7 +430,7 @@ describe("nothing here claims the file exists yet", () => {
     fireEvent.click(screen.getByText("Create ticket"));
 
     expect(onCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ checklist: ["First", "Second"] }),
+      expect.objectContaining({ checklist: openRows("First", "Second") }),
     );
   });
 
@@ -290,7 +449,7 @@ describe("nothing here claims the file exists yet", () => {
     fireEvent.click(screen.getByText("Create ticket"));
 
     expect(onCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ checklist: ["First"] }),
+      expect.objectContaining({ checklist: openRows("First") }),
     );
   });
 
@@ -314,7 +473,7 @@ describe("nothing here claims the file exists yet", () => {
     fireEvent.click(screen.getByText("Create ticket"));
 
     expect(onCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ checklist: ["First", "Second"] }),
+      expect.objectContaining({ checklist: openRows("First", "Second") }),
     );
   });
 
@@ -371,7 +530,7 @@ describe("nothing here claims the file exists yet", () => {
       fireEvent.click(screen.getByText("Create ticket"));
       expect(onCreate).toHaveBeenCalledWith(
         expect.objectContaining({
-          checklist: ["Third", "First", "Second"],
+          checklist: openRows("Third", "First", "Second"),
         }),
       );
     });
@@ -453,11 +612,12 @@ describe("nothing here claims the file exists yet", () => {
 
   /**
    * D-4D (LC-119). The prototype draws no counter in create mode at any length,
-   * and the numerator here could not move if it did: every draft item is open
-   * by construction. `0/0` was a count of nothing that read as a checklist left
-   * unfinished, and `0/3` would only repeat the three rows on screen.
+   * and that cell is what settled the row. LC-242h retired the second argument
+   * D-4D offered alongside it — draft items are no longer all open by
+   * construction, so the numerator does move — and the row stands on the
+   * prototype cell alone. Ticking a box here still draws no fraction.
    */
-  it("shows no checklist fraction, however many items are drafted", () => {
+  it("shows no checklist fraction, however many items are drafted or ticked", () => {
     render(createPanel());
     const section = screen.getByRole("heading", { name: /Checklist/ });
     expect(section.querySelector(".section-count")).toBeNull();
@@ -465,6 +625,9 @@ describe("nothing here claims the file exists yet", () => {
 
     addChecklistItem("Let an agent read this ticket");
     addChecklistItem("Review what it changed");
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Review what it changed" }),
+    );
 
     expect(section.querySelector(".section-count")).toBeNull();
     expect(section.textContent).toBe("Checklist");

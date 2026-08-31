@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  provisionalTicket,
   provisionalTicketKey,
   splitTicketKey,
   STATUSES,
@@ -11,6 +12,9 @@ import type { TicketRow } from "./types";
 // The same import `projectKey.test.ts` uses, so both halves of the fixture are
 // read the one way.
 import grammar from "../../../fixtures/project-key-grammar.json";
+
+/** One fixed instant, so a card's timestamps are not the clock's. */
+const NOW = "2026-08-30T09:00:00.000Z";
 
 /**
  * LC-171. The two decisions the ticket asked to be made rather than assumed:
@@ -122,6 +126,42 @@ describe("the key a create guesses", () => {
     expect(provisionalTicketKey("LC", [row("ZZ-98p"), row("LC-3")])).toBe(
       "LC-4",
     );
+  });
+});
+
+/**
+ * The card the board draws before the write comes back (LC-140), and the count
+ * on it. LC-242h is why the numerator is read rather than assumed: a create can
+ * now be filed with rows already ticked, and a card that said `0/3` until the
+ * real row landed and then jumped to `2/3` would be an optimistic card
+ * contradicting itself a moment later.
+ */
+describe("the card a create draws before the file exists", () => {
+  const request = (checklist?: { text: string; checked: boolean }[]) => ({
+    title: "Filed over work already started",
+    checklist,
+  });
+
+  it("counts the rows the create was filed with as ticked", () => {
+    const card = provisionalTicket(
+      "LC-9",
+      request([
+        { text: "Parse", checked: true },
+        { text: "Write", checked: false },
+        { text: "Read it back", checked: true },
+      ]),
+      NOW,
+    );
+
+    expect(card.checkedCount).toBe(2);
+    expect(card.checklistCount).toBe(3);
+  });
+
+  it("counts nothing when the create carried no checklist at all", () => {
+    const card = provisionalTicket("LC-9", request(), NOW);
+
+    expect(card.checkedCount).toBe(0);
+    expect(card.checklistCount).toBe(0);
   });
 });
 

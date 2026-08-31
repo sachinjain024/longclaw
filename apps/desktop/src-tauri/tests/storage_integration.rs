@@ -13,7 +13,9 @@ use common::{
     assert_minted, copy_representative_project, project_reference, start_engine, ticket_path,
 };
 use longclaw_desktop_lib::core::storage::{self, NewTicket};
-use longclaw_desktop_lib::core::ticket::{ChecklistToggle, Priority, Status, TicketEdit};
+use longclaw_desktop_lib::core::ticket::{
+    ChecklistToggle, NewChecklistItem, Priority, Status, TicketEdit,
+};
 use longclaw_desktop_lib::core::{
     ErrorCode, ProjectEvent, RebuildReason, StreamEnvelope, TicketRow,
 };
@@ -559,7 +561,15 @@ fn creating_tickets_allocates_keys_from_the_files_and_never_reuses_one() {
             status: Some(Status::Todo),
             priority: Some(Priority::P1),
             labels: vec!["backend".to_owned(), "reliability".to_owned()],
-            checklist: vec!["Parse".to_owned(), "Write".to_owned()],
+            checklist: vec![
+                NewChecklistItem::open("Parse"),
+                // Filed already ticked, which is what LC-242h added: a create
+                // can describe work that is part done.
+                NewChecklistItem {
+                    text: "Write".to_owned(),
+                    checked: true,
+                },
+            ],
         })
         .expect("creation should be accepted");
     // The number is this project's; the trailing character is drawn (LC-232).
@@ -574,6 +584,10 @@ fn creating_tickets_allocates_keys_from_the_files_and_never_reuses_one() {
     let row = indexed(&snapshot.tickets, &key);
     assert_eq!(row.title, "Ship the storage engine");
     assert_eq!(row.checklist_count, 2);
+    // The tick the create carried, read back off the index rather than the
+    // request (LC-242h): this is the number the board card draws, and the whole
+    // point of filing a row ticked is that it arrives that way.
+    assert_eq!(row.checked_count, 1);
     assert_eq!(row.priority, Priority::P1);
     assert_eq!(row.labels, vec!["backend", "reliability"]);
 

@@ -266,7 +266,7 @@ movement. No custom-color affordance exists anywhere.
 - The ticket panel in create mode: provisional ID chip (`KEY-n · new`),
   title textarea, the same meta grid (status/priority/labels),
   description editor (write mode only until first save), checklist
-  draft rows with remove affordances and add-row. Footer: primary
+  draft rows that tick (LC-242h), remove affordances, add-row. Footer: primary
   **Create ticket** (`⌘↵`) + ghost Cancel. On create the panel swaps to
   view mode of the real ticket.
 

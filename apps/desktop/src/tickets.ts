@@ -228,7 +228,11 @@ export function provisionalTicket(
     labels: request.labels ?? [],
     createdAt,
     updatedAt: createdAt,
-    checkedCount: 0,
+    // The rows the create was filed with, already ticked (LC-242h). Zero was
+    // right while a create could only produce open rows; leaving it there would
+    // make the optimistic card read `0/3` and then jump to `2/3` the moment the
+    // real row arrived, which is the one thing an optimistic card must not do.
+    checkedCount: request.checklist?.filter((item) => item.checked).length ?? 0,
     checklistCount: request.checklist?.length ?? 0,
     commentCount: 0,
     attachmentCount: 0,
