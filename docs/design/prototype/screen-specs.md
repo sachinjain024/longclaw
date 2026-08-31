@@ -28,32 +28,32 @@
 ```
 
 - **Side panel:** 240px fixed, `--lc-bg`, right hairline `--lc-line`.
-  Padding 16px 12px. Logo row (22px owl + Familjen Grotesk 15.5/700),
-  **project actions** (below), section headers mono 10.5px uppercase `ink-3`
-  (12px 8px 6px padding), project rows 28px (spec in components.md § App
-  shell). Footer: none — the trust line came off the shell (LC-223 review);
-  the waitlist ghost button beneath it was already NOT IN V0. In v0:
-  **Starred**, **Local** — nothing else, no Teams stubs.
-- **Project actions:** directly under the lockup and above the sections,
-  separated from them by a bottom hairline `--lc-line` (16px padding below).
-  Stacked, not side by side — 216px of panel content does not hold two
-  labelled controls on one line. A `secondary` **Create project** spanning
-  the panel, then a `ghost` **Open folder** beneath it, sized to its label;
-  both at the standard 30px control height. The CTA and the link are
-  **centred on one axis** and sit 4px apart — they are one pair, "add a
-  project" in two halves, and the space that matters is the 16px below them
-  holding the pair off the sections. The lockup above stays **left-aligned**
-  with the section headers and project rows: it is identity, not part of the
-  pair. **The hierarchy is load-bearing:** `Open folder` is quieter than
-  `Create project` on variant alone, not on position, and `New ticket` is the
-  app's primary and keeps the only filled accent on screen — so neither of
-  these is ever `primary`, and they are never two controls of equal weight.
-  *Founder decision, 2026-08-06 (LC-73).* The original prototype drew section
-  headers and project rows only, but `Welcome` is the no-project state alone,
-  so with a project open these are the only way to add a second; and
-  `.project-nav` has no `overflow-y`, so at the foot of the list they leave
-  the viewport once it is long enough. This position is the spec —
-  `cc_screens_diff.md` D-0B records the reversal.
+  Padding 16px 12px. **Project identity** at the top (below), then the
+  section headers, mono 10.5px uppercase `ink-3` (12px 8px 6px padding), and
+  project rows 28px (spec in components.md § App shell), in a list that
+  scrolls in its own box. Footer: the **project actions** pair, pinned; the
+  trust line came off the shell (LC-223 review) and the waitlist ghost button
+  under it was already NOT IN V0. In v0: **Starred**, **Local**, no Teams.
+- **Project identity:** what the brand lockup held until LC-239w — the
+  window's own title bar already says `LongClaw`, and nothing up here said
+  which project you were in. One row, no hairline under it: a **34px square
+  tile** in the project's own accent at a 14% wash carrying the name's first
+  letter (square, not round — a circle is this design's shape for *people*);
+  a two-line column, name in display 600/14 `ink` over the **path chip**
+  (mono 10.5px, no folder glyph, click copies, hover `wash`, **elided in the
+  middle** to 16 characters, 4 + `…` + 11, which is a pixel cap because the
+  chip is mono); and the **gear** 26px, out of the flow at the top right on
+  the name's line, so the path below runs the panel's full width. Under it a
+  **reserved 15px row** for the disk-state indicator (below), empty whenever
+  the disk is quiet — one that collapsed would move the list on every write.
+  Unreachable swaps the tile's letter for the warn triangle in `--lc-warn`.
+- **Project actions:** pinned to the panel's foot, over a list that scrolls
+  under them, separated by a top hairline `--lc-line` (16px above). Stacked,
+  not side by side — 216px does not hold two labelled controls on one line:
+  a `secondary` **Create project** spanning the panel, then a centred `ghost`
+  **Open folder**, both 30px, 4px apart. **The hierarchy is load-bearing:**
+  `Open folder` is quieter on variant alone, never position, and `New ticket`
+  keeps the only filled accent. *LC-73, moved to the foot by LC-239w.*
 - **Project row anatomy:** 6px theme dot in the *project's own* human accent
   (rendered by scoping that project's `data-lc-theme` on the dot), name 13px
   `ink-2`, star **mark** when starred (`accent-human`); a persistent 20px `⋮`
@@ -61,16 +61,16 @@
   triangle in `--lc-warn` and dim the name to `ink-3`; the row stays in
   place and stays clickable.
 - **Active row:** `line-soft` bg, `ink` text, 600 weight.
-- **Content header:** a 62px band, hairline below, 18px sides. Project
-  name (`--lc-type-title` at 16.5px) stacked over the path chip (mono
-  10.5px, folder glyph, click copies, hover `wash`); gear 26px, hover fills; disk-state indicator
-  (below), spacer, filter field (180×30px), **ordering control** (ghost,
-  `Order: Priority|Manual`, opens the ordering menu — ADR 0003), view
-  segment (Board | List), primary **New ticket** button with `C` kbd chip.
-- **Disk-state indicator:** mono 10px. While a write is in flight:
-  9px spinner + `writing ticket.md…` in `ink-3`. Settled: `✓ ticket.md`
-  in `ink-disabled`. This is the honest surface of optimistic UI — the
-  UI updates instantly, the indicator tells the truth about the disk.
+- **Content header:** a 62px band, hairline below, 18px sides — the board's
+  controls and nothing else since LC-239w (name, path and disk state moved to
+  the side panel), absent when unreachable, and **one indivisible row**
+  (LC-149) that wraps only under zoom, below the 760px `minWidth`: filter field
+  (240px, growing to 380, floor 120), **ordering control** (ghost, `Order:
+  Priority|Manual` — ADR 0003), view segment (Board | List), **New ticket**.
+- **Disk-state indicator:** mono 10px, in the identity block's reserved row.
+  While a write is in flight: 9px spinner + `writing ticket.md…` in `ink-3`.
+  Nothing once it settles (LC-239w): under a path chip a `✓ ticket.md` read
+  as a second, quieter path rather than as news. Honest optimistic UI.
 
 ### Terminal region — NOT IN V0 (Phase 2 design; see § Cut from v0)
 

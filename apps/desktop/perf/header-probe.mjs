@@ -20,28 +20,34 @@
  * checked is not "it looks fine" but the four things that sentence means when
  * the disk speaks up:
  *
- *   1. neither half of the header breaks. The header has exactly two items, the
- *      identity and the controls, and the wrap between them is the designed
- *      failure; a break *inside* either one is not, because that is what strands
- *      a control;
+ *   1. the control row does not break. Since LC-239w the header holds one item
+ *      and nothing else — everything that named the project moved to the side
+ *      panel — so there is no seam left for it to wrap at, and a second line
+ *      inside the cluster is the failure that strands a control;
  *   2. nothing in it is clipped;
  *   3. every control is still inside the header — a row that has run out of
  *      width must give some up, not hang past the edge;
  *   4. the write resizes nothing, and every pixel the row has given up since the
  *      widest run is the filter field's — it is the only control here whose
  *      width is a size rather than a content, so it is the only one that can
- *      give any up without losing a label.
+ *      give any up without losing a label;
+ *   5. the side panel's path fits its box and clears the gear above it, and the
+ *      list scrolls under a pinned create pair;
+ *   6. and the side panel holds still. The write lands in the identity block
+ *      now, whose disk row is reserved rather than conditional: a row that
+ *      arrived with the write would push every project under it down and pull
+ *      it back up when the write settled, which is (1)'s defect on the other
+ *      axis.
  *
- * **What it does not assert, and why.** Not "the header's height never changes
- * while a write is in flight", though that is the prototype's behaviour D-65
- * compares against. Between roughly 1230 and 1400 CSS pixels the header is one
- * row with the disk quiet and cannot be one row with the indicator on it, so the
- * control row moves down whole — the designed wrap, arriving for a reason the
- * user did not ask for. Closing that means reserving the indicator's 32ch
- * whether or not there is a write, which at 1440 leaves 4px of slack: a project
- * whose name is a little longer would then be two rows at the width the design
- * was drawn at. The height is printed beside every check so the band is visible;
- * LC-182 is where the choice is recorded.
+ * **What LC-239w settled.** This file carried a paragraph explaining why "the
+ * header's height never changes while a write is in flight" could not be
+ * asserted: between roughly 1230 and 1400 CSS pixels the header was one row with
+ * the disk quiet and could not be one with the indicator on it, so the control
+ * row moved down whole — the designed wrap, arriving for a reason the user did
+ * not ask for (LC-182). The indicator is not in the header any more and the
+ * header has one item, so that band is gone and the height simply holds. The
+ * cost moved with it, into the side panel, where it is paid as a reserved 13px
+ * row rather than as a wrap — which is what check 5 measures.
  *
  * Usage:
  *   npm run probe:header                  # every width
@@ -91,19 +97,28 @@ const SELF_TEST = process.argv.includes("--self-test");
 const SLOW_MS = 1_800;
 
 /**
- * The header as it was before LC-149, restored from a stylesheet.
+ * The two defects this probe exists for, restored from a stylesheet.
  *
- * `display: contents` is how the DOM half is put back without a second build:
- * it dissolves the identity group, so the name, the gear, the path chip and the
- * indicator become items of the header again, which is exactly the arrangement
- * the fix replaced.
+ * It used to put back the pre-LC-149 header with `display: contents` on the
+ * identity group. There is no identity group any more — LC-239w moved the name,
+ * the path and the disk-state line to the side panel and left the header
+ * holding controls alone — so the inversion is now the two rules that would
+ * bring the same class of defect back:
+ *
+ *   1. the control row free to wrap and free to refuse to shrink, which is
+ *      LC-149's `New ticket` on a second line and, past that, off the side;
+ *   2. the identity block's disk row free to collapse, which is the same defect
+ *      turned on its side — the project list moving down when a write starts
+ *      and back up when it lands, on every write.
  */
 const PRE_FIX_CSS = `
-  .header-identity { display: contents; }
   .content-header .toolbar-actions { flex-wrap: wrap; min-width: auto; }
   .content-header .toolbar-actions > * { flex: 0 1 auto; }
-  .content-header .filter-wrap { width: auto; min-width: auto; }
-  .content-header .filter-field { width: 190px; }
+  .content-header .toolbar-actions > .filter-wrap { flex: none; max-width: none; }
+  .content-header .filter-wrap { width: 380px; min-width: 0; }
+  .identity-disk { height: auto; min-height: 0; margin-top: 0; }
+  .project-nav { overflow-y: visible; min-height: auto; }
+  .project-identity .path-chip { max-width: 100%; }
 `;
 
 /* ---------- reporting ---------- */
@@ -141,19 +156,28 @@ const measure = (page) =>
     };
     const header = document.querySelector(".content-header");
     const cluster = header?.querySelector(".toolbar-actions");
-    const identity = header?.querySelector(".header-identity");
-    if (!header || !cluster || !identity) return null;
-    const indicator = header.querySelector(".disk-path");
+    // The identity block is in the side panel now (LC-239w), which is where the
+    // write lands and where the disk-state line lives.
+    const identity = document.querySelector(".project-identity");
+    const nav = document.querySelector(".project-nav");
+    if (!header || !cluster || !identity || !nav) return null;
+    const indicator = identity.querySelector(".disk-path");
     const tallest = (element) =>
       Math.max(...[...element.children].map((child) => box(child).height));
     return {
       header: box(header),
       cluster: box(cluster),
+      // The block the write now writes into, and the top of the list under it.
+      // A block that grows when a write starts pushes every project row down
+      // and pulls it back up when the write lands — LC-149's defect on the
+      // other axis, and the reason the disk row is reserved rather than
+      // conditional.
+      identity: box(identity),
+      navTop: box(nav).top,
       window: window.innerWidth,
-      // The two halves the header may break between, and nowhere else: each is
-      // on one line when it is no taller than the tallest thing standing in it.
+      // The header is one item now, so it has one line to hold: it is on it
+      // when it is no taller than the tallest thing standing in it.
       lines: [
-        { name: "identity", box: box(identity), tallest: tallest(identity) },
         { name: "controls", box: box(cluster), tallest: tallest(cluster) },
       ],
       controls: [...cluster.children].map((element) => ({
@@ -223,6 +247,65 @@ async function probe(browser, px) {
     );
     if (SELF_TEST) await page.addStyleTag({ content: PRE_FIX_CSS });
 
+    // The side panel's two load-bearing rules, computed rather than read off the
+    // stylesheet — LC-73 moved the create pair *up* because `.project-nav` had
+    // no `overflow-y` and at the foot of a long list it left the window, and
+    // LC-239w moves it back down on the strength of that one declaration. jsdom
+    // renders no CSS, so this is the layer that can ask.
+    const panel = await page.evaluate(() => {
+      const nav = document.querySelector(".project-nav");
+      const footer = document.querySelector(".side-panel-footer");
+      const pair = footer?.querySelector(".project-actions");
+      const side = document.querySelector(".side-panel");
+      if (!nav || !pair || !side) return null;
+      const box = (element) => element.getBoundingClientRect();
+      return {
+        navScrolls: getComputedStyle(nav).overflowY === "auto",
+        navShrinks: getComputedStyle(nav).minHeight === "0px",
+        // The pair is inside the panel it is pinned to, at every width.
+        pairInside: box(pair).bottom <= box(side).bottom + 1,
+        pairBottom: Math.round(box(pair).bottom),
+        panelBottom: Math.round(box(side).bottom),
+      };
+    });
+    // The path fits its box, and the box is the one the character cap in
+    // `pathDisplay.ts` was measured against. Four different numbers were wrong
+    // before that constant was right — each one arithmetic from the panel's
+    // width rather than a measurement — and every one of them would have shown
+    // as a second ellipsis on screen and nowhere else. `scrollWidth` over
+    // `clientWidth` is the whole check.
+    const path = await page.evaluate(() => {
+      const txt = document.querySelector(".project-identity .path-chip .txt");
+      const chip = document.querySelector(".project-identity .path-chip");
+      const gear = document.querySelector(".project-identity .settings-button");
+      if (!txt || !chip || !gear) return null;
+      const box = (element) => element.getBoundingClientRect();
+      return {
+        text: txt.textContent,
+        needs: Math.round(txt.scrollWidth),
+        has: Math.round(txt.clientWidth),
+        // And it stops short of the gear, which hangs into this row from the
+        // name's line above it and is later in the DOM: a chip running under it
+        // hands the path's last characters to the control that opens settings.
+        clearsGear: box(chip).right <= box(gear).left + 0.5,
+      };
+    });
+    check(
+      "the path fits its box on one line and stops short of the gear",
+      path && path.needs <= path.has + 0.5 && path.clearsGear,
+      path
+        ? `"${path.text}" ${path.needs}px in ${path.has}px, gear ${path.clearsGear ? "clear" : "OVERLAPPED"}`
+        : "no path chip",
+    );
+
+    check(
+      "the project list scrolls and the pinned pair is inside the panel",
+      panel && panel.navScrolls && panel.navShrinks && panel.pairInside,
+      panel
+        ? `overflow-y ${panel.navScrolls ? "auto" : "visible"}, min-height ${panel.navShrinks ? "0" : "auto"}, pair ends at ${panel.pairBottom} of ${panel.panelBottom}px`
+        : "no side panel",
+    );
+
     const quiet = await measure(page);
     check(
       "the header is on screen with the disk quiet",
@@ -243,11 +326,11 @@ async function probe(browser, px) {
     // a change — `changePriority` returns without writing when it is not.
     await openPriorityMenu(page);
     await page.click('.menu-row:has-text("Urgent")');
-    await page.waitForSelector(".content-header .disk-path.writing", {
+    await page.waitForSelector(".identity-disk .disk-path.writing", {
       timeout: 5_000,
     });
     const writing = await measure(page);
-    await page.waitForSelector(".content-header .write-spinner", {
+    await page.waitForSelector(".identity-disk .write-spinner", {
       timeout: 5_000,
     });
     const spinning = await measure(page);
@@ -273,7 +356,7 @@ async function probe(browser, px) {
         (line) => line.box.height > line.tallest + 1,
       );
       check(
-        `neither half of the header breaks ${state}`,
+        `the header's control row does not break ${state}`,
         broken.length === 0,
         seen.lines
           .map(
@@ -364,6 +447,19 @@ async function probe(browser, px) {
               )
               .join(", ")
           : `filter ${Math.round(natural.get("filter-wrap") ?? 0)}→${Math.round(widthOf(seen.controls, "filter-wrap"))}px since ${WIDTHS[0]}px`,
+      );
+
+      // And the block the write lands in does not change size, so the list
+      // under it does not move. `.identity-disk` reserves its 13px whether or
+      // not there is anything in it, which is what makes that true — this is
+      // the check that goes red if someone makes that row conditional, and
+      // nothing in `npm test` lays anything out to notice.
+      check(
+        `the identity block and the list hold still ${state}`,
+        Math.abs(seen.identity.height - quiet.identity.height) <= 1 &&
+          Math.abs(seen.navTop - quiet.navTop) <= 1,
+        `block ${Math.round(quiet.identity.height)}→${Math.round(seen.identity.height)}px, ` +
+          `list top ${Math.round(quiet.navTop)}→${Math.round(seen.navTop)}px`,
       );
     }
   } finally {

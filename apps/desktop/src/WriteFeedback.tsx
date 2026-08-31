@@ -40,9 +40,9 @@ const STORE_PREFIX = ".longclaw/";
  * label the prototype's own disk state carries (`prototype.js:345`).
  *
  * Not the bare file name. `screen-specs.md:71-72` and `states.md:180` write
- * `✓ ticket.md`, but as example prose: in LongClaw *every* ticket is stored as
- * `ticket.md`, so the bare name would leave the header marking a write to one
- * ticket while another sits open in the panel. The key is the identifying part.
+ * `writing ticket.md…` and `✓ ticket.md`, but as example prose: in LongClaw
+ * *every* ticket is stored as `ticket.md`, so the bare name would mark a write
+ * to one ticket while another sits open in the panel. The key identifies it.
  */
 export function diskLabel(path: string) {
   return path.startsWith(STORE_PREFIX) ? path.slice(STORE_PREFIX.length) : path;
@@ -53,9 +53,11 @@ export function diskLabel(path: string) {
  * final state, and this says what the disk is actually doing.
  *
  * It reports only what is happening or what just landed
- * (`screen-specs.md:70-73`). With no write, no read and no `idle` file to name,
- * it renders nothing at all — the `● watching` chip it replaced in the content
- * header was steady-state dev telemetry rather than designed chrome (LC-69).
+ * (`screen-specs.md:70-73`) — and under `inFlightOnly`, only what is happening:
+ * the side panel's identity block takes no settled mark, because under a path
+ * chip one reads as a second, quieter path (LC-239w). With no write, no read
+ * and no `idle` file to name, it renders nothing at all — the `● watching` chip
+ * it replaced was steady-state dev telemetry, not designed chrome (LC-69).
  *
  * `busy` is a read the app is waiting on. A write outranks it, because the
  * write is the user's own action and the one whose durability is in question.
@@ -73,6 +75,19 @@ export function WriteIndicator(props: {
    * keeps somebody else's settled mark off it.
    */
   transient?: boolean;
+  /**
+   * Report only the write itself: no settled mark, and nothing at all once the
+   * disk goes quiet.
+   *
+   * For the side panel's identity block (LC-239w), whose line sits directly
+   * under a path chip. There `✓ ticket.md` read as a second, quieter path
+   * rather than as news, and it stood there for the whole `SETTLED_MS` after
+   * every write — D-07's argument against the `● watching` chip, one state
+   * further on. Distinct from `transient`, which is about a surface that names
+   * its own file and so wants no *idle* line; this is about the mark that
+   * follows a write.
+   */
+  inFlightOnly?: boolean;
   className?: string;
 }) {
   const writing = useMutationStore((state) => state.writing);
@@ -125,6 +140,7 @@ export function WriteIndicator(props: {
   if (
     settled &&
     !stale &&
+    !props.inFlightOnly &&
     (props.idle === undefined || settled === props.idle)
   ) {
     return (

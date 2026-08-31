@@ -66,28 +66,154 @@ textarea:focus-visible,
   background: var(--lc-bg);
 }
 
-/* 22px mark + the wordmark in Familjen Grotesk 14.5/600 — the heading role
-   (`screen-specs.md:32`). */
-.brand-lockup {
-  display: flex;
-  align-items: center;
-  gap: var(--lc-space-2);
-  padding: 0 var(--lc-space-1);
-  color: var(--lc-ink);
+/* The project identity block, in the space the brand lockup held
+   (`screen-specs.md:37-49`, LC-239w). The lockup answered "which app is this",
+   which the window's own title bar answers — `tauri.conf.json` sets the title
+   and no `titleBarStyle`, so macOS draws `LongClaw` above this panel whether or
+   not the panel repeats it. This answers "which project", which nothing up here
+   answered: the active row says it further down, in a list whose job is
+   switching between them.
+
+   No hairline under it. `STARRED` below is a mono uppercase label with 12px of
+   air over it and already says a list starts here; a rule inside a 216px panel
+   that is itself fenced by a hairline says it twice. The footer keeps its line,
+   for a reason this block does not have — the pair down there is pinned over a
+   list that scrolls under it.
+
+   `position: relative` is for the gear, which is taken out of the flow so the
+   path below it can run the panel's full width. */
+.project-identity {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  padding: 0 var(--lc-space-1) var(--lc-space-4);
 }
 
-.brand-lockup strong {
-  /* The DS wordmark: display 700 at 15.5, tightened -0.03em (LC-223, F1). */
-  font: 700 15.5px / var(--lc-type-heading-leading) var(--lc-font-display);
-  letter-spacing: -0.03em;
+/* Three parts: the tile, the two-line text column, the gear. */
+.identity-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--lc-space-2);
+}
+
+/* The project's first letter, square. A circle is this design language's shape
+   for *people* — humans are circle avatars in the timeline and the composer
+   (`screen-specs.md` § Avatars) — and a project is not one.
+
+   34px is the two rows it stands beside, exactly: an 18px name line, 2px of
+   gap, a 14px path line. It carries the project's own accent at a wash, which
+   is the third place a theme reaches the side panel after the row's dot and the
+   menu's swatch — and here it is always the *open* project, so the accent is
+   the window's own and needs no `data-lc-theme` scoping. */
+.project-tile {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: var(--lc-radius-tile);
+  color: var(--lc-accent-human);
+  background: color-mix(
+    in oklab,
+    var(--lc-accent-human) 14%,
+    var(--lc-surface)
+  );
+  font: 600 15px / 1 var(--lc-font-display);
+  place-items: center;
+}
+
+/* Unreachable takes the row's warn triangle in place of the letter
+   (`screen-specs.md:60`), and the warn colour with it. This block is the only
+   place the open project is named once the header is controls-only, so it is
+   the only place left that can say so. */
+.project-tile.unreachable {
+  color: var(--lc-warn);
+  background: color-mix(in oklab, var(--lc-warn) 14%, var(--lc-surface));
+  font-size: 17px;
+}
+
+/* The two rows the tile is tall. `min-width: 0` here and on the chip inside it,
+   because an elided path is only elided if its box may be narrower than its
+   text. */
+.identity-text {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+/* 14px, not the 16.5 the content header gave this name: the same words in 216px
+   rather than in the main region's width, so it holds two-thirds of a long
+   project name before the ellipsis instead of half of one. Display face at 600,
+   which is the register the wordmark had here and the one the sections below do
+   not use. */
+.identity-text h1 {
+  overflow: hidden;
+  min-width: 0;
+  /* The gear is out of the flow, so only this row clears it. */
+  margin: 0;
+  padding-right: 30px;
+  color: var(--lc-ink);
+  font: 600 14px / 1.25 var(--lc-font-display);
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Top right, on the name's line, rather than centred in the block — and out of
+   the flow, so the path below runs the panel's full width. That is worth 34px,
+   which at the chip's 6.32px glyph is six more characters of path; the gear
+   ends up beside the title it belongs to, which is where this app puts a
+   title's action everywhere else. */
+.identity-row .settings-button {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+/* The disk-state line, riding with the path where `screen-specs.md` § Project
+   identity puts it, in a slot that is 13px whether or not there is anything in
+   it. A slot that collapsed would move every row of the project list up and
+   down again on every write, which is LC-149's defect turned on its side; the
+   reserved line costs one empty mono row and buys a panel that never moves.
+
+   The 32ch cap the content header gave this is gone — the panel is 216px wide,
+   so the cap is the panel. `writing tickets/LC-69/ticket.md…` runs to the edge
+   and the ellipsis takes the tail, which is the `ticket.md` every ticket shares
+   rather than the key that identifies one (`WriteFeedback.tsx`). */
+.identity-disk {
+  overflow: hidden;
+  /* A `height`, not a `min-height`, and both numbers computed from the same two
+     tokens as the line inside it. A floor is not a reservation: 13px was the
+     guess, the line boxes at 15, and the block grew by 2px the moment a write
+     started — which `probe:header`'s fifth check caught and no jsdom test
+     could. Whatever the line measures, the slot measures. */
+  height: calc(var(--lc-type-kbd-size) * var(--lc-type-code-leading));
+  margin-top: 4px;
+}
+
+.identity-disk > .disk-path {
+  display: block;
+  overflow: hidden;
+  max-width: 100%;
+  font: var(--lc-type-code-weight) var(--lc-type-kbd-size) /
+    var(--lc-type-code-leading) var(--lc-type-code-font);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .owl-mark {
   flex: none;
 }
 
+/* It scrolls, and that is the line that makes the footer's pair safe (LC-239w).
+   LC-73 moved those two controls *up* because this had no `overflow-y`, so at
+   the foot of a long list they left the window; `.side-panel-footer` is
+   `margin-top: auto`, which is a pin rather than a place in the flow, so a nav
+   that scrolls inside its own box is a footer that is always on screen. At 25
+   projects the pair is exactly where it is at 5. */
 .project-nav {
   display: grid;
+  overflow-y: auto;
   gap: var(--lc-space-5);
   min-height: 0;
 }
@@ -98,19 +224,22 @@ textarea:focus-visible,
   gap: var(--lc-space-2);
 }
 
-/* Above the sections now, so the hairline separates it from the rows below
-   (LC-73). Stacked rather than side by side: the sidebar is 240px, leaving
-   216px of content, which is not enough for two labelled controls on one line —
-   the old row needed `nowrap` and label-sized buttons to survive it.
+/* Pinned to the foot of the panel now, over a list that scrolls under it
+   (LC-239w) — so the hairline moves from below the pair to above it, because
+   what it separates is now above rather than below. Stacked rather than side by
+   side: the sidebar is 240px, leaving 216px of content, which is not enough for
+   two labelled controls on one line — the old row needed `nowrap` and
+   label-sized buttons to survive it.
 
    The two controls sit on the tightest step of the scale because they are one
    pair, not two neighbours: `Open folder` is the second half of "add a
-   project", and the space that matters is the one below them, holding the pair
-   off the sections. */
+   project", and the space that matters is the one above them, holding the pair
+   off the list. Everything LC-73 settled about *what* these two are — the
+   hierarchy, the variants, the 30px height — is untouched. */
 .project-actions {
   row-gap: var(--lc-space-1);
-  border-bottom: var(--lc-border-hairline) solid var(--lc-line);
-  padding-bottom: var(--lc-space-4);
+  border-top: var(--lc-border-hairline) solid var(--lc-line);
+  padding-top: var(--lc-space-4);
 }
 
 /* The create CTA fills the panel; `Open folder` is sized to its label and
@@ -124,10 +253,29 @@ textarea:focus-visible,
   white-space: nowrap;
 }
 
-/* The form is a separate thing from the pair that opens it, so it keeps the
-   8px the tightened row-gap took away. */
-.project-actions .quick-create {
-  margin-top: var(--lc-space-1);
+/* The create form is the panel's body while it is open — its own region between
+   the list and the footer, not a thing hanging off the pair. The measurement is
+   what forced it: the form is ~520px tall and the panel has 560px of content at
+   the window's 620px `minHeight`, so under the pair it does not fit. A cap put
+   the submit button below the fold of a nested scroller inside a 240px panel;
+   pinning the footer instead collapsed the list to nothing and still hung
+   `Create project` past the panel's bottom edge (LC-239w).
+
+   It scrolls itself only at that floor. At the 780px height the window opens
+   at, the whole form is on screen. */
+.create-region {
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* And while it is open, the list goes — nothing about choosing a name needs the
+   list of projects you are not in — and so does the pair, which is what stops
+   `Create project` being on screen twice: once as the form's filled submit and
+   once, two rows below, as the quieter toggle that opened it. The way out is
+   the form's own `Cancel`. */
+.side-panel.creating .project-nav,
+.side-panel.creating .project-actions {
+  display: none;
 }
 
 .quick-create {
@@ -292,12 +440,16 @@ textarea:focus-visible,
   outline: none;
 }
 
-/* Pinned to the foot with the trust line (`screen-specs.md:34`). The waitlist
-   button beside it is cut from v0 (LC-75) — the grid holds one row, not two. */
+/* Pinned to the foot (`screen-specs.md:34`, `:50-56`), holding the create pair
+   and only the pair. `flex: none` is load-bearing: the nav above may shrink to
+   nothing and scroll, this may not, so `Create project` is on screen at every
+   window height the app allows. */
 .side-panel-footer {
   display: grid;
+  flex: none;
   gap: var(--lc-space-2);
   margin-top: auto;
+  min-height: 0;
 }
 
 .trust-line {
@@ -729,38 +881,24 @@ button:disabled {
      back. Suppressing that second direction means `:not(:disabled)` on the
      foundation, which lifts it to (0,2,0) and past `html.theme-transition *` —
      paying 80ms theme crossfades on every enabled button in the app to save one
-     80ms fade here. `.content-header .settings-button` is the one rule already
-     out-specifying this at (0,2,0), and is harmless only because that gear is
-     never disabled. */
+     80ms fade here. `.content-header .settings-button` used to be the one rule
+     out-specifying this at (0,2,0); LC-239w moved the gear into the side panel
+     and unscoped it to `.settings-button`, which is (0,1,0) and so *loses* to
+     this rule while disabled. Nothing changes on screen — that gear is never
+     disabled — but it is this rule that decides now, not that one. */
   transition: none;
 }
 
-/* The content header is one row (`screen-specs.md:64-69`): project name,
-   settings, path, then a spacer, then every board control. It replaced a
+/* The content header is one row and, since LC-239w, one *item*: every board
+   control, and nothing that says which project this is — the name, the path and
+   the disk-state line moved to the side panel's identity block, which is where
+   the question was already being asked and answered by the list. It replaced a
    `project-toolbar` stacked above a `board-heading`, which between them put
    ~230px of chrome above the first card. */
 .content-header,
-.header-identity,
 .toolbar-actions {
   display: flex;
   align-items: center;
-}
-
-/* The identity half, as one box (LC-149). It exists so that the header's only
-   break is the one between the two halves: the name, the gear, the path and the
-   disk-state line are a single item here, and an item is what a flex row wraps.
-   Ungrouped they were four, and the fourth arrived a write at a time.
-
-   `nowrap` and `min-width: 0` are the pair that makes it possible: nothing
-   inside may take a line of its own, so the shortfall goes to the two things in
-   it that yield — the path chip and the indicator, both of which end in an
-   ellipsis rather than a second row. `nowrap` is the default said out loud,
-   because holding it is the whole reason this box exists. */
-.header-identity {
-  flex: 0 1 auto;
-  flex-wrap: nowrap;
-  gap: 12px;
-  min-width: 0;
 }
 
 /* The prototype's 62px band (`screen-specs.md:64`), hairline below, running
@@ -768,12 +906,13 @@ button:disabled {
    with negative margins and restates it as padding, so its border reaches
    both edges while its content stays aligned with the board.
 
-   Wrapping is the last resort, not the layout: at any width that fits, this is
-   one line. When it genuinely cannot be, the control row moves down whole —
-   which is the failure this wants, because a row that breaks *inside* the
-   cluster strands a control. This rule says only that the row *may* wrap. What
-   makes it wrap in exactly one place is that it has two items and neither may
-   break: `.header-identity` above and `nowrap` on `.toolbar-actions` below. */
+   Wrapping is now a thing this row cannot do, which is stronger than the rule
+   LC-149 asked for rather than weaker. `flex-wrap: wrap` is kept as a statement
+   of the designed failure — a row that runs out of line moves down whole rather
+   than breaking inside the cluster and stranding a control — but with identity
+   gone the row has a single item, so there is no seam for it to break at. The
+   measured consequence: one row at 760px, the window's own `minWidth`, where it
+   used to be two. */
 .content-header {
   flex-wrap: wrap;
   gap: 12px;
@@ -788,36 +927,12 @@ button:disabled {
   background: var(--lc-bg);
 }
 
-.title-stack {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.path-line {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  min-width: 0;
-}
-
-.content-header .path-chip {
-  color: var(--lc-ink-3);
-  font-size: 10.5px;
-}
-
-/* The row's own height comes from the 30px controls in it, so the name gives up
-   the block margin it carries everywhere else. */
-.content-header h1 {
-  font-size: 16.5px;
-  margin-bottom: 0;
-  white-space: nowrap;
-}
-
-/* The project already owns its star in the side panel; the header's one
-   project action is the prototype's compact gear (`screen-specs.md:64-65`). */
-.content-header .settings-button {
+/* The project already owns its star in the side panel; its one other project
+   action is the prototype's compact gear, which sits in the identity block with
+   the path it belongs to (`screen-specs.md` § Project identity). Unscoped since
+   LC-239w — it is the same control in a new parent, and nothing about how it
+   looks changed with the move. */
+.settings-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -843,20 +958,26 @@ button:disabled {
    control that looks untouched reads as belonging to whatever is behind it. */
 /* Hover fills like every icon button now — the prototype's gear (D22,
    superseding D16's colour-only fade). */
-.content-header .settings-button:hover,
-.content-header .settings-button.open {
+.settings-button:hover,
+.settings-button.open {
   color: var(--lc-ink);
   background: var(--lc-line-soft);
 }
 
-.content-header .settings-button:focus-visible {
+.settings-button:focus-visible {
   border-color: var(--lc-accent-human);
   box-shadow: var(--lc-focus-ring);
   outline: none;
 }
 
-/* The spec's spacer: identity left, controls right. */
+/* The row owns the band's width now that it is the only thing in it, and
+   `justify-content` keeps the cluster on the right edge it has always sat on —
+   the field grows leftward out of it. `flex: 1 1 auto` is what gives the row
+   something to hand the filter field; `margin-left: auto` is kept for the case
+   the header is handed a second item again. */
 .content-header .toolbar-actions {
+  flex: 1 1 auto;
+  justify-content: flex-end;
   margin-left: auto;
   /* And the row moves down whole or not at all (LC-149). The disk-state
      indicator takes width from the header the moment a write leaves, and a row
@@ -882,50 +1003,43 @@ button:disabled {
   flex: none;
 }
 
-/* From the filter field, which is the one control in this row whose width is a
-   size rather than a content (`screen-specs.md` § Content header): a shorter
-   field is still a field. Down to the 120px floor `.filter-wrap` states, and no
-   further.
+/* And the filter field is where the width goes (LC-239w). It is the one control
+   in this row whose width is a size rather than a content
+   (`screen-specs.md` § Content header): a shorter field is still a field, and a
+   longer one is a better one.
 
-   Not, strictly, width handed to the indicator. A wrapping row moves down whole
-   rather than shrinking to make room, so what the indicator changes is which
-   line this row gets; this is what makes it fit the line it lands on — 140px of
-   field at 760px, where the row's own width is 50px more than its line. */
+   A number *and* a share: 240px is what it asks for, it grows into whatever the
+   band has left — which is now the ~300px the identity block used to hold — and
+   it stops at 380. Uncapped, a 1600px window draws half a metre of empty field
+   for a query that is usually seven characters, and the field stops reading as
+   a control and starts reading as a gap between the board and its buttons. The
+   120px floor is LC-149's, and is unchanged: at 760px the field is 152px.
+
+   The growth has to be written *here* rather than on `.filter-wrap`, because
+   this two-class rule is what the row hands its shortfall to and a one-class
+   rule proposing `flex` beside it loses. */
 .content-header .toolbar-actions > .filter-wrap {
-  flex: 0 1 auto;
+  flex: 1 1 240px;
+  max-width: 380px;
 }
 
-/* The disk-state indicator, which `screen-specs.md:64-73` puts here — beside
-   the path chip, left of the spacer — at mono 10px. The cap holds the longest
-   thing it says, `writing tickets/LC-69/ticket.md…`, and it is absent whenever
-   the disk is quiet, so the width is only ever spent on news. Past that the
-   ellipsis takes the tail, which costs the `ticket.md` every ticket shares
-   rather than the key that identifies one (`WriteFeedback.tsx`).
-
-   And it yields, like the path chip beside it (LC-149): the cap is what it
-   takes when the row can afford it, not a width it holds on to while the
-   controls are pushed off the line. */
-.header-identity > .disk-path {
-  flex: 0 1 auto;
-  min-width: 0;
-  max-width: 32ch;
-  font-size: var(--lc-type-kbd-size);
-}
-
-/* The project path as a chip (`screen-specs.md:64-67`, D-06): mono 12px, a
-   folder glyph, truncated to the header, and a click that copies. The bare
-   wrapping `<code>` it replaces consumed two lines for a long path; this one
-   never does. Modeled on the prototype's `.path-chip`
-   (`prototype.css:200-207`). It yields width, capped, because an uncapped path
-   is what pushed the control row onto a second line — and being the wider of
-   the two capped items left of the spacer, it absorbs most of any shortfall. */
+/* The project path as a chip (`screen-specs.md:42-45`, D-06): mono, elided in
+   the middle, and a click that copies. It gave up the folder glyph and two
+   points of size when it moved to the side panel's identity block (LC-239w),
+   where the tile leads the row instead of a glyph. The bare wrapping `<code>`
+   it replaces consumed two lines for a long path; this one never does. Modeled
+   on the prototype's `.path-chip` (`prototype.css:200-207`). */
 .path-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   flex: 0 1 auto;
   min-width: 0;
-  max-width: 180px;
+  /* The cap is the box it is in. It was 180px while this lived in the content
+     header, where the box was the header's to give; in the side panel's
+     identity block the box is the panel, and what keeps a long path to one line
+     is the middle elision in `pathDisplay.ts` rather than a width (LC-239w). */
+  max-width: 100%;
   /* The 1px the focused state needs, reserved transparent and paid for out of
      the padding rather than added to the box: `components.md:30` puts a 1px
      `accent-human` border on every keyboard-focused control, and `border: none`
@@ -942,6 +1056,33 @@ button:disabled {
   font: var(--lc-type-code-weight) var(--lc-type-code-size) /
     var(--lc-type-code-leading) var(--lc-type-code-font);
   cursor: pointer;
+}
+
+/* 10.5px in the identity block, which is the size the content header set it at
+   and the size `pathDisplay.ts`'s character cap is measured against: 6.32px a
+   glyph, 157px of box, 24 characters. Changing this size without changing that
+   cap is how the path starts clipping. */
+.project-identity .path-chip {
+  /* Sized to its text and stopped short of the gear, which is the pair of rules
+     that keeps this row's pixels honest.
+
+     `justify-self` because the chip is a button: stretched across the column it
+     would own the empty half of the row too, and a click on nothing would copy
+     the path. The `max-width` because the gear is 26px tall against an 18px
+     name line, so its box hangs a few pixels into *this* row whatever the chip
+     does — and it comes later in the DOM, so those pixels are its. A chip that
+     ran the full width put its own last characters under a control that opens
+     settings. Neither wants a `z-index`: the layer scale in `tokens/` orders
+     the surfaces that stack at the root, and this is two siblings inside one
+     block, which geometry can settle by itself.
+
+     30px is the gear and the gap it needs. `pathDisplay.ts`'s character cap is
+     measured against what is left, so in the ordinary case the text stops on
+     its own and this is the backstop for a panel the shell has squeezed. */
+  justify-self: start;
+  max-width: calc(100% - 30px);
+  color: var(--lc-ink-3);
+  font-size: 10.5px;
 }
 
 .path-chip:hover {
@@ -1720,7 +1861,7 @@ button:disabled {
 /* ------------------------------------------------------- the issue list */
 
 /* Board | List (screen-specs.md:69). */
-/* `Order: Priority|Manual` (screen-specs.md:67-68). The word is drawn beside the
+/* `Order: Priority|Manual` (screen-specs.md:68-69). The word is drawn beside the
    trigger rather than inside it, so the trigger keeps saying only the value —
    which is what every other menu trigger in the app says. */
 /* 28px tall (`screen-specs.md` § Content header). The one control in the header
@@ -1747,7 +1888,13 @@ button:disabled {
 .filter-wrap {
   position: relative;
   display: inline-flex;
-  width: 180px;
+  /* The width is `.content-header .toolbar-actions > .filter-wrap`'s share of
+     the band, not a size stated here — 180px was a number for a row that had no
+     width to spare, and the row has ~300px more of it since the identity block
+     left the header (LC-239w). `auto` rather than absent, because `.filter-wrap`
+     is the box the ⌘F chip is positioned inside and one of the two has to say
+     it does not state a width. */
+  width: auto;
   /* How short the field may get when the header is short of width (LC-149).
      Two things inside it are fixed whatever happens to the rest — 34px of right
      padding under the ⌘F chip and 9px of left padding — so 120px leaves ~77px
@@ -1759,6 +1906,36 @@ button:disabled {
      is its own content, and this one's content is a field with a stated width,
      so `auto` here reads as "190px, and not a pixel less". */
   min-width: 120px;
+}
+
+/* Below the window's own `minWidth` the row may break after all — and there it
+   must. `tauri.conf.json` sets `minWidth: 760`, so no window is ever narrower
+   than that; a viewport that is comes from **zoom**, and at 200% the app is
+   drawn into 640 CSS pixels of band. There is no arrangement of a filter field,
+   an ordering control, a view segment and `New ticket` that fits 364px, so the
+   choice at that width is between a control on a second line and a control off
+   the side of the window — and the accessibility gate's A5 row is right that it
+   is the second one that is the defect (it caught exactly this, `New ticket` at
+   x=628 in a 640px window, the first time this rule was written without the
+   media query).
+
+   759 rather than 760: at the window's minimum the row is still indivisible,
+   which is what `probe:header` measures at every width from 1440 down to 760.
+   This applies only where no window can go. */
+@media (max-width: 759px) {
+  .content-header .toolbar-actions {
+    flex-wrap: wrap;
+    /* And left, not right. Below its `minWidth` the shell is wider than the
+       viewport — `.app-shell`'s own min-content is about 760px and the page
+       simply overflows, which predates this ticket — so the band's right edge
+       is *off screen* at 200% zoom. Aligning the wrapped lines to it puts
+       `New ticket` at x=628 in a 640px window, which is the A5 row's exact
+       finding; aligning them to the left keeps every control on screen inside
+       a header that is one line taller. Above the breakpoint the cluster is
+       still `flex-end`, where the right edge is the one you can see. */
+    justify-content: flex-start;
+    row-gap: 8px;
+  }
 }
 
 /* Anatomy from `.kbd-chip`; the placement and the prototype's own tracking are

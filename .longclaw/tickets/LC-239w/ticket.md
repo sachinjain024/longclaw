@@ -9,7 +9,7 @@ labels:
   - frontend
   - design
 created_at: 2026-08-29T00:14:11.894Z
-updated_at: 2026-08-31T09:54:13.248Z
+updated_at: 2026-08-31T14:35:32.454Z
 ---
 
 The shell says **LongClaw** twice and says which project you are in twice, and it spends the header's width on the first of those instead of on the filter field.
@@ -74,18 +74,18 @@ Per the user: design before execution. `docs/ux/prototypes/` takes one standalon
 
 ## Checklist
 
-- [ ] Prototype the variations in docs/ux/prototypes/, at 1180px and 760px, and get them reviewed before code <!-- longclaw:item=ck_befadef3 -->
-- [ ] Evaluate titleBarStyle Overlay for the owl beside the traffic lights; record the decision either way <!-- longclaw:item=ck_fd5321d6 -->
-- [ ] Remove the brand lockup from the sidebar (App.tsx:1697-1700, styles.css:71-83) <!-- longclaw:item=ck_25e045cb -->
-- [ ] Decide Variation 1: identity + gear into the sidebar, create/open down to the footer <!-- longclaw:item=ck_b987b978 -->
-- [ ] Keep the gear reachable when the project is unreachable, and handle the no-project state <!-- longclaw:item=ck_dcf11b43 -->
-- [ ] Decide where WriteIndicator lives if the path chip moves <!-- longclaw:item=ck_78dc1aae -->
-- [ ] Widen the filter field at .filter-wrap; keep the header one indivisible row (LC-149) <!-- longclaw:item=ck_45747829 -->
-- [ ] Rewrite screen-specs.md lines 30-34 and 64-73 in place; npm run citations:update <!-- longclaw:item=ck_d354bf02 -->
-- [ ] Update keyboard-focus-map.md in place for the moved tab stops; npm run a11y:audit <!-- longclaw:item=ck_77678858 -->
-- [ ] Update npm run probe:header for the new header boxes; quote the run and its --self-test <!-- longclaw:item=ck_b2f2fbfb -->
-- [ ] npm run matrix and re-baseline; explicit tabIndex on every new button <!-- longclaw:item=ck_7906ff7d -->
-- [ ] npm run verify <!-- longclaw:item=ck_b2a07dc4 -->
+- [x] Prototype the variations in docs/ux/prototypes/, at 1180px and 760px, and get them reviewed before code <!-- longclaw:item=ck_befadef3 -->
+- [x] Evaluate titleBarStyle Overlay for the owl beside the traffic lights; record the decision either way <!-- longclaw:item=ck_fd5321d6 -->
+- [x] Remove the brand lockup from the sidebar (App.tsx:1697-1700, styles.css:71-83) <!-- longclaw:item=ck_25e045cb -->
+- [x] Decide Variation 1: identity + gear into the sidebar, create/open down to the footer <!-- longclaw:item=ck_b987b978 -->
+- [x] Keep the gear reachable when the project is unreachable, and handle the no-project state <!-- longclaw:item=ck_dcf11b43 -->
+- [x] Decide where WriteIndicator lives if the path chip moves <!-- longclaw:item=ck_78dc1aae -->
+- [x] Widen the filter field at .filter-wrap; keep the header one indivisible row (LC-149) <!-- longclaw:item=ck_45747829 -->
+- [x] Rewrite screen-specs.md lines 30-34 and 64-73 in place; npm run citations:update <!-- longclaw:item=ck_d354bf02 -->
+- [x] Update keyboard-focus-map.md in place for the moved tab stops; npm run a11y:audit <!-- longclaw:item=ck_77678858 -->
+- [x] Update npm run probe:header for the new header boxes; quote the run and its --self-test <!-- longclaw:item=ck_b2f2fbfb -->
+- [x] npm run matrix and re-baseline; explicit tabIndex on every new button <!-- longclaw:item=ck_7906ff7d -->
+- [x] npm run verify <!-- longclaw:item=ck_b2a07dc4 -->
 
 ## Activity
 
@@ -253,4 +253,103 @@ Prototype revised to the round-2 feedback. The block is now the shape the review
 **The `writing …` slot moved below the tile-and-text row**, full width, still reserved — so the tile spans exactly the two rows the review names and the list still does not move when a write starts.
 
 Three left for you: which head/tail split; whether 14px/600 display is the right weight for the name at 240px; and whether an unreachable project’s tile should go warn as it does here, or stay neutral and leave the triangle to the row.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_dee77b7a
+kind: update
+occurred_at: 2026-08-31T14:35:32.454Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_befadef3.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_fd5321d6.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_25e045cb.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_b987b978.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_dcf11b43.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_78dc1aae.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_45747829.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_d354bf02.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_77678858.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_b2f2fbfb.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_7906ff7d.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_b2a07dc4.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_81eaa8b1
+kind: comment
+occurred_at: 2026-08-31T15:05:39.456Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+## Implemented, and the runs
+
+`npm run verify` — green, including the native watcher.
+
+```
+npm run probe:header
+HEADER-PROBE tickets=40 slow=1800ms engine=WebKit (playwright-core)
+  1440px 1300px 1180px 1024px 900px 800px 760px
+  126/126 checks passed
+
+npm run probe:header -- --self-test
+  104/126 checks passed
+  SELF-TEST ok — the pre-fix rules failed 29 checks
+
+npm run a11y:audit
+  A1 PASS  A2 PASS  A3 PASS  A4 PASS  A5 PASS
+
+npm run matrix
+  theme matrix: 8 axes × 12 states clean
+
+npm run citations:check          488 citations clean
+npm run citations:check --self-test   a one-line shift is caught in each of the six
+```
+
+`probe:drag` and the perf budgets were not run: `tauri.conf.json` is untouched, and nothing here is a lane, a row, a comparator or a selector.
+
+**The probe grew two checks and lost one.** It now measures that the identity block and the project list hold still while a write is in flight — the reserved disk row is the whole reason they do — and that the path fits its box and clears the gear. Its `--self-test` inversion was rewritten: the old one restored the pre-LC-149 header, which no longer exists, so it now restores the four rules that would bring the same class of defect back.
+
+**Three defects the harnesses found that no test could:**
+
+1. **The reserved row was 13px and the line boxes at 15**, so the whole project list moved 2px down on every write — LC-149’s defect on the other axis, in the exact place this ticket put it. The slot is now a `height` computed from the same two tokens as the line inside it.
+2. **A5 went red**: with the header indivisible, `New ticket` was pushed to x=628 in a 640px window at 200% zoom. The page has been ~760px wide at that zoom since long before this ticket; what changed is that the old header wrapped and left-aligned. The row now wraps below 759px — under the window’s own `minWidth`, so at no width a window can be — and aligns left there.
+3. **The gear was stealing the path’s last characters.** It is 26px tall on an 18px name line, so its box hangs into the path’s row and it is later in the DOM: a 16×4px sliver of the chip opened settings. The chip is now sized to its text and stopped 30px short of the gear.
+
+**The path cap is 16 characters, and that number is a measurement.** Four derivations were wrong: 22 in a box calculated at 140 and measured at 123; 25 in a box of 157, over by one pixel; 24 in a box with a gear over the end of it; 18 taken at 1180, which clips at 900 where the shell squeezes the panel. The probe now prints `"…" 100px in 107px` at every width on every run, so a fifth cannot hide.
+
+**Two things dropped after review.** The `@media (max-width: 900px)` that hid the word `Order` was scope creep — the ticket’s lever was `.filter-wrap`, and the probe confirms the row fits at 760–900 with the label drawn. And `elidePath`’s head/tail parameters, which no caller passed.
 <!-- /longclaw:event -->

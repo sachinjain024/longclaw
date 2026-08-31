@@ -46,6 +46,13 @@ export function CreateProjectForm(props: {
   folder?: string;
   /** Step one is still behind this form, and `Back` is how you reach it. */
   onBack?: () => void;
+  /**
+   * What that way out is called. `Back` on first launch, where there is a step
+   * one to return to; `Cancel` in the side panel, where the form *is* the
+   * panel while it is open and the toggle that opened it is hidden behind it
+   * (LC-239w), so there is nothing behind it to go back to.
+   */
+  backLabel?: string;
   onSubmit: (draft: ProjectDraft) => void;
 }) {
   // Prefilled from the folder, and from nothing else (`screen-specs.md:103`):
@@ -171,7 +178,7 @@ export function CreateProjectForm(props: {
             type="button"
             onClick={props.onBack}
           >
-            Back
+            {props.backLabel ?? "Back"}
           </button>
         )}
       </div>
