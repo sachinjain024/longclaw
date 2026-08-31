@@ -227,8 +227,10 @@ fn ticket_create(arguments: &[String]) -> AppResult<Value> {
         priority: priority(&options)?,
         labels,
         // `--checklist` gives text and nothing else, so every row it files is
-        // open. Filing one already ticked is the create panel's gesture
-        // (LC-242h); the CLI has no flag for it yet.
+        // open. LC-242h put the gesture on the create panel, where a human is
+        // describing work they have already partly done; a flag that let an
+        // agent file a ticked row is a decision of its own and has not been
+        // asked for (ADR 0011 makes this the surface agents create through).
         checklist: options
             .many("checklist")
             .into_iter()

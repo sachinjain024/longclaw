@@ -1373,10 +1373,8 @@ fn a_ticket_created_with_every_field_matches_one_assembled_by_edits() {
     // rather than an assertion: a row created ticked has to be
     // indistinguishable from one ticked afterwards, and the only way to show
     // that is to reach the same file down both paths.
-    let first_item = assembled.ticket().checklist[0]
-        .id
-        .clone()
-        .expect("an appended row is minted an id");
+    let minted = assembled.ticket().checklist[0].id.clone();
+    let first_item = minted.expect("an appended row is minted an id");
     let ticked = assembled
         .apply(
             &TicketEdit {

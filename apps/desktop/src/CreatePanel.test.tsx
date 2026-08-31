@@ -68,8 +68,15 @@ function pick(field: "Status" | "Priority", option: string) {
  * tests are about a row's words or its place, not its box, and spelling
  * `checked: false` out on each one would bury what they are checking.
  */
-function open(...texts: string[]) {
+function openRows(...texts: string[]) {
   return texts.map((text) => ({ text, checked: false }));
+}
+
+/** The drafted rows, in the order the list is drawing them. */
+function draftedRows(): string[] {
+  return [...document.querySelectorAll(".checklist-row label span")].map(
+    (node) => node.textContent ?? "",
+  );
 }
 
 function addChecklistItem(text: string) {
@@ -108,7 +115,7 @@ describe("every approved field, in one create", () => {
       priority: "p1",
       labels: ["backend", "reliability"],
       description: "Check whether the round trip holds.",
-      checklist: open(
+      checklist: openRows(
         "Let an agent read this ticket",
         "Review what it changed",
       ),
@@ -294,6 +301,53 @@ describe("nothing here claims the file exists yet", () => {
   });
 
   /**
+   * `⌥↓` hands focus back to the control it was pressed from, not to `✕`.
+   *
+   * The rows key by position, so the element the human is on keeps its place
+   * while the text inside it changes and focus has to be put back by hand. Doing
+   * that unconditionally on `✕` was harmless while the box was not a tab stop —
+   * the only origins were the two buttons. LC-242h made the box a stop and the
+   * natural place to press `⌥↓` from (`keyboard-focus-map.md:62`), and a
+   * gesture that quietly parks the human on a destructive button turns the next
+   * `Space` — pressed to untick — into a removal.
+   */
+  it("returns focus to the control a keyboard move was pressed from", () => {
+    render(createPanel());
+    addChecklistItem("Parse");
+    addChecklistItem("Write");
+
+    const box = screen.getByRole<HTMLInputElement>("checkbox", {
+      name: "Parse",
+    });
+    box.focus();
+    fireEvent.keyDown(box, { key: "ArrowDown", altKey: true });
+
+    // The row moved under "Write"...
+    expect(draftedRows()).toEqual(["Write", "Parse"]);
+    // ...and focus is on that row's box, not on the `✕` beside it.
+    const moved = screen.getByRole("checkbox", { name: "Parse" });
+    expect(document.activeElement).toBe(moved);
+    expect(
+      (document.activeElement as HTMLElement).classList.contains("row-remove"),
+    ).toBe(false);
+  });
+
+  it("still returns focus to Remove when the move came from Remove", () => {
+    render(createPanel());
+    addChecklistItem("Parse");
+    addChecklistItem("Write");
+
+    const remove = screen.getByRole("button", { name: "Remove Parse" });
+    remove.focus();
+    fireEvent.keyDown(remove, { key: "ArrowDown", altKey: true });
+
+    expect(draftedRows()).toEqual(["Write", "Parse"]);
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Remove Parse" }),
+    );
+  });
+
+  /**
    * Two gestures that move a row's words or its place must not move its tick:
    * changing what a row says, or where it sits, is not changing whether it is
    * done (the reason the panel's own reword keeps the item id, LC-215).
@@ -351,7 +405,7 @@ describe("nothing here claims the file exists yet", () => {
     fireEvent.click(screen.getByText("Create ticket"));
 
     expect(onCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ checklist: open("First", "Third") }),
+      expect.objectContaining({ checklist: openRows("First", "Third") }),
     );
   });
 
@@ -376,7 +430,7 @@ describe("nothing here claims the file exists yet", () => {
     fireEvent.click(screen.getByText("Create ticket"));
 
     expect(onCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ checklist: open("First", "Second") }),
+      expect.objectContaining({ checklist: openRows("First", "Second") }),
     );
   });
 
@@ -395,7 +449,7 @@ describe("nothing here claims the file exists yet", () => {
     fireEvent.click(screen.getByText("Create ticket"));
 
     expect(onCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ checklist: open("First") }),
+      expect.objectContaining({ checklist: openRows("First") }),
     );
   });
 
@@ -419,7 +473,7 @@ describe("nothing here claims the file exists yet", () => {
     fireEvent.click(screen.getByText("Create ticket"));
 
     expect(onCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ checklist: open("First", "Second") }),
+      expect.objectContaining({ checklist: openRows("First", "Second") }),
     );
   });
 
@@ -476,7 +530,7 @@ describe("nothing here claims the file exists yet", () => {
       fireEvent.click(screen.getByText("Create ticket"));
       expect(onCreate).toHaveBeenCalledWith(
         expect.objectContaining({
-          checklist: open("Third", "First", "Second"),
+          checklist: openRows("Third", "First", "Second"),
         }),
       );
     });

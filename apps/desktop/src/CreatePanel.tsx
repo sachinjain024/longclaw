@@ -43,6 +43,13 @@ import type {
   TicketStatus,
 } from "./types";
 
+/**
+ * A draft row's checkbox, as the selector that finds it inside its own row.
+ * Named once because focus is put back through it by hand (`followRow`) and the
+ * string has to be the one the row actually renders.
+ */
+const CHECKLIST_BOX = 'input[type="checkbox"]';
+
 interface CreatePanelProps {
   /**
    * The key the create is about to be given, read off the rows on screen — and
@@ -92,20 +99,48 @@ export function CreatePanel(props: CreatePanelProps) {
   const [dropGap, setDropGap] = useState<number>();
   const rows = useRef<HTMLUListElement>(null);
   /**
-   * Where a keyboard move sent a row, so focus can follow it there.
+   * Where a keyboard move sent a row, so focus can follow it there — and which
+   * of the row's controls to hand back.
    *
    * The panel's rows key by position, because a draft item has no id and two of
    * them may read the same. That is right for React and wrong for focus: the
    * element the human was on keeps its place while the text inside it changes,
    * so without this `⌥↓` would leave them holding the row they just moved past.
+   *
+   * **The control matters as much as the row.** This used to send focus to `✕`
+   * whichever control the gesture came from, which was harmless while the box
+   * was not a tab stop: the only places `⌥↓` could be pressed from were the two
+   * buttons. LC-242h made the box a stop, and the box is the natural place to
+   * press `⌥↓` from (`keyboard-focus-map.md:62`) — so landing on a destructive
+   * button would mean the next `Space`, which the human presses to untick,
+   * removes the row instead.
    */
-  const [followRow, setFollowRow] = useState<number>();
+  const [followRow, setFollowRow] = useState<{
+    index: number;
+    control: string;
+  }>();
   useEffect(() => {
-    if (followRow === undefined) return;
+    if (!followRow) return;
     setFollowRow(undefined);
-    const buttons = rows.current?.querySelectorAll<HTMLElement>(".row-remove");
-    buttons?.[followRow]?.focus();
+    // Found through the row rather than by counting controls across the list: a
+    // row being retyped draws a field instead of its box and buttons, so the
+    // nth `.row-remove` is not always the nth row's.
+    const row = rows.current?.querySelector<HTMLElement>(
+      `[data-row-index="${followRow.index}"]`,
+    );
+    row?.querySelector<HTMLElement>(followRow.control)?.focus();
   }, [followRow]);
+
+  /**
+   * Which of a row's controls an event came from, as the selector that finds
+   * the same one again on the row's new line.
+   */
+  function controlAt(target: EventTarget | null): string {
+    const element = target as HTMLElement | null;
+    if (element?.closest(".row-edit")) return ".row-edit";
+    if (element?.closest(".row-remove")) return ".row-remove";
+    return CHECKLIST_BOX;
+  }
 
   /** The row being retyped, by position — a draft row has no id to name. */
   const [editingRow, setEditingRow] = useState<number>();
@@ -117,6 +152,22 @@ export function CreatePanel(props: CreatePanelProps) {
     const buttons = rows.current?.querySelectorAll<HTMLElement>(".row-edit");
     buttons?.[refocusRow]?.focus();
   }, [refocusRow]);
+
+  /**
+   * Changes one part of one draft row, by the position it sits at.
+   *
+   * Position is the identity here — a draft row has no id, and two of them may
+   * legitimately read the same until the file mints one — so this is the single
+   * place that rule is written down. What is not changed is carried through by
+   * the spread, which is what keeps a reword from moving a tick.
+   */
+  function patchRow(index: number, patch: Partial<NewChecklistItem>) {
+    setChecklist((rows) =>
+      rows.map((row, position) =>
+        position === index ? { ...row, ...patch } : row,
+      ),
+    );
+  }
 
   /**
    * Replaces one draft row's text (LC-215). An empty field leaves the row as it
@@ -132,14 +183,10 @@ export function CreatePanel(props: CreatePanelProps) {
     setRefocusRow(index);
     const next = text.trim();
     if (!next) return;
-    setChecklist((rows) =>
-      rows.map((row, position) =>
-        // The tick survives a reword, for the reason the panel's own edit keeps
-        // the item id behind it (LC-215): changing what a row says is not
-        // changing whether it is done.
-        position === index ? { ...row, text: next } : row,
-      ),
-    );
+    // Text alone: the tick survives a reword, for the reason the panel's own
+    // edit keeps the item id behind it (LC-215) — changing what a row says is
+    // not changing whether it is done.
+    patchRow(index, { text: next });
   }
 
   /**
@@ -151,11 +198,7 @@ export function CreatePanel(props: CreatePanelProps) {
    * whole of it.
    */
   function toggleRow(index: number, checked: boolean) {
-    setChecklist((rows) =>
-      rows.map((row, position) =>
-        position === index ? { ...row, checked } : row,
-      ),
-    );
+    patchRow(index, { checked });
   }
 
   /** Takes a draft row off the list. Nothing is written; nothing was. */
@@ -178,10 +221,10 @@ export function CreatePanel(props: CreatePanelProps) {
    * yet, so the order is simply the order they will be created in — which is the
    * one thing about a create surface that a move can change.
    */
-  function moveDraft(from: number, to: number, follow: boolean) {
+  function moveDraft(from: number, to: number, follow?: string) {
     if (from === to) return;
     setChecklist((current) => reordered(current, from, to));
-    if (follow) setFollowRow(to);
+    if (follow) setFollowRow({ index: to, control: follow });
   }
 
   /** Whether there is another row for one to be dragged past. */
@@ -214,7 +257,7 @@ export function CreatePanel(props: CreatePanelProps) {
     event.preventDefault();
     // Focus is wherever the pointer left it, so a drop does not move it — only
     // the keyboard's own gesture does.
-    moveDraft(from, landingFor(from, gap), false);
+    moveDraft(from, landingFor(from, gap));
   }
 
   function endDrag() {
@@ -232,7 +275,7 @@ export function CreatePanel(props: CreatePanelProps) {
     const to = from + step;
     if (from < 0 || to < 0 || to >= checklist.length) return;
     event.preventDefault();
-    moveDraft(from, to, true);
+    moveDraft(from, to, controlAt(event.target));
   }
 
   /** A title, and a project that can say which key is free. See `QuickCreate`. */
@@ -409,6 +452,14 @@ export function CreatePanel(props: CreatePanelProps) {
                       // checkbox on a default Mac exactly as it skips a button
                       // (`tab-order-guard.mjs`), and a box the keyboard cannot
                       // reach is a box only a mouse can tick.
+                      //
+                      // `keyboard-focus-map.md` states the checklist row's
+                      // order once, for the panel's view mode
+                      // (`keyboard-focus-map.md:61-62`): box → edit → remove,
+                      // with `⌥↑`/`⌥↓` on the row. This surface has no section
+                      // of its own there, and it should not need one — a draft
+                      // row is the same row, and this is the stop that makes
+                      // the two orders identical rather than nearly so.
                       tabIndex={0}
                       checked={item.checked}
                       // No `aria-label`: the wrapping label holds the row's
