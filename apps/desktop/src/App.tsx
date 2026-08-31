@@ -1763,17 +1763,16 @@ export function App() {
                 on — the `● watching` chip went because it said the same thing at
                 every idle moment.
 
-                The slot is reserved whether or not there is anything in it. A
-                slot that collapsed would move all 25 rows of the project list up
-                and down again on every write, which is LC-149's defect turned on
-                its side. `reading` is the one word here D-07 did not ask for:
+                The slot is reserved whether or not there is anything in it —
+                `.identity-disk` in `styles.css` carries the reason and the
+                arithmetic. `reading` is the one word here D-07 did not ask for:
                 the design answers a load with a board skeleton
                 (`states.md:45-52`) that is not built, so until LC-159 builds it
                 this line is the only thing that says a read is in flight. */}
             <div className="identity-disk">
               {project.reachable && (
                 <WriteIndicator
-                  inFlightOnly
+                  reports="in-flight"
                   busy={
                     reconciling
                       ? "reconciling"
@@ -1899,12 +1898,15 @@ export function App() {
             command is the control. */}
         <div className="side-panel-footer">
           <section className="project-actions">
+            {/* Open, not toggle. This was a toggle while the form rendered
+                under it; the form is the panel's body now and this pair is
+                `display: none` for as long as it is up, so the closing arm was
+                a branch nothing could reach. The way out is the form's own
+                `Cancel`. */}
             <button
               tabIndex={0}
               className="secondary"
-              onClick={() =>
-                quickCreateOpen ? closeQuickCreate() : setQuickCreateOpen(true)
-              }
+              onClick={() => setQuickCreateOpen(true)}
             >
               Create project
             </button>
@@ -2476,8 +2478,9 @@ function projectInitial(name: string): string {
  * is a character count because the chip is mono — see `pathDisplay.ts`, where
  * the arithmetic is.
  *
- * No folder glyph. It costs 19px of a 157px box — three characters of path —
- * and the row it would lead is already led by the project tile.
+ * No folder glyph. It costs 19px of a box that is 107px at its narrowest —
+ * three characters of path — and the row it would lead is already led by the
+ * project tile.
  * The display text is tilde-abbreviated; the clipboard and `title` keep the
  * full path.
  */

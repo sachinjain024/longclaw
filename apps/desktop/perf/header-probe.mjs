@@ -37,7 +37,7 @@
  *      now, whose disk row is reserved rather than conditional: a row that
  *      arrived with the write would push every project under it down and pull
  *      it back up when the write settled, which is (1)'s defect on the other
- *      axis.
+ *      axis. `.identity-disk` in `styles.css` carries the reasoning.
  *
  * **What LC-239w settled.** This file carried a paragraph explaining why "the
  * header's height never changes while a write is in flight" could not be
@@ -46,8 +46,9 @@
  * row moved down whole — the designed wrap, arriving for a reason the user did
  * not ask for (LC-182). The indicator is not in the header any more and the
  * header has one item, so that band is gone and the height simply holds. The
- * cost moved with it, into the side panel, where it is paid as a reserved 13px
- * row rather than as a wrap — which is what check 5 measures.
+ * cost moved with it, into the side panel, where it is paid as one reserved row
+ * of the disk-state line's own height rather than as a wrap — which is what the
+ * last check measures.
  *
  * Usage:
  *   npm run probe:header                  # every width
@@ -450,10 +451,10 @@ async function probe(browser, px) {
       );
 
       // And the block the write lands in does not change size, so the list
-      // under it does not move. `.identity-disk` reserves its 13px whether or
-      // not there is anything in it, which is what makes that true — this is
-      // the check that goes red if someone makes that row conditional, and
-      // nothing in `npm test` lays anything out to notice.
+      // under it does not move: `.identity-disk` reserves its line whether or
+      // not there is anything to put in it. This is the check that goes red if
+      // someone makes that row conditional, and nothing in `npm test` lays
+      // anything out to notice.
       check(
         `the identity block and the list hold still ${state}`,
         Math.abs(seen.identity.height - quiet.identity.height) <= 1 &&

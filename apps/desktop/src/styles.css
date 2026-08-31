@@ -160,10 +160,11 @@ textarea:focus-visible,
 }
 
 /* Top right, on the name's line, rather than centred in the block — and out of
-   the flow, so the path below runs the panel's full width. That is worth 34px,
-   which at the chip's 6.32px glyph is six more characters of path; the gear
-   ends up beside the title it belongs to, which is where this app puts a
-   title's action everywhere else. */
+   the flow, so the row below it belongs to the path rather than to the two of
+   them sharing it. The path still keeps 30px clear of the gear (see the chip),
+   but 30px is a good deal less than the 34 an in-flow gear takes out of every
+   row, and the gear ends up beside the title it belongs to, which is where this
+   app puts a title's action everywhere else. */
 .identity-row .settings-button {
   position: absolute;
   top: 0;
@@ -171,8 +172,8 @@ textarea:focus-visible,
 }
 
 /* The disk-state line, riding with the path where `screen-specs.md` § Project
-   identity puts it, in a slot that is 13px whether or not there is anything in
-   it. A slot that collapsed would move every row of the project list up and
+   identity puts it, in a slot that is one line tall whether or not there is
+   anything in it. A slot that collapsed would move every row of the project list up and
    down again on every write, which is LC-149's defect turned on its side; the
    reserved line costs one empty mono row and buys a panel that never moves.
 
@@ -440,7 +441,7 @@ textarea:focus-visible,
   outline: none;
 }
 
-/* Pinned to the foot (`screen-specs.md:34`, `:50-56`), holding the create pair
+/* Pinned to the foot (`screen-specs.md:34,50-56`), holding the create pair
    and only the pair. `flex: none` is load-bearing: the nav above may shrink to
    nothing and scroll, this may not, so `Create project` is on screen at every
    window height the app allows. */
@@ -973,17 +974,18 @@ button:disabled {
 /* The row owns the band's width now that it is the only thing in it, and
    `justify-content` keeps the cluster on the right edge it has always sat on —
    the field grows leftward out of it. `flex: 1 1 auto` is what gives the row
-   something to hand the filter field; `margin-left: auto` is kept for the case
-   the header is handed a second item again. */
+   something to hand the filter field. The `margin-left: auto` that used to push
+   this half away from the other one went with the other one. */
 .content-header .toolbar-actions {
   flex: 1 1 auto;
   justify-content: flex-end;
-  margin-left: auto;
-  /* And the row moves down whole or not at all (LC-149). The disk-state
-     indicator takes width from the header the moment a write leaves, and a row
-     free to wrap answered that by breaking *inside* — `New ticket` alone on a
-     second line, the header a line taller than the fixed one
-     `screen-specs.md` § Content header draws, for as long as the write took. */
+  /* And the cluster moves down whole or not at all (LC-149). What made a
+     wrapping row break *inside* — `New ticket` alone on a second line, for as
+     long as a write took — was the disk-state indicator arriving in the header
+     and taking width from it. That indicator is in the side panel now, but the
+     rule it earned stays: the one width below which this row genuinely cannot
+     hold its controls is under the window's own `minWidth`, and the media query
+     below is where that case is answered. */
   flex-wrap: nowrap;
   /* And this is what an indivisible row costs, paid rather than dodged. Its
      automatic minimum is its content's, and this row's content includes a text
@@ -1059,9 +1061,10 @@ button:disabled {
 }
 
 /* 10.5px in the identity block, which is the size the content header set it at
-   and the size `pathDisplay.ts`'s character cap is measured against: 6.32px a
-   glyph, 157px of box, 24 characters. Changing this size without changing that
-   cap is how the path starts clipping. */
+   and the size `pathDisplay.ts`'s character cap is measured against: 6.3px a
+   glyph in a box that is 107px at its narrowest, so sixteen characters.
+   Changing this size without re-measuring that cap is how the path starts
+   clipping — `probe:header` prints the two side by side on every run. */
 .project-identity .path-chip {
   /* Sized to its text and stopped short of the gear, which is the pair of rules
      that keeps this row's pixels honest.

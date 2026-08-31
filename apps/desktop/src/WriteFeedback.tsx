@@ -53,11 +53,10 @@ export function diskLabel(path: string) {
  * final state, and this says what the disk is actually doing.
  *
  * It reports only what is happening or what just landed
- * (`screen-specs.md:70-73`) — and under `inFlightOnly`, only what is happening:
- * the side panel's identity block takes no settled mark, because under a path
- * chip one reads as a second, quieter path (LC-239w). With no write, no read
- * and no `idle` file to name, it renders nothing at all — the `● watching` chip
- * it replaced was steady-state dev telemetry, not designed chrome (LC-69).
+ * (`screen-specs.md:70-73`), and `reports` says how much of that a given
+ * surface wants. With no write, no read and no `idle` file to name, it renders
+ * nothing at all — the `● watching` chip it replaced was steady-state dev
+ * telemetry, not designed chrome (LC-69).
  *
  * `busy` is a read the app is waiting on. A write outranks it, because the
  * write is the user's own action and the one whose durability is in question.
@@ -66,28 +65,27 @@ export function WriteIndicator(props: {
   idle?: string;
   busy?: "reading" | "reconciling";
   /**
-   * Report only what the disk is doing, and render nothing when it is quiet.
+   * How much of the disk's story this surface wants. One prop rather than a
+   * boolean each, because the two are steps along the same line — how far past
+   * the write itself the line keeps talking — and as separate flags nothing
+   * stopped a caller asking for both and getting a third behaviour neither of
+   * them names.
    *
-   * For a surface that names its file itself — the ticket panel, which carries
-   * a path chip of its own (D-39) — because one element that is a path most of
-   * the time and a write report the rest of the time makes the path flicker on
-   * every save. `idle` is still the file this surface is about, and still what
-   * keeps somebody else's settled mark off it.
+   * - `full` — the default: the write, the settled mark after it, and the
+   *   `idle` file the rest of the time.
+   * - `transient` — no idle line, for a surface that names its own file. The
+   *   ticket panel carries a path chip of its own (D-39), and one element that
+   *   is a path most of the time and a write report the rest of it makes the
+   *   path flicker on every save. `idle` still says which file this surface is
+   *   about, which is what keeps somebody else's settled mark off it.
+   * - `in-flight` — the write and nothing else, not even the mark that follows
+   *   it. For the side panel's identity block (LC-239w), whose line sits
+   *   directly under a path chip: there `✓ ticket.md` read as a second, quieter
+   *   path rather than as news, and stood there for the whole `SETTLED_MS`
+   *   after every write. D-07's argument against the `● watching` chip, one
+   *   state further on.
    */
-  transient?: boolean;
-  /**
-   * Report only the write itself: no settled mark, and nothing at all once the
-   * disk goes quiet.
-   *
-   * For the side panel's identity block (LC-239w), whose line sits directly
-   * under a path chip. There `✓ ticket.md` read as a second, quieter path
-   * rather than as news, and it stood there for the whole `SETTLED_MS` after
-   * every write — D-07's argument against the `● watching` chip, one state
-   * further on. Distinct from `transient`, which is about a surface that names
-   * its own file and so wants no *idle* line; this is about the mark that
-   * follows a write.
-   */
-  inFlightOnly?: boolean;
+  reports?: "full" | "transient" | "in-flight";
   className?: string;
 }) {
   const writing = useMutationStore((state) => state.writing);
@@ -117,6 +115,10 @@ export function WriteIndicator(props: {
     // `settledAt` is here as the trigger, not as something the body reads.
   }, [settledAt, settled]);
 
+  // Defaulted once, here, rather than at each of the two places that read it —
+  // `props.reports !== "full"` on an absent prop is true, which would have made
+  // the default behave like `transient` and quietly drop every idle line.
+  const reports = props.reports ?? "full";
   const className = props.className ?? "disk-path";
   if (writing) {
     return (
@@ -140,7 +142,7 @@ export function WriteIndicator(props: {
   if (
     settled &&
     !stale &&
-    !props.inFlightOnly &&
+    reports !== "in-flight" &&
     (props.idle === undefined || settled === props.idle)
   ) {
     return (
@@ -150,7 +152,7 @@ export function WriteIndicator(props: {
   // The same spelling as the two above it. This element is one line that
   // changes state, so a path that gained and lost its `.longclaw/` as writes
   // came and went would read as the file changing rather than the disk.
-  if (props.transient || !props.idle) return null;
+  if (reports !== "full" || !props.idle) return null;
   return <code className={className}>{diskLabel(props.idle)}</code>;
 }
 

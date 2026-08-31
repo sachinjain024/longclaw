@@ -24,14 +24,14 @@ export function tildeAbbreviate(path: string, home: string | null): string {
 }
 
 /**
- * How the cap is spent: eight characters of head, one ellipsis, fifteen of
- * tail. The **head** is what gets cut into, deliberately — `~/Developer/…` is
- * the same on every path in this app, and the last segment is the folder that
+ * How the cap is spent: four characters of head, one ellipsis, eleven of tail.
+ * The **head** is what gets cut into, deliberately — `~/Developer/…` is the
+ * same on every path in this app, and the last segment is the folder that
  * identifies the project. A tail ellipsis would keep exactly the half that says
  * nothing.
  */
-export const PATH_HEAD = 4;
-export const PATH_TAIL = 11;
+export const SIDEBAR_PATH_HEAD = 4;
+export const SIDEBAR_PATH_TAIL = 11;
 
 /**
  * The side panel's path box, in characters.
@@ -55,12 +55,12 @@ export const PATH_TAIL = 11;
  * run — `"…" 100px in 107px` — because each of those four was invisible except
  * as a second ellipsis on screen (LC-239w).
  *
- * It is the cap at the width the panel is drawn at, not a guarantee at every
- * width: below about 800px the shell squeezes the panel by ~20px, and there the
- * chip's own `text-overflow: ellipsis` takes what is left over. The elision is
- * what keeps the *head* of the path on screen; the ellipsis is the backstop.
+ * The chip keeps its own `text-overflow: ellipsis` under this, as a backstop
+ * rather than as the mechanism: what the cap is for is keeping the *head* of
+ * the path on screen, which an ellipsis alone would eat. `probe:header` checks
+ * that the two agree at every width from 1440 down to 760.
  */
-export const SIDEBAR_PATH_CAP = PATH_HEAD + PATH_TAIL + 1;
+export const SIDEBAR_PATH_CAP = SIDEBAR_PATH_HEAD + SIDEBAR_PATH_TAIL + 1;
 
 /**
  * `<head>…<tail>`, or the path itself when it already fits.
@@ -81,8 +81,8 @@ export function elidePath(text: string): string {
   const glyphs = Array.from(text);
   if (glyphs.length <= SIDEBAR_PATH_CAP) return text;
   return (
-    glyphs.slice(0, PATH_HEAD).join("") +
+    glyphs.slice(0, SIDEBAR_PATH_HEAD).join("") +
     "…" +
-    glyphs.slice(-PATH_TAIL).join("")
+    glyphs.slice(-SIDEBAR_PATH_TAIL).join("")
   );
 }

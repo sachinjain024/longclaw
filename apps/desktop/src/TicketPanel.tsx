@@ -1179,7 +1179,7 @@ export function TicketPanel(props: TicketPanelProps) {
             or the ✓ that stands briefly after (`states.md:178-180`). `idle` is
             still the file it belongs to, which is what keeps another ticket's
             settled mark out of this header. */}
-        <WriteIndicator idle={detail?.relativePath} transient />
+        <WriteIndicator idle={detail?.relativePath} reports="transient" />
         <div className="panel-header-actions">
           {props.archived && <span className="archived-chip">archived</span>}
           {/* A file this build cannot read has no frontmatter to flip. The

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  PATH_HEAD,
-  PATH_TAIL,
+  SIDEBAR_PATH_HEAD,
+  SIDEBAR_PATH_TAIL,
   SIDEBAR_PATH_CAP,
   elidePath,
   tildeAbbreviate,
@@ -65,15 +65,14 @@ describe("elidePath", () => {
   });
 
   it("spends the cap the way the head and tail state", () => {
-    // The chip is mono, so a character count is a pixel count: 157px of box at
-    // 6.32px a glyph. The split is what the review picked out of the three the
-    // prototype offered.
-    expect(PATH_HEAD + PATH_TAIL + 1).toBe(SIDEBAR_PATH_CAP);
+    // The chip is mono, so a character count is a pixel count: 107px of box at
+    // 6.3px a glyph, measured where the panel is narrowest.
+    expect(SIDEBAR_PATH_HEAD + SIDEBAR_PATH_TAIL + 1).toBe(SIDEBAR_PATH_CAP);
     const elided = elidePath("/one/two/three/four/five/six/seven/eight");
-    expect(elided.slice(0, PATH_HEAD)).toBe("/one");
-    expect(elided.charAt(PATH_HEAD)).toBe("…");
-    expect(elided.slice(PATH_HEAD + 1)).toBe(
-      "/six/seven/eight".slice(-PATH_TAIL),
+    expect(elided.slice(0, SIDEBAR_PATH_HEAD)).toBe("/one");
+    expect(elided.charAt(SIDEBAR_PATH_HEAD)).toBe("…");
+    expect(elided.slice(SIDEBAR_PATH_HEAD + 1)).toBe(
+      "/six/seven/eight".slice(-SIDEBAR_PATH_TAIL),
     );
   });
 
