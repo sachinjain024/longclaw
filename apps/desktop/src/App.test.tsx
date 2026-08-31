@@ -797,7 +797,9 @@ describe("the full create surface (V0-16)", () => {
       priority: "p1",
       labels: ["backend"],
       description: "Check whether the round trip holds.",
-      checklist: ["Let an agent read it"],
+      // Both halves of the row (LC-242h): the create says what the item is and
+      // whether it is already done.
+      checklist: [{ text: "Let an agent read it", checked: false }],
     });
     await screen.findByText("LC-7 created");
   });

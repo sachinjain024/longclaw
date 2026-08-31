@@ -88,7 +88,7 @@
     "262": "focus moves to the new card. Creating never blocks on the disk write.",
     "264": "## Full create",
     "266": "- The ticket panel in create mode: provisional ID chip (`KEY-n · new`),",
-    "269": "draft rows with remove affordances and add-row. Footer: primary",
+    "269": "draft rows that tick (LC-242h), remove affordances, add-row. Footer: primary",
     "270": "**Create ticket** (`⌘↵`) + ghost Cancel. On create the panel swaps to",
     "271": "view mode of the real ticket.",
     "296": "## Command palette (`⌘K`)",

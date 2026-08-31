@@ -14,7 +14,7 @@ use longclaw_desktop_lib::core::storage::{
     belongs_to_project, foreign_project_diagnostic, prepare_new_ticket, NewTicket,
 };
 use longclaw_desktop_lib::core::ticket::{
-    ChecklistToggle, Priority, Status, TicketDocument, TicketEdit,
+    ChecklistToggle, NewChecklistItem, Priority, Status, TicketDocument, TicketEdit,
 };
 use serde::{Deserialize, Deserializer};
 
@@ -1296,7 +1296,7 @@ fn a_ticket_created_with_every_field_matches_one_assembled_by_edits() {
         status: Some(Status::InReview),
         priority: Some(Priority::P1),
         labels: labels.to_vec(),
-        checklist: checklist.to_vec(),
+        checklist: checklist.iter().cloned().map(NewChecklistItem::open).collect(),
     };
     let created = prepare_new_ticket(root, "LC", &everything, NOW).expect("the create should land");
     let created = parse_written(&created.bytes, &created.key);
@@ -1437,7 +1437,7 @@ fn nothing_but_a_manual_reordering_ever_writes_a_rank() {
                 status: Some(Status::InReview),
                 priority: Some(Priority::P1),
                 labels: vec!["backend".to_owned()],
-                checklist: vec!["Read the file".to_owned()],
+                checklist: vec![NewChecklistItem::open("Read the file")],
             },
         ),
     ];

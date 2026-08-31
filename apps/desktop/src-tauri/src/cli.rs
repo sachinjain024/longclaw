@@ -42,7 +42,8 @@ use crate::app_state::AppState;
 use crate::core::project::{ProjectDocument, DEFAULT_LABEL_COLOR};
 use crate::core::storage::{self, NewTicket};
 use crate::core::ticket::{
-    Actor, ChecklistMove, ChecklistTextEdit, ChecklistToggle, Priority, Status, TicketEdit,
+    Actor, ChecklistMove, ChecklistTextEdit, ChecklistToggle, NewChecklistItem, Priority, Status,
+    TicketEdit,
 };
 use crate::core::{AppError, AppResult, ErrorCode, ProjectReference};
 
@@ -225,7 +226,14 @@ fn ticket_create(arguments: &[String]) -> AppResult<Value> {
         status: status(&options)?,
         priority: priority(&options)?,
         labels,
-        checklist: options.many("checklist"),
+        // `--checklist` gives text and nothing else, so every row it files is
+        // open. Filing one already ticked is the create panel's gesture
+        // (LC-242h); the CLI has no flag for it yet.
+        checklist: options
+            .many("checklist")
+            .into_iter()
+            .map(NewChecklistItem::open)
+            .collect(),
     };
     let project_key = document.project().key.clone();
     let write =

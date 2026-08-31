@@ -16,9 +16,11 @@
  *   directory names. The chip says `KEY-n · new` and is display-only, never a
  *   tab stop (`keyboard-focus-map.md:61`).
  * - **Nothing has been written.** The description editor is write mode only —
- *   there is no file to preview against — and the checklist rows are drafts, so
- *   their boxes cannot be ticked: `NewTicket.checklist` is a list of strings and
- *   a created item is always open.
+ *   there is no file to preview against. The checklist rows are still drafts,
+ *   but their boxes do tick (LC-242h): a ticket filed over work already half
+ *   done has finished rows to describe, and the tick travels with the row into
+ *   the file Rust renders rather than becoming an edit afterwards. Nothing is
+ *   written until **Create ticket** either way.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -36,6 +38,7 @@ import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "./metaOptions";
 import type {
   CreateTicketRequest,
   Label,
+  NewChecklistItem,
   TicketDraft,
   TicketStatus,
 } from "./types";
@@ -74,7 +77,7 @@ export function CreatePanel(props: CreatePanelProps) {
   const [priority, setPriority] = useState(draft?.priority ?? "none");
   const [labels, setLabels] = useState<string[]>(draft?.labels ?? []);
   const [description, setDescription] = useState(draft?.description ?? "");
-  const [checklist, setChecklist] = useState<string[]>([]);
+  const [checklist, setChecklist] = useState<NewChecklistItem[]>([]);
   const [newItem, setNewItem] = useState("");
   /**
    * The add-row, which is both where focus goes when a row is removed and the
@@ -130,7 +133,28 @@ export function CreatePanel(props: CreatePanelProps) {
     const next = text.trim();
     if (!next) return;
     setChecklist((rows) =>
-      rows.map((row, position) => (position === index ? next : row)),
+      rows.map((row, position) =>
+        // The tick survives a reword, for the reason the panel's own edit keeps
+        // the item id behind it (LC-215): changing what a row says is not
+        // changing whether it is done.
+        position === index ? { ...row, text: next } : row,
+      ),
+    );
+  }
+
+  /**
+   * Ticks or unticks a draft row (LC-242h).
+   *
+   * No toast and no undo entry, unlike the panel's own box: those exist because
+   * a tick there is a write to a file that a human may want back. Here it is a
+   * keystroke in a form nobody has committed, and `Esc` already discards the
+   * whole of it.
+   */
+  function toggleRow(index: number, checked: boolean) {
+    setChecklist((rows) =>
+      rows.map((row, position) =>
+        position === index ? { ...row, checked } : row,
+      ),
     );
   }
 
@@ -167,7 +191,7 @@ export function CreatePanel(props: CreatePanelProps) {
     const index = rowIndexAt(event.target);
     if (!reorderable || index < 0) return;
     // WebKit will not start a drag with an empty data transfer (`dragging.ts`).
-    event.dataTransfer?.setData("text/plain", checklist[index]);
+    event.dataTransfer?.setData("text/plain", checklist[index].text);
     if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
     setDragRow(index);
   }
@@ -322,11 +346,13 @@ export function CreatePanel(props: CreatePanelProps) {
       </section>
 
       <section className="panel-section">
-        {/* No fraction here, at any length (D-4D, `prototype.js:889`). Create's
-            items are all open by construction — `NewTicket.checklist` is a list
-            of strings — so the numerator can never move, and `0/3` says only
-            what the three rows on screen already say. The panel's own count
-            earns its place because there the numerator means something. */}
+        {/* Still no fraction here, at any length (D-4D, `prototype.js:889`).
+            The prototype draws none in create mode and that is what the row was
+            settled on; what has changed is only the second argument it offered.
+            Draft items are no longer all open by construction (LC-242h), so the
+            numerator can move now — but every row it would count is on screen a
+            few pixels below, boxes and all, which is the case the panel's own
+            count does not have. */}
         <h3>Checklist</h3>
         <ul
           className="checklist"
@@ -344,7 +370,7 @@ export function CreatePanel(props: CreatePanelProps) {
           }}
           onKeyDown={moveByKey}
         >
-          {checklist.map((text, index) => (
+          {checklist.map((item, index) => (
             // Keyed by position: a draft item has no id to key by, and two rows
             // may legitimately carry the same text until the file mints them.
             <li
@@ -366,7 +392,7 @@ export function CreatePanel(props: CreatePanelProps) {
               )}
               {editingRow === index ? (
                 <RowEditor
-                  text={text}
+                  text={item.text}
                   onCommit={(next) => editRow(index, next)}
                   onCancel={() => setEditingRow(undefined)}
                 />
@@ -375,21 +401,23 @@ export function CreatePanel(props: CreatePanelProps) {
                   <label>
                     <input
                       type="checkbox"
-                      // Never a stop: a draft box cannot be ticked, and the
-                      // row's stops are the two buttons beside it. Stated
-                      // rather than left to the disabled attribute, for the
-                      // same reason every button here states one
-                      // (`tab-order-guard.mjs`).
-                      tabIndex={-1}
-                      checked={false}
-                      disabled
-                      readOnly
-                      title="A new ticket's items start unchecked."
+                      // A real stop, as the panel's own box is: WebKit skips a
+                      // checkbox on a default Mac exactly as it skips a button
+                      // (`tab-order-guard.mjs`), and a box the keyboard cannot
+                      // reach is a box only a mouse can tick.
+                      tabIndex={0}
+                      checked={item.checked}
+                      // Named for its row, like the two buttons beside it: six
+                      // rows of "Done" says nothing about which one was reached.
+                      aria-label={`Done ${item.text}`}
+                      onChange={(event) =>
+                        toggleRow(index, event.target.checked)
+                      }
                     />
-                    <span>{text}</span>
+                    <span>{item.text}</span>
                   </label>
                   <RowActions
-                    text={text}
+                    text={item.text}
                     onEdit={() => setEditingRow(index)}
                     onRemove={() => removeRow(index)}
                   />
@@ -404,7 +432,10 @@ export function CreatePanel(props: CreatePanelProps) {
             event.preventDefault();
             const text = newItem.trim();
             if (!text) return;
-            setChecklist((rows) => [...rows, text]);
+            // Appended open. A row is ticked by ticking it, never by typing
+            // it: the add-row is where words arrive and the box is where done
+            // is said, which is the split the panel keeps too.
+            setChecklist((rows) => [...rows, { text, checked: false }]);
             // Enter appends and keeps focus, for rapid entry
             // (`screen-specs.md:244`).
             setNewItem("");

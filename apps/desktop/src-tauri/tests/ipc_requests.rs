@@ -19,7 +19,10 @@ fn the_create_request_the_full_create_surface_sends() {
         "status": "todo",
         "priority": "p1",
         "labels": ["backend", "reliability"],
-        "checklist": ["Let an agent read this ticket", "Review what it changed"]
+        "checklist": [
+            {"text": "Let an agent read this ticket", "checked": true},
+            {"text": "Review what it changed", "checked": false}
+        ]
     }"#;
 
     let request: CreateTicketRequest = serde_json::from_str(json).expect("a create request");
@@ -29,7 +32,28 @@ fn the_create_request_the_full_create_surface_sends() {
     assert_eq!(request.ticket.status, Some(Status::Todo));
     assert_eq!(request.ticket.priority, Some(Priority::P1));
     assert_eq!(request.ticket.labels, vec!["backend", "reliability"]);
+    // Both halves of a row cross the wire (LC-242h): a create filed over work
+    // already half done says which half, and a list of strings could not.
     assert_eq!(request.ticket.checklist.len(), 2);
+    assert_eq!(request.ticket.checklist[0].text, "Let an agent read this ticket");
+    assert!(request.ticket.checklist[0].checked);
+    assert!(!request.ticket.checklist[1].checked);
+}
+
+/// `checked` is what the panel sends for every row, but the field defaults, so a
+/// row that arrives as text alone is an open row rather than a rejected request.
+#[test]
+fn a_create_checklist_row_without_checked_is_open() {
+    let json = r#"{
+        "projectId": "019c8c31-4d7e-71ad-8997-e67700962b55",
+        "title": "Prove the agent round trip",
+        "checklist": [{"text": "Review what it changed"}]
+    }"#;
+
+    let request: CreateTicketRequest = serde_json::from_str(json).expect("a create request");
+
+    assert_eq!(request.ticket.checklist.len(), 1);
+    assert!(!request.ticket.checklist[0].checked);
 }
 
 /// Quick create is title and status and nothing else (`screen-specs.md:253-262`),
