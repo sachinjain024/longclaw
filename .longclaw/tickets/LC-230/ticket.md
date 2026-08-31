@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 78898c9d-b123-47bb-970d-86f761c0a54b
 key: LC-230
 title: ⌘1…⌘9 switches to the nth project
-status: todo
+status: in_review
 priority: none
 labels:
   - frontend
   - design
 created_at: 2026-08-24T23:01:51.163Z
-updated_at: 2026-08-31T23:10:42.632Z
+updated_at: 2026-08-31T23:14:29.474Z
 ---
 
 Switching projects is pointer-only today: the sidebar row, or the palette. Give
@@ -268,4 +268,52 @@ chord, and `keyboard-focus-map.md:34`, are unaffected. What changes is which
 rows are allowed to show it, and where on the row it sits.
 
 Re-opened to `todo` for that work.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_1672a332
+kind: update
+occurred_at: 2026-08-31T23:14:29.474Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: in_review
+-->
+### Claude Code updated this ticket
+
+Both points done, on `lc-230-badge-placement`.
+
+**Badge beside the dot.** Row order is now dot, `⌘n`, name, star, `⋮`.
+Re-measured after the move rather than assumed, because the badge changed
+sides: at 120 and at 20,000 characters the geometry is unchanged — row 28px,
+name 148px, truncating, badge fully inside, name giving up exactly the badge's
+13px plus its 8px flex gap. `flex: none` beside a `flex: 1; min-width: 0` name
+behaves the same either side of it.
+
+**Starred carries its Local number.** Project 03 is third under Local and is
+the starred one, so `⌘3` now appears in both sections. The thing that had to
+change to allow it: the number could no longer be the row's index in whatever
+section was drawing it — under Starred, Project 03 is first and would have
+claimed `⌘1`. It is a `Map<projectId, number>` now, built once from the Local
+list and handed to both sections, so a project shows one number wherever it is
+drawn and no row can advertise a key that lands somewhere else.
+
+The `numbered` flag is gone with it, which also answers a smell both earlier
+review rounds raised.
+
+The chord is untouched — the number is still the row's place in Local, the
+whole registry in draw order — so `keyboard-focus-map.md:34` still reads true
+and no citation moved.
+
+Three tests replace the two that pinned the old behaviour: the same badge in
+both sections, the badge's position between dot and name, and the tenth row
+showing neither badge nor `aria-keyshortcuts`.
+
+`npm run verify` green with 1107 frontend tests. `npm run a11y:audit` green,
+A1-A5 — though as noted above it still cannot see this: its fixture has one
+project, so no row of it draws a second section or a switch.
 <!-- /longclaw:event -->
