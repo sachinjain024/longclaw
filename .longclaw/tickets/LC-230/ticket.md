@@ -9,7 +9,7 @@ labels:
   - frontend
   - design
 created_at: 2026-08-24T23:01:51.163Z
-updated_at: 2026-08-31T13:49:16.022Z
+updated_at: 2026-08-31T23:14:29.474Z
 ---
 
 Switching projects is pointer-only today: the sidebar row, or the palette. Give
@@ -224,4 +224,96 @@ restored.
 
 Final state: `npm run verify` green with 1105 frontend tests over 43 files,
 166 Rust, `citation-guard` at 496 citations. `npm run a11y:audit` green, A1-A5.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_f0e2c9e8
+kind: update
+occurred_at: 2026-08-31T23:10:42.632Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_review
+    to: todo
+-->
+### Claude Code updated this ticket
+
+## UX feedback after the merge
+
+From Sachin, on the shipped behaviour (merged as #18, `8470048`):
+
+1. **The `⌘n` badge belongs on the left**, immediately after the coloured theme
+   dot, rather than at the right-hand end of the row.
+2. **Starred rows should carry the same badge as their Local row.** If `⌘6`
+   appears against Project P1 under Local, the Starred section should show `⌘6`
+   against it too — a Starred entry is the same row pinned to the top, not a
+   separate one.
+
+**This reverses two decisions written into this ticket's own spec**, and is
+recorded here so the two do not silently disagree. The spec says "Each of the
+first nine Local rows shows its number beside the project name" and, above it,
+"A starred project appears twice in the sidebar but carries one number and only
+one: its Local row's. The Starred section shows no badges." Checklist item 3
+states the same thing as an acceptance condition. That reading treated Starred
+as a second list to be counted; the feedback's reading is that it is one row
+drawn twice, which is also what `sortedProjects(projects.filter(starred))`
+actually builds it from.
+
+The number itself does not change under either reading — it stays the row's
+place in the Local list, which is the whole registry in draw order — so the
+chord, and `keyboard-focus-map.md:34`, are unaffected. What changes is which
+rows are allowed to show it, and where on the row it sits.
+
+Re-opened to `todo` for that work.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_1672a332
+kind: update
+occurred_at: 2026-08-31T23:14:29.474Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: in_review
+-->
+### Claude Code updated this ticket
+
+Both points done, on `lc-230-badge-placement`.
+
+**Badge beside the dot.** Row order is now dot, `⌘n`, name, star, `⋮`.
+Re-measured after the move rather than assumed, because the badge changed
+sides: at 120 and at 20,000 characters the geometry is unchanged — row 28px,
+name 148px, truncating, badge fully inside, name giving up exactly the badge's
+13px plus its 8px flex gap. `flex: none` beside a `flex: 1; min-width: 0` name
+behaves the same either side of it.
+
+**Starred carries its Local number.** Project 03 is third under Local and is
+the starred one, so `⌘3` now appears in both sections. The thing that had to
+change to allow it: the number could no longer be the row's index in whatever
+section was drawing it — under Starred, Project 03 is first and would have
+claimed `⌘1`. It is a `Map<projectId, number>` now, built once from the Local
+list and handed to both sections, so a project shows one number wherever it is
+drawn and no row can advertise a key that lands somewhere else.
+
+The `numbered` flag is gone with it, which also answers a smell both earlier
+review rounds raised.
+
+The chord is untouched — the number is still the row's place in Local, the
+whole registry in draw order — so `keyboard-focus-map.md:34` still reads true
+and no citation moved.
+
+Three tests replace the two that pinned the old behaviour: the same badge in
+both sections, the badge's position between dot and name, and the tenth row
+showing neither badge nor `aria-keyshortcuts`.
+
+`npm run verify` green with 1107 frontend tests. `npm run a11y:audit` green,
+A1-A5 — though as noted above it still cannot see this: its fixture has one
+project, so no row of it draws a second section or a switch.
 <!-- /longclaw:event -->
