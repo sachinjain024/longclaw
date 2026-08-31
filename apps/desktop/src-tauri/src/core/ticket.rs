@@ -400,6 +400,38 @@ pub struct ChecklistToggle {
     pub checked: bool,
 }
 
+/// One row of a checklist a create is asking for.
+///
+/// `checked` is the whole of LC-242h. A create used to be a list of strings
+/// because every row it could produce was open by construction, and that held
+/// only as long as a ticket was filed before its work started. A ticket filed
+/// over work already half done is the ordinary case it did not cover: the rows
+/// that are already finished are part of what the human is describing, and
+/// making them tick the boxes again after the file lands is asking them to
+/// restate what they just said.
+///
+/// There is no id here. Ids are minted by the render, which is the one place
+/// that can promise they are unique in the file — a draft row has nothing to be
+/// named by yet, which is also why the create panel keys its rows by position.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct NewChecklistItem {
+    pub text: String,
+    #[serde(default)]
+    pub checked: bool,
+}
+
+impl NewChecklistItem {
+    /// A row with nothing ticked, which is what every caller that has only text
+    /// to give — the CLI's `--checklist`, the project README's example — means.
+    pub fn open(text: impl Into<String>) -> Self {
+        Self {
+            text: text.into(),
+            checked: false,
+        }
+    }
+}
+
 /// Where an item now sits, named by the item it follows.
 ///
 /// A neighbour rather than an index, because an index is a claim about the whole
@@ -1378,6 +1410,17 @@ pub fn render_new_ticket(
     )
 }
 
+/// The text-only spelling of a checklist, for the callers that have no ticked
+/// row to describe: every item comes out open. [`render_new_ticket_as`] is where
+/// a create that does carry ticks goes (LC-242h).
+fn all_open(checklist: &[String]) -> Vec<NewChecklistItem> {
+    checklist
+        .iter()
+        .cloned()
+        .map(NewChecklistItem::open)
+        .collect()
+}
+
 /// The app's own create, attributed to the local human actor (ADR 0001).
 #[allow(clippy::too_many_arguments)]
 pub fn render_new_ticket_with_labels(
@@ -1397,7 +1440,7 @@ pub fn render_new_ticket_with_labels(
         priority,
         labels,
         description,
-        checklist,
+        &all_open(checklist),
         now,
         &Actor::local_human(),
     )
@@ -1411,7 +1454,7 @@ pub fn render_new_ticket_as(
     priority: Priority,
     labels: &[String],
     description: &str,
-    checklist: &[String],
+    checklist: &[NewChecklistItem],
     now: &str,
     author: &Actor,
 ) -> String {
@@ -1439,10 +1482,14 @@ pub fn render_new_ticket_as(
     }
     if !checklist.is_empty() {
         rendered.push_str("\n## Checklist\n\n");
-        for text in checklist {
+        for item in checklist {
+            // The same two markers every other write in this module uses, so a
+            // row created ticked is indistinguishable from one ticked later —
+            // which is the point: the file records state, not how it got there.
+            let box_marker = if item.checked { "- [x] " } else { "- [ ] " };
             rendered.push_str(&format!(
-                "- [ ] {} {ITEM_MARKER_OPEN}{} {ITEM_MARKER_CLOSE}\n",
-                text.trim(),
+                "{box_marker}{} {ITEM_MARKER_OPEN}{} {ITEM_MARKER_CLOSE}\n",
+                item.text.trim(),
                 mint_id("ck")
             ));
         }
@@ -2014,8 +2061,9 @@ fn parse_attachment(record: &RawRecord) -> Result<Attachment, Diagnostic> {
 #[cfg(test)]
 mod tests {
     use super::{
-        render_new_ticket, ChecklistMove, ChecklistRestore, ChecklistTextEdit, ChecklistToggle,
-        Priority, Status, TicketDocument, TicketEdit, TICKET_FORMAT,
+        render_new_ticket, render_new_ticket_as, Actor, ChecklistMove, ChecklistRestore,
+        ChecklistTextEdit, ChecklistToggle, NewChecklistItem, Priority, Status, TicketDocument,
+        TicketEdit, TICKET_FORMAT,
     };
 
     const NOW: &str = "2026-07-30T10:00:00.000Z";
@@ -3082,6 +3130,48 @@ mod tests {
         assert_eq!(ticket.activity[0].kind.as_str(), "create");
         assert!(ticket.unknown_keys.is_empty());
         assert!(ticket.record_diagnostics.is_empty());
+    }
+
+    /// A create filed over work already half done (LC-242h). What the file has to
+    /// say is which rows are finished — and it has to say it in the same two
+    /// markers a later tick would write, so nothing downstream can tell a row
+    /// created ticked from one ticked afterwards.
+    #[test]
+    fn a_new_ticket_can_be_created_with_rows_already_ticked() {
+        let rendered = render_new_ticket_as(
+            "LC-9",
+            "Filed over work already started",
+            Status::InProgress,
+            Priority::P2,
+            &[],
+            "",
+            &[
+                NewChecklistItem {
+                    text: "Parse".to_owned(),
+                    checked: true,
+                },
+                NewChecklistItem::open("Write"),
+            ],
+            NOW,
+            &Actor::local_human(),
+        );
+
+        let document = TicketDocument::parse(&rendered, "LC-9").expect("a new ticket should read");
+        let ticket = document.ticket();
+        assert_eq!(document.render(), rendered, "a create must round trip");
+        let checked: Vec<(&str, bool)> = ticket
+            .checklist
+            .iter()
+            .map(|item| (item.text.as_str(), item.checked))
+            .collect();
+        assert_eq!(checked, vec![("Parse", true), ("Write", false)]);
+        // Both rows are minted the same way: being ticked at birth is a state,
+        // not a different kind of row.
+        assert!(ticket.checklist.iter().all(|item| item.id.is_some()));
+        // The create is the only entry. A row that arrived ticked was never
+        // toggled, so narrating one would be inventing history (ADR 0001).
+        assert_eq!(ticket.activity.len(), 1);
+        assert_eq!(ticket.activity[0].kind.as_str(), "create");
     }
 
     #[test]

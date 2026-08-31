@@ -14,7 +14,7 @@ use longclaw_desktop_lib::core::storage::{
     belongs_to_project, foreign_project_diagnostic, prepare_new_ticket, NewTicket,
 };
 use longclaw_desktop_lib::core::ticket::{
-    ChecklistToggle, Priority, Status, TicketDocument, TicketEdit,
+    ChecklistToggle, NewChecklistItem, Priority, Status, TicketDocument, TicketEdit,
 };
 use serde::{Deserialize, Deserializer};
 
@@ -1296,7 +1296,19 @@ fn a_ticket_created_with_every_field_matches_one_assembled_by_edits() {
         status: Some(Status::InReview),
         priority: Some(Priority::P1),
         labels: labels.to_vec(),
-        checklist: checklist.to_vec(),
+        // The first row is filed already ticked (LC-242h). Both paths would
+        // agree about an all-open checklist no matter how the create rendered
+        // the box, so this is the side of the field that does not pass by
+        // accident.
+        checklist: checklist
+            .iter()
+            .cloned()
+            .enumerate()
+            .map(|(position, text)| NewChecklistItem {
+                text,
+                checked: position == 0,
+            })
+            .collect(),
     };
     let created = prepare_new_ticket(root, "LC", &everything, NOW).expect("the create should land");
     let created = parse_written(&created.bytes, &created.key);
@@ -1356,6 +1368,27 @@ fn a_ticket_created_with_every_field_matches_one_assembled_by_edits() {
         assembled = parse_written(&applied.bytes, &key);
     }
 
+    // The sixth edit, which cannot go in the table above because the id it names
+    // is minted by the fifth. It is the whole of what makes LC-242h a contract
+    // rather than an assertion: a row created ticked has to be
+    // indistinguishable from one ticked afterwards, and the only way to show
+    // that is to reach the same file down both paths.
+    let minted = assembled.ticket().checklist[0].id.clone();
+    let first_item = minted.expect("an appended row is minted an id");
+    let ticked = assembled
+        .apply(
+            &TicketEdit {
+                checklist: vec![ChecklistToggle {
+                    item_id: first_item,
+                    checked: true,
+                }],
+                ..TicketEdit::default()
+            },
+            later,
+        )
+        .unwrap_or_else(|error| panic!("the checklist toggle was refused: {error}"));
+    assembled = parse_written(&ticked.bytes, &key);
+
     let mut report = Report::default();
     let created_state = CreatedState::of(&created);
     let assembled_state = CreatedState::of(&assembled);
@@ -1366,6 +1399,7 @@ fn a_ticket_created_with_every_field_matches_one_assembled_by_edits() {
     report.equal("created", "priority", created_state.priority, Priority::P1);
     report.equal("created", "labels", created_state.labels.len(), 2);
     report.equal("created", "checklist", created_state.checklist.len(), 2);
+    report.equal("created", "tick", created_state.checklist[0].1, true);
     report.check("created", !created_state.description.is_empty(), || {
         "the create wrote no description".to_owned()
     });
@@ -1385,10 +1419,10 @@ fn a_ticket_created_with_every_field_matches_one_assembled_by_edits() {
     );
     report.check(
         "history",
-        created.ticket().activity.len() == 1 && assembled.ticket().activity.len() == 6,
+        created.ticket().activity.len() == 1 && assembled.ticket().activity.len() == 7,
         || {
             format!(
-                "expected one create event against a create plus five updates, got {} and {}",
+                "expected one create event against a create plus six updates, got {} and {}",
                 created.ticket().activity.len(),
                 assembled.ticket().activity.len()
             )
@@ -1437,7 +1471,7 @@ fn nothing_but_a_manual_reordering_ever_writes_a_rank() {
                 status: Some(Status::InReview),
                 priority: Some(Priority::P1),
                 labels: vec!["backend".to_owned()],
-                checklist: vec!["Read the file".to_owned()],
+                checklist: vec![NewChecklistItem::open("Read the file")],
             },
         ),
     ];
