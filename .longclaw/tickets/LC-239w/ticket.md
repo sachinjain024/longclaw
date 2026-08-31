@@ -168,3 +168,89 @@ Prototype revised from review round 1. All five points are in, and the fourth on
 
 Open, and all three are consequences of moving the pair down: what the form’s ghost should say (`Back` is the welcome flow’s word for a two-step, and this is one step); whether hiding the project list for the duration of the form is right; and whether moving the pair earns all of this, or whether the identity block simply goes in above a pair that stays where LC-73 put it.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_32382b9b
+kind: comment
+occurred_at: 2026-08-31T13:39:42.592Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+## UX feedback — round 1 (from the user, on the first prototype)
+
+Recorded verbatim, so implementation works from the ask rather than from my reading of it.
+
+- Remove the `ticket.md` text below the directory path
+- Ensure that directory path is rendered in single line
+- Do we need to show a horizontal line below this component on sidenav?
+- In the prototype, also show the experience of creating a project when these options move to the bottom
+- What happens where there are say 25 projects? Simulate that in the prototype as well.
+
+My answers are the comment above: `✓ ticket.md` dropped from the sidebar, the one-line path, no hairline under the block, the create form taking the panel body because it does not fit under the pair, and the 5/9/25 and 780/620 controls.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_c4afb464
+kind: comment
+occurred_at: 2026-08-31T13:39:55.864Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+## UX feedback — round 2 (from the user, on the revised prototype)
+
+Verbatim. This is the shape the identity block has to be built to, and it is what implementation must satisfy.
+
+- When user hovers over the directory path, show the complete path
+- To show the directory path in one line, we can show something like `<starting_word...ending_word>` with a cap on letters in starting and ending word so that it always fits into the sidenav
+- Before the Project Name, Can we have the Project Name’s Intial Letter in a boxed square like how profile icon is shown but it should be square.
+- Height of the square should be two rows
+- First row Project Name
+- Second row Project Path
+- In the right show the settings icon
+- Update the UX prototype to also show the context menu corresponding to a project
+
+So the block is one row of three parts — a square initial tile spanning both text rows, a two-line text column (name over path), and the gear on the right edge — with the path middle-elided to a head and tail cap that always fits 216px of panel, and the full path on hover.
+
+Two things this does not settle, to be decided while building it:
+
+- **Where the `writing …` line goes.** The block is now specified as two rows, and the disk-state line was the third. It stays as a reserved full-width row *below* the tile-and-text row, so the tile still spans exactly the two rows named here and the list still never moves when a write starts.
+- **The head/tail caps are a number.** The chip is mono, so a character cap *is* a pixel cap — every glyph is the same width. The cap gets set from the measured character width against the panel’s 216px, not guessed.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_e8f2a8bd
+kind: comment
+occurred_at: 2026-08-31T13:46:23.913Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Prototype revised to the round-2 feedback. The block is now the shape the review specified, and two of the numbers in it came off the laid-out frame rather than out of my head.
+
+**The block.** One row of three parts: a 34px square tile with the project’s initial, the name over the path beside it, the gear on the right. 34px *is* the two rows — 18px name line, 2px gap, 14px path line. Square rather than round because a circle is this design language’s shape for people (humans are circle avatars in the timeline and composer) and a project is not one; the tile wears the project’s own accent at a 14% wash. Unreachable swaps the letter for the warn triangle and the wash for warn.
+
+**The gear sits on the name’s line, out of the flow** rather than centred in the block. That is worth 34px to the row below it — six more characters of path — and it puts a title’s action beside its title.
+
+**The path elides in the middle**, `<head>…<tail>`. A tail ellipsis keeps `~/Developer/…`, which is identical on every path in the app; the end is the folder that identifies the project, so that is the half kept whole.
+
+**The cap is 24 characters, and it is a measurement.** The chip is mono, so a character cap *is* a pixel cap: the box is 157px, a glyph is 6.32px. Two guesses were wrong first — 22 characters in a box I called 140 and measured 123, then 25 in a 157px box by one pixel — so the frame now prints `path 24 chars, 151px in 151px · fits` under itself. Four sample paths (one that fits whole, the deep one, a `/Volumes` path outside `~`, and one whose last segment alone overflows the box) crossed with three splits (8/15, 11/12, 14/9): all twelve fit.
+
+**Hover gives the whole path.** The chip keeps `title` with the full *absolute* path — not tilde-abbreviated, not elided — and the click copies that same string. The elision is a display and never the value.
+
+**The project `⋮` menu is drawn**, from `ProjectMenu`’s items in `MenuList`’s markup: Rename, the Theme submenu with its `preset · appearance` hint, the star named for what pressing it does, the danger `Remove from app…`, and All settings with `⌘,`. It hangs off the open project’s row and is clamped to the window the way the real placement clamps to the viewport.
+
+**The `writing …` slot moved below the tile-and-text row**, full width, still reserved — so the tile spans exactly the two rows the review names and the list still does not move when a write starts.
+
+Three left for you: which head/tail split; whether 14px/600 display is the right weight for the name at 240px; and whether an unreachable project’s tile should go warn as it does here, or stay neutral and leave the triangle to the row.
+<!-- /longclaw:event -->

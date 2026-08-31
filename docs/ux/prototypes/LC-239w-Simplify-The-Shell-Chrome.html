@@ -39,6 +39,7 @@
    The name is a heading and the block is `<header>`, so the sidebar opens with
    the page's `<h1>` exactly as the content header used to. */
 .project-identity {
+  position: relative;
   display: grid;
   gap: 4px;
   /* No hairline under it (review, round 1). The `STARRED` header below is a
@@ -51,16 +52,38 @@
   padding: 0 var(--lc-space-1) var(--lc-space-4);
 }
 
-/* One line, always. `.path-chip` caps at 180px because that is the header's
-   number; here the cap is the panel, and `.txt` already carries
-   `overflow: hidden; text-overflow: ellipsis; white-space: nowrap`
-   (styles.css:964-968), so a path of any length ends in an ellipsis rather than
-   on a second row. The `title` keeps the whole thing, and the click still
-   copies the whole thing. */
+/* One line, always — and elided in the *middle* rather than at the tail
+   (review, round 2). A tail ellipsis keeps the head, which on every path in this
+   app is `~/Developer/…`: the part that is the same for all of them. The end is
+   the folder that identifies the project, so that is the half kept whole.
+
+   The elision is a **character count**, not a width, and that is exact rather
+   than approximate: the chip is mono, so every glyph is 6.32px at 10.5px and a
+   character cap *is* a pixel cap. The number came off the laid-out frame rather
+   than off this arithmetic — 240px of panel, less 24px of the panel's padding,
+   less 8px of the block's own, less the 34px tile and its 8px gap, less the
+   chip's 8px of padding and border, leaves **157px**, and 157 / 6.32 is 24
+   characters with 5px to spare. Eight of head, one ellipsis, fifteen of tail.
+   The head is what gets cut into, deliberately: `~/Developer/` is the same on
+   every path in this app and the last segment is the folder that identifies the
+   project. Two guesses were wrong before the measurement was right — 22 in a
+   140px box that turned out to be 123, then 25 in a 157px box by one pixel —
+   which is the argument for the readout under each frame saying `fits` or
+   `CLIPPED` rather than the eye saying it.
+
+   `tildeAbbreviate` runs first and the elision runs over its output, so `~` is
+   spent before the cap is. The `title` and the click-to-copy both keep the whole
+   absolute path — hovering is how you read it in full.
+
+   No folder glyph in this one. It costs 19px of the 140 — three characters of
+   path — and the row it would lead is already led by the tile. */
 .project-identity .path-chip {
   max-width: 100%;
+  font-size: 10.5px;
 }
 
+/* One row of three parts (review, round 2): a square initial tile spanning both
+   text rows, the name over the path, and the gear on the right edge. */
 .identity-row {
   display: flex;
   min-width: 0;
@@ -68,11 +91,42 @@
   gap: var(--lc-space-2);
 }
 
+/* The tile: a profile mark, square rather than round, carrying the project's
+   first letter. Square because a circle is the shape this design language uses
+   for *people* — humans are circle avatars in the timeline and the composer
+   (`screen-specs.md` § Avatars) — and a project is not one.
+
+   34px is the two rows it stands beside, exactly: an 18px name line, 2px of
+   gap, a 14px path line. It is the project's own accent at a wash, which is the
+   third place a project's theme reaches the sidebar after its row's dot and its
+   swatch in the menu — and here it is the *open* project, so the accent is the
+   window's own and needs no `data-lc-theme` scoping. */
+.project-tile {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: var(--lc-radius-tile);
+  color: var(--lc-accent-human);
+  background: color-mix(in oklab, var(--lc-accent-human) 14%, var(--lc-surface));
+  font: 600 15px / 1 var(--lc-font-display);
+  place-items: center;
+}
+
+/* The two rows the tile is tall. `min-width: 0` twice over, here and on the
+   chip, because an elided path is only elided if its box is allowed to be
+   smaller than its text. */
+.identity-text {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
 /* 14px, not the header's 16.5: the same words in 216px rather than in the main
    region's width, so it holds two-thirds of a long project name before the
    ellipsis instead of half of one. Display face and 600, which is the register
    the wordmark had here and the one the sections below do not use. */
-.identity-row h1 {
+.identity-text h1 {
   overflow: hidden;
   min-width: 0;
   margin: 0;
@@ -83,12 +137,33 @@
   white-space: nowrap;
 }
 
-/* The warn triangle the project row wears when the folder cannot be read
-   (`screen-specs.md:60`), said here too — this block is the only place the open
-   project is named once the header is controls-only. */
-.identity-row .project-warn { flex: none; }
+/* Unreachable: the tile takes the warn triangle the project row wears
+   (`screen-specs.md:60`) in place of the letter, and the warn colour with it.
+   This block is the only place the open project is named once the header is
+   controls-only, so it is the only place left that can say so. */
+.project-tile.unreachable {
+  color: var(--lc-warn);
+  background: color-mix(in oklab, var(--lc-warn) 14%, var(--lc-surface));
+  font-size: 17px;
+}
 
-.identity-row .settings-button { margin-left: auto; }
+/* Top right, on the name's line, rather than centred in the block — and out of
+   the flow, so only the name clears it and the path below runs the panel's full
+   width. That is worth 34px, which at 6.3px a glyph is six more characters of
+   path; the review's whole point this round is that the path be readable, and
+   six characters is the difference between seeing the project's folder and
+   seeing most of it. The gear ends up aligned with the title it belongs to,
+   which is where a title's action sits everywhere else in this app. */
+.identity-row .settings-button {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+/* Only the name clears the gear. */
+.identity-text h1 {
+  padding-right: 30px;
+}
 
 /* The disk-state line, which rides with the path (`screen-specs.md:64-73`) —
    and **only while a write is in flight**. The settled `✓ ticket.md` is not
@@ -111,9 +186,13 @@
    is the panel. `writing tickets/LC-69/ticket.md…` runs to the edge and the
    ellipsis takes the tail, which is `ticket.md`, the part every ticket shares
    (`WriteFeedback.tsx`). */
+/* Below the tile-and-text row, full width, so the tile stays exactly as tall as
+   the two rows the review names and the list still never moves when a write
+   starts. */
 .identity-disk {
   overflow: hidden;
   min-height: 13px;
+  margin-top: 4px;
 }
 
 .identity-disk > .disk-path {
@@ -452,6 +531,15 @@ body {
    the app the query is the query. */
 .window.narrow .ordering-control > span { display: none; }
 
+/* `.menu-popover` is `position: fixed` and placed in viewport coordinates by
+   `usePopoverPlacement`. In here the viewport is the review page and the anchor
+   is inside a frame, so the harness places it against the frame instead — the
+   same offsets the real placement would produce, applied to a different origin. */
+.window .menu-popover {
+  position: absolute;
+  animation: none;
+}
+
 /* The two alternatives the review asked to see, drawn by class so the proposed
    block stays a statement of what would ship. */
 .window.rule .project-identity {
@@ -513,7 +601,20 @@ body {
     <button data-set="create" data-value="folder">folder chosen</button>
   </span>
   <span class="sep" aria-hidden="true"></span>
+  <span class="group"><em>path</em>
+    <button data-set="path" data-value="short">fits</button>
+    <button data-set="path" data-value="deep">deep</button>
+    <button data-set="path" data-value="volume">/Volumes</button>
+    <button data-set="path" data-value="brutal">brutal</button>
+  </span>
+  <span class="group"><em>head/tail</em>
+    <button data-set="cap" data-value="8/15">8/15</button>
+    <button data-set="cap" data-value="11/12">11/12</button>
+    <button data-set="cap" data-value="14/9">14/9</button>
+  </span>
+  <span class="sep" aria-hidden="true"></span>
   <span class="group"><em>ask</em>
+    <button data-toggle="menu">project ⋮ menu</button>
     <button data-toggle="writing">writing</button>
     <button data-toggle="rule">hairline under the block</button>
     <button data-set="disk" data-value="reserved">disk slot · reserved</button>
@@ -554,6 +655,18 @@ body {
     </ol>
     <p>Then walk <em>projects</em> <strong>5 → 9 → 25</strong>, <em>create</em> <strong>Create project → folder chosen</strong>, press <strong>writing</strong>, and walk the three <em>state</em> buttons. Each answers a question the still frame does not.</p>
 
+    <h2>Round 2 review, answered</h2>
+    <ol>
+      <li class="q"><strong>The block is one row of three parts.</strong> A 34px square tile carrying the project's initial, the name over the path beside it, and the gear on the right. 34px <em>is</em> the two rows: an 18px name line, 2px of gap, a 14px path line.</li>
+      <li class="q"><strong>Square, not round</strong> — a circle is this design language's shape for <em>people</em> (humans are circle avatars in the timeline and composer), and a project is not one. The tile wears the project's own accent at a 14% wash, which is the third place a theme reaches the sidebar after the row's dot and the menu's swatch.</li>
+      <li class="q"><strong>The gear sits on the name's line, out of the flow</strong>, rather than centred in the block. That is worth 34px to the row below it — six more characters of path — and the review's whole point this round is that the path be readable. It also puts a title's action beside its title, which is where this app puts one everywhere else.</li>
+      <li class="q"><strong>The path elides in the middle: <code>&lt;head&gt;…&lt;tail&gt;</code>.</strong> A tail ellipsis keeps <code>~/Developer/…</code>, which is the same on every path in the app; the end is the folder that identifies the project, so that is the half kept whole. Walk <em>path</em> — <strong>fits · deep · /Volumes · brutal</strong> — against <em>head/tail</em> <strong>8/15 · 11/12 · 14/9</strong>. Every one of the twelve combinations fits; the readout under the frame says so.</li>
+      <li class="q"><strong>24 characters, measured rather than guessed.</strong> The chip is mono, so a character cap is a pixel cap. The box is 157px and a glyph is 6.32px. Two guesses were wrong first — 22 in a box I called 140 and measured 123, then 25 by a single pixel — which is why the readout prints <code>fits</code> or <code>CLIPPED</code> instead of leaving it to the eye.</li>
+      <li class="q"><strong>Hover gives the whole path.</strong> The chip keeps its <code>title</code> with the full absolute path — untruncated, not tilde-abbreviated — and the click still copies that same string. The elision is a display, never the value.</li>
+      <li class="q"><strong>The project <code>⋮</code> menu is drawn</strong> — press <strong>project ⋮ menu</strong>. It is <code>ProjectMenu</code>'s real items in <code>MenuList</code>'s real markup: Rename, the Theme submenu with its <code>preset · appearance</code> hint, the star named for what pressing it does, the danger row whose ellipsis promises the confirm, and All settings with its <code>⌘,</code>. It hangs off the open project's row and is clamped to the window, as the real placement clamps to the viewport.</li>
+      <li class="q"><strong>The <code>writing …</code> slot moved below the tile-and-text row</strong>, full width. The tile then spans exactly the two rows the review names, and the list still does not move when a write starts.</li>
+    </ol>
+
     <h2>Round 1 review, answered</h2>
     <ol>
       <li class="q"><strong><code>✓ ticket.md</code> is gone from the sidebar.</strong> Under a path chip it read as a second, quieter path rather than as news, and it sat there for seconds after every write. What is left is the half of <code>WriteFeedback</code> that <em>is</em> news — <code>writing …</code> while the disk is busy, silence otherwise. The header in variant A still shows it, because A is today and is what B is being compared against.</li>
@@ -586,7 +699,9 @@ body {
 
     <h2>Open, for you</h2>
     <ul>
+      <li>Which head/tail split — <code>8/15</code> shows most of the folder, <code>14/9</code> most of the route to it.</li>
       <li>Is 14px/600 display the right weight for the project name at 240px, or should it sit at 13.5 with the section headers?</li>
+      <li>The tile is the project's accent at a wash. Should an unreachable project's tile go warn, as it does here, or stay neutral and leave the triangle to the row?</li>
       <li>The 380px cap on the field — too tight on a 1600px window?</li>
       <li>Below 900px the word <code>Order</code> disappears and the trigger stands alone. The alternative is the field at its 120px floor. Which?</li>
       <li>Should the block's path chip keep click-to-copy, or is that a header affordance that a sidebar does not want?</li>
@@ -618,6 +733,9 @@ const state = {
   create: "closed",
   height: "780",
   disk: "reserved",
+  path: "deep",
+  cap: "8/15",
+  menu: false,
   writing: false,
   rule: false,
   muted: false,
@@ -626,11 +744,31 @@ const state = {
 
 /* A path long enough that the one-line rule is being *tested* rather than
    asserted: 46 characters, which is 216px of panel asking for about 300. */
-const PROJECT = {
-  name: "Fixture Project",
-  path: "~/Developer/work/acme-corp/longclaw-fixture-project",
-  full: "/Users/sachin/Developer/work/acme-corp/longclaw-fixture-project",
+const PROJECT = { name: "Fixture Project" };
+
+/* Four real shapes of path, so the elision rule is tested rather than asserted:
+   one that fits whole, the deep one this review was drawn against, a volume that
+   is not under `~` at all, and one whose last segment alone is longer than the
+   whole box. */
+const PATHS = {
+  short: { display: "~/dev/fixture", full: "/Users/sachin/dev/fixture" },
+  deep: {
+    display: "~/Developer/work/acme-corp/longclaw-fixture-project",
+    full: "/Users/sachin/Developer/work/acme-corp/longclaw-fixture-project",
+  },
+  volume: {
+    display: "/Volumes/Backup Drive/archive/2025/longclaw",
+    full: "/Volumes/Backup Drive/archive/2025/longclaw",
+  },
+  brutal: {
+    display: "~/Documents/Screenshots and scratch/longclaw-fixture-project-two",
+    full: "/Users/sachin/Documents/Screenshots and scratch/longclaw-fixture-project-two",
+  },
 };
+
+/* Head and tail, in characters. 22 in all is the 140px text column at 6.3px a
+   glyph; the three pairs spend it differently. */
+const CAPS = { "8/15": [8, 15], "11/12": [11, 12], "14/9": [14, 9] };
 
 const SHORT_LIST = [
   { name: "Fixture Project", theme: "", starred: true, active: true },
@@ -692,13 +830,30 @@ function diskLine(surface) {
   return surface === "header" ? '<code class="disk-path settled">✓ ticket.md</code>' : "";
 }
 
-function pathChip(cls) {
-  return '<button tabindex="0" class="path-chip' + (cls ? " " + cls : "") + '" aria-label="Copy path — ' + PROJECT.full + '" title="' + PROJECT.full + '">' +
-    FOLDER + '<span class="txt">' + PROJECT.path + '</span></button>';
+/* `<head>…<tail>`, capped in characters — which in a mono face is capped in
+   pixels. The head is what gets cut into: every path in this app starts
+   `~/Developer/…` and ends in the folder that names the project. */
+function elidePath(text, head, tail) {
+  if (text.length <= head + tail + 1) return text;
+  return text.slice(0, head) + "…" + text.slice(-tail);
+}
+
+function pathChip(surface) {
+  const project = PATHS[state.path];
+  /* The header keeps the tail ellipsis `.path-chip .txt` already does — it has
+     180px and no tile beside it, and it is the thing variant B is compared to. */
+  const shown = surface === "header"
+    ? project.display
+    : elidePath(project.display, CAPS[state.cap][0], CAPS[state.cap][1]);
+  return '<button tabindex="0" class="path-chip" aria-label="Copy path — ' + project.full + '" title="' + project.full + '">' +
+    (surface === "header" ? FOLDER : "") + '<span class="txt">' + shown + '</span></button>';
 }
 
 function projectRow(project) {
   const active = project.active && !state.muted;
+  /* The menu hangs off the open project's own row, which is the row a reviewer
+     is looking at anyway. */
+  const open = state.menu && project.active;
   const mark = project.unreachable
     ? '<span class="project-warn" aria-hidden="true">⚠</span><span class="visually-hidden">Unreachable</span>'
     : '<span class="theme-dot"' + (project.theme ? ' data-lc-theme="' + project.theme + '"' : "") +
@@ -708,7 +863,9 @@ function projectRow(project) {
       mark + '<strong>' + project.name + '</strong>' +
       (project.starred ? '<span class="star-mark"><span aria-hidden="true">★</span><span class="visually-hidden">Starred</span></span>' : '') +
     '</button>' +
-    '<button tabindex="0" type="button" class="row-menu-button" aria-haspopup="menu" aria-expanded="false" aria-label="' + project.name + ' menu" title="Project menu">' + KEBAB + '</button>' +
+    '<button tabindex="0" type="button" class="row-menu-button' + (open ? " open" : "") + '"' +
+      ' aria-haspopup="menu" aria-expanded="' + (open ? "true" : "false") + '"' +
+      ' aria-label="' + project.name + ' menu" title="Project menu">' + KEBAB + '</button>' +
   '</div>';
 }
 
@@ -788,21 +945,63 @@ function sidebarA() {
 
 /* Variants B and C: identity at the top, the pair pinned to the footer. */
 function sidebarB(overlay) {
+  const unreachable = state.scene === "unreachable";
   const identity = state.scene === "none" ? "" :
     '<header class="project-identity">' +
       '<div class="identity-row">' +
-        (state.scene === "unreachable" ? '<span class="project-warn" aria-hidden="true">⚠</span>' : "") +
-        '<h1>' + PROJECT.name + '</h1>' +
+        /* The tile carries the project's first letter — decorative, because the
+           name it abbreviates is the next thing in the row. Unreachable swaps
+           the letter for the warn triangle the project row wears. */
+        '<span class="project-tile' + (unreachable ? " unreachable" : "") + '" aria-hidden="true">' +
+          (unreachable ? "⚠" : PROJECT.name.trim().charAt(0).toUpperCase()) + '</span>' +
+        '<div class="identity-text">' +
+          '<h1>' + PROJECT.name + '</h1>' +
+          pathChip("sidebar") +
+        '</div>' +
         '<button tabindex="0" class="ghost small settings-button" aria-label="Project settings" aria-haspopup="menu" aria-expanded="false" title="Project settings">' + GEAR + '</button>' +
       '</div>' +
-      pathChip() +
-      '<div class="identity-disk">' + (state.scene === "unreachable" ? "" : diskLine("sidebar")) + '</div>' +
+      '<div class="identity-disk">' + (unreachable ? "" : diskLine("sidebar")) + '</div>' +
     '</header>';
   return '<aside class="side-panel' + (state.create === "closed" ? "" : " creating") + '">' +
+    (state.menu ? projectMenuPopover() : "") +
     (overlay ? '<div class="titlebar-owl">' + OWL + '</div>' : "") +
     identity + projectNav() + createRegion() +
     '<div class="side-panel-footer">' + createPair() + '</div>' +
   '</aside>';
+}
+
+const PENCIL = '<svg class="pencil-glyph" width="12" height="12" viewBox="0 0 14 14" aria-hidden="true">' +
+  '<path d="M2.2 11.8 L2.8 9.2 L9.8 2.2 Q10.4 1.6 11 2.2 L11.8 3 Q12.4 3.6 11.8 4.2 L4.8 11.2 Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>';
+
+/* The row's `⋮` menu — `ProjectMenu`'s items in `MenuList`'s markup, in order:
+   Rename, the Theme submenu with its `preset · appearance` hint, a rule, the
+   star named for what pressing it does, a rule, the danger row whose ellipsis
+   promises the confirm, a rule, and All settings with its `⌘,`. */
+function projectMenuPopover() {
+  const row = (glyph, label, extra) =>
+    '<div' + (extra && extra.anchor ? ' class="menu-anchor"' : "") + '>' +
+      '<button type="button" class="menu-row' + (extra && extra.danger ? " danger" : "") + '"' +
+        ' role="menuitem" tabindex="' + (extra && extra.active ? "0" : "-1") + '"' +
+        (extra && extra.anchor ? ' aria-haspopup="menu" aria-expanded="false"' : "") + '>' +
+        '<span class="menu-glyph">' + glyph + '</span>' +
+        '<span class="menu-label">' + label + '</span>' +
+        (extra && extra.hint ? '<span class="menu-hint">' + extra.hint + '</span>' : "") +
+        (extra && extra.anchor ? CHEVRON : "") +
+      '</button>' +
+    '</div>';
+  const swatch = '<span class="theme-swatch" data-lc-theme="indigo" data-theme="' +
+    document.documentElement.dataset.theme + '" aria-hidden="true">' +
+    '<span class="swatch-human"></span><span class="swatch-agent"></span></span>';
+  return '<div class="menu-popover menu-hinted" role="menu" aria-label="Project menu">' +
+    row(PENCIL, "Rename", { active: true }) +
+    row(swatch, "Theme", { anchor: true, hint: "Indigo · System" }) +
+    '<hr class="menu-rule">' +
+    row('<span class="menu-star" aria-hidden="true">★</span>', "Unstar project") +
+    '<hr class="menu-rule">' +
+    row('<span class="menu-cross" aria-hidden="true">✕</span>', "Remove from app", { danger: true }) +
+    '<hr class="menu-rule">' +
+    row(GEAR, "All settings", { hint: "<kbd>⌘,</kbd>" }) +
+  '</div>';
 }
 
 function toolbar() {
@@ -887,7 +1086,7 @@ function welcome() {
 
 function unreachablePanel() {
   return '<section class="unreachable-panel"><span class="state-icon">' + WARN30 + '</span>' +
-    '<h2>Folder not found</h2><code>' + PROJECT.full + '</code>' +
+    '<h2>Folder not found</h2><code>' + PATHS[state.path].full + '</code>' +
     '<p>The project folder moved, or its disk isn’t mounted. Your tickets are safe in their files.</p>' +
     '<div class="toolbar-actions"><button tabindex="0" class="secondary">Locate folder…</button>' +
     '<button tabindex="0" class="ghost">Remove from list</button></div></section>';
@@ -936,11 +1135,30 @@ function render() {
     if (header) {
       const h = header.offsetHeight;
       const oneRow = h <= 63;
+      const chip = win.querySelector(".project-identity .path-chip");
+      const txt = chip && chip.querySelector(".txt");
       readout.innerHTML = "header " + h + "px " +
         (oneRow ? '<span class="ok">· one row</span>' : '<span class="bad">· WRAPPED</span>') +
-        (field ? " · filter " + Math.round(field.getBoundingClientRect().width / (win.style.zoom || 1)) + "px" : "");
+        (field ? " · filter " + Math.round(field.getBoundingClientRect().width / (win.style.zoom || 1)) + "px" : "") +
+        (txt ? " · path " + txt.textContent.length + " chars, " + Math.round(txt.scrollWidth) + "px in " +
+          Math.round(txt.clientWidth) + "px " +
+          (txt.scrollWidth <= txt.clientWidth + 0.5
+            ? '<span class="ok">· fits</span>'
+            : '<span class="bad">· CLIPPED</span>') : "");
     } else {
       readout.textContent = "no header in this state";
+    }
+    /* The menu is placed the way `usePopoverPlacement` places it — under its
+       anchor, right edges aligned — but against the frame's origin. */
+    const popover = win.querySelector(".menu-popover");
+    const anchor = win.querySelector(".project-row.selected .row-menu-button");
+    if (popover && anchor) {
+      const wr = win.getBoundingClientRect();
+      const ar = anchor.getBoundingClientRect();
+      popover.style.top = Math.round(ar.bottom - wr.top + 4) + "px";
+      /* Clamped to the window, which is what `usePopoverPlacement` does against
+         the viewport: the menu is wider than the row it hangs off. */
+      popover.style.left = Math.max(8, Math.round(ar.right - wr.left - popover.offsetWidth)) + "px";
     }
     if (state.scale === "fit") {
       const room = host.clientWidth - 40;
