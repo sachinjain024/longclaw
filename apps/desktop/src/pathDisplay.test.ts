@@ -37,7 +37,7 @@ describe("elidePath", () => {
 
   it("returns a path of exactly the cap untouched", () => {
     const exact = "a".repeat(SIDEBAR_PATH_CAP);
-    expect(exact).toHaveLength(16);
+    expect(exact).toHaveLength(21);
     expect(elidePath(exact)).toBe(exact);
   });
 
@@ -46,7 +46,7 @@ describe("elidePath", () => {
     // `~/Developer/…`, which is the same on every path in the app.
     expect(
       elidePath("~/Developer/work/acme-corp/longclaw-fixture-project"),
-    ).toBe("~/De…ure-project");
+    ).toBe("~/Deve…ixture-project");
   });
 
   it("never returns more characters than the cap", () => {
@@ -65,11 +65,11 @@ describe("elidePath", () => {
   });
 
   it("spends the cap the way the head and tail state", () => {
-    // The chip is mono, so a character count is a pixel count: 107px of box at
+    // The chip is mono, so a character count is a pixel count: 137px of box at
     // 6.3px a glyph, measured where the panel is narrowest.
     expect(SIDEBAR_PATH_HEAD + SIDEBAR_PATH_TAIL + 1).toBe(SIDEBAR_PATH_CAP);
     const elided = elidePath("/one/two/three/four/five/six/seven/eight");
-    expect(elided.slice(0, SIDEBAR_PATH_HEAD)).toBe("/one");
+    expect(elided.slice(0, SIDEBAR_PATH_HEAD)).toBe("/one/t");
     expect(elided.charAt(SIDEBAR_PATH_HEAD)).toBe("…");
     expect(elided.slice(SIDEBAR_PATH_HEAD + 1)).toBe(
       "/six/seven/eight".slice(-SIDEBAR_PATH_TAIL),

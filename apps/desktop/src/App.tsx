@@ -1725,34 +1725,49 @@ export function App() {
                 <span className="visually-hidden">Unreachable</span>
               )}
               <div className="identity-text">
-                <h1>{project.name}</h1>
+                {/* The gear is *in* the name's row, so the width it takes comes
+                    out of the name — which ellipsizes and can spare it — and
+                    none of it out of the path below, which gets the column
+                    whole. It rode above the row, out of flow, until the real
+                    app showed what that cost: the path had to be held 30px
+                    clear of a control that was not on its line. Still outside
+                    the `project.reachable` guard, because settings holds
+                    `Locate…`, the way back (LC-239w, keeping LC-223's rule). */}
+                <div className="identity-name">
+                  <h1>{project.name}</h1>
+                  {/* `aria-haspopup="menu"` and a real `aria-expanded`: what
+                      the gear opens is a menu now (LC-208), which is a region
+                      that stays part of the page under its trigger — the very
+                      thing LC-125 removed the expanded state for when this
+                      opened a dialog instead. The menu is what opens the
+                      dialog.
+
+                      No `small`. That class is a 24px labelled control with 9px
+                      of side padding, and this is a 26px square with none: while
+                      the gear lived in the content header the rule that says so
+                      out-specified it two classes to one, and unscoping the rule
+                      for the move left the two tied — so `.small`'s padding won
+                      on source order and squeezed the 14px glyph to 6px. It
+                      shipped, and it read as a dot. The class it never wanted is
+                      gone and the rule is scoped to this row. */}
+                  <button
+                    tabIndex={0}
+                    ref={settingsButton}
+                    className={classes(
+                      "ghost settings-button",
+                      settingsMenuOpen && "open",
+                    )}
+                    aria-label="Project settings"
+                    aria-haspopup="menu"
+                    aria-expanded={settingsMenuOpen}
+                    title="Project settings"
+                    onClick={() => setSettingsMenuOpen(!settingsMenuOpen)}
+                  >
+                    <GearGlyph />
+                  </button>
+                </div>
                 <PathChip path={project.rootPath} homePath={homePath} />
               </div>
-              {/* The gear, on the name's line and out of the flow, so the path
-                  below runs the panel's full width — 34px, which is six more
-                  characters of path at the chip's mono size. Still outside the
-                  `project.reachable` guard, because settings holds `Locate…`,
-                  the way back (LC-239w keeps what LC-223 established). */}
-              {/* `aria-haspopup="menu"` and a real `aria-expanded`: what the
-                  gear opens is a menu now (LC-208), which is a region that
-                  stays part of the page under its trigger — the very thing
-                  LC-125 removed the expanded state for when this opened a
-                  dialog instead. The menu is what opens the dialog. */}
-              <button
-                tabIndex={0}
-                ref={settingsButton}
-                className={classes(
-                  "ghost small settings-button",
-                  settingsMenuOpen && "open",
-                )}
-                aria-label="Project settings"
-                aria-haspopup="menu"
-                aria-expanded={settingsMenuOpen}
-                title="Project settings"
-                onClick={() => setSettingsMenuOpen(!settingsMenuOpen)}
-              >
-                <GearGlyph />
-              </button>
             </div>
             {/* One disk-state line, riding with the path where
                 `screen-specs.md` § Project identity puts it — and only while a

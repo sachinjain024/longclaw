@@ -1042,7 +1042,7 @@ describe("the project path chip (LC-68)", () => {
     const chip = screen.getByRole("button", {
       name: `Copy path — ${p.rootPath}`,
     });
-    // Display text is tilde-abbreviated — and short enough here to escape the
+    // Display text is tilde-abbreviated, and short enough to escape the
     // elision, which is what makes this an assertion about the `~`.
     expect(chip.textContent).toBe("~/dev/longclaw");
     expect(chip.textContent).not.toContain(home);
@@ -1060,10 +1060,10 @@ describe("the project path chip (LC-68)", () => {
     const chip = screen.getByRole("button", {
       name: `Copy path — ${p.rootPath}`,
     });
-    // Elided in the middle for display, because it is longer than the panel's
-    // 16-character box (LC-239w) — but with no `~`, which is this test's
-    // subject: the abbreviation is the home directory's, not any prefix's.
-    expect(chip.textContent).toBe("/Use…ther/shared");
+    // Shown whole — it is inside the panel's 21-character box — and with no
+    // `~`, which is this test's subject: the abbreviation is the home
+    // directory's, not any prefix's.
+    expect(chip.textContent).toBe("/Users/other/shared");
     expect(chip.textContent).not.toContain("~");
     // And the whole path is still what the chip is named for and copies.
     expect(chip.getAttribute("title")).toBe(p.rootPath);

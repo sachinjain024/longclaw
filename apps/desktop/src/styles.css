@@ -83,7 +83,6 @@ textarea:focus-visible,
    `position: relative` is for the gear, which is taken out of the flow so the
    path below it can run the panel's full width. */
 .project-identity {
-  position: relative;
   display: grid;
   gap: 4px;
   padding: 0 var(--lc-space-1) var(--lc-space-4);
@@ -141,6 +140,18 @@ textarea:focus-visible,
   gap: 2px;
 }
 
+/* The name's row, and the gear's. The gear is in the flow here rather than
+   floating over the block, which is what gives the path below it the column
+   whole: what the control costs comes out of the name, which ellipsizes and can
+   spare it, instead of out of a path that was being held 30px clear of a button
+   that was not even on its line. */
+.identity-name {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--lc-space-2);
+}
+
 /* 14px, not the 16.5 the content header gave this name: the same words in 216px
    rather than in the main region's width, so it holds two-thirds of a long
    project name before the ellipsis instead of half of one. Display face at 600,
@@ -149,9 +160,8 @@ textarea:focus-visible,
 .identity-text h1 {
   overflow: hidden;
   min-width: 0;
-  /* The gear is out of the flow, so only this row clears it. */
+  flex: 0 1 auto;
   margin: 0;
-  padding-right: 30px;
   color: var(--lc-ink);
   font: 600 14px / 1.25 var(--lc-font-display);
   letter-spacing: -0.01em;
@@ -159,16 +169,18 @@ textarea:focus-visible,
   white-space: nowrap;
 }
 
-/* Top right, on the name's line, rather than centred in the block — and out of
-   the flow, so the row below it belongs to the path rather than to the two of
-   them sharing it. The path still keeps 30px clear of the gear (see the chip),
-   but 30px is a good deal less than the 34 an in-flow gear takes out of every
-   row, and the gear ends up beside the title it belongs to, which is where this
-   app puts a title's action everywhere else. */
-.identity-row .settings-button {
-  position: absolute;
-  top: 0;
-  right: 0;
+/* Beside the name, at the end of its row: a title's action next to its title,
+   which is where this app puts one everywhere else. `margin-left: auto` rather
+   than the name growing, so a short name does not drag the gear in beside it.
+
+   Two classes, deliberately. `.settings-button` alone is one, which ties with
+   `.ghost` and `.small` and loses to whichever is later in this file — that tie
+   is how the gear shipped as a 6px dot, `.small`'s `padding: 0 9px` squeezing
+   a 14px glyph inside a 26px box. It was `.content-header .settings-button`
+   before the move, and it is scoped again now. */
+.identity-name .settings-button {
+  flex: none;
+  margin-left: auto;
 }
 
 /* The disk-state line, riding with the path where `screen-specs.md` § Project
@@ -1083,7 +1095,7 @@ button:disabled {
      measured against what is left, so in the ordinary case the text stops on
      its own and this is the backstop for a panel the shell has squeezed. */
   justify-self: start;
-  max-width: calc(100% - 30px);
+  max-width: 100%;
   color: var(--lc-ink-3);
   font-size: 10.5px;
 }

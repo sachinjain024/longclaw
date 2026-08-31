@@ -280,15 +280,34 @@ async function probe(browser, px) {
       const chip = document.querySelector(".project-identity .path-chip");
       const gear = document.querySelector(".project-identity .settings-button");
       if (!txt || !chip || !gear) return null;
-      const box = (element) => element.getBoundingClientRect();
+      const box = (element) => {
+        const rect = element.getBoundingClientRect();
+        return {
+          left: rect.left,
+          right: rect.right,
+          top: rect.top,
+          bottom: rect.bottom,
+        };
+      };
       return {
         text: txt.textContent,
         needs: Math.round(txt.scrollWidth),
         has: Math.round(txt.clientWidth),
-        // And it stops short of the gear, which hangs into this row from the
-        // name's line above it and is later in the DOM: a chip running under it
-        // hands the path's last characters to the control that opens settings.
-        clearsGear: box(chip).right <= box(gear).left + 0.5,
+        // And it does not run under the gear. They are on different rows since
+        // the gear went into the flow of the name's, so this is a box overlap
+        // rather than a left-of test — the two were side by side once, and a
+        // chip that ran past the gear handed the path's last characters to the
+        // control that opens settings.
+        clearsGear: (() => {
+          const a = box(chip);
+          const b = box(gear);
+          return !(
+            a.right > b.left &&
+            a.left < b.right &&
+            a.bottom > b.top &&
+            a.top < b.bottom
+          );
+        })(),
       };
     });
     check(
