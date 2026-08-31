@@ -148,7 +148,7 @@ describe("a ticket's context menu", () => {
   });
 
   it("offers a file it could not read only what a file has", () => {
-    // `keyboard-focus-map.md:48`: a degraded row takes focus, and there is no
+    // `keyboard-focus-map.md:49`: a degraded row takes focus, and there is no
     // status, priority or archive flag in it to write. The path is the one
     // thing it does have — and the one a person right-clicking it wants.
     expect(ids(DEGRADED)).toEqual(["open", "copy-path"]);

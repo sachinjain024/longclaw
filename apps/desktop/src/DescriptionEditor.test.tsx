@@ -122,7 +122,7 @@ describe("the formatting toolbar", () => {
     ]);
     expect(buttons.every((button) => button.textContent === "")).toBe(true);
     // One stop, so Tab reaches the textarea without pressing it seven times
-    // (`keyboard-focus-map.md:61`).
+    // (`keyboard-focus-map.md:62`).
     expect(buttons.filter((button) => button.tabIndex === 0)).toHaveLength(1);
 
     fireEvent.keyDown(buttons[0], { key: "ArrowRight" });

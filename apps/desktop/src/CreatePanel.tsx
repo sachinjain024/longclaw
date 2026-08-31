@@ -14,7 +14,7 @@
  *
  * - **The ID is a guess.** Rust allocates the real key from the project's own
  *   directory names. The chip says `KEY-n · new` and is display-only, never a
- *   tab stop (`keyboard-focus-map.md:61`).
+ *   tab stop (`keyboard-focus-map.md:62`).
  * - **Nothing has been written.** The description editor is write mode only —
  *   there is no file to preview against. The checklist rows are still drafts,
  *   but their boxes do tick (LC-242h): a ticket filed over work already half
@@ -111,7 +111,7 @@ export function CreatePanel(props: CreatePanelProps) {
    * whichever control the gesture came from, which was harmless while the box
    * was not a tab stop: the only places `⌥↓` could be pressed from were the two
    * buttons. LC-242h made the box a stop, and the box is the natural place to
-   * press `⌥↓` from (`keyboard-focus-map.md:62`) — so landing on a destructive
+   * press `⌥↓` from (`keyboard-focus-map.md:63`) — so landing on a destructive
    * button would mean the next `Space`, which the human presses to untick,
    * removes the row instead.
    */
@@ -455,7 +455,7 @@ export function CreatePanel(props: CreatePanelProps) {
                       //
                       // `keyboard-focus-map.md` states the checklist row's
                       // order once, for the panel's view mode
-                      // (`keyboard-focus-map.md:61-62`): box → edit → remove,
+                      // (`keyboard-focus-map.md:62-63`): box → edit → remove,
                       // with `⌥↑`/`⌥↓` on the row. This surface has no section
                       // of its own there, and it should not need one — a draft
                       // row is the same row, and this is the stop that makes

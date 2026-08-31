@@ -1639,7 +1639,7 @@ describe("the panel's honesty about the file", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  // `keyboard-focus-map.md:71-74`: "`S`/`P` still work (they target the open
+  // `keyboard-focus-map.md:72-75`: "`S`/`P` still work (they target the open
   // ticket)". Focus is in the panel, so neither surface's own binding sees them.
   it("opens the status and priority menus on S and P", async () => {
     render(panel());
@@ -2068,7 +2068,7 @@ describe("priority in the panel (V0-08)", () => {
       ),
     ).toBe("Priority: P2");
     // The panel tab order is status → priority → labels
-    // (`keyboard-focus-map.md:61`), so priority follows status in the document.
+    // (`keyboard-focus-map.md:62`), so priority follows status in the document.
     const triggers = screen.getAllByRole("button", {
       name: /^(Status|Priority): /,
     });
@@ -2152,7 +2152,7 @@ describe("labels in the panel (V0-10)", () => {
     await ready();
 
     expect(chips()).toEqual(["Backend"]);
-    // status → priority → labels (`keyboard-focus-map.md:61`).
+    // status → priority → labels (`keyboard-focus-map.md:62`).
     const triggers = screen.getAllByRole("button", {
       name: /^(Status|Priority|Labels): /,
     });
@@ -2806,7 +2806,7 @@ describe("the description editor (V0-12)", () => {
     fireEvent.change(textarea, { target: { value: "Cancelled." } });
     fireEvent.keyDown(textarea, { key: "Escape" });
 
-    // Esc is the editor's, not the panel's (`keyboard-focus-map.md:87`).
+    // Esc is the editor's, not the panel's (`keyboard-focus-map.md:88`).
     expect(onClose).not.toHaveBeenCalled();
     expect(editTicketMock).not.toHaveBeenCalled();
     expect(screen.queryByLabelText("Description")).toBeNull();
@@ -2945,7 +2945,7 @@ describe("the panel's fields read as the record, not as a form", () => {
       addChecklistItems: ["Walk the panel"],
     });
     // Cleared and still focused, which is what makes a list typeable in one
-    // pass (`keyboard-focus-map.md:63`).
+    // pass (`keyboard-focus-map.md:64`).
     expect(field.value).toBe("");
     expect(document.activeElement).toBe(field);
   });
