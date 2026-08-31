@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 78898c9d-b123-47bb-970d-86f761c0a54b
 key: LC-230
 title: ⌘1…⌘9 switches to the nth project
-status: todo
+status: in_review
 priority: none
 labels:
   - frontend
   - design
 created_at: 2026-08-24T23:01:51.163Z
-updated_at: 2026-08-24T23:01:51.163Z
+updated_at: 2026-08-31T13:49:16.022Z
 ---
 
 Switching projects is pointer-only today: the sidebar row, or the palette. Give
@@ -61,12 +61,12 @@ the chord is discoverable where it is used and not only in settings.
 
 ## Checklist
 
-- [ ] ⌘1…⌘9 make the 1st–9th project of the sidebar's Local list active, through the same loadProject path a row click takes; ⌘0 and a tenth-or-later project do nothing <!-- longclaw:item=ck_0e18345a -->
-- [ ] The chords stay live while a text field has focus, and are refused where ⌘K and ⌘F are refused — same keyContext rule, no separate one <!-- longclaw:item=ck_49de5a7f -->
-- [ ] Each of the first nine Local rows shows its ⌘n badge; rows ten and up show none, Starred rows show none, and the badge does not leak into the row's accessible name <!-- longclaw:item=ck_44d5f508 -->
-- [ ] SHORTCUTS in ProjectSettings.tsx and the global-chords table in keyboard-focus-map.md both name it, line 171's no-chords sentence is re-worded to match, and npm run citations:check is green after re-pinning <!-- longclaw:item=ck_ef6949f7 -->
-- [ ] Vitest covers the handler — ⌘1, ⌘9, ⌘0, a ten-project registry, a starred project numbered once — and the badge's presence and absence <!-- longclaw:item=ck_919b6e62 -->
-- [ ] npm run a11y:audit and npm run verify pass, with the audit run quoted on the ticket <!-- longclaw:item=ck_3be1ccf3 -->
+- [x] ⌘1…⌘9 make the 1st–9th project of the sidebar's Local list active, through the same loadProject path a row click takes; ⌘0 and a tenth-or-later project do nothing <!-- longclaw:item=ck_0e18345a -->
+- [x] The chords stay live while a text field has focus, and are refused where ⌘K and ⌘F are refused — same keyContext rule, no separate one <!-- longclaw:item=ck_49de5a7f -->
+- [x] Each of the first nine Local rows shows its ⌘n badge; rows ten and up show none, Starred rows show none, and the badge does not leak into the row's accessible name <!-- longclaw:item=ck_44d5f508 -->
+- [x] SHORTCUTS in ProjectSettings.tsx and the global-chords table in keyboard-focus-map.md both name it, line 171's no-chords sentence is re-worded to match, and npm run citations:check is green after re-pinning <!-- longclaw:item=ck_ef6949f7 -->
+- [x] Vitest covers the handler — ⌘1, ⌘9, ⌘0, a ten-project registry, a starred project numbered once — and the badge's presence and absence <!-- longclaw:item=ck_919b6e62 -->
+- [x] npm run a11y:audit and npm run verify pass, with the audit run quoted on the ticket <!-- longclaw:item=ck_3be1ccf3 -->
 
 ## Activity
 
@@ -80,4 +80,102 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_77bfd520
+kind: update
+occurred_at: 2026-08-31T13:49:16.022Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: in_review
+  - field: checklist.ck_0e18345a.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_49de5a7f.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_44d5f508.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_ef6949f7.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_919b6e62.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_3be1ccf3.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_4cccaba6
+kind: comment
+occurred_at: 2026-08-31T13:49:38.379Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Landed on `lc-230-project-chords`.
+
+`⌘1`…`⌘9` switch to the nth project of the sidebar's Local list, through
+`loadProject` — the path a row's click takes, so a panel open on another
+project's key closes across the switch (LC-188) rather than re-aiming.
+`⌘0` and the tenth row and below are unbound. A starred project is numbered
+once, on its Local row; the Starred section carries no badges.
+
+`chordDigit` sits in `keyContext.ts` beside `isChord` and reads `⌘`/`Ctrl`
+the same way, so being a chord it stays live inside a text field. It is
+refused under `overlayOpen` — the palette, a menu, settings, quick create —
+which is exactly where `⌘F` is refused. The ticket panel is deliberately not
+in that set: `loadProject` closes it on the way through.
+
+The badge is `aria-hidden` and `aria-keyshortcuts="Meta+n"` announces the key,
+which is `GuideCard`'s shape (LC-71). The row still answers to just its
+project's name — LC-208's trap. `PROJECT_CHORD_COUNT` is the one place the
+nine lives, so the badges and the keys that answer them cannot disagree.
+
+Both shortcut lists name it in one pass, and rule 2 and the "no chords in v0"
+line no longer contradict the § Global table.
+
+## The audit run
+
+    npm run a11y:audit
+    A1  PASS  Keyboard-only core ticket lifecycle
+    A2  PASS  Focus order and focus return
+    A3  PASS  Visible focus survives panels, overlays, and scroll containers
+    A4  PASS  Reduced motion preserves state changes
+    A5  PASS  200% zoom does not overlap or hide primary controls
+    Part A passes.
+
+`npm run verify` green: 1103 frontend tests over 43 files, 166 Rust, every
+guard including `citation-guard` at 493 citations.
+
+## The note about truncation
+
+Measured in WebKit at `PROJECT_NAME_MAX_LENGTH` (120 characters), against the
+real stylesheet at 240px: the row stays one 28px line, the name still
+truncates rather than overflowing, the badge is fully inside the row, and the
+name gives up exactly the badge's 13px plus its 8px flex gap.
+
+## What the review caught, for the record
+
+The new § Global row shifted every citation below it. The first pass matched
+only the first number of each citation, so spans after a comma kept their old
+values — the failure `citation-guard.mjs:92-97` documents — and `--update`
+then pinned them as truth. Redone with the guard's own grammar against the
+lock as it stood on `main`: 161 endpoints rather than 125, six spans repaired,
+plus two bare-form references the guard cannot see at all. Also corrected a
+rule-2 citation this branch had copied wrong from the `⌘,` branch.
 <!-- /longclaw:event -->
