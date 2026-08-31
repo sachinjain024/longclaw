@@ -369,3 +369,39 @@ changes:
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_42e08fed
+kind: comment
+occurred_at: 2026-08-31T23:08:57.282Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+## UX feedback — round 3 (from the user, on the running app)
+
+- Project Directory can expand to full-width
+- On the right it should be actual settings / gear icon
+
+Both were real, and both were mine.
+
+**The gear was rendering as a 6px dot.** Moving it to the side panel meant unscoping `.content-header .settings-button` to `.settings-button` — two classes down to one, which ties with `.ghost` and `.small` and loses to whichever sits later in the stylesheet. `.small` is a labelled control with `padding: 0 9px`; inside a 26px box that leaves 8px, and a 14px glyph with `flex-shrink: 1` came out 6px wide. The button never wanted that class — it is a square with no padding — so it is gone from the className and the rule is scoped again, to the row the gear now lives in.
+
+The code review two rounds ago caught this specificity change and I fixed the *comment* about it. The comment was not the thing that was wrong. Measured now: button 26×26, glyph 14×14.
+
+**And the path was being held 30px clear of a control that was not on its line.** The gear floated over the block, out of flow, so the row beneath it kept a gap for something that only overlapped it by a few pixels — and the path, the one thing in this block short of room, paid the whole 30. The gear moves into the flow of the name’s row, where its 26px comes out of a name that ellipsizes and can spare it. The path now runs the column whole: **137px at the width where the panel is narrowest, which is 21 characters** rather than 16. `probe:header` prints the box and the text at every width, and the check that used to ask "is the chip left of the gear" now asks whether their boxes overlap at all — they are on different rows, so that is what it meant both times.
+
+`main` merged in on the way (LC-230, ⌘1…⌘9). One conflict, in the generated `citation-lock.json`; resolved by taking main’s and re-pinning, after checking that all 31 drifts were in the two documents this ticket edits, at the lines LC-230’s insertions had moved them to. 494 citations clean.
+
+```
+npm run verify        green — 44 files, 1117 tests
+npm run probe:header  126/126, --self-test red on 28
+npm run a11y:audit    A1–A5 PASS
+npm run matrix        8 axes × 12 states clean
+```
+
+One note on the runs: an earlier `verify` went red on three tests, two of them 5-second tests that took **925 seconds**. The machine was at load 76 from system processes while several probes ran alongside it. Each file passes in seconds alone — `TicketPanel.test.tsx` 132/132 in 5.5s against 958s under load — and the clean run above is with nothing else running. Recorded because AGENTS.md asks that the environment be suspected before the code, and this was the environment.
+<!-- /longclaw:event -->
