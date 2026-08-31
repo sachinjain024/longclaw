@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
-import { singleKeyShortcutAllowed, textFieldAt } from "./keyContext";
+import {
+  chordDigit,
+  singleKeyShortcutAllowed,
+  textFieldAt,
+} from "./keyContext";
 
 afterEach(() => {
   document.body.innerHTML = "";
@@ -70,5 +74,48 @@ describe("the field a keystroke could be undone in", () => {
 
     expect(textFieldAt(field)).toBe(field);
     expect(textFieldAt(wrapper)).toBeUndefined();
+  });
+});
+
+/**
+ * `⌘1`…`⌘9` (LC-230). The range is the whole point: `isChord` answers one key
+ * and nine calls to it would be nine places for the modifier convention to
+ * drift, which is what this module exists to prevent.
+ */
+describe("the project chord's digit", () => {
+  const press = (init: KeyboardEventInit) =>
+    chordDigit(new KeyboardEvent("keydown", init));
+
+  it("reads 1 through 9 off a ⌘ press", () => {
+    for (let digit = 1; digit <= 9; digit += 1) {
+      expect(press({ key: String(digit), metaKey: true })).toBe(digit);
+    }
+  });
+
+  /** `⌘` or `Ctrl` alike, the same convention `isChord` reads (plan 24). */
+  it("takes Ctrl as well, so a Ctrl keyboard reaches it", () => {
+    expect(press({ key: "4", ctrlKey: true })).toBe(4);
+  });
+
+  /**
+   * `⌘0` is unbound on purpose: there is no zeroth row for it to mean, and a
+   * chord that silently rounded to the first would be worse than one that does
+   * nothing.
+   */
+  it("refuses ⌘0", () => {
+    expect(press({ key: "0", metaKey: true })).toBeUndefined();
+  });
+
+  it("refuses a bare digit, which is not a chord at all", () => {
+    expect(press({ key: "7" })).toBeUndefined();
+  });
+
+  /**
+   * `⇧⌘1` arrives as `!` on a US layout, so the shifted press falls out by
+   * itself — and a multi-character key never matches a single digit.
+   */
+  it("refuses the shifted press and anything longer than a digit", () => {
+    expect(press({ key: "!", metaKey: true, shiftKey: true })).toBeUndefined();
+    expect(press({ key: "F1", metaKey: true })).toBeUndefined();
   });
 });

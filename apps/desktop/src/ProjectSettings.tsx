@@ -92,7 +92,7 @@ export function ProjectSettings(props: {
 
   /**
    * "Focus enters the first meaningful control"
-   * (`keyboard-focus-map.md:143-147`), which for this panel is the first
+   * (`keyboard-focus-map.md:144-148`), which for this panel is the first
    * control **of the section that was asked for** rather than a fixed field.
    * The Name input carried `autoFocus` while every section was on screen at
    * once; with a nav in front of them that would land a human who picked
@@ -534,7 +534,7 @@ function StatusSection() {
  * a shortcut only its author uses.
  *
  * It is a hand-copy of the map's § Global and § Board tables
- * (`keyboard-focus-map.md:29-34`, `:39-44`) and there is no way for it not to
+ * (`keyboard-focus-map.md:29-35`, `:39-44`) and there is no way for it not to
  * be — the map is prose for people, not a module. So it is written to be
  * *checkable* instead: one row per row of those two tables, in their order,
  * and it shipped missing `⌘↵` and the `J K H L` half of board movement.
@@ -546,6 +546,7 @@ const SHORTCUTS: { action: string; keys: string[] }[] = [
   { action: "Focus the filter field", keys: ["⌘", "F"] },
   { action: "Quick create a ticket", keys: ["C"] },
   { action: "Project settings", keys: ["⌘", ","] },
+  { action: "Switch to the nth project in the sidebar", keys: ["⌘", "1–9"] },
   { action: "Close one layer", keys: ["Esc"] },
   { action: "Move between tickets", keys: ["↑", "↓", "←", "→"] },
   { action: "…or without leaving the home row", keys: ["K", "J", "H", "L"] },
@@ -892,7 +893,7 @@ function LabelColors(props: {
  * anything not looking at it — on each dot, not beside it.
  *
  * Roving focus, one tab stop, arrows along the strip, `Esc` back to the
- * trigger: the contract `keyboard-focus-map.md:139-141` gives every menu, on
+ * trigger: the contract `keyboard-focus-map.md:140-142` gives every menu, on
  * the horizontal axis this one is drawn along.
  */
 function LabelColorMenu(props: {

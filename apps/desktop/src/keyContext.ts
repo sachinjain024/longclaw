@@ -69,3 +69,22 @@ export function textFieldAt(target: EventTarget | null): Element | undefined {
 export function isChord(event: KeyboardEvent, key: string): boolean {
   return (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === key;
 }
+
+/**
+ * The digit of a `⌘1`…`⌘9` press, or `undefined` for anything that is not one
+ * (LC-230).
+ *
+ * It reads the modifiers exactly as `isChord` does — `⌘` or `Ctrl` alike —
+ * because a second way to spell a chord is the drift this module was made to
+ * end. It is a separate function rather than nine `isChord` calls because the
+ * caller wants the *number*, and nine calls would be nine places to get the
+ * convention wrong.
+ *
+ * `0` is not in the range: there is no zeroth row, and a chord that quietly
+ * rounded to the first would be worse than one that does nothing.
+ */
+export function chordDigit(event: KeyboardEvent): number | undefined {
+  if (!(event.metaKey || event.ctrlKey)) return undefined;
+  if (!/^[1-9]$/.test(event.key)) return undefined;
+  return Number(event.key);
+}

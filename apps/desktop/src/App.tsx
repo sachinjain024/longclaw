@@ -57,7 +57,7 @@ import { filterTickets, isFiltering } from "./filtering";
 import { FolderGlyph } from "./FolderGlyph";
 import { GearGlyph, KebabGlyph } from "./SettingsGlyphs";
 import { IssueList } from "./IssueList";
-import { isChord, singleKeyShortcutAllowed } from "./keyContext";
+import { chordDigit, isChord, singleKeyShortcutAllowed } from "./keyContext";
 import { MenuButton } from "./Menu";
 import { mutate, type Mutation, useMutationStore } from "./mutations";
 import { ORDERINGS, type OrderingMode } from "./ordering";
@@ -546,9 +546,13 @@ export function App() {
       setHeldConflict({ ticketKey, error, edit });
     };
   }
-  const localProjects = sortedProjects(projects);
-  const starredProjects = sortedProjects(
-    projects.filter((candidate) => candidate.starred),
+  // Memoized because the `⌘1`…`⌘9` handler counts this list and so takes it as
+  // a dependency (LC-230): a fresh array on every render would tear the global
+  // key listener down and rebuild it on every keystroke the app takes.
+  const localProjects = useMemo(() => sortedProjects(projects), [projects]);
+  const starredProjects = useMemo(
+    () => sortedProjects(projects.filter((candidate) => candidate.starred)),
+    [projects],
   );
 
   async function loadProject(projectId: string) {
@@ -698,6 +702,40 @@ export function App() {
         field.select();
         return;
       }
+      // `⌘1`…`⌘9` make the nth project active (LC-230). The number is the row's
+      // place in the sidebar's **Local** list, which is the whole registry in
+      // the order it is already drawn — so the chord and the badge count the
+      // same thing and cannot disagree. Starred is a second view of some of
+      // those projects rather than a second list, so a starred project carries
+      // one number and it is its Local row's.
+      //
+      // A chord, so it stays live inside a field where a single-key shortcut
+      // stands down (`keyboard-focus-map.md:12-14`) — nothing in a text field
+      // claims `⌘digit`. It is refused where `⌘F` is refused, and for a reason
+      // of its own: every one of those layers belongs to the project under it,
+      // and switching beneath one would leave it standing over a board it was
+      // never opened against.
+      const projectDigit = chordDigit(event);
+      if (projectDigit !== undefined) {
+        if (
+          createSurface !== undefined ||
+          paletteOpen ||
+          menuOpen ||
+          settingsOpen
+        )
+          return;
+        // Past the ninth row there is no chord and nothing to preventDefault
+        // for: the press is unbound, not swallowed.
+        const target = localProjects[projectDigit - 1];
+        if (!target) return;
+        event.preventDefault();
+        // `loadProject`, not `setActiveProjectId` — a panel open on another
+        // project's key has to close across the switch rather than re-aim at a
+        // ticket that was never there (LC-188), and that is what this path
+        // does for a row's click.
+        void loadProject(target.id);
+        return;
+      }
       if (event.key !== "Escape" || layerOpen || !filtering) return;
       clearFilter();
     };
@@ -712,6 +750,7 @@ export function App() {
     clearFilter,
     createSurface,
     filtering,
+    localProjects,
     paletteOpen,
     project,
     projectMenu,
@@ -1778,6 +1817,7 @@ export function App() {
           <ProjectSection
             title="Local"
             empty="No local projects"
+            numbered
             projects={localProjects}
             activeProjectId={activeProjectId}
             onOpen={(id) => void loadProject(id)}
@@ -2053,7 +2093,7 @@ export function App() {
                     onMoveTicket={moveCard}
                     // A column's `+` is the same quick create `C` opens,
                     // arriving with the column it was pressed in already
-                    // chosen (`keyboard-focus-map.md:44`).
+                    // chosen (`keyboard-focus-map.md:45`).
                     onCreateInStatus={(status) => {
                       // A whole draft, empty but for the column: "nothing
                       // typed yet" is `""` and `[]` rather than absent, which
@@ -2439,6 +2479,18 @@ function PathChip(props: { path: string; homePath: string | null }) {
   );
 }
 
+/**
+ * Whether this row gets a `⌘n` chord: the first nine of a numbered section
+ * (LC-230). The tenth row and everything under it are plain — the chords run
+ * out at nine and a badge for a key that does not exist is worse than none.
+ *
+ * One predicate for the badge and for `aria-keyshortcuts`, so the two cannot
+ * come apart and announce a key the row does not show.
+ */
+function chordFor(numbered: boolean | undefined, index: number): boolean {
+  return numbered === true && index < 9;
+}
+
 function ProjectSection(props: {
   title: string;
   empty: string;
@@ -2451,6 +2503,13 @@ function ProjectSection(props: {
   onCloseMenu: () => void;
   /** Which row's menu is up, so its `⋮` can hold the pressed state. */
   menuFor?: string;
+  /**
+   * Whether this section's rows carry the `⌘n` badge (LC-230). Only **Local**
+   * does: it is the list the chord counts, and it lists every project exactly
+   * once. Starred is a second view of some of those same rows, so numbering it
+   * too would give a starred project two numbers, one of them wrong.
+   */
+  numbered?: boolean;
 }) {
   return (
     <section className="project-section">
@@ -2458,7 +2517,7 @@ function ProjectSection(props: {
       {props.projects.length === 0 ? (
         <p>{props.empty}</p>
       ) : (
-        props.projects.map((project) => (
+        props.projects.map((project, index) => (
           /* Two buttons side by side, not one inside the other. The star used
              to be a span carrying `role="button"` *inside* the row's own
              button — interactive content nested in a button, which is invalid
@@ -2479,6 +2538,15 @@ function ProjectSection(props: {
                 project.id === props.activeProjectId && "selected",
                 !project.reachable && "unreachable",
               )}
+              // What actually announces the chord (`GuideCard.tsx`, LC-71).
+              // The badge below is decoration, because a glyph inside the row's
+              // own button lands in its accessible name and the row announces
+              // itself twice (LC-208).
+              aria-keyshortcuts={
+                chordFor(props.numbered, index)
+                  ? `Meta+${index + 1}`
+                  : undefined
+              }
               // The path is the row's whole subject and does not fit on it; the
               // content header and settings show it in full.
               title={
@@ -2519,6 +2587,15 @@ function ProjectSection(props: {
                       `Unreachable` uses — real text, because an `aria-label` on
                       a bare span is not reliably exposed. */}
                   <span className="visually-hidden">Starred</span>
+                </span>
+              )}
+              {/* The chord, shown where it is used rather than only in
+                  settings (LC-230). Decorative: `aria-keyshortcuts` above is
+                  the channel that reaches a screen reader, and this box would
+                  otherwise read out as part of the project's name. */}
+              {chordFor(props.numbered, index) && (
+                <span className="project-number" aria-hidden="true">
+                  ⌘{index + 1}
                 </span>
               )}
             </button>
