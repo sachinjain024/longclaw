@@ -146,3 +146,25 @@ Two findings worth the ticket:
 1. **`.project-nav` must gain `overflow-y: auto`** for B. LC-73 moved the create pair *up* because the nav does not scroll, so at the foot of a long list it left the window. `.side-panel-footer` is `margin-top: auto`, pinned rather than trailing, so pinned-footer + scrolling-nav is what stops LC-73 recurring at nine projects.
 2. **The owl beside the traffic lights: no.** Variant C draws it so the cost is visible — a 34px sidebar inset that must collapse in full screen, a drag region that must not swallow clicks, `hiddenTitle` deleting the centred native **LongClaw** that is the reason removing the lockup costs nothing, and a `tauri.conf.json` window edit next to LC-60`s `dragDropEnabled: false`. Recommendation: keep the decorated window.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_3ec16b47
+kind: comment
+occurred_at: 2026-08-31T13:24:48.421Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Prototype revised from review round 1. All five points are in, and the fourth one changed the design.
+
+1. **`✓ ticket.md` is gone from the sidebar.** Only `writing …` is drawn there now — the half of `WriteFeedback` that is news. Variant A’s header keeps the settled mark, because A is today and is what B is measured against. The 13px slot stays reserved so the list never moves; `disk slot · collapsing` shows the alternative.
+2. **The path is one line, always.** The demo path is now 46 characters. `.path-chip`’s 180px cap is the header’s number, so the block overrides it to `100%` and the chip’s own `.txt` ellipsizes. Measured: chip 207px wide, 22px tall, text 367px scrolling to 180px of box — one line, ellipsis, `title` and click-to-copy still carry the whole path.
+3. **No hairline under the block.** `STARRED` already says a list starts here. The footer keeps *its* line, because the pair down there is pinned over a list that scrolls under it. `hairline under the block` toggles it back.
+4. **Creating a project from the footer — this is the finding.** The real `CreateProjectForm` is **523px tall** and the panel has 560px of content at the 620px `minHeight` floor, so it does not fit under the pair. Two attempts died in the drawing: a `46vh` cap put the submit below the fold of a nested scroller, and pinning the footer collapsed the list to nothing and still hung `Create project` 150px past the panel. What works: **while the form is open it is the panel’s body** — the list hides, and so does the pair, which also removes a `Create project` that was appearing twice (the form’s filled submit, and the quieter toggle two rows under it). The way out becomes a ghost beside the submit, the slot `CreateProjectForm` already renders for `onBack`. At 780 the whole form is on screen unscrolled; at the 620 floor it scrolls ~120px.
+5. **25 projects.** New control: 5 / 9 / 25, and a window-height control for 780 (the size the app opens at) and 620 (`minHeight`). At 25 the nav scrolls inside its own box and the footer’s pair is fully on screen — which is `.project-nav { overflow-y: auto }` doing the work LC-73 is about.
+
+Open, and all three are consequences of moving the pair down: what the form’s ghost should say (`Back` is the welcome flow’s word for a two-step, and this is one step); whether hiding the project list for the duration of the form is right; and whether moving the pair earns all of this, or whether the identity block simply goes in above a pair that stays where LC-73 put it.
+<!-- /longclaw:event -->

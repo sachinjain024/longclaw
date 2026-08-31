@@ -41,8 +41,24 @@
 .project-identity {
   display: grid;
   gap: 4px;
+  /* No hairline under it (review, round 1). The `STARRED` header below is a
+     mono uppercase label on its own line with 12px above it — it already says
+     "a list starts here", and a rule between the two says it a second time in a
+     panel that is 216px wide and already fenced by its own right hairline. The
+     footer keeps *its* line, for a reason this block does not have: the pair
+     down there is pinned against a list that scrolls under it, and the line is
+     what says the pair is not part of the scroll. */
   padding: 0 var(--lc-space-1) var(--lc-space-4);
-  border-bottom: var(--lc-border-hairline) solid var(--lc-line);
+}
+
+/* One line, always. `.path-chip` caps at 180px because that is the header's
+   number; here the cap is the panel, and `.txt` already carries
+   `overflow: hidden; text-overflow: ellipsis; white-space: nowrap`
+   (styles.css:964-968), so a path of any length ends in an ellipsis rather than
+   on a second row. The `title` keeps the whole thing, and the click still
+   copies the whole thing. */
+.project-identity .path-chip {
+  max-width: 100%;
 }
 
 .identity-row {
@@ -74,11 +90,22 @@
 
 .identity-row .settings-button { margin-left: auto; }
 
-/* The disk-state line, which rides with the path (`screen-specs.md:64-73`).
-   A **reserved** slot: the line is silent whenever the disk is quiet, and a
-   slot that collapsed when it went quiet would move the whole project list up
-   and down a row on every write. 13px is the mono line box; it costs one empty
-   line of sidebar and buys a sidebar that never moves.
+/* The disk-state line, which rides with the path (`screen-specs.md:64-73`) —
+   and **only while a write is in flight**. The settled `✓ ticket.md` is not
+   drawn here (review, round 1): under a path that is already a file location it
+   read as a second, quieter path rather than as news, and it is on screen for
+   the ~2s after every write for as long as `SETTLED_MS` lasts. What is left is
+   the half of `WriteFeedback` that is actually news — `writing …` while the
+   disk is being written to, silence the rest of the time. D-07's argument, one
+   state further: the `● watching` chip went because it said the same thing at
+   every idle moment, and `✓ ticket.md` under a path chip is the same sentence
+   again.
+
+   A **reserved** slot: 13px whether or not there is anything in it, because a
+   slot that collapsed would move the whole project list up and down a row on
+   every write. It costs one empty mono line and buys a sidebar that never
+   moves. Press `disk slot · collapsing` in the prototype to feel the
+   alternative.
 
    The 32ch cap the header gave it is gone — the panel is 216px wide, so the cap
    is the panel. `writing tickets/LC-69/ticket.md…` runs to the edge and the
@@ -126,12 +153,54 @@
   row-gap: var(--lc-space-1);
 }
 
-/* The quick-create form opens in the footer now, so it grows upward against a
-   nav that yields. Capped and scrolling, because a six-row form in a 620px
-   window is otherwise a form that pushes the project list off the top. */
-.side-panel-footer .quick-create {
+/* The footer holds the pair and only the pair, at every window height. */
+.side-panel-footer {
+  flex: none;
+  min-height: 0;
+}
+
+/* And the create form moves **out of `.project-actions`** into a region of its
+   own between the nav and the footer — a structural change in `App.tsx`, not
+   only a rule. The measurement is what forced it: the real
+   `CreateProjectForm` is ~500px tall (a folder row and its hint, name, key and
+   its hint, a five-option theme picker, the actions), and the panel has 560px of
+   content at the 620px `minHeight` floor. Under the pair in the footer it
+   simply does not fit — the first attempt capped it at `46vh` and what fell
+   below the fold was the submit button, inside a nested scroller inside a 240px
+   panel. Pinning the footer instead only moved the overflow: the list collapsed
+   to nothing and `Create project` still hung 150px past the panel's bottom edge.
+
+   So while it is open the form *is* the panel's body: the list goes, because
+   nothing about choosing a name needs the list of projects you are not in, and
+   the region scrolls itself if the window is at its floor. The identity block
+   stays, the pair stays pinned under it, and the form sits between them —
+   opening upward from the control that opened it, which is what a
+   bottom-anchored control does everywhere else. */
+.create-region {
   overflow-y: auto;
-  max-height: 46vh;
+  min-height: 0;
+}
+
+.side-panel.creating .project-nav {
+  display: none;
+}
+
+/* And the pair goes with it, which the drawing is what caught: with the form
+   above and the pair below, **`Create project` appeared twice** — once as the
+   form's filled submit and once, two rows lower and quieter, as the toggle that
+   had opened it. The repetition exists today too (the toggle sits directly over
+   a form whose submit says the same thing once a folder is answered); moving the
+   pair to the footer is what puts the two labels in the wrong emphasis order and
+   makes it read as a question about which one commits.
+
+   So while the form is open the panel is the form: identity, form, and the
+   form's own two actions. The way out is a ghost beside the submit rather than
+   the toggle below it — `CreateProjectForm` already renders that slot when it is
+   given an `onBack`, so this is a prop the sidebar starts passing, not a control
+   the form has to grow. Its label is the open question: `Back` is what the
+   welcome flow's two-step means by it, and this is one step. */
+.side-panel.creating .project-actions {
+  display: none;
 }
 
 /* The gear — REPLACES the `.content-header .settings-button` selectors
@@ -327,7 +396,9 @@ body {
   position: relative;
   display: flex;
   overflow: hidden;
-  height: 620px;
+  /* `tauri.conf.json`: 780 is the window the app opens at, 620 its `minHeight`.
+     The floor is where the sidebar's vertical arithmetic is decided. */
+  height: var(--frame-h, 780px);
   flex-direction: column;
   border: 1px solid var(--lc-line-strong);
   border-radius: 10px;
@@ -381,6 +452,13 @@ body {
    the app the query is the query. */
 .window.narrow .ordering-control > span { display: none; }
 
+/* The two alternatives the review asked to see, drawn by class so the proposed
+   block stays a statement of what would ship. */
+.window.rule .project-identity {
+  border-bottom: var(--lc-border-hairline) solid var(--lc-line);
+}
+.window.collapsing .identity-disk { min-height: 0; }
+
 /* Variant A is *the lockup and nothing else*, so its frame puts the filter field
    back to the 180px `styles.css` states today. Without this the proposed growth
    would apply to A as well and the comparison would be against a header that had
@@ -414,17 +492,33 @@ body {
     <button data-set="widths" data-value="1180">1180</button>
     <button data-set="widths" data-value="760">760</button>
   </span>
+  <span class="group"><em>height</em>
+    <button data-set="height" data-value="780">780</button>
+    <button data-set="height" data-value="620">620 · min</button>
+  </span>
   <span class="group"><em>state</em>
     <button data-set="scene" data-value="board">board</button>
     <button data-set="scene" data-value="none">no project</button>
     <button data-set="scene" data-value="unreachable">unreachable</button>
   </span>
   <span class="sep" aria-hidden="true"></span>
+  <span class="group"><em>projects</em>
+    <button data-set="list" data-value="5">5</button>
+    <button data-set="list" data-value="9">9</button>
+    <button data-set="list" data-value="25">25</button>
+  </span>
+  <span class="group"><em>create</em>
+    <button data-set="create" data-value="closed">closed</button>
+    <button data-set="create" data-value="pick">Create project</button>
+    <button data-set="create" data-value="folder">folder chosen</button>
+  </span>
+  <span class="sep" aria-hidden="true"></span>
   <span class="group"><em>ask</em>
     <button data-toggle="writing">writing</button>
-    <button data-toggle="long">9 projects</button>
+    <button data-toggle="rule">hairline under the block</button>
+    <button data-set="disk" data-value="reserved">disk slot · reserved</button>
+    <button data-set="disk" data-value="collapsing">collapsing</button>
     <button data-toggle="muted">muted active row</button>
-    <button data-toggle="quickcreate">create form open</button>
   </span>
   <span class="spacer"></span>
   <span class="group"><em>scale</em>
@@ -433,11 +527,12 @@ body {
     <button data-toggle="wide">hide notes</button>
   </span>
   <span class="swatches" role="group" aria-label="Project theme">
-    <button class="swatch" data-theme-pick="ember" aria-pressed="true" title="Ember"><i data-theme="light" data-lc-theme="ember"></i></button>
+    <button class="swatch" data-theme-pick="" aria-pressed="true" title="Default"><i data-theme="light"></i></button>
     <button class="swatch" data-theme-pick="indigo" aria-pressed="false" title="Indigo"><i data-theme="light" data-lc-theme="indigo"></i></button>
     <button class="swatch" data-theme-pick="clay" aria-pressed="false" title="Clay"><i data-theme="light" data-lc-theme="clay"></i></button>
     <button class="swatch" data-theme-pick="slate" aria-pressed="false" title="Slate"><i data-theme="light" data-lc-theme="slate"></i></button>
     <button class="swatch" data-theme-pick="plum" aria-pressed="false" title="Plum"><i data-theme="light" data-lc-theme="plum"></i></button>
+    <button class="swatch" data-theme-pick="graphite" aria-pressed="false" title="Graphite"><i data-theme="light" data-lc-theme="graphite"></i></button>
   </span>
   <span role="group" aria-label="Appearance">
     <button data-appearance="light" aria-pressed="true">light</button>
@@ -457,18 +552,31 @@ body {
       <li><strong>B</strong> — the requested variation. Name, path, disk state and gear move to the top of the sidebar; the two create controls move to the footer; the header is controls only and the filter field takes the width. <em>This is the recommendation.</em></li>
       <li><strong>C</strong> — B with <code>titleBarStyle: "Overlay"</code>. The owl sits right of the traffic lights and the native title is gone. <em>Not recommended</em> — see below.</li>
     </ol>
-    <p>Then press <strong>writing</strong>, <strong>9 projects</strong>, <strong>create form open</strong>, and walk the three <em>state</em> buttons. Each answers a question the still frame does not.</p>
+    <p>Then walk <em>projects</em> <strong>5 → 9 → 25</strong>, <em>create</em> <strong>Create project → folder chosen</strong>, press <strong>writing</strong>, and walk the three <em>state</em> buttons. Each answers a question the still frame does not.</p>
+
+    <h2>Round 1 review, answered</h2>
+    <ol>
+      <li class="q"><strong><code>✓ ticket.md</code> is gone from the sidebar.</strong> Under a path chip it read as a second, quieter path rather than as news, and it sat there for seconds after every write. What is left is the half of <code>WriteFeedback</code> that <em>is</em> news — <code>writing …</code> while the disk is busy, silence otherwise. The header in variant A still shows it, because A is today and is what B is being compared against.</li>
+      <li class="q"><strong>The slot it used stays reserved</strong> — 13px, empty when quiet. Collapsing it would shove all 25 rows down and up again on every write. Press <strong>disk slot · collapsing</strong> with <strong>writing</strong> on and off to feel it; the reserved one costs one empty mono line and nothing else.</li>
+      <li class="q"><strong>The path is one line, always.</strong> The demo path is 46 characters on purpose. <code>.path-chip</code> caps at 180px because that is the <em>header's</em> number; in the block the cap is the panel, and the chip's own <code>.txt</code> already ellipsizes. Hover it — the <code>title</code> and the click-to-copy still carry the whole path.</li>
+      <li class="q"><strong>No hairline under the block.</strong> <code>STARRED</code> is a mono uppercase label with 12px of air above it — it already says a list starts here, and a rule in a 216px panel that is itself fenced by a hairline says it twice. Press <strong>hairline under the block</strong> to compare. The footer keeps its line for a reason this block does not have: the pair down there is pinned over a list that scrolls <em>under</em> it, and the line is what says the pair is not part of the scroll.</li>
+      <li class="q"><strong>Creating a project, from the footer — and what that turned out to cost.</strong> <em>create</em> draws both steps of the real <code>CreateProjectForm</code>: <strong>Create project</strong> opens it with no folder answered and the button naming the step that is next, <code>Choose folder</code>; <strong>folder chosen</strong> is where <code>Open folder</code> falls through when the folder is plain (LC-170), folder row on top, button finally saying <code>Create project</code>.</li>
+      <li class="q">The form is <strong>523px tall</strong> and the panel has 560px of content at the 620px <code>minHeight</code> floor, so <strong>it does not fit under the pair</strong>. Two attempts failed in the drawing before this one did: a <code>46vh</code> cap put the submit button below the fold of a nested scroller, and pinning the footer instead collapsed the list to nothing and still hung <code>Create project</code> 150px past the panel's bottom edge. So while the form is open <strong>it is the panel's body</strong> — the list goes, and so does the pair.</li>
+      <li class="q"><strong>The pair goes because otherwise <code>Create project</code> appears twice</strong> — the form's filled submit, and two rows below it the quieter toggle that opened it. That repetition exists today as well; putting the pair underneath is what reverses the emphasis and makes it a question about which one commits. The way out becomes a ghost beside the submit, which is the slot <code>CreateProjectForm</code> already renders when it is handed an <code>onBack</code>.</li>
+      <li class="q"><strong>At 780 — the height the window opens at — the whole form is on screen, unscrolled.</strong> At the 620 floor it scrolls about 120px to reach the actions. Press <em>height</em> <strong>620 · min</strong> with <em>create</em> on to see the worst case the app allows.</li>
+      <li class="q"><strong>25 projects.</strong> Press it with <strong>create · folder chosen</strong> on — this is the case that decides the ticket. The nav scrolls inside its own box, the footer stays pinned, and <code>Create project</code> is on screen at row 1 and at row 25 alike. Without <code>overflow-y: auto</code> on <code>.project-nav</code> this is exactly LC-73 again.</li>
+    </ol>
 
     <h2>What I decided, and why</h2>
     <ol>
       <li class="q"><strong>The sidebar stays 240px.</strong> Narrowing it would re-tune section headers, project rows and the create form to buy width the header no longer needs — B already hands the field ~300px.</li>
       <li class="q"><strong>The active row keeps its emphasis.</strong> The block above and the row below are not the same statement twice: the block is <em>this workspace</em>, with the path, the disk and the gear that only it has; the highlighted row is <em>which of the five</em>, which is positional. Press <strong>muted active row</strong> to see the alternative — the list loses its answer to "where am I" and the sidebar reads as five equal projects.</li>
-      <li class="q"><strong>The disk-state line goes to the sidebar, in a reserved slot.</strong> It rides with the path, as <code>screen-specs.md:64-73</code> says. The slot is 13px whether or not there is news: a slot that collapsed would shove the project list up and down a row on every write, which is LC-149's defect turned on its side. Press <strong>writing</strong> and watch that nothing below it moves.</li>
+      <li class="q"><strong>The disk-state line goes to the sidebar, in a reserved slot, and says only <code>writing …</code>.</strong> It rides with the path, as <code>screen-specs.md:64-73</code> says. The slot is 13px whether or not there is news: a slot that collapsed would shove the project list up and down a row on every write, which is LC-149's defect turned on its side. Press <strong>writing</strong> and watch that nothing below it moves.</li>
       <li class="q"><strong>The gear moves with the path</strong> and stays outside the reachable guard — press <strong>unreachable</strong>: the name wears the warn triangle, the block stays, the gear stays, and <code>Locate…</code> is still one press away.</li>
       <li class="q"><strong>The header does not render at all for an unreachable project.</strong> With identity and gear gone there is nothing left in it, and an empty 62px band with a hairline under it is a rule drawn across the top of the centred panel. Today's header keeps the identity row in that state; B has no identity row to keep.</li>
       <li class="q"><strong>No project open → no block.</strong> There is nothing to name, so the sidebar opens with the sections and the main region draws <code>Welcome</code>, which is where the owl still lives at 52px.</li>
       <li class="q"><strong>The filter field is <code>flex: 1 1 240px</code>, floor 120, cap 380.</strong> A number and a share: it asks for 240, grows into what the band has, and stops before it becomes a gap. Read the measured width under each frame.</li>
-      <li class="q"><strong><code>.project-nav</code> gains <code>overflow-y: auto</code>.</strong> This is the load-bearing line in B. Press <strong>9 projects</strong> with it and without it in your head: LC-73 moved <code>Create project</code> up <em>because</em> the nav does not scroll, so at the foot of a long list the pair left the window. Pinned to <code>.side-panel-footer</code> over a nav that scrolls, it never does.</li>
+      <li class="q"><strong><code>.project-nav</code> gains <code>overflow-y: auto</code>.</strong> This is the load-bearing line in B. Press <strong>25</strong>: LC-73 moved <code>Create project</code> up <em>because</em> the nav does not scroll, so at the foot of a long list the pair left the window. Pinned to <code>.side-panel-footer</code> over a nav that scrolls, it never does.</li>
     </ol>
 
     <h2>The owl beside the traffic lights — no</h2>
@@ -482,6 +590,9 @@ body {
       <li>The 380px cap on the field — too tight on a 1600px window?</li>
       <li>Below 900px the word <code>Order</code> disappears and the trigger stands alone. The alternative is the field at its 120px floor. Which?</li>
       <li>Should the block's path chip keep click-to-copy, or is that a header affordance that a sidebar does not want?</li>
+      <li>With <code>✓ ticket.md</code> gone, the app has no settled disk mark anywhere. Does it still owe the human a "that landed", or is the absence of <code>writing …</code> the answer?</li>
+      <li>The form's way out is a ghost beside its submit. <code>Back</code> is what the welcome flow's two-step calls it and this is one step — <code>Cancel</code>? And is hiding the project list for the duration of the form right, or should it stay visible and squeezed?</li>
+      <li>Moving the pair down is what forces all of the above. Worth asking once more whether it earns it, or whether the identity block simply goes in above a pair that stays where LC-73 put it.</li>
     </ul>
 
     <h2>Measured under each frame</h2>
@@ -503,29 +614,46 @@ const state = {
   widths: "both",
   scene: "board",
   scale: "fit",
+  list: "5",
+  create: "closed",
+  height: "780",
+  disk: "reserved",
   writing: false,
-  long: false,
+  rule: false,
   muted: false,
-  quickcreate: false,
   wide: false,
 };
 
-const PROJECT = { name: "Fixture Project", path: "~/dev/fixture-project", full: "/Users/sachin/dev/fixture-project" };
+/* A path long enough that the one-line rule is being *tested* rather than
+   asserted: 46 characters, which is 216px of panel asking for about 300. */
+const PROJECT = {
+  name: "Fixture Project",
+  path: "~/Developer/work/acme-corp/longclaw-fixture-project",
+  full: "/Users/sachin/Developer/work/acme-corp/longclaw-fixture-project",
+};
 
 const SHORT_LIST = [
-  { name: "Fixture Project", theme: "ember", starred: true, active: true },
+  { name: "Fixture Project", theme: "", starred: true, active: true },
   { name: "LongClaw", theme: "indigo", starred: true },
   { name: "Website", theme: "clay" },
   { name: "Scratch", theme: "slate" },
   { name: "Archive 2025", theme: "plum", unreachable: true },
 ];
 
-const LONG_EXTRA = [
-  { name: "Design System", theme: "indigo" },
-  { name: "Notes", theme: "clay" },
-  { name: "Infra", theme: "slate" },
-  { name: "Reading list", theme: "plum" },
-];
+const THEME_CYCLE = ["indigo", "clay", "slate", "plum", "graphite"];
+
+/* Rows 6..25, so the list can be walked at 5, 9 and 25 — the third is where the
+   footer's pair either survives or repeats LC-73. */
+const MORE = [
+  "Design System", "Notes", "Infra", "Reading list", "Client · Northwind",
+  "Client · Contoso", "Sandbox", "Spike · watcher", "Docs site", "Marketing",
+  "Recipes", "Home lab", "Invoices", "Talks", "Book notes",
+  "Old imports", "Benchmarks", "Fixtures", "Playground", "Archive 2024",
+].map((name, index) => ({
+  name,
+  theme: THEME_CYCLE[index % THEME_CYCLE.length],
+  unreachable: name === "Archive 2024",
+}));
 
 const OWL = '<svg class="owl-mark" viewBox="0 0 64 64" width="22" height="22" role="img" aria-label="LongClaw">' +
   '<path fill="currentColor" d="M1 1 L32 18.8 L63 1 L61.5 12.2 L35.2 27.5 L32 34 L28.8 27.5 L2.5 12.2 Z"/>' +
@@ -552,12 +680,16 @@ const WARN30 = '<svg width="30" height="30" viewBox="0 0 14 14" aria-hidden="tru
 const dot = (status) => '<svg class="status-dot status-' + status + '" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">' +
   '<circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
 
-/* `WriteFeedback.tsx`'s three shapes, verbatim. */
-function diskLine() {
+/* `WriteFeedback.tsx`'s writing shape, verbatim — and nothing at all when the
+   disk is quiet. The settled `✓ ticket.md` is not drawn in the sidebar (review,
+   round 1); the slot it would have used stays reserved so the list never moves. */
+function diskLine(surface) {
   if (state.writing) {
     return '<code class="disk-path writing"><span class="write-spinner" aria-hidden="true">⟳</span>writing tickets/LC-239w/ticket.md…</code>';
   }
-  return '<code class="disk-path settled">✓ ticket.md</code>';
+  /* Variant A's header is today's, settled mark and all — it is the thing being
+     compared against, so it does not get half of B's change for free. */
+  return surface === "header" ? '<code class="disk-path settled">✓ ticket.md</code>' : "";
 }
 
 function pathChip(cls) {
@@ -569,7 +701,8 @@ function projectRow(project) {
   const active = project.active && !state.muted;
   const mark = project.unreachable
     ? '<span class="project-warn" aria-hidden="true">⚠</span><span class="visually-hidden">Unreachable</span>'
-    : '<span class="theme-dot" data-lc-theme="' + project.theme + '" data-theme="' + document.documentElement.dataset.theme + '" aria-hidden="true"></span>';
+    : '<span class="theme-dot"' + (project.theme ? ' data-lc-theme="' + project.theme + '"' : "") +
+      ' data-theme="' + document.documentElement.dataset.theme + '" aria-hidden="true"></span>';
   return '<div class="project-row' + (project.active ? " selected" : "") + '">' +
     '<button tabindex="0" class="project-link' + (active ? " selected" : "") + (project.unreachable ? " unreachable" : "") + '" title="' + project.name + '">' +
       mark + '<strong>' + project.name + '</strong>' +
@@ -580,7 +713,8 @@ function projectRow(project) {
 }
 
 function projectNav() {
-  const all = state.long ? SHORT_LIST.concat(LONG_EXTRA) : SHORT_LIST;
+  const size = Number(state.list);
+  const all = SHORT_LIST.concat(MORE).slice(0, size);
   const starred = all.filter((p) => p.starred);
   const local = all.filter((p) => !p.starred);
   const section = (title, rows, empty) =>
@@ -594,25 +728,61 @@ function projectNav() {
 
 function createPair() {
   return '<section class="project-actions">' +
-    '<button tabindex="0" class="secondary">Create project</button>' +
+    '<button tabindex="0" class="secondary"' + (state.create !== "closed" ? ' aria-expanded="true"' : "") + '>Create project</button>' +
     '<button tabindex="0" class="ghost">Open folder</button>' +
-    (state.quickcreate ? quickCreateForm() : "") +
   '</section>';
 }
 
-/* `CreateProjectForm`'s shape, enough of it to show what the footer has to hold. */
-function quickCreateForm() {
-  return '<form class="quick-create">' +
-    '<label class="field"><span>Name</span><input class="input" value="Fixture Project" readonly></label>' +
-    '<label class="field"><span>Key prefix</span><input class="input" value="FIX" readonly></label>' +
-    '<label class="field"><span>Theme</span><input class="input" value="Ember" readonly></label>' +
-    '<button tabindex="0" class="primary" type="button">Choose folder</button>' +
+/* Its own region between the list and the footer, and only while it is open. */
+function createRegion() {
+  if (state.create === "closed") return "";
+  return '<div class="create-region">' + quickCreateForm(state.create === "folder") + '</div>';
+}
+
+/* `CreateProjectForm.tsx`'s markup, both steps of it. `pick` is what
+   `Create project` opens — no folder answered yet, so the submit button names
+   the step that is actually next. `folder` is what `Open folder` falls through
+   to once a plain folder has been chosen (LC-170): the folder row appears at the
+   top, the caret is in `Name`, and the button finally says `Create project`. */
+function quickCreateForm(hasFolder) {
+  const folderRow = hasFolder
+    ? '<div class="field"><span class="field-label">Folder</span>' +
+        '<span class="picked-path" title="/Users/sachin/Developer/work/acme-corp/.longclaw">' + FOLDER +
+          '<span class="folder-path"><span class="head">~/Developer/work/acme-corp</span>' +
+          '<span class="suffix">/.longclaw</span></span></span>' +
+        '<small class="field-hint">Everything lives here as plain files — readable without LongClaw, forever.</small>' +
+      '</div>'
+    : "";
+  const theme = (id, label, selected) =>
+    '<label class="theme-option' + (selected ? " selected" : "") + '">' +
+      '<input type="radio" name="proto-theme"' + (selected ? " checked" : "") + '>' +
+      '<span class="theme-swatch" data-lc-theme="' + id + '" data-theme="' + document.documentElement.dataset.theme + '" aria-hidden="true">' +
+        '<span class="swatch-human"></span><span class="swatch-agent"></span></span>' +
+      '<span class="theme-option-name">' + label + '</span>' +
+      (selected ? '<span class="theme-option-check" aria-hidden="true">✓</span>' : "") +
+    '</label>';
+  return '<form class="quick-create">' + folderRow +
+    '<label><span>Name</span><input value="' + (hasFolder ? "Acme Corp" : "") + '" placeholder="New project"></label>' +
+    '<div class="field"><label><span>Key</span><input value="' + (hasFolder ? "ACME" : "") + '"></label>' +
+      '<small class="field-hint">Uppercase letters and digits, such as LC. Locks after the first ticket.</small></div>' +
+    '<fieldset class="theme-picker"><legend>Theme</legend><div class="theme-picker-options">' +
+      theme("indigo", "Indigo", true) + theme("clay", "Clay") + theme("slate", "Slate") +
+      theme("plum", "Plum") + theme("graphite", "Graphite") +
+    '</div></fieldset>' +
+    '<div class="form-actions"><button tabindex="0" class="primary" type="button">' +
+      (hasFolder ? "Create project" : "Choose folder") + '</button>' +
+      '<button tabindex="0" class="ghost" type="button">Cancel</button></div>' +
   '</form>';
 }
 
 /* Variant A's sidebar: today's, with the lockup deleted and nothing else moved. */
 function sidebarA() {
-  return '<aside class="side-panel">' + createPair() + projectNav() +
+  const pair = '<section class="project-actions">' +
+    '<button tabindex="0" class="secondary">Create project</button>' +
+    '<button tabindex="0" class="ghost">Open folder</button>' +
+    (state.create === "closed" ? "" : quickCreateForm(state.create === "folder")) +
+  '</section>';
+  return '<aside class="side-panel">' + pair + projectNav() +
     '<div class="side-panel-footer"></div></aside>';
 }
 
@@ -626,11 +796,11 @@ function sidebarB(overlay) {
         '<button tabindex="0" class="ghost small settings-button" aria-label="Project settings" aria-haspopup="menu" aria-expanded="false" title="Project settings">' + GEAR + '</button>' +
       '</div>' +
       pathChip() +
-      '<div class="identity-disk">' + (state.scene === "unreachable" ? "" : diskLine()) + '</div>' +
+      '<div class="identity-disk">' + (state.scene === "unreachable" ? "" : diskLine("sidebar")) + '</div>' +
     '</header>';
-  return '<aside class="side-panel">' +
+  return '<aside class="side-panel' + (state.create === "closed" ? "" : " creating") + '">' +
     (overlay ? '<div class="titlebar-owl">' + OWL + '</div>' : "") +
-    identity + projectNav() +
+    identity + projectNav() + createRegion() +
     '<div class="side-panel-footer">' + createPair() + '</div>' +
   '</aside>';
 }
@@ -659,7 +829,7 @@ function headerA() {
   return '<header class="content-header">' +
     '<div class="header-identity">' +
       '<div class="title-stack"><h1>' + PROJECT.name + '</h1>' +
-        '<div class="path-line">' + pathChip() + (state.scene === "unreachable" ? "" : diskLine()) + '</div>' +
+        '<div class="path-line">' + pathChip() + (state.scene === "unreachable" ? "" : diskLine("header")) + '</div>' +
       '</div>' +
     '</div>' +
     (state.scene === "unreachable" ? "" : toolbar()) +
@@ -741,8 +911,9 @@ function frame(variant, width) {
   return '<div class="frame-block">' +
     '<p class="frame-label"><b>' + label + '</b> · ' + width + 'px · ' + state.scene +
       ' · <span class="readout" data-readout></span></p>' +
-    '<div class="window' + (width <= 900 ? " narrow" : "") + (variant === "A" ? " today" : "") + '" ' + (overlay ? 'data-titlebar="overlay"' : "") +
-      ' style="width:' + width + 'px">' + chrome +
+    '<div class="window' + (width <= 900 ? " narrow" : "") + (variant === "A" ? " today" : "") +
+      (state.rule ? " rule" : "") + (state.disk === "collapsing" ? " collapsing" : "") + '" ' + (overlay ? 'data-titlebar="overlay"' : "") +
+      ' style="width:' + width + 'px;--frame-h:' + state.height + 'px">' + chrome +
       '<div class="app-shell">' + sidebar + main(variant) + '</div>' +
     '</div>' +
   '</div>';
@@ -795,7 +966,8 @@ document.addEventListener("click", (event) => {
   if (toggle) { state[toggle.dataset.toggle] = !state[toggle.dataset.toggle]; return render(); }
   const theme = event.target.closest("[data-theme-pick]");
   if (theme) {
-    document.documentElement.dataset.lcTheme = theme.dataset.themePick;
+    if (theme.dataset.themePick) document.documentElement.dataset.lcTheme = theme.dataset.themePick;
+    else delete document.documentElement.dataset.lcTheme;
     document.querySelectorAll("[data-theme-pick]").forEach((b) =>
       b.setAttribute("aria-pressed", String(b === theme)));
     return render();
