@@ -85,7 +85,13 @@ textarea:focus-visible,
 .project-identity {
   display: grid;
   gap: 4px;
-  padding: 0 var(--lc-space-1) var(--lc-space-4);
+  /* The panel's own edges, not an inset of its own: 8px on the left, which is
+     what `.project-link` and the section headers pad by, and **nothing** on the
+     right, which is where the rows put their `⋮`. The block used to carry 4px
+     either side, so it sat 4px inside the list under it — close enough to look
+     like a mistake and far enough to be one. The gear now ends where the `⋮`
+     ends and the tile starts where the rows' dots start. */
+  padding: 0 0 var(--lc-space-4) var(--lc-space-2);
 }
 
 /* Three parts: the tile, the two-line text column, the gear. */
@@ -134,8 +140,14 @@ textarea:focus-visible,
 /* The two rows the tile is tall. `min-width: 0` here and on the chip inside it,
    because an elided path is only elided if its box may be narrower than its
    text. */
+/* Fills the row rather than sizing to its own content. As a bare grid child of
+   a flex row it was as wide as its widest line — so the gear, which hangs off
+   the end of the name's row, sat wherever the project's name happened to end
+   and never at the panel's edge. `flex: 1` is what puts it on the `⋮`'s line
+   and hands the path everything left over. */
 .identity-text {
   display: grid;
+  flex: 1 1 auto;
   min-width: 0;
   gap: 2px;
 }
@@ -325,6 +337,18 @@ textarea:focus-visible,
 /* The row is a pair now: the project, and the `⋮` that opens its menu (LC-208).
    They are siblings rather than nested, so neither one's accessible name is
    part of the other's — and the row keeps its own hover as one surface. */
+/* `min-width: 0` on both, because both are the automatic-minimum trap one level
+   apart: a `<section>` is a grid item of `.project-nav` and a row is a flex item
+   of the section, and neither will go below its own min-content without being
+   told it may. Below about 900px the shell squeezes this panel to 220px, and
+   the rows kept their content width and hung 4px past its edge — visible as a
+   list that does not line up with the identity block above it, which does
+   shrink (LC-239w, round 4). */
+.project-section,
+.project-row {
+  min-width: 0;
+}
+
 .project-row {
   display: flex;
   align-items: center;

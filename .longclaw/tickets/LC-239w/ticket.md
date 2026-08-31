@@ -405,3 +405,62 @@ npm run matrix        8 axes × 12 states clean
 
 One note on the runs: an earlier `verify` went red on three tests, two of them 5-second tests that took **925 seconds**. The machine was at load 76 from system processes while several probes ran alongside it. Each file passes in seconds alone — `TicketPanel.test.tsx` 132/132 in 5.5s against 958s under load — and the clean run above is with nothing else running. Recorded because AGENTS.md asks that the environment be suspected before the code, and this was the environment.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_9a77c991
+kind: comment
+occurred_at: 2026-08-31T23:15:23.503Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+## UX feedback — round 4 (from the user, on the running app)
+
+- Width of this component doesn’t match the width of Project Item component in SideNav. Look at the screenshot.
+- I expect the settings icon and the project directory to take some more space towards right and aligned with three vertical dots option that sits in individual Project Selection Rows in the side nav.
+
+So the identity block’s right edge should be the project rows’ right edge: the gear aligned with the `⋮` under it, and the path chip given the width that alignment frees.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_10d44840
+kind: comment
+occurred_at: 2026-08-31T23:24:00.754Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+## Round 4, implemented — and the rows were the ones out of line
+
+Measured before touching anything, at 1180:
+
+```
+project row ⋮      207..227
+identity gear      189..215     ← 12px short
+row theme dot         21
+identity tile         16        ←  4px left
+```
+
+Two causes, one on each side.
+
+**The block carried 4px of side padding the rows do not have.** It now takes the panel’s own edges: 8px on the left, which is what `.project-link` and the section headers pad by, and **nothing** on the right, which is where the rows put their `⋮`. The tile starts where the rows’ dots start and the gear ends where their `⋮` ends.
+
+**And the text column was sizing to the project’s name.** As a bare grid child of a flex row it was as wide as its widest line, so the gear — which hangs off the end of the name’s row — sat wherever the name happened to end rather than at the panel’s edge. `flex: 1 1 auto` puts it on the `⋮`’s line and hands the path everything left over: 157px at 1180, up from 149.
+
+**Then the new check went red at 900 and below, and it was right.** The rows were the ones misaligned there — 199px of row inside a 195px nav, hanging 4px past the panel’s edge. `.project-section` is a grid item and `.project-row` a flex item, and neither will go below its own min-content unless told it may. Below about 900px the shell squeezes this panel to 220px, so the block shrank and the rows did not. Both take `min-width: 0` now. That is a defect this ticket did not introduce, but it is exactly the mismatch the feedback names, and it only shows at the widths where the panel is squeezed.
+
+`probe:header` gained the alignment as a check — the block’s box against a row’s, and the gear’s right edge against the `⋮`’s. Both are alignments between elements that share no rule and no parent: the arithmetic agreed on paper at every width and disagreed on screen at all of them.
+
+```
+npm run verify        green — 44 files, 1117 tests
+npm run probe:header  133/133, --self-test red on 36
+npm run a11y:audit    A1–A5 PASS
+npm run matrix        8 axes × 12 states clean
+```
+<!-- /longclaw:event -->

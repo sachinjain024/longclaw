@@ -31,8 +31,9 @@
  *      widest run is the filter field's — it is the only control here whose
  *      width is a size rather than a content, so it is the only one that can
  *      give any up without losing a label;
- *   5. the side panel's path fits its box and clears the gear above it, and the
- *      list scrolls under a pinned create pair;
+ *   5. the side panel's path fits its box and clears the gear above it, the
+ *      block is the width of the rows under it with its gear on their `⋮`, and
+ *      the list scrolls under a pinned create pair;
  *   6. and the side panel holds still. The write lands in the identity block
  *      now, whose disk row is reserved rather than conditional: a row that
  *      arrived with the write would push every project under it down and pull
@@ -120,6 +121,8 @@ const PRE_FIX_CSS = `
   .identity-disk { height: auto; min-height: 0; margin-top: 0; }
   .project-nav { overflow-y: visible; min-height: auto; }
   .project-identity .path-chip { max-width: 100%; }
+  .project-identity { padding-right: 4px; }
+  .identity-text { flex: 0 1 auto; }
 `;
 
 /* ---------- reporting ---------- */
@@ -316,6 +319,41 @@ async function probe(browser, px) {
       path
         ? `"${path.text}" ${path.needs}px in ${path.has}px, gear ${path.clearsGear ? "clear" : "OVERLAPPED"}`
         : "no path chip",
+    );
+
+    // The identity block is the same width as the rows under it, and the gear
+    // ends where their `⋮` ends. Both are alignments between elements that
+    // share no rule and no parent — the arithmetic agreed on paper at every
+    // width and disagreed on screen at all of them, because the text column was
+    // sizing to the project's name rather than to the panel (LC-239w, round 4).
+    const aligned = await page.evaluate(() => {
+      const box = (selector) => {
+        const element = document.querySelector(selector);
+        if (!element) return null;
+        const rect = element.getBoundingClientRect();
+        return { left: Math.round(rect.left), right: Math.round(rect.right) };
+      };
+      const block = box(".project-identity");
+      const row = box(".project-row");
+      const gear = box(".project-identity .settings-button");
+      const kebab = box(".project-row .row-menu-button");
+      if (!block || !row || !gear || !kebab) return null;
+      return {
+        block,
+        row,
+        gear,
+        kebab,
+        sameBox: block.left === row.left && block.right === row.right,
+        sameEdge: gear.right === kebab.right,
+      };
+    });
+    check(
+      "the identity block is the rows' width and its gear is on their `⋮`",
+      aligned && aligned.sameBox && aligned.sameEdge,
+      aligned
+        ? `block ${aligned.block.left}..${aligned.block.right} vs row ${aligned.row.left}..${aligned.row.right}, ` +
+            `gear ends ${aligned.gear.right} vs ⋮ ${aligned.kebab.right}`
+        : "no identity block or project row",
     );
 
     check(
