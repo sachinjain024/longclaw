@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 78898c9d-b123-47bb-970d-86f761c0a54b
 key: LC-230
 title: ⌘1…⌘9 switches to the nth project
-status: in_review
+status: done
 priority: none
 labels:
   - frontend
   - design
 created_at: 2026-08-24T23:01:51.163Z
-updated_at: 2026-08-31T23:14:29.474Z
+updated_at: 2026-08-31T23:50:03.878Z
 ---
 
 Switching projects is pointer-only today: the sidebar row, or the palette. Give
@@ -19,15 +19,25 @@ the first nine projects a chord.
 
 `⌘1`…`⌘9` make the nth project active, counting the sidebar's **Local** section
 in the order it already draws — `sortedProjects(projects)` (`App.tsx:550`),
-which is the whole registry. A starred project appears twice in the sidebar but
-carries one number and only one: its Local row's. The Starred section shows no
-badges.
+which is the whole registry.
 
 Past nine there is no shortcut and no badge — the tenth row and everything under
 it are plain. `⌘0` does nothing.
 
-Each of the first nine Local rows shows its number beside the project name, so
-the chord is discoverable where it is used and not only in settings.
+Each row that has a chord shows its number **between the theme dot and the
+project name**, so the chord is discoverable where it is used and not only in
+settings. A starred project is drawn twice — once under **Starred**, once under
+**Local** — and it is one row pinned to the top rather than two, so it shows the
+same number in both places: the one its Local row earns. Starred is therefore
+never counted on its own; if it were, a project sitting first under Starred and
+third under Local would advertise `⌘1` for a key that lands on somebody else.
+
+> **This paragraph was rewritten on 2026-09-01, after the feature shipped.** As
+> first specified, the badge sat at the end of the row and the Starred section
+> showed none — "a starred project … carries one number and only one: its Local
+> row's". The UX round recorded in the activity below reversed both. What did
+> not change is the number itself: it is still the row's place in Local, so the
+> chord and `keyboard-focus-map.md:34` were untouched by that round.
 
 ## Notes
 
@@ -50,22 +60,35 @@ the chord is discoverable where it is used and not only in settings.
 - `keyboard-focus-map.md` is line-cited and pinned by `citation-guard`. A new
   table row *inserts* lines and shifts every citation below it — re-point
   whatever cited them, then `npm run citations:update`. Do not run `--update`
-  to clear a red run; that records the drift as the new truth.
-- The badge belongs in `ProjectSection`'s row (`App.tsx` ≈2470-2520), inside the
-  row's `<button>` with the name. Keep it out of the accessible name or make it
-  real text — LC-208 is the precedent for a glyph leaking into a row's name and
-  making it announce itself twice. `aria-keyshortcuts="Meta+1"` on the row
-  button is how the key itself gets announced (`GuideCard.tsx:45`, LC-71).
+  to clear a red run; that records the drift as the new truth. **Match the
+  guard's own citation grammar**, not just `doc.md:N`: the comma form
+  (`doc.md:16-18,131,161`) and bare forms carrying no `.md` at all are where
+  this went wrong twice — see `citation-guard.mjs:92-97`.
+- The badge belongs in `ProjectSection`'s row, inside the row's `<button>`,
+  between the theme dot and the name. Keep it out of the accessible name or
+  make it real text — LC-208 is the precedent for a glyph leaking into a row's
+  name and making it announce itself twice. `aria-keyshortcuts="Meta+1"` on the
+  row button is how the key itself gets announced (`GuideCard.tsx:45`, LC-71).
+  Both sections are handed one map from project id to chord rather than
+  counting their own rows, which is what lets Starred show its Local number and
+  keeps the badge from advertising a key that lands elsewhere.
 - The sidebar is 240px and the badge takes width from the name. Check the
-  name's truncation still behaves at the longest project name the list allows.
+  name's truncation still behaves at the longest project name the list allows —
+  and note that `PROJECT_NAME_MAX_LENGTH` is not that bound: it caps the create
+  form only, Rust's `is_project_name` gates the writers, and a hand-edited
+  `project.md` has no bound at all.
+- The chord closes the panel through `loadProject` without a key, because the
+  card to hand focus back to belongs to the project being left. A click keeps
+  its anchor on the row it pressed; a chord has none, so focus has to be caught
+  or it lands on `<body>`, which rule 3 forbids (`keyboard-focus-map.md:16-18`).
 
 ## Checklist
 
 - [x] ⌘1…⌘9 make the 1st–9th project of the sidebar's Local list active, through the same loadProject path a row click takes; ⌘0 and a tenth-or-later project do nothing <!-- longclaw:item=ck_0e18345a -->
 - [x] The chords stay live while a text field has focus, and are refused where ⌘K and ⌘F are refused — same keyContext rule, no separate one <!-- longclaw:item=ck_49de5a7f -->
-- [x] Each of the first nine Local rows shows its ⌘n badge; rows ten and up show none, Starred rows show none, and the badge does not leak into the row's accessible name <!-- longclaw:item=ck_44d5f508 -->
+- [x] Every row with a chord shows its ⌘n badge between the theme dot and the name, in both Starred and Local, with a starred project showing its Local row's number in both; rows ten and up show none, and the badge does not leak into the row's accessible name <!-- longclaw:item=ck_44d5f508 -->
 - [x] SHORTCUTS in ProjectSettings.tsx and the global-chords table in keyboard-focus-map.md both name it, line 171's no-chords sentence is re-worded to match, and npm run citations:check is green after re-pinning <!-- longclaw:item=ck_ef6949f7 -->
-- [x] Vitest covers the handler — ⌘1, ⌘9, ⌘0, a ten-project registry, a starred project numbered once — and the badge's presence and absence <!-- longclaw:item=ck_919b6e62 -->
+- [x] Vitest covers the handler — ⌘1, ⌘9, ⌘0, a ten-project registry, a starred project carrying its Local number in both sections — and the badge's presence, absence and position <!-- longclaw:item=ck_919b6e62 -->
 - [x] npm run a11y:audit and npm run verify pass, with the audit run quoted on the ticket <!-- longclaw:item=ck_3be1ccf3 -->
 
 ## Activity
@@ -316,4 +339,95 @@ showing neither badge nor `aria-keyshortcuts`.
 `npm run verify` green with 1107 frontend tests. `npm run a11y:audit` green,
 A1-A5 — though as noted above it still cannot see this: its fixture has one
 project, so no row of it draws a second section or a switch.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_5039b41d
+kind: update
+occurred_at: 2026-08-31T23:49:37.750Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_3bacd88f
+kind: update
+occurred_at: 2026-08-31T23:49:49.463Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_44d5f508.text
+    from: Each of the first nine Local rows shows its ⌘n badge; rows ten and up show none, Starred rows show none, and the badge does not leak into the row's accessible name
+    to: Every row with a chord shows its ⌘n badge between the theme dot and the name, in both Starred and Local, with a starred project showing its Local row's number in both; rows ten and up show none, and the badge does not leak into the row's accessible name
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_59d7c2ab
+kind: update
+occurred_at: 2026-08-31T23:49:49.485Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_919b6e62.text
+    from: Vitest covers the handler — ⌘1, ⌘9, ⌘0, a ten-project registry, a starred project numbered once — and the badge's presence and absence
+    to: Vitest covers the handler — ⌘1, ⌘9, ⌘0, a ten-project registry, a starred project carrying its Local number in both sections — and the badge's presence, absence and position
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_b47abb72
+kind: update
+occurred_at: 2026-08-31T23:50:03.878Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### Claude Code updated this ticket
+
+Closed. The body now describes what shipped rather than what was first
+specified.
+
+Two statements were rewritten, both reversed by the UX round above: the badge's
+position on the row, and whether Starred carries one. The rewritten paragraph
+in § What says so in place and dates it, so the change of mind stays legible
+rather than reading as though it was always this — and it records the part that
+did *not* change, which is the number itself and therefore the chord and
+`keyboard-focus-map.md:34`.
+
+Checklist items 3 and 5 stated the old rule as an acceptance condition and were
+re-worded to the new one, ids untouched.
+
+Four notes were added to § Notes from what the work actually turned up, so the
+next chord does not re-learn them:
+
+- Match `citation-guard`'s own citation grammar, not just `doc.md:N`. The comma
+  form and the bare forms carrying no `.md` are where the re-point went wrong
+  twice, and `--update` will happily pin either mistake as truth.
+- `PROJECT_NAME_MAX_LENGTH` is not the ceiling on a project name — it caps the
+  create form, Rust's `is_project_name` gates the writers, and a hand-edited
+  `project.md` has no bound at all.
+- The chord closes the panel without a key, so focus has to be caught or it
+  lands on `<body>`.
+- Both sidebar sections read one id-to-chord map rather than counting their own
+  rows, which is what makes the Starred number correct.
+
+Shipped in #18 (`8470048`) and #19 (`be9ed2f`).
 <!-- /longclaw:event -->
