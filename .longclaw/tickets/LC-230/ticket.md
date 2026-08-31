@@ -179,3 +179,49 @@ lock as it stood on `main`: 161 endpoints rather than 125, six spans repaired,
 plus two bare-form references the guard cannot see at all. Also corrected a
 rule-2 citation this branch had copied wrong from the `⌘,` branch.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_764593c6
+kind: comment
+occurred_at: 2026-08-31T14:09:15.870Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Two corrections to the entry above, and what the last review round changed.
+
+**The truncation ceiling.** That entry named `PROJECT_NAME_MAX_LENGTH` (120) as
+"the longest name the list allows". It is not the ceiling — it caps only the
+create form. The real gate is Rust's `is_project_name` (`core/project.rs`),
+which holds for `set_name` and for the CLI's `project init`, and `parse` checks
+only that a name is non-empty, so a hand-edited `project.md` has no bound at
+all. Re-measured on that basis at 120, 1,000 and 20,000 characters: byte-identical
+geometry every time — row 28px, name 148px, truncated, badge inside. Once the
+name overflows at all the layout stops depending on its length, because
+`flex: 1` with `min-width: 0` takes its width from free space rather than from
+content. The note's answer is unchanged; its stated ceiling was wrong.
+
+**Focus after the switch.** The chord is the first keyboard-only path into
+`loadProject`'s LC-188 close, and that close takes no key, because the card it
+would hand focus back to belongs to the project being left. A click keeps its
+anchor on the row the pointer pressed; a chord has none, so pressing it with
+focus inside the panel dropped focus on `<body>` — the loss rule 3 forbids
+(`keyboard-focus-map.md:16-18`). Now rescued through `focusSurface`, on the
+frame after the new board commits, and only when focus was actually lost, so a
+chord pressed from the sidebar leaves focus where it was.
+
+Neither was caught by `a11y:audit`, which passes A1-A5 on every run here: it
+drives a fixture with one project, so no row of it can exercise a switch. Worth
+knowing before the next chord lands.
+
+Two behaviours this branch argued in comments are now asserted, and both are
+mutation-checked rather than trusted — removing the LC-188 close fails the
+first, removing the focus rescue fails the second, and both pass again once
+restored.
+
+Final state: `npm run verify` green with 1105 frontend tests over 43 files,
+166 Rust, `citation-guard` at 496 citations. `npm run a11y:audit` green, A1-A5.
+<!-- /longclaw:event -->
