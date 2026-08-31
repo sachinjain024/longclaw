@@ -79,6 +79,14 @@ export function isChord(event: KeyboardEvent, key: string): boolean {
 export const PROJECT_CHORD_COUNT = 9;
 
 /**
+ * The one non-zero digit a chord can name. It and `PROJECT_CHORD_COUNT` are two
+ * statements of one bound — a regex cannot read the constant — so
+ * `keyContext.test.ts` compares the set `chordDigit` accepts against the
+ * constant rather than trusting the two to agree.
+ */
+const CHORD_DIGIT = /^[1-9]$/;
+
+/**
  * The digit of a `⌘1`…`⌘9` press, or `undefined` for anything that is not one
  * (LC-230).
  *
@@ -90,13 +98,7 @@ export const PROJECT_CHORD_COUNT = 9;
  *
  * `0` is not in the range: there is no zeroth row, and a chord that quietly
  * rounded to the first would be worse than one that does nothing.
- *
- * The pattern and `PROJECT_CHORD_COUNT` are two statements of one bound — a
- * regex cannot read the constant — so `keyContext.test.ts` compares the set
- * this accepts against the constant rather than trusting them to agree.
  */
-const CHORD_DIGIT = /^[1-9]$/;
-
 export function chordDigit(event: KeyboardEvent): number | undefined {
   if (!(event.metaKey || event.ctrlKey)) return undefined;
   if (!CHORD_DIGIT.test(event.key)) return undefined;

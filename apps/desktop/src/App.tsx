@@ -719,7 +719,8 @@ export function App() {
         field.select();
         return;
       }
-      // `⌘1`…`⌘9` make the nth project active (LC-230). The number is the row's
+      // `⌘1`…`⌘9` make the nth project active (`keyboard-focus-map.md:34`,
+      // LC-230). The number is the row's
       // place in the sidebar's **Local** list, which is the whole registry in
       // the order it is already drawn — so the chord and the badge count the
       // same thing and cannot disagree. Starred is a second view of some of
@@ -745,7 +746,24 @@ export function App() {
         // project's key has to close across the switch rather than re-aim at a
         // ticket that was never there (LC-188), and that is what this path
         // does for a row's click.
-        void loadProject(target.id);
+        void loadProject(target.id).then(() => {
+          // The switch can take focus's holder with it: the panel it closes is
+          // closed without a key, because the card to hand focus back to
+          // belongs to the project being left. A click has an anchor — focus
+          // stays on the row the pointer pressed — and this is the first
+          // keyboard-only way in, so it is the first that can leave `<body>`
+          // holding focus, which `keyboard-focus-map.md:16-18` forbids.
+          //
+          // Read after the frame React commits the new board in, and only
+          // acted on when focus was *actually* lost: a chord pressed from the
+          // sidebar leaves focus on the row it was on rather than being pulled
+          // to a board the human did not ask to be standing in.
+          requestAnimationFrame(() => {
+            const holder = document.activeElement;
+            if (holder && holder !== document.body) return;
+            focusSurface();
+          });
+        });
         return;
       }
       if (event.key !== "Escape" || layerOpen || !filtering) return;

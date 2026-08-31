@@ -129,6 +129,7 @@
     "30": "| `⌘Z` | Undo last mutation (paired with the toast) |",
     "31": "| `⌘F` | Focus the filter field (selects existing query) |",
     "32": "| `C` | Quick create (in the current project) |",
+    "34": "| `⌘1`…`⌘9` | Switch to the nth project of the sidebar's Local list |",
     "35": "| `Esc` | Ladder rule 4 |",
     "40": "| `↑` / `K`, `↓` / `J` | Move focus within the column |",
     "42": "| `Enter` | Open focused ticket in the panel |",

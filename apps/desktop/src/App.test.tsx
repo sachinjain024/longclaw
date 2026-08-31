@@ -5996,13 +5996,34 @@ describe("switching project by chord (LC-230)", () => {
     ].map((badge) => badge.textContent);
   }
 
+  /** One ticket, on the first project only, so a panel can be opened on it. */
+  const onlyOnTheFirst: IndexedTicket[] = [
+    {
+      state: "indexed",
+      key: "L01-1",
+      id: "019c8c7e",
+      title: "Only in Project 01",
+      status: "todo",
+      priority: "p3",
+      labels: [],
+      createdAt: "2026-07-31T09:00:00Z",
+      updatedAt: "2026-07-31T09:00:00Z",
+      checkedCount: 0,
+      checklistCount: 0,
+      commentCount: 0,
+      attachmentCount: 0,
+      contentHash: "hash-L01-1",
+      relativePath: ".longclaw/tickets/L01-1/ticket.md",
+    },
+  ];
+
   async function openRegistry() {
     vi.mocked(api.listProjects).mockResolvedValue(registry);
     vi.mocked(api.openProject).mockImplementation(async (projectId: string) => {
       const project = registry.find((candidate) => candidate.id === projectId)!;
       return {
         project,
-        tickets: [],
+        tickets: projectId === "project-01" ? onlyOnTheFirst : [],
         generation: 1,
         rebuiltInMs: 1,
         sequence: 1,
@@ -6022,9 +6043,96 @@ describe("switching project by chord (LC-230)", () => {
     fireEvent.keyDown(document, { key: "9", metaKey: true });
     expect(api.openProject).toHaveBeenCalledWith("project-09");
 
-    // The same path a row's click takes, so a panel open on another project's
-    // key closes across the switch rather than re-aiming (LC-188).
     await screen.findByRole("heading", { name: "Project 09" });
+  });
+
+  /**
+   * The reason the chord goes through `loadProject` rather than setting the
+   * active id: a key belongs to one project, so a panel left open across the
+   * switch asks the new project for a ticket that was never in it — the second
+   * half of LC-188. Asserted rather than asserted-about: the first version of
+   * this block claimed the behaviour in a comment and then only checked that
+   * the heading had changed, which the no-close bug would have passed.
+   */
+  /** What the panel reads for the one ticket the first project has. */
+  function panelDetail(): TicketDetail {
+    return {
+      key: "L01-1",
+      relativePath: ".longclaw/tickets/L01-1/ticket.md",
+      contentHash: "hash-L01-1",
+      byteLength: 300,
+      readOnly: false,
+      raw: "",
+      rawTruncated: false,
+      missingAttachments: [],
+      orphanAttachments: [],
+      ticket: {
+        id: "019c8c7e",
+        key: "L01-1",
+        title: "Only in Project 01",
+        status: "todo",
+        priority: "p3",
+        labels: [],
+        createdAt: "2026-07-31T09:00:00Z",
+        updatedAt: "2026-07-31T09:00:00Z",
+        description: "",
+        checklist: [],
+        attachments: [],
+        activity: [],
+        historyIncomplete: false,
+        unknownKeys: [],
+        recordDiagnostics: [],
+      },
+    };
+  }
+
+  it("closes a panel open on the project it is switching away from", async () => {
+    await openRegistry();
+    vi.mocked(api.readTicket).mockResolvedValue(panelDetail());
+
+    fireEvent.click(screen.getByText("Only in Project 01"));
+    expect(
+      await screen.findByRole("complementary", { name: "Ticket L01-1" }),
+    ).toBeTruthy();
+
+    fireEvent.keyDown(document, { key: "2", metaKey: true });
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("complementary", { name: /^Ticket / }),
+      ).toBeNull(),
+    );
+    expect(api.openProject).toHaveBeenCalledWith("project-02");
+  });
+
+  /**
+   * Rule 3 — focus is "never lost" (`keyboard-focus-map.md:16-18`). The panel
+   * the switch closes is closed *without* a key, because the card to hand focus
+   * back to belongs to the project being left. A click keeps its anchor — focus
+   * stays on the row the pointer pressed — and this chord is the first
+   * keyboard-only way into that close, so it is the first that can drop focus
+   * on `<body>`.
+   */
+  it("does not leave `body` holding focus when the switch closes the panel", async () => {
+    await openRegistry();
+    vi.mocked(api.readTicket).mockResolvedValue(panelDetail());
+
+    fireEvent.click(screen.getByText("Only in Project 01"));
+    const panel = await screen.findByRole("complementary", {
+      name: "Ticket L01-1",
+    });
+    const inside = within(panel).getAllByRole("button")[0];
+    inside.focus();
+    expect(document.activeElement).toBe(inside);
+
+    fireEvent.keyDown(document, { key: "2", metaKey: true });
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("complementary", { name: /^Ticket / }),
+      ).toBeNull(),
+    );
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
   });
 
   /**
