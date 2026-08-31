@@ -33,7 +33,9 @@ use super::project::{
     is_project_key, is_project_name, is_theme_id, render_agent_contract, render_new_project,
     ProjectDocument, DEFAULT_THEME, PROJECT_NAME_RULE,
 };
-use super::ticket::{Actor, NewChecklistItem, Priority, Status, Ticket, TicketDocument, TicketEdit};
+use super::ticket::{
+    Actor, NewChecklistItem, Priority, Status, Ticket, TicketDocument, TicketEdit,
+};
 
 const PROJECT_DIRECTORY: &str = ".longclaw";
 const PROJECT_FILE: &str = "longclaw.yaml";
