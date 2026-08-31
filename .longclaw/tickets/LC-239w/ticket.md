@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 2f685ed7-e46b-4fd4-8e54-6011f135f2e2
 key: LC-239w
 title: "Simplify the shell chrome: drop the sidebar lockup, rebalance the header"
-status: in_progress
+status: in_review
 priority: none
 labels:
   - frontend
   - design
 created_at: 2026-08-29T00:14:11.894Z
-updated_at: 2026-08-31T14:35:32.454Z
+updated_at: 2026-08-31T15:06:07.548Z
 ---
 
 The shell says **LongClaw** twice and says which project you are in twice, and it spends the header's width on the first of those instead of on the filter field.
@@ -352,4 +352,20 @@ npm run citations:check --self-test   a one-line shift is caught in each of the 
 **The path cap is 16 characters, and that number is a measurement.** Four derivations were wrong: 22 in a box calculated at 140 and measured at 123; 25 in a box of 157, over by one pixel; 24 in a box with a gear over the end of it; 18 taken at 1180, which clips at 900 where the shell squeezes the panel. The probe now prints `"…" 100px in 107px` at every width on every run, so a fifth cannot hide.
 
 **Two things dropped after review.** The `@media (max-width: 900px)` that hid the word `Order` was scope creep — the ticket’s lever was `.filter-wrap`, and the probe confirms the row fits at 760–900 with the label drawn. And `elidePath`’s head/tail parameters, which no caller passed.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_0692a8f6
+kind: update
+occurred_at: 2026-08-31T15:06:07.548Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_progress
+    to: in_review
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->
