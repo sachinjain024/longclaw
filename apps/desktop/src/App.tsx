@@ -57,7 +57,12 @@ import { filterTickets, isFiltering } from "./filtering";
 import { FolderGlyph } from "./FolderGlyph";
 import { GearGlyph, KebabGlyph } from "./SettingsGlyphs";
 import { IssueList } from "./IssueList";
-import { chordDigit, isChord, singleKeyShortcutAllowed } from "./keyContext";
+import {
+  chordDigit,
+  isChord,
+  PROJECT_CHORD_COUNT,
+  singleKeyShortcutAllowed,
+} from "./keyContext";
 import { MenuButton } from "./Menu";
 import { mutate, type Mutation, useMutationStore } from "./mutations";
 import { ORDERINGS, type OrderingMode } from "./ordering";
@@ -480,7 +485,7 @@ export function App() {
    * past the window, or a panel closing over a row scrolled out of sight, focused
    * nothing and left `<body>` holding it. The surfaces answer this by moving
    * their tab stop first, which mounts the row, and taking focus after. Found by
-   * the Step 17 accessibility audit; `keyboard-focus-map.md:16-18,131,161`.
+   * the Step 17 accessibility audit; `keyboard-focus-map.md:16-18,132,162`.
    */
   const [cardFocus, setCardFocus] = useState<FocusRequest>();
   const focusCard = useCallback((key: string) => {
@@ -612,8 +617,17 @@ export function App() {
      * here, because everything below reads this to stand down.
      */
     const menuOpen = settingsMenuOpen || projectMenu !== undefined;
-    const layerOpen =
-      selectedKey !== undefined ||
+    /**
+     * Everything standing *over* the board and holding focus. It is what `⌘F`
+     * refuses to reach past, and what `⌘1`…`⌘9` refuses to switch out from
+     * under (LC-230) — written once because two chords that must agree on the
+     * answer had it spelled out twice, which is one edit away from disagreeing.
+     *
+     * The ticket panel is deliberately not in it. The panel belongs to a
+     * project too, but it does not have to refuse the switch: `loadProject`
+     * closes it on the way through, which is the whole of LC-188.
+     */
+    const overlayOpen =
       createSurface !== undefined ||
       paletteOpen ||
       menuOpen ||
@@ -621,6 +635,7 @@ export function App() {
       // its own `Esc` closes it, and that press must not also empty the filter
       // on the board behind it.
       settingsOpen;
+    const layerOpen = selectedKey !== undefined || overlayOpen;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       if (isChord(event, "k")) {
@@ -663,7 +678,7 @@ export function App() {
       // `⌘,` is the platform's own settings chord, and both menus advertise it
       // (LC-208). It opens the panel on `General` from anywhere a layer is not
       // already up — including from inside a field, since it is a chord
-      // (`keyboard-focus-map.md:12-14`) — and closes nothing: pressing it with
+      // (`keyboard-focus-map.md:13-15`) — and closes nothing: pressing it with
       // settings already open is a no-op rather than a toggle, because the
       // panel's way out is `Esc` and a chord that also closed would fight the
       // section the human just picked.
@@ -687,14 +702,7 @@ export function App() {
       }
       if (isChord(event, "f")) {
         const field = filterField.current;
-        if (
-          !field ||
-          createSurface !== undefined ||
-          paletteOpen ||
-          menuOpen ||
-          settingsOpen
-        )
-          return;
+        if (!field || overlayOpen) return;
         event.preventDefault();
         field.focus();
         // "Selects existing query" (`keyboard-focus-map.md:31`), so the next
@@ -710,20 +718,15 @@ export function App() {
       // one number and it is its Local row's.
       //
       // A chord, so it stays live inside a field where a single-key shortcut
-      // stands down (`keyboard-focus-map.md:12-14`) — nothing in a text field
-      // claims `⌘digit`. It is refused where `⌘F` is refused, and for a reason
-      // of its own: every one of those layers belongs to the project under it,
-      // and switching beneath one would leave it standing over a board it was
-      // never opened against.
+      // stands down (`keyboard-focus-map.md:13-15`) — nothing in a text field
+      // claims `⌘digit`. It is refused under `overlayOpen`, which is where `⌘F`
+      // is refused: each of those layers was opened against the board behind it
+      // and would be left standing over a different one. The ticket panel is
+      // not among them and must not be — `loadProject` closes it on the way
+      // through (LC-188), so the switch answers for it rather than refusing.
       const projectDigit = chordDigit(event);
       if (projectDigit !== undefined) {
-        if (
-          createSurface !== undefined ||
-          paletteOpen ||
-          menuOpen ||
-          settingsOpen
-        )
-          return;
+        if (overlayOpen) return;
         // Past the ninth row there is no chord and nothing to preventDefault
         // for: the press is unbound, not swallowed.
         const target = localProjects[projectDigit - 1];
@@ -2480,15 +2483,17 @@ function PathChip(props: { path: string; homePath: string | null }) {
 }
 
 /**
- * Whether this row gets a `⌘n` chord: the first nine of a numbered section
- * (LC-230). The tenth row and everything under it are plain — the chords run
- * out at nine and a badge for a key that does not exist is worse than none.
+ * Whether this row gets a `⌘n` chord: the first `PROJECT_CHORD_COUNT` of a
+ * numbered section (LC-230). The row after them and everything under it are
+ * plain — the chords run out, and a badge for a key that does not exist is
+ * worse than no badge. The bound is `keyContext`'s rather than a `9` written
+ * here, so the badges and the keys that answer them cannot disagree.
  *
- * One predicate for the badge and for `aria-keyshortcuts`, so the two cannot
- * come apart and announce a key the row does not show.
+ * One predicate for the badge and for `aria-keyshortcuts`, so those two cannot
+ * come apart either and announce a key the row does not show.
  */
 function chordFor(numbered: boolean | undefined, index: number): boolean {
-  return numbered === true && index < 9;
+  return numbered === true && index < PROJECT_CHORD_COUNT;
 }
 
 function ProjectSection(props: {

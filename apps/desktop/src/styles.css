@@ -260,8 +260,12 @@ textarea:focus-visible,
 
    Anatomy from `.kbd-chip` minus its box: nine bordered chips down a 240px
    sidebar would read as a column of controls beside a column of names, and the
-   row already carries a dot, a star and a `⋮`. What is left is the chip's
-   typography in `ink-3`, which is the same demotion `.star-mark` takes.
+   row already carries a dot, a star and a `⋮`. What is left is the chip's face
+   in `ink-3`, which is the same demotion `.star-mark` takes.
+
+   The tracking is this badge's own, not the chip's — `.kbd-chip` deliberately
+   carries none, and `.filter-kbd` is the precedent for adding it locally rather
+   than folding it into the shared base and retuning every chip that ships.
 
    `flex: none` beside a `strong` that is `flex: 1; min-width: 0`, so the badge
    takes its width from the name and the name goes on truncating into it. */

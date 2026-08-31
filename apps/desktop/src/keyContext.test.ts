@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   chordDigit,
+  PROJECT_CHORD_COUNT,
   singleKeyShortcutAllowed,
   textFieldAt,
 } from "./keyContext";
@@ -86,10 +87,18 @@ describe("the project chord's digit", () => {
   const press = (init: KeyboardEventInit) =>
     chordDigit(new KeyboardEvent("keydown", init));
 
-  it("reads 1 through 9 off a ⌘ press", () => {
-    for (let digit = 1; digit <= 9; digit += 1) {
+  /**
+   * Read off the constant rather than a literal `9`, because the constant is
+   * what the sidebar badges with — this is the check that keeps the pattern's
+   * upper bound and `PROJECT_CHORD_COUNT` from parting company.
+   */
+  it("accepts exactly 1 through PROJECT_CHORD_COUNT", () => {
+    for (let digit = 1; digit <= PROJECT_CHORD_COUNT; digit += 1) {
       expect(press({ key: String(digit), metaKey: true })).toBe(digit);
     }
+    expect(
+      press({ key: String(PROJECT_CHORD_COUNT + 1), metaKey: true }),
+    ).toBeUndefined();
   });
 
   /** `⌘` or `Ctrl` alike, the same convention `isChord` reads (plan 24). */

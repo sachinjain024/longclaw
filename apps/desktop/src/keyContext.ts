@@ -71,6 +71,14 @@ export function isChord(event: KeyboardEvent, key: string): boolean {
 }
 
 /**
+ * How many project chords there are, which is how many non-zero digit keys
+ * there are (LC-230). Exported because the sidebar badges exactly this many
+ * rows, and a badge for a key that does not exist is worse than no badge — the
+ * bound has to be one fact, not two that happen to agree.
+ */
+export const PROJECT_CHORD_COUNT = 9;
+
+/**
  * The digit of a `⌘1`…`⌘9` press, or `undefined` for anything that is not one
  * (LC-230).
  *
@@ -81,10 +89,15 @@ export function isChord(event: KeyboardEvent, key: string): boolean {
  * convention wrong.
  *
  * `0` is not in the range: there is no zeroth row, and a chord that quietly
- * rounded to the first would be worse than one that does nothing.
+ * rounded to the first would be worse than one that does nothing. The pattern's
+ * upper bound is `PROJECT_CHORD_COUNT` written the one way a regex can say it,
+ * and `keyContext.test.ts` reads the constant to check the range it accepts, so
+ * the two cannot part company without the gate going red.
  */
+const CHORD_DIGIT = /^[1-9]$/;
+
 export function chordDigit(event: KeyboardEvent): number | undefined {
   if (!(event.metaKey || event.ctrlKey)) return undefined;
-  if (!/^[1-9]$/.test(event.key)) return undefined;
+  if (!CHORD_DIGIT.test(event.key)) return undefined;
   return Number(event.key);
 }

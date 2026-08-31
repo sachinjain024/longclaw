@@ -534,7 +534,7 @@ function StatusSection() {
  * a shortcut only its author uses.
  *
  * It is a hand-copy of the map's § Global and § Board tables
- * (`keyboard-focus-map.md:29-35`, `:39-44`) and there is no way for it not to
+ * (`keyboard-focus-map.md:29-35`, `:40-45`) and there is no way for it not to
  * be — the map is prose for people, not a module. So it is written to be
  * *checkable* instead: one row per row of those two tables, in their order,
  * and it shipped missing `⌘↵` and the `J K H L` half of board movement.

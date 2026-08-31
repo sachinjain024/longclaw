@@ -169,7 +169,7 @@ swatches (radio group, arrows move, space selects) → Create → Back.
 
 ## Not bound in v0 (deliberate)
 
-- No chords beyond the `⌘` basics § Global lists (D8: "no chords in v0").
+- No chords beyond the `⌘` basics in § Global (D8: "no chords in v0").
 - No `A` (assign) — D8 listed it, but v0 local mode has no assignee
   (ADR 0001); the binding is reserved for team mode.
 - No drag-and-drop keyboard equivalent — reordering within a column, and

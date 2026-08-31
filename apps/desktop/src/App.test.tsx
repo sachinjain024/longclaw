@@ -416,7 +416,7 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
    * board but Tab from the top of the document.
    *
    * The same call is how the ticket panel returns focus to its card, so this
-   * covers `keyboard-focus-map.md:162` at size as well as :123.
+   * covers `keyboard-focus-map.md:162` at size as well as :124.
    */
   it("focuses the new card even when it lands outside the rendered window", async () => {
     const crowd: TicketRow[] = Array.from({ length: 30 }, (_, index) => ({
@@ -6047,7 +6047,7 @@ describe("switching project by chord (LC-230)", () => {
 
   /**
    * A chord stays live inside a field, where a single-key shortcut stands down
-   * (`keyboard-focus-map.md:12-14`). Nothing in a text field claims `⌘digit`.
+   * (`keyboard-focus-map.md:13-15`). Nothing in a text field claims `⌘digit`.
    */
   it("stays live while a text field has focus", async () => {
     await openRegistry();

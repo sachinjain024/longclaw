@@ -210,7 +210,7 @@ async function auditLifecycle(browser) {
       "`C` opens quick create with focus in the title field",
       modal && inTitle.label === "Title",
       `modal=${modal} focus=${inTitle.label || inTitle.tag}`,
-      "keyboard-focus-map.md:32,133",
+      "keyboard-focus-map.md:32,134",
     );
     const title = `Keyboard lifecycle ${Date.now() % 100_000}`;
     await page.keyboard.type(title);
@@ -222,7 +222,7 @@ async function auditLifecycle(browser) {
       "`Enter` creates the ticket and focus moves to the new card",
       createdKey !== undefined,
       `focus=${createdKey ?? (afterCreate.className || afterCreate.tag)}`,
-      "keyboard-focus-map.md:132,164 — focus moves to the new card",
+      "keyboard-focus-map.md:132,165 — focus moves to the new card",
     );
 
     // Find (§ Global `⌘F`, and the filter's rung of the `Esc` ladder).
@@ -378,7 +378,7 @@ async function auditLifecycle(browser) {
       "`Esc` closes the panel and focus returns to the card that opened it",
       isCard(backOnCard),
       `focus=${backOnCard.ticketKey ?? (backOnCard.className || backOnCard.tag)}`,
-      "keyboard-focus-map.md:61,161",
+      "keyboard-focus-map.md:61,162",
     );
     const movedFrom = backOnCard.ticketKey;
     await page.keyboard.press("s");
@@ -443,7 +443,7 @@ async function auditLifecycle(browser) {
         "a ticket key typed at the root offers that ticket first",
         offered === "PF-12",
         `first row=${offered || "(no ticket row)"}`,
-        "keyboard-focus-map.md:110,114-118",
+        "keyboard-focus-map.md:110,115-119",
       );
       if (offered === "PF-12") {
         await page.keyboard.press("Enter");
