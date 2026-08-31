@@ -1,0 +1,816 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-lc-theme="ember">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LC-239w — Simplify the shell chrome</title>
+
+<!-- The app's own fonts, tokens and stylesheet. Nothing here re-implements a
+     component: the side panel, the content header, the path chip, the disk-state
+     line, the project rows and the board below them are the markup `App.tsx`
+     and `Board.tsx` render, wearing the rules `styles.css` already carries. What
+     the ticket proposes is in `<style id="proposed">` and nowhere else, so the
+     review can read the diff by reading one block. -->
+<link rel="stylesheet" href="../../design/foundations/proof/fonts.css">
+<link rel="stylesheet" href="../../../apps/desktop/src/tokens/design-tokens.css">
+<link rel="stylesheet" href="../../../apps/desktop/src/styles.css">
+
+<!-- ====================================================================
+     PROPOSED — the changes this ticket asks of `apps/desktop/src/styles.css`.
+     Everything in this block is meant to land, as written, in the section
+     named beside each rule. Rules that *replace* an existing one say so.
+     ==================================================================== -->
+<style id="proposed">
+
+/* ── Side panel ─────────────────────────────────────────────── § App shell */
+
+/* GONE: `.brand-lockup` and `.brand-lockup strong` (styles.css:71-83). The
+   window's own title bar already says LongClaw, in the OS's type, at the top of
+   the same window — `tauri.conf.json` sets `"title": "LongClaw"` and no
+   `titleBarStyle`, so the name is drawn by macOS whether or not the sidebar
+   repeats it. `OwlMark` stays: `Welcome` draws it at 52px. */
+.brand-lockup { display: none; }
+
+/* Its replacement, in the space it held: what this window is looking at.
+   The lockup answered "which app is this", which the title bar answers; this
+   answers "which project", which nothing in the sidebar's top answers today —
+   the active row says it further down, in a list whose job is switching.
+
+   The name is a heading and the block is `<header>`, so the sidebar opens with
+   the page's `<h1>` exactly as the content header used to. */
+.project-identity {
+  display: grid;
+  gap: 4px;
+  padding: 0 var(--lc-space-1) var(--lc-space-4);
+  border-bottom: var(--lc-border-hairline) solid var(--lc-line);
+}
+
+.identity-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--lc-space-2);
+}
+
+/* 14px, not the header's 16.5: the same words in 216px rather than in the main
+   region's width, so it holds two-thirds of a long project name before the
+   ellipsis instead of half of one. Display face and 600, which is the register
+   the wordmark had here and the one the sections below do not use. */
+.identity-row h1 {
+  overflow: hidden;
+  min-width: 0;
+  margin: 0;
+  color: var(--lc-ink);
+  font: 600 14px / 1.25 var(--lc-font-display);
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The warn triangle the project row wears when the folder cannot be read
+   (`screen-specs.md:60`), said here too — this block is the only place the open
+   project is named once the header is controls-only. */
+.identity-row .project-warn { flex: none; }
+
+.identity-row .settings-button { margin-left: auto; }
+
+/* The disk-state line, which rides with the path (`screen-specs.md:64-73`).
+   A **reserved** slot: the line is silent whenever the disk is quiet, and a
+   slot that collapsed when it went quiet would move the whole project list up
+   and down a row on every write. 13px is the mono line box; it costs one empty
+   line of sidebar and buys a sidebar that never moves.
+
+   The 32ch cap the header gave it is gone — the panel is 216px wide, so the cap
+   is the panel. `writing tickets/LC-69/ticket.md…` runs to the edge and the
+   ellipsis takes the tail, which is `ticket.md`, the part every ticket shares
+   (`WriteFeedback.tsx`). */
+.identity-disk {
+  overflow: hidden;
+  min-height: 13px;
+}
+
+.identity-disk > .disk-path {
+  display: block;
+  overflow: hidden;
+  max-width: 100%;
+  font-size: var(--lc-type-kbd-size);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The list scrolls now — REPLACES `.project-nav`'s rule (styles.css:89-93).
+   This is what makes moving the two create controls down safe. LC-73 moved them
+   *up* because `.project-nav` has no `overflow-y`, so at the foot of a long list
+   they left the viewport; `.side-panel-footer` is `margin-top: auto`, pinned to
+   the panel's bottom edge rather than sitting at the end of the list's flow, and
+   a nav that scrolls inside its own box is a footer that is always on screen.
+   Without this line the pair is unreachable again at nine projects and LC-73
+   recurs. */
+.project-nav {
+  display: grid;
+  overflow-y: auto;
+  min-height: 0;
+  gap: var(--lc-space-5);
+}
+
+/* REPLACES `.project-actions`'s border and padding (styles.css:110-120). Same
+   pair, same hierarchy, same 4px between them — the hairline moves from under
+   the pair to above it, because what it separates is now above rather than
+   below. Everything LC-73 settled about *what* these two controls are is
+   untouched; only where they sit changes. */
+.project-actions {
+  border-bottom: 0;
+  border-top: var(--lc-border-hairline) solid var(--lc-line);
+  padding-top: var(--lc-space-4);
+  padding-bottom: 0;
+  row-gap: var(--lc-space-1);
+}
+
+/* The quick-create form opens in the footer now, so it grows upward against a
+   nav that yields. Capped and scrolling, because a six-row form in a 620px
+   window is otherwise a form that pushes the project list off the top. */
+.side-panel-footer .quick-create {
+  overflow-y: auto;
+  max-height: 46vh;
+}
+
+/* The gear — REPLACES the `.content-header .settings-button` selectors
+   (styles.css:820-857) with the same declarations unscoped. It is the same
+   control in a new parent; nothing about how it looks changes. */
+.settings-button {
+  display: inline-flex;
+  width: 26px;
+  min-height: 26px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--lc-ink-2);
+  transition:
+    background var(--lc-motion-fast) var(--lc-motion-ease),
+    border-color var(--lc-motion-fast) var(--lc-motion-ease),
+    color var(--lc-motion-fast) var(--lc-motion-ease);
+}
+
+.settings-button:hover,
+.settings-button.open {
+  color: var(--lc-ink);
+  background: var(--lc-line-soft);
+}
+
+.settings-button:focus-visible {
+  border-color: var(--lc-accent-human);
+  box-shadow: var(--lc-focus-ring);
+  outline: none;
+}
+
+/* ── Content header ─────────────────────────────── § Content header, LC-149 */
+
+/* One item, not two. `.header-identity` leaves the header entirely, which makes
+   the row's LC-149 guarantee stronger rather than weaker: a row with a single
+   flex child has no seam to break at, so it cannot wrap at all — not between
+   halves, not inside the cluster. What is left to defend is the *overflow*, and
+   that is what the filter field's floor is for.
+
+   REPLACES `.content-header .toolbar-actions` (styles.css:859-879): `flex: 1 1
+   auto` where there was only `margin-left: auto`, so the row owns the band's
+   width and has something to hand the field. `justify-content: flex-end` keeps
+   the cluster on the right edge it has always sat on; the field grows leftward
+   out of it. */
+.content-header .toolbar-actions {
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  margin-left: auto;
+  min-width: 0;
+}
+
+/* The field grows — REPLACES `.content-header .toolbar-actions > .filter-wrap`'s
+   `flex: 0 1 auto` (styles.css:894-896), and deletes `width: 180px` from
+   `.filter-wrap` itself (styles.css:1747-1761). The 180 was a size in a row that
+   had no width to spare; the row now has the ~300px the identity block was
+   holding, and this is what spends it.
+
+   It has to be written at *this* selector rather than on `.filter-wrap`: the
+   two-class rule is what the row hands its shortfall to, and a one-class rule
+   proposing `flex` beside it loses. (The prototype found this the honest way —
+   the readout under the frame said `filter 180px` in variant B.)
+
+   A number *and* a share: 240px is what it asks for, it grows into whatever the
+   band has left, and it stops at 380. Uncapped, a 1600px window draws a
+   half-metre of empty field for a query that is usually seven characters — the
+   field would stop reading as a control and start reading as a gap between the
+   board and its buttons. The 120px floor is LC-149's and is unchanged. */
+.filter-wrap {
+  width: auto;
+}
+
+.content-header .toolbar-actions > .filter-wrap {
+  flex: 1 1 240px;
+  min-width: 120px;
+  max-width: 380px;
+}
+
+/* The word `Order` before the menu trigger is the first thing to go when the
+   band runs out, not the filter field: the trigger keeps `aria-label="Order:
+   Priority"`, so the label is still said where it counts, and the alternative
+   is a field at its 120px floor with `New ticket` hanging off the right edge.
+   760px is the window's own `minWidth`; the breakpoint is above it so the
+   narrowest window is not also the tightest fit. */
+@media (max-width: 900px) {
+  .ordering-control > span { display: none; }
+}
+
+/* ── The overlay title bar — variant C only, and NOT recommended ─────────── */
+
+/* What `titleBarStyle: "Overlay"` + `hiddenTitle: true` would cost in CSS. The
+   band is 28px of sidebar that the traffic lights are drawn over; 78px of it is
+   theirs, and the owl can only ever be webview content to the right of them. */
+[data-titlebar="overlay"] .side-panel { padding-top: 34px; }
+
+[data-titlebar="overlay"] .titlebar-owl {
+  position: absolute;
+  top: 6px;
+  left: 78px;
+  display: flex;
+  height: 22px;
+  align-items: center;
+  color: var(--lc-ink-2);
+}
+</style>
+
+<!-- ====================================================================
+     HARNESS — the review page itself. Nothing below this line is proposed.
+     ==================================================================== -->
+<style id="harness">
+body {
+  margin: 0;
+  color: var(--lc-ink);
+  background: var(--lc-bg);
+  font-family: var(--lc-font-ui);
+  font-size: var(--lc-type-body-size);
+}
+
+.driver {
+  position: sticky;
+  z-index: 40;
+  top: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding: 7px 14px;
+  color: var(--lc-inverse-ink);
+  background: var(--lc-inverse-surface);
+  font-family: var(--lc-font-mono);
+  font-size: 10.5px;
+}
+.driver .group { display: flex; gap: 4px; align-items: center; }
+.driver .group > em { font-style: normal; color: color-mix(in oklab, var(--lc-inverse-ink) 55%, transparent); }
+.driver .sep { width: 1px; height: 14px; background: color-mix(in oklab, var(--lc-inverse-ink) 20%, transparent); }
+.driver strong { letter-spacing: .05em; text-transform: uppercase; font-weight: 600; }
+.driver .spacer { flex: 1; }
+.driver button {
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid color-mix(in oklab, var(--lc-inverse-ink) 18%, transparent);
+  border-radius: var(--lc-radius-kbd);
+  color: var(--lc-inverse-ink-2);
+  background: none;
+  font-family: var(--lc-font-mono);
+  font-size: 10px;
+  cursor: pointer;
+}
+.driver button:hover { color: var(--lc-inverse-ink); border-color: color-mix(in oklab, var(--lc-inverse-ink) 40%, transparent); }
+.driver button[aria-pressed="true"] { color: var(--lc-inverse-ink); border-color: var(--lc-accent-human); }
+.driver .swatch { width: 26px; padding: 0; }
+.driver .swatch i { display: block; width: 10px; height: 10px; margin: 0 auto; border-radius: 50%; background: var(--lc-accent-human); }
+
+.stage { display: grid; grid-template-columns: minmax(300px, 360px) 1fr; align-items: start; }
+.stage.wide { grid-template-columns: 1fr; }
+.stage.wide .notes { display: none; }
+
+.notes {
+  position: sticky;
+  top: 36px;
+  overflow-y: auto;
+  max-height: calc(100vh - 36px);
+  padding: 20px;
+  border-right: 1px solid var(--lc-line);
+  background: var(--lc-surface);
+}
+.notes h1 { margin: 0 0 4px; font: var(--lc-type-title-weight) var(--lc-type-title-size) / var(--lc-type-title-leading) var(--lc-type-title-font); }
+.notes h2 { margin: 20px 0 6px; color: var(--lc-ink-3); font-size: var(--lc-type-small-size); letter-spacing: .06em; text-transform: uppercase; }
+.notes p, .notes li { margin: 0 0 8px; color: var(--lc-ink-2); font-size: var(--lc-type-small-size); line-height: 1.55; }
+.notes ol, .notes ul { margin: 0; padding-left: 18px; }
+.notes code { color: var(--lc-ink); font-family: var(--lc-font-mono); font-size: 11px; }
+.notes .q { border-left: 2px solid var(--lc-accent-human); padding-left: 10px; }
+.notes .no { border-left: 2px solid var(--lc-warn); padding-left: 10px; }
+
+.frames { display: grid; gap: 26px; justify-items: start; padding: 20px; }
+
+.frame-label {
+  margin: 0 0 6px;
+  color: var(--lc-ink-3);
+  font-family: var(--lc-font-mono);
+  font-size: 10.5px;
+  letter-spacing: .04em;
+}
+.frame-label b { color: var(--lc-ink); font-weight: 600; }
+.frame-label .ok { color: var(--lc-ok, var(--lc-accent-agent)); }
+.frame-label .bad { color: var(--lc-warn); }
+
+/* The window. Its width is the app window's width and its height is fixed, so
+   the board below the header clips rather than growing the page. `zoom` scales
+   what is drawn without changing what is laid out — the frame still lays out at
+   1180 or 760 CSS px, which is the whole point of drawing it. */
+.window {
+  position: relative;
+  display: flex;
+  overflow: hidden;
+  height: 620px;
+  flex-direction: column;
+  border: 1px solid var(--lc-line-strong);
+  border-radius: 10px;
+  background: var(--lc-bg);
+  box-shadow: 0 10px 30px color-mix(in oklab, var(--lc-ink) 12%, transparent);
+}
+
+/* The macOS title bar as the window actually draws it today: opaque, lights at
+   the left, the app's name centred in it. This is the thing variant C removes. */
+.titlebar {
+  position: relative;
+  display: flex;
+  height: 28px;
+  align-items: center;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--lc-line);
+  background: color-mix(in oklab, var(--lc-bg) 88%, var(--lc-ink) 12%);
+}
+.lights { display: flex; gap: 8px; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; }
+.lights i:nth-child(1) { background: #ff5f57; }
+.lights i:nth-child(2) { background: #febc2e; }
+.lights i:nth-child(3) { background: #28c840; }
+.titlebar .native-title {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  color: var(--lc-ink-2);
+  font-size: 12.5px;
+  font-weight: 500;
+  text-align: center;
+}
+/* Variant C: the lights float over the app's own content instead — which is
+   what `titleBarStyle: "Overlay"` does, and the `z-index` is the harness
+   equivalent of the lights being drawn by the OS on top of the webview. */
+.overlay-lights { position: absolute; z-index: 2; top: 9px; left: 20px; }
+
+.titlebar { flex: none; }
+.app-shell { position: relative; min-height: 0; flex: 1; height: auto; }
+.window .side-panel { overflow: hidden; }
+/* `--lc-size-board-stack` is `calc(100vh - …)`, and in here the viewport is the
+   review page rather than the window being drawn. */
+.window .board-column { max-height: 420px; }
+.window .board-stack { position: relative; }
+.window .ticket-row { position: static; width: 100%; margin-bottom: 8px; text-align: left; }
+.window .board-grid { padding-left: 0; }
+.window .welcome-column { padding-top: 30px; }
+
+/* The proposed `@media (max-width: 900px)` rule, applied by class: the frame is
+   a box on this page, not the viewport, so a viewport query cannot see it. In
+   the app the query is the query. */
+.window.narrow .ordering-control > span { display: none; }
+
+/* Variant A is *the lockup and nothing else*, so its frame puts the filter field
+   back to the 180px `styles.css` states today. Without this the proposed growth
+   would apply to A as well and the comparison would be against a header that had
+   already taken half the change. */
+.window.today .content-header .toolbar-actions > .filter-wrap {
+  flex: 0 1 auto;
+  width: 180px;
+}
+
+/* Same reason: in A the create pair has not moved, so it keeps the hairline
+   *under* it that LC-73 gave it rather than the one the footer wants above. */
+.window.today .project-actions {
+  border-top: 0;
+  border-bottom: var(--lc-border-hairline) solid var(--lc-line);
+  padding-bottom: var(--lc-space-4);
+}
+</style>
+</head>
+<body>
+
+<header class="driver">
+  <strong>longclaw · LC-239w</strong>
+  <span class="group"><em>variant</em>
+    <button data-set="variant" data-value="A">A · lockup gone</button>
+    <button data-set="variant" data-value="B">B · identity in sidebar</button>
+    <button data-set="variant" data-value="C">C · B + overlay lights</button>
+  </span>
+  <span class="sep" aria-hidden="true"></span>
+  <span class="group"><em>width</em>
+    <button data-set="widths" data-value="both">both</button>
+    <button data-set="widths" data-value="1180">1180</button>
+    <button data-set="widths" data-value="760">760</button>
+  </span>
+  <span class="group"><em>state</em>
+    <button data-set="scene" data-value="board">board</button>
+    <button data-set="scene" data-value="none">no project</button>
+    <button data-set="scene" data-value="unreachable">unreachable</button>
+  </span>
+  <span class="sep" aria-hidden="true"></span>
+  <span class="group"><em>ask</em>
+    <button data-toggle="writing">writing</button>
+    <button data-toggle="long">9 projects</button>
+    <button data-toggle="muted">muted active row</button>
+    <button data-toggle="quickcreate">create form open</button>
+  </span>
+  <span class="spacer"></span>
+  <span class="group"><em>scale</em>
+    <button data-set="scale" data-value="fit">fit</button>
+    <button data-set="scale" data-value="1">100%</button>
+    <button data-toggle="wide">hide notes</button>
+  </span>
+  <span class="swatches" role="group" aria-label="Project theme">
+    <button class="swatch" data-theme-pick="ember" aria-pressed="true" title="Ember"><i data-theme="light" data-lc-theme="ember"></i></button>
+    <button class="swatch" data-theme-pick="indigo" aria-pressed="false" title="Indigo"><i data-theme="light" data-lc-theme="indigo"></i></button>
+    <button class="swatch" data-theme-pick="clay" aria-pressed="false" title="Clay"><i data-theme="light" data-lc-theme="clay"></i></button>
+    <button class="swatch" data-theme-pick="slate" aria-pressed="false" title="Slate"><i data-theme="light" data-lc-theme="slate"></i></button>
+    <button class="swatch" data-theme-pick="plum" aria-pressed="false" title="Plum"><i data-theme="light" data-lc-theme="plum"></i></button>
+  </span>
+  <span role="group" aria-label="Appearance">
+    <button data-appearance="light" aria-pressed="true">light</button>
+    <button data-appearance="dark" aria-pressed="false">dark</button>
+  </span>
+</header>
+
+<div class="stage" id="stage">
+  <aside class="notes">
+    <h1>Simplify the shell chrome</h1>
+    <p>LC-239w · <code>.longclaw/tickets/LC-239w/ticket.md</code></p>
+    <p>The shell says <strong>LongClaw</strong> twice and names the open project twice, and it spends the header's width on the first of those rather than on the filter field.</p>
+
+    <h2>Read it in this order</h2>
+    <ol>
+      <li><strong>A</strong> — the lockup is simply gone. The sidebar now opens with <code>Create project</code>. Nothing else moved, so the header still carries the name and the field is still 180px. This is the floor: is it enough?</li>
+      <li><strong>B</strong> — the requested variation. Name, path, disk state and gear move to the top of the sidebar; the two create controls move to the footer; the header is controls only and the filter field takes the width. <em>This is the recommendation.</em></li>
+      <li><strong>C</strong> — B with <code>titleBarStyle: "Overlay"</code>. The owl sits right of the traffic lights and the native title is gone. <em>Not recommended</em> — see below.</li>
+    </ol>
+    <p>Then press <strong>writing</strong>, <strong>9 projects</strong>, <strong>create form open</strong>, and walk the three <em>state</em> buttons. Each answers a question the still frame does not.</p>
+
+    <h2>What I decided, and why</h2>
+    <ol>
+      <li class="q"><strong>The sidebar stays 240px.</strong> Narrowing it would re-tune section headers, project rows and the create form to buy width the header no longer needs — B already hands the field ~300px.</li>
+      <li class="q"><strong>The active row keeps its emphasis.</strong> The block above and the row below are not the same statement twice: the block is <em>this workspace</em>, with the path, the disk and the gear that only it has; the highlighted row is <em>which of the five</em>, which is positional. Press <strong>muted active row</strong> to see the alternative — the list loses its answer to "where am I" and the sidebar reads as five equal projects.</li>
+      <li class="q"><strong>The disk-state line goes to the sidebar, in a reserved slot.</strong> It rides with the path, as <code>screen-specs.md:64-73</code> says. The slot is 13px whether or not there is news: a slot that collapsed would shove the project list up and down a row on every write, which is LC-149's defect turned on its side. Press <strong>writing</strong> and watch that nothing below it moves.</li>
+      <li class="q"><strong>The gear moves with the path</strong> and stays outside the reachable guard — press <strong>unreachable</strong>: the name wears the warn triangle, the block stays, the gear stays, and <code>Locate…</code> is still one press away.</li>
+      <li class="q"><strong>The header does not render at all for an unreachable project.</strong> With identity and gear gone there is nothing left in it, and an empty 62px band with a hairline under it is a rule drawn across the top of the centred panel. Today's header keeps the identity row in that state; B has no identity row to keep.</li>
+      <li class="q"><strong>No project open → no block.</strong> There is nothing to name, so the sidebar opens with the sections and the main region draws <code>Welcome</code>, which is where the owl still lives at 52px.</li>
+      <li class="q"><strong>The filter field is <code>flex: 1 1 240px</code>, floor 120, cap 380.</strong> A number and a share: it asks for 240, grows into what the band has, and stops before it becomes a gap. Read the measured width under each frame.</li>
+      <li class="q"><strong><code>.project-nav</code> gains <code>overflow-y: auto</code>.</strong> This is the load-bearing line in B. Press <strong>9 projects</strong> with it and without it in your head: LC-73 moved <code>Create project</code> up <em>because</em> the nav does not scroll, so at the foot of a long list the pair left the window. Pinned to <code>.side-panel-footer</code> over a nav that scrolls, it never does.</li>
+    </ol>
+
+    <h2>The owl beside the traffic lights — no</h2>
+    <p class="no">Variant C draws it, so the cost is on screen rather than in the abstract. A ~22px mark in the strip right of the lights buys nothing the app does not already have, and it is paid for with: a 34px inset on the sidebar that must collapse in full screen or the mark floats in an empty band; a <code>data-tauri-drag-region</code> that must not swallow clicks; <code>hiddenTitle</code>, which deletes the centred <strong>LongClaw</strong> that is the reason removing the lockup costs nothing; and a window-config change next to <code>dragDropEnabled: false</code>, which is LC-60's and would put <code>probe:drag</code> back on the critical path of a CSS ticket.</p>
+    <p class="no">The mark cannot go <em>inside</em> the title bar. Every app that appears to do that is positioning webview content to the right of the lights, which is what C is doing here.</p>
+    <p>Recommendation: keep the decorated window. The name stays in the title bar, the mark stays on <code>Welcome</code> and in the Dock.</p>
+
+    <h2>Open, for you</h2>
+    <ul>
+      <li>Is 14px/600 display the right weight for the project name at 240px, or should it sit at 13.5 with the section headers?</li>
+      <li>The 380px cap on the field — too tight on a 1600px window?</li>
+      <li>Below 900px the word <code>Order</code> disappears and the trigger stands alone. The alternative is the field at its 120px floor. Which?</li>
+      <li>Should the block's path chip keep click-to-copy, or is that a header affordance that a sidebar does not want?</li>
+    </ul>
+
+    <h2>Measured under each frame</h2>
+    <p>Header height and the filter field's real width, read off the laid-out frame. <code>62px</code> is one row; anything taller is the wrap LC-149 forbids, and the readout says so.</p>
+  </aside>
+
+  <main class="frames" id="frames"></main>
+</div>
+
+<script>
+/* ====================================================================
+   The frames are rendered from here so the variants can be swapped live.
+   Every class name below is the app's own; the only harness classes are
+   `.window`, `.titlebar`, `.lights`, `.overlay-lights` and `.narrow`.
+   ==================================================================== */
+
+const state = {
+  variant: "B",
+  widths: "both",
+  scene: "board",
+  scale: "fit",
+  writing: false,
+  long: false,
+  muted: false,
+  quickcreate: false,
+  wide: false,
+};
+
+const PROJECT = { name: "Fixture Project", path: "~/dev/fixture-project", full: "/Users/sachin/dev/fixture-project" };
+
+const SHORT_LIST = [
+  { name: "Fixture Project", theme: "ember", starred: true, active: true },
+  { name: "LongClaw", theme: "indigo", starred: true },
+  { name: "Website", theme: "clay" },
+  { name: "Scratch", theme: "slate" },
+  { name: "Archive 2025", theme: "plum", unreachable: true },
+];
+
+const LONG_EXTRA = [
+  { name: "Design System", theme: "indigo" },
+  { name: "Notes", theme: "clay" },
+  { name: "Infra", theme: "slate" },
+  { name: "Reading list", theme: "plum" },
+];
+
+const OWL = '<svg class="owl-mark" viewBox="0 0 64 64" width="22" height="22" role="img" aria-label="LongClaw">' +
+  '<path fill="currentColor" d="M1 1 L32 18.8 L63 1 L61.5 12.2 L35.2 27.5 L32 34 L28.8 27.5 L2.5 12.2 Z"/>' +
+  '<path fill="currentColor" d="M32 35.3 L35.6 40.6 L32 47.5 L28.4 40.6 Z"/>' +
+  '<path fill="none" stroke="currentColor" stroke-width="7" d="M52.13 20.43 A24 24 0 1 1 11.87 20.43"/></svg>';
+
+const GEAR = '<svg class="gear-glyph" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">' +
+  '<circle cx="7" cy="7" r="1.9" fill="none" stroke="currentColor" stroke-width="1.3"/>' +
+  '<path d="M5.9 1.5 L8.1 1.5 L8.4 2.9 A4.3 4.3 0 0 1 9.6 3.6 L10.95 3.15 L12.05 5.05 L11 6 A4.4 4.4 0 0 1 11 8 L12.05 8.95 L10.95 10.85 L9.6 10.4 A4.3 4.3 0 0 1 8.4 11.1 L8.1 12.5 L5.9 12.5 L5.6 11.1 A4.3 4.3 0 0 1 4.4 10.4 L3.05 10.85 L1.95 8.95 L3 8 A4.4 4.4 0 0 1 3 6 L1.95 5.05 L3.05 3.15 L4.4 3.6 A4.3 4.3 0 0 1 5.6 2.9 Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>';
+
+const FOLDER = '<svg class="folder-glyph" width="13" height="13" viewBox="0 0 14 14" aria-hidden="true">' +
+  '<path d="M1.5 3.5 Q1.5 2.5 2.5 2.5 L5 2.5 L6.2 4 L11.5 4 Q12.5 4 12.5 5 L12.5 10.5 Q12.5 11.5 11.5 11.5 L2.5 11.5 Q1.5 11.5 1.5 10.5 Z" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>';
+
+const CHEVRON = '<svg class="menu-chevron" width="11" height="11" viewBox="0 0 14 14" aria-hidden="true">' +
+  '<path d="M4.5 2.5 L9.5 7 L4.5 11.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+const KEBAB = '<svg width="13" height="13" viewBox="0 0 14 14" aria-hidden="true">' +
+  '<circle cx="7" cy="2.8" r="1.2" fill="currentColor"/><circle cx="7" cy="7" r="1.2" fill="currentColor"/><circle cx="7" cy="11.2" r="1.2" fill="currentColor"/></svg>';
+
+const WARN30 = '<svg width="30" height="30" viewBox="0 0 14 14" aria-hidden="true">' +
+  '<path d="M7 1.6 L13 12.4 L1 12.4 Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>' +
+  '<path d="M7 5.4 V8.6 M7 10.4 V10.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>';
+
+const dot = (status) => '<svg class="status-dot status-' + status + '" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">' +
+  '<circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+
+/* `WriteFeedback.tsx`'s three shapes, verbatim. */
+function diskLine() {
+  if (state.writing) {
+    return '<code class="disk-path writing"><span class="write-spinner" aria-hidden="true">⟳</span>writing tickets/LC-239w/ticket.md…</code>';
+  }
+  return '<code class="disk-path settled">✓ ticket.md</code>';
+}
+
+function pathChip(cls) {
+  return '<button tabindex="0" class="path-chip' + (cls ? " " + cls : "") + '" aria-label="Copy path — ' + PROJECT.full + '" title="' + PROJECT.full + '">' +
+    FOLDER + '<span class="txt">' + PROJECT.path + '</span></button>';
+}
+
+function projectRow(project) {
+  const active = project.active && !state.muted;
+  const mark = project.unreachable
+    ? '<span class="project-warn" aria-hidden="true">⚠</span><span class="visually-hidden">Unreachable</span>'
+    : '<span class="theme-dot" data-lc-theme="' + project.theme + '" data-theme="' + document.documentElement.dataset.theme + '" aria-hidden="true"></span>';
+  return '<div class="project-row' + (project.active ? " selected" : "") + '">' +
+    '<button tabindex="0" class="project-link' + (active ? " selected" : "") + (project.unreachable ? " unreachable" : "") + '" title="' + project.name + '">' +
+      mark + '<strong>' + project.name + '</strong>' +
+      (project.starred ? '<span class="star-mark"><span aria-hidden="true">★</span><span class="visually-hidden">Starred</span></span>' : '') +
+    '</button>' +
+    '<button tabindex="0" type="button" class="row-menu-button" aria-haspopup="menu" aria-expanded="false" aria-label="' + project.name + ' menu" title="Project menu">' + KEBAB + '</button>' +
+  '</div>';
+}
+
+function projectNav() {
+  const all = state.long ? SHORT_LIST.concat(LONG_EXTRA) : SHORT_LIST;
+  const starred = all.filter((p) => p.starred);
+  const local = all.filter((p) => !p.starred);
+  const section = (title, rows, empty) =>
+    '<section class="project-section"><h2>' + title + '</h2>' +
+    (rows.length ? rows.map(projectRow).join("") : '<p>' + empty + '</p>') + '</section>';
+  return '<nav class="project-nav" aria-label="Projects">' +
+    section("Starred", starred, "No starred projects") +
+    section("Local", local, "No local projects") +
+  '</nav>';
+}
+
+function createPair() {
+  return '<section class="project-actions">' +
+    '<button tabindex="0" class="secondary">Create project</button>' +
+    '<button tabindex="0" class="ghost">Open folder</button>' +
+    (state.quickcreate ? quickCreateForm() : "") +
+  '</section>';
+}
+
+/* `CreateProjectForm`'s shape, enough of it to show what the footer has to hold. */
+function quickCreateForm() {
+  return '<form class="quick-create">' +
+    '<label class="field"><span>Name</span><input class="input" value="Fixture Project" readonly></label>' +
+    '<label class="field"><span>Key prefix</span><input class="input" value="FIX" readonly></label>' +
+    '<label class="field"><span>Theme</span><input class="input" value="Ember" readonly></label>' +
+    '<button tabindex="0" class="primary" type="button">Choose folder</button>' +
+  '</form>';
+}
+
+/* Variant A's sidebar: today's, with the lockup deleted and nothing else moved. */
+function sidebarA() {
+  return '<aside class="side-panel">' + createPair() + projectNav() +
+    '<div class="side-panel-footer"></div></aside>';
+}
+
+/* Variants B and C: identity at the top, the pair pinned to the footer. */
+function sidebarB(overlay) {
+  const identity = state.scene === "none" ? "" :
+    '<header class="project-identity">' +
+      '<div class="identity-row">' +
+        (state.scene === "unreachable" ? '<span class="project-warn" aria-hidden="true">⚠</span>' : "") +
+        '<h1>' + PROJECT.name + '</h1>' +
+        '<button tabindex="0" class="ghost small settings-button" aria-label="Project settings" aria-haspopup="menu" aria-expanded="false" title="Project settings">' + GEAR + '</button>' +
+      '</div>' +
+      pathChip() +
+      '<div class="identity-disk">' + (state.scene === "unreachable" ? "" : diskLine()) + '</div>' +
+    '</header>';
+  return '<aside class="side-panel">' +
+    (overlay ? '<div class="titlebar-owl">' + OWL + '</div>' : "") +
+    identity + projectNav() +
+    '<div class="side-panel-footer">' + createPair() + '</div>' +
+  '</aside>';
+}
+
+function toolbar() {
+  return '<div class="toolbar-actions">' +
+    '<div class="filter-wrap">' +
+      '<input class="input filter-field" type="text" name="longclaw-filter" autocomplete="off" aria-label="Filter tickets" aria-keyshortcuts="Meta+F" placeholder="Filter tickets">' +
+      '<kbd class="kbd-chip filter-kbd" aria-hidden="true">⌘F</kbd>' +
+    '</div>' +
+    '<div class="ordering-control"><span>Order</span>' +
+      '<button tabindex="0" type="button" class="menu-trigger" aria-haspopup="menu" aria-expanded="false" aria-label="Order: Priority"><span>Priority</span>' + CHEVRON + '</button>' +
+    '</div>' +
+    '<div class="view-segment" role="group" aria-label="View">' +
+      '<button tabindex="0" class="selected" aria-pressed="true">Board</button>' +
+      '<button tabindex="0" aria-pressed="false">List</button>' +
+    '</div>' +
+    '<button tabindex="0" class="primary" aria-keyshortcuts="C">New ticket<kbd aria-hidden="true">C</kbd></button>' +
+  '</div>';
+}
+
+const gearButton = '<button tabindex="0" class="ghost small settings-button" aria-label="Project settings" aria-haspopup="menu" aria-expanded="false" title="Project settings">' + GEAR + '</button>';
+
+/* Today's header, unchanged: identity block, controls, gear. */
+function headerA() {
+  return '<header class="content-header">' +
+    '<div class="header-identity">' +
+      '<div class="title-stack"><h1>' + PROJECT.name + '</h1>' +
+        '<div class="path-line">' + pathChip() + (state.scene === "unreachable" ? "" : diskLine()) + '</div>' +
+      '</div>' +
+    '</div>' +
+    (state.scene === "unreachable" ? "" : toolbar()) +
+    gearButton +
+  '</header>';
+}
+
+/* B and C: controls only — and nothing at all when there are no controls. */
+function headerB() {
+  if (state.scene === "unreachable") return "";
+  return '<header class="content-header">' + toolbar() + '</header>';
+}
+
+function card(key, title, meta, progress, label, priority) {
+  return '<button class="ticket-row" tabindex="-1" data-ticket-key="' + key + '">' +
+    '<span class="card-top"><span class="ticket-key">' + key + '</span>' + (priority || "") + '</span>' +
+    '<strong>' + title + '</strong>' +
+    '<span class="ticket-meta">' +
+      (meta ? '<span class="fraction">' + meta + '</span>' : "") +
+      (progress !== undefined ? '<span class="progress" aria-hidden="true"><i style="width:' + progress + '%"></i></span>' : "") +
+      (label ? '<span class="label-chip small"><span class="label-dot label-blue small"></span>' + label + '</span>' : "") +
+    '</span>' +
+  '</button>';
+}
+
+function board() {
+  const column = (status, title, count, cards) =>
+    '<section class="board-column"><div class="board-column-head">' +
+      '<h3>' + dot(status) + title + '<span>· ' + count + '</span></h3>' +
+      '<button type="button" class="column-add" tabindex="0" title="New ticket in ' + title + '" aria-label="New ticket in ' + title + '">' +
+        '<svg width="13" height="13" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 2.5 V11.5 M2.5 7 H11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>' +
+      '</button></div>' +
+      '<div class="board-stack">' + cards + '</div></section>';
+  return '<div class="workspace-state"><div class="board-grid">' +
+    column("todo", "Todo", 3,
+      card("LC-239w", "Simplify the shell chrome: drop the sidebar lockup, rebalance the header", "3/12", 25, "design") +
+      card("LC-243d", "Fix the inconsistencies with the prototype", null, undefined, "frontend")) +
+    column("in_progress", "In Progress", 2,
+      card("LC-241q", "Edit and delete a comment", "4/6", 66, "frontend")) +
+    column("in_review", "In Review", 1,
+      card("LC-229", "The quick create title's weight", "8/8", 100, "design")) +
+    column("done", "Done", 4, card("LC-232", "Ticket keys carry a random suffix", null, undefined, "storage")) +
+  '</div></div>';
+}
+
+function welcome() {
+  return '<div class="welcome-column">' +
+    '<div class="welcome-mark">' + OWL.replace(/width="22" height="22"/, 'width="52" height="52"') + '</div>' +
+    '<h1>LongClaw</h1>' +
+    '<p>Your tickets are Markdown files in a folder you own.</p>' +
+    '<div class="toolbar-actions"><button tabindex="0" class="primary">Create project</button>' +
+    '<button tabindex="0" class="secondary">Open folder</button></div>' +
+  '</div>';
+}
+
+function unreachablePanel() {
+  return '<section class="unreachable-panel"><span class="state-icon">' + WARN30 + '</span>' +
+    '<h2>Folder not found</h2><code>' + PROJECT.full + '</code>' +
+    '<p>The project folder moved, or its disk isn’t mounted. Your tickets are safe in their files.</p>' +
+    '<div class="toolbar-actions"><button tabindex="0" class="secondary">Locate folder…</button>' +
+    '<button tabindex="0" class="ghost">Remove from list</button></div></section>';
+}
+
+function main(variant) {
+  const header = variant === "A" ? headerA() : headerB();
+  const body = state.scene === "none" ? welcome()
+    : state.scene === "unreachable" ? unreachablePanel()
+    : board();
+  return '<section class="main-panel">' + header + body + '</section>';
+}
+
+function frame(variant, width) {
+  const overlay = variant === "C";
+  const sidebar = variant === "A" ? sidebarA() : sidebarB(overlay);
+  const chrome = overlay
+    ? '<div class="overlay-lights lights"><i></i><i></i><i></i></div>'
+    : '<div class="titlebar"><div class="lights"><i></i><i></i><i></i></div><div class="native-title">LongClaw</div></div>';
+  const label = { A: "A · lockup gone", B: "B · identity in the sidebar", C: "C · B + overlay title bar" }[variant];
+  return '<div class="frame-block">' +
+    '<p class="frame-label"><b>' + label + '</b> · ' + width + 'px · ' + state.scene +
+      ' · <span class="readout" data-readout></span></p>' +
+    '<div class="window' + (width <= 900 ? " narrow" : "") + (variant === "A" ? " today" : "") + '" ' + (overlay ? 'data-titlebar="overlay"' : "") +
+      ' style="width:' + width + 'px">' + chrome +
+      '<div class="app-shell">' + sidebar + main(variant) + '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+function render() {
+  const widths = state.widths === "both" ? [1180, 760] : [Number(state.widths)];
+  const host = document.getElementById("frames");
+  host.innerHTML = widths.map((w) => frame(state.variant, w)).join("");
+
+  document.getElementById("stage").classList.toggle("wide", state.wide);
+
+  /* Scale after layout, and measure before scaling: `zoom` changes what is
+     drawn, `offsetWidth` reports what was laid out. */
+  host.querySelectorAll(".frame-block").forEach((block) => {
+    const win = block.querySelector(".window");
+    const header = win.querySelector(".content-header");
+    const field = win.querySelector(".filter-field");
+    const readout = block.querySelector("[data-readout]");
+    if (header) {
+      const h = header.offsetHeight;
+      const oneRow = h <= 63;
+      readout.innerHTML = "header " + h + "px " +
+        (oneRow ? '<span class="ok">· one row</span>' : '<span class="bad">· WRAPPED</span>') +
+        (field ? " · filter " + Math.round(field.getBoundingClientRect().width / (win.style.zoom || 1)) + "px" : "");
+    } else {
+      readout.textContent = "no header in this state";
+    }
+    if (state.scale === "fit") {
+      const room = host.clientWidth - 40;
+      const scale = Math.min(1, room / win.offsetWidth);
+      win.style.zoom = scale;
+    } else {
+      win.style.zoom = "";
+    }
+  });
+
+  document.querySelectorAll("[data-set]").forEach((b) => {
+    b.setAttribute("aria-pressed", String(state[b.dataset.set] === b.dataset.value));
+  });
+  document.querySelectorAll("[data-toggle]").forEach((b) => {
+    b.setAttribute("aria-pressed", String(Boolean(state[b.dataset.toggle])));
+  });
+}
+
+document.addEventListener("click", (event) => {
+  const set = event.target.closest("[data-set]");
+  if (set) { state[set.dataset.set] = set.dataset.value; return render(); }
+  const toggle = event.target.closest("[data-toggle]");
+  if (toggle) { state[toggle.dataset.toggle] = !state[toggle.dataset.toggle]; return render(); }
+  const theme = event.target.closest("[data-theme-pick]");
+  if (theme) {
+    document.documentElement.dataset.lcTheme = theme.dataset.themePick;
+    document.querySelectorAll("[data-theme-pick]").forEach((b) =>
+      b.setAttribute("aria-pressed", String(b === theme)));
+    return render();
+  }
+  const appearance = event.target.closest("[data-appearance]");
+  if (appearance) {
+    document.documentElement.dataset.theme = appearance.dataset.appearance;
+    document.querySelectorAll("[data-appearance]").forEach((b) =>
+      b.setAttribute("aria-pressed", String(b === appearance)));
+    return render();
+  }
+});
+
+window.addEventListener("resize", render);
+render();
+</script>
+</body>
+</html>

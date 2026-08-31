@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 2f685ed7-e46b-4fd4-8e54-6011f135f2e2
 key: LC-239w
 title: "Simplify the shell chrome: drop the sidebar lockup, rebalance the header"
-status: todo
+status: in_progress
 priority: none
 labels:
   - frontend
   - design
 created_at: 2026-08-29T00:14:11.894Z
-updated_at: 2026-08-29T00:14:11.894Z
+updated_at: 2026-08-31T09:54:13.248Z
 ---
 
 The shell says **LongClaw** twice and says which project you are in twice, and it spends the header's width on the first of those instead of on the filter field.
@@ -99,4 +99,50 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_5503a660
+kind: update
+occurred_at: 2026-08-31T09:54:13.248Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: in_progress
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_95cdab50
+kind: comment
+occurred_at: 2026-08-31T10:08:34.172Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Prototype up for review before any `App.tsx` change: `docs/ux/prototypes/LC-239w-Simplify-The-Shell-Chrome.html`. Three variants (A lockup gone only, B identity in the sidebar, C B + an overlay title bar), both widths, the no-project and unreachable states, plus toggles for a write in flight, nine projects, a muted active row and the create form open.
+
+Measured in WebKit off the laid-out frames:
+
+- A · 1180px — header 62px, one row, filter 180px (today)
+- A · 760px — header **126px, WRAPPED** — today’s designed two-row failure
+- B · 1180px — header 62px, one row, filter **380px** (the cap binds)
+- B · 760px — header **62px, one row**, filter 152px, nothing overflowing
+
+So B does not merely widen the field: it removes the header’s only wrap point, because a row with one flex child has no seam to break at. That is a stronger guarantee than LC-149 asked for.
+
+Recommendations carried in the prototype: sidebar stays 240px; the active row keeps its emphasis; the disk-state line moves to a **reserved** 13px slot under the path (a collapsing slot would move the project list on every write); the gear moves with the path and stays outside the reachable guard; the content header does not render at all for an unreachable project; the filter field is `flex: 1 1 240px` floor 120 cap 380, written at `.content-header .toolbar-actions > .filter-wrap` because the one-class rule loses to it.
+
+Two findings worth the ticket:
+
+1. **`.project-nav` must gain `overflow-y: auto`** for B. LC-73 moved the create pair *up* because the nav does not scroll, so at the foot of a long list it left the window. `.side-panel-footer` is `margin-top: auto`, pinned rather than trailing, so pinned-footer + scrolling-nav is what stops LC-73 recurring at nine projects.
+2. **The owl beside the traffic lights: no.** Variant C draws it so the cost is visible — a 34px sidebar inset that must collapse in full screen, a drag region that must not swallow clicks, `hiddenTitle` deleting the centred native **LongClaw** that is the reason removing the lockup costs nothing, and a `tauri.conf.json` window edit next to LC-60`s `dragDropEnabled: false`. Recommendation: keep the decorated window.
 <!-- /longclaw:event -->
