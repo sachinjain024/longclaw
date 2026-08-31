@@ -358,7 +358,7 @@ export function IssueList(
     const field = metaFieldFor(event.key);
     if (field) {
       // Inert on a file that would not read: there is no field to write to
-      // (`keyboard-focus-map.md:48`).
+      // (`keyboard-focus-map.md:49`).
       const row = groups[from.group].tickets[from.index];
       if (row.state !== "indexed") return;
       event.preventDefault();
@@ -494,7 +494,7 @@ function ListGroup(props: {
     >
       {props.archived ? (
         // A real button with expanded state, which is the keyboard path archive
-        // has (`keyboard-focus-map.md:125`); there is no single-key binding.
+        // has (`keyboard-focus-map.md:126`); there is no single-key binding.
         <button
           tabIndex={0}
           className="list-group-header"

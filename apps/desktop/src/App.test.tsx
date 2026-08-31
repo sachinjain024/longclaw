@@ -416,7 +416,7 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
    * board but Tab from the top of the document.
    *
    * The same call is how the ticket panel returns focus to its card, so this
-   * covers `keyboard-focus-map.md:161` at size as well as :123.
+   * covers `keyboard-focus-map.md:162` at size as well as :124.
    */
   it("focuses the new card even when it lands outside the rendered window", async () => {
     const crowd: TicketRow[] = Array.from({ length: 30 }, (_, index) => ({
@@ -5948,5 +5948,326 @@ describe("the ticket context menu, end to end (LC-222)", () => {
       expectedHash: "hash-LC-1",
       edit: { status: "in_progress" },
     });
+  });
+});
+
+/**
+ * `⌘1`…`⌘9` switch to the nth project (LC-230).
+ *
+ * The number is the row's place in the sidebar's **Local** list, which is
+ * `sortedProjects(projects)` and so is the whole registry in the order it is
+ * already drawn. Starred is a second view of some of those same projects, not
+ * a second list to count: a starred project carries one number and it is its
+ * Local row's.
+ */
+describe("switching project by chord (LC-230)", () => {
+  /**
+   * Ten projects, named so that `localeCompare` puts them in the order the
+   * digits read — the tenth exists to be the row past the end of the chords.
+   * Project 03 is starred, so it appears in both sections and can be counted
+   * in only one.
+   */
+  const registry: ProjectReference[] = Array.from(
+    { length: 10 },
+    (_, index) => {
+      const ordinal = String(index + 1).padStart(2, "0");
+      return {
+        id: `project-${ordinal}`,
+        name: `Project ${ordinal}`,
+        rootPath: `/tmp/LongClaw ${ordinal}`,
+        key: `L${ordinal}`,
+        theme: "plum",
+        starred: ordinal === "03",
+        reachable: true,
+        labels: {},
+      };
+    },
+  );
+
+  function section(title: string) {
+    return [...document.querySelectorAll<HTMLElement>(".project-section")].find(
+      (element) => element.querySelector("h2")?.textContent === title,
+    )!;
+  }
+
+  function badges(title: string) {
+    return [
+      ...section(title).querySelectorAll<HTMLElement>(".project-number"),
+    ].map((badge) => badge.textContent);
+  }
+
+  /** One ticket, on the first project only, so a panel can be opened on it. */
+  const onlyOnTheFirst: IndexedTicket[] = [
+    {
+      state: "indexed",
+      key: "L01-1",
+      id: "019c8c7e",
+      title: "Only in Project 01",
+      status: "todo",
+      priority: "p3",
+      labels: [],
+      createdAt: "2026-07-31T09:00:00Z",
+      updatedAt: "2026-07-31T09:00:00Z",
+      checkedCount: 0,
+      checklistCount: 0,
+      commentCount: 0,
+      attachmentCount: 0,
+      contentHash: "hash-L01-1",
+      relativePath: ".longclaw/tickets/L01-1/ticket.md",
+    },
+  ];
+
+  async function openRegistry() {
+    vi.mocked(api.listProjects).mockResolvedValue(registry);
+    vi.mocked(api.openProject).mockImplementation(async (projectId: string) => {
+      const project = registry.find((candidate) => candidate.id === projectId)!;
+      return {
+        project,
+        tickets: projectId === "project-01" ? onlyOnTheFirst : [],
+        generation: 1,
+        rebuiltInMs: 1,
+        sequence: 1,
+      };
+    });
+    render(<App />);
+    await screen.findByRole("button", { name: "Board", pressed: true });
+    vi.mocked(api.openProject).mockClear();
+  }
+
+  it("makes the nth Local project active, from the first to the ninth", async () => {
+    await openRegistry();
+
+    fireEvent.keyDown(document, { key: "1", metaKey: true });
+    expect(api.openProject).toHaveBeenCalledWith("project-01");
+
+    fireEvent.keyDown(document, { key: "9", metaKey: true });
+    expect(api.openProject).toHaveBeenCalledWith("project-09");
+
+    await screen.findByRole("heading", { name: "Project 09" });
+  });
+
+  /**
+   * The reason the chord goes through `loadProject` rather than setting the
+   * active id: a key belongs to one project, so a panel left open across the
+   * switch asks the new project for a ticket that was never in it — the second
+   * half of LC-188. Asserted rather than asserted-about: the first version of
+   * this block claimed the behaviour in a comment and then only checked that
+   * the heading had changed, which the no-close bug would have passed.
+   */
+  /** What the panel reads for the one ticket the first project has. */
+  function panelDetail(): TicketDetail {
+    return {
+      key: "L01-1",
+      relativePath: ".longclaw/tickets/L01-1/ticket.md",
+      contentHash: "hash-L01-1",
+      byteLength: 300,
+      readOnly: false,
+      raw: "",
+      rawTruncated: false,
+      missingAttachments: [],
+      orphanAttachments: [],
+      ticket: {
+        id: "019c8c7e",
+        key: "L01-1",
+        title: "Only in Project 01",
+        status: "todo",
+        priority: "p3",
+        labels: [],
+        createdAt: "2026-07-31T09:00:00Z",
+        updatedAt: "2026-07-31T09:00:00Z",
+        description: "",
+        checklist: [],
+        attachments: [],
+        activity: [],
+        historyIncomplete: false,
+        unknownKeys: [],
+        recordDiagnostics: [],
+      },
+    };
+  }
+
+  it("closes a panel open on the project it is switching away from", async () => {
+    await openRegistry();
+    vi.mocked(api.readTicket).mockResolvedValue(panelDetail());
+
+    fireEvent.click(screen.getByText("Only in Project 01"));
+    expect(
+      await screen.findByRole("complementary", { name: "Ticket L01-1" }),
+    ).toBeTruthy();
+
+    fireEvent.keyDown(document, { key: "2", metaKey: true });
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("complementary", { name: /^Ticket / }),
+      ).toBeNull(),
+    );
+    expect(api.openProject).toHaveBeenCalledWith("project-02");
+  });
+
+  /**
+   * Rule 3 — focus is "never lost" (`keyboard-focus-map.md:16-18`). The panel
+   * the switch closes is closed *without* a key, because the card to hand focus
+   * back to belongs to the project being left. A click keeps its anchor — focus
+   * stays on the row the pointer pressed — and this chord is the first
+   * keyboard-only way into that close, so it is the first that can drop focus
+   * on `<body>`.
+   */
+  it("does not leave `body` holding focus when the switch closes the panel", async () => {
+    await openRegistry();
+    vi.mocked(api.readTicket).mockResolvedValue(panelDetail());
+
+    fireEvent.click(screen.getByText("Only in Project 01"));
+    const panel = await screen.findByRole("complementary", {
+      name: "Ticket L01-1",
+    });
+    const inside = within(panel).getAllByRole("button")[0];
+    inside.focus();
+    expect(document.activeElement).toBe(inside);
+
+    fireEvent.keyDown(document, { key: "2", metaKey: true });
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("complementary", { name: /^Ticket / }),
+      ).toBeNull(),
+    );
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+  });
+
+  /**
+   * Past nine there is no chord, and `⌘0` is not the tenth one. Nine presses
+   * reach nine projects and never the tenth, which is the only way to say
+   * "unbound" about a key that has no visible answer.
+   */
+  it("leaves ⌘0 and the tenth project alone", async () => {
+    await openRegistry();
+
+    fireEvent.keyDown(document, { key: "0", metaKey: true });
+    expect(api.openProject).not.toHaveBeenCalled();
+
+    for (let digit = 1; digit <= 9; digit += 1) {
+      fireEvent.keyDown(document, { key: String(digit), metaKey: true });
+    }
+    expect(api.openProject).not.toHaveBeenCalledWith("project-10");
+    expect(api.openProject).toHaveBeenCalledTimes(9);
+  });
+
+  /**
+   * A chord stays live inside a field, where a single-key shortcut stands down
+   * (`keyboard-focus-map.md:13-15`). Nothing in a text field claims `⌘digit`.
+   */
+  it("stays live while a text field has focus", async () => {
+    await openRegistry();
+
+    fireEvent.keyDown(document, { key: "f", metaKey: true });
+    const field = document.activeElement as HTMLInputElement;
+    expect(field.tagName).toBe("INPUT");
+
+    fireEvent.keyDown(field, { key: "2", metaKey: true });
+
+    expect(api.openProject).toHaveBeenCalledWith("project-02");
+  });
+
+  /**
+   * Refused where `⌘K` and `⌘F` are refused, and for the same reason: a layer
+   * belongs to the project under it, so switching beneath one would leave it
+   * standing over a board it was never opened against.
+   */
+  it("is refused under the palette", async () => {
+    await openRegistry();
+
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+    expect(document.querySelector(".command-palette")).toBeTruthy();
+
+    fireEvent.keyDown(document, { key: "5", metaKey: true });
+
+    expect(api.openProject).not.toHaveBeenCalled();
+    expect(document.querySelector(".command-palette")).toBeTruthy();
+  });
+
+  it("is refused under a menu", async () => {
+    await openRegistry();
+
+    fireEvent.click(screen.getByRole("button", { name: "Project settings" }));
+    expect(screen.getByRole("menu")).toBeTruthy();
+
+    fireEvent.keyDown(document, { key: "5", metaKey: true });
+
+    expect(api.openProject).not.toHaveBeenCalled();
+  });
+
+  it("is refused under the settings modal", async () => {
+    await openRegistry();
+
+    fireEvent.keyDown(document, { key: ",", metaKey: true });
+    expect(
+      screen.getByRole("region", { name: "Project settings" }),
+    ).toBeTruthy();
+
+    fireEvent.keyDown(document, { key: "5", metaKey: true });
+
+    expect(api.openProject).not.toHaveBeenCalled();
+  });
+
+  it("is refused under quick create", async () => {
+    await openRegistry();
+
+    fireEvent.keyDown(document, { key: "c" });
+    expect(screen.getByLabelText("Create a ticket")).toBeTruthy();
+
+    fireEvent.keyDown(document, { key: "5", metaKey: true });
+
+    expect(api.openProject).not.toHaveBeenCalled();
+  });
+
+  it("badges the first nine Local rows and nothing else", async () => {
+    await openRegistry();
+
+    expect(badges("Local")).toEqual([
+      "⌘1",
+      "⌘2",
+      "⌘3",
+      "⌘4",
+      "⌘5",
+      "⌘6",
+      "⌘7",
+      "⌘8",
+      "⌘9",
+    ]);
+    // The tenth row is plain, and Starred is a second view rather than a
+    // second list — Project 03 is numbered once, on its Local row.
+    expect(badges("Starred")).toEqual([]);
+    // The star is said in words on the row, so the Starred view's copy of
+    // Project 03 answers to that name — and to no chord.
+    expect(
+      within(section("Starred")).getByRole("button", {
+        name: "Project 03Starred",
+      }),
+    ).toBeTruthy();
+  });
+
+  /**
+   * The badge is decoration and `aria-keyshortcuts` is what announces the key
+   * (`GuideCard.tsx`, LC-71). A glyph inside the row's own button leaking into
+   * its accessible name is LC-208, and the row would announce itself twice.
+   */
+  it("announces the key without putting the badge in the row's name", async () => {
+    await openRegistry();
+
+    const row = within(section("Local")).getByRole("button", {
+      name: "Project 01",
+    });
+
+    expect(row.getAttribute("aria-keyshortcuts")).toBe("Meta+1");
+    expect(
+      row.querySelector(".project-number")?.getAttribute("aria-hidden"),
+    ).toBe("true");
+    // The tenth row claims no key at all.
+    expect(
+      within(section("Local"))
+        .getByRole("button", { name: "Project 10" })
+        .hasAttribute("aria-keyshortcuts"),
+    ).toBe(false);
   });
 });

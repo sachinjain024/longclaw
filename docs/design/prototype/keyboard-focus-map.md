@@ -11,8 +11,8 @@
 1. **Every pointer action has a keyboard path.** Anything clickable is
    reachable via focus + Enter, a single-key action, or a palette command.
 2. **Single-key shortcuts suspend while any input has focus.** Chords
-   (`⌘K`, `⌘F`, `⌘Z`, `⌘↵`) stay live everywhere except where the OS owns
-   them (e.g. `⌘Z` inside a focused text field is the field's undo).
+   (`⌘K`, `⌘F`, `⌘Z`, `⌘↵`, `⌘1`…`⌘9`) stay live everywhere except where the
+   OS owns them (e.g. `⌘Z` in a focused text field is the field's undo).
 3. **Focus is visible, human-accent, and never lost.** Keyboard focus =
    `--lc-focus-ring` + 1px `accent-human` border (focus is a planning act).
    Closing any layer returns focus to the element that opened it.
@@ -31,6 +31,7 @@
 | `⌘F` | Focus the filter field (selects existing query) |
 | `C` | Quick create (in the current project) |
 | `⌘,` | Open project settings on General; a no-op while it is already open |
+| `⌘1`…`⌘9` | Switch to the nth project of the sidebar's Local list |
 | `Esc` | Ladder rule 4 |
 ## Board
 
@@ -168,7 +169,7 @@ swatches (radio group, arrows move, space selects) → Create → Back.
 
 ## Not bound in v0 (deliberate)
 
-- No chords beyond the `⌘` basics (D8: "no chords in v0").
+- No chords beyond the `⌘` basics in § Global (D8: "no chords in v0").
 - No `A` (assign) — D8 listed it, but v0 local mode has no assignee
   (ADR 0001); the binding is reserved for team mode.
 - No drag-and-drop keyboard equivalent — reordering within a column, and

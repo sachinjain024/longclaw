@@ -867,7 +867,7 @@ describe("priority on the board", () => {
   });
 
   it("is inert on a file it could not read", () => {
-    // keyboard-focus-map.md:48 — a degraded card takes focus, but S and P have
+    // keyboard-focus-map.md:49 — a degraded card takes focus, but S and P have
     // nothing to write to.
     render(
       board({

@@ -69,3 +69,38 @@ export function textFieldAt(target: EventTarget | null): Element | undefined {
 export function isChord(event: KeyboardEvent, key: string): boolean {
   return (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === key;
 }
+
+/**
+ * How many project chords there are, which is how many non-zero digit keys
+ * there are (LC-230). Exported because the sidebar badges exactly this many
+ * rows, and a badge for a key that does not exist is worse than no badge — the
+ * bound has to be one fact, not two that happen to agree.
+ */
+export const PROJECT_CHORD_COUNT = 9;
+
+/**
+ * The one non-zero digit a chord can name. It and `PROJECT_CHORD_COUNT` are two
+ * statements of one bound — a regex cannot read the constant — so
+ * `keyContext.test.ts` compares the set `chordDigit` accepts against the
+ * constant rather than trusting the two to agree.
+ */
+const CHORD_DIGIT = /^[1-9]$/;
+
+/**
+ * The digit of a `⌘1`…`⌘9` press, or `undefined` for anything that is not one
+ * (LC-230).
+ *
+ * It reads the modifiers exactly as `isChord` does — `⌘` or `Ctrl` alike —
+ * because a second way to spell a chord is the drift this module was made to
+ * end. It is a separate function rather than nine `isChord` calls because the
+ * caller wants the *number*, and nine calls would be nine places to get the
+ * convention wrong.
+ *
+ * `0` is not in the range: there is no zeroth row, and a chord that quietly
+ * rounded to the first would be worse than one that does nothing.
+ */
+export function chordDigit(event: KeyboardEvent): number | undefined {
+  if (!(event.metaKey || event.ctrlKey)) return undefined;
+  if (!CHORD_DIGIT.test(event.key)) return undefined;
+  return Number(event.key);
+}

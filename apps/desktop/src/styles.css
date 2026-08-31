@@ -255,6 +255,28 @@ textarea:focus-visible,
   line-height: 1;
 }
 
+/* The `⌘n` chord, on the first nine Local rows (LC-230), so the key is legible
+   where it is used and not only in settings.
+
+   Anatomy from `.kbd-chip` minus its box: nine bordered chips down a 240px
+   sidebar would read as a column of controls beside a column of names, and the
+   row already carries a dot, a star and a `⋮`. What is left is the chip's face
+   in `ink-3`, which is the same demotion `.star-mark` takes.
+
+   The tracking is this badge's own, not the chip's — `.kbd-chip` deliberately
+   carries none, and `.filter-kbd` is the precedent for adding it locally rather
+   than folding it into the shared base and retuning every chip that ships.
+
+   `flex: none` beside a `strong` that is `flex: 1; min-width: 0`, so the badge
+   takes its width from the name and the name goes on truncating into it. */
+.project-number {
+  flex: none;
+  color: var(--lc-ink-3);
+  font: var(--lc-type-kbd-weight) var(--lc-type-kbd-size)
+    var(--lc-type-kbd-font);
+  letter-spacing: var(--lc-type-kbd-tracking);
+}
+
 /* Revealed on hover, and held open while its menu is (LC-208). Same reveal the
    star toggle had, for the same reason: 240px of sidebar cannot afford a
    permanent control on every row, and the row itself is the primary target. */
@@ -655,7 +677,7 @@ h1 {
 }
 
 /* Create, then `Back` beside it — the create form's closing row, in the order
-   `keyboard-focus-map.md:153-155` gives it. `:only-child` is the sidebar's
+   `keyboard-focus-map.md:154-156` gives it. `:only-child` is the sidebar's
    quick create, whose form ends in its submit alone and whose submit has
    always filled the 216px panel. */
 .form-actions {
@@ -2601,7 +2623,7 @@ button:disabled {
 
 /* It appears when the section is hovered, and whenever it holds focus. `:focus`
    rather than `:focus-visible`, because focus returns here when the editor
-   closes (`keyboard-focus-map.md:92`) — including when the human closed it with
+   closes (`keyboard-focus-map.md:93`) — including when the human closed it with
    the mouse, which is the one way to hold focus and match neither rule. */
 .description-block:hover .description-edit,
 .description-edit:focus {
@@ -3080,7 +3102,7 @@ button:disabled {
 
    It appears on hover and while the row holds focus, which are the two moments
    a reorder is being considered; the keyboard's way in is `⌥↑`/`⌥↓` on the row
-   (`keyboard-focus-map.md:62`) and never needs to see it. */
+   (`keyboard-focus-map.md:63`) and never needs to see it. */
 .checklist-row {
   position: relative;
 }

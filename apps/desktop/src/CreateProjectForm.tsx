@@ -85,7 +85,7 @@ export function CreateProjectForm(props: {
           the one directory creation will add inside it. Read-only text rather
           than a field — it is not editable here, and the way to change it is to
           go `Back` and pick again — so it is deliberately not a tab stop
-          (`keyboard-focus-map.md:153-155` puts the form's order at name → key →
+          (`keyboard-focus-map.md:154-156` puts the form's order at name → key →
           theme → Create → Back). */}
       {props.folder !== undefined && (
         <div className="field">
@@ -117,7 +117,7 @@ export function CreateProjectForm(props: {
           placeholder={DEFAULT_PROJECT_NAME}
           maxLength={PROJECT_NAME_MAX_LENGTH}
           // Where the folder picker hands focus on the create path
-          // (`keyboard-focus-map.md:167`). Only on that path: the sidebar's
+          // (`keyboard-focus-map.md:168`). Only on that path: the sidebar's
           // quick create opens beside a board someone is already working in,
           // and a form that grabs the caret there steals it from the app.
           autoFocus={props.folder !== undefined}

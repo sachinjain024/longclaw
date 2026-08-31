@@ -25,7 +25,7 @@
  * **The checkbox is the same fact, and it hid for longer** (LC-185). That list
  * of what WebKit does visit — text fields, selects, links — has no checkbox in
  * it either, so the ticket panel's checklist rows were pointer-only while
- * `keyboard-focus-map.md:61-62` said `Tab` reached them and `Enter`/`Space`
+ * `keyboard-focus-map.md:62-63` said `Tab` reached them and `Enter`/`Space`
  * toggled them. Nothing caught it here because this only ever read `<button>`,
  * and nothing caught it in the audit because no row had walked to a checklist
  * row until one was written to prove `⌥↓` reachable. A checkbox is a control a
