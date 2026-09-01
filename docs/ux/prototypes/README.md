@@ -17,13 +17,6 @@ is which.
 - [`LC-201-Bulk-Create-In-Quick-Create-Mode.html`](LC-201-Bulk-Create-In-Quick-Create-Mode.html)
   — quick create with a description, labels and a **Create more** loop
   (spec: `.longclaw/tickets/LC-201/ticket.md`).
-- [`LC-239w-Simplify-The-Shell-Chrome.html`](LC-239w-Simplify-The-Shell-Chrome.html)
-  — the sidebar's brand lockup removed and the project's identity moved into its
-  place, against today's shell and against a variant with an overlay title bar;
-  drawn at 1180px and at the 760px `minWidth`, with the no-project and
-  unreachable states and toggles for a write in flight, 5/9/25 projects, the
-  620px window floor, the create form open and the project `⋮` menu
-  (spec: `.longclaw/tickets/LC-239w/ticket.md`).
 
 ## Imported prototypes
 
