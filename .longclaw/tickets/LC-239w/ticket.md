@@ -464,3 +464,90 @@ npm run a11y:audit    A1–A5 PASS
 npm run matrix        8 axes × 12 states clean
 ```
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_489561fa
+kind: comment
+occurred_at: 2026-09-01T04:19:19.170Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+## Code review against `main`, and the fixes
+
+Two-axis review of `main...HEAD`. Both axes converged on the same root cause,
+and it is the one this ticket has now hit twice: rounds 3 and 4 changed the
+geometry and the numbers, and the prose explaining them stayed where it was.
+
+**Three comments described code that is not there.** This is
+`citation-guard`'s failure mode one level down — a stale measurement reads
+exactly like a fresh one, and nothing in `verify` looks at prose.
+
+- `.project-identity` said `position: relative` is for the gear, "which is
+  taken out of the flow". The rule has no `position`, and round 3 put the gear
+  *into* the flow of the name's row.
+- `styles.css` and `App.tsx` both said the chip's box is "107px at its
+  narrowest, so sixteen characters". `pathDisplay.ts` has said **137px and 21
+  characters** since round 3 — two files stating different arithmetic for one
+  constant, which is exactly what the "the cap is a measurement" argument was
+  meant to prevent.
+- Two thirds of the chip's own comment documented a deleted
+  `calc(100% - 30px)` — the width held clear of a gear that has since moved off
+  that row and given it back.
+
+**And `--self-test` was green over a rule that inverted nothing.**
+`PRE_FIX_CSS` set `.project-identity .path-chip { max-width: 100% }`, which is
+what production says *and* what the base `.path-chip` says. It changed no
+pixel, so check 5's `clearsGear` arm had no inversion behind it, and the run
+still printed `SELF-TEST ok` on the strength of the other rules. Round 4's
+`.project-section, .project-row { min-width: 0 }` had no inversion at all.
+
+Both are real now, and both bite where the defect actually was:
+
+```
+FAIL  the path fits its box on one line and stops short of the gear
+        "…" 132px in 132px, gear OVERLAPPED            ← every width
+FAIL  the identity block is the rows' width and its gear is on their ⋮
+        block 12..207 vs row 12..211                    ← 900px and below
+```
+
+**The reason it hid is fixed too.** `failed > 0` cannot see a dead rule: some
+other rule always fails, so the aggregate stays comfortably green. The unit is
+now the check *name*. The seven checks the pre-fix rules answer for must each
+go red at some width, and a name the run never emits fails the same way, so
+renaming a check cannot quietly drop it out of coverage. The other twelve
+checks — clipping, resizing, controls leaving the window — have no inversion
+and no rule up there reproduces them, so they are **named as uncovered on
+every self-test run** rather than counted as passes. What a probe cannot reach
+it must not report on.
+
+Smaller things in the same commit: the duplicate `max-width` on the identity
+chip; `.identity-text`'s two stacked comments merged into one that says
+`flex: 1 1 auto` as the code does; `.project-row` declared once instead of
+twice; and the `LC-239w` entry the prototypes index was missing.
+
+**Two findings closed without a change.** `WriteIndicator`'s `reports` union
+is not scope creep — it replaces `transient?: boolean`, so it is a 2→3 widening
+and all three states have call sites. `backLabel`/`onBack` is not a data clump:
+one call site passes both, the other relies on the `Back` default, which is an
+optional label rather than fields that travel together. The
+`@media (max-width: 759px)` wrap stays — forced by A5, below the window's own
+`minWidth`, and spec'd at `screen-specs.md:67`.
+
+```
+npm run verify        exit 0 — 44 files, 1119 tests, 494 citations
+npm run probe:header  133/133
+  -- --self-test      39 red; all 7 the rules answer for went red
+npm run a11y:audit    A1–A5 PASS
+npm run matrix        8 axes × 12 states clean
+```
+
+One note on the matrix, because AGENTS.md asks that the environment be
+suspected first. It failed twice — once at WebKit launch, once on a menu hover
+four axes in. I stashed the source changes and ran it again: **the baseline did
+not reach a single axis in ten minutes**, at load 7–10. It was the machine. The
+clean run above is with the changes restored and nothing else running.
+<!-- /longclaw:event -->
