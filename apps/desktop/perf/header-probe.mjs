@@ -99,19 +99,37 @@ const SELF_TEST = process.argv.includes("--self-test");
 const SLOW_MS = 1_800;
 
 /**
- * The two defects this probe exists for, restored from a stylesheet.
+ * The defects this probe exists for, restored from a stylesheet.
  *
  * It used to put back the pre-LC-149 header with `display: contents` on the
  * identity group. There is no identity group any more — LC-239w moved the name,
  * the path and the disk-state line to the side panel and left the header
- * holding controls alone — so the inversion is now the two rules that would
- * bring the same class of defect back:
+ * holding controls alone — so the inversion is now the rules that would bring
+ * the same class of defect back:
  *
  *   1. the control row free to wrap and free to refuse to shrink, which is
  *      LC-149's `New ticket` on a second line and, past that, off the side;
  *   2. the identity block's disk row free to collapse, which is the same defect
  *      turned on its side — the project list moving down when a write starts
- *      and back up when it lands, on every write.
+ *      and back up when it lands, on every write;
+ *   3. the project list not scrolling inside its own box, which is LC-73's
+ *      create pair walking off the foot of the window at enough projects;
+ *   4. the gear back out of the flow of the name's row, floating over the
+ *      block, where its 26px box hangs into the path's row against an 18px name
+ *      line and takes the chip's last characters with it;
+ *   5. the block inset from the rows it sits over, and its text column sizing
+ *      to the project's name rather than to the panel, which is round 4's
+ *      misalignment on both of its axes;
+ *   6. the rows refusing to shrink below their own content, which is the same
+ *      misalignment from the other side and only at the widths where the shell
+ *      squeezes this panel.
+ *
+ * **A rule here must actually invert something.** One of them once restated a
+ * declaration the stylesheet already had — `.project-identity .path-chip
+ * { max-width: 100% }`, which is what production and the base rule both say —
+ * so it changed nothing, and the check it was meant to cover went unprotected
+ * while the run still reported `SELF-TEST ok` on the strength of the other
+ * rules. Counting failures cannot see that; the list below is what does.
  */
 const PRE_FIX_CSS = `
   .content-header .toolbar-actions { flex-wrap: wrap; min-width: auto; }
@@ -120,10 +138,33 @@ const PRE_FIX_CSS = `
   .content-header .filter-wrap { width: 380px; min-width: 0; }
   .identity-disk { height: auto; min-height: 0; margin-top: 0; }
   .project-nav { overflow-y: visible; min-height: auto; }
-  .project-identity .path-chip { max-width: 100%; }
-  .project-identity { padding-right: 4px; }
+  .project-identity { padding-right: 4px; position: relative; }
+  .identity-name .settings-button { position: absolute; top: 0; right: 0; }
   .identity-text { flex: 0 1 auto; }
+  .project-section, .project-row { min-width: auto; }
 `;
+
+/**
+ * The checks those rules are answerable for — one or more per numbered defect
+ * above, in the order they are numbered. Under `--self-test` each of these must
+ * go red at some width, and a name here that the run never emits at all fails
+ * the same way, so renaming a check cannot quietly drop it out of coverage.
+ *
+ * The probe's other checks are deliberately not in this list. They guard
+ * against a control being clipped, resized by a write, or pushed out of the
+ * window — real defects with causes of their own that no rule up there
+ * reproduces. They are named as uncovered on every self-test run rather than
+ * counted as passes, because a probe must not report on what it cannot reach.
+ */
+const INVERTED_CHECKS = [
+  "the header's control row does not break while writing",
+  "the header's control row does not break with the spinner up",
+  "the identity block and the list hold still while writing",
+  "the identity block and the list hold still with the spinner up",
+  "the project list scrolls and the pinned pair is inside the panel",
+  "the path fits its box on one line and stops short of the gear",
+  "the identity block is the rows' width and its gear is on their `⋮`",
+];
 
 /* ---------- reporting ---------- */
 
@@ -562,13 +603,37 @@ async function main() {
   console.log(`\n  ${total - failed}/${total} checks passed`);
 
   if (SELF_TEST) {
-    // Inverted: the pre-fix stylesheet must break this, or the probe is blind.
-    console.log(
-      failed > 0
-        ? `\n  SELF-TEST ok — the pre-fix rules failed ${failed} checks`
-        : "\n  SELF-TEST FAILED — the pre-fix rules passed every check",
+    // Inverted: every check the pre-fix rules answer for must go red, or one of
+    // those rules is doing nothing. Counting the failures cannot see that — a
+    // rule that restates what the stylesheet already says leaves its check green
+    // while the total stays comfortably above zero. So the unit is the check
+    // *name*, and the ones that never go red are named rather than summed away.
+    const everRed = new Set();
+    const names = new Set();
+    for (const row of results)
+      for (const item of row.checks) {
+        names.add(item.name);
+        if (!item.ok) everRed.add(item.name);
+      }
+    // A name that never ran and a name that ran green are the same failure
+    // here: neither is evidence the rule meant to break it does anything.
+    const blind = INVERTED_CHECKS.filter((name) => !everRed.has(name));
+    const uncovered = [...names].filter(
+      (name) => !INVERTED_CHECKS.includes(name),
     );
-    process.exit(failed > 0 ? 0 : 1);
+    if (uncovered.length > 0)
+      console.log(
+        `\n  not covered by the pre-fix rules — ${uncovered.length} checks with no inversion:\n` +
+          uncovered.map((name) => `    ${name}`).join("\n"),
+      );
+    console.log(
+      blind.length === 0
+        ? `\n  SELF-TEST ok — the pre-fix rules failed ${failed} checks, ` +
+            `and all ${INVERTED_CHECKS.length} they answer for went red`
+        : `\n  SELF-TEST FAILED — ${blind.length} of ${INVERTED_CHECKS.length} rules inverted nothing:\n` +
+            blind.map((name) => `    ${name}`).join("\n"),
+    );
+    process.exit(blind.length === 0 ? 0 : 1);
   }
   process.exit(failed > 0 ? 1 : 0);
 }

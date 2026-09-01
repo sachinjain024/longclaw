@@ -2583,7 +2583,7 @@ function projectInitial(name: string): string {
  * is a character count because the chip is mono — see `pathDisplay.ts`, where
  * the arithmetic is.
  *
- * No folder glyph. It costs 19px of a box that is 107px at its narrowest —
+ * No folder glyph. It costs 19px of a box that is 137px at its narrowest —
  * three characters of path — and the row it would lead is already led by the
  * project tile.
  * The display text is tilde-abbreviated; the clipboard and `title` keep the

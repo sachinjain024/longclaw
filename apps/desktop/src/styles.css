@@ -80,8 +80,9 @@ textarea:focus-visible,
    for a reason this block does not have — the pair down there is pinned over a
    list that scrolls under it.
 
-   `position: relative` is for the gear, which is taken out of the flow so the
-   path below it can run the panel's full width. */
+   The gear is in the flow of the name's row rather than positioned over the
+   block, so nothing here establishes a containing block for it — see
+   `.identity-name`, which is where that decision is now paid for. */
 .project-identity {
   display: grid;
   gap: 4px;
@@ -137,14 +138,13 @@ textarea:focus-visible,
   font-size: 17px;
 }
 
-/* The two rows the tile is tall. `min-width: 0` here and on the chip inside it,
-   because an elided path is only elided if its box may be narrower than its
-   text. */
-/* Fills the row rather than sizing to its own content. As a bare grid child of
-   a flex row it was as wide as its widest line — so the gear, which hangs off
-   the end of the name's row, sat wherever the project's name happened to end
-   and never at the panel's edge. `flex: 1` is what puts it on the `⋮`'s line
-   and hands the path everything left over. */
+/* The two rows the tile is tall, filling the row rather than sizing to its own
+   content. As a bare grid child of a flex row it was as wide as its widest line
+   — so the gear, which sits at the end of the name's row, ended wherever the
+   project's name happened to and never at the panel's edge. `flex: 1 1 auto` is
+   what puts it on the `⋮`'s line and hands the path everything left over, and
+   `min-width: 0` here and on the chip inside it is what lets the path be
+   narrower than its text, which is the whole of an elision. */
 .identity-text {
   display: grid;
   flex: 1 1 auto;
@@ -337,20 +337,20 @@ textarea:focus-visible,
 /* The row is a pair now: the project, and the `⋮` that opens its menu (LC-208).
    They are siblings rather than nested, so neither one's accessible name is
    part of the other's — and the row keeps its own hover as one surface. */
-/* `min-width: 0` on both, because both are the automatic-minimum trap one level
-   apart: a `<section>` is a grid item of `.project-nav` and a row is a flex item
-   of the section, and neither will go below its own min-content without being
-   told it may. Below about 900px the shell squeezes this panel to 220px, and
-   the rows kept their content width and hung 4px past its edge — visible as a
-   list that does not line up with the identity block above it, which does
-   shrink (LC-239w, round 4). */
-.project-section,
-.project-row {
+/* `min-width: 0` here and on `.project-row` below, because the two are the
+   automatic-minimum trap one level apart: a `<section>` is a grid item of
+   `.project-nav` and a row is a flex item of the section, and neither will go
+   below its own min-content without being told it may. Below about 900px the
+   shell squeezes this panel to 220px, and the rows kept their content width and
+   hung 4px past its edge — visible as a list that does not line up with the
+   identity block above it, which does shrink (LC-239w, round 4). */
+.project-section {
   min-width: 0;
 }
 
 .project-row {
   display: flex;
+  min-width: 0;
   align-items: center;
   border-radius: var(--lc-radius-control);
 }
@@ -1125,28 +1125,24 @@ button:disabled {
 
 /* 10.5px in the identity block, which is the size the content header set it at
    and the size `pathDisplay.ts`'s character cap is measured against: 6.3px a
-   glyph in a box that is 107px at its narrowest, so sixteen characters.
+   glyph in a box that is 137px at its narrowest, so twenty-one characters.
    Changing this size without re-measuring that cap is how the path starts
    clipping — `probe:header` prints the two side by side on every run. */
 .project-identity .path-chip {
-  /* Sized to its text and stopped short of the gear, which is the pair of rules
-     that keeps this row's pixels honest.
+  /* Sized to its text, and to nothing else: this row is the chip's alone.
 
-     `justify-self` because the chip is a button: stretched across the column it
+     `justify-self` because the chip is a button. Stretched across the column it
      would own the empty half of the row too, and a click on nothing would copy
-     the path. The `max-width` because the gear is 26px tall against an 18px
-     name line, so its box hangs a few pixels into *this* row whatever the chip
-     does — and it comes later in the DOM, so those pixels are its. A chip that
-     ran the full width put its own last characters under a control that opens
-     settings. Neither wants a `z-index`: the layer scale in `tokens/` orders
-     the surfaces that stack at the root, and this is two siblings inside one
-     block, which geometry can settle by itself.
+     the path.
 
-     30px is the gear and the gap it needs. `pathDisplay.ts`'s character cap is
-     measured against what is left, so in the ordinary case the text stops on
-     its own and this is the backstop for a panel the shell has squeezed. */
+     No width reserved for the gear. It held 30px clear of one while the gear
+     floated over the block, out of flow, and its 26px box hung into this row
+     against an 18px name line — a sliver of the chip that opened settings. The
+     gear is in the flow of the name's row now, so that row is as tall as the
+     control and this one runs the column whole; the 30px was being paid by the
+     one thing in this block short of room. `probe:header` checks the two boxes
+     for overlap rather than trusting the arithmetic. */
   justify-self: start;
-  max-width: 100%;
   color: var(--lc-ink-3);
   font-size: 10.5px;
 }
