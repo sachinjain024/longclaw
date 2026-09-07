@@ -1042,8 +1042,9 @@ describe("the project path chip (LC-68)", () => {
     const chip = screen.getByRole("button", {
       name: `Copy path — ${p.rootPath}`,
     });
-    // Display text is tilde-abbreviated; title and clipboard keep the full path.
-    expect(chip.textContent).toContain("~/dev/longclaw");
+    // Display text is tilde-abbreviated, and short enough to escape the
+    // elision, which is what makes this an assertion about the `~`.
+    expect(chip.textContent).toBe("~/dev/longclaw");
     expect(chip.textContent).not.toContain(home);
     expect(chip.getAttribute("title")).toBe(p.rootPath);
 
@@ -1059,8 +1060,14 @@ describe("the project path chip (LC-68)", () => {
     const chip = screen.getByRole("button", {
       name: `Copy path — ${p.rootPath}`,
     });
-    expect(chip.textContent).toContain("/Users/other/shared");
+    // Shown whole, and with no `~`, which is this test's subject: the
+    // abbreviation is the home directory's, not any prefix's. jsdom lays
+    // nothing out, so `head + tail` is the whole string here whatever the box
+    // would do with it — where the display cut falls is `probe:header`'s.
+    expect(chip.textContent).toBe("/Users/other/shared");
     expect(chip.textContent).not.toContain("~");
+    // And the whole path is still what the chip is named for and copies.
+    expect(chip.getAttribute("title")).toBe(p.rootPath);
   });
 
   it("copies the path to the clipboard and raises a toast on click", async () => {
@@ -1091,7 +1098,7 @@ describe("the project settings gear (LC-70)", () => {
   // sidebar" and then never look at the sidebar (LC-158): the star's half of
   // LC-70 is that the row affordance already existed and was left alone, which
   // is covered where that row is — § the side panel against its spec.
-  it("drops the header Star button and opens settings from a header gear", async () => {
+  it("drops the Star button and opens settings from the identity block's gear", async () => {
     vi.mocked(api.listProjects).mockResolvedValue([project]);
     vi.mocked(api.openProject).mockResolvedValue({
       project,
@@ -1103,15 +1110,19 @@ describe("the project settings gear (LC-70)", () => {
     render(<App />);
     await screen.findByRole("button", { name: "Board", pressed: true });
 
-    // Scoped by class, not `getByRole("banner")`: this `<header>` sits inside
-    // `.main-panel`, so HTML-AAM maps it to `generic`, and only jsdom's
-    // unconditional `header: "banner"` would make that query pass.
-    const header = document.querySelector<HTMLElement>(".content-header")!;
-    const settings = within(header).getByRole("button", {
+    // The identity block, not the content header: the gear moved with the path
+    // it belongs to when the header became controls-only (LC-239w). Scoped by
+    // class rather than `getByRole("banner")` because this `<header>` sits
+    // inside `.side-panel`, so HTML-AAM maps it to `generic`.
+    const identity = document.querySelector<HTMLElement>(".project-identity")!;
+    const settings = within(identity).getByRole("button", {
       name: "Project settings",
     });
     expect(
-      within(header).queryByRole("button", { name: /^Star(?:red)?$/ }),
+      document.querySelector(".content-header .settings-button"),
+    ).toBeNull();
+    expect(
+      within(identity).queryByRole("button", { name: /^Star(?:red)?$/ }),
     ).toBeNull();
     // What it opens is a menu since LC-208, so the expanded state is back: a
     // menu *is* a region that stays under its trigger, which is the thing
@@ -1615,11 +1626,16 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
     const toast = await screen.findByRole("status");
     expect(toast.textContent).toContain("Renamed to Renamed");
     // The write is named for the file it lands in, not for a ticket — the
-    // header's disk-state indicator said `ticket.md` for every settings write
-    // that reached it, because that is what it says when nothing names a path.
+    // disk-state indicator said `ticket.md` for every settings write that
+    // reached it, because that is what it says when nothing names a path. It
+    // reads from the side panel's identity block since LC-239w, and only while
+    // the write is in flight.
+    act(() => {
+      useMutationStore.setState({ writing: ".longclaw/longclaw.yaml" });
+    });
     await waitFor(() =>
       expect(
-        document.querySelector(".content-header .disk-path")?.textContent,
+        document.querySelector(".identity-disk .disk-path")?.textContent,
       ).toContain("longclaw.yaml"),
     );
 
@@ -1735,9 +1751,9 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
     vi.mocked(api.removeProject).mockResolvedValue(undefined);
     render(<App />);
     await screen.findByRole("button", { name: "Board", pressed: true });
-    const header = document.querySelector<HTMLElement>(".content-header")!;
+    const identity = document.querySelector<HTMLElement>(".project-identity")!;
     fireEvent.click(
-      within(header).getByRole("button", { name: "Project settings" }),
+      within(identity).getByRole("button", { name: "Project settings" }),
     );
     fireEvent.click(screen.getByRole("menuitem", { name: /All settings/ }));
     fireEvent.click(screen.getByRole("tab", { name: "Danger zone" }));
@@ -1759,7 +1775,7 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
   });
 });
 
-describe("the header disk-state indicator (LC-69)", () => {
+describe("the disk-state indicator (LC-69, moved by LC-239w)", () => {
   const project = {
     id: "project-fixture",
     name: "Fixture Project",
@@ -1782,39 +1798,75 @@ describe("the header disk-state indicator (LC-69)", () => {
     });
     render(<App />);
     await screen.findByRole("button", { name: "Board", pressed: true });
-    return document.querySelector<HTMLElement>(".content-header")!;
+    // The side panel's identity block, where it rides with the path
+    // (`screen-specs.md` § Project identity). It left the content header with
+    // everything else that said which project this is (LC-239w).
+    return document.querySelector<HTMLElement>(".project-identity")!;
   }
 
   it("is silent on a settled board, where the old chip said `watching`", async () => {
-    const header = await openBoard();
+    const identity = await openBoard();
 
-    expect(header.textContent).not.toContain("watching");
+    expect(identity.textContent).not.toContain("watching");
   });
 
-  it("names the file a write landed in, and nothing before the first write", async () => {
-    const header = await openBoard();
-    expect(header.textContent).not.toContain("✓");
+  it("names the file a write is landing in, while it is in flight", async () => {
+    const identity = await openBoard();
 
     act(() => {
       useMutationStore.setState({
-        settled: ".longclaw/tickets/LC-1/ticket.md",
+        writing: ".longclaw/tickets/LC-1/ticket.md",
       });
     });
 
     // With the key, because every ticket in the project is stored as
-    // `ticket.md`: the mark has to say which one landed, not that one did.
-    expect(header.textContent).toContain("✓ tickets/LC-1/ticket.md");
-    expect(header.textContent).not.toContain(".longclaw/tickets");
+    // `ticket.md`: the line has to say which one is being written, not that one
+    // is.
+    expect(identity.textContent).toContain("writing tickets/LC-1/ticket.md");
+    expect(identity.textContent).not.toContain(".longclaw/tickets");
+  });
+
+  /**
+   * The settled `✓ ticket.md` is not drawn here (LC-239w). Under a path chip it
+   * read as a second, quieter path rather than as news, and it stood there for
+   * the whole `SETTLED_MS` after every write — D-07's argument against the
+   * `● watching` chip, one state further on.
+   */
+  it("says nothing once the write has landed", async () => {
+    const identity = await openBoard();
+
+    act(() => {
+      useMutationStore.setState({
+        settled: ".longclaw/tickets/LC-1/ticket.md",
+        writing: undefined,
+      });
+    });
+
+    expect(identity.textContent).not.toContain("✓");
+    expect(identity.textContent).not.toContain("ticket.md");
+  });
+
+  /**
+   * And the slot it would have used stays, empty. A slot that collapsed when
+   * the disk went quiet would move every row of the project list under it, on
+   * every write — LC-149's defect turned on its side.
+   */
+  it("keeps its row whether or not there is anything to say", async () => {
+    const identity = await openBoard();
+    const slot = identity.querySelector<HTMLElement>(".identity-disk")!;
+
+    expect(slot).toBeTruthy();
+    expect(slot.textContent).toBe("");
   });
 
   it("speaks up while a read is in flight", async () => {
-    const header = await openBoard();
+    const identity = await openBoard();
 
     act(() => void useLongClawStore.setState({ loading: true }));
-    expect(header.textContent).toContain("reading");
+    expect(identity.textContent).toContain("reading");
 
     act(() => void useLongClawStore.setState({ loading: false }));
-    expect(header.textContent).not.toContain("reading");
+    expect(identity.textContent).not.toContain("reading");
   });
 });
 
@@ -4865,32 +4917,82 @@ describe("the app shell against its spec (LC-71, LC-72, LC-73)", () => {
   });
 
   /**
-   * These pin the sidebar the spec now draws, not a fallback: the actions live
-   * above the sections by founder decision of 2026-08-06, and `screen-specs.md`
-   * § App shell was amended to match rather than the other way round (LC-73).
+   * These pin the sidebar the spec now draws, not a fallback.
    *
-   * What they guard is the *hierarchy*, which is the whole reason this position
-   * is not the one D-0B flagged. Two controls of equal weight above the rows is
-   * the regression; a `secondary` CTA over a quiet `ghost` is not.
+   * LC-73's founder decision put the pair *above* the sections, because
+   * `.project-nav` had no `overflow-y` and at the foot of a long list the two
+   * controls left the window. LC-239w moves them back to the foot and pays the
+   * price that decision named: the nav scrolls, and `.side-panel-footer` is
+   * `margin-top: auto` — a pin rather than a place in the flow — so the pair is
+   * at the same height with 25 projects as with 5. The ordering test below is
+   * that trade written down; without the `overflow-y`, LC-73 recurs.
+   *
+   * What they also guard is the *hierarchy*, which is the whole reason this
+   * position is not the one D-0B flagged. Two controls of equal weight is the
+   * regression; a `secondary` CTA over a quiet `ghost` is not.
    */
   describe("sidebar project actions", () => {
-    it("puts them above the project sections, under the lockup", async () => {
+    it("puts the identity block first, the list next, and the pair at the foot", async () => {
       await openBoard();
 
       const panel = document.querySelector(".side-panel")!;
-      const kinds = [...panel.children].map((child) =>
-        child.classList.contains("project-actions")
-          ? "actions"
-          : child.classList.contains("brand-lockup")
-            ? "lockup"
+      const kinds = [...panel.children]
+        .map((child) =>
+          child.classList.contains("project-identity")
+            ? "identity"
             : child.classList.contains("project-nav")
               ? "nav"
-              : "other",
-      );
-      // Lockup, then the actions, then the list. `.project-nav` has no
-      // `overflow-y`, so at the foot these leave the viewport once the project
-      // list is long enough — that is what this ordering exists to prevent.
-      expect(kinds.slice(0, 3)).toEqual(["lockup", "actions", "nav"]);
+              : child.classList.contains("side-panel-footer")
+                ? "footer"
+                : "other",
+        )
+        .filter((kind) => kind !== "other");
+      expect(kinds).toEqual(["identity", "nav", "footer"]);
+
+      // The pair is *in* the footer, and the footer is the last child — which
+      // is what `margin-top: auto` needs to pin it.
+      const footer = panel.querySelector(".side-panel-footer")!;
+      expect(footer.querySelector(".project-actions")).toBeTruthy();
+      expect(panel.lastElementChild).toBe(footer);
+
+      // That the list *scrolls* — the rule that makes this pin safe — is not
+      // asked here. jsdom loads no stylesheet, so `getComputedStyle` would
+      // answer about a page with no CSS and pass whatever happened to be
+      // there. `probe:header` asks it in WebKit, where it is computed.
+    });
+
+    /**
+     * The form is the panel's body while it is open: it is ~520px tall and the
+     * panel has 560px of content at the window's 620px `minHeight`, so under
+     * the pair it does not fit (LC-239w). The list goes with it, and so does
+     * the pair — which is what stops `Create project` being on screen twice,
+     * once as the form's filled submit and once as the toggle below it.
+     */
+    it("gives the create form the panel, and takes the list and the pair away", async () => {
+      await openBoard();
+
+      const panel = document.querySelector(".side-panel")!;
+      expect(panel.className).not.toContain("creating");
+
+      fireEvent.click(screen.getByText("Create project"));
+      await screen.findByText("Choose folder");
+
+      expect(panel.className).toContain("creating");
+      expect(
+        panel.querySelector(".create-region form.quick-create"),
+      ).toBeTruthy();
+      // Not inside the pair's section, which is where it used to render.
+      expect(panel.querySelector(".project-actions form")).toBeNull();
+      // Both are hidden by one rule keyed off `creating`, asserted above.
+      // Whether that rule actually hides them is a computed style, which
+      // `probe:header` asks in WebKit for the same reason as the line above.
+
+      // The way out, now that the toggle that opened it is behind it.
+      const cancel = within(
+        panel.querySelector<HTMLElement>(".create-region")!,
+      ).getByRole("button", { name: "Cancel" });
+      fireEvent.click(cancel);
+      expect(panel.className).not.toContain("creating");
     });
 
     it("leads with a secondary create CTA over a quieter ghost, never two of equal weight", async () => {

@@ -63,6 +63,35 @@ describe("the disk-state indicator", () => {
   });
 
   /**
+   * LC-239w. The side panel's identity block puts this line directly under a
+   * path chip, where `✓ ticket.md` read as a second, quieter path rather than as
+   * news — and stood there for the whole `SETTLED_MS` after every write. D-07's
+   * argument against the `● watching` chip, one state further on.
+   */
+  it("reports the write and not the mark after it, in-flight", () => {
+    useMutationStore.setState({
+      writing: ".longclaw/tickets/LC-1/ticket.md",
+      inFlight: 1,
+    });
+    const view = render(<WriteIndicator reports="in-flight" />);
+
+    // In flight it says exactly what it says anywhere else.
+    expect(screen.getByText(/writing tickets\/LC-1\/ticket\.md/)).toBeTruthy();
+
+    act(
+      () =>
+        void useMutationStore
+          .getState()
+          .endWrite(".longclaw/tickets/LC-1/ticket.md"),
+    );
+
+    expect(view.container.textContent).toBe("");
+    // And a read still speaks, because that is work in flight too.
+    view.rerender(<WriteIndicator reports="in-flight" busy="reading" />);
+    expect(view.container.textContent).toBe("reading");
+  });
+
+  /**
    * D-39. The ticket panel names its own file with a chip, so the indicator
    * there is the news and nothing else — a steady line beside a steady chip
    * would say the same thing twice, and swapping between them is what made the
@@ -70,7 +99,10 @@ describe("the disk-state indicator", () => {
    */
   it("renders nothing when the disk is quiet and it was asked for news only", () => {
     render(
-      <WriteIndicator idle=".longclaw/tickets/LC-1/ticket.md" transient />,
+      <WriteIndicator
+        idle=".longclaw/tickets/LC-1/ticket.md"
+        reports="transient"
+      />,
     );
 
     expect(screen.queryByText("tickets/LC-1/ticket.md")).toBeNull();
@@ -79,7 +111,10 @@ describe("the disk-state indicator", () => {
   it("still scopes the settled mark to its own file when it is news only", () => {
     useMutationStore.setState({ settled: ".longclaw/tickets/LC-9/ticket.md" });
     const view = render(
-      <WriteIndicator idle=".longclaw/tickets/LC-1/ticket.md" transient />,
+      <WriteIndicator
+        idle=".longclaw/tickets/LC-1/ticket.md"
+        reports="transient"
+      />,
     );
 
     expect(screen.queryByText(/✓/)).toBeNull();
@@ -89,7 +124,10 @@ describe("the disk-state indicator", () => {
       settledAt: 1,
     });
     view.rerender(
-      <WriteIndicator idle=".longclaw/tickets/LC-1/ticket.md" transient />,
+      <WriteIndicator
+        idle=".longclaw/tickets/LC-1/ticket.md"
+        reports="transient"
+      />,
     );
 
     expect(screen.getByText("✓ tickets/LC-1/ticket.md")).toBeTruthy();

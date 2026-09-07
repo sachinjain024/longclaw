@@ -54,7 +54,6 @@ import {
   isUnreachableFailure,
 } from "./failure";
 import { filterTickets, isFiltering } from "./filtering";
-import { FolderGlyph } from "./FolderGlyph";
 import { GearGlyph, KebabGlyph } from "./SettingsGlyphs";
 import { IssueList } from "./IssueList";
 import {
@@ -67,6 +66,7 @@ import { MenuButton } from "./Menu";
 import { mutate, type Mutation, useMutationStore } from "./mutations";
 import { ORDERINGS, type OrderingMode } from "./ordering";
 import { OwlMark } from "./OwlMark";
+import { splitPath, tildeAbbreviate } from "./pathDisplay";
 import { ProjectSettings } from "./ProjectSettings";
 import { QuickCreate } from "./QuickCreate";
 import type { FocusRequest } from "./rovingFocus";
@@ -1781,74 +1781,137 @@ export function App() {
 
   return (
     <main className="app-shell">
-      <aside className="side-panel">
-        <div className="brand-lockup">
-          <OwlMark size={22} />
-          <strong>LongClaw</strong>
-        </div>
+      <aside className={classes("side-panel", quickCreateOpen && "creating")}>
+        {/* What the lockup used to be, answering a better question. The window's
+            own title bar says LongClaw — `tauri.conf.json` sets the title and no
+            `titleBarStyle`, so macOS draws the name above this panel whether or
+            not the panel repeats it — and nothing up here said which project you
+            were in. This does, with the path, the disk and the gear that only it
+            has (`screen-specs.md` § Project identity, LC-239w).
 
-        {/* Above the sections, under the lockup: the sidebar is the surface
-            that lists projects, so "add one" belongs on it, and `.project-nav`
-            has no `overflow-y` — at the foot these scroll out of reach once the
-            list is long enough. Founder decision, 2026-08-06; the spec was
-            amended to match (`screen-specs.md` § App shell, LC-73).
+            The owl is not deleted: `Welcome` still draws it at 52px. */}
+        {project && (
+          <header className="project-identity">
+            <div className="identity-row">
+              {/* The project's first letter, square. A circle is this design
+                  language's shape for *people* — humans are circle avatars in
+                  the timeline and the composer — and a project is not one. It
+                  is decorative: the name it abbreviates is the next thing in
+                  the row. Unreachable takes the row's warn triangle instead
+                  (`screen-specs.md:60`), said in words below because a glyph is
+                  never the only channel. */}
+              <span
+                className={classes(
+                  "project-tile",
+                  !project.reachable && "unreachable",
+                )}
+                aria-hidden="true"
+              >
+                {project.reachable ? projectInitial(project.name) : "⚠"}
+              </span>
+              {!project.reachable && (
+                <span className="visually-hidden">Unreachable</span>
+              )}
+              <div className="identity-text">
+                {/* The gear is *in* the name's row, so the width it takes comes
+                    out of the name — which ellipsizes and can spare it — and
+                    none of it out of the path below, which gets the column
+                    whole. It rode above the row, out of flow, until the real
+                    app showed what that cost: the path had to be held 30px
+                    clear of a control that was not on its line. Still outside
+                    the `project.reachable` guard, because settings holds
+                    `Locate…`, the way back (LC-239w, keeping LC-223's rule). */}
+                <div className="identity-name">
+                  <h1>{project.name}</h1>
+                  {/* `aria-haspopup="menu"` and a real `aria-expanded`: what
+                      the gear opens is a menu now (LC-208), which is a region
+                      that stays part of the page under its trigger — the very
+                      thing LC-125 removed the expanded state for when this
+                      opened a dialog instead. The menu is what opens the
+                      dialog.
 
-            The hierarchy is the point, and it is what makes this not the two
-            filled buttons D-0B flagged: `New ticket` is the app's primary and
-            keeps the only filled accent on screen, so create is `secondary` and
-            open is the quiet `ghost` beneath it (`components.md:49-53`). */}
-        <section className="project-actions">
-          <button
-            tabIndex={0}
-            className="secondary"
-            onClick={() =>
-              quickCreateOpen ? closeQuickCreate() : setQuickCreateOpen(true)
-            }
-          >
-            Create project
-          </button>
-          <button
-            tabIndex={0}
-            className="ghost"
-            onClick={() =>
-              void chooseOpenProject().then((folder) => {
-                // A plain folder is an offer to create one there rather than a
-                // refusal (LC-170). The form below is this surface's create
-                // step, so the fall-through lands in it with the folder already
-                // answered — the same two screens the welcome column runs, in
-                // the space the sidebar has.
-                if (folder) {
-                  setQuickCreateFolder(folder);
-                  setQuickCreateOpen(true);
-                }
-              })
-            }
-          >
-            Open folder
-          </button>
-          {quickCreateOpen && (
-            <CreateProjectForm
-              // Remounted when the folder changes: the form reads it once, to
-              // prefill the name and the key and to take the caret.
-              key={quickCreateFolder ?? ""}
-              className="quick-create"
-              themes={THEMES}
-              folder={quickCreateFolder}
-              // Naming the step that is actually next. `Choose folder` is a
-              // promise the fall-through has already kept.
-              submitLabel={
-                quickCreateFolder === undefined
-                  ? "Choose folder"
-                  : "Create project"
-              }
-              onSubmit={(draft) =>
-                quickCreateFolder === undefined
-                  ? void createProject(draft)
-                  : void createProjectIn(quickCreateFolder, draft)
-              }
-            />
-          )}
-        </section>
+                      No `small`. That class is a 24px labelled control with 9px
+                      of side padding, and this is a 26px square with none: while
+                      the gear lived in the content header the rule that says so
+                      out-specified it two classes to one, and unscoping the rule
+                      for the move left the two tied — so `.small`'s padding won
+                      on source order and squeezed the 14px glyph to 6px. It
+                      shipped, and it read as a dot. The class it never wanted is
+                      gone and the rule is scoped to this row. */}
+                  <button
+                    tabIndex={0}
+                    ref={settingsButton}
+                    className={classes(
+                      "ghost settings-button",
+                      settingsMenuOpen && "open",
+                    )}
+                    aria-label="Project settings"
+                    aria-haspopup="menu"
+                    aria-expanded={settingsMenuOpen}
+                    title="Project settings"
+                    onClick={() => setSettingsMenuOpen(!settingsMenuOpen)}
+                  >
+                    <GearGlyph />
+                  </button>
+                </div>
+                <PathChip path={project.rootPath} homePath={homePath} />
+              </div>
+            </div>
+            {/* One disk-state line, riding with the path where
+                `screen-specs.md` § Project identity puts it — and only while a
+                write is in flight. The settled `✓ ticket.md` this used to end on
+                is gone: under a path chip it read as a second, quieter path
+                rather than as news, and it sat there for as long after every
+                write as `SETTLED_MS` lasts. D-07's argument, one state further
+                on — the `● watching` chip went because it said the same thing at
+                every idle moment.
+
+                The slot is reserved whether or not there is anything in it —
+                `.identity-disk` in `styles.css` carries the reason and the
+                arithmetic. `reading` is the one word here D-07 did not ask for:
+                the design answers a load with a board skeleton
+                (`states.md:45-52`) that is not built, so until LC-159 builds it
+                this line is the only thing that says a read is in flight. */}
+            <div className="identity-disk">
+              {project.reachable && (
+                <WriteIndicator
+                  reports="in-flight"
+                  busy={
+                    reconciling
+                      ? "reconciling"
+                      : loading
+                        ? "reading"
+                        : undefined
+                  }
+                />
+              )}
+            </div>
+          </header>
+        )}
+        {settingsMenuOpen && project && (
+          <SettingsMenu
+            project={project}
+            themes={THEMES}
+            appearance={appearance}
+            anchor={settingsButton.current}
+            onAppearance={setAppearance}
+            onTheme={(theme) => void changeTheme(project, theme)}
+            onOpenSection={(section) => {
+              closeTicket();
+              setSettingsSection(section);
+            }}
+            // The board's own re-read (ADR 0006), which the menu is the
+            // first surface to offer by hand: the watcher is what
+            // normally keeps this current, and this is the way back
+            // when a person has reason to doubt it.
+            onReload={() => {
+              void reconcileProject(project.id)
+                .then(applySnapshot)
+                .catch((error) => setError(normalizeError(error)));
+            }}
+            onClose={() => setSettingsMenuOpen(false)}
+          />
+        )}
 
         <nav className="project-nav" aria-label="Projects">
           <ProjectSection
@@ -1879,13 +1942,99 @@ export function App() {
           />
         </nav>
 
+        {/* The form is the panel's body while it is open, not a thing hanging
+            off the pair — which is what the measurement forced. It is ~520px
+            tall and the panel has 560px of content at the window's 620px
+            `minHeight`, so under the pair it does not fit: a cap put the submit
+            button below the fold of a nested scroller, and pinning the footer
+            instead collapsed the list and still hung the button past the
+            panel's bottom edge (LC-239w, prototype rounds 2–3).
+
+            So the list goes while it is up — nothing about choosing a name
+            needs the list of projects you are not in — and so does the pair,
+            which also settles a `Create project` that was otherwise on screen
+            twice: the form's filled submit, and the quieter toggle under it. */}
+        {quickCreateOpen && (
+          <div className="create-region">
+            <CreateProjectForm
+              // Remounted when the folder changes: the form reads it once, to
+              // prefill the name and the key and to take the caret.
+              key={quickCreateFolder ?? ""}
+              className="quick-create"
+              themes={THEMES}
+              folder={quickCreateFolder}
+              // Naming the step that is actually next. `Choose folder` is a
+              // promise the fall-through has already kept.
+              submitLabel={
+                quickCreateFolder === undefined
+                  ? "Choose folder"
+                  : "Create project"
+              }
+              onSubmit={(draft) =>
+                quickCreateFolder === undefined
+                  ? void createProject(draft)
+                  : void createProjectIn(quickCreateFolder, draft)
+              }
+              // The way out, now that the toggle that opened it is hidden. The
+              // form already renders this slot; the sidebar is the first caller
+              // to hand it one.
+              backLabel="Cancel"
+              onBack={closeQuickCreate}
+            />
+          </div>
+        )}
+
+        {/* Pinned to the panel's foot, over a list that scrolls under it. LC-73
+            moved this pair *up* because `.project-nav` had no `overflow-y`, so
+            at the foot of a long list it left the window; the nav scrolls now,
+            and `margin-top: auto` is a pin rather than a position in the flow,
+            so at 25 projects the pair is exactly where it is at 5 (LC-239w).
+
+            The hierarchy is unchanged and is still the point: `New ticket` is
+            the app's primary and keeps the only filled accent on screen, so
+            create is `secondary` and open is the quiet `ghost` beneath it
+            (`components.md:49-53`).
+
+            Appearance is an app preference, not project data, and the spec puts
+            its 3-up segment in project settings (`screen-specs.md:331`), not
+            here — the native `<select>` that used to sit above this line was the
+            only OS chrome left in the sidebar (LC-72). Until the settings modal
+            carries the segment (LC-127), the palette's `Toggle appearance`
+            command is the control. */}
         <div className="side-panel-footer">
-          {/* Appearance is an app preference, not project data, and the spec
-              puts its 3-up segment in project settings (`screen-specs.md:331`),
-              not here — the native `<select>` that used to sit above this line
-              was the only OS chrome left in the sidebar (LC-72). Until the
-              settings modal carries the segment (LC-127), the palette's
-              `Toggle appearance` command is the control. */}
+          <section className="project-actions">
+            {/* Open, not toggle. This was a toggle while the form rendered
+                under it; the form is the panel's body now and this pair is
+                `display: none` for as long as it is up, so the closing arm was
+                a branch nothing could reach. The way out is the form's own
+                `Cancel`. */}
+            <button
+              tabIndex={0}
+              className="secondary"
+              onClick={() => setQuickCreateOpen(true)}
+            >
+              Create project
+            </button>
+            <button
+              tabIndex={0}
+              className="ghost"
+              onClick={() =>
+                void chooseOpenProject().then((folder) => {
+                  // A plain folder is an offer to create one there rather than
+                  // a refusal (LC-170). The form above is this surface's create
+                  // step, so the fall-through lands in it with the folder
+                  // already answered — the same two screens the welcome column
+                  // runs, in the space the sidebar has.
+                  if (folder) {
+                    setQuickCreateFolder(folder);
+                    setQuickCreateOpen(true);
+                  }
+                })
+              }
+            >
+              Open folder
+            </button>
+          </section>
         </div>
       </aside>
 
@@ -1915,59 +2064,34 @@ export function App() {
           )
         ) : (
           <>
-            {/* One row, not three (`screen-specs.md:64-69`): the project's
-                identity on the left, every board control on the right. The
-                `LOCAL PROJECT` eyebrow and the `Board`/`List` heading that used
-                to stand above this are gone — the sidebar already says which
-                project you are in, and the view segment's pressed state already
-                says which surface you are standing on. Between them they cost
-                ~230px of chrome before the first card. */}
-            <header className="content-header">
-              {/* Two units, not five (LC-149). Everything that says *which
-                  project this is* is one box and every control is the other, so
-                  the only place the header can break is between them — which is
-                  the wrap `screen-specs.md` § Content header allows. Ungrouped,
-                  the disk-state
-                  line was a fourth item on this side that arrived when a write
-                  left and took a line of its own below 830px, putting a third
-                  row under a header the spec draws as one. */}
-              <div className="header-identity">
-                {/* The prototype's title stack: the name over its path, the
-                    gear beside the stack (LC-223, item 20). */}
-                <div className="title-stack">
-                  <h1>{project.name}</h1>
-                  <div className="path-line">
-                    <PathChip path={project.rootPath} homePath={homePath} />
-                    {/* One disk-state line, beside the path chip and before the
-                    spacer, where `screen-specs.md:44-53` puts it — and silent
-                    when the disk is quiet (D-07). The `● watching` chip this
-                    replaces said the same thing at every idle moment, which
-                    is a dev trace rather than designed chrome. `reading` is
-                    the one word here D-07 did not ask for: the design answers
-                    a load with a board skeleton (`states.md:45-52`) that is
-                    not built, so until LC-159 builds it this line is the only
-                    thing that says a read is in flight. */}
-                    {project.reachable && (
-                      <WriteIndicator
-                        busy={
-                          reconciling
-                            ? "reconciling"
-                            : loading
-                              ? "reading"
-                              : undefined
-                        }
-                      />
-                    )}
-                  </div>
-                </div>
-              </div>
-              {/* The controls belong to the board, so they appear only when
-                  there is one: an unreachable project keeps its identity row and
-                  gets `UnreachableProject` below it instead. */}
-              {project.reachable && (
+            {/* Controls, and nothing else (`screen-specs.md` § Content header,
+                LC-239w). Everything that says *which project this is* moved to
+                the side panel, which is where the question was already being
+                asked and answered by the list.
+
+                That makes LC-149's rule stronger rather than weaker. The row is
+                one flex child now, so it has no seam to break at: it cannot wrap
+                between halves, because there is no second half, and it cannot
+                wrap inside the cluster, because `.toolbar-actions` is `nowrap`.
+                What is left to defend is the overflow, and that is what the
+                filter field's floor is for. The measured consequence is that the
+                header is one row at 760px — the window's own `minWidth` — where
+                it used to be two.
+
+                The header belongs to the board, so it renders only when there is
+                one: an unreachable project has no controls, and an empty 62px
+                band with a hairline under it is a rule drawn across the top of
+                the centred panel that state *is* (`states.md:80-98`). */}
+            {project.reachable && (
+              <header className="content-header">
                 <div className="toolbar-actions">
-                  {/* `screen-specs.md:47-48` orders the content header:
-                      filter field, then ordering control, then view segment. */}
+                  {/* `screen-specs.md:67-69` orders the content header:
+                      filter field, then ordering control, then view segment,
+                      then `New ticket`. (This cited `:47-48` until LC-239w,
+                      which is the project-actions hierarchy and never said
+                      anything about the header — stale on the day it was
+                      typed, and the sort of thing `citations:check` pins but
+                      cannot notice.) */}
                   {/* The chip is overlaid inside the field's right edge, as
                       the prototype draws it (`prototype.js:495-498`). It is
                       `aria-hidden` and paired with `aria-keyshortcuts` so the
@@ -2038,56 +2162,8 @@ export function App() {
                     <kbd aria-hidden="true">C</kbd>
                   </button>
                 </div>
-              )}
-              {/* The gear, last in the row at the user's direction (LC-223
-                  review) — after New ticket when the board renders, and still
-                  here when the project is unreachable, because settings holds
-                  `Locate…`, the way back. */}
-              {/* `aria-haspopup="menu"` and a real `aria-expanded`: what the
-                  gear opens is a menu now (LC-208), which is a region that
-                  stays part of the page under its trigger — the very thing
-                  LC-125 removed the expanded state for when this opened a
-                  dialog instead. The menu is what opens the dialog. */}
-              <button
-                tabIndex={0}
-                ref={settingsButton}
-                className={classes(
-                  "ghost small settings-button",
-                  settingsMenuOpen && "open",
-                )}
-                aria-label="Project settings"
-                aria-haspopup="menu"
-                aria-expanded={settingsMenuOpen}
-                title="Project settings"
-                onClick={() => setSettingsMenuOpen(!settingsMenuOpen)}
-              >
-                <GearGlyph />
-              </button>
-              {settingsMenuOpen && (
-                <SettingsMenu
-                  project={project}
-                  themes={THEMES}
-                  appearance={appearance}
-                  anchor={settingsButton.current}
-                  onAppearance={setAppearance}
-                  onTheme={(theme) => void changeTheme(project, theme)}
-                  onOpenSection={(section) => {
-                    closeTicket();
-                    setSettingsSection(section);
-                  }}
-                  // The board's own re-read (ADR 0006), which the menu is the
-                  // first surface to offer by hand: the watcher is what
-                  // normally keeps this current, and this is the way back
-                  // when a person has reason to doubt it.
-                  onReload={() => {
-                    void reconcileProject(project.id)
-                      .then(applySnapshot)
-                      .catch((error) => setError(normalizeError(error)));
-                  }}
-                  onClose={() => setSettingsMenuOpen(false)}
-                />
-              )}
-            </header>
+              </header>
+            )}
 
             {!project.reachable ? (
               <UnreachableProject
@@ -2485,28 +2561,43 @@ function ViewSegment(props: {
 }
 
 /**
- * Abbreviate a home-relative path to `~/…` for display. The clause lives in
- * LC-68, which carries D-06's remaining work; `cc_ui_diffs.md` § Step 2 was the
- * original citation and was deleted 2026-08-07.
- * Only the actual home directory — supplied by the native layer — is
- * abbreviated. The clipboard and tooltip keep the full absolute path.
+ * The letter on the side panel's project tile.
+ *
+ * `Array.from` rather than `charAt`, because the first character of a name is
+ * not always the first code unit of one — a project called `🦉 Owl` has a
+ * surrogate pair there, and half of one renders as the replacement glyph.
  */
-function tildeAbbreviate(path: string, home: string | null): string {
-  if (!home) return path;
-  if (path === home) return "~";
-  if (path.startsWith(home + "/")) return "~" + path.slice(home.length);
-  return path;
+function projectInitial(name: string): string {
+  return (Array.from(name.trim())[0] ?? "").toUpperCase();
 }
 
 /**
- * The project path as a chip (`screen-specs.md:64-67`, D-06): mono 12px, a
- * folder glyph, truncated to the header with `text-overflow: ellipsis`, and a
- * click that copies the full path and says so with a toast. The bare wrapping
+ * The project path as a chip (`screen-specs.md` § Project identity, D-06): mono
+ * 10.5px in the side panel's identity block, elided in the middle, and a click
+ * that copies the full path and says so with a toast. The bare wrapping
  * `<code>` it replaces consumed two lines for a long path; this one never does.
+ *
+ * **Elided in the middle, not at the tail** (LC-239w). A tail ellipsis keeps
+ * `~/Developer/…`, which is the same on every path in this app; the end is the
+ * folder that identifies the project, so that is the half kept whole. Which is
+ * why the two halves are two spans: the box decides where the cut falls, at
+ * whatever width the panel currently is, and only the head may be cut. There
+ * was a character cap here instead until round 5, and it could only ever be
+ * right about one of the panel's two widths — `pathDisplay.ts` carries the six
+ * derivations of it that were wrong.
+ *
+ * No folder glyph. It costs 19px of a box that is 145px at its narrowest —
+ * three characters of path — and the row it would lead is already led by the
+ * project tile.
  * The display text is tilde-abbreviated; the clipboard and `title` keep the
  * full path.
  */
 function PathChip(props: { path: string; homePath: string | null }) {
+  // Two spans, because the ellipsis is the box's decision and not this
+  // component's: the head shrinks and ellipsizes when the panel is too narrow
+  // for the whole path, and the tail — the folder that identifies the project —
+  // is never the part that gives.
+  const shown = splitPath(tildeAbbreviate(props.path, props.homePath));
   const copy = useCallback(
     () =>
       copyToClipboard(props.path, {
@@ -2523,8 +2614,10 @@ function PathChip(props: { path: string; homePath: string | null }) {
       title={props.path}
       onClick={() => void copy()}
     >
-      <FolderGlyph />
-      <span className="txt">{tildeAbbreviate(props.path, props.homePath)}</span>
+      <span className="txt">
+        <span className="head">{shown.head}</span>
+        <span className="tail">{shown.tail}</span>
+      </span>
     </button>
   );
 }

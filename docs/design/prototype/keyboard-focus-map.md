@@ -9,7 +9,7 @@
 ## Rules
 
 1. **Every pointer action has a keyboard path.** Anything clickable is
-   reachable via focus + Enter, a single-key action, or a palette command.
+   reachable via focus + Enter, a single-key action, or a palette command. The shell's order follows the DOM: the side panel's gear, its project rows, its footer pair, then the header's controls (LC-239w).
 2. **Single-key shortcuts suspend while any input has focus.** Chords
    (`⌘K`, `⌘F`, `⌘Z`, `⌘↵`, `⌘1`…`⌘9`) stay live everywhere except where the
    OS owns them (e.g. `⌘Z` in a focused text field is the field's undo).
@@ -153,7 +153,7 @@ trap; the raw file view scrolls with page keys; `Retry parse` is default-focused
 
 Welcome: `Tab` between the two buttons, `Enter` activates. Folder picker
 rows: `Tab`/arrows + `Enter`. Create form: `Tab` order name → key → theme
-swatches (radio group, arrows move, space selects) → Create → Back.
+swatches (radio group, arrows move, space selects) → Create → Back — `Cancel` in the side panel, whose form *is* the panel while it is open and has no step one behind it to go back to (LC-239w).
 
 ## Focus-return table
 
@@ -164,7 +164,7 @@ swatches (radio group, arrows move, space selects) → Create → Back.
 | Palette | Whatever held focus before `⌘K` |
 | Quick create (created) | The new ticket's card — or, with **Create more** ticked, the emptied title field, and focus never follows the card even when the write returns (LC-201) |
 | Quick create (canceled) | Prior focus |
-| Settings / waitlist / confirm / raw view | The opener (gear, footer button, degraded card) |
+| Settings / waitlist / confirm / raw view | The opener (the side panel's gear since LC-239w, footer button, degraded card) |
 | Folder picker (create flow) | The create form's name field |
 
 ## Not bound in v0 (deliberate)
