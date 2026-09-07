@@ -3,12 +3,12 @@ format: longclaw.ticket/v1
 id: f77e151b-6bf8-45e0-948c-d5e28b24c582
 key: LC-214
 title: Update LongClaw Project Instructions for LLMs
-status: todo
+status: in_progress
 priority: urgent
 labels:
   - release
 created_at: 2026-08-11T14:56:44.953Z
-updated_at: 2026-08-11T14:56:44.953Z
+updated_at: 2026-09-07T13:35:05.500Z
 ---
 
 Create Agents.md & Claude.md
@@ -31,4 +31,19 @@ actor:
   id: local
 -->
 ### You created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_169e3754
+kind: update
+occurred_at: 2026-09-07T13:35:05.500Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: todo
+    to: in_progress
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 2f685ed7-e46b-4fd4-8e54-6011f135f2e2
 key: LC-239w
 title: "Simplify the shell chrome: drop the sidebar lockup, rebalance the header"
-status: in_review
+status: done
 priority: none
 labels:
   - frontend
   - design
 created_at: 2026-08-29T00:14:11.894Z
-updated_at: 2026-08-31T15:06:07.548Z
+updated_at: 2026-09-07T13:34:57.609Z
 ---
 
 The shell says **LongClaw** twice and says which project you are in twice, and it spends the header's width on the first of those instead of on the filter field.
@@ -702,4 +702,19 @@ npm run probe:header  140/140
 npm run a11y:audit    A1–A5 PASS
 npm run matrix        8 axes × 12 states clean
 ```
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_087309b4
+kind: update
+occurred_at: 2026-09-07T13:34:57.609Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

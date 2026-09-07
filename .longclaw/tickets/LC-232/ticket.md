@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 0812868f-47e0-4270-aa3c-71a36ba59d57
 key: LC-232
 title: Ticket keys carry a random suffix so two branches cannot mint the same one
-status: in_review
+status: done
 priority: none
 labels:
   - storage
   - platform
 created_at: 2026-08-24T23:31:28.384Z
-updated_at: 2026-08-25T00:58:58.118Z
+updated_at: 2026-09-07T13:34:56.096Z
 ---
 
 Two branches off the same `main` mint the same ticket key. It happened while
@@ -222,4 +222,19 @@ The key grammar is `<KEY>-<n>` or `<KEY>-<n><s>`. `s` is drawn at random from th
 The alphabet walk drew its start inside `position`'s predicate, so each letter matched with its own 1-in-24 chance on its own turn: the search missed entirely ~36% of the time and fell back to `a`, making ~40% of renumbers start at one letter against the 4% the design records. One draw, held in a local, in one shared `alphabet_from_a_random_start`. And six source line citations went stale — four mine, two caused by adding a `use` line to `index.rs` and six comment lines to `CommandPalette.tsx`. `citation-guard` pins the six design docs, not citations into source, so nothing would have caught them.
 
 `npm run verify` passes, including the native watcher.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_e8287815
+kind: update
+occurred_at: 2026-09-07T13:34:56.096Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### You updated this ticket
 <!-- /longclaw:event -->
