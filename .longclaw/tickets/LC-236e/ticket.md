@@ -3,13 +3,14 @@ format: longclaw.ticket/v1
 id: f0085d76-29f3-44a3-bf3f-fd6401174b52
 key: LC-236e
 title: Define a new label from inside the create flows
-status: todo
+status: in_progress
 priority: none
 labels:
   - frontend
   - product
+  - release
 created_at: 2026-08-28T04:12:09.099Z
-updated_at: 2026-08-28T23:50:34.030Z
+updated_at: 2026-09-07T14:21:24.770Z
 ---
 
 Both create surfaces can attach labels and neither can define one. `LabelMenuButton` lists exactly what `longclaw.yaml` defines plus any slug the ticket already carries, so on a project whose `labels:` map is empty — a fresh project, or one whose vocabulary has not been written yet — the menu opens on nothing and there is no way forward from inside the flow. Defining a label is only in project settings, which means leaving the half-typed ticket, opening settings, adding the slug, coming back and starting again.
@@ -62,6 +63,7 @@ Renaming, recolouring and removing definitions stay in project settings, and no 
 
 ## Checklist
 
+- [x] Generate the UX prototype <!-- longclaw:item=ck_45d890d4 -->
 - [ ] slugFromName() in labels.ts: lowercase, non-alphanumerics to a single -, trimmed; empty, punctuation and non-ASCII cases tested <!-- longclaw:item=ck_7e10ce87 -->
 - [ ] Add a define-a-label row to the LabelMenu popover: name field, derived slug shown beneath it, colour from LABEL_COLORS <!-- longclaw:item=ck_02993786 -->
 - [ ] Wire it in quick create (QuickCreate.tsx) so a new slug is defined and ticked in one gesture <!-- longclaw:item=ck_0e335d84 -->
@@ -153,4 +155,87 @@ changes:
     to: "5"
 -->
 ### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_5bc8a491
+kind: update
+occurred_at: 2026-09-07T14:05:03.388Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: labels
+    from: frontend, product
+    to: frontend, product, release
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_a58ea2d7
+kind: update
+occurred_at: 2026-09-07T14:05:57.313Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: checklist.ck_45d890d4.added
+    to: Generate the UX prototype
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_6a856e07
+kind: update
+occurred_at: 2026-09-07T14:06:00.625Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: checklist.ck_45d890d4.moved
+    from: "10"
+    to: "1"
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_0cfcb206
+kind: update
+occurred_at: 2026-09-07T14:21:24.770Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: in_progress
+  - field: checklist.ck_45d890d4.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_b3ab6b53
+kind: comment
+occurred_at: 2026-09-07T14:21:40.536Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+UX prototype: `docs/ux/prototypes/LC-236e-Define-A-New-Label-From-Inside-The-Create-Flows.html` — open it in a browser, no build. It drives all three surfaces (quick create, full create, the settings add-row) against a live `longclaw.yaml` pane.
+
+Five things it leaves for review, listed in its notes column: the *tick it instead* offer beside a collision (more than this ticket asked for), whether the colour should default to the first unused hue rather than blue, whether the derivation should fold diacritics (without it `Café` gives `caf`), whether the toast gets an Undo, and whether the define row joins the menu's roving group so `↓` reaches it.
+
+Two findings the build will hit: (1) a create-surface refusal cannot use `ErrorBanner` — `writeProjectFile` ends a failure at `setError`, which draws at board level under the modal scrim, so it has to be the danger toast or stay in the row; (2) the popover must carry its wider min-width from the moment it opens, because `usePopoverPlacement` measures once and clamps nothing, so widening on expand would run off the right edge in full create and stay there.
+
+One correction to this ticket's own prose: it says "Back-end" and "Back end" both derive to `backend`. Under the derivation the ticket itself specifies — collapse each run to a single `-` — they both derive to `back-end`. They still collide, so the argument stands; only the key named in the example is wrong.
 <!-- /longclaw:event -->

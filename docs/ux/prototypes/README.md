@@ -17,6 +17,10 @@ is which.
 - [`LC-201-Bulk-Create-In-Quick-Create-Mode.html`](LC-201-Bulk-Create-In-Quick-Create-Mode.html)
   — quick create with a description, labels and a **Create more** loop
   (spec: `.longclaw/tickets/LC-201/ticket.md`).
+- [`LC-236e-Define-A-New-Label-From-Inside-The-Create-Flows.html`](LC-236e-Define-A-New-Label-From-Inside-The-Create-Flows.html)
+  — a define-a-label row inside the labels popover, across quick create, full
+  create and the project-settings add-row it makes agree with them
+  (spec: `.longclaw/tickets/LC-236e/ticket.md`).
 
 ## Imported prototypes
 

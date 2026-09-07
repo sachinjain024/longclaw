@@ -1,0 +1,1069 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-lc-theme="ember">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LC-236e — Define a new label from inside the create flows</title>
+
+<!-- The app's own fonts, tokens and stylesheet. Nothing here re-implements a
+     component: the popover below is the markup `Menu.tsx` renders, the chips are
+     `LabelChip.tsx`'s, the settings rows are `ProjectSettings.tsx`'s, and all of
+     them wear the rules `styles.css` already carries — so what is on screen is
+     what would ship rather than a drawing of it. -->
+<link rel="stylesheet" href="../../design/foundations/proof/fonts.css">
+<link rel="stylesheet" href="../../../apps/desktop/src/tokens/design-tokens.css">
+<link rel="stylesheet" href="../../../apps/desktop/src/styles.css">
+
+<!-- ====================================================================
+     PROPOSED — the additions this ticket asks of `apps/desktop/src/styles.css`.
+     This block is the CSS half of the review: everything in it is meant to
+     land, as written, in the sections named beside each rule.
+     ==================================================================== -->
+<style id="proposed">
+/* ------------------------------------------------ the define row (LC-236e)
+
+   A form inside the labels popover, under a `.menu-rule`, so defining a label
+   is a row of the menu that lists them rather than a trip to project settings
+   and back. It goes in `styles.css` beside `.menu-footnote` — the other thing
+   the popover carries that is not a row. */
+
+/* The popover is 220px because a status menu is six words wide. This one holds
+   a field, a colour trigger and a key line, and 220 puts the field at about
+   fourteen characters.
+
+   It is set on the labels menu **always**, not switched on when the row opens,
+   and that is not a preference: `usePopoverPlacement` measures once, on open,
+   and does no viewport arithmetic at all (`popover.ts:161-181`). A popover that
+   grew 48px when a row expanded would keep the placement it was given, so in
+   full create — where the panel puts the labels row against the window's right
+   edge — the extra width would go off the side and stay there. Fixed width, one
+   measurement, nothing to correct. */
+.menu-popover.menu-wide {
+  min-width: 268px;
+}
+
+/* The form. `.menu-rule` above it is the existing hairline the settings menus
+   already group rows with, so the seam between "what this project defines" and
+   "define another" is drawn in a mark the app already has. */
+.menu-define {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: var(--lc-space-1) var(--lc-space-1) 2px;
+}
+
+/* Name, then colour. The field takes what the trigger does not, and `min-width:
+   0` is what lets it: a flex item's floor is its content, and a long name would
+   otherwise push the colour trigger out of the popover instead of scrolling
+   inside its own box. */
+.menu-define-top {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.menu-define-top .input {
+  min-width: 0;
+  flex: 1;
+}
+
+/* The derived key, under the field that produced it. Mono and micro — the
+   `--lc-type-kbd` voice every eyebrow and hint in the app wears — because it is
+   a key in a file and not a second thing to fill in.
+
+   This class is shared with the project-settings add-row, which is the whole
+   point of the ticket's last scope line: two surfaces that define a label must
+   not disagree about whether a human types a key, and the fastest way for them
+   to disagree is to draw the answer twice. */
+.derived-slug {
+  display: flex;
+  min-height: 18px;
+  gap: 5px;
+  align-items: center;
+  color: var(--lc-ink-3);
+  font: var(--lc-type-kbd-weight) var(--lc-type-kbd-size)
+    var(--lc-type-kbd-font);
+}
+
+.derived-slug .slug {
+  overflow: hidden;
+  flex: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Nothing survived the derivation: a name in Japanese, or one that is all
+   punctuation (`core/project.rs:343-359` wants an ASCII lowercase first
+   character). The line does not go away — an empty line where a key was is the
+   thing the ticket is arguing against — it says so, and the pencil beside it is
+   the way forward. */
+.derived-slug .slug.absent {
+  color: var(--lc-ink-3);
+  font-style: italic;
+}
+
+/* Derived, but not a key: `2026 goals` gives `2026-goals`, which is a fine
+   string and not a slug. Danger-toned rather than hidden, because the refusal
+   this prevents is one Rust would otherwise make after the press, about a key
+   that was never on screen. */
+.derived-slug .slug.refused {
+  color: var(--lc-danger);
+}
+
+/* Takes the key over. Available for as long as the row is open and never
+   afterwards — deriving is not renaming (`file_format.md:231`), and the moment
+   the definition is written the key is what every ticket carrying it stores. */
+.derived-slug-edit {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  border: 0;
+  padding: 0 2px;
+  color: var(--lc-ink-3);
+  background: none;
+  cursor: pointer;
+}
+
+.derived-slug-edit:hover,
+.derived-slug-edit:focus-visible {
+  color: var(--lc-ink);
+}
+
+/* One line, under the key, in the danger tone: why this cannot be added yet.
+   It is not a toast. A collision is decided while the key is being typed — the
+   definitions are in hand — so it is said where the typing is, and the write is
+   never attempted. The toast path stays for the refusal the client could not
+   predict; see `.menu-define` in the notes column. */
+.menu-define-note {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  margin: 0;
+  color: var(--lc-danger);
+  font-size: var(--lc-type-small-size);
+  line-height: 1.4;
+}
+
+/* The offer beside the refusal: the slug that collided is already a row of this
+   very menu, and ticking it is what the person almost certainly came for. */
+.menu-define-note button {
+  border: 0;
+  padding: 0;
+  color: var(--lc-accent-human-text);
+  background: none;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Commit. `Enter` in the name field does the same thing — the common case is a
+   name and a return — and this is the pointer's way to it. */
+.menu-define-commit {
+  align-self: flex-end;
+}
+
+/* ------------------------------------ the settings add-row (LC-236e, in scope)
+
+   `ProjectSettings.tsx:702-704` asks a human to author a key today, in a `slug`
+   field that is the first column of a four-column grid. Adopting the shared
+   derivation empties that column of its input and puts the derived key in it —
+   which lands the add-row on the same shape as the rows above it (`code`, name,
+   colour, button), so the row you are filling in finally looks like the row it
+   becomes. The grid does not change; only what stands in column one. */
+.label-add .derived-slug {
+  min-height: 28px;
+}
+</style>
+
+<!-- ====================================================================
+     HARNESS — the driver bar, the notes column, the surfaces' surroundings
+     and the live `longclaw.yaml`. None of this is the app and none of it is
+     proposed. It is kept in its own block so the review can tell them apart.
+     ==================================================================== -->
+<style id="harness">
+body {
+  margin: 0;
+  color: var(--lc-ink);
+  background: var(--lc-bg);
+  font-family: var(--lc-font-ui);
+  font-size: var(--lc-type-body-size);
+}
+
+/* Above the modal scrim, which is `position: fixed; inset: 0` and would
+   otherwise swallow every press in the bar for as long as quick create is
+   open — which, in a prototype about quick create, is most of the run. */
+.driver {
+  position: relative;
+  z-index: calc(var(--lc-z-modal) + 10);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 7px 14px;
+  color: var(--lc-inverse-ink);
+  background: var(--lc-inverse-surface);
+  font-family: var(--lc-font-mono);
+  font-size: 10.5px;
+}
+.driver .group { display: flex; gap: 4px; align-items: center; }
+.driver .sep { width: 1px; height: 14px; background: color-mix(in oklab, var(--lc-inverse-ink) 20%, transparent); }
+.driver .ask { color: var(--lc-accent-agent); }
+.driver strong { letter-spacing: .05em; text-transform: uppercase; font-weight: 600; }
+.driver .spacer { flex: 1; }
+.driver button {
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid color-mix(in oklab, var(--lc-inverse-ink) 18%, transparent);
+  border-radius: var(--lc-radius-kbd);
+  color: var(--lc-inverse-ink-2);
+  background: none;
+  font-family: var(--lc-font-mono);
+  font-size: 10px;
+  cursor: pointer;
+}
+.driver button:hover { color: var(--lc-inverse-ink); border-color: color-mix(in oklab, var(--lc-inverse-ink) 40%, transparent); }
+.driver button[aria-pressed="true"] { color: var(--lc-inverse-ink); border-color: var(--lc-accent-human); }
+.driver button[data-drive="fail"][aria-pressed="true"] { border-color: var(--lc-danger); color: var(--lc-danger); }
+.driver .swatch { width: 26px; padding: 0; }
+.driver .swatch i { display: block; width: 10px; height: 10px; margin: 0 auto; border-radius: 50%; background: var(--lc-accent-human); }
+
+.stage {
+  display: grid;
+  min-height: calc(100vh - 36px);
+  grid-template-columns: minmax(300px, 360px) 1fr;
+}
+
+.notes {
+  overflow-y: auto;
+  max-height: calc(100vh - 36px);
+  padding: 20px;
+  border-right: 1px solid var(--lc-line);
+  background: var(--lc-surface);
+}
+.notes h1 { margin: 0 0 4px; font: var(--lc-type-title-weight) var(--lc-type-title-size) / var(--lc-type-title-leading) var(--lc-type-title-font); }
+.notes h2 { margin: 20px 0 6px; font-size: var(--lc-type-small-size); text-transform: uppercase; letter-spacing: .06em; color: var(--lc-ink-3); }
+.notes p, .notes li { margin: 0 0 8px; color: var(--lc-ink-2); font-size: var(--lc-type-small-size); line-height: 1.55; }
+.notes ol, .notes ul { margin: 0; padding-left: 18px; }
+.notes code { font-family: var(--lc-font-mono); font-size: 11px; color: var(--lc-ink); }
+.notes .q { border-left: 2px solid var(--lc-accent-human); padding-left: 10px; }
+.notes .open { border-left: 2px solid var(--lc-accent-agent); padding-left: 10px; }
+
+/* Surface on the left, the file it writes on the right. */
+.workbench {
+  display: grid;
+  gap: 20px;
+  padding: 20px;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  align-items: start;
+}
+
+/* Where the surface under review stands. Quick create is a real scrim over the
+   whole window, so this holds its opener instead. */
+.surface { min-height: 320px; }
+.surface .hint { color: var(--lc-ink-3); font-size: var(--lc-type-small-size); }
+
+/* A stand for the settings pane's own markup. Not `.settings-panel`, which is
+   a fixed modal: the section inside it is what this ticket touches. */
+.settings-stand {
+  max-width: 560px;
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-panel);
+  padding: var(--lc-space-5);
+  background: var(--lc-surface);
+}
+.settings-stand h2 { margin: 0 0 var(--lc-space-3); font-size: var(--lc-type-body-size); }
+
+/* Full create's panel, stood in flow rather than docked to the window. */
+.surface .create-panel {
+  position: static;
+  width: auto;
+  max-width: 560px;
+  height: auto;
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-panel);
+}
+
+/* The file, above the scrim. A prototype about a write you cannot see while the
+   modal that made it is open would be no prototype — this is the one piece of
+   harness chrome that is deliberately not dimmed. It sits at the right edge,
+   where the centred 620px modal does not reach on a wide window. */
+.file {
+  position: relative;
+  z-index: calc(var(--lc-z-modal) + 5);
+  overflow: hidden;
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-card);
+  background: var(--lc-surface);
+}
+.file h3 {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+  border-bottom: 1px solid var(--lc-line-soft);
+  padding: 8px 12px;
+  color: var(--lc-ink-3);
+  font: var(--lc-type-kbd-weight) var(--lc-type-kbd-size) var(--lc-type-kbd-font);
+}
+.file pre {
+  overflow-x: auto;
+  margin: 0;
+  padding: 10px 12px;
+  color: var(--lc-ink-2);
+  font-family: var(--lc-font-mono);
+  font-size: 11px;
+  line-height: 1.65;
+}
+.file pre b { color: var(--lc-ink); font-weight: 500; }
+.file pre .fresh {
+  display: block;
+  border-radius: 3px;
+  background: color-mix(in oklab, var(--lc-accent-human) 16%, transparent);
+}
+.file .drafts {
+  border-top: 1px solid var(--lc-line-soft);
+  padding: 9px 12px;
+  color: var(--lc-ink-3);
+  font-size: var(--lc-type-small-size);
+}
+.file .drafts b { color: var(--lc-ink-2); font-weight: 500; }
+</style>
+</head>
+<body>
+
+<header class="driver">
+  <strong>longclaw · LC-236e prototype</strong>
+  <span class="group" role="group" aria-label="Surface">
+    <button data-surface="quick" aria-pressed="true">quick create</button>
+    <button data-surface="full" aria-pressed="false">full create</button>
+    <button data-surface="settings" aria-pressed="false">project settings</button>
+  </span>
+  <span class="sep" aria-hidden="true"></span>
+  <span class="group" role="group" aria-label="What longclaw.yaml defines">
+    <button data-project="empty" aria-pressed="true">empty project</button>
+    <button data-project="seeded" aria-pressed="false">four labels</button>
+  </span>
+  <span class="sep" aria-hidden="true"></span>
+  <span class="group">
+    <button data-drive="fail" aria-pressed="false">refuse the next write</button>
+    <button data-drive="reset">reset</button>
+  </span>
+  <span class="sep" aria-hidden="true"></span>
+  <span class="ask">revision 1 · one field, and the key falls out of it</span>
+  <span class="spacer"></span>
+  <span class="swatches" role="group" aria-label="Project theme">
+    <button class="swatch" data-theme-pick="ember" aria-pressed="true" title="Ember"><i data-theme="light" data-lc-theme="ember"></i></button>
+    <button class="swatch" data-theme-pick="indigo" aria-pressed="false" title="Indigo"><i data-theme="light" data-lc-theme="indigo"></i></button>
+    <button class="swatch" data-theme-pick="clay" aria-pressed="false" title="Clay"><i data-theme="light" data-lc-theme="clay"></i></button>
+    <button class="swatch" data-theme-pick="slate" aria-pressed="false" title="Slate"><i data-theme="light" data-lc-theme="slate"></i></button>
+    <button class="swatch" data-theme-pick="plum" aria-pressed="false" title="Plum"><i data-theme="light" data-lc-theme="plum"></i></button>
+  </span>
+  <span role="group" aria-label="Appearance">
+    <button data-appearance="light" aria-pressed="true">light</button>
+    <button data-appearance="dark" aria-pressed="false">dark</button>
+  </span>
+</header>
+
+<div class="stage">
+  <aside class="notes">
+    <h1>Define a label from inside create</h1>
+    <p>LC-236e · <a href="../../../.longclaw/tickets/LC-236e/ticket.md"><code>.longclaw/tickets/LC-236e/ticket.md</code></a></p>
+    <p>Both create surfaces can attach labels and neither can define one. On an
+    <strong>empty project</strong> the menu opens on nothing, and the only way
+    forward is to abandon the half-typed ticket and go to settings.</p>
+
+    <h2>Try this</h2>
+    <ol>
+      <li>The driver opens on an <strong>empty project</strong>. Press <kbd>+ add</kbd>: the menu has no rows, so it opens with the define row already expanded and the caret in it. Type <code>Frontend</code>, press <kbd>↵</kbd>.</li>
+      <li>Watch the right: <code>longclaw.yaml</code> gained the definition, and the chip is on the draft ticket. One gesture, both.</li>
+      <li>The row emptied and stayed open. Type <code>Back-End</code> — the key updates under the field as you type — and <kbd>↵</kbd> again.</li>
+      <li>Now type <code>Back end</code>. It derives to <code>back-end</code>, the same key <code>Back-End</code> just gave, so the row refuses, names the key that collided, and offers to tick the definition that is already there. (The ticket's prose says this pair derives to <code>backend</code>; under the derivation the ticket itself specifies, it is <code>back-end</code>. They still collide, which is the point it was making.)</li>
+      <li>Type <code>2026 goals</code>. The key derives to <code>2026-goals</code>, which is not a slug — a key starts with a letter. Press the pencil and type one.</li>
+      <li>Type <code>日本語</code>. Nothing survives the derivation. The line says so rather than going blank, and the pencil is still the way through.</li>
+      <li>Press <kbd>esc</kbd> three times — row, menu, modal. No ticket was created. <strong>The labels are still in the file.</strong></li>
+      <li>Switch to <strong>full create</strong> and <strong>project settings</strong>: the same row, and the settings add-row no longer asks anyone to author a key.</li>
+      <li>Press <strong>refuse the next write</strong> and add a label: this is the path the client could not predict, and where the refusal has to land.</li>
+    </ol>
+
+    <h2>What is new</h2>
+    <ul>
+      <li>A <strong>define row</strong> in the labels popover — one field, a colour, and the key underneath.</li>
+      <li><code>slugFromName()</code> in <code>labels.ts</code>, used by the popover row <em>and</em> the settings add-row, so the two cannot disagree.</li>
+      <li>The settings add-row's <code>slug</code> input is gone. Nobody authors a key any more.</li>
+    </ul>
+
+    <h2>Settled in review</h2>
+    <ol>
+      <li class="q"><strong>The name is the field; the key is the consequence.</strong> This inverts what the ticket first asked for. Asking a human to author a key is the wrong way round — the name is what they know.</li>
+      <li class="q"><strong>The key is shown, not hidden.</strong> <code>longclaw.yaml</code> is a file the user owns and diffs, the CLI takes slugs, and an undefined slug is drawn as the chip's own text. A collision is a refusal that has to name a key, and a hidden-plus-immutable key drifts from its display name in silence.</li>
+      <li class="q"><strong>The write lands immediately.</strong> A label defined and then abandoned is still in the file — press <kbd>esc</kbd> out of step 7 and look. The alternative, holding the definition until the ticket is created, makes the ticket write conditional on a second write and is worse.</li>
+      <li class="q"><strong>An empty project opens the row expanded.</strong> A popover whose only content is a collapsed invitation is a popover that still says nothing, which is the exact complaint this ticket opens with.</li>
+      <li class="q"><strong>A collision is decided while you type, not after you press.</strong> The definitions are already in hand. Rust stays the authority for what it alone can know.</li>
+      <li class="q"><strong>The popover is 268px from the moment it opens</strong>, never widened when the row expands: <code>usePopoverPlacement</code> measures once and clamps nothing, so growth in full create would go off the right edge and stay there.</li>
+      <li class="q"><strong><kbd>Esc</kbd> walks the ladder</strong> (<code>keyboard-focus-map.md:19</code>): row → menu → modal, one rung a press.</li>
+    </ol>
+
+    <h2>Open — decide these</h2>
+    <ol>
+      <li class="open"><strong>The offer beside a collision.</strong> The ticket asks for a refusal. This draws the refusal <em>and</em> a <em>tick it instead</em> link, because a person who typed <code>Back end platform</code> at a project that already has <code>back-end-platform</code> almost certainly wants the one that is there. That is more than was asked for. Keep it, or refuse plainly?</li>
+      <li class="open"><strong>The colour default.</strong> Settings defaults to <code>LABEL_COLORS[0]</code>, so a seeded project comes out all blue. This picks the first hue the project is not already using and falls back to blue when all eight are taken. Should settings adopt that too?</li>
+      <li class="open"><strong>Diacritics.</strong> The ticket's derivation gives <code>caf</code> for <code>Café</code> and <code>n-code</code> for <code>Ünïcode</code> — the accented letters are punctuation to <code>[a-z0-9]</code>. This folds NFD first, so <code>Café</code> → <code>cafe</code>. One extra line, and it is the difference between a key and a mangling.</li>
+      <li class="open"><strong>No Undo on the toast.</strong> Every other project write offers one. The inverse here is two things — remove the definition <em>and</em> untick the draft — and <code>writeProjectFile</code>'s <code>undo</code> is for "one field with one inverse". <code>removeProjectLabel</code> exists, so it is possible; it is just not one field.</li>
+      <li class="open"><strong>Reaching the row by keyboard.</strong> Here <kbd>↓</kbd> past the last label lands on it, which means the define stop joins the menu's roving group (the collapsed button when closed, the name field when open). The cheaper alternative is <kbd>Tab</kbd> only, which leaves <kbd>↓</kbd> wrapping straight past the one row that is not a label.</li>
+    </ol>
+
+    <h2>What this asks of the code</h2>
+    <ul>
+      <li><code>Menu</code> gains a <strong><code>footer</code> slot</strong> and a <strong><code>wide</code></strong> flag. It renders rows and a footnote today; the define row is neither.</li>
+      <li><code>Menu.onKeyDown</code> must <strong>return early for events from a field</strong>. It is on the popover, so today <code>j</code> and <code>k</code> steer the list — they are letters in <code>Jack</code> — and <kbd>↵</kbd> and <kbd>Esc</kbd> are the menu's. The row's own handler takes them and stops them.</li>
+      <li><strong>The refusal cannot use the error banner.</strong> <code>writeProjectFile</code> ends a failure at <code>setError</code> (<code>App.tsx:1218</code>), which draws <code>ErrorBanner</code> at board level — under the scrim, since <code>--lc-z-modal</code> is 4. A create-surface refusal has to be the <strong>danger toast</strong> (<code>--lc-z-toast</code> is 5) or stay in the row. Press <strong>refuse the next write</strong> to see the toast.</li>
+      <li>Every new button and the colour swatches need an explicit <code>tabIndex</code> (<code>scripts/tab-order-guard.mjs</code>). The name field does not — WebKit skips buttons and checkboxes with <em>Keyboard navigation</em> off, not text inputs.</li>
+      <li><code>keyboard-focus-map.md</code>'s Menus table gains the field's rows, <strong>edited in place</strong> — <code>citation-guard</code> pins those lines.</li>
+    </ul>
+  </aside>
+
+  <main class="workbench">
+    <div class="surface" id="surface"></div>
+    <aside class="file">
+      <h3>longclaw.yaml <span id="file-state"></span></h3>
+      <pre id="yaml"></pre>
+      <p class="drafts" id="drafts"></p>
+    </aside>
+  </main>
+</div>
+
+<div id="overlay"></div>
+<div class="toast-stack" id="toasts" aria-live="polite"></div>
+
+<script>
+/* ====================================================================
+   The surfaces are rendered from this script so the run can be driven.
+   The markup is the app's: `Menu.tsx`'s popover, `LabelChip.tsx`'s chips,
+   `QuickCreate.tsx`'s modal, `CreatePanel.tsx`'s meta grid and
+   `ProjectSettings.tsx`'s label rows — plus the row LC-236e adds.
+   ==================================================================== */
+
+/* D12's ramp (`labels.ts:22-31`). Eight hues, and no green: green belongs to
+   the agent, so a definition may not reach for one. The picker below can only
+   ever offer this list. */
+const LABEL_COLORS = ["blue", "cyan", "purple", "pink", "red", "orange", "amber", "gray"];
+
+const SEEDED = {
+  frontend: { name: "Frontend", color: "blue" },
+  backend: { name: "Backend", color: "purple" },
+  docs: { name: "Docs", color: "amber" },
+  bug: { name: "Bug", color: "red" },
+};
+
+const app = {
+  surface: "quick",
+  /* `longclaw.yaml`'s `labels:` map, in the order the file carries it — a new
+     definition appends, which is what `write_label` does. */
+  labels: {},
+  /* The slugs the draft ticket carries. */
+  ticketLabels: [],
+  title: "",
+  open: true,          // quick create's modal
+  menu: false,         // the labels popover
+  define: undefined,   // {name, slug, edited, color} while the row is open
+  colors: false,       // the colour strip inside the row
+  editingSlug: false,
+  failNext: false,     // driver: the refusal the client could not predict
+  created: 0,
+  fresh: undefined,    // the slug just written, flashed in the file pane
+  /** Which control to put focus back on after a re-render. */
+  focus: undefined,
+};
+
+const $ = (sel) => document.querySelector(sel);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+/* ------------------------------------------------------- the derivation */
+
+/**
+ * `slugFromName` — the one exported function this ticket asks for, so the
+ * create row and the settings row cannot disagree about it.
+ *
+ * Lowercase, fold, collapse every run outside `[a-z0-9]` to a single `-`, drop
+ * a leading and trailing one, and return empty when nothing survives. Both `-`
+ * and `_` are legal in the grammar; `-` is the one a human writes.
+ *
+ * The NFD fold is the one line beyond what the ticket specifies, and it is the
+ * open question in the notes: without it `Café` derives to `caf` and `Ünïcode`
+ * to `n-code`, because an accented letter is punctuation to `[a-z0-9]`. It
+ * cannot rescue a name with no Latin in it at all — `日本語` still gives
+ * nothing, which is what the empty state is for.
+ *
+ * This only *proposes* a key. `is_label_slug` still decides whether it is one
+ * (`core/project.rs:343-359`), which is why `2026-goals` gets this far.
+ */
+function slugFromName(name) {
+  return String(name)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/** Rust's grammar, mirrored so the row can say no before the write does. */
+function isLabelSlug(slug) {
+  return /^[a-z][a-z0-9_-]*$/.test(slug);
+}
+
+/** The first hue this project is not already using; blue when all eight are. */
+function nextColor() {
+  const used = new Set(Object.values(app.labels).map((label) => label.color));
+  return LABEL_COLORS.find((hue) => !used.has(hue)) || LABEL_COLORS[0];
+}
+
+/** What the row would write, and what is wrong with it. */
+function state() {
+  const row = app.define;
+  if (!row) return undefined;
+  const slug = row.edited ? row.slug : slugFromName(row.name);
+  if (row.name.trim() === "" && slug === "") return { slug, kind: "blank" };
+  if (slug === "") return { slug, kind: "absent" };
+  if (!isLabelSlug(slug)) return { slug, kind: "refused" };
+  if (app.labels[slug]) return { slug, kind: "taken" };
+  return { slug, kind: "ok" };
+}
+
+/* ---------------------------------------------------------------- glyphs */
+
+const chevron = `<svg class="menu-chevron" width="11" height="11" viewBox="0 0 14 14" aria-hidden="true"><path d="M4.5 2.5 L9.5 7 L4.5 11.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const plus = `<svg class="plus-glyph" width="13" height="13" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 2.5 V11.5 M2.5 7 H11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+const pencil = `<svg class="pencil-glyph" width="12" height="12" viewBox="0 0 14 14" aria-hidden="true"><path d="M2.2 11.8 L2.8 9.2 L9.8 2.2 Q10.4 1.6 11 2.2 L11.8 3 Q12.4 3.6 11.8 4.2 L4.8 11.2 Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>`;
+const dot = (color) => `<span class="label-dot label-${color}" aria-hidden="true"></span>`;
+
+function statusDot(id) {
+  return `<svg class="status-dot status-${id}" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>`;
+}
+
+/** `LabelChip.tsx`, verbatim: dot then text, and the text is never dropped. */
+function chip(slug) {
+  const def = app.labels[slug];
+  const color = def ? def.color : "gray";
+  return `<span class="label-chip${def ? "" : " undefined-slug"}">${dot(color)}${esc(def ? def.name : slug)}</span>`;
+}
+
+/* ------------------------------------------------ the colour picker, shared */
+
+/* `ProjectSettings.tsx`'s own control (D-4J, D-72): one dot and a chevron in a
+   field box, with the eight behind it — not the eight on permanent display. */
+function colorField(value, open, name) {
+  return `<span class="label-color-field">
+    <button tabindex="0" type="button" class="label-color-trigger" data-role="colors"
+            aria-haspopup="menu" aria-expanded="${open}" aria-label="${esc(name)}: ${value}">
+      ${dot(value)}<svg class="label-color-chevron" width="10" height="10" viewBox="0 0 14 14" aria-hidden="true"><path d="M3.5 5.5 L7 9 L10.5 5.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    ${open ? `<div class="label-color-menu" role="menu" aria-label="${esc(name)}">
+      ${LABEL_COLORS.map((hue) => `<button tabindex="0" type="button" class="label-color-swatch${hue === value ? " selected" : ""}" role="menuitemradio" aria-checked="${hue === value}" aria-label="${hue}" data-color="${hue}">${dot(hue)}</button>`).join("")}
+    </div>` : ""}
+  </span>`;
+}
+
+/* ----------------------------------------------------- the derived-key line */
+
+/**
+ * The key, under the field that produced it, in all four of its states. The
+ * line never goes away: an empty line where a key was is exactly the silence
+ * this ticket argues against.
+ */
+function derivedSlug(current, editing) {
+  if (editing) {
+    return `<span class="derived-slug">
+      <input class="input compact mono" data-role="slug-field" value="${esc(current.slug)}"
+             aria-label="Label key" placeholder="key" autocomplete="off">
+    </span>`;
+  }
+  const text =
+    current.kind === "blank" ? "the key appears here"
+      : current.kind === "absent" ? "no key can be made from that name"
+        : current.slug;
+  const tone =
+    current.kind === "blank" || current.kind === "absent" ? " absent"
+      : current.kind === "refused" ? " refused" : "";
+  return `<span class="derived-slug">
+    <span class="slug${tone}">${esc(text)}</span>
+    <button tabindex="0" type="button" class="derived-slug-edit" data-role="edit-slug"
+            aria-label="Edit the label key">${pencil}</button>
+  </span>`;
+}
+
+/** The one line saying why this cannot be added yet. Never a toast. */
+function defineNote(current) {
+  if (current.kind === "refused") {
+    return `<p class="menu-define-note">A key starts with a letter, so <code>${esc(current.slug)}</code> is not one. Edit it.</p>`;
+  }
+  if (current.kind === "absent") {
+    return `<p class="menu-define-note">That name has no ASCII letters to make a key from. Type one.</p>`;
+  }
+  if (current.kind === "taken") {
+    return `<p class="menu-define-note"><span><code>${esc(current.slug)}</code> is already defined as ${esc(app.labels[current.slug].name)}.</span>
+      <button tabindex="0" type="button" data-role="tick-existing" data-slug="${esc(current.slug)}">Tick it instead</button></p>`;
+  }
+  return "";
+}
+
+/* ------------------------------------------------------------ the popover */
+
+function popoverHTML(rect) {
+  /* `labelOptions`: what the project defines, by display name, then any slug
+     this ticket carries that it does not — so an undefined slug can be taken
+     off again. */
+  const rows = Object.entries(app.labels)
+    .map(([slug, label]) => ({ slug, name: label.name, color: label.color }))
+    .sort((left, right) => left.name.localeCompare(right.name));
+
+  const list = rows.map((row) => {
+    const checked = app.ticketLabels.includes(row.slug);
+    return `<button type="button" tabindex="-1" class="menu-row" role="menuitemcheckbox" aria-checked="${checked}" data-pick="${row.slug}">
+      <span class="menu-glyph">${dot(row.color)}</span><span class="menu-label">${esc(row.name)}</span>
+      ${checked ? '<span class="menu-check" aria-hidden="true">✓</span>' : ""}
+    </button>`;
+  }).join("");
+
+  const current = state();
+  const define = app.define
+    ? `<form class="menu-define" data-role="define">
+        <div class="menu-define-top">
+          <input class="input compact" data-role="name-field" value="${esc(app.define.name)}"
+                 aria-label="New label name" placeholder="Label name" autocomplete="off">
+          ${colorField(app.define.color, app.colors, "New label color")}
+        </div>
+        ${derivedSlug(current, app.editingSlug)}
+        ${defineNote(current)}
+        <button tabindex="0" type="submit" class="secondary small menu-define-commit"
+                ${current.kind === "ok" ? "" : "disabled"}>Add label</button>
+      </form>`
+    : `<button type="button" tabindex="-1" class="menu-row" data-role="open-define">
+        <span class="menu-glyph">${plus}</span><span class="menu-label">New label…</span>
+      </button>`;
+
+  return `<div class="menu-popover menu-wide" role="menu" aria-label="Labels" style="left:${rect.left}px; top:${rect.bottom + 4}px">
+    ${list}
+    ${rows.length ? '<hr class="menu-rule">' : ""}
+    ${define}
+  </div>`;
+}
+
+/* ------------------------------------------------------------ the surfaces */
+
+/** `LabelMenu.tsx`'s value cell: the chips, then the dashed control (D-3C). */
+function labelCell() {
+  return `<div class="meta-labels">
+    ${app.ticketLabels.map(chip).join("")}
+    <button type="button" tabindex="0" class="label-chip addable" data-role="add"
+            aria-haspopup="menu" aria-expanded="${app.menu}"
+            aria-label="Labels: ${app.ticketLabels.length ? esc(app.ticketLabels.map((s) => (app.labels[s] ? app.labels[s].name : s)).join(", ")) : "none"}">${plus}add</button>
+  </div>`;
+}
+
+function quickCreateHTML() {
+  return `<div class="modal-scrim" role="presentation">
+    <form class="quick-create-modal" aria-label="Create a ticket" data-role="quick">
+      <p class="eyebrow quick-create-context">
+        <span class="theme-dot" data-lc-theme="${document.documentElement.dataset.lcTheme}" data-theme="${document.documentElement.dataset.theme}" aria-hidden="true"></span>
+        Round Trip · RT-${4 + app.created}
+      </p>
+      <input class="quick-create-title" value="${esc(app.title)}" aria-label="Title" placeholder="Ticket title" data-role="title">
+      <textarea class="quick-create-description" rows="3" aria-label="Description" placeholder="What should happen? Agents read this before they start."></textarea>
+      <div class="quick-create-meta">
+        <button type="button" tabindex="0" class="menu-trigger" aria-haspopup="menu" aria-expanded="false" aria-label="Status: Todo">
+          <span class="menu-glyph">${statusDot("todo")}</span><span>Todo</span>${chevron}
+        </button>
+        <button type="button" tabindex="0" class="menu-trigger" aria-haspopup="menu" aria-expanded="false" aria-label="Priority: None">
+          <span class="menu-glyph"><span class="priority-chip none" aria-hidden="true"><svg class="priority-dash" width="9" height="2" viewBox="0 0 9 2"><rect y="0.2" width="9" height="1.6" rx="0.8"/></svg></span></span><span>None</span>${chevron}
+        </button>
+        ${labelCell()}
+      </div>
+      <div class="editor-footer">
+        <button tabindex="0" class="ghost" type="button">Open full editor →</button>
+        <button tabindex="0" class="primary" type="submit" style="margin-left:auto"${app.title.trim() ? "" : " disabled"}>Create <kbd aria-hidden="true">⌘↵</kbd></button>
+      </div>
+    </form>
+  </div>`;
+}
+
+function fullCreateHTML() {
+  return `<aside class="ticket-panel create-panel" aria-label="New ticket RT-${4 + app.created}">
+    <header class="panel-header"><span class="id-chip provisional">RT-${4 + app.created}</span></header>
+    <input class="panel-title" value="${esc(app.title)}" aria-label="Title" placeholder="Ticket title" data-role="title">
+    <div class="meta-grid">
+      <span>Status</span>
+      <button type="button" tabindex="0" class="menu-trigger" aria-haspopup="menu" aria-expanded="false" aria-label="Status: Todo">
+        <span class="menu-glyph">${statusDot("todo")}</span><span>Todo</span>${chevron}
+      </button>
+      <span>Labels</span>
+      ${labelCell()}
+    </div>
+    <section class="panel-section"><h3>Description</h3><p class="hint">— the editor, elided. This prototype is about the row above.</p></section>
+  </aside>`;
+}
+
+/**
+ * The settings add-row, adopting the derivation. Its `slug` input is gone: the
+ * first column is now the derived key, which is the same `code`-shaped cell the
+ * rows above it wear — so the row being filled in looks like the row it becomes.
+ */
+function settingsHTML() {
+  const rows = Object.entries(app.labels).map(([slug, label]) => `
+    <div class="label-row">
+      <code>${esc(slug)}</code>
+      <input class="input compact" value="${esc(label.name)}" aria-label="Name of label ${esc(slug)}" readonly>
+      ${colorField(label.color, false, `Color of label ${slug}`)}
+      <button tabindex="0" class="ghost row-remove" type="button" aria-label="Remove label ${esc(slug)}">✕</button>
+    </div>`).join("");
+
+  const current = app.define ? state() : { slug: "", kind: "blank" };
+  return `<div class="settings-stand">
+    <h2>Labels</h2>
+    <section class="label-settings" aria-label="Labels">
+      <p class="settings-subhead">Slugs are what tickets store; display names and colors are how they read.</p>
+      ${Object.keys(app.labels).length === 0 ? "<p>No labels are defined in this project&apos;s longclaw.yaml yet.</p>" : ""}
+      ${rows}
+      <form class="label-row label-add" data-role="define">
+        ${derivedSlug(current, app.editingSlug)}
+        <input class="input compact" data-role="name-field" value="${esc(app.define ? app.define.name : "")}"
+               aria-label="New label name" placeholder="Display name" autocomplete="off">
+        ${colorField(app.define ? app.define.color : nextColor(), app.colors, "New label color")}
+        <button tabindex="0" class="secondary small" type="submit"${current.kind === "ok" ? "" : " disabled"}>Add label</button>
+      </form>
+      ${app.define ? defineNote(current) : ""}
+      <p class="settings-note">Removing a definition never rewrites a ticket — the slug renders as itself.</p>
+    </section>
+  </div>`;
+}
+
+/* ------------------------------------------------------------- rendering */
+
+function render() {
+  const surface = $("#surface");
+  const overlay = $("#overlay");
+
+  if (app.surface === "quick") {
+    surface.innerHTML = app.open
+      ? '<p class="hint">Quick create is open. The scrim is the app\'s own.</p>'
+      : '<p class="hint">Closed. <button class="secondary small" data-drive="reopen" tabindex="0">Reopen quick create</button></p>';
+    overlay.innerHTML = (app.open ? quickCreateHTML() : "") + menuLayer();
+  } else if (app.surface === "full") {
+    surface.innerHTML = fullCreateHTML();
+    overlay.innerHTML = menuLayer();
+  } else {
+    surface.innerHTML = settingsHTML();
+    overlay.innerHTML = "";
+  }
+
+  renderFile();
+  restoreFocus();
+}
+
+/** The popover, placed against whatever `+ add` is on screen. */
+function menuLayer() {
+  if (!app.menu) return "";
+  const trigger = document.querySelector('[data-role="add"]');
+  if (!trigger) return "";
+  return popoverHTML(trigger.getBoundingClientRect());
+}
+
+function renderFile() {
+  const entries = Object.entries(app.labels);
+  const head = [
+    "format: longclaw.project/v1",
+    "name: Round Trip",
+    "key: RT",
+    "theme: ember",
+  ].map((line) => esc(line)).join("\n");
+  const body = entries.length === 0
+    ? "labels: {}"
+    : "labels:\n" + entries.map(([slug, label]) => {
+        const block = `  ${slug}:\n    name: ${label.name}\n    color: ${label.color}`;
+        return slug === app.fresh
+          ? `<span class="fresh">${esc(block)}</span>`
+          : esc(block);
+      }).join("\n");
+  $("#yaml").innerHTML = head + "\n" + body + "\n";
+  $("#file-state").textContent = app.fresh ? "· just written" : "";
+  $("#drafts").innerHTML = app.created
+    ? `<b>${app.created}</b> ticket${app.created === 1 ? "" : "s"} created.`
+    : "No ticket has been created. Every label above outlived a draft.";
+}
+
+/**
+ * Focus after a re-render. The whole surface is rewritten each time, which the
+ * app never does — React keeps the field — so the caret has to be put back by
+ * hand here. It is harness, not proposal.
+ */
+function restoreFocus() {
+  if (!app.focus) return;
+  const field = document.querySelector(`[data-role="${app.focus}"]`);
+  if (field) {
+    field.focus();
+    if (field.setSelectionRange && field.value) {
+      field.setSelectionRange(field.value.length, field.value.length);
+    }
+  }
+  app.focus = undefined;
+}
+
+/* ------------------------------------------------------------- the writes */
+
+/**
+ * `addProjectLabel` (`api.ts:126`) → `add_label` (`core/project.rs:160`). The
+ * definition lands in `longclaw.yaml` **now**, and the slug is ticked onto the
+ * ticket being written in the same gesture. The label outlives an abandoned
+ * draft, deliberately: the alternative — holding it until the ticket is created
+ * — makes the ticket write conditional on a second write.
+ */
+function addLabel() {
+  const current = state();
+  if (!current || current.kind !== "ok") return;
+  const { slug } = current;
+  const name = app.define.name.trim() || slug;
+
+  // The refusal the client could not predict: another window wrote the file
+  // between the menu opening and the press. Rust owns the grammar and the
+  // uniqueness, so its message is the message.
+  if (app.failNext) {
+    app.failNext = false;
+    document.querySelector('[data-drive="fail"]').setAttribute("aria-pressed", "false");
+    toast(`The label ${slug} is already defined in this project`, true);
+    app.focus = "name-field";
+    return render();
+  }
+
+  app.labels[slug] = { name, color: app.define.color };
+  app.fresh = slug;
+  if (app.surface !== "settings" && !app.ticketLabels.includes(slug)) {
+    app.ticketLabels.push(slug);
+  }
+  // The row empties and stays open: seeding a vocabulary is bursty, and the
+  // caret is already where the next name goes. `Esc` collapses it.
+  app.define = { name: "", slug: "", edited: false, color: nextColor() };
+  app.editingSlug = false;
+  app.colors = false;
+  app.focus = "name-field";
+  toast(`Added the ${slug} label`);
+  render();
+}
+
+/**
+ * One at a time, replacing (`WriteFeedback.tsx:198-201`). A danger toast is the
+ * only refusal surface a create flow has: `ErrorBanner` draws at board level,
+ * under the modal scrim.
+ */
+function toast(text, danger) {
+  $("#toasts").innerHTML = `<div class="toast${danger ? " danger" : ""}"><span class="toast-message">${esc(text)}</span></div>`;
+  clearTimeout(toast.timer);
+  if (!danger) toast.timer = setTimeout(() => { $("#toasts").innerHTML = ""; }, 4000);
+}
+
+/** Opening the menu. An empty project opens with the row already expanded. */
+function openMenu() {
+  app.menu = true;
+  if (Object.keys(app.labels).length === 0) {
+    app.define = { name: "", slug: "", edited: false, color: nextColor() };
+    app.focus = "name-field";
+  }
+  render();
+}
+
+function openDefine() {
+  app.define = { name: "", slug: "", edited: false, color: nextColor() };
+  app.editingSlug = false;
+  app.focus = "name-field";
+  render();
+}
+
+function closeDefine() {
+  app.define = undefined;
+  app.editingSlug = false;
+  app.colors = false;
+  render();
+}
+
+/* ------------------------------------------------------------- wiring */
+
+document.addEventListener("input", (event) => {
+  const role = event.target.dataset.role;
+  if (role === "title") {
+    app.title = event.target.value;
+    const button = document.querySelector(".primary");
+    if (button) button.disabled = app.title.trim() === "";
+    return;
+  }
+  if (role === "name-field") {
+    if (!app.define) app.define = { name: "", slug: "", edited: false, color: nextColor() };
+    app.define.name = event.target.value;
+    app.focus = "name-field";
+    return render();
+  }
+  if (role === "slug-field") {
+    app.define.slug = event.target.value;
+    app.define.edited = true;   // taken over; it stops following the name
+    app.focus = "slug-field";
+    return render();
+  }
+});
+
+document.addEventListener("click", (event) => {
+  const target = event.target;
+  const role = (target.closest("[data-role]") || {}).dataset;
+  const drive = target.closest("[data-drive]");
+  const surface = target.closest("[data-surface]");
+  const project = target.closest("[data-project]");
+  const appearance = target.closest("[data-appearance]");
+  const themePick = target.closest("[data-theme-pick]");
+  const swatch = target.closest("[data-color]");
+  const pick = target.closest("[data-pick]");
+
+  if (appearance) {
+    document.documentElement.dataset.theme = appearance.dataset.appearance;
+    document.querySelectorAll("[data-appearance]").forEach((b) => b.setAttribute("aria-pressed", String(b === appearance)));
+    return render();
+  }
+  if (themePick) {
+    document.documentElement.dataset.lcTheme = themePick.dataset.themePick;
+    document.querySelectorAll("[data-theme-pick]").forEach((b) => b.setAttribute("aria-pressed", String(b === themePick)));
+    return render();
+  }
+  if (surface) {
+    app.surface = surface.dataset.surface;
+    app.menu = false;
+    app.define = app.surface === "settings" ? app.define : undefined;
+    app.colors = false;
+    document.querySelectorAll("[data-surface]").forEach((b) => b.setAttribute("aria-pressed", String(b === surface)));
+    return render();
+  }
+  if (project) {
+    app.labels = project.dataset.project === "seeded" ? JSON.parse(JSON.stringify(SEEDED)) : {};
+    app.ticketLabels = [];
+    app.fresh = undefined;
+    app.define = undefined;
+    app.menu = false;
+    document.querySelectorAll("[data-project]").forEach((b) => b.setAttribute("aria-pressed", String(b === project)));
+    return render();
+  }
+  if (drive) {
+    const what = drive.dataset.drive;
+    if (what === "fail") {
+      app.failNext = !app.failNext;
+      drive.setAttribute("aria-pressed", String(app.failNext));
+      return;
+    }
+    if (what === "reopen") { app.open = true; app.title = ""; return render(); }
+    if (what === "reset") {
+      app.labels = {}; app.ticketLabels = []; app.title = ""; app.created = 0;
+      app.open = true; app.menu = false; app.define = undefined; app.fresh = undefined;
+      app.failNext = false; app.colors = false;
+      document.querySelector('[data-drive="fail"]').setAttribute("aria-pressed", "false");
+      document.querySelectorAll("[data-project]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.project === "empty")));
+      $("#toasts").innerHTML = "";
+      return render();
+    }
+  }
+  if (swatch) {
+    if (app.define) app.define.color = swatch.dataset.color;
+    app.colors = false;
+    return render();
+  }
+  if (!role) {
+    // A press outside takes the popover down, on the anchor's own terms
+    // (`popover.ts:214-...`). The colour strip closes first.
+    if (app.colors) { app.colors = false; return render(); }
+    if (app.menu && !target.closest(".menu-popover")) { app.menu = false; app.define = undefined; return render(); }
+    return;
+  }
+  switch (role.role) {
+    case "add":
+      if (app.menu) { app.menu = false; app.define = undefined; return render(); }
+      return openMenu();
+    case "open-define":
+      return openDefine();
+    case "colors":
+      app.colors = !app.colors;
+      return render();
+    case "edit-slug":
+      // Deriving is not renaming: the key is editable while the row is open and
+      // fixed the moment the definition is written.
+      app.define.slug = state().slug;
+      app.editingSlug = true;
+      app.focus = "slug-field";
+      return render();
+    case "tick-existing": {
+      const slug = role.slug;
+      if (!app.ticketLabels.includes(slug)) app.ticketLabels.push(slug);
+      app.define = { name: "", slug: "", edited: false, color: nextColor() };
+      app.focus = "name-field";
+      return render();
+    }
+    default:
+      break;
+  }
+  if (pick) {
+    const slug = pick.dataset.pick;
+    app.ticketLabels = app.ticketLabels.includes(slug)
+      ? app.ticketLabels.filter((s) => s !== slug)
+      : [...app.ticketLabels, slug];
+    return render();
+  }
+});
+
+document.addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (event.target.dataset.role === "define") return addLabel();
+  // Quick create's own submit.
+  if (app.title.trim()) {
+    app.created += 1;
+    app.title = "";
+    app.open = false;
+    app.menu = false;
+    app.define = undefined;
+    toast(`RT-${3 + app.created} created`);
+    render();
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  const inField = /INPUT|TEXTAREA/.test(document.activeElement.tagName);
+
+  if (event.key === "Escape") {
+    /* The ladder, one rung a press (`keyboard-focus-map.md:19`): the colour
+       strip, then the define row, then the menu, then the modal. */
+    if (app.colors) { event.preventDefault(); app.colors = false; return render(); }
+    if (app.define && app.menu) { event.preventDefault(); return closeDefine(); }
+    if (app.menu) { event.preventDefault(); app.menu = false; return render(); }
+    if (app.open && app.surface === "quick") { event.preventDefault(); app.open = false; return render(); }
+    return;
+  }
+
+  /* The guard `Menu.onKeyDown` has to grow. It is bound to the popover, so
+     every key typed into the field bubbles to it: `j` and `k` steer the list
+     today — they are letters in `Jack` — and `↑↓` and `↵` are the menu's. A
+     field inside the popover owns its own keys, and the row's own handlers
+     take them from here. */
+  if (inField) {
+    if (event.key === "Enter") {
+      const form = document.activeElement.closest('[data-role="define"]');
+      if (form) { event.preventDefault(); addLabel(); }
+    }
+    return;
+  }
+
+  if (app.menu && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+    /* `↓` past the last label reaches the define stop — the collapsed row when
+       it is closed, the name field when it is open. That is the open question
+       in the notes: it puts the footer in the menu's roving group. */
+    event.preventDefault();
+    const stops = [...document.querySelectorAll('.menu-popover [data-pick], .menu-popover [data-role="open-define"], .menu-popover [data-role="name-field"]')];
+    if (stops.length === 0) return;
+    const at = stops.indexOf(document.activeElement);
+    const step = event.key === "ArrowDown" ? 1 : -1;
+    stops[(at + step + stops.length) % stops.length].focus();
+  }
+});
+
+render();
+</script>
+</body>
+</html>
