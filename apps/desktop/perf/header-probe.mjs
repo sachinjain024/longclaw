@@ -125,7 +125,10 @@ const SLOW_MS = 1_800;
  *      squeezes this panel;
  *   7. the path chip pinned to a fixed width instead of its column, which is
  *      the character cap it replaced — 140px of chip in a 165px column, the
- *      25px of empty the seventh derivation stopped deriving (round 5).
+ *      25px of empty the seventh derivation stopped deriving (round 5);
+ *   8. the tail's reserve set wider than the head's own minimum, which is a
+ *      `%` of the *text* rather than of the column and so cuts a path the box
+ *      could hold whole — `~/longclaw` in 39px of a 157px box (round 6).
  *
  * **A rule here must actually invert something.** One of them once restated a
  * declaration the stylesheet already had — `.project-identity .path-chip
@@ -146,6 +149,7 @@ const PRE_FIX_CSS = `
   .identity-text { flex: 0 1 auto; }
   .project-section, .project-row { min-width: auto; }
   .project-identity .path-chip { max-width: 140px; }
+  .project-identity .path-chip .head:not(:empty) + .tail { max-width: calc(100% - 4ch); }
 `;
 
 /**
@@ -168,6 +172,7 @@ const INVERTED_CHECKS = [
   "the project list scrolls and the pinned pair is inside the panel",
   "the path fills its column to the rows' edge and clears the gear",
   "the identity block is the rows' width and its gear is on their `⋮`",
+  "every shape of path fills the chip without cutting one that fits",
 ];
 
 /* ---------- reporting ---------- */
@@ -391,6 +396,61 @@ async function probe(browser, px) {
         : "no path chip",
     );
 
+    // Every shape a path can be, in the chip the app actually drew. The fixture
+    // has exactly one path and its head is `/tmp` — so the shapes that broke
+    // were the ones it does not have: a project directly under `~`, one at the
+    // filesystem root with no head at all, and a last segment wider than the
+    // whole box. A reserve meant for the third silently cut the first two,
+    // because the chip is `fit-content` and a `%` on the tail resolves against
+    // the text rather than the column. Nothing here could see it: one fixture
+    // path is one shape (LC-239w, round 6).
+    const shapes = await page.evaluate(() => {
+      const head = document.querySelector(".project-identity .path-chip .head");
+      const tail = document.querySelector(".project-identity .path-chip .tail");
+      const column = document.querySelector(".project-identity .identity-text");
+      if (!head || !tail || !column) return null;
+      const was = [head.textContent, tail.textContent];
+      const split = (text) => {
+        const cut = text.lastIndexOf("/");
+        return cut <= 0 ? ["", text] : [text.slice(0, cut), text.slice(cut)];
+      };
+      const bad = [];
+      for (const path of [
+        "~/longclaw",
+        "~/aibytes-agents",
+        "/fixture-no-head",
+        "~/dev/aibytes-agents",
+        "~/personal/repo/deep/workspace/aibytes-agents",
+        "/tmp/longclaw-performance-fixture",
+      ]) {
+        const [h, t] = split(path);
+        head.textContent = h;
+        tail.textContent = t;
+        const wants = head.scrollWidth + tail.scrollWidth;
+        const room = column.clientWidth;
+        const headCut = head.scrollWidth > head.clientWidth + 1;
+        const tailCut = tail.scrollWidth > tail.clientWidth + 1;
+        const headBox = head.getBoundingClientRect().width;
+        // A path the column can hold must arrive whole; a head that *is* cut
+        // has to keep the width its ellipsis needs, or the cut is invisible.
+        if (wants <= room - 8 && (headCut || tailCut))
+          bad.push(`${path} cut though it fits`);
+        else if (headCut && headBox < 6) bad.push(`${path} head cut silently`);
+      }
+      head.textContent = was[0];
+      tail.textContent = was[1];
+      return bad;
+    });
+    check(
+      "every shape of path fills the chip without cutting one that fits",
+      shapes && shapes.length === 0,
+      shapes
+        ? shapes.length
+          ? shapes.join("; ")
+          : "6 shapes clean"
+        : "no path chip",
+    );
+
     // The identity block is the same width as the rows under it, and the gear
     // ends where their `⋮` ends. Both are alignments between elements that
     // share no rule and no parent — the arithmetic agreed on paper at every
@@ -492,8 +552,9 @@ async function probe(browser, px) {
               `${line.name} ${Math.round(line.box.height)}px/${Math.round(line.tallest)}px`,
           )
           .join(", ") +
-          // Reported, not asserted: see the note at the top of this file about
-          // the band of widths where this number does change.
+          // Reported, not asserted. The note at the top of this file has the
+          // reason: the header holds one item now, so the band of widths where
+          // this number used to change is gone and the height simply holds.
           `; header ${Math.round(quiet.header.height)}px quiet → ${Math.round(seen.header.height)}px`,
       );
 

@@ -1060,9 +1060,10 @@ describe("the project path chip (LC-68)", () => {
     const chip = screen.getByRole("button", {
       name: `Copy path — ${p.rootPath}`,
     });
-    // Shown whole — it is inside the panel's 21-character box — and with no
-    // `~`, which is this test's subject: the abbreviation is the home
-    // directory's, not any prefix's.
+    // Shown whole, and with no `~`, which is this test's subject: the
+    // abbreviation is the home directory's, not any prefix's. jsdom lays
+    // nothing out, so `head + tail` is the whole string here whatever the box
+    // would do with it — where the display cut falls is `probe:header`'s.
     expect(chip.textContent).toBe("/Users/other/shared");
     expect(chip.textContent).not.toContain("~");
     // And the whole path is still what the chip is named for and copies.

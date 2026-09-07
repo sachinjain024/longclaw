@@ -37,7 +37,8 @@ export function tildeAbbreviate(path: string, home: string | null): string {
  *
  * **This replaces a character cap, and the cap is why.** The chip is mono, so a
  * character count *is* a pixel count — but only against one box, and there is
- * more than one box. The column is 165px at 1024px and up and 145px below it,
+ * more than one box. The column is 165px above 980px and 145px at 980 and
+ * below — `styles.css`'s one side-panel breakpoint —
  * and a single constant measured against the narrower one left 25px of the
  * wider one empty at every window anybody actually uses. Six derivations of
  * that constant were wrong before this one: 22 characters in a box calculated

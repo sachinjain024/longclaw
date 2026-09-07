@@ -107,8 +107,11 @@ textarea:focus-visible,
    for *people* — humans are circle avatars in the timeline and the composer
    (`screen-specs.md` § Avatars) — and a project is not one.
 
-   34px is the two rows it stands beside, exactly: an 18px name line, 2px of
-   gap, a 14px path line. It carries the project's own accent at a wash, which
+   34px was the two rows it stands beside, exactly, while the gear floated over
+   the block: an 18px name line, 2px of gap, a 14px path line. Round 3 put the
+   gear into the flow of the name's row, which made that row as tall as the
+   control — measured now, the column is 47.8px (26 + 2 + 19.8) and the tile is
+   centred against it rather than spanning it. It carries the project's own accent at a wash, which
    is the third place a theme reaches the side panel after the row's dot and the
    menu's swatch — and here it is always the *open* project, so the accent is
    the window's own and needs no `data-lc-theme` scoping. */
@@ -185,9 +188,10 @@ textarea:focus-visible,
    which is where this app puts one everywhere else. `margin-left: auto` rather
    than the name growing, so a short name does not drag the gear in beside it.
 
-   Two classes, deliberately. `.settings-button` alone is one, which ties with
-   `.ghost` and `.small` and loses to whichever is later in this file — that tie
-   is how the gear shipped as a 6px dot, `.small`'s `padding: 0 9px` squeezing
+   Two classes, deliberately. `.settings-button` alone is one, which tied with
+   `.ghost` and — while this element still carried it — `.small`, losing to
+   whichever came later in this file. That tie is how the gear shipped as a 6px
+   dot, `.small`'s `padding: 0 9px` squeezing
    a 14px glyph inside a 26px box. It was `.content-header .settings-button`
    before the move, and it is scoped again now. */
 .identity-name .settings-button {
@@ -340,7 +344,7 @@ textarea:focus-visible,
 /* `min-width: 0` here and on `.project-row` below, because the two are the
    automatic-minimum trap one level apart: a `<section>` is a grid item of
    `.project-nav` and a row is a flex item of the section, and neither will go
-   below its own min-content without being told it may. Below about 900px the
+   below its own min-content without being told it may. At 980px and below the
    shell squeezes this panel to 220px, and the rows kept their content width and
    hung 4px past its edge — visible as a list that does not line up with the
    identity block above it, which does shrink (LC-239w, round 4). */
@@ -994,8 +998,8 @@ button:disabled {
 /* The project already owns its star in the side panel; its one other project
    action is the prototype's compact gear, which sits in the identity block with
    the path it belongs to (`screen-specs.md` § Project identity). Unscoped since
-   LC-239w — it is the same control in a new parent, and nothing about how it
-   looks changed with the move. */
+   LC-239w — it is the same control in a new parent. What the move did change is
+   below, on the hover rule. */
 .settings-button {
   display: inline-flex;
   align-items: center;
@@ -1021,9 +1025,22 @@ button:disabled {
 /* Held down while its menu is up (LC-208), because a menu anchored under a
    control that looks untouched reads as belonging to whatever is behind it. */
 /* Hover fills like every icon button now — the prototype's gear (D22,
-   superseding D16's colour-only fade). */
-.settings-button:hover,
-.settings-button.open {
+   superseding D16's colour-only fade).
+
+   **Both classes and both pseudo-classes, so this wins on weight.** This
+   element carries `.ghost`, and `.ghost:hover:not(:disabled)` is (0,3,0) —
+   `:not()` takes the weight of its argument — so the bare `.settings-button`
+   the unscoping left behind was (0,2,0) and lost. The declared `line-soft`
+   became `wash` — invisible in the light appearance, where the two tokens
+   resolve to the same value, and a visible step darker in the dark one, where
+   they do not. The `⋮` directly below this gear takes `line-strong` rather than
+   `wash` for the same reason: a panel icon button picks the fill that reads
+   against the panel, not the one the foundation happens to hand it.
+
+   Not left to win on source order, which it would at (0,3,0) — the last rule
+   in this file that was came out as a 6px dot (round 3). */
+.settings-button.ghost:hover:not(:disabled),
+.settings-button.ghost.open:not(:disabled) {
   color: var(--lc-ink);
   background: var(--lc-line-soft);
 }
@@ -1154,17 +1171,27 @@ button:disabled {
    takes neither, and what the panel cannot hold comes off the front.
 
    A single constant could not do this — it is measured against one box, and the
-   column is 165px at 1024px and up but 145px below, so the cap that fit the
+   column is 165px above 980px but 145px at 980 and below, so the cap that fit the
    narrow one left 25px of the wide one empty. `pathDisplay.ts` carries the six
    derivations that were wrong before this stopped being a number.
 
-   The tail's `max-width` is the one case the split cannot help with: a last
-   segment wider than the whole box. The tail ellipsizes there — but it stops
-   4ch short of the box so the head keeps enough room to draw its own ellipsis,
-   because a head squeezed to nothing is *silent*: `/tmp/longclaw-perf…` would
-   render as `/longclaw-perf…` and read as a folder at the root. The reserve
-   only ever binds in that case; a tail the box can hold is never shortened by
-   it, so the ordinary path is unaffected. */
+   A last segment wider than the whole box is the case the split cannot help
+   with, and it takes the two rules under the tail. The tail ellipsizes there
+   rather than being clipped by the edge — but it stops 1ch short so the head
+   keeps room to draw its own ellipsis, because a head squeezed to nothing is
+   *silent*: `/tmp/longclaw-perf…` renders as `/longclaw-perf…` and reads as a
+   folder at the root.
+
+   **1ch, and it must be the head's own `min-width`, not a number.** The chip is
+   `fit-content`, so the tail's `%` resolves against the *text* and not against
+   the column — a reserve wider than the head's minimum therefore comes out of a
+   path that fits. A 4ch one did exactly that and cut `~/longclaw` down to
+   `~/l…/longcl…` in a box with 90px to spare, because `100% - 4ch` of a
+   65px-wide text is 39px. At 1ch the two cancel: a head that is present is
+   never narrower than the reserve, so `100% - 1ch` cannot bind on a path the
+   box can hold. A head that is *absent* has no ellipsis to keep and takes the
+   plain `100%`, which is why the reserve hangs off `:not(:empty)` rather than
+   off the tail alone. */
 .project-identity .path-chip .txt {
   display: flex;
   overflow: hidden;
@@ -1179,12 +1206,23 @@ button:disabled {
   white-space: nowrap;
 }
 
+/* Enough to draw `…` and never more, so a cut head is visible rather than
+   silent. Only when there is a head: an empty one would otherwise hold a
+   character of blank in front of the path. */
+.project-identity .path-chip .head:not(:empty) {
+  min-width: 1ch;
+}
+
 .project-identity .path-chip .tail {
   overflow: hidden;
-  max-width: calc(100% - 4ch);
+  max-width: 100%;
   flex: 0 0 auto;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.project-identity .path-chip .head:not(:empty) + .tail {
+  max-width: calc(100% - 1ch);
 }
 
 .path-chip:hover {
@@ -2488,8 +2526,9 @@ button:disabled {
 /* Two elements, not one (D-39). The chip names the file and holds still; the
    indicator beside it is absent unless the disk is doing something. Both give
    up width before the actions do, since those are fixed and sit at the edge —
-   `.path-chip`'s 180px cap belongs to the content header, where the path is
-   arbitrarily long, and this one is `tickets/<key>/ticket.md` every time. */
+   `.path-chip`'s cap belongs to whatever box it is in — the side panel's
+   column since LC-239w, where the path is arbitrarily long — and this one is
+   `tickets/<key>/ticket.md` every time. */
 .panel-header .path-chip {
   max-width: none;
 }
