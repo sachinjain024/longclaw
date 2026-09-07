@@ -8,7 +8,7 @@ priority: urgent
 labels:
   - release
 created_at: 2026-08-22T06:13:17.138Z
-updated_at: 2026-09-07T13:24:31.591Z
+updated_at: 2026-09-07T13:40:42.006Z
 ---
 
 Brainstorm with LLM agent like what other fields we should support. A few items I can think of are Type - Bug/Task, Due State, Start Date, Effort
@@ -269,7 +269,7 @@ reaches for.
 
 ## Checklist
 
-- [ ] ADR: property configuration joins labels in longclaw.yaml — record why ADR 0002's reservation is deferred, and what would revisit it <!-- longclaw:item=ck_945a1ca9 -->
+- [x] ADR: property configuration joins labels in longclaw.yaml — record why ADR 0002's reservation is deferred, and what would revisit it <!-- longclaw:item=ck_945a1ca9 -->
 - [ ] Add Property to CONTEXT.md; Field is already defined there as a text-bearing editable <!-- longclaw:item=ck_d7acf634 -->
 - [ ] Settle the date-input grammar: which typed forms are accepted (2026-09-28, 28 Sep 2026, 28 Sep) and which year a form without one means <!-- longclaw:item=ck_eb7e1c56 -->
 - [ ] Specify type, due, start and estimate in docs/file_format.md, replacing prose in place <!-- longclaw:item=ck_4b893432 -->
@@ -1002,6 +1002,22 @@ actor:
   name: Claude Code
 changes:
   - field: description
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_dbf8c0e1
+kind: update
+occurred_at: 2026-09-07T13:40:42.006Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_945a1ca9.checked
+    from: "false"
+    to: "true"
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->
