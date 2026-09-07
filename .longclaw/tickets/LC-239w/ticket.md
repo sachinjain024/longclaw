@@ -624,3 +624,82 @@ npm run a11y:audit    A1–A5 PASS
 npm run matrix        8 axes × 12 states clean
 ```
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_6d6556ff
+kind: comment
+occurred_at: 2026-09-07T11:46:18.396Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+## Code review against `origin/main` — round 6, and it caught a defect I shipped
+
+Two-axis review. The Spec axis found the round-5 elision truncating paths the
+box could hold, which is the opposite of what round 5 was for.
+
+**The 4ch reserve was a `%` of the wrong thing.** The chip is `fit-content`, so
+`calc(100% - 4ch)` on the tail resolves against the *text* rather than against
+the column — `100% - 4ch` of a 65px text is 39px. Measured over six path shapes
+at both column widths, three of six were cut although they fit:
+
+```
+~/longclaw         wants  65  col 157   →  ~/l…  /longcl…      TRUNCATED
+~/aibytes-agents   wants 104  col 157   →  cut                 TRUNCATED
+/fixture-no-head   wants 104  col 157   →  cut, head empty     TRUNCATED, and silent
+```
+
+The last one is the reserve's own purpose failing: with no head there is nothing
+to hold an ellipsis, so the path was cut with nothing in front to say so.
+
+**The reserve is now the head's own `min-width`, 1ch, on `:not(:empty)`.** At
+1ch the two cancel — a head that is present is never narrower than the reserve,
+so it cannot bind on a path that fits — and a head that is absent takes the
+plain `100%`, having no ellipsis to keep. Six shapes clean at both widths.
+
+**Nothing could have caught this.** The probe has one fixture path,
+`/tmp/longclaw-performance-fixture`, whose head is `/tmp` — so every shape that
+broke is one it does not have. Round 5's claim that "the probe prints the box on
+every run, so a fifth cannot hide" was true only for the shape it draws. The
+probe now sweeps six shapes through the real chip, and that is rule 8 of the
+self-test's covered set.
+
+**The gear's hover had gone quietly wrong two rounds ago.** Unscoping
+`.content-header .settings-button:hover` to `.settings-button:hover` dropped it
+from (0,3,0) to (0,2,0), under `.ghost:hover:not(:disabled)` — `:not()` carries
+its argument's weight — so the declared `line-soft` became `wash`. Invisible in
+the light appearance, where those tokens resolve to the same value; a visible
+step in dark. The `⋮` right below the gear takes `line-strong` rather than
+`wash`, which is the same point: a panel icon button picks the fill that reads
+against the panel. Restored on weight rather than on source order, and measured
+against `origin/main`:
+
+```
+light   before WASH        after WASH        MATCH
+dark    before LINE-SOFT   after LINE-SOFT   MATCH
+```
+
+**Five stale comments**, all the kind the last two rounds were about: the tile's
+"34px is the two rows it stands beside, exactly" (measured, the column is 47.8px
+since the gear joined the name's row — 26 + 2 + 19.8); the side-panel breakpoint
+written as 1024/900 in three places when the media query is 980; a test naming
+the deleted 21-character box; a probe comment pointing at a note that now says
+the opposite; and a 180px cap that no longer exists.
+
+**One thing left open, deliberately.** The round-2 feedback asked that the tile
+be "two rows" tall. It is 34px and the two rows now measure 47.8px, because
+round 3 put the gear in the flow of the name's row. It reads fine centred and
+the screenshots bear that out, so I have not resized it — but it is a real gap
+between the block as specified and the block as built, and it is yours to call.
+
+```
+npm run verify        exit 0 — 44 files, 1118 tests, 494 citations
+npm run probe:header  140/140
+  -- --self-test      all 8 the rules answer for went red
+npm run a11y:audit    A1–A5 PASS
+npm run matrix        8 axes × 12 states clean
+```
+<!-- /longclaw:event -->
