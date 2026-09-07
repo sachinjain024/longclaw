@@ -551,3 +551,76 @@ four axes in. I stashed the source changes and ran it again: **the baseline did
 not reach a single axis in ten minutes**, at load 7–10. It was the machine. The
 clean run above is with the changes restored and nothing else running.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_e6cb2ff6
+kind: comment
+occurred_at: 2026-09-07T11:24:01.976Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+## UX feedback — round 5 (from the user, on the running app)
+
+- The project path should take more space on the right
+- It should take the complete path till the gear icon, and be aligned with the
+  triple vertical dots below as well
+
+Right, and measured before touching anything:
+
+```
+1440/1180/1024   column 62..227 (165px)   chip ends 202 (140px)   SLACK 25px   ⋮ at 227
+900/800/760      column 62..207 (145px)   chip ends 202 (140px)   SLACK  5px   ⋮ at 207
+```
+
+So the chip was 25px short of the `⋮` at every window from 1024 up — the exact
+alignment round 4 had just fixed for the gear, missed by the path underneath it.
+
+**The cause is the cap itself, not its value.** The chip is mono, so a character
+count *is* a pixel count — but only against one box, and there are two: the
+column is 165px at 1024 and up and 145px below. Any single number wastes one or
+clips the other, and 21 was measured against the narrow one. That is the sixth
+wrong derivation of this constant the ticket has recorded.
+
+**The seventh derivation is not to derive one.** `elidePath` and
+`SIDEBAR_PATH_HEAD/TAIL/CAP` are gone. `splitPath` says only *where* the cut may
+fall — after the last separator — and the two spans it feeds let the box do the
+cutting: the head shrinks and takes the ellipsis, the tail carries the folder
+that identifies the project and never gives. Measured after: chip ends at
+**227 of 227** at 1024 and up and **207 of 207** below, at every width — the
+column's edge and the rows' `⋮`.
+
+For a real path the shape is now `~/perso…/aibytes-agents` filling the column,
+where it was `~/pers…aibytes-agents` in 140px with 25px of air after it.
+
+**Two defects the drawing caught that the arithmetic did not.**
+
+1. **A last segment wider than the whole box collapsed the head to nothing, and
+   did it silently.** `/tmp/longclaw-performance-fixture` rendered as
+   `/longclaw-performance-f…` — no ellipsis in front, so it read as a folder at
+   the root. The tail now stops 4ch short of the box so the head always has room
+   to draw its own ellipsis; the reserve binds only in that case, and a tail the
+   box can hold is never shortened by it.
+2. **The probe's new check was born dead.** It read the head's own elision to
+   decide whether the chip had to fill — and the fixture's head is `/tmp`, which
+   never elides, so the arm was vacuous and rule 7 behind it inverted nothing.
+   The same failure as last round's `max-width: 100%`, one round later. It now
+   compares what the path *wants* (both halves' `scrollWidth`) against the
+   column, and measures the chip against the rows' `⋮` rather than against the
+   column — the column is itself a box the defects move. Checked in isolation:
+   rule 7 alone flips the check from `FILLS=true` to `FILLS=false`.
+
+`screen-specs.md:44-45` rewritten in place, line count held at 434; the one
+citation naming it was re-pointed before `citations:update`.
+
+```
+npm run verify        exit 0 — 44 files, 1118 tests, 494 citations
+npm run probe:header  133/133
+  -- --self-test      all 7 the rules answer for went red
+npm run a11y:audit    A1–A5 PASS
+npm run matrix        8 axes × 12 states clean
+```
+<!-- /longclaw:event -->
