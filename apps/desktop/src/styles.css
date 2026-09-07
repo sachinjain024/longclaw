@@ -1089,7 +1089,7 @@ button:disabled {
 }
 
 /* The project path as a chip (`screen-specs.md:42-45`, D-06): mono, elided in
-   the middle, and a click that copies. It gave up the folder glyph and two
+   the middle by its own box, and a click that copies. It gave up the folder glyph and two
    points of size when it moved to the side panel's identity block (LC-239w),
    where the tile leads the row instead of a glyph. The bare wrapping `<code>`
    it replaces consumed two lines for a long path; this one never does. Modeled
@@ -1103,7 +1103,7 @@ button:disabled {
   /* The cap is the box it is in. It was 180px while this lived in the content
      header, where the box was the header's to give; in the side panel's
      identity block the box is the panel, and what keeps a long path to one line
-     is the middle elision in `pathDisplay.ts` rather than a width (LC-239w). */
+     is the head-and-tail elision below rather than a width (LC-239w). */
   max-width: 100%;
   /* The 1px the focused state needs, reserved transparent and paid for out of
      the padding rather than added to the box: `components.md:30` puts a 1px
@@ -1123,17 +1123,16 @@ button:disabled {
   cursor: pointer;
 }
 
-/* 10.5px in the identity block, which is the size the content header set it at
-   and the size `pathDisplay.ts`'s character cap is measured against: 6.3px a
-   glyph in a box that is 137px at its narrowest, so twenty-one characters.
-   Changing this size without re-measuring that cap is how the path starts
-   clipping — `probe:header` prints the two side by side on every run. */
+/* 10.5px in the identity block, the size the content header set it at. There is
+   no character cap to keep in step with it any more: the elision is the two
+   spans below, so the box decides, and `probe:header` checks that the chip
+   reaches the column's edge rather than that a number still fits. */
 .project-identity .path-chip {
-  /* Sized to its text, and to nothing else: this row is the chip's alone.
-
-     `justify-self` because the chip is a button. Stretched across the column it
-     would own the empty half of the row too, and a click on nothing would copy
-     the path.
+  /* `justify-self: start` is what makes this both things at once. A grid item
+     aligned to `start` takes `fit-content`, so a path that fits sizes the chip
+     to its own text — no dead half-row where a click on nothing copies the path
+     — and a path that does not fit clamps the chip to the column, which is the
+     panel's edge and the row's `⋮` below it (LC-239w, round 5).
 
      No width reserved for the gear. It held 30px clear of one while the gear
      floated over the block, out of flow, and its 26px box hung into this row
@@ -1145,6 +1144,47 @@ button:disabled {
   justify-self: start;
   color: var(--lc-ink-3);
   font-size: 10.5px;
+}
+
+/* The middle elision, done by the box rather than by counting characters.
+
+   The head may be cut and the tail may not: `~/Developer/…` is the same on
+   every path in this app, and the last folder is the one that says which
+   project this is. So the head takes `flex-shrink` and the ellipsis, the tail
+   takes neither, and what the panel cannot hold comes off the front.
+
+   A single constant could not do this — it is measured against one box, and the
+   column is 165px at 1024px and up but 145px below, so the cap that fit the
+   narrow one left 25px of the wide one empty. `pathDisplay.ts` carries the six
+   derivations that were wrong before this stopped being a number.
+
+   The tail's `max-width` is the one case the split cannot help with: a last
+   segment wider than the whole box. The tail ellipsizes there — but it stops
+   4ch short of the box so the head keeps enough room to draw its own ellipsis,
+   because a head squeezed to nothing is *silent*: `/tmp/longclaw-perf…` would
+   render as `/longclaw-perf…` and read as a folder at the root. The reserve
+   only ever binds in that case; a tail the box can hold is never shortened by
+   it, so the ordinary path is unaffected. */
+.project-identity .path-chip .txt {
+  display: flex;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.project-identity .path-chip .head {
+  overflow: hidden;
+  min-width: 0;
+  flex: 0 1 auto;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-identity .path-chip .tail {
+  overflow: hidden;
+  max-width: calc(100% - 4ch);
+  flex: 0 0 auto;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .path-chip:hover {

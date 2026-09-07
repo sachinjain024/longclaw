@@ -66,7 +66,7 @@ import { MenuButton } from "./Menu";
 import { mutate, type Mutation, useMutationStore } from "./mutations";
 import { ORDERINGS, type OrderingMode } from "./ordering";
 import { OwlMark } from "./OwlMark";
-import { elidePath, tildeAbbreviate } from "./pathDisplay";
+import { splitPath, tildeAbbreviate } from "./pathDisplay";
 import { ProjectSettings } from "./ProjectSettings";
 import { QuickCreate } from "./QuickCreate";
 import type { FocusRequest } from "./rovingFocus";
@@ -2579,17 +2579,25 @@ function projectInitial(name: string): string {
  *
  * **Elided in the middle, not at the tail** (LC-239w). A tail ellipsis keeps
  * `~/Developer/…`, which is the same on every path in this app; the end is the
- * folder that identifies the project, so that is the half kept whole. The cap
- * is a character count because the chip is mono — see `pathDisplay.ts`, where
- * the arithmetic is.
+ * folder that identifies the project, so that is the half kept whole. Which is
+ * why the two halves are two spans: the box decides where the cut falls, at
+ * whatever width the panel currently is, and only the head may be cut. There
+ * was a character cap here instead until round 5, and it could only ever be
+ * right about one of the panel's two widths — `pathDisplay.ts` carries the six
+ * derivations of it that were wrong.
  *
- * No folder glyph. It costs 19px of a box that is 137px at its narrowest —
+ * No folder glyph. It costs 19px of a box that is 145px at its narrowest —
  * three characters of path — and the row it would lead is already led by the
  * project tile.
  * The display text is tilde-abbreviated; the clipboard and `title` keep the
  * full path.
  */
 function PathChip(props: { path: string; homePath: string | null }) {
+  // Two spans, because the ellipsis is the box's decision and not this
+  // component's: the head shrinks and ellipsizes when the panel is too narrow
+  // for the whole path, and the tail — the folder that identifies the project —
+  // is never the part that gives.
+  const shown = splitPath(tildeAbbreviate(props.path, props.homePath));
   const copy = useCallback(
     () =>
       copyToClipboard(props.path, {
@@ -2607,7 +2615,8 @@ function PathChip(props: { path: string; homePath: string | null }) {
       onClick={() => void copy()}
     >
       <span className="txt">
-        {elidePath(tildeAbbreviate(props.path, props.homePath))}
+        <span className="head">{shown.head}</span>
+        <span className="tail">{shown.tail}</span>
       </span>
     </button>
   );

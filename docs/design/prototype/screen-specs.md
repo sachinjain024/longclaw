@@ -41,8 +41,8 @@
   letter (square, not round — a circle is this design's shape for *people*);
   a two-line column, name in display 600/14 `ink` with the **gear** 26px at
   the end of its row, over the **path chip** (mono 10.5px, no folder glyph,
-  click copies, hover `wash`, **elided in the middle** to 21 characters,
-  6 + `…` + 14, a pixel cap because the chip is mono) — which runs the
+  click copies, hover `wash`, **elided in the middle** by its own box —
+  the head ellipsizes in CSS, the last folder stays whole) — which runs the
   column's full width, the gear taking its 26px out of the name instead.
   Under it a **reserved 15px row** for the disk-state indicator (below),
   empty whenever the disk is quiet: one that collapsed would move the list on

@@ -122,7 +122,10 @@ const SLOW_MS = 1_800;
  *      misalignment on both of its axes;
  *   6. the rows refusing to shrink below their own content, which is the same
  *      misalignment from the other side and only at the widths where the shell
- *      squeezes this panel.
+ *      squeezes this panel;
+ *   7. the path chip pinned to a fixed width instead of its column, which is
+ *      the character cap it replaced — 140px of chip in a 165px column, the
+ *      25px of empty the seventh derivation stopped deriving (round 5).
  *
  * **A rule here must actually invert something.** One of them once restated a
  * declaration the stylesheet already had — `.project-identity .path-chip
@@ -142,6 +145,7 @@ const PRE_FIX_CSS = `
   .identity-name .settings-button { position: absolute; top: 0; right: 0; }
   .identity-text { flex: 0 1 auto; }
   .project-section, .project-row { min-width: auto; }
+  .project-identity .path-chip { max-width: 140px; }
 `;
 
 /**
@@ -162,7 +166,7 @@ const INVERTED_CHECKS = [
   "the identity block and the list hold still while writing",
   "the identity block and the list hold still with the spinner up",
   "the project list scrolls and the pinned pair is inside the panel",
-  "the path fits its box on one line and stops short of the gear",
+  "the path fills its column to the rows' edge and clears the gear",
   "the identity block is the rows' width and its gear is on their `⋮`",
 ];
 
@@ -313,17 +317,23 @@ async function probe(browser, px) {
         panelBottom: Math.round(box(side).bottom),
       };
     });
-    // The path fits its box, and the box is the one the character cap in
-    // `pathDisplay.ts` was measured against. Four different numbers were wrong
-    // before that constant was right — each one arithmetic from the panel's
-    // width rather than a measurement — and every one of them would have shown
-    // as a second ellipsis on screen and nowhere else. `scrollWidth` over
-    // `clientWidth` is the whole check.
+    // The path *fills* its box, which is the question the character cap could
+    // never answer. Six derivations of that constant were wrong, and the last
+    // one was wrong in a way no check could see: 21 characters fit the narrow
+    // panel exactly and left 25px of the wide one empty at every window anybody
+    // uses. So this no longer asks whether the text fits a number — it asks
+    // whether the chip reaches the column's right edge, which is the panel's
+    // edge and the `⋮` below it (LC-239w, round 5).
     const path = await page.evaluate(() => {
       const txt = document.querySelector(".project-identity .path-chip .txt");
       const chip = document.querySelector(".project-identity .path-chip");
       const gear = document.querySelector(".project-identity .settings-button");
-      if (!txt || !chip || !gear) return null;
+      const column = document.querySelector(".project-identity .identity-text");
+      const head = document.querySelector(".project-identity .path-chip .head");
+      const tail = document.querySelector(".project-identity .path-chip .tail");
+      const kebab = document.querySelector(".project-row .row-menu-button");
+      if (!txt || !chip || !gear || !column || !head || !tail || !kebab)
+        return null;
       const box = (element) => {
         const rect = element.getBoundingClientRect();
         return {
@@ -333,10 +343,27 @@ async function probe(browser, px) {
           bottom: rect.bottom,
         };
       };
+      // What the path would want if nothing constrained it. `scrollWidth` on
+      // each half gives its full content width whether or not that half is the
+      // one currently ellipsized, so this does not depend on *which* half gives
+      // — the fixture's head is `/tmp` and never elides, and reading the head's
+      // own elision made this arm vacuous and the rule behind it dead.
+      const wants = head.scrollWidth + tail.scrollWidth;
+      const mustFill = wants > column.clientWidth + 1;
+      // The reference edge is the rows' `⋮`, not the column's — the column is
+      // one of the boxes a defect moves, and this is the alignment the round-4
+      // and round-5 feedback both named. A path the panel can hold whole must
+      // *not* be stretched to it: the chip is a button, and a box wider than
+      // its text is a click on nothing that copies the path.
+      const edge = box(kebab).right;
       return {
         text: txt.textContent,
-        needs: Math.round(txt.scrollWidth),
-        has: Math.round(txt.clientWidth),
+        mustFill,
+        fills: mustFill
+          ? Math.abs(box(chip).right - edge) <= 1
+          : box(chip).right <= edge + 1,
+        chipRight: Math.round(box(chip).right),
+        columnRight: Math.round(edge),
         // And it does not run under the gear. They are on different rows since
         // the gear went into the flow of the name's, so this is a box overlap
         // rather than a left-of test — the two were side by side once, and a
@@ -355,10 +382,12 @@ async function probe(browser, px) {
       };
     });
     check(
-      "the path fits its box on one line and stops short of the gear",
-      path && path.needs <= path.has + 0.5 && path.clearsGear,
+      "the path fills its column to the rows' edge and clears the gear",
+      path && path.fills && path.clearsGear,
       path
-        ? `"${path.text}" ${path.needs}px in ${path.has}px, gear ${path.clearsGear ? "clear" : "OVERLAPPED"}`
+        ? `chip ends ${path.chipRight}, \u22ee at ${path.columnRight}` +
+            `${path.mustFill ? "" : " (fits whole, not stretched)"}` +
+            `, gear ${path.clearsGear ? "clear" : "OVERLAPPED"}`
         : "no path chip",
     );
 
