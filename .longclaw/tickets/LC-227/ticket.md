@@ -8,7 +8,7 @@ priority: urgent
 labels:
   - release
 created_at: 2026-08-22T06:13:17.138Z
-updated_at: 2026-09-08T06:53:12.387Z
+updated_at: 2026-09-08T07:20:00.434Z
 ---
 
 Brainstorm with LLM agent like what other fields we should support. A few items I can think of are Type - Bug/Task, Due State, Start Date, Effort
@@ -447,9 +447,21 @@ more thing to have to know, and it left "where is that date I set" unanswerable
 without opening the ticket. The rung decides the **word** and the **weight**,
 both of which may change at midnight because neither moves an offset.
 
-**The alignment inside the row is still open**: the date immediately after the
-key, or crossing the row to stand immediately left of the priority glyph so the
-two urgency marks read as one object. Both are in the prototype.
+**It is right-aligned in that row**, settled in review: the date crosses the row
+and stands immediately left of the priority glyph, so the two urgency marks read
+as one object at the far edge and the key keeps the left edge to itself. The
+alternative — the date sitting immediately after the key — was drawn and
+refused.
+
+The auto margin has to *move* rather than be added. `.card-top` puts
+`margin-left: auto` on the priority glyph; a second auto on the date splits the
+free space and parks the date mid-row, which is neither alignment. So the date
+takes the auto and the glyph gives it back — **but only on a card that has a
+date**. Handing it over unconditionally leaves the glyph with no auto margin and
+nothing else holding the right edge, so on a ticket with no due the priority
+glyph walks back up the row and sits against the key, 200px off the line its
+neighbours' sit on. The rule is `:has(.due-chip)`, and it is the kind of defect
+that ships because almost every fixture ticket has a date.
 
 ### The second footer row is estimate and type
 
@@ -564,20 +576,82 @@ reviewed, along with its line in the prototypes index.
   for "a trigger at the window's far edge", which is precisely a date field in a
   right-hand rail, and `liftIntoView` is what stops the tallest popover the app
   will have — 253px of grid — losing its Clear row off the bottom.
-- **The card's due is in the key row and the second footer row is estimate and
-  type**, above the label footer, in the first footer's own grammar: mono values
-  first, chips after. The date costs no height; the second row costs **+24px**
-  and gives four pinned heights — 108 · 132 · 136 · 160 — only in a project that
-  enables estimate or type.
+- **The card's due is in the key row, right-aligned**, immediately left of the
+  priority glyph so the two urgency marks read as one object at the far edge and
+  the key keeps the left edge to itself. It costs no height. The second footer
+  row is estimate and type, above the label footer, in the first footer's own
+  grammar: mono values first, chips after — **+24px**, four pinned heights
+  (108 · 132 · 136 · 160), and only in a project that enables one of the two.
 - **The estimate scale is the appearance row's segment** with a leading `—`,
   because absent is a value a scale must be able to say and the dash is the
   app's existing word for it (`priority: none` draws that glyph already).
 - **Settings gets one Properties pane after Labels**, four blocks, the
   checklist's own checkbox on a third selector, and the type-values editor is
   `.label-row` unchanged.
-- **The right-click menu gains a Type submenu** beside `Move to` and `Priority`,
-  off the same registry `metaOptions.tsx` feeds the other two from. The dates
-  and the estimate stay out, on the menu's own rule.
+- **The right-click menu gains all four properties**, below `Priority` and above
+  the archive rule — see below.
+
+### The context menu takes all four, and never grows a calendar
+
+Settled 2026-09-08 in review. `ticketMenu.tsx` offers `Move to` and `Priority`
+as submenus off `metaOptions.tsx`, so "the values a card can be moved to are the
+values the panel offers, always". Type, Start, Due and Estimate join them.
+
+The menu's own rule is that it holds *"only actions the app already has,
+reachable from somewhere else, so the menu is a shortcut rather than a second
+place where things are decided"*. Four rules keep the dates inside it:
+
+- **A row exists only for a property the project has enabled.** Properties ship
+  all off, so a default project's menu is exactly today's five rows. A project
+  that turns everything on gets nine. This is what makes four more rows
+  affordable at all.
+- **The menu never contains a calendar.** The date rows are quick picks —
+  `Today`, `Tomorrow`, `Next Monday`, `In a week` — and each says the day it
+  resolves to in its `.menu-hint`. Nothing is computed silently, which is the
+  whole of the objection the typed grammar raises against `next week`: refusing
+  to *parse* a computed phrase and offering it as a row a person points at are
+  different acts, and only the first one guesses.
+- **`Pick a date…` is the way out**, and it hands the job to the panel's real
+  control. Anything the four rows cannot reach is reached where the Field and
+  the picker already live.
+- **Every submenu carries `Clear`.** Clearing is first-class everywhere else
+  this ticket touches, and a submenu that can only ever *set* a property is a
+  one-way door.
+
+**`due` and `start` offer the same rows**, which is the grammar section's own
+trade one surface over: two adjacent controls whose vocabulary differs is worse
+than one vocabulary applied to both. **Estimate offers the project's scale** —
+the enum under t-shirt, the sequence under Fibonacci, and a common-durations
+list (`30m` `1h` `2h` `4h` `1d` `2d` `1w`) under duration.
+
+One gap the prototype surfaced and did not fill: every other row's glyph is its
+current value's mark — a status dot, a priority glyph, a type dot — and
+**estimate has no mark to draw**. Its slot is empty, which the 14px `.menu-glyph`
+box keeps aligned, but it is the one row in the menu that says nothing before
+you read it.
+
+### The panel's width is LC-238s's, and this ticket sets its floor
+
+Settled 2026-09-08: the panel gets a drag handle, opens at the width it was last
+left at, and **remembers that width across projects** — device-level, beside
+`appearance` in `devicePreferences.ts`, which is the placement
+[LC-238s](../LC-238s/ticket.md) already recommends and not `localStorage`
+(ADR 0012). The default goes up from 560.
+
+This ticket does not pick the number, but it removes the freedom to pick it
+freely: **under 660px there is no rail**, because the split is a container query
+on the panel, so a default below that ships this feature switched off. **800 is
+the recommendation** — the main column measures 507px there, one pixel under
+what a 560px panel gives the description today, so the rail costs the reader
+nothing. At 720 it is 427px, a ~70ch measure that reads fine and is a real
+reduction.
+
+Two consequences for LC-238s. The **minimum a person may drag to** stops being a
+comfort limit and becomes a decision: drag under 660 and the rail folds into the
+stacked meta grid, which is either the graceful degradation the container query
+was chosen for or a trap, and the ticket should say which. And LC-238s already
+clamps a width restored against a monitor that is no longer attached — the new
+part is that a clamp landing under 660 takes the rail with it, silently.
 
 ### What the prototype changed about the settled spec
 
@@ -586,25 +660,17 @@ reviewed, along with its line in the prototypes index.
   showed up once a panel was opened on an overdue ticket.
 - **The echo answers the open "what does it show while typing" question.**
   Also recorded above.
-- **The due moved from the footer to the key row**, in review, and the second
-  footer row lost its only universal occupant with it. Recorded above.
-- **The right-click menu was missing from the plan entirely.** It offers
-  `Move to` and `Priority` today and nothing in this ticket had said what
-  happens to it; two checklist rows now do.
+- **The due moved from the footer to the key row**, and the second footer row
+  lost its only universal occupant with it.
+- **The right-click menu was missing from the plan entirely**, and now carries
+  all four properties.
 
 ### What is still open for the review
 
-- **The panel's default width.** The rail costs the description ~252px. At 800
-  the main column is 507px, one pixel under what 560 gives it today; at 720 it
-  is 427px — a ~70ch measure, which reads fine but is a real reduction. LC-238s
-  owns the number; the prototype says what it is buying.
-- **Where in the key row the date sits** — immediately after the key, or across
-  the row against the priority glyph so the two urgency marks read as one
-  object. Both are in the driver.
-- **The estimate control: segment or menu.** The segment shows the whole scale
-  at rest and takes one click; the menu is what the rail's other six rows
-  already are, and survives a rail narrower than seven segments. Both are in the
-  driver.
+- **The estimate control in the rail: segment or menu.** The segment shows the
+  whole scale at rest and takes one click; the menu is what the rail's other six
+  rows already are, and survives a rail narrower than seven segments. Both are
+  in the driver.
 - **Whether the overdue chip is bare mono text or takes a soft danger wash.**
   The prototype defaults to text — a filled chip on a card is a thing the app
   has never had — and draws the alternative behind a switch.
@@ -617,6 +683,10 @@ reviewed, along with its line in the prototypes index.
   agents, `--lc-warn` is the unattributed external change, and LC-148 was the bug
   of those two colliding. Today stays monochrome and emphasised, and the
   visibility it needed came from the key row instead.
+- **Showing only the escalated rungs on the card.** Cheaper, and it made
+  presence a reading of the rung — safe in a fixed-height row, still one more
+  thing to know, and it left "where is that date I set" unanswerable without
+  opening the ticket.
 - **Type in the key row.** Type is a chip, the smallest chip is 19px and
   `.card-top` is pinned at 16, so every card in every project would grow 4px
   whether or not Type was enabled. The due survives that row only because it is
@@ -674,13 +744,16 @@ height — which is the invariant the second footer row exists inside.
 - [ ] Settings pane: the estimate system picker, its conversion fields, and the due attention_days number <!-- longclaw:item=ck_f8c2ee24 -->
 - [ ] Ticket panel: the properties rail, gated on the project's enabled set <!-- longclaw:item=ck_8505f369 -->
 - [ ] Date input: picker plus the typed forms, normalised to the canonical on-disk shape <!-- longclaw:item=ck_31cdc0b5 -->
+- [ ] Hand LC-238s the rail's floor: no rail under 660px, 800 recommended, and a clamp that lands under 660 silently removes it <!-- longclaw:item=ck_ded5d73e -->
 - [ ] Create panel and quick create: the enabled properties only <!-- longclaw:item=ck_15448aa4 -->
 - [ ] Board card: the due in the key row, immediately before the priority glyph — it costs no height, so cardStrides and the pinned heights never learn about due at all <!-- longclaw:item=ck_09e1edf1 -->
 - [ ] boardGeometry: cardStrides learns the second footer row for estimate and type, keeping the height derivable from row data and never measured <!-- longclaw:item=ck_1b980442 -->
 - [ ] styles.css and card-height-guard.mjs learn the new pinned heights — the guard runs inside npm run check and fails on a disagreement <!-- longclaw:item=ck_2c41c9b0 -->
 - [ ] List row: due within the row's two-chip budget, minding LC-93's 46px slot <!-- longclaw:item=ck_6ac72ae5 -->
-- [ ] Ticket context menu: a Type submenu beside Move to and Priority, off the same registry metaOptions feeds the other two from <!-- longclaw:item=ck_a77f4bb8 -->
-- [ ] Record why due, start and estimate stay out of the context menu — the menu's own rule is that it is a shortcut, not a second place where things are decided <!-- longclaw:item=ck_fcf48239 -->
+- [ ] Ticket context menu: submenus for all four properties beside Move to and Priority, each row present only when the project enables that property — a default project's menu is unchanged <!-- longclaw:item=ck_a77f4bb8 -->
+- [ ] Date submenus are quick picks with the resolved day as each row's hint, plus Clear and a Pick a date… that hands off to the panel — never a calendar inside a popover <!-- longclaw:item=ck_fcf48239 -->
+- [ ] Estimate submenu is the project's own scale: the enum under t-shirt, the sequence under Fibonacci, and a common-durations list under duration <!-- longclaw:item=ck_d3ec1253 -->
+- [ ] Every property submenu carries Clear, so a context-menu set is never a one-way door <!-- longclaw:item=ck_c06f6e05 -->
 - [ ] Proximity derived from an injected now, plus the day-boundary recompute the watcher cannot push <!-- longclaw:item=ck_55424527 -->
 - [ ] A Due board ordering mode beside Priority and Manual (ADR 0003) <!-- longclaw:item=ck_79550de2 -->
 - [ ] Command palette rows for setting each enabled property <!-- longclaw:item=ck_e8cbab2a -->
@@ -1681,6 +1754,133 @@ changes:
 id: evt_057ff706
 kind: update
 occurred_at: 2026-09-08T06:53:12.387Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_94b04aab
+kind: update
+occurred_at: 2026-09-08T07:18:24.157Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_a77f4bb8.text
+    from: "Ticket context menu: a Type submenu beside Move to and Priority, off the same registry metaOptions feeds the other two from"
+    to: "Ticket context menu: submenus for all four properties beside Move to and Priority, each row present only when the project enables that property — a default project's menu is unchanged"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_068982cf
+kind: update
+occurred_at: 2026-09-08T07:18:30.178Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_fcf48239.text
+    from: Record why due, start and estimate stay out of the context menu — the menu's own rule is that it is a shortcut, not a second place where things are decided
+    to: Date submenus are quick picks with the resolved day as each row's hint, plus Clear and a Pick a date… that hands off to the panel — never a calendar inside a popover
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_2e3d8898
+kind: update
+occurred_at: 2026-09-08T07:18:37.598Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_d3ec1253.added
+    to: "Estimate submenu is the project's own scale: the enum under t-shirt, the sequence under Fibonacci, and a common-durations list under duration"
+  - field: checklist.ck_c06f6e05.added
+    to: Every property submenu carries Clear, so a context-menu set is never a one-way door
+  - field: checklist.ck_ded5d73e.added
+    to: "Hand LC-238s the rail's floor: no rail under 660px, 800 recommended, and a clamp that lands under 660 silently removes it"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_4faa9a20
+kind: update
+occurred_at: 2026-09-08T07:18:45.000Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_d3ec1253.moved
+    from: "56"
+    to: "43"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_67383efa
+kind: update
+occurred_at: 2026-09-08T07:18:45.030Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_c06f6e05.moved
+    from: "57"
+    to: "44"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_737f4618
+kind: update
+occurred_at: 2026-09-08T07:18:45.059Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_ded5d73e.moved
+    from: "58"
+    to: "36"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_64964302
+kind: update
+occurred_at: 2026-09-08T07:19:31.897Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_cb630b9e
+kind: update
+occurred_at: 2026-09-08T07:20:00.434Z
 actor:
   type: agent
   id: claude-code

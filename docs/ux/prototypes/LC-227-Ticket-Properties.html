@@ -900,8 +900,11 @@ body {
 /* The context menu is `position: fixed` in the app, hung at a point. Here it is
    placed in the page and drawn open, with its submenu open too, so a review can
    see the parent and the child at once. */
-.menu-demo { position: relative; height: 240px; }
-.menu-demo .menu-popover { position: absolute; left: 0; top: 0; animation: none; }
+.menu-demo { position: relative; height: 300px; }
+.menu-demo > .menu-popover { position: absolute; top: 0; animation: none; }
+.menu-demo > .menu-popover:first-child { left: 0; }
+.menu-demo > .menu-popover:last-child { left: 460px; }
+.menu-demo .menu-sub { animation: none; }
 </style>
 </head>
 <body>
@@ -1041,7 +1044,9 @@ const app = {
   panelWidth: 800,
   rowAbove: true,                   // the properties row above the label footer
   secondRow: "none",                // none | estimate | everything
-  dueAlign: "afterKey",             // afterKey | right — where in the key row
+  /* Settled in review: the date crosses the key row and stands immediately left
+     of the priority glyph, so the two urgency marks read as one object at the
+     far edge and the key keeps the left edge to itself. */
   overdueWash: false,               // the alternative overdue treatment
   estimateControl: "segment",       // segment | menu
   echo: true,                       // the date field's resolved-day echo
@@ -1508,7 +1513,7 @@ function cardHTML(ticket) {
     (hasSecondRow(ticket) ? " has-properties" : "") +
     (ticket.acknowledged ? " acknowledged acknowledged-agent" : "") +
     '" data-ticket-key="' + ticket.key + '" tabindex="-1">' +
-    '<span class="card-top' + (app.dueAlign === "right" ? " due-right" : "") + '">' +
+    '<span class="card-top due-right">' +
     '<span class="ticket-key">' + ticket.key + "</span>" +
     (dueOnCard(ticket) ? dueChip(ticket) : "") +
     priorityGlyph(ticket.priority, true) + "</span>" +
@@ -1822,13 +1827,49 @@ function rungsScene() {
 */
 
 /**
- * What right-clicking a card offers, with the row LC-227 adds.
+ * The quick picks a date submenu offers, and the whole of how a date gets into
+ * a context menu without the menu becoming a date editor.
+ *
+ * **The menu never contains a calendar.** Each row is a day the app computes,
+ * and the row's `.menu-hint` says which day it computed — so nothing is
+ * resolved silently, which is the entire objection the typed grammar raises
+ * against `next week`. Refusing to *parse* a computed phrase and offering it as
+ * a row a person points at are different acts: one guesses, and one shows its
+ * answer before the press.
+ *
+ * The same rows serve `due` and `start`. Two adjacent controls whose vocabulary
+ * differs is what the grammar section already refused for the typed forms, and
+ * the argument is unchanged one surface over.
+ */
+function datePicks(now) {
+  const monday = (from) => {
+    const ahead = (8 - from.getDay()) % 7 || 7;   // the next one, never today
+    return addDays(from, ahead);
+  };
+  return [
+    ["Today", startOfDay(now)],
+    ["Tomorrow", addDays(now, 1)],
+    ["Next Monday", monday(now)],
+    ["In a week", addDays(now, 7)],
+  ];
+}
+
+/** What a duration project's estimate submenu offers: the values it is made of. */
+const DURATION_PICKS = ["30m", "1h", "2h", "4h", "1d", "2d", "1w"];
+
+/**
+ * What right-clicking a card offers, with the rows LC-227 adds.
  *
  * `MenuList`'s markup, drawn open rather than behind a right-click so a review
- * can see the submenu and its parent at once. The Type row is the proposal; the
- * rest is `ticketMenu.tsx` as it stands.
+ * can see a submenu and its parent at once. `Move to`, `Priority`, `Archive`
+ * and the two copies are `ticketMenu.tsx` as it stands; the four property rows
+ * are the proposal.
+ *
+ * **A row exists only for a property the project has enabled.** Properties ship
+ * all off, so the default project's menu is exactly today's menu — which is the
+ * only reason four more rows are affordable at all.
  */
-function contextMenuHTML() {
+function contextMenuHTML(opened) {
   const ticket = tickets()[0];
   // `MenuList` wraps every row in a `div`, and gives that div `menu-anchor` —
   // `position: relative` — only for a submenu, which is what the submenu's
@@ -1842,26 +1883,88 @@ function contextMenuHTML() {
     (hint ? '<span class="menu-hint">' + hint + "</span>" : "") +
     (sub ? chevron : "") + "</button>" + (extra || "") + "</div>";
 
-  const typeValue = project.properties.type.values[ticket.type];
-  const submenu =
-    '<div class="menu-popover menu-sub" role="menu" aria-label="Type">' +
-    Object.entries(project.properties.type.values).map(([slug, value]) =>
-      '<button type="button" tabindex="-1" class="menu-row" role="menuitemradio" aria-checked="' +
-      (slug === ticket.type) + '">' +
-      '<span class="menu-glyph"><span class="label-dot label-' + value.color + '"></span></span>' +
-      '<span class="menu-label">' + esc(value.name) + "</span>" +
-      (slug === ticket.type ? '<span class="menu-check" aria-hidden="true">✓</span>' : "") +
+  /** One submenu. `choices` are `[label, glyph, hint, checked]`. */
+  const sub = (label, choices, clearable) =>
+    '<div class="menu-popover menu-sub" role="menu" aria-label="' + esc(label) + '">' +
+    choices.map(([text, glyph, hint, checked]) =>
+      '<button type="button" tabindex="-1" class="menu-row" role="menuitem' +
+      (checked === undefined ? '"' : 'radio" aria-checked="' + checked + '"') + ">" +
+      '<span class="menu-glyph">' + (glyph || "") + "</span>" +
+      '<span class="menu-label">' + esc(text) + "</span>" +
+      (hint ? '<span class="menu-hint">' + hint + "</span>" : "") +
+      (checked ? '<span class="menu-check" aria-hidden="true">✓</span>' : "") +
       "</button>").join("") +
+    /* Clearing is a first-class act everywhere else this ticket touches, and a
+       submenu that can only ever *set* a property is a one-way door. */
+    (clearable
+      ? '<hr class="menu-rule"><button type="button" tabindex="-1" class="menu-row" role="menuitem">' +
+        '<span class="menu-glyph"></span><span class="menu-label">Clear</span></button>'
+      : "") +
     "</div>";
+
+  const properties = project.properties;
+  const typeValue = properties.type.values[ticket.type];
+
+  const typeSub = sub("Type",
+    Object.entries(properties.type.values).map(([slug, value]) =>
+      [value.name, '<span class="label-dot label-' + value.color + '"></span>', "", slug === ticket.type]),
+    true);
+
+  /* A date submenu: quick picks, each showing the day it resolves to, then the
+     way out to the control that can reach any day. The escape is what keeps
+     this a shortcut — the menu offers the four dates worth one click and hands
+     everything else to the panel, rather than growing a calendar. */
+  const dateSub = (which) => {
+    const value = ticket[which] ? fromIso(ticket[which]) : undefined;
+    return sub(which === "due" ? "Due date" : "Start date",
+      datePicks(app.today).map(([text, day]) => [
+        text, "", esc(displayDate(day, app.today)),
+        Boolean(value && daysBetween(value, day) === 0),
+      ]).concat([["Pick a date…", "", "", undefined]]),
+      Boolean(value));
+  };
+
+  const estimateSub = () => {
+    const config = properties.estimate;
+    const scale = config.system === "duration" ? DURATION_PICKS
+      : config.system === "fibonacci" ? FIBONACCI : TSHIRT;
+    const name = (id) => (config.system === "tshirt" ? config.values[id].name : id);
+    return sub("Estimate",
+      scale.map((id) => [name(id), "", "", id === ticket.estimate]),
+      Boolean(ticket.estimate));
+  };
+
+  const estimateRead = readEstimate(ticket.estimate, properties.estimate);
+  // Only one submenu is open at a time, so the caller names which. The scene
+  // draws the menu twice, opened on two different rows.
+  const openOn = (id, built) => (opened === id ? built : "");
 
   return (
     '<div class="menu-popover menu-hinted" role="menu" aria-label="LC-227">' +
     row("status", "Move to", statusDot(ticket.status), esc(statusName(ticket.status)), true) +
     row("priority", "Priority", priorityGlyph(ticket.priority), esc(priorityName(ticket.priority)), true) +
-    /* The new row, third: it is the third thing a ticket *is*, and it goes
-       under the two it reads with rather than under the archive rule, which is
-       where the actions start. Drawn with its submenu open. */
-    row("type", "Type", '<span class="label-dot label-' + typeValue.color + '"></span>', esc(typeValue.name), true, submenu) +
+    /* The property rows go under the two they read with rather than under the
+       archive rule, which is where the actions start — these say what the
+       ticket *is*, and everything below the rule is something you do to it.
+       Type first, then the two dates in the rail's own order, then estimate. */
+    (properties.type.enabled
+      ? row("type", "Type", '<span class="label-dot label-' + typeValue.color + '"></span>',
+          esc(typeValue.name), true, openOn("type", typeSub))
+      : "") +
+    (properties.start.enabled
+      ? row("start", "Start date", calendarGlyph,
+          ticket.start ? esc(displayDate(fromIso(ticket.start), app.today)) : "", true,
+          openOn("start", dateSub("start")))
+      : "") +
+    (properties.due.enabled
+      ? row("due", "Due date", calendarGlyph,
+          ticket.due ? esc(displayDate(fromIso(ticket.due), app.today)) : "", true,
+          openOn("due", dateSub("due")))
+      : "") +
+    (properties.estimate.enabled
+      ? row("estimate", "Estimate", "",
+          estimateRead ? esc(estimateRead.text) : "", true, openOn("estimate", estimateSub()))
+      : "") +
     '<hr class="menu-rule">' +
     row("archive", "Archive ticket", '<svg width="13" height="13" viewBox="0 0 14 14" aria-hidden="true"><rect x="1.5" y="2.5" width="11" height="3" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M2.8 5.5 V11 a1 1 0 0 0 1 1 h6.4 a1 1 0 0 0 1-1 V5.5 M5.6 8 h2.8" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>', "", false) +
     '<hr class="menu-rule">' +
@@ -1898,10 +2001,11 @@ function cardScene() {
     "<p style=\"max-width:62ch\">The top card has a fraction, a meter and two labels wanting a footer that holds one chip beside a fraction. The date never competed for it — it is two rows up in the key row — so the label that was dropped is dropped for the reason it always was, and nothing about the due made it worse.</p>" +
     '<div class="stack">' + [rows[0], rows[2]].map(cardHTML).join("") + "</div></section>" +
     "<section><h3>Right-click, which nothing had asked about</h3>" +
-    "<p style=\"max-width:62ch\">`ticketMenu.tsx` already offers <strong>Move to</strong> and <strong>Priority</strong> as submenus, reusing <code>metaOptions.tsx</code> so \"the values a card can be moved to are the values the panel offers, always\". <strong>Type</strong> is the same shape and belongs beside them. The dates and the estimate do not, and the menu's own rule is why.</p>" +
-    '<div class="menu-demo">' + contextMenuHTML() + "</div>" +
-    "<p style=\"max-width:62ch\"><strong>The rule:</strong> only actions the app already has, reachable from somewhere else, <em>so the menu is a shortcut rather than a second place where things are decided</em>. A submenu of type values is a list of choices, exactly like the two above it. A due date is a Field with a calendar — putting one inside a popover makes the context menu a second date-editing surface with its own keyboard contract, and the panel is one click away.</p>" +
-    "<p style=\"max-width:62ch\"><strong>Estimate is the interesting one.</strong> Under t-shirt and Fibonacci it <em>is</em> a list of choices and would fit the rule exactly; under duration it is a number field and would not. A row that exists under two of three project configurations is worse than a row that never exists, so it stays out until someone asks for it.</p></section>" +
+    "<p style=\"max-width:62ch\"><code>ticketMenu.tsx</code> offers <strong>Move to</strong> and <strong>Priority</strong> as submenus, reusing <code>metaOptions.tsx</code> so \"the values a card can be moved to are the values the panel offers, always\". All four properties join them. The menu is drawn twice below — the same menu, opened on two different rows.</p>" +
+    '<div class="menu-demo">' + contextMenuHTML("due") + contextMenuHTML("estimate") + "</div>" +
+    "<p style=\"max-width:62ch\"><strong>A row exists only for a property the project has enabled.</strong> Properties ship all off, so the default project's menu is exactly today's menu. That is the only reason four more rows are affordable — a project that turns everything on gets a menu of nine rows, and one that turns nothing on gets the five it has now.</p>" +
+    "<p style=\"max-width:62ch\"><strong>The menu never contains a calendar.</strong> The date rows are quick picks, and each says the day it resolves to in its hint — so nothing is computed silently, which is the whole objection the typed grammar raises against <code>next week</code>. Refusing to <em>parse</em> a computed phrase and offering it as a row you point at are different acts: one guesses, the other shows its answer before the press. Anything not on the list goes to <strong>Pick a date…</strong>, which hands the job to the panel's real control.</p>" +
+    "<p style=\"max-width:62ch\">Every submenu carries <strong>Clear</strong>, because clearing is first-class everywhere else this ticket touches and a submenu that can only ever set a property is a one-way door. The estimate submenu is the project's own scale — <code>30m · 1h · 2h · 4h · 1d · 2d · 1w</code> under duration, the enum under t-shirt, the sequence under Fibonacci.</p></section>" +
     "<section><h3>Four pinned heights, and what adds up to them</h3>" +
     "<p style=\"max-width:62ch\">This is the sum <code>card-height-guard.mjs</code> checks, inside <code>npm run check</code>. <code>cardStrides()</code> already picks a stride per ticket, so the new case is a second boolean over that rather than a new mechanism.</p>" +
     sumsTable() +
@@ -2256,8 +2360,10 @@ const NOTES = {
     "<li class=\"q\"><strong>The refusal is reported on commit and keeps the text.</strong> <code>28 Se</code> is not a state worth reporting on.</li>" +
     "<li class=\"q\"><strong>The trigger is not a tab stop.</strong> Its keyboard path is <kbd>↓</kbd> from the field it is joined to; a stop of its own is an extra press on every pass through a rail with two dates in it.</li>" +
     "</ol>" +
-    "<h2>Open</h2>" +
-    "<p class=\"open\"><strong>The default width.</strong> The rail costs the description ~252px. At 800 the main column is 508px, one pixel under what a 560px panel gives it today; at 720 it is 428px — a ~70ch measure, which reads fine but is a real reduction. LC-238s owns the number; this says what it is buying.</p>",
+    "<h2>The width, which LC-238s owns</h2>" +
+    "<p>Settled in review: the panel gets a <strong>drag handle</strong>, the width is <strong>remembered across projects</strong> — device-level, beside <code>appearance</code> in <code>devicePreferences.ts</code>, not per-project and not <code>localStorage</code> (ADR 0012) — and the <strong>default goes up</strong>.</p>" +
+    "<p>This ticket does not pick the number, but it sets a floor that was not there before: <strong>under 660px there is no rail</strong>, so a default below that ships the feature switched off. <strong>800</strong> is the recommendation — the main column is 507px there, one pixel under what 560 gives the description today, so the rail costs the reader nothing. At 720 it is 427px, a ~70ch measure that reads fine but is a real reduction.</p>" +
+    "<p>Two things follow for LC-238s. The <strong>minimum</strong> a person may drag to is now a real decision rather than a comfort limit — drag under 660 and the rail folds away, which is either the graceful degradation the container query was chosen for or a trap, and it should be said which. And LC-238s already clamps a width restored from a monitor that is no longer attached; the new part is that a clamp landing under 660 silently takes the rail with it.</p>",
 
   rungs: () =>
     "<h1>The four due rungs</h1>" +
@@ -2352,18 +2458,12 @@ function controlsHTML() {
   if (app.scene === "rungs")
     return "<span>attention</span>" +
       [0, 3, 7, 14].map((d) => toggle("attention", d, project.properties.due.attention_days, String(d))).join("") +
-      '<span class="sep" aria-hidden="true"></span><span>key row</span>' +
-      toggle("align", "afterKey", app.dueAlign, "after key") +
-      toggle("align", "right", app.dueAlign, "right") +
       '<span class="sep" aria-hidden="true"></span><span>overdue</span>' +
       toggle("wash", "off", app.overdueWash ? "on" : "off", "text") +
       toggle("wash", "on", app.overdueWash ? "on" : "off", "wash");
 
   if (app.scene === "card")
-    return "<span>key row</span>" +
-      toggle("align", "afterKey", app.dueAlign, "after key") +
-      toggle("align", "right", app.dueAlign, "right") +
-      '<span class="sep" aria-hidden="true"></span><span>2nd row</span>' +
+    return "<span>2nd row</span>" +
       toggle("second", "none", app.secondRow, "—") +
       toggle("second", "estimate", app.secondRow, "estimate") +
       toggle("second", "everything", app.secondRow, "+type") +
@@ -2556,8 +2656,6 @@ document.addEventListener("click", (event) => {
   }
   const wash = hit("wash");
   if (wash) { app.overdueWash = wash.dataset.wash === "on"; return render(); }
-  const align = hit("align");
-  if (align) { app.dueAlign = align.dataset.align; return render(); }
   const second = hit("second");
   if (second) { app.secondRow = second.dataset.second; return render(); }
   const above = hit("above");
