@@ -261,3 +261,40 @@ Prototype revision 2, from review:
 
 61 assertions pass in a jsdom driver over the file, including that the field node survives a keystroke and the caret holds its position.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_519bd90c
+kind: comment
+occurred_at: 2026-09-08T07:00:25.266Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Prototype revision 3 — reviewed copy, settled by the user.
+
+The strings, as they now render:
+
+| State | Key line | Line under it |
+|---|---|---|
+| nothing typed | `Label key (auto-generated)` (muted) | — |
+| a key | the key | — |
+| a key that collides | the key | `{key} already exists for {Label}. Please provide a new Label name.` |
+| no key can be made | `Label Name must start with a letter [a-z]` (red) | — |
+
+The collapsed row reads `New label`. `Tick it instead` was removed: a refusal that also acts is two things, and the row it would have ticked is on screen directly above the message.
+
+Two decisions inside that table are worth carrying into the build.
+
+**Both ways a name fails to make a key look identical.** `日本語` derives nothing; `2026 goals` derives `2026-goals`, which is not a slug. The row no longer distinguishes them — same sentence, same slot, same tone — because there is one thing to do about either and it is the name. `state()` collapsed to one `refused` kind as a result.
+
+**The rejected string is not drawn.** This reverses what revision 1 argued: the key's slot never holds something that is not a key, and with the key read-only a rejected derivation is not actionable. The ticket's "the refusal has to name a key" still holds everywhere a key exists — a collision names it.
+
+Which leaves the two lines divided cleanly: the key line says whether a key can be made, the line under it says the one thing that can be wrong with a key that was. So the second line is only ever a collision. That closes the open question revision 2 raised about which slot owns the rule.
+
+Still open and unanswered: the no-ASCII dead end, the `Label name` / `Display name` placeholder split between the popover and settings, the colour default, the NFD fold, the missing Undo, and whether the define row joins the menu's roving group.
+
+67 assertions pass in the jsdom driver.
+<!-- /longclaw:event -->
