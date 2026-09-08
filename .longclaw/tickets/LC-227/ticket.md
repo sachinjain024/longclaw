@@ -8,7 +8,7 @@ priority: urgent
 labels:
   - release
 created_at: 2026-08-22T06:13:17.138Z
-updated_at: 2026-09-07T14:24:52.409Z
+updated_at: 2026-09-08T01:12:08.856Z
 ---
 
 Brainstorm with LLM agent like what other fields we should support. A few items I can think of are Type - Bug/Task, Due State, Start Date, Effort
@@ -76,17 +76,167 @@ disabling a property, below.
 
 ### Dates accept several inputs and store one
 
-On disk it is always `YYYY-MM-DD`. What a human types is looser: a picker, or
-`2026-09-28`, or `28 Sep 2026`, or `28 Sep` — the app normalises. A form with no
-year needs a rule (nearest future occurrence is the Todoist behaviour and the
-recommendation), and that rule has to be written down before it is implemented.
+Settled 2026-09-08. On disk a date is always `YYYY-MM-DD`. What a human types is
+looser, and this is the grammar the app accepts.
+
+**One rule generates all of it: the month is named, or the order is ISO.** A
+date input's worst failure is not refusing something a person meant — they see
+that and retype it — but silently storing a different day from the one they
+meant. So the grammar refuses every form that needs a locale to resolve, and
+accepts everything a named month makes unambiguous.
+
+**Accepted**, case-insensitively, leading, trailing and repeated whitespace
+ignored:
+
+| Form | Example | Means |
+|---|---|---|
+| ISO | `2026-09-28` | that day |
+| Day and named month, either order | `28 Sep`, `Sep 28`, `28 September` | the nearest future occurrence |
+| The same, with a four-digit year | `28 Sep 2026`, `Sep 28, 2026` | that day |
+| `today`, `tomorrow` | | resolved against the same injected `now` that proximity uses |
+
+A named month is its three-letter abbreviation or its full name, may carry an
+ordinal suffix (`28th Sep`), and may be separated by a space, a hyphen or a
+slash — `28-Sep-2026` parses, because the named month is what makes the
+separator safe.
+
+**Refused**, each because resolving it would need something the app does not
+have:
+
+- **All-numeric forms that are not ISO** — `28/09/2026`, `09/28/2026`, `3/4`.
+  This is the rule's whole reason. The app has no locale: there is no `Intl`
+  call anywhere in `apps/desktop/src` and every age it prints is hand-formatted
+  (`describeAge` in `acknowledgement.ts`), so nothing in it can say whether
+  `3/4` is March or April, and a guess would be wrong for half the world
+  silently.
+- **Two-digit years** — `28 Sep 26`. Unambiguous on its own, and the habit that
+  produces `9/28/26`.
+- **A month with no day** — `Sep`.
+- **Weekday names, `next week`, `in 3 days`.** Each asks the app to compute a
+  date the person has not, which is a natural-language feature rather than a
+  typing affordance, and each carries its own edge — a `Friday` typed on Friday.
+  The picker is one click away. `today` and `tomorrow` are in because they are
+  the two words a person types *instead* of thinking, not words that ask the app
+  to think.
+- **Anything carrying a time** — `28 Sep 5pm`, `2026-09-28T00:00:00Z`. A due
+  date is a day; accepting a time only to drop it would store something other
+  than what was typed.
+
+**A form with no year means the nearest future occurrence, and today counts as
+future.** `28 Sep` typed on 28 Sep is today, not next year — the literal reading
+of "future" is the one boundary the rule has to state itself. Typed on 5 Oct
+2026 it means 28 Sep **2027**, and that is the price: the past is reachable by
+typing the year, and it is both the rarer direction and the riskier one, because
+a date that silently lands in the past reads as an overdue ticket nobody
+created.
+
+**The rule is the same for `start` as for `due`**, and that is a deliberate
+trade. Start dates are more often backward-looking, so forward-only costs
+something there — but two adjacent controls in one rail where the same typed
+string means two different days is worse than either rule applied to both.
+
+**What is refused is not destroyed.** The field keeps the text the person typed
+and reports that it did not resolve; the property is not written. That is the
+same posture the format takes toward a malformed value on disk — degrade the
+value, keep the bytes — and it is why this control is a Field in the
+`CONTEXT.md` sense and not a picker with a text decoration.
+
+**Parsing happens on commit — Enter or blur — not per keystroke**, because
+`28 Se` is not a state worth reporting on. What the control shows *while* typing
+is a question for the prototype.
+
+**Display is the input's mirror**, which settles something the app has never
+done: nothing in it prints an absolute date today — no month name appears
+anywhere in `apps/desktop/src`. A due date renders `28 Sep`, and `28 Sep 2027`
+when the year is not the current one, so **what is displayed is always something
+the grammar accepts**. Day-then-month is a choice rather than a deduction, and
+it is consistent with an app that hardcodes its English everywhere else.
+
+**The CLI takes the canonical form only** — `--due 2026-09-28`, and an error
+naming the shape for anything else. ADR 0011 keeps the CLI from being a second
+implementation, and a loose grammar in Rust beside the loose grammar in
+TypeScript is exactly that: two parsers that will disagree about `28 Sep` in
+some year nobody tests. The looseness is a typing affordance in the app; the
+agent-facing surface writes the shape the file stores.
+
+### The picker is the other way into the same control
+
+Settled 2026-09-08, because the grammar above says "a picker" and a typing
+affordance is only half a date control.
+
+**One control, two ways in.** A date property is a Field with a calendar trigger
+beside it. Typing and picking produce the same value through the same
+normalisation — the picker is not a second writer, it is a second input to the
+one the grammar already defines.
+
+**It never opens on focus.** A popover that appears every time Tab passes
+through would cover the panel and fight the field it is attached to. It opens
+three ways: a click on the trigger, `Enter` on the trigger — the app's existing
+rule for a meta trigger (`keyboard-focus-map.md:65`) — or `↓` from inside the
+field, which is the combobox affordance and costs the single-line field nothing.
+
+**It is the app's first two-dimensional popover, and that is the thing to
+notice.** Every menu in the app is a list where `↑↓` cycles rows
+(`keyboard-focus-map.md:136-142`); a month is a grid, so `↑↓` has to mean *week*
+there. It therefore earns its own row in the keyboard map rather than being
+filed under Menus:
+
+| Key | Action |
+|---|---|
+| `←` `→` | A day |
+| `↑` `↓` | A week |
+| `PageUp` · `PageDown` | A month |
+| `⇧PageUp` · `⇧PageDown` | A year |
+| `Home` · `End` | The week's first and last day |
+| `Enter` | Pick → write → close → focus returns to the field |
+| `Esc` | Close, changing nothing → focus returns to the field |
+
+`Enter` and `Esc` are deliberately the menu contract unchanged: pick applies and
+returns focus, `Esc` walks one rung of the ladder. Only the movement keys are
+new, because only the shape is.
+
+**The picker is never the only path.** Everything it does, the field does by
+typing — that is the a11y contract this app keeps failing in one direction
+(`npm run check` fails a control without an explicit `tabIndex`, and the panel's
+own controls were pointer-only until Step 17). A calendar that is the only way
+to reach February is a bug, not a design.
+
+**It opens on the month of the current value, or on today when there is none.**
+Today is marked and the current value is selected — two different marks, because
+a ticket due today has both on one cell.
+
+**No rung treatment inside the grid.** Overdue, today and approaching are a
+reading of a date against `now`, and a calendar is where every day is just a
+day. Keeping the rungs to the surfaces that *display* a date stops the
+vocabulary leaking into the one place a person is choosing rather than reading.
+
+**The week starts Monday**, and that is derived rather than picked: the app has
+no locale to ask, the canonical on-disk form is ISO 8601, and ISO 8601's week
+starts on Monday. One convention already settled, used twice.
+
+**Clearing is a first-class action, and it is not the same as never set.**
+Emptying the field and committing removes the property, and the picker carries a
+Clear row for the same act by pointer. On disk both absent and cleared are the
+same thing — no key — so the distinction lives in the edit command, where absent
+means *do not touch this* and cleared means *remove it*. That is the nullability
+the TicketEdit row is about.
+
+**No time, no ranges, no recurrence**, per the grammar and the out-of-scope list.
+
+**And no cross-validation between `start` and `due` in v1.** A start after a due
+date is nonsense, but refusing it means the second date you type is refused
+because the first one is still what it was, and the format's posture everywhere
+else is to record what the human said and degrade rather than destroy. The panel
+may say the pair looks wrong; it does not decline to write it.
 
 ### Configuration lives in `longclaw.yaml`, beside labels
 
 [ADR 0002](../../../docs/adr/0002-fixed-statuses-in-v0.md) reserved per-project
 configuration for "that project's settings, **not** in `longclaw.yaml`". That
-reservation is **deliberately deferred**, and the ADR this ticket writes has to
-say so rather than ignore it. Four reasons:
+reservation is **deliberately deferred**, and
+[ADR 0013](../../../docs/adr/0013-property-configuration-lives-in-longclaw-yaml.md)
+records that rather than ignoring it, along with the three conditions that would
+revisit it. Four reasons:
 
 1. **The format doc names the trigger for splitting, and it has not fired.** The
    registries are kept together to reduce format surface area, and may be split
@@ -271,7 +421,7 @@ reaches for.
 
 - [x] ADR: property configuration joins labels in longclaw.yaml — record why ADR 0002's reservation is deferred, and what would revisit it <!-- longclaw:item=ck_945a1ca9 -->
 - [x] Add Property to CONTEXT.md; Field is already defined there as a text-bearing editable <!-- longclaw:item=ck_d7acf634 -->
-- [ ] Settle the date-input grammar: which typed forms are accepted (2026-09-28, 28 Sep 2026, 28 Sep) and which year a form without one means <!-- longclaw:item=ck_eb7e1c56 -->
+- [x] Settle the date-input grammar: which typed forms are accepted (2026-09-28, 28 Sep 2026, 28 Sep) and which year a form without one means <!-- longclaw:item=ck_eb7e1c56 -->
 - [ ] Specify type, due, start and estimate in docs/file_format.md, replacing prose in place <!-- longclaw:item=ck_4b893432 -->
 - [ ] Specify date-only YYYY-MM-DD in the YAML subset, distinct from the RFC 3339 timestamps at file_format.md:142 <!-- longclaw:item=ck_65106100 -->
 - [ ] Specify the properties block in longclaw.yaml — the all-off default, and per-property configuration beside it <!-- longclaw:item=ck_ea47a75f -->
@@ -315,7 +465,7 @@ reaches for.
 - [ ] Undo for each property change, through fieldUndo.ts <!-- longclaw:item=ck_43674ebd -->
 - [ ] Explicit tabIndex on every new control — npm run check fails without it <!-- longclaw:item=ck_33780452 -->
 - [ ] Update screen-specs.md, components.md, states.md and data-requirements.md in place, then npm run citations:update <!-- longclaw:item=ck_75cc51b4 -->
-- [ ] Update keyboard-focus-map.md in place for the rail's keyboard path <!-- longclaw:item=ck_8c1b2d21 -->
+- [ ] Update keyboard-focus-map.md in place for the rail's keyboard path, and for the picker's grid — the app's first two-dimensional popover, where the menus' up-down means a week <!-- longclaw:item=ck_8c1b2d21 -->
 - [ ] npm run a11y:audit, and probe:header since the rail widens the panel <!-- longclaw:item=ck_e4ce4244 -->
 - [ ] probe:drag: a drop is arithmetic over the card offsets (gapAt), so a new card height moves where a dragged ticket lands <!-- longclaw:item=ck_5fa993af -->
 - [ ] npm run perf:board and perf:list, and quote the numbers — the due comparator touches ordering <!-- longclaw:item=ck_c404ee03 -->
@@ -1034,6 +1184,66 @@ changes:
   - field: checklist.ck_d7acf634.checked
     from: "false"
     to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_8fd779eb
+kind: update
+occurred_at: 2026-09-08T01:09:30.565Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_086c7e23
+kind: update
+occurred_at: 2026-09-08T01:11:52.266Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_48f2ebb8
+kind: update
+occurred_at: 2026-09-08T01:11:58.725Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_eb7e1c56.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_6f879640
+kind: update
+occurred_at: 2026-09-08T01:12:08.856Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_8c1b2d21.text
+    from: Update keyboard-focus-map.md in place for the rail's keyboard path
+    to: Update keyboard-focus-map.md in place for the rail's keyboard path, and for the picker's grid — the app's first two-dimensional popover, where the menus' up-down means a week
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->
