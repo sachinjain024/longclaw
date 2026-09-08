@@ -71,6 +71,12 @@
    `--lc-type-kbd` voice every eyebrow and hint in the app wears — because it is
    a key in a file and not a second thing to fill in.
 
+   Read-only, at every moment: there is no control here, no pencil and no field.
+   The name is the only thing typed, and the key is what falls out of it. That
+   costs the row its escape hatch — see the notes column — and it buys the one
+   thing a key edit could never be made to promise, which is that the key on
+   screen is always the key the name produces.
+
    This class is shared with the project-settings add-row, which is the whole
    point of the ticket's last scope line: two surfaces that define a label must
    not disagree about whether a human types a key, and the fastest way for them
@@ -95,8 +101,9 @@
 /* Nothing survived the derivation: a name in Japanese, or one that is all
    punctuation (`core/project.rs:343-359` wants an ASCII lowercase first
    character). The line does not go away — an empty line where a key was is the
-   thing the ticket is arguing against — it says so, and the pencil beside it is
-   the way forward. */
+   thing the ticket is arguing against — it says so. With the key read-only
+   there is nothing beyond it: this state is a dead end inside the create flow,
+   which is the open question the notes column puts first. */
 .derived-slug .slug.absent {
   color: var(--lc-ink-3);
   font-style: italic;
@@ -105,28 +112,10 @@
 /* Derived, but not a key: `2026 goals` gives `2026-goals`, which is a fine
    string and not a slug. Danger-toned rather than hidden, because the refusal
    this prevents is one Rust would otherwise make after the press, about a key
-   that was never on screen. */
+   that was never on screen. With the key read-only the way out is the name —
+   `Goals 2026` gives `goals-2026` — which the note beside it says. */
 .derived-slug .slug.refused {
   color: var(--lc-danger);
-}
-
-/* Takes the key over. Available for as long as the row is open and never
-   afterwards — deriving is not renaming (`file_format.md:231`), and the moment
-   the definition is written the key is what every ticket carrying it stores. */
-.derived-slug-edit {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  border: 0;
-  padding: 0 2px;
-  color: var(--lc-ink-3);
-  background: none;
-  cursor: pointer;
-}
-
-.derived-slug-edit:hover,
-.derived-slug-edit:focus-visible {
-  color: var(--lc-ink);
 }
 
 /* One line, under the key, in the danger tone: why this cannot be added yet.
@@ -166,12 +155,30 @@
 
    `ProjectSettings.tsx:702-704` asks a human to author a key today, in a `slug`
    field that is the first column of a four-column grid. Adopting the shared
-   derivation empties that column of its input and puts the derived key in it —
-   which lands the add-row on the same shape as the rows above it (`code`, name,
-   colour, button), so the row you are filling in finally looks like the row it
-   becomes. The grid does not change; only what stands in column one. */
-.label-add .derived-slug {
-  min-height: 28px;
+   derivation takes that column away entirely: the name is typed, and the key
+   appears **under** it, which is the same shape and the same reading order the
+   popover's row has — name, key, refusal.
+
+   It could instead have kept the derived key in column one, where it would line
+   up with the `code` cell of every definition above it. That was the first
+   draft and it is the weaker one: those rows show a key that is already a fact,
+   while this row shows a key that is still following what is being typed, and
+   putting the two in one column says they are the same kind of thing. Matching
+   the surface a person just came from beats matching the rows above.
+
+   Three columns rather than four, and `align-items: start` so the colour
+   trigger and the button stand level with the field rather than centring
+   against a cell that is two lines tall. */
+.label-add {
+  grid-template-columns: minmax(90px, 1fr) max-content max-content;
+  align-items: start;
+}
+
+.label-add-name {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
 }
 </style>
 
@@ -348,7 +355,7 @@ body {
     <button data-drive="reset">reset</button>
   </span>
   <span class="sep" aria-hidden="true"></span>
-  <span class="ask">revision 1 · one field, and the key falls out of it</span>
+  <span class="ask">revision 2 · read-only key, no re-render while typing</span>
   <span class="spacer"></span>
   <span class="swatches" role="group" aria-label="Project theme">
     <button class="swatch" data-theme-pick="ember" aria-pressed="true" title="Ember"><i data-theme="light" data-lc-theme="ember"></i></button>
@@ -377,8 +384,8 @@ body {
       <li>Watch the right: <code>longclaw.yaml</code> gained the definition, and the chip is on the draft ticket. One gesture, both.</li>
       <li>The row emptied and stayed open. Type <code>Back-End</code> — the key updates under the field as you type — and <kbd>↵</kbd> again.</li>
       <li>Now type <code>Back end</code>. It derives to <code>back-end</code>, the same key <code>Back-End</code> just gave, so the row refuses, names the key that collided, and offers to tick the definition that is already there. (The ticket's prose says this pair derives to <code>backend</code>; under the derivation the ticket itself specifies, it is <code>back-end</code>. They still collide, which is the point it was making.)</li>
-      <li>Type <code>2026 goals</code>. The key derives to <code>2026-goals</code>, which is not a slug — a key starts with a letter. Press the pencil and type one.</li>
-      <li>Type <code>日本語</code>. Nothing survives the derivation. The line says so rather than going blank, and the pencil is still the way through.</li>
+      <li>Type <code>2026 goals</code>. It derives to <code>2026-goals</code>, which is not a slug — a key starts with a letter — so the row refuses and names it. Type <code>Goals 2026</code> instead: the name is the only thing that can change the key.</li>
+      <li>Type <code>日本語</code>. Nothing survives the derivation, and with the key read-only there is nothing past the refusal. That is a dead end — the first open question below.</li>
       <li>Press <kbd>esc</kbd> three times — row, menu, modal. No ticket was created. <strong>The labels are still in the file.</strong></li>
       <li>Switch to <strong>full create</strong> and <strong>project settings</strong>: the same row, and the settings add-row no longer asks anyone to author a key.</li>
       <li>Press <strong>refuse the next write</strong> and add a label: this is the path the client could not predict, and where the refusal has to land.</li>
@@ -394,6 +401,7 @@ body {
     <h2>Settled in review</h2>
     <ol>
       <li class="q"><strong>The name is the field; the key is the consequence.</strong> This inverts what the ticket first asked for. Asking a human to author a key is the wrong way round — the name is what they know.</li>
+      <li class="q"><strong>The key is read-only.</strong> There is no pencil and no key field, in either surface. One thing is typed and the key is what falls out of it — which is the only version of this row that can promise the key on screen is always the key the name produces. It costs the row its escape hatch; see the first open question.</li>
       <li class="q"><strong>The key is shown, not hidden.</strong> <code>longclaw.yaml</code> is a file the user owns and diffs, the CLI takes slugs, and an undefined slug is drawn as the chip's own text. A collision is a refusal that has to name a key, and a hidden-plus-immutable key drifts from its display name in silence.</li>
       <li class="q"><strong>The write lands immediately.</strong> A label defined and then abandoned is still in the file — press <kbd>esc</kbd> out of step 7 and look. The alternative, holding the definition until the ticket is created, makes the ticket write conditional on a second write and is worse.</li>
       <li class="q"><strong>An empty project opens the row expanded.</strong> A popover whose only content is a collapsed invitation is a popover that still says nothing, which is the exact complaint this ticket opens with.</li>
@@ -404,9 +412,10 @@ body {
 
     <h2>Open — decide these</h2>
     <ol>
+      <li class="open"><strong>A name with no ASCII in it is a dead end.</strong> The ticket closed this hole with an editable key — &ldquo;the visible line is the escape hatch&rdquo; — and a read-only key re-opens it. A project whose vocabulary is Japanese, Greek or Cyrillic cannot define a label from the create flow at all, and cannot from settings either once that row adopts the same derivation. Three ways out, none free: leave it (those users go to the file), keep a key field in settings only (the two surfaces disagree again, which this ticket exists to stop), or let the derivation propose something when nothing survives (a generated key on a card, which the ticket argues against by name).</li>
       <li class="open"><strong>The offer beside a collision.</strong> The ticket asks for a refusal. This draws the refusal <em>and</em> a <em>tick it instead</em> link, because a person who typed <code>Back end platform</code> at a project that already has <code>back-end-platform</code> almost certainly wants the one that is there. That is more than was asked for. Keep it, or refuse plainly?</li>
       <li class="open"><strong>The colour default.</strong> Settings defaults to <code>LABEL_COLORS[0]</code>, so a seeded project comes out all blue. This picks the first hue the project is not already using and falls back to blue when all eight are taken. Should settings adopt that too?</li>
-      <li class="open"><strong>Diacritics.</strong> The ticket's derivation gives <code>caf</code> for <code>Café</code> and <code>n-code</code> for <code>Ünïcode</code> — the accented letters are punctuation to <code>[a-z0-9]</code>. This folds NFD first, so <code>Café</code> → <code>cafe</code>. One extra line, and it is the difference between a key and a mangling.</li>
+      <li class="open"><strong>Diacritics.</strong> The ticket's derivation gives <code>caf</code> for <code>Café</code> and <code>n-code</code> for <code>Ünïcode</code> — the accented letters are punctuation to <code>[a-z0-9]</code>. This folds NFD first, so <code>Café</code> → <code>cafe</code>. One extra line, and with the key read-only it is now load-bearing rather than nice: a mangled key is no longer something the person can correct.</li>
       <li class="open"><strong>No Undo on the toast.</strong> Every other project write offers one. The inverse here is two things — remove the definition <em>and</em> untick the draft — and <code>writeProjectFile</code>'s <code>undo</code> is for "one field with one inverse". <code>removeProjectLabel</code> exists, so it is possible; it is just not one field.</li>
       <li class="open"><strong>Reaching the row by keyboard.</strong> Here <kbd>↓</kbd> past the last label lands on it, which means the define stop joins the menu's roving group (the collapsed button when closed, the name field when open). The cheaper alternative is <kbd>Tab</kbd> only, which leaves <kbd>↓</kbd> wrapping straight past the one row that is not a label.</li>
     </ol>
@@ -414,9 +423,10 @@ body {
     <h2>What this asks of the code</h2>
     <ul>
       <li><code>Menu</code> gains a <strong><code>footer</code> slot</strong> and a <strong><code>wide</code></strong> flag. It renders rows and a footnote today; the define row is neither.</li>
+      <li>The key line is the one thing that changes as the name is typed, so it carries <code>aria-live="polite"</code>. Sighted users watch it update; nobody else would otherwise learn that it had.</li>
       <li><code>Menu.onKeyDown</code> must <strong>return early for events from a field</strong>. It is on the popover, so today <code>j</code> and <code>k</code> steer the list — they are letters in <code>Jack</code> — and <kbd>↵</kbd> and <kbd>Esc</kbd> are the menu's. The row's own handler takes them and stops them.</li>
       <li><strong>The refusal cannot use the error banner.</strong> <code>writeProjectFile</code> ends a failure at <code>setError</code> (<code>App.tsx:1218</code>), which draws <code>ErrorBanner</code> at board level — under the scrim, since <code>--lc-z-modal</code> is 4. A create-surface refusal has to be the <strong>danger toast</strong> (<code>--lc-z-toast</code> is 5) or stay in the row. Press <strong>refuse the next write</strong> to see the toast.</li>
-      <li>Every new button and the colour swatches need an explicit <code>tabIndex</code> (<code>scripts/tab-order-guard.mjs</code>). The name field does not — WebKit skips buttons and checkboxes with <em>Keyboard navigation</em> off, not text inputs.</li>
+      <li>The <strong>Add label</strong> button, the colour trigger and its eight swatches need an explicit <code>tabIndex</code> (<code>scripts/tab-order-guard.mjs</code>). The name field does not — WebKit skips buttons and checkboxes with <em>Keyboard navigation</em> off, not text inputs — and with the key read-only there is no control on that line at all.</li>
       <li><code>keyboard-focus-map.md</code>'s Menus table gains the field's rows, <strong>edited in place</strong> — <code>citation-guard</code> pins those lines.</li>
     </ul>
   </aside>
@@ -466,7 +476,6 @@ const app = {
   menu: false,         // the labels popover
   define: undefined,   // {name, slug, edited, color} while the row is open
   colors: false,       // the colour strip inside the row
-  editingSlug: false,
   failNext: false,     // driver: the refusal the client could not predict
   created: 0,
   fresh: undefined,    // the slug just written, flashed in the file pane
@@ -520,7 +529,7 @@ function nextColor() {
 function state() {
   const row = app.define;
   if (!row) return undefined;
-  const slug = row.edited ? row.slug : slugFromName(row.name);
+  const slug = slugFromName(row.name);
   if (row.name.trim() === "" && slug === "") return { slug, kind: "blank" };
   if (slug === "") return { slug, kind: "absent" };
   if (!isLabelSlug(slug)) return { slug, kind: "refused" };
@@ -532,7 +541,6 @@ function state() {
 
 const chevron = `<svg class="menu-chevron" width="11" height="11" viewBox="0 0 14 14" aria-hidden="true"><path d="M4.5 2.5 L9.5 7 L4.5 11.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const plus = `<svg class="plus-glyph" width="13" height="13" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 2.5 V11.5 M2.5 7 H11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
-const pencil = `<svg class="pencil-glyph" width="12" height="12" viewBox="0 0 14 14" aria-hidden="true"><path d="M2.2 11.8 L2.8 9.2 L9.8 2.2 Q10.4 1.6 11 2.2 L11.8 3 Q12.4 3.6 11.8 4.2 L4.8 11.2 Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>`;
 const dot = (color) => `<span class="label-dot label-${color}" aria-hidden="true"></span>`;
 
 function statusDot(id) {
@@ -569,13 +577,7 @@ function colorField(value, open, name) {
  * line never goes away: an empty line where a key was is exactly the silence
  * this ticket argues against.
  */
-function derivedSlug(current, editing) {
-  if (editing) {
-    return `<span class="derived-slug">
-      <input class="input compact mono" data-role="slug-field" value="${esc(current.slug)}"
-             aria-label="Label key" placeholder="key" autocomplete="off">
-    </span>`;
-  }
+function derivedSlug(current) {
   const text =
     current.kind === "blank" ? "the key appears here"
       : current.kind === "absent" ? "no key can be made from that name"
@@ -583,20 +585,22 @@ function derivedSlug(current, editing) {
   const tone =
     current.kind === "blank" || current.kind === "absent" ? " absent"
       : current.kind === "refused" ? " refused" : "";
-  return `<span class="derived-slug">
+  /* No control, at any point. The key is text, and the only way to change it is
+     to change the name above it. `aria-live="polite"` because a sighted person
+     watches it update as they type, and nobody else would otherwise learn that
+     it had. */
+  return `<span class="derived-slug" aria-live="polite">
     <span class="slug${tone}">${esc(text)}</span>
-    <button tabindex="0" type="button" class="derived-slug-edit" data-role="edit-slug"
-            aria-label="Edit the label key">${pencil}</button>
   </span>`;
 }
 
 /** The one line saying why this cannot be added yet. Never a toast. */
 function defineNote(current) {
   if (current.kind === "refused") {
-    return `<p class="menu-define-note">A key starts with a letter, so <code>${esc(current.slug)}</code> is not one. Edit it.</p>`;
+    return `<p class="menu-define-note">A key starts with a letter, so <code>${esc(current.slug)}</code> is not one. Try a name that does.</p>`;
   }
   if (current.kind === "absent") {
-    return `<p class="menu-define-note">That name has no ASCII letters to make a key from. Type one.</p>`;
+    return `<p class="menu-define-note">That name has no ASCII letters to make a key from, and there is no key to type by hand.</p>`;
   }
   if (current.kind === "taken") {
     return `<p class="menu-define-note"><span><code>${esc(current.slug)}</code> is already defined as ${esc(app.labels[current.slug].name)}.</span>
@@ -631,7 +635,7 @@ function popoverHTML(rect) {
                  aria-label="New label name" placeholder="Label name" autocomplete="off">
           ${colorField(app.define.color, app.colors, "New label color")}
         </div>
-        ${derivedSlug(current, app.editingSlug)}
+        ${derivedSlug(current)}
         ${defineNote(current)}
         <button tabindex="0" type="submit" class="secondary small menu-define-commit"
                 ${current.kind === "ok" ? "" : "disabled"}>Add label</button>
@@ -723,13 +727,15 @@ function settingsHTML() {
       ${Object.keys(app.labels).length === 0 ? "<p>No labels are defined in this project&apos;s longclaw.yaml yet.</p>" : ""}
       ${rows}
       <form class="label-row label-add" data-role="define">
-        ${derivedSlug(current, app.editingSlug)}
-        <input class="input compact" data-role="name-field" value="${esc(app.define ? app.define.name : "")}"
-               aria-label="New label name" placeholder="Display name" autocomplete="off">
+        <div class="label-add-name">
+          <input class="input compact" data-role="name-field" value="${esc(app.define ? app.define.name : "")}"
+                 aria-label="New label name" placeholder="Display name" autocomplete="off">
+          ${derivedSlug(current)}
+          ${defineNote(current)}
+        </div>
         ${colorField(app.define ? app.define.color : nextColor(), app.colors, "New label color")}
         <button tabindex="0" class="secondary small" type="submit"${current.kind === "ok" ? "" : " disabled"}>Add label</button>
       </form>
-      ${app.define ? defineNote(current) : ""}
       <p class="settings-note">Removing a definition never rewrites a ticket — the slug renders as itself.</p>
     </section>
   </div>`;
@@ -806,6 +812,43 @@ function restoreFocus() {
   app.focus = undefined;
 }
 
+/**
+ * What one keystroke in the name field changes, and nothing else.
+ *
+ * This is not an optimisation. `render()` rewrites `#overlay` whole, which on
+ * every character destroys the field being typed into and builds a new one:
+ * the popover replays its `lc-menu-in` animation, the caret is put back at the
+ * end of the text — so typing into the middle of a name jumps to the end — and
+ * the row visibly flickers once per character. None of that is the proposal.
+ * The component under review is React, which keeps the field mounted and
+ * re-renders only the line underneath it, and this is the harness catching up
+ * with that.
+ *
+ * Three things depend on the name: the key line, the refusal note, and whether
+ * **Add label** is available. The note sits beside the key in both surfaces —
+ * inside `.menu-define` in the popover, inside `.label-add-name` in settings —
+ * so one lookup finds the right parent in either.
+ */
+function refreshDefine() {
+  const current = state();
+  const form = document.querySelector('[data-role="define"]');
+  if (!current || !form) return;
+
+  const line = form.querySelector(".derived-slug");
+  if (!line) return;
+  line.outerHTML = derivedSlug(current);
+
+  const host = line.parentElement || form;
+  const note = host.querySelector(".menu-define-note");
+  const wanted = defineNote(current);
+  if (note && wanted) note.outerHTML = wanted;
+  else if (note) note.remove();
+  else if (wanted) host.querySelector(".derived-slug").insertAdjacentHTML("afterend", wanted);
+
+  const commit = form.querySelector('[type="submit"]');
+  if (commit) commit.disabled = current.kind !== "ok";
+}
+
 /* ------------------------------------------------------------- the writes */
 
 /**
@@ -839,8 +882,7 @@ function addLabel() {
   }
   // The row empties and stays open: seeding a vocabulary is bursty, and the
   // caret is already where the next name goes. `Esc` collapses it.
-  app.define = { name: "", slug: "", edited: false, color: nextColor() };
-  app.editingSlug = false;
+  app.define = { name: "", color: nextColor() };
   app.colors = false;
   app.focus = "name-field";
   toast(`Added the ${slug} label`);
@@ -862,22 +904,20 @@ function toast(text, danger) {
 function openMenu() {
   app.menu = true;
   if (Object.keys(app.labels).length === 0) {
-    app.define = { name: "", slug: "", edited: false, color: nextColor() };
+    app.define = { name: "", color: nextColor() };
     app.focus = "name-field";
   }
   render();
 }
 
 function openDefine() {
-  app.define = { name: "", slug: "", edited: false, color: nextColor() };
-  app.editingSlug = false;
+  app.define = { name: "", color: nextColor() };
   app.focus = "name-field";
   render();
 }
 
 function closeDefine() {
   app.define = undefined;
-  app.editingSlug = false;
   app.colors = false;
   render();
 }
@@ -893,16 +933,10 @@ document.addEventListener("input", (event) => {
     return;
   }
   if (role === "name-field") {
-    if (!app.define) app.define = { name: "", slug: "", edited: false, color: nextColor() };
+    if (!app.define) app.define = { name: "", color: nextColor() };
     app.define.name = event.target.value;
-    app.focus = "name-field";
-    return render();
-  }
-  if (role === "slug-field") {
-    app.define.slug = event.target.value;
-    app.define.edited = true;   // taken over; it stops following the name
-    app.focus = "slug-field";
-    return render();
+    // Never `render()`: the field being typed into is inside what it rewrites.
+    return refreshDefine();
   }
 });
 
@@ -930,7 +964,10 @@ document.addEventListener("click", (event) => {
   if (surface) {
     app.surface = surface.dataset.surface;
     app.menu = false;
-    app.define = app.surface === "settings" ? app.define : undefined;
+    // Each surface starts on a clean row. The switch is the driver's, not a
+    // gesture the app has, and carrying a half-typed name across it would be
+    // the harness inventing a behaviour to review.
+    app.define = undefined;
     app.colors = false;
     document.querySelectorAll("[data-surface]").forEach((b) => b.setAttribute("aria-pressed", String(b === surface)));
     return render();
@@ -983,17 +1020,10 @@ document.addEventListener("click", (event) => {
     case "colors":
       app.colors = !app.colors;
       return render();
-    case "edit-slug":
-      // Deriving is not renaming: the key is editable while the row is open and
-      // fixed the moment the definition is written.
-      app.define.slug = state().slug;
-      app.editingSlug = true;
-      app.focus = "slug-field";
-      return render();
     case "tick-existing": {
       const slug = role.slug;
       if (!app.ticketLabels.includes(slug)) app.ticketLabels.push(slug);
-      app.define = { name: "", slug: "", edited: false, color: nextColor() };
+      app.define = { name: "", color: nextColor() };
       app.focus = "name-field";
       return render();
     }

@@ -239,3 +239,25 @@ Two findings the build will hit: (1) a create-surface refusal cannot use `ErrorB
 
 One correction to this ticket's own prose: it says "Back-end" and "Back end" both derive to `backend`. Under the derivation the ticket itself specifies — collapse each run to a single `-` — they both derive to `back-end`. They still collide, so the argument stands; only the key named in the example is wrong.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_9a17c506
+kind: comment
+occurred_at: 2026-09-08T06:30:16.256Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Prototype revision 2, from review:
+
+1. **The flicker is fixed, and it was the harness lying about the design.** Typing called `render()`, which rewrites the overlay whole — so the field was destroyed and rebuilt per character, the popover replayed its `lc-menu-in` animation each time, and the caret jumped to the end of the text. React keeps the field mounted and re-renders the line under it; the prototype now patches the key line, the refusal and the Add button in place and touches nothing else.
+
+2. **The key is read-only.** No pencil, no key field, in either surface. This overturns the ticket's "editable while the row is open" and re-opens the hole that clause was written to close: a name that derives to nothing — Japanese, Greek, Cyrillic — is now a dead end inside the create flow, and inside settings too once that row adopts the same derivation. A name that derives to an invalid key still has a way out through the name (`2026 goals` fails, `Goals 2026` works), so only the no-ASCII case is stranded. Filed as the first open question in the prototype's notes with three ways out, none free. The NFD diacritic fold is now load-bearing rather than nice: `Café` → `caf` is no longer something the person can correct.
+
+3. **The settings add-row stacks the key under the name field**, matching the create surfaces, rather than putting it in the `code` column of the four-column grid. The rows above show a key that is already a fact; this row shows one still following what is being typed, and one column would have said they were the same kind of thing.
+
+61 assertions pass in a jsdom driver over the file, including that the field node survives a keystroke and the caret holds its position.
+<!-- /longclaw:event -->
