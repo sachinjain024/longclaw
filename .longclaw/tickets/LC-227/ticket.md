@@ -8,7 +8,7 @@ priority: urgent
 labels:
   - release
 created_at: 2026-08-22T06:13:17.138Z
-updated_at: 2026-09-08T02:03:13.442Z
+updated_at: 2026-09-08T06:53:12.387Z
 ---
 
 Brainstorm with LLM agent like what other fields we should support. A few items I can think of are Type - Bug/Task, Due State, Start Date, Effort
@@ -414,50 +414,66 @@ midnight along with the colours.
 means work should have begun, which is a judgement about the work rather than a
 fact about the date, and the app does not make it.
 
-**The card grows a second footer row to hold it.** The footer never wraps and
-holds two chips — **one** when a checklist fraction is present
-(`boardCard.ts:28-30`, `screen-specs.md:155-156`) — so an always-visible date
-would otherwise cost a label slot on every ticket that has one. The footer gains
-a row instead; the date does not compete for the existing one.
+**The card's due goes in the key row, not the footer.** Settled 2026-09-08 in
+prototype review, replacing an earlier plan to grow the footer a second row for
+it. The date sits in `.card-top` — the line that already carries the ticket key
+and the priority glyph — and it shows **whenever the ticket has a due at all**,
+at every rung.
 
-That lands on the one thing the board cannot do casually. `boardGeometry.ts`
-pins card heights exactly because the board is virtualised — *"a column that
-guesses a card's height jitters as it scrolls"* — and there are exactly two,
-`CARD_HEIGHT = 108` and `ACKNOWLEDGED_CARD_HEIGHT = 136`, with the module
-stating flatly that there is no third. `scripts/card-height-guard.mjs`, inside
-`npm run check`, adds the stylesheet's rows up and fails the build when they
-disagree with the constants.
+The footer was the wrong place for a reason that is easy to state: it never
+wraps and holds two chips, **one** when a checklist fraction is present
+(`boardCard.ts:28-30`, `screen-specs.md:155-156`), so an always-visible date
+there would cost a label slot on every ticket that has one. Growing a row to
+avoid that worked, and cost 24px on every dated card. The key row costs nothing.
 
-It is tractable, because `cardStrides()` already picks a stride **per ticket**.
-The rule that must survive is the module's own: **a card's height stays
-derivable from row data and is never measured.** "Has a due date, and the
-property is enabled" is derivable; "how tall did this card turn out" is not.
+**`.card-top` is pinned at 16px whatever is in it**, so the date changes no
+geometry: no new tokens, no third and fourth pinned height, no extra case for
+`cardStrides()`, and `card-height-guard.mjs` keeps the two invariants it has.
+The date is text — 14px of line in a 16px row — which is the whole of why it
+fits; a *chip* there would not, and that is why Type stays out of this row.
 
-**The row appears only when the ticket has something to put in it.** No due
-date, no second row. Two things make that safe rather than the open-ended case
-the module warns about:
+That matters more than it sounds. `boardGeometry.ts` pins card heights exactly
+because the board is virtualised — *"a column that guesses a card's height
+jitters as it scrolls"* — and it states flatly that there is no third height. A
+due date that never touches the height is a due date that never has to argue
+with that.
+
+**Presence stays pure row data**: "has a due, and the property is enabled", a
+boolean off `IndexedTicket` plus the project's configuration. An earlier version
+showed only the escalated rungs and hid the plain date, which was cheap — the
+row is a fixed height, so a *rung*-derived presence would have been safe there
+in a way it never is one row down. It was dropped anyway: it made presence one
+more thing to have to know, and it left "where is that date I set" unanswerable
+without opening the ticket. The rung decides the **word** and the **weight**,
+both of which may change at midnight because neither moves an offset.
+
+**The alignment inside the row is still open**: the date immediately after the
+key, or crossing the row to stand immediately left of the priority glyph so the
+two urgency marks read as one object. Both are in the prototype.
+
+### The second footer row is estimate and type
+
+With due gone from it, the row exists only for the two properties that are not
+dates, and **a project that enables neither never grows a card**. It keeps the
+rules it was given:
 
 - **it is one line and never wraps**, the same rule the first footer already
-  carries, so however many chips land in it the card has exactly four pinned
+  carries, so however many values land in it the card has exactly four pinned
   heights — plain and acknowledged, each with and without the row;
-- **presence is derived from row data and never from the rung.** "Has a value
-  for an enabled second-row property" is a boolean off `IndexedTicket` plus the
-  project's configuration, and it changes only when the file does. Deciding it
-  from the rung instead would change card heights **at midnight, with no file
-  write**, shifting every column's offsets under a scrolled board.
+- **presence is derived from row data and never from the rung** — here that is
+  "has a value for an enabled second-row property", and it changes only when the
+  file does.
 
-Two consequences worth stating. The default costs nothing: properties ship
-all-off, so no card has a second row until one is enabled and a project that
-never enables one keeps today's geometry exactly. And `cardStrides()` and
-`card-height-guard.mjs` go from two cases to four, because the acknowledged
-variant multiplies with the new one — a second boolean rather than a new
-mechanism, since `cardStrides` already picks per ticket.
+`cardStrides()` and `card-height-guard.mjs` go from two cases to four when
+either property is on, because the acknowledged variant multiplies with the new
+one — a second boolean rather than a new mechanism, since `cardStrides` already
+picks a stride per ticket. Measured in WebKit: 108 · 132 · 136 · 160.
 
 Two runs answer to this beyond the usual gate: `probe:drag`, because a drop is
 arithmetic over these offsets (`gapAt`) and a new height moves where a dragged
 ticket lands, and `perf:board`, because the whole scroll cost is nodes.
 
-Start date never competes for this: it is a panel-only property.
+Start date never competes for either row: it is a panel-only property.
 
 The list row is easier — two chips with nothing competing (`listRow.ts:35`) —
 but its time slot is 46px and LC-93 was the bug about text wrapping inside it.
@@ -548,15 +564,20 @@ reviewed, along with its line in the prototypes index.
   for "a trigger at the window's far edge", which is precisely a date field in a
   right-hand rail, and `liftIntoView` is what stops the tallest popover the app
   will have — 253px of grid — losing its Clear row off the bottom.
-- **The second footer row sits above the existing one** and holds due, estimate
-  and type, in the first footer's own grammar one row up: mono values first,
-  chips after. **+24px**, giving four pinned heights — 108 · 132 · 136 · 160.
+- **The card's due is in the key row and the second footer row is estimate and
+  type**, above the label footer, in the first footer's own grammar: mono values
+  first, chips after. The date costs no height; the second row costs **+24px**
+  and gives four pinned heights — 108 · 132 · 136 · 160 — only in a project that
+  enables estimate or type.
 - **The estimate scale is the appearance row's segment** with a leading `—`,
   because absent is a value a scale must be able to say and the dash is the
   app's existing word for it (`priority: none` draws that glyph already).
 - **Settings gets one Properties pane after Labels**, four blocks, the
   checklist's own checkbox on a third selector, and the type-values editor is
   `.label-row` unchanged.
+- **The right-click menu gains a Type submenu** beside `Move to` and `Priority`,
+  off the same registry `metaOptions.tsx` feeds the other two from. The dates
+  and the estimate stay out, on the menu's own rule.
 
 ### What the prototype changed about the settled spec
 
@@ -565,6 +586,11 @@ reviewed, along with its line in the prototypes index.
   showed up once a panel was opened on an overdue ticket.
 - **The echo answers the open "what does it show while typing" question.**
   Also recorded above.
+- **The due moved from the footer to the key row**, in review, and the second
+  footer row lost its only universal occupant with it. Recorded above.
+- **The right-click menu was missing from the plan entirely.** It offers
+  `Move to` and `Priority` today and nothing in this ticket had said what
+  happens to it; two checklist rows now do.
 
 ### What is still open for the review
 
@@ -572,6 +598,9 @@ reviewed, along with its line in the prototypes index.
   the main column is 507px, one pixel under what 560 gives it today; at 720 it
   is 427px — a ~70ch measure, which reads fine but is a real reduction. LC-238s
   owns the number; the prototype says what it is buying.
+- **Where in the key row the date sits** — immediately after the key, or across
+  the row against the priority glyph so the two urgency marks read as one
+  object. Both are in the driver.
 - **The estimate control: segment or menu.** The segment shows the whole scale
   at rest and takes one click; the menu is what the rail's other six rows
   already are, and survives a rail narrower than seven segments. Both are in the
@@ -579,6 +608,19 @@ reviewed, along with its line in the prototypes index.
 - **Whether the overdue chip is bare mono text or takes a soft danger wash.**
   The prototype defaults to text — a filled chip on a card is a thing the app
   has never had — and draws the alternative behind a switch.
+
+### Refused in review
+
+- **A colour for Today.** Tried in `--lc-danger` and dropped: sharing overdue's
+  hue read as a second overdue at a glance, and the distinction fell entirely to
+  words set at 11px. A third colour was never available — agent green belongs to
+  agents, `--lc-warn` is the unattributed external change, and LC-148 was the bug
+  of those two colliding. Today stays monochrome and emphasised, and the
+  visibility it needed came from the key row instead.
+- **Type in the key row.** Type is a chip, the smallest chip is 19px and
+  `.card-top` is pinned at 16, so every card in every project would grow 4px
+  whether or not Type was enabled. The due survives that row only because it is
+  text.
 
 ### Verified in WebKit rather than asserted
 
@@ -633,10 +675,12 @@ height — which is the invariant the second footer row exists inside.
 - [ ] Ticket panel: the properties rail, gated on the project's enabled set <!-- longclaw:item=ck_8505f369 -->
 - [ ] Date input: picker plus the typed forms, normalised to the canonical on-disk shape <!-- longclaw:item=ck_31cdc0b5 -->
 - [ ] Create panel and quick create: the enabled properties only <!-- longclaw:item=ck_15448aa4 -->
-- [ ] Board card: the due chip in a second footer row, which the footer gains rather than the chip contending for a label slot <!-- longclaw:item=ck_09e1edf1 -->
-- [ ] boardGeometry: cardStrides learns the second footer row, keeping the height derivable from row data and never measured <!-- longclaw:item=ck_1b980442 -->
+- [ ] Board card: the due in the key row, immediately before the priority glyph — it costs no height, so cardStrides and the pinned heights never learn about due at all <!-- longclaw:item=ck_09e1edf1 -->
+- [ ] boardGeometry: cardStrides learns the second footer row for estimate and type, keeping the height derivable from row data and never measured <!-- longclaw:item=ck_1b980442 -->
 - [ ] styles.css and card-height-guard.mjs learn the new pinned heights — the guard runs inside npm run check and fails on a disagreement <!-- longclaw:item=ck_2c41c9b0 -->
 - [ ] List row: due within the row's two-chip budget, minding LC-93's 46px slot <!-- longclaw:item=ck_6ac72ae5 -->
+- [ ] Ticket context menu: a Type submenu beside Move to and Priority, off the same registry metaOptions feeds the other two from <!-- longclaw:item=ck_a77f4bb8 -->
+- [ ] Record why due, start and estimate stay out of the context menu — the menu's own rule is that it is a shortcut, not a second place where things are decided <!-- longclaw:item=ck_fcf48239 -->
 - [ ] Proximity derived from an injected now, plus the day-boundary recompute the watcher cannot push <!-- longclaw:item=ck_55424527 -->
 - [ ] A Due board ordering mode beside Priority and Manual (ADR 0003) <!-- longclaw:item=ck_79550de2 -->
 - [ ] Command palette rows for setting each enabled property <!-- longclaw:item=ck_e8cbab2a -->
@@ -1534,6 +1578,115 @@ changes:
   - field: checklist.ck_d5ddb411.checked
     from: "false"
     to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_0b1cfa34
+kind: update
+occurred_at: 2026-09-08T06:51:11.630Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_09e1edf1.text
+    from: "Board card: the due chip in a second footer row, which the footer gains rather than the chip contending for a label slot"
+    to: "Board card: the due in the key row, immediately before the priority glyph — it costs no height, so cardStrides and the pinned heights never learn about due at all"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_40d4bbf3
+kind: update
+occurred_at: 2026-09-08T06:51:16.972Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_1b980442.text
+    from: "boardGeometry: cardStrides learns the second footer row, keeping the height derivable from row data and never measured"
+    to: "boardGeometry: cardStrides learns the second footer row for estimate and type, keeping the height derivable from row data and never measured"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_0317d23f
+kind: update
+occurred_at: 2026-09-08T06:51:23.457Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_a77f4bb8.added
+    to: "Ticket context menu: a Type submenu beside Move to and Priority, off the same registry metaOptions feeds the other two from"
+  - field: checklist.ck_fcf48239.added
+    to: Record why due, start and estimate stay out of the context menu — the menu's own rule is that it is a shortcut, not a second place where things are decided
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_1b625e3b
+kind: update
+occurred_at: 2026-09-08T06:51:28.355Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_a77f4bb8.moved
+    from: "54"
+    to: "41"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_fe6570b6
+kind: update
+occurred_at: 2026-09-08T06:51:33.494Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_fcf48239.moved
+    from: "55"
+    to: "42"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_b5c14827
+kind: update
+occurred_at: 2026-09-08T06:52:28.313Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_057ff706
+kind: update
+occurred_at: 2026-09-08T06:53:12.387Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->
