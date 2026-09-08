@@ -90,6 +90,7 @@
   --lc-size-board-stack: calc(100vh - 123px);
   --lc-size-panel-gutter: 16px;
   --lc-size-panel-gutter-lg: 24px;
+  --lc-size-panel-rail: 232px;
   --lc-radius-kbd: 3px;
   --lc-radius-tile: 4px;
   --lc-radius-control: 5px;

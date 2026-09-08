@@ -8,7 +8,7 @@ priority: urgent
 labels:
   - release
 created_at: 2026-08-22T06:13:17.138Z
-updated_at: 2026-09-08T11:05:17.943Z
+updated_at: 2026-09-08T11:56:20.679Z
 ---
 
 Brainstorm with LLM agent like what other fields we should support. A few items I can think of are Type - Bug/Task, Due State, Start Date, Effort
@@ -808,9 +808,9 @@ height — which is the invariant the second footer row exists inside.
 - [ ] Settings: a properties section in SETTINGS_SECTIONS after labels, both labels off one row <!-- longclaw:item=ck_5fbdce11 -->
 - [ ] Settings pane: the type-values editor, shaped like the labels editor <!-- longclaw:item=ck_395aa8b1 -->
 - [ ] Settings pane: the estimate system picker, its conversion fields, and the due attention_days number <!-- longclaw:item=ck_f8c2ee24 -->
-- [ ] Ticket panel: the properties rail, gated on the project's enabled set <!-- longclaw:item=ck_8505f369 -->
-- [ ] Date input: picker plus the typed forms, normalised to the canonical on-disk shape <!-- longclaw:item=ck_31cdc0b5 -->
-- [ ] Hand LC-238s the rail's floor: no rail under 660px, 800 recommended, and a clamp that lands under 660 silently removes it <!-- longclaw:item=ck_ded5d73e -->
+- [x] Ticket panel: the properties rail, gated on the project's enabled set <!-- longclaw:item=ck_8505f369 -->
+- [x] Date input: picker plus the typed forms, normalised to the canonical on-disk shape <!-- longclaw:item=ck_31cdc0b5 -->
+- [x] Hand LC-238s the rail's floor: no rail under 660px, 800 recommended, and a clamp that lands under 660 silently removes it <!-- longclaw:item=ck_ded5d73e -->
 - [ ] Create panel and quick create: the enabled properties only <!-- longclaw:item=ck_15448aa4 -->
 - [x] Board card: the due in the key row, immediately before the priority glyph — it costs no height, so cardStrides and the pinned heights never learn about due at all <!-- longclaw:item=ck_09e1edf1 -->
 - [x] boardGeometry: cardStrides learns the second footer row for estimate and type, keeping the height derivable from row data and never measured <!-- longclaw:item=ck_1b980442 -->
@@ -2051,6 +2051,28 @@ changes:
     from: "false"
     to: "true"
   - field: checklist.ck_55424527.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_cd3d3e27
+kind: update
+occurred_at: 2026-09-08T11:56:20.679Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_8505f369.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_31cdc0b5.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_ded5d73e.checked
     from: "false"
     to: "true"
 -->

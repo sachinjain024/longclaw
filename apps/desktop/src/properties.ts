@@ -458,6 +458,21 @@ export function estimateMinutes(
   ];
 }
 
+/**
+ * A duration as its two halves, for the control that edits them separately.
+ *
+ * The unit is a menu rather than something to be typed, because `m h d w` is
+ * the one part of this grammar nothing on screen would otherwise teach. Split
+ * here rather than in the control, so the regex that decides what a duration is
+ * stays the only one in the app.
+ */
+export function splitDuration(
+  value: string | undefined,
+): { amount: string; unit: string } | undefined {
+  const parts = DURATION.exec(value ?? "");
+  return parts ? { amount: parts[1], unit: parts[2] } : undefined;
+}
+
 /** The values a project's estimate control offers, in the scale's own order. */
 export function estimateScale(config: EstimateConfig): string[] {
   if (config.system === "tshirt") return config.values;

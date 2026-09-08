@@ -124,7 +124,8 @@
     "board-card-acknowledged-properties": 160,
     "board-stack": "calc(100vh - 123px)",
     "panel-gutter": 16,
-    "panel-gutter-lg": 24
+    "panel-gutter-lg": 24,
+    "panel-rail": 232
   },
 
   "radius": {

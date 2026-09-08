@@ -2307,6 +2307,7 @@ export function App() {
             // places the app writes this path agree on how it looks.
             projectPath={tildeAbbreviate(project.rootPath, homePath)}
             labels={project.labels}
+            properties={project.properties}
             mark={externalMarks[selectedKey]}
             reloadSignal={panelReload}
             removedSignal={panelRemoved}
@@ -2314,6 +2315,7 @@ export function App() {
               heldConflict?.ticketKey === selectedKey ? heldConflict : undefined
             }
             now={now}
+            today={today}
             archived={openRow !== undefined && isArchived(openRow)}
             // The file the row the card was drawn from names, so one the board
             // already knows will not parse opens as the raw-file modal rather

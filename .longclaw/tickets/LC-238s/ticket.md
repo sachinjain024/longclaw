@@ -166,3 +166,27 @@ changes:
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_317aecba
+kind: comment
+occurred_at: 2026-09-08T11:56:09.814Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+LC-227 has shipped the properties rail, and it puts a floor under the width this ticket owns.
+
+The panel now splits on a **container query at 660px** — 560 plus the 232px rail plus the gap. Above it there is a rail; below it the properties fold back into stacked rows above the description, which is where a 560px panel has always had them. Three consequences follow, and none of them takes the number away from this ticket.
+
+**A default under 660 ships the feature switched off.** 800 is the recommendation. The main column measures 507px there, one pixel under what a 560px panel gives the description today, so the rail costs the reader nothing. At 720 it is 427px — a ~70ch measure that reads fine, and a real reduction.
+
+**The minimum a person may drag to stops being a comfort limit and becomes a decision.** Drag under 660 and the rail folds. That is either the graceful degradation the container query was chosen for or a trap, and this ticket should say which rather than leaving it to whatever number the handle happens to stop at.
+
+**A clamp that lands under 660 takes the rail with it, silently.** This ticket already clamps a width restored against a monitor that is no longer attached; the new part is that the clamp can now switch a feature off with nothing on screen saying so. Worth deciding whether the clamp floor is 660 rather than whatever the window allows.
+
+The query is on the panel and never on the viewport, which is why the width being a dragged, remembered number (devicePreferences.ts, ADR 0012) is the whole reason it works: a media query would put a rail in a 560px panel on a 27-inch display.
+<!-- /longclaw:event -->

@@ -20,12 +20,14 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExternalMark } from "./acknowledgement";
 import { resetMutations } from "./mutations";
+import { NO_PROPERTIES, startOfDay } from "./properties";
 import { TicketPanel } from "./TicketPanel";
 import { ToastStack } from "./WriteFeedback";
 import type {
   ActivityEvent,
   ChecklistItem,
   Label,
+  PropertiesConfig,
   TicketDetail,
   WriteResult,
 } from "./types";
@@ -88,6 +90,10 @@ function detail(options?: {
   labels?: string[];
   checklist?: ChecklistItem[];
   activity?: ActivityEvent[];
+  /** The four opt-in properties, as raw as a ticket carries them (LC-227). */
+  properties?: Partial<
+    Pick<TicketDetail["ticket"] & object, "type" | "due" | "start" | "estimate">
+  >;
 }): TicketDetail {
   const key = options?.key ?? "LC-1";
   return {
@@ -107,6 +113,7 @@ function detail(options?: {
       status: "todo",
       priority: "p2",
       labels: options?.labels ?? [],
+      ...options?.properties,
       createdAt: "2026-07-30T11:00:00Z",
       updatedAt: "2026-07-30T11:59:00Z",
       description:
@@ -208,6 +215,8 @@ function panel(props?: {
    * a test raising the signal alone is describing something the app never does.
    */
   mark?: ExternalMark;
+  /** What the project has turned on. Off by default: most cases predate them. */
+  properties?: PropertiesConfig;
   onArchive?: (archived: boolean) => void;
   onWrite?: (result: WriteResult) => void;
   onReparsed?: () => void;
@@ -218,10 +227,12 @@ function panel(props?: {
       ticketKey={props?.ticketKey ?? "LC-1"}
       projectPath={PROJECT_PATH}
       labels={DEFINITIONS}
+      properties={props?.properties ?? NO_PROPERTIES}
       mark={props?.mark}
       reloadSignal={props?.reloadSignal ?? 0}
       removedSignal={props?.removedSignal ?? 0}
       now={NOW}
+      today={startOfDay(NOW).getTime()}
       archived={props?.archived ?? false}
       degradedPath={props?.degradedPath}
       shortcutsActive={props?.shortcutsActive ?? true}
@@ -1556,11 +1567,11 @@ describe("the panel's honesty about the file", () => {
     expect(aside?.textContent).not.toMatch(/assign/i);
     expect(screen.queryByRole("button", { name: /assign/i })).toBeNull();
 
-    // The meta grid is exactly the three rows v0 has, and the agent is in none
-    // of them — it exists only inside the timeline.
-    const meta = document.querySelector(".meta-grid");
+    // The rail is exactly the three rows a project with no properties turned
+    // on has, and the agent is in none of them — it exists only in the timeline.
+    const meta = document.querySelector(".panel-rail");
     expect(
-      [...(meta?.querySelectorAll(":scope > span") ?? [])].map(
+      [...(meta?.querySelectorAll(".rail-label") ?? [])].map(
         (cell) => cell.textContent,
       ),
     ).toEqual(["Status", "Priority", "Labels"]);
@@ -3156,5 +3167,178 @@ describe("the panel's fields read as the record, not as a form", () => {
     expect(
       checklistRow("Let an agent read this ticket").className,
     ).not.toContain("acknowledged");
+  });
+});
+
+/**
+ * The properties rail (LC-227).
+ *
+ * A project turns each of the four on for itself, so the rail's shape is the
+ * project's and not the panel's — and the rule underneath every case here is
+ * that a ticket carrying a value for a property the project has *off* keeps it.
+ * Nothing on this surface writes a file to tidy one up.
+ */
+describe("the properties rail", () => {
+  const withAll: PropertiesConfig = {
+    type: {
+      enabled: true,
+      values: { bug: { name: "Bug", color: "red" } },
+    },
+    due: { enabled: true, attentionDays: 7 },
+    start: { enabled: true },
+    estimate: {
+      ...NO_PROPERTIES.estimate,
+      enabled: true,
+      values: ["xs", "s", "m", "l", "xl"],
+    },
+  };
+
+  function railRows() {
+    return [...document.querySelectorAll(".panel-rail .rail-label")].map(
+      (label) => label.textContent,
+    );
+  }
+
+  it("shows only the properties the project turned on", async () => {
+    render(
+      panel({
+        properties: {
+          ...NO_PROPERTIES,
+          due: { enabled: true, attentionDays: 7 },
+        },
+      }),
+    );
+    await ready();
+    expect(railRows()).toEqual(["Status", "Priority", "Due", "Labels"]);
+  });
+
+  it("reads in one order: what it is, what kind of work, when, then the free axis", async () => {
+    // Labels last because they are the only row that grows — a list of chips at
+    // the foot of a rail costs nothing when it wraps, and the same list in the
+    // middle moves everything under it. Start above Due: chronological, and the
+    // pair the forward-only rule is a trade for.
+    render(panel({ properties: withAll }));
+    await ready();
+    expect(railRows()).toEqual([
+      "Status",
+      "Priority",
+      "Type",
+      "Estimate",
+      "Start",
+      "Due",
+      "Labels",
+    ]);
+  });
+
+  it("draws none of the four for a project that has turned them all off", async () => {
+    readTicketMock.mockResolvedValue(
+      detail({ properties: { due: "2026-09-28", type: "bug" } }),
+    );
+    render(panel());
+    await ready();
+    expect(railRows()).toEqual(["Status", "Priority", "Labels"]);
+    // Off is not gone: nothing here offered to remove what the file carries.
+    expect(editTicketMock).not.toHaveBeenCalled();
+  });
+
+  it("writes a date in the shape the format stores, whatever was typed", async () => {
+    readTicketMock.mockResolvedValue(detail());
+    editTicketMock.mockResolvedValue(writeResult());
+    render(panel({ properties: withAll }));
+    await ready();
+
+    const due = screen.getByLabelText("Due") as HTMLInputElement;
+    fireEvent.change(due, { target: { value: "28 Sep" } });
+    fireEvent.keyDown(due, { key: "Enter" });
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(1));
+    expect(editTicketMock.mock.calls[0][0].edit).toEqual({ due: "2026-09-28" });
+  });
+
+  it("sends null for a clear, because absent and cleared are one thing on disk", async () => {
+    // The distinction lives in the edit command; this is the surface that has
+    // to draw it.
+    readTicketMock.mockResolvedValue(
+      detail({ properties: { due: "2026-09-28" } }),
+    );
+    editTicketMock.mockResolvedValue(writeResult());
+    render(panel({ properties: withAll }));
+    await ready();
+
+    const due = screen.getByLabelText("Due") as HTMLInputElement;
+    fireEvent.change(due, { target: { value: "" } });
+    fireEvent.keyDown(due, { key: "Enter" });
+
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(1));
+    expect(editTicketMock.mock.calls[0][0].edit).toEqual({ due: null });
+  });
+
+  it("writes an estimate as the slug the project stores", async () => {
+    readTicketMock.mockResolvedValue(detail());
+    editTicketMock.mockResolvedValue(writeResult());
+    render(panel({ properties: withAll }));
+    await ready();
+
+    fireEvent.click(screen.getByRole("button", { name: "XL" }));
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(1));
+    expect(editTicketMock.mock.calls[0][0].edit).toEqual({ estimate: "xl" });
+  });
+
+  it("offers a way back out of a type, which is a clear and not a value", async () => {
+    readTicketMock.mockResolvedValue(detail({ properties: { type: "bug" } }));
+    editTicketMock.mockResolvedValue(writeResult());
+    render(panel({ properties: withAll }));
+    await ready();
+
+    fireEvent.click(screen.getByRole("button", { name: "Type: Bug" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "None" }));
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(1));
+    expect(editTicketMock.mock.calls[0][0].edit).toEqual({ type: null });
+  });
+
+  it("shows a type slug the project does not define, rather than nothing", async () => {
+    // Invariant 16 in the rail: a slug an agent wrote is preserved and rendered
+    // as itself. The alternative is a row that reads as empty on a ticket that
+    // is not.
+    readTicketMock.mockResolvedValue(detail({ properties: { type: "epic" } }));
+    render(panel({ properties: withAll }));
+    await ready();
+    expect(screen.getByRole("button", { name: "Type: epic" })).toBeTruthy();
+  });
+
+  it("keeps a date it cannot read, and says so rather than writing over it", async () => {
+    readTicketMock.mockResolvedValue(
+      detail({ properties: { due: "28 Sep 2026" } }),
+    );
+    render(panel({ properties: withAll }));
+    await ready();
+
+    const due = screen.getByLabelText("Due") as HTMLInputElement;
+    expect(due.value).toBe("28 Sep 2026");
+    // A blur is not an edit. Normalising here would be the panel correcting a
+    // file on a gesture nobody meant as a change.
+    fireEvent.blur(due);
+    expect(editTicketMock).not.toHaveBeenCalled();
+  });
+
+  it("names the property in the toast, and takes it back", async () => {
+    readTicketMock.mockResolvedValue(detail());
+    editTicketMock.mockResolvedValue(writeResult());
+    render(
+      <>
+        {panel({ properties: withAll })}
+        <ToastStack />
+      </>,
+    );
+    await ready();
+
+    const start = screen.getByLabelText("Start") as HTMLInputElement;
+    fireEvent.change(start, { target: { value: "2026-10-20" } });
+    fireEvent.keyDown(start, { key: "Enter" });
+
+    expect(await screen.findByText("LC-1 Start → 2026-10-20")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
+    expect(editTicketMock.mock.calls[1][0].edit).toEqual({ start: null });
   });
 });
