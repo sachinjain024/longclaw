@@ -103,17 +103,17 @@ impl Mapping {
     }
 
     pub fn set_scalar(&mut self, key: &str, value: &str) {
-        self.set_block(key, format!("{key}: {}\n", encode_scalar(value)), &[]);
+        self.set_path_scalar(&[key], value, &[]);
     }
 
     /// Sets a scalar, inserting a missing key directly after the last of
     /// `after` that exists so app-written keys keep the documented order.
     pub fn set_scalar_after(&mut self, key: &str, value: &str, after: &[&str]) {
-        self.set_block(key, format!("{key}: {}\n", encode_scalar(value)), after);
+        self.set_path_scalar(&[key], value, after);
     }
 
     pub fn set_sequence_after(&mut self, key: &str, values: &[String], after: &[&str]) {
-        self.set_block(key, render_sequence(key, values), after);
+        self.set_path_sequence(&[key], values, after);
     }
 
     pub fn remove(&mut self, key: &str) {
@@ -123,42 +123,81 @@ impl Mapping {
         });
     }
 
-    /// Sets one field of one child of a nested mapping — `labels` → `storage` →
-    /// `name` — creating the child, or the mapping itself, when it is not there
-    /// yet. Every other child keeps its bytes, and so does every other line of
-    /// the edited child, which is what lets a label rename leave a key this build
-    /// does not interpret exactly where its author put it.
-    pub fn set_nested_scalar(
-        &mut self,
-        key: &str,
-        child: &str,
-        field: &str,
-        value: &str,
-        after: &[&str],
-    ) {
-        let mut nested = self.nested(key);
-        nested.set_field(child, field, value);
-        self.set_block(key, nested.render(key), after);
+    /// Sets a scalar at a nested path — `labels` → `storage` → `name`, or
+    /// `properties` → `type` → `values` → `bug` → `name` — creating every
+    /// mapping on the way down that is not there yet. `after` places the
+    /// top-level key when it is the one being created.
+    ///
+    /// Every other child of every mapping the path descends through keeps its
+    /// bytes, and so does every other line of the child that is edited. That is
+    /// what lets a label rename, or turning one property on, leave a key this
+    /// build does not interpret exactly where its author put it.
+    pub fn set_path_scalar(&mut self, path: &[&str], value: &str, after: &[&str]) {
+        self.set_path(path, after, &Leaf::Scalar(value));
     }
 
-    /// Removes one child of a nested mapping. An emptied mapping collapses to
-    /// flow style rather than losing its key, because a bare `key:` reads back as
-    /// null and would stop the file parsing.
-    pub fn remove_nested(&mut self, key: &str, child: &str) {
-        let mut nested = self.nested(key);
-        if nested.remove_child(child) {
-            self.set_block(key, nested.render(key), &[]);
+    /// The same, for a key whose value is a sequence — `estimate.values`, the
+    /// one ordered vocabulary either file holds.
+    pub fn set_path_sequence(&mut self, path: &[&str], values: &[String], after: &[&str]) {
+        self.set_path(path, after, &Leaf::Sequence(values));
+    }
+
+    /// The same, for a boolean. Not a scalar string: `encode_scalar` quotes
+    /// `true` into the string "true" precisely so a *name* of "true" survives a
+    /// round trip, and `enabled` is the other case — a flag that has to read
+    /// back as a flag.
+    pub fn set_path_bool(&mut self, path: &[&str], value: bool, after: &[&str]) {
+        self.set_path(
+            path,
+            after,
+            &Leaf::Literal(if value { "true" } else { "false" }),
+        );
+    }
+
+    /// The same, for a number. Written as YAML resolves it, so a whole `8` stays
+    /// `8` and a seven-and-a-half-hour day stays `7.5`.
+    pub fn set_path_number(&mut self, path: &[&str], value: f64, after: &[&str]) {
+        self.set_path(path, after, &Leaf::Literal(&value.to_string()));
+    }
+
+    /// Removes the child a path names, and only that child. A mapping the
+    /// removal empties collapses to flow style rather than losing its key,
+    /// because a bare `key:` reads back as null and would stop the file parsing.
+    pub fn remove_path(&mut self, path: &[&str]) {
+        let Some((key, rest)) = path.split_first() else {
+            return;
+        };
+        if rest.is_empty() {
+            self.remove(key);
+            return;
+        }
+        let Some(block) = self.block(key).map(str::to_owned) else {
+            return;
+        };
+        if let Some(rendered) = remove_in_block(&block, rest) {
+            self.set_block(key, rendered, &[]);
         }
     }
 
-    fn nested(&self, key: &str) -> NestedMapping {
-        self.blocks
-            .iter()
-            .find_map(|block| match block {
-                Block::Entry { key: name, raw } if name == key => Some(NestedMapping::parse(raw)),
-                _ => None,
-            })
-            .unwrap_or_default()
+    fn set_path(&mut self, path: &[&str], after: &[&str], leaf: &Leaf) {
+        let Some((key, rest)) = path.split_first() else {
+            return;
+        };
+        if rest.is_empty() {
+            self.set_block(key, leaf.render(0, key), after);
+            return;
+        }
+        let block = self
+            .block(key)
+            .map_or_else(|| format!("{key}:\n"), str::to_owned);
+        self.set_block(key, set_in_block(&block, rest, leaf), after);
+    }
+
+    fn block(&self, key: &str) -> Option<&str> {
+        self.blocks.iter().find_map(|block| match block {
+            Block::Entry { key: name, raw } if name == key => Some(raw.as_str()),
+            _ => None,
+        })
     }
 
     fn set_block(&mut self, key: &str, rendered: String, after: &[&str]) {
@@ -187,25 +226,174 @@ impl Mapping {
     }
 }
 
-/// The children of one top-level entry whose value is a mapping, such as
-/// `labels:`. Each child owns the exact bytes of its own block, so an edit to one
-/// of them is the only thing that changes.
+/// What a path write puts at the end of the path, rendered at whatever
+/// indentation the mapping that will hold it uses.
+enum Leaf<'a> {
+    Scalar(&'a str),
+    /// Already YAML: a boolean or a number, which must not be quoted.
+    Literal(&'a str),
+    Sequence(&'a [String]),
+}
+
+impl Leaf<'_> {
+    fn render(&self, indent: usize, key: &str) -> String {
+        match self {
+            Self::Scalar(value) => format!("{:indent$}{key}: {}\n", "", encode_scalar(value)),
+            Self::Literal(value) => format!("{:indent$}{key}: {value}\n", ""),
+            Self::Sequence(values) => render_sequence(indent, key, values),
+        }
+    }
+}
+
+/// Rewrites the descendant `path` names inside one entry's block, whose first
+/// line is that entry's own key line.
+///
+/// Recursive because the `properties:` block is four mappings deep, and each
+/// level answers the same question: which of my children does this path enter,
+/// and what does the rest of it do inside that child.
+fn set_in_block(block: &str, path: &[&str], leaf: &Leaf) -> String {
+    let mut nested = NestedMapping::parse(block);
+    let (key, rest) = path.split_first().expect("a path names at least one key");
+    let indent = nested.child_indent();
+    let rendered = if rest.is_empty() {
+        leaf.render(indent, key)
+    } else {
+        let child = nested.child(key).map_or_else(
+            || format!("{:indent$}{key}:\n", ""),
+            |raw| expanded(raw, key, indent),
+        );
+        set_in_block(&child, rest, leaf)
+    };
+    nested.set_child(key, rendered);
+    nested.render()
+}
+
+/// The same descent, removing what the path names. `None` means nothing on the
+/// path was there, and so nothing is rewritten at all.
+fn remove_in_block(block: &str, path: &[&str]) -> Option<String> {
+    let mut nested = NestedMapping::parse(block);
+    let (key, rest) = path.split_first().expect("a path names at least one key");
+    if rest.is_empty() {
+        return nested.remove_child(key).then(|| nested.render());
+    }
+    let indent = nested.child_indent();
+    let child = expanded(nested.child(key)?, key, indent);
+    let rendered = remove_in_block(&child, rest)?;
+    nested.set_child(key, rendered);
+    Some(nested.render())
+}
+
+/// A child's block, ready to be descended into.
+///
+/// A child written in flow style — `bug: { name: Bug, color: red }`, which is
+/// exactly how the format contract writes a type value — is expanded into block
+/// style first. Appending a field line under a mapping that is already closed is
+/// not YAML at all, so the one-line form has to become a block before an edit
+/// can reach inside it. Nothing else is reformatted: this happens only to the
+/// child being written into.
+fn expanded(raw: &str, key: &str, indent: usize) -> String {
+    let value = header_value(raw);
+    if !value.starts_with(['{', '[']) {
+        return raw.to_owned();
+    }
+    serde_yaml::from_str::<serde_yaml::Value>(value)
+        .ok()
+        .and_then(|parsed| render_block_value(key, &parsed, indent))
+        // A construct the block form cannot hold is replaced rather than
+        // written into: a file that lost one is recoverable, and one whose
+        // frontmatter no longer parses is what takes the whole project down.
+        .unwrap_or_else(|| format!("{:indent$}{key}:\n", ""))
+}
+
+/// One parsed YAML value as block-style lines under `key`. `None` for anything
+/// the subset does not put inside these registries — a sequence of mappings,
+/// say — which the caller reads as "do not try".
+fn render_block_value(key: &str, value: &serde_yaml::Value, indent: usize) -> Option<String> {
+    let inner = indent + 2;
+    match value {
+        serde_yaml::Value::Mapping(entries) if !entries.is_empty() => {
+            let mut rendered = format!("{:indent$}{key}:\n", "");
+            for (name, entry) in entries {
+                rendered.push_str(&render_block_value(name.as_str()?, entry, inner)?);
+            }
+            Some(rendered)
+        }
+        serde_yaml::Value::Mapping(_) => Some(format!("{:indent$}{key}: {{}}\n", "")),
+        serde_yaml::Value::Sequence(items) if !items.is_empty() => {
+            let mut rendered = format!("{:indent$}{key}:\n", "");
+            for item in items {
+                rendered.push_str(&format!("{:inner$}- {}\n", "", encoded_value(item)?));
+            }
+            Some(rendered)
+        }
+        serde_yaml::Value::Sequence(_) => Some(format!("{:indent$}{key}: []\n", "")),
+        scalar => Some(format!("{:indent$}{key}: {}\n", "", encoded_value(scalar)?)),
+    }
+}
+
+/// A scalar as bytes that read back as the value they came from. Booleans and
+/// numbers are written as they are rather than through `encode_scalar`, which
+/// would quote `true` into the string "true" and change what the key means.
+fn encoded_value(value: &serde_yaml::Value) -> Option<String> {
+    Some(match value {
+        serde_yaml::Value::String(text) => encode_scalar(text),
+        serde_yaml::Value::Bool(flag) => flag.to_string(),
+        serde_yaml::Value::Number(number) => number.to_string(),
+        serde_yaml::Value::Null => "null".to_owned(),
+        _ => return None,
+    })
+}
+
+/// The text after the colon on an entry's own key line — empty when the key
+/// opens a block, or carries nothing but a comment.
+fn header_value(block: &str) -> &str {
+    let header = block.split_inclusive('\n').next().unwrap_or(block);
+    let value = header
+        .trim()
+        .split_once(':')
+        .map_or("", |(_, value)| value.trim());
+    if value.starts_with('#') {
+        ""
+    } else {
+        value
+    }
+}
+
+/// The children of one entry whose value is a mapping, such as `labels:` or
+/// `properties.type.values`. Each child owns the exact bytes of its own block,
+/// so an edit to one of them is the only thing that changes.
 #[derive(Debug, Default)]
 struct NestedMapping {
+    /// The entry's own key line, kept verbatim so a trailing comment on it
+    /// survives a write to one of its children.
+    header: String,
+    /// The column the key line starts at, which is what a child of a child is
+    /// indented from when the file has none yet to copy.
+    indent: usize,
+    key: String,
     /// Comments and blank lines between the key and its first child.
     preamble: String,
     children: Vec<(String, String)>,
     /// The indentation the file already uses, so an edit matches the surrounding
     /// file rather than imposing its own.
     child_indent: Option<usize>,
-    field_indent: Option<usize>,
 }
 
 impl NestedMapping {
     /// Splits a whole entry block, header line included, into its children.
     fn parse(raw: &str) -> Self {
-        let mut nested = Self::default();
-        for (_, line) in lines_with_endings(raw).into_iter().skip(1) {
+        let lines = lines_with_endings(raw);
+        let header = lines.first().map_or("", |(_, line)| *line);
+        let mut nested = Self {
+            header: header.to_owned(),
+            indent: indent_of(header),
+            key: header
+                .trim()
+                .split_once(':')
+                .map_or_else(String::new, |(key, _)| key.trim_end().to_owned()),
+            ..Self::default()
+        };
+        for (_, line) in lines.into_iter().skip(1) {
             let indent = indent_of(line);
             let opens_child = !is_ignorable(line)
                 && nested
@@ -221,9 +409,6 @@ impl NestedMapping {
                 nested.children.push((key, line.to_owned()));
                 continue;
             }
-            if !is_ignorable(line) && !nested.children.is_empty() {
-                nested.field_indent.get_or_insert(indent);
-            }
             match nested.children.last_mut() {
                 Some((_, block)) => block.push_str(line),
                 None => nested.preamble.push_str(line),
@@ -232,11 +417,28 @@ impl NestedMapping {
         nested
     }
 
-    fn render(&self, key: &str) -> String {
+    /// Where this mapping's children sit: what the file already does, or two
+    /// columns in from the key when it has none to copy.
+    fn child_indent(&self) -> usize {
+        self.child_indent.unwrap_or(self.indent + 2)
+    }
+
+    fn child(&self, name: &str) -> Option<&str> {
+        self.children
+            .iter()
+            .find_map(|(key, block)| (key == name).then_some(block.as_str()))
+    }
+
+    fn render(&self) -> String {
         let mut rendered = if self.children.is_empty() {
-            format!("{key}: {{}}\n")
+            format!("{:indent$}{}: {{}}\n", "", self.key, indent = self.indent)
+        } else if header_value(&self.header).is_empty() {
+            // The line as its author wrote it, comment and all. Reconstructing
+            // it would be the one byte this write did not need to touch.
+            self.header.clone()
         } else {
-            format!("{key}:\n")
+            // It was `key: {}`, or a flow mapping that has just been expanded.
+            format!("{:indent$}{}:\n", "", self.key, indent = self.indent)
         };
         rendered.push_str(&self.preamble);
         for (_, block) in &self.children {
@@ -245,26 +447,23 @@ impl NestedMapping {
         rendered
     }
 
-    fn set_field(&mut self, child: &str, field: &str, value: &str) {
-        let child_indent = self.child_indent.unwrap_or(2);
-        let field_indent = self.field_indent.unwrap_or(child_indent + 2);
-        let line = format!(
-            "{:field_indent$}{field}: {}\n",
-            "",
-            encode_scalar(value),
-            field_indent = field_indent
-        );
-        match self.children.iter_mut().find(|(name, _)| name == child) {
-            Some((_, block)) => *block = set_child_field(block, field, &line),
-            None => self.children.push((
-                child.to_owned(),
-                format!(
-                    "{:child_indent$}{child}:\n{line}",
-                    "",
-                    child_indent = child_indent
-                ),
-            )),
+    /// Replaces a child, or appends one that is not there yet.
+    ///
+    /// A new child lands *with* its siblings rather than below a trailing
+    /// comment: comments after the last child belong to that child's block, so
+    /// appending blindly would put a field the app just wrote under a note about
+    /// the one above it.
+    fn set_child(&mut self, name: &str, rendered: String) {
+        if let Some((_, block)) = self.children.iter_mut().find(|(key, _)| key == name) {
+            *block = rendered;
+            return;
         }
+        let trailing = self
+            .children
+            .last_mut()
+            .map(|(_, block)| split_trailing_comments(block))
+            .unwrap_or_default();
+        self.children.push((name.to_owned(), rendered + &trailing));
     }
 
     fn remove_child(&mut self, child: &str) -> bool {
@@ -274,45 +473,34 @@ impl NestedMapping {
     }
 }
 
-/// Rewrites one field line inside a child's block, or adds it after the last line
-/// that carries content so a new field lands with the fields rather than below a
-/// trailing comment.
-fn set_child_field(block: &str, field: &str, rendered_line: &str) -> String {
+/// Takes the comments and blank lines off the end of a child's block and hands
+/// them back, so they can be re-attached after whatever is appended next.
+fn split_trailing_comments(block: &mut String) -> String {
     let lines = lines_with_endings(block);
-    // From index 1: index 0 is the child's own key line, which is not a field.
-    let existing = lines.iter().skip(1).position(|(_, line)| {
-        line.trim_start()
-            .split_once(':')
-            .is_some_and(|(key, _)| key.trim_end() == field)
-    });
-    let last_content = lines.iter().rposition(|(_, line)| !is_ignorable(line));
-    let mut rendered = String::with_capacity(block.len() + rendered_line.len());
-    for (index, (_, line)) in lines.iter().enumerate() {
-        if existing.map(|found| found + 1) == Some(index) {
-            rendered.push_str(rendered_line);
-        } else {
-            rendered.push_str(line);
-        }
-        if existing.is_none() && Some(index) == last_content {
-            rendered.push_str(rendered_line);
-        }
-    }
-    rendered
+    let Some(last_content) = lines.iter().rposition(|(_, line)| !is_ignorable(line)) else {
+        return String::new();
+    };
+    let kept: String = lines[..=last_content]
+        .iter()
+        .map(|(_, line)| *line)
+        .collect();
+    let trailing = block[kept.len()..].to_owned();
+    block.truncate(kept.len());
+    trailing
 }
 
 fn indent_of(line: &str) -> usize {
     line.len() - line.trim_start_matches(' ').len()
 }
 
-fn render_sequence(key: &str, values: &[String]) -> String {
+fn render_sequence(indent: usize, key: &str, values: &[String]) -> String {
     if values.is_empty() {
-        return format!("{key}: []\n");
+        return format!("{:indent$}{key}: []\n", "");
     }
-    let mut rendered = format!("{key}:\n");
+    let item = indent + 2;
+    let mut rendered = format!("{:indent$}{key}:\n", "");
     for value in values {
-        rendered.push_str("  - ");
-        rendered.push_str(&encode_scalar(value));
-        rendered.push('\n');
+        rendered.push_str(&format!("{:item$}- {}\n", "", encode_scalar(value)));
     }
     rendered
 }
@@ -648,7 +836,7 @@ mod tests {
     #[test]
     fn setting_a_nested_field_leaves_every_sibling_untouched() {
         let mut mapping = Mapping::parse(NESTED).unwrap();
-        mapping.set_nested_scalar("labels", "storage", "name", "Persistence", &["people"]);
+        mapping.set_path_scalar(&["labels", "storage", "name"], "Persistence", &["people"]);
         assert_eq!(
             mapping.render(),
             NESTED.replace("    name: Storage\n", "    name: Persistence\n")
@@ -658,7 +846,7 @@ mod tests {
     #[test]
     fn a_nested_field_the_child_lacks_joins_the_ones_it_has() {
         let mut mapping = Mapping::parse(NESTED).unwrap();
-        mapping.set_nested_scalar("labels", "reliability", "color", "amber", &["people"]);
+        mapping.set_path_scalar(&["labels", "reliability", "color"], "amber", &["people"]);
         assert!(mapping
             .render()
             .contains("  reliability:\n    name: Reliability\n    color: amber\npeople: {}\n"));
@@ -667,7 +855,7 @@ mod tests {
     #[test]
     fn a_nested_child_that_is_not_there_yet_is_appended() {
         let mut mapping = Mapping::parse(NESTED).unwrap();
-        mapping.set_nested_scalar("labels", "backend", "name", "Backend", &["people"]);
+        mapping.set_path_scalar(&["labels", "backend", "name"], "Backend", &["people"]);
         assert!(mapping
             .render()
             .contains("  backend:\n    name: Backend\npeople: {}\n"));
@@ -676,7 +864,11 @@ mod tests {
     #[test]
     fn a_nested_mapping_that_is_not_there_yet_lands_after_its_predecessor() {
         let mut mapping = Mapping::parse("name: Minimal\npeople: {}\n").unwrap();
-        mapping.set_nested_scalar("labels", "backend", "name", "Backend", &["name", "people"]);
+        mapping.set_path_scalar(
+            &["labels", "backend", "name"],
+            "Backend",
+            &["name", "people"],
+        );
         assert_eq!(
             mapping.render(),
             "name: Minimal\npeople: {}\nlabels:\n  backend:\n    name: Backend\n"
@@ -686,14 +878,14 @@ mod tests {
     #[test]
     fn a_flow_style_empty_mapping_becomes_a_block_when_it_gains_a_child() {
         let mut mapping = Mapping::parse("labels: {}\n").unwrap();
-        mapping.set_nested_scalar("labels", "backend", "name", "Backend", &[]);
+        mapping.set_path_scalar(&["labels", "backend", "name"], "Backend", &[]);
         assert_eq!(mapping.render(), "labels:\n  backend:\n    name: Backend\n");
     }
 
     #[test]
     fn removing_a_nested_child_removes_only_that_child() {
         let mut mapping = Mapping::parse(NESTED).unwrap();
-        mapping.remove_nested("labels", "storage");
+        mapping.remove_path(&["labels", "storage"]);
         assert_eq!(
             mapping.render(),
             "name: Representative Project\nlabels:\n  reliability:\n    name: Reliability\npeople: {}\n"
@@ -705,15 +897,219 @@ mod tests {
     #[test]
     fn removing_the_last_nested_child_collapses_to_an_empty_mapping() {
         let mut mapping = Mapping::parse("labels:\n  storage:\n    name: Storage\n").unwrap();
-        mapping.remove_nested("labels", "storage");
+        mapping.remove_path(&["labels", "storage"]);
         assert_eq!(mapping.render(), "labels: {}\n");
     }
 
     #[test]
     fn removing_a_nested_child_that_is_not_there_changes_nothing() {
         let mut mapping = Mapping::parse(NESTED).unwrap();
-        mapping.remove_nested("labels", "absent");
+        mapping.remove_path(&["labels", "absent"]);
         assert_eq!(mapping.render(), NESTED);
+    }
+
+    /// The `properties:` block, which is the deepest thing either file holds:
+    /// `properties` → `type` → `values` → `bug` → `name` is four mappings down.
+    const PROPERTIES: &str = concat!(
+        "name: Representative Project\n",
+        "properties:\n",
+        "  type:\n",
+        "    enabled: true\n",
+        "    values:\n",
+        "      bug:\n",
+        "        name: Bug\n",
+        "        color: red\n",
+        "      chore:\n",
+        "        name: Chore\n",
+        "        color: gray\n",
+        "  due:\n",
+        "    # how wide the approaching window is\n",
+        "    attention_days: 7\n",
+        "    x_note: a key this build does not read\n",
+        "created_at: 2026-07-29T00:00:00Z\n",
+    );
+
+    #[test]
+    fn a_path_four_mappings_deep_rewrites_one_line() {
+        let mut mapping = Mapping::parse(PROPERTIES).unwrap();
+        mapping.set_path_scalar(
+            &["properties", "type", "values", "bug", "name"],
+            "Defect",
+            &[],
+        );
+        assert_eq!(
+            mapping.render(),
+            PROPERTIES.replace("        name: Bug\n", "        name: Defect\n")
+        );
+    }
+
+    #[test]
+    fn a_path_leaves_every_mapping_it_descends_through_untouched() {
+        let mut mapping = Mapping::parse(PROPERTIES).unwrap();
+        mapping.set_path_number(&["properties", "due", "attention_days"], 3.0, &[]);
+        assert_eq!(
+            mapping.render(),
+            PROPERTIES.replace("    attention_days: 7\n", "    attention_days: 3\n")
+        );
+    }
+
+    #[test]
+    fn a_field_a_child_lacks_lands_with_its_siblings_not_below_a_comment() {
+        let mut mapping = Mapping::parse(concat!(
+            "properties:\n",
+            "  due:\n",
+            "    enabled: true\n",
+            "    # the window, in days\n",
+        ))
+        .unwrap();
+        mapping.set_path_number(&["properties", "due", "attention_days"], 7.0, &[]);
+        assert_eq!(
+            mapping.render(),
+            concat!(
+                "properties:\n",
+                "  due:\n",
+                "    enabled: true\n",
+                "    attention_days: 7\n",
+                "    # the window, in days\n",
+            )
+        );
+    }
+
+    #[test]
+    fn a_path_that_is_not_there_yet_is_created_the_whole_way_down() {
+        let mut mapping =
+            Mapping::parse("name: Minimal\ncreated_at: 2026-07-29T00:00:00Z\n").unwrap();
+        mapping.set_path_bool(
+            &["properties", "estimate", "enabled"],
+            true,
+            &["labels", "name"],
+        );
+        assert_eq!(
+            mapping.render(),
+            concat!(
+                "name: Minimal\n",
+                "properties:\n",
+                "  estimate:\n",
+                "    enabled: true\n",
+                "created_at: 2026-07-29T00:00:00Z\n",
+            )
+        );
+    }
+
+    #[test]
+    fn a_sequence_down_a_path_replaces_its_whole_block() {
+        let mut mapping = Mapping::parse(concat!(
+            "properties:\n",
+            "  estimate:\n",
+            "    system: tshirt\n",
+            "    values:\n",
+            "      - xs\n",
+            "      - s\n",
+        ))
+        .unwrap();
+        mapping.set_path_sequence(
+            &["properties", "estimate", "values"],
+            &["s".to_owned(), "m".to_owned(), "l".to_owned()],
+            &[],
+        );
+        assert_eq!(
+            mapping.render(),
+            concat!(
+                "properties:\n",
+                "  estimate:\n",
+                "    system: tshirt\n",
+                "    values:\n",
+                "      - s\n",
+                "      - m\n",
+                "      - l\n",
+            )
+        );
+    }
+
+    #[test]
+    fn removing_down_a_path_removes_only_that_child() {
+        let mut mapping = Mapping::parse(PROPERTIES).unwrap();
+        mapping.remove_path(&["properties", "type", "values", "bug"]);
+        assert_eq!(
+            mapping.render(),
+            PROPERTIES.replace(
+                concat!(
+                    "      bug:\n",
+                    "        name: Bug\n",
+                    "        color: red\n",
+                ),
+                ""
+            )
+        );
+    }
+
+    /// The format contract writes a type value in flow style, so a file whose
+    /// author copied the example out of it has to survive an edit reaching
+    /// inside one.
+    #[test]
+    fn a_flow_style_child_becomes_a_block_when_an_edit_reaches_inside_it() {
+        let mut mapping = Mapping::parse(concat!(
+            "properties:\n",
+            "  type:\n",
+            "    values:\n",
+            "      bug: { name: Bug, color: red }\n",
+            "      chore: { name: Chore, color: gray }\n",
+        ))
+        .unwrap();
+        mapping.set_path_scalar(
+            &["properties", "type", "values", "bug", "color"],
+            "amber",
+            &[],
+        );
+        assert_eq!(
+            mapping.render(),
+            concat!(
+                "properties:\n",
+                "  type:\n",
+                "    values:\n",
+                "      bug:\n",
+                "        name: Bug\n",
+                "        color: amber\n",
+                "      chore: { name: Chore, color: gray }\n",
+            )
+        );
+    }
+
+    /// Expansion re-renders what it read, so a `true` has to come back a boolean
+    /// rather than the string "true", which is what quoting it would mean.
+    #[test]
+    fn expanding_a_flow_child_keeps_every_value_the_type_it_had() {
+        let mut mapping = Mapping::parse(concat!(
+            "properties:\n",
+            "  estimate: { enabled: true, system: duration, hours_per_day: 7.5 }\n",
+        ))
+        .unwrap();
+        mapping.set_path_number(&["properties", "estimate", "days_per_week"], 4.0, &[]);
+        assert_eq!(
+            mapping.render(),
+            concat!(
+                "properties:\n",
+                "  estimate:\n",
+                "    enabled: true\n",
+                "    system: duration\n",
+                "    hours_per_day: 7.5\n",
+                "    days_per_week: 4\n",
+            )
+        );
+    }
+
+    #[test]
+    fn a_path_write_reads_back_as_the_subset_it_claims_to_be() {
+        let mut mapping = Mapping::parse(PROPERTIES).unwrap();
+        mapping.set_path_bool(&["properties", "start", "enabled"], true, &[]);
+        mapping.set_path_sequence(
+            &["properties", "estimate", "values"],
+            &["xs".to_owned(), "s".to_owned()],
+            &[],
+        );
+        let rendered = mapping.render();
+        validate_subset(&rendered).expect("a path write stays inside the subset");
+        assert!(serde_yaml::from_str::<serde_yaml::Value>(&rendered).is_ok());
     }
 
     #[test]

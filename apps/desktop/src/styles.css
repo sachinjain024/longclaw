@@ -3774,7 +3774,8 @@ button:disabled {
    text it opened to change (LC-215). `row-editor-guard.mjs` holds the
    scoping. */
 .checklist-row input[type="checkbox"],
-.create-more input {
+.create-more input,
+.property-head input {
   width: var(--lc-size-checkbox);
   height: var(--lc-size-checkbox);
   flex: none;
@@ -3789,7 +3790,8 @@ button:disabled {
 }
 
 .checklist-row input[type="checkbox"]:checked,
-.create-more input:checked {
+.create-more input:checked,
+.property-head input:checked {
   border-color: var(--lc-ink-3);
   background-color: var(--lc-ink-3);
   background-image:
@@ -6079,6 +6081,144 @@ html.theme-transition *::after {
   outline: none;
 }
 
+/* ============================================= the settings Properties pane
+ *
+ * One block per property: a checkbox that turns it on, whatever it has to
+ * configure under that, and — while it is off — the count of tickets still
+ * carrying a value, which is then the only place that fact is visible (LC-227).
+ *
+ * Nothing here restates `.label-row`. The type-values editor wears that class
+ * unchanged, which is the claim this pane is making. */
+.property-settings {
+  display: flex;
+  flex-direction: column;
+}
+
+.property-block {
+  margin-top: var(--lc-space-4);
+  border-top: 1px solid var(--lc-line-soft);
+  padding-top: var(--lc-space-4);
+}
+
+/* The first block sits directly under the subhead, which is already a rule's
+   worth of separation. */
+.property-settings > .property-block:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.property-head {
+  display: flex;
+  gap: var(--lc-space-2);
+  align-items: center;
+  color: var(--lc-ink);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.property-head input {
+  cursor: pointer;
+}
+
+/* What is still on disk while the property is off. It is the count the write
+   feedback said once, going on saying it: the effect of disabling is invisible
+   everywhere else, and a person could reasonably conclude the dates were
+   deleted.
+ *
+ * Beside the name, not at the far edge. `margin-left: auto` would send it the
+ * width of the pane away from the word it counts, which is the defect D-3D
+ * already named one surface up — the panel's section count used to do the same,
+ * and "a number a whole heading away from the word it counts reads as belonging
+ * to nothing" (`.panel-section h3`). The same fix: it reads as part of the
+ * row's own group. */
+.property-state {
+  color: var(--lc-ink-3);
+  font: 400 var(--lc-type-micro-size) / var(--lc-type-micro-leading)
+    var(--lc-type-micro-font);
+}
+
+/* Indented to the checkbox's text, so the configuration reads as belonging to
+   the property rather than as the next thing down the pane. */
+.property-config {
+  margin-top: var(--lc-space-3);
+  padding-left: calc(var(--lc-size-checkbox) + var(--lc-space-2));
+}
+
+.property-config > * + * {
+  margin-top: var(--lc-space-3);
+}
+
+.property-note {
+  color: var(--lc-ink-3);
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+
+/* A sentence with fields set into it — `Highlight tickets due within [7] days`
+   — which is what makes a bare number mean something. It wraps rather than
+   pushing a field off the side, because the pane is 92vw on a narrow window. */
+.property-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lc-space-2);
+  align-items: center;
+  color: var(--lc-ink-2);
+  font-size: var(--lc-type-small-size);
+}
+
+.property-inline .input {
+  width: 56px;
+  flex: none;
+  text-align: center;
+}
+
+.type-values {
+  display: grid;
+  gap: var(--lc-space-2);
+}
+
+/* The t-shirt scale, down the page in its own order — `xs` above `s` above `m`
+   is the only thing that says which of them is the bigger, and a wrapping row
+   of chips says nothing at all. Two columns, because a size has no display name
+   and no colour: it is the slug, and the way out. */
+.scale-values {
+  display: grid;
+  gap: var(--lc-space-2);
+}
+
+.scale-row {
+  display: grid;
+  gap: var(--lc-space-3);
+  grid-template-columns: minmax(90px, 1fr) 18px;
+  align-items: center;
+}
+
+.scale-row code {
+  color: var(--lc-ink-2);
+  font-size: 11px;
+}
+
+.scale-row .row-remove {
+  justify-self: center;
+  padding: 0 var(--lc-space-1);
+  color: var(--lc-ink-3);
+}
+
+.scale-row .row-remove:hover,
+.scale-row .row-remove:focus-visible {
+  color: var(--lc-danger);
+}
+
+/* The add-row ends in a button rather than a remove glyph, so its second column
+   is that button's width and not the 18px the rows above use. */
+.scale-add {
+  grid-template-columns: minmax(90px, 1fr) max-content;
+  border-top: 1px solid var(--lc-line-soft);
+  margin-top: var(--lc-space-1);
+  padding-top: var(--lc-space-3);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -6112,6 +6252,16 @@ html.theme-transition *::after {
 
   .settings-section {
     padding: var(--lc-space-4);
+  }
+
+  /* The indent is a nicety and the row under it is not. The nav and the padding
+     give up 156px here, and the type editor's four columns are already the
+     widest thing in the pane — `.label-row` alone is wider than the region at
+     the smallest window `tauri.conf.json` allows, and this is 23px the pane
+     does not have to add to that. The block's own checkbox still says what the
+     configuration belongs to. */
+  .property-config {
+    padding-left: 0;
   }
 }
 

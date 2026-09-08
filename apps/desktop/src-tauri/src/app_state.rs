@@ -4,6 +4,8 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 
+use crate::core::project::EstimateSystem;
+use crate::core::ticket::Property;
 use crate::core::{AppResult, ProjectReference, ProjectSnapshot, StreamEnvelope};
 use crate::engine::ProjectEngine;
 use crate::preferences::{PreferenceDocument, PreferencesStore};
@@ -114,6 +116,97 @@ impl AppState {
         slug: &str,
     ) -> AppResult<ProjectReference> {
         self.reopened(project_id, self.registry.remove_label(project_id, slug))
+    }
+
+    // ------------------------------------ the four properties' configuration
+
+    pub fn set_property_enabled(
+        &self,
+        project_id: &str,
+        property: Property,
+        enabled: bool,
+    ) -> AppResult<ProjectReference> {
+        self.reopened(
+            project_id,
+            self.registry
+                .set_property_enabled(project_id, property, enabled),
+        )
+    }
+
+    pub fn set_attention_days(&self, project_id: &str, days: u32) -> AppResult<ProjectReference> {
+        self.reopened(
+            project_id,
+            self.registry.set_attention_days(project_id, days),
+        )
+    }
+
+    pub fn set_estimate_system(
+        &self,
+        project_id: &str,
+        system: EstimateSystem,
+    ) -> AppResult<ProjectReference> {
+        self.reopened(
+            project_id,
+            self.registry.set_estimate_system(project_id, system),
+        )
+    }
+
+    pub fn set_estimate_conversion(
+        &self,
+        project_id: &str,
+        hours_per_day: f64,
+        days_per_week: f64,
+    ) -> AppResult<ProjectReference> {
+        self.reopened(
+            project_id,
+            self.registry
+                .set_estimate_conversion(project_id, hours_per_day, days_per_week),
+        )
+    }
+
+    pub fn set_tshirt_scale(
+        &self,
+        project_id: &str,
+        values: &[String],
+    ) -> AppResult<ProjectReference> {
+        self.reopened(
+            project_id,
+            self.registry.set_tshirt_scale(project_id, values),
+        )
+    }
+
+    pub fn add_type_value(
+        &self,
+        project_id: &str,
+        slug: &str,
+        name: &str,
+        color: &str,
+    ) -> AppResult<ProjectReference> {
+        self.reopened(
+            project_id,
+            self.registry.add_type_value(project_id, slug, name, color),
+        )
+    }
+
+    pub fn update_type_value(
+        &self,
+        project_id: &str,
+        slug: &str,
+        name: Option<&str>,
+        color: Option<&str>,
+    ) -> AppResult<ProjectReference> {
+        self.reopened(
+            project_id,
+            self.registry
+                .update_type_value(project_id, slug, name, color),
+        )
+    }
+
+    pub fn remove_type_value(&self, project_id: &str, slug: &str) -> AppResult<ProjectReference> {
+        self.reopened(
+            project_id,
+            self.registry.remove_type_value(project_id, slug),
+        )
     }
 
     /// Drops the cached engine so the next open reads the changed project file,

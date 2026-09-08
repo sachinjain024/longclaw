@@ -3,12 +3,12 @@ format: longclaw.ticket/v1
 id: 57c3c15c-497f-4647-a6ea-641e6cc3d9f3
 key: LC-227
 title: Add Other Fields to Tickets like Due Date, Start Date, Est Effort, Type
-status: todo
+status: in_progress
 priority: urgent
 labels:
   - release
 created_at: 2026-08-22T06:13:17.138Z
-updated_at: 2026-09-08T11:56:20.679Z
+updated_at: 2026-09-08T12:52:48.802Z
 ---
 
 Brainstorm with LLM agent like what other fields we should support. A few items I can think of are Type - Bug/Task, Due State, Start Date, Effort
@@ -772,6 +772,95 @@ WebKit now agrees with all four pinned card heights, no rail row overflows its
 cell at 560 · 720 · 800 · 880, and moving `today` thirty days moves no card
 height — which is the invariant the second footer row exists inside.
 
+## Built 2026-09-08: the settings Properties pane
+
+The pane is in, and with it the write path the whole feature needed: nothing
+could configure a property before this, so the four blocks are the first thing
+in the app that can turn one on.
+
+**The type-values editor is the labels editor, and now it is literally that
+row.** `LabelDefinition` gained one prop — the noun its controls call
+themselves — and both registries draw the same component. So does the add-row:
+it is `useLabelDefinition` over `type.values`, so a typed name derives the slug
+here exactly as it does one section up, and nobody authors a key by hand in
+either (LC-236e). The prototype sketched a separate slug field; that predates
+LC-236e, and following it would have put the two surfaces back into the
+disagreement that ticket exists to end.
+
+**Turning a property off writes and says what it kept.** One sentence — `Due
+date turned off · 17 tickets keep their dates` — and the row goes on carrying it
+while the property is off. Both come from `PROPERTY_LABELS`, because the toast
+and the row are the same reassurance said twice and two spellings of one sentence
+is how they come to disagree. The count is off the index rows rather than the
+project file, which is what makes it available at all while the property is
+disabled.
+
+### The YAML writer had to learn depth
+
+`labels` → `storage` → `name` is three levels and `set_nested_scalar` handled
+exactly three. `properties` → `type` → `values` → `bug` → `name` is five, so
+`Mapping` gained a recursive path writer — `set_path_scalar`, `set_path_bool`,
+`set_path_number`, `set_path_sequence`, `remove_path` — and the old two-level
+pair is gone, reimplemented as calls into it. Every existing labels test passes
+unchanged against the new one, which is what makes it a generalisation rather
+than a second writer.
+
+Three things it has to get right that the old one never had to:
+
+- **A boolean is not a scalar string.** `encode_scalar` quotes `true` into the
+  string `"true"` on purpose, so that a label *named* `true` round-trips. An
+  `enabled` flag is the other case, and routing it through the scalar path would
+  write a configuration this build then reads as off.
+- **A flow-style child has to be expanded before an edit can reach inside it.**
+  The format contract writes a type value as `bug: { name: Bug, color: red }`,
+  and appending a field line under a mapping that is already closed is not YAML
+  at all — it corrupts the file. Descending into one now re-renders it in block
+  style first, every value keeping the type it had, and nothing else in the file
+  is touched. The same latent defect was in the labels writer, unreachable only
+  because the app has never written a label in flow style.
+- **A new field lands with the fields**, not below a trailing comment that
+  belongs to the field above it. The old writer had that property; the recursive
+  one keeps it by carrying the trailing comments along as it appends.
+
+### Verified in WebKit rather than asserted
+
+The pane's real markup wearing `styles.css`, measured at 1440 · 1180 · 1024 ·
+980 · 760 — 760 being the smallest window `tauri.conf.json` allows:
+
+- the estimate segment is 248px and gives ground rather than overflowing, and no
+  segment button clips its word at any width;
+- the checkbox's tick is the sheet's own two gradients, because
+  `.property-head input` joined the existing selector list rather than restating
+  the rule — writing those from memory is what drew a chevron in the prototype;
+- both `.property-inline` sentences are one line to 1180 and wrap below it,
+  stranding nothing;
+- and `.label-row` overflows the section by 51px at 760. **That is
+  pre-existing** — the Labels pane does it today, measured as the control in the
+  same run — and it is [LC-247u](../LC-247u/ticket.md). What this pane added was
+  the 23px of `.property-config` indent on top of it, so the indent is dropped
+  under 980px and the pane is now exactly as wide as the editor it copies.
+
+### Two departures from the prototype, both deliberate
+
+- **The t-shirt scale is editable here**, which the prototype asserted in a note
+  and did not build. "Enabling a property is where its values get configured"
+  and "a t-shirt or type enum can be rewritten" are settled above, and a note
+  claiming editability with no editor under it is a claim the pane cannot keep.
+  It is a list rather than chips because the order *is* the scale — `xs` above
+  `s` above `m` is the only thing that says which of them is the bigger.
+- **The system picker is `.appearance-segment`**, the panel's own segment,
+  rather than the rail's `.scale-segment`. They are the same control and this is
+  the one that sets words rather than codes: it is the appearance row two panes
+  up.
+
+### What this leaves open
+
+`engine.rs` still does not refuse a disabled property or an undefined value on
+the app's own create and edit (`ck_97b51001`), and `.longclaw/AGENTS.md` still
+documents all four rather than the enabled set (`ck_e017a189`). Both are
+reachable from the UI for the first time now, so they have stopped being
+theoretical.
+
 ## Checklist
 
 - [x] ADR: property configuration joins labels in longclaw.yaml — record why ADR 0002's reservation is deferred, and what would revisit it <!-- longclaw:item=ck_945a1ca9 -->
@@ -805,9 +894,9 @@ height — which is the invariant the second footer row exists inside.
 - [ ] Generated .longclaw/AGENTS.md documents only the enabled set — check it against LC-66's churn <!-- longclaw:item=ck_e017a189 -->
 - [x] Conformance fixtures per property: enabled and disabled, valid and malformed <!-- longclaw:item=ck_25b41a66 -->
 - [x] types.ts: the four properties on Ticket and IndexedTicket <!-- longclaw:item=ck_bb5b83f5 -->
-- [ ] Settings: a properties section in SETTINGS_SECTIONS after labels, both labels off one row <!-- longclaw:item=ck_5fbdce11 -->
-- [ ] Settings pane: the type-values editor, shaped like the labels editor <!-- longclaw:item=ck_395aa8b1 -->
-- [ ] Settings pane: the estimate system picker, its conversion fields, and the due attention_days number <!-- longclaw:item=ck_f8c2ee24 -->
+- [x] Settings: a properties section in SETTINGS_SECTIONS after labels, both labels off one row <!-- longclaw:item=ck_5fbdce11 -->
+- [x] Settings pane: the type-values editor, shaped like the labels editor <!-- longclaw:item=ck_395aa8b1 -->
+- [x] Settings pane: the estimate system picker, its conversion fields, and the due attention_days number <!-- longclaw:item=ck_f8c2ee24 -->
 - [x] Ticket panel: the properties rail, gated on the project's enabled set <!-- longclaw:item=ck_8505f369 -->
 - [x] Date input: picker plus the typed forms, normalised to the canonical on-disk shape <!-- longclaw:item=ck_31cdc0b5 -->
 - [x] Hand LC-238s the rail's floor: no rail under 660px, 800 recommended, and a clamp that lands under 660 silently removes it <!-- longclaw:item=ck_ded5d73e -->
@@ -2077,4 +2166,87 @@ changes:
     to: "true"
 -->
 ### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_0e1c66fb
+kind: update
+occurred_at: 2026-09-08T12:15:01.201Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: todo
+    to: in_progress
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_98d50a01
+kind: update
+occurred_at: 2026-09-08T12:52:48.744Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_5fbdce11.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_8e7b6ed3
+kind: update
+occurred_at: 2026-09-08T12:52:48.772Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_395aa8b1.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_0353883f
+kind: update
+occurred_at: 2026-09-08T12:52:48.802Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_f8c2ee24.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_d971c5f7
+kind: comment
+occurred_at: 2026-09-08T12:54:24.650Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Built the settings Properties pane: the four opt-in properties as blocks, the
+type-values editor sharing the labels editor's row, the estimate system picker
+with its conversion fields and its t-shirt scale, and the due window. Added the
+write path underneath it — a recursive nested-path writer in `yaml.rs`, eight
+`ProjectDocument` edits, and eight commands — since nothing could configure a
+property before this. Filed LC-247u for a `.label-row` overflow the WebKit
+measurement found in the Labels pane it copies.
 <!-- /longclaw:event -->

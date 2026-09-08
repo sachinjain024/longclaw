@@ -20,7 +20,14 @@
  * switches back.
  */
 
-import type { EstimateConfig, PropertiesConfig, TicketStatus } from "./types";
+import type {
+  EstimateConfig,
+  EstimateSystem,
+  PropertiesConfig,
+  TicketProperty,
+  TicketRow,
+  TicketStatus,
+} from "./types";
 
 /**
  * All four off, which is what a project file with no `properties:` block reads
@@ -39,6 +46,80 @@ export const NO_PROPERTIES: PropertiesConfig = {
     daysPerWeek: 5,
   },
 };
+
+/** The four, in the order the format documents them. */
+export const TICKET_PROPERTIES: TicketProperty[] = [
+  "type",
+  "due",
+  "start",
+  "estimate",
+];
+
+/**
+ * What each property is called on screen, and the plural of what a ticket keeps
+ * when the project turns it off.
+ *
+ * Both here rather than at the two places that need them, because the settings
+ * row and the write feedback say the same reassurance twice — "17 tickets keep
+ * their dates" in the toast and beside the switched-off row — and two spellings
+ * of one sentence is how they come to disagree.
+ */
+export const PROPERTY_LABELS: Record<
+  TicketProperty,
+  { name: string; kept: string }
+> = {
+  type: { name: "Type", kept: "types" },
+  due: { name: "Due date", kept: "dates" },
+  start: { name: "Start date", kept: "dates" },
+  estimate: { name: "Estimate", kept: "estimates" },
+};
+
+/** What each estimate system is called on screen. */
+export const ESTIMATE_SYSTEMS: { id: EstimateSystem; label: string }[] = [
+  { id: "tshirt", label: "T-shirt" },
+  { id: "fibonacci", label: "Fibonacci" },
+  { id: "duration", label: "Duration" },
+];
+
+/** Whether the project has turned one property on. */
+export function isPropertyEnabled(
+  config: PropertiesConfig,
+  property: TicketProperty,
+): boolean {
+  return config[property].enabled;
+}
+
+/**
+ * Which of the four this project has turned on, in the documented order. What a
+ * menu offers and what the rail draws.
+ */
+export function enabledProperties(config: PropertiesConfig): TicketProperty[] {
+  return TICKET_PROPERTIES.filter((property) =>
+    isPropertyEnabled(config, property),
+  );
+}
+
+/**
+ * How many of these tickets carry a value for each property.
+ *
+ * Off the rows rather than out of the project file, which is what makes the
+ * count available *while the property is off*: a disabled property is still on
+ * every ticket that had one, and the settings row saying so is then the only
+ * place in the app that fact is visible. A degraded row is not counted, because
+ * it has no fields to count — its bytes are on disk and unread.
+ */
+export function propertyCounts(
+  tickets: TicketRow[],
+): Record<TicketProperty, number> {
+  const counts = { type: 0, due: 0, start: 0, estimate: 0 };
+  for (const ticket of tickets) {
+    if (ticket.state !== "indexed") continue;
+    for (const property of TICKET_PROPERTIES) {
+      if (ticket[property]) counts[property] += 1;
+    }
+  }
+  return counts;
+}
 
 // ------------------------------------------------------------ calendar days
 

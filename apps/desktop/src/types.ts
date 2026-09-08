@@ -83,6 +83,12 @@ export interface Label {
 /** The scale a project's estimates are on. It is on exactly one. */
 export type EstimateSystem = "tshirt" | "fibonacci" | "duration";
 
+/**
+ * One of the four opt-in properties, named by the frontmatter key it writes —
+ * which is also the key its configuration sits under in `longclaw.yaml`.
+ */
+export type TicketProperty = "type" | "due" | "start" | "estimate";
+
 /** Type: one project-defined slug per ticket, shaped exactly like `labels`. */
 export interface TypeConfig {
   enabled: boolean;

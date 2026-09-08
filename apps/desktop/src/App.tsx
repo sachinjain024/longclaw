@@ -30,7 +30,7 @@ import {
   updateProjectTheme,
 } from "./api";
 import { Board } from "./Board";
-import { startOfDay, untilNextDay } from "./properties";
+import { propertyCounts, startOfDay, untilNextDay } from "./properties";
 import { classes } from "./classes";
 import { copyToClipboard } from "./clipboard";
 import { CommandPalette } from "./CommandPalette";
@@ -2407,6 +2407,9 @@ export function App() {
         <ProjectSettings
           project={project}
           hasTickets={tickets.length > 0}
+          // Off the rows rather than the project file, which is what makes the
+          // count available while the property is off (LC-227).
+          propertyCounts={propertyCounts(tickets)}
           appearance={appearance}
           themes={THEMES}
           section={settingsSection}

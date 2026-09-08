@@ -5,10 +5,12 @@ use parking_lot::RwLock;
 
 use chrono::{SecondsFormat, Utc};
 
+use crate::core::project::EstimateSystem;
 use crate::core::storage::{
     atomic_write, initialize_project, project_file_path, read_project, tickets_root,
     write_agent_contract,
 };
+use crate::core::ticket::Property;
 use crate::core::{AppError, AppResult, ErrorCode, ProjectReference};
 
 /// What a failure writing the registry or its backup says the human was doing.
@@ -179,6 +181,76 @@ impl RegistryStore {
 
     pub fn remove_label(&self, project_id: &str, slug: &str) -> AppResult<ProjectReference> {
         self.update_project_file(project_id, |document| document.remove_label(slug))
+    }
+
+    pub fn set_property_enabled(
+        &self,
+        project_id: &str,
+        property: Property,
+        enabled: bool,
+    ) -> AppResult<ProjectReference> {
+        self.update_project_file(project_id, |document| {
+            document.set_property_enabled(property, enabled)
+        })
+    }
+
+    pub fn set_attention_days(&self, project_id: &str, days: u32) -> AppResult<ProjectReference> {
+        self.update_project_file(project_id, |document| document.set_attention_days(days))
+    }
+
+    pub fn set_estimate_system(
+        &self,
+        project_id: &str,
+        system: EstimateSystem,
+    ) -> AppResult<ProjectReference> {
+        self.update_project_file(project_id, |document| document.set_estimate_system(system))
+    }
+
+    pub fn set_estimate_conversion(
+        &self,
+        project_id: &str,
+        hours_per_day: f64,
+        days_per_week: f64,
+    ) -> AppResult<ProjectReference> {
+        self.update_project_file(project_id, |document| {
+            document.set_estimate_conversion(hours_per_day, days_per_week)
+        })
+    }
+
+    pub fn set_tshirt_scale(
+        &self,
+        project_id: &str,
+        values: &[String],
+    ) -> AppResult<ProjectReference> {
+        self.update_project_file(project_id, |document| document.set_tshirt_scale(values))
+    }
+
+    pub fn add_type_value(
+        &self,
+        project_id: &str,
+        slug: &str,
+        name: &str,
+        color: &str,
+    ) -> AppResult<ProjectReference> {
+        self.update_project_file(project_id, |document| {
+            document.add_type_value(slug, name, color)
+        })
+    }
+
+    pub fn update_type_value(
+        &self,
+        project_id: &str,
+        slug: &str,
+        name: Option<&str>,
+        color: Option<&str>,
+    ) -> AppResult<ProjectReference> {
+        self.update_project_file(project_id, |document| {
+            document.update_type_value(slug, name, color)
+        })
+    }
+
+    pub fn remove_type_value(&self, project_id: &str, slug: &str) -> AppResult<ProjectReference> {
+        self.update_project_file(project_id, |document| document.remove_type_value(slug))
     }
 
     fn update_project_file(
