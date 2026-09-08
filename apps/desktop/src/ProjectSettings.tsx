@@ -608,7 +608,7 @@ function DangerSection(props: {
 
 /**
  * Label definitions, which are project data rather than ticket data
- * (`file_format.md:214-231`). `screen-specs.md` § Project settings never
+ * (`file_format.md:241-258`). `screen-specs.md` § Project settings never
  * mentions them, so they sit in the panel that already owns the project file's
  * other fields: the name, the theme, and the folder.
  *
@@ -664,7 +664,7 @@ function ProjectLabels(props: {
           }
           onRemove={() => {
             // "Removed" and not "deleted": the definition goes, and every
-            // ticket carrying the slug keeps it (`file_format.md:214-231`).
+            // ticket carrying the slug keeps it (`file_format.md:241-258`).
             void run(`Removed the ${definedSlug} label definition`, () =>
               removeProjectLabel({
                 projectId: props.project.id,

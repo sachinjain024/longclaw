@@ -133,13 +133,40 @@ Important choices:
 - Every canonical structured record declares its own versioned `format`; project format version alone is not sufficient for safe partial migrations.
 - Attachment and activity entries receive stable IDs in v0 so they can be moved into individual files later without reconstructing identity or attribution.
 
+### Ticket properties
+
+Four optional properties beyond the fixed fields above. Each is off unless the project's `longclaw.yaml` enables it ([ADR 0013](adr/0013-property-configuration-lives-in-longclaw-yaml.md)), and a ticket carries the key only when it has a value — there is no empty or default form of one:
+
+```yaml
+type: bug
+due: 2026-09-28
+start: 2026-09-14
+estimate: "2h"
+```
+
+- `type` is a slug the project defines in `properties.type.values`, exactly as a label slug is defined in `labels`. It is a single value rather than a list: a ticket has one type. A slug the project does not define renders as itself in the fallback hue, the way an undefined label slug does, and the creation surfaces refuse to write one.
+- `due` and `start` are date-only strings, `YYYY-MM-DD`. **They are days, not instants**, which is why they are not the RFC 3339 timestamps `created_at` and `updated_at` use: `2026-09-14T00:00:00Z` is 13 September everywhere west of UTC, and a due date that reads as the day before in California is a different date rather than a different formatting. No timezone is recorded and no value is converted.
+- `estimate` is **always a string**, and what that string may hold depends on the estimate system the project is on:
+
+| System | Legal values | Example |
+|---|---|---|
+| `tshirt` | a slug from `properties.estimate.values` | `estimate: "m"` |
+| `fibonacci` | `1` `2` `3` `5` `8` `13`, a fixed scale | `estimate: "5"` |
+| `duration` | `<number><unit>`, unit one of `m` `h` `d` `w` | `estimate: "1.5d"` |
+
+- A duration carries one number and one unit. Decimals are legal — `1.5d`, `0.5h` — and compounds are not: `1d4h` is invalid, because two units in one value make its meaning depend on a conversion that is a project setting and can change under it. Write `1.5d`.
+- The quoting is not incidental. `estimate: 5` would be a YAML number while `estimate: 5d` is a string, so the key's type would change with the project's configuration and a reader would have to know that configuration to parse the ticket. It is a string under every system.
+- **Switching estimate systems never rewrites tickets.** A value written under the old system stays exactly as it was; it reads as unreadable under the new system rather than being converted or dropped, and switching back makes it legible again.
+- A malformed value degrades and is never repaired in place: the rest of the ticket parses, the property reads as unreadable, and the bytes survive the next write (invariants 10, 11 and 14).
+- Nothing derived from these is stored. How near a due date is, whether it is overdue, and how a duration compares to another are computed from the value and the project's settings when they are needed.
+
 ### Markdown and YAML subset
 
 Ticket frontmatter uses a deliberately constrained YAML subset:
 
 - mappings, lists, strings, booleans, nulls, and numbers only;
 - no anchors, aliases, custom tags, merge keys, or multiple documents;
-- timestamps are UTC RFC 3339 strings rather than YAML-native timestamp values;
+- timestamps are UTC RFC 3339 strings and dates are `YYYY-MM-DD` strings, both rather than YAML-native timestamp or date values;
 - duplicate keys are invalid;
 - key order has no semantic meaning;
 - unknown supported keys are preserved during round trips.
@@ -231,6 +258,40 @@ Ticket assignees refer to stable IDs in `people`. Only registered people are val
 Tickets store label slugs. This lets a label's display name or color change without rewriting every ticket carrying that label.
 
 Keeping these small, infrequently changed registries together reduces file-format surface area in v0. They can be split in a future schema version if real collaboration data shows that the project file has become a conflict hotspot.
+
+#### The `properties` block
+
+Where the four ticket properties are configured, and where their vocabularies live ([ADR 0013](adr/0013-property-configuration-lives-in-longclaw-yaml.md)). **All four are off by default**: a project file with no `properties:` key — every project file written before this section existed — has every property disabled and needs no migration.
+
+```yaml
+properties:
+  type:
+    enabled: true
+    values:
+      bug: { name: Bug, color: red }
+      feature: { name: Feature, color: cyan }
+      chore: { name: Chore, color: gray }
+      docs: { name: Docs, color: blue }
+      spike: { name: Spike, color: purple }
+  due:
+    enabled: true
+    attention_days: 7
+  start:
+    enabled: false
+  estimate:
+    enabled: true
+    system: duration
+    hours_per_day: 8
+    days_per_week: 5
+```
+
+- `enabled` is the only key every property has. An absent property key is a disabled property, so `start: { enabled: false }` and no `start:` at all mean the same thing.
+- `type.values` is a registry shaped exactly like `labels` — slug, `name`, `color` — seeded with `bug`, `feature`, `chore`, `docs` and `spike` when the property is first enabled, and editable after that. Tickets store slugs, so renaming or recoloring a value rewrites no ticket.
+- `due.attention_days` is the width of the approaching window in days and defaults to `7`. Overdue and today are absolute; this is the only boundary that moves.
+- `estimate.system` is one of `tshirt`, `fibonacci` or `duration`, and a project is on exactly one. `estimate.values` is a registry seeded with `xs`, `s`, `m`, `l` and `xl`, read only under `tshirt`. `hours_per_day` and `days_per_week` are read only under `duration`, where they default to `8` and `5`. Fibonacci has nothing to configure.
+- The conversion is a project setting rather than a constant because a duration estimate has to be comparable: `4h` against `1d` needs to know how long a working day is, and a project on a six-hour day would otherwise order them wrongly. Changing it changes no stored value.
+- **Disabling hides; it never deletes.** A ticket keeps its `due:` when the project turns Due off, because a disabled property is exactly a key this build declines to interpret and unknown supported keys survive a read-modify-write (invariant 11). Re-enabling shows every value again.
+- Unknown keys inside the block are preserved with the rest of the file, so a project configured by a later build round-trips through this one.
 
 ### `AGENTS.md`
 
@@ -420,3 +481,4 @@ Before agents can create tickets or team sync is introduced, the allocation poli
 13. Missing activity never invalidates or rolls back valid current state.
 14. An invalid embedded record degrades locally when the rest of the ticket remains safely parseable.
 15. Future component extraction preserves the ticket directory and `ticket.md` path.
+16. A value the project's current configuration cannot interpret — a disabled property, or an estimate written under another system — is preserved rather than corrected. Invariant 11 covers a key this build does not know; this one covers a key it knows and a value this configuration cannot read.

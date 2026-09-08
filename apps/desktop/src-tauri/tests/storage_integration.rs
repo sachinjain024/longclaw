@@ -876,7 +876,7 @@ fn directory_listing(directory: &Path) -> Vec<String> {
 /// The V0-11 gate: archiving is a frontmatter flip and nothing else. The
 /// directory never moves and never goes away (ADR 0004), and the workflow status
 /// it had is still the status it has — Canceled and archived are distinct
-/// (`file_format.md:345-347`).
+/// (`file_format.md:406-408`).
 #[test]
 fn archiving_sets_archived_at_and_leaves_the_directory_where_it_is() {
     let (_temp, root) = copy_representative_project();
@@ -932,7 +932,7 @@ fn archiving_sets_archived_at_and_leaves_the_directory_where_it_is() {
 
 /// The other half of the gate: archived tickets "stay findable". `archived_at`
 /// hides a ticket from ordinary views, and search is not one of them
-/// (`file_format.md:345-347`). The `· archived` tag on a result belongs to the
+/// (`file_format.md:406-408`). The `· archived` tag on a result belongs to the
 /// search surface, which is V0-24.
 #[test]
 fn an_archived_ticket_is_still_found_by_search() {

@@ -20,7 +20,7 @@
  *
  *   1. **A key field that disagrees with its directory.** The format contract
  *      makes the directory name and the frontmatter key one identity
- *      (`file_format.md:223`), and `TicketDocument::parse` enforces it — so this
+ *      (`file_format.md:250`), and `TicketDocument::parse` enforces it — so this
  *      is a ticket nothing can read, in a repository where `npm test` is green.
  *   2. **Two directories claiming one key.** The surviving half of a collision
  *      that was resolved by renaming a folder rather than by renumbering the

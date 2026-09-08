@@ -97,7 +97,7 @@ pub const KEY_SUFFIX_ALPHABET: &[u8] = b"abcdefghijkmnpqrstuvwxyz";
 /// becoming a path.
 ///
 /// Both forms, because `LC-1` … `LC-233` were minted before the suffix existed
-/// and are never renumbered to acquire one (`file_format.md:223`). A key is minted
+/// and are never renumbered to acquire one (`file_format.md:250`). A key is minted
 /// once and never reused, so the grammar is the union of what has been minted.
 ///
 /// The suffix is any lowercase letter rather than only a

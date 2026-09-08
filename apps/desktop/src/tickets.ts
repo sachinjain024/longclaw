@@ -88,7 +88,7 @@ export function checklistFraction(ticket: IndexedTicket): string {
  * trailing character it carries if it carries one.
  *
  * `<PREFIX>-<n>` or `<PREFIX>-<n><s>`, `n` without leading zeros and `s` a single
- * lowercase letter (`core/storage.rs:92`, `file_format.md:223`). Both forms,
+ * lowercase letter (`core/storage.rs:92`, `file_format.md:250`). Both forms,
  * because `LC-1` … `LC-233` were minted before `s` existed and keep the keys they
  * were minted with (LC-232).
  *
@@ -98,7 +98,7 @@ export function checklistFraction(ticket: IndexedTicket): string {
  * regex rather than once as a function.
  *
  * The prefix carries no `-`, because a project key is letters and digits
- * (`core/project.rs`, `file_format.md:223`) — which is what keeps `LC-42-1` from
+ * (`core/project.rs`, `file_format.md:250`) — which is what keeps `LC-42-1` from
  * being read as ticket 1 of a project called `LC-42`.
  *
  * Case is taken as typed and normalized by the caller. This says how a key comes

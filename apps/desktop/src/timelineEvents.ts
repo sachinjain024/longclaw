@@ -66,7 +66,7 @@ export function unfamiliarKind(kind: ActivityKind): string | undefined {
 
 /**
  * By `occurred_at`, with `id` as the deterministic tie-breaker
- * (`file_format.md:194`). Sorted here rather than trusted from the file: the
+ * (`file_format.md:221`). Sorted here rather than trusted from the file: the
  * stream is merged from whatever wrote last, and two writers can disagree about
  * append order.
  */

@@ -8,7 +8,7 @@ priority: urgent
 labels:
   - release
 created_at: 2026-08-22T06:13:17.138Z
-updated_at: 2026-09-08T01:12:08.856Z
+updated_at: 2026-09-08T01:20:20.070Z
 ---
 
 Brainstorm with LLM agent like what other fields we should support. A few items I can think of are Type - Bug/Task, Due State, Start Date, Effort
@@ -422,14 +422,14 @@ reaches for.
 - [x] ADR: property configuration joins labels in longclaw.yaml — record why ADR 0002's reservation is deferred, and what would revisit it <!-- longclaw:item=ck_945a1ca9 -->
 - [x] Add Property to CONTEXT.md; Field is already defined there as a text-bearing editable <!-- longclaw:item=ck_d7acf634 -->
 - [x] Settle the date-input grammar: which typed forms are accepted (2026-09-28, 28 Sep 2026, 28 Sep) and which year a form without one means <!-- longclaw:item=ck_eb7e1c56 -->
-- [ ] Specify type, due, start and estimate in docs/file_format.md, replacing prose in place <!-- longclaw:item=ck_4b893432 -->
-- [ ] Specify date-only YYYY-MM-DD in the YAML subset, distinct from the RFC 3339 timestamps at file_format.md:142 <!-- longclaw:item=ck_65106100 -->
-- [ ] Specify the properties block in longclaw.yaml — the all-off default, and per-property configuration beside it <!-- longclaw:item=ck_ea47a75f -->
-- [ ] Type values are an editable enum like labels — slug, name, colour — seeded with bug, feature, chore, docs, spike <!-- longclaw:item=ck_0b3b783d -->
-- [ ] Estimate: three systems — t-shirt, Fibonacci, duration — and a project is on exactly one <!-- longclaw:item=ck_d57ef7e6 -->
-- [ ] Estimate duration mode: number plus unit (minutes, hours, days, weeks); decimals legal (1.5d), compounds not (1d4h) <!-- longclaw:item=ck_addc6137 -->
-- [ ] Estimate conversion is configurable in duration mode only: hours per day and days per week, defaulting to 8 and 5 <!-- longclaw:item=ck_845b9000 -->
-- [ ] Switching estimate systems preserves values written under the old one rather than destroying them <!-- longclaw:item=ck_112ec2a3 -->
+- [x] Specify type, due, start and estimate in docs/file_format.md, replacing prose in place <!-- longclaw:item=ck_4b893432 -->
+- [x] Specify date-only YYYY-MM-DD in the YAML subset, distinct from the RFC 3339 timestamps at file_format.md:142 <!-- longclaw:item=ck_65106100 -->
+- [x] Specify the properties block in longclaw.yaml — the all-off default, and per-property configuration beside it <!-- longclaw:item=ck_ea47a75f -->
+- [x] Type values are an editable enum like labels — slug, name, colour — seeded with bug, feature, chore, docs, spike <!-- longclaw:item=ck_0b3b783d -->
+- [x] Estimate: three systems — t-shirt, Fibonacci, duration — and a project is on exactly one <!-- longclaw:item=ck_d57ef7e6 -->
+- [x] Estimate duration mode: number plus unit (minutes, hours, days, weeks); decimals legal (1.5d), compounds not (1d4h) <!-- longclaw:item=ck_addc6137 -->
+- [x] Estimate conversion is configurable in duration mode only: hours per day and days per week, defaulting to 8 and 5 <!-- longclaw:item=ck_845b9000 -->
+- [x] Switching estimate systems preserves values written under the old one rather than destroying them <!-- longclaw:item=ck_112ec2a3 -->
 - [ ] Settle the four due rungs — overdue, today, within attention_days, beyond — and that attention_days defaults to 7 and is configurable <!-- longclaw:item=ck_c45f20d4 -->
 - [ ] Decide whether disabling a property that tickets already carry warns first <!-- longclaw:item=ck_4148120d -->
 - [ ] Prototype the ticket panel: right-hand properties rail, description moved to the top <!-- longclaw:item=ck_b6758ff8 -->
@@ -1244,6 +1244,43 @@ changes:
   - field: checklist.ck_8c1b2d21.text
     from: Update keyboard-focus-map.md in place for the rail's keyboard path
     to: Update keyboard-focus-map.md in place for the rail's keyboard path, and for the picker's grid — the app's first two-dimensional popover, where the menus' up-down means a week
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_bcd9712e
+kind: update
+occurred_at: 2026-09-08T01:20:20.070Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_4b893432.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_65106100.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_ea47a75f.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_0b3b783d.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_d57ef7e6.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_addc6137.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_845b9000.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_112ec2a3.checked
+    from: "false"
+    to: "true"
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->

@@ -3449,7 +3449,7 @@ describe("archive and unarchive (V0-11)", () => {
 
   it("archives a canceled ticket without making it any less canceled", async () => {
     // Canceled is a workflow outcome and archiving is tidying
-    // (`file_format.md:345-347`); one must not stand in for the other.
+    // (`file_format.md:406-408`); one must not stand in for the other.
     vi.mocked(api.readTicket).mockResolvedValue(detail("LC-3"));
     vi.mocked(api.editTicket).mockResolvedValue(
       written("LC-3", {

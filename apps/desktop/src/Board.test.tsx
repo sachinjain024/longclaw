@@ -990,7 +990,7 @@ describe("archived tickets never reach the board (V0-11)", () => {
   });
 
   it("keeps a canceled ticket, which is an outcome and not tidying", () => {
-    // `file_format.md:345-347`: Canceled stays visible; only `archived_at` hides.
+    // `file_format.md:406-408`: Canceled stays visible; only `archived_at` hides.
     render(
       board({
         tickets: [
