@@ -10,7 +10,7 @@ labels:
   - product
   - release
 created_at: 2026-08-28T04:12:09.099Z
-updated_at: 2026-09-07T14:21:24.770Z
+updated_at: 2026-09-08T07:49:23.896Z
 ---
 
 Both create surfaces can attach labels and neither can define one. `LabelMenuButton` lists exactly what `longclaw.yaml` defines plus any slug the ticket already carries, so on a project whose `labels:` map is empty — a fresh project, or one whose vocabulary has not been written yet — the menu opens on nothing and there is no way forward from inside the flow. Defining a label is only in project settings, which means leaving the half-typed ticket, opening settings, adding the slug, coming back and starting again.
@@ -38,11 +38,11 @@ The obvious next step from "derive it" is "hide it entirely, it is a backend det
 
 The failure modes also get worse when the key is off screen:
 
-- **A collision is a refusal, and the refusal has to name a key.** "Back-end" and "Back end" both derive to `backend`. That reads as obvious when the derived key is updating on screen as the user types, and as inexplicable when it is not.
-- **A name may derive to nothing.** `is_label_slug` (`core/project.rs:343-359`) wants an ASCII lowercase first character, so a name in Japanese, or one that starts with a digit, produces no valid key at all. The visible line is the escape hatch — it shows empty and the edit affordance is the way forward — instead of a bounce with no cause on screen.
+- **A collision is a refusal, and the refusal has to name a key.** "Back-end" and "Back end" both derive to `back-end`. That reads as obvious when the derived key is updating on screen as the user types, and as inexplicable when it is not.
+- **A name may derive to nothing.** `is_label_slug` (`core/project.rs:343-359`) wants an ASCII lowercase first character, so a name in Japanese, or one that starts with a digit, produces no valid key at all. The visible line carries the rule instead — `Label Name must start with a letter [a-z]`, in red, where the key would be — rather than a bounce with no cause on screen. The name is then the only way forward, which is a dead end for a name with no Latin in it at all; see the prototype note.
 - **Hidden plus immutable drifts in silence.** A slug cannot be renamed and must not become renameable (`file_format.md:231`, plan 15's settled design). Hide it, and people rename labels freely — correctly, since it is only a display name — while the key stays whatever the first name happened to derive to. A year on, `labels: { backend: { name: "Platform / Infra" } }` still answers to `--label backend`, and nothing on screen ever said so.
 
-So: the derived key is shown as the quiet consequence of what was typed, editable while the row is open and never after.
+So: the derived key is shown as the quiet consequence of what was typed, and read-only — review settled that in the prototype. A key on screen is always the key the name produces, which is the only version of this row that can promise it.
 
 ## The derivation
 
@@ -50,7 +50,7 @@ One exported function in `labels.ts`, so the create row and the settings row can
 
 ## What the change has to respect
 
-- **A slug is immutable once a ticket carries it.** `LabelMenu`'s header comment says it never edits a slug, and that stays true — this adds one, it does not rename one. Deriving is not renaming: the key is editable while the row is open and fixed the moment the definition is written.
+- **A slug is immutable once a ticket carries it.** `LabelMenu`'s header comment says it never edits a slug, and that stays true — this adds one, it does not rename one. Deriving is not renaming: the key follows the name while the row is open, and is fixed the moment the definition is written.
 - **Defining a label is a project write, and it lands immediately.** The label outlives an abandoned draft: someone who defines `infra` and then closes quick create without creating a ticket has still changed `longclaw.yaml`. Decide that deliberately and say so in the comment; the alternative — holding the definition until the ticket is created — makes the ticket write conditional on a second write and is worse.
 - **The green band is not on the ramp** (`labels.ts:17-21`) — green belongs to the agent, and the new colour picker must not reach for one.
 - **A duplicate slug is a refusal, not a silent no-op.** `ProjectSettings.tsx:74` already routes the add-a-label row's failure through `onWrite`; the create surfaces need the same refusal path rather than a menu that quietly does nothing, and the message names the derived key that collided.
@@ -64,15 +64,19 @@ Renaming, recolouring and removing definitions stay in project settings, and no 
 ## Checklist
 
 - [x] Generate the UX prototype <!-- longclaw:item=ck_45d890d4 -->
-- [ ] slugFromName() in labels.ts: lowercase, non-alphanumerics to a single -, trimmed; empty, punctuation and non-ASCII cases tested <!-- longclaw:item=ck_7e10ce87 -->
-- [ ] Add a define-a-label row to the LabelMenu popover: name field, derived slug shown beneath it, colour from LABEL_COLORS <!-- longclaw:item=ck_02993786 -->
-- [ ] Wire it in quick create (QuickCreate.tsx) so a new slug is defined and ticked in one gesture <!-- longclaw:item=ck_0e335d84 -->
-- [ ] Wire the same row into full create's Labels row (CreatePanel.tsx) <!-- longclaw:item=ck_c90eb922 -->
-- [ ] Adopt the same derivation in the ProjectSettings add-a-label row so the two definition surfaces agree <!-- longclaw:item=ck_ca079284 -->
-- [ ] Route a duplicate or refused slug through the write-feedback path, naming the derived key that collided <!-- longclaw:item=ck_f83e5c14 -->
-- [ ] Give every new button and checkbox an explicit tabIndex; npm run check <!-- longclaw:item=ck_6e2d195e -->
-- [ ] Keep the popover's key handling correct with a text field in it; update keyboard-focus-map.md in place and re-point citations <!-- longclaw:item=ck_c1a2bf82 -->
-- [ ] npm run a11y:audit, and npm run verify <!-- longclaw:item=ck_04b987c3 -->
+- [x] slugFromName() in labels.ts: NFD fold, lowercase, each run outside [a-z0-9] collapsed to a single -, ends trimmed; empty, punctuation, diacritic and non-ASCII cases tested <!-- longclaw:item=ck_7e10ce87 -->
+- [x] Menu gains a footer slot and a wide flag, and the popover carries its wider width from the moment it opens - usePopoverPlacement measures once and clamps nothing <!-- longclaw:item=ck_f0cc134c -->
+- [x] Define row in the LabelMenu popover: collapsed "New label", one name field, the read-only key line beneath it (hint / key / rule in red), colour from LABEL_COLORS defaulting to the first hue the project is not using <!-- longclaw:item=ck_02993786 -->
+- [x] A collision is refused in the row while typing - {key} already exists for {Label} - and never a toast; Add label stays disabled until a key can be written <!-- longclaw:item=ck_3e29245b -->
+- [x] An empty project opens the popover with the define row already expanded and the caret in it <!-- longclaw:item=ck_f9c2603b -->
+- [x] Wire it in quick create (QuickCreate.tsx) so a new slug is defined and ticked in one gesture <!-- longclaw:item=ck_0e335d84 -->
+- [x] Wire the same row into full create's Labels row (CreatePanel.tsx) <!-- longclaw:item=ck_c90eb922 -->
+- [x] ProjectSettings' add-a-label row adopts the derivation and the same colour default; its slug input goes, so nobody authors a key <!-- longclaw:item=ck_ca079284 -->
+- [x] A refused write lands on the danger toast, not ErrorBanner: writeProjectFile ends a failure at setError, which draws at board level under the modal scrim <!-- longclaw:item=ck_f83e5c14 -->
+- [x] The define stop joins the menus roving group: arrow-down past the last label reaches it, the collapsed button when closed and the name field when open <!-- longclaw:item=ck_33034160 -->
+- [x] Add label, the colour trigger and its eight swatches carry an explicit tabIndex; npm run check <!-- longclaw:item=ck_6e2d195e -->
+- [x] Menu.onKeyDown returns early for events from a field, so j/k/arrows/Enter are the row's; Esc walks the ladder colours - row - menu - modal; keyboard-focus-map.md edited in place and citations re-pointed <!-- longclaw:item=ck_c1a2bf82 -->
+- [x] npm run a11y:audit, and npm run verify <!-- longclaw:item=ck_04b987c3 -->
 
 ## Activity
 
@@ -297,4 +301,498 @@ Which leaves the two lines divided cleanly: the key line says whether a key can 
 Still open and unanswered: the no-ASCII dead end, the `Label name` / `Display name` placeholder split between the popover and settings, the colour default, the NFD fold, the missing Undo, and whether the define row joins the menu's roving group.
 
 67 assertions pass in the jsdom driver.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_56148eb5
+kind: update
+occurred_at: 2026-09-08T07:20:08.752Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_7e10ce87.text
+    from: "slugFromName() in labels.ts: lowercase, non-alphanumerics to a single -, trimmed; empty, punctuation and non-ASCII cases tested"
+    to: "slugFromName() in labels.ts: NFD fold, lowercase, each run outside [a-z0-9] collapsed to a single -, ends trimmed; empty, punctuation, diacritic and non-ASCII cases tested"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_bc9db2c9
+kind: update
+occurred_at: 2026-09-08T07:20:21.380Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_02993786.text
+    from: "Add a define-a-label row to the LabelMenu popover: name field, derived slug shown beneath it, colour from LABEL_COLORS"
+    to: "Define row in the LabelMenu popover: collapsed \"New label\", one name field, the read-only key line beneath it (hint / key / rule in red), colour from LABEL_COLORS defaulting to the first hue the project is not using"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_4ee35849
+kind: update
+occurred_at: 2026-09-08T07:20:21.400Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_ca079284.text
+    from: Adopt the same derivation in the ProjectSettings add-a-label row so the two definition surfaces agree
+    to: ProjectSettings' add-a-label row adopts the derivation and the same colour default; its slug input goes, so nobody authors a key
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_98452edb
+kind: update
+occurred_at: 2026-09-08T07:20:21.420Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_f83e5c14.text
+    from: Route a duplicate or refused slug through the write-feedback path, naming the derived key that collided
+    to: "A refused write lands on the danger toast, not ErrorBanner: writeProjectFile ends a failure at setError, which draws at board level under the modal scrim"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_f40dd437
+kind: update
+occurred_at: 2026-09-08T07:20:21.440Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_6e2d195e.text
+    from: Give every new button and checkbox an explicit tabIndex; npm run check
+    to: Add label, the colour trigger and its eight swatches carry an explicit tabIndex; npm run check
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_ef0f4c19
+kind: update
+occurred_at: 2026-09-08T07:20:21.459Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_c1a2bf82.text
+    from: Keep the popover's key handling correct with a text field in it; update keyboard-focus-map.md in place and re-point citations
+    to: Menu.onKeyDown returns early for events from a field, so j/k/arrows/Enter are the row's; Esc walks the ladder colours - row - menu - modal; keyboard-focus-map.md edited in place and citations re-pointed
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_8af7a26e
+kind: update
+occurred_at: 2026-09-08T07:20:28.642Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_f0cc134c.added
+    to: Menu gains a footer slot and a wide flag, and the popover carries its wider width from the moment it opens - usePopoverPlacement measures once and clamps nothing
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_de0b44bf
+kind: update
+occurred_at: 2026-09-08T07:20:28.665Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_3e29245b.added
+    to: A collision is refused in the row while typing - {key} already exists for {Label} - and never a toast; Add label stays disabled until a key can be written
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_8be9dcd6
+kind: update
+occurred_at: 2026-09-08T07:20:28.686Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_f9c2603b.added
+    to: An empty project opens the popover with the define row already expanded and the caret in it
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_40561a28
+kind: update
+occurred_at: 2026-09-08T07:20:28.707Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_33034160.added
+    to: "The define stop joins the menus roving group: arrow-down past the last label reaches it, the collapsed button when closed and the name field when open"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_440f796f
+kind: update
+occurred_at: 2026-09-08T07:20:39.958Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_f0cc134c.moved
+    from: "11"
+    to: "3"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_d3230094
+kind: update
+occurred_at: 2026-09-08T07:20:39.984Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_3e29245b.moved
+    from: "12"
+    to: "5"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_a9be39ca
+kind: update
+occurred_at: 2026-09-08T07:20:40.018Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_f9c2603b.moved
+    from: "13"
+    to: "6"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_b4eb0520
+kind: update
+occurred_at: 2026-09-08T07:20:40.039Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_33034160.moved
+    from: "14"
+    to: "11"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_e928f54d
+kind: update
+occurred_at: 2026-09-08T07:21:14.067Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_b2cd9908
+kind: comment
+occurred_at: 2026-09-08T07:21:31.586Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Prototype gate cleared. The five open questions are answered, and the checklist now says what the build is rather than what the ticket first asked for.
+
+**Adopted, all three as the prototype has them.** The NFD fold, so `Café` gives `cafe` and not `caf` — load-bearing rather than nice, because a read-only key is not something the person can correct afterwards. The colour default is the first hue in `LABEL_COLORS` the project is not already using, blue when all eight are taken, and **settings adopts it too**, which is what stops a seeded project coming out all blue. And the define stop joins the menu's roving group, so `↓` past the last label reaches it: the collapsed button when closed, the name field when open. Tab-only would have left `↓` wrapping straight past the one row in the popover that is not a label.
+
+**Not adopted: an Undo on the toast.** The inverse is two things — `removeProjectLabel` *and* unticking the draft — and `writeProjectFile`'s `undo` is for one field with one inverse. Left off deliberately rather than by omission.
+
+**Not closed: a name with no ASCII in it.** `日本語` derives nothing, the key is read-only, and there is no way past that from either surface — so a project whose vocabulary is Japanese, Greek or Cyrillic defines its labels by editing `longclaw.yaml` or through `longclaw label add --slug`. Reviewed and accepted: the alternatives were a key field in settings only, which puts the two definition surfaces back into disagreement and is the thing this ticket exists to stop, or a generated fallback key, which the ticket argues against by name — `backend-2` on a card. The limitation goes in the comment on `slugFromName`, so the next person reads it as a decision rather than an oversight.
+
+**Two clauses of the description above were overturned by the review and are now patched in place**: "editable while the row is open" is read-only in both places it appeared, and the `Back-end`/`Back end` example names `back-end`, which is what the derivation this ticket specifies actually produces.
+
+Four checklist items are new, and none of them is a new decision — each is a thing the prototype found that the original list had no line for: `Menu` needs a footer slot and a `wide` flag before the row has anywhere to live; the popover has to carry its width from the moment it opens, because `usePopoverPlacement` measures once and clamps nothing; a collision is refused in the row while typing and is never a toast; and an empty project opens with the row already expanded, since a popover whose only content is a collapsed invitation is still a popover that says nothing.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_d8fa4302
+kind: update
+occurred_at: 2026-09-08T07:49:23.632Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_7e10ce87.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_6c5281bf
+kind: update
+occurred_at: 2026-09-08T07:49:23.657Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_f0cc134c.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_91e2d6fb
+kind: update
+occurred_at: 2026-09-08T07:49:23.679Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_02993786.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_4ad6bd72
+kind: update
+occurred_at: 2026-09-08T07:49:23.700Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_3e29245b.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_495f2e64
+kind: update
+occurred_at: 2026-09-08T07:49:23.720Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_f9c2603b.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_5f072fcb
+kind: update
+occurred_at: 2026-09-08T07:49:23.744Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_0e335d84.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_6439fa9b
+kind: update
+occurred_at: 2026-09-08T07:49:23.766Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_c90eb922.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_7a6dbecb
+kind: update
+occurred_at: 2026-09-08T07:49:23.787Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_ca079284.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_2df356bf
+kind: update
+occurred_at: 2026-09-08T07:49:23.809Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_f83e5c14.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_ef674b6f
+kind: update
+occurred_at: 2026-09-08T07:49:23.830Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_33034160.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_1ac4b9ee
+kind: update
+occurred_at: 2026-09-08T07:49:23.853Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_6e2d195e.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_5f91e0bf
+kind: update
+occurred_at: 2026-09-08T07:49:23.876Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_c1a2bf82.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_8082b99c
+kind: update
+occurred_at: 2026-09-08T07:49:23.896Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_04b987c3.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_ac70f655
+kind: comment
+occurred_at: 2026-09-08T07:49:43.195Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Built. `npm run verify` and `npm run a11y:audit` are both green.
+
+**The a11y probe earned its keep, and it caught a defect in this change.** Closing the define row with `Esc` unmounted the field that was holding focus, so focus fell to `<body>` — and every key after that went nowhere. The first `Esc` looked right (the row closed); the two rungs below it were dead, so the menu would not close and neither would the modal behind it. Every jsdom test passed throughout, because jsdom does not care where focus went. `DefineRow` now hands focus back to the collapsed row on the way out, and A2 has three new rows over the real WebKit build: the popover opening into the field on a project with no labels, `Jack` typed into it arriving as `Jack` rather than steering the list, and the ladder walking all the way out of the modal.
+
+Three of those four go red under `--self-test`. The run still reports a failure — `A3 passed against a broken build` — and that is **pre-existing**: A3 survives the same injury on a clean tree, checked by stashing this branch and re-running.
+
+**Two things worth knowing at review.**
+
+`LabelColors` moved out of `ProjectSettings.tsx` into `LabelColorPicker.tsx`, unchanged. It was private to settings while settings was the only place a label could be defined, and a menu reaching into a settings panel for it would have been the wrong way round.
+
+`Menu`'s roving group needed the footer to be `"footer"` rather than `options.length`. As an index it was correct for exactly one render: defining a label adds a row, so the number that meant *the footer* meant *the last row* the next time round, and the caret was pulled out of the field the instant a definition landed in it.
+
+The `Esc` ladder is `keyboard-focus-map.md:139`, `:141` and `:142`, all three edited in place; `:139` was not previously pinned, so the lock gained it rather than having a line re-pointed.
+
+**One cosmetic difference the prototype left standing and this keeps**: the name field's placeholder is `Label name` in the popover and `Display name` in settings. It was on the prototype's open list and is not covered by anything above — the derivation, which is what the two surfaces must not disagree about, is one function called from both.
 <!-- /longclaw:event -->

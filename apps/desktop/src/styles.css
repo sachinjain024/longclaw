@@ -4698,6 +4698,81 @@ html.theme-transition *::after {
   font: 400 10.5px var(--lc-type-code-font);
 }
 
+/* ------------------------------------------- defining a label (LC-236e)
+
+   The form the labels popover opens into, and the same key line under the
+   settings add-row's name field. The two surfaces lay the three controls out
+   differently; what they share is the line that says what key is about to be
+   written, so it is styled once here. */
+
+.menu-define {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lc-space-2);
+  padding: var(--lc-space-1) var(--lc-space-2) var(--lc-space-2);
+}
+
+/* The name takes the room the colour trigger does not: the field is the thing
+   being filled in, and the colour is one dot wide at rest. */
+.menu-define-top {
+  display: flex;
+  gap: var(--lc-space-2);
+  align-items: center;
+}
+
+.menu-define-top .input {
+  min-width: 0;
+  flex: 1;
+}
+
+/* Full width rather than sized to its own two words: it is the row's commit,
+   and a commit that ends mid-row reads as one more control beside the field. */
+.menu-define-commit {
+  width: 100%;
+}
+
+/* The key, under the field that produced it. One line high in every state, so
+   the row does not change height as a name is typed — the collision note below
+   is the only thing that grows it, and that is a refusal worth a shift. */
+.derived-key {
+  display: block;
+  overflow: hidden;
+  min-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.derived-key-line {
+  font: 400 11px var(--lc-type-code-font);
+}
+
+/* Before anything is typed: what the line is *for*, not a key. Muted, because
+   it is a caption rather than a value. */
+.derived-key-line.hint {
+  color: var(--lc-ink-3);
+}
+
+/* A key that is about to be written, or one that collided. Both are keys, and
+   both are drawn as one — the sentence underneath is what separates them. */
+.derived-key-line.key {
+  color: var(--lc-ink-2);
+}
+
+/* No key can be made. The rule, in the danger hue, in the key's own slot —
+   which is empty of a key precisely because the rule was broken. */
+.derived-key-line.refused {
+  color: var(--lc-danger);
+}
+
+/* The collision, and only ever the collision. Wraps, because it is a sentence
+   naming two things rather than a key. */
+.derived-key-note {
+  margin: 0;
+  color: var(--lc-danger);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
 /* ---------------------------------------------- the settings menus (LC-208)
 
    The gear's dropdown and the side panel's `⋮` menu, which are the same
@@ -4716,6 +4791,19 @@ html.theme-transition *::after {
    and priority menus have nothing like. */
 .menu-popover.menu-hinted {
   min-width: 236px;
+}
+
+/* Wider again, for a popover carrying a form rather than only rows: the labels
+   menu's define row (LC-236e) is a field, a colour and a commit, and 220px puts
+   the field at about eight characters.
+
+   Set on the popover from the moment it opens, never when the row expands.
+   `usePopoverPlacement` measures once and clamps nothing (`popover.ts:172`), so
+   a popover that grew after it was placed would run off the right edge in full
+   create — where the menu hangs off a control near the window's edge — and stay
+   there for as long as it was open. */
+.menu-popover.menu-wide {
+  min-width: 268px;
 }
 
 /* Beside its row rather than under it, and pulled up by the popover's own
@@ -5358,13 +5446,26 @@ html.theme-transition *::after {
   align-items: center;
 }
 
-/* The add-row ends in a button rather than a remove, so its last column is the
-   width of that button instead of a glyph. */
+/* Three columns, not four: the add-row's key is not a column at all since
+   LC-236e — it stacks under the name field, the way it does in the popover —
+   and the row ends in a button rather than a remove glyph.
+
+   `start` rather than `center` because the name block is two lines tall and
+   grows to three on a collision: the field, the colour trigger and the button
+   line up along their tops, and the key line hangs below them. */
 .label-add {
-  grid-template-columns: 86px minmax(90px, 1fr) max-content max-content;
+  grid-template-columns: minmax(120px, 1fr) max-content max-content;
+  align-items: start;
   border-top: 1px solid var(--lc-line-soft);
   margin-top: var(--lc-space-1);
   padding-top: var(--lc-space-3);
+}
+
+.label-add-name {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
 }
 
 .label-row code {

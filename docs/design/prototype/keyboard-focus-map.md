@@ -136,10 +136,10 @@ rule; the list's Archived show/hide toggle is a focusable header button).
 ## Menus (status / priority / ordering / labels / settings / project row)
 | Key | Action |
 |---|---|
-| `↑↓` | Cycle rows (wraps) |
+| `↑↓` | Cycle rows, and the define row where a menu has one (wraps). Inside its name field they are the caret's, as are `j` and `k` |
 | `→` `←` | Open a submenu; step back out to the row it hangs off |
-| `Enter` | Pick → apply optimistically → close → focus returns to trigger/card |
-| `Esc` | Close without change → focus returns |
+| `Enter` | Pick → apply optimistically → close → focus returns to trigger/card. In the define row's field: define the label and tick it onto the draft |
+| `Esc` | Close without change → focus returns. One rung a press where a define row is open: colour strip → row → menu |
 
 ## Modals (waitlist · confirm · raw file · folder picker) · settings panel
 

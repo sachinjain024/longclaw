@@ -7,8 +7,15 @@
  * that owns the checklist (`screen-specs.md:253-262`).
  */
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { LabelDefinition } from "./LabelMenu";
 import { QuickCreate } from "./QuickCreate";
 import type { Label, TicketPriority, TicketStatus } from "./types";
 
@@ -31,13 +38,16 @@ function quickCreate(props?: {
   onCancel?: () => void;
   onCreate?: (request: unknown, options: unknown) => void;
   onOpenFullEditor?: (draft: unknown) => void;
+  onDefineLabel?: (definition: LabelDefinition) => Promise<boolean>;
+  labels?: Record<string, Label>;
 }) {
   return (
     <QuickCreate
       projectName="Round Trip"
       projectTheme={props?.projectTheme ?? "ember"}
       provisionalKey="RT-4"
-      labels={LABELS}
+      labels={props?.labels ?? LABELS}
+      onDefineLabel={props?.onDefineLabel ?? (() => Promise.resolve(true))}
       initialStatus={props?.initialStatus}
       initialPriority={props?.initialPriority}
       onCancel={props?.onCancel ?? (() => {})}
@@ -156,12 +166,149 @@ describe("quick create is title, description, status, priority and labels", () =
     // V0-10 and plan 22 removed a comma-separated text box, because a slug
     // typed into a free-text field is a slug `longclaw.yaml` may not carry.
     // The field is back; the box is not, and must not come back with it.
+    // LC-236e's define row is not that box either: what it writes is a
+    // definition, so the slug it produces is one `longclaw.yaml` carries.
     expect(screen.queryByLabelText(/^Labels$/)).toBeNull();
     expect(labelTrigger().getAttribute("aria-haspopup")).toBe("menu");
     fireEvent.click(labelTrigger());
     expect(
       screen.getAllByRole("menuitemcheckbox").map((row) => row.textContent),
     ).toEqual(["Frontend", "Storage"]);
+  });
+
+  describe("defining a label from inside the flow (LC-236e)", () => {
+    /** Opens the popover and expands the define row. */
+    function openDefine() {
+      fireEvent.click(labelTrigger());
+      fireEvent.click(screen.getByRole("button", { name: "New label" }));
+    }
+
+    it("defines a label and ticks it onto the draft, in one gesture", async () => {
+      const onDefineLabel = vi.fn().mockResolvedValue(true);
+      const onCreate = vi.fn();
+      render(quickCreate({ onDefineLabel, onCreate }));
+
+      fireEvent.change(screen.getByLabelText("Title"), {
+        target: { value: "Needs a label that does not exist yet" },
+      });
+      openDefine();
+      fireEvent.change(screen.getByLabelText("New label name"), {
+        target: { value: "Reliability" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Add label" }));
+
+      await waitFor(() =>
+        expect(onDefineLabel).toHaveBeenCalledWith({
+          slug: "reliability",
+          name: "Reliability",
+          // The first hue this project is not already using: `frontend` holds
+          // blue, and `storage`'s green is not on the ramp at all.
+          color: "cyan",
+        }),
+      );
+      // The second half of the gesture: it is on the draft, not merely defined.
+      fireEvent.click(screen.getByText("Create"));
+      expect(onCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ labels: ["reliability"] }),
+        expect.anything(),
+      );
+    });
+
+    it("keeps what was typed when the write is refused", async () => {
+      const onDefineLabel = vi.fn().mockResolvedValue(false);
+      render(quickCreate({ onDefineLabel }));
+
+      openDefine();
+      fireEvent.change(screen.getByLabelText("New label name"), {
+        target: { value: "Reliability" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Add label" }));
+
+      await waitFor(() => expect(onDefineLabel).toHaveBeenCalledTimes(1));
+      // The surface has already said why; the fix is an edit, not a retype.
+      expect(
+        (screen.getByLabelText("New label name") as HTMLInputElement).value,
+      ).toBe("Reliability");
+    });
+
+    it("empties the row and stays open after one lands", async () => {
+      const onDefineLabel = vi.fn().mockResolvedValue(true);
+      render(quickCreate({ onDefineLabel }));
+
+      openDefine();
+      fireEvent.change(screen.getByLabelText("New label name"), {
+        target: { value: "Reliability" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Add label" }));
+
+      // Defining one label on a project short of them is rarely defining one.
+      await waitFor(() =>
+        expect(
+          (screen.getByLabelText("New label name") as HTMLInputElement).value,
+        ).toBe(""),
+      );
+    });
+
+    it("opens the row expanded on a project that defines nothing", () => {
+      render(quickCreate({ labels: {} }));
+
+      fireEvent.click(labelTrigger());
+
+      // A popover whose only content is a collapsed invitation is a popover
+      // that still says nothing, which is the complaint LC-236e opens with.
+      expect(screen.queryByRole("button", { name: "New label" })).toBeNull();
+      const field = screen.getByLabelText("New label name");
+      expect(document.activeElement).toBe(field);
+    });
+
+    it("keeps the row collapsed where the project has labels to offer", () => {
+      render(quickCreate());
+
+      fireEvent.click(labelTrigger());
+
+      // Two rows to tick: the invitation is one more row, not the whole menu.
+      expect(screen.getByRole("button", { name: "New label" })).toBeTruthy();
+      expect(screen.queryByLabelText("New label name")).toBeNull();
+    });
+
+    it("will not write a name that cannot make a key", () => {
+      const onDefineLabel = vi.fn().mockResolvedValue(true);
+      render(quickCreate({ onDefineLabel }));
+
+      openDefine();
+      fireEvent.change(screen.getByLabelText("New label name"), {
+        target: { value: "日本語" },
+      });
+
+      expect(
+        screen.getByText("Label Name must start with a letter [a-z]"),
+      ).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Add label" }));
+      expect(onDefineLabel).not.toHaveBeenCalled();
+    });
+
+    it("refuses a key the project already defines, and names what holds it", () => {
+      const onDefineLabel = vi.fn().mockResolvedValue(true);
+      render(quickCreate({ onDefineLabel }));
+
+      openDefine();
+      fireEvent.change(screen.getByLabelText("New label name"), {
+        target: { value: "Front End" },
+      });
+
+      // `front-end` is free; `frontend` is not.
+      expect(onDefineLabel).not.toHaveBeenCalled();
+      fireEvent.change(screen.getByLabelText("New label name"), {
+        target: { value: "frontend" },
+      });
+      expect(
+        screen.getByText(
+          "frontend already exists for Frontend. Please provide a new Label name.",
+        ),
+      ).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Add label" }));
+      expect(onDefineLabel).not.toHaveBeenCalled();
+    });
   });
 
   it("still offers no checklist: that is what full create is for", () => {
