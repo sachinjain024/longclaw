@@ -3,14 +3,14 @@ format: longclaw.ticket/v1
 id: f0085d76-29f3-44a3-bf3f-fd6401174b52
 key: LC-236e
 title: Define a new label from inside the create flows
-status: in_progress
+status: done
 priority: none
 labels:
   - frontend
   - product
   - release
 created_at: 2026-08-28T04:12:09.099Z
-updated_at: 2026-09-08T07:49:23.896Z
+updated_at: 2026-09-08T08:25:43.938Z
 ---
 
 Both create surfaces can attach labels and neither can define one. `LabelMenuButton` lists exactly what `longclaw.yaml` defines plus any slug the ticket already carries, so on a project whose `labels:` map is empty — a fresh project, or one whose vocabulary has not been written yet — the menu opens on nothing and there is no way forward from inside the flow. Defining a label is only in project settings, which means leaving the half-typed ticket, opening settings, adding the slug, coming back and starting again.
@@ -819,4 +819,19 @@ Reviewed on both axes. **Spec: clean** — the copy matches revision 3 character
 Three smaller ones with it: the collision sentence moved **inside** the `aria-live` region, since it is the one thing that says why the commit is dead and a region holding only the key announced the key and left the reason unsaid; the hue is a `LabelColor` end to end rather than a `string` and a cast at the call site; and `Menu.tsx`'s wrap citation named the quick-create table's header rather than the rule it meant.
 
 `verify` green at 1155 tests, `a11y:audit` A1–A5 green. The `--self-test` inversion reports `A3 passed against a broken build`, which is **pre-existing** — A3 survives the same injury on a clean tree, confirmed by stashing this branch and re-running.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_6ca0cdb2
+kind: update
+occurred_at: 2026-09-08T08:25:43.938Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_progress
+    to: done
+-->
+### You updated this ticket
 <!-- /longclaw:event -->
