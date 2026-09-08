@@ -271,6 +271,57 @@ describe("quick create is title, description, status, priority and labels", () =
       expect(screen.queryByLabelText("New label name")).toBeNull();
     });
 
+    it("leaves Enter on the row's own buttons to the row", async () => {
+      const onDefineLabel = vi.fn().mockResolvedValue(true);
+      const onCreate = vi.fn();
+      render(quickCreate({ onDefineLabel, onCreate }));
+
+      fireEvent.change(screen.getByLabelText("Title"), {
+        target: { value: "Opened with the mouse" },
+      });
+      openDefine();
+      fireEvent.change(screen.getByLabelText("New label name"), {
+        target: { value: "Reliability" },
+      });
+      // `Menu.onKeyDown` is on the popover, so a key pressed on a control
+      // *inside* the define row bubbles to it. Opening the row with the
+      // pointer leaves the menu's roving index on the first label, so without
+      // a guard this press picks that label and swallows the submit.
+      const add = screen.getByRole("button", { name: "Add label" });
+      add.focus();
+      fireEvent.keyDown(add, { key: "Enter" });
+      fireEvent.click(add);
+
+      await waitFor(() => expect(onDefineLabel).toHaveBeenCalledTimes(1));
+      fireEvent.click(screen.getByText("Create"));
+      // `frontend` is the first row in the menu, and nothing ticked it.
+      expect(onCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ labels: ["reliability"] }),
+        expect.anything(),
+      );
+    });
+
+    it("keeps the roving stop on the field while the row is open", () => {
+      render(quickCreate());
+      openDefine();
+      const field = screen.getByLabelText("New label name");
+
+      // Stand on the first label, so the press below has somewhere to move
+      // *from* — the row focuses its own field when it opens, and an assertion
+      // made from there would hold whether or not the stop was wired up.
+      const rows = screen.getAllByRole("menuitemcheckbox");
+      rows[0].focus();
+      expect(document.activeElement).toBe(rows[0]);
+
+      // `↑` from the first label wraps onto the footer. While the row is open
+      // the footer's stop *is* the name field — the collapsed button it was
+      // attached to has unmounted, and React nulls a callback ref on the way
+      // out, so a stop set only there would focus nothing at all.
+      fireEvent.keyDown(screen.getByRole("menu"), { key: "ArrowUp" });
+
+      expect(document.activeElement).toBe(field);
+    });
+
     it("will not write a name that cannot make a key", () => {
       const onDefineLabel = vi.fn().mockResolvedValue(true);
       render(quickCreate({ onDefineLabel }));

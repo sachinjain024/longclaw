@@ -4731,19 +4731,24 @@ html.theme-transition *::after {
   width: 100%;
 }
 
-/* The key, under the field that produced it. One line high in every state, so
-   the row does not change height as a name is typed — the collision note below
-   is the only thing that grows it, and that is a refusal worth a shift. */
+/* The live region: the key, and the collision that is the only thing which can
+   be wrong with one. Both are inside it, because the collision is what says why
+   the commit is dead — a region holding only the key would announce the key and
+   leave the reason unsaid. */
 .derived-key {
+  display: block;
+}
+
+/* One line high in every state, so the row does not change height as a name is
+   typed. The note below is the only thing that grows it, and that is a refusal
+   worth a shift. It clips rather than wraps: it is a key, not a sentence. */
+.derived-key-line {
   display: block;
   overflow: hidden;
   min-height: 14px;
+  font: 400 11px var(--lc-type-code-font);
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.derived-key-line {
-  font: 400 11px var(--lc-type-code-font);
 }
 
 /* Before anything is typed: what the line is *for*, not a key. Muted, because
@@ -4767,7 +4772,7 @@ html.theme-transition *::after {
 /* The collision, and only ever the collision. Wraps, because it is a sentence
    naming two things rather than a key. */
 .derived-key-note {
-  margin: 0;
+  margin: 4px 0 0;
   color: var(--lc-danger);
   font-size: 11.5px;
   line-height: 1.45;

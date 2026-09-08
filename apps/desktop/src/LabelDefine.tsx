@@ -24,32 +24,35 @@ import { useState } from "react";
 import type { Label } from "./types";
 import {
   defineState,
+  isRampColor,
   labelKeyLine,
   labelKeyNote,
   nextLabelColor,
 } from "./labels";
-import type { LabelDefineState } from "./labels";
+import type { LabelColor, LabelDefineState } from "./labels";
 
 /**
  * The key line, and the collision under it.
  *
- * `aria-live="polite"` because this is the one thing that changes as the name
- * is typed: a sighted person watches it update, and without this nobody else
- * would learn that it had. Polite rather than assertive — it follows typing, so
+ * `aria-live="polite"` because this is what changes as the name is typed: a
+ * sighted person watches it update, and without this nobody else would learn
+ * that it had. Polite rather than assertive — it follows typing, so
  * interrupting the typist with it would be reading their own keystrokes back.
+ *
+ * **The collision is inside the region, not beside it.** It is the one thing
+ * here that says why the commit is dead, so a region that covered only the key
+ * would announce `jack` and leave the reason for the disabled button unsaid.
  */
 export function DerivedKey(props: { state: LabelDefineState }) {
   const line = labelKeyLine(props.state);
   const note = labelKeyNote(props.state);
   return (
-    <>
-      <span className="derived-key" aria-live="polite">
-        {/* No control, at any point. The key is text, and the only way to
-            change it is to change the name above it. */}
-        <span className={`derived-key-line ${line.tone}`}>{line.text}</span>
-      </span>
+    <div className="derived-key" aria-live="polite">
+      {/* No control, at any point. The key is text, and the only way to
+          change it is to change the name above it. */}
+      <span className={`derived-key-line ${line.tone}`}>{line.text}</span>
       {note && <p className="derived-key-note">{note}</p>}
-    </>
+    </div>
   );
 }
 
@@ -70,14 +73,23 @@ export function useLabelDefinition(definitions: Record<string, Label>) {
    * defined, and defining several in a row is exactly what an empty project is
    * about to do.
    */
-  const [picked, setPicked] = useState<string>();
+  const [picked, setPicked] = useState<LabelColor>();
   const color = picked ?? nextLabelColor(definitions);
   const state = defineState(name, definitions);
   return {
     name,
     setName,
     color,
-    setColor: setPicked,
+    /**
+     * Narrowed rather than cast: a *new* definition can only ever wear one of
+     * the eight (`labels.ts:22`), so the hue is a `LabelColor` all the way to
+     * the write. The picker is typed for the settings rows above it, which can
+     * be holding a hue the ramp does not carry and must not be recoloured for
+     * being read.
+     */
+    setColor: (next: string) => {
+      if (isRampColor(next)) setPicked(next);
+    },
     state,
     /** After a definition lands: the row stays open for the next one. */
     reset: () => {

@@ -710,6 +710,40 @@ describe("full create prototype parity", () => {
     );
   });
 
+  it("ticks a newly defined slug on, and never off (LC-236e)", async () => {
+    const onDefineLabel = vi.fn().mockResolvedValue(true);
+    const onCreate = vi.fn();
+    // A draft that already carries a slug the project does not define — an
+    // agent can write one and the file keeps it, so the menu lists it.
+    render(
+      createPanel({
+        onDefineLabel,
+        onCreate,
+        initialDraft: {
+          title: "Carries an undefined slug",
+          description: "",
+          status: "todo",
+          priority: "none",
+          labels: ["reliability-2"],
+        },
+      }),
+    );
+
+    fireEvent.click(metaTrigger("Labels"));
+    fireEvent.click(screen.getByRole("button", { name: "New label" }));
+    fireEvent.change(screen.getByLabelText("New label name"), {
+      target: { value: "Reliability 2" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add label" }));
+
+    await waitFor(() => expect(onDefineLabel).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: /^Create/ }));
+    // Defining the slug it was already carrying must not take it off.
+    expect(onCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ labels: ["reliability-2"] }),
+    );
+  });
+
   it("keeps `+ add` beside the chips once labels are on", () => {
     render(createPanel());
     fireEvent.click(metaTrigger("Labels"));

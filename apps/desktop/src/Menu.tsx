@@ -73,6 +73,8 @@ export function Menu<T extends string>(props: MenuProps<T>) {
   const { anchor, multiple, onClose } = props;
   const popover = useRef<HTMLDivElement>(null);
   const rows = useRef<(HTMLButtonElement | null)[]>([]);
+  /** What the footer occupies, so its own controls can be told from a row. */
+  const footerBox = useRef<HTMLDivElement>(null);
   const first = props.options.findIndex((option) =>
     props.selected.includes(option.id),
   );
@@ -153,7 +155,7 @@ export function Menu<T extends string>(props: MenuProps<T>) {
           : 0;
     if (step !== 0) {
       event.preventDefault();
-      // Wraps at both ends (`keyboard-focus-map.md:130`), over the rows and
+      // Wraps at both ends (`keyboard-focus-map.md:139`), over the rows and
       // the footer alike — `↓` past the last label reaches the define row,
       // which is the one thing in this popover that is not a value.
       setActive((standing) => {
@@ -163,9 +165,23 @@ export function Menu<T extends string>(props: MenuProps<T>) {
       return;
     }
     if (event.key === "Enter" || event.key === " ") {
-      // Not on the footer: there is no option there, and its own control is a
-      // real `<button>` whose activation must be left alone.
-      if (active === "footer") return;
+      /**
+       * Never the footer's. Its controls are real buttons — a submit, a colour
+       * trigger — and this handler is on the popover, so both of these would
+       * otherwise `preventDefault()` the activation and pick a *label* instead.
+       *
+       * The roving index is not enough to decide it. It only reads `"footer"`
+       * when the arrows put it there, and a row opened with the pointer leaves
+       * it standing on whatever it was: `Enter` on **Add label** ticked the
+       * first label in the menu and swallowed the write. So the question is
+       * where the press came from, which the DOM answers directly.
+       */
+      if (
+        active === "footer" ||
+        footerBox.current?.contains(event.target as Node)
+      ) {
+        return;
+      }
       // Taken here rather than left to the button's own activation, so a pick is
       // one code path whether it came from the keyboard or the pointer.
       event.preventDefault();
@@ -220,12 +236,12 @@ export function Menu<T extends string>(props: MenuProps<T>) {
       })}
       {props.footnote && <p className="menu-footnote">{props.footnote}</p>}
       {props.footer && (
-        <>
+        <div ref={footerBox}>
           {/* Only where there is something to divide. A rule under nothing is
               a line across the top of the footer. */}
           {props.options.length > 0 && <hr className="menu-rule" />}
           {props.footer}
-        </>
+        </div>
       )}
     </div>
   );

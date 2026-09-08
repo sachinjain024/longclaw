@@ -85,7 +85,7 @@ export function LabelColors(props: {
  * anything not looking at it — on each dot, not beside it.
  *
  * Roving focus, one tab stop, arrows along the strip, `Esc` back to the
- * trigger: the contract `keyboard-focus-map.md:140-142` gives every menu, on
+ * trigger: the contract `keyboard-focus-map.md:139-142` gives every menu, on
  * the horizontal axis this one is drawn along.
  */
 function LabelColorMenu(props: {

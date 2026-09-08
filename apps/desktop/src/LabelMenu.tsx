@@ -19,7 +19,7 @@ import { LabelChip, LabelDot } from "./LabelChip";
 import { LabelColors } from "./LabelColorPicker";
 import { DerivedKey, useLabelDefinition } from "./LabelDefine";
 import { labelOptions, resolveLabels, toggleLabel } from "./labels";
-import type { ResolvedLabel } from "./labels";
+import type { LabelColor, ResolvedLabel } from "./labels";
 import { Menu } from "./Menu";
 import type { MenuOption } from "./Menu";
 import type { Label } from "./types";
@@ -56,7 +56,7 @@ function PlusGlyph() {
 export interface LabelDefinition {
   slug: string;
   name: string;
-  color: string;
+  color: LabelColor;
 }
 
 /**
@@ -166,7 +166,15 @@ function DefineRow(props: {
       <div className="menu-define-top">
         <input
           className="input compact"
-          ref={field}
+          // Both refs. The row focuses the field when it opens, and the
+          // *menu*'s roving group has to land on it while the row is expanded.
+          // Setting only `field` left `props.stop` holding the null React
+          // writes when the collapsed button unmounts, so `↑` onto the footer
+          // from a row moved the active index and then focused nothing.
+          ref={(element) => {
+            field.current = element;
+            props.stop.current = element;
+          }}
           value={definition.name}
           aria-label="New label name"
           placeholder="Label name"
@@ -206,6 +214,7 @@ export function LabelMenuButton(props: {
    */
   onDefine?: (definition: LabelDefinition) => Promise<boolean>;
 }) {
+  const { onDefine } = props;
   const trigger = useRef<HTMLButtonElement>(null);
   /**
    * The slugs the menu opened on, so its rows hold still while it is open. An
@@ -273,24 +282,30 @@ export function LabelMenuButton(props: {
           // `usePopoverPlacement` measures once and clamps nothing, so a
           // popover that grew after placement would run off the right edge in
           // full create and stay there.
-          wide={props.onDefine !== undefined}
-          footerStop={props.onDefine ? defineStop : undefined}
+          wide={onDefine !== undefined}
+          footerStop={onDefine ? defineStop : undefined}
           footer={
-            props.onDefine && (
+            onDefine && (
               <DefineRow
                 definitions={props.definitions}
                 startOpen={options.length === 0}
                 stop={defineStop}
                 onDefine={async (definition) => {
-                  const written = await props.onDefine!(definition);
+                  const written = await onDefine(definition);
                   if (!written) return false;
                   // Defined *and* ticked, which is the one gesture this row
-                  // exists to be. The tick goes through the same path a press
-                  // on a row does, so the draft is updated one way only.
-                  props.onToggle(toggleLabel(props.slugs, definition.slug), {
+                  // exists to be — ticked **on**, not toggled. A draft can
+                  // already carry a slug the project does not define, and
+                  // `defineState` only reads the definitions, so a toggle here
+                  // would take the label off the ticket for the crime of
+                  // having just been defined.
+                  const ticked = props.slugs.includes(definition.slug)
+                    ? [...props.slugs]
+                    : [...props.slugs, definition.slug];
+                  props.onToggle(ticked, {
                     slug: definition.slug,
                     name: definition.name,
-                    color: definition.color as ResolvedLabel["color"],
+                    color: definition.color,
                     defined: true,
                   });
                   return true;
