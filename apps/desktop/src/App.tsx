@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import {
+  addProjectLabel,
   chooseAndRelocateProject,
   chooseOpenFolder,
   chooseProjectFolder,
@@ -34,6 +35,7 @@ import { copyToClipboard } from "./clipboard";
 import { CommandPalette } from "./CommandPalette";
 import { ConfirmDialog, RemoveProjectConfirm } from "./ConfirmDialog";
 import { CreatePanel } from "./CreatePanel";
+import type { LabelDefinition } from "./LabelMenu";
 import { CreateProjectForm, type ProjectDraft } from "./CreateProjectForm";
 import { DEV_CHROME } from "./devChrome";
 import {
@@ -1205,6 +1207,15 @@ export function App() {
     onWritten: (result: T) => void;
     /** The inverse, where there is a one-field one. `⌘Z` runs it. */
     undo?: () => void;
+    /**
+     * Where a refusal is drawn. The default is `ErrorBanner`, at board level —
+     * which is **under the modal scrim**, since `--lc-z-modal` is 4. A write
+     * raised from a create surface has to ask for the danger toast instead
+     * (`--lc-z-toast` is 5), or the reason it was refused is painted behind the
+     * thing that asked for it and the surface looks like it did nothing
+     * (LC-236e).
+     */
+    refusal?: "banner" | "toast";
     /** Runs before the write, and again with `false` if it is refused. */
     optimistic?: (applied: boolean) => void;
   }) {
@@ -1219,9 +1230,46 @@ export function App() {
     } catch (error) {
       options.optimistic?.(false);
       endWrite();
-      setError(normalizeError(error));
+      const refused = normalizeError(error);
+      if (options.refusal === "toast") {
+        raise({ message: refused.message, tone: "danger" });
+      } else {
+        setError(refused);
+      }
       return false;
     }
+  }
+
+  /**
+   * Defines a label from inside a create surface (LC-236e) and says whether it
+   * landed, so the row can tick it onto the draft or keep what was typed.
+   *
+   * It is a **project write that lands immediately**: the definition outlives an
+   * abandoned draft, and someone who defines `infra` and then closes quick
+   * create without creating a ticket has still changed `longclaw.yaml`. The
+   * alternative — holding it until the ticket is created — makes the ticket
+   * write conditional on a second write, and puts a chip on screen for a label
+   * that does not exist yet.
+   *
+   * No `undo` on the toast, and that is a decision rather than an omission: the
+   * inverse is two things — remove the definition *and* untick the draft — and
+   * this Undo is for one field with one inverse.
+   */
+  async function defineLabel(definition: LabelDefinition) {
+    if (!activeProjectId) return false;
+    return writeProjectFile({
+      message: `Added the ${definition.slug} label`,
+      write: () =>
+        addProjectLabel({
+          projectId: activeProjectId,
+          slug: definition.slug,
+          name: definition.name,
+          color: definition.color,
+        }),
+      onWritten: upsertProject,
+      // Both create surfaces sit over the scrim; the banner would be behind it.
+      refusal: "toast",
+    });
   }
 
   async function toggleStar(project: ProjectReference) {
@@ -2406,6 +2454,7 @@ export function App() {
             projectTheme={project.theme}
             provisionalKey={nextKey}
             labels={project.labels}
+            onDefineLabel={defineLabel}
             initialStatus={carriedDraft?.status}
             initialPriority={carriedDraft?.priority}
             onCancel={closeCreateSurface}
@@ -2426,6 +2475,7 @@ export function App() {
           <CreatePanel
             provisionalKey={nextKey}
             labels={project.labels}
+            onDefineLabel={defineLabel}
             initialDraft={carriedDraft}
             onCancel={closeCreateSurface}
             onCreate={(request) =>

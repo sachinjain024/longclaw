@@ -8,13 +8,18 @@
  * does not define, so an undefined slug can always be taken off again.
  *
  * It never edits a slug. A slug is what the ticket stores, so it is immutable;
- * renaming a label happens to the definition, in project settings.
+ * renaming a label happens to the definition, in project settings. Since
+ * LC-236e it can *define* one — which is adding a slug, not renaming one — for
+ * the create surfaces, where a project with an empty `labels:` map opened this
+ * menu on nothing at all and the only way forward was to abandon the ticket.
  */
 
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { LabelChip, LabelDot } from "./LabelChip";
+import { LabelColors } from "./LabelColorPicker";
+import { DerivedKey, useLabelDefinition } from "./LabelDefine";
 import { labelOptions, resolveLabels, toggleLabel } from "./labels";
-import type { ResolvedLabel } from "./labels";
+import type { LabelColor, ResolvedLabel } from "./labels";
 import { Menu } from "./Menu";
 import type { MenuOption } from "./Menu";
 import type { Label } from "./types";
@@ -42,12 +47,174 @@ function PlusGlyph() {
   );
 }
 
+/**
+ * What the create surfaces hand back when the row commits: the definition to
+ * write, and whether it landed. `false` is a refusal Rust made — the surface
+ * has already said why — and the row keeps what was typed so it can be edited
+ * rather than retyped.
+ */
+export interface LabelDefinition {
+  slug: string;
+  name: string;
+  color: LabelColor;
+}
+
+/**
+ * The define row, in the popover's footer.
+ *
+ * Two shapes: a collapsed row that reads `New label`, and the form it opens
+ * into. It starts open on a project that defines nothing, because a popover
+ * whose only content is a collapsed invitation is a popover that still says
+ * nothing, which is the complaint LC-236e opens with.
+ *
+ * The definition is a **project write and it lands immediately**: someone who
+ * defines `infra` here and then abandons the draft has still changed
+ * `longclaw.yaml`. That is deliberate. Holding the definition until the ticket
+ * is created would make the ticket write conditional on a second write, and
+ * leave a chip on screen standing for a label that does not exist yet.
+ */
+function DefineRow(props: {
+  definitions: Record<string, Label>;
+  /** Empty project: the row opens expanded, with the caret already in it. */
+  startOpen: boolean;
+  /** The stop the menu's roving group lands on — see `Menu.footerStop`. */
+  stop: React.RefObject<HTMLElement | null>;
+  onDefine: (definition: LabelDefinition) => Promise<boolean>;
+}) {
+  const [expanded, setExpanded] = useState(props.startOpen);
+  const field = useRef<HTMLInputElement>(null);
+  const definition = useLabelDefinition(props.definitions);
+  const { state } = definition;
+  /**
+   * Set when the row is closed by `Esc`, because closing it unmounts the field
+   * that is holding focus. Without this, focus falls to `<body>` — and every
+   * key after that, including the next two rungs of the `Esc` ladder, is
+   * delivered to nothing: the menu stays up and the modal behind it will not
+   * close. Found by `a11y:audit`, which is where a claim about focus belongs.
+   */
+  const handBack = useRef(false);
+
+  useLayoutEffect(() => {
+    // The caret goes into the field the moment the row opens, whether that was
+    // a press on the collapsed row or an empty project opening it for you.
+    if (expanded) field.current?.focus();
+    else if (handBack.current) {
+      handBack.current = false;
+      props.stop.current?.focus();
+    }
+    // `props.stop` is a ref: read at the moment focus moves, never captured.
+  }, [expanded, props.stop]);
+
+  function collapse() {
+    handBack.current = true;
+    setExpanded(false);
+    definition.reset();
+  }
+
+  if (!expanded) {
+    return (
+      <button
+        // A row, so it reads as one more thing the menu offers — but the last
+        // one, under a rule, because it is the only one that is not a value.
+        type="button"
+        className="menu-row"
+        tabIndex={-1}
+        ref={(element) => {
+          props.stop.current = element;
+        }}
+        onClick={() => setExpanded(true)}
+      >
+        <span className="menu-glyph">
+          <PlusGlyph />
+        </span>
+        <span className="menu-label">New label</span>
+      </button>
+    );
+  }
+
+  return (
+    <form
+      className="menu-define"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (state.kind !== "ok") return;
+        void (async () => {
+          const written = await props.onDefine({
+            slug: state.slug,
+            name: definition.name.trim(),
+            color: definition.color,
+          });
+          // Refused: what was typed stays, because the surface has already
+          // said why and the fix is an edit rather than a retype.
+          if (!written) return;
+          // Emptied and still open. Defining one label on an empty project is
+          // rarely defining one, and the row that just worked is where the
+          // next name goes.
+          definition.reset();
+          field.current?.focus();
+        })();
+      }}
+      onKeyDown={(event) => {
+        // `Menu.onKeyDown` returns early for anything from a field, so the
+        // ladder's next rung is this row's to spend (`keyboard-focus-map.md`).
+        if (event.key !== "Escape") return;
+        event.preventDefault();
+        event.stopPropagation();
+        collapse();
+      }}
+    >
+      <div className="menu-define-top">
+        <input
+          className="input compact"
+          // Both refs. The row focuses the field when it opens, and the
+          // *menu*'s roving group has to land on it while the row is expanded.
+          // Setting only `field` left `props.stop` holding the null React
+          // writes when the collapsed button unmounts, so `↑` onto the footer
+          // from a row moved the active index and then focused nothing.
+          ref={(element) => {
+            field.current = element;
+            props.stop.current = element;
+          }}
+          value={definition.name}
+          aria-label="New label name"
+          placeholder="Label name"
+          autoComplete="off"
+          onChange={(event) => definition.setName(event.target.value)}
+        />
+        <LabelColors
+          label="New label color"
+          value={definition.color}
+          onPick={definition.setColor}
+        />
+      </div>
+      <DerivedKey state={state} />
+      <button
+        tabIndex={0}
+        type="submit"
+        className="secondary small menu-define-commit"
+        // Nothing to write, or nothing writable. The line above says which.
+        disabled={state.kind !== "ok"}
+      >
+        Add label
+      </button>
+    </form>
+  );
+}
+
 export function LabelMenuButton(props: {
   slugs: readonly string[];
   definitions: Record<string, Label>;
   /** The whole new list, and the label the tick was on. Labels replace whole. */
   onToggle: (next: string[], toggled: ResolvedLabel) => void;
+  /**
+   * Defines a label from inside the menu and ticks it on, in one gesture
+   * (LC-236e). The create surfaces pass it; the ticket panel does not, and its
+   * menu has no define row — a ticket already on the board is not the half-typed
+   * draft that could not afford the trip to settings.
+   */
+  onDefine?: (definition: LabelDefinition) => Promise<boolean>;
 }) {
+  const { onDefine } = props;
   const trigger = useRef<HTMLButtonElement>(null);
   /**
    * The slugs the menu opened on, so its rows hold still while it is open. An
@@ -57,6 +224,8 @@ export function LabelMenuButton(props: {
    */
   const [openedOn, setOpenedOn] = useState<readonly string[]>();
   const open = openedOn !== undefined;
+  /** The define row's focusable stop, whichever of its two shapes is drawn. */
+  const defineStop = useRef<HTMLElement | null>(null);
   const carried = resolveLabels(props.slugs, props.definitions);
   const rows = labelOptions(
     [...(openedOn ?? []), ...props.slugs],
@@ -109,6 +278,41 @@ export function LabelMenuButton(props: {
           options={options}
           selected={props.slugs}
           multiple
+          // Wide from the moment it opens rather than when the row expands:
+          // `usePopoverPlacement` measures once and clamps nothing, so a
+          // popover that grew after placement would run off the right edge in
+          // full create and stay there.
+          wide={onDefine !== undefined}
+          footerStop={onDefine ? defineStop : undefined}
+          footer={
+            onDefine && (
+              <DefineRow
+                definitions={props.definitions}
+                startOpen={options.length === 0}
+                stop={defineStop}
+                onDefine={async (definition) => {
+                  const written = await onDefine(definition);
+                  if (!written) return false;
+                  // Defined *and* ticked, which is the one gesture this row
+                  // exists to be — ticked **on**, not toggled. A draft can
+                  // already carry a slug the project does not define, and
+                  // `defineState` only reads the definitions, so a toggle here
+                  // would take the label off the ticket for the crime of
+                  // having just been defined.
+                  const ticked = props.slugs.includes(definition.slug)
+                    ? [...props.slugs]
+                    : [...props.slugs, definition.slug];
+                  props.onToggle(ticked, {
+                    slug: definition.slug,
+                    name: definition.name,
+                    color: definition.color,
+                    defined: true,
+                  });
+                  return true;
+                }}
+              />
+            )
+          }
           anchor={trigger.current}
           onPick={(slug) => {
             const toggled = rows.find((row) => row.slug === slug);

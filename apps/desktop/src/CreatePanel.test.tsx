@@ -15,9 +15,11 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CreatePanel } from "./CreatePanel";
+import type { LabelDefinition } from "./LabelMenu";
 import type { Label, TicketDraft } from "./types";
 
 afterEach(() => {
@@ -42,11 +44,13 @@ function createPanel(props?: {
   initialDraft?: TicketDraft;
   onCancel?: () => void;
   onCreate?: (request: unknown) => void;
+  onDefineLabel?: (definition: LabelDefinition) => Promise<boolean>;
 }) {
   return (
     <CreatePanel
       provisionalKey="RT-4"
       labels={DEFINITIONS}
+      onDefineLabel={props?.onDefineLabel ?? (() => Promise.resolve(true))}
       initialDraft={props?.initialDraft}
       onCancel={props?.onCancel ?? (() => {})}
       onCreate={props?.onCreate ?? (() => {})}
@@ -673,6 +677,71 @@ describe("full create prototype parity", () => {
     // beside the control are not in its name.
     expect(control.getAttribute("aria-label")).toBe("Labels: none");
     expect(screen.queryByRole("button", { name: "None" })).toBeNull();
+  });
+
+  it("defines a label from its own labels row too (LC-236e)", async () => {
+    const onDefineLabel = vi.fn().mockResolvedValue(true);
+    const onCreate = vi.fn();
+    render(createPanel({ onDefineLabel, onCreate }));
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Full create wants one as well" },
+    });
+    fireEvent.click(metaTrigger("Labels"));
+    // The same row quick create wears — this is the other surface where a
+    // label can be wanted before the project has one.
+    fireEvent.click(screen.getByRole("button", { name: "New label" }));
+    fireEvent.change(screen.getByLabelText("New label name"), {
+      target: { value: "Platform Infra" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add label" }));
+
+    await waitFor(() =>
+      expect(onDefineLabel).toHaveBeenCalledWith(
+        expect.objectContaining({
+          slug: "platform-infra",
+          name: "Platform Infra",
+        }),
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /^Create/ }));
+    expect(onCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ labels: ["platform-infra"] }),
+    );
+  });
+
+  it("ticks a newly defined slug on, and never off (LC-236e)", async () => {
+    const onDefineLabel = vi.fn().mockResolvedValue(true);
+    const onCreate = vi.fn();
+    // A draft that already carries a slug the project does not define — an
+    // agent can write one and the file keeps it, so the menu lists it.
+    render(
+      createPanel({
+        onDefineLabel,
+        onCreate,
+        initialDraft: {
+          title: "Carries an undefined slug",
+          description: "",
+          status: "todo",
+          priority: "none",
+          labels: ["reliability-2"],
+        },
+      }),
+    );
+
+    fireEvent.click(metaTrigger("Labels"));
+    fireEvent.click(screen.getByRole("button", { name: "New label" }));
+    fireEvent.change(screen.getByLabelText("New label name"), {
+      target: { value: "Reliability 2" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add label" }));
+
+    await waitFor(() => expect(onDefineLabel).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: /^Create/ }));
+    // Defining the slug it was already carrying must not take it off.
+    expect(onCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ labels: ["reliability-2"] }),
+    );
   });
 
   it("keeps `+ add` beside the chips once labels are on", () => {

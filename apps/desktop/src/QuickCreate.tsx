@@ -35,7 +35,7 @@
 
 import { useRef, useState } from "react";
 import { useAutoGrow } from "./autoGrow";
-import { LabelMenuButton } from "./LabelMenu";
+import { LabelMenuButton, type LabelDefinition } from "./LabelMenu";
 import { MenuButton } from "./Menu";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "./metaOptions";
 import { ThemeDot } from "./ThemeSwatch";
@@ -70,6 +70,13 @@ interface QuickCreateProps {
    * all. V0-16 removed a comma-separated text box, not the field.
    */
   labels: Record<string, Label>;
+  /**
+   * Defines a new label and ticks it onto this draft, in one gesture (LC-236e).
+   * The definition is a project write and it lands immediately — it outlives
+   * this draft, including one that is abandoned — and a refusal comes back as
+   * `false` so the row can keep what was typed.
+   */
+  onDefineLabel: (definition: LabelDefinition) => Promise<boolean>;
   /**
    * The status the modal opens on — "defaults Todo; preseeded from a column
    * `+`" (`screen-specs.md:257`). A board column's `+` chooses it, so
@@ -286,6 +293,11 @@ export function QuickCreate(props: QuickCreateProps) {
             slugs={labels}
             definitions={props.labels}
             onToggle={(next) => setLabels(next)}
+            // A label can be *defined* from here, not only ticked (LC-236e).
+            // On a project whose `labels:` map is empty this menu opened on
+            // nothing at all, and the only way forward was to abandon the
+            // half-typed ticket and go to settings.
+            onDefine={props.onDefineLabel}
           />
         </div>
         <div className="editor-footer">
