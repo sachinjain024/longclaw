@@ -298,7 +298,7 @@ properties:
 This is the generated agent-facing editing contract. It should explain:
 
 - which files are canonical;
-- which fields agents may change;
+- which fields agents may change, including the ticket properties the project has enabled and no others;
 - actor and timestamp rules;
 - how to check off a checklist item;
 - how to append a bounded activity entry;

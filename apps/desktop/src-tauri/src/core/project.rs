@@ -1108,6 +1108,7 @@ pub fn render_agent_contract(project: &Project) -> String {
          | `status` | one of `backlog`, `todo`, `in_progress`, `in_review`, `done`, `canceled` |\n\
          | `priority` | one of `urgent`, `p1`, `p2`, `p3`, `p4`, `none` |\n\
          | `labels` | slugs defined in `longclaw.yaml` |\n\
+         {properties}\
          | description | any CommonMark outside the reserved sections |\n\
          | checklist | flip `[ ]` to `[x]`, or append a task |\n\
          | activity | append a bounded record; never edit or delete an existing one |\n\
@@ -1115,6 +1116,7 @@ pub fn render_agent_contract(project: &Project) -> String {
          Do not change `format`, `id`, `key`, `created_at`, or `rank`. LongClaw owns\n\
          `rank`; preserve any value you find and do not invent one. Keep every key you\n\
          do not understand exactly as it is.\n\
+         {property_note}\
          \n\
          ## Timestamps and attribution\n\
          \n\
@@ -1212,8 +1214,71 @@ pub fn render_agent_contract(project: &Project) -> String {
         name = project.name,
         key = project.key,
         example_key = example_key,
+        properties = property_rules(&project.properties),
+        property_note = property_note(&project.properties),
         example = example_ticket(&example_key),
     )
+}
+
+/// The table rows for the properties this project has turned on, and nothing at
+/// all when it has turned none on.
+///
+/// The four are opt-in, so the contract lists the enabled set rather than all of
+/// them: a field an agent is told it may change had better be one the project
+/// reads. Nothing is the common case, and it is what keeps a project with no
+/// `properties:` block — which is every project file written before this build —
+/// on the contract it has always had.
+///
+/// Each rule is the vocabulary itself rather than a pointer to it. An agent
+/// reading this file is about to write a value, and `one of bug, feature` is an
+/// answer where "the slugs defined in longclaw.yaml" is another file to open.
+fn property_rules(properties: &PropertiesConfig) -> String {
+    properties
+        .enabled()
+        .into_iter()
+        .map(|property| {
+            let rule = match property {
+                Property::Due | Property::Start => "a date, `YYYY-MM-DD`".to_owned(),
+                Property::Type => {
+                    let defined = properties
+                        .ticket_type
+                        .values
+                        .keys()
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    if defined.is_empty() {
+                        "this project defines no type values yet".to_owned()
+                    } else {
+                        format!("one of {}", defined.join(", "))
+                    }
+                }
+                // The same sentence a refusal uses, so the contract cannot
+                // promise a vocabulary the write then rejects.
+                Property::Estimate => properties.estimate.vocabulary(),
+            };
+            format!("| `{}` | {rule} |\n", property.as_str())
+        })
+        .collect()
+}
+
+/// The one thing the table cannot say by listing rows: what a property *not*
+/// listed means.
+///
+/// Silence would read as "not mentioned, so probably fine", and the opposite is
+/// true — a disabled property is one this build declines to interpret, and a
+/// value under it is being hidden rather than deleted. A project with none
+/// enabled says nothing, because there is no enabled set to contrast with and
+/// the table already offers no property row at all.
+fn property_note(properties: &PropertiesConfig) -> String {
+    if properties.enabled().is_empty() {
+        return String::new();
+    }
+    "\n\
+     The ticket properties above are the ones this project has turned on. Do not\n\
+     add one that is not listed: an unlisted property is one this project does not\n\
+     read, and a value you find under it is being hidden rather than deleted — keep\n\
+     it exactly as it is.\n"
+        .to_owned()
 }
 
 fn example_ticket(key: &str) -> String {
@@ -1530,6 +1595,98 @@ mod tests {
         assert!(contract.contains("longclaw:item=ck_7d2a"));
         assert!(contract.contains("<!-- /longclaw:event -->"));
         assert!(contract.contains("atomically"));
+        // All four properties are off, so the contract offers no property row
+        // and says nothing about them — the file every project written before
+        // the properties block existed already had.
+        assert!(!contract.contains("| `type` |"));
+        assert!(!contract.contains("turned on"));
+    }
+
+    /// The generated contract offers the enabled set and no more.
+    ///
+    /// An agent reads this file to learn which fields it may write, so listing
+    /// all four would name three fields this project does not read — and the
+    /// write would then be refused by
+    /// [`PropertiesConfig::accept`], which is a contract disagreeing with the
+    /// build that generated it.
+    #[test]
+    fn the_generated_contract_offers_the_properties_the_project_turned_on() {
+        let document = ProjectDocument::parse(CONFIGURED).expect("the fixture should parse");
+        let contract = super::render_agent_contract(document.project());
+
+        // In the documented order, between the other frontmatter fields and the
+        // description — and each carrying the vocabulary itself, not a pointer
+        // to another file.
+        assert!(
+            contract.contains(concat!(
+                "| `labels` | slugs defined in `longclaw.yaml` |\n",
+                "| `type` | one of bug, feature |\n",
+                "| `due` | a date, `YYYY-MM-DD` |\n",
+                "| `estimate` | a number and a unit, such as 2h, 1.5d or 1w |\n",
+                "| description |",
+            )),
+            "{contract}"
+        );
+        // Off, so it is not offered.
+        assert!(!contract.contains("| `start` |"), "{contract}");
+        // And what an unlisted property means is said outright, because silence
+        // reads as permission.
+        assert!(
+            contract.contains("Do not\nadd one that is not listed"),
+            "{contract}"
+        );
+
+        // The estimate rule is the refusal's own sentence, so the contract
+        // cannot promise a vocabulary the write then rejects. Switching systems
+        // seeds nothing — it keeps every value written under the old one — so a
+        // project that arrives at t-shirt this way has an empty scale, and the
+        // contract says exactly that rather than inventing five sizes.
+        let mut document = document;
+        document
+            .set_estimate_system(EstimateSystem::Tshirt)
+            .expect("switching systems is a one-line write");
+        let contract = super::render_agent_contract(document.project());
+        assert!(
+            contract.contains(
+                "| `estimate` | this project's t-shirt scale, which defines no values yet |\n"
+            ),
+            "{contract}"
+        );
+
+        document
+            .set_tshirt_scale(&["s".to_owned(), "m".to_owned(), "l".to_owned()])
+            .expect("a scale of three sizes");
+        let contract = super::render_agent_contract(document.project());
+        assert!(
+            contract.contains("| `estimate` | one of s, m, l |\n"),
+            "{contract}"
+        );
+    }
+
+    /// LC-66's churn, asked of the rows this build added: the property half of
+    /// the contract is derived from the project file, so rendering the same
+    /// project twice produces the same rows.
+    ///
+    /// The rest of the file does not hold still — `example_ticket` mints a fresh
+    /// `id`, `ck_` and `evt_` on every render, and `update_project_file`
+    /// reprints the contract after every project write, so a property toggle's
+    /// real diff arrives alongside three meaningless ones. That is LC-66 and it
+    /// is still open; this test exists so the rows added here are not a second
+    /// source of it.
+    #[test]
+    fn the_property_rows_are_the_same_two_renders_running() {
+        let document = ProjectDocument::parse(CONFIGURED).expect("the fixture should parse");
+        let rows = |contract: &str| {
+            contract
+                .lines()
+                .filter(|line| line.starts_with("| `"))
+                .map(str::to_owned)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            rows(&super::render_agent_contract(document.project())),
+            rows(&super::render_agent_contract(document.project()))
+        );
     }
 
     // -------------------------------------------- the properties block

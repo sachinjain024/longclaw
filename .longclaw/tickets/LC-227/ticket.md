@@ -8,7 +8,7 @@ priority: urgent
 labels:
   - release
 created_at: 2026-08-22T06:13:17.138Z
-updated_at: 2026-09-08T12:52:48.802Z
+updated_at: 2026-09-08T15:02:19.855Z
 ---
 
 Brainstorm with LLM agent like what other fields we should support. A few items I can think of are Type - Bug/Task, Due State, Start Date, Effort
@@ -910,6 +910,105 @@ documents all four rather than the enabled set (`ck_e017a189`). Both are
 reachable from the UI for the first time now, so they have stopped being
 theoretical.
 
+## Built 2026-09-08: the two the settings pane made real
+
+The pane above closed with those two open, and this closes them. Both existed
+because the pane did not: a property nobody could turn on was a property nobody
+could write wrongly.
+
+### One refusal, not one per surface
+
+`TicketDocument::apply_as` holds a property value to the format's own rule and
+deliberately no further. It is handed a file, so the questions it *cannot*
+answer are the project's: whether this project reads the property at all, and
+whether the value is in the vocabulary it configures. Those belong to whoever
+holds the project — and the CLI held them while the app did not, which left the
+desktop able to write a `type` no project defines. An undefined slug renders as
+its own text, with no name and no colour, which is the state the CLI's
+`known_labels` refusal exists to keep out of files LongClaw writes.
+
+`PropertiesConfig` answers both halves now: `require_enabled` for the property,
+`accept` for the value, with `accept_new` and `accept_edit` walking a create and
+an edit. `cli.rs` lost its two copies and asks these; `engine.rs` asks them
+before it prepares a write, so a refusal lands before any bytes are placed and
+before a create claims a directory. The CLI's 23 tests passed untouched, which
+is the evidence that this moved a rule rather than changing one.
+
+`TicketEdit::properties` is now the one spelling of the four, because there are
+two walks over them — the one that applies and the one that checks — and a fifth
+property added to one and not the other would be a property the app writes
+without ever checking.
+
+**A clear is refused as firmly as a set**, on a disabled property. That is the
+one thing "disabling hides, it never deletes" rules out: the value is being
+hidden and the ticket still holds it, so a Clear row that reached it would
+delete what the switch promised to keep.
+
+Verified red first. With the two `engine.rs` lines removed, the new integration
+test fails at the line where the app writes `type: epic` into a project that
+defines only `bug`.
+
+Every rail control is gated on `enabled`, so the app's own surfaces do not reach
+this refusal — it is a backstop, which is what the row asked for. One path does
+reach it: the panel's undo carries `inverse: { [property]: previous ?? null }`,
+so a property disabled between a write and its undo makes the undo refuse rather
+than restore. That is the right answer — restoring a value into a property the
+project has stopped reading would write what the switch promised to keep hidden
+— but it surfaces as a refused write, and it is the one case where a person can
+see this check without an agent involved.
+
+### The contract offers what the project turned on
+
+`.longclaw/AGENTS.md` listed `title`, `status`, `priority` and `labels` and said
+nothing about the four. It now carries a row per **enabled** property, in the
+documented order, between `labels` and the description — and nothing at all when
+a project enables none, which is every project file written before this build
+and keeps their contract the file it has always been.
+
+Each rule is the vocabulary itself rather than a pointer to it: `one of bug,
+feature`, not "the slugs defined in longclaw.yaml". An agent reading this file
+is about to write a value, and a pointer is another file to open. The estimate
+row is `EstimateConfig::vocabulary()` — the same sentence the refusal uses — so
+the contract cannot promise a scale the write then rejects.
+
+One thing a table of rows cannot say is what an *unlisted* property means, and
+silence there reads as permission. So an enabled set is followed by the sentence
+that an unlisted property is one this project does not read, and a value found
+under it is being hidden rather than deleted. A project with none enabled says
+nothing, because there is no set to contrast with.
+
+A t-shirt project that arrived there by switching systems has no scale, and the
+contract says so — `this project's t-shirt scale, which defines no values yet` —
+rather than inventing five sizes. That was a test expectation of mine that was
+wrong before the code was: switching systems seeds nothing, deliberately,
+because it keeps every value written under the old one.
+
+### Checked against LC-66, which is still open
+
+The row asked for the check and the check has an answer worth writing down.
+
+The rows added here are derived from the project file, so two renders of one
+project produce the same rows — pinned by a test, so this is not a second source
+of churn. The file *around* them is another matter. `example_ticket` mints a
+fresh `id`, `ck_` and `evt_` on every render, and `registry.rs`'s
+`update_project_file` reprints the whole contract after every project write —
+which is every one of the pane's eight writes. So ticking **Types on** now
+produces a real diff (three new table rows) delivered alongside three
+meaningless ones, and the repo's own test suite already carries a
+`without_minted_ids` helper to compare contracts in spite of it.
+
+That is LC-66 exactly, and it was filed at p4 when a theme change was the only
+way to trigger it. The settings pane makes it fire on every property toggle, and
+the diffs it now buries are the ones that say which fields an agent may write.
+Left on LC-66 with the evidence rather than fixed here: its checklist asks for a
+byte-identical rewrite, which means deterministic ids through a render chain the
+app's real create path shares, and that is its own change.
+
+`docs/file_format.md`'s `AGENTS.md` section already asked the contract to
+explain "which fields agents may change"; that line now says "including the
+ticket properties the project has enabled and no others", replaced in place so
+no citation moved.
+
 ## Checklist
 
 - [x] ADR: property configuration joins labels in longclaw.yaml — record why ADR 0002's reservation is deferred, and what would revisit it <!-- longclaw:item=ck_945a1ca9 -->
@@ -939,8 +1038,8 @@ theoretical.
 - [x] Activity: a changes entry per property, so a due date set by an agent is attributable <!-- longclaw:item=ck_92d3b485 -->
 - [x] Index: carry the four properties on IndexedTicket <!-- longclaw:item=ck_71c2030f -->
 - [x] CLI create and edit: --type --due --start --estimate, refusing a disabled property and an undefined type value the way known_labels refuses an undefined label <!-- longclaw:item=ck_cc46645c -->
-- [ ] The app's own create and edit refuse a disabled property and an undefined value, the way the CLI does — engine.rs holds the project and apply_as deliberately does not <!-- longclaw:item=ck_97b51001 -->
-- [ ] Generated .longclaw/AGENTS.md documents only the enabled set — check it against LC-66's churn <!-- longclaw:item=ck_e017a189 -->
+- [x] The app's own create and edit refuse a disabled property and an undefined value, the way the CLI does — engine.rs holds the project and apply_as deliberately does not <!-- longclaw:item=ck_97b51001 -->
+- [x] Generated .longclaw/AGENTS.md documents only the enabled set — check it against LC-66's churn <!-- longclaw:item=ck_e017a189 -->
 - [x] Conformance fixtures per property: enabled and disabled, valid and malformed <!-- longclaw:item=ck_25b41a66 -->
 - [x] types.ts: the four properties on Ticket and IndexedTicket <!-- longclaw:item=ck_bb5b83f5 -->
 - [x] Settings: a properties section in SETTINGS_SECTIONS after labels, both labels off one row <!-- longclaw:item=ck_5fbdce11 -->
@@ -2298,4 +2397,25 @@ write path underneath it — a recursive nested-path writer in `yaml.rs`, eight
 `ProjectDocument` edits, and eight commands — since nothing could configure a
 property before this. Filed LC-247u for a `.label-row` overflow the WebKit
 measurement found in the Labels pane it copies.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_db15b245
+kind: update
+occurred_at: 2026-09-08T15:02:19.855Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_97b51001.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_e017a189.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+The app's own create and edit now refuse a disabled property and an undefined value, and the generated contract lists the enabled set. One refusal serves both surfaces: PropertiesConfig::require_enabled and ::accept, walked by accept_new and accept_edit; cli.rs lost its two copies and engine.rs asks them before it prepares a write. Checked ck_e017a189 against LC-66 as the row asks — the property rows are derived and hold still, but the contract around them still churns three minted ids on every project write, and the new settings pane makes that fire on every property toggle. Noted on LC-66 with the evidence.
 <!-- /longclaw:event -->
