@@ -8,7 +8,7 @@ priority: urgent
 labels:
   - release
 created_at: 2026-08-22T06:13:17.138Z
-updated_at: 2026-09-08T01:20:20.070Z
+updated_at: 2026-09-08T01:26:16.394Z
 ---
 
 Brainstorm with LLM agent like what other fields we should support. A few items I can think of are Type - Bug/Task, Due State, Start Date, Effort
@@ -304,19 +304,98 @@ Four rules follow:
   turned off or a type it has not defined — mind LC-66, the open bug about that
   file churning on every project change.
 
+### Turning a property off does not ask first
+
+Settled 2026-09-08. Disabling a property that tickets already carry writes
+immediately and reports what it did. There is no confirmation dialog.
+
+The precedent is already in the app, and it covers a stronger act than this one:
+**removing a label definition** deletes something, and it takes no confirmation
+either. It writes and reports, and the code says why the report is there — a
+definition added, renamed, recoloured or removed "used to land in silence, which
+on the remove is the difference between _gone_ and _did that work?_"
+(`ProjectSettings.tsx`). The answer to silence was a message, not a dialog.
+`RemoveProjectConfirm` is the app's only confirm of this shape, and what it
+guards is taking a whole project out of the registry.
+
+Disabling is weaker than the label case in three ways: no definition is deleted,
+no ticket value is touched, and the same toggle puts it back — which is the undo,
+and a better one than an undo affordance. A dialog over a reversible act that
+destroys nothing is ceremony, and ceremony over the safe acts is what teaches
+people to click through the dangerous one.
+
+What it must not be is *silent*, because the effect is invisible: the dates
+vanish from every card, and a person could reasonably conclude they were
+deleted. So the write feedback carries the count and the reassurance together —
+
+> Due turned off · 17 tickets keep their dates
+
+— and the settings row goes on naming that count while the property is off,
+which is then the only place the fact is visible. The count comes off the index,
+which carries the four properties.
+
+**Removing one value from a vocabulary is the label case exactly**, not a new
+one: drop `spike` from `type.values` and the definition goes while every ticket
+carrying `spike` keeps it, rendering as a bare slug in the fallback hue.
+
 ### A due date always shows, and its treatment escalates
 
-Four rungs. The date itself is the weakest rung — visible, but not engaging when
-it is a fortnight out — and the treatment sharpens as it approaches:
+Four rungs, settled 2026-09-08. The date itself is the weakest rung — visible,
+but not engaging when it is a fortnight out — and both what the chip *says* and
+how it is drawn sharpen as the date approaches:
 
-| Range | Treatment |
-|---|---|
-| Overdue | Attention indicator |
-| Today | Slight attention indicator |
-| Within `attention_days` (default 7, configurable) | A distinct indicator |
-| Beyond that | The plain date |
+| Rung | Boundary | What the chip says | Drawn |
+|---|---|---|---|
+| Overdue | `due` < today | `3d overdue` | `--lc-danger`, the one rung that takes a hue |
+| Today | `due` = today | `Today` | Monochrome, emphasised |
+| Approaching | today < `due` ≤ today + `attention_days` | `in 3d` | Monochrome, ordinary weight |
+| Beyond | `due` > today + `attention_days` | `28 Sep` | Monochrome, quiet |
 
-Only the third boundary moves; overdue, today and beyond are absolute.
+**Only one rung takes a colour, and that is the app's existing rule rather than
+a new one.** `PriorityGlyph` is monochrome except Urgent, no chip is ever filled
+and none takes the theme accent, because "a priority conveyed by shape and
+colour alone is a priority half the people looking at the board cannot read".
+Due is a second urgency axis on the same card; if priority earns a hue only at
+its top rung, so does this. Every rung is legible with the colour removed,
+because the words differ at every rung.
+
+**Which hue is not a free choice — the other two are spoken for.** Agent green
+belongs to agents and is deliberately absent from the label ramp. `--lc-warn` is
+the unattributed external change (`styles.css:139-140`), and LC-148 was exactly
+the bug of two vocabularies landing on one line. That leaves `--lc-danger`,
+which today means an error or a destructive confirm — surfaces a card cannot
+show — so on a card it will mean one thing.
+
+**Comparisons are between local calendar days, never instants.** `due` is a day
+and carries no timezone, so "today" is the reader's own day: a ticket due 28 Sep
+becomes overdue in Tokyo before it does in California. That is correct for a
+day-valued date rather than a defect, and it is the same reasoning that keeps
+`due` out of RFC 3339.
+
+`attention_days` defaults to **7**, and it is the only boundary that moves —
+overdue and today are absolute. **`0` is legal** and empties the approaching
+rung, leaving Today and Beyond; a negative value is refused.
+
+**The rungs stand down on a ticket that is done, canceled or archived.** A
+finished ticket that was due last week is not overdue, it is finished, and a
+Done column drawn in `--lc-danger` teaches people to ignore the colour that was
+supposed to mean something. The date still shows, plainly, in the Beyond
+treatment. Status is row data, so this changes the treatment and never the card
+height.
+
+**The chip is not the date field, and it does not have to mirror the grammar.**
+The field in the panel always shows the canonical display form — `28 Sep`,
+`28 Sep 2027` — because a person types into it. Nobody types into a card, so the
+chip is free to say the shortest true thing, and `in 3d` reuses the relative
+vocabulary `describeAge` already speaks rather than inventing a second one.
+
+**A rung is a reading, never a sort key.** Due ordering sorts by date; the rungs
+have no part in it, which is what keeps the ordering mode from changing at
+midnight along with the colours.
+
+**Start never has a rung.** It is not a deadline — a start date in the past
+means work should have begun, which is a judgement about the work rather than a
+fact about the date, and the app does not make it.
 
 **The card grows a second footer row to hold it.** The footer never wraps and
 holds two chips — **one** when a checklist fraction is present
@@ -430,8 +509,8 @@ reaches for.
 - [x] Estimate duration mode: number plus unit (minutes, hours, days, weeks); decimals legal (1.5d), compounds not (1d4h) <!-- longclaw:item=ck_addc6137 -->
 - [x] Estimate conversion is configurable in duration mode only: hours per day and days per week, defaulting to 8 and 5 <!-- longclaw:item=ck_845b9000 -->
 - [x] Switching estimate systems preserves values written under the old one rather than destroying them <!-- longclaw:item=ck_112ec2a3 -->
-- [ ] Settle the four due rungs — overdue, today, within attention_days, beyond — and that attention_days defaults to 7 and is configurable <!-- longclaw:item=ck_c45f20d4 -->
-- [ ] Decide whether disabling a property that tickets already carry warns first <!-- longclaw:item=ck_4148120d -->
+- [x] Settle the four due rungs — overdue, today, within attention_days, beyond — and that attention_days defaults to 7 and is configurable <!-- longclaw:item=ck_c45f20d4 -->
+- [x] Decide whether disabling a property that tickets already carry warns first <!-- longclaw:item=ck_4148120d -->
 - [ ] Prototype the ticket panel: right-hand properties rail, description moved to the top <!-- longclaw:item=ck_b6758ff8 -->
 - [ ] Prototype the four due rungs and their visual treatments, in both appearances <!-- longclaw:item=ck_7b6183bf -->
 - [ ] Prototype the card's second footer row — what it holds, and how it reads at rest beside a checklist fraction <!-- longclaw:item=ck_e0292fab -->
@@ -1279,6 +1358,39 @@ changes:
     from: "false"
     to: "true"
   - field: checklist.ck_112ec2a3.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_65c7012e
+kind: update
+occurred_at: 2026-09-08T01:26:09.825Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_570be8de
+kind: update
+occurred_at: 2026-09-08T01:26:16.394Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_c45f20d4.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_4148120d.checked
     from: "false"
     to: "true"
 -->
