@@ -421,28 +421,32 @@ impl ProjectEngine {
         storage::resolve_ticket_path(&self.root, key)
     }
 
+    /// A write is held to what the project configures before it is prepared.
+    ///
+    /// This is the seam the CLI has always had and the app did not: `apply_as`
+    /// holds a value to the format's own rule and deliberately no further, so
+    /// whether the project *reads* a property, and whether a value is in the
+    /// vocabulary it defines, is asked here — by the layer that holds the
+    /// project — and asked before any bytes are placed.
     pub fn edit_ticket(
         &self,
         key: &str,
         edit: &TicketEdit,
         expected_hash: &str,
     ) -> AppResult<WriteResult> {
-        let write = prepare_ticket_edit(
-            &self.root,
-            &self.project().key,
-            key,
-            edit,
-            expected_hash,
-            &now(),
-        )?;
+        let project = self.project();
+        project.properties.accept_edit(edit)?;
+        let write =
+            prepare_ticket_edit(&self.root, &project.key, key, edit, expected_hash, &now())?;
         self.commit(write, false)
     }
 
     pub fn create_ticket(&self, request: &NewTicket) -> AppResult<WriteResult> {
-        let project_key = self.project().key;
+        let project = self.project();
+        project.properties.accept_new(&request.properties)?;
         let write = {
             let _claim = self.creation.lock();
-            prepare_new_ticket(&self.root, &project_key, request, &now())?
+            prepare_new_ticket(&self.root, &project.key, request, &now())?
         };
         self.commit(write, true)
     }

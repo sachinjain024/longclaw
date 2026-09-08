@@ -116,6 +116,118 @@ fn an_app_write_reaches_disk_and_survives_a_restart() {
     assert_eq!(newest.actor.id.as_deref(), Some("local"));
 }
 
+/// The app's own create and edit refuse a disabled property and an undefined
+/// value, the way the CLI's flags do (LC-227).
+///
+/// `TicketDocument::apply_as` holds a value to the format's own rule and
+/// deliberately no further — it is handed a file, not a project — so until the
+/// engine asked, the app could write a `type` no project defined, and an
+/// undefined slug renders as its own text with no name and no colour. Every
+/// refusal here lands before any bytes are placed: the file on disk is checked
+/// afterwards and is the one that was there before.
+#[test]
+fn the_app_refuses_a_property_the_project_does_not_configure() {
+    let (_temp, root) = copy_representative_project();
+    // Types on with one value; the other three left off, which is what every
+    // project file written before this build reads as.
+    let project_file = root.join(".longclaw/longclaw.yaml");
+    let mut configured = fs::read_to_string(&project_file).expect("the fixture project file");
+    configured.push_str(concat!(
+        "properties:\n",
+        "  type:\n",
+        "    enabled: true\n",
+        "    values:\n",
+        "      bug:\n",
+        "        name: Bug\n",
+        "        color: red\n",
+    ));
+    fs::write(&project_file, &configured).expect("the configured project file");
+
+    let (engine, _events) = start_engine(&root);
+    let before = indexed(&engine.snapshot().tickets, "LC-1").clone();
+    let untouched = fs::read_to_string(ticket_path(&root, "LC-1")).expect("ticket.md");
+
+    for (edit, expected) in [
+        (
+            // Enabled, and a slug this project never defined.
+            TicketEdit {
+                ticket_type: Some(Some("epic".to_owned())),
+                ..TicketEdit::default()
+            },
+            "is not defined in this project",
+        ),
+        (
+            // Off, so the app has no business writing it.
+            TicketEdit {
+                due: Some(Some("2026-09-28".to_owned())),
+                ..TicketEdit::default()
+            },
+            "has not enabled the due property",
+        ),
+        (
+            // And off is off for a clear as much as for a set: the value is
+            // being hidden, not deleted, and the ticket still holds it.
+            TicketEdit {
+                estimate: Some(None),
+                ..TicketEdit::default()
+            },
+            "has not enabled the estimate property",
+        ),
+    ] {
+        let refused = engine
+            .edit_ticket("LC-1", &edit, &before.content_hash)
+            .expect_err("this project does not configure that property");
+        assert_eq!(refused.code, ErrorCode::ParseFailed);
+        assert!(refused.message.contains(expected), "{}", refused.message);
+    }
+
+    // The value the project does define is written, so the refusals above are
+    // about the project's configuration and not about properties at all.
+    engine
+        .edit_ticket(
+            "LC-1",
+            &TicketEdit {
+                ticket_type: Some(Some("bug".to_owned())),
+                ..TicketEdit::default()
+            },
+            &before.content_hash,
+        )
+        .expect("bug is a type this project defines");
+    assert!(fs::read_to_string(ticket_path(&root, "LC-1"))
+        .expect("ticket.md")
+        .contains("type: bug\n"));
+
+    // A create is held to the same vocabulary, and refused before it claims a
+    // directory: the next key is still free.
+    let refused = engine
+        .create_ticket(&NewTicket {
+            title: "A ticket the project cannot describe".to_owned(),
+            properties: TicketProperties {
+                start: Some("2026-09-14".to_owned()),
+                ..TicketProperties::default()
+            },
+            ..NewTicket::default()
+        })
+        .expect_err("this project has no start dates");
+    assert!(
+        refused
+            .message
+            .contains("has not enabled the start property"),
+        "{}",
+        refused.message
+    );
+    assert!(!ticket_path(&root, "LC-7").exists());
+
+    // Four writes were asked for and one was accepted, so the history records
+    // one. A refusal that had reached `apply_as` would have appended an event
+    // for a change no file kept.
+    let after = fs::read_to_string(ticket_path(&root, "LC-1")).expect("ticket.md");
+    assert_eq!(
+        after.matches("kind: update").count(),
+        untouched.matches("kind: update").count() + 1
+    );
+}
+
 #[test]
 fn rebuilding_the_index_reproduces_the_same_visible_state() {
     let (_temp, root) = copy_representative_project();

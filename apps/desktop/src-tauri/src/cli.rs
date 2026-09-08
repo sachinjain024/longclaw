@@ -42,8 +42,8 @@ use crate::app_state::AppState;
 use crate::core::project::{ProjectDocument, DEFAULT_LABEL_COLOR};
 use crate::core::storage::{self, NewTicket};
 use crate::core::ticket::{
-    validate_property, Actor, ChecklistMove, ChecklistTextEdit, ChecklistToggle, NewChecklistItem,
-    Priority, Property, Status, TicketEdit, TicketProperties,
+    Actor, ChecklistMove, ChecklistTextEdit, ChecklistToggle, NewChecklistItem, Priority, Property,
+    Status, TicketEdit, TicketProperties,
 };
 use crate::core::{AppError, AppResult, ErrorCode, ProjectReference};
 
@@ -516,10 +516,11 @@ fn property_edit(
     if requested.is_some() && cleared {
         return Err(usage_error(format!("--{name} and --{clear} disagree")));
     }
-    enabled_property(document, property)?;
+    let properties = &document.project().properties;
+    properties.require_enabled(property)?;
     match requested {
         None => Ok(Some(None)),
-        Some(value) => Ok(Some(Some(configured_value(document, property, value)?))),
+        Some(value) => Ok(Some(Some(properties.accept(property, value)?))),
     }
 }
 
@@ -532,8 +533,7 @@ fn new_properties(options: &Options, document: &ProjectDocument) -> AppResult<Ti
         let Some(value) = options.one(&name)? else {
             continue;
         };
-        enabled_property(document, property)?;
-        let value = Some(configured_value(document, property, value)?);
+        let value = Some(document.project().properties.accept(property, value)?);
         match property {
             Property::Type => properties.ticket_type = value,
             Property::Due => properties.due = value,
@@ -542,79 +542,6 @@ fn new_properties(options: &Options, document: &ProjectDocument) -> AppResult<Ti
         }
     }
     Ok(properties)
-}
-
-fn enabled_property(document: &ProjectDocument, property: Property) -> AppResult<()> {
-    if document.project().properties.is_enabled(property) {
-        return Ok(());
-    }
-    let name = property.as_str();
-    Err(AppError::new(
-        ErrorCode::ParseFailed,
-        format!(
-            "This project has not enabled the {name} property, so a ticket in it carries no \
-             {name}. Turn it on in .longclaw/longclaw.yaml under properties.{name}.enabled."
-        ),
-        true,
-    ))
-}
-
-/// The half of the check that needs the project: whether the value is one this
-/// project's vocabulary contains.
-///
-/// [`validate_property`] has already held it to the format's own rule, which is
-/// all a date has. Type and estimate have a vocabulary, and this is where an
-/// undefined value is refused — the same refusal `known_labels` makes, for the
-/// same reason: a slug nothing defines renders as itself, and writing one is how
-/// that happens by accident.
-fn configured_value(
-    document: &ProjectDocument,
-    property: Property,
-    value: &str,
-) -> AppResult<String> {
-    let value = validate_property(property, value)?;
-    let properties = &document.project().properties;
-    match property {
-        Property::Due | Property::Start => {}
-        Property::Type => {
-            if !properties.ticket_type.values.contains_key(&value) {
-                let defined = properties
-                    .ticket_type
-                    .values
-                    .keys()
-                    .cloned()
-                    .collect::<Vec<_>>();
-                return Err(AppError::new(
-                    ErrorCode::ParseFailed,
-                    format!(
-                        "The type {value:?} is not defined in this project. {} Define it in \
-                         .longclaw/longclaw.yaml under properties.type.values.",
-                        if defined.is_empty() {
-                            "It defines no type values yet.".to_owned()
-                        } else {
-                            format!("It defines {}.", defined.join(", "))
-                        }
-                    ),
-                    true,
-                ));
-            }
-        }
-        Property::Estimate => {
-            if !properties.estimate.accepts(&value) {
-                return Err(AppError::new(
-                    ErrorCode::ParseFailed,
-                    format!(
-                        "The estimate {value:?} is not one this project's {} scale can read. \
-                         Expected {}.",
-                        properties.estimate.system.as_str(),
-                        properties.estimate.vocabulary()
-                    ),
-                    true,
-                ));
-            }
-        }
-    }
-    Ok(value)
 }
 
 fn description(options: &Options) -> AppResult<Option<String>> {

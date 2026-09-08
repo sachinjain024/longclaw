@@ -12,7 +12,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use super::error::Diagnostic;
-use super::ticket::{render_new_ticket, Property};
+use super::ticket::{render_new_ticket, validate_property, Property, TicketEdit, TicketProperties};
 use super::yaml::{encode_scalar, Mapping};
 
 pub const PROJECT_FORMAT: &str = "longclaw.project/v1";
@@ -247,6 +247,101 @@ impl PropertiesConfig {
             .into_iter()
             .filter(|property| self.is_enabled(*property))
             .collect()
+    }
+
+    /// Whether this project reads `property` at all, as a refusal a write can
+    /// return.
+    ///
+    /// Both halves of an edit are held to this, including a clear: a disabled
+    /// property is one this build declines to interpret, and deleting a value it
+    /// is deliberately not reading is the one thing "disabling hides, it never
+    /// deletes" rules out.
+    pub fn require_enabled(&self, property: Property) -> Result<(), Diagnostic> {
+        if self.is_enabled(property) {
+            return Ok(());
+        }
+        let name = property.as_str();
+        Err(Diagnostic::parse(format!(
+            "This project has not enabled the {name} property, so a ticket in it carries no \
+             {name}. Turn it on in Settings under Ticket properties, or in \
+             .longclaw/longclaw.yaml under properties.{name}.enabled."
+        )))
+    }
+
+    /// The project half of a property check, returning the value as it would be
+    /// written.
+    ///
+    /// [`validate_property`] has already held the value to the format's own
+    /// rule, which is all a date has. Type and estimate have a vocabulary, and
+    /// this is where an undefined value is refused — the same refusal an
+    /// undefined label gets, for the same reason: a slug nothing defines renders
+    /// as itself, and writing one is how that happens by accident.
+    pub fn accept(&self, property: Property, value: &str) -> Result<String, Diagnostic> {
+        self.require_enabled(property)?;
+        let value = validate_property(property, value)?;
+        match property {
+            Property::Due | Property::Start => {}
+            Property::Type => {
+                if !self.ticket_type.values.contains_key(&value) {
+                    let defined = self.ticket_type.values.keys().cloned().collect::<Vec<_>>();
+                    return Err(Diagnostic::parse(format!(
+                        "The type {value:?} is not defined in this project. {} Define it in \
+                         Settings under Ticket properties, or in .longclaw/longclaw.yaml under \
+                         properties.type.values.",
+                        if defined.is_empty() {
+                            "It defines no type values yet.".to_owned()
+                        } else {
+                            format!("It defines {}.", defined.join(", "))
+                        }
+                    )));
+                }
+            }
+            Property::Estimate => {
+                if !self.estimate.accepts(&value) {
+                    return Err(Diagnostic::parse(format!(
+                        "The estimate {value:?} is not one this project's {} scale can read. \
+                         Expected {}.",
+                        self.estimate.system.as_str(),
+                        self.estimate.vocabulary()
+                    )));
+                }
+            }
+        }
+        Ok(value)
+    }
+
+    /// Holds everything a create asks for to what this project configures.
+    ///
+    /// A create has no clear: there is nothing on a ticket that does not exist
+    /// yet to remove.
+    pub fn accept_new(&self, properties: &TicketProperties) -> Result<(), Diagnostic> {
+        for property in Property::ALL {
+            if let Some(value) = properties.get(property) {
+                self.accept(property, value)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// The same for an edit, which asks two different things of a property.
+    ///
+    /// Every surface that holds the project calls this before the edit reaches
+    /// [`super::ticket::TicketDocument::apply_as`], which deliberately does not:
+    /// applying an edit is the format's business, and what a *project* accepts
+    /// is not a question the file it is writing can answer.
+    pub fn accept_edit(&self, edit: &TicketEdit) -> Result<(), Diagnostic> {
+        for (property, requested) in edit.properties() {
+            let Some(requested) = requested else { continue };
+            match requested.as_deref() {
+                Some(value) => {
+                    self.accept(property, value)?;
+                }
+                // A clear names no value, so the enabled half is all there is to
+                // ask — and it is asked, deliberately.
+                None => self.require_enabled(property)?,
+            }
+        }
+        Ok(())
     }
 }
 
@@ -1138,8 +1233,9 @@ fn example_ticket(key: &str) -> String {
 mod tests {
     use super::{
         parse_duration, render_new_project, EstimateConfig, EstimateSystem, ProjectDocument,
-        Property, DEFAULT_ATTENTION_DAYS, DEFAULT_DAYS_PER_WEEK, DEFAULT_HOURS_PER_DAY,
-        DEFAULT_THEME, PROJECT_FORMAT, SEEDED_TSHIRT_SCALE, SEEDED_TYPE_VALUES,
+        Property, TicketEdit, TicketProperties, DEFAULT_ATTENTION_DAYS, DEFAULT_DAYS_PER_WEEK,
+        DEFAULT_HOURS_PER_DAY, DEFAULT_THEME, PROJECT_FORMAT, SEEDED_TSHIRT_SCALE,
+        SEEDED_TYPE_VALUES,
     };
     use crate::core::ErrorCode;
 
@@ -1499,6 +1595,143 @@ mod tests {
         // A key inside the block that this build does not interpret is part of
         // the file, and the file comes back as it was.
         assert_eq!(document.render(), CONFIGURED);
+    }
+
+    /// Every surface that writes a property asks this, so there is one refusal
+    /// rather than one per surface. `apply_as` holds a value to the format's own
+    /// rule and nothing more, which left the app able to write a type no project
+    /// defined — and an undefined slug renders as itself, with no name and no
+    /// colour.
+    #[test]
+    fn a_value_is_held_to_the_vocabulary_the_project_configures() {
+        let document = ProjectDocument::parse(CONFIGURED).expect("the fixture should parse");
+        let properties = &document.project().properties;
+
+        assert_eq!(
+            properties.accept(Property::Type, " bug ").as_deref(),
+            Ok("bug")
+        );
+        assert_eq!(
+            properties.accept(Property::Due, "2026-09-28").as_deref(),
+            Ok("2026-09-28")
+        );
+        assert_eq!(
+            properties.accept(Property::Estimate, "1.5d").as_deref(),
+            Ok("1.5d")
+        );
+
+        // Enabled, and a slug this project never defined.
+        let refused = properties
+            .accept(Property::Type, "epic")
+            .expect_err("epic is not one of this project's types");
+        assert_eq!(refused.code, ErrorCode::ParseFailed);
+        assert!(
+            refused.message.contains("It defines bug, feature."),
+            "{}",
+            refused.message
+        );
+
+        // Enabled, and a value the project's *system* cannot read: `m` is a
+        // t-shirt size and this project estimates in durations.
+        let refused = properties
+            .accept(Property::Estimate, "m")
+            .expect_err("m is not a duration");
+        assert!(
+            refused.message.contains("2h, 1.5d or 1w"),
+            "{}",
+            refused.message
+        );
+
+        // Off, so there is no vocabulary to check a value against at all.
+        let refused = properties
+            .accept(Property::Start, "2026-09-28")
+            .expect_err("this project has no start dates");
+        assert!(
+            refused
+                .message
+                .contains("has not enabled the start property"),
+            "{}",
+            refused.message
+        );
+    }
+
+    /// A clear is refused on a disabled property as firmly as a set is.
+    ///
+    /// `TicketEdit` distinguishes absent from cleared so a Clear row has
+    /// something to send, and a property this build declines to interpret is the
+    /// one place that row must not reach: the value is being hidden, not
+    /// deleted, and the ticket still holds it.
+    #[test]
+    fn an_edit_is_refused_for_a_property_the_project_does_not_read() {
+        let document = ProjectDocument::parse(CONFIGURED).expect("the fixture should parse");
+        let properties = &document.project().properties;
+
+        let named_none = TicketEdit {
+            title: Some("Renamed".to_owned()),
+            ..TicketEdit::default()
+        };
+        properties
+            .accept_edit(&named_none)
+            .expect("an edit that names no property is nobody's business but the format's");
+
+        for refused in [
+            TicketEdit {
+                start: Some(Some("2026-09-28".to_owned())),
+                ..TicketEdit::default()
+            },
+            TicketEdit {
+                start: Some(None),
+                ..TicketEdit::default()
+            },
+        ] {
+            let refused = properties
+                .accept_edit(&refused)
+                .expect_err("this project has no start dates");
+            assert!(
+                refused
+                    .message
+                    .contains("has not enabled the start property"),
+                "{}",
+                refused.message
+            );
+        }
+
+        // The same clear, on a property the project does read.
+        properties
+            .accept_edit(&TicketEdit {
+                due: Some(None),
+                ..TicketEdit::default()
+            })
+            .expect("clearing a due date is what the Clear row is for");
+    }
+
+    /// The create side of the same check. It has no clear — there is nothing on
+    /// a ticket that does not exist yet to remove — so every value it carries is
+    /// a set.
+    #[test]
+    fn a_create_is_held_to_the_same_vocabulary_as_an_edit() {
+        let document = ProjectDocument::parse(CONFIGURED).expect("the fixture should parse");
+        let properties = &document.project().properties;
+
+        properties
+            .accept_new(&TicketProperties {
+                ticket_type: Some("feature".to_owned()),
+                due: Some("2026-09-28".to_owned()),
+                ..TicketProperties::default()
+            })
+            .expect("both values are ones this project configures");
+
+        let refused = properties
+            .accept_new(&TicketProperties {
+                estimate: Some("m".to_owned()),
+                ..TicketProperties::default()
+            })
+            .expect_err("m is not a duration");
+        assert!(
+            refused.message.contains("scale can read"),
+            "{}",
+            refused.message
+        );
     }
 
     /// A property this build declines to read is not a property that vanishes.

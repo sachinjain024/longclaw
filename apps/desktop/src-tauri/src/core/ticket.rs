@@ -684,6 +684,23 @@ impl TicketEdit {
             && self.add_checklist_items.is_empty()
             && self.comment.is_none()
     }
+
+    /// What this edit asks of each of the four properties, paired with the
+    /// property it answers for.
+    ///
+    /// One spelling of the four, because there are two walks over them — the one
+    /// that applies them and the one that holds them to the project
+    /// ([`crate::core::project::PropertiesConfig::accept_edit`]) — and a fifth
+    /// property added to one and not the other would be a property the app
+    /// writes without ever checking.
+    pub fn properties(&self) -> [(Property, &Option<Option<String>>); 4] {
+        [
+            (Property::Type, &self.ticket_type),
+            (Property::Due, &self.due),
+            (Property::Start, &self.start),
+            (Property::Estimate, &self.estimate),
+        ]
+    }
 }
 
 /// The bytes an edit produced, the changes it recorded, and the reparsed result.
@@ -1000,12 +1017,7 @@ impl TicketDocument {
                 _ => {}
             }
         }
-        for (property, requested) in [
-            (Property::Type, &edit.ticket_type),
-            (Property::Due, &edit.due),
-            (Property::Start, &edit.start),
-            (Property::Estimate, &edit.estimate),
-        ] {
+        for (property, requested) in edit.properties() {
             let Some(requested) = requested else { continue };
             let key = property.as_str();
             let previous = current.property(property).map(str::to_owned);
