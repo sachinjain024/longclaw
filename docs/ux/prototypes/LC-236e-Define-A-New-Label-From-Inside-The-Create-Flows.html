@@ -98,51 +98,43 @@
   white-space: nowrap;
 }
 
-/* Nothing survived the derivation: a name in Japanese, or one that is all
-   punctuation (`core/project.rs:343-359` wants an ASCII lowercase first
-   character). The line does not go away — an empty line where a key was is the
-   thing the ticket is arguing against — it says so. With the key read-only
-   there is nothing beyond it: this state is a dead end inside the create flow,
-   which is the open question the notes column puts first. */
-.derived-slug .slug.absent {
+/* Before anything is typed: what this line is for, rather than a blank. The
+   only quiet state the line has — every other one is a key or a rule. */
+.derived-slug .slug.hint {
   color: var(--lc-ink-3);
   font-style: italic;
 }
 
-/* Derived, but not a key: `2026 goals` gives `2026-goals`, which is a fine
-   string and not a slug. Danger-toned rather than hidden, because the refusal
-   this prevents is one Rust would otherwise make after the press, about a key
-   that was never on screen. With the key read-only the way out is the name —
-   `Goals 2026` gives `goals-2026` — which the note beside it says. */
+/* Two states wear this. **Derived, but not a key**: `2026 goals` gives
+   `2026-goals`, which is a fine string and not a slug — the key is shown, in
+   the danger tone, because the refusal it prevents is one Rust would otherwise
+   make after the press about a key that was never on screen. **Nothing derived
+   at all**: a name in Japanese, or one that is all punctuation
+   (`core/project.rs:343-359` wants an ASCII lowercase first character) — there
+   is no key to draw, so the line carries the rule instead. The line never goes
+   away and never goes blank; that silence is what the ticket argues against.
+
+   With the key read-only the way out of both is the name: `Goals 2026` gives
+   `goals-2026`. For a name with no ASCII in it there is no way out at all,
+   which is the open question the notes column puts first. */
 .derived-slug .slug.refused {
   color: var(--lc-danger);
 }
 
 /* One line, under the key, in the danger tone: why this cannot be added yet.
-   It is not a toast. A collision is decided while the key is being typed — the
+   It is not a toast. A collision is decided while the name is being typed — the
    definitions are in hand — so it is said where the typing is, and the write is
    never attempted. The toast path stays for the refusal the client could not
-   predict; see `.menu-define` in the notes column. */
+   predict; see `.menu-define` in the notes column.
+
+   Text only. It carried a *Tick it instead* button beside the collision, which
+   review removed: a refusal that also acts is two things, and the row that
+   would have been ticked is already on screen directly above this one. */
 .menu-define-note {
-  display: flex;
-  gap: 6px;
-  align-items: baseline;
   margin: 0;
   color: var(--lc-danger);
   font-size: var(--lc-type-small-size);
   line-height: 1.4;
-}
-
-/* The offer beside the refusal: the slug that collided is already a row of this
-   very menu, and ticking it is what the person almost certainly came for. */
-.menu-define-note button {
-  border: 0;
-  padding: 0;
-  color: var(--lc-accent-human-text);
-  background: none;
-  font: inherit;
-  text-decoration: underline;
-  cursor: pointer;
 }
 
 /* Commit. `Enter` in the name field does the same thing — the common case is a
@@ -355,7 +347,7 @@ body {
     <button data-drive="reset">reset</button>
   </span>
   <span class="sep" aria-hidden="true"></span>
-  <span class="ask">revision 2 · read-only key, no re-render while typing</span>
+  <span class="ask">revision 3 · reviewed copy, refusal only refuses</span>
   <span class="spacer"></span>
   <span class="swatches" role="group" aria-label="Project theme">
     <button class="swatch" data-theme-pick="ember" aria-pressed="true" title="Ember"><i data-theme="light" data-lc-theme="ember"></i></button>
@@ -383,9 +375,9 @@ body {
       <li>The driver opens on an <strong>empty project</strong>. Press <kbd>+ add</kbd>: the menu has no rows, so it opens with the define row already expanded and the caret in it. Type <code>Frontend</code>, press <kbd>↵</kbd>.</li>
       <li>Watch the right: <code>longclaw.yaml</code> gained the definition, and the chip is on the draft ticket. One gesture, both.</li>
       <li>The row emptied and stayed open. Type <code>Back-End</code> — the key updates under the field as you type — and <kbd>↵</kbd> again.</li>
-      <li>Now type <code>Back end</code>. It derives to <code>back-end</code>, the same key <code>Back-End</code> just gave, so the row refuses, names the key that collided, and offers to tick the definition that is already there. (The ticket's prose says this pair derives to <code>backend</code>; under the derivation the ticket itself specifies, it is <code>back-end</code>. They still collide, which is the point it was making.)</li>
-      <li>Type <code>2026 goals</code>. It derives to <code>2026-goals</code>, which is not a slug — a key starts with a letter — so the row refuses and names it. Type <code>Goals 2026</code> instead: the name is the only thing that can change the key.</li>
-      <li>Type <code>日本語</code>. Nothing survives the derivation, and with the key read-only there is nothing past the refusal. That is a dead end — the first open question below.</li>
+      <li>Now type <code>Back end</code>. It derives to <code>back-end</code>, the same key <code>Back-End</code> just gave, so the row refuses and names the key that collided and the label already holding it. The row it is talking about is directly above the message. (The ticket's prose says this pair derives to <code>backend</code>; under the derivation the ticket itself specifies, it is <code>back-end</code>. They still collide, which is the point it was making.)</li>
+      <li>Type <code>2026 goals</code>. It derives to <code>2026-goals</code>, which is not a slug, so the key is shown in red with the rule under it. Type <code>Goals 2026</code> instead: the name is the only thing that can change the key.</li>
+      <li>Type <code>日本語</code>. Nothing derives at all, so the key line carries the rule in place of a key — the same sentence, since it is the same rule — and with the key read-only there is nothing past it. That is a dead end: the first open question below.</li>
       <li>Press <kbd>esc</kbd> three times — row, menu, modal. No ticket was created. <strong>The labels are still in the file.</strong></li>
       <li>Switch to <strong>full create</strong> and <strong>project settings</strong>: the same row, and the settings add-row no longer asks anyone to author a key.</li>
       <li>Press <strong>refuse the next write</strong> and add a label: this is the path the client could not predict, and where the refusal has to land.</li>
@@ -406,6 +398,8 @@ body {
       <li class="q"><strong>The write lands immediately.</strong> A label defined and then abandoned is still in the file — press <kbd>esc</kbd> out of step 7 and look. The alternative, holding the definition until the ticket is created, makes the ticket write conditional on a second write and is worse.</li>
       <li class="q"><strong>An empty project opens the row expanded.</strong> A popover whose only content is a collapsed invitation is a popover that still says nothing, which is the exact complaint this ticket opens with.</li>
       <li class="q"><strong>A collision is decided while you type, not after you press.</strong> The definitions are already in hand. Rust stays the authority for what it alone can know.</li>
+      <li class="q"><strong>The collision is a refusal and nothing else.</strong> It carried a <em>Tick it instead</em> button; review took it off. A refusal that also acts is two things, and the row it would have ticked is on screen directly above the message.</li>
+      <li class="q"><strong>Every way a name fails to make a key says one sentence</strong> — <code>Label Name must start with a letter [a-z]</code> — because they are all the same rule. It points at the name, which is the only thing left to change.</li>
       <li class="q"><strong>The popover is 268px from the moment it opens</strong>, never widened when the row expands: <code>usePopoverPlacement</code> measures once and clamps nothing, so growth in full create would go off the right edge and stay there.</li>
       <li class="q"><strong><kbd>Esc</kbd> walks the ladder</strong> (<code>keyboard-focus-map.md:19</code>): row → menu → modal, one rung a press.</li>
     </ol>
@@ -413,7 +407,7 @@ body {
     <h2>Open — decide these</h2>
     <ol>
       <li class="open"><strong>A name with no ASCII in it is a dead end.</strong> The ticket closed this hole with an editable key — &ldquo;the visible line is the escape hatch&rdquo; — and a read-only key re-opens it. A project whose vocabulary is Japanese, Greek or Cyrillic cannot define a label from the create flow at all, and cannot from settings either once that row adopts the same derivation. Three ways out, none free: leave it (those users go to the file), keep a key field in settings only (the two surfaces disagree again, which this ticket exists to stop), or let the derivation propose something when nothing survives (a generated key on a card, which the ticket argues against by name).</li>
-      <li class="open"><strong>The offer beside a collision.</strong> The ticket asks for a refusal. This draws the refusal <em>and</em> a <em>tick it instead</em> link, because a person who typed <code>Back end platform</code> at a project that already has <code>back-end-platform</code> almost certainly wants the one that is there. That is more than was asked for. Keep it, or refuse plainly?</li>
+      <li class="open"><strong>Which slot carries the rule when nothing derives.</strong> The key line and the refusal line both sit in that state, and the sentence is the same one, so it is drawn once — in the key line, there being no key to show instead. The other reading is that every message belongs in the refusal slot and the key line keeps its <code>Label key (auto-generated)</code> hint throughout. One line of the prototype either way.</li>
       <li class="open"><strong>The colour default.</strong> Settings defaults to <code>LABEL_COLORS[0]</code>, so a seeded project comes out all blue. This picks the first hue the project is not already using and falls back to blue when all eight are taken. Should settings adopt that too?</li>
       <li class="open"><strong>Diacritics.</strong> The ticket's derivation gives <code>caf</code> for <code>Café</code> and <code>n-code</code> for <code>Ünïcode</code> — the accented letters are punctuation to <code>[a-z0-9]</code>. This folds NFD first, so <code>Café</code> → <code>cafe</code>. One extra line, and with the key read-only it is now load-bearing rather than nice: a mangled key is no longer something the person can correct.</li>
       <li class="open"><strong>No Undo on the toast.</strong> Every other project write offers one. The inverse here is two things — remove the definition <em>and</em> untick the draft — and <code>writeProjectFile</code>'s <code>undo</code> is for "one field with one inverse". <code>removeProjectLabel</code> exists, so it is possible; it is just not one field.</li>
@@ -573,18 +567,29 @@ function colorField(value, open, name) {
 /* ----------------------------------------------------- the derived-key line */
 
 /**
+ * One sentence for every way a name fails to make a key, said in one place so
+ * the two states that break the same rule cannot drift apart. It points at the
+ * **name**, which is the only thing a person can change now that the key is
+ * read-only — the key it would have produced is not actionable.
+ */
+const RULE = "Label Name must start with a letter [a-z]";
+
+/**
  * The key, under the field that produced it, in all four of its states. The
  * line never goes away: an empty line where a key was is exactly the silence
  * this ticket argues against.
  */
 function derivedSlug(current) {
   const text =
-    current.kind === "blank" ? "the key appears here"
-      : current.kind === "absent" ? "no key can be made from that name"
+    current.kind === "blank" ? "Label key (auto-generated)"
+      : current.kind === "absent" ? RULE
         : current.slug;
+  /* `blank` is a hint and reads as one; `absent` is the rule being broken, so
+     it takes the same danger tone as a key that derived but is not one. */
   const tone =
-    current.kind === "blank" || current.kind === "absent" ? " absent"
-      : current.kind === "refused" ? " refused" : "";
+    current.kind === "blank" ? " hint"
+      : current.kind === "absent" || current.kind === "refused" ? " refused"
+        : "";
   /* No control, at any point. The key is text, and the only way to change it is
      to change the name above it. `aria-live="polite"` because a sighted person
      watches it update as they type, and nobody else would otherwise learn that
@@ -594,17 +599,22 @@ function derivedSlug(current) {
   </span>`;
 }
 
-/** The one line saying why this cannot be added yet. Never a toast. */
+/**
+ * The one line saying why this cannot be added yet. Never a toast.
+ *
+ * `absent` says nothing here. The rule is the same rule the `refused` state
+ * breaks, so it is the same sentence — and in the `absent` state the key line
+ * is already showing it, there being no key to show instead. Rendering it in
+ * both slots would stack one sentence on top of itself. If it should live in
+ * this slot in both states instead, the swap is: `RULE` here, and the key line
+ * back to its hint.
+ */
 function defineNote(current) {
   if (current.kind === "refused") {
-    return `<p class="menu-define-note">A key starts with a letter, so <code>${esc(current.slug)}</code> is not one. Try a name that does.</p>`;
-  }
-  if (current.kind === "absent") {
-    return `<p class="menu-define-note">That name has no ASCII letters to make a key from, and there is no key to type by hand.</p>`;
+    return `<p class="menu-define-note">${RULE}</p>`;
   }
   if (current.kind === "taken") {
-    return `<p class="menu-define-note"><span><code>${esc(current.slug)}</code> is already defined as ${esc(app.labels[current.slug].name)}.</span>
-      <button tabindex="0" type="button" data-role="tick-existing" data-slug="${esc(current.slug)}">Tick it instead</button></p>`;
+    return `<p class="menu-define-note"><code>${esc(current.slug)}</code> already exists for ${esc(app.labels[current.slug].name)}. Please provide a new Label name.</p>`;
   }
   return "";
 }
@@ -1020,13 +1030,6 @@ document.addEventListener("click", (event) => {
     case "colors":
       app.colors = !app.colors;
       return render();
-    case "tick-existing": {
-      const slug = role.slug;
-      if (!app.ticketLabels.includes(slug)) app.ticketLabels.push(slug);
-      app.define = { name: "", color: nextColor() };
-      app.focus = "name-field";
-      return render();
-    }
     default:
       break;
   }
