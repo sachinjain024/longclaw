@@ -81,6 +81,46 @@ eaten inside a `<pre>`, grid floors that cannot shrink below a phone, prose
 styles leaking into a component's own `<pre>`, and defects that exist only once
 Pages is serving the site.
 
+## UX prototypes
+
+A prototype under `docs/ux/prototypes/` exists to be reviewed **before** code is
+written, so it has to be reviewable in both of the things it proposes: the
+layout and the copy. `docs/ux/prototypes/README.md` covers the file's shape —
+one standalone HTML file per ticket, the app's own tokens and `styles.css`, the
+components' real markup, and the CSS it proposes in `<style id="proposed">`
+apart from the harness's own.
+
+**Every prototype also carries a copy deck**, in the prototype itself — the last
+scene in its driver bar, not a separate document. Collect into it every
+user-facing string the prototype puts on screen, so the copy can be read _as
+copy_: one column, one voice, without hunting through five scenes for the three
+sentences that disagree with each other. Copy is the half of a design that gets
+reviewed last and shipped hardest to change.
+
+Five rules make the deck worth having:
+
+- **The scenes read the deck, not the other way round.** Put the strings in one
+  object and render both the scenes and the deck from it. A deck typed out
+  beside the markup is two spellings of one sentence, and this repo already
+  knows how that ends: a stale copy line reads exactly like a fresh one.
+- **Every row is addressable.** Give each string a short id and show it, so a
+  reply can say `due.window.note → …` rather than quoting prose back.
+- **Say what each string is and where it appears** — a button, a field label, a
+  placeholder, an empty state, a note, write feedback, a refusal, a menu row and
+  its hint. Tone is judged per kind: a refusal and a note are not written the
+  same way, and a list that flattens them invites one voice for both.
+- **Include the copy no screen shows.** `aria-label`s, `title`s and live regions
+  are read out loud by someone, and they are the copy that has never once been
+  reviewed.
+- **Mark which rows are new or changed** against what the app ships today. A
+  review needs the neighbours for tone and needs to know which sentences it is
+  actually being asked about.
+
+When the copy comes back edited, change the prototype's object — one place,
+before any of it reaches `src/`. Then **write the settled deck into the ticket**,
+because the prototype is deleted once the ticket is reviewed and copy that only
+ever lived in a deleted file has to be re-litigated by whoever ships it.
+
 ## Git workflow
 
 Agents must always create a topic branch before making changes.

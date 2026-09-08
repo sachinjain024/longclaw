@@ -14,6 +14,11 @@ The CSS a ticket proposes goes in a `<style id="proposed">` block and the
 harness's own in `<style id="harness">`, kept apart so a review can tell which
 is which.
 
+Each one also ends in a **copy deck**: every user-facing string it proposes,
+collected in one scene so the copy can be reviewed as copy rather than found
+scene by scene. The scenes and the deck render from the same object, so the two
+cannot drift. See `AGENTS.md` § UX prototypes for what belongs in it.
+
 - [`LC-201-Bulk-Create-In-Quick-Create-Mode.html`](LC-201-Bulk-Create-In-Quick-Create-Mode.html)
   — quick create with a description, labels and a **Create more** loop
   (spec: `.longclaw/tickets/LC-201/ticket.md`).
