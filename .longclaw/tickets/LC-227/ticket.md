@@ -8,7 +8,7 @@ priority: urgent
 labels:
   - release
 created_at: 2026-08-22T06:13:17.138Z
-updated_at: 2026-09-08T01:26:16.394Z
+updated_at: 2026-09-08T02:03:13.442Z
 ---
 
 Brainstorm with LLM agent like what other fields we should support. A few items I can think of are Type - Bug/Task, Due State, Start Date, Effort
@@ -143,14 +143,31 @@ value, keep the bytes — and it is why this control is a Field in the
 
 **Parsing happens on commit — Enter or blur — not per keystroke**, because
 `28 Se` is not a state worth reporting on. What the control shows *while* typing
-is a question for the prototype.
+was left to the prototype, and the answer is **an echo, not a verdict**: once
+typed text resolves, a quiet line under the field says the day it resolved to in
+full — `→ Tue 28 Sep 2027`. Nothing ever goes red mid-word. The echo earns its
+place on the year rule alone: forward-only is invisible without it, and a date
+that silently lands a year out is the exact failure the grammar was written to
+prevent. It shows only while the field differs from what the file says, so a
+field at rest is not wearing a second copy of its own value.
 
 **Display is the input's mirror**, which settles something the app has never
 done: nothing in it prints an absolute date today — no month name appears
 anywhere in `apps/desktop/src`. A due date renders `28 Sep`, and `28 Sep 2027`
-when the year is not the current one, so **what is displayed is always something
-the grammar accepts**. Day-then-month is a choice rather than a deduction, and
-it is consistent with an app that hardcodes its English everywhere else.
+when the year is not the current one. Day-then-month is a choice rather than a
+deduction, and it is consistent with an app that hardcodes its English
+everywhere else.
+
+**"Something the grammar accepts" was not enough, and the prototype found it.**
+A form with no year means the nearest *future* occurrence, so a ticket due
+5 Sep 2026 opened on 8 Sep 2026 renders `5 Sep` — which the grammar accepts and
+reads back as **5 Sep 2027**. The field would be showing a string that does not
+mean the day it is showing it for, and the first person to retype what is
+already in front of them moves the date a year without being told. So a **field**
+carries the year whenever the value would not round-trip without it: when it is
+not in the current year, **or when it is in the past**. A **card** keeps the
+short form, because nobody types into a card — which is the same split the chip
+already makes below.
 
 **The CLI takes the canonical form only** — `--due 2026-09-28`, and an error
 naming the shape for anything else. ADR 0011 keeps the CLI from being a second
@@ -496,6 +513,88 @@ that, and there is no existing term for "a named piece of ticket frontmatter".
 **Property** is the recommendation, and it is the word this ticket already
 reaches for.
 
+## The prototype
+
+[`docs/ux/prototypes/LC-227-Ticket-Properties.html`](../../../docs/ux/prototypes/LC-227-Ticket-Properties.html)
+— open it in a browser, no server and no build. Five scenes in the driver bar,
+one question each, and every scene drives off one injected `today` that the
+driver's `± day` moves.
+
+It renders the app's own markup wearing `styles.css`; the CSS it proposes is in
+`<style id="proposed">` and the harness's own in `<style id="harness">`, so a
+review can tell which is which. Written to be **deleted** once this ticket is
+reviewed, along with its line in the prototypes index.
+
+### What it proposes
+
+- **The panel splits on a container query, not a media query.** LC-238s makes
+  the width a dragged, remembered number, so "is there room for a rail" is a
+  question about that box and never about the window. At 660px — 560 plus the
+  rail plus the gap — the rail appears; under it the properties fold back into
+  the stacked meta grid exactly where they stand today. Source order is
+  main-then-rail, so the fold is a no-op rather than a reorder.
+- **A 232px rail, seven rows, name above control.** The one departure from the
+  meta grid, and it is forced: 232px spending 84 on a label column leaves 148
+  for a date field and its trigger, and no room at all for the estimate scale.
+  Labels last, because it is the only row that grows. Start above Due —
+  chronological, adjacent, and the pair the forward-only rule is a trade for.
+- **The date field is one control with two ways in.** A Field with the calendar
+  joined to its right edge, the trigger not a tab stop (`↓` from the field is
+  its keyboard path), and a refusal that keeps the text and says which rule it
+  broke — a different sentence per refusal, because each has a different next
+  move.
+- **The picker is right-aligned on the field and lifted into view.**
+  `popover.ts` already answers both: `belowAnchor(anchor, width)` right-aligns
+  for "a trigger at the window's far edge", which is precisely a date field in a
+  right-hand rail, and `liftIntoView` is what stops the tallest popover the app
+  will have — 253px of grid — losing its Clear row off the bottom.
+- **The second footer row sits above the existing one** and holds due, estimate
+  and type, in the first footer's own grammar one row up: mono values first,
+  chips after. **+24px**, giving four pinned heights — 108 · 132 · 136 · 160.
+- **The estimate scale is the appearance row's segment** with a leading `—`,
+  because absent is a value a scale must be able to say and the dash is the
+  app's existing word for it (`priority: none` draws that glyph already).
+- **Settings gets one Properties pane after Labels**, four blocks, the
+  checklist's own checkbox on a third selector, and the type-values editor is
+  `.label-row` unchanged.
+
+### What the prototype changed about the settled spec
+
+- **A field's display has to round-trip; a card's does not.** Recorded above
+  under the grammar. This was a real defect in the settled wording, and it only
+  showed up once a panel was opened on an overdue ticket.
+- **The echo answers the open "what does it show while typing" question.**
+  Also recorded above.
+
+### What is still open for the review
+
+- **The panel's default width.** The rail costs the description ~252px. At 800
+  the main column is 507px, one pixel under what 560 gives it today; at 720 it
+  is 427px — a ~70ch measure, which reads fine but is a real reduction. LC-238s
+  owns the number; the prototype says what it is buying.
+- **The estimate control: segment or menu.** The segment shows the whole scale
+  at rest and takes one click; the menu is what the rail's other six rows
+  already are, and survives a rail narrower than seven segments. Both are in the
+  driver.
+- **Whether the overdue chip is bare mono text or takes a soft danger wash.**
+  The prototype defaults to text — a filled chip on a card is a thing the app
+  has never had — and draws the alternative behind a switch.
+
+### Verified in WebKit rather than asserted
+
+A throwaway pass in the engine the app ships on measured what jsdom cannot,
+and found four defects that were green everywhere else: the container query
+losing to a later rule of equal specificity, so the rail rendered with a 115px
+value cell; the estimate segment as `inline-flex` handing its children `flex: 1`
+of nothing, rendering `XS` as `X`; the picker hanging off two edges of a 1440px
+window; and the settings checkbox's tick drawn as a chevron because the two
+gradients were written from memory as `45deg`/`-45deg` rather than the sheet's
+`45deg`/`135deg`.
+
+WebKit now agrees with all four pinned card heights, no rail row overflows its
+cell at 560 · 720 · 800 · 880, and moving `today` thirty days moves no card
+height — which is the invariant the second footer row exists inside.
+
 ## Checklist
 
 - [x] ADR: property configuration joins labels in longclaw.yaml — record why ADR 0002's reservation is deferred, and what would revisit it <!-- longclaw:item=ck_945a1ca9 -->
@@ -511,12 +610,12 @@ reaches for.
 - [x] Switching estimate systems preserves values written under the old one rather than destroying them <!-- longclaw:item=ck_112ec2a3 -->
 - [x] Settle the four due rungs — overdue, today, within attention_days, beyond — and that attention_days defaults to 7 and is configurable <!-- longclaw:item=ck_c45f20d4 -->
 - [x] Decide whether disabling a property that tickets already carry warns first <!-- longclaw:item=ck_4148120d -->
-- [ ] Prototype the ticket panel: right-hand properties rail, description moved to the top <!-- longclaw:item=ck_b6758ff8 -->
-- [ ] Prototype the four due rungs and their visual treatments, in both appearances <!-- longclaw:item=ck_7b6183bf -->
-- [ ] Prototype the card's second footer row — what it holds, and how it reads at rest beside a checklist fraction <!-- longclaw:item=ck_e0292fab -->
+- [x] Prototype the ticket panel: right-hand properties rail, description moved to the top <!-- longclaw:item=ck_b6758ff8 -->
+- [x] Prototype the four due rungs and their visual treatments, in both appearances <!-- longclaw:item=ck_7b6183bf -->
+- [x] Prototype the card's second footer row — what it holds, and how it reads at rest beside a checklist fraction <!-- longclaw:item=ck_e0292fab -->
 - [ ] The second footer row appears only when the ticket has a value for an enabled property that sits in it — one line, never wrapping, presence derived from row data and never from the rung, giving exactly four pinned heights <!-- longclaw:item=ck_bef33999 -->
-- [ ] Prototype the estimate control for each system — t-shirt chips, Fibonacci chips, and number plus unit <!-- longclaw:item=ck_100759d5 -->
-- [ ] Prototype the settings Properties pane: the type-values editor, the estimate system picker, and a property switched off while tickets carry values <!-- longclaw:item=ck_d5ddb411 -->
+- [x] Prototype the estimate control for each system — t-shirt chips, Fibonacci chips, and number plus unit <!-- longclaw:item=ck_100759d5 -->
+- [x] Prototype the settings Properties pane: the type-values editor, the estimate system picker, and a property switched off while tickets carry values <!-- longclaw:item=ck_d5ddb411 -->
 - [ ] Review the prototype, record what it settled, then delete it and its line in the index <!-- longclaw:item=ck_7d5bada6 -->
 - [ ] Project: parse and render the properties block in longclaw.yaml, preserving unknown keys <!-- longclaw:item=ck_15465a7c -->
 - [ ] Ticket: parse and render the four properties; a disabled one survives a read-modify-write untouched <!-- longclaw:item=ck_15eaaa0f -->
@@ -1391,6 +1490,48 @@ changes:
     from: "false"
     to: "true"
   - field: checklist.ck_4148120d.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_5b17abc2
+kind: update
+occurred_at: 2026-09-08T02:03:07.925Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_9d2bfc4d
+kind: update
+occurred_at: 2026-09-08T02:03:13.442Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_b6758ff8.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_7b6183bf.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_e0292fab.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_100759d5.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_d5ddb411.checked
     from: "false"
     to: "true"
 -->
