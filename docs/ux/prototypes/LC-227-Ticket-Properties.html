@@ -510,6 +510,21 @@
   font-weight: 600;
 }
 
+/* Today, given a colour (the driver's `today: hue`).
+ *
+ * It is `--lc-danger` and not a second hue, which is the point: overdue and
+ * today are the *same* axis at its top, and the words already tell them apart —
+ * `3d overdue` against `Today`. A new colour for Today would be a third
+ * vocabulary on a card that already has agent green and `--lc-warn` spoken for,
+ * and LC-148 was exactly the bug of two vocabularies landing on one line.
+ *
+ * So the ladder becomes: two rungs in the hue, separated by weight and word;
+ * two rungs monochrome. `--lc-warn` is not available for this — it means the
+ * unattributed external change (`styles.css:139-140`). */
+.due-chip.today.hued {
+  color: var(--lc-danger);
+}
+
 .due-chip.approaching {
   color: var(--lc-ink-2);
 }
@@ -522,6 +537,45 @@
    grammar one row up: mono values first, chips after. */
 .ticket-properties .sep {
   color: var(--lc-line-strong);
+}
+
+/* ---- the due in the key row, immediately before the priority glyph ----
+ *
+ * The alternative placement, and the cheap one: `.card-top` is pinned at 16px
+ * whatever is in it, so a date up here costs **no height at all** — no second
+ * footer row, no new pinned heights, no fourth case for `cardStrides()`.
+ *
+ * It buys that by showing only the escalated rungs. The key row is the card's
+ * urgency line — it already holds the priority glyph — and a date a fortnight
+ * out has no business on it, so Beyond shows nowhere on the card in this mode.
+ * Whether that is a loss is the question this placement is here to answer.
+ *
+ * `margin-left: auto` on the glyph is what already holds it at the far end, so
+ * this needs nothing to sit before it — and it must not be `flex: 1`, or a card
+ * with no date would move the glyph. */
+.card-top .due-chip {
+  flex: none;
+  overflow: hidden;
+  /* The key row's own voice — `.ticket-key` is 11px mono, and this is the same
+     line. Stated rather than inherited: `.ticket-properties` sets the mono face
+     for the footer copy, and nothing sets it up here, so without this the date
+     falls back to the card's 13px UI font and renders larger than the key it
+     stands beside. Loud, but loud by accident and in the wrong typeface.
+     Emphasis is the hue and the weight's job; the size stays the row's. */
+  font-family: var(--lc-type-code-font);
+  font-size: 11px;
+  /* One line inside a 16px row, and never the thing that makes it two. */
+  line-height: 14px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* The key is what gives way when a long date and a long key meet, because the
+   date is the news and the key is on screen in four other places. */
+.card-top:has(.due-chip) .ticket-key {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
 }
 
 /* Type on the card is a chip, because that is what it is everywhere else — the
@@ -962,6 +1016,8 @@ const app = {
   panelWidth: 800,
   secondRow: "due",                 // due | due-estimate | everything
   rowAbove: true,                   // the properties row above the label footer
+  duePlace: "footer",               // footer | header — where the card's due goes
+  todayHue: "mono",                 // mono | danger — whether Today takes a colour
   overdueWash: false,               // the alternative overdue treatment
   estimateControl: "segment",       // segment | menu
   echo: true,                       // the date field's resolved-day echo
@@ -1252,9 +1308,18 @@ const ACKNOWLEDGED_CARD_HEIGHT = 136;
 const CARD_HEIGHT_PROPERTIES = 132;
 const ACKNOWLEDGED_CARD_HEIGHT_PROPERTIES = 160;
 
+/**
+ * Note what this asks and what it does not. It reads the ticket's *values* and
+ * the project's configuration — never a rung — because the answer is a height.
+ *
+ * In `header` mode due is not a second-row property at all, so a project whose
+ * only enabled property is Due gets no second row on any card and keeps today's
+ * geometry exactly. That is the largest thing the header placement buys, and it
+ * is invisible until you look at the heights.
+ */
 function hasSecondRow(ticket) {
   const properties = project.properties;
-  if (properties.due.enabled && ticket.due) return true;
+  if (app.duePlace === "footer" && properties.due.enabled && ticket.due) return true;
   if (app.secondRow === "due") return false;
   if (properties.estimate.enabled && ticket.estimate) return true;
   if (app.secondRow === "everything" && properties.type.enabled && ticket.type) return true;
@@ -1351,20 +1416,49 @@ function typeChip(slug, small) {
 
 /* --------------------------------------------------------------- the card */
 
-/** The second footer row's mono half, and the only place a rung is read. */
+/** Which rungs are urgent enough to stand in the key row. */
+const ESCALATED = ["overdue", "today", "approaching"];
+
+/** The card's due, wherever it is drawn, and the only place a rung is read. */
 function dueChip(ticket, archived) {
   const due = fromIso(ticket.due);
   if (!due) return "";
   const which = rung(due, app.today, project.properties.due.attention_days, ticket.status, archived);
   const wash = app.overdueWash && which === "overdue" ? " washed" : "";
-  return '<span class="due-chip ' + which + wash + '">' + esc(rungText(due, app.today, which)) + "</span>";
+  const hue = app.todayHue === "danger" ? " hued" : "";
+  return '<span class="due-chip ' + which + wash + hue + '">' + esc(rungText(due, app.today, which)) + "</span>";
+}
+
+/**
+ * Whether the key row carries this ticket's due.
+ *
+ * **Only in `header` mode, and only for an escalated rung.** A date a fortnight
+ * out is not urgent, and the key row is the card's urgency line — it already
+ * holds the priority glyph. Beyond therefore shows nowhere on the card in this
+ * mode, which is the whole of what makes it cheap.
+ *
+ * Deciding this *from the rung* is safe here and would not be one row down:
+ * `.card-top` is pinned at 16px whatever is in it, so a rung that changes at
+ * midnight changes a colour and a word and never an offset. The rule the
+ * geometry needs is about height, and this does not touch height.
+ */
+function dueInHeader(ticket) {
+  if (app.duePlace !== "header") return false;
+  if (!project.properties.due.enabled || !ticket.due) return false;
+  const which = rung(fromIso(ticket.due), app.today, project.properties.due.attention_days, ticket.status, false);
+  return ESCALATED.includes(which);
+}
+
+/** Whether the second footer row carries it. */
+function dueInFooter(ticket) {
+  if (!project.properties.due.enabled || !ticket.due) return false;
+  return app.duePlace === "footer";
 }
 
 function secondRowHTML(ticket) {
   if (!hasSecondRow(ticket)) return "";
   const parts = [];
-  const due = dueChip(ticket);
-  if (due && project.properties.due.enabled) parts.push(due);
+  if (dueInFooter(ticket)) parts.push(dueChip(ticket));
   if (app.secondRow !== "due" && project.properties.estimate.enabled && ticket.estimate) {
     const read = readEstimate(ticket.estimate, project.properties.estimate);
     if (parts.length) parts.push('<span class="sep" aria-hidden="true">·</span>');
@@ -1395,6 +1489,9 @@ function cardHTML(ticket) {
     (ticket.acknowledged ? " acknowledged acknowledged-agent" : "") +
     '" data-ticket-key="' + ticket.key + '" tabindex="-1">' +
     '<span class="card-top"><span class="ticket-key">' + ticket.key + "</span>" +
+    // Immediately before the priority glyph, which is the far end of the row:
+    // the two urgency marks stand together rather than at opposite edges.
+    (dueInHeader(ticket) ? dueChip(ticket) : "") +
     priorityGlyph(ticket.priority, true) + "</span>" +
     "<strong>" + esc(ticket.title) + "</strong>" +
     (app.rowAbove ? second + footer : footer + second) +
@@ -1650,7 +1747,9 @@ function rungRow(offset, status, label) {
   const which = rung(due, app.today, project.properties.due.attention_days, status, false);
   return (
     '<tr><td class="typed">' + esc(iso(due)) + "</td>" +
-    '<td><span class="due-chip ' + which + (app.overdueWash && which === "overdue" ? " washed" : "") + '">' +
+    '<td><span class="due-chip ' + which +
+    (app.overdueWash && which === "overdue" ? " washed" : "") +
+    (app.todayHue === "danger" ? " hued" : "") + '">' +
     esc(rungText(due, app.today, which)) + "</span></td>" +
     '<td class="means">' + esc(label) + "</td></tr>"
   );
@@ -1676,7 +1775,9 @@ function rungsScene() {
     "<section><h3>The ladder</h3>" +
     '<table class="grammar"><tr><th>due</th><th>the chip</th><th>rung</th></tr>' +
     rungRow(-3, "todo", "overdue · --lc-danger, the one rung that takes a hue") +
-    rungRow(0, "todo", "today · monochrome, emphasised") +
+    rungRow(0, "todo", app.todayHue === "danger"
+      ? "today · --lc-danger too — the same hue as overdue, told apart by the word"
+      : "today · monochrome, emphasised") +
     rungRow(3, "todo", "approaching · within attention_days (" + attention + "), ordinary weight") +
     rungRow(20, "todo", "beyond · quiet, and the plain date") +
     rungRow(-11, "done", "stood down · done, canceled or archived — finished, not overdue") +
@@ -2102,6 +2203,9 @@ const NOTES = {
     "<li class=\"q\"><strong>The chip is bare mono text, not a pill.</strong> It sits in the card's mono register beside the checklist fraction, which is the voice that row already speaks. The driver's <strong>wash</strong> switch draws the filled alternative — worth one look, and the reason to refuse it is that a filled chip on a card is a thing the app has never had.</li>" +
     "<li class=\"q\"><strong>The list row takes the due immediately left of the 46px time slot</strong>, where the two mono values read as a pair: when it is due, and when it last changed.</li>" +
     "</ol>" +
+    "<h2>Two questions from review</h2>" +
+    "<p class=\"open\"><strong>Today needs more visibility.</strong> The driver's <strong>today: hue</strong> gives it <code>--lc-danger</code> — the same hue as overdue rather than a new one, because the two are the same axis at its top and the words already tell them apart. A third colour is what the card cannot afford: agent green and <code>--lc-warn</code> are both spoken for, and LC-148 was the bug of two vocabularies on one line.</p>" +
+    "<p class=\"open\"><strong>Put the escalated rungs in the key row instead.</strong> The driver's <strong>due: key row</strong> moves overdue, today and approaching up beside the priority glyph, and shows <em>nothing</em> for Beyond. See the card scene for what it costs and what it saves — the short version is that it costs nothing at all.</p>" +
     "<h2>Worth watching</h2>" +
     "<p>A due date changes with no file write. \"Due tomorrow\" becomes \"due today\" at midnight and nothing in the watcher pipeline pushes that — the board keeps saying tomorrow until an unrelated event re-renders it. Needs a day-boundary tick or a recompute on window focus. The seam exists: <code>listRow.ts:41</code> already threads a <code>now</code>, and this file is driven entirely through it.</p>",
 
@@ -2120,8 +2224,13 @@ const NOTES = {
     "<li class=\"q\"><strong>It holds due, estimate and type</strong> — in that order, and in the first footer's own grammar one row up: mono values first, chips after. Type is a chip because it is a label in every respect but exclusivity.</li>" +
     "<li class=\"q\"><strong>+24px, and four heights.</strong> 20px of row and 4px of margin, mirroring the footer under it.</li>" +
     "</ol>" +
+    "<h2>The key row, from review</h2>" +
+    "<p>Switch <strong>due: key row</strong> in the driver. Overdue, today and approaching move up beside the priority glyph; Beyond shows nowhere on the card.</p>" +
+    "<p><strong>It costs no height at all.</strong> <code>.card-top</code> is pinned at 16px whatever is in it, so with <code>holds: due</code> every card goes back to 108 and 136 — no second row, no new tokens, no fourth case for <code>cardStrides()</code>, and <code>card-height-guard.mjs</code> keeps the two invariants it has. A project whose only enabled property is Due keeps today's geometry exactly.</p>" +
+    "<p><strong>And the rung may decide it here</strong>, which it may not one row down. The prohibition is about <em>height</em>: a height read from the rung would move every column's offsets at midnight with no file write. A key row that is 16px whatever it holds can change its word and its colour at midnight and move nothing.</p>" +
+    "<p>What it gives up is the plain date. A ticket due in a fortnight says nothing on its card — you open it, or you read the list. Whether that is a loss is the actual question; the argument for it is that the key row is the card's urgency line, it already holds the priority glyph, and a date that far out is not urgent.</p>" +
     "<h2>Rejected</h2>" +
-    "<p>Putting <strong>type in the card's key row</strong>, beside the priority glyph — it costs no height at all. But <code>.card-top</code> is pinned at 16px and the smallest chip is 19, so every card in every project would grow by 4px whether or not Type was enabled. \"A project that never enables one keeps today's geometry exactly\" is worth more than the 24px.</p>",
+    "<p>Putting <strong>type in the card's key row</strong>, beside the priority glyph. Type is a chip, the smallest chip is 19px and <code>.card-top</code> is pinned at 16, so every card in every project would grow by 4px whether or not Type was enabled. The due survives the same row only because it is <em>text</em> — 14px of line in a 16px row. \"A project that never enables one keeps today's geometry exactly\" is worth more than the 24px.</p>",
 
   estimate: () =>
     "<h1>The estimate control</h1>" +
@@ -2172,18 +2281,30 @@ function controlsHTML() {
   if (app.scene === "rungs")
     return "<span>attention</span>" +
       [0, 3, 7, 14].map((d) => toggle("attention", d, project.properties.due.attention_days, String(d))).join("") +
+      '<span class="sep" aria-hidden="true"></span><span>due</span>' +
+      toggle("place", "footer", app.duePlace, "footer") +
+      toggle("place", "header", app.duePlace, "key row") +
+      '<span class="sep" aria-hidden="true"></span><span>today</span>' +
+      toggle("hue", "mono", app.todayHue, "mono") +
+      toggle("hue", "danger", app.todayHue, "hue") +
       '<span class="sep" aria-hidden="true"></span><span>overdue</span>' +
       toggle("wash", "off", app.overdueWash ? "on" : "off", "text") +
       toggle("wash", "on", app.overdueWash ? "on" : "off", "wash");
 
   if (app.scene === "card")
-    return "<span>holds</span>" +
+    return "<span>due</span>" +
+      toggle("place", "footer", app.duePlace, "footer") +
+      toggle("place", "header", app.duePlace, "key row") +
+      '<span class="sep" aria-hidden="true"></span><span>holds</span>' +
       toggle("second", "due", app.secondRow, "due") +
       toggle("second", "due-estimate", app.secondRow, "+estimate") +
       toggle("second", "everything", app.secondRow, "+type") +
       '<span class="sep" aria-hidden="true"></span><span>row</span>' +
       toggle("above", "1", app.rowAbove ? "1" : "0", "above") +
-      toggle("above", "0", app.rowAbove ? "1" : "0", "below");
+      toggle("above", "0", app.rowAbove ? "1" : "0", "below") +
+      '<span class="sep" aria-hidden="true"></span><span>today</span>' +
+      toggle("hue", "mono", app.todayHue, "mono") +
+      toggle("hue", "danger", app.todayHue, "hue");
 
   if (app.scene === "estimate")
     return "<span>control</span>" +
@@ -2370,6 +2491,10 @@ document.addEventListener("click", (event) => {
   }
   const wash = hit("wash");
   if (wash) { app.overdueWash = wash.dataset.wash === "on"; return render(); }
+  const place = hit("place");
+  if (place) { app.duePlace = place.dataset.place; return render(); }
+  const hue = hit("hue");
+  if (hue) { app.todayHue = hue.dataset.hue; return render(); }
   const second = hit("second");
   if (second) { app.secondRow = second.dataset.second; return render(); }
   const above = hit("above");
