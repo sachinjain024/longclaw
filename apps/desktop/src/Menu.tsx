@@ -14,7 +14,7 @@
  */
 
 import { useLayoutEffect, useRef, useState } from "react";
-import type { KeyboardEvent, ReactNode } from "react";
+import type { KeyboardEvent, ReactNode, RefObject } from "react";
 import {
   useDismissOnPressOutside,
   useFocusReturn,
@@ -38,6 +38,31 @@ interface MenuProps<T extends string> {
   multiple?: boolean;
   /** Mono line under the rows, for the ordering menu's view-preference note. */
   footnote?: string;
+  /**
+   * A control under the rows, rather than another row: LC-236e's define-a-label
+   * form, which is a field, a colour and a commit and so cannot be a
+   * `MenuOption`. It is outside the roving group's index space — see `stops`.
+   */
+  footer?: ReactNode;
+  /**
+   * The footer's own focusable stop, which puts it **in the roving group**: `↓`
+   * past the last row reaches it and `↑` from the first row wraps onto it.
+   * Without this the footer is a Tab stop only, which leaves `↓` wrapping
+   * straight past the one thing in the popover that is not a value.
+   *
+   * A ref rather than an index because the footer decides what its stop *is* —
+   * LC-236e's is the collapsed button while the row is shut and the name field
+   * once it is open, and the swap happens without the menu being told.
+   */
+  footerStop?: RefObject<HTMLElement | null>;
+  /**
+   * Widens the popover **from the moment it opens**, for a footer that needs
+   * more room than a row does. It is a flag rather than a width the footer
+   * grows into on its own because `usePopoverPlacement` measures once and
+   * clamps nothing (`popover.ts:172`): a popover that widened after placement
+   * would run off the right edge in full create and stay there.
+   */
+  wide?: boolean;
   /** What the menu hangs off and returns focus to: a trigger, or a board card. */
   anchor: HTMLElement | null;
   onPick: (id: T) => void;
@@ -48,10 +73,26 @@ export function Menu<T extends string>(props: MenuProps<T>) {
   const { anchor, multiple, onClose } = props;
   const popover = useRef<HTMLDivElement>(null);
   const rows = useRef<(HTMLButtonElement | null)[]>([]);
+  /** What the footer occupies, so its own controls can be told from a row. */
+  const footerBox = useRef<HTMLDivElement>(null);
   const first = props.options.findIndex((option) =>
     props.selected.includes(option.id),
   );
-  const [active, setActive] = useState(first === -1 ? 0 : first);
+  /**
+   * Which stop the roving group is standing on: a row's index, or the footer.
+   *
+   * The footer is `"footer"` and not `options.length` because the list grows
+   * underneath it. Defining a label from the footer adds a row, and an index
+   * that meant *the footer* one render would mean *the last row* the next —
+   * which took focus out of the field the moment a definition landed in it.
+   */
+  const [active, setActive] = useState<number | "footer">(
+    props.options.length === 0 && props.footerStop
+      ? "footer"
+      : first === -1
+        ? 0
+        : first,
+  );
 
   // Placement, focus return and click-away are the same three every anchored
   // popover in the app does, and live in `popover.ts` since LC-208.
@@ -66,9 +107,24 @@ export function Menu<T extends string>(props: MenuProps<T>) {
     onDismiss: onClose,
   });
 
+  /** Every stop `↑`/`↓` walks, in the order they are drawn. */
+  const stops: (number | "footer")[] = [
+    ...props.options.map((_, index) => index),
+    ...(props.footerStop ? (["footer"] as const) : []),
+  ];
+
+  const { footerStop } = props;
   useLayoutEffect(() => {
-    rows.current[active]?.focus();
-  }, [active]);
+    // Read through the ref at the moment focus moves, never captured during a
+    // render: the element behind it does not exist yet on the first one, and
+    // it is swapped for another when the define row expands.
+    if (active === "footer") footerStop?.current?.focus();
+    else rows.current[active]?.focus();
+    // Only when the stop itself changes. The list growing under a stop that
+    // has not moved is not a reason to take focus off it — defining a label
+    // adds a row, and that must not pull the caret out of the field that
+    // just defined it.
+  }, [active, footerStop]);
 
   function pick(id: T) {
     props.onPick(id);
@@ -77,7 +133,20 @@ export function Menu<T extends string>(props: MenuProps<T>) {
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
-    const count = props.options.length;
+    /**
+     * A field in the footer owns every key typed into it, and this handler is
+     * on the popover, so without this line the menu takes them: `j` and `k`
+     * steer the list — they are letters in `Jack` — the arrows move the active
+     * row instead of the caret, and `Enter` and `Escape` are the menu's rather
+     * than the row's. The footer stops the ones it acts on itself.
+     */
+    if (
+      event.target instanceof HTMLInputElement ||
+      event.target instanceof HTMLTextAreaElement
+    ) {
+      return;
+    }
+    if (stops.length === 0) return;
     const step =
       event.key === "ArrowDown" || event.key === "j"
         ? 1
@@ -86,11 +155,33 @@ export function Menu<T extends string>(props: MenuProps<T>) {
           : 0;
     if (step !== 0) {
       event.preventDefault();
-      // Wraps at both ends (`keyboard-focus-map.md:130`).
-      setActive((index) => (index + step + count) % count);
+      // Wraps at both ends (`keyboard-focus-map.md:139`), over the rows and
+      // the footer alike — `↓` past the last label reaches the define row,
+      // which is the one thing in this popover that is not a value.
+      setActive((standing) => {
+        const at = stops.indexOf(standing);
+        return stops[(at + step + stops.length) % stops.length];
+      });
       return;
     }
     if (event.key === "Enter" || event.key === " ") {
+      /**
+       * Never the footer's. Its controls are real buttons — a submit, a colour
+       * trigger — and this handler is on the popover, so both of these would
+       * otherwise `preventDefault()` the activation and pick a *label* instead.
+       *
+       * The roving index is not enough to decide it. It only reads `"footer"`
+       * when the arrows put it there, and a row opened with the pointer leaves
+       * it standing on whatever it was: `Enter` on **Add label** ticked the
+       * first label in the menu and swallowed the write. So the question is
+       * where the press came from, which the DOM answers directly.
+       */
+      if (
+        active === "footer" ||
+        footerBox.current?.contains(event.target as Node)
+      ) {
+        return;
+      }
       // Taken here rather than left to the button's own activation, so a pick is
       // one code path whether it came from the keyboard or the pointer.
       event.preventDefault();
@@ -108,7 +199,7 @@ export function Menu<T extends string>(props: MenuProps<T>) {
   const role = multiple ? "menuitemcheckbox" : "menuitemradio";
   return (
     <div
-      className="menu-popover"
+      className={props.wide ? "menu-popover menu-wide" : "menu-popover"}
       role="menu"
       aria-label={props.label}
       ref={popover}
@@ -144,6 +235,14 @@ export function Menu<T extends string>(props: MenuProps<T>) {
         );
       })}
       {props.footnote && <p className="menu-footnote">{props.footnote}</p>}
+      {props.footer && (
+        <div ref={footerBox}>
+          {/* Only where there is something to divide. A rule under nothing is
+              a line across the top of the footer. */}
+          {props.options.length > 0 && <hr className="menu-rule" />}
+          {props.footer}
+        </div>
+      )}
     </div>
   );
 }

@@ -23,6 +23,10 @@ is which.
   footer row and the heights it costs, the estimate control under each system,
   and the settings Properties pane
   (spec: `.longclaw/tickets/LC-227/ticket.md`).
+- [`LC-236e-Define-A-New-Label-From-Inside-The-Create-Flows.html`](LC-236e-Define-A-New-Label-From-Inside-The-Create-Flows.html)
+  — a define-a-label row inside the labels popover, across quick create, full
+  create and the project-settings add-row it makes agree with them
+  (spec: `.longclaw/tickets/LC-236e/ticket.md`).
 
 ## Imported prototypes
 

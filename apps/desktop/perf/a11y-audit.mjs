@@ -744,6 +744,76 @@ async function auditFocusOrder(browser) {
       "keyboard-focus-map.md:167 — settings returns focus to its opener",
     );
 
+    /**
+     * The define-a-label row inside the labels popover (LC-236e).
+     *
+     * Two claims jsdom is the wrong instrument for. The first is that the
+     * popover opens with the caret already in the field on a project that
+     * defines nothing — the fixture's `labels` map is empty, which is the case
+     * the row exists for — and the second is that keys typed into that field
+     * reach it. `Menu.onKeyDown` is bound to the popover, so before this row
+     * `j` and `k` steered the list from inside the field: they are letters in
+     * `Jack`, and a name could not be typed past one.
+     */
+    await page.keyboard.press("c");
+    await settle(page);
+    const toLabels = await tabTo(
+      page,
+      (at) => at.label?.startsWith("Labels:") === true,
+      12,
+    );
+    if (toLabels.found) await page.keyboard.press("Enter");
+    await settle(page);
+    const inDefine = await focused(page);
+    check(
+      "the labels menu opens into the define row on a project with no labels",
+      (await visible(page, ".menu-define")) &&
+        inDefine.label === "New label name",
+      `menu=${await visible(page, ".menu-popover")} focus=${inDefine.label || inDefine.className || inDefine.tag}`,
+      "keyboard-focus-map.md:144-148 — focus enters the first meaningful control",
+    );
+    await page.keyboard.type("Jack");
+    await settle(page);
+    const typed = await page.evaluate(
+      () =>
+        document.querySelector(".menu-define [aria-label='New label name']")
+          ?.value,
+    );
+    const derived = await page.evaluate(
+      () =>
+        document.querySelector(".menu-define .derived-key-line")?.textContent,
+    );
+    check(
+      "keys typed into the define row reach the field, not the row list",
+      typed === "Jack" && derived === "jack",
+      `field="${typed}" key="${derived}"`,
+      "keyboard-focus-map.md:139 — inside the name field the arrows and `j`/`k` are the caret's",
+    );
+    // Out one rung at a time: the row, then the menu, then the modal.
+    await page.keyboard.press("Escape");
+    await settle(page);
+    const afterRow = await visible(page, ".menu-popover");
+    check(
+      "`Esc` in the define row closes the row and leaves the menu up",
+      afterRow && !(await visible(page, ".menu-define")),
+      `menu=${afterRow} row=${await visible(page, ".menu-define")}`,
+      "keyboard-focus-map.md:142 — one rung a press",
+    );
+    // Down the rest of the ladder, and *verified* down it: the checks below
+    // count Tab presses from the title field of a freshly opened modal, so a
+    // block that left this one up would quietly be measuring something else.
+    for (let rung = 0; rung < 4; rung += 1) {
+      if (!(await visible(page, "form.quick-create-modal"))) break;
+      await page.keyboard.press("Escape");
+      await settle(page);
+    }
+    check(
+      "the ladder walks all the way out of the modal",
+      !(await visible(page, "form.quick-create-modal")),
+      `modal=${await visible(page, "form.quick-create-modal")}`,
+      "keyboard-focus-map.md:19-21 — the ladder walks one rung at a time",
+    );
+
     // Quick create's Create more loop → the emptied title field (LC-201).
     //
     // The whole of this feature is a focus claim that jsdom cannot make: the

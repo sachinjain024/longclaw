@@ -25,20 +25,13 @@
  * be a write with nowhere to land.
  */
 
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { addProjectLabel, removeProjectLabel, updateProjectLabel } from "./api";
 import { RemoveProjectConfirm } from "./ConfirmDialog";
 import { FolderGlyph } from "./FolderGlyph";
+import { LabelColors } from "./LabelColorPicker";
+import { DerivedKey, useLabelDefinition } from "./LabelDefine";
 import { GearGlyph } from "./SettingsGlyphs";
-import { FALLBACK_LABEL_COLOR, isRampColor, LABEL_COLORS } from "./labels";
-import { useDismissOnPressOutside, useFocusReturn } from "./popover";
 import { SETTINGS_SECTIONS, type SettingsSection } from "./settingsSections";
 import { APPEARANCES, type Appearance } from "./state";
 import { StatusDot } from "./StatusDot";
@@ -623,12 +616,15 @@ function ProjectLabels(props: {
     write: () => Promise<ProjectReference>,
   ) => Promise<boolean>;
 }) {
-  const [slug, setSlug] = useState("");
-  const [name, setName] = useState("");
-  const [color, setColor] = useState<string>(LABEL_COLORS[0]);
+  /**
+   * The same three things the popover's define row holds, from the same hook —
+   * which is what stops the two definition surfaces disagreeing about the key a
+   * typed name produces (LC-236e). Nobody authors a key here any more.
+   */
+  const definition = useLabelDefinition(props.project.labels);
   const definitions = Object.entries(props.project.labels);
   /** Where focus goes when the row holding it is taken away. */
-  const addSlug = useRef<HTMLInputElement>(null);
+  const addName = useRef<HTMLInputElement>(null);
 
   /**
    * Every write here returns the project as the file now reads, and every one
@@ -673,7 +669,7 @@ function ProjectLabels(props: {
             );
             // The row is going, and with it whatever held focus inside it. The
             // add-row is the one thing here that is always on screen.
-            addSlug.current?.focus();
+            addName.current?.focus();
           }}
         />
       ))}
@@ -681,39 +677,50 @@ function ProjectLabels(props: {
         className="label-row label-add"
         onSubmit={(event) => {
           event.preventDefault();
-          if (!slug.trim() || !name.trim()) return;
+          const { state } = definition;
+          if (state.kind !== "ok") return;
           void (async () => {
-            const added = await run(`Added the ${slug.trim()} label`, () =>
+            const added = await run(`Added the ${state.slug} label`, () =>
               addProjectLabel({
                 projectId: props.project.id,
-                slug: slug.trim(),
-                name: name.trim(),
-                color,
+                slug: state.slug,
+                name: definition.name.trim(),
+                color: definition.color,
               }),
             );
             if (!added) return;
-            setSlug("");
-            setName("");
+            definition.reset();
           })();
         }}
       >
-        <input
-          ref={addSlug}
-          className="input compact mono"
-          value={slug}
-          aria-label="New label slug"
-          placeholder="slug"
-          onChange={(event) => setSlug(event.target.value)}
+        {/* The key stacks under the field that produces it, as it does in the
+            popover — not in the `code` column the rows above use. Those show a
+            key that is already a fact; this one is still following what is
+            being typed, and one column would have said they were the same kind
+            of thing. */}
+        <div className="label-add-name">
+          <input
+            ref={addName}
+            className="input compact"
+            value={definition.name}
+            aria-label="New label name"
+            placeholder="Display name"
+            autoComplete="off"
+            onChange={(event) => definition.setName(event.target.value)}
+          />
+          <DerivedKey state={definition.state} />
+        </div>
+        <LabelColors
+          label="New label color"
+          value={definition.color}
+          onPick={definition.setColor}
         />
-        <input
-          className="input compact"
-          value={name}
-          aria-label="New label name"
-          placeholder="Display name"
-          onChange={(event) => setName(event.target.value)}
-        />
-        <LabelColors label="New label color" value={color} onPick={setColor} />
-        <button tabIndex={0} className="secondary small" type="submit">
+        <button
+          tabIndex={0}
+          className="secondary small"
+          type="submit"
+          disabled={definition.state.kind !== "ok"}
+        >
           Add label
         </button>
       </form>
@@ -816,183 +823,5 @@ function LabelDefinition(props: {
         ✕
       </button>
     </div>
-  );
-}
-
-/**
- * The colour a label reads as, behind a dropdown (D12, `labels.ts:22-31`).
- *
- * It was eight swatches laid out inline, which is what LC-208 inherited from
- * V0-10 and carried into the new panel unchanged — and a row of eight dots per
- * label is 48 dots down a six-label list, none of which is the answer to
- * "what colour is `design`?". The prototype draws one dot and a chevron, and
- * that is the right trade: the resting state says the colour, and the eight
- * are a decision you have opened rather than a decision on permanent display.
- *
- * What the swatch row *did* get right and this keeps: the OS `<select>` it
- * replaced was one of the two places the app rendered native chrome (D-72),
- * and it named its colours in words while every other surface draws them as
- * dots. Every dot here carries its name for anything that is not looking.
- */
-function LabelColors(props: {
-  label: string;
-  value: string;
-  onPick: (color: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const trigger = useRef<HTMLButtonElement>(null);
-  // A colour the ramp does not hold is still shown and still selected, or
-  // renaming a label would silently recolour it. It wears the fallback dot,
-  // which is what every other surface draws it as (`labels.ts:40`).
-  const hues: readonly string[] = isRampColor(props.value)
-    ? LABEL_COLORS
-    : [props.value, ...LABEL_COLORS];
-  const dot = (hue: string) =>
-    `label-dot label-${isRampColor(hue) ? hue : FALLBACK_LABEL_COLOR}`;
-  return (
-    <span className="label-color-field">
-      <button
-        tabIndex={0}
-        type="button"
-        ref={trigger}
-        className="label-color-trigger"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        // The name carries the value, because the trigger's whole content is a
-        // colour: `Color of label design: orange`.
-        aria-label={`${props.label}: ${props.value}`}
-        onClick={() => setOpen(!open)}
-      >
-        <span className={dot(props.value)} aria-hidden="true" />
-        <ChevronGlyph />
-      </button>
-      {open && (
-        <LabelColorMenu
-          label={props.label}
-          hues={hues}
-          value={props.value}
-          anchor={trigger.current}
-          dot={dot}
-          onPick={(hue) => {
-            props.onPick(hue);
-            setOpen(false);
-          }}
-          onClose={() => setOpen(false)}
-        />
-      )}
-    </span>
-  );
-}
-
-/**
- * The eight, in one row, as the prototype draws them.
- *
- * A strip rather than a list of named rows: the thing being chosen *is* a
- * colour, so the swatch is the label and a column of colour words would be a
- * worse version of the `<select>` D-72 removed. The names are still there for
- * anything not looking at it — on each dot, not beside it.
- *
- * Roving focus, one tab stop, arrows along the strip, `Esc` back to the
- * trigger: the contract `keyboard-focus-map.md:140-142` gives every menu, on
- * the horizontal axis this one is drawn along.
- */
-function LabelColorMenu(props: {
-  label: string;
-  hues: readonly string[];
-  value: string;
-  anchor: HTMLElement | null;
-  dot: (hue: string) => string;
-  onPick: (hue: string) => void;
-  onClose: () => void;
-}) {
-  const popover = useRef<HTMLDivElement>(null);
-  const swatches = useRef<(HTMLButtonElement | null)[]>([]);
-  const at = props.hues.indexOf(props.value);
-  const [active, setActive] = useState(at === -1 ? 0 : at);
-  useFocusReturn(props.anchor);
-  useDismissOnPressOutside({
-    popover,
-    anchor: props.anchor,
-    onDismiss: props.onClose,
-  });
-  useLayoutEffect(() => {
-    swatches.current[active]?.focus();
-  }, [active]);
-
-  return (
-    <div
-      className="label-color-menu"
-      role="menu"
-      aria-label={props.label}
-      ref={popover}
-      onKeyDown={(event) => {
-        if (event.metaKey || event.ctrlKey || event.altKey) return;
-        const step =
-          event.key === "ArrowRight" || event.key === "ArrowDown"
-            ? 1
-            : event.key === "ArrowLeft" || event.key === "ArrowUp"
-              ? -1
-              : 0;
-        if (step !== 0) {
-          event.preventDefault();
-          event.stopPropagation();
-          // Wraps at both ends, as every other menu in the app does.
-          setActive(
-            (index) => (index + step + props.hues.length) % props.hues.length,
-          );
-          return;
-        }
-        if (event.key !== "Escape") return;
-        event.preventDefault();
-        // Spent here: the panel behind this must not also close.
-        event.stopPropagation();
-        props.onClose();
-      }}
-    >
-      {props.hues.map((hue, index) => (
-        <button
-          key={hue}
-          type="button"
-          role="menuitemradio"
-          aria-checked={hue === props.value}
-          aria-label={hue}
-          tabIndex={index === active ? 0 : -1}
-          ref={(element) => {
-            swatches.current[index] = element;
-          }}
-          className={
-            hue === props.value
-              ? "label-color-swatch selected"
-              : "label-color-swatch"
-          }
-          onFocus={() => setActive(index)}
-          onClick={() => props.onPick(hue)}
-        >
-          <span className={props.dot(hue)} aria-hidden="true" />
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/** The mark that says a control opens something (`components.md` § Menus). */
-function ChevronGlyph() {
-  return (
-    <svg
-      className="label-color-chevron"
-      width="9"
-      height="9"
-      viewBox="0 0 14 14"
-      aria-hidden="true"
-    >
-      <path
-        d="M3 5 L7 9.5 L11 5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }

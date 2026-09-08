@@ -1675,6 +1675,43 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
     expect(toast.textContent).toContain("Removed the backend label definition");
   });
 
+  /**
+   * LC-236e. A create surface is over the modal scrim, and `ErrorBanner` draws
+   * at board level — `--lc-z-modal` is 4 — so a refusal routed through the
+   * banner is painted *behind* the surface that caused it, and quick create
+   * looks like it did nothing at all.
+   */
+  it("puts a refused definition on the toast, not behind the scrim", async () => {
+    vi.mocked(api.addProjectLabel).mockRejectedValue({
+      code: "permission_denied",
+      message: "longclaw.yaml is read-only",
+      recoverable: true,
+    });
+    await openSettings();
+    // Out of settings and into quick create, which is the surface that cannot
+    // use the banner.
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    fireEvent.keyDown(document.body, { key: "c" });
+    await screen.findByLabelText("Create a ticket");
+
+    fireEvent.click(screen.getByRole("button", { name: /^Labels: / }));
+    fireEvent.click(screen.getByRole("button", { name: "New label" }));
+    fireEvent.change(screen.getByLabelText("New label name"), {
+      target: { value: "Reliability" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add label" }));
+
+    const toast = await screen.findByRole("status");
+    expect(toast.textContent).toContain("longclaw.yaml is read-only");
+    expect(toast.querySelector(".toast.danger")).toBeTruthy();
+    // Nothing was ticked onto the draft: the definition did not land.
+    expect(
+      screen
+        .getByRole("button", { name: /^Labels: / })
+        .getAttribute("aria-label"),
+    ).toBe("Labels: none");
+  });
+
   it("D-4J: `Esc` in a label name reverts the field and leaves the panel up", async () => {
     const dialog = await openSettings([ticket], "Labels");
     const field = within(dialog).getByLabelText<HTMLInputElement>(
@@ -2658,16 +2695,18 @@ describe("label definitions in project settings (V0-10)", () => {
     });
     await openSettings();
 
-    fireEvent.change(screen.getByLabelText("New label slug"), {
-      target: { value: "reliability" },
-    });
+    // One field. The key is derived from the name and shown under it, never
+    // typed (LC-236e) — there is no slug input here to fill in.
     fireEvent.change(screen.getByLabelText("New label name"), {
       target: { value: "Reliability" },
     });
+    expect(screen.getByText("reliability")).toBeTruthy();
     // The app's own dropdown, never an OS one (LC-130, LC-208): the trigger
     // shows the hue it is set to, and the strip names every hue it offers.
+    // It opens on `cyan` rather than blue, because this project's one
+    // definition already holds blue.
     fireEvent.click(
-      screen.getByRole("button", { name: "New label color: blue" }),
+      screen.getByRole("button", { name: "New label color: cyan" }),
     );
     fireEvent.click(
       within(screen.getByRole("menu", { name: "New label color" })).getByRole(
@@ -2744,23 +2783,69 @@ describe("label definitions in project settings (V0-10)", () => {
   });
 
   it("surfaces a slug the format refuses rather than swallowing it", async () => {
+    // Rust stays the authority (`core/project.rs:349`). The derivation only
+    // proposes a key, so a refusal it did not predict still has to arrive.
     vi.mocked(api.addProjectLabel).mockRejectedValue({
       code: "parse_failed",
       message:
-        'A label slug is lowercase letters and digits, optionally separated by - or _, starting with a letter; found "9lives"',
+        'A label slug is lowercase letters and digits, optionally separated by - or _, starting with a letter; found "nine-lives"',
       recoverable: true,
     });
     await openSettings();
 
-    fireEvent.change(screen.getByLabelText("New label slug"), {
-      target: { value: "9lives" },
-    });
     fireEvent.change(screen.getByLabelText("New label name"), {
       target: { value: "Nine lives" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Add label" }));
 
-    expect(await screen.findByText(/found "9lives"/)).toBeTruthy();
+    expect(await screen.findByText(/found "nine-lives"/)).toBeTruthy();
+  });
+
+  it("refuses a name that cannot make a key, before the write", async () => {
+    await openSettings();
+
+    // `9 lives` derives `9-lives`, which is not a slug. The key's own slot
+    // carries the rule instead — it never holds a string that is not a key —
+    // and the commit is dead until the name changes.
+    fireEvent.change(screen.getByLabelText("New label name"), {
+      target: { value: "9 lives" },
+    });
+
+    expect(
+      screen.getByText("Label Name must start with a letter [a-z]"),
+    ).toBeTruthy();
+    expect(screen.queryByText("9-lives")).toBeNull();
+    expect(
+      screen
+        .getByRole("button", { name: "Add label" })
+        .hasAttribute("disabled"),
+    ).toBe(true);
+    expect(api.addProjectLabel).not.toHaveBeenCalled();
+  });
+
+  it("refuses a name whose key is already defined, and says what holds it", async () => {
+    await openSettings();
+
+    fireEvent.change(screen.getByLabelText("New label name"), {
+      target: { value: "Backend" },
+    });
+
+    // The key is drawn — it exists — and the sentence under it names the key
+    // and the definition already holding it. Scoped to the add-row: the
+    // definition it collided with is on screen too, directly above.
+    expect(
+      document.querySelector(".label-add .derived-key-line")?.textContent,
+    ).toBe("backend");
+    expect(
+      screen.getByText(
+        "backend already exists for Backend. Please provide a new Label name.",
+      ),
+    ).toBeTruthy();
+    expect(
+      screen
+        .getByRole("button", { name: "Add label" })
+        .hasAttribute("disabled"),
+    ).toBe(true);
   });
 });
 

@@ -53,6 +53,47 @@ function Harness(props: {
 }
 
 /**
+ * A menu with a footer in its roving group: `Menu`'s side of LC-236e's define
+ * row, without the row itself. The footer holds a field, because the thing the
+ * menu has to get right is what happens to keys typed into one.
+ */
+function FooterHarness(props: { options?: MenuOption<string>[] }) {
+  const anchor = useRef<HTMLButtonElement>(null);
+  const stop = useRef<HTMLElement | null>(null);
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState("");
+  return (
+    <>
+      <button ref={anchor} onClick={() => setOpen(true)}>
+        Labels
+      </button>
+      {open && (
+        <Menu
+          label="Labels"
+          options={props.options ?? OPTIONS}
+          selected={[]}
+          multiple
+          footerStop={stop}
+          footer={
+            <input
+              aria-label="New label name"
+              value={typed}
+              ref={(element) => {
+                stop.current = element;
+              }}
+              onChange={(event) => setTyped(event.target.value)}
+            />
+          }
+          anchor={anchor.current}
+          onPick={() => {}}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </>
+  );
+}
+
+/**
  * The multi-select harness that actually ticks: a pick changes `selected`, so
  * the menu re-renders while it is still open. That is the labels row's own
  * shape (`LabelMenu.tsx`), and the only way a re-measured anchor is observable.
@@ -218,5 +259,69 @@ describe("the anchored menu", () => {
     ).toBe("true");
     // … and it did not move while doing it.
     expect(screen.getByRole("menu").getAttribute("style")).toBe(placed);
+  });
+});
+
+describe("a footer in the roving group (LC-236e)", () => {
+  const field = () => screen.getByLabelText("New label name");
+
+  it("is where the last row's ArrowDown lands", () => {
+    render(<FooterHarness />);
+    fireEvent.click(screen.getByText("Labels"));
+
+    // Down the four rows, and one more onto the footer.
+    const popover = screen.getByRole("menu");
+    for (let step = 0; step < 4; step += 1) {
+      fireEvent.keyDown(popover, { key: "ArrowDown" });
+    }
+
+    expect(document.activeElement).toBe(field());
+  });
+
+  it("wraps back onto the rows rather than stopping there", () => {
+    render(<FooterHarness />);
+    fireEvent.click(screen.getByText("Labels"));
+    const popover = screen.getByRole("menu");
+
+    // Up from the first row is the footer: the group wraps at both ends, and
+    // the footer is the last stop in it.
+    fireEvent.keyDown(popover, { key: "ArrowUp" });
+    expect(document.activeElement).toBe(field());
+  });
+
+  it("takes the caret rather than the list when a menu with no rows opens", () => {
+    render(<FooterHarness options={[]} />);
+    fireEvent.click(screen.getByText("Labels"));
+
+    // The empty-project case: there is nothing to stand on but the footer.
+    expect(document.activeElement).toBe(field());
+  });
+
+  it("leaves every key typed into the field to the field", () => {
+    render(<FooterHarness />);
+    fireEvent.click(screen.getByText("Labels"));
+    const input = field();
+    input.focus();
+
+    // `j` and `k` steer the list from a row — they are letters in `Jack` — and
+    // the arrows move the active row. From inside a field they are the
+    // field's, or a name could not be typed and a caret could not be moved.
+    for (const key of ["j", "k", "ArrowDown", "ArrowUp", "Enter", " "]) {
+      fireEvent.keyDown(input, { key });
+      expect(document.activeElement).toBe(input);
+    }
+  });
+
+  it("does not close on an Escape the footer means to spend itself", () => {
+    render(<FooterHarness />);
+    fireEvent.click(screen.getByText("Labels"));
+    const input = field();
+    input.focus();
+
+    fireEvent.keyDown(input, { key: "Escape" });
+
+    // The menu is still up: `Esc` from a field is the footer's rung of the
+    // ladder, not the menu's (`keyboard-focus-map.md:19`).
+    expect(screen.queryByRole("menu")).toBeTruthy();
   });
 });

@@ -32,7 +32,7 @@ import { dropEdge, gapUnder, landingFor, reordered } from "./checklistOrder";
 import { classes } from "./classes";
 import { DescriptionEditor } from "./DescriptionEditor";
 import { GhostBox } from "./GhostBox";
-import { LabelMenuButton } from "./LabelMenu";
+import { LabelMenuButton, type LabelDefinition } from "./LabelMenu";
 import { MenuButton } from "./Menu";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "./metaOptions";
 import type {
@@ -61,6 +61,13 @@ interface CreatePanelProps {
   provisionalKey?: string;
   /** The project's label definitions. A ticket carries slugs and nothing else. */
   labels: Record<string, Label>;
+  /**
+   * Defines a new label and ticks it onto this draft, in one gesture (LC-236e).
+   * The definition is a project write and it lands immediately — it outlives
+   * this draft, including one that is abandoned — and a refusal comes back as
+   * `false` so the row can keep what was typed.
+   */
+  onDefineLabel: (definition: LabelDefinition) => Promise<boolean>;
   /**
    * Carried in from quick create's "Open full editor →"
    * (`screen-specs.md:258-259`) — all five fields it asks for, as one draft
@@ -372,6 +379,10 @@ export function CreatePanel(props: CreatePanelProps) {
           slugs={labels}
           definitions={props.labels}
           onToggle={(next) => setLabels(next)}
+          // The same define row quick create wears, for the same reason: this
+          // is the other surface where a label can be wanted before the
+          // project has one (LC-236e).
+          onDefine={props.onDefineLabel}
         />
       </div>
 
