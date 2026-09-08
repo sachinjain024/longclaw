@@ -796,3 +796,27 @@ The `Esc` ladder is `keyboard-focus-map.md:139`, `:141` and `:142`, all three ed
 
 **One cosmetic difference the prototype left standing and this keeps**: the name field's placeholder is `Label name` in the popover and `Display name` in settings. It was on the prototype's open list and is not covered by anything above — the derivation, which is what the two surfaces must not disagree about, is one function called from both.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_3c6cfdac
+kind: comment
+occurred_at: 2026-09-08T08:01:17.490Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Reviewed on both axes. **Spec: clean** — the copy matches revision 3 character for character, one derivation serves both surfaces, the write lands immediately, `TicketPanel` is correctly untouched, the ramp is still green-free, and nothing from *Not in scope* was built. **Standards: three real defects**, all fixed in `cbb218a`, all invisible to the jsdom tests and to `verify`.
+
+**`Menu` took `Enter` from the define row's own buttons.** The handler is on the popover, so a press on **Add label** bubbles to it, and the guard was `active === "footer"` — an index that only reads `"footer"` when the *arrows* put it there. Open the row with the pointer and the index is still standing on the first label, so `Enter` on the commit ticked that label and swallowed the write. A regression test drives it and goes red without the fix: it produced `labels: ["frontend"]` where `["reliability"]` was asked for. The guard is now where the press came from rather than where the index happens to be.
+
+**The footer's roving stop was attached to the collapsed button alone.** React nulls a callback ref on unmount, so the stop was null exactly while the row was open — `↑` onto the footer moved the active index, focused nothing, and left every row at `tabIndex={-1}`. The name field carries the ref too now. Worth recording that my first test for this was **vacuous**: the row focuses its own field when it opens, so asserting from there held whether or not the stop was wired. It stands on a label row first now, and is red without the fix.
+
+**Defining a slug the draft already carried took it off.** The tick went through `toggleLabel`, and `defineState` reads only the definitions — so a slug an agent had written onto the draft was ticked *off* for the crime of having just been defined. It ticks on now.
+
+Three smaller ones with it: the collision sentence moved **inside** the `aria-live` region, since it is the one thing that says why the commit is dead and a region holding only the key announced the key and left the reason unsaid; the hue is a `LabelColor` end to end rather than a `string` and a cast at the call site; and `Menu.tsx`'s wrap citation named the quick-create table's header rather than the rule it meant.
+
+`verify` green at 1155 tests, `a11y:audit` A1–A5 green. The `--self-test` inversion reports `A3 passed against a broken build`, which is **pre-existing** — A3 survives the same injury on a clean tree, confirmed by stashing this branch and re-running.
+<!-- /longclaw:event -->
