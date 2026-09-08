@@ -17,7 +17,9 @@ use common::{
     POLL_INTERVAL_MS,
 };
 use longclaw_desktop_lib::core::storage::NewTicket;
-use longclaw_desktop_lib::core::ticket::{ActorType, NewChecklistItem, Status, TicketEdit};
+use longclaw_desktop_lib::core::ticket::{
+    ActorType, NewChecklistItem, Status, TicketEdit, TicketProperties,
+};
 use longclaw_desktop_lib::core::{
     IndexedRow, ProjectEvent, RebuildReason, StreamEnvelope, TicketRow,
 };
@@ -127,6 +129,7 @@ fn create_first_ticket(engine: &longclaw_desktop_lib::engine::ProjectEngine) -> 
     let result = engine
         .create_ticket(&NewTicket {
             title: "Prove the agent round trip".to_owned(),
+            properties: TicketProperties::default(),
             description: "Check whether the round trip holds.".to_owned(),
             status: Some(Status::Todo),
             priority: None,

@@ -1,0 +1,14 @@
+{
+  "summary": "A property value this configuration cannot interpret is preserved rather than corrected or refused (invariant 16), and it is not an unknown key.",
+  "key": "LC-11",
+  "outcome": "valid",
+  "ticket": {
+    "title": "Property values this configuration cannot read",
+    "type": "epic",
+    "due": "28 Sep 2026",
+    "start": "2026-09-14",
+    "estimate": "5",
+    "unknownKeys": [],
+    "recordDiagnostics": []
+  }
+}

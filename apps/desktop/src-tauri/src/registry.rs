@@ -320,6 +320,7 @@ mod tests {
                 starred: false,
                 reachable: true,
                 labels: Default::default(),
+                properties: Default::default(),
             })
             .unwrap_err();
         fs::set_permissions(&app_data, fs::Permissions::from_mode(0o755)).unwrap();

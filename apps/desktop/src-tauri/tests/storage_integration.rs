@@ -14,7 +14,7 @@ use common::{
 };
 use longclaw_desktop_lib::core::storage::{self, NewTicket};
 use longclaw_desktop_lib::core::ticket::{
-    ChecklistToggle, NewChecklistItem, Priority, Status, TicketEdit,
+    ChecklistToggle, NewChecklistItem, Priority, Status, TicketEdit, TicketProperties,
 };
 use longclaw_desktop_lib::core::{
     ErrorCode, ProjectEvent, RebuildReason, StreamEnvelope, TicketRow,
@@ -557,6 +557,7 @@ fn creating_tickets_allocates_keys_from_the_files_and_never_reuses_one() {
     let created = engine
         .create_ticket(&NewTicket {
             title: "Ship the storage engine".to_owned(),
+            properties: TicketProperties::default(),
             description: "Written by the app.".to_owned(),
             status: Some(Status::Todo),
             priority: Some(Priority::P1),

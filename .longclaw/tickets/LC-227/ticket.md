@@ -8,7 +8,7 @@ priority: urgent
 labels:
   - release
 created_at: 2026-08-22T06:13:17.138Z
-updated_at: 2026-09-08T07:20:00.434Z
+updated_at: 2026-09-08T10:30:21.510Z
 ---
 
 Brainstorm with LLM agent like what other fields we should support. A few items I can think of are Type - Bug/Task, Due State, Start Date, Effort
@@ -665,6 +665,71 @@ part is that a clamp landing under 660 takes the rail with it, silently.
 - **The right-click menu was missing from the plan entirely**, and now carries
   all four properties.
 
+## Built 2026-09-08: the format layer
+
+The four properties are on disk, through the CLI, and on the index rows. No UI
+yet — that is deliberate, because none of it depends on the two questions still
+open in the review below.
+
+**The reader validates nothing about these four, and the writers validate
+everything.** A stored value is handed back exactly as the file spells it: an
+estimate written under another system, a type slug nothing defines, a date in a
+shape the format does not store. That is invariant 16, and it is also the rule
+`is_label_slug` already states one registry over — a slug an agent wrote is
+preserved and rendered as itself, and only *new* definitions are held to the
+grammar. Parsing at read time would be the place that stopped being true, and
+the corpus case `valid-ticket-properties-uninterpretable` is what holds it.
+
+**A property key this build knows is never an unknown key.** Invariant 11 covers
+a key the build cannot interpret; invariant 16 covers a key it knows and a value
+this configuration cannot read. Conflating them would report the wrong thing
+about both, so `KNOWN_KEYS` carries all four and the two cases are separate
+fixtures.
+
+**`estimate: 5` does not cost a ticket.** It is a YAML integer where the format
+asks for a string, and `Option<String>` would refuse it and take the whole file
+down over a missing pair of quotes. The four are read through a scalar reader
+that takes whatever type YAML resolved and keeps the text.
+
+Three things the format doc did not say, decided here and written into it in
+place:
+
+- **An estimate system that is absent is `tshirt`** — the one system whose
+  vocabulary is already in the file, so a bare `enabled: true` is usable rather
+  than a project that will not open over a missing key.
+- **`estimate.values` is an ordered sequence, not a mapping.** A scale has an
+  order, and `xs s m l xl` keyed by slug comes back `l m s xl xs`.
+  `type.values` stays a mapping precisely because types have no order to lose.
+- **The conversion is a float**, so a 7.5-hour day is expressible. `Project` and
+  `ProjectReference` gave up their `Eq` derive for it, which nothing wanted.
+
+**Where the keys land in the file**: after `labels` and `rank`, before
+`created_at`, in the documented order however many of them a ticket carries.
+Each property names the ones before it as its anchors, so the order does not
+depend on which of them a given edit happened to set first.
+
+**`ProjectReference` carries the property configuration**, for the reason it
+already carries `labels`: a surface holding one has to know which properties
+exist and what their values mean before it can draw anything.
+
+**The timeline has a sentence for each of the four.** Not scope creep — the
+repository's own tripwire: `json_contract_applied_field_changes` pins every
+field `apply` can write into `ipc-contract.json`, and `timelineEvents.test.ts`
+asserts every pinned field has a sentence, so adding four fields to `apply`
+turns the frontend suite red until they do. A date reaches that line **verbatim
+and unformatted**, because the same line has to carry a date in a shape the
+format does not store, and prettying that one up would claim the file holds
+something it does not.
+
+### The gap this opened
+
+**The app's own create and edit do not yet refuse a disabled property or an
+undefined value.** The CLI does — it holds the `ProjectDocument`, so it can ask
+— and `TicketDocument::apply_as` deliberately cannot: it knows the format's
+rules and nothing about the project. Today nothing sends those fields over IPC,
+so nothing is wrong; the moment the panel does, `engine.rs` needs the check the
+CLI already makes. It is a checklist row rather than a sentence here.
+
 ### What is still open for the review
 
 - **The estimate control in the rail: segment or menu.** The segment shows the
@@ -729,15 +794,16 @@ height — which is the invariant the second footer row exists inside.
 - [x] Prototype the estimate control for each system — t-shirt chips, Fibonacci chips, and number plus unit <!-- longclaw:item=ck_100759d5 -->
 - [x] Prototype the settings Properties pane: the type-values editor, the estimate system picker, and a property switched off while tickets carry values <!-- longclaw:item=ck_d5ddb411 -->
 - [ ] Review the prototype, record what it settled, then delete it and its line in the index <!-- longclaw:item=ck_7d5bada6 -->
-- [ ] Project: parse and render the properties block in longclaw.yaml, preserving unknown keys <!-- longclaw:item=ck_15465a7c -->
-- [ ] Ticket: parse and render the four properties; a disabled one survives a read-modify-write untouched <!-- longclaw:item=ck_15eaaa0f -->
-- [ ] Validate a malformed date or estimate without destroying it — degrade the value, keep the bytes <!-- longclaw:item=ck_91489cf3 -->
-- [ ] TicketEdit: the four properties, nullable where absent must differ from cleared <!-- longclaw:item=ck_fc53069e -->
-- [ ] Activity: a changes entry per property, so a due date set by an agent is attributable <!-- longclaw:item=ck_92d3b485 -->
-- [ ] Index: carry the four properties on IndexedTicket <!-- longclaw:item=ck_71c2030f -->
-- [ ] CLI create and edit: --type --due --start --estimate, refusing a disabled property and an undefined type value the way known_labels refuses an undefined label <!-- longclaw:item=ck_cc46645c -->
+- [x] Project: parse and render the properties block in longclaw.yaml, preserving unknown keys <!-- longclaw:item=ck_15465a7c -->
+- [x] Ticket: parse and render the four properties; a disabled one survives a read-modify-write untouched <!-- longclaw:item=ck_15eaaa0f -->
+- [x] Validate a malformed date or estimate without destroying it — degrade the value, keep the bytes <!-- longclaw:item=ck_91489cf3 -->
+- [x] TicketEdit: the four properties, nullable where absent must differ from cleared <!-- longclaw:item=ck_fc53069e -->
+- [x] Activity: a changes entry per property, so a due date set by an agent is attributable <!-- longclaw:item=ck_92d3b485 -->
+- [x] Index: carry the four properties on IndexedTicket <!-- longclaw:item=ck_71c2030f -->
+- [x] CLI create and edit: --type --due --start --estimate, refusing a disabled property and an undefined type value the way known_labels refuses an undefined label <!-- longclaw:item=ck_cc46645c -->
+- [ ] The app's own create and edit refuse a disabled property and an undefined value, the way the CLI does — engine.rs holds the project and apply_as deliberately does not <!-- longclaw:item=ck_97b51001 -->
 - [ ] Generated .longclaw/AGENTS.md documents only the enabled set — check it against LC-66's churn <!-- longclaw:item=ck_e017a189 -->
-- [ ] Conformance fixtures per property: enabled and disabled, valid and malformed <!-- longclaw:item=ck_25b41a66 -->
+- [x] Conformance fixtures per property: enabled and disabled, valid and malformed <!-- longclaw:item=ck_25b41a66 -->
 - [ ] types.ts: the four properties on Ticket and IndexedTicket <!-- longclaw:item=ck_bb5b83f5 -->
 - [ ] Settings: a properties section in SETTINGS_SECTIONS after labels, both labels off one row <!-- longclaw:item=ck_5fbdce11 -->
 - [ ] Settings pane: the type-values editor, shaped like the labels editor <!-- longclaw:item=ck_395aa8b1 -->
@@ -1887,6 +1953,75 @@ actor:
   name: Claude Code
 changes:
   - field: description
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_bd97b5ae
+kind: update
+occurred_at: 2026-09-08T10:28:55.619Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_15465a7c.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_15eaaa0f.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_91489cf3.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_fc53069e.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_92d3b485.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_71c2030f.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_cc46645c.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_25b41a66.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_e12e97c1
+kind: update
+occurred_at: 2026-09-08T10:30:04.741Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+  - field: checklist.ck_97b51001.added
+    to: The app's own create and edit refuse a disabled property and an undefined value, the way the CLI does — engine.rs holds the project and apply_as deliberately does not
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_c78f8bf3
+kind: update
+occurred_at: 2026-09-08T10:30:21.510Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_97b51001.moved
+    from: "59"
+    to: "28"
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->

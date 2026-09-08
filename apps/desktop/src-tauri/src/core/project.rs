@@ -12,7 +12,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use super::error::Diagnostic;
-use super::ticket::render_new_ticket;
+use super::ticket::{render_new_ticket, Property};
 use super::yaml::{encode_scalar, Mapping};
 
 pub const PROJECT_FORMAT: &str = "longclaw.project/v1";
@@ -32,8 +32,267 @@ pub struct Label {
     pub color: String,
 }
 
+// --------------------------------------------------- the four ticket properties
+
+/// The estimate scale a project is on.
+///
+/// A project is on exactly one. Switching never rewrites a ticket: a value
+/// written under the old system stays exactly as it was and reads as unreadable
+/// under the new one, which is format invariant 16.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum EstimateSystem {
+    /// The fallback for a project that enables estimates without naming a
+    /// system. It is the one system whose vocabulary is already in the file —
+    /// `values` is seeded for it — so a bare `enabled: true` is usable rather
+    /// than a project that refuses to open over a missing key.
+    #[default]
+    Tshirt,
+    Fibonacci,
+    Duration,
+}
+
+impl EstimateSystem {
+    pub const ALL: [Self; 3] = [Self::Tshirt, Self::Fibonacci, Self::Duration];
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Tshirt => "tshirt",
+            Self::Fibonacci => "fibonacci",
+            Self::Duration => "duration",
+        }
+    }
+
+    pub fn parse(value: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|system| system.as_str() == value)
+    }
+}
+
+/// The Fibonacci scale, which is fixed: a project on Fibonacci has nothing to
+/// configure, so unlike the other two systems this is not a project setting.
+pub const FIBONACCI_SCALE: [&str; 6] = ["1", "2", "3", "5", "8", "13"];
+
+/// What `properties.type.values` holds when Type is first enabled. Seeds rather
+/// than constants — the registry is editable afterwards, and a project that
+/// deletes `spike` keeps it deleted.
+pub const SEEDED_TYPE_VALUES: [(&str, &str, &str); 5] = [
+    ("bug", "Bug", "red"),
+    ("feature", "Feature", "cyan"),
+    ("chore", "Chore", "gray"),
+    ("docs", "Docs", "blue"),
+    ("spike", "Spike", "purple"),
+];
+
+/// What `properties.estimate.values` holds when Estimate is first enabled, in
+/// order.
+pub const SEEDED_TSHIRT_SCALE: [&str; 5] = ["xs", "s", "m", "l", "xl"];
+
+pub const DEFAULT_ATTENTION_DAYS: u32 = 7;
+pub const DEFAULT_HOURS_PER_DAY: f64 = 8.0;
+pub const DEFAULT_DAYS_PER_WEEK: f64 = 5.0;
+
+/// Type: one project-defined slug per ticket.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TypeConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    /// Slug to definition, shaped exactly like `labels`, because a type value is
+    /// the same kind of thing: a name and a colour that tickets refer to by
+    /// slug. Renaming or recolouring one therefore rewrites no ticket.
+    #[serde(default)]
+    pub values: BTreeMap<String, Label>,
+}
+
+/// Due date, and the width of its approaching window.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DueConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    /// How many days ahead count as approaching. `0` is legal and empties that
+    /// rung, leaving today and beyond; a negative value is refused, which is
+    /// what the unsigned type says. Overdue and today are absolute, so this is
+    /// the only boundary a project can move.
+    #[serde(default = "default_attention_days", alias = "attention_days")]
+    pub attention_days: u32,
+}
+
+impl Default for DueConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            attention_days: DEFAULT_ATTENTION_DAYS,
+        }
+    }
+}
+
+/// Start date. `enabled` is the only key every property has, and start has
+/// nothing else: a start date is a day, and no window is measured from it.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StartConfig {
+    #[serde(default)]
+    pub enabled: bool,
+}
+
+/// Estimate: the system, its vocabulary, and the conversion that makes durations
+/// comparable.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EstimateConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub system: EstimateSystem,
+    /// The t-shirt scale, in order, read only under `tshirt`.
+    ///
+    /// A sequence rather than a mapping because a scale is ordered and a mapping
+    /// is not: `xs s m l xl` keyed by slug comes back `l m s xl xs`, which is
+    /// not a scale at all. `type.values` can be a mapping precisely because
+    /// types have no order to lose.
+    #[serde(default)]
+    pub values: Vec<String>,
+    /// Read only under `duration`. The conversion is a project setting rather
+    /// than a constant because `4h` against `1d` cannot be ordered without
+    /// knowing how long a working day is.
+    #[serde(default = "default_hours_per_day", alias = "hours_per_day")]
+    pub hours_per_day: f64,
+    #[serde(default = "default_days_per_week", alias = "days_per_week")]
+    pub days_per_week: f64,
+}
+
+impl Default for EstimateConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            system: EstimateSystem::default(),
+            values: Vec::new(),
+            hours_per_day: DEFAULT_HOURS_PER_DAY,
+            days_per_week: DEFAULT_DAYS_PER_WEEK,
+        }
+    }
+}
+
+impl EstimateConfig {
+    /// Whether this project's current system can read `value`.
+    ///
+    /// This decides what may be newly *written*, never what is kept: a stored
+    /// value the system cannot read is preserved and simply reads as unreadable
+    /// (invariant 16), which is what makes switching systems reversible.
+    pub fn accepts(&self, value: &str) -> bool {
+        match self.system {
+            EstimateSystem::Tshirt => self.values.iter().any(|slug| slug == value),
+            EstimateSystem::Fibonacci => FIBONACCI_SCALE.contains(&value),
+            EstimateSystem::Duration => parse_duration(value).is_some(),
+        }
+    }
+
+    /// What this system accepts, phrased for a refusal message.
+    pub fn vocabulary(&self) -> String {
+        match self.system {
+            EstimateSystem::Tshirt => {
+                if self.values.is_empty() {
+                    "this project's t-shirt scale, which defines no values yet".to_owned()
+                } else {
+                    format!("one of {}", self.values.join(", "))
+                }
+            }
+            EstimateSystem::Fibonacci => format!("one of {}", FIBONACCI_SCALE.join(", ")),
+            EstimateSystem::Duration => "a number and a unit, such as 2h, 1.5d or 1w".to_owned(),
+        }
+    }
+}
+
+/// The four opt-in ticket properties as this project configures them.
+///
+/// Every field defaults, so a `longclaw.yaml` with no `properties:` block at all
+/// — which is every project file written before this build — reads as all four
+/// disabled and needs no migration.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PropertiesConfig {
+    /// `type` on disk and on the wire. The field cannot be called that in Rust,
+    /// and renaming the wire key instead would make the config disagree with the
+    /// ticket key it configures.
+    #[serde(default, rename = "type")]
+    pub ticket_type: TypeConfig,
+    #[serde(default)]
+    pub due: DueConfig,
+    #[serde(default)]
+    pub start: StartConfig,
+    #[serde(default)]
+    pub estimate: EstimateConfig,
+}
+
+impl PropertiesConfig {
+    /// Whether a property may be written at all. A disabled property is refused
+    /// by the creation surfaces and preserved by the reader — the two halves of
+    /// "disabling hides, it never deletes".
+    pub fn is_enabled(&self, property: Property) -> bool {
+        match property {
+            Property::Type => self.ticket_type.enabled,
+            Property::Due => self.due.enabled,
+            Property::Start => self.start.enabled,
+            Property::Estimate => self.estimate.enabled,
+        }
+    }
+
+    /// The enabled set, in the order the format documents them. What
+    /// `.longclaw/AGENTS.md` lists and what a menu offers.
+    pub fn enabled(&self) -> Vec<Property> {
+        Property::ALL
+            .into_iter()
+            .filter(|property| self.is_enabled(*property))
+            .collect()
+    }
+}
+
+fn default_attention_days() -> u32 {
+    DEFAULT_ATTENTION_DAYS
+}
+
+fn default_hours_per_day() -> f64 {
+    DEFAULT_HOURS_PER_DAY
+}
+
+fn default_days_per_week() -> f64 {
+    DEFAULT_DAYS_PER_WEEK
+}
+
+/// Splits a duration estimate into its amount and unit, or `None` when it is not
+/// one.
+///
+/// One number and one unit. `1d4h` is refused rather than summed: two units in
+/// one value make its meaning depend on `hours_per_day`, which the project can
+/// change underneath the ticket. Decimals carry that case instead — `1.5d`.
+pub fn parse_duration(value: &str) -> Option<(f64, char)> {
+    if !value.is_ascii() {
+        return None;
+    }
+    let (amount, unit) = value.split_at(value.len().checked_sub(1)?);
+    let unit = unit.chars().next()?;
+    if !matches!(unit, 'm' | 'h' | 'd' | 'w') {
+        return None;
+    }
+    let digits = amount.bytes().filter(u8::is_ascii_digit).count();
+    let points = amount.bytes().filter(|byte| *byte == b'.').count();
+    if digits + points != amount.len() || points > 1 || digits == 0 {
+        return None;
+    }
+    // A leading or trailing point would parse — `.5` and `5.` are both f64 — and
+    // both are spellings of a number this format does not write.
+    if amount.starts_with('.') || amount.ends_with('.') {
+        return None;
+    }
+    let parsed: f64 = amount.parse().ok()?;
+    (parsed > 0.0).then_some((parsed, unit))
+}
+
 /// A project as its file describes it.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Project {
     pub id: String,
@@ -47,6 +306,10 @@ pub struct Project {
     pub created_at: String,
     pub people: BTreeMap<String, Person>,
     pub labels: BTreeMap<String, Label>,
+    /// How this project configures the four opt-in ticket properties, and where
+    /// their vocabularies live (ADR 0013). Absent from the file means all four
+    /// off.
+    pub properties: PropertiesConfig,
     pub unknown_keys: Vec<String>,
 }
 
@@ -123,6 +386,7 @@ impl ProjectDocument {
                 created_at: fields.created_at,
                 people: fields.people,
                 labels: fields.labels,
+                properties: fields.properties,
                 unknown_keys,
             },
         })
@@ -267,7 +531,7 @@ fn validate_label_color(color: &str) -> Result<(), Diagnostic> {
     Ok(())
 }
 
-const KNOWN_KEYS: [&str; 8] = [
+const KNOWN_KEYS: [&str; 9] = [
     "format",
     "id",
     "name",
@@ -276,6 +540,7 @@ const KNOWN_KEYS: [&str; 8] = [
     "created_at",
     "people",
     "labels",
+    "properties",
 ];
 
 #[derive(Debug, Deserialize)]
@@ -291,6 +556,8 @@ struct ProjectFields {
     people: BTreeMap<String, Person>,
     #[serde(default)]
     labels: BTreeMap<String, Label>,
+    #[serde(default)]
+    properties: PropertiesConfig,
 }
 
 fn default_theme() -> String {
@@ -571,7 +838,11 @@ fn example_ticket(key: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{render_new_project, ProjectDocument, DEFAULT_THEME, PROJECT_FORMAT};
+    use super::{
+        parse_duration, render_new_project, EstimateConfig, EstimateSystem, ProjectDocument,
+        Property, DEFAULT_ATTENTION_DAYS, DEFAULT_DAYS_PER_WEEK, DEFAULT_HOURS_PER_DAY,
+        DEFAULT_THEME, PROJECT_FORMAT, SEEDED_TSHIRT_SCALE,
+    };
     use crate::core::ErrorCode;
 
     const PROJECT: &str = concat!(
@@ -865,5 +1136,134 @@ mod tests {
         assert!(contract.contains("longclaw:item=ck_7d2a"));
         assert!(contract.contains("<!-- /longclaw:event -->"));
         assert!(contract.contains("atomically"));
+    }
+
+    // -------------------------------------------- the properties block
+
+    const CONFIGURED: &str = concat!(
+        "format: longclaw.project/v1\n",
+        "id: project-fixture\n",
+        "name: Fixture\n",
+        "key: LC\n",
+        "theme: indigo\n",
+        "created_at: 2026-07-29T00:00:00Z\n",
+        "people: {}\n",
+        "labels: {}\n",
+        "properties:\n",
+        "  type:\n",
+        "    enabled: true\n",
+        "    values:\n",
+        "      bug: { name: Bug, color: red }\n",
+        "      feature: { name: Feature, color: cyan }\n",
+        "  due:\n",
+        "    enabled: true\n",
+        "    attention_days: 3\n",
+        "  estimate:\n",
+        "    enabled: true\n",
+        "    system: duration\n",
+        "    hours_per_day: 6\n",
+        "    x_future_key: kept\n",
+    );
+
+    /// Every project file written before this block existed. All four off, and
+    /// nothing to migrate.
+    #[test]
+    fn a_project_with_no_properties_block_has_every_property_off() {
+        let document = ProjectDocument::parse(PROJECT).expect("the fixture should parse");
+        let properties = &document.project().properties;
+        assert!(properties.enabled().is_empty());
+        assert_eq!(properties.due.attention_days, DEFAULT_ATTENTION_DAYS);
+        assert_eq!(properties.estimate.hours_per_day, DEFAULT_HOURS_PER_DAY);
+        assert!(!document
+            .project()
+            .unknown_keys
+            .iter()
+            .any(|key| key == "properties"));
+    }
+
+    #[test]
+    fn the_properties_block_is_read_and_its_bytes_are_kept() {
+        let document = ProjectDocument::parse(CONFIGURED).expect("the fixture should parse");
+        let properties = &document.project().properties;
+
+        assert_eq!(
+            properties.enabled(),
+            vec![Property::Type, Property::Due, Property::Estimate]
+        );
+        assert!(!properties.is_enabled(Property::Start));
+        assert_eq!(properties.due.attention_days, 3);
+        assert_eq!(properties.ticket_type.values.len(), 2);
+        assert_eq!(properties.ticket_type.values["bug"].color, "red");
+        assert_eq!(properties.estimate.system, EstimateSystem::Duration);
+        assert_eq!(properties.estimate.hours_per_day, 6.0);
+        // Not named in the file, so the documented default stands.
+        assert_eq!(properties.estimate.days_per_week, DEFAULT_DAYS_PER_WEEK);
+        // A key inside the block that this build does not interpret is part of
+        // the file, and the file comes back as it was.
+        assert_eq!(document.render(), CONFIGURED);
+    }
+
+    /// A property this build declines to read is not a property that vanishes.
+    #[test]
+    fn a_project_enabling_estimates_without_a_system_is_on_the_seeded_one() {
+        let raw = format!("{PROJECT}properties:\n  estimate:\n    enabled: true\n");
+        let document = ProjectDocument::parse(&raw).expect("the fixture should parse");
+        assert_eq!(
+            document.project().properties.estimate.system,
+            EstimateSystem::Tshirt
+        );
+    }
+
+    #[test]
+    fn each_estimate_system_reads_its_own_scale_and_no_other() {
+        let mut estimate = EstimateConfig {
+            enabled: true,
+            values: SEEDED_TSHIRT_SCALE.map(str::to_owned).to_vec(),
+            ..EstimateConfig::default()
+        };
+        assert!(estimate.accepts("m"));
+        assert!(!estimate.accepts("5"));
+        assert!(!estimate.accepts("2h"));
+
+        estimate.system = EstimateSystem::Fibonacci;
+        assert!(estimate.accepts("5"));
+        assert!(!estimate.accepts("4"));
+        assert!(!estimate.accepts("m"));
+
+        estimate.system = EstimateSystem::Duration;
+        assert!(estimate.accepts("2h"));
+        assert!(estimate.accepts("1.5d"));
+        assert!(!estimate.accepts("5"));
+        assert!(!estimate.accepts("m"));
+    }
+
+    #[test]
+    fn a_duration_carries_one_number_and_one_unit() {
+        assert_eq!(parse_duration("2h"), Some((2.0, 'h')));
+        assert_eq!(parse_duration("1.5d"), Some((1.5, 'd')));
+        assert_eq!(parse_duration("30m"), Some((30.0, 'm')));
+        assert_eq!(parse_duration("1w"), Some((1.0, 'w')));
+        for refused in [
+            "1d4h", "2", "h", "0h", "-1d", "1.5.5d", ".5h", "5.h", "2y", "2 h", "",
+        ] {
+            assert_eq!(
+                parse_duration(refused),
+                None,
+                "{refused:?} should be refused"
+            );
+        }
+    }
+
+    /// `0` empties the approaching rung; a negative value is not a width.
+    #[test]
+    fn a_negative_attention_window_is_refused_and_zero_is_not() {
+        let zero =
+            format!("{PROJECT}properties:\n  due:\n    enabled: true\n    attention_days: 0\n");
+        let parsed = ProjectDocument::parse(&zero).expect("zero should be legal");
+        assert_eq!(parsed.project().properties.due.attention_days, 0);
+
+        let negative =
+            format!("{PROJECT}properties:\n  due:\n    enabled: true\n    attention_days: -1\n");
+        assert!(ProjectDocument::parse(&negative).is_err());
     }
 }
