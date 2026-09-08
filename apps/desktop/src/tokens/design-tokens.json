@@ -120,6 +120,8 @@
     "card-pad-y": 10,
     "board-card": 108,
     "board-card-acknowledged": 136,
+    "board-card-properties": 132,
+    "board-card-acknowledged-properties": 160,
     "board-stack": "calc(100vh - 123px)",
     "panel-gutter": 16,
     "panel-gutter-lg": 24

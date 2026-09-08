@@ -8,22 +8,27 @@ import { describe, expect, it } from "vitest";
 import {
   CARD_GAP,
   CARD_HEIGHT,
+  CARD_HEIGHT_PROPERTIES,
   CARD_STRIDE,
+  CARD_STRIDE_PROPERTIES,
   ACKNOWLEDGED_CARD_HEIGHT,
+  ACKNOWLEDGED_CARD_HEIGHT_PROPERTIES,
   ACKNOWLEDGED_CARD_STRIDE,
+  ACKNOWLEDGED_CARD_STRIDE_PROPERTIES,
   cardStrides,
   gapAt,
   runningOffsets,
   windowFor,
 } from "./boardGeometry";
+import { NO_PROPERTIES } from "./properties";
 import type { ExternalMarks } from "./acknowledgement";
 import { ACKNOWLEDGEMENT_WINDOW_MS } from "./acknowledgement";
 import tokens from "./tokens/design-tokens.json";
-import type { TicketRow } from "./types";
+import type { IndexedTicket } from "./types";
 
 const NOW = 1_800_000_000_000;
 
-function rows(count: number): TicketRow[] {
+function rows(count: number): IndexedTicket[] {
   return Array.from({ length: count }, (_, index) => ({
     state: "indexed",
     key: `LC-${index + 1}`,
@@ -45,7 +50,7 @@ function rows(count: number): TicketRow[] {
 
 describe("a column's card strides", () => {
   it("gives every resting card the same stride", () => {
-    expect(cardStrides(rows(3), {}, NOW)).toEqual([
+    expect(cardStrides(rows(3), {}, NOW, NO_PROPERTIES)).toEqual([
       CARD_STRIDE,
       CARD_STRIDE,
       CARD_STRIDE,
@@ -61,10 +66,68 @@ describe("a column's card strides", () => {
       },
     };
 
-    expect(cardStrides(rows(3), marks, NOW)).toEqual([
+    expect(cardStrides(rows(3), marks, NOW, NO_PROPERTIES)).toEqual([
       CARD_STRIDE,
       ACKNOWLEDGED_CARD_STRIDE,
       CARD_STRIDE,
+    ]);
+  });
+
+  /**
+   * The four heights, and the axis that decides between them.
+   *
+   * What is pinned here is not only which cards are tall: it is that the answer
+   * comes from **row data**. The middle ticket is overdue by years and gets no
+   * extra pixel for it, because a height that read the rung would change at
+   * midnight, with no file write, and shift every column's offsets under a
+   * scrolled board.
+   */
+  it("grows a card that has a value for an enabled second-row property", () => {
+    const tickets = rows(3);
+    tickets[1] = { ...tickets[1], estimate: "1.5d", due: "2020-01-01" };
+    tickets[2] = { ...tickets[2], due: "2020-01-01" };
+    const properties = {
+      ...NO_PROPERTIES,
+      due: { enabled: true, attentionDays: 7 },
+      estimate: {
+        ...NO_PROPERTIES.estimate,
+        enabled: true,
+        system: "duration" as const,
+      },
+    };
+
+    expect(cardStrides(tickets, {}, NOW, properties)).toEqual([
+      CARD_STRIDE,
+      CARD_STRIDE_PROPERTIES,
+      // A due date and nothing else: the key row carries it, so this card is
+      // exactly as tall as it was before the project turned anything on.
+      CARD_STRIDE,
+    ]);
+  });
+
+  it("keeps a card short when the project has that property switched off", () => {
+    const tickets = rows(1);
+    tickets[0] = { ...tickets[0], estimate: "1.5d", type: "bug" };
+    expect(cardStrides(tickets, {}, NOW, NO_PROPERTIES)).toEqual([CARD_STRIDE]);
+  });
+
+  it("adds the acknowledgement footer to the taller card as well", () => {
+    const tickets = rows(1);
+    tickets[0] = { ...tickets[0], type: "bug" };
+    const marks: ExternalMarks = {
+      "LC-1": {
+        actorType: "agent",
+        actorLabel: "Claude Code",
+        at: NOW - 1_000,
+      },
+    };
+    const properties = {
+      ...NO_PROPERTIES,
+      type: { enabled: true, values: {} },
+    };
+
+    expect(cardStrides(tickets, marks, NOW, properties)).toEqual([
+      ACKNOWLEDGED_CARD_STRIDE_PROPERTIES,
     ]);
   });
 
@@ -77,7 +140,7 @@ describe("a column's card strides", () => {
       },
     };
 
-    expect(cardStrides(rows(3), marks, NOW)).toEqual([
+    expect(cardStrides(rows(3), marks, NOW, NO_PROPERTIES)).toEqual([
       CARD_STRIDE,
       CARD_STRIDE,
       CARD_STRIDE,
@@ -144,6 +207,15 @@ describe("the card heights the stylesheet pins", () => {
   it("keeps the stride a card plus the gap below it", () => {
     expect(CARD_STRIDE).toBe(CARD_HEIGHT + CARD_GAP);
     expect(ACKNOWLEDGED_CARD_STRIDE).toBe(ACKNOWLEDGED_CARD_HEIGHT + CARD_GAP);
+    expect(CARD_STRIDE_PROPERTIES).toBe(CARD_HEIGHT_PROPERTIES + CARD_GAP);
+    expect(ACKNOWLEDGED_CARD_STRIDE_PROPERTIES).toBe(
+      ACKNOWLEDGED_CARD_HEIGHT_PROPERTIES + CARD_GAP,
+    );
+    // The second footer row costs the same 24px on both, which is what keeps
+    // this a pair of heights rather than two unrelated numbers.
+    expect(CARD_HEIGHT_PROPERTIES - CARD_HEIGHT).toBe(
+      ACKNOWLEDGED_CARD_HEIGHT_PROPERTIES - ACKNOWLEDGED_CARD_HEIGHT,
+    );
   });
 
   // The offsets are only exact while these agree with the stylesheet. A token
@@ -154,6 +226,10 @@ describe("the card heights the stylesheet pins", () => {
     expect(tokens.size["board-card"]).toBe(CARD_HEIGHT);
     expect(tokens.size["board-card-acknowledged"]).toBe(
       ACKNOWLEDGED_CARD_HEIGHT,
+    );
+    expect(tokens.size["board-card-properties"]).toBe(CARD_HEIGHT_PROPERTIES);
+    expect(tokens.size["board-card-acknowledged-properties"]).toBe(
+      ACKNOWLEDGED_CARD_HEIGHT_PROPERTIES,
     );
   });
 

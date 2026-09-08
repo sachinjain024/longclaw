@@ -29,6 +29,7 @@ import type {
   TicketRow,
   WriteResult,
 } from "./types";
+import { NO_PROPERTIES } from "./properties";
 
 vi.mock("./api", () => ({
   chooseAndCreateProject: vi.fn(),
@@ -131,6 +132,7 @@ describe("recovering from a lost project event", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   it("fetches one snapshot, says it is reconciling, and resumes", async () => {
@@ -237,6 +239,7 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   function created(): WriteResult {
@@ -680,6 +683,7 @@ describe("the full create surface (V0-16)", () => {
       backend: { name: "Backend", color: "blue" },
       reliability: { name: "Reliability", color: "amber" },
     },
+    properties: NO_PROPERTIES,
   };
 
   function created(): WriteResult {
@@ -876,6 +880,7 @@ describe("priority from the board (V0-08)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   const ticket = {
@@ -986,6 +991,7 @@ describe("the project path chip (LC-68)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   const ticket = {
@@ -1092,6 +1098,7 @@ describe("the project settings gear (LC-70)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   // Named for what it asserts. It used to claim it "keeps starring in the
@@ -1260,6 +1267,7 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
     starred: false,
     reachable: true,
     labels: { backend: { name: "Backend", color: "blue" } },
+    properties: NO_PROPERTIES,
   };
 
   const ticket: TicketRow = {
@@ -1785,6 +1793,7 @@ describe("the disk-state indicator (LC-69, moved by LC-239w)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   async function openBoard() {
@@ -1890,6 +1899,7 @@ describe("first launch (LC-76 … LC-82)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   /** The flow D-11 restores: welcome → folder picker → create form. */
@@ -2092,6 +2102,7 @@ describe("first launch (LC-76 … LC-82)", () => {
       starred: false,
       reachable: true,
       labels: {},
+      properties: NO_PROPERTIES,
     };
 
     /** A folder that already holds `existing`, on both sides of the picker. */
@@ -2390,6 +2401,7 @@ describe("system-matched appearance (V0-35)", () => {
       starred: false,
       reachable: true,
       labels: {},
+      properties: NO_PROPERTIES,
     };
     vi.mocked(api.listProjects).mockResolvedValue([project]);
     vi.mocked(api.openProject).mockResolvedValue({
@@ -2427,6 +2439,7 @@ describe("instant per-project theme selection (V0-36)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   const ticket = {
@@ -2592,6 +2605,7 @@ describe("label definitions in project settings (V0-10)", () => {
     starred: false,
     reachable: true,
     labels: { backend: { name: "Backend", color: "blue" } },
+    properties: NO_PROPERTIES,
   };
 
   const ticket = {
@@ -2760,6 +2774,7 @@ describe("the list and the board agree (V0-14)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   function ticket(
@@ -3074,6 +3089,7 @@ describe("archive and unarchive (V0-11)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   function row(key: string, overrides?: Partial<IndexedTicket>): TicketRow {
@@ -3482,6 +3498,7 @@ describe("board ordering and manual reordering (V0-09)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   function row(key: string, overrides?: Partial<IndexedTicket>): TicketRow {
@@ -3970,6 +3987,7 @@ describe("the header filter (V0-15)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   function row(
@@ -4353,6 +4371,7 @@ describe("project-scoped workspace restoration (LC-49)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
   const projectB = {
     ...projectA,
@@ -4541,6 +4560,7 @@ describe("the side panel against its spec (Step 16a)", () => {
     starred: true,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   const unreachable = {
@@ -4552,6 +4572,7 @@ describe("the side panel against its spec (Step 16a)", () => {
     starred: false,
     reachable: false,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   /**
@@ -4798,6 +4819,7 @@ describe("the app shell against its spec (LC-71, LC-72, LC-73)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   function row(key: string, title: string): TicketRow {
@@ -5086,6 +5108,7 @@ describe("the app shell against its spec (LC-71, LC-72, LC-73)", () => {
         starred: false,
         reachable: true,
         labels: {},
+        properties: NO_PROPERTIES,
       };
       vi.mocked(api.chooseProjectFolder).mockResolvedValue("/Users/dev/orbit");
       vi.mocked(api.folderHoldsProject).mockResolvedValue(true);
@@ -5134,6 +5157,7 @@ describe("a project folder that cannot be reached (LC-139 … LC-145)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
   const unreachable = { ...project, reachable: false };
 
@@ -5354,6 +5378,7 @@ describe("a project with no tickets (LC-86 … LC-89)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   async function openEmpty() {
@@ -5500,6 +5525,7 @@ describe("a ticket key typed at the palette root (LC-171)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   const found: IndexedTicket = {
@@ -5633,6 +5659,7 @@ describe("a project switch under an open editor (LC-188)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   const bravo = {
@@ -5644,6 +5671,7 @@ describe("a project switch under an open editor (LC-188)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   /** A ticket Bravo already holds, so `BR-1` is a key that is taken. */
@@ -5943,6 +5971,7 @@ describe("the ticket context menu, end to end (LC-222)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   function row(key: string, overrides?: Partial<IndexedTicket>): TicketRow {
@@ -6082,6 +6111,7 @@ describe("switching project by chord (LC-230)", () => {
         starred: ordinal === "03",
         reachable: true,
         labels: {},
+        properties: NO_PROPERTIES,
       };
     },
   );

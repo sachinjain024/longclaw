@@ -1668,6 +1668,91 @@ button:disabled {
   margin-left: auto;
 }
 
+/* The due date, right-aligned in the key row so the two urgency marks read as
+   one object at the far edge and the key keeps the left edge to itself.
+
+   The auto margin has to *move* rather than be added: a second auto splits the
+   free space and parks the date mid-row, which is neither alignment. So the
+   date takes it and the glyph gives it back — but only on a card that has a
+   date, because a glyph with no auto margin and nothing else holding the right
+   edge walks back up beside the key.
+
+   Its type is stated rather than inherited. The card's own font is 13px UI, and
+   a date set in it renders larger than the key beside it and in the wrong face. */
+.card-top .due-chip {
+  flex: none;
+  overflow: hidden;
+  font-family: var(--lc-type-code-font);
+  font-size: 11px;
+  line-height: 14px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--lc-ink-3);
+}
+
+.card-top .due-chip {
+  margin-left: auto;
+}
+
+.card-top:has(.due-chip) .priority-glyph,
+.card-top:has(.due-chip) .priority-chip {
+  margin-left: 0;
+}
+
+/* Only one rung takes a colour, which is the app's existing rule rather than a
+   new one: PriorityGlyph is monochrome except Urgent, because a state conveyed
+   by colour alone is a state half the people looking at the board cannot read.
+   Every rung here is legible with the colour removed, because the words differ
+   at every rung — `3d overdue`, `Today`, `in 3d`, `20 Oct`. */
+.card-top .due-chip.overdue {
+  color: var(--lc-danger);
+}
+
+.card-top .due-chip.today {
+  color: var(--lc-ink);
+  font-weight: 600;
+}
+
+/* The second footer row: estimate and type, above the label footer and in the
+   first footer's own grammar — mono values first, chips after. It never wraps,
+   for the reason the label footer does not: a card whose height is arithmetic
+   cannot afford a row that sometimes needs two lines.
+
+   24px, and only on a card that has something to put in it. Which cards those
+   are is `hasSecondRow` in boardCard.ts, and card-height-guard.mjs adds this
+   row to both base heights to reach the two below. */
+.card-second {
+  display: flex;
+  height: 16px;
+  gap: 8px;
+  align-items: center;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.card-second .estimate {
+  flex: none;
+  color: var(--lc-ink-3);
+  font-family: var(--lc-type-code-font);
+  font-size: 10.5px;
+}
+
+/* A value the project's estimate system cannot read — written under another
+   system, or by hand. It is shown rather than hidden, because it is on disk
+   and switching back makes it legible again (invariant 16). */
+.card-second .estimate.foreign {
+  color: var(--lc-ink-disabled);
+  font-style: italic;
+}
+
+.ticket-row.has-properties {
+  height: var(--lc-size-board-card-properties);
+}
+
+.ticket-row.has-properties.acknowledged {
+  height: var(--lc-size-board-card-acknowledged-properties);
+}
+
 /* A card that can be picked up says so with the cursor, and the one in the air
    is dimmed so the drop line reads as its destination. */
 .ticket-row.draggable {

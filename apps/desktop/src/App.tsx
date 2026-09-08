@@ -29,6 +29,7 @@ import {
   updateProjectTheme,
 } from "./api";
 import { Board } from "./Board";
+import { startOfDay, untilNextDay } from "./properties";
 import { classes } from "./classes";
 import { copyToClipboard } from "./clipboard";
 import { CommandPalette } from "./CommandPalette";
@@ -972,6 +973,28 @@ export function App() {
     }, 1_000);
     return () => clearInterval(timer);
   }, [hasMarks, sweepMarks]);
+
+  /**
+   * Midnight, which nothing else can deliver (LC-227).
+   *
+   * A due date's rung is read against the reader's own day, and no write makes
+   * that day change: the watcher reports files, and midnight is not a file. The
+   * acknowledgement clock above cannot stand in for it either — it runs only
+   * while a mark is unreviewed, so a board left open overnight with nothing
+   * acknowledged would still be drawing yesterday's rungs in the morning.
+   *
+   * One timeout rather than a poll, and re-armed by the day it is waiting for,
+   * so this effect runs once a day rather than once a second. The extra second
+   * keeps it from firing a hair early and reading the same day again.
+   */
+  const today = startOfDay(now).getTime();
+  useEffect(() => {
+    const timer = setTimeout(
+      () => setNow(Date.now()),
+      untilNextDay(Date.now()),
+    );
+    return () => clearTimeout(timer);
+  }, [today]);
 
   // A lost event cannot be caught up incrementally, so the store stops applying
   // events and says so; the snapshot is fetched here, because asking Rust for the
@@ -2197,6 +2220,7 @@ export function App() {
                     selectedKey={selectedKey}
                     marks={externalMarks}
                     labels={project.labels}
+                    properties={project.properties}
                     ordering={ordering}
                     // Six empty columns beside a "No matches" panel is the
                     // empty board the designed state exists to replace — but a

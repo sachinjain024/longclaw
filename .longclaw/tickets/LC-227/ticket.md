@@ -8,7 +8,7 @@ priority: urgent
 labels:
   - release
 created_at: 2026-08-22T06:13:17.138Z
-updated_at: 2026-09-08T10:30:21.510Z
+updated_at: 2026-09-08T11:05:17.943Z
 ---
 
 Brainstorm with LLM agent like what other fields we should support. A few items I can think of are Type - Bug/Task, Due State, Start Date, Effort
@@ -790,7 +790,7 @@ height — which is the invariant the second footer row exists inside.
 - [x] Prototype the ticket panel: right-hand properties rail, description moved to the top <!-- longclaw:item=ck_b6758ff8 -->
 - [x] Prototype the four due rungs and their visual treatments, in both appearances <!-- longclaw:item=ck_7b6183bf -->
 - [x] Prototype the card's second footer row — what it holds, and how it reads at rest beside a checklist fraction <!-- longclaw:item=ck_e0292fab -->
-- [ ] The second footer row appears only when the ticket has a value for an enabled property that sits in it — one line, never wrapping, presence derived from row data and never from the rung, giving exactly four pinned heights <!-- longclaw:item=ck_bef33999 -->
+- [x] The second footer row appears only when the ticket has a value for an enabled property that sits in it — one line, never wrapping, presence derived from row data and never from the rung, giving exactly four pinned heights <!-- longclaw:item=ck_bef33999 -->
 - [x] Prototype the estimate control for each system — t-shirt chips, Fibonacci chips, and number plus unit <!-- longclaw:item=ck_100759d5 -->
 - [x] Prototype the settings Properties pane: the type-values editor, the estimate system picker, and a property switched off while tickets carry values <!-- longclaw:item=ck_d5ddb411 -->
 - [ ] Review the prototype, record what it settled, then delete it and its line in the index <!-- longclaw:item=ck_7d5bada6 -->
@@ -804,7 +804,7 @@ height — which is the invariant the second footer row exists inside.
 - [ ] The app's own create and edit refuse a disabled property and an undefined value, the way the CLI does — engine.rs holds the project and apply_as deliberately does not <!-- longclaw:item=ck_97b51001 -->
 - [ ] Generated .longclaw/AGENTS.md documents only the enabled set — check it against LC-66's churn <!-- longclaw:item=ck_e017a189 -->
 - [x] Conformance fixtures per property: enabled and disabled, valid and malformed <!-- longclaw:item=ck_25b41a66 -->
-- [ ] types.ts: the four properties on Ticket and IndexedTicket <!-- longclaw:item=ck_bb5b83f5 -->
+- [x] types.ts: the four properties on Ticket and IndexedTicket <!-- longclaw:item=ck_bb5b83f5 -->
 - [ ] Settings: a properties section in SETTINGS_SECTIONS after labels, both labels off one row <!-- longclaw:item=ck_5fbdce11 -->
 - [ ] Settings pane: the type-values editor, shaped like the labels editor <!-- longclaw:item=ck_395aa8b1 -->
 - [ ] Settings pane: the estimate system picker, its conversion fields, and the due attention_days number <!-- longclaw:item=ck_f8c2ee24 -->
@@ -812,15 +812,15 @@ height — which is the invariant the second footer row exists inside.
 - [ ] Date input: picker plus the typed forms, normalised to the canonical on-disk shape <!-- longclaw:item=ck_31cdc0b5 -->
 - [ ] Hand LC-238s the rail's floor: no rail under 660px, 800 recommended, and a clamp that lands under 660 silently removes it <!-- longclaw:item=ck_ded5d73e -->
 - [ ] Create panel and quick create: the enabled properties only <!-- longclaw:item=ck_15448aa4 -->
-- [ ] Board card: the due in the key row, immediately before the priority glyph — it costs no height, so cardStrides and the pinned heights never learn about due at all <!-- longclaw:item=ck_09e1edf1 -->
-- [ ] boardGeometry: cardStrides learns the second footer row for estimate and type, keeping the height derivable from row data and never measured <!-- longclaw:item=ck_1b980442 -->
-- [ ] styles.css and card-height-guard.mjs learn the new pinned heights — the guard runs inside npm run check and fails on a disagreement <!-- longclaw:item=ck_2c41c9b0 -->
+- [x] Board card: the due in the key row, immediately before the priority glyph — it costs no height, so cardStrides and the pinned heights never learn about due at all <!-- longclaw:item=ck_09e1edf1 -->
+- [x] boardGeometry: cardStrides learns the second footer row for estimate and type, keeping the height derivable from row data and never measured <!-- longclaw:item=ck_1b980442 -->
+- [x] styles.css and card-height-guard.mjs learn the new pinned heights — the guard runs inside npm run check and fails on a disagreement <!-- longclaw:item=ck_2c41c9b0 -->
 - [ ] List row: due within the row's two-chip budget, minding LC-93's 46px slot <!-- longclaw:item=ck_6ac72ae5 -->
 - [ ] Ticket context menu: submenus for all four properties beside Move to and Priority, each row present only when the project enables that property — a default project's menu is unchanged <!-- longclaw:item=ck_a77f4bb8 -->
 - [ ] Date submenus are quick picks with the resolved day as each row's hint, plus Clear and a Pick a date… that hands off to the panel — never a calendar inside a popover <!-- longclaw:item=ck_fcf48239 -->
 - [ ] Estimate submenu is the project's own scale: the enum under t-shirt, the sequence under Fibonacci, and a common-durations list under duration <!-- longclaw:item=ck_d3ec1253 -->
 - [ ] Every property submenu carries Clear, so a context-menu set is never a one-way door <!-- longclaw:item=ck_c06f6e05 -->
-- [ ] Proximity derived from an injected now, plus the day-boundary recompute the watcher cannot push <!-- longclaw:item=ck_55424527 -->
+- [x] Proximity derived from an injected now, plus the day-boundary recompute the watcher cannot push <!-- longclaw:item=ck_55424527 -->
 - [ ] A Due board ordering mode beside Priority and Manual (ADR 0003) <!-- longclaw:item=ck_79550de2 -->
 - [ ] Command palette rows for setting each enabled property <!-- longclaw:item=ck_e8cbab2a -->
 - [ ] Undo for each property change, through fieldUndo.ts <!-- longclaw:item=ck_43674ebd -->
@@ -2022,6 +2022,37 @@ changes:
   - field: checklist.ck_97b51001.moved
     from: "59"
     to: "28"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_050f402c
+kind: update
+occurred_at: 2026-09-08T11:05:17.943Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_bb5b83f5.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_09e1edf1.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_1b980442.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_2c41c9b0.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_bef33999.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_55424527.checked
+    from: "false"
+    to: "true"
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->

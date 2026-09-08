@@ -13,6 +13,7 @@ import type {
   TicketRow,
   TicketStatus,
 } from "../src/types";
+import { NO_PROPERTIES } from "../src/properties";
 
 /** Matches `TICKETS` in `src-tauri/tests/performance.rs`. */
 export const TICKETS = 5_000;
@@ -26,6 +27,7 @@ export const PROJECT: ProjectReference = {
   starred: false,
   reachable: true,
   labels: {},
+  properties: NO_PROPERTIES,
 };
 
 /**

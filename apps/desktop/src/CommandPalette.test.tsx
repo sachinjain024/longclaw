@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { CommandPalette } from "./CommandPalette";
 import { ORDERINGS } from "./ordering";
 import type { IndexedTicket, ProjectReference } from "./types";
+import { NO_PROPERTIES } from "./properties";
 
 afterEach(cleanup);
 
@@ -17,6 +18,7 @@ const project: ProjectReference = {
   starred: false,
   reachable: true,
   labels: {},
+  properties: NO_PROPERTIES,
 };
 
 const ticket: IndexedTicket = {

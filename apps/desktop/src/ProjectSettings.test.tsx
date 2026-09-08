@@ -22,6 +22,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProjectSettings } from "./ProjectSettings";
 import type { SettingsSection } from "./settingsSections";
 import type { ProjectReference } from "./types";
+import { NO_PROPERTIES } from "./properties";
 
 afterEach(cleanup);
 
@@ -39,6 +40,7 @@ const PROJECT: ProjectReference = {
   starred: false,
   reachable: true,
   labels: { design: { name: "Design", color: "orange" } },
+  properties: NO_PROPERTIES,
 };
 
 function Harness(props: {

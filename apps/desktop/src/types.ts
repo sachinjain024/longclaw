@@ -80,6 +80,56 @@ export interface Label {
   color: string;
 }
 
+/** The scale a project's estimates are on. It is on exactly one. */
+export type EstimateSystem = "tshirt" | "fibonacci" | "duration";
+
+/** Type: one project-defined slug per ticket, shaped exactly like `labels`. */
+export interface TypeConfig {
+  enabled: boolean;
+  values: Record<string, Label>;
+}
+
+export interface DueConfig {
+  enabled: boolean;
+  /**
+   * How many days ahead count as approaching. `0` is legal and empties that
+   * rung, leaving today and beyond; overdue and today are absolute, so this is
+   * the only boundary a project can move.
+   */
+  attentionDays: number;
+}
+
+/** `enabled` is the only key every property has, and start has nothing else. */
+export interface StartConfig {
+  enabled: boolean;
+}
+
+export interface EstimateConfig {
+  enabled: boolean;
+  system: EstimateSystem;
+  /**
+   * The t-shirt scale, in order, read only under `tshirt`. A sequence rather
+   * than a record because a scale has an order and a record does not.
+   */
+  values: string[];
+  /** Read only under `duration`, and what makes `4h` and `1d` comparable. */
+  hoursPerDay: number;
+  daysPerWeek: number;
+}
+
+/**
+ * How a project configures the four opt-in ticket properties (ADR 0013).
+ *
+ * All four ship off. A project file with no `properties:` block — every one
+ * written before this build — reads as this with `enabled` false throughout.
+ */
+export interface PropertiesConfig {
+  type: TypeConfig;
+  due: DueConfig;
+  start: StartConfig;
+  estimate: EstimateConfig;
+}
+
 export interface ProjectReference {
   id: string;
   name: string;
@@ -96,6 +146,12 @@ export interface ProjectReference {
    * not defined here is preserved on disk and rendered as itself.
    */
   labels: Record<string, Label>;
+  /**
+   * The property configuration, carried for the reason `labels` is: a surface
+   * holding a project reference has to know which properties exist and what
+   * their values mean before it can draw one.
+   */
+  properties: PropertiesConfig;
 }
 
 export type ActorType = "human" | "agent" | "unknown";
@@ -192,6 +248,17 @@ export interface IndexedTicket {
   // No assignee: local projects have none and no v0 surface renders one
   // (ADR 0001). The field is preserved on disk, not carried on the row.
   rank?: string;
+  /**
+   * The four opt-in properties, as raw as the ticket carries them. A value the
+   * project's configuration cannot interpret is preserved rather than corrected
+   * (`file_format.md` invariant 16), so these are strings and never parsed
+   * values — `properties.ts` reads them where a surface needs them to mean
+   * something.
+   */
+  type?: string;
+  due?: string;
+  start?: string;
+  estimate?: string;
   createdAt: string;
   updatedAt: string;
   archivedAt?: string;
@@ -258,6 +325,11 @@ export interface Ticket {
   assignee?: string;
   labels: string[];
   rank?: string;
+  /** The four opt-in properties, raw. See `IndexedTicket`. */
+  type?: string;
+  due?: string;
+  start?: string;
+  estimate?: string;
   createdAt: string;
   updatedAt: string;
   archivedAt?: string;
@@ -309,6 +381,16 @@ export interface TicketEdit {
    * rewrites a file.
    */
   rank?: string | null;
+  /**
+   * Absent leaves the property alone; `null` removes the key. On disk absent
+   * and cleared are the same thing — a ticket carries a property only when it
+   * has a value — so the distinction lives here, and it is what lets the Clear
+   * row every property menu carries mean something to send.
+   */
+  type?: string | null;
+  due?: string | null;
+  start?: string | null;
+  estimate?: string | null;
   archived?: boolean;
   description?: string;
   checklist?: { itemId: string; checked: boolean }[];
