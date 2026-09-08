@@ -641,7 +641,7 @@ function popoverHTML(rect) {
                 ${current.kind === "ok" ? "" : "disabled"}>Add label</button>
       </form>`
     : `<button type="button" tabindex="-1" class="menu-row" data-role="open-define">
-        <span class="menu-glyph">${plus}</span><span class="menu-label">New label…</span>
+        <span class="menu-glyph">${plus}</span><span class="menu-label">New label</span>
       </button>`;
 
   return `<div class="menu-popover menu-wide" role="menu" aria-label="Labels" style="left:${rect.left}px; top:${rect.bottom + 4}px">
