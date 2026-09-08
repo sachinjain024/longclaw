@@ -94,6 +94,8 @@ Before creating the topic branch, agents must:
 
 Agents may commit only on topic branches. Agents must not commit directly to `main`. Agents must not merge into `main` unless the user explicitly asks them to do so.
 
+When merging a PR, use **Squash and merge** (`gh pr merge --squash`).
+
 ## Toolchain and the gate
 
 The shims are not all on `PATH`. Export this before any Rust work:
