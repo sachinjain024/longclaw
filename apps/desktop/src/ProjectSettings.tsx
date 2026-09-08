@@ -906,14 +906,14 @@ function ProjectProperties(props: {
   const run = props.onWrite;
 
   function toggle(property: TicketProperty, enabled: boolean) {
-    const { name, kept } = PROPERTY_LABELS[property];
+    const { name } = PROPERTY_LABELS[property];
     const count = props.counts[property];
     // On is one fact. Off is two, and the second one is the reassurance: the
     // values are still there, and this says how many.
     const message =
       enabled || count === 0
         ? `${name} turned ${enabled ? "on" : "off"}`
-        : `${name} turned off · ${keptByTickets(count, kept)}`;
+        : `${name} turned off · ${keptByTickets(property, count)}`;
     void run(message, () =>
       setProjectPropertyEnabled({ projectId, property, enabled }),
     );
@@ -997,7 +997,7 @@ function PropertyBlock(props: {
   onToggle: (property: TicketProperty, enabled: boolean) => void;
   children: React.ReactNode;
 }) {
-  const { name, kept } = PROPERTY_LABELS[props.property];
+  const { name } = PROPERTY_LABELS[props.property];
   return (
     <div className="property-block">
       {/* A wrapping label, so the name is the checkbox's own hit target and its
@@ -1017,7 +1017,7 @@ function PropertyBlock(props: {
             the defect D-3D already named one surface up. */}
         {!props.enabled && props.count > 0 && (
           <span className="property-state">
-            · {keptByTickets(props.count, kept)}
+            · {keptByTickets(props.property, props.count)}
           </span>
         )}
       </label>
@@ -1029,10 +1029,15 @@ function PropertyBlock(props: {
 /**
  * The reassurance, in one place, because the toast and the row say it twice and
  * two spellings of one sentence is how they come to disagree.
+ *
+ * Both numbers, and the noun agrees in both: a project with one dated ticket is
+ * a project this sentence is read on, and "1 ticket keeps its dates" is the
+ * shape of a string built by concatenation rather than written.
  */
-function keptByTickets(count: number, kept: string): string {
+function keptByTickets(property: TicketProperty, count: number): string {
+  const { kept, keptOne } = PROPERTY_LABELS[property];
   return count === 1
-    ? `1 ticket keeps its ${kept}`
+    ? `1 ticket keeps its ${keptOne}`
     : `${count} tickets keep their ${kept}`;
 }
 
@@ -1295,9 +1300,18 @@ function EstimateSettings(props: {
  *
  * A list rather than a set of chips, because the **order is the scale** — `xs`
  * above `s` above `m` is the only thing that says which of them is the bigger,
- * and a wrapping row of chips at two different widths says nothing at all. A
- * new size joins the bottom, which is where a bigger one belongs; a project
- * that wants another order edits `longclaw.yaml`.
+ * and a wrapping row of chips at two different widths says nothing at all.
+ *
+ * Which is also why every row can move. A new size joins the bottom, where a
+ * bigger one belongs, and that is the common case rather than the only one: an
+ * editor that could add and remove but not reorder would be an editor for
+ * everything about the scale except the part that makes it one. The buttons are
+ * the whole affordance and the whole keyboard path — there is no drag here, so
+ * nothing is reachable by pointer that is not reachable by Tab.
+ *
+ * The size itself is not editable. It is the slug a ticket stores, so a rename
+ * would be a rewrite of every ticket carrying it — the same rule that makes a
+ * label slug fixed one section up.
  */
 function TshirtScale(props: {
   projectId: string;
@@ -1318,23 +1332,64 @@ function TshirtScale(props: {
    */
   const ready = typed !== "" && !props.values.includes(typed);
 
+  /** One write for the whole sequence, because the sequence is the value. */
+  function writeScale(message: string, values: string[]) {
+    return props.onWrite(message, () =>
+      setProjectEstimateScale({ projectId: props.projectId, values }),
+    );
+  }
+
+  function move(index: number, step: -1 | 1) {
+    const values = [...props.values];
+    const [size] = values.splice(index, 1);
+    values.splice(index + step, 0, size);
+    void writeScale(
+      `${size} is now ${step < 0 ? "smaller" : "bigger"} than ${props.values[index + step]}`,
+      values,
+    );
+  }
+
   return (
     <>
       <div className="scale-values">
-        {props.values.map((value) => (
+        {props.values.map((value, index) => (
           <div className="scale-row" key={value}>
             <code>{value}</code>
+            {/* The ends have nowhere to go, and a button that cannot act is
+                disabled rather than absent: a row missing one of its two
+                controls would put the remove under a different column than the
+                row above it. */}
+            <button
+              tabIndex={0}
+              className="ghost row-move"
+              type="button"
+              aria-label={`Make ${value} smaller`}
+              disabled={index === 0}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => move(index, -1)}
+            >
+              ↑
+            </button>
+            <button
+              tabIndex={0}
+              className="ghost row-move"
+              type="button"
+              aria-label={`Make ${value} bigger`}
+              disabled={index === props.values.length - 1}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => move(index, 1)}
+            >
+              ↓
+            </button>
             <button
               tabIndex={0}
               className="ghost row-remove"
               type="button"
               aria-label={`Remove size ${value}`}
               onClick={() => {
-                void props.onWrite(`Removed the ${value} size`, () =>
-                  setProjectEstimateScale({
-                    projectId: props.projectId,
-                    values: props.values.filter((size) => size !== value),
-                  }),
+                void writeScale(
+                  `Removed the ${value} size`,
+                  props.values.filter((size) => size !== value),
                 );
                 addSize.current?.focus();
               }}
@@ -1349,12 +1404,10 @@ function TshirtScale(props: {
             event.preventDefault();
             if (!ready) return;
             void (async () => {
-              const added = await props.onWrite(`Added the ${typed} size`, () =>
-                setProjectEstimateScale({
-                  projectId: props.projectId,
-                  values: [...props.values, typed],
-                }),
-              );
+              const added = await writeScale(`Added the ${typed} size`, [
+                ...props.values,
+                typed,
+              ]);
               if (added) setSize("");
             })();
           }}
@@ -1380,8 +1433,9 @@ function TshirtScale(props: {
         </form>
       </div>
       <p className="property-note">
-        Sizes are slugs a ticket stores, so removing one never rewrites a
-        ticket. The order down this list is the order of the scale.
+        Sizes are slugs a ticket stores, so removing one never rewrites a ticket
+        — the slug renders as itself. The order down this list is the order of
+        the scale, smallest first.
       </p>
     </>
   );

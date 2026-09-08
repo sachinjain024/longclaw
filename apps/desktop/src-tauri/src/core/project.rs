@@ -527,7 +527,7 @@ impl ProjectDocument {
         self.set_property_flag(property, enabled);
         if enabled {
             match property {
-                Property::Type if self.project.properties.ticket_type.values.is_empty() => {
+                Property::Type if !self.has_property_key(Property::Type, "values") => {
                     for (slug, name, color) in SEEDED_TYPE_VALUES {
                         self.write_type_value(slug, Some(name), Some(color));
                         self.project.properties.ticket_type.values.insert(
@@ -539,7 +539,14 @@ impl ProjectDocument {
                         );
                     }
                 }
-                Property::Estimate if self.project.properties.estimate.values.is_empty() => {
+                Property::Estimate if !self.has_property_key(Property::Estimate, "values") => {
+                    // The system before the scale, which is the order the format
+                    // documents and the order it reads in. An absent system is
+                    // already `tshirt`, so this line is not news — but a block
+                    // that names the system it is on says what a reader of the
+                    // file would otherwise have to know the default to work out.
+                    let system = self.project.properties.estimate.system;
+                    self.write_property_scalar(Property::Estimate, "system", system.as_str());
                     let scale = SEEDED_TSHIRT_SCALE.map(str::to_owned).to_vec();
                     self.write_property_sequence(Property::Estimate, "values", &scale);
                     self.project.properties.estimate.values = scale;
@@ -555,13 +562,12 @@ impl ProjectDocument {
     /// `0` is legal and empties that rung, leaving overdue, today and beyond —
     /// both of the first two are absolute, so this is the only boundary a
     /// project can move.
+    ///
+    /// There is no ceiling. The format is exhaustive here — `0` is legal, and a
+    /// negative value is refused, which the unsigned type is the whole of — so a
+    /// limit invented on top would refuse a write for a rule nothing wrote down.
+    /// A window wider than the project is silly rather than wrong.
     pub fn set_attention_days(&mut self, days: u32) -> Result<Vec<u8>, Diagnostic> {
-        if days > MAX_ATTENTION_DAYS {
-            return Err(Diagnostic::parse(format!(
-                "An approaching window is 0 to {MAX_ATTENTION_DAYS} days; wider than that is \
-                 every ticket the project has"
-            )));
-        }
         self.write_property_number(Property::Due, "attention_days", f64::from(days));
         self.project.properties.due.attention_days = days;
         Ok(self.render().into_bytes())
@@ -725,6 +731,19 @@ impl ProjectDocument {
         Ok(self.render().into_bytes())
     }
 
+    /// Whether the file carries one of a property's configuration keys.
+    ///
+    /// The question the seed has to ask, and it cannot be asked of the parsed
+    /// value: an empty vocabulary and an absent one both read as empty, and they
+    /// are not the same thing. A project that deleted all five of its type
+    /// values deleted them, and a toggle handing them back would be the seed
+    /// acting as a reset — which is what this type's own doc comment promises it
+    /// is not.
+    fn has_property_key(&self, property: Property, field: &str) -> bool {
+        self.mapping
+            .has_path(&["properties", property.as_str(), field])
+    }
+
     fn set_property_flag(&mut self, property: Property, enabled: bool) {
         self.write_property_bool(property, "enabled", enabled);
         match property {
@@ -784,10 +803,6 @@ impl ProjectDocument {
 /// `labels`, which is where the format documents it, and after whichever of the
 /// keys before that the file has if it has no labels at all.
 const PROPERTIES_AFTER: &[&str] = &["created_at", "people", "labels"];
-
-/// A window wider than this is every ticket the project has, which is not a
-/// window at all.
-const MAX_ATTENTION_DAYS: u32 = 365;
 
 fn unknown_type_value(slug: &str) -> Diagnostic {
     Diagnostic::parse(format!("This project defines no type {slug}"))
@@ -1589,7 +1604,7 @@ mod tests {
     #[test]
     fn turning_estimates_on_seeds_the_scale_the_default_system_reads() {
         let mut document = ProjectDocument::parse(PROJECT).expect("the fixture should parse");
-        written(
+        let rendered = written(
             document
                 .set_property_enabled(Property::Estimate, true)
                 .expect("Estimate can be turned on"),
@@ -1598,6 +1613,15 @@ mod tests {
             document.project().properties.estimate.values,
             SEEDED_TSHIRT_SCALE.map(str::to_owned).to_vec()
         );
+        // The block reads in the order the format documents it, which is a
+        // question of what the seed writes first rather than of what YAML means.
+        assert!(rendered.contains(concat!(
+            "  estimate:\n",
+            "    enabled: true\n",
+            "    system: tshirt\n",
+            "    values:\n",
+            "      - xs\n",
+        )));
     }
 
     /// The whole of "disabling hides, it never deletes": one line flips, and the
@@ -1646,6 +1670,34 @@ mod tests {
                 .keys()
                 .collect::<Vec<_>>(),
             vec!["bug", "feature"]
+        );
+    }
+
+    /// The seed acting as a reset is the failure mode, and emptying the
+    /// vocabulary is the only way to reach it: an empty registry and an absent
+    /// one both read as empty off the parsed value, so the question has to be
+    /// asked of the file.
+    #[test]
+    fn a_vocabulary_a_project_emptied_is_not_handed_back_on_the_next_toggle() {
+        let mut document = ProjectDocument::parse(CONFIGURED).expect("the fixture should parse");
+        for slug in ["bug", "feature"] {
+            written(document.remove_type_value(slug).expect("both are defined"));
+        }
+        assert!(document.project().properties.ticket_type.values.is_empty());
+
+        written(
+            document
+                .set_property_enabled(Property::Type, false)
+                .expect("Type can be turned off"),
+        );
+        let rendered = written(
+            document
+                .set_property_enabled(Property::Type, true)
+                .expect("Type can be turned back on"),
+        );
+        assert!(
+            document.project().properties.ticket_type.values.is_empty(),
+            "the five seeds came back: {rendered}"
         );
     }
 
@@ -1711,7 +1763,7 @@ mod tests {
     }
 
     #[test]
-    fn the_attention_window_takes_zero_and_refuses_a_window_wider_than_a_year() {
+    fn the_attention_window_takes_zero_and_has_no_ceiling_of_its_own() {
         let mut document = ProjectDocument::parse(CONFIGURED).expect("the fixture should parse");
         let rendered = written(
             document
@@ -1720,7 +1772,6 @@ mod tests {
         );
         assert!(rendered.contains("    attention_days: 0\n"));
         assert_eq!(document.project().properties.due.attention_days, 0);
-        assert!(document.set_attention_days(366).is_err());
     }
 
     #[test]

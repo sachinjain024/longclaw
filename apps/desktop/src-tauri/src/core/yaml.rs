@@ -171,7 +171,7 @@ impl Mapping {
             self.remove(key);
             return;
         }
-        let Some(block) = self.block(key).map(str::to_owned) else {
+        let Some(block) = self.block(key).map(|raw| expanded(raw, key, 0)) else {
             return;
         };
         if let Some(rendered) = remove_in_block(&block, rest) {
@@ -189,8 +189,32 @@ impl Mapping {
         }
         let block = self
             .block(key)
-            .map_or_else(|| format!("{key}:\n"), str::to_owned);
+            .map_or_else(|| format!("{key}:\n"), |raw| expanded(raw, key, 0));
         self.set_block(key, set_in_block(&block, rest, leaf), after);
+    }
+
+    /// Whether a path is written in the file at all, which is a different
+    /// question from what it holds: `values: {}` is a vocabulary a project
+    /// emptied, and no `values` key is one it has never had.
+    pub fn has_path(&self, path: &[&str]) -> bool {
+        let Some((key, rest)) = path.split_first() else {
+            return false;
+        };
+        let Some(block) = self.block(key) else {
+            return false;
+        };
+        let mut nested = NestedMapping::parse(&expanded(block, key, 0));
+        for (index, step) in rest.iter().enumerate() {
+            let Some(child) = nested.child(step) else {
+                return false;
+            };
+            if index + 1 == rest.len() {
+                return true;
+            }
+            let indent = nested.child_indent();
+            nested = NestedMapping::parse(&expanded(child, step, indent));
+        }
+        true
     }
 
     fn block(&self, key: &str) -> Option<&str> {
@@ -296,13 +320,18 @@ fn expanded(raw: &str, key: &str, indent: usize) -> String {
     if !value.starts_with(['{', '[']) {
         return raw.to_owned();
     }
-    serde_yaml::from_str::<serde_yaml::Value>(value)
+    let header = raw.split_inclusive('\n').next().unwrap_or(raw);
+    let block = serde_yaml::from_str::<serde_yaml::Value>(value)
         .ok()
         .and_then(|parsed| render_block_value(key, &parsed, indent))
         // A construct the block form cannot hold is replaced rather than
         // written into: a file that lost one is recoverable, and one whose
         // frontmatter no longer parses is what takes the whole project down.
-        .unwrap_or_else(|| format!("{:indent$}{key}:\n", ""))
+        .unwrap_or_else(|| format!("{:indent$}{key}:\n", ""));
+    // Whatever followed the one-line form followed the *child*, not the mapping
+    // above it — a comment about this label belongs to this label. Only the
+    // header is rewritten; the rest is carried across as its own bytes.
+    block + &raw[header.len()..]
 }
 
 /// One parsed YAML value as block-style lines under `key`. `None` for anything
@@ -314,7 +343,11 @@ fn render_block_value(key: &str, value: &serde_yaml::Value, indent: usize) -> Op
         serde_yaml::Value::Mapping(entries) if !entries.is_empty() => {
             let mut rendered = format!("{:indent$}{key}:\n", "");
             for (name, entry) in entries {
-                rendered.push_str(&render_block_value(name.as_str()?, entry, inner)?);
+                // Encoded, not written through: a key of `a: b` set down plainly
+                // is `a: b: 1`, which is not a mapping entry at all and takes
+                // the whole file with it.
+                let name = encode_scalar(name.as_str()?);
+                rendered.push_str(&render_block_value(&name, entry, inner)?);
             }
             Some(rendered)
         }
@@ -342,6 +375,25 @@ fn encoded_value(value: &serde_yaml::Value) -> Option<String> {
         serde_yaml::Value::Null => "null".to_owned(),
         _ => return None,
     })
+}
+
+/// The key one line opens, as the key it *means* rather than as it is spelled.
+///
+/// `"bug":` and `bug:` are one key, and matching on the raw text made them two —
+/// which does not fail loudly: the write appends a second `bug:` beside the
+/// quoted one, the subset check compares the raw text and passes it, and the
+/// duplicate only surfaces when the reader refuses the file it just wrote.
+fn child_key(line: &str) -> String {
+    let raw = line
+        .trim()
+        .split_once(':')
+        .map_or("", |(key, _)| key.trim_end());
+    if raw.starts_with(['"', '\'']) {
+        if let Ok(decoded) = serde_yaml::from_str::<String>(raw) {
+            return decoded;
+        }
+    }
+    raw.to_owned()
 }
 
 /// The text after the colon on an entry's own key line — empty when the key
@@ -387,10 +439,7 @@ impl NestedMapping {
         let mut nested = Self {
             header: header.to_owned(),
             indent: indent_of(header),
-            key: header
-                .trim()
-                .split_once(':')
-                .map_or_else(String::new, |(key, _)| key.trim_end().to_owned()),
+            key: child_key(header),
             ..Self::default()
         };
         for (_, line) in lines.into_iter().skip(1) {
@@ -402,11 +451,7 @@ impl NestedMapping {
                 && line.trim_start().split_once(':').is_some();
             if opens_child {
                 nested.child_indent.get_or_insert(indent);
-                let key = line
-                    .trim()
-                    .split_once(':')
-                    .map_or_else(String::new, |(key, _)| key.trim_end().to_owned());
-                nested.children.push((key, line.to_owned()));
+                nested.children.push((child_key(line), line.to_owned()));
                 continue;
             }
             match nested.children.last_mut() {
@@ -1096,6 +1141,69 @@ mod tests {
                 "    days_per_week: 4\n",
             )
         );
+    }
+
+    /// The four ways a hand-written file can meet a path write, all found by
+    /// probing rather than by reasoning — and two of them wrote a file the
+    /// reader then refused, which is the worst failure this module has.
+    #[test]
+    fn a_path_write_survives_every_shape_a_hand_written_file_can_be_in() {
+        for (name, raw, path, expected) in [
+            (
+                "a top-level key in flow style keeps its other children",
+                "properties: { type: { enabled: true } }\n",
+                vec!["properties", "due", "enabled"],
+                concat!(
+                    "properties:\n",
+                    "  type:\n",
+                    "    enabled: true\n",
+                    "  due:\n",
+                    "    enabled: red\n",
+                ),
+            ),
+            (
+                "a comment after a flow child stays with that child",
+                concat!(
+                    "labels:\n",
+                    "  bug: { name: Bug }\n",
+                    "  # a note about bug\n",
+                    "  storage:\n",
+                    "    name: Storage\n",
+                ),
+                vec!["labels", "bug", "color"],
+                concat!(
+                    "labels:\n",
+                    "  bug:\n",
+                    "    name: Bug\n",
+                    "    color: red\n",
+                    "  # a note about bug\n",
+                    "  storage:\n",
+                    "    name: Storage\n",
+                ),
+            ),
+            (
+                "a quoted key is the key it spells, not a second one",
+                "labels:\n  \"bug\": { name: Bug }\n",
+                vec!["labels", "bug", "color"],
+                "labels:\n  bug:\n    name: Bug\n    color: red\n",
+            ),
+            (
+                "a flow key that needs quoting keeps its quotes",
+                "labels:\n  bug: { \"a: b\": 1 }\n",
+                vec!["labels", "bug", "color"],
+                "labels:\n  bug:\n    \"a: b\": 1\n    color: red\n",
+            ),
+        ] {
+            let mut mapping = Mapping::parse(raw).unwrap();
+            mapping.set_path_scalar(&path, "red", &[]);
+            let rendered = mapping.render();
+            assert_eq!(rendered, expected, "{name}");
+            // The one that matters: a file this module wrote is a file the
+            // reader still takes. Both of the last two failed here.
+            validate_subset(&rendered).unwrap_or_else(|_| panic!("subset: {name}"));
+            serde_yaml::from_str::<serde_yaml::Value>(&rendered)
+                .unwrap_or_else(|error| panic!("{name} no longer parses: {error}"));
+        }
     }
 
     #[test]

@@ -56,22 +56,23 @@ export const TICKET_PROPERTIES: TicketProperty[] = [
 ];
 
 /**
- * What each property is called on screen, and the plural of what a ticket keeps
- * when the project turns it off.
+ * What each property is called on screen, and what a ticket keeps when the
+ * project turns it off — in both numbers, because the sentence is built around
+ * a count and one is a number a project reaches.
  *
- * Both here rather than at the two places that need them, because the settings
- * row and the write feedback say the same reassurance twice — "17 tickets keep
- * their dates" in the toast and beside the switched-off row — and two spellings
- * of one sentence is how they come to disagree.
+ * Here rather than at the two places that need them, because the settings row
+ * and the write feedback say the same reassurance twice — "17 tickets keep their
+ * dates" in the toast and beside the switched-off row — and two spellings of one
+ * sentence is how they come to disagree.
  */
 export const PROPERTY_LABELS: Record<
   TicketProperty,
-  { name: string; kept: string }
+  { name: string; kept: string; keptOne: string }
 > = {
-  type: { name: "Type", kept: "types" },
-  due: { name: "Due date", kept: "dates" },
-  start: { name: "Start date", kept: "dates" },
-  estimate: { name: "Estimate", kept: "estimates" },
+  type: { name: "Type", kept: "types", keptOne: "type" },
+  due: { name: "Due date", kept: "dates", keptOne: "date" },
+  start: { name: "Start date", kept: "dates", keptOne: "date" },
+  estimate: { name: "Estimate", kept: "estimates", keptOne: "estimate" },
 };
 
 /** What each estimate system is called on screen. */

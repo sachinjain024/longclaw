@@ -362,6 +362,29 @@ describe("the Properties pane (LC-227)", () => {
   });
 
   /**
+   * A count of one is a count a project reaches, and the sentence is built by
+   * concatenation: "1 ticket keeps its dates", never "keeps its date**s**" and
+   * never "keep their".
+   */
+  it("agrees with a count of one", () => {
+    const onWrite = writeSpy();
+    render(
+      <Harness
+        section="properties"
+        project={CONFIGURED}
+        propertyCounts={{ type: 1, due: 1, start: 0, estimate: 0 }}
+        onWrite={onWrite}
+      />,
+    );
+    fireEvent.click(
+      within(propertiesPane()).getByRole("checkbox", { name: /Type/ }),
+    );
+    expect(onWrite.mock.calls[0][0]).toBe(
+      "Type turned off · 1 ticket keeps its type",
+    );
+  });
+
+  /**
    * The row goes on saying it once the property is off, which is then the only
    * place the fact is visible anywhere in the app.
    */
@@ -498,6 +521,46 @@ describe("the Properties pane (LC-227)", () => {
     expect(
       within(propertiesPane()).getByText("1 · 2 · 3 · 5 · 8 · 13"),
     ).toBeTruthy();
+  });
+
+  /**
+   * The order is the scale, so an editor that could add and remove but not
+   * reorder would edit everything about it except the part that makes it one.
+   */
+  it("moves a size up and down its own scale", () => {
+    const onWrite = writeSpy();
+    const tshirt = {
+      ...CONFIGURED,
+      properties: {
+        ...CONFIGURED.properties,
+        estimate: {
+          ...CONFIGURED.properties.estimate,
+          system: "tshirt" as const,
+        },
+      },
+    };
+    render(<Harness section="properties" project={tshirt} onWrite={onWrite} />);
+    const pane = propertiesPane();
+    // `xs` is first and `m` is last, so neither can go further that way.
+    expect(
+      (
+        within(pane).getByRole("button", {
+          name: "Make xs smaller",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    expect(
+      (
+        within(pane).getByRole("button", {
+          name: "Make m bigger",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+
+    fireEvent.click(
+      within(pane).getByRole("button", { name: "Make m smaller" }),
+    );
+    expect(onWrite.mock.calls[0][0]).toBe("m is now smaller than s");
   });
 
   it("writes the conversion as one setting with two halves", () => {

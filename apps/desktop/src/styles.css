@@ -6187,11 +6187,33 @@ html.theme-transition *::after {
   gap: var(--lc-space-2);
 }
 
+/* Four columns: the size, the two ways it moves, and the way out. The moves are
+   narrower than the remove because they sit as a pair — one hit target's worth
+   of gap between them would read as two separate controls. */
 .scale-row {
   display: grid;
-  gap: var(--lc-space-3);
-  grid-template-columns: minmax(90px, 1fr) 18px;
+  gap: var(--lc-space-2);
+  grid-template-columns: minmax(70px, 1fr) 16px 16px 18px;
   align-items: center;
+}
+
+.scale-row .row-move {
+  justify-self: center;
+  padding: 0;
+  color: var(--lc-ink-3);
+  font-size: 11px;
+}
+
+.scale-row .row-move:hover:not(:disabled),
+.scale-row .row-move:focus-visible {
+  color: var(--lc-ink);
+}
+
+/* The ends of the scale. Disabled rather than absent, so the remove button
+   below stays in the column the row above put it in. */
+.scale-row .row-move:disabled {
+  opacity: 0.3;
+  cursor: default;
 }
 
 .scale-row code {
@@ -6213,7 +6235,7 @@ html.theme-transition *::after {
 /* The add-row ends in a button rather than a remove glyph, so its second column
    is that button's width and not the 18px the rows above use. */
 .scale-add {
-  grid-template-columns: minmax(90px, 1fr) max-content;
+  grid-template-columns: minmax(70px, 1fr) max-content;
   border-top: 1px solid var(--lc-line-soft);
   margin-top: var(--lc-space-1);
   padding-top: var(--lc-space-3);

@@ -840,18 +840,67 @@ The pane's real markup wearing `styles.css`, measured at 1440 · 1180 · 1024 ·
   the 23px of `.property-config` indent on top of it, so the indent is dropped
   under 980px and the pane is now exactly as wide as the editor it copies.
 
-### Two departures from the prototype, both deliberate
+### Three departures, all deliberate and none of them silent
 
 - **The t-shirt scale is editable here**, which the prototype asserted in a note
   and did not build. "Enabling a property is where its values get configured"
   and "a t-shirt or type enum can be rewritten" are settled above, and a note
   claiming editability with no editor under it is a claim the pane cannot keep.
-  It is a list rather than chips because the order *is* the scale — `xs` above
-  `s` above `m` is the only thing that says which of them is the bigger.
+  It is a list rather than chips because the order *is* the scale, and every row
+  can move for the same reason: an editor that could add and remove but not
+  reorder edits everything about a scale except the part that makes it one. It
+  is **not** "an editable enum like Type's" in the other two respects, and
+  cannot be — `estimate.values` is a sequence of slugs, so there is no name and
+  no colour on disk to edit.
 - **The system picker is `.appearance-segment`**, the panel's own segment,
   rather than the rail's `.scale-segment`. They are the same control and this is
   the one that sets words rather than codes: it is the appearance row two panes
   up.
+- **The toast says `Due date turned off`, not `Due turned off`.** The settled
+  wording above quotes the latter; the prototype titles the block `Due date`,
+  and a toast that named the control differently from the control would be two
+  names for one act. The block title wins and the spec line above is the one
+  that gives.
+
+### What the review of this commit changed
+
+Four defects in the new path writer, every one of them found by *probing* it
+rather than by reading it — which is the argument for doing that at all:
+
+- **A top-level key in flow style lost every child but the one being written.**
+  `properties: { type: { enabled: true } }` plus a write to `due` rendered a
+  `properties:` block holding only `due`. Expansion was applied to children and
+  not to the top-level block it started from. Pre-existing in the two-level
+  writer this replaced, and fixed here because the machinery for it was already
+  in the file.
+- **A comment after a flow child was dropped** by the expansion that rewrote the
+  line above it. The expansion now rewrites the header and carries every byte
+  after it across untouched.
+- **A flow key needing quotes corrupted the file.** `bug: { "a: b": 1 }` came
+  back as `a: b: 1`, which the subset check passes — it splits on the first
+  colon — and `serde_yaml` refuses. Keys are encoded now, not written through.
+- **A quoted child key wrote a duplicate.** `"bug":` and `bug:` were two keys to
+  the matcher and one to the reader, so the write appended a second `bug:`
+  beside the first and the file only failed on the way back in. Children are
+  matched by the key they mean.
+
+Three findings on the spec axis, all taken:
+
+- **`1 ticket keeps its types`.** The reassurance is built by concatenation and
+  the noun was plural-only. `PROPERTY_LABELS` carries both numbers now.
+- **The seed acted as a reset.** It fired whenever the vocabulary was empty, so
+  a project that deleted all five type values got them back on the next toggle —
+  the opposite of what its own doc comment promised. An empty vocabulary and an
+  absent one read the same off the parsed value, so the question is asked of the
+  file instead (`Mapping::has_path`).
+- **An invented ceiling on `attention_days`.** 365, refusing a write for a rule
+  nothing wrote down. The format is exhaustive here — zero is legal, negatives
+  are refused, and the unsigned type is the whole of the second half — so the
+  ceiling is gone. The conversion's bounds stay: `hours_per_day: 0` makes every
+  duration sort as nothing, which is a wrong answer rather than a silly one.
+
+The Standards axis did not run — its agent stopped on an account spend limit
+before reporting. Its probes are what found the four writer defects above.
 
 ### What this leaves open
 
