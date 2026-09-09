@@ -10,17 +10,25 @@ labels:
 type: chore
 due: 2026-09-09
 created_at: 2026-08-11T14:56:44.953Z
-updated_at: 2026-09-09T02:23:42.261Z
+updated_at: 2026-09-09T09:43:15.034Z
 ---
 
-Create Agents.md & Claude.md
-Create empty Project.md
+When user initializes LongClaw project in a directory. LongClaw owns that directory. LongClaw tickets live inside that directory and other things but how does LLMs / Agents understand user prompts like create a LC ticket or a LongClaw ticket or just create a ticket or Lets work on {PROJ-{ID} how does Agents understand where to look for PROJ-ID.
+
+Do we need to create skills or just having the Claude.md and Agents.md files in a directory will give enough context to the coding agents. If yes, then we Create Agents.md & Claude.md and we also Create empty Project.md.
+
+Infact, the first ask of this ticket is to find out how to pass the right instructions to LLM on how to work with LC project system, schema of files, etc.
+
+How does CLI work? Would user need to install CLI separately if they have isntalled desktop app? BTW that’s also tracked in LC-233.
 
 Explain Schema
 Explain CLI Usage
 
-Explain how we work in LongClaw, Give a space for custom instructions.
-Define version in the files and mention that in the future updates these files can be overwritten So do not update these files.
+Define versioning in the relevant files and mention that in the future updates these files can be overwritten So do not update these files.
+
+Can there be a Project.md which contains project specific instructions that users own. We can take this as input in UI as well if required.
+
+Why does CONTEXT.md live outisde the directory?
 
 ## Activity
 
@@ -96,6 +104,19 @@ actor:
 changes:
   - field: due
     to: 2026-09-09
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_eeab8267
+kind: update
+occurred_at: 2026-09-09T09:43:15.034Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: description
 -->
 ### You updated this ticket
 <!-- /longclaw:event -->
