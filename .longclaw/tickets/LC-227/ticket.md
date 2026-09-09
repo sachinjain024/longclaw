@@ -10,7 +10,7 @@ labels:
 type: feature
 due: 2026-09-09
 created_at: 2026-08-22T06:13:17.138Z
-updated_at: 2026-09-09T09:47:25.926Z
+updated_at: 2026-09-09T10:28:32.184Z
 ---
 
 Brainstorm with LLM agent like what other fields we should support. A few items I can think of are Type - Bug/Task, Due State, Start Date, Effort
@@ -1677,7 +1677,7 @@ it yet.
 - [x] Every property submenu carries Clear, so a context-menu set is never a one-way door <!-- longclaw:item=ck_c06f6e05 -->
 - [x] Proximity derived from an injected now, plus the day-boundary recompute the watcher cannot push <!-- longclaw:item=ck_55424527 -->
 - [x] A Due board ordering mode beside Priority and Manual (ADR 0003) <!-- longclaw:item=ck_79550de2 -->
-- [ ] Command palette rows for setting each enabled property <!-- longclaw:item=ck_e8cbab2a -->
+- [x] Command palette rows for setting each enabled property <!-- longclaw:item=ck_e8cbab2a -->
 - [x] Undo for each property change, through fieldUndo.ts <!-- longclaw:item=ck_43674ebd -->
 - [x] Explicit tabIndex on every new control — npm run check fails without it <!-- longclaw:item=ck_33780452 -->
 - [x] Update screen-specs.md, components.md, states.md and data-requirements.md in place, then npm run citations:update <!-- longclaw:item=ck_75cc51b4 -->
@@ -3537,4 +3537,36 @@ Low Power Mode capped the frame at 50 Hz and then the display's own 100 Hz gave 
 The third was mine to fix and is the one that mattered for this item: measure() tested for ORDER === 'manual' and did nothing for any other value, so --order=due left the surface in priority and printed order=due over it — the wrong comparator wearing the right label. The item exists because the due comparator touches ordering, so every run of it before this commit would have measured priority and said due. It now selects whichever order is named through the same menu control a person uses, and stops with a named error when the menu does not offer it; --order=nonsense fails with 'the board's order menu offers no "Nonsense"'. first_paint_ms moving from 140 to 464 on the board is the menu click and the re-sort actually happening.
 
 Also confirmed: the empty-lane guard from the previous commit did not fire on any of the four runs, so every lane collected its samples.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_8690ae7a
+kind: update
+occurred_at: 2026-09-09T10:28:32.184Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_e8cbab2a.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Built the command palette's property rows.
+
+**The root gains one row per enabled property**, between `Set priority…` and `Search tickets…`, from `enabledPropertyFields` — so the palette reads the four in the same order the panel's rail, both create surfaces and the context menu do. A project that has enabled none draws exactly the twelve rows the palette drew before this, which is what the existing "renders the twelve root commands" test now asserts on `NO_PROPERTIES` rather than by luck. Each row is tagged with the value the ticket holds, read through that property's own reader (`readEstimate`, the type vocabulary, `displayDate`), and each is disabled with `Open or focus a ticket` exactly as the status and priority rows are.
+
+**Four sub-modes, built by one function.** `MODES` was already the record that makes a mode's rows, crumb, pick and note one declaration; `propertyMode(property)` fills four entries of it, so the switch on which property this is exists once in the file. Values come from the same three lists the context menu reads — `typeOptions` minus its `None` row, `estimateScale` through `readEstimate`, and `datePicks` — because a second place that decides what a due date may be set to is a second place that can disagree with the file format. `Clear` only where the ticket holds a value, carrying no `value`, which is exactly what clearing is on the wire.
+
+**A date mode also reads what is typed**, which is this surface's answer to the context menu's `Pick a date…`. The menu can grow a calendar because it is anchored to a card; the palette is a combobox whose whole job is already to read what you type, so the four picks are the shortcuts and the whole grammar stays reachable through `parseDate` — the one parser, not a second that disagrees about `28 Sep` in some year nobody tests. The typed row is offered first and unfiltered, the way the root offers a key-shaped query as the ticket it names (LC-171), and it is labelled `Mon 28 Sep 2026` — the field's echo, for the field's reason: `28 Sep` typed in December is next year. A refused form comes back as a disabled row wearing the sentence that names its next move, so `28/09/2026` says "Numeric dates are read as YYYY-MM-DD only" instead of `No matches`; a refusal is suppressed when a pick still matched, because `tom` both fails as a month and narrows to `Tomorrow`.
+
+`today` is injected rather than read here, for the reason the rungs inject it.
+
+**Verified.** `npm run verify` green end to end on this branch, watcher included — 18 guards clean, `citation-guard: 498 citations clean`. `npm run a11y:audit` A1–A5 pass; the palette's contract is unchanged, the rows are `tabIndex={-1}` like every other, and `tab-order-guard: 95 files clean`. `CommandPalette.test.tsx` 22 tests → 40: the order of the rows, the tag, the disabled reason, each mode's values, the tick compared as the format spells it, `Clear` sending `undefined`, and six on the typed date.
+
+`screen-specs.md` updated in place. The palette section's line count is unchanged and one pinned line changed text — 309, the sub-mode list, which now names the property modes; the only two citations of it are the ones written in this commit. `citations:update` re-pinned that single line and nothing else in six documents, which is the proof nothing shifted.
+
+Two things found and not changed. `datePicks` is shared, and on a Monday `Next Monday` and `In a week` are the same day — visible in the context menu since LC-222; the test fixture is a Wednesday so the four stay distinct. And the root row's held value uses `displayDate`, the card's reader, as the context menu's row does, so an overdue date reads `5 Sep` without saying it is past.
 <!-- /longclaw:event -->

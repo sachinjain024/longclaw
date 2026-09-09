@@ -303,13 +303,13 @@ movement. No custom-color affordance exists anywhere.
   (`S`) · set priority… (`P`) · search tickets… · star/unstar project ·
   toggle appearance · change project theme… · archive/unarchive ticket
   (ADR 0004) · change board ordering… (ADR 0003) · switch board/list
-  view · **new terminal** — present, disabled, tagged `PHASE 2`.
+  view · **new terminal** — present, disabled, tagged `PHASE 2`. Between set priority… and search tickets… sit the **set <property>…** rows (LC-227): one per property the project has enabled, in the order the panel's rail and both create surfaces draw them, and none at all for a project that has enabled none — which is every project written before this build, and the reason four more rows are affordable at a root that already has twelve. Each is tagged with the value the ticket holds, read the way that property's own control reads it, and each is disabled with the same reason the status row gives when there is no ticket to write to.
   This is D14 minus "assign…" (no assignee in v0, ADR 0001) plus the four
   commands from Proposal P1, accepted on 2026-08-01.
-- **Sub-modes** (status, priority, ordering, theme, project, search)
-  replace the list and show a crumb chip in the input row; `Esc` steps
-  back to root, not out. Status/priority/archive target the open or
-  focused ticket and are disabled with an inline explanation when there
+- **Sub-modes** (status, priority, ordering, theme, project, search, and one
+  per enabled property) replace the list and show a crumb chip in the input
+  row; `Esc` steps back to root, not out. A **property mode** offers what that property's context-menu submenu offers, read from the same lists (LC-227): the project's own type vocabulary, or its estimate scale in the reader a card uses, or the four quick picks each tagged with the day it resolves to — and `Clear`, only where the ticket holds a value. A date mode also reads what is **typed**, through the one grammar `parseDate` owns, and offers the day in full as its first row, unfiltered, the way the root offers a key-shaped query as the ticket it names; a refused form wears the sentence that names its next move rather than `No matches`. This is what the palette has instead of the menus' `Pick a date…`: it has no room to grow a calendar and no need for one, being a combobox whose whole job is already to read what you type.
+  Status, priority, archive and the property modes target the open or focused ticket and are disabled with an inline explanation when there
   is none. Theme rows carry miniature pair swatches. Search rows: status
   dot + mono key + title (archived tickets tagged `· archived`), Enter
   opens the panel.

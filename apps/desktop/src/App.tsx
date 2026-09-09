@@ -2650,6 +2650,10 @@ export function App() {
               setArchived(commandTarget, !isArchived(commandTarget));
           }}
           onOrdering={(next) => updateWorkspace({ ordering: next })}
+          today={today}
+          onChangeProperty={(property, next) => {
+            if (commandTarget) changeProperty(commandTarget, property, next);
+          }}
           searchResults={paletteSearchResults}
           onSearch={(query) => {
             if (!activeProjectId) return;

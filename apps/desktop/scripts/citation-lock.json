@@ -93,7 +93,7 @@
     "270": "**Create ticket** (`⌘↵`) + ghost Cancel. On create the panel swaps to",
     "271": "view mode of the real ticket.",
     "296": "## Command palette (`⌘K`)",
-    "309": "- **Sub-modes** (status, priority, ordering, theme, project, search)",
+    "309": "- **Sub-modes** (status, priority, ordering, theme, project, search, and one",
     "313": "is none. Theme rows carry miniature pair swatches. Search rows: status",
     "314": "dot + mono key + title (archived tickets tagged `· archived`), Enter",
     "315": "opens the panel.",
