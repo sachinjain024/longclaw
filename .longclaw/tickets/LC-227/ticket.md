@@ -10,7 +10,7 @@ labels:
 type: feature
 due: 2026-09-09
 created_at: 2026-08-22T06:13:17.138Z
-updated_at: 2026-09-09T08:29:08.987Z
+updated_at: 2026-09-09T08:36:23.002Z
 ---
 
 Brainstorm with LLM agent like what other fields we should support. A few items I can think of are Type - Bug/Task, Due State, Start Date, Effort
@@ -1687,7 +1687,7 @@ it yet.
 - [ ] npm run perf:board and perf:list, and quote the numbers — the due comparator touches ordering <!-- longclaw:item=ck_c404ee03 -->
 - [ ] npm run verify <!-- longclaw:item=ck_5e61f2a1 -->
 - [x] A /docs page for ticket properties and a /changelog entry <!-- longclaw:item=ck_aa77f085 -->
-- [ ] docs/release-notes/v0.1.0.md carries no properties write-up — § What it does is missing all four, and the published changelog is now ahead of the notes <!-- longclaw:item=ck_a1ba21e6 -->
+- [x] docs/release-notes/v0.1.0.md carries no properties write-up — § What it does is missing all four, and the published changelog is now ahead of the notes <!-- longclaw:item=ck_a1ba21e6 -->
 - [ ] Run /design-sync to push the settled Board card and the new property components to the Claude Design project (LC-63) <!-- longclaw:item=ck_0bc85504 -->
 - [x] Install Caveman skill for Claude Code and Codex in this repo <!-- longclaw:item=ck_34b6d30d -->
 ## Activity
@@ -3417,4 +3417,28 @@ changes:
     to: "60"
 -->
 ### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_86d188ef
+kind: update
+occurred_at: 2026-09-09T08:36:23.002Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_a1ba21e6.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Closed the release-notes gap, and corrected an over-claim on the way through.
+
+docs/release-notes/v0.1.0.md § What it does now carries the four property bullets, word for word with apps/website's 0.1.0 changelog entry — the two lists were already identical for the five bullets they shared, and two spellings of one sentence is how a stale line ends up reading exactly like a fresh one. § Known limitations gained the start date: it is set in the panel, both create surfaces, the context menu and the CLI, and shown by no card, list row or ordering, because there is no timeline view in this release.
+
+One bullet was wrong in both files and is now fixed in both. It read 'with overdue, today and approaching called out'. styles.css:1716-1726 gives .due-chip.overdue a colour and .due-chip.today ink plus weight 600, and has no rule for approaching or beyond at all — the two are the same chip, and differ only in what dueChipText writes (properties.ts:606, 'in 3d' against a plain date). Approaching is not called out; it is told apart by its words. It now reads 'overdue in colour, today in bold, and the rest told apart by their words'.
+
+npm run site:verify exits 0 — astro check 0 errors, 0 warnings, 0 hints, 15 pages. Nothing gates the release notes themselves: release-audit.mjs does not read them, prettier runs from apps/desktop and does not reach docs/, and no citation names the file by line. The notes stay status: draft until the acceptance record's blocker section is empty.
 <!-- /longclaw:event -->
