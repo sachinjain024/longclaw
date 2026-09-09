@@ -57,7 +57,11 @@ import { sameLabels } from "./labels";
 import { MarkdownView } from "./MarkdownView";
 import { MenuButton } from "./Menu";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "./metaOptions";
-import { enabledPropertyFields, PROPERTY_LABELS } from "./properties";
+import {
+  enabledPropertyFields,
+  PROPERTY_LABELS,
+  propertyToast,
+} from "./properties";
 import { PropertyControl } from "./PropertyControl";
 import { PencilGlyph } from "./PencilGlyph";
 import { mutate, type Mutation, useMutationStore } from "./mutations";
@@ -75,6 +79,7 @@ import type {
   TicketDetail,
   TicketEdit,
   TicketPriority,
+  TicketProperty,
   TicketStatus,
   WriteResult,
 } from "./types";
@@ -299,6 +304,11 @@ interface TicketPanelProps {
    */
   today: number;
   /**
+   * A property control to put focus in once the ticket is on screen, or nothing
+   * — which is every way the panel is opened but one (`PropertyFocusRequest`).
+   */
+  focusProperty?: PropertyFocusRequest;
+  /**
    * Whether the ticket carries an `archived_at` (ADR 0004), taken from the same
    * store row the board and the list read rather than from the file this panel
    * last read. Archiving is the one action here whose write is raised outside
@@ -343,6 +353,25 @@ interface TicketPanelProps {
    */
   onReparsed: () => void;
   onError: (error: AppError) => void;
+}
+
+/**
+ * A property control the panel should enter on, asked for from outside it.
+ *
+ * The context menu's `Pick a date…` is the only caller: the menu declines to
+ * draw a calendar and hands the day over to the control that can reach any of
+ * them (LC-227). The nonce is what makes a second press a second hand-off —
+ * the same property asked for twice has to move focus twice, and nothing else
+ * about the request has changed to say so.
+ */
+export interface PropertyFocusRequest {
+  /**
+   * The two dates only. They are the only submenus that offer `Pick a date…`,
+   * and the only rail controls whose caret there is anything to put — a type
+   * is a menu and an estimate under a scale is a segmented row.
+   */
+  property: "due" | "start";
+  nonce: number;
 }
 
 export function TicketPanel(props: TicketPanelProps) {
@@ -767,14 +796,10 @@ export function TicketPanel(props: TicketPanelProps) {
   ) {
     const previous = detail?.ticket?.[property];
     if (next === previous) return;
-    const name = property[0].toUpperCase() + property.slice(1);
-    // The value verbatim, never reformatted, for the reason the timeline gives:
-    // an inverse can carry a date in a shape the format does not store, and
-    // prettying that up would say the file holds something it does not.
+    // The same sentence a pick from a card's context menu raises, which is why
+    // it is not built here (`properties.ts`, LC-227).
     const said = (value: string | undefined) =>
-      value === undefined
-        ? `${ticketKey} ${name} cleared`
-        : `${ticketKey} ${name} → ${value}`;
+      propertyToast(ticketKey, property, value);
     void save(
       { [property]: next ?? null },
       {
@@ -1483,6 +1508,17 @@ export function TicketPanel(props: TicketPanelProps) {
                     value={ticket[property]}
                     today={props.today}
                     onCommit={(next) => saveProperty(property, next)}
+                    // `Pick a date…` landing: the control the menu handed the
+                    // day to takes the caret, and every other row is handed
+                    // nothing. The count arrives before this row exists — the
+                    // panel is asked for the ticket and the property in one
+                    // gesture — so the field enters itself on mount rather
+                    // than being reached for from out here.
+                    enter={
+                      props.focusProperty?.property === property
+                        ? props.focusProperty.nonce
+                        : undefined
+                    }
                   />
                 </RailRow>
               ))}

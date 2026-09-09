@@ -194,7 +194,7 @@ are not stops: emptying the field is the keyboard's way to clear a date.
 | Layer closed | Focus lands on |
 |---|---|
 | Ticket panel | The card/row that opened it (survives re-render) |
-| Menu | Its trigger (meta row) or the focused card (single-key path) |
+| Menu | Its trigger (meta row) or the focused card (single-key path) — except the context menu's `Pick a date…`, which opens the panel and enters the field for that property (LC-227) |
 | Date picker | The date field it hangs off (LC-227) |
 | Palette | Whatever held focus before `⌘K` |
 | Quick create (created) | The new ticket's card — or, with **Create more** ticked, the emptied title field, and focus never follows the card even when the write returns (LC-201) |

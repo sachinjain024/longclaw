@@ -23,13 +23,14 @@ import { useLongClawStore } from "./state";
 import { isArchived } from "./tickets";
 import type {
   IndexedTicket,
+  PropertiesConfig,
   ProjectReference,
   StreamEnvelope,
   TicketDetail,
   TicketRow,
   WriteResult,
 } from "./types";
-import { NO_PROPERTIES } from "./properties";
+import { NO_PROPERTIES, startOfDay, toIso } from "./properties";
 
 vi.mock("./api", () => ({
   chooseAndCreateProject: vi.fn(),
@@ -6086,9 +6087,11 @@ describe("a project switch under an open editor (LC-188)", () => {
 });
 
 /**
- * The two rows of a ticket's context menu that only App can answer (LC-222):
- * the archive, which is a write, and the path, which needs the project folder
- * neither surface has ever been told.
+ * The rows of a ticket's context menu that only App can answer: the archive,
+ * which is a write, and the path, which needs the project folder neither
+ * surface has ever been told (LC-222) — and the four property submenus, which
+ * write through the same seam and, in one case, hand the job to the panel
+ * instead (LC-227).
  */
 describe("the ticket context menu, end to end (LC-222)", () => {
   const project: ProjectReference = {
@@ -6124,10 +6127,14 @@ describe("the ticket context menu, end to end (LC-222)", () => {
     };
   }
 
-  async function openBoard(tickets: TicketRow[] = [row("LC-1")]) {
-    vi.mocked(api.listProjects).mockResolvedValue([project]);
+  async function openBoard(
+    tickets: TicketRow[] = [row("LC-1")],
+    properties = NO_PROPERTIES,
+  ) {
+    const opened = { ...project, properties };
+    vi.mocked(api.listProjects).mockResolvedValue([opened]);
     vi.mocked(api.openProject).mockResolvedValue({
-      project,
+      project: opened,
       tickets,
       generation: 1,
       rebuiltInMs: 1,
@@ -6207,6 +6214,128 @@ describe("the ticket context menu, end to end (LC-222)", () => {
       ticketKey: "LC-1",
       expectedHash: "hash-LC-1",
       edit: { status: "in_progress" },
+    });
+  });
+
+  /**
+   * The four properties as menu rows (LC-227). What is asserted here and
+   * nowhere else is that a pick reaches the disk: `ticketMenu.test.tsx` proves
+   * the rows are right, and only this proves the row that says `Today` writes
+   * today.
+   */
+  describe("the properties a project turned on", () => {
+    const withDates: PropertiesConfig = {
+      ...NO_PROPERTIES,
+      type: { enabled: true, values: { bug: { name: "Bug", color: "red" } } },
+      due: { enabled: true, attentionDays: 7 },
+    };
+    /** The real clock, because nothing here freezes one — see `openBoard`. */
+    const today = () => toIso(startOfDay(Date.now()));
+
+    function detail(): TicketDetail {
+      return {
+        key: "LC-1",
+        relativePath: ".longclaw/tickets/LC-1/ticket.md",
+        contentHash: "hash-LC-1",
+        byteLength: 300,
+        readOnly: false,
+        raw: "",
+        rawTruncated: false,
+        missingAttachments: [],
+        orphanAttachments: [],
+        ticket: {
+          id: "id-LC-1",
+          key: "LC-1",
+          title: "Ticket LC-1",
+          status: "todo",
+          priority: "none",
+          labels: [],
+          createdAt: "2026-07-31T09:00:00Z",
+          updatedAt: "2026-07-31T09:00:00Z",
+          description: "",
+          checklist: [],
+          attachments: [],
+          activity: [],
+          historyIncomplete: false,
+          unknownKeys: [],
+          recordDiagnostics: [],
+        },
+      };
+    }
+
+    it("offers nothing for a project that has turned them all off", async () => {
+      await openBoard();
+
+      fireEvent.contextMenu(card("LC-1"));
+
+      // Every project written before this build. Four more rows are affordable
+      // only because this is what they cost when nobody asked for them.
+      expect(screen.queryByRole("menuitem", { name: /Due date/ })).toBeNull();
+      expect(screen.queryByRole("menuitem", { name: /^Type/ })).toBeNull();
+    });
+
+    it("writes the day a quick pick resolved to, and says which day it was", async () => {
+      vi.mocked(api.editTicket).mockResolvedValue({
+        ticket: row("LC-1", {
+          contentHash: "hash-LC-1-written",
+          due: today(),
+        }),
+        generation: 2,
+        changes: [],
+      });
+      await openBoard([row("LC-1")], withDates);
+
+      fireEvent.contextMenu(card("LC-1"));
+      fireEvent.click(screen.getByRole("menuitem", { name: /Due date/ }));
+      fireEvent.click(screen.getByRole("menuitemradio", { name: /Today/ }));
+
+      // The panel's own sentence for the same write, from `propertyToast`.
+      await screen.findByText(`LC-1 Due → ${today()}`);
+      expect(api.editTicket).toHaveBeenCalledWith({
+        projectId: project.id,
+        ticketKey: "LC-1",
+        expectedHash: "hash-LC-1",
+        // The format's only spelling, never the row's own words.
+        edit: { due: today() },
+      });
+    });
+
+    it("clears a property by emptying the field rather than omitting it", async () => {
+      vi.mocked(api.editTicket).mockResolvedValue({
+        ticket: row("LC-1", { contentHash: "hash-LC-1-written" }),
+        generation: 2,
+        changes: [],
+      });
+      await openBoard([row("LC-1", { type: "bug" })], withDates);
+
+      fireEvent.contextMenu(card("LC-1"));
+      fireEvent.click(screen.getByRole("menuitem", { name: /^Type/ }));
+      fireEvent.click(screen.getByRole("menuitem", { name: "Clear" }));
+
+      await screen.findByText("LC-1 Type cleared");
+      expect(api.editTicket).toHaveBeenCalledWith({
+        projectId: project.id,
+        ticketKey: "LC-1",
+        expectedHash: "hash-LC-1",
+        // `null` empties the field; an absent key would leave it alone.
+        edit: { type: null },
+      });
+    });
+
+    it("hands Pick a date… to the panel's own control, focused", async () => {
+      vi.mocked(api.readTicket).mockResolvedValue(detail());
+      await openBoard([row("LC-1")], withDates);
+
+      fireEvent.contextMenu(card("LC-1"));
+      fireEvent.click(screen.getByRole("menuitem", { name: /Due date/ }));
+      fireEvent.click(screen.getByRole("menuitem", { name: /Pick a date/ }));
+
+      // The menu never grows a calendar. What it does instead is put the caret
+      // in the field that has one, which is the whole of the hand-off: the
+      // panel is opened *and* entered, a row down from where it opens itself.
+      const field = await screen.findByLabelText("Due");
+      await waitFor(() => expect(document.activeElement).toBe(field));
+      expect(api.editTicket).not.toHaveBeenCalled();
     });
   });
 });

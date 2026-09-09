@@ -288,6 +288,11 @@ export function Board(
     root: grid,
     selector: CARD,
     tickets: props.tickets,
+    properties: props.properties,
+    // A day, not the acknowledgement clock: `now` moves every few seconds and
+    // a date read against a moving instant is a date whose meaning depends on
+    // the second it was read in (the `today` prop below says it at length).
+    today: startOfDay(props.now).getTime(),
     actions: props,
     requestFocus,
   });

@@ -25,7 +25,9 @@ import { itemFor } from "./rovingFocus";
 import { ticketMenuItems } from "./ticketMenu";
 import type {
   IndexedTicket,
+  PropertiesConfig,
   TicketPriority,
+  TicketProperty,
   TicketRow,
   TicketStatus,
 } from "./types";
@@ -53,11 +55,11 @@ export function opensContextMenu(event: {
 }
 
 /**
- * The five things a surface can raise about a ticket but cannot answer.
+ * The things a surface can raise about a ticket but cannot answer.
  *
- * One type rather than five parameters, because they travel together: the board
- * takes them, the list takes them, and the context menu is handed the whole set
- * (`Board`'s own props are these plus the board's).
+ * One type rather than a parameter each, because they travel together: the
+ * board takes them, the list takes them, and the context menu is handed the
+ * whole set (`Board`'s own props are these plus the board's).
  */
 export interface TicketActions {
   /** Open it in the panel — what a click on the row already does. */
@@ -66,6 +68,23 @@ export interface TicketActions {
   onChangeStatus: (ticket: IndexedTicket, next: TicketStatus) => void;
   /** Raised by the `P` menu and by `Priority`, on the same terms. */
   onChangePriority: (ticket: IndexedTicket, next: TicketPriority) => void;
+  /**
+   * Raised by the context menu's property submenus (LC-227). `undefined` is a
+   * clear, which is the distinction the write path draws between an edit that
+   * omits a field and one that empties it.
+   */
+  onChangeProperty: (
+    ticket: IndexedTicket,
+    property: TicketProperty,
+    next: string | undefined,
+  ) => void;
+  /**
+   * `Pick a date…`, which is the menu declining to grow a calendar: the panel
+   * opens on this ticket with that date's own field focused, and the day is
+   * chosen where the field and the picker already live. The two dates only —
+   * they are the only submenus that offer the row.
+   */
+  onPickDate: (ticket: IndexedTicket, property: "due" | "start") => void;
   /** Raised by the context menu's archive row, which is App's to write. */
   onArchive: (ticket: IndexedTicket) => void;
   /**
@@ -94,12 +113,17 @@ export function useTicketContextMenu(props: {
   selector: string;
   /** Every row the surface holds, the same list the `S`/`P` menu reads. */
   tickets: TicketRow[];
+  /** Which of the four properties this project offers rows for (LC-227). */
+  properties: PropertiesConfig;
+  /** The day the menu's date picks resolve against, injected as everywhere. */
+  today: number;
   /** What the rows raise. Both surfaces have these as their own props. */
   actions: TicketActions;
   /** The surface's roving focus, asked for the row by key once the menu goes. */
   requestFocus: (key?: string) => void;
 }) {
-  const { root, selector, tickets, actions, requestFocus } = props;
+  const { root, selector, tickets, properties, today, actions, requestFocus } =
+    props;
   const [target, setTarget] = useState<ContextMenuTarget>();
 
   /**
@@ -177,6 +201,8 @@ export function useTicketContextMenu(props: {
           origin={origin}
           anchor={anchor}
           tickets={tickets}
+          properties={properties}
+          today={today}
           actions={actions}
           onClose={close}
         />
@@ -190,6 +216,8 @@ function TicketContextMenu(props: {
   origin: Point;
   /** Every row the surface holds, the same list the `S`/`P` menu reads. */
   tickets: TicketRow[];
+  properties: PropertiesConfig;
+  today: number;
   /** The card or row it belongs to, and the element focus returns to. */
   anchor: HTMLElement | null;
   actions: TicketActions;
@@ -220,6 +248,10 @@ function TicketContextMenu(props: {
       ran(() => indexed && act.onChangeStatus(indexed, next)),
     onChangePriority: (next) =>
       ran(() => indexed && act.onChangePriority(indexed, next)),
+    onChangeProperty: (property, next) =>
+      ran(() => indexed && act.onChangeProperty(indexed, property, next)),
+    onPickDate: (property) =>
+      ran(() => indexed && act.onPickDate(indexed, property)),
     onArchive: () => ran(() => indexed && act.onArchive(indexed)),
     onCopyKey: () =>
       ran(
@@ -230,7 +262,7 @@ function TicketContextMenu(props: {
           }),
       ),
     onCopyPath: () => ran(() => act.onCopyPath(ticket)),
-  });
+  }, { properties: props.properties, today: props.today });
 
   return (
     <MenuList

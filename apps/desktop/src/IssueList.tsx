@@ -49,6 +49,7 @@ import {
 import { GuideCard } from "./GuideCard";
 import { singleKeyShortcutAllowed } from "./keyContext";
 import { LabelChip } from "./LabelChip";
+import { startOfDay } from "./properties";
 import {
   dropAt,
   GROUP_HEADER_HEIGHT,
@@ -80,7 +81,12 @@ import {
   type DropSpot,
   type TicketMove,
 } from "./ticketMove";
-import type { IndexedTicket, Label, TicketRow } from "./types";
+import type {
+  IndexedTicket,
+  Label,
+  PropertiesConfig,
+  TicketRow,
+} from "./types";
 import { useViewportHeight } from "./viewportHeight";
 
 /** Rows rendered beyond each edge of the viewport, so a scroll shows no gap. */
@@ -136,6 +142,11 @@ export function IssueList(
     selectedKey?: string;
     marks: ExternalMarks;
     labels: Record<string, Label>;
+    /**
+     * Which properties this project has turned on. The list draws none of them
+     * on a row yet; its context menu offers every one (LC-227).
+     */
+    properties: PropertiesConfig;
     /**
      * The board's ordering preference, which the rows inside a group follow too
      * (`screen-specs.md:146`) — and which decides, here as there, whether a place
@@ -231,6 +242,9 @@ export function IssueList(
     root: scroller,
     selector: ROW,
     tickets: props.tickets,
+    properties: props.properties,
+    // A day rather than the moving `now`, for the reason `Board` gives.
+    today: startOfDay(props.now).getTime(),
     actions: props,
     requestFocus,
   });

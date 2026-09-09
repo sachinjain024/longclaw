@@ -25,6 +25,7 @@ import type {
   Label,
   PropertiesConfig,
   TicketPriority,
+  TicketProperty,
   TicketRow,
   TicketStatus,
 } from "./types";
@@ -104,6 +105,12 @@ function board(props?: {
   onSelect?: (key: string) => void;
   onChangePriority?: (ticket: IndexedTicket, next: TicketPriority) => void;
   onChangeStatus?: (ticket: IndexedTicket, next: TicketStatus) => void;
+  onChangeProperty?: (
+    ticket: IndexedTicket,
+    property: TicketProperty,
+    next: string | undefined,
+  ) => void;
+  onPickDate?: (ticket: IndexedTicket, property: "due" | "start") => void;
   onArchive?: (ticket: IndexedTicket) => void;
   onCopyPath?: (ticket: TicketRow) => void;
   onMoveTicket?: (ticket: IndexedTicket, move: TicketMove) => void;
@@ -125,6 +132,8 @@ function board(props?: {
       onSelect={props?.onSelect ?? noop}
       onChangePriority={props?.onChangePriority ?? noop}
       onChangeStatus={props?.onChangeStatus ?? noop}
+      onChangeProperty={props?.onChangeProperty ?? noop}
+      onPickDate={props?.onPickDate ?? noop}
       onArchive={props?.onArchive ?? noop}
       onCopyPath={props?.onCopyPath ?? noop}
       onMoveTicket={props?.onMoveTicket ?? noop}
@@ -303,6 +312,8 @@ describe("the pulse, which says a change just landed", () => {
         ordering="priority"
         onChangePriority={noop}
         onChangeStatus={noop}
+        onChangeProperty={noop}
+        onPickDate={noop}
         onMoveTicket={noop}
         onArchive={noop}
         onCopyPath={noop}
@@ -465,6 +476,8 @@ describe("the board's own shape", () => {
         ordering="priority"
         onChangePriority={noop}
         onChangeStatus={noop}
+        onChangeProperty={noop}
+        onPickDate={noop}
         onMoveTicket={noop}
         onArchive={noop}
         onCopyPath={noop}
@@ -540,6 +553,8 @@ describe("focus on a column that is being scrolled", () => {
         ordering="priority"
         onChangePriority={noop}
         onChangeStatus={noop}
+        onChangeProperty={noop}
+        onPickDate={noop}
         onMoveTicket={noop}
         onArchive={noop}
         onCopyPath={noop}
@@ -755,6 +770,8 @@ describe("what a change to one ticket costs", () => {
         ordering="priority"
         onChangePriority={noop}
         onChangeStatus={noop}
+        onChangeProperty={noop}
+        onPickDate={noop}
         onMoveTicket={noop}
         onArchive={noop}
         onCopyPath={noop}
@@ -776,6 +793,8 @@ describe("what a change to one ticket costs", () => {
         ordering="priority"
         onChangePriority={noop}
         onChangeStatus={noop}
+        onChangeProperty={noop}
+        onPickDate={noop}
         onMoveTicket={noop}
         onArchive={noop}
         onCopyPath={noop}

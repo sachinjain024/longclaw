@@ -19,7 +19,7 @@
  * blur, never per keystroke, because `28 Se` is not a state worth reporting on.
  */
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { classes } from "./classes";
 import { fieldCommitted } from "./fieldUndo";
@@ -67,6 +67,16 @@ export function DateField(props: {
   now: number;
   /** A resolved day as `YYYY-MM-DD`, or `undefined` to clear. */
   onCommit: (iso: string | undefined) => void;
+  /**
+   * A count that says "put the caret in here", or nothing — which is every way
+   * this field is drawn but one.
+   *
+   * The context menu's `Pick a date…` declines to grow a calendar and hands
+   * the day to this control instead (LC-227). A count rather than a boolean
+   * because the same row pressed twice is two hand-offs, and the second has to
+   * move focus again even though nothing else about the ask has changed.
+   */
+  enter?: number;
 }) {
   const shown = display(props.value, props.now);
   const [text, setText] = useState(shown);
@@ -85,6 +95,13 @@ export function DateField(props: {
     setText(shown);
     setRefused(undefined);
   }
+
+  useEffect(() => {
+    // On mount as well as on a change, because the two do not arrive together:
+    // the panel is asked for the ticket and the property in one gesture, and
+    // this field does not exist until the read comes back.
+    if (props.enter !== undefined) input.current?.focus();
+  }, [props.enter]);
 
   const parsed = parseDate(text, props.now);
   // Dirty is the whole of "is there anything to commit". Comparing the *text*
@@ -414,7 +431,13 @@ function DatePicker(props: {
   );
 }
 
-function CalendarGlyph() {
+/**
+ * The mark that says *this is a date*, exported because the context menu's two
+ * date rows wear it too (LC-227) — used from where it is drawn rather than
+ * copied, which is the rule `TicketMenuGlyphs.tsx` states for a mark that has
+ * grown a second caller.
+ */
+export function CalendarGlyph() {
   return (
     <svg width="13" height="13" viewBox="0 0 14 14" aria-hidden="true">
       <rect

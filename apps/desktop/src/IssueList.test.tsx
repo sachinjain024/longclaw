@@ -23,11 +23,14 @@ import {
 } from "./listGeometry";
 import type * as ListRow from "./listRow";
 import type { OrderingMode } from "./ordering";
+import { NO_PROPERTIES } from "./properties";
 import type { TicketMove } from "./ticketMove";
 import type {
   IndexedTicket,
   Label,
+  PropertiesConfig,
   TicketPriority,
+  TicketProperty,
   TicketRow,
   TicketStatus,
 } from "./types";
@@ -86,7 +89,14 @@ function list(props?: {
   onSelect?: (key: string) => void;
   onChangePriority?: (ticket: IndexedTicket, next: TicketPriority) => void;
   onChangeStatus?: (ticket: IndexedTicket, next: TicketStatus) => void;
+  onChangeProperty?: (
+    ticket: IndexedTicket,
+    property: TicketProperty,
+    next: string | undefined,
+  ) => void;
+  onPickDate?: (ticket: IndexedTicket, property: "due" | "start") => void;
   onArchive?: (ticket: IndexedTicket) => void;
+  properties?: PropertiesConfig;
   onCopyPath?: (ticket: TicketRow) => void;
   onMoveTicket?: (ticket: IndexedTicket, move: TicketMove) => void;
   onCreateFirst?: () => void;
@@ -97,11 +107,14 @@ function list(props?: {
       selectedKey={props?.selectedKey}
       marks={props?.marks ?? {}}
       labels={DEFINITIONS}
+      properties={props?.properties ?? NO_PROPERTIES}
       ordering={props?.ordering ?? "priority"}
       now={NOW}
       onSelect={props?.onSelect ?? noop}
       onChangePriority={props?.onChangePriority ?? noop}
       onChangeStatus={props?.onChangeStatus ?? noop}
+      onChangeProperty={props?.onChangeProperty ?? noop}
+      onPickDate={props?.onPickDate ?? noop}
       onArchive={props?.onArchive ?? noop}
       onCopyPath={props?.onCopyPath ?? noop}
       onMoveTicket={props?.onMoveTicket ?? noop}

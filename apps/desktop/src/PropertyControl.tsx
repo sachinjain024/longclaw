@@ -38,6 +38,12 @@ export function PropertyControl(props: {
   today: number;
   /** A value this project reads, or `undefined` to clear. */
   onCommit: (value: string | undefined) => void;
+  /**
+   * A count that asks this control to take the caret, forwarded to the date
+   * field and to nothing else: the context menu's `Pick a date…` is the only
+   * caller, and the two dates are the only rows that offer it (LC-227).
+   */
+  enter?: number;
 }) {
   const name = PROPERTY_LABELS[props.property].field;
   if (props.property === "type") {
@@ -68,6 +74,7 @@ export function PropertyControl(props: {
       value={props.value}
       now={props.today}
       onCommit={props.onCommit}
+      enter={props.enter}
     />
   );
 }

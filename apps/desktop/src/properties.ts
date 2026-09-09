@@ -94,6 +94,30 @@ export const ESTIMATE_SYSTEMS: { id: EstimateSystem; label: string }[] = [
   { id: "duration", label: "Duration" },
 ];
 
+/**
+ * What a write to one of the four says it did, for the toast and its inverse.
+ *
+ * Two paths write these — the panel's rail through `save()`, and a card's
+ * context menu through `mutate()` (LC-227) — and one sentence between them, so
+ * the same act cannot be described two ways depending on where it was asked
+ * for. `field` rather than `name`: the sentence already names the ticket, and
+ * `LC-1 Due date → 2026-09-20` says *date* twice.
+ *
+ * The value goes in verbatim, never reformatted. An inverse can carry a date in
+ * a shape this project's configuration cannot read, and prettying that up would
+ * say the file holds something it does not (invariant 16).
+ */
+export function propertyToast(
+  ticketKey: string,
+  property: TicketProperty,
+  value: string | undefined,
+): string {
+  const name = PROPERTY_LABELS[property].field;
+  return value === undefined
+    ? `${ticketKey} ${name} cleared`
+    : `${ticketKey} ${name} → ${value}`;
+}
+
 /** Whether the project has turned one property on. */
 export function isPropertyEnabled(
   config: PropertiesConfig,

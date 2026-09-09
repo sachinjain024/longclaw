@@ -30,7 +30,12 @@ import {
   updateProjectTheme,
 } from "./api";
 import { Board } from "./Board";
-import { propertyCounts, startOfDay, untilNextDay } from "./properties";
+import {
+  propertyCounts,
+  propertyToast,
+  startOfDay,
+  untilNextDay,
+} from "./properties";
 import { classes } from "./classes";
 import { copyToClipboard } from "./clipboard";
 import { CommandPalette } from "./CommandPalette";
@@ -78,7 +83,7 @@ import { LANDING_SECTION, type SettingsSection } from "./settingsSections";
 import type { TicketMove } from "./ticketMove";
 import { useLongClawStore } from "./state";
 import { ThemeDot } from "./ThemeSwatch";
-import { TicketPanel } from "./TicketPanel";
+import { TicketPanel, type PropertyFocusRequest } from "./TicketPanel";
 import {
   isArchived,
   priorityLabel,
@@ -96,6 +101,7 @@ import type {
   TicketDraft,
   TicketEdit,
   TicketPriority,
+  TicketProperty,
   TicketStatus,
   TicketRow,
   WriteResult,
@@ -491,6 +497,8 @@ export function App() {
    * the Step 17 accessibility audit; `keyboard-focus-map.md:16-18,132,196`.
    */
   const [cardFocus, setCardFocus] = useState<FocusRequest>();
+  /** Which property control the panel should enter on; see `editProperty`. */
+  const [propertyFocus, setPropertyFocus] = useState<PropertyFocusRequest>();
   const focusCard = useCallback((key: string) => {
     setCardFocus((previous) => ({ key, nonce: (previous?.nonce ?? 0) + 1 }));
   }, []);
@@ -1668,6 +1676,52 @@ export function App() {
     );
   }
 
+  /**
+   * One of the four opt-in properties set from a card's context menu (LC-227),
+   * or cleared — `undefined` here, `null` on the wire, which is the distinction
+   * between an edit that omits a field and one that empties it.
+   *
+   * The panel writes the same four through `save()`; a card on a surface is
+   * outside that seam, so this goes to `mutate()` directly, exactly as the
+   * `P` menu's pick does. Both sentences come from `propertyToast`, so the two
+   * paths cannot come to describe one write differently.
+   */
+  function changeProperty(
+    ticket: IndexedTicket,
+    property: TicketProperty,
+    next: string | undefined,
+  ) {
+    const projectId = activeProjectId;
+    const previous = ticket[property];
+    if (!projectId || next === previous) return;
+
+    void mutate(
+      editMutation({
+        projectId,
+        ticket,
+        optimistic: { [property]: next },
+        edit: { [property]: next ?? null },
+        inverse: { [property]: previous ?? null },
+        toast: propertyToast(ticket.key, property, next),
+        inverseToast: propertyToast(ticket.key, property, previous),
+      }),
+    );
+  }
+
+  /**
+   * `Pick a date…`, which is the context menu declining to grow a calendar.
+   *
+   * The panel opens on the ticket and that date's own field takes the caret,
+   * so the four quick picks stay a shortcut and the control behind them is
+   * still where any other day is reached. A count rather than the property
+   * alone: the same row pressed twice is two hand-offs, and the second has to
+   * move focus again even though nothing about the ask has changed.
+   */
+  function pickDate(ticket: IndexedTicket, property: "due" | "start") {
+    openTicket(ticket.key);
+    setPropertyFocus((held) => ({ property, nonce: (held?.nonce ?? 0) + 1 }));
+  }
+
   function changeStatus(ticket: IndexedTicket, next: TicketStatus) {
     const projectId = activeProjectId;
     if (!projectId || next === ticket.status) return;
@@ -2281,6 +2335,11 @@ export function App() {
                     onSelect={openTicket}
                     onChangePriority={changePriority}
                     onChangeStatus={changeStatus}
+                    // The context menu's property submenus, which no surface
+                    // can write and only one of which stays inside the menu
+                    // (LC-227).
+                    onChangeProperty={changeProperty}
+                    onPickDate={pickDate}
                     // The context menu's two rows that are App's to answer: one
                     // writes, and one needs the project folder a surface has
                     // never been told (LC-222).
@@ -2320,12 +2379,17 @@ export function App() {
                     selectedKey={selectedKey}
                     marks={externalMarks}
                     labels={project.labels}
+                    // Nothing on a list row draws one yet; the row's own
+                    // context menu offers all four (LC-227).
+                    properties={project.properties}
                     ordering={ordering}
                     now={now}
                     focusRequest={cardFocus}
                     onSelect={openTicket}
                     onChangePriority={changePriority}
                     onChangeStatus={changeStatus}
+                    onChangeProperty={changeProperty}
+                    onPickDate={pickDate}
                     onArchive={toggleArchived}
                     onCopyPath={(ticket) =>
                       copyTicketPath(project.rootPath, ticket)
@@ -2365,6 +2429,7 @@ export function App() {
             }
             now={now}
             today={today}
+            focusProperty={propertyFocus}
             archived={openRow !== undefined && isArchived(openRow)}
             // The file the row the card was drawn from names, so one the board
             // already knows will not parse opens as the raw-file modal rather

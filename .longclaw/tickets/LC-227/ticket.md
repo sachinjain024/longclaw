@@ -10,7 +10,7 @@ labels:
 type: feature
 due: 2026-09-09
 created_at: 2026-08-22T06:13:17.138Z
-updated_at: 2026-09-09T03:32:26.853Z
+updated_at: 2026-09-09T04:05:45.016Z
 ---
 
 Brainstorm with LLM agent like what other fields we should support. A few items I can think of are Type - Bug/Task, Due State, Start Date, Effort
@@ -1205,6 +1205,139 @@ this rail is nil, and that is recorded here rather than implied by a green run.
   Undo and `engine.rs` refuses the inverse, which is invariant 16 doing its job
   at the wrong moment. Found during the create-surface commit, unchanged here.
 
+## Built 2026-09-09: the context menu takes all four
+
+`ck_a77f4bb8`, `ck_fcf48239`, `ck_d3ec1253`, `ck_c06f6e05`. Right-clicking a
+ticket now offers every property the project has turned on — on the board and on
+the list, off one row builder, because two lists built in two places are two
+lists that drift.
+
+### Nine rows, or five
+
+The rule that made four more rows affordable is the one asserted first: a row
+exists only for a property the project enabled. Properties ship all off, so a
+default project's menu is byte-for-byte the five rows it has always had, and
+that is a test on both surfaces rather than a claim. A project with everything
+on gets nine.
+
+`enabledPropertyFields` decides the order, and this is where it diverges from
+the prototype. The prototype drew `Type · Start date · Due date · Estimate`;
+this draws `Type · Estimate · Start · Due`, which is what the panel's rail, full
+create and quick create already read. That helper exists precisely to stop three
+surfaces disagreeing about the order of the four, and a fourth surface with an
+order of its own is the disagreement. The prototype's own adjacency argument
+survives untouched: Start still sits directly above Due, which is the pairing
+the forward-only grammar is a trade for. Recorded here because the prototype is
+deleted once reviewed, and its order would otherwise read as the spec.
+
+The row's label is `PROPERTY_LABELS[property].name` — `Due date`, not `Due`.
+That is the settings row's word rather than a control's, and it is right here
+for the same reason: the four are listed with nothing beside them, among
+`Move to` and `Archive ticket`, where `Due` alone would not say what kind of
+thing it is.
+
+### The date rows, and the one that gives up
+
+Four quick picks, each carrying the day it resolves to. `MenuList` refused to
+draw a hint on a `choice` row, which turned out not to be a design decision at
+all: the `choice` variant had no `hint` field, so `item.kind !== "choice"` was
+narrowing the union, not stating a rule. The variant gained the field and the
+gate came off. These picks are still the only choice rows in the app that carry
+one.
+
+`Pick a date…` is the row that decides nothing. It closes the menu, opens the
+panel and puts the caret in that date's field, which is the whole of "hands the
+job to the panel's real control" — a menu that opened the panel and left you to
+Tab to the field would be a redirect rather than a hand-off.
+
+That hand-off is a count, not a flag: the same row pressed twice is two
+hand-offs, and the second has to move focus again though nothing else about the
+ask has changed. It is forwarded down as `enter` — `App` → `TicketPanel` →
+`PropertyControl` → `DateField`, which enters itself — rather than reached for
+with a DOM query from the panel. The two do not arrive together: the panel is
+asked for the ticket and the property in one gesture, and the field does not
+exist until the read comes back. A field that focuses itself on mount handles
+that for free; a query has to keep a nonce and retry.
+
+`keyboard-focus-map.md:197` is amended in place for it, one line for one line.
+The line was not pinned, so nothing was re-pointed and nothing shifted.
+
+### Clear, where there is something to clear
+
+Every property submenu carries `Clear` under a rule — and only when the property
+holds something. A row that cannot do anything is worse than no row, because it
+says the ticket holds a value. The prototype hardcoded `clearable: true` for
+Type and gated the other three; this gates all four, which is the more
+consistent reading of "a submenu that can only ever *set* a property is a
+one-way door".
+
+The type submenu is `typeOptions` minus its `None` row. `None` is the word the
+rail and both create surfaces use, and `Clear` is the word every other submenu
+here uses; the registry still owns the vocabulary and the dots.
+
+### One sentence for two write paths
+
+A pick from the menu goes through `mutate()` and a pick in the rail goes through
+the panel's `save()` — two seams, as they are for status and priority. Both now
+build their toast from `propertyToast` in `properties.ts`, so one act cannot be
+described two ways depending on where it was asked for. `LC-1 Due → 2026-09-20`,
+`LC-1 Type cleared`, and the inverse says the same of the value it puts back.
+The value goes in verbatim: an inverse can carry a date this project's
+configuration cannot read, and prettying that up would say the file holds
+something it does not.
+
+### The two reviews, and what they changed
+
+Both axes independently found the same defect: `PropertyFocusRequest` and the
+hand-off were typed over all four properties, while only the two dates offer the
+row — and a request for `type`, whose control is a menu rather than a field,
+would have found nothing to focus and quietly retried on every later render.
+Narrowed to `"due" | "start"`, which is also what deleted the retry bookkeeping.
+
+Standards' strongest finding was three cascades on one type: `propertyMark`,
+`propertyHint` and `propertyValues` each asked *which property is this* and
+answered a third of the question. They are now one `propertyFace`, which is the
+bargain `PropertyControl.tsx` already strikes one surface over — the switch on
+which property this is lives in one place per surface, so a fifth property is
+one branch to write rather than three to find.
+
+It also caught the context handing `today` the acknowledgement clock. The
+arithmetic was right either way, since `datePicks` takes `startOfDay` of
+whatever it is given, but the name was a lie about the argument. Both surfaces
+now derive a day.
+
+### The runs
+
+`npm run verify` green, twice: once on the first cut and again after the review
+fixes. 1312 frontend tests over 47 files, and every guard — `tab-order-guard` 94
+files, `citation-guard` 500 citations, `card-height-guard` five invariants,
+`glyph-drift-guard` 17 copies, `release-audit` 112 files.
+
+Nineteen of those tests are new. Seventeen could not pass before this change;
+two assert what the menu already did for a project with nothing enabled, and
+they pass on both sides of it by design, which is the point of them. The
+`Pick a date…` hand-off was confirmed red first on both implementations of it —
+the DOM query it started as, and the forwarded count it ended as.
+
+`npm run a11y:audit` passes Part A, 56 checks over A1–A5, including the focus
+paths this touches. **It still cannot see any of these rows**: `perf/fixture.ts`
+gives its project `NO_PROPERTIES`, so the audit drives a menu with five rows in
+it. The blind spot is the one already recorded above and unchanged by this work.
+
+`probe:drag`, `perf:board` and `perf:list` are not implicated. This change adds
+no card geometry, no comparator, no lane and no selector — a menu is a popover
+that is built when it opens.
+
+### What this leaves open
+
+- Nothing on a list *row* draws a property yet (`ck_6ac72ae5`), but the list now
+  takes `properties` for its context menu. The row's due chip has the prop it
+  needs waiting for it.
+- `.menu-label` has no `min-width: 0` and does not truncate, so a project with
+  very long type names would push a submenu's rows wide rather than clip them.
+  Nothing in this change carries both a long label and a hint, and the four
+  pick labels fit 200px with room, so this is a note rather than a defect.
+
 ## Checklist
 
 - [x] ADR: property configuration joins labels in longclaw.yaml — record why ADR 0002's reservation is deferred, and what would revisit it <!-- longclaw:item=ck_945a1ca9 -->
@@ -1249,10 +1382,10 @@ this rail is nil, and that is recorded here rather than implied by a green run.
 - [x] boardGeometry: cardStrides learns the second footer row for estimate and type, keeping the height derivable from row data and never measured <!-- longclaw:item=ck_1b980442 -->
 - [x] styles.css and card-height-guard.mjs learn the new pinned heights — the guard runs inside npm run check and fails on a disagreement <!-- longclaw:item=ck_2c41c9b0 -->
 - [ ] List row: due within the row's two-chip budget, minding LC-93's 46px slot <!-- longclaw:item=ck_6ac72ae5 -->
-- [ ] Ticket context menu: submenus for all four properties beside Move to and Priority, each row present only when the project enables that property — a default project's menu is unchanged <!-- longclaw:item=ck_a77f4bb8 -->
-- [ ] Date submenus are quick picks with the resolved day as each row's hint, plus Clear and a Pick a date… that hands off to the panel — never a calendar inside a popover <!-- longclaw:item=ck_fcf48239 -->
-- [ ] Estimate submenu is the project's own scale: the enum under t-shirt, the sequence under Fibonacci, and a common-durations list under duration <!-- longclaw:item=ck_d3ec1253 -->
-- [ ] Every property submenu carries Clear, so a context-menu set is never a one-way door <!-- longclaw:item=ck_c06f6e05 -->
+- [x] Ticket context menu: submenus for all four properties beside Move to and Priority, each row present only when the project enables that property — a default project's menu is unchanged <!-- longclaw:item=ck_a77f4bb8 -->
+- [x] Date submenus are quick picks with the resolved day as each row's hint, plus Clear and a Pick a date… that hands off to the panel — never a calendar inside a popover <!-- longclaw:item=ck_fcf48239 -->
+- [x] Estimate submenu is the project's own scale: the enum under t-shirt, the sequence under Fibonacci, and a common-durations list under duration <!-- longclaw:item=ck_d3ec1253 -->
+- [x] Every property submenu carries Clear, so a context-menu set is never a one-way door <!-- longclaw:item=ck_c06f6e05 -->
 - [x] Proximity derived from an injected now, plus the day-boundary recompute the watcher cannot push <!-- longclaw:item=ck_55424527 -->
 - [ ] A Due board ordering mode beside Priority and Manual (ADR 0003) <!-- longclaw:item=ck_79550de2 -->
 - [ ] Command palette rows for setting each enabled property <!-- longclaw:item=ck_e8cbab2a -->
@@ -2747,4 +2880,30 @@ changes:
     to: "true"
 -->
 ### Codex updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_a12a5800
+kind: update
+occurred_at: 2026-09-09T04:05:45.016Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+  - field: checklist.ck_a77f4bb8.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_fcf48239.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_d3ec1253.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_c06f6e05.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->
