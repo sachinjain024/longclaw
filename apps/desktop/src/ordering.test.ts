@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  byDue,
   byPriority,
   byRank,
   comparatorFor,
@@ -10,7 +11,12 @@ import {
 } from "./ordering";
 import type { TicketPriority, TicketRow } from "./types";
 
-function row(key: string, priority: TicketPriority, rank?: string): TicketRow {
+function row(
+  key: string,
+  priority: TicketPriority,
+  rank?: string,
+  due?: string,
+): TicketRow {
   return {
     state: "indexed",
     key,
@@ -20,6 +26,7 @@ function row(key: string, priority: TicketPriority, rank?: string): TicketRow {
     priority,
     labels: [],
     rank,
+    due,
     createdAt: "2026-07-30T11:00:00Z",
     updatedAt: "2026-07-30T11:00:00Z",
     checkedCount: 0,
@@ -107,6 +114,44 @@ describe("priority ordering", () => {
   });
 });
 
+describe("due ordering", () => {
+  it("puts dated tickets first, soonest date first", () => {
+    const column = [
+      row("LC-1", "p1", undefined, "2026-09-20"),
+      row("LC-2", "urgent"),
+      row("LC-3", "p4", undefined, "2026-09-09"),
+      row("LC-4", "p2", undefined, "2026-09-10"),
+    ];
+
+    expect(keys(orderColumn(column, byDue))).toEqual([
+      "LC-3",
+      "LC-4",
+      "LC-1",
+      "LC-2",
+    ]);
+  });
+
+  it("keeps equal, missing and unreadable dates in the order they arrived", () => {
+    const column = [
+      row("LC-1", "p4", undefined, "2026-09-10"),
+      row("LC-2", "urgent", undefined, "2026-09-10"),
+      row("LC-3", "p1"),
+      degraded("LC-98"),
+      row("LC-4", "p2", undefined, "28 Sep 2026"),
+      row("LC-5", "p3"),
+    ];
+
+    expect(keys(orderColumn(column, byDue))).toEqual([
+      "LC-1",
+      "LC-2",
+      "LC-3",
+      "LC-98",
+      "LC-4",
+      "LC-5",
+    ]);
+  });
+});
+
 describe("manual ordering (ADR 0003)", () => {
   it("puts ranked tickets in rank order, ignoring priority", () => {
     const column = [
@@ -174,6 +219,7 @@ describe("manual ordering (ADR 0003)", () => {
 
   it("names the comparator each mode uses", () => {
     expect(comparatorFor("priority")).toBe(byPriority);
+    expect(comparatorFor("due")).toBe(byDue);
     expect(comparatorFor("manual")).toBe(byRank);
   });
 });

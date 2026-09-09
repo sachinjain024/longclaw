@@ -231,6 +231,22 @@ describe("the groups the list draws", () => {
       ),
     ).toEqual(["LC-3", "LC-4", "LC-2", "LC-1"]);
   });
+
+  it("orders a group by due date when Due is chosen", () => {
+    render(
+      list({
+        ordering: "due",
+        tickets: [
+          row({ key: "LC-1", status: "todo", due: "2026-09-20" }),
+          row({ key: "LC-2", status: "todo" }),
+          row({ key: "LC-3", status: "todo", due: "2026-09-09" }),
+          row({ key: "LC-4", status: "todo", due: "2026-09-10" }),
+        ],
+      }),
+    );
+
+    expect(rowKeys()).toEqual(["LC-3", "LC-4", "LC-1", "LC-2"]);
+  });
 });
 
 describe("what one row says", () => {
@@ -888,10 +904,13 @@ describe("dragging a row to another group (LC-60)", () => {
     return section;
   }
 
-  it("is draggable in either order, because a group is a status", () => {
+  it("is draggable in any order, because a group is a status", () => {
     const { rerender } = render(
       list({ tickets: across, ordering: "priority" }),
     );
+    expect(listRow("LC-1").draggable).toBe(true);
+
+    rerender(list({ tickets: across, ordering: "due" }));
     expect(listRow("LC-1").draggable).toBe(true);
 
     rerender(list({ tickets: across, ordering: "manual" }));

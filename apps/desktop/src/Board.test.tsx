@@ -817,6 +817,22 @@ describe("priority on the board", () => {
     expect(columnKeys()).toEqual(["LC-3", "LC-4", "LC-2", "LC-5", "LC-1"]);
   });
 
+  it("orders a column by due date when Due is chosen", () => {
+    render(
+      board({
+        ordering: "due",
+        tickets: [
+          row({ key: "LC-1", status: "todo", due: "2026-09-20" }),
+          row({ key: "LC-2", status: "todo" }),
+          row({ key: "LC-3", status: "todo", due: "2026-09-09" }),
+          row({ key: "LC-4", status: "todo", due: "2026-09-10" }),
+        ],
+      }),
+    );
+
+    expect(columnKeys()).toEqual(["LC-3", "LC-4", "LC-1", "LC-2"]);
+  });
+
   it("moves down the column in the order it is looking at", () => {
     // `screen-specs.md:135`: keyboard navigation follows the visual order, so
     // the second card down is the second card drawn, not the next key.
@@ -1099,12 +1115,15 @@ describe("board ordering and drag-and-drop (V0-09)", () => {
     expect(columnKeys()).toEqual(["LC-2", "LC-3", "LC-1"]);
   });
 
-  it("picks a card up in either order, because a column is a status (LC-60)", () => {
+  it("picks a card up in any order, because a column is a status (LC-60)", () => {
     // Reordering *inside* a column is Manual's alone (ADR 0003). Moving a card
-    // to another column is a status change, which both orders have.
+    // to another column is a status change, which every order has.
     const { rerender } = render(
       board({ tickets: ranked, ordering: "priority" }),
     );
+    expect(card("LC-1").draggable).toBe(true);
+
+    rerender(board({ tickets: ranked, ordering: "due" }));
     expect(card("LC-1").draggable).toBe(true);
 
     rerender(board({ tickets: ranked, ordering: "manual" }));

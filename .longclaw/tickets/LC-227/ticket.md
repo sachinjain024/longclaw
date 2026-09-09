@@ -10,7 +10,7 @@ labels:
 type: feature
 due: 2026-09-09
 created_at: 2026-08-22T06:13:17.138Z
-updated_at: 2026-09-09T07:39:44.075Z
+updated_at: 2026-09-09T08:00:08.826Z
 ---
 
 Brainstorm with LLM agent like what other fields we should support. A few items I can think of are Type - Bug/Task, Due State, Start Date, Effort
@@ -1676,7 +1676,7 @@ it yet.
 - [x] Estimate submenu is the project's own scale: the enum under t-shirt, the sequence under Fibonacci, and a common-durations list under duration <!-- longclaw:item=ck_d3ec1253 -->
 - [x] Every property submenu carries Clear, so a context-menu set is never a one-way door <!-- longclaw:item=ck_c06f6e05 -->
 - [x] Proximity derived from an injected now, plus the day-boundary recompute the watcher cannot push <!-- longclaw:item=ck_55424527 -->
-- [ ] A Due board ordering mode beside Priority and Manual (ADR 0003) <!-- longclaw:item=ck_79550de2 -->
+- [x] A Due board ordering mode beside Priority and Manual (ADR 0003) <!-- longclaw:item=ck_79550de2 -->
 - [ ] Command palette rows for setting each enabled property <!-- longclaw:item=ck_e8cbab2a -->
 - [x] Undo for each property change, through fieldUndo.ts <!-- longclaw:item=ck_43674ebd -->
 - [x] Explicit tabIndex on every new control — npm run check fails without it <!-- longclaw:item=ck_33780452 -->
@@ -1686,7 +1686,7 @@ it yet.
 - [ ] probe:drag: a drop is arithmetic over the card offsets (gapAt), so a new card height moves where a dragged ticket lands <!-- longclaw:item=ck_5fa993af -->
 - [ ] npm run perf:board and perf:list, and quote the numbers — the due comparator touches ordering <!-- longclaw:item=ck_c404ee03 -->
 - [ ] npm run verify <!-- longclaw:item=ck_5e61f2a1 -->
-- [ ] A /docs page for ticket properties and a /changelog entry <!-- longclaw:item=ck_aa77f085 -->
+- [x] A /docs page for ticket properties and a /changelog entry <!-- longclaw:item=ck_aa77f085 -->
 - [ ] Run /design-sync to push the settled Board card and the new property components to the Claude Design project (LC-63) <!-- longclaw:item=ck_0bc85504 -->
 - [x] Install Caveman skill for Claude Code and Codex in this repo <!-- longclaw:item=ck_34b6d30d -->
 ## Activity
@@ -3329,4 +3329,40 @@ changes:
   - field: description
 -->
 ### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_6fc256c5
+kind: update
+occurred_at: 2026-09-09T07:47:22.974Z
+actor:
+  type: agent
+  id: codex
+  name: Codex
+changes:
+  - field: checklist.ck_79550de2.checked
+    from: "false"
+    to: "true"
+-->
+### Codex updated this ticket
+
+Added Due as a board/list ordering mode beside Priority and Manual. The shared comparator sorts readable ISO due dates first, soonest first, leaves missing/malformed/unreadable rows in stable tail order, and both board and list use it through the existing ordering preference. Due behaves like Priority for drag writes: cross-status drops write status only; same-status rank drops remain Manual-only. Focused frontend suites passed: CommandPalette, ordering, ticketMove, Board, IssueList and App.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_4716f9f4
+kind: update
+occurred_at: 2026-09-09T08:00:08.826Z
+actor:
+  type: agent
+  id: sarvam-code
+  name: Sarvam Code
+changes:
+  - field: checklist.ck_aa77f085.checked
+    from: "false"
+    to: "true"
+-->
+### Sarvam Code updated this ticket
+
+Published the ticket-properties docs page and the changelog bullets, all inside apps/website. A new /docs/ticket-properties page (DOCS_NAV entry after What a ticket is) covers the four properties, the estimate systems, the typed date grammar and where each one shows up. The file-format page gained the properties block in its longclaw.yaml example and the on-disk keys in its ticket example; the CLI page gained a --due example and the enabled-before-use rule card, both verified against the real binary on a scratch project; What a ticket is links to the new page. Four bullets were added to the 0.1.0 changelog entry. npm run site:verify is green, and the sidebar entry, on-this-page rail, prev/next links, sitemap and changelog render were all checked in dist. One gap left where it was found: docs/release-notes/v0.1.0.md still carries no properties write-up, so the changelog entry is now ahead of the release notes and they need the same half page before the draft marker lifts.
 <!-- /longclaw:event -->

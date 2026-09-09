@@ -1,16 +1,18 @@
 /**
  * How the tickets inside one board column are ordered.
  *
- * ADR 0003 gives the board two orders: priority by default, and a Manual order
- * over the per-ticket `rank`. Both live here rather than inside `layOutColumns`,
- * so a surface picks an order instead of owning one — the list reads the same
- * preference for the rows inside a group (`screen-specs.md:180`).
+ * ADR 0003 gives the board priority by default, and a Manual order over the
+ * per-ticket `rank`. LC-227 adds Due as another read-only ordering. These live
+ * here rather than inside `layOutColumns`, so a surface picks an order instead
+ * of owning one — the list reads the same preference for the rows inside a
+ * group (`screen-specs.md:180`).
  *
- * Which of the two is in force is a device-local view preference and never
- * project data, so nothing in this file writes anything and switching mode moves
- * cards without touching a file.
+ * Which order is in force is a device-local view preference and never project
+ * data, so nothing in this file writes anything and switching mode moves cards
+ * without touching a file.
  */
 
+import { fromIso } from "./properties";
 import { rankBetween } from "./rank";
 import { PRIORITIES } from "./tickets";
 import type { TicketRow } from "./types";
@@ -18,12 +20,13 @@ import type { TicketRow } from "./types";
 /** Compares two tickets for their place in a column. */
 export type TicketOrdering = (left: TicketRow, right: TicketRow) => number;
 
-/** The two orders the board offers (ADR 0003). A view preference, not a field. */
-export type OrderingMode = "priority" | "manual";
+/** The orders the board offers. A view preference, not a field. */
+export type OrderingMode = "priority" | "due" | "manual";
 
 /** The rows of the ordering menu, in the order the control lists them. */
 export const ORDERINGS: { id: OrderingMode; label: string }[] = [
   { id: "priority", label: "Priority" },
+  { id: "due", label: "Due" },
   { id: "manual", label: "Manual" },
 ];
 
@@ -54,6 +57,25 @@ function priorityIndex(ticket: TicketRow): number {
 /** Urgent → P1 → P2 → P3 → P4 → None (ADR 0003). */
 export const byPriority: TicketOrdering = (left, right) =>
   priorityIndex(left) - priorityIndex(right);
+
+/** A readable due date on a row, as a local day. */
+function dueTime(ticket: TicketRow): number | undefined {
+  if (ticket.state !== "indexed" || ticket.due === undefined) return undefined;
+  return fromIso(ticket.due)?.getTime();
+}
+
+/**
+ * Due order: dated tickets first, soonest first. Missing, malformed and
+ * unreadable rows are the tail and keep the order they arrived in.
+ */
+export const byDue: TicketOrdering = (left, right) => {
+  const leftDue = dueTime(left);
+  const rightDue = dueTime(right);
+  if (leftDue === undefined && rightDue === undefined) return 0;
+  if (leftDue === undefined) return 1;
+  if (rightDue === undefined) return -1;
+  return leftDue - rightDue;
+};
 
 /** The rank on a row, if it has one. A file that would not parse has none. */
 function manualRank(ticket: TicketRow): string | undefined {
@@ -102,7 +124,9 @@ export const byRank: TicketOrdering = (left, right) => {
 };
 
 export function comparatorFor(mode: OrderingMode): TicketOrdering {
-  return mode === "manual" ? byRank : byPriority;
+  if (mode === "manual") return byRank;
+  if (mode === "due") return byDue;
+  return byPriority;
 }
 
 /** A card that is given a rank by a drop, and the rank it is given. */
