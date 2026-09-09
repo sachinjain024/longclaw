@@ -7,8 +7,10 @@ status: in_progress
 priority: urgent
 labels:
   - release
+type: chore
+due: 2026-09-09
 created_at: 2026-08-11T14:56:44.953Z
-updated_at: 2026-09-07T13:35:05.500Z
+updated_at: 2026-09-09T02:23:42.261Z
 ---
 
 Create Agents.md & Claude.md
@@ -68,4 +70,32 @@ The part that belongs to this ticket is the product side. **LongClaw should own 
 It wants the two rules this ticket already sets for the generated files: a version stamped in the file, and a section the human owns that a regeneration must never overwrite. A glossary is exactly the kind of file somebody edits by hand the day after it is generated.
 
 One thing to settle when it is designed: whether the enabled ticket properties and their vocabularies are rendered into it, or stay in the generated `AGENTS.md` where LC-227 puts them. Two generated files describing one vocabulary is the failure mode, and LC-66 is already the open bug about that file churning.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_cc57b1cc
+kind: update
+occurred_at: 2026-09-09T02:22:24.935Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: type
+    to: chore
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_cc2fda9d
+kind: update
+occurred_at: 2026-09-09T02:23:42.261Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: due
+    to: 2026-09-09
+-->
+### You updated this ticket
 <!-- /longclaw:event -->
