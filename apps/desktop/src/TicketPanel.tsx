@@ -87,8 +87,8 @@ import { diskLabel, WriteIndicator } from "./WriteFeedback";
 /**
  * What a destructive-adjacent change adds to a save: the state it shows before
  * the write returns, the toast copy, and the edit that takes it back
- * (`states.md:62-63`). Status and check use it today; priority, archive, and
- * unarchive are the same shape.
+ * (`states.md:62-63`). Status, check and each of the four opt-in properties use
+ * it today; priority, archive, and unarchive are the same shape.
  */
 export interface SaveFeedback {
   /** Renders the change now; the returned function puts it back on failure. */

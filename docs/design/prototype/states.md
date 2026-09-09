@@ -59,8 +59,8 @@
   mutated element.
 - **Surface:** the header disk-state line: `⟳ writing ticket.md…` (mono,
   `ink-3`) → `✓ ticket.md` (`ink-disabled`). Destructive-adjacent
-  mutations (status, priority, archive/unarchive, create, check) also
-  raise a toast with **Undo ⌘Z** (5s, bottom-center, single stack).
+  mutations (status, priority, archive/unarchive, create, check, and each of the
+  four opt-in properties) also raise a toast with **Undo ⌘Z** (5s, bottom-center, single stack).
 - **Failure:** a failed write re-raises the toast as a danger banner state
   with retry; the optimistic value stays visible and marked unsaved.
   (Write-failure UI is exercised in Step 6+ with real storage; the pattern
@@ -192,3 +192,69 @@ silent re-render**.
 | Conflict | normal | acknowledged card | acknowledged row | warn banner | — |
 | External update | normal | acknowledged card | acknowledged dot | live apply + agent rows | — |
 | Waitlist error | normal | — | — | — | inline danger |
+| Property turned off | normal | values gone from cards | values gone from rows | rail rows gone | write feedback names the count |
+| Unreadable property value | normal | no chip / foreign mark | no chip | value shown as written | — |
+
+## Property states (LC-227)
+
+Below the last cited line rather than among the sections above, which were
+rewritten in place. The four opt-in properties add no new *failure* — they add
+three states that look like failures and are not, and one that is the app
+disagreeing with a file it must not edit.
+
+### A value this build will not read
+
+- **Trigger:** `due: yesterday`, `estimate: 1d4h`, a `type` slug the project has
+  no definition for, or an estimate written under a system the project has since
+  left.
+- **Surfaces:** the card and row draw **no due chip** and mark a foreign
+  estimate; the panel's control shows **the value exactly as the file spells
+  it**; the type chip renders the bare slug in the fallback hue.
+- **Semantics:** degrade the value, keep the bytes. This is invariant 16 and
+  the same posture § Unparseable ticket file takes toward a whole file, one
+  property down: the ticket is not degraded, one property of it is unread, and a
+  read-modify-write of any other field leaves those bytes untouched.
+- **Never:** rewrite it to something readable, drop it on the next write, or
+  degrade the ticket for it.
+
+### A property the project turned off
+
+- **Trigger:** a property switched off in settings while tickets carry values.
+- **Surfaces:** every value disappears from every surface at once — cards, rows,
+  rail, menus, both create surfaces and the CLI — and the settings row goes on
+  naming the count while the property is off, which is then the only place in
+  the app that fact is visible at all.
+- **Write feedback**, because the effect is invisible and a person could
+  reasonably conclude the dates were deleted: `Due turned off · 17 tickets keep
+  their dates`. One sentence carrying the count and the reassurance together.
+- **No confirmation dialog.** The precedent is one section up in settings and
+  covers a stronger act: removing a label definition *deletes* something and
+  takes none either. Disabling deletes nothing, touches no ticket, and the same
+  toggle puts it back — a better undo than an undo affordance. Ceremony over the
+  safe acts is what teaches people to click through the dangerous one.
+
+### A typed date the grammar refuses
+
+- **Trigger:** commit — Enter or blur — of a string the grammar does not accept:
+  an all-numeric non-ISO form (`28/09/2026`), a two-digit year, a month with no
+  day, a weekday or `next week`, or anything carrying a time.
+- **Surface:** the field **keeps the text** under one sentence naming the rule
+  it broke, a different sentence per rule because each has a different next
+  move. The property is not written. Nothing goes red mid-word: parsing happens
+  on commit, never per keystroke.
+- **Recovery:** retype, or open the picker — everything it can reach the field
+  can type, which is the half of this control that is the a11y contract.
+
+### The state that changes with no file write
+
+A due date crosses a rung at **midnight**, and nothing in the watcher/snapshot
+pipeline pushes that: without a tick a ticket due tomorrow goes on saying
+`in 1d` after it has become `Today`, until an unrelated event re-renders it. Proximity is derived from an injected `now`
+and recomputed on the day boundary — the one state in this document whose
+trigger is neither a user action nor a file change.
+
+It changes the **word and the weight only**. A rung never decides a height, so
+the board's offsets are the same at 00:01 as they were at 23:59; and it is never
+a sort key, which is the constraint any ordering by due inherits — sort the
+date, and the board does not re-order itself at midnight along with the
+colours.

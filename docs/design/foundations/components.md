@@ -186,11 +186,11 @@ only its container is new.
 
 Width min `--lc-size-card-width-min` (240px), padding 10px 12px, radius 8px,
 bg `surface`, border 1px `line`, shadow `--lc-shadow-card` (none in dark).
-Rows: mono ID (11px, `ink-3`) + spacer + priority glyph · title (13px/500
+Rows: mono ID (11px, `ink-3`) + spacer + due chip (LC-227) + priority glyph · title (13px/500
 `ink`, 1.35, max 2 lines) · footer: status glyph, labels, checklist `3/7`
-(mono 10.5px) + 44×3px progress track (`wash` track, fill see below). No
-assignee avatar and no trailing avatar slot — v0 is local mode and has no
-assignee (ADR 0001).
+(mono 10.5px) + 44×3px progress track (`wash` track, fill see below). Between the
+title and that footer, the second row estimate and type take when the project
+enabled either (LC-227). No assignee avatar and no trailing avatar slot — v0 is local mode and has no assignee (ADR 0001).
 
 | State | Treatment |
 |---|---|
@@ -336,6 +336,96 @@ rows. `A` is reserved, not bound — assignment does not exist in local mode
 - **Empty project:** board scaffold stays visible; first column hosts a
   guided "create your first ticket" card (dashed `line-strong` border, ghost
   affordance, `C` kbd hint).
+
+## Ticket property controls (LC-227)
+
+Added below the last cited line rather than inserted among the sections above: §
+Board card was rewritten in place at the same line count, and the four opt-in
+properties bring a chip, three control shapes and a two-dimensional popover it
+has no room for.
+
+### Due chip — four rungs, one hue
+
+Mono 11px/14px, `ink-3`, never wrapping (`text-overflow: ellipsis`), and its
+type is **stated rather than inherited**: the card's own font is 13px UI, and a
+date set in it renders larger than the key beside it and in the wrong face.
+
+| Rung | Boundary | Says | Treatment |
+|---|---|---|---|
+| Overdue | `due` < today | `3d overdue` | `--lc-danger` |
+| Today | `due` = today | `Today` | `ink`, weight 600 |
+| Approaching | today < `due` ≤ today + `attention_days` | `in 3d` | base |
+| Beyond | `due` > today + `attention_days` | `28 Sep` | base |
+
+**Only one rung takes a colour, and that is the existing rule rather than a new
+one.** `PriorityGlyph` is monochrome except Urgent, because a state conveyed by
+colour alone is a state half the people looking at the board cannot read. Every
+rung here is legible with the colour removed, because the words differ at every
+rung. The hue is not a free choice either: agent green belongs to agents,
+`--lc-warn` is the unattributed external change (LC-148 was two vocabularies
+landing on one line), and `--lc-danger` means an error or a destructive confirm —
+neither of which a card can show, so on a card it means one thing.
+
+**The rungs stand down on a ticket that is done, canceled or archived.** A
+finished ticket that was due last week is not overdue, it is finished, and a Done
+column drawn in `--lc-danger` teaches people to ignore the colour. The date still
+shows, in the beyond treatment.
+
+**A rung is a reading, never a height and never a sort key.** It changes the word
+and the weight, both of which may change at midnight with no file write; a height
+derived from one would shift every column's offsets under a scrolled board, and
+Due ordering sorts by the date rather than the rung.
+
+**The chip takes the key row's auto margin, and the priority glyph gives it
+back** — but only on a card that has a date (`:has(.due-chip)`). A second `auto`
+splits the free space and parks the date mid-row, which is neither alignment; a
+glyph left with no auto margin and nothing else holding the right edge walks back
+up beside the key.
+
+### Second footer row — estimate and type
+
+Above the label footer, in the first footer's own grammar: mono values first,
+chips after. It never wraps, and it exists only for a project that enabled
+estimate or type and only on a ticket carrying a value for one — presence off row
+data, never off the rung, which is what keeps `cardStrides()` to four pinned
+heights (108 · 132 · 136 · 160) it can derive rather than measure.
+
+### Date field and picker
+
+| Part | Anatomy |
+|---|---|
+| Field | The app's field treatment, caret inside it; commits on Enter or blur |
+| Trigger | A calendar joined to the field's right edge, not a tab stop (`↓` from the field is its keyboard path) |
+| Echo | A quiet line under the field naming the resolved day in full — `→ Tue 28 Sep 2027` — shown only while the field differs from the file |
+| Refusal | The typed text stays, under one sentence naming the rule it broke — a different sentence per rule, because each has a different next move |
+| Picker | 236px `menu-popover`, `role="dialog"`, right-aligned on the field and lifted into view; month header, six weeks of grid, a Clear row |
+| Grid | One tab stop with a cursor inside it, the way a board column's cards are — 42 stops would be a month to Tab across |
+
+Today is marked and the current value selected — two marks, because a ticket due
+today has both on one cell. **No rung treatment inside the grid:** a calendar is
+where every day is just a day, and keeping the vocabulary out of it stops it
+leaking into the one place a person is choosing rather than reading.
+
+### Estimate control
+
+The **appearance row's segment** under t-shirt and Fibonacci — the app already
+has "pick one of a small fixed set, laid out horizontally", and a second would be
+a second thing to learn — leading with `—`, because absent is a value a scale has
+to be able to say and the dash is the word the app already uses for it
+(`priority: none` draws that glyph today). Under duration it is a number field
+beside a unit menu.
+
+A value the project's current system cannot read is drawn **as it is written**,
+marked as foreign, on the card and in the control alike. That is invariant 16 on
+a screen: a control is not where a ticket's own data gets corrected, and
+switching systems must preserve what was written under the old one.
+
+### Type chip
+
+The label chip unchanged — same slug, same display name, same colour, resolved
+against the project's own vocabulary the same way — which is the claim the
+settings pane makes by reusing `.label-row` for the type-values editor. A slug
+nothing defines still renders, as itself, in the fallback hue.
 
 ## Do / don't
 
