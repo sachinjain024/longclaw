@@ -390,10 +390,18 @@ const read = (page, surface) =>
         // drawing of it: both surfaces render a window of a long group, so a
         // run that needs the whole order has to be able to tell the two apart
         // rather than take the rows it can see for the column (LC-187).
-        const counted = Number(
-          group.querySelector(sel.count)?.textContent?.trim(),
-        );
-        return { title, rows, held: Number.isNaN(counted) ? null : counted };
+        //
+        // The count is read as *the digits in* the heading rather than as the
+        // whole of its text, because the two surfaces do not write it the same
+        // way: the list's `.list-group-count` is a bare `8` and the board's span
+        // has said `· 8` since LC-223 put the separator inside it. `Number()`
+        // over that is `NaN`, which this used to store as "the column would not
+        // say", and every board column saying that is indistinguishable here
+        // from a fixture that produced no case to run — which is exactly how it
+        // read for three weeks.
+        const said = group.querySelector(sel.count)?.textContent ?? "";
+        const digits = said.match(/\d+/);
+        return { title, rows, held: digits ? Number(digits[0]) : null };
       });
     },
     pick(surface, "group", "head", "count", "scroller", "pane", "row"),
@@ -928,6 +936,18 @@ async function probeFiltered(browser, row) {
 
     // The column with nothing hidden, which is what the run is judged against.
     const whole = await read(page, row.surface);
+    // A column that will not say how many rows it holds cannot be told from one
+    // the query left solid, and the second is the message this used to print for
+    // the first. `fullyDrawn` needs the number, so the run stops here and names
+    // the heading instead of describing a fixture it never got far enough to
+    // judge.
+    if (whole.every((group) => group.held === null)) {
+      throw new Error(
+        `no ${row.surface} group's heading gave a number of rows — ` +
+          `"${ui.count}" read as ` +
+          JSON.stringify(await page.textContent(ui.count).catch(() => null)),
+      );
+    }
     await setFilter(page, row.filter);
     const drawn = await read(page, row.surface);
 

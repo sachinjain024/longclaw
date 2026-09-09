@@ -10,7 +10,7 @@ labels:
 type: feature
 due: 2026-09-09
 created_at: 2026-08-22T06:13:17.138Z
-updated_at: 2026-09-09T08:36:23.002Z
+updated_at: 2026-09-09T08:55:44.477Z
 ---
 
 Brainstorm with LLM agent like what other fields we should support. A few items I can think of are Type - Bug/Task, Due State, Start Date, Effort
@@ -1683,7 +1683,7 @@ it yet.
 - [x] Update screen-specs.md, components.md, states.md and data-requirements.md in place, then npm run citations:update <!-- longclaw:item=ck_75cc51b4 -->
 - [x] Update keyboard-focus-map.md in place for the rail's keyboard path, and for the picker's grid — the app's first two-dimensional popover, where the menus' up-down means a week <!-- longclaw:item=ck_8c1b2d21 -->
 - [x] npm run a11y:audit, and probe:header since the rail widens the panel <!-- longclaw:item=ck_e4ce4244 -->
-- [ ] probe:drag: a drop is arithmetic over the card offsets (gapAt), so a new card height moves where a dragged ticket lands <!-- longclaw:item=ck_5fa993af -->
+- [x] probe:drag: a drop is arithmetic over the card offsets (gapAt), so a new card height moves where a dragged ticket lands <!-- longclaw:item=ck_5fa993af -->
 - [ ] npm run perf:board and perf:list, and quote the numbers — the due comparator touches ordering <!-- longclaw:item=ck_c404ee03 -->
 - [ ] npm run verify <!-- longclaw:item=ck_5e61f2a1 -->
 - [x] A /docs page for ticket properties and a /changelog entry <!-- longclaw:item=ck_aa77f085 -->
@@ -3441,4 +3441,32 @@ docs/release-notes/v0.1.0.md § What it does now carries the four property bulle
 One bullet was wrong in both files and is now fixed in both. It read 'with overdue, today and approaching called out'. styles.css:1716-1726 gives .due-chip.overdue a colour and .due-chip.today ink plus weight 600, and has no rule for approaching or beyond at all — the two are the same chip, and differ only in what dueChipText writes (properties.ts:606, 'in 3d' against a plain date). Approaching is not called out; it is told apart by its words. It now reads 'overdue in colour, today in bold, and the rest told apart by their words'.
 
 npm run site:verify exits 0 — astro check 0 errors, 0 warnings, 0 hints, 15 pages. Nothing gates the release notes themselves: release-audit.mjs does not read them, prettier runs from apps/desktop and does not reach docs/, and no citation names the file by line. The notes stay status: draft until the acceptance record's blocker section is empty.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_d6c49cbd
+kind: update
+occurred_at: 2026-09-09T08:55:44.477Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_5fa993af.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+npm run probe:drag — 79/79 checks pass, and the run found no drop defect from the new card heights. It found a blind case instead.
+
+The first run was 73/74. board-place-filtered — the LC-187 board case — failed at setup with 'no group where "1" left 4 reachable rows with a hidden one above the gap', which reads as a fixture that produced no case to run. It was not that. The board column heading writes its count as <span>· 8</span> and has since LC-223 (126af2a, 2026-08-18) moved the separator inside the span; the probe read that span with Number(), got NaN, stored it as held: null, and fullyDrawn then declined every column, so hiddenAbove came back empty for all six and the search found nothing. The list half of the pair was unaffected because .list-group-count is still a bare number, which is why only one of the two went red.
+
+So the board's LC-187 case has been unable to run for three weeks. It failed rather than passing, so nothing was ever greened by it — but the reason it printed named the fixture, not the heading it could not read.
+
+Two changes to perf/drag-probe.mjs. The count is now read as the digits in the heading rather than the whole of its text, so a separator beside the number is not read as no number. And probeFiltered now stops with its own message when no group's heading gives a number at all, because a column that will not say what it holds cannot be told from one the query left solid, and the second was the message being printed for the first.
+
+With the case live, the board drop is correct: PF-1 dropped into the gap under PF-19 with the query on lands under PF-19 with the query off, and the hidden PF-7 is where it was. npm run probe:drag --self-test exits 0 — a swallowed dragstart fails 43 checks, and the restored case is among the ones that go red, so it is a live case and not a blind pass. prettier and eslint are clean on the file.
+
+Next: perf/board-trace.mjs:194 reads the same span the same way — Number('· 8') is NaN, so presses = Math.min(NAV_SAMPLES, NaN - 1) is NaN and the navigation loop never runs. That is ck_c404ee03's to fix.
 <!-- /longclaw:event -->
