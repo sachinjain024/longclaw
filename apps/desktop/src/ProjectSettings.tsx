@@ -922,8 +922,9 @@ function ProjectProperties(props: {
   return (
     <section className="property-settings" aria-label="Properties">
       <p className="settings-subhead">
-        Four optional properties. All four are off until you turn them on, and
-        turning one off hides it without touching a single ticket.
+        Optional Properties - OFF by default. Once turned ON and used in tickets
+        &amp; later turned OFF, the values are kept in the tickets but not
+        visible in UI
       </p>
 
       <PropertyBlock

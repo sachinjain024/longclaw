@@ -65,23 +65,47 @@ export const TICKET_PROPERTIES: TicketProperty[] = [
  * dates" in the toast and beside the switched-off row — and two spellings of one
  * sentence is how they come to disagree.
  *
- * `name` and `field` are two names for one property and both are deliberate.
- * `name` is the settings row's, where the four are listed with nothing beside
- * them and `Due date` is what says which kind of thing it is. `field` is what a
- * control wears where its neighbours name it — a rail row, a create surface —
- * and there Start and Due are adjacent, so the word `date` on both is noise the
- * pair already carries.
+ * `name`, `field` and `said` are three names for one property and all three are
+ * deliberate. `name` is the settings row's, where the four are listed with
+ * nothing beside them. `field` is what a control's row wears — the panel's rail
+ * and both create surfaces — and it names the property in full, because a row
+ * label is read on its own before its neighbours are. `said` is the word a
+ * write sentence uses, and it is the short one: the sentence already names the
+ * ticket, so `LC-1 Due Date → 2026-09-20` says *date* twice.
+ *
+ * `field` was `Due` and `Start` until the copy deck was reviewed (LC-227,
+ * 2026-09-09); the rows now read `Due Date` and `Start Date`. `said` is what
+ * the old `field` was, kept for the sentence that still wants it.
  */
 export const PROPERTY_LABELS: Record<
   TicketProperty,
-  { name: string; field: string; kept: string; keptOne: string }
+  { name: string; field: string; said: string; kept: string; keptOne: string }
 > = {
-  type: { name: "Type", field: "Type", kept: "types", keptOne: "type" },
-  due: { name: "Due date", field: "Due", kept: "dates", keptOne: "date" },
-  start: { name: "Start date", field: "Start", kept: "dates", keptOne: "date" },
+  type: {
+    name: "Type",
+    field: "Type",
+    said: "Type",
+    kept: "types",
+    keptOne: "type",
+  },
+  due: {
+    name: "Due date",
+    field: "Due Date",
+    said: "Due",
+    kept: "dates",
+    keptOne: "date",
+  },
+  start: {
+    name: "Start date",
+    field: "Start Date",
+    said: "Start",
+    kept: "dates",
+    keptOne: "date",
+  },
   estimate: {
     name: "Estimate",
     field: "Estimate",
+    said: "Estimate",
     kept: "estimates",
     keptOne: "estimate",
   },
@@ -100,8 +124,8 @@ export const ESTIMATE_SYSTEMS: { id: EstimateSystem; label: string }[] = [
  * Two paths write these — the panel's rail through `save()`, and a card's
  * context menu through `mutate()` (LC-227) — and one sentence between them, so
  * the same act cannot be described two ways depending on where it was asked
- * for. `field` rather than `name`: the sentence already names the ticket, and
- * `LC-1 Due date → 2026-09-20` says *date* twice.
+ * for. `said` rather than `field` or `name`: the sentence already names the
+ * ticket, and `LC-1 Due Date → 2026-09-20` says *date* twice.
  *
  * The value goes in verbatim, never reformatted. An inverse can carry a date in
  * a shape this project's configuration cannot read, and prettying that up would
@@ -112,7 +136,7 @@ export function propertyToast(
   property: TicketProperty,
   value: string | undefined,
 ): string {
-  const name = PROPERTY_LABELS[property].field;
+  const name = PROPERTY_LABELS[property].said;
   return value === undefined
     ? `${ticketKey} ${name} cleared`
     : `${ticketKey} ${name} → ${value}`;
@@ -421,7 +445,9 @@ export function parseDate(raw: string, now: number): ParsedDate {
 
   if (!monthFirst) {
     // A month with no day, and the weekday and relative family, each named so
-    // the field says what to do next rather than only that it failed.
+    // the field says what to do next rather than only that it failed. What
+    // falls past both is the general refusal, which names no next move: the
+    // placeholder is already `28 Sep` (LC-227, copy review 2026-09-09).
     if (MONTHS.some((name) => isMonthWord(name, text))) {
       return {
         kind: "refused",
@@ -439,7 +465,7 @@ export function parseDate(raw: string, now: number): ParsedDate {
     }
     return {
       kind: "refused",
-      why: "Not a date this reads. Try 28 Sep, Sep 28, or 2026-09-28.",
+      why: "Invalid date format.",
     };
   }
 
@@ -449,7 +475,7 @@ export function parseDate(raw: string, now: number): ParsedDate {
   if (monthIndex < 0) {
     return {
       kind: "refused",
-      why: "Not a month this reads. Try Sep or September.",
+      why: "Invalid date format.",
     };
   }
 

@@ -903,6 +903,43 @@ body {
 .menu-demo > .menu-popover:first-child { left: 0; }
 .menu-demo > .menu-popover:last-child { left: 460px; }
 .menu-demo .menu-sub { animation: none; }
+
+/* The copy deck (scene 6). Harness furniture, not a proposal: nothing in here
+   is CSS the app is being asked to take. The string itself is drawn at the
+   app's own body size, and everything around it is smaller, because the point
+   of the table is to read the copy rather than the columns. */
+.deck { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.deck th, .deck td { padding: 7px 10px; border-bottom: 1px solid var(--lc-line-soft); text-align: left; vertical-align: top; }
+.deck > tbody > tr > th, .deck tr:first-child th {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--lc-surface);
+  color: var(--lc-ink-3); font-size: 10px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+}
+.deck .deck-group th {
+  top: 0; padding-top: 20px;
+  background: var(--lc-surface);
+  color: var(--lc-ink); font-size: 11px; letter-spacing: .04em;
+}
+.deck-id { width: 15%; }
+.deck-id code { color: var(--lc-ink-3); font-family: var(--lc-font-mono); font-size: 10.5px; }
+.deck-said { width: 30%; }
+.deck-said .said { color: var(--lc-ink); font-size: 13px; line-height: 1.45; }
+.deck-shape, .deck-note { margin: 5px 0 0; color: var(--lc-ink-3); font-size: 10.5px; line-height: 1.5; }
+.deck-shape { font-family: var(--lc-font-mono); }
+.deck-note { max-width: 46ch; border-left: 2px solid var(--lc-line); padding-left: 8px; }
+.deck-kind, .deck-where { width: 13%; color: var(--lc-ink-2); }
+.deck-when { width: 22%; color: var(--lc-ink-2); line-height: 1.5; }
+.deck-state {
+  display: inline-block; border-radius: 3px; padding: 1px 6px;
+  background: var(--lc-surface-2); color: var(--lc-ink-2);
+  font-size: 10px; font-weight: 700; letter-spacing: .04em;
+}
+.deck-state.new { background: color-mix(in oklab, var(--lc-accent-human) 18%, transparent); color: var(--lc-accent-human); }
+.deck-state.proposed { background: color-mix(in oklab, var(--lc-warn) 18%, transparent); color: var(--lc-warn); }
+.deck-state.revised { background: color-mix(in oklab, var(--lc-danger) 16%, transparent); color: var(--lc-danger); }
+.deck-legend { margin: 0; padding-left: 0; list-style: none; color: var(--lc-ink-2); font-size: 11.5px; line-height: 1.9; }
+.deck-legend .deck-state { margin-right: 8px; }
 </style>
 </head>
 <body>
@@ -915,6 +952,7 @@ body {
     <button data-scene="card" aria-pressed="false">3 · the card</button>
     <button data-scene="estimate" aria-pressed="false">4 · estimate</button>
     <button data-scene="settings" aria-pressed="false">5 · settings</button>
+    <button data-scene="copy" aria-pressed="false">6 · copy</button>
   </span>
   <span class="sep" aria-hidden="true"></span>
   <span class="group" id="scene-controls"></span>
@@ -951,13 +989,19 @@ body {
    LC-227 — the prototype behind six checklist rows.
    ====================================================================
 
-   Five scenes, one question each:
+   Five scenes, one question each, and a sixth that is the copy deck:
 
      1  panel     the properties rail, and the description moved to the top
      2  rungs     the four due rungs and their treatments, in both appearances
      3  card      the second footer row: what it holds, and the four heights
      4  estimate  the control under each of the three systems
      5  settings  the Properties pane, including a property switched off
+     6  copy      every string the five above draw, in one column
+
+   The scenes read the deck rather than the other way round: `COPY` below
+   holds every user-facing string, `t(id)` is the only way one reaches a
+   scene, and scene 6 renders the same object as a table. A deck typed out
+   beside the markup is two spellings of one sentence.
 
    Everything drawn below is the app's own markup wearing the app's own CSS.
    The only new rules are in `#proposed`, and the only new logic is this file's
@@ -977,12 +1021,1257 @@ const PRIORITIES = [
 ];
 const FIBONACCI = ["1", "2", "3", "5", "8", "13"];
 const TSHIRT = ["xs", "s", "m", "l", "xl"];
-const UNITS = [["m", "minutes"], ["h", "hours"], ["d", "days"], ["w", "weeks"]];
 
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const statusName = (id) => (STATUSES.find((s) => s[0] === id) || [])[1];
 const priorityName = (id) => (PRIORITIES.find((p) => p[0] === id) || [])[1];
+
+/* =======================================================================
+   THE COPY DECK — every string LC-227 puts on screen, in one object.
+   =======================================================================
+
+   AGENTS.md § UX prototypes: **the scenes read the deck, not the other way
+   round.** Every string below is rendered from here, so the deck cannot go
+   stale against the scenes. A deck typed out beside the markup is two
+   spellings of one sentence, and this repo already knows how that ends.
+
+   **Scope.** Every string this ticket adds or changes, plus the copy standing
+   next to it — a review needs the neighbours, because tone is judged against
+   what is already there. Three sets of strings the scenes draw are
+   deliberately out, being neither this ticket's nor adjacent to it: the
+   settings window's own chrome (its title, its section list, its close), the
+   status and priority vocabularies, and the label registry. Adding them would
+   bury the seventy rows this review is actually about.
+
+   Each row carries what a copy review needs, and nothing else:
+
+     group   which surface it belongs to, and the deck's own order
+     text    the string, or a function of whatever it interpolates
+     sample  the arguments the deck renders that function with
+     shape   the interpolation, written out, when text is a function
+     kind    what sort of string it is. Tone is judged per kind: a refusal
+             and a note are not written the same way, and a list that
+             flattens them invites one voice for both
+     where   the component that draws it
+     when    the situation that puts it on screen
+     state   today     the app said this before LC-227 — here for tone,
+                       because a review needs the neighbours
+             new       LC-227 added it, and it is in `src/` now
+             proposed  LC-227 proposes it; no code says it yet
+             revised   this file proposed one wording and `src/` shipped
+                       another — the row shows what shipped, and `note`
+                       says what this file used to say
+     note    anything the row does not otherwise carry
+
+   Strings no screen shows are in here too — `aria-label`s, `title`s and the
+   toast's live region. They are read out loud by someone, and they are the
+   copy that has never once been reviewed.
+*/
+
+const COPY = {
+  /* ------------------------------------------------------------ the rail */
+
+  "rail.status": {
+    group: "The rail",
+    text: "Status",
+    kind: "field label",
+    where: "TicketPanel · rail row",
+    when: "Always. The rail's first row.",
+    state: "today",
+  },
+  "rail.priority": {
+    group: "The rail",
+    text: "Priority",
+    kind: "field label",
+    where: "TicketPanel · rail row",
+    when: "Always.",
+    state: "today",
+  },
+  "rail.type": {
+    group: "The rail",
+    text: "Type",
+    kind: "field label",
+    where: "TicketPanel · rail row",
+    when: "Only when the project has turned Type on.",
+    state: "new",
+  },
+  "rail.estimate": {
+    group: "The rail",
+    text: "Estimate",
+    kind: "field label",
+    where: "TicketPanel · rail row",
+    when: "Only when the project has turned Estimate on.",
+    state: "new",
+  },
+  "rail.start": {
+    group: "The rail",
+    text: "Start Date",
+    kind: "field label",
+    where: "TicketPanel · rail row, and both create surfaces' rows",
+    when: "Only when the project has turned Start date on.",
+    state: "new",
+    note:
+      "Settled in review, 2026-09-09: was “Start”. The row now names the " +
+      "property in full rather than leaning on its neighbours to finish the " +
+      "word. The write sentence keeps the short form — `LC-227 Start → …` — " +
+      "because a sentence that already names the ticket does not need the " +
+      "noun twice. Note the case: this row is Title Case and the settings " +
+      "row and the menu row are still sentence case (“Start date”).",
+  },
+  "rail.due": {
+    group: "The rail",
+    text: "Due Date",
+    kind: "field label",
+    where: "TicketPanel · rail row, and both create surfaces' rows",
+    when: "Only when the project has turned Due date on.",
+    state: "new",
+    note: "Same as `rail.start`, settled in the same review.",
+  },
+  "rail.labels": {
+    group: "The rail",
+    text: "Labels",
+    kind: "field label",
+    where: "TicketPanel · rail row",
+    when: "Always. Last, because it is the only row that grows.",
+    state: "today",
+  },
+  "rail.labels.add": {
+    group: "The rail",
+    text: "add",
+    kind: "button",
+    where: "LabelMenu · the chip at the end of the labels row",
+    when: "Always, at the end of the chips.",
+    state: "today",
+    note: "The `+` beside it is `PlusGlyph`, not part of the string.",
+  },
+  "rail.labels.voice": {
+    group: "The rail",
+    text: (carried) => "Labels: " + carried,
+    sample: ["frontend, design"],
+    shape: "Labels: <the names carried, or `none`>",
+    kind: "aria-label",
+    where: "LabelMenu · the add chip",
+    when: "Always. Never on screen.",
+    state: "today",
+    note:
+      "It names the value rather than the action, because the chips beside " +
+      "it are the value and a control called `add` leaves that unsaid for " +
+      "anyone who cannot see them. It is also honest that the menu takes " +
+      "labels off as well as putting them on.",
+  },
+  "rail.trigger.voice": {
+    group: "The rail",
+    text: (label, value) => label + ": " + value,
+    sample: ["Type", "Bug"],
+    shape: "<label>: <value>",
+    kind: "aria-label",
+    where: "Menu.tsx · MenuButton",
+    when: "Every menu trigger in the rail. Never on screen.",
+    state: "today",
+  },
+
+  /* ------------------------------------------- the panel around the rail */
+
+  "panel.voice": {
+    group: "The panel around the rail",
+    text: (key) => "Ticket " + key,
+    sample: ["LC-227"],
+    shape: "Ticket <key>",
+    kind: "aria-label",
+    where: "TicketPanel · the panel itself",
+    when: "Always. Never on screen.",
+    state: "today",
+  },
+  "panel.key.voice": {
+    group: "The panel around the rail",
+    text: (key) => "Copy " + key,
+    sample: ["LC-227"],
+    shape: "Copy <key>",
+    kind: "aria-label",
+    where: "TicketPanel · the key chip",
+    when: "Always. The chip shows the key; this says what pressing it does.",
+    state: "today",
+  },
+  "panel.archive": {
+    group: "The panel around the rail",
+    text: "Archive",
+    kind: "button",
+    where: "TicketPanel · the header",
+    when: "Always.",
+    state: "today",
+    note:
+      "The context menu says “Archive ticket” for the same act, because a " +
+      "menu row stands among rows about other things and a header button " +
+      "does not.",
+  },
+  "panel.close.voice": {
+    group: "The panel around the rail",
+    text: "Close ticket",
+    kind: "aria-label",
+    where: "TicketPanel · the ✕",
+    when: "Always. Never on screen.",
+    state: "today",
+  },
+  "panel.title.voice": {
+    group: "The panel around the rail",
+    text: "Title",
+    kind: "aria-label",
+    where: "TicketPanel · the title textarea",
+    when: "Always. Never on screen.",
+    state: "today",
+  },
+  "panel.description": {
+    group: "The panel around the rail",
+    text: "Description",
+    kind: "section heading",
+    where: "TicketPanel · the main column's first section",
+    when: "Always. The rail moves this to the top of the column.",
+    state: "today",
+  },
+  "panel.description.edit": {
+    group: "The panel around the rail",
+    text: "Edit",
+    kind: "button",
+    where: "TicketPanel · beside the Description heading",
+    when: "While the description is being read rather than written.",
+    state: "today",
+  },
+  "panel.description.edit.voice": {
+    group: "The panel around the rail",
+    text: "Edit description",
+    kind: "aria-label",
+    where: "TicketPanel · the Edit button",
+    when: "Always. Never on screen — the button says Edit.",
+    state: "today",
+  },
+  "panel.checklist": {
+    group: "The panel around the rail",
+    text: "Checklist",
+    kind: "section heading",
+    where: "TicketPanel · the main column",
+    when: "Always.",
+    state: "today",
+  },
+  "panel.tab.comments": {
+    group: "The panel around the rail",
+    text: "Comments",
+    kind: "tab",
+    where: "TicketPanel · the record",
+    when: "Always.",
+    state: "today",
+  },
+  "panel.tab.activity": {
+    group: "The panel around the rail",
+    text: "Activity",
+    kind: "tab",
+    where: "TicketPanel · the record",
+    when: "Always.",
+    state: "today",
+  },
+  "panel.record.voice": {
+    group: "The panel around the rail",
+    text: "Ticket record",
+    kind: "aria-label",
+    where: "TicketPanel · the tab list",
+    when: "Always. Never on screen.",
+    state: "today",
+  },
+
+  /* ------------------------------------------------------ the date field */
+
+  "date.field.placeholder": {
+    group: "The date field",
+    text: "28 Sep",
+    kind: "placeholder",
+    where: "DateField · the input",
+    when: "While the field is empty.",
+    state: "new",
+    note:
+      "The placeholder is the grammar's shortest legal form, so the field " +
+      "teaches what it accepts rather than describing it.",
+  },
+  "date.field.voice.due": {
+    group: "The date field",
+    text: "Due Date",
+    kind: "aria-label",
+    where: "DateField · the input",
+    when: "Always. Never on screen.",
+    state: "new",
+    note:
+      "The input's voice label is its row's label, and in `src/` it is " +
+      "literally the same string — `PropertyControl` hands the row's name " +
+      "to the control. Listed apart because a row label and the word read " +
+      "out for its input are two decisions that happen to agree, and a " +
+      "review should be able to disagree with one of them.",
+  },
+  "date.field.voice.start": {
+    group: "The date field",
+    text: "Start Date",
+    kind: "aria-label",
+    where: "DateField · the input",
+    when: "Always. Never on screen.",
+    state: "new",
+    note: "Same as `date.field.voice.due`.",
+  },
+  "date.trigger.voice": {
+    group: "The date field",
+    text: (label) => label + " calendar",
+    sample: ["Due date"],
+    shape: "<field label> calendar",
+    kind: "aria-label",
+    where: "DateField · the calendar button",
+    when: "Always. Never on screen.",
+    state: "new",
+  },
+  "date.echo": {
+    group: "The date field",
+    text: (day) => "→ " + day,
+    sample: ["Mon 28 Sep 2026"],
+    shape: "→ <the day it resolved to>",
+    kind: "echo",
+    where: "DateField · under the input",
+    when:
+      "While typed text resolves and the field is dirty. It is confirmation, " +
+      "not validation — it appears before any commit, and nothing goes red " +
+      "mid-word.",
+    state: "new",
+    note:
+      "The long form, with the weekday and the year, because the point of " +
+      "the echo is to answer *which* day — including which year `28 Sep` " +
+      "landed in.",
+  },
+
+  /* --------------------------------------------- the grammar's refusals */
+
+  "date.refuse.time": {
+    group: "The date grammar's refusals",
+    text: "A date here is a day, with no time on it.",
+    kind: "refusal",
+    where: "DateField · under the input, on commit",
+    when: "The text carries a time — `28 Sep 5pm`, or an ISO timestamp.",
+    state: "revised",
+    note:
+      "This file said “A due date is a day, with no time on it.” — which is " +
+      "the wrong noun in the Start field, where the same sentence is shown. " +
+      "`src/` ships the neutral wording.",
+  },
+  "date.refuse.iso": {
+    group: "The date grammar's refusals",
+    text: "That day does not exist. ISO dates are YYYY-MM-DD.",
+    kind: "refusal",
+    where: "DateField · under the input, on commit",
+    when: "ISO shape, impossible day — `2026-02-31`, `2026-9-8`.",
+    state: "new",
+  },
+  "date.refuse.numeric": {
+    group: "The date grammar's refusals",
+    text: "Numeric dates are read as YYYY-MM-DD only. Try 28 Sep, or 2026-09-28.",
+    kind: "refusal",
+    where: "DateField · under the input, on commit",
+    when: "An all-numeric form that is not ISO — `3/4`, `09-28`, `28.9.26`.",
+    state: "new",
+    note:
+      "The one refusal the whole grammar exists for: the app has no locale " +
+      "to ask, so `3/4` cannot be resolved without guessing, and a guess is " +
+      "silently wrong for half the world.",
+  },
+  "date.refuse.month": {
+    group: "The date grammar's refusals",
+    text: "Which day? A month on its own is not a date.",
+    kind: "refusal",
+    where: "DateField · under the input, on commit",
+    when: "A bare month — `Sep`, `September`.",
+    state: "new",
+  },
+  "date.refuse.computed": {
+    group: "The date grammar's refusals",
+    text: "Dates are typed, not computed. Try 28 Sep, or use the calendar.",
+    kind: "refusal",
+    where: "DateField · under the input, on commit",
+    when: "A weekday or a relative phrase — `Friday`, `next week`, `in 3 days`.",
+    state: "new",
+    note:
+      "The one refusal the context menu answers: this says *not here*, and " +
+      "the menu's quick picks offer the same four computed days as rows " +
+      "that show the day before the press.",
+  },
+  "date.refuse.unread": {
+    group: "The date grammar's refusals",
+    text: "Invalid date format.",
+    kind: "refusal",
+    where: "DateField · under the input, on commit",
+    when: "Anything else that does not parse.",
+    state: "new",
+    note:
+      "Settled in review, 2026-09-09: was “Not a date this reads. Try 28 " +
+      "Sep, Sep 28, or 2026-09-28.” This row and `date.refuse.monthName` now " +
+      "say the same sentence, so the two cases are one message on screen — " +
+      "the placeholder is `28 Sep`, and the seven refusals that do name a " +
+      "next move still do.",
+  },
+  "date.refuse.monthName": {
+    group: "The date grammar's refusals",
+    text: "Invalid date format.",
+    kind: "refusal",
+    where: "DateField · under the input, on commit",
+    when: "A day and a word that is not a month — `28 Sept`, `28 Setembro`.",
+    state: "new",
+    note:
+      "Settled in review, 2026-09-09: was “Not a month this reads. Try Sep " +
+      "or September.” The same sentence as `date.refuse.unread`.",
+  },
+  "date.refuse.year": {
+    group: "The date grammar's refusals",
+    text: "Write the year in full — 28 Sep 2026.",
+    kind: "refusal",
+    where: "DateField · under the input, on commit",
+    when: "A two-digit year — `28 Sep 26`.",
+    state: "new",
+  },
+  "date.refuse.noSuchDay": {
+    group: "The date grammar's refusals",
+    text: "That day does not exist in that month.",
+    kind: "refusal",
+    where: "DateField · under the input, on commit",
+    when: "A named month and an impossible day — `31 Sep 2026`, `30 Feb`.",
+    state: "new",
+  },
+
+  /* ----------------------------------------------------- the date picker */
+
+  "picker.voice": {
+    group: "The date picker",
+    text: (label) => label + " calendar",
+    sample: ["Due date"],
+    shape: "<field label> calendar",
+    kind: "aria-label",
+    where: "DateField · the picker dialog",
+    when: "While the picker is open. Never on screen.",
+    state: "revised",
+    note:
+      "This file said “Choose a date”. `src/` names the field instead, so " +
+      "the dialog and the button that opened it answer to the same words.",
+  },
+  "picker.prev": {
+    group: "The date picker",
+    text: "Previous month",
+    kind: "aria-label",
+    where: "DateField · the picker head",
+    when: "Always, on the ‹ button. Never on screen.",
+    state: "new",
+  },
+  "picker.next": {
+    group: "The date picker",
+    text: "Next month",
+    kind: "aria-label",
+    where: "DateField · the picker head",
+    when: "Always, on the › button. Never on screen.",
+    state: "new",
+  },
+  "picker.day.voice": {
+    group: "The date picker",
+    text: (day) => day,
+    sample: ["Mon 28 Sep 2026"],
+    shape: "<weekday> <day> <month> <year>",
+    kind: "aria-label",
+    where: "DateField · every day cell",
+    when: "Always. The cell shows only the number; this is the whole day.",
+    state: "new",
+  },
+  "picker.dow": {
+    group: "The date picker",
+    text: "Mo · Tu · We · Th · Fr · Sa · Su",
+    kind: "column heads",
+    where: "DateField · the grid's first row",
+    when: "Always.",
+    state: "new",
+    note:
+      "Monday first, derived rather than picked: the canonical on-disk form " +
+      "is ISO 8601, and ISO 8601's week starts on Monday.",
+  },
+  "picker.clear": {
+    group: "The date picker",
+    text: "Clear",
+    kind: "button",
+    where: "DateField · the picker's last row",
+    when: "Always, whether or not the ticket has a date.",
+    state: "new",
+  },
+
+  /* ------------------------------------------------- the estimate control */
+
+  "estimate.voice": {
+    group: "The estimate control",
+    text: "Estimate",
+    kind: "aria-label",
+    where: "EstimateControl · the segmented group",
+    when: "Under T-shirt and Fibonacci. Never on screen.",
+    state: "new",
+  },
+  "estimate.none": {
+    group: "The estimate control",
+    text: "—",
+    kind: "segment",
+    where: "EstimateControl · the scale's first segment",
+    when: "Always. Absent is a value a scale has to be able to say.",
+    state: "new",
+    note:
+      "The app's existing word for absent — `priority: none` draws this " +
+      "glyph — rather than the word “None”.",
+  },
+  "estimate.none.voice": {
+    group: "The estimate control",
+    text: "No estimate",
+    kind: "aria-label",
+    where: "EstimateControl · the — segment",
+    when: "Always. What the dash is read as out loud.",
+    state: "new",
+  },
+  "estimate.amount.voice": {
+    group: "The estimate control",
+    text: "Estimate amount",
+    kind: "aria-label",
+    where: "EstimateControl · the duration input",
+    when: "Under Duration only. Never on screen.",
+    state: "new",
+  },
+  "estimate.amount.placeholder": {
+    group: "The estimate control",
+    text: "0",
+    kind: "placeholder",
+    where: "EstimateControl · the duration input",
+    when: "Under Duration, while the field is empty.",
+    state: "new",
+  },
+  "estimate.unit.voice": {
+    group: "The estimate control",
+    text: "Estimate unit",
+    kind: "aria-label",
+    where: "EstimateControl · the unit menu",
+    when: "Under Duration only.",
+    state: "new",
+  },
+  "estimate.unit.m": {
+    group: "The estimate control",
+    text: "minutes",
+    kind: "menu row",
+    where: "EstimateControl · the unit menu",
+    when: "Under Duration. The word, not the letter the file stores.",
+    state: "new",
+  },
+  "estimate.unit.h": {
+    group: "The estimate control",
+    text: "hours",
+    kind: "menu row",
+    where: "EstimateControl · the unit menu",
+    when: "Under Duration.",
+    state: "new",
+  },
+  "estimate.unit.d": {
+    group: "The estimate control",
+    text: "days",
+    kind: "menu row",
+    where: "EstimateControl · the unit menu",
+    when: "Under Duration.",
+    state: "new",
+  },
+  "estimate.unit.w": {
+    group: "The estimate control",
+    text: "weeks",
+    kind: "menu row",
+    where: "EstimateControl · the unit menu",
+    when: "Under Duration.",
+    state: "new",
+  },
+  "estimate.foreign.title": {
+    group: "The estimate control",
+    text: "Written under another system, and kept",
+    kind: "title",
+    where: "EstimateControl · a value the scale cannot read",
+    when:
+      "The ticket holds a value written under a system the project has since " +
+      "switched away from — `1.5d` on a Fibonacci project.",
+    state: "new",
+    note:
+      "The only place the app explains invariant 16 to a person, and it " +
+      "explains it in a tooltip. Worth asking whether that is enough.",
+  },
+  "estimate.menu.none": {
+    group: "The estimate control",
+    text: "None",
+    kind: "menu trigger value",
+    where: "EstimateControl · the menu shape",
+    when:
+      "Only in this prototype's menu alternative, which the ticket did not " +
+      "take — the segment shipped.",
+    state: "proposed",
+    note:
+      "The word here and the dash in the segment are the same fact spelled " +
+      "two ways. If the menu shape ever returns, one of them has to go.",
+  },
+
+  /* ------------------------------------------------- the card's due chip */
+
+  "card.due.overdue": {
+    group: "The card's due chip",
+    text: (days) => days + "d overdue",
+    sample: [3],
+    shape: "<n>d overdue",
+    kind: "chip",
+    where: "BoardCard · the key row, and the list row",
+    when: "The due day is in the past and the ticket is not finished.",
+    state: "new",
+    note: "The one rung that takes a hue. Legible with the colour removed.",
+  },
+  "card.due.today": {
+    group: "The card's due chip",
+    text: "Today",
+    kind: "chip",
+    where: "BoardCard · the key row, and the list row",
+    when: "The due day is today.",
+    state: "new",
+  },
+  "card.due.approaching": {
+    group: "The card's due chip",
+    text: (days) => "in " + days + "d",
+    sample: [3],
+    shape: "in <n>d",
+    kind: "chip",
+    where: "BoardCard · the key row, and the list row",
+    when: "The due day is within the project's attention window.",
+    state: "new",
+    note: "Reuses `describeAge`'s relative vocabulary rather than a second one.",
+  },
+  "card.due.beyond": {
+    group: "The card's due chip",
+    text: (day) => day,
+    sample: ["28 Sep"],
+    shape: "<day> <month>, plus the year when it is not this one",
+    kind: "chip",
+    where: "BoardCard · the key row, and the list row",
+    when:
+      "The due day is further out than the attention window, or the ticket " +
+      "is done, canceled or archived — finished, not overdue.",
+    state: "new",
+  },
+
+  /* ------------------------------------------------------ the context menu */
+
+  "menu.status": {
+    group: "The context menu",
+    text: "Move to",
+    kind: "menu row",
+    where: "ticketMenu · the first row",
+    when: "Always.",
+    state: "today",
+  },
+  "menu.priority": {
+    group: "The context menu",
+    text: "Priority",
+    kind: "menu row",
+    where: "ticketMenu",
+    when: "Always.",
+    state: "today",
+  },
+  "menu.type": {
+    group: "The context menu",
+    text: "Type",
+    kind: "menu row",
+    where: "ticketMenu · a property row",
+    when: "Only when the project has turned Type on.",
+    state: "new",
+  },
+  "menu.start": {
+    group: "The context menu",
+    text: "Start date",
+    kind: "menu row",
+    where: "ticketMenu · a property row",
+    when: "Only when the project has turned Start date on.",
+    state: "new",
+  },
+  "menu.due": {
+    group: "The context menu",
+    text: "Due date",
+    kind: "menu row",
+    where: "ticketMenu · a property row",
+    when: "Only when the project has turned Due date on.",
+    state: "new",
+  },
+  "menu.estimate": {
+    group: "The context menu",
+    text: "Estimate",
+    kind: "menu row",
+    where: "ticketMenu · a property row",
+    when: "Only when the project has turned Estimate on.",
+    state: "new",
+  },
+  "menu.row.hint": {
+    group: "The context menu",
+    text: (value) => value,
+    sample: ["28 Sep"],
+    shape: "the value the ticket holds, read the way its control reads it",
+    kind: "menu row hint",
+    where: "ticketMenu · beside a property row's label",
+    when:
+      "The ticket holds a value for that property. Absent, the row carries " +
+      "no hint rather than a dash.",
+    state: "new",
+  },
+  "menu.pick.today": {
+    group: "The context menu",
+    text: "Today",
+    kind: "menu row",
+    where: "ticketMenu · a date submenu",
+    when: "Always, first of the four quick picks.",
+    state: "new",
+  },
+  "menu.pick.tomorrow": {
+    group: "The context menu",
+    text: "Tomorrow",
+    kind: "menu row",
+    where: "ticketMenu · a date submenu",
+    when: "Always.",
+    state: "new",
+  },
+  "menu.pick.monday": {
+    group: "The context menu",
+    text: "Next Monday",
+    kind: "menu row",
+    where: "ticketMenu · a date submenu",
+    when: "Always. The next one, never today.",
+    state: "new",
+  },
+  "menu.pick.week": {
+    group: "The context menu",
+    text: "In a week",
+    kind: "menu row",
+    where: "ticketMenu · a date submenu",
+    when: "Always.",
+    state: "new",
+  },
+  "menu.pick.hint": {
+    group: "The context menu",
+    text: (day) => day,
+    sample: ["14 Sep"],
+    shape: "the day the pick resolves to",
+    kind: "menu row hint",
+    where: "ticketMenu · beside every quick pick",
+    when:
+      "Always. It is the whole reason a menu may offer what the typed " +
+      "grammar refuses: the row shows its answer before the press.",
+    state: "new",
+  },
+  "menu.pick.other": {
+    group: "The context menu",
+    text: "Pick a date…",
+    kind: "menu row",
+    where: "ticketMenu · a date submenu, last row",
+    when:
+      "Always. It opens the same calendar the field opens, in place and " +
+      "anchored on the menu, rather than the menu growing a date editor of " +
+      "its own.",
+    state: "new",
+    note:
+      "The ellipsis is the app's existing promise that a row opens something " +
+      "rather than acting. The row first handed the job to the panel's own " +
+      "field; `ticketMenu.tsx` now opens the shared calendar in place, and " +
+      "the string did not change with it.",
+  },
+  "menu.clear": {
+    group: "The context menu",
+    text: "Clear",
+    kind: "menu row",
+    where: "ticketMenu · every property submenu, under a rule",
+    when:
+      "Only when the ticket holds a value for that property. No value, no " +
+      "door.",
+    state: "new",
+  },
+  "menu.archive": {
+    group: "The context menu",
+    text: "Archive ticket",
+    kind: "menu row",
+    where: "ticketMenu · below the rule",
+    when: "Always.",
+    state: "today",
+  },
+  "menu.copyKey": {
+    group: "The context menu",
+    text: "Copy key",
+    kind: "menu row",
+    where: "ticketMenu",
+    when: "Always.",
+    state: "today",
+  },
+  "menu.copyPath": {
+    group: "The context menu",
+    text: "Copy file path",
+    kind: "menu row",
+    where: "ticketMenu",
+    when: "Always.",
+    state: "today",
+  },
+
+  /* ------------------------------------------- settings · the Properties pane */
+
+  "settings.nav": {
+    group: "Settings · Properties",
+    text: "Properties",
+    kind: "nav row",
+    where: "ProjectSettings · the section list, after Labels",
+    when: "Always.",
+    state: "new",
+  },
+  "settings.subhead": {
+    group: "Settings · Properties",
+    text:
+      "Optional Properties - OFF by default. Once turned ON and used in " +
+      "tickets & later turned OFF, the values are kept in the tickets but " +
+      "not visible in UI",
+    kind: "note",
+    where: "ProjectSettings · the pane's first line",
+    when: "Always.",
+    state: "new",
+    note:
+      "Settled in review, 2026-09-09: was “Four optional properties. All " +
+      "four are off until you turn them on, and turning one off hides it " +
+      "without touching a single ticket.” The new line says the same two " +
+      "facts and names the case the old one left implicit — a property " +
+      "turned off after tickets have used it.",
+  },
+  "settings.type.title": {
+    group: "Settings · Properties",
+    text: "Type",
+    kind: "switch label",
+    where: "ProjectSettings · the property's switch",
+    when: "Always.",
+    state: "new",
+  },
+  "settings.due.title": {
+    group: "Settings · Properties",
+    text: "Due date",
+    kind: "switch label",
+    where: "ProjectSettings · the property's switch",
+    when: "Always.",
+    state: "new",
+  },
+  "settings.start.title": {
+    group: "Settings · Properties",
+    text: "Start date",
+    kind: "switch label",
+    where: "ProjectSettings · the property's switch",
+    when: "Always.",
+    state: "new",
+  },
+  "settings.estimate.title": {
+    group: "Settings · Properties",
+    text: "Estimate",
+    kind: "switch label",
+    where: "ProjectSettings · the property's switch",
+    when: "Always.",
+    state: "new",
+  },
+  "settings.kept": {
+    group: "Settings · Properties",
+    text: (count, kept, keptOne) =>
+      count === 1
+        ? "1 ticket keeps its " + keptOne
+        : count + " tickets keep their " + kept,
+    sample: [17, "dates", "date"],
+    shape: "<n> tickets keep their <dates> · 1 ticket keeps its <date>",
+    kind: "note",
+    where: "ProjectSettings · beside a switched-off property",
+    when:
+      "The property is off and at least one ticket still carries a value. " +
+      "It is then the only place that fact is visible.",
+    state: "new",
+    note:
+      "Both numbers, and the noun agrees in both — “1 ticket keeps their " +
+      "dates” is the shape of a sentence built by concatenation rather than " +
+      "written.",
+  },
+  "settings.due.window.before": {
+    group: "Settings · Properties",
+    text: "Highlight tickets due within",
+    kind: "field label",
+    where: "ProjectSettings · before the attention-days input",
+    when: "While Due date is on.",
+    state: "new",
+  },
+  "settings.due.window.after": {
+    group: "Settings · Properties",
+    text: "days",
+    kind: "field label",
+    where: "ProjectSettings · after the attention-days input",
+    when: "While Due date is on.",
+    state: "new",
+  },
+  "settings.due.attention.voice": {
+    group: "Settings · Properties",
+    text: "Attention days",
+    kind: "aria-label",
+    where: "ProjectSettings · the attention-days input",
+    when: "Always. Never on screen — the sentence around it is the label.",
+    state: "new",
+  },
+  "settings.due.note": {
+    group: "Settings · Properties",
+    text:
+      "Overdue and today are absolute; this is the only boundary that " +
+      "moves. 0 is legal and empties the approaching rung.",
+    kind: "note",
+    where: "ProjectSettings · under the Due date row",
+    when: "While Due date is on.",
+    state: "new",
+  },
+  "settings.start.note": {
+    group: "Settings · Properties",
+    text:
+      "Panel only. A start date is not a deadline — a start date in the past " +
+      "means work should have begun, which is a judgement about the work " +
+      "rather than a fact about the date — so it has no rungs and never " +
+      "appears on a card.",
+    kind: "note",
+    where: "ProjectSettings · under the Start date row",
+    when: "While Start date is on.",
+    state: "new",
+    note:
+      "The longest string in the pane, and the only one that argues rather " +
+      "than states. It is here because Start is the property people expect " +
+      "to behave like Due.",
+  },
+  "settings.estimate.system.voice": {
+    group: "Settings · Properties",
+    text: "Estimate system",
+    kind: "aria-label",
+    where: "ProjectSettings · the system segmented control",
+    when: "While Estimate is on. Never on screen.",
+    state: "new",
+  },
+  "settings.estimate.tshirt": {
+    group: "Settings · Properties",
+    text: "T-shirt",
+    kind: "segment",
+    where: "ProjectSettings · the system control",
+    when: "While Estimate is on.",
+    state: "new",
+  },
+  "settings.estimate.fibonacci": {
+    group: "Settings · Properties",
+    text: "Fibonacci",
+    kind: "segment",
+    where: "ProjectSettings · the system control",
+    when: "While Estimate is on.",
+    state: "new",
+  },
+  "settings.estimate.duration": {
+    group: "Settings · Properties",
+    text: "Duration",
+    kind: "segment",
+    where: "ProjectSettings · the system control",
+    when: "While Estimate is on.",
+    state: "new",
+  },
+  "settings.estimate.day.before": {
+    group: "Settings · Properties",
+    text: "One day is",
+    kind: "field label",
+    where: "ProjectSettings · before the hours input",
+    when: "Under Duration only.",
+    state: "new",
+  },
+  "settings.estimate.day.mid": {
+    group: "Settings · Properties",
+    text: "hours · one week is",
+    kind: "field label",
+    where: "ProjectSettings · between the two inputs",
+    when: "Under Duration only.",
+    state: "new",
+  },
+  "settings.estimate.day.after": {
+    group: "Settings · Properties",
+    text: "days",
+    kind: "field label",
+    where: "ProjectSettings · after the days input",
+    when: "Under Duration only.",
+    state: "new",
+  },
+  "settings.estimate.hours.voice": {
+    group: "Settings · Properties",
+    text: "Hours per day",
+    kind: "aria-label",
+    where: "ProjectSettings · the hours input",
+    when: "Under Duration. Never on screen.",
+    state: "new",
+  },
+  "settings.estimate.days.voice": {
+    group: "Settings · Properties",
+    text: "Days per week",
+    kind: "aria-label",
+    where: "ProjectSettings · the days input",
+    when: "Under Duration. Never on screen.",
+    state: "new",
+  },
+  "settings.estimate.note.duration": {
+    group: "Settings · Properties",
+    text:
+      "An estimate has to be comparable: 4h against 1d needs to know how " +
+      "long a working day is. Changing this changes no stored value.",
+    kind: "note",
+    where: "ProjectSettings · under the conversion fields",
+    when: "Under Duration only.",
+    state: "new",
+  },
+  "settings.estimate.note.tshirt": {
+    group: "Settings · Properties",
+    text:
+      "The sizes are an editable enum, like Type’s. Fibonacci has nothing to " +
+      "configure.",
+    kind: "note",
+    where: "ProjectSettings · under the system control",
+    when: "Under T-shirt only.",
+    state: "new",
+  },
+  "settings.estimate.note.fibonacci": {
+    group: "Settings · Properties",
+    text: "1 · 2 · 3 · 5 · 8 · 13, a fixed scale. Nothing to configure.",
+    kind: "note",
+    where: "ProjectSettings · under the system control",
+    when: "Under Fibonacci only.",
+    state: "new",
+  },
+  "settings.estimate.note.switching": {
+    group: "Settings · Properties",
+    text:
+      "Switching systems never rewrites a ticket: a value written under the " +
+      "old one stays as it was and reads as unreadable until you switch back.",
+    kind: "note",
+    where: "ProjectSettings · under the system control",
+    when: "While Estimate is on, under every system.",
+    state: "new",
+  },
+  "settings.note": {
+    group: "Settings · Properties",
+    text:
+      "Turning a property off hides it and keeps every value. The count " +
+      "beside a switched-off property is what is still on disk.",
+    kind: "note",
+    where: "ProjectSettings · the pane's last line",
+    when: "Always.",
+    state: "new",
+    note:
+      "Since `settings.subhead` was rewritten (2026-09-09) its first sentence " +
+      "says what the subhead now says, at the other end of the same pane. " +
+      "Only its second sentence — what the count beside a switched-off row " +
+      "means — is still saying something new.",
+  },
+  "settings.type.name.voice": {
+    group: "Settings · Properties",
+    text: (slug) => "Name of type " + slug,
+    sample: ["bug"],
+    shape: "Name of type <slug>",
+    kind: "aria-label",
+    where: "ProjectSettings · a type row",
+    when: "Always. Never on screen.",
+    state: "new",
+    note: "The labels editor's own shape, with the noun changed.",
+  },
+  "settings.type.color.voice": {
+    group: "Settings · Properties",
+    text: (slug) => "Color of type " + slug,
+    sample: ["bug"],
+    shape: "Color of type <slug>",
+    kind: "aria-label",
+    where: "ProjectSettings · a type row",
+    when: "Always. Never on screen.",
+    state: "new",
+    note:
+      "American spelling, which is what the labels editor already says. The " +
+      "prose in this repo says colour; the interface says color.",
+  },
+  "settings.type.remove.voice": {
+    group: "Settings · Properties",
+    text: (slug) => "Remove type " + slug,
+    sample: ["bug"],
+    shape: "Remove type <slug>",
+    kind: "aria-label",
+    where: "ProjectSettings · a type row's ✕",
+    when: "Always. Never on screen.",
+    state: "new",
+  },
+  "settings.type.slug.placeholder": {
+    group: "Settings · Properties",
+    text: "slug",
+    kind: "placeholder",
+    where: "ProjectSettings · the add row",
+    when: "Never — see the note.",
+    state: "proposed",
+    note:
+      "This file proposed a two-field add row, a slug beside a name. The " +
+      "shipped one has **no slug field**: the key is derived from the name " +
+      "and shown as text by `DerivedKey` (LC-236e), whose own copy belongs " +
+      "to that ticket. Neither this string nor " +
+      "`settings.type.new.slug.voice` exists in `src/`.",
+  },
+  "settings.type.name.placeholder": {
+    group: "Settings · Properties",
+    text: "Display name",
+    kind: "placeholder",
+    where: "ProjectSettings · the add row",
+    when: "Always.",
+    state: "new",
+  },
+  "settings.type.new.slug.voice": {
+    group: "Settings · Properties",
+    text: "New type slug",
+    kind: "aria-label",
+    where: "ProjectSettings · the add row",
+    when: "Never — see `settings.type.slug.placeholder`.",
+    state: "proposed",
+  },
+  "settings.type.new.name.voice": {
+    group: "Settings · Properties",
+    text: "New type name",
+    kind: "aria-label",
+    where: "ProjectSettings · the add row",
+    when: "Always. Never on screen.",
+    state: "new",
+  },
+  "settings.type.new.color.voice": {
+    group: "Settings · Properties",
+    text: "New type color",
+    kind: "aria-label",
+    where: "ProjectSettings · the add row",
+    when: "Always. Never on screen.",
+    state: "new",
+  },
+  "settings.type.add": {
+    group: "Settings · Properties",
+    text: "Add type",
+    kind: "button",
+    where: "ProjectSettings · the add row",
+    when: "Always.",
+    state: "new",
+  },
+  "settings.type.added": {
+    group: "Settings · Properties",
+    text: (slug) => "Added the " + slug + " type",
+    sample: ["bug"],
+    shape: "Added the <slug> type",
+    kind: "write feedback",
+    where: "WriteFeedback · the toast",
+    when: "A type defined from the Properties pane's add row.",
+    state: "new",
+    note:
+      "It names the derived slug rather than the name that was typed, which " +
+      "is what the ticket will store.",
+  },
+  "settings.type.note": {
+    group: "Settings · Properties",
+    text:
+      "Removing a definition never rewrites a ticket — the slug renders as " +
+      "itself, in the fallback hue.",
+    kind: "note",
+    where: "ProjectSettings · under the type rows",
+    when: "While Type is on.",
+    state: "new",
+  },
+
+  /* ------------------------------------------------------- write feedback */
+
+  "toast.property.set": {
+    group: "Write feedback",
+    text: (key, field, value) => key + " " + field + " → " + value,
+    sample: ["LC-227", "Due", "2026-09-20"],
+    shape: "<key> <property> → <value>",
+    kind: "write feedback",
+    where: "WriteFeedback · the toast",
+    when:
+      "Any property set, from either write path — the panel's rail, or a " +
+      "card's context menu.",
+    state: "revised",
+    note:
+      "This file said “LC-227 due 2026-09-20” and “LC-227 starts …” — two " +
+      "sentences for one act, and a verb that only worked for dates. `src/` " +
+      "ships one sentence for all four, built from the property's short " +
+      "name: `Due`, not `Due date`, because the sentence already names the " +
+      "ticket and “LC-227 Due date → …” says date twice.",
+  },
+  "toast.property.cleared": {
+    group: "Write feedback",
+    text: (key, field) => key + " " + field + " cleared",
+    sample: ["LC-227", "Due"],
+    shape: "<key> <property> cleared",
+    kind: "write feedback",
+    where: "WriteFeedback · the toast",
+    when: "Any property cleared, from either write path.",
+    state: "revised",
+    note: "Same revision as `toast.property.set`.",
+  },
+  "toast.property.on": {
+    group: "Write feedback",
+    text: (name) => name + " turned on",
+    sample: ["Due date"],
+    shape: "<property> turned on",
+    kind: "write feedback",
+    where: "WriteFeedback · the toast",
+    when: "A property switched on in settings. On is one fact.",
+    state: "new",
+  },
+  "toast.property.off": {
+    group: "Write feedback",
+    text: (name, kept) => name + " turned off · " + kept,
+    sample: ["Due date", "17 tickets keep their dates"],
+    shape: "<property> turned off · <the count sentence>",
+    kind: "write feedback",
+    where: "WriteFeedback · the toast",
+    when:
+      "A property switched off while tickets carry values. Off is two facts, " +
+      "and the second is the reassurance. With no tickets carrying one, the " +
+      "toast is “<property> turned off” alone.",
+    state: "new",
+    note:
+      "The count sentence is `settings.kept`, said here and in the row — one " +
+      "string, because two spellings is how they come to disagree.",
+  },
+  "toast.estimate.system": {
+    group: "Write feedback",
+    text: (system, count) =>
+      "Estimates now read as " + system + " · " + count + " tickets keep their values",
+    sample: ["fibonacci", 23],
+    shape: "Estimates now read as <system> · <n> tickets keep their values",
+    kind: "write feedback",
+    where: "WriteFeedback · the toast",
+    when: "The estimate system switched while tickets carry values.",
+    state: "proposed",
+    note:
+      "Not in `src/` yet. It also says the system in lower case, which no " +
+      "other string in the pane does — the segment says `Fibonacci`.",
+  },
+  "toast.undo": {
+    group: "Write feedback",
+    text: "Undo ⌘Z",
+    kind: "button",
+    where: "WriteFeedback · the toast's action",
+    when: "Every undoable write, for five seconds.",
+    state: "today",
+  },
+};
+
+/**
+ * One string, by id. Every scene draws its copy through this, so a string
+ * cannot exist in a scene without existing in the deck.
+ */
+function t(id, ...args) {
+  const row = COPY[id];
+  if (!row) throw new Error("copy: no row named " + id);
+  return typeof row.text === "function" ? row.text(...args) : row.text;
+}
+
+/** The duration units, named from the deck. Below it, because it reads it. */
+const UNITS = [["m", t("estimate.unit.m")], ["h", t("estimate.unit.h")],
+  ["d", t("estimate.unit.d")], ["w", t("estimate.unit.w")]];
 
 /* ------------------------------------------------------------- the project
  *
@@ -1048,6 +2337,7 @@ const app = {
   overdueWash: false,               // the alternative overdue treatment
   estimateControl: "segment",       // segment | menu
   echo: true,                       // the date field's resolved-day echo
+  deck: "all",                      // all | changed | unvoiced
   menu: undefined,
   picker: undefined,
   toastTimer: undefined,
@@ -1170,19 +2460,19 @@ function parseDate(raw, now) {
   // Anything carrying a time. Accepting one only to drop it would store
   // something other than what was typed.
   if (/\d\s*(?::\d|am\b|pm\b)|\bt\d{2}:/i.test(text))
-    return { kind: "refused", why: "A due date is a day, with no time on it." };
+    return { kind: "refused", why: t("date.refuse.time") };
 
   const isoDate = fromIso(text);
   if (isoDate) return { kind: "date", date: isoDate };
   if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(text))
-    return { kind: "refused", why: "That day does not exist. ISO dates are YYYY-MM-DD." };
+    return { kind: "refused", why: t("date.refuse.iso") };
 
   // All-numeric forms that are not ISO. This is the rule's whole reason: the
   // app has no locale — there is no `Intl` call anywhere in `apps/desktop/src`
   // — so nothing in it can say whether `3/4` is March or April, and a guess
   // would be silently wrong for half the world.
   if (/^[\d]+[\s\-/.][\d\s\-/.]*$/.test(text))
-    return { kind: "refused", why: "Numeric dates are read as YYYY-MM-DD only. Try 28 Sep, or 2026-09-28." };
+    return { kind: "refused", why: t("date.refuse.numeric") };
 
   const sep = "[\\s\\-/]+";
   const dayPart = "(\\d{1,2})(?:st|nd|rd|th)?";
@@ -1201,22 +2491,22 @@ function parseDate(raw, now) {
     // A month with no day, and the weekday/relative family, each named so the
     // field says what to do next rather than only that it failed.
     if (MONTHS.some((name) => name.toLowerCase() === text || name.toLowerCase().slice(0, 3) === text))
-      return { kind: "refused", why: "Which day? A month on its own is not a date." };
+      return { kind: "refused", why: t("date.refuse.month") };
     if (/^(mon|tues?|wed|thur?s?|fri|sat|sun)/.test(text) || /^(next|last|in )/.test(text))
-      return { kind: "refused", why: "Dates are typed, not computed. Try 28 Sep, or use the calendar." };
-    return { kind: "refused", why: "Not a date this reads. Try 28 Sep, Sep 28, or 2026-09-28." };
+      return { kind: "refused", why: t("date.refuse.computed") };
+    return { kind: "refused", why: t("date.refuse.unread") };
   }
 
   const monthIndex = MONTHS.findIndex(
     (name) => name.toLowerCase() === monthName || name.toLowerCase().slice(0, 3) === monthName,
   );
   if (monthIndex < 0)
-    return { kind: "refused", why: "Not a month this reads. Try Sep or September." };
+    return { kind: "refused", why: t("date.refuse.monthName") };
 
   // Two-digit years. Unambiguous on its own, and the habit that produces
   // `9/28/26`.
   if (year !== undefined && year.length !== 4)
-    return { kind: "refused", why: "Write the year in full — 28 Sep 2026." };
+    return { kind: "refused", why: t("date.refuse.year") };
 
   const dayNumber = Number(day);
   const resolve = (whichYear) => {
@@ -1228,7 +2518,7 @@ function parseDate(raw, now) {
     const exact = resolve(Number(year));
     return exact
       ? { kind: "date", date: exact }
-      : { kind: "refused", why: "That day does not exist in that month." };
+      : { kind: "refused", why: t("date.refuse.noSuchDay") };
   }
 
   // A form with no year means the nearest future occurrence, and **today counts
@@ -1247,7 +2537,7 @@ function parseDate(raw, now) {
     const later = resolve(now.getFullYear() + ahead);
     if (later) return { kind: "date", date: later };
   }
-  return { kind: "refused", why: "That day does not exist in that month." };
+  return { kind: "refused", why: t("date.refuse.noSuchDay") };
 }
 
 /* -------------------------------------------------------------- the rungs
@@ -1281,10 +2571,10 @@ function rung(due, now, attentionDays, status, archived) {
  */
 function rungText(due, now, which) {
   const days = daysBetween(now, due);
-  if (which === "overdue") return Math.abs(days) + "d overdue";
-  if (which === "today") return "Today";
-  if (which === "approaching") return "in " + days + "d";
-  return displayDate(due, now);
+  if (which === "overdue") return t("card.due.overdue", Math.abs(days));
+  if (which === "today") return t("card.due.today");
+  if (which === "approaching") return t("card.due.approaching", days);
+  return t("card.due.beyond", displayDate(due, now));
 }
 
 /* ------------------------------------------------------------- estimates */
@@ -1546,7 +2836,8 @@ function listRowHTML(ticket) {
 function menuTrigger(kind, glyph, value, label) {
   return (
     '<button type="button" tabindex="0" class="menu-trigger" data-menu="' + kind +
-    '" aria-haspopup="menu" aria-expanded="false" aria-label="' + esc(label) + ": " + esc(value) + '">' +
+    '" aria-haspopup="menu" aria-expanded="false" aria-label="' +
+    esc(t("rail.trigger.voice", label, value)) + '">' +
     (glyph ? '<span class="menu-glyph">' + glyph + "</span>" : "") +
     '<span class="menu-value">' + esc(value) + "</span>" + chevron + "</button>"
   );
@@ -1589,15 +2880,19 @@ function dateFieldHTML(which, label) {
   // file says, there is nothing to confirm and the echo would be a permanent
   // second copy of the value under the value.
   const showRefusal = state.refused !== undefined;
+  // `t("date.echo", "")` is the arrow and its space; the day is bold inside
+  // it. The deck row renders the whole sentence.
   const echo = app.echo && !showRefusal && dirty(state) && parsed.kind === "date"
-    ? '<p class="date-echo">→ <strong>' + esc(echoDate(parsed.date)) + "</strong></p>"
+    ? '<p class="date-echo">' + esc(t("date.echo", "")) +
+      "<strong>" + esc(echoDate(parsed.date)) + "</strong></p>"
     : "";
   return (
     '<div class="date-field' + (showRefusal ? " unresolved" : "") + '">' +
     '<input tabindex="0" data-date="' + which + '" value="' + esc(state.text) +
-    '" aria-label="' + esc(label) + '" placeholder="28 Sep">' +
+    '" aria-label="' + esc(label) + '" placeholder="' + esc(t("date.field.placeholder")) + '">' +
     '<button type="button" tabindex="-1" class="date-trigger" data-picker="' + which +
-    '" aria-haspopup="dialog" aria-label="' + esc(label) + ' calendar">' + calendarGlyph + "</button>" +
+    '" aria-haspopup="dialog" aria-label="' + esc(t("date.trigger.voice", label)) + '">' +
+    calendarGlyph + "</button>" +
     "</div>" +
     (showRefusal ? '<p class="date-note">' + esc(state.refused) + "</p>" : echo)
   );
@@ -1615,7 +2910,8 @@ function estimateControlHTML(value) {
   const config = project.properties.estimate;
   const read = readEstimate(value, config);
   if (read && read.kind === "foreign")
-    return '<span class="estimate-foreign" title="Written under another system, and kept">' + esc(read.text) + "</span>";
+    return '<span class="estimate-foreign" title="' + esc(t("estimate.foreign.title")) +
+      '">' + esc(read.text) + "</span>";
 
   if (config.system === "duration") {
     const unit = read && read.unit ? read.unit : "h";
@@ -1624,8 +2920,9 @@ function estimateControlHTML(value) {
       '<div class="estimate-duration">' +
       '<input class="input compact mono" tabindex="0" data-estimate="amount" value="' +
       esc(read && read.amount !== undefined ? String(read.amount) : "") +
-      '" aria-label="Estimate amount" placeholder="0">' +
-      menuTrigger("unit", "", unitName, "Estimate unit") +
+      '" aria-label="' + esc(t("estimate.amount.voice")) + '" placeholder="' +
+      esc(t("estimate.amount.placeholder")) + '">' +
+      menuTrigger("unit", "", unitName, t("estimate.unit.voice")) +
       "</div>"
     );
   }
@@ -1633,13 +2930,14 @@ function estimateControlHTML(value) {
   const scale = config.system === "fibonacci" ? FIBONACCI : TSHIRT;
   const name = (id) => (config.system === "fibonacci" ? id : config.values[id].name);
   if (app.estimateControl === "menu") {
-    const shown = value ? name(value) : "None";
-    return menuTrigger("estimate", "", shown, "Estimate");
+    const shown = value ? name(value) : t("estimate.menu.none");
+    return menuTrigger("estimate", "", shown, t("estimate.voice"));
   }
   return (
-    '<div class="scale-segment" role="group" aria-label="Estimate">' +
+    '<div class="scale-segment" role="group" aria-label="' + esc(t("estimate.voice")) + '">' +
     '<button type="button" tabindex="0" class="none' + (value ? "" : " selected") +
-    '" data-scale="" aria-pressed="' + (value ? "false" : "true") + '" aria-label="No estimate">—</button>' +
+    '" data-scale="" aria-pressed="' + (value ? "false" : "true") + '" aria-label="' +
+    esc(t("estimate.none.voice")) + '">' + esc(t("estimate.none")) + "</button>" +
     scale.map((id) =>
       '<button type="button" tabindex="0"' + (id === value ? ' class="selected"' : "") +
       ' data-scale="' + id + '" aria-pressed="' + (id === value) + '">' + esc(name(id)) + "</button>",
@@ -1676,26 +2974,30 @@ function panelScene() {
      a rail costs nothing when it wraps to three lines, and the same list in the
      middle moves everything under it. */
   const rail = [
-    railRow("Status", menuTrigger("status", statusDot(ticket.status), statusName(ticket.status), "Status")),
-    railRow("Priority", menuTrigger("priority", priorityGlyph(ticket.priority), priorityName(ticket.priority), "Priority")),
+    railRow(t("rail.status"), menuTrigger("status", statusDot(ticket.status), statusName(ticket.status), t("rail.status"))),
+    railRow(t("rail.priority"), menuTrigger("priority", priorityGlyph(ticket.priority), priorityName(ticket.priority), t("rail.priority"))),
     properties.type.enabled
-      ? railRow("Type", menuTrigger("type", '<span class="label-dot label-' + properties.type.values[ticket.type].color + '"></span>', properties.type.values[ticket.type].name, "Type"))
+      ? railRow(t("rail.type"), menuTrigger("type", '<span class="label-dot label-' + properties.type.values[ticket.type].color + '"></span>', properties.type.values[ticket.type].name, t("rail.type")))
       : "",
-    properties.estimate.enabled ? railRow("Estimate", estimateControlHTML(ticket.estimate)) : "",
+    properties.estimate.enabled ? railRow(t("rail.estimate"), estimateControlHTML(ticket.estimate)) : "",
     /* Start above Due, chronologically, and adjacent — which is the pair the
        grammar's last paragraph is about. The same typed string means the same
        day in both, and the price of that is that Start is forward-only too. */
-    properties.start.enabled ? railRow("Start", dateFieldHTML("start", "Start date")) : "",
-    properties.due.enabled ? railRow("Due", dateFieldHTML("due", "Due date")) : "",
-    railRow("Labels", '<div class="meta-labels">' + ticket.labels.map((slug) => labelChip(slug)).join("") +
-      '<button type="button" tabindex="0" class="label-chip addable" data-menu="labels" aria-haspopup="menu" aria-expanded="false" aria-label="Labels">+ add</button></div>'),
+    properties.start.enabled ? railRow(t("rail.start"), dateFieldHTML("start", t("date.field.voice.start"))) : "",
+    properties.due.enabled ? railRow(t("rail.due"), dateFieldHTML("due", t("date.field.voice.due"))) : "",
+    railRow(t("rail.labels"), '<div class="meta-labels">' + ticket.labels.map((slug) => labelChip(slug)).join("") +
+      '<button type="button" tabindex="0" class="label-chip addable" data-menu="labels" aria-haspopup="menu" aria-expanded="false" aria-label="' +
+      esc(t("rail.labels.voice", ticket.labels.map((slug) => project.labels[slug].name).join(", ") || "none")) +
+      '">+ ' + esc(t("rail.labels.add")) + "</button></div>"),
   ].join("");
 
   const description =
     '<section class="panel-section description-block">' +
-    "<h3>Description" +
-    '<button tabindex="0" class="ghost small description-edit" aria-label="Edit description">' +
-    '<svg width="13" height="13" viewBox="0 0 14 14" aria-hidden="true"><path d="M9.6 1.9 12.1 4.4 4.9 11.6 1.9 12.1 2.4 9.1 z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>Edit</button>' +
+    "<h3>" + esc(t("panel.description")) +
+    '<button tabindex="0" class="ghost small description-edit" aria-label="' +
+    esc(t("panel.description.edit.voice")) + '">' +
+    '<svg width="13" height="13" viewBox="0 0 14 14" aria-hidden="true"><path d="M9.6 1.9 12.1 4.4 4.9 11.6 1.9 12.1 2.4 9.1 z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>' +
+    esc(t("panel.description.edit")) + "</button>" +
     "</h3>" +
     '<div class="description-view"><div class="markdown">' +
     "<p>Brainstorm with an LLM agent about what other fields we should support. A few I can think of are Type — Bug/Task — due date, start date and effort.</p>" +
@@ -1705,7 +3007,8 @@ function panelScene() {
     "</div></div></section>";
 
   const checklist =
-    '<section class="panel-section"><h3>Checklist <span class="section-count">13/34</span>' +
+    '<section class="panel-section"><h3>' + esc(t("panel.checklist")) +
+    ' <span class="section-count">13/34</span>' +
     '<span class="panel-progress"><i style="width:38%"></i></span></h3>' +
     '<ul class="checklist">' +
     ["Prototype the ticket panel: right-hand properties rail, description moved to the top",
@@ -1717,22 +3020,29 @@ function panelScene() {
 
   const record =
     '<section class="panel-section">' +
-    '<div class="panel-tabs" role="tablist" aria-label="Ticket record">' +
-    '<button class="panel-tab selected" role="tab" tabindex="0" aria-selected="true">Comments</button>' +
-    '<button class="panel-tab" role="tab" tabindex="-1" aria-selected="false">Activity <span class="section-count">18</span></button>' +
+    '<div class="panel-tabs" role="tablist" aria-label="' + esc(t("panel.record.voice")) + '">' +
+    '<button class="panel-tab selected" role="tab" tabindex="0" aria-selected="true">' +
+    esc(t("panel.tab.comments")) + "</button>" +
+    '<button class="panel-tab" role="tab" tabindex="-1" aria-selected="false">' +
+    esc(t("panel.tab.activity")) + ' <span class="section-count">18</span></button>' +
     // Not `.history-note`, which is the warn treatment `history_incomplete`
     // owns. This is a stand-in for the timeline the record renders.
     '</div><p class="caption">18 entries · the record is what the file says happened</p></section>';
 
   const panel =
-    '<aside class="ticket-panel" aria-label="Ticket LC-227" style="width:' + app.panelWidth + 'px">' +
+    '<aside class="ticket-panel" aria-label="' + esc(t("panel.voice", "LC-227")) +
+    '" style="width:' + app.panelWidth + 'px">' +
     '<header class="panel-header">' +
-    '<button tabindex="0" class="id-chip" aria-label="Copy LC-227">LC-227</button>' +
+    '<button tabindex="0" class="id-chip" aria-label="' + esc(t("panel.key.voice", "LC-227")) +
+    '">LC-227</button>' +
     '<span class="path-chip plain" title="tickets/LC-227/ticket.md">' + folderGlyph +
     '<span class="txt">tickets/LC-227/ticket.md</span></span>' +
-    '<div class="panel-header-actions"><button tabindex="0" class="ghost">Archive</button>' +
-    '<button tabindex="0" class="ghost" aria-label="Close ticket">✕</button></div></header>' +
-    '<textarea class="panel-title" rows="1" aria-label="Title">' + esc(ticket.title) + "</textarea>" +
+    '<div class="panel-header-actions"><button tabindex="0" class="ghost">' +
+    esc(t("panel.archive")) + "</button>" +
+    '<button tabindex="0" class="ghost" aria-label="' + esc(t("panel.close.voice")) +
+    '">✕</button></div></header>' +
+    '<textarea class="panel-title" rows="1" aria-label="' + esc(t("panel.title.voice")) + '">' +
+    esc(ticket.title) + "</textarea>" +
     '<div class="panel-body">' +
     '<div class="panel-main">' + description + checklist + record + "</div>" +
     '<div class="panel-rail">' + rail + "</div>" +
@@ -1841,10 +3151,10 @@ function datePicks(now) {
     return addDays(from, ahead);
   };
   return [
-    ["Today", startOfDay(now)],
-    ["Tomorrow", addDays(now, 1)],
-    ["Next Monday", monday(now)],
-    ["In a week", addDays(now, 7)],
+    [t("menu.pick.today"), startOfDay(now)],
+    [t("menu.pick.tomorrow"), addDays(now, 1)],
+    [t("menu.pick.monday"), monday(now)],
+    [t("menu.pick.week"), addDays(now, 7)],
   ];
 }
 
@@ -1892,14 +3202,15 @@ function contextMenuHTML(opened) {
        submenu that can only ever *set* a property is a one-way door. */
     (clearable
       ? '<hr class="menu-rule"><button type="button" tabindex="-1" class="menu-row" role="menuitem">' +
-        '<span class="menu-glyph"></span><span class="menu-label">Clear</span></button>'
+        '<span class="menu-glyph"></span><span class="menu-label">' + esc(t("menu.clear")) +
+        "</span></button>"
       : "") +
     "</div>";
 
   const properties = project.properties;
   const typeValue = properties.type.values[ticket.type];
 
-  const typeSub = sub("Type",
+  const typeSub = sub(t("menu.type"),
     Object.entries(properties.type.values).map(([slug, value]) =>
       [value.name, '<span class="label-dot label-' + value.color + '"></span>', "", slug === ticket.type]),
     true);
@@ -1910,11 +3221,11 @@ function contextMenuHTML(opened) {
      everything else to the panel, rather than growing a calendar. */
   const dateSub = (which) => {
     const value = ticket[which] ? fromIso(ticket[which]) : undefined;
-    return sub(which === "due" ? "Due date" : "Start date",
+    return sub(which === "due" ? t("menu.due") : t("menu.start"),
       datePicks(app.today).map(([text, day]) => [
-        text, "", esc(displayDate(day, app.today)),
+        text, "", esc(t("menu.pick.hint", displayDate(day, app.today))),
         Boolean(value && daysBetween(value, day) === 0),
-      ]).concat([["Pick a date…", "", "", undefined]]),
+      ]).concat([[t("menu.pick.other"), "", "", undefined]]),
       Boolean(value));
   };
 
@@ -1923,7 +3234,7 @@ function contextMenuHTML(opened) {
     const scale = config.system === "duration" ? DURATION_PICKS
       : config.system === "fibonacci" ? FIBONACCI : TSHIRT;
     const name = (id) => (config.system === "tshirt" ? config.values[id].name : id);
-    return sub("Estimate",
+    return sub(t("menu.estimate"),
       scale.map((id) => [name(id), "", "", id === ticket.estimate]),
       Boolean(ticket.estimate));
   };
@@ -1935,35 +3246,35 @@ function contextMenuHTML(opened) {
 
   return (
     '<div class="menu-popover menu-hinted" role="menu" aria-label="LC-227">' +
-    row("status", "Move to", statusDot(ticket.status), esc(statusName(ticket.status)), true) +
-    row("priority", "Priority", priorityGlyph(ticket.priority), esc(priorityName(ticket.priority)), true) +
+    row("status", t("menu.status"), statusDot(ticket.status), esc(t("menu.row.hint", statusName(ticket.status))), true) +
+    row("priority", t("menu.priority"), priorityGlyph(ticket.priority), esc(t("menu.row.hint", priorityName(ticket.priority))), true) +
     /* The property rows go under the two they read with rather than under the
        archive rule, which is where the actions start — these say what the
        ticket *is*, and everything below the rule is something you do to it.
        Type first, then the two dates in the rail's own order, then estimate. */
     (properties.type.enabled
-      ? row("type", "Type", '<span class="label-dot label-' + typeValue.color + '"></span>',
-          esc(typeValue.name), true, openOn("type", typeSub))
+      ? row("type", t("menu.type"), '<span class="label-dot label-' + typeValue.color + '"></span>',
+          esc(t("menu.row.hint", typeValue.name)), true, openOn("type", typeSub))
       : "") +
     (properties.start.enabled
-      ? row("start", "Start date", calendarGlyph,
-          ticket.start ? esc(displayDate(fromIso(ticket.start), app.today)) : "", true,
+      ? row("start", t("menu.start"), calendarGlyph,
+          ticket.start ? esc(t("menu.row.hint", displayDate(fromIso(ticket.start), app.today))) : "", true,
           openOn("start", dateSub("start")))
       : "") +
     (properties.due.enabled
-      ? row("due", "Due date", calendarGlyph,
-          ticket.due ? esc(displayDate(fromIso(ticket.due), app.today)) : "", true,
+      ? row("due", t("menu.due"), calendarGlyph,
+          ticket.due ? esc(t("menu.row.hint", displayDate(fromIso(ticket.due), app.today))) : "", true,
           openOn("due", dateSub("due")))
       : "") +
     (properties.estimate.enabled
-      ? row("estimate", "Estimate", "",
-          estimateRead ? esc(estimateRead.text) : "", true, openOn("estimate", estimateSub()))
+      ? row("estimate", t("menu.estimate"), "",
+          estimateRead ? esc(t("menu.row.hint", estimateRead.text)) : "", true, openOn("estimate", estimateSub()))
       : "") +
     '<hr class="menu-rule">' +
-    row("archive", "Archive ticket", '<svg width="13" height="13" viewBox="0 0 14 14" aria-hidden="true"><rect x="1.5" y="2.5" width="11" height="3" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M2.8 5.5 V11 a1 1 0 0 0 1 1 h6.4 a1 1 0 0 0 1-1 V5.5 M5.6 8 h2.8" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>', "", false) +
+    row("archive", t("menu.archive"), '<svg width="13" height="13" viewBox="0 0 14 14" aria-hidden="true"><rect x="1.5" y="2.5" width="11" height="3" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M2.8 5.5 V11 a1 1 0 0 0 1 1 h6.4 a1 1 0 0 0 1-1 V5.5 M5.6 8 h2.8" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>', "", false) +
     '<hr class="menu-rule">' +
-    row("copy-key", "Copy key", '<svg width="13" height="13" viewBox="0 0 14 14" aria-hidden="true"><rect x="4.5" y="1.5" width="8" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M9.5 12.5 h-7 a1 1 0 0 1-1-1 v-7" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>', "<code>LC-227</code>", false) +
-    row("copy-path", "Copy file path", folderGlyph, "", false) +
+    row("copy-key", t("menu.copyKey"), '<svg width="13" height="13" viewBox="0 0 14 14" aria-hidden="true"><rect x="4.5" y="1.5" width="8" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M9.5 12.5 h-7 a1 1 0 0 1-1-1 v-7" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>', "<code>LC-227</code>", false) +
+    row("copy-path", t("menu.copyPath"), folderGlyph, "", false) +
     "</div>"
   );
 }
@@ -2078,7 +3389,7 @@ function estimateScene() {
 
 const SECTIONS = [
   ["general", "General"], ["theme", "Theme"], ["labels", "Labels"],
-  ["properties", "Properties"], ["status", "Status fields"],
+  ["properties", t("settings.nav")], ["status", "Status fields"],
   ["shortcuts", "Shortcuts"], ["danger", "Danger zone"],
 ];
 
@@ -2092,12 +3403,21 @@ function carrying(name) {
 /** What the tickets keep, in one place — the row and the toast say the same
     words, because they are the same reassurance said twice. */
 const KEPT = { type: "types", due: "dates", start: "dates", estimate: "estimates" };
+const KEPT_ONE = { type: "type", due: "date", start: "date", estimate: "estimate" };
+const PROPERTY_NAME = { type: "Type", due: "Due date", start: "Start date", estimate: "Estimate" };
+/* The short name a write sentence wears: `LC-227 Due → …`, because the
+   sentence already names the ticket and `Due date → …` says date twice. */
+const PROPERTY_FIELD = { type: "Type", due: "Due", start: "Start", estimate: "Estimate" };
+
+/** The reassurance, in one place, because the row and the toast both say it. */
+function keptByTickets(name) {
+  return t("settings.kept", carrying(name), KEPT[name], KEPT_ONE[name]);
+}
 
 function propertyBlock(name, title, config, body) {
-  const count = carrying(name);
   const state = config.enabled
     ? ""
-    : '<span class="property-state">· ' + count + " tickets keep their " + KEPT[name] + "</span>";
+    : '<span class="property-state">· ' + esc(keptByTickets(name)) + "</span>";
   return (
     '<div class="property-block">' +
     '<label class="property-head"><input type="checkbox" tabindex="0" data-property="' + name + '"' +
@@ -2113,18 +3433,25 @@ function typeValuesEditor() {
     '<div class="type-values">' +
     values.map(([slug, value]) =>
       '<div class="label-row"><code>' + esc(slug) + "</code>" +
-      '<input class="input compact" value="' + esc(value.name) + '" aria-label="Name of type ' + esc(slug) + '">' +
-      '<span class="label-color-field"><button type="button" tabindex="0" class="menu-trigger label-color-trigger" aria-label="Color of type ' + esc(slug) + '">' +
+      '<input class="input compact" value="' + esc(value.name) + '" aria-label="' +
+      esc(t("settings.type.name.voice", slug)) + '">' +
+      '<span class="label-color-field"><button type="button" tabindex="0" class="menu-trigger label-color-trigger" aria-label="' +
+      esc(t("settings.type.color.voice", slug)) + '">' +
       '<span class="label-dot label-' + value.color + '"></span>' + chevron + "</button></span>" +
-      '<button tabindex="0" class="ghost row-remove" type="button" aria-label="Remove type ' + esc(slug) + '">✕</button></div>').join("") +
+      '<button tabindex="0" class="ghost row-remove" type="button" aria-label="' +
+      esc(t("settings.type.remove.voice", slug)) + '">✕</button></div>').join("") +
     '<form class="label-row label-add">' +
-    '<input class="input compact mono" placeholder="slug" aria-label="New type slug">' +
-    '<input class="input compact" placeholder="Display name" aria-label="New type name">' +
-    '<span class="label-color-field"><button type="button" tabindex="0" class="menu-trigger label-color-trigger" aria-label="New type color">' +
+    '<input class="input compact mono" placeholder="' + esc(t("settings.type.slug.placeholder")) +
+    '" aria-label="' + esc(t("settings.type.new.slug.voice")) + '">' +
+    '<input class="input compact" placeholder="' + esc(t("settings.type.name.placeholder")) +
+    '" aria-label="' + esc(t("settings.type.new.name.voice")) + '">' +
+    '<span class="label-color-field"><button type="button" tabindex="0" class="menu-trigger label-color-trigger" aria-label="' +
+    esc(t("settings.type.new.color.voice")) + '">' +
     '<span class="label-dot label-gray"></span>' + chevron + "</button></span>" +
-    '<button tabindex="0" class="secondary small" type="submit">Add type</button></form>' +
+    '<button tabindex="0" class="secondary small" type="button" data-add-type="bug">' +
+    esc(t("settings.type.add")) + "</button></form>" +
     "</div>" +
-    '<p class="property-note">Removing a definition never rewrites a ticket — the slug renders as itself, in the fallback hue.</p>'
+    '<p class="property-note">' + esc(t("settings.type.note")) + "</p>"
   );
 }
 
@@ -2133,23 +3460,31 @@ function settingsScene() {
   const estimate = properties.estimate;
 
   const dueBody =
-    '<div class="property-inline">Highlight tickets due within' +
-    '<input class="input compact mono" data-attention value="' + properties.due.attention_days + '" aria-label="Attention days">days</div>' +
-    '<p class="property-note">Overdue and today are absolute; this is the only boundary that moves. <code>0</code> is legal and empties the approaching rung.</p>';
+    '<div class="property-inline">' + esc(t("settings.due.window.before")) +
+    '<input class="input compact mono" data-attention value="' + properties.due.attention_days +
+    '" aria-label="' + esc(t("settings.due.attention.voice")) + '">' +
+    esc(t("settings.due.window.after")) + "</div>" +
+    '<p class="property-note">' + esc(t("settings.due.note")) + "</p>";
 
   const estimateBody =
-    '<div class="scale-segment" role="group" aria-label="Estimate system" style="width:270px">' +
-    [["tshirt", "T-shirt"], ["fibonacci", "Fibonacci"], ["duration", "Duration"]].map(([id, name]) =>
+    '<div class="scale-segment" role="group" aria-label="' + esc(t("settings.estimate.system.voice")) +
+    '" style="width:270px">' +
+    [["tshirt", t("settings.estimate.tshirt")], ["fibonacci", t("settings.estimate.fibonacci")],
+      ["duration", t("settings.estimate.duration")]].map(([id, name]) =>
       '<button type="button" tabindex="0"' + (estimate.system === id ? ' class="selected"' : "") +
       ' data-system="' + id + '" aria-pressed="' + (estimate.system === id) + '">' + name + "</button>").join("") +
     "</div>" +
     (estimate.system === "duration"
-      ? '<div class="property-inline">One day is<input class="input compact mono" value="' + estimate.hours_per_day + '" aria-label="Hours per day">hours · one week is<input class="input compact mono" value="' + estimate.days_per_week + '" aria-label="Days per week">days</div>' +
-        '<p class="property-note">An estimate has to be comparable: <code>4h</code> against <code>1d</code> needs to know how long a working day is. Changing this changes no stored value.</p>'
+      ? '<div class="property-inline">' + esc(t("settings.estimate.day.before")) +
+        '<input class="input compact mono" value="' + estimate.hours_per_day + '" aria-label="' +
+        esc(t("settings.estimate.hours.voice")) + '">' + esc(t("settings.estimate.day.mid")) +
+        '<input class="input compact mono" value="' + estimate.days_per_week + '" aria-label="' +
+        esc(t("settings.estimate.days.voice")) + '">' + esc(t("settings.estimate.day.after")) + "</div>" +
+        '<p class="property-note">' + esc(t("settings.estimate.note.duration")) + "</p>"
       : estimate.system === "tshirt"
-        ? '<p class="property-note">The sizes are an editable enum, like Type’s. Fibonacci has nothing to configure.</p>'
-        : '<p class="property-note">1 · 2 · 3 · 5 · 8 · 13, a fixed scale. Nothing to configure.</p>') +
-    '<p class="property-note">Switching systems never rewrites a ticket: a value written under the old one stays as it was and reads as unreadable until you switch back.</p>';
+        ? '<p class="property-note">' + esc(t("settings.estimate.note.tshirt")) + "</p>"
+        : '<p class="property-note">' + esc(t("settings.estimate.note.fibonacci")) + "</p>") +
+    '<p class="property-note">' + esc(t("settings.estimate.note.switching")) + "</p>";
 
   const pane =
     '<section class="settings-panel" aria-label="Project settings">' +
@@ -2165,19 +3500,102 @@ function settingsScene() {
       esc(name) + "</button>").join("") +
     '<p class="settings-nav-note">stored in<br>longclaw.yaml</p></nav>' +
     '<div class="settings-section" role="tabpanel" tabindex="0">' +
-    '<p class="settings-subhead">Four optional properties. All four are off until you turn them on, and turning one off hides it without touching a single ticket.</p>' +
-    propertyBlock("type", "Type", properties.type, typeValuesEditor()) +
-    propertyBlock("due", "Due date", properties.due, dueBody) +
-    propertyBlock("start", "Start date", properties.start,
-      '<p class="property-note">Panel only. A start date is not a deadline — a start date in the past means work should have begun, which is a judgement about the work rather than a fact about the date — so it has no rungs and never appears on a card.</p>') +
-    propertyBlock("estimate", "Estimate", properties.estimate, estimateBody) +
-    '<p class="settings-note">Turning a property off hides it and keeps every value. The count beside a switched-off property is what is still on disk.</p>' +
+    '<p class="settings-subhead">' + esc(t("settings.subhead")) + "</p>" +
+    propertyBlock("type", t("settings.type.title"), properties.type, typeValuesEditor()) +
+    propertyBlock("due", t("settings.due.title"), properties.due, dueBody) +
+    propertyBlock("start", t("settings.start.title"), properties.start,
+      '<p class="property-note">' + esc(t("settings.start.note")) + "</p>") +
+    propertyBlock("estimate", t("settings.estimate.title"), properties.estimate, estimateBody) +
+    '<p class="settings-note">' + esc(t("settings.note")) + "</p>" +
     "</div></div></section>";
 
   return (
     "<h2>Properties, after Labels</h2>" +
     "<p>Untick <strong>Due date</strong>. It writes immediately, the toast says what it did, and the row goes on naming the count for as long as the property is off — which is then the only place that fact is visible. There is no confirmation dialog, and the precedent is already in the app: removing a label definition <em>deletes</em> something and takes no confirmation either.</p>" +
     '<div class="settings-frame">' + pane + "</div>"
+  );
+}
+
+/* ========================================================================
+   SCENE 6 — the copy deck
+   ========================================================================
+
+   Every user-facing string the five scenes above draw, in one column, so the
+   copy can be read *as copy*: one voice at a time, without hunting through
+   five scenes for the three sentences that disagree with each other.
+
+   It renders `COPY` — the same object the scenes render — so it cannot go
+   stale against them. Every row is addressable by its id, so a reply can say
+   `date.refuse.computed → …` rather than quoting prose back.
+
+   The strings no screen shows are here too. An `aria-label`, a `title` and
+   the toast's live region are read out loud by someone, and they are the copy
+   that has never once been reviewed.
+*/
+
+/** What "unvoiced" means: the copy that exists only for a screen reader. */
+const UNVOICED_KINDS = ["aria-label", "title"];
+
+/** The deck, filtered by the driver, in the object's own order. */
+function deckRows() {
+  return Object.entries(COPY).filter(([, row]) => {
+    if (app.deck === "changed") return row.state !== "today";
+    if (app.deck === "unvoiced") return UNVOICED_KINDS.indexOf(row.kind) >= 0;
+    return true;
+  });
+}
+
+/** What a row says on screen, with its arguments filled in. */
+function deckSaid(row, id) {
+  return typeof row.text === "function" ? t(id, ...(row.sample || [])) : row.text;
+}
+
+function copyScene() {
+  const rows = deckRows();
+  const all = Object.entries(COPY);
+  const count = (state) => all.filter(([, row]) => row.state === state).length;
+
+  let group;
+  const body = rows.map(([id, row]) => {
+    const head = row.group === group
+      ? ""
+      : '<tr class="deck-group"><th colspan="6">' + esc(row.group) + "</th></tr>";
+    group = row.group;
+    return head +
+      '<tr class="deck-row">' +
+      '<td class="deck-id"><code>' + esc(id) + "</code></td>" +
+      '<td class="deck-said"><span class="said">' + esc(deckSaid(row, id)) + "</span>" +
+      (row.shape ? '<p class="deck-shape">' + esc(row.shape) + "</p>" : "") +
+      (row.note ? '<p class="deck-note">' + esc(row.note) + "</p>" : "") +
+      "</td>" +
+      '<td class="deck-kind">' + esc(row.kind) + "</td>" +
+      '<td class="deck-when">' + esc(row.when) + "</td>" +
+      '<td class="deck-where">' + esc(row.where) + "</td>" +
+      '<td><span class="deck-state ' + row.state + '">' + row.state + "</span></td>" +
+      "</tr>";
+  }).join("");
+
+  return (
+    "<h2>Every string, in one column</h2>" +
+    "<p>The five scenes above draw their copy from this object, and this table renders the same object — so the deck cannot drift from what the scenes say. Reply by id: <code>date.refuse.computed</code> rather than the sentence.</p>" +
+    "<p style=\"max-width:62ch\">Everything this ticket adds or changes is here, and so is the copy standing next to it, because tone is judged against what is already there. Three sets the scenes draw are deliberately out — the settings window's own chrome, the status and priority vocabularies, and the label registry — none of which this ticket touches.</p>" +
+    '<p class="caption">' + all.length + " strings · " + count("today") + " the app already said · " +
+    count("new") + " new and shipped · " + count("proposed") + " proposed, unbuilt · " +
+    count("revised") + " revised since this file was written · " +
+    all.filter(([, row]) => UNVOICED_KINDS.indexOf(row.kind) >= 0).length +
+    " that no screen shows</p>" +
+    "<section>" +
+    '<table class="deck">' +
+    "<tr><th>id</th><th>string</th><th>kind</th><th>when</th><th>where</th><th>state</th></tr>" +
+    body +
+    "</table></section>" +
+    "<section><h3>What the states mean</h3>" +
+    '<ul class="deck-legend">' +
+    "<li><span class=\"deck-state today\">today</span> the app said this before LC-227. Here for tone — a review needs the neighbours.</li>" +
+    "<li><span class=\"deck-state new\">new</span> LC-227 added it, and <code>src/</code> says it now.</li>" +
+    "<li><span class=\"deck-state proposed\">proposed</span> this file proposes it and no code says it yet.</li>" +
+    "<li><span class=\"deck-state revised\">revised</span> this file proposed one wording and <code>src/</code> shipped another. The row shows what shipped; the note says what this file used to say.</li>" +
+    "</ul></section>"
   );
 }
 
@@ -2269,23 +3687,26 @@ function pickerHTML() {
     if (picked && daysBetween(picked, day) === 0) classes.push("picked");
     cells.push(
       '<button type="button" class="' + classes.join(" ") + '" data-day-pick="' + iso(day) +
-      '" tabindex="' + (daysBetween(cursor, day) === 0 ? 0 : -1) + '" aria-label="' + esc(echoDate(day)) + '">' +
+      '" tabindex="' + (daysBetween(cursor, day) === 0 ? 0 : -1) + '" aria-label="' +
+      esc(t("picker.day.voice", echoDate(day))) + '">' +
       day.getDate() + "</button>",
     );
   }
 
   return (
-    '<div class="menu-popover date-picker" role="dialog" aria-label="Choose a date" ' +
+    '<div class="menu-popover date-picker" role="dialog" aria-label="' +
+    esc(t("picker.voice", which === "due" ? t("date.field.voice.due") : t("date.field.voice.start"))) + '" ' +
     'style="left:' + Math.round(at.left) + "px; top:" + Math.round(at.top) + 'px">' +
     '<div class="date-picker-head">' +
     '<strong>' + MONTHS[cursor.getMonth()] + " " + cursor.getFullYear() + "</strong>" +
-    '<button type="button" tabindex="-1" class="date-step" data-month-step="-1" aria-label="Previous month">‹</button>' +
-    '<button type="button" tabindex="-1" class="date-step" data-month-step="1" aria-label="Next month">›</button>' +
+    '<button type="button" tabindex="-1" class="date-step" data-month-step="-1" aria-label="' + esc(t("picker.prev")) + '">‹</button>' +
+    '<button type="button" tabindex="-1" class="date-step" data-month-step="1" aria-label="' + esc(t("picker.next")) + '">›</button>' +
     "</div>" +
     '<div class="date-grid">' +
-    ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((d) => '<span class="dow">' + d + "</span>").join("") +
+    t("picker.dow").split(" · ").map((d) => '<span class="dow">' + esc(d) + "</span>").join("") +
     cells.join("") + "</div>" +
-    '<button type="button" tabindex="-1" class="date-clear" data-day-pick="">Clear</button>' +
+    '<button type="button" tabindex="-1" class="date-clear" data-day-pick="">' +
+    esc(t("picker.clear")) + "</button>" +
     "</div>"
   );
 }
@@ -2435,6 +3856,23 @@ const NOTES = {
     "</ol>" +
     "<h2>Worth watching</h2>" +
     "<p>The generated <code>.longclaw/AGENTS.md</code> documents only the enabled set with the project's actual vocabularies — so an agent does not write a property the project has turned off or a type it has not defined. Mind LC-66, the open bug about that file churning on every project change.</p>",
+
+  copy: () =>
+    "<h1>The copy deck</h1>" +
+    "<p>LC-227 · every user-facing string the five scenes draw</p>" +
+    "<h2>How to read it</h2>" +
+    "<p>Copy is the half of a design that gets reviewed last and shipped hardest to change, so it is collected here as copy — one column, one voice — rather than left scattered across five scenes.</p>" +
+    "<p>The scenes read this object; they do not have their own copies of it. Edit a string here and every scene above changes with it.</p>" +
+    "<h2>What to look for</h2>" +
+    "<ol>" +
+    "<li><strong>One voice per kind.</strong> A refusal, a note and write feedback are not written the same way. Read the refusals together, then the notes together, and see whether each set sounds like one person.</li>" +
+    "<li><strong>One word per thing.</strong> The rail says <code>Due</code>, the menu row says <code>Due date</code>, the toast says <code>Due</code>. That is deliberate — the rail's neighbours name it, a menu row's do not — but it is exactly the sort of thing worth disagreeing with.</li>" +
+    "<li class=\"q\"><strong>The strings no screen shows.</strong> Switch the driver to <strong>screen reader only</strong>. These have never been reviewed by anyone, in this app or any other.</li>" +
+    "<li><strong>The rows marked <span class=\"deck-state revised\">revised</span>.</strong> This file proposed one wording and <code>src/</code> shipped another. The deck shows what shipped; the note says what was proposed. If the original was better, it is still cheap to change.</li>" +
+    "<li><strong>The rows marked <span class=\"deck-state proposed\">proposed</span>.</strong> Nothing says these yet, so they cost nothing to rewrite.</li>" +
+    "</ol>" +
+    "<h2>Worth watching</h2>" +
+    "<p>Once this ticket is reviewed the prototype is deleted, so the settled deck is written into <code>.longclaw/tickets/LC-227/ticket.md</code>. Copy that only ever lived in a deleted file has to be re-litigated by whoever ships it.</p>",
 };
 
 /* ------------------------------------------------------- driver controls */
@@ -2470,6 +3908,12 @@ function controlsHTML() {
       toggle("control", "segment", app.estimateControl, "segment") +
       toggle("control", "menu", app.estimateControl, "menu");
 
+  if (app.scene === "copy")
+    return "<span>show</span>" +
+      toggle("deck", "all", app.deck, "all") +
+      toggle("deck", "changed", app.deck, "new + changed") +
+      toggle("deck", "unvoiced", app.deck, "screen reader only");
+
   return "<span>system</span>" +
     [["tshirt", "t-shirt"], ["fibonacci", "fib"], ["duration", "duration"]].map(([id, name]) =>
       toggle("system", id, project.properties.estimate.system, name)).join("");
@@ -2477,7 +3921,8 @@ function controlsHTML() {
 
 /* ----------------------------------------------------------- rendering */
 
-const SCENES = { panel: panelScene, rungs: rungsScene, card: cardScene, estimate: estimateScene, settings: settingsScene };
+const SCENES = { panel: panelScene, rungs: rungsScene, card: cardScene,
+  estimate: estimateScene, settings: settingsScene, copy: copyScene };
 
 /** Which field held the caret, so a re-render does not drop it on the floor. */
 let caret;
@@ -2518,7 +3963,9 @@ function render() {
 function toast(text) {
   $("#toasts").innerHTML =
     '<div class="toast"><span class="toast-message">' + esc(text) + "</span>" +
-    '<button class="toast-action" tabindex="-1" type="button">Undo <kbd>⌘Z</kbd></button></div>';
+    '<button class="toast-action" tabindex="-1" type="button">' +
+    // The key wears `<kbd>`; the words are the deck's.
+    esc(t("toast.undo")).replace("⌘Z", "<kbd>⌘Z</kbd>") + "</button></div>";
   clearTimeout(app.toastTimer);
   app.toastTimer = setTimeout(() => { $("#toasts").innerHTML = ""; }, 5000);
 }
@@ -2543,7 +3990,7 @@ function commitDate(which) {
     state.value = iso(parsed.date);
     // What lands back in the field is the form that reads back as this day.
     state.text = fieldDate(parsed.date, app.today);
-    toast("LC-227 " + (which === "due" ? "due" : "starts") + " " + state.value);
+    toast(t("toast.property.set", "LC-227", PROPERTY_FIELD[which], state.value));
   } else {
     // Emptying the field and committing removes the property. On disk absent
     // and cleared are the same thing — no key — so the distinction lives in
@@ -2552,7 +3999,7 @@ function commitDate(which) {
     const had = state.value;
     state.value = undefined;
     state.text = "";
-    if (had) toast("LC-227 " + which + " cleared");
+    if (had) toast(t("toast.property.cleared", "LC-227", PROPERTY_FIELD[which]));
   }
   render();
 }
@@ -2579,8 +4026,8 @@ function writeDate(which, date) {
   state.text = date ? fieldDate(date, app.today) : "";
   state.refused = undefined;
   toast(date
-    ? "LC-227 " + (which === "due" ? "due" : "starts") + " " + state.value
-    : "LC-227 " + which + " cleared");
+    ? t("toast.property.set", "LC-227", PROPERTY_FIELD[which], state.value)
+    : t("toast.property.cleared", "LC-227", PROPERTY_FIELD[which]));
 }
 
 document.addEventListener("input", (event) => {
@@ -2656,12 +4103,14 @@ document.addEventListener("click", (event) => {
   if (above) { app.rowAbove = above.dataset.above === "1"; return render(); }
   const control = hit("control");
   if (control) { app.estimateControl = control.dataset.control; return render(); }
+  const deck = hit("deck");
+  if (deck) { app.deck = deck.dataset.deck; return render(); }
   const system = hit("system");
   if (system) {
     // Switching systems preserves values written under the old one rather than
     // destroying them. Nothing is rewritten here, and nothing is in the app.
     project.properties.estimate.system = system.dataset.system;
-    toast("Estimates now read as " + system.dataset.system + " · 23 tickets keep their values");
+    toast(t("toast.estimate.system", system.dataset.system, carrying("estimate")));
     return render();
   }
 
@@ -2695,17 +4144,24 @@ document.addEventListener("click", (event) => {
     const name = property.dataset.property;
     const config = project.properties[name];
     config.enabled = !config.enabled;
-    const label = { type: "Type", due: "Due", start: "Start", estimate: "Estimate" }[name];
     // The write feedback carries the count and the reassurance together,
     // because the effect of turning it off is otherwise invisible.
     toast(config.enabled
-      ? label + " turned on"
-      : label + " turned off · " + carrying(name) + " tickets keep their " + KEPT[name]);
+      ? t("toast.property.on", PROPERTY_NAME[name])
+      : t("toast.property.off", PROPERTY_NAME[name], keptByTickets(name)));
     return render();
   }
 
+  const addType = hit("add-type");
+  if (addType) { toast(t("settings.type.added", addType.dataset.addType)); return render(); }
+
   const scale = hit("scale");
-  if (scale) { toast("LC-227 estimate " + (scale.dataset.scale ? "→ " + scale.dataset.scale : "cleared")); return render(); }
+  if (scale) {
+    toast(scale.dataset.scale
+      ? t("toast.property.set", "LC-227", PROPERTY_FIELD.estimate, scale.dataset.scale)
+      : t("toast.property.cleared", "LC-227", PROPERTY_FIELD.estimate));
+    return render();
+  }
 
   const menuTriggerEl = hit("menu");
   if (menuTriggerEl) {

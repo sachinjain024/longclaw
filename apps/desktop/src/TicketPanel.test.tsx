@@ -3209,7 +3209,7 @@ describe("the properties rail", () => {
       }),
     );
     await ready();
-    expect(railRows()).toEqual(["Status", "Priority", "Due", "Labels"]);
+    expect(railRows()).toEqual(["Status", "Priority", "Due Date", "Labels"]);
   });
 
   it("reads in one order: what it is, what kind of work, when, then the free axis", async () => {
@@ -3224,8 +3224,8 @@ describe("the properties rail", () => {
       "Priority",
       "Type",
       "Estimate",
-      "Start",
-      "Due",
+      "Start Date",
+      "Due Date",
       "Labels",
     ]);
   });
@@ -3247,7 +3247,7 @@ describe("the properties rail", () => {
     render(panel({ properties: withAll }));
     await ready();
 
-    const due = screen.getByLabelText("Due") as HTMLInputElement;
+    const due = screen.getByLabelText("Due Date") as HTMLInputElement;
     fireEvent.change(due, { target: { value: "28 Sep" } });
     fireEvent.keyDown(due, { key: "Enter" });
 
@@ -3265,7 +3265,7 @@ describe("the properties rail", () => {
     render(panel({ properties: withAll }));
     await ready();
 
-    const due = screen.getByLabelText("Due") as HTMLInputElement;
+    const due = screen.getByLabelText("Due Date") as HTMLInputElement;
     fireEvent.change(due, { target: { value: "" } });
     fireEvent.keyDown(due, { key: "Enter" });
 
@@ -3313,7 +3313,7 @@ describe("the properties rail", () => {
     render(panel({ properties: withAll }));
     await ready();
 
-    const due = screen.getByLabelText("Due") as HTMLInputElement;
+    const due = screen.getByLabelText("Due Date") as HTMLInputElement;
     expect(due.value).toBe("28 Sep 2026");
     // A blur is not an edit. Normalising here would be the panel correcting a
     // file on a gesture nobody meant as a change.
@@ -3332,7 +3332,7 @@ describe("the properties rail", () => {
     );
     await ready();
 
-    const start = screen.getByLabelText("Start") as HTMLInputElement;
+    const start = screen.getByLabelText("Start Date") as HTMLInputElement;
     fireEvent.change(start, { target: { value: "2026-10-20" } });
     fireEvent.keyDown(start, { key: "Enter" });
 
@@ -3359,7 +3359,7 @@ describe("the properties rail", () => {
     );
     await ready();
 
-    const start = screen.getByLabelText("Start") as HTMLInputElement;
+    const start = screen.getByLabelText("Start Date") as HTMLInputElement;
     start.focus();
     // `input` rather than `change`: the tracker watches the event typing fires,
     // and a test that skipped it would pass with or without the fix.

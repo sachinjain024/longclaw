@@ -389,7 +389,7 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Due on a day it names" },
     });
-    const due = screen.getByLabelText("Due");
+    const due = screen.getByLabelText("Due Date");
     fireEvent.change(due, { target: { value: "2026-09-28" } });
     fireEvent.keyDown(due, { key: "Enter" });
     fireEvent.click(screen.getByText("Create"));
@@ -3672,7 +3672,7 @@ describe("board ordering and manual reordering (V0-09)", () => {
   }
 
   /** Switches the header control, which is a real menu with a real footnote. */
-  function chooseOrdering(name: "Priority" | "Manual") {
+  function chooseOrdering(name: "Priority" | "Due" | "Manual") {
     fireEvent.click(screen.getByRole("button", { name: /^Order:/ }));
     fireEvent.click(screen.getByRole("menuitemradio", { name }));
   }
@@ -3729,6 +3729,7 @@ describe("board ordering and manual reordering (V0-09)", () => {
     await openBoard([row("LC-1"), row("LC-2")]);
 
     chooseOrdering("Manual");
+    chooseOrdering("Due");
     chooseOrdering("Priority");
     chooseOrdering("Manual");
 
@@ -3737,7 +3738,7 @@ describe("board ordering and manual reordering (V0-09)", () => {
     expect(api.updateProjectName).not.toHaveBeenCalled();
   });
 
-  it("offers Priority and Manual and nothing else (LC-223 review)", async () => {
+  it("offers Priority, Due and Manual and nothing else", async () => {
     await openBoard([row("LC-1")]);
 
     fireEvent.click(screen.getByRole("button", { name: /^Order:/ }));
@@ -3745,18 +3746,19 @@ describe("board ordering and manual reordering (V0-09)", () => {
     expect(
       screen.getByRole("menuitemradio", { name: "Priority" }),
     ).toBeTruthy();
+    expect(screen.getByRole("menuitemradio", { name: "Due" })).toBeTruthy();
     expect(screen.getByRole("menuitemradio", { name: "Manual" })).toBeTruthy();
-    // The footnote came off at the review: two options say everything.
+    // The footnote came off at the review: the options say everything.
     expect(document.querySelector(".menu-footnote")).toBeNull();
   });
 
   it("keeps the choice for this project, and only this project", async () => {
     await openBoard([row("LC-1")]);
-    chooseOrdering("Manual");
+    chooseOrdering("Due");
 
     await waitFor(() =>
       expect(devicePreferences.projectWorkspaces).toEqual({
-        "project-fixture": { ordering: "manual" },
+        "project-fixture": { ordering: "due" },
       }),
     );
   });
@@ -4539,7 +4541,7 @@ describe("project-scoped workspace restoration (LC-49)", () => {
   const filter = () =>
     screen.getByRole("textbox", { name: "Filter tickets" }) as HTMLInputElement;
 
-  function chooseOrdering(name: "Priority" | "Manual") {
+  function chooseOrdering(name: "Priority" | "Due" | "Manual") {
     fireEvent.click(screen.getByRole("button", { name: /^Order:/ }));
     fireEvent.click(screen.getByRole("menuitemradio", { name }));
   }
@@ -4568,7 +4570,7 @@ describe("project-scoped workspace restoration (LC-49)", () => {
     await screen.findByRole("heading", { name: "Project A" });
 
     fireEvent.click(screen.getByRole("button", { name: "List" }));
-    chooseOrdering("Manual");
+    chooseOrdering("Due");
     fireEvent.change(filter(), { target: { value: "alpha" } });
 
     fireEvent.click(screen.getByRole("button", { name: "Project B" }));
@@ -4588,7 +4590,7 @@ describe("project-scoped workspace restoration (LC-49)", () => {
     expect(
       screen.getByRole("button", { name: "List", pressed: true }),
     ).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Order: Manual" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Order: Due" })).toBeTruthy();
     expect(filter().value).toBe("alpha");
   });
 
@@ -6316,7 +6318,8 @@ describe("the ticket context menu, end to end (LC-222)", () => {
         fireEvent.click(screen.getByRole("menuitem", { name: /Pick a date/ }));
 
         const picker = screen.getByRole("dialog", {
-          name: property === "due" ? "Due calendar" : "Start calendar",
+          name:
+            property === "due" ? "Due Date calendar" : "Start Date calendar",
         });
         expect(picker.contains(document.activeElement)).toBe(true);
         expect(api.readTicket).not.toHaveBeenCalled();

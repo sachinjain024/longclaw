@@ -868,8 +868,8 @@ describe("the properties a project turned on", () => {
       "Priority",
       "Type",
       "Estimate",
-      "Start",
-      "Due",
+      "Start Date",
+      "Due Date",
       "Labels",
     ]);
   });
@@ -884,7 +884,7 @@ describe("the properties a project turned on", () => {
     fireEvent.click(metaTrigger("Type"));
     fireEvent.click(screen.getByRole("menuitemradio", { name: "Bug" }));
     fireEvent.click(screen.getByRole("button", { name: "M" }));
-    const due = screen.getByLabelText("Due");
+    const due = screen.getByLabelText("Due Date");
     fireEvent.change(due, { target: { value: "28 Sep" } });
     fireEvent.keyDown(due, { key: "Enter" });
     fireEvent.click(screen.getByText("Create ticket"));
@@ -938,7 +938,9 @@ describe("the properties a project turned on", () => {
     // Shown the way a field shows a date rather than the way the file stores
     // one — and without the year, because on 8 September `28 Sep` reads back as
     // the day it is being shown for.
-    expect(screen.getByLabelText<HTMLInputElement>("Due").value).toBe("28 Sep");
+    expect(screen.getByLabelText<HTMLInputElement>("Due Date").value).toBe(
+      "28 Sep",
+    );
   });
 
   it("takes an uncommitted date with the key that creates from anywhere", () => {
@@ -948,7 +950,7 @@ describe("the properties a project turned on", () => {
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Typed, then created in one gesture" },
     });
-    const due = screen.getByLabelText("Due");
+    const due = screen.getByLabelText("Due Date");
     fireEvent.change(due, { target: { value: "28 Sep" } });
     // A date parses on Enter or blur, so `⌘↵` from inside the field would
     // otherwise create the ticket without the date the person had just typed.

@@ -795,13 +795,18 @@ describe("the properties a project turned on", () => {
     // beside an unlabelled priority is two controls both reading `None`.
     render(quickCreate({ properties: withAll }));
 
-    expect(propertyNames()).toEqual(["Type", "Estimate", "Start", "Due"]);
+    expect(propertyNames()).toEqual([
+      "Type",
+      "Estimate",
+      "Start Date",
+      "Due Date",
+    ]);
   });
 
   it("draws only the ones it turned on", () => {
     render(quickCreate({ properties: withDue }));
 
-    expect(propertyNames()).toEqual(["Due"]);
+    expect(propertyNames()).toEqual(["Due Date"]);
   });
 
   it("sends what was chosen under one properties field", () => {
@@ -811,7 +816,7 @@ describe("the properties a project turned on", () => {
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Filed with a date on it" },
     });
-    const due = screen.getByLabelText("Due");
+    const due = screen.getByLabelText("Due Date");
     fireEvent.change(due, { target: { value: "28 Sep" } });
     fireEvent.keyDown(due, { key: "Enter" });
     fireEvent.click(screen.getByRole("button", { name: /^Create/ }));
@@ -826,7 +831,7 @@ describe("the properties a project turned on", () => {
     const onOpenFullEditor = vi.fn();
     render(quickCreate({ properties: withAll, onOpenFullEditor }));
 
-    const due = screen.getByLabelText("Due");
+    const due = screen.getByLabelText("Due Date");
     fireEvent.change(due, { target: { value: "28 Sep" } });
     fireEvent.keyDown(due, { key: "Enter" });
     fireEvent.click(screen.getByText("Open full editor →"));
@@ -846,7 +851,9 @@ describe("the properties a project turned on", () => {
       }),
     );
 
-    expect(screen.getByLabelText<HTMLInputElement>("Due").value).toBe("28 Sep");
+    expect(screen.getByLabelText<HTMLInputElement>("Due Date").value).toBe(
+      "28 Sep",
+    );
   });
 
   it("keeps them across the Create more loop, as it keeps the rest of the meta", () => {
@@ -854,7 +861,7 @@ describe("the properties a project turned on", () => {
     render(quickCreate({ properties: withAll, onCreate }));
 
     fireEvent.click(screen.getByRole("checkbox"));
-    const due = screen.getByLabelText("Due");
+    const due = screen.getByLabelText("Due Date");
     fireEvent.change(due, { target: { value: "28 Sep" } });
     fireEvent.keyDown(due, { key: "Enter" });
     fireEvent.change(screen.getByLabelText("Title"), {
@@ -877,6 +884,8 @@ describe("the properties a project turned on", () => {
       }),
       { createMore: true },
     );
-    expect(screen.getByLabelText<HTMLInputElement>("Due").value).toBe("28 Sep");
+    expect(screen.getByLabelText<HTMLInputElement>("Due Date").value).toBe(
+      "28 Sep",
+    );
   });
 });
