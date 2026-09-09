@@ -20,9 +20,8 @@
  * their own: **a row exists only for a property the project has enabled**
  * (LC-227). They all ship off, so the menu a default project draws is exactly
  * the five rows above, and a project that turns everything on gets nine. That
- * is the only reason four more rows are affordable here at all. The one row
- * that does not decide anything is `Pick a date…`, which declines to grow a
- * calendar inside a popover and hands the day to the panel's own control.
+ * is the only reason four more rows are affordable here at all. `Pick a date…`
+ * opens the shared calendar at the context menu, without opening the panel.
  *
  * An `Open ticket` row was here and came off: the card is a `<button>` and a
  * left-click on it already opens the panel, so the row spent the top of the
@@ -54,7 +53,12 @@ import {
 } from "./properties";
 import { StatusDot } from "./StatusDot";
 import { isArchived, priorityLabel, statusLabel } from "./tickets";
-import { ArchiveGlyph, CopyGlyph, OpenGlyph } from "./TicketMenuGlyphs";
+import {
+  ArchiveGlyph,
+  CopyGlyph,
+  OpenGlyph,
+  TypeGlyph,
+} from "./TicketMenuGlyphs";
 import type {
   IndexedTicket,
   PropertiesConfig,
@@ -76,8 +80,7 @@ export interface TicketMenuActions {
     next: string | undefined,
   ) => void;
   /**
-   * `Pick a date…`: the menu giving up and handing the job to the panel, which
-   * is what keeps a calendar out of a popover.
+   * `Pick a date…` opens the shared calendar in place.
    *
    * The two dates only, because they are the only submenus that offer the row:
    * a type is its project's whole vocabulary and an estimate is its scale, and
@@ -198,7 +201,7 @@ export function ticketMenuItems(
  * `.menu-glyph` is a fixed 14px box, and a row that skips it starts 22px left
  * of its neighbours — which on a nine-row menu reads as a mistake rather than
  * as an absence. Estimate is the one row here with no mark to draw: every other
- * row wears its current value's own, and a size has none. `Clear` and the date
+ * row has a mark for its value or property, and a size has none. `Clear` and the date
  * picks are the same case one rung down.
  */
 const NO_MARK = <span />;
@@ -285,13 +288,7 @@ function propertyFace(
     const vocabulary = context.properties.type.values;
     const defined = held ? vocabulary[held] : undefined;
     return {
-      // A slug nothing defines has no colour to draw, which is not the same as
-      // holding nothing — the hint still says what the file holds.
-      mark: defined ? (
-        <span className={`label-dot label-${defined.color}`} />
-      ) : (
-        NO_MARK
-      ),
+      mark: <TypeGlyph />,
       hint: held ? (defined?.name ?? held) : undefined,
       // The same registry the panel, full create and quick create read, minus
       // its `None` row: clearing is the rule's own row below, under the word
@@ -347,9 +344,7 @@ function propertyFace(
         id: `${property}-pick`,
         label: "Pick a date…",
         glyph: NO_MARK,
-        // The way out, and what keeps a calendar out of a popover: anything
-        // the four rows cannot reach is reached where the field and the picker
-        // already live.
+        // Dates beyond the quick picks use the same calendar as the field.
         run: () => run.onPickDate(property),
       },
     ],

@@ -75,15 +75,13 @@ const TODAY = new Date(2026, 8, 9).getTime();
  * every project written before this build: the menu those get is the menu the
  * rest of this file asserts, unchanged.
  */
-function context(properties: PropertiesConfig = NO_PROPERTIES): TicketMenuContext {
+function context(
+  properties: PropertiesConfig = NO_PROPERTIES,
+): TicketMenuContext {
   return { properties, today: TODAY };
 }
 
-function ids(
-  ticket: TicketRow,
-  run = actions(),
-  where = context(),
-): string[] {
+function ids(ticket: TicketRow, run = actions(), where = context()): string[] {
   return ticketMenuItems(ticket, run, where)
     .filter((item) => item.kind !== "rule")
     .map((item) => item.id);
@@ -120,7 +118,10 @@ describe("a ticket's context menu", () => {
   });
 
   it("lists every status under Move to, with the ticket's own ticked", () => {
-    const move = itemFor(ticketMenuItems(INDEXED, actions(), context()), "status");
+    const move = itemFor(
+      ticketMenuItems(INDEXED, actions(), context()),
+      "status",
+    );
     if (move.kind !== "submenu") throw new Error("Move to is not a submenu");
 
     expect(move.items.map(labelOf)).toEqual(
@@ -135,7 +136,10 @@ describe("a ticket's context menu", () => {
   });
 
   it("lists every priority under Priority, with the ticket's own ticked", () => {
-    const priority = itemFor(ticketMenuItems(INDEXED, actions(), context()), "priority");
+    const priority = itemFor(
+      ticketMenuItems(INDEXED, actions(), context()),
+      "priority",
+    );
     if (priority.kind !== "submenu") throw new Error("not a submenu");
 
     expect(priority.items.map(labelOf)).toEqual(
@@ -158,11 +162,15 @@ describe("a ticket's context menu", () => {
 
   it("names the archive row for what pressing it does", () => {
     expect(
-      labelOf(itemFor(ticketMenuItems(INDEXED, actions(), context()), "archive")),
+      labelOf(
+        itemFor(ticketMenuItems(INDEXED, actions(), context()), "archive"),
+      ),
     ).toBe("Archive ticket");
     const archived = { ...INDEXED, archivedAt: "2026-08-01T10:00:00Z" };
     expect(
-      labelOf(itemFor(ticketMenuItems(archived, actions(), context()), "archive")),
+      labelOf(
+        itemFor(ticketMenuItems(archived, actions(), context()), "archive"),
+      ),
     ).toBe("Unarchive ticket");
   });
 
@@ -188,9 +196,9 @@ describe("a ticket's context menu", () => {
   it("opens a degraded file under the name of what will happen", () => {
     // The panel shows the raw file rather than the ticket, so the row does not
     // promise a ticket.
-    expect(labelOf(itemFor(ticketMenuItems(DEGRADED, actions(), context()), "open"))).toBe(
-      "Open file",
-    );
+    expect(
+      labelOf(itemFor(ticketMenuItems(DEGRADED, actions(), context()), "open")),
+    ).toBe("Open file");
   });
 
   it("runs the action every leaf row was built with", () => {
@@ -333,25 +341,34 @@ describe("the four properties on a ticket's context menu", () => {
   });
 
   it("offers the project's own type values, and never one it does not define", () => {
-    const type = submenu(ticketMenuItems(held, actions(), context(withType)), "type");
+    const type = submenu(
+      ticketMenuItems(held, actions(), context(withType)),
+      "type",
+    );
 
-    expect(type.items.filter((item) => item.kind === "choice").map(labelOf)).toEqual([
-      "Bug",
-      "Chore",
-    ]);
     expect(
-      type.items.filter((item) => item.kind === "choice" && item.checked).map(labelOf),
+      type.items.filter((item) => item.kind === "choice").map(labelOf),
+    ).toEqual(["Bug", "Chore"]);
+    expect(
+      type.items
+        .filter((item) => item.kind === "choice" && item.checked)
+        .map(labelOf),
     ).toEqual(["Bug"]);
   });
 
   it("offers a date four quick picks, each saying the day it resolves to", () => {
-    const due = submenu(ticketMenuItems(held, actions(), context(withAll)), "due");
+    const due = submenu(
+      ticketMenuItems(held, actions(), context(withAll)),
+      "due",
+    );
     const picks = due.items.filter((item) => item.kind === "choice");
 
     // Nothing is computed silently, which is the whole of the objection the
     // typed grammar raises against `next week`: a row a person points at shows
     // its answer before the press.
-    expect(picks.map((item) => [labelOf(item), item.kind === "choice" && item.hint])).toEqual([
+    expect(
+      picks.map((item) => [labelOf(item), item.kind === "choice" && item.hint]),
+    ).toEqual([
       ["Today", "9 Sep"],
       ["Tomorrow", "10 Sep"],
       ["Next Monday", "14 Sep"],
@@ -361,14 +378,15 @@ describe("the four properties on a ticket's context menu", () => {
 
   it("offers start the same rows as due", () => {
     const items = ticketMenuItems(held, actions(), context(withAll));
-    const labels = (id: string) => submenu(items, id).items.map((item) => item.id.replace(/^\w+-/, ""));
+    const labels = (id: string) =>
+      submenu(items, id).items.map((item) => item.id.replace(/^\w+-/, ""));
 
     // Two adjacent controls whose vocabulary differs is what the grammar
     // section refused for the typed forms; the argument is unchanged here.
     expect(labels("start")).toEqual(labels("due"));
   });
 
-  it("never grows a calendar, and hands what the picks cannot reach to the panel", () => {
+  it("requests the calendar for dates beyond the quick picks", () => {
     const run = actions();
     const due = submenu(ticketMenuItems(held, run, context(withAll)), "due");
     const out = itemFor(due.items, "due-pick");
@@ -393,10 +411,15 @@ describe("the four properties on a ticket's context menu", () => {
 
   it("ticks a pick the ticket already sits on", () => {
     const on = { ...held, due: "2026-09-14" };
-    const due = submenu(ticketMenuItems(on, actions(), context(withAll)), "due");
+    const due = submenu(
+      ticketMenuItems(on, actions(), context(withAll)),
+      "due",
+    );
 
     expect(
-      due.items.filter((item) => item.kind === "choice" && item.checked).map(labelOf),
+      due.items
+        .filter((item) => item.kind === "choice" && item.checked)
+        .map(labelOf),
     ).toEqual(["Next Monday"]);
   });
 
@@ -425,8 +448,12 @@ describe("the four properties on a ticket's context menu", () => {
     const items = ticketMenuItems(held, actions(), context(withAll));
 
     for (const property of ["type", "estimate", "start", "due"]) {
-      const clear = itemFor(submenu(items, property).items, `${property}-clear`);
-      if (clear.kind !== "action") throw new Error(`${property} Clear is not an action`);
+      const clear = itemFor(
+        submenu(items, property).items,
+        `${property}-clear`,
+      );
+      if (clear.kind !== "action")
+        throw new Error(`${property} Clear is not an action`);
       expect(clear.label).toBe("Clear");
     }
   });

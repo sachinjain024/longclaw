@@ -181,21 +181,21 @@ a key the offer on screen needs (LC-220, `fieldUndo.ts`).
 | `←` `→` | A day |
 | `↑` `↓` | A **week** — the one thing here that no menu in the app does, and what makes this its first two-dimensional layer |
 | `PageUp` `PageDown` | A month, without touching the value |
-| `Enter` `Space` | Pick the day under the cursor → close → focus returns to the field |
-| `Esc` | Close without writing → focus returns to the field. One rung: the panel behind it stays open |
+| `Enter` `Space` | Pick the day under the cursor → close → focus returns to the field or context-menu ticket |
+| `Esc` | Close without writing → focus returns to the field or context-menu ticket. An open panel stays open |
 
 Focus enters on the day the field resolves to, or today where it holds nothing,
 and follows the cursor. The grid is 42 cells and one tab stop, roving the way a
-board column does. The month steppers and **Clear** are the pointer's rows and
-are not stops: emptying the field is the keyboard's way to clear a date.
+board column does. The month steppers and **Clear** are tab stops, so the
+context-menu calendar can be operated without a date field.
 
 ## Focus-return table
 
 | Layer closed | Focus lands on |
 |---|---|
 | Ticket panel | The card/row that opened it (survives re-render) |
-| Menu | Its trigger (meta row) or the focused card (single-key path) — except the context menu's `Pick a date…`, which opens the panel and enters the field for that property (LC-227) |
-| Date picker | The date field it hangs off (LC-227) |
+| Menu | Its trigger (meta row) or the focused card (single-key path); `Pick a date…` opens the calendar at the context menu (LC-227) |
+| Date picker | The date field it hangs off, or the ticket that opened the context menu (LC-227) |
 | Palette | Whatever held focus before `⌘K` |
 | Quick create (created) | The new ticket's card — or, with **Create more** ticked, the emptied title field, and focus never follows the card even when the write returns (LC-201) |
 | Quick create (canceled) | Prior focus |

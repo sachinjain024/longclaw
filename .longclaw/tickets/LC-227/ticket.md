@@ -10,7 +10,7 @@ labels:
 type: feature
 due: 2026-09-09
 created_at: 2026-08-22T06:13:17.138Z
-updated_at: 2026-09-09T04:05:45.016Z
+updated_at: 2026-09-09T06:38:54.212Z
 ---
 
 Brainstorm with LLM agent like what other fields we should support. A few items I can think of are Type - Bug/Task, Due State, Start Date, Effort
@@ -1383,7 +1383,7 @@ that is built when it opens.
 - [x] styles.css and card-height-guard.mjs learn the new pinned heights — the guard runs inside npm run check and fails on a disagreement <!-- longclaw:item=ck_2c41c9b0 -->
 - [ ] List row: due within the row's two-chip budget, minding LC-93's 46px slot <!-- longclaw:item=ck_6ac72ae5 -->
 - [x] Ticket context menu: submenus for all four properties beside Move to and Priority, each row present only when the project enables that property — a default project's menu is unchanged <!-- longclaw:item=ck_a77f4bb8 -->
-- [x] Date submenus are quick picks with the resolved day as each row's hint, plus Clear and a Pick a date… that hands off to the panel — never a calendar inside a popover <!-- longclaw:item=ck_fcf48239 -->
+- [x] Date submenus offer quick picks, Clear and Pick a date…; the latter opens the shared calendar at the context menu, without opening the Ticket Panel <!-- longclaw:item=ck_fcf48239 -->
 - [x] Estimate submenu is the project's own scale: the enum under t-shirt, the sequence under Fibonacci, and a common-durations list under duration <!-- longclaw:item=ck_d3ec1253 -->
 - [x] Every property submenu carries Clear, so a context-menu set is never a one-way door <!-- longclaw:item=ck_c06f6e05 -->
 - [x] Proximity derived from an injected now, plus the day-boundary recompute the watcher cannot push <!-- longclaw:item=ck_55424527 -->
@@ -2906,4 +2906,22 @@ changes:
     to: "true"
 -->
 ### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_12c54a16
+kind: update
+occurred_at: 2026-09-09T06:38:54.212Z
+actor:
+  type: agent
+  id: codex
+  name: Codex
+changes:
+  - field: checklist.ck_fcf48239.text
+    from: Date submenus are quick picks with the resolved day as each row's hint, plus Clear and a Pick a date… that hands off to the panel — never a calendar inside a popover
+    to: Date submenus offer quick picks, Clear and Pick a date…; the latter opens the shared calendar at the context menu, without opening the Ticket Panel
+-->
+### Codex updated this ticket
+
+Decision revised by the user on 2026-09-09: Pick a date… now opens the shared calendar at the context menu for Due and Start, replacing the earlier panel handoff. Choosing or clearing a date uses the existing property edit and Undo path. Escape and outside dismissal return focus to the originating ticket. Month controls and Clear are keyboard-accessible. The Type menu row now uses the chosen circle, square and triangle outline icon.
 <!-- /longclaw:event -->

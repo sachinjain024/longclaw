@@ -252,12 +252,12 @@ describe("the calendar", () => {
   it("moves a week where the menus move a row", () => {
     // The app's first two-dimensional popover: up-down here means seven days,
     // not the next row of a list.
-    const picker = open("2026-09-28");
-    fireEvent.keyDown(picker, { key: "ArrowDown" });
+    open("2026-09-28");
+    fireEvent.keyDown(document.activeElement!, { key: "ArrowDown" });
     expect(document.activeElement?.getAttribute("aria-label")).toBe(
       "Mon 5 Oct 2026",
     );
-    fireEvent.keyDown(picker, { key: "ArrowLeft" });
+    fireEvent.keyDown(document.activeElement!, { key: "ArrowLeft" });
     expect(document.activeElement?.getAttribute("aria-label")).toBe(
       "Sun 4 Oct 2026",
     );

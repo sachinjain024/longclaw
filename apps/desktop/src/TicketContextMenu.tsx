@@ -18,6 +18,8 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { copyToClipboard } from "./clipboard";
+import { DatePicker } from "./DateField";
+import { fromIso, PROPERTY_LABELS } from "./properties";
 import { MenuList } from "./MenuList";
 import { belowAnchor, useFocusReturn, usePointPlacement } from "./popover";
 import type { Point } from "./popover";
@@ -78,13 +80,6 @@ export interface TicketActions {
     property: TicketProperty,
     next: string | undefined,
   ) => void;
-  /**
-   * `Pick a date…`, which is the menu declining to grow a calendar: the panel
-   * opens on this ticket with that date's own field focused, and the day is
-   * chosen where the field and the picker already live. The two dates only —
-   * they are the only submenus that offer the row.
-   */
-  onPickDate: (ticket: IndexedTicket, property: "due" | "start") => void;
   /** Raised by the context menu's archive row, which is App's to write. */
   onArchive: (ticket: IndexedTicket) => void;
   /**
@@ -224,6 +219,7 @@ function TicketContextMenu(props: {
   onClose: () => void;
 }) {
   const popover = useRef<HTMLDivElement>(null);
+  const [picking, setPicking] = useState<"due" | "start">();
   const position = usePointPlacement(props.origin, popover);
   useFocusReturn(props.anchor);
 
@@ -242,27 +238,48 @@ function TicketContextMenu(props: {
   }
 
   const act = props.actions;
-  const items = ticketMenuItems(ticket, {
-    onOpen: () => ran(() => act.onSelect(props.target.key)),
-    onChangeStatus: (next) =>
-      ran(() => indexed && act.onChangeStatus(indexed, next)),
-    onChangePriority: (next) =>
-      ran(() => indexed && act.onChangePriority(indexed, next)),
-    onChangeProperty: (property, next) =>
-      ran(() => indexed && act.onChangeProperty(indexed, property, next)),
-    onPickDate: (property) =>
-      ran(() => indexed && act.onPickDate(indexed, property)),
-    onArchive: () => ran(() => indexed && act.onArchive(indexed)),
-    onCopyKey: () =>
-      ran(
-        () =>
-          void copyToClipboard(ticket.key, {
-            done: `${ticket.key} copied`,
-            failed: `Could not copy ${ticket.key}`,
-          }),
-      ),
-    onCopyPath: () => ran(() => act.onCopyPath(ticket)),
-  }, { properties: props.properties, today: props.today });
+  const items = ticketMenuItems(
+    ticket,
+    {
+      onOpen: () => ran(() => act.onSelect(props.target.key)),
+      onChangeStatus: (next) =>
+        ran(() => indexed && act.onChangeStatus(indexed, next)),
+      onChangePriority: (next) =>
+        ran(() => indexed && act.onChangePriority(indexed, next)),
+      onChangeProperty: (property, next) =>
+        ran(() => indexed && act.onChangeProperty(indexed, property, next)),
+      onPickDate: setPicking,
+      onArchive: () => ran(() => indexed && act.onArchive(indexed)),
+      onCopyKey: () =>
+        ran(
+          () =>
+            void copyToClipboard(ticket.key, {
+              done: `${ticket.key} copied`,
+              failed: `Could not copy ${ticket.key}`,
+            }),
+        ),
+      onCopyPath: () => ran(() => act.onCopyPath(ticket)),
+    },
+    { properties: props.properties, today: props.today },
+  );
+
+  if (picking && indexed) {
+    const held = indexed[picking];
+    return (
+      <DatePicker
+        label={PROPERTY_LABELS[picking].field}
+        picked={held ? fromIso(held) : undefined}
+        now={props.today}
+        origin={props.origin}
+        field={null}
+        returnTo={props.anchor}
+        onPick={(next) =>
+          ran(() => act.onChangeProperty(indexed, picking, next))
+        }
+        onClose={props.onClose}
+      />
+    );
+  }
 
   return (
     <MenuList

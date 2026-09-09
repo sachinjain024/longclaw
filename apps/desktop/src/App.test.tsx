@@ -6232,37 +6232,6 @@ describe("the ticket context menu, end to end (LC-222)", () => {
     /** The real clock, because nothing here freezes one — see `openBoard`. */
     const today = () => toIso(startOfDay(Date.now()));
 
-    function detail(): TicketDetail {
-      return {
-        key: "LC-1",
-        relativePath: ".longclaw/tickets/LC-1/ticket.md",
-        contentHash: "hash-LC-1",
-        byteLength: 300,
-        readOnly: false,
-        raw: "",
-        rawTruncated: false,
-        missingAttachments: [],
-        orphanAttachments: [],
-        ticket: {
-          id: "id-LC-1",
-          key: "LC-1",
-          title: "Ticket LC-1",
-          status: "todo",
-          priority: "none",
-          labels: [],
-          createdAt: "2026-07-31T09:00:00Z",
-          updatedAt: "2026-07-31T09:00:00Z",
-          description: "",
-          checklist: [],
-          attachments: [],
-          activity: [],
-          historyIncomplete: false,
-          unknownKeys: [],
-          recordDiagnostics: [],
-        },
-      };
-    }
-
     it("offers nothing for a project that has turned them all off", async () => {
       await openBoard();
 
@@ -6322,21 +6291,50 @@ describe("the ticket context menu, end to end (LC-222)", () => {
       });
     });
 
-    it("hands Pick a date… to the panel's own control, focused", async () => {
-      vi.mocked(api.readTicket).mockResolvedValue(detail());
-      await openBoard([row("LC-1")], withDates);
+    it.each(["due", "start"] as const)(
+      "picks %s in the context menu without opening the panel",
+      async (property) => {
+        vi.mocked(api.editTicket).mockResolvedValue({
+          ticket: row("LC-1", {
+            [property]: "2026-09-30",
+            contentHash: "hash-LC-1-written",
+          }),
+          generation: 2,
+          changes: [],
+        });
+        await openBoard([row("LC-1", { [property]: "2026-09-28" })], {
+          ...withDates,
+          start: { enabled: true },
+        });
 
-      fireEvent.contextMenu(card("LC-1"));
-      fireEvent.click(screen.getByRole("menuitem", { name: /Due date/ }));
-      fireEvent.click(screen.getByRole("menuitem", { name: /Pick a date/ }));
+        fireEvent.contextMenu(card("LC-1"));
+        fireEvent.click(
+          screen.getByRole("menuitem", {
+            name: property === "due" ? /Due date/ : /Start date/,
+          }),
+        );
+        fireEvent.click(screen.getByRole("menuitem", { name: /Pick a date/ }));
 
-      // The menu never grows a calendar. What it does instead is put the caret
-      // in the field that has one, which is the whole of the hand-off: the
-      // panel is opened *and* entered, a row down from where it opens itself.
-      const field = await screen.findByLabelText("Due");
-      await waitFor(() => expect(document.activeElement).toBe(field));
-      expect(api.editTicket).not.toHaveBeenCalled();
-    });
+        const picker = screen.getByRole("dialog", {
+          name: property === "due" ? "Due calendar" : "Start calendar",
+        });
+        expect(picker.contains(document.activeElement)).toBe(true);
+        expect(api.readTicket).not.toHaveBeenCalled();
+        fireEvent.click(
+          screen.getByRole("button", { name: "Wed 30 Sep 2026" }),
+        );
+        await waitFor(() =>
+          expect(api.editTicket).toHaveBeenCalledWith({
+            projectId: project.id,
+            ticketKey: "LC-1",
+            expectedHash: "hash-LC-1",
+            edit: { [property]: "2026-09-30" },
+          }),
+        );
+        expect(picker.isConnected).toBe(false);
+        expect(api.readTicket).not.toHaveBeenCalled();
+      },
+    );
   });
 });
 

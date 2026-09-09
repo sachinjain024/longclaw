@@ -83,7 +83,7 @@ import { LANDING_SECTION, type SettingsSection } from "./settingsSections";
 import type { TicketMove } from "./ticketMove";
 import { useLongClawStore } from "./state";
 import { ThemeDot } from "./ThemeSwatch";
-import { TicketPanel, type PropertyFocusRequest } from "./TicketPanel";
+import { TicketPanel } from "./TicketPanel";
 import {
   isArchived,
   priorityLabel,
@@ -497,8 +497,6 @@ export function App() {
    * the Step 17 accessibility audit; `keyboard-focus-map.md:16-18,132,196`.
    */
   const [cardFocus, setCardFocus] = useState<FocusRequest>();
-  /** Which property control the panel should enter on; see `editProperty`. */
-  const [propertyFocus, setPropertyFocus] = useState<PropertyFocusRequest>();
   const focusCard = useCallback((key: string) => {
     setCardFocus((previous) => ({ key, nonce: (previous?.nonce ?? 0) + 1 }));
   }, []);
@@ -1708,20 +1706,6 @@ export function App() {
     );
   }
 
-  /**
-   * `Pick a date…`, which is the context menu declining to grow a calendar.
-   *
-   * The panel opens on the ticket and that date's own field takes the caret,
-   * so the four quick picks stay a shortcut and the control behind them is
-   * still where any other day is reached. A count rather than the property
-   * alone: the same row pressed twice is two hand-offs, and the second has to
-   * move focus again even though nothing about the ask has changed.
-   */
-  function pickDate(ticket: IndexedTicket, property: "due" | "start") {
-    openTicket(ticket.key);
-    setPropertyFocus((held) => ({ property, nonce: (held?.nonce ?? 0) + 1 }));
-  }
-
   function changeStatus(ticket: IndexedTicket, next: TicketStatus) {
     const projectId = activeProjectId;
     if (!projectId || next === ticket.status) return;
@@ -2339,7 +2323,6 @@ export function App() {
                     // can write and only one of which stays inside the menu
                     // (LC-227).
                     onChangeProperty={changeProperty}
-                    onPickDate={pickDate}
                     // The context menu's two rows that are App's to answer: one
                     // writes, and one needs the project folder a surface has
                     // never been told (LC-222).
@@ -2389,7 +2372,6 @@ export function App() {
                     onChangePriority={changePriority}
                     onChangeStatus={changeStatus}
                     onChangeProperty={changeProperty}
-                    onPickDate={pickDate}
                     onArchive={toggleArchived}
                     onCopyPath={(ticket) =>
                       copyTicketPath(project.rootPath, ticket)
@@ -2429,7 +2411,6 @@ export function App() {
             }
             now={now}
             today={today}
-            focusProperty={propertyFocus}
             archived={openRow !== undefined && isArchived(openRow)}
             // The file the row the card was drawn from names, so one the board
             // already knows will not parse opens as the raw-file modal rather

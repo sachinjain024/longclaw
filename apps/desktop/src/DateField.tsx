@@ -19,7 +19,7 @@
  * blur, never per keystroke, because `28 Se` is not a state worth reporting on.
  */
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { classes } from "./classes";
 import { fieldCommitted } from "./fieldUndo";
@@ -36,10 +36,11 @@ import {
   toIso,
 } from "./properties";
 import {
-  liftIntoView,
   useDismissOnPressOutside,
   useFocusReturn,
-  usePopoverPlacement,
+  belowAnchor,
+  usePointPlacement,
+  type Point,
 } from "./popover";
 
 /** Stated rather than measured: the placement right-aligns before it renders. */
@@ -67,16 +68,6 @@ export function DateField(props: {
   now: number;
   /** A resolved day as `YYYY-MM-DD`, or `undefined` to clear. */
   onCommit: (iso: string | undefined) => void;
-  /**
-   * A count that says "put the caret in here", or nothing — which is every way
-   * this field is drawn but one.
-   *
-   * The context menu's `Pick a date…` declines to grow a calendar and hands
-   * the day to this control instead (LC-227). A count rather than a boolean
-   * because the same row pressed twice is two hand-offs, and the second has to
-   * move focus again even though nothing else about the ask has changed.
-   */
-  enter?: number;
 }) {
   const shown = display(props.value, props.now);
   const [text, setText] = useState(shown);
@@ -95,13 +86,6 @@ export function DateField(props: {
     setText(shown);
     setRefused(undefined);
   }
-
-  useEffect(() => {
-    // On mount as well as on a change, because the two do not arrive together:
-    // the panel is asked for the ticket and the property in one gesture, and
-    // this field does not exist until the read comes back.
-    if (props.enter !== undefined) input.current?.focus();
-  }, [props.enter]);
 
   const parsed = parseDate(text, props.now);
   // Dirty is the whole of "is there anything to commit". Comparing the *text*
@@ -267,7 +251,7 @@ export function DateField(props: {
  * The grid is one tab stop with the cursor moving inside it, the way a board
  * column's cards do: 42 stops in a popover would be a month to Tab across.
  */
-function DatePicker(props: {
+export function DatePicker(props: {
   label: string;
   /** The day the field currently resolves to, marked and opened on. */
   picked: Date | undefined;
@@ -276,35 +260,25 @@ function DatePicker(props: {
   field: HTMLElement | null;
   /** Where focus goes when it closes. */
   returnTo: HTMLElement | null;
+  /** A context menu opens at the pointer rather than under a date field. */
+  origin?: Point;
   onPick: (iso: string | undefined) => void;
   onClose: () => void;
 }) {
   const today = startOfDay(props.now);
   const popover = useRef<HTMLDivElement>(null);
   const [cursor, setCursor] = useState(props.picked ?? today);
-  const [lift, setLift] = useState(0);
 
   useFocusReturn(props.returnTo);
-  const position = usePopoverPlacement(props.field, PICKER_WIDTH);
+  const position = usePointPlacement(
+    props.origin ?? belowAnchor(props.field, PICKER_WIDTH) ?? { x: 8, y: 8 },
+    popover,
+  );
   useDismissOnPressOutside({
     popover,
     anchor: props.field,
     onDismiss: props.onClose,
   });
-
-  useLayoutEffect(() => {
-    const measured = popover.current?.getBoundingClientRect();
-    if (!measured) return;
-    setLift((already) => {
-      // Measured where it is now, so the lift already applied is added back
-      // before asking again — otherwise a second pass would lift it twice.
-      const at = {
-        top: measured.top - already,
-        bottom: measured.bottom - already,
-      };
-      return liftIntoView(at, window.innerHeight);
-    });
-  }, []);
 
   const cell = useRef<HTMLButtonElement>(null);
   useLayoutEffect(() => {
@@ -319,6 +293,15 @@ function DatePicker(props: {
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      props.onClose();
+      return;
+    }
+    // Header and Clear buttons own Enter/Space; only a day moves the cursor.
+    if (!(event.target as HTMLElement).classList.contains("date-cell")) return;
+    event.stopPropagation();
     // Up and down mean a week here, which is the one thing this popover does
     // that none of the app's menus do.
     const step: Record<string, number> = {
@@ -342,12 +325,6 @@ function DatePicker(props: {
       props.onPick(toIso(cursor));
       return;
     }
-    if (event.key === "Escape") {
-      event.preventDefault();
-      // Stops here rather than closing the panel behind the picker.
-      event.stopPropagation();
-      props.onClose();
-    }
   }
 
   return (
@@ -356,7 +333,7 @@ function DatePicker(props: {
       role="dialog"
       aria-label={`${props.label} calendar`}
       ref={popover}
-      style={position && { ...position, top: position.top - lift }}
+      style={position}
       onKeyDown={onKeyDown}
     >
       <div className="date-picker-head">
@@ -365,7 +342,7 @@ function DatePicker(props: {
         </strong>
         <button
           type="button"
-          tabIndex={-1}
+          tabIndex={0}
           className="date-step"
           aria-label="Previous month"
           onClick={() => setCursor((day) => addMonths(day, -1))}
@@ -374,7 +351,7 @@ function DatePicker(props: {
         </button>
         <button
           type="button"
-          tabIndex={-1}
+          tabIndex={0}
           className="date-step"
           aria-label="Next month"
           onClick={() => setCursor((day) => addMonths(day, 1))}
@@ -417,11 +394,10 @@ function DatePicker(props: {
       </div>
       {/* Clearing is a first-class act and is not the same as never set: on
           disk both are no key, so the distinction lives in the edit command.
-          Not a tab stop, because emptying the field is the keyboard's way to
-          do exactly this — the row is here for the pointer. */}
+          A tab stop too: the context menu's calendar has no field to empty. */}
       <button
         type="button"
-        tabIndex={-1}
+        tabIndex={0}
         className="date-clear"
         onClick={() => props.onPick(undefined)}
       >

@@ -94,7 +94,6 @@ function list(props?: {
     property: TicketProperty,
     next: string | undefined,
   ) => void;
-  onPickDate?: (ticket: IndexedTicket, property: "due" | "start") => void;
   onArchive?: (ticket: IndexedTicket) => void;
   properties?: PropertiesConfig;
   onCopyPath?: (ticket: TicketRow) => void;
@@ -114,7 +113,6 @@ function list(props?: {
       onChangePriority={props?.onChangePriority ?? noop}
       onChangeStatus={props?.onChangeStatus ?? noop}
       onChangeProperty={props?.onChangeProperty ?? noop}
-      onPickDate={props?.onPickDate ?? noop}
       onArchive={props?.onArchive ?? noop}
       onCopyPath={props?.onCopyPath ?? noop}
       onMoveTicket={props?.onMoveTicket ?? noop}
