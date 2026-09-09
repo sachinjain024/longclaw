@@ -12,12 +12,12 @@
 
 | Store | Contents | Authority |
 |---|---|---|
-| `ticket.md` frontmatter | id, key, title, status, priority, assignee, labels (slugs), rank, created_at, updated_at | canonical |
+| `ticket.md` frontmatter | id, key, title, status, priority, assignee, labels (slugs), rank, created_at, updated_at, and the four opt-in properties — type, due, start, estimate (LC-227) | canonical |
 | `ticket.md` body | description (CommonMark), `## Checklist` tasks + stable item IDs, `## Attachments` registry, `## Activity` bounded events | canonical |
-| `longclaw.yaml` | project id, name, key, **theme**, created_at, people registry, label definitions | canonical |
+| `longclaw.yaml` | project id, name, key, **theme**, created_at, people registry, label definitions, property configuration (ADR 0013) | canonical |
 | `.longclaw/AGENTS.md` | generated agent editing contract | documentation |
 | App state (OS app-support dir) | project registry (paths), last active project, starred, appearance preference, per-project board/list view, ordering preference (ADR 0003), filter query, archived-view toggle, window/panel state, palette history, index, watcher checkpoints, content hashes | disposable / device-local |
-| Derived at render | checklist progress, counts, relative times, the acknowledgement, degraded status | never stored |
+| Derived at render | checklist progress, counts, relative times, the acknowledgement, degraded status, the due rung | never stored |
 
 ## Per-surface requirements
 
@@ -52,7 +52,7 @@
 | Checklist fraction + progress | checklist items + checked | body `## Checklist` (derived) |
 | Ordering within column | priority (default) or rank (Manual mode, ADR 0003) | frontmatter `priority` / `rank`; mode from app state (device-local, per project) |
 | Archived exclusion / list archived group | archived_at (ADR 0004) | frontmatter `archived_at` |
-| Updated-at (list) | updated_at | frontmatter |
+| Due chip (card key row, list row) | due + the project's `attention_days`, read against an injected `now` | frontmatter `due` + `longclaw.yaml` (rung derived) |
 | The acknowledgement + "updated by agent · 12s" | last external write time + actor type | watcher event + newest activity actor (derived, app state) |
 | Degraded card/row | parse result, raw bytes, error, path | storage layer (never written back) |
 
@@ -62,7 +62,7 @@
 |---|---|---|
 | ID chip, file path line | key; path derived from key | frontmatter; path convention `tickets/<KEY>/ticket.md` |
 | Title (editable) | title | frontmatter |
-| Status/priority menus | current value + fixed v0 enum (ADR 0002) | frontmatter |
+| Status/priority menus, and the properties rail | current value + fixed v0 enum (ADR 0002); the enabled properties and each one's vocabulary | frontmatter + `longclaw.yaml` |
 | Archive / Unarchive control | archived_at (ADR 0004) | frontmatter `archived_at` |
 | Labels row + picker | slugs + project label defs | frontmatter + `longclaw.yaml` |
 | Description (view/edit) | markdown body (non-reserved sections) | `ticket.md` body |
@@ -163,3 +163,40 @@ be portable; none enter the files.
    UI in v0; the v1 format ships the registry and `attachments/`
    directory, and the app preserves agent-registered attachments
    losslessly.
+7. **Ticket properties** — *closed by
+   [ADR 0013](../../adr/0013-property-configuration-lives-in-longclaw-yaml.md).*
+   `type`, `due`, `start` and `estimate` are optional frontmatter, absent by
+   default on all 233 tickets that predate them; their configuration joins
+   labels in `longclaw.yaml`. `due` and `start` are **date-only
+   `YYYY-MM-DD`**, a new shape in the YAML subset and deliberately not the
+   RFC 3339 timestamps beside them: a due date is a *day*, and
+   `2026-09-14T00:00:00Z` reads as Sep 13 in UTC-8.
+
+## Ticket properties (LC-227)
+
+Added below the last cited line; the tables above were rewritten in place.
+
+| Element | Data | Source |
+|---|---|---|
+| Which properties any surface draws | the project's enabled set | `longclaw.yaml` `properties.*.enabled` |
+| Type chip / menu | ticket `type` slug → the project's type values | frontmatter + `longclaw.yaml` |
+| Estimate control and card value | ticket `estimate` + the project's system and its conversion | frontmatter + `longclaw.yaml` |
+| Date field | ticket `due` / `start`; the typed text, which is not derived from it | frontmatter + component state |
+| Date picker's marks | the current value, and today from the injected `now` | frontmatter + app state (clock) |
+| Due rung | `due` vs `now`, `attention_days`, status, `archived_at` | derived, never stored |
+| Settings count beside a property | how many tickets carry a value for it | index (available while the property is off) |
+| Menu quick picks | four days computed from the injected `now` | derived |
+| CLI refusals | the enabled set and the project's vocabularies | `longclaw.yaml`, and the generated `.longclaw/AGENTS.md` documents only that set |
+
+**Three of these are derived and must stay derived.** The rung, the quick picks
+and the field's echo are all readings of a date against `now`, so each changes at
+midnight with no file write; none of them may reach a height, an offset or a sort
+key. Any ordering by due inherits that: it sorts the **date**, so the board does
+not re-order itself at midnight along with the colours.
+
+**One is available precisely because it is not read from the project file.** The
+count beside a property in settings comes off the index rather than out of
+`longclaw.yaml`, which is what keeps it available *while the property is off* —
+a disabled property is still on every ticket that had one, and that row is then
+the only place the fact is visible. A degraded ticket is not counted: its bytes
+are on disk and unread.
