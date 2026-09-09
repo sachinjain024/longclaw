@@ -10,7 +10,7 @@ labels:
 type: feature
 due: 2026-09-09
 created_at: 2026-08-22T06:13:17.138Z
-updated_at: 2026-09-09T08:55:44.477Z
+updated_at: 2026-09-09T09:47:25.926Z
 ---
 
 Brainstorm with LLM agent like what other fields we should support. A few items I can think of are Type - Bug/Task, Due State, Start Date, Effort
@@ -1684,7 +1684,7 @@ it yet.
 - [x] Update keyboard-focus-map.md in place for the rail's keyboard path, and for the picker's grid — the app's first two-dimensional popover, where the menus' up-down means a week <!-- longclaw:item=ck_8c1b2d21 -->
 - [x] npm run a11y:audit, and probe:header since the rail widens the panel <!-- longclaw:item=ck_e4ce4244 -->
 - [x] probe:drag: a drop is arithmetic over the card offsets (gapAt), so a new card height moves where a dragged ticket lands <!-- longclaw:item=ck_5fa993af -->
-- [ ] npm run perf:board and perf:list, and quote the numbers — the due comparator touches ordering <!-- longclaw:item=ck_c404ee03 -->
+- [x] npm run perf:board and perf:list, and quote the numbers — the due comparator touches ordering <!-- longclaw:item=ck_c404ee03 -->
 - [ ] npm run verify <!-- longclaw:item=ck_5e61f2a1 -->
 - [x] A /docs page for ticket properties and a /changelog entry <!-- longclaw:item=ck_aa77f085 -->
 - [x] docs/release-notes/v0.1.0.md carries no properties write-up — § What it does is missing all four, and the published changelog is now ahead of the notes <!-- longclaw:item=ck_a1ba21e6 -->
@@ -3491,4 +3491,50 @@ Fixed both halves. The count is read as the digits in the heading, with a named 
 The board's navigation lane measures again: n=145 where it was n=0.
 
 The numbers are NOT quotable yet and the item stays open. Both runs exit 1 with the harness's own refusal: 'NOT COMPARABLE: animation frames are 20ms (50.0 Hz), not the 16.7ms (60 Hz) the Step 4 budgets were set at.' pmset -g reports lowpowermode 1 — Low Power Mode is on, on AC power, which is what caps the frame. Every number is quantized to a 20ms frame, so the run is evidence for nothing. Turning that off needs sudo and is the user's machine, so it is theirs to do; the runs are minutes and will be redone against a 60 Hz frame before this item is ticked.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_1f7083f5
+kind: update
+occurred_at: 2026-09-09T09:47:25.926Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_c404ee03.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+perf:board and perf:list, four runs, all exit 0 and all within budget. 60 Hz (frame_ms=17), Low Power Mode off, quiet machine, 5000 tickets against a 600-ticket floor.
+
+surface/order              interaction        n    p50  p95  max   floor p50/p95
+board  priority            keyboard ArrowDown 145   14   15   15      14 / 15
+board  priority            scroll             200   17   19   20      18 / 19
+board  priority            filter              61   16   33   36      16 / 29
+board  priority            external write      40   14   17   24      16 / 17
+board  due                 keyboard ArrowDown 145   14   15   16      13 / 15
+board  due                 scroll             200   17   19   19      17 / 19
+board  due                 filter              61   16   32   38      16 / 28
+board  due                 external write      40   16   17   23      16 / 17
+list   priority            keyboard ArrowDown 145   14   15   19      14 / 15
+list   priority            scroll             200   17   19   19      17 / 18
+list   priority            filter              61   16   21   23      16 / 22
+list   priority            external write      40   16   16   18      15 / 17
+list   due                 keyboard ArrowDown 145   14   16   19      14 / 15
+list   due                 scroll             200   17   19   19      17 / 19
+list   due                 filter              61   16   22   30      16 / 21
+list   due                 external write      40   15   17   17      15 / 16
+
+The due comparator costs nothing measurable. Due and priority agree within a millisecond on every interaction on both surfaces, and every median is on its floor, so 5000 tickets sorted by due are no more work than 600. The worst p95 anywhere is 33ms, on the board's filter, and the budget is 50.
+
+Getting to a run worth quoting took three fixes, two of them to the harness's honesty rather than to the app.
+
+Low Power Mode capped the frame at 50 Hz and then the display's own 100 Hz gave a 10ms frame; both were refused by the harness's cadence check, correctly, and both were the user's to change. Neither is a code issue and neither is recorded as one.
+
+The third was mine to fix and is the one that mattered for this item: measure() tested for ORDER === 'manual' and did nothing for any other value, so --order=due left the surface in priority and printed order=due over it — the wrong comparator wearing the right label. The item exists because the due comparator touches ordering, so every run of it before this commit would have measured priority and said due. It now selects whichever order is named through the same menu control a person uses, and stops with a named error when the menu does not offer it; --order=nonsense fails with 'the board's order menu offers no "Nonsense"'. first_paint_ms moving from 140 to 464 on the board is the menu click and the re-sort actually happening.
+
+Also confirmed: the empty-lane guard from the previous commit did not fire on any of the four runs, so every lane collected its samples.
 <!-- /longclaw:event -->

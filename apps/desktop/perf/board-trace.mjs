@@ -69,6 +69,8 @@ const SURFACE = argument("surface", "board");
  * Which order the surface is in (ADR 0003). Manual is the heavier comparator —
  * it falls through to priority for every card with no rank, and the fixture has
  * no ranks — so `--order=manual` is the one to run after touching the sort.
+ * `--order=due` is the other one worth running since LC-227, and for the same
+ * reason: it is a comparator the default run never reaches.
  */
 const ORDER = argument("order", "priority");
 
@@ -440,9 +442,23 @@ async function measure(browser, size) {
     { timeout: 60_000 },
   );
   await UI.open(page);
-  if (ORDER === "manual") {
+  // Priority is what the surface opens in, so it is the one order that needs no
+  // menu. Every other one is chosen through the same control a person uses, and
+  // a name the menu does not offer stops the run: this used to test for `manual`
+  // alone, so `--order=due` left the surface in priority and printed
+  // `order=due` over it, which is a measurement of the wrong comparator wearing
+  // the right label.
+  if (ORDER !== "priority") {
+    const wanted = ORDER[0].toUpperCase() + ORDER.slice(1);
     await page.click('button[aria-label^="Order:"]');
-    await page.click('[role="menuitemradio"]:has-text("Manual")');
+    const option = page.locator(`[role="menuitemradio"]:has-text("${wanted}")`);
+    if ((await option.count()) === 0) {
+      throw new Error(
+        `the ${UI.label}'s order menu offers no "${wanted}" — ` +
+          `--order must name one of its rows`,
+      );
+    }
+    await option.first().click();
     await page.waitForSelector(UI.row, { timeout: 30_000 });
   }
   const firstPaintMs = Date.now() - openedAt;
