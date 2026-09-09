@@ -5,10 +5,8 @@ key: LC-216
 title: Implement / Integrate analytics / tracking on App Open
 status: todo
 priority: urgent
-labels:
-  - release
 created_at: 2026-08-11T14:58:17.500Z
-updated_at: 2026-08-11T14:58:17.500Z
+updated_at: 2026-09-09T02:20:21.982Z
 ---
 
 We need to know how many users are using app on weekly/monthly basis so come up with a very minimal solution that doesn’t actually count as tracking but on the backend it is tracking.
@@ -24,4 +22,19 @@ actor:
   id: local
 -->
 ### You created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_22e01377
+kind: update
+occurred_at: 2026-09-09T02:20:21.982Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: labels
+    from: release
+    to: ""
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

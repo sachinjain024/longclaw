@@ -5,10 +5,8 @@ key: LC-206
 title: Add Support for adding attachments
 status: todo
 priority: p2
-labels:
-  - release
 created_at: 2026-08-11T14:38:36.097Z
-updated_at: 2026-08-11T14:38:36.097Z
+updated_at: 2026-09-09T02:20:08.073Z
 ---
 
 Users should be able to add attachments in description and comments.
@@ -24,4 +22,19 @@ actor:
   id: local
 -->
 ### You created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_c4fa6c27
+kind: update
+occurred_at: 2026-09-09T02:20:08.073Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: labels
+    from: release
+    to: ""
+-->
+### You updated this ticket
 <!-- /longclaw:event -->
