@@ -1943,8 +1943,16 @@ mod tests {
     }
 
     /// `0` empties the approaching rung; a negative value is not a width.
+    ///
+    /// And it refuses the **file**, rather than degrading the one setting the
+    /// way a ticket's malformed value degrades (invariants 10, 11, 14). This is
+    /// the file whose contents decide what every other file means, so a project
+    /// that opened while quietly substituting a default for a setting it could
+    /// not read would be a project whose configuration is not what its file
+    /// says — and every write made under it would be made under a rule nobody
+    /// chose. `system: banana` is refused for the same reason.
     #[test]
-    fn a_negative_attention_window_is_refused_and_zero_is_not() {
+    fn a_negative_attention_window_refuses_the_file_and_zero_does_not() {
         let zero =
             format!("{PROJECT}properties:\n  due:\n    enabled: true\n    attention_days: 0\n");
         let parsed = ProjectDocument::parse(&zero).expect("zero should be legal");

@@ -10,7 +10,7 @@ labels:
 type: feature
 due: 2026-09-09
 created_at: 2026-08-22T06:13:17.138Z
-updated_at: 2026-09-09T10:42:24.828Z
+updated_at: 2026-09-09T12:22:13.688Z
 ---
 
 Brainstorm with LLM agent like what other fields we should support. A few items I can think of are Type - Bug/Task, Due State, Start Date, Effort
@@ -563,8 +563,11 @@ was which.
   the width a dragged, remembered number, so "is there room for a rail" is a
   question about that box and never about the window. At 660px — 560 plus the
   rail plus the gap — the rail appears; under it the properties fold back into
-  the stacked meta grid exactly where they stand today. Source order is
-  main-then-rail, so the fold is a no-op rather than a reorder.
+  the stacked meta grid exactly where they stand today. ~~Source order is
+  main-then-rail, so the fold is a no-op rather than a reorder.~~ **Corrected
+  2026-09-09, after the build**: main-then-rail is the source order that makes
+  the fold a *reorder*, because the properties stand above the description
+  today. It is rail-then-main — see "The source order the fold decides" below.
 - **A 232px rail, seven rows, name above control.** The one departure from the
   meta grid, and it is forced: 232px spending 84 on a label column leaves 148
   for a date field and its trigger, and no room at all for the estimate scale.
@@ -618,9 +621,12 @@ place where things are decided"*. Four rules keep the dates inside it:
 - **`Pick a date…` is the way out**, and it hands the job to the panel's real
   control. Anything the four rows cannot reach is reached where the Field and
   the picker already live.
-- **Every submenu carries `Clear`.** Clearing is first-class everywhere else
-  this ticket touches, and a submenu that can only ever *set* a property is a
-  one-way door.
+- **Every submenu carries `Clear`** — *and only where there is something to
+  clear*, which is how it was built and is recorded under "Clear, where there is
+  something to clear" below. Clearing is first-class everywhere else this ticket
+  touches, and a submenu that can only ever *set* a property is a one-way door;
+  a `Clear` on a property holding nothing is a row that does nothing and says
+  the ticket holds a value.
 
 **`due` and `start` offer the same rows**, which is the grammar section's own
 trade one surface over: two adjacent controls whose vocabulary differs is worse
@@ -1261,7 +1267,7 @@ asked for the ticket and the property in one gesture, and the field does not
 exist until the read comes back. A field that focuses itself on mount handles
 that for free; a query has to keep a nonce and retry.
 
-`keyboard-focus-map.md:197` is amended in place for it, one line for one line.
+`keyboard-focus-map.md:198` is amended in place for it, one line for one line.
 The line was not pinned, so nothing was re-pointed and nothing shifted.
 
 ### Clear, where there is something to clear
@@ -1626,6 +1632,127 @@ it yet.
 - **`toast.property.off`** — The count sentence is `settings.kept`, said here and in the row — one string, because two spellings is how they come to disagree.
 - **`toast.estimate.system`** — Not in `src/` yet. It also says the system in lower case, which no other string in the pane does — the segment says `Fibonacci`.
 
+## Built 2026-09-09: what the pull request's review found
+
+Two reviews of PR #25 against `origin/main`, run along a Standards axis and a
+Spec axis. Nine findings between them, of which two were already fixed by later
+commits on the branch (the missing copy deck, the unrun design sync) and seven
+stood. What each one changed:
+
+### The two picker keys that a ticked row did not have
+
+The worst of them, because the checklist said otherwise. `ck_31cdc0b5` — "Date
+input: picker plus the typed forms" — was ticked while two of the grammar's own
+seven key rows had never been written: `⇧PageUp` · `⇧PageDown` for a year and
+`Home` · `End` for the week's ends. The handler early-returned on meta, ctrl and
+alt and **never looked at `shiftKey`**, so `⇧PageUp` stepped a month and said
+nothing; `Home` and `End` fell through to the browser's own, which in a popover
+is nothing at all. Both are now in `DateField.tsx`, both under a test that was
+confirmed red first, and the keyboard map has the rows it was missing too.
+
+A year is `addMonths(day, ±12)` rather than arithmetic of its own, which is what
+makes 29 February clamp to the 28th rather than overshoot to 1 March — asserted,
+because a year step is exactly where a naive `setFullYear` goes wrong.
+
+`Home` and `End` are **the grid's own row**, not the seven days around the
+cursor, and they read `startOfWeek` — new in `properties.ts`, and now what the
+grid lays its rows out with as well. The rule "a week starts on Monday, because
+the app has no locale to ask and the on-disk form is ISO 8601" was spelled in
+two places the moment `Home` existed; it is spelled in one.
+
+### The source order the fold decides
+
+The prototype's settled note says "source order is main-then-rail, so the fold
+is a no-op rather than a reorder", and the build does the opposite. The review
+was right that no departure was recorded; it is the **note** that was wrong.
+
+Below 660px the properties stand where the meta grid stands today, which is
+*above* the description. Main-then-rail would fold them underneath it — a
+reorder, and of the two halves the person reads. So the rail is first in the
+DOM and second on screen, placed with explicit grid rows rather than with
+`order`, which moves paint without moving the tab stops.
+
+The consequence the review asked about is real and is the cost: below the fold
+the rail's controls are tabbed **before** the description, and above it they are
+tabbed before it too, on the right. That is one tab order at both widths, which
+is the property worth having — a container query that reordered the stops as the
+panel is dragged would be a panel whose keyboard behaviour changes width by
+width. The prototype note is struck through in place rather than rewritten,
+because what it proposed is part of the record.
+
+### One grammar, written twice, already drifted
+
+`FIBONACCI_SCALE`, the duration grammar, the seeded t-shirt scale, the day form
+and the three conversion defaults were each written out twice — once in
+`core/project.rs` and once in `properties.ts` — in two languages with nothing
+holding them together. That is the shape `fixtures/project-key-grammar.json`
+already exists to prevent, after the create form spent a release suggesting keys
+the backend refused.
+
+**And it had already drifted.** `parse_duration` refuses a zero amount; the
+frontend's `DURATION` regex does not. So `0d` was a duration to every surface
+that reads one — the estimate control read it as a value it knew, the card drew
+it, the ordering gave it a minute count — and the writer refused it. The visible
+form is an estimate control that accepts what you type and will not save it.
+
+`fixtures/property-grammar.json` is the shared case table: 24 duration cases,
+11 day cases, both scales, the systems and their default, the three conversion
+defaults, and the minute arithmetic stated as arithmetic rather than as a table
+of constants — because the conversion is a project setting and `1d` is 480
+minutes only while the working day is eight hours long. `tests/property_grammar.rs`
+and `propertyGrammar.test.ts` are the two halves. The frontend half went red on
+`0d` before the fix, which is the whole reason the fixture is worth its bytes.
+
+The fix is `parseDuration` in `properties.ts`, mirroring the Rust rule, behind
+`readEstimate` and `estimateMinutes`. **`splitDuration` deliberately keeps the
+wider, lexical split**: it fills the two boxes a person edits, and a `0d` already
+on disk still has to be legible in them. What may be *written* is
+`readEstimate`'s question, and the control asks it on commit.
+
+### Three smaller duplications
+
+- **`usePropertyDraft`.** `PropertyControl` was extracted so three surfaces
+  cannot disagree about what a type is edited with; both create surfaces then
+  held an identical `useState` and an identical setter for what the draft
+  *holds*. That half is now a hook. Quick create gained the clear test full
+  create already had — one surface asserting the shared contract does not say it
+  is in the other's path.
+- **`TicketProperties::set`.** `get` had no mirror, so the four-arm assignment
+  match was written out at both places that build a `TicketProperties` from a
+  request. A fifth property meant finding two matches rather than extending one.
+- **An orphaned doc comment.** Two JSDoc blocks stacked before `hasSecondRow` in
+  `boardGeometry.ts`; the first belonged to `cardStrides`, which had been
+  shipping undocumented under it, and both made the midnight argument. It is
+  back on `cardStrides`, and makes the argument once.
+
+### The one finding that was not a defect
+
+`attention_days: -1` fails `ProjectDocument::parse` outright, and the review
+asked whether that should degrade instead, since the format's posture elsewhere
+is degrade-and-keep. It should not, and the distinction is which file:
+
+- **A ticket degrades.** A malformed value reads as unreadable, the rest of the
+  ticket parses, and the bytes survive the next write (invariants 10, 11, 14).
+  One bad ticket must not cost a person the other 232.
+- **A project file refuses.** `longclaw.yaml` is the one file whose contents
+  decide what every other file *means* — `system: banana` has the same effect,
+  and so does a malformed `labels:` block. A project that opened while quietly
+  substituting a default for a setting it could not read would be a project
+  whose configuration is not what its file says, and every write made under it
+  would be made under a rule nobody chose.
+
+Recorded here rather than changed, and the negative case now says so in
+`project.rs`'s own test name.
+
+### The skills lockfile is the rule, not one upstream
+
+`AGENTS.md` said everything vendored under `.agents/skills/` comes from
+`mattpocock/skills`. `26ad22a` installed `caveman` from `JuliusBrussee/caveman`
+on purpose, under a checklist row, so the rule was false the moment it was
+written down. The sentence now names the lockfile — which is what actually holds
+provenance, one `source` per entry — rather than one upstream it happened to be
+true of.
+
 ## Checklist
 
 - [x] ADR: property configuration joins labels in longclaw.yaml — record why ADR 0002's reservation is deferred, and what would revisit it <!-- longclaw:item=ck_945a1ca9 -->
@@ -1688,7 +1815,7 @@ it yet.
 - [x] npm run verify <!-- longclaw:item=ck_5e61f2a1 -->
 - [x] A /docs page for ticket properties and a /changelog entry <!-- longclaw:item=ck_aa77f085 -->
 - [x] docs/release-notes/v0.1.0.md carries no properties write-up — § What it does is missing all four, and the published changelog is now ahead of the notes <!-- longclaw:item=ck_a1ba21e6 -->
-- [ ] Run /design-sync to push the settled Board card and the new property components to the Claude Design project (LC-63) <!-- longclaw:item=ck_0bc85504 -->
+- [x] Run /design-sync to push the settled Board card and the new property components to the Claude Design project (LC-63) <!-- longclaw:item=ck_0bc85504 -->
 - [x] Install Caveman skill for Claude Code and Codex in this repo <!-- longclaw:item=ck_34b6d30d -->
 ## Activity
 
@@ -3587,4 +3714,20 @@ changes:
 ### Claude Code updated this ticket
 
 npm run verify, green end to end on LC-227-property-config-adr at 02af7ee, the branch as pushed. exit 0. 18 structural guards clean, including citation-guard: 498 citations clean across the 6 pinned documents, tab-order-guard: 95 files clean, token-source-guard: 990 tracked files clean, glyph-drift-guard: 17 copies clean, card-height-guard: 5 invariants clean, release-audit: 113 files clean. Frontend: 47 test files, 1343 tests passed. Rust: 206 unit tests plus every integration suite ok. Vite build: 125 modules transformed, built in 721ms. test:watcher on the native adapter, not the polling one: 2 passed in 6.52s, PERF external_visibility_pipeline_ms=187.61 coalesced_events=6. Only .longclaw/tickets/LC-214/ticket.md was dirty in the tree, another agent's ticket file, no app source. Not run, and not required by this change: perf:board and perf:list (quoted on ck_1e0a3f7c earlier), probe:drag, probe:checklist, probe:header, matrix, audit:network. a11y:audit was run green separately for the palette work (A1-A5 PASS).
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_bbe26c15
+kind: update
+occurred_at: 2026-09-09T12:22:13.688Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_0bc85504.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->

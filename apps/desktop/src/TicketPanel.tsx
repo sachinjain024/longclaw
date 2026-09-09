@@ -1405,8 +1405,10 @@ export function TicketPanel(props: TicketPanelProps) {
               Status and Priority below the activity record, where a 560px panel
               — today's default — has never had them. This way the properties
               stay above the description at every width, which is where they
-              stand today, and the tab order is the one
-              `keyboard-focus-map.md` already describes. */}
+              stand today, and the rail's stops come before the description's at
+              both widths rather than swapping as the panel is dragged. The
+              prototype's note is struck through in place and the departure is
+              recorded in LC-227, under "The source order the fold decides". */}
           <div className="panel-body">
             <div className="panel-rail">
               {/* The order it reads: what the ticket *is*, then what kind of

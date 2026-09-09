@@ -67,7 +67,12 @@ docs, one line in `DOCS_NAV` (`src/lib/site.ts`).
 
 **Four skills cover the routine work; use them rather than working from memory.**
 They are the only first-party skills in `.agents/skills/` — everything else there
-is vendored from `mattpocock/skills` and tracked in `skills-lock.json`.
+is vendored, and every vendored skill is tracked in `skills-lock.json` with the
+`source` it came from. `mattpocock/skills` is where nearly all of them come from;
+`caveman` came from `JuliusBrussee/caveman` and is the reason this sentence names
+the lockfile rather than one upstream. **The lockfile is the rule**: a skill under
+`.agents/skills/` that is neither one of the four above nor an entry there is
+untracked, and that is the thing to fix.
 
 | Skill | For |
 |---|---|
