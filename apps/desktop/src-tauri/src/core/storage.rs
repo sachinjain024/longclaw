@@ -1064,13 +1064,7 @@ pub fn prepare_new_ticket_as(
     let mut properties = TicketProperties::default();
     for property in Property::ALL {
         if let Some(value) = request.properties.get(property) {
-            let value = validate_property(property, value)?;
-            match property {
-                Property::Type => properties.ticket_type = Some(value),
-                Property::Due => properties.due = Some(value),
-                Property::Start => properties.start = Some(value),
-                Property::Estimate => properties.estimate = Some(value),
-            }
+            properties.set(property, Some(validate_property(property, value)?));
         }
     }
     let tickets = tickets_root(project_root);

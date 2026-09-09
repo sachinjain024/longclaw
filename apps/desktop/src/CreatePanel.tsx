@@ -36,15 +36,14 @@ import { LabelMenuButton, type LabelDefinition } from "./LabelMenu";
 import { MenuButton } from "./Menu";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "./metaOptions";
 import { enabledPropertyFields, PROPERTY_LABELS } from "./properties";
+import { usePropertyDraft } from "./propertyDraft";
 import { PropertyControl } from "./PropertyControl";
 import type {
   CreateTicketRequest,
   Label,
   NewChecklistItem,
-  NewTicketProperties,
   PropertiesConfig,
   TicketDraft,
-  TicketProperty,
   TicketStatus,
 } from "./types";
 
@@ -117,10 +116,9 @@ export function CreatePanel(props: CreatePanelProps) {
    * The draft's own property values — what the ticket will carry, not what the
    * project configures. `props.properties` is the configuration, the same way
    * `props.labels` is the definitions and `labels` above is what was ticked.
+   * The state and its setter are `usePropertyDraft`'s, shared with `QuickCreate`.
    */
-  const [properties, setProperties] = useState<NewTicketProperties>(
-    draft?.properties ?? {},
-  );
+  const { properties, setProperty } = usePropertyDraft(draft?.properties);
   const [description, setDescription] = useState(draft?.description ?? "");
   const [checklist, setChecklist] = useState<NewChecklistItem[]>([]);
   const [newItem, setNewItem] = useState("");
@@ -314,23 +312,6 @@ export function CreatePanel(props: CreatePanelProps) {
     if (from < 0 || to < 0 || to >= checklist.length) return;
     event.preventDefault();
     moveDraft(from, to, controlAt(event.target));
-  }
-
-  /**
-   * One property of the draft (LC-227).
-   *
-   * A clear takes the key out rather than sending `null`: absent and cleared
-   * are the same thing here, because there is no file yet for a removal to mean
-   * anything against. That distinction is `TicketEdit`'s and it exists only
-   * where bytes are already on disk.
-   */
-  function setProperty(property: TicketProperty, value: string | undefined) {
-    setProperties((current) => {
-      const next = { ...current };
-      if (value === undefined) delete next[property];
-      else next[property] = value;
-      return next;
-    });
   }
 
   /** A title, and a project that can say which key is free. See `QuickCreate`. */

@@ -47,6 +47,7 @@ import { LabelMenuButton, type LabelDefinition } from "./LabelMenu";
 import { MenuButton } from "./Menu";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "./metaOptions";
 import { enabledPropertyFields, PROPERTY_LABELS } from "./properties";
+import { usePropertyDraft } from "./propertyDraft";
 import { PropertyControl } from "./PropertyControl";
 import { ThemeDot } from "./ThemeSwatch";
 import type {
@@ -56,7 +57,6 @@ import type {
   PropertiesConfig,
   TicketDraft,
   TicketPriority,
-  TicketProperty,
   TicketStatus,
 } from "./types";
 
@@ -163,11 +163,10 @@ export function QuickCreate(props: QuickCreateProps) {
   const [labels, setLabels] = useState<string[]>([]);
   /**
    * The draft's own property values — what the ticket will carry, as against
-   * `props.properties`, which is what the project configures.
+   * `props.properties`, which is what the project configures. The state and its
+   * setter are `usePropertyDraft`'s, shared with `CreatePanel`.
    */
-  const [properties, setProperties] = useState<NewTicketProperties>(
-    props.initialProperties ?? {},
-  );
+  const { properties, setProperty } = usePropertyDraft(props.initialProperties);
   /**
    * Whether the modal stays up after a create (LC-201).
    *
@@ -198,19 +197,6 @@ export function QuickCreate(props: QuickCreateProps) {
    * seat on the board.
    */
   const canCreate = title.trim() !== "" && props.provisionalKey !== undefined;
-
-  /**
-   * One property of the draft. A clear takes the key out rather than sending
-   * `null`: absent and cleared are the same thing where no file exists yet.
-   */
-  function setProperty(property: TicketProperty, value: string | undefined) {
-    setProperties((current) => {
-      const next = { ...current };
-      if (value === undefined) delete next[property];
-      else next[property] = value;
-      return next;
-    });
-  }
 
   function create() {
     if (!canCreate) return;

@@ -83,19 +83,6 @@ export const ACKNOWLEDGED_CARD_STRIDE_PROPERTIES =
 export const ASSUMED_VIEWPORT = 720;
 
 /**
- * A stride per ticket, from row data alone.
- *
- * Four cases now rather than two, and the axis that was added is deliberately
- * the one that cannot move on its own: whether the ticket *has* a value for an
- * enabled second-row property. Not whether a date has escalated — `hasSecondRow`
- * never reads a rung, because a height that changed at midnight with no file
- * write would shift every column's offsets under a scrolled board.
- *
- * `now` still only decides whether a change is recent enough to be acknowledged,
- * which is the one clock-derived height the board already had and already
- * re-renders for.
- */
-/**
  * Whether a card draws the second footer row.
  *
  * **This reads values and configuration, and never a rung**, because the answer
@@ -115,6 +102,18 @@ export function hasSecondRow(
   return Boolean(properties.type.enabled && ticket.type);
 }
 
+/**
+ * A stride per ticket, from row data alone.
+ *
+ * Four cases now rather than two, and the axis that was added is deliberately
+ * the one that cannot move on its own: whether the ticket *has* a value for an
+ * enabled second-row property, which is `hasSecondRow`'s question and never a
+ * rung's.
+ *
+ * `now` still only decides whether a change is recent enough to be acknowledged,
+ * which is the one clock-derived height the board already had and already
+ * re-renders for.
+ */
 export function cardStrides(
   tickets: TicketRow[],
   marks: ExternalMarks,

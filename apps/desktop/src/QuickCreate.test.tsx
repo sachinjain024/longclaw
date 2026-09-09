@@ -843,6 +843,30 @@ describe("the properties a project turned on", () => {
     );
   });
 
+  it("takes a clear off the draft rather than sending a null", () => {
+    // The other half of `usePropertyDraft`'s contract, asserted from this
+    // surface as well as from full create: the hook is what makes the two
+    // answers the same, and a test on one surface alone would not say it is in
+    // this one's path.
+    const onCreate = vi.fn();
+    render(quickCreate({ properties: withAll, onCreate }));
+
+    const due = screen.getByLabelText("Due Date");
+    fireEvent.change(due, { target: { value: "28 Sep" } });
+    fireEvent.keyDown(due, { key: "Enter" });
+    fireEvent.change(due, { target: { value: "" } });
+    fireEvent.keyDown(due, { key: "Enter" });
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Set, then thought better of" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Create/ }));
+
+    expect(onCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ properties: {} }),
+      expect.anything(),
+    );
+  });
+
   it("opens on the properties it is handed, so coming back does not forget", () => {
     render(
       quickCreate({

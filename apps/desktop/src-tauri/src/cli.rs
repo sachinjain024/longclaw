@@ -533,13 +533,8 @@ fn new_properties(options: &Options, document: &ProjectDocument) -> AppResult<Ti
         let Some(value) = options.one(&name)? else {
             continue;
         };
-        let value = Some(document.project().properties.accept(property, value)?);
-        match property {
-            Property::Type => properties.ticket_type = value,
-            Property::Due => properties.due = value,
-            Property::Start => properties.start = value,
-            Property::Estimate => properties.estimate = value,
-        }
+        let value = document.project().properties.accept(property, value)?;
+        properties.set(property, Some(value));
     }
     Ok(properties)
 }

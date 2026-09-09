@@ -365,6 +365,20 @@ impl TicketProperties {
         }
     }
 
+    /// The mirror of [`Self::get`], and the reason it exists: the four-arm match
+    /// that assigns one property was written out at both of the places that
+    /// build a `TicketProperties` from a request — the CLI's create and
+    /// `storage.rs`'s — so a fifth property meant finding two matches rather
+    /// than extending one.
+    pub fn set(&mut self, property: Property, value: Option<String>) {
+        match property {
+            Property::Type => self.ticket_type = value,
+            Property::Due => self.due = value,
+            Property::Start => self.start = value,
+            Property::Estimate => self.estimate = value,
+        }
+    }
+
     pub fn is_empty(&self) -> bool {
         Property::ALL
             .into_iter()
