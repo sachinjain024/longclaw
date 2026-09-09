@@ -10,7 +10,7 @@ labels:
 type: feature
 due: 2026-09-09
 created_at: 2026-08-22T06:13:17.138Z
-updated_at: 2026-09-09T08:00:08.826Z
+updated_at: 2026-09-09T08:14:24.768Z
 ---
 
 Brainstorm with LLM agent like what other fields we should support. A few items I can think of are Type - Bug/Task, Due State, Start Date, Effort
@@ -1680,7 +1680,7 @@ it yet.
 - [ ] Command palette rows for setting each enabled property <!-- longclaw:item=ck_e8cbab2a -->
 - [x] Undo for each property change, through fieldUndo.ts <!-- longclaw:item=ck_43674ebd -->
 - [x] Explicit tabIndex on every new control — npm run check fails without it <!-- longclaw:item=ck_33780452 -->
-- [ ] Update screen-specs.md, components.md, states.md and data-requirements.md in place, then npm run citations:update <!-- longclaw:item=ck_75cc51b4 -->
+- [x] Update screen-specs.md, components.md, states.md and data-requirements.md in place, then npm run citations:update <!-- longclaw:item=ck_75cc51b4 -->
 - [x] Update keyboard-focus-map.md in place for the rail's keyboard path, and for the picker's grid — the app's first two-dimensional popover, where the menus' up-down means a week <!-- longclaw:item=ck_8c1b2d21 -->
 - [x] npm run a11y:audit, and probe:header since the rail widens the panel <!-- longclaw:item=ck_e4ce4244 -->
 - [ ] probe:drag: a drop is arithmetic over the card offsets (gapAt), so a new card height moves where a dragged ticket lands <!-- longclaw:item=ck_5fa993af -->
@@ -3365,4 +3365,22 @@ changes:
 ### Sarvam Code updated this ticket
 
 Published the ticket-properties docs page and the changelog bullets, all inside apps/website. A new /docs/ticket-properties page (DOCS_NAV entry after What a ticket is) covers the four properties, the estimate systems, the typed date grammar and where each one shows up. The file-format page gained the properties block in its longclaw.yaml example and the on-disk keys in its ticket example; the CLI page gained a --due example and the enabled-before-use rule card, both verified against the real binary on a scratch project; What a ticket is links to the new page. Four bullets were added to the 0.1.0 changelog entry. npm run site:verify is green, and the sidebar entry, on-this-page rail, prev/next links, sitemap and changelog render were all checked in dist. One gap left where it was found: docs/release-notes/v0.1.0.md still carries no properties write-up, so the changelog entry is now ahead of the release notes and they need the same half page before the draft marker lifts.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_3fc1b414
+kind: update
+occurred_at: 2026-09-09T08:14:24.768Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_75cc51b4.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Updated screen-specs.md, components.md, states.md and data-requirements.md for the property surfaces that have shipped — the panel's rail, the date field and picker, the estimate control, the card's due chip and second footer row, the context menu's four submenus, and the settings Properties pane — then re-pinned the citation lock. Written to the discipline screen-specs.md asks for: every section that already described one of these surfaces was rewritten in place at the same line count, and the prose that would not fit went below each document's last cited line. 498 citations stayed green and the lock moved by two lines, the one wording change this needed (states.md:62-63, whose list of undo-raising mutations was missing the four properties); its five citing comments were read against the new text first, and TicketPanel.tsx's now names the properties too. Three claims follow the code rather than the settled spec: the rail is first in the DOM and second on screen, placed with grid-column rather than reordered with order; approaching and beyond share one treatment, so four rungs draw as three; and the list's updated_at row is gone from the data table rather than renamed, because nothing on either surface reads it now. The ordering prose — § Board's ordering bullet, the ordering menu's two rows, and data-requirements' ordering lines — was left to ck_79550de2.
 <!-- /longclaw:event -->
