@@ -24,6 +24,10 @@
  * - Typed in, and something else has since set the value → the app's. A
  *   programmatic reset does not fire `input`, so a value that no longer matches
  *   what the last keystroke left is the app having cleared the box underneath.
+ * - Typed in, and the field has since written it → the app's. A field that
+ *   commits on `Enter` keeps both the caret and the text, so this is the one
+ *   ending nothing on the DOM shows and the field has to say for itself
+ *   (`fieldCommitted`).
  *
  * One record, for the field the caret is in — taking focus elsewhere replaces
  * it, and it is only ever read for the field the keystroke actually landed in,
@@ -91,6 +95,31 @@ export function trackFieldEdits(): () => void {
     document.removeEventListener("focusin", onFocus);
     document.removeEventListener("input", onInput);
   };
+}
+
+/**
+ * Told by a field that has just handed its text to the app.
+ *
+ * Every other way a record ends is something the tracker can see for itself:
+ * the caret leaves, or the value changes under it. A field that commits on
+ * `Enter` and keeps the caret does neither — `28 Sep` typed into the date field
+ * is still `28 Sep` after the write — so the one thing that changed is the only
+ * thing that matters, and nothing on the DOM says it. What is in the box is the
+ * app's value now, not an edit waiting to be given back, and the toast that
+ * write raised is the only Undo on screen (LC-227).
+ *
+ * Called where the write is actually asked for, never on the keystroke: a
+ * refused date and a number this system cannot read leave the field holding
+ * text nobody has stored, which is exactly the edit `⌘Z` should still return.
+ *
+ * No argument, because there is only ever one record and it belongs to the
+ * field the caret is in. A field that commits without the caret — a blur, a
+ * unit picked from the menu beside it — lost its record to that gesture before
+ * this is reached, so clearing it again is a no-op rather than a field speaking
+ * for its neighbour.
+ */
+export function fieldCommitted(): void {
+  lastKeystroke = undefined;
 }
 
 /**

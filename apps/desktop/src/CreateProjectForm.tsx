@@ -124,7 +124,7 @@ export function CreateProjectForm(props: {
           placeholder={DEFAULT_PROJECT_NAME}
           maxLength={PROJECT_NAME_MAX_LENGTH}
           // Where the folder picker hands focus on the create path
-          // (`keyboard-focus-map.md:168`). Only on that path: the sidebar's
+          // (`keyboard-focus-map.md:203`). Only on that path: the sidebar's
           // quick create opens beside a board someone is already working in,
           // and a form that grabs the caret there steals it from the app.
           autoFocus={props.folder !== undefined}

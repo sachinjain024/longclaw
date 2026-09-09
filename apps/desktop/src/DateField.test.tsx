@@ -15,8 +15,9 @@
  */
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DateField } from "./DateField";
+import { fieldOwnsUndo, trackFieldEdits } from "./fieldUndo";
 
 afterEach(cleanup);
 
@@ -277,5 +278,49 @@ describe("the calendar", () => {
     fireEvent.keyDown(picker, { key: "Escape" });
     expect(picker.isConnected).toBe(false);
     expect(onCommit).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * LC-220's rule, from the side a field that commits without moving focus puts
+ * it on: `⌘Z` belongs to the OS "while the field has an edit of its own to give
+ * back" (`fieldUndo.ts`). Enter here writes and keeps the caret, so the text in
+ * the box afterwards is the value the app now holds — and the toast that write
+ * raised is the only Undo either of them has.
+ */
+describe("who owns ⌘Z once the field has written", () => {
+  let stop: () => void;
+
+  beforeEach(() => {
+    stop = trackFieldEdits();
+  });
+
+  afterEach(() => stop());
+
+  /** A keystroke, which fires `input`. `fireEvent.change` does not. */
+  function press(input: HTMLInputElement, text: string) {
+    input.focus();
+    fireEvent.input(input, { target: { value: text } });
+  }
+
+  it("hands the key back to the toast the write raised", () => {
+    const input = field({});
+    press(input, "28 Sep");
+    // Mid-edit, the typing is the field's to take back.
+    expect(fieldOwnsUndo(input)).toBe(true);
+
+    commit(input);
+    // Written: the box now shows what the app was asked to store, and a field
+    // still claiming the key would leave **Undo ⌘Z** on screen and unreachable.
+    expect(fieldOwnsUndo(input)).toBe(false);
+  });
+
+  it("keeps the key while the text has not been written", () => {
+    const input = field({});
+    press(input, "28/09/2026");
+    commit(input);
+    // A refusal writes nothing and raises no toast, so the only thing on screen
+    // anyone could take back is the typing, and it is still the field's.
+    expect(fieldOwnsUndo(input)).toBe(true);
   });
 });

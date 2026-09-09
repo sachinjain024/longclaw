@@ -3341,4 +3341,34 @@ describe("the properties rail", () => {
     await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
     expect(editTicketMock.mock.calls[1][0].edit).toEqual({ start: null });
   });
+
+  it("takes it back with the key the toast names, not only the button", async () => {
+    // The half a rail full of text fields nearly lost. `Enter` commits without
+    // moving the caret, so `⌘Z` is pressed inside a field still holding the
+    // text that was typed — and `keyboard-focus-map.md:13-15` gives the key to
+    // the OS wherever a field has an edit of its own to give back. The offer
+    // would have been on screen and unreachable, which is LC-220 exactly
+    // (`fieldUndo.ts`).
+    readTicketMock.mockResolvedValue(detail());
+    editTicketMock.mockResolvedValue(writeResult());
+    render(
+      <>
+        {panel({ properties: withAll })}
+        <ToastStack />
+      </>,
+    );
+    await ready();
+
+    const start = screen.getByLabelText("Start") as HTMLInputElement;
+    start.focus();
+    // `input` rather than `change`: the tracker watches the event typing fires,
+    // and a test that skipped it would pass with or without the fix.
+    fireEvent.input(start, { target: { value: "2026-10-20" } });
+    fireEvent.keyDown(start, { key: "Enter" });
+
+    expect(await screen.findByText("LC-1 Start → 2026-10-20")).toBeTruthy();
+    fireEvent.keyDown(start, { key: "z", metaKey: true });
+    await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(2));
+    expect(editTicketMock.mock.calls[1][0].edit).toEqual({ start: null });
+  });
 });

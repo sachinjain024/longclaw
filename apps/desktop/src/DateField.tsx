@@ -22,6 +22,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { classes } from "./classes";
+import { fieldCommitted } from "./fieldUndo";
 import {
   addDays,
   addMonths,
@@ -111,7 +112,22 @@ export function DateField(props: {
       setText(shown);
       return;
     }
-    props.onCommit(next);
+    write(next);
+  }
+
+  /**
+   * Ask for the write, and say the box is no longer holding an edit of its own.
+   *
+   * `Enter` commits without moving the caret and, on the ordinary path, without
+   * changing the text: `28 Sep` typed on 8 September is still `28 Sep` after
+   * the write. Nothing the tracker watches has changed, so `⌘Z` would stay the
+   * field's and the toast this raises would offer an Undo nobody could reach
+   * (`fieldUndo.ts`, LC-220). Reached only from the two paths that write, which
+   * is what leaves a refusal's text the person's own to take back.
+   */
+  function write(iso: string | undefined) {
+    fieldCommitted();
+    props.onCommit(iso);
   }
 
   /** A day the picker chose, which has already been through the grammar. */
@@ -122,7 +138,9 @@ export function DateField(props: {
       setText(shown);
       return;
     }
-    props.onCommit(iso);
+    // The picker took the focus off the field, so the record is already gone.
+    // Through `write` anyway: what spends the edit is the write, not the focus.
+    write(iso);
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {

@@ -459,7 +459,7 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
    * board but Tab from the top of the document.
    *
    * The same call is how the ticket panel returns focus to its card, so this
-   * covers `keyboard-focus-map.md:162` at size as well as :124.
+   * covers `keyboard-focus-map.md:196` at size as well as :124.
    */
   it("focuses the new card even when it lands outside the rendered window", async () => {
     const crowd: TicketRow[] = Array.from({ length: 30 }, (_, index) => ({

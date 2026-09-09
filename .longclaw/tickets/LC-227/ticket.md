@@ -7,8 +7,10 @@ status: in_progress
 priority: urgent
 labels:
   - release
+type: feature
+due: 2026-09-09
 created_at: 2026-08-22T06:13:17.138Z
-updated_at: 2026-09-09T01:16:18.212Z
+updated_at: 2026-09-09T03:02:01.720Z
 ---
 
 Brainstorm with LLM agent like what other fields we should support. A few items I can think of are Type - Bug/Task, Due State, Start Date, Effort
@@ -1096,6 +1098,113 @@ grid); the rest of the doc row still stands. Re-pinning the three edited lines
 also dropped a stale lock entry for `keyboard-focus-map.md:130`, a line nothing
 has cited for some time.
 
+## Built 2026-09-09: `⌘Z` in the rail, and the map that describes it
+
+`ck_43674ebd`, `ck_33780452`, `ck_8c1b2d21`, `ck_e4ce4244`. The rail has been on
+screen since the panel commit; what was missing was the half of it that only
+shows up from the keyboard.
+
+### The offer that was on screen and unreachable
+
+`saveProperty` has sent an `inverse` since the rail landed, and the toast's
+**Undo** button has worked since then — `the properties rail` has a test that
+clicks it. `⌘Z` did not. Rule 2 of the focus map gives the key to the OS
+"wherever a field has an edit of its own to give back", and `fieldUndo.ts`
+decides that by asking whether the box still holds what the last keystroke left
+in it. A date field commits on `Enter` **without moving the caret**, and on the
+ordinary path without changing the text either: `28 Sep` typed on 8 September is
+still `28 Sep` after the write. So the field kept its claim, and the toast's
+`Undo ⌘Z` was an offer on screen that the key could not reach.
+
+That is LC-220 with the surfaces swapped. LC-220 was a field with nothing to
+give back holding the key; this is a field whose edit has already been spent.
+
+The fix is one export. `fieldCommitted()` drops the record, and the two controls
+that write without moving the caret — the date field and the duration's number —
+call it exactly where they call `onCommit`, never on the keystroke: a refused
+date and a number this system cannot read leave text nobody has stored, and that
+is still the person's to take back. Only one of the four never had the problem:
+`type` is a menu, and `textFieldAt` has always said no to a button. Both dates
+had it always, and `estimate` had it under `duration` and not under a scale,
+which is the same property answering differently in two of its three shapes.
+
+Two things worth saying about the shape:
+
+- **It is told, not measured.** Every other way a record ends is visible to the
+  tracker — the caret leaves, or the value changes underneath it. This one
+  changes nothing in the DOM, so the field has to say it.
+- **The create surfaces pay for it too**, and should. There the same commit
+  hands `⌘Z` to whatever toast is up, which after **Create more** is the
+  previous create's. That is the documented pairing (`keyboard-focus-map.md:30`)
+  and the alternative is worse and silent: the field's own undo would put the
+  old text back over a draft that still holds the parsed date.
+
+Six claims, and they are not all red-first, which is worth saying plainly.
+**Three name the defect and were confirmed failing first**: the date field hands
+the key back after a write, the duration's number does the same, and the round
+trip in `TicketPanel.test.tsx` — type a Start date, `Enter`, `⌘Z`, and the
+inverse edit reaches the disk — which was re-run against `HEAD` with the two
+`write` helpers stashed to be sure. The unit case in `fieldUndo.test.ts` could
+not compile before the export, so it is red in the only sense open to it. **The
+remaining two pass on both sides of the fix by design**: a refused date and a
+number this system cannot read keep the key, because nothing was written, and
+they are there so that a later hand cannot move `fieldCommitted()` onto the
+keystroke without the suite noticing.
+
+The round trip fires `input` rather than `change` deliberately: the tracker
+watches the event typing actually fires, and a test that skipped it would have
+passed with or without the fix.
+
+### What the map now says
+
+`keyboard-focus-map.md` learned three things, and one of them cost the other
+two their line numbers.
+
+Line 62 was replaced in place — the panel's natural Tab order now names the
+opt-in properties between priority and labels. The picker needed more room than
+a line: `## Property controls` and `## The date picker` are new sections before
+the focus-return table, which also gained a row for where the picker returns
+focus. The picker is the app's first two-dimensional layer and that is the whole
+reason it could not be folded into § Menus: up and down mean a **week** here,
+where every other popover in the app means a row.
+
+Thirty-five inserted lines move everything below them, so fourteen citations
+across eight files were re-pointed by hand before `citations:update` ran — and **only in the
+trees the guard scans**, plus `docs/plans/active` and `docs/backlog`. Not
+`.longclaw/tickets/`, not `docs/plans/completed/`, not `docs/cc_screens_diff.md`:
+those are outside `SOURCES`, and spot-checking them showed they had drifted long
+ago. Plan 20 cites `158-161` for the "no drag-and-drop keyboard equivalent"
+bullet it quotes, and 158-161 was the focus-return table's heading and rule
+before this change ever touched the file. Re-pointing a historical record from
+one wrong line to a different wrong line is not maintenance. The lock moved
+exactly seven lines and one line's text, which is the whole of the change.
+
+### The two runs, and the one thing they cannot see
+
+`tab-order-guard` is clean over 94 files, which is `ck_33780452` — every button
+in the new controls states its place, including the picker's 42 cells, where
+`tabIndex={here ? 0 : -1}` is the roving form the board's columns already use.
+
+`npm run a11y:audit` passes Part A, 56 checks over A1–A5, and it exercised the
+re-pointed oracles on the way past. `npm run probe:header` is 140/140 at every
+width, which is the row's own reason for existing: the rail widens the panel.
+
+**Neither of them can see the rail.** `perf/fixture.ts` gives its project
+`NO_PROPERTIES`, so "the panel's Tab order runs down the page in reading order"
+counted fourteen stops and not one of them was a property. Turning a property on
+there is not a small change: one fixture backs both traces and all four probes,
+and an `estimate` or a `type` on a card moves the pinned heights that
+`drag-probe` and `card-height-guard` are built on. So the audit's coverage of
+this rail is nil, and that is recorded here rather than implied by a green run.
+
+### What this leaves open
+
+- The audit gap above. It belongs with whoever gives the fixture a second
+  project, not with a row that says "run the audit".
+- The inverse that cannot be carried: disable a property between a write and its
+  Undo and `engine.rs` refuses the inverse, which is invariant 16 doing its job
+  at the wrong moment. Found during the create-surface commit, unchanged here.
+
 ## Checklist
 
 - [x] ADR: property configuration joins labels in longclaw.yaml — record why ADR 0002's reservation is deferred, and what would revisit it <!-- longclaw:item=ck_945a1ca9 -->
@@ -1147,11 +1256,11 @@ has cited for some time.
 - [x] Proximity derived from an injected now, plus the day-boundary recompute the watcher cannot push <!-- longclaw:item=ck_55424527 -->
 - [ ] A Due board ordering mode beside Priority and Manual (ADR 0003) <!-- longclaw:item=ck_79550de2 -->
 - [ ] Command palette rows for setting each enabled property <!-- longclaw:item=ck_e8cbab2a -->
-- [ ] Undo for each property change, through fieldUndo.ts <!-- longclaw:item=ck_43674ebd -->
-- [ ] Explicit tabIndex on every new control — npm run check fails without it <!-- longclaw:item=ck_33780452 -->
+- [x] Undo for each property change, through fieldUndo.ts <!-- longclaw:item=ck_43674ebd -->
+- [x] Explicit tabIndex on every new control — npm run check fails without it <!-- longclaw:item=ck_33780452 -->
 - [ ] Update screen-specs.md, components.md, states.md and data-requirements.md in place, then npm run citations:update <!-- longclaw:item=ck_75cc51b4 -->
-- [ ] Update keyboard-focus-map.md in place for the rail's keyboard path, and for the picker's grid — the app's first two-dimensional popover, where the menus' up-down means a week <!-- longclaw:item=ck_8c1b2d21 -->
-- [ ] npm run a11y:audit, and probe:header since the rail widens the panel <!-- longclaw:item=ck_e4ce4244 -->
+- [x] Update keyboard-focus-map.md in place for the rail's keyboard path, and for the picker's grid — the app's first two-dimensional popover, where the menus' up-down means a week <!-- longclaw:item=ck_8c1b2d21 -->
+- [x] npm run a11y:audit, and probe:header since the rail widens the panel <!-- longclaw:item=ck_e4ce4244 -->
 - [ ] probe:drag: a drop is arithmetic over the card offsets (gapAt), so a new card height moves where a dragged ticket lands <!-- longclaw:item=ck_5fa993af -->
 - [ ] npm run perf:board and perf:list, and quote the numbers — the due comparator touches ordering <!-- longclaw:item=ck_c404ee03 -->
 - [ ] npm run verify <!-- longclaw:item=ck_5e61f2a1 -->
@@ -2524,4 +2633,86 @@ changes:
 ### Claude Code updated this ticket
 
 Both create surfaces now offer the enabled properties and nothing else. One PropertyControl serves the panel's rail, full create and quick create, so the switch on which property this is lives in one place; PROPERTY_FIELDS names the order a surface draws them in, which is not the format's. Quick create's shape was not settled by the ticket or the prototype, so the call and its argument are recorded in the ticket: the properties are in, on LC-186's argument for priority, on a labelled row of their own so Labels does not move. Also fixed three quiet losses: a date typed and committed with the same key, the draft the full-editor door carries, and the optimistic card's height.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_8b5c146b
+kind: update
+occurred_at: 2026-09-09T02:22:39.683Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: type
+    to: feature
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_3bdc19fd
+kind: update
+occurred_at: 2026-09-09T02:23:34.104Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: due
+    to: 2026-09-09
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_63e48525
+kind: update
+occurred_at: 2026-09-09T02:53:49.951Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+  - field: checklist.ck_43674ebd.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_33780452.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_8c1b2d21.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_e4ce4244.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_2c891216
+kind: comment
+occurred_at: 2026-09-09T02:54:23.511Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+The rail's keyboard half. The toast's Undo button worked from the day the rail landed; the key beside it did not — a date field commits on Enter without moving the caret or changing its text, so fieldUndo.ts still read it as holding an edit of its own and gave it the key, leaving Undo on screen and unreachable. That is LC-220 with the surfaces swapped, and the fix is one export the two committing fields call where they call onCommit. keyboard-focus-map.md gained the rail's Tab order in place and two new sections for the picker's grid, which cost fourteen citations a re-point — only in the trees the guard scans, because the historical ones had drifted long before this. a11y:audit (56 checks) and probe:header (140/140) are green, and neither of them can see the rail: the perf fixture enables no properties, which is recorded rather than implied.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_13b02626
+kind: update
+occurred_at: 2026-09-09T03:02:01.720Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->

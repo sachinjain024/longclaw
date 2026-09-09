@@ -8,8 +8,9 @@
  */
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EstimateControl } from "./EstimateControl";
+import { fieldOwnsUndo, trackFieldEdits } from "./fieldUndo";
 import { NO_PROPERTIES } from "./properties";
 import type { EstimateConfig } from "./types";
 
@@ -152,5 +153,44 @@ describe("a duration", () => {
     const onCommit = control(DURATION, "4h");
     fireEvent.blur(amountField());
     expect(onCommit).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The duration's number is the other field in the rail that writes without
+ * moving the caret, so it answers the `⌘Z` question the way `DateField` does
+ * (`fieldUndo.ts`, LC-220).
+ */
+describe("who owns ⌘Z once the number has been written", () => {
+  let stop: () => void;
+
+  beforeEach(() => {
+    stop = trackFieldEdits();
+  });
+
+  afterEach(() => stop());
+
+  function press(text: string) {
+    const input = screen.getByLabelText("Estimate amount") as HTMLInputElement;
+    input.focus();
+    fireEvent.input(input, { target: { value: text } });
+    return input;
+  }
+
+  it("hands the key back to the toast the write raised", () => {
+    control(DURATION);
+    const input = press("3");
+    expect(fieldOwnsUndo(input)).toBe(true);
+
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(fieldOwnsUndo(input)).toBe(false);
+  });
+
+  it("keeps the key while the number is not one this system reads", () => {
+    control(DURATION);
+    const input = press("1d4");
+    fireEvent.keyDown(input, { key: "Enter" });
+    // Nothing was written, so nothing else is offering the key.
+    expect(fieldOwnsUndo(input)).toBe(true);
   });
 });

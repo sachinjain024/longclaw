@@ -16,6 +16,7 @@
 import { useState } from "react";
 import { MenuButton } from "./Menu";
 import { classes } from "./classes";
+import { fieldCommitted } from "./fieldUndo";
 import { estimateScale, readEstimate, splitDuration } from "./properties";
 import type { EstimateConfig } from "./types";
 
@@ -130,15 +131,29 @@ function DurationControl(props: {
   function commit(nextAmount: string, nextUnit: string) {
     const text = nextAmount.trim();
     if (!text) {
-      if (props.value !== undefined) props.onCommit(undefined);
+      if (props.value !== undefined) write(undefined);
       return;
     }
     const built = `${text}${nextUnit}`;
     // Validated through the same reader every other surface uses rather than a
     // second opinion about what a duration is. A refusal keeps the text: the
-    // person is mid-edit, and this is a number that is not finished.
+    // person is mid-edit, and this is a number that is not finished — and it is
+    // still their `⌘Z` to spend, because nothing was written for a toast to
+    // offer it back (`fieldUndo.ts`).
     if (readEstimate(built, props.config)?.kind !== "known") return;
-    if (built !== props.value) props.onCommit(built);
+    if (built !== props.value) write(built);
+  }
+
+  /**
+   * Ask for the write, and say the box is no longer holding an edit of its own.
+   *
+   * `DateField` does this for the same reason and in the same place: `Enter`
+   * writes without moving the caret, so nothing the tracker watches changes and
+   * `⌘Z` would stay the field's while the toast on screen offered it (LC-220).
+   */
+  function write(next: string | undefined) {
+    fieldCommitted();
+    props.onCommit(next);
   }
 
   return (
