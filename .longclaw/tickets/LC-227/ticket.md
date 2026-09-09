@@ -1744,6 +1744,24 @@ is degrade-and-keep. It should not, and the distinction is which file:
 Recorded here rather than changed, and the negative case now says so in
 `project.rs`'s own test name.
 
+### The job the local gate cannot see, and had been red since the rail landed
+
+`npm run matrix` is a CI job of its own, not part of `verify`, and it had been
+failing on this branch since `4b67ee9` — thirteen commits, every one of them
+green locally. It drives the app through eight theme × appearance axes and
+clicks `.meta-grid .menu-trigger` to put a menu popover on screen; the rail
+replaced the panel's stacked meta grid, so the class it named survives only in
+full create and the run timed out at that line rather than reporting a colour.
+
+Pointed at `.panel-rail .menu-trigger` — the thing that replaced what it was
+aiming at — the run is 8 axes × 12 states clean, with the eight pre-existing
+disabled-button exemptions and nothing else.
+
+Worth naming as a category: this is the second surface in this ticket whose
+regression a green `verify` could not report, after the one `perf/fixture.ts`
+hides by giving its project `NO_PROPERTIES`. A guard that does not run where the
+work happens is a guard that reports on a commit nobody is looking at any more.
+
 ### The skills lockfile is the rule, not one upstream
 
 `AGENTS.md` said everything vendored under `.agents/skills/` comes from
