@@ -1,0 +1,141 @@
+---
+title: Ticket properties
+description: Four optional fields — type, due date, start date and estimate — that each project turns on for itself, and what each one looks like on disk, in the app and at the command line.
+eyebrow: Guide
+---
+
+import Callout from '../../components/Callout.astro';
+
+## Four properties, all optional
+
+Beyond the fixed fields every ticket carries, four optional properties exist:
+**type**, **due date**, **start date** and **estimate**.
+
+All four are off until the project turns them on. A project that enables
+nothing keeps the files, the board and the menus it already had, and a ticket
+carries a property's key only when it has a value — there is no empty or
+default form of one.
+
+Turn them on in **Settings → Properties**, or write the `properties:` block in
+`longclaw.yaml` yourself. The configuration lives there, beside labels, because
+a property's vocabulary belongs to the project — the same reason a label
+does. That decision is recorded as
+[ADR 0013](https://github.com/sachinjain024/longclaw/blob/main/docs/adr/0013-property-configuration-lives-in-longclaw-yaml.md).
+
+## What each one holds
+
+| Property | On disk | What it holds |
+| --- | --- | --- |
+| Type | `type` | One value from the project's own list. |
+| Due date | `due` | A day, `YYYY-MM-DD`. |
+| Start date | `start` | A day, `YYYY-MM-DD`. |
+| Estimate | `estimate` | A string, shaped by the project's estimate system. |
+
+- A **type** is a slug the project defines, seeded with `bug`, `feature`,
+  `chore`, `docs` and `spike` and editable after that. A ticket has one type,
+  where it can carry many labels: type is the axis that says whether a ticket
+  is a defect report or a piece of work, and a label is not. The creation
+  surfaces refuse a type the project does not define, the same way they refuse
+  an undefined label.
+- **Due and start are days, not instants.** No timezone is recorded and no
+  value is converted. `2026-09-14T00:00:00Z` is 13 September everywhere west
+  of UTC, and a due date that read as the day before in California would be a
+  different date, not a different formatting.
+- An **estimate** is always a string on disk, whatever it holds. The quoting
+  is not incidental: `estimate: 5` would be a YAML number while `estimate: 5d`
+  is a string, and a key whose type changes with the project's configuration
+  is a key a reader cannot parse without that configuration.
+
+## Estimate is a system the project picks
+
+Three systems exist, and a project is on exactly one:
+
+| System | Values |
+| --- | --- |
+| T-shirt | `xs` `s` `m` `l` `xl`, an editable list like type's |
+| Fibonacci | `1` `2` `3` `5` `8` `13`, a fixed scale |
+| Duration | A number and a unit — `30m`, `2h`, `1.5d`, `1w` |
+
+Under duration, decimals are legal and compounds are not: `1.5d` is a value
+and `1d4h` is not, because two units in one value make its meaning depend on a
+conversion that is a project setting and can change under it. The conversion —
+how long a working day and a working week are, defaulting to eight hours and
+five days — is a project setting too, because effort is working time and `4h`
+against `1d` needs to know how long your day is.
+
+Switching systems never rewrites tickets. A value written under the old system
+stays exactly as it was; it reads as unreadable under the new one rather than
+being converted or dropped, and switching back makes it legible again.
+
+## Typing a date
+
+On disk a date is always `YYYY-MM-DD`. What you type into the field is looser,
+and one rule generates the whole grammar: **the month is named, or the order
+is ISO.**
+
+Accepted, case-insensitively:
+
+| Form | Example | Means |
+| --- | --- | --- |
+| ISO | `2026-09-28` | that day |
+| Day and named month, either order | `28 Sep`, `Sep 28` | the nearest future occurrence |
+| The same, with a year | `28 Sep 2026`, `Sep 28, 2026` | that day |
+| `today`, `tomorrow` | | resolved against today |
+
+A named month is its three-letter abbreviation or its full name, may carry an
+ordinal (`28th Sep`), and may be separated by a space, a hyphen or a slash.
+
+Refused, because resolving it would need something the app does not have:
+
+- **All-numeric forms that are not ISO** — `28/09/2026`, `3/4`. There is no
+  locale to ask whether `3/4` is March or April, and a guess would be
+  silently wrong for half the world.
+- **Two-digit years**, a month with no day, weekday names, `next week`,
+  `in 3 days` — each asks the app to compute a date you have not.
+- **Anything carrying a time.** A due date is a day; accepting `28 Sep 5pm`
+  only to drop the time would store something other than what was typed.
+
+A form with no year means the nearest future occurrence, and today counts as
+future: `28 Sep` typed on 28 September is today, not next year. Once typed
+text resolves, a quiet line under the field echoes the day in full —
+`Tue 28 Sep 2027` — so a date that lands a year out is never silent. What is
+refused is not destroyed, either: the field keeps your text and says which
+rule it broke.
+
+The calendar beside the field is the other way into the same value. It opens
+on a click, on `Enter` at its trigger, or on `↓` from inside the field —
+never on focus, so tabbing through does not open popovers.
+
+The CLI takes the canonical form only — `--due 2026-09-28` — so there is one
+date parser, not two that disagree about `28 Sep` in some year nobody tests.
+
+## Where each one shows up
+
+- **The board card** carries the due date in its key row whenever a ticket
+  has one, at every rung: overdue, today, approaching (within a week by
+  default — the window is a setting), and later. Overdue is the one rung that
+  takes a colour; the rest are weight and wording. Start never has a rung —
+  a start date in the past means work should have begun, which is a judgement
+  about the work rather than a fact about the date, and the app does not make
+  it.
+- **A second card row** carries estimate and type, and exists only in a
+  project that enables one of the two.
+- **The list** shows the due date after a ticket's labels, with the same
+  treatment the card uses.
+- **The ticket panel** has a properties rail with all of them, and both create
+  surfaces offer the enabled ones.
+- **The context menu** has a submenu per enabled property: quick picks for
+  dates, the project's own scale for estimates, `Pick a date…` opening the
+  calendar in place, and `Clear` on every one.
+- **The board and the list** can sort by due date, beside Priority and Manual.
+
+<Callout tone="note" label="Disabling hides; it never deletes">
+  <p>Turning a property off does not touch the tickets that carry it. A ticket
+  keeps its <code>due:</code> when the project turns Due off, because a
+  disabled property is exactly a key this build declines to interpret, and
+  unknown fields survive a read-modify-write. Re-enabling shows every value
+  again.</p>
+</Callout>
+
+The complete contract — the YAML shapes, the estimate systems, the
+invariants — is in the [file format reference](/docs/file-format).

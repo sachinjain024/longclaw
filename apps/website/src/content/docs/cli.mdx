@@ -66,6 +66,16 @@ Run `longclaw` with no arguments for the full surface.
 />
 
 <CommandBlock
+  id="cmd-due"
+  desc="Set a due date. The CLI takes the canonical form only — the typed grammar is the app's — and refuses a property the project has not enabled."
+  cmd="longclaw ticket edit MP-1 --due 2026-09-28 --agent-id claude-code"
+  output={`{
+  "ok": true,
+  "ticket": { "key": "MP-1", "due": "2026-09-28" }
+}`}
+/>
+
+<CommandBlock
   id="cmd-list"
   desc="Read the backlog the way the app sees it."
   cmd="longclaw ticket list"
@@ -88,6 +98,10 @@ Run `longclaw` with no arguments for the full surface.
   <div class="rule-card">
     <h3>Labels are defined before use</h3>
     <p>The CLI refuses a slug the project does not define, so a label cannot be created by using it.</p>
+  </div>
+  <div class="rule-card">
+    <h3>Properties are enabled before use</h3>
+    <p>A flag for a property the project has not turned on is refused rather than written, and a type must be a slug the project defines — the same rule as labels.</p>
   </div>
   <div class="rule-card">
     <h3>Agents pass --agent-id</h3>
