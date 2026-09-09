@@ -154,7 +154,7 @@ estimate: "2h"
 | `fibonacci` | `1` `2` `3` `5` `8` `13`, a fixed scale | `estimate: "5"` |
 | `duration` | `<number><unit>`, unit one of `m` `h` `d` `w` | `estimate: "1.5d"` |
 
-- A duration carries one number and one unit. Decimals are legal — `1.5d`, `0.5h` — and compounds are not: `1d4h` is invalid, because two units in one value make its meaning depend on a conversion that is a project setting and can change under it. Write `1.5d`.
+- A duration carries one number and one unit, and the number is greater than zero: `0d` is not an estimate of no time, it is a value nobody meant to write. Decimals are legal — `1.5d`, `0.5h` — and compounds are not: `1d4h` is invalid, because two units in one value make its meaning depend on a conversion that is a project setting and can change under it. Write `1.5d`. The shared case table both implementations test against — this grammar, the Fibonacci scale, the seeded t-shirt scale, the day form and the three conversion defaults — is [`fixtures/property-grammar.json`](../fixtures/property-grammar.json).
 - The quoting is not incidental. `estimate: 5` would be a YAML number while `estimate: 5d` is a string, so the key's type would change with the project's configuration and a reader would have to know that configuration to parse the ticket. It is a string under every system.
 - **Switching estimate systems never rewrites tickets.** A value written under the old system stays exactly as it was; it reads as unreadable under the new system rather than being converted or dropped, and switching back makes it legible again.
 - A malformed value degrades and is never repaired in place: the rest of the ticket parses, the property reads as unreadable, and the bytes survive the next write (invariants 10, 11 and 14).

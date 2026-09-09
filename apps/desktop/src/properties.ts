@@ -638,6 +638,26 @@ const FIBONACCI_SCALE = ["1", "2", "3", "5", "8", "13"];
 
 const DURATION = /^(\d+(?:\.\d+)?)([mhdw])$/;
 
+/**
+ * A duration's amount and unit, or `undefined` where the value is not one.
+ *
+ * The shape is the regex above; the one rule that is *not* a shape lives here.
+ * A zero amount reads as a duration and is not one — an estimate of no time is
+ * the shape of a value nobody meant to write — and it is exactly what this file
+ * and `parse_duration` in `core/project.rs` had drifted on: `0d` was a duration
+ * to this side and refused by the writer, so the control read it as a value it
+ * knew and then would not save it. `fixtures/property-grammar.json` is the case
+ * table both sides now answer to.
+ */
+function parseDuration(
+  value: string | undefined,
+): { amount: number; unit: string } | undefined {
+  const parts = DURATION.exec(value ?? "");
+  if (!parts) return undefined;
+  const amount = Number(parts[1]);
+  return amount > 0 ? { amount, unit: parts[2] } : undefined;
+}
+
 export function readEstimate(
   value: string | undefined,
   config: EstimateConfig,
@@ -653,7 +673,7 @@ export function readEstimate(
       ? { kind: "known", text: value }
       : { kind: "foreign", text: value };
   }
-  return DURATION.test(value)
+  return parseDuration(value)
     ? { kind: "known", text: value }
     : { kind: "foreign", text: value };
 }
@@ -669,14 +689,14 @@ export function estimateMinutes(
   value: string | undefined,
   config: EstimateConfig,
 ): number | undefined {
-  const parts = DURATION.exec(value ?? "");
-  if (!parts) return undefined;
-  const amount = Number(parts[1]);
+  const parsed = parseDuration(value);
+  if (!parsed) return undefined;
+  const { amount } = parsed;
   const hour = 60;
   const day = config.hoursPerDay * hour;
   const week = config.daysPerWeek * day;
   return { m: amount, h: amount * hour, d: amount * day, w: amount * week }[
-    parts[2] as "m" | "h" | "d" | "w"
+    parsed.unit as "m" | "h" | "d" | "w"
   ];
 }
 
@@ -685,8 +705,13 @@ export function estimateMinutes(
  *
  * The unit is a menu rather than something to be typed, because `m h d w` is
  * the one part of this grammar nothing on screen would otherwise teach. Split
- * here rather than in the control, so the regex that decides what a duration is
- * stays the only one in the app.
+ * here rather than in the control, so the regex that decides what a duration
+ * looks like stays the only one in the app.
+ *
+ * Deliberately the *shape* and not `parseDuration`: this fills the boxes a
+ * person edits, and a stored `0d` — which the writer refuses — still has to be
+ * legible in them. What may be written is `readEstimate`'s question, and the
+ * control asks it on commit.
  */
 export function splitDuration(
   value: string | undefined,
