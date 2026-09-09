@@ -126,6 +126,19 @@ export function DateField(props: {
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    // `⌘↵` creates from anywhere on both create surfaces, and "anywhere"
+    // includes a field whose text is not in the draft yet: this one parses on
+    // Enter or blur, so a date typed and then committed with `⌘↵` would be
+    // dropped by the very gesture meant to keep everything. The field takes the
+    // first press and commits; a second one creates. With nothing to commit it
+    // passes straight through, which is every press in the panel, where the
+    // binding belongs to no one.
+    if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && dirty) {
+      event.preventDefault();
+      event.stopPropagation();
+      commit();
+      return;
+    }
     if (event.metaKey || event.ctrlKey || event.altKey) return;
     if (event.key === "Enter") {
       event.preventDefault();

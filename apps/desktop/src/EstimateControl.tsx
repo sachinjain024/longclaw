@@ -124,6 +124,9 @@ function DurationControl(props: {
     if (splitDuration(props.value)) setUnit(splitDuration(props.value)!.unit);
   }
 
+  /** What this field would write, and whether that is what the draft holds. */
+  const built = amount.trim() ? `${amount.trim()}${unit}` : undefined;
+
   function commit(nextAmount: string, nextUnit: string) {
     const text = nextAmount.trim();
     if (!text) {
@@ -148,10 +151,16 @@ function DurationControl(props: {
         placeholder="0"
         onChange={(event) => setAmount(event.target.value)}
         onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            event.preventDefault();
-            commit(amount, unit);
+          if (event.key !== "Enter") return;
+          event.preventDefault();
+          // The rule `DateField` keeps, for the same reason: `⌘↵` creates from
+          // anywhere on both create surfaces, so a number typed and not yet
+          // committed has to be taken here before the surface behind this acts
+          // on a draft that does not carry it.
+          if ((event.metaKey || event.ctrlKey) && built !== props.value) {
+            event.stopPropagation();
           }
+          commit(amount, unit);
         }}
         onBlur={() => commit(amount, unit)}
       />

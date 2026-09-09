@@ -64,15 +64,27 @@ export const TICKET_PROPERTIES: TicketProperty[] = [
  * and the write feedback say the same reassurance twice — "17 tickets keep their
  * dates" in the toast and beside the switched-off row — and two spellings of one
  * sentence is how they come to disagree.
+ *
+ * `name` and `field` are two names for one property and both are deliberate.
+ * `name` is the settings row's, where the four are listed with nothing beside
+ * them and `Due date` is what says which kind of thing it is. `field` is what a
+ * control wears where its neighbours name it — a rail row, a create surface —
+ * and there Start and Due are adjacent, so the word `date` on both is noise the
+ * pair already carries.
  */
 export const PROPERTY_LABELS: Record<
   TicketProperty,
-  { name: string; kept: string; keptOne: string }
+  { name: string; field: string; kept: string; keptOne: string }
 > = {
-  type: { name: "Type", kept: "types", keptOne: "type" },
-  due: { name: "Due date", kept: "dates", keptOne: "date" },
-  start: { name: "Start date", kept: "dates", keptOne: "date" },
-  estimate: { name: "Estimate", kept: "estimates", keptOne: "estimate" },
+  type: { name: "Type", field: "Type", kept: "types", keptOne: "type" },
+  due: { name: "Due date", field: "Due", kept: "dates", keptOne: "date" },
+  start: { name: "Start date", field: "Start", kept: "dates", keptOne: "date" },
+  estimate: {
+    name: "Estimate",
+    field: "Estimate",
+    kept: "estimates",
+    keptOne: "estimate",
+  },
 };
 
 /** What each estimate system is called on screen. */
@@ -91,11 +103,45 @@ export function isPropertyEnabled(
 }
 
 /**
- * Which of the four this project has turned on, in the documented order. What a
- * menu offers and what the rail draws.
+ * Which of the four this project has turned on, in the order the format
+ * documents. What a count is taken over, and what a surface mirroring the file
+ * would read.
+ *
+ * A surface that *edits* them wants [`enabledPropertyFields`] instead — the
+ * file's order and a control's order are not the same order.
  */
 export function enabledProperties(config: PropertiesConfig): TicketProperty[] {
   return TICKET_PROPERTIES.filter((property) =>
+    isPropertyEnabled(config, property),
+  );
+}
+
+/**
+ * The order a surface that offers all four puts them in: what the ticket *is*,
+ * then what kind of work it is and how much, then when.
+ *
+ * Not the format's order, and the difference is the point. `type due start
+ * estimate` is right for bytes and wrong for a person: it separates the two
+ * dates with an estimate, and it puts Due above Start, when the pair reads
+ * chronologically and the forward-only grammar is a trade made for exactly that
+ * adjacency.
+ */
+export const PROPERTY_FIELDS: TicketProperty[] = [
+  "type",
+  "estimate",
+  "start",
+  "due",
+];
+
+/**
+ * The ones this project turned on, in the order a control draws them. One
+ * spelling for the panel's rail, full create and quick create, so three
+ * surfaces cannot come to disagree about what order the four read in.
+ */
+export function enabledPropertyFields(
+  config: PropertiesConfig,
+): TicketProperty[] {
+  return PROPERTY_FIELDS.filter((property) =>
     isPropertyEnabled(config, property),
   );
 }

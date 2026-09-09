@@ -43,9 +43,7 @@ import { RowActions, RowEditor } from "./ChecklistRow";
 import { classes } from "./classes";
 import { copyToClipboard } from "./clipboard";
 import { ConflictBanner } from "./ConflictBanner";
-import { DateField } from "./DateField";
 import { DescriptionEditor } from "./DescriptionEditor";
-import { EstimateControl } from "./EstimateControl";
 import { normalizeError } from "./errors";
 import { FolderGlyph } from "./FolderGlyph";
 import { FormattingToolbar } from "./FormattingToolbar";
@@ -57,8 +55,10 @@ import { singleKeyShortcutAllowed } from "./keyContext";
 import { LabelMenuButton } from "./LabelMenu";
 import { sameLabels } from "./labels";
 import { MarkdownView } from "./MarkdownView";
-import { MenuButton, type MenuOption } from "./Menu";
+import { MenuButton } from "./Menu";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "./metaOptions";
+import { enabledPropertyFields, PROPERTY_LABELS } from "./properties";
+import { PropertyControl } from "./PropertyControl";
 import { PencilGlyph } from "./PencilGlyph";
 import { mutate, type Mutation, useMutationStore } from "./mutations";
 import { RawFileView } from "./RawFileView";
@@ -205,24 +205,6 @@ function RailRow(props: { name: string; children: ReactNode }) {
       <div>{props.children}</div>
     </div>
   );
-}
-
-/**
- * The type menu's rows: the project's own values, and a way back out.
- *
- * `None` is first and carries the empty slug, which is what the panel turns
- * back into a clear — the same distinction `TicketEdit` draws between absent
- * and `null`, at the surface that has to offer it.
- */
-function typeOptions(values: Record<string, Label>): MenuOption<string>[] {
-  return [
-    { id: "", label: "None" },
-    ...Object.entries(values).map(([slug, label]) => ({
-      id: slug,
-      label: label.name,
-      glyph: <span className={`label-dot label-${label.color}`} />,
-    })),
-  ];
 }
 
 function HistoryTabs(props: {
@@ -1481,51 +1463,29 @@ export function TicketPanel(props: TicketPanelProps) {
                   }}
                 />
               </RailRow>
-              {props.properties.type.enabled && (
-                <RailRow name="Type">
-                  <MenuButton
-                    label="Type"
-                    options={typeOptions(props.properties.type.values)}
-                    // A slug nothing defines is still what the file says, and
-                    // `MenuButton` renders an unmatched value as itself.
-                    value={ticket.type ?? ""}
-                    onPick={(next) => saveProperty("type", next || undefined)}
+              {/* The properties this project turned on, in the order
+                  `enabledPropertyFields` states rather than the order the file
+                  writes them: what the ticket *is*, then what kind of work it
+                  is and how much, then when. Start above Due — chronological,
+                  adjacent, and the pair the forward-only rule is a trade for,
+                  because the same typed string has to mean the same day in
+                  both.
+
+                  A control rather than four written-out rows, because full
+                  create and quick create draw the same four and a rail that
+                  spelled them out here would be the first of three spellings
+                  (`PropertyControl.tsx`). */}
+              {enabledPropertyFields(props.properties).map((property) => (
+                <RailRow key={property} name={PROPERTY_LABELS[property].field}>
+                  <PropertyControl
+                    property={property}
+                    config={props.properties}
+                    value={ticket[property]}
+                    today={props.today}
+                    onCommit={(next) => saveProperty(property, next)}
                   />
                 </RailRow>
-              )}
-              {props.properties.estimate.enabled && (
-                <RailRow name="Estimate">
-                  <EstimateControl
-                    value={ticket.estimate}
-                    config={props.properties.estimate}
-                    onCommit={(next) => saveProperty("estimate", next)}
-                  />
-                </RailRow>
-              )}
-              {/* Start above Due — chronological, adjacent, and the pair the
-                  forward-only rule is a trade for: the same typed string has to
-                  mean the same day in both, and the price of that is that Start
-                  is forward-only too. */}
-              {props.properties.start.enabled && (
-                <RailRow name="Start">
-                  <DateField
-                    label="Start"
-                    value={ticket.start}
-                    now={props.today}
-                    onCommit={(next) => saveProperty("start", next)}
-                  />
-                </RailRow>
-              )}
-              {props.properties.due.enabled && (
-                <RailRow name="Due">
-                  <DateField
-                    label="Due"
-                    value={ticket.due}
-                    now={props.today}
-                    onCommit={(next) => saveProperty("due", next)}
-                  />
-                </RailRow>
-              )}
+              ))}
               <RailRow name="Labels">
                 <LabelMenuButton
                   slugs={pending.labels ?? ticket.labels}

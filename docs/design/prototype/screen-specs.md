@@ -255,8 +255,8 @@ movement. No custom-color affordance exists anywhere.
 - 620px modal at 12vh. Row 1: mono context `project · KEY-n` (the next key,
   allocated on create) and `esc`. Row 2: borderless 15px title input. Row 3:
   description. Row 4: status (defaults Todo; preseeded from a column `+`),
-  priority (defaults None), labels — the meta grid's order (LC-186, LC-201).
-  Footer: **Open full editor →** (carries all five), **Create more**, **Create** (`⌘↵`).
+  priority (defaults None), labels — the meta grid's order (LC-186, LC-201). Then the opt-in properties the project enabled, each named (LC-227).
+  Footer: **Open full editor →** (carries all six), **Create more**, **Create** (`⌘↵`).
 - `↵` from the title or `⌘↵` from anywhere creates optimistically: card appears
   at top of its column, toast `LC-n created` with Undo (`⌘Z`), modal closes,
   focus moves to the new card. Creating never blocks on the disk write.
@@ -264,8 +264,8 @@ movement. No custom-color affordance exists anywhere.
 ## Full create
 
 - The ticket panel in create mode: provisional ID chip (`KEY-n · new`),
-  title textarea, the same meta grid (status/priority/labels),
-  description editor (write mode only until first save), checklist
+  title textarea, the same meta grid (status/priority/labels, and the opt-in
+  properties the project enabled), description editor (write mode only until first save), checklist
   draft rows that tick (LC-242h), remove affordances, add-row. Footer: primary
   **Create ticket** (`⌘↵`) + ghost Cancel. On create the panel swaps to
   view mode of the real ticket.

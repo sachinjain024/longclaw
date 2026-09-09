@@ -2294,15 +2294,16 @@ export function App() {
                     // chosen (`keyboard-focus-map.md:45`).
                     onCreateInStatus={(status) => {
                       // A whole draft, empty but for the column: "nothing
-                      // typed yet" is `""` and `[]` rather than absent, which
-                      // is what keeps one shape between the preseed and the
-                      // draft the door carries back.
+                      // typed yet" is `""`, `[]` and `{}` rather than absent,
+                      // which is what keeps one shape between the preseed and
+                      // the draft the door carries back.
                       setCarriedDraft({
                         title: "",
                         description: "",
                         status,
                         priority: "none",
                         labels: [],
+                        properties: {},
                       });
                       setCreateSurface("quick");
                     }}
@@ -2483,9 +2484,12 @@ export function App() {
             projectTheme={project.theme}
             provisionalKey={nextKey}
             labels={project.labels}
+            properties={project.properties}
+            today={today}
             onDefineLabel={defineLabel}
             initialStatus={carriedDraft?.status}
             initialPriority={carriedDraft?.priority}
+            initialProperties={carriedDraft?.properties}
             onCancel={closeCreateSurface}
             onCreate={(request, { createMore }) =>
               submitNewTicket(request, { keepOpen: createMore })
@@ -2504,6 +2508,8 @@ export function App() {
           <CreatePanel
             provisionalKey={nextKey}
             labels={project.labels}
+            properties={project.properties}
+            today={today}
             onDefineLabel={defineLabel}
             initialDraft={carriedDraft}
             onCancel={closeCreateSurface}

@@ -8,7 +8,7 @@ priority: urgent
 labels:
   - release
 created_at: 2026-08-22T06:13:17.138Z
-updated_at: 2026-09-08T15:02:19.855Z
+updated_at: 2026-09-09T01:16:18.212Z
 ---
 
 Brainstorm with LLM agent like what other fields we should support. A few items I can think of are Type - Bug/Task, Due State, Start Date, Effort
@@ -1009,6 +1009,93 @@ explain "which fields agents may change"; that line now says "including the
 ticket properties the project has enabled and no others", replaced in place so
 no citation moved.
 
+## Built 2026-09-09: the two create surfaces
+
+`ck_15448aa4`. Both create surfaces now offer whichever of the four the project
+turned on, and a project that has turned none on — every project that predates
+this build — gets the two surfaces it has always had, down to the row quick
+create does not draw.
+
+### One switch, three surfaces
+
+The panel's rail had the four written out as four gated rows. Copying that into
+full create and quick create would have made three places that each decide what
+a type is edited with, so it moved into `PropertyControl.tsx` instead: one
+component, one switch, and the caller supplies only the box a named control goes
+in — a rail row labels above, a meta grid labels beside, quick create labels
+above again. The rail is now a map over `enabledPropertyFields`, and its four
+rows read the same as before.
+
+Two things that had to be named once rather than three times came out of it.
+`PROPERTY_FIELDS` is the order a surface draws them in — type, estimate, start,
+due — which is deliberately **not** the order the format writes them: `type due
+start estimate` is right for bytes and wrong for a person, because it separates
+the two dates and puts Due above Start. And `PROPERTY_LABELS` gained a `field`
+name beside its `name`: settings lists the four with nothing around them and
+`Due date` says which kind of thing it is, while a rail or a create surface puts
+Start and Due next to each other, where the word `date` on both is noise.
+`typeOptions` moved to `metaOptions.tsx`, beside the status and priority
+vocabularies it belongs with — four surfaces offer it now, counting the context
+menu still to come.
+
+### Where each surface puts them, and why they differ
+
+**Full create** takes them into the meta grid, between Priority and Labels,
+which is the rail's order exactly: the surface a ticket is filed on and the
+surface it is edited on read the same way down. Labels stay last for the reason
+they are last in the rail — the only row that grows.
+
+**Quick create** puts them on a row of their own under the meta line, so Labels
+does not move. The ticket settled nothing about this surface and the prototype
+had no scene for it, so the call is recorded here: the properties are in, on the
+argument LC-186 already won for priority. A project that turned a property on
+has said its tickets carry it; a create surface that cannot say so files a board
+of tickets all missing the same thing and leaves a second pass to fix them, and
+quick create is the surface most tickets are filed through and the only one with
+a bulk loop. What it costs is paid only by a project that asked for it.
+
+The properties row is the one part of either modal that **names its controls**,
+and that is not decoration. The meta line above it is three bare triggers
+learned by position (D-49); this row's length and order are configuration, so
+nothing about it can be learned that way — and an unlabelled type beside an
+unlabelled priority is two controls both reading `None`. Names above controls,
+which is the rail's own arrangement wherever it has no label column either.
+
+Across the **Create more** loop the properties are kept, like status, priority
+and labels: eight bugs due Friday is LC-201's complaint in a project that turned
+dates on. Nothing is hidden while it is kept — each control is on screen wearing
+what the next create will send.
+
+### Three things that would have gone missing quietly
+
+**`⌘↵` from inside an uncommitted field.** A date parses on Enter or blur, never
+per keystroke, so `⌘↵` typed straight from the due field would have created the
+ticket without the date that was on screen — the surface's own commit gesture
+dropping what it was meant to keep. `DateField` and the duration control now
+take the first `⌘↵` when they hold something uncommitted and let the second
+through. With nothing to commit it passes straight on, which is every press in
+the panel, where the binding belongs to no one.
+
+**The door.** `TicketDraft` grew the properties, because "everything past these
+lives over there" is only honest if getting there costs nothing, and a property
+is not the field it may start going missing at.
+
+**The optimistic card.** `provisionalTicket` carries them now. Not decoration: a
+card's height is derived from its row data and estimate and type are the second
+footer row, so a card filed with an estimate would have drawn 24px short and
+every card under it in the column would have moved the moment the write landed.
+
+### What this leaves open
+
+The two surfaces have not been looked at in WebKit — `probe:header`, `a11y:audit`
+and the focus-map row are still unchecked, and the quick create modal's property
+row is the first wrapping row it has ever had. `screen-specs.md` and
+`keyboard-focus-map.md` were corrected in place for what this change makes false
+about them (the quick create field list, its Tab order, and full create's meta
+grid); the rest of the doc row still stands. Re-pinning the three edited lines
+also dropped a stale lock entry for `keyboard-focus-map.md:130`, a line nothing
+has cited for some time.
+
 ## Checklist
 
 - [x] ADR: property configuration joins labels in longclaw.yaml — record why ADR 0002's reservation is deferred, and what would revisit it <!-- longclaw:item=ck_945a1ca9 -->
@@ -1048,7 +1135,7 @@ no citation moved.
 - [x] Ticket panel: the properties rail, gated on the project's enabled set <!-- longclaw:item=ck_8505f369 -->
 - [x] Date input: picker plus the typed forms, normalised to the canonical on-disk shape <!-- longclaw:item=ck_31cdc0b5 -->
 - [x] Hand LC-238s the rail's floor: no rail under 660px, 800 recommended, and a clamp that lands under 660 silently removes it <!-- longclaw:item=ck_ded5d73e -->
-- [ ] Create panel and quick create: the enabled properties only <!-- longclaw:item=ck_15448aa4 -->
+- [x] Create panel and quick create: the enabled properties only <!-- longclaw:item=ck_15448aa4 -->
 - [x] Board card: the due in the key row, immediately before the priority glyph — it costs no height, so cardStrides and the pinned heights never learn about due at all <!-- longclaw:item=ck_09e1edf1 -->
 - [x] boardGeometry: cardStrides learns the second footer row for estimate and type, keeping the height derivable from row data and never measured <!-- longclaw:item=ck_1b980442 -->
 - [x] styles.css and card-height-guard.mjs learn the new pinned heights — the guard runs inside npm run check and fails on a disagreement <!-- longclaw:item=ck_2c41c9b0 -->
@@ -2418,4 +2505,23 @@ changes:
 ### Claude Code updated this ticket
 
 The app's own create and edit now refuse a disabled property and an undefined value, and the generated contract lists the enabled set. One refusal serves both surfaces: PropertiesConfig::require_enabled and ::accept, walked by accept_new and accept_edit; cli.rs lost its two copies and engine.rs asks them before it prepares a write. Checked ck_e017a189 against LC-66 as the row asks — the property rows are derived and hold still, but the contract around them still churns three minted ids on every project write, and the new settings pane makes that fire on every property toggle. Noted on LC-66 with the evidence.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_ffb9f679
+kind: update
+occurred_at: 2026-09-09T01:16:18.212Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+  - field: checklist.ck_15448aa4.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Both create surfaces now offer the enabled properties and nothing else. One PropertyControl serves the panel's rail, full create and quick create, so the switch on which property this is lives in one place; PROPERTY_FIELDS names the order a surface draws them in, which is not the format's. Quick create's shape was not settled by the ticket or the prototype, so the call and its argument are recorded in the ticket: the properties are in, on LC-186's argument for priority, on a labelled row of their own so Labels does not move. Also fixed three quiet losses: a date typed and committed with the same key, the draft the full-editor door carries, and the optimistic card's height.
 <!-- /longclaw:event -->

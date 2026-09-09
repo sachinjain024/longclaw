@@ -354,10 +354,50 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
       status: "todo",
       priority: "urgent",
       labels: [],
+      properties: {},
     });
     // The card is the reason this matters: a create that dropped the priority
     // on the way would look right in the modal and wrong on the board.
     expect(screen.getByRole("img", { name: "Priority: Urgent" })).toBeTruthy();
+  });
+
+  it("offers the properties this project turned on, and sends them nested (LC-227)", async () => {
+    // The wiring nothing else can see: which properties a create surface offers
+    // is the project's answer, and handing it the wrong configuration would
+    // typecheck and then draw a modal with no dates in a project that has them.
+    const withDue = {
+      ...project,
+      properties: {
+        ...NO_PROPERTIES,
+        due: { enabled: true, attentionDays: 7 },
+      },
+    };
+    vi.mocked(api.listProjects).mockResolvedValue([withDue]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project: withDue,
+      tickets: [],
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    vi.mocked(api.createTicket).mockResolvedValue(created());
+    render(<App />);
+    await screen.findByRole("button", { name: "Board", pressed: true });
+
+    fireEvent.click(screen.getAllByText("New ticket")[0]);
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Due on a day it names" },
+    });
+    const due = screen.getByLabelText("Due");
+    fireEvent.change(due, { target: { value: "2026-09-28" } });
+    fireEvent.keyDown(due, { key: "Enter" });
+    fireEvent.click(screen.getByText("Create"));
+
+    // Under one field rather than spread across the request, which is the shape
+    // `NewTicket` deserializes (`core/storage.rs:1003-1007`).
+    expect(api.createTicket).toHaveBeenCalledWith(
+      expect.objectContaining({ properties: { due: "2026-09-28" } }),
+    );
   });
 
   it("undoes a create by archiving, because v0 never deletes a ticket file", async () => {
@@ -665,6 +705,7 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
         status: "todo",
         priority: "none",
         labels: [],
+        properties: {},
       });
     });
   });
@@ -801,6 +842,7 @@ describe("the full create surface (V0-16)", () => {
       priority: "p1",
       labels: ["backend"],
       description: "Check whether the round trip holds.",
+      properties: {},
       // Both halves of the row (LC-242h): the create says what the item is and
       // whether it is already done.
       checklist: [{ text: "Let an agent read it", checked: false }],
@@ -5888,6 +5930,7 @@ describe("a project switch under an open editor (LC-188)", () => {
       status: "todo",
       priority: "none",
       labels: [],
+      properties: {},
     });
     // The optimistic card takes the next key rather than one that is taken:
     // `addProvisionalTicket` keys by key, so a guess of `BR-1` would have put
@@ -6013,6 +6056,7 @@ describe("a project switch under an open editor (LC-188)", () => {
       status: "todo",
       priority: "none",
       labels: [],
+      properties: {},
     });
   });
 

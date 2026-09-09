@@ -226,6 +226,13 @@ export function provisionalTicket(
     status: request.status ?? "todo",
     priority: request.priority ?? "none",
     labels: request.labels ?? [],
+    // The properties the create was filed with (LC-227). Not decoration: a
+    // card's height is derived from its row data, and estimate and type are the
+    // second footer row (`boardGeometry.ts`) — so an optimistic card that left
+    // them out would be 24px short of the one that replaces it, and every card
+    // below it in the column would move when the write landed. The due chip
+    // costs no height and would still blink into existence a moment late.
+    ...request.properties,
     createdAt,
     updatedAt: createdAt,
     // The rows the create was filed with, already ticked (LC-242h). Zero was

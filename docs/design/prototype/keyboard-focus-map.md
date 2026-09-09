@@ -131,7 +131,7 @@ rule; the list's Archived show/hide toggle is a focusable header button).
 |---|---|
 | `Enter` · `⌘↵` | Create ticket → toast + Undo; focus moves to the new card. `Enter` from the title, `⌘↵` from anywhere (a description needs its newlines) |
 | `Esc` | Cancel, focus returns — as does the `esc` control at the top right, which is a button but never a tab stop |
-| `Tab` | Title → description → status → priority → labels → Open full editor → Create more → Create |
+| `Tab` | Title → description → status → priority → labels → the opt-in properties the project enabled, in the panel's order → Open full editor → Create more → Create |
 
 ## Menus (status / priority / ordering / labels / settings / project row)
 | Key | Action |

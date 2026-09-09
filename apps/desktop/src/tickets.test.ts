@@ -163,6 +163,21 @@ describe("the card a create draws before the file exists", () => {
     expect(card.checkedCount).toBe(0);
     expect(card.checklistCount).toBe(0);
   });
+
+  it("carries the properties the create was filed with (LC-227)", () => {
+    // Not decoration: a card's height is derived from its row data, and
+    // estimate and type are the second footer row. A card that left them out
+    // would be 24px short of the one that replaces it, and every card under it
+    // would move the moment the write landed.
+    const card = provisionalTicket(
+      "LC-9",
+      { ...request(), properties: { estimate: "2h", due: "2026-09-28" } },
+      NOW,
+    );
+
+    expect(card).toMatchObject({ estimate: "2h", due: "2026-09-28" });
+    expect(card.type).toBeUndefined();
+  });
 });
 
 /**

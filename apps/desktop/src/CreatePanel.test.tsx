@@ -20,7 +20,8 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CreatePanel } from "./CreatePanel";
 import type { LabelDefinition } from "./LabelMenu";
-import type { Label, TicketDraft } from "./types";
+import { NO_PROPERTIES } from "./properties";
+import type { Label, PropertiesConfig, TicketDraft } from "./types";
 
 afterEach(() => {
   cleanup();
@@ -34,6 +35,9 @@ afterEach(() => {
 /** What the auto-grow test measures a line of text as. */
 const LINE_HEIGHT = 20;
 
+/** Tuesday 8 September 2026, local: the day the date grammar resolves against. */
+const TODAY = new Date(2026, 8, 8, 9, 0).getTime();
+
 /** What `longclaw.yaml` defines in these tests. Tickets carry only the slugs. */
 const DEFINITIONS: Record<string, Label> = {
   backend: { name: "Backend", color: "blue" },
@@ -42,6 +46,8 @@ const DEFINITIONS: Record<string, Label> = {
 
 function createPanel(props?: {
   initialDraft?: TicketDraft;
+  properties?: PropertiesConfig;
+  today?: number;
   onCancel?: () => void;
   onCreate?: (request: unknown) => void;
   onDefineLabel?: (definition: LabelDefinition) => Promise<boolean>;
@@ -50,6 +56,8 @@ function createPanel(props?: {
     <CreatePanel
       provisionalKey="RT-4"
       labels={DEFINITIONS}
+      properties={props?.properties ?? NO_PROPERTIES}
+      today={props?.today ?? TODAY}
       onDefineLabel={props?.onDefineLabel ?? (() => Promise.resolve(true))}
       initialDraft={props?.initialDraft}
       onCancel={props?.onCancel ?? (() => {})}
@@ -58,7 +66,9 @@ function createPanel(props?: {
   );
 }
 
-function metaTrigger(field: "Status" | "Priority" | "Labels"): HTMLElement {
+function metaTrigger(
+  field: "Status" | "Priority" | "Type" | "Labels",
+): HTMLElement {
   return screen.getByRole("button", { name: new RegExp(`^${field}: `) });
 }
 
@@ -119,6 +129,7 @@ describe("every approved field, in one create", () => {
       priority: "p1",
       labels: ["backend", "reliability"],
       description: "Check whether the round trip holds.",
+      properties: {},
       checklist: openRows(
         "Let an agent read this ticket",
         "Review what it changed",
@@ -146,6 +157,7 @@ describe("every approved field, in one create", () => {
       status: "todo",
       priority: "none",
       labels: [],
+      properties: {},
       ...fields,
     };
   }
@@ -725,6 +737,7 @@ describe("full create prototype parity", () => {
           status: "todo",
           priority: "none",
           labels: ["reliability-2"],
+          properties: {},
         },
       }),
     );
@@ -796,5 +809,155 @@ describe("committing and leaving", () => {
 
     expect(onCancel).toHaveBeenCalledTimes(1);
     expect(onCreate).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The opt-in properties on the surface a ticket is filed from (LC-227).
+ *
+ * The claim is that a create offers exactly what the project turned on — no
+ * more, because the engine refuses a property this project does not read before
+ * it claims a directory, and no fewer, because a property a project enabled is
+ * one it decided its tickets carry.
+ */
+describe("the properties a project turned on", () => {
+  const withType: PropertiesConfig = {
+    ...NO_PROPERTIES,
+    type: { enabled: true, values: { bug: { name: "Bug", color: "red" } } },
+  };
+  const withAll: PropertiesConfig = {
+    ...withType,
+    due: { enabled: true, attentionDays: 7 },
+    start: { enabled: true },
+    estimate: {
+      ...NO_PROPERTIES.estimate,
+      enabled: true,
+      values: ["s", "m", "l"],
+    },
+  };
+
+  /** The meta grid's row names, in the order the grid draws them. */
+  function metaRows(): (string | null)[] {
+    return [...document.querySelectorAll(".meta-grid > span")].map(
+      (name) => name.textContent,
+    );
+  }
+
+  it("draws none of them for a project that has turned them all off", () => {
+    render(createPanel());
+
+    // Every project that predates this build, and the surface it has always
+    // had. A control here for a property the project does not read would be a
+    // control whose only outcome is a refusal (`engine.rs`).
+    expect(metaRows()).toEqual(["Status", "Priority", "Labels"]);
+  });
+
+  it("draws only the ones it turned on", () => {
+    render(createPanel({ properties: withType }));
+
+    expect(metaRows()).toEqual(["Status", "Priority", "Type", "Labels"]);
+  });
+
+  it("reads down in the panel's own order, with Labels still last", () => {
+    // The rail's order (`PropertyControl.tsx`), so the surface a ticket is
+    // created on and the surface it is edited on read the same way down.
+    render(createPanel({ properties: withAll }));
+
+    expect(metaRows()).toEqual([
+      "Status",
+      "Priority",
+      "Type",
+      "Estimate",
+      "Start",
+      "Due",
+      "Labels",
+    ]);
+  });
+
+  it("sends what was chosen under one properties field", () => {
+    const onCreate = vi.fn();
+    render(createPanel({ properties: withAll, onCreate }));
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Due on the day it is typed for" },
+    });
+    fireEvent.click(metaTrigger("Type"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Bug" }));
+    fireEvent.click(screen.getByRole("button", { name: "M" }));
+    const due = screen.getByLabelText("Due");
+    fireEvent.change(due, { target: { value: "28 Sep" } });
+    fireEvent.keyDown(due, { key: "Enter" });
+    fireEvent.click(screen.getByText("Create ticket"));
+
+    expect(onCreate).toHaveBeenCalledWith(
+      // Nested rather than spread across the request, which is the shape
+      // `NewTicket` deserializes — and normalised to the day the format stores,
+      // because the typed grammar is the app's and the file's is one shape.
+      expect.objectContaining({
+        properties: { type: "bug", estimate: "m", due: "2026-09-28" },
+      }),
+    );
+  });
+
+  it("takes a clear off the draft rather than sending a null", () => {
+    const onCreate = vi.fn();
+    render(createPanel({ properties: withAll, onCreate }));
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Set, then thought better of" },
+    });
+    fireEvent.click(metaTrigger("Type"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Bug" }));
+    fireEvent.click(metaTrigger("Type"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "None" }));
+    fireEvent.click(screen.getByText("Create ticket"));
+
+    // Absent and cleared are the same thing where no file exists yet. The
+    // `null` an edit sends draws a distinction that only means something
+    // against bytes already on disk.
+    expect(onCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ properties: {} }),
+    );
+  });
+
+  it("opens on the properties quick create was holding", () => {
+    render(
+      createPanel({
+        properties: withAll,
+        initialDraft: {
+          title: "",
+          description: "",
+          status: "todo",
+          priority: "none",
+          labels: [],
+          properties: { due: "2026-09-28" },
+        },
+      }),
+    );
+
+    // Shown the way a field shows a date rather than the way the file stores
+    // one — and without the year, because on 8 September `28 Sep` reads back as
+    // the day it is being shown for.
+    expect(screen.getByLabelText<HTMLInputElement>("Due").value).toBe("28 Sep");
+  });
+
+  it("takes an uncommitted date with the key that creates from anywhere", () => {
+    const onCreate = vi.fn();
+    render(createPanel({ properties: withAll, onCreate }));
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Typed, then created in one gesture" },
+    });
+    const due = screen.getByLabelText("Due");
+    fireEvent.change(due, { target: { value: "28 Sep" } });
+    // A date parses on Enter or blur, so `⌘↵` from inside the field would
+    // otherwise create the ticket without the date the person had just typed.
+    fireEvent.keyDown(due, { key: "Enter", metaKey: true });
+    expect(onCreate).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(due, { key: "Enter", metaKey: true });
+    expect(onCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ properties: { due: "2026-09-28" } }),
+    );
   });
 });

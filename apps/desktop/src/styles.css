@@ -3272,6 +3272,15 @@ button:disabled {
   justify-self: start;
 }
 
+/* A property's control in full create's meta grid (LC-227): the rail's value
+   cell in the grid that replaces the rail. The box exists because a date field
+   is not one element — its echo and its refusal stack under it — and it takes
+   `min-width: 0` because a grid item's floor is its own content, and a field
+   with a calendar joined to it would otherwise set the column's width. */
+.meta-property {
+  min-width: 0;
+}
+
 .panel-section {
   border-top: 1px solid var(--lc-line);
   padding-top: var(--lc-space-4);
@@ -4934,6 +4943,37 @@ html.theme-transition *::after {
   border: 0;
   padding: 0;
   background: none;
+}
+
+/* The properties this project turned on, on their own row under the meta line
+   (LC-227). A wrapping row because its shape is the project's rather than the
+   app's: one control or four, and a t-shirt scale beside two date fields is
+   wider than a 620px modal.
+
+   Each cell names itself, which the meta line above deliberately does not: three
+   bare triggers in a fixed order are learned once, while this row's length and
+   order are configuration, and an unlabelled type beside an unlabelled priority
+   is two controls both reading `None`. The name sits above its control, which
+   is the rail's own arrangement wherever it has no label column either. */
+.quick-create-properties {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lc-space-3) var(--lc-space-4);
+}
+
+.quick-create-property {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* `.meta-grid > span`'s treatment and `.rail-label`'s: one eyebrow for a
+   field's name, wherever in the app a field wears one. */
+.quick-create-property > .property-name {
+  color: var(--lc-ink-3);
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .quick-create-modal .editor-footer {

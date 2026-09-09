@@ -438,6 +438,20 @@ export interface NewChecklistItem {
   checked: boolean;
 }
 
+/**
+ * The opt-in properties a create asks for, keyed by the frontmatter key each
+ * one writes (LC-227).
+ *
+ * Nested under one field rather than spread across the request, which is the
+ * shape Rust deserializes (`core/storage.rs:1003-1007`) and for the reason it
+ * gives: this is a request rather than a projection of a file, so a caller says
+ * what it wants set and a caller that wants none of them sends an empty object.
+ *
+ * Derived from `TicketProperty` rather than written out, so a fifth property
+ * cannot join the union and quietly fail to be creatable.
+ */
+export type NewTicketProperties = Partial<Record<TicketProperty, string>>;
+
 export interface CreateTicketRequest {
   projectId: string;
   title: string;
@@ -445,6 +459,7 @@ export interface CreateTicketRequest {
   status?: TicketStatus;
   priority?: TicketPriority;
   labels?: string[];
+  properties?: NewTicketProperties;
   checklist?: NewChecklistItem[];
 }
 
@@ -453,15 +468,20 @@ export interface CreateTicketRequest {
  *
  * Named once because it travels through three places — the door's argument,
  * `App`'s held draft, and the create panel's opening state — and three
- * restatements of the same five fields is three chances for them to disagree
- * about which are optional. They did: the door sent all five, `App` held three
- * of them optional, and the panel took five separate `initial…` props.
+ * restatements of the same six fields is three chances for them to disagree
+ * about which are optional. They did: the door sent all five it had then, `App`
+ * held three of them optional, and the panel took five separate `initial…`
+ * props.
  *
  * Every field is required here. A draft is what the human had typed at the
- * moment they asked for more room, and "nothing typed yet" is `""` or `[]`
- * rather than absent — the same reason the create request sends an empty
+ * moment they asked for more room, and "nothing typed yet" is `""`, `[]` or
+ * `{}` rather than absent — the same reason the create request sends an empty
  * description instead of omitting it. The checklist is not in it: it is the one
  * field quick create does not offer, so there is never one to carry.
+ *
+ * The properties are, because quick create offers whichever of them the project
+ * turned on (LC-227) — and the door is the one place a field must not quietly
+ * go missing, which is what makes the narrow surface honest.
  */
 export interface TicketDraft {
   title: string;
@@ -469,6 +489,7 @@ export interface TicketDraft {
   status: TicketStatus;
   priority: TicketPriority;
   labels: string[];
+  properties: NewTicketProperties;
 }
 
 export interface WriteResult {
