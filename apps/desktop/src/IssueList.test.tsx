@@ -267,23 +267,68 @@ describe("what one row says", () => {
         (chip) => chip.textContent,
       ),
     ).toEqual(["Backend", "Reliability"]);
-    expect(element.querySelector(".list-row-updated")?.textContent).toBe("3h");
+    expect(element.querySelector(".list-row-updated")).toBeNull();
     // No assignee slot in v0 (ADR 0001).
     expect(element.querySelector(".avatar")).toBeNull();
   });
 
-  // `just now` wrapped onto a second line inside the 46px column and made the
-  // row taller than its neighbours (D-35); the slot's vocabulary is one word.
-  it("says now for a ticket that changed a moment ago, not just now", () => {
+  it.each([
+    ["2026-07-28", "3d overdue", "overdue"],
+    ["2026-07-31", "Today", "today"],
+    ["2026-08-03", "in 3d", "approaching"],
+    ["2026-10-20", "20 Oct", "beyond"],
+  ])("shows due %s at the end of the row", (due, text, rung) => {
     render(
       list({
-        tickets: [row({ updatedAt: new Date(NOW - 400).toISOString() })],
+        tickets: [row({ due })],
+        properties: {
+          ...NO_PROPERTIES,
+          due: { enabled: true, attentionDays: 7 },
+        },
       }),
     );
+    const element = listRow("LC-1");
+    const chip = element.querySelector(".due-chip");
+    expect(chip?.textContent).toBe(text);
+    expect(chip?.classList.contains(rung)).toBe(true);
+    expect(element.lastElementChild).toBe(chip);
+    expect(element.querySelector(".list-row-updated")).toBeNull();
+  });
 
-    expect(
-      listRow("LC-1").querySelector(".list-row-updated")?.textContent,
-    ).toBe("now");
+  it.each([undefined, "invalid", "2026-02-30"])(
+    "omits an absent or invalid due date: %s",
+    (due) => {
+      render(
+        list({
+          tickets: [row({ due })],
+          properties: {
+            ...NO_PROPERTIES,
+            due: { enabled: true, attentionDays: 7 },
+          },
+        }),
+      );
+      expect(listRow("LC-1").querySelector(".due-chip")).toBeNull();
+    },
+  );
+
+  it("hides due when the property is disabled", () => {
+    render(list({ tickets: [row({ due: "2026-07-28" })] }));
+    expect(listRow("LC-1").querySelector(".due-chip")).toBeNull();
+  });
+
+  it("shows a finished ticket's date without overdue urgency", () => {
+    render(
+      list({
+        tickets: [row({ due: "2026-07-28", status: "done" })],
+        properties: {
+          ...NO_PROPERTIES,
+          due: { enabled: true, attentionDays: 7 },
+        },
+      }),
+    );
+    const chip = listRow("LC-1").querySelector(".due-chip");
+    expect(chip?.textContent).toBe("28 Jul");
+    expect(chip?.classList.contains("overdue")).toBe(false);
   });
 
   it("names the status for anyone who cannot see the dot's colour", () => {

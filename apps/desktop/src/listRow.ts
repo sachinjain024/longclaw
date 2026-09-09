@@ -3,19 +3,23 @@
  *
  * The list row is denser than a board card and says more: it carries its own
  * status dot, because unlike a card it is not standing under a column that names
- * the status, and it carries a relative updated time, because "what exists" is a
- * question about age in a way that "what is in flight" is not
- * (`screen-specs.md:175-180`).
+ * the status, and the due date when the project enables it (LC-227).
  *
  * Separate from the component for the same reason `boardCard.ts` is: it is the
  * row's only decision, and presenting exactly once per render is what lets
  * `IssueList.test.tsx` assert that a change to one ticket re-renders one row.
  */
 
-import { describeAgeInSlot } from "./acknowledgement";
+import { presentDue } from "./dueChip";
 import { resolveLabels, type ResolvedLabel } from "./labels";
 import { checklistFraction } from "./tickets";
-import type { Label, TicketPriority, TicketRow, TicketStatus } from "./types";
+import type {
+  Label,
+  PropertiesConfig,
+  TicketPriority,
+  TicketRow,
+  TicketStatus,
+} from "./types";
 
 export interface RowCopy {
   /** The title, or the file's path when the file would not read. */
@@ -27,8 +31,8 @@ export interface RowCopy {
   labels: ResolvedLabel[];
   /** `1/3`, and empty when the ticket has no checklist (`components.md:190`). */
   checklist: string;
-  /** Relative, mono, right-aligned. Empty when the date will not parse. */
-  updated: string;
+  /** The same due-date treatment the board carries. */
+  due?: ReturnType<typeof presentDue>;
   /** Set only for a file that would not read, which shows its name instead. */
   degraded?: { path: string; readOnly: boolean };
 }
@@ -39,6 +43,7 @@ const ROW_LABEL_LIMIT = 2;
 export function presentRow(
   ticket: TicketRow,
   definitions: Record<string, Label>,
+  properties: PropertiesConfig,
   now: number,
 ): RowCopy {
   if (ticket.state === "degraded") {
@@ -46,19 +51,15 @@ export function presentRow(
       title: ticket.relativePath,
       labels: [],
       checklist: "",
-      updated: "",
       degraded: { path: ticket.relativePath, readOnly: ticket.readOnly },
     };
   }
-  const updatedAt = Date.parse(ticket.updatedAt);
   return {
     title: ticket.title,
     status: ticket.status,
     priority: ticket.priority,
     labels: resolveLabels(ticket.labels, definitions, ROW_LABEL_LIMIT),
     checklist: checklistFraction(ticket),
-    // A date the file wrote in a shape this build cannot read is left blank
-    // rather than shown as an invented age.
-    updated: Number.isNaN(updatedAt) ? "" : describeAgeInSlot(updatedAt, now),
+    due: presentDue(ticket, properties, now),
   };
 }

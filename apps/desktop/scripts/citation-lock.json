@@ -56,7 +56,7 @@
     "170": "with visible tickets render.",
     "171": "- **Group header:** 32px, sticky at top (`--lc-bg` fill), status dot +",
     "175": "- **Row:** 36px (`--lc-size-row`), padding 0 12px, gap 10px. Order: status",
-    "178": "fraction · ≤2 label chips · relative updated mono 10.5px right-aligned",
+    "178": "fraction · ≤2 label chips · due date mono 11px, when enabled and valid",
     "180": "follow the same ordering preference as the board.",
     "205": "- **Archived group (ADR 0004):** below the last status group, a",
     "209": "surface in palette search, tagged `· archived`.",

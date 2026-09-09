@@ -9,15 +9,9 @@
  */
 
 import { hasSecondRow } from "./boardGeometry";
+import { presentDue } from "./dueChip";
 import { resolveLabel, resolveLabels, type ResolvedLabel } from "./labels";
-import {
-  dueChipText,
-  dueRung,
-  fromIso,
-  readEstimate,
-  type DueRung,
-  type ReadEstimate,
-} from "./properties";
+import { readEstimate, type DueRung, type ReadEstimate } from "./properties";
 import { checklistFraction } from "./tickets";
 import type {
   Label,
@@ -62,34 +56,6 @@ export interface CardSecondRow {
  */
 const CARD_LABEL_LIMIT = 2;
 const CARD_LABEL_LIMIT_BESIDE_A_FRACTION = 1;
-
-/**
- * The chip the key row carries, or nothing.
- *
- * **Whenever a due date is defined**, not only when it has escalated: showing
- * only the sharp rungs made presence itself a reading of the rung, and left
- * "where is that date I set" unanswerable without opening the ticket.
- *
- * A value that will not read has no chip. It is still on disk and the panel
- * still shows it — a card is the one surface with no room to explain itself.
- */
-function presentDue(
-  ticket: TicketRow & { state: "indexed" },
-  properties: PropertiesConfig,
-  now: number,
-): CardCopy["due"] {
-  if (!properties.due.enabled || !ticket.due) return undefined;
-  const day = fromIso(ticket.due);
-  const rung = dueRung(
-    ticket.due,
-    now,
-    properties.due.attentionDays,
-    ticket.status,
-    Boolean(ticket.archivedAt),
-  );
-  if (!day || !rung) return undefined;
-  return { text: dueChipText(day, now, rung), rung };
-}
 
 /** A file that will not parse still belongs to the project, so it still reads. */
 export function presentCard(

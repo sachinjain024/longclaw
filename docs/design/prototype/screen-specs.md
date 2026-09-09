@@ -175,8 +175,8 @@ movement. No custom-color affordance exists anywhere.
 - **Row:** 36px (`--lc-size-row`), padding 0 12px, gap 10px. Order: status
   dot 13 · mono ID 11px `ink-3` (58px fixed) · priority glyph · title
   (13px/500, truncates) · acknowledgement dot (agent, when acknowledged) · checklist
-  fraction · ≤2 label chips · relative updated mono 10.5px right-aligned
-  (46px fixed). No assignee slot in v0 (ADR 0001). Rows within a group
+  fraction · ≤2 label chips · due date mono 11px, when enabled and valid
+  (LC-227; shared board rungs). No assignee slot in v0 (ADR 0001). Rows within a group
   follow the same ordering preference as the board.
   Hover `wash`; focus = inset human border + ring; selected = human wash +
   2px left accent bar. Degraded rows: warn triangle, mono filename, "View

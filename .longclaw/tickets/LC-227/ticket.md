@@ -10,7 +10,7 @@ labels:
 type: feature
 due: 2026-09-09
 created_at: 2026-08-22T06:13:17.138Z
-updated_at: 2026-09-09T06:38:54.212Z
+updated_at: 2026-09-09T07:27:19.688Z
 ---
 
 Brainstorm with LLM agent like what other fields we should support. A few items I can think of are Type - Bug/Task, Due State, Start Date, Effort
@@ -1359,6 +1359,7 @@ that is built when it opens.
 - [x] The second footer row appears only when the ticket has a value for an enabled property that sits in it — one line, never wrapping, presence derived from row data and never from the rung, giving exactly four pinned heights <!-- longclaw:item=ck_bef33999 -->
 - [x] Prototype the estimate control for each system — t-shirt chips, Fibonacci chips, and number plus unit <!-- longclaw:item=ck_100759d5 -->
 - [x] Prototype the settings Properties pane: the type-values editor, the estimate system picker, and a property switched off while tickets carry values <!-- longclaw:item=ck_d5ddb411 -->
+- [ ] Review the UX copy and strings in the prototype's copy deck — all 116, including the 29 no screen shows — then write the settled deck into this ticket <!-- longclaw:item=ck_4275f23b -->
 - [ ] Review the prototype, record what it settled, then delete it and its line in the index <!-- longclaw:item=ck_7d5bada6 -->
 - [x] Project: parse and render the properties block in longclaw.yaml, preserving unknown keys <!-- longclaw:item=ck_15465a7c -->
 - [x] Ticket: parse and render the four properties; a disabled one survives a read-modify-write untouched <!-- longclaw:item=ck_15eaaa0f -->
@@ -1381,7 +1382,7 @@ that is built when it opens.
 - [x] Board card: the due in the key row, immediately before the priority glyph — it costs no height, so cardStrides and the pinned heights never learn about due at all <!-- longclaw:item=ck_09e1edf1 -->
 - [x] boardGeometry: cardStrides learns the second footer row for estimate and type, keeping the height derivable from row data and never measured <!-- longclaw:item=ck_1b980442 -->
 - [x] styles.css and card-height-guard.mjs learn the new pinned heights — the guard runs inside npm run check and fails on a disagreement <!-- longclaw:item=ck_2c41c9b0 -->
-- [ ] List row: due within the row's two-chip budget, minding LC-93's 46px slot <!-- longclaw:item=ck_6ac72ae5 -->
+- [x] List row: show the due date after labels using the shared board treatment, and remove the updated-time column <!-- longclaw:item=ck_6ac72ae5 -->
 - [x] Ticket context menu: submenus for all four properties beside Move to and Priority, each row present only when the project enables that property — a default project's menu is unchanged <!-- longclaw:item=ck_a77f4bb8 -->
 - [x] Date submenus offer quick picks, Clear and Pick a date…; the latter opens the shared calendar at the context menu, without opening the Ticket Panel <!-- longclaw:item=ck_fcf48239 -->
 - [x] Estimate submenu is the project's own scale: the enum under t-shirt, the sequence under Fibonacci, and a common-durations list under duration <!-- longclaw:item=ck_d3ec1253 -->
@@ -2924,4 +2925,86 @@ changes:
 ### Codex updated this ticket
 
 Decision revised by the user on 2026-09-09: Pick a date… now opens the shared calendar at the context menu for Due and Start, replacing the earlier panel handoff. Choosing or clearing a date uses the existing property edit and Undo path. Escape and outside dismissal return focus to the originating ticket. Month controls and Clear are keyboard-accessible. The Type menu row now uses the chosen circle, square and triangle outline icon.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_9465c140
+kind: update
+occurred_at: 2026-09-09T06:45:49.543Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: due
+    from: 2026-09-09
+    to: 2026-09-11
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_ac2b7ebb
+kind: update
+occurred_at: 2026-09-09T06:45:54.663Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: due
+    from: 2026-09-11
+    to: 2026-09-09
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_01105fac
+kind: update
+occurred_at: 2026-09-09T07:01:01.094Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_4275f23b.added
+    to: Review the UX copy and strings in the prototype's copy deck — all 116, including the 29 no screen shows — then write the settled deck into this ticket
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_dc7122b6
+kind: update
+occurred_at: 2026-09-09T07:01:13.622Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_4275f23b.moved
+    from: "61"
+    to: "20"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_d90dd485
+kind: update
+occurred_at: 2026-09-09T07:27:19.688Z
+actor:
+  type: agent
+  id: codex
+  name: Codex
+changes:
+  - field: checklist.ck_6ac72ae5.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_6ac72ae5.text
+    from: "List row: due within the row's two-chip budget, minding LC-93's 46px slot"
+    to: "List row: show the due date after labels using the shared board treatment, and remove the updated-time column"
+-->
+### Codex updated this ticket
+
+Replaced the list row's updated-time column with the due date after the labels, as requested in review. The list shares the board's due-date presenter and urgency styles; disabled, missing and invalid dates have no chip. Updated the prototype and screen spec. npm run verify passed, including 1,321 frontend tests and the native watcher. Performance runs used 5,000 tickets: list p95 keyboard/scroll/filter/write = 18/22/25/19 ms; board p95 scroll/filter/write = 22/40/20 ms, with no keyboard samples. Both runs were rejected as not comparable because frames measured 20 ms (50 Hz), so the performance checklist remains open.
 <!-- /longclaw:event -->

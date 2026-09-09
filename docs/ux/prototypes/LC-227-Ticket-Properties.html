@@ -605,9 +605,7 @@
   margin-left: auto;
 }
 
-/* The list row's due, in the two-chip budget it already has. `flex: none` and
-   `white-space: nowrap` because LC-93 was the bug about text wrapping inside
-   the row's 46px time slot, and this lands beside it. */
+/* The list row's due follows the labels and stays on one line. */
 .list-row .due-chip {
   flex: none;
   white-space: nowrap;
@@ -1525,11 +1523,8 @@ function cardHTML(ticket) {
 }
 
 /**
- * One list row. Easier than the card — two chips with nothing competing
- * (`listRow.ts:35`) — but the row is a single 36px line and its time slot is a
- * fixed 46px, and LC-93 was the bug about text wrapping inside it. The due
- * lands immediately left of that slot, where the two mono values read as one
- * pair of dates: when it is due, and when it last changed.
+ * One list row. The due date follows the labels; the updated-time column
+ * was removed during review.
  */
 function listRowHTML(ticket) {
   const fraction = ticket.items ? ticket.checked + "/" + ticket.items : "";
@@ -1542,7 +1537,6 @@ function listRowHTML(ticket) {
     (fraction ? '<span class="list-row-checklist">' + fraction + "</span>" : "") +
     ticket.labels.slice(0, 2).map((slug) => labelChip(slug, true)).join("") +
     dueChip(ticket) +
-    '<span class="list-row-updated">4h</span>' +
     "</button>"
   );
 }
@@ -2381,7 +2375,7 @@ const NOTES = {
     "<li class=\"q\"><strong>It shows whenever the ticket has one</strong>, at every rung, not only the escalated ones. Presence is pure row data again; the rung decides the word and the weight and nothing else.</li>" +
     "<li class=\"q\"><strong>Today stays monochrome and emphasised.</strong> Tried in <code>--lc-danger</code> and refused: sharing overdue's hue read as a second overdue at a glance, and the distinction fell entirely to words that are 11px. A third colour was never available — agent green belongs to agents, <code>--lc-warn</code> is the unattributed external change, and LC-148 was the bug of those two colliding. The visibility Today needed came from the key row instead.</li>" +
     "<li class=\"q\"><strong>The chip is bare mono text, not a pill</strong>, in the key's own 11px. The driver's <strong>wash</strong> switch draws the filled alternative — worth one look, and the reason to refuse it is that a filled chip on a card is a thing the app has never had.</li>" +
-    "<li class=\"q\"><strong>The list row takes the due immediately left of the 46px time slot</strong>, where the two mono values read as a pair: when it is due, and when it last changed. The list row is one line, so it has no placement question of its own.</li>" +
+    "<li class=\"q\"><strong>The list row takes the due after the labels</strong>, replacing the updated-time column. The list row is one line, so it has no placement question of its own.</li>" +
     "</ol>" +
     "<h2>Open</h2>" +
     "<p class=\"open\"><strong>Where in the key row.</strong> <strong>after key</strong> puts the date next to the key and leaves the glyph at the far edge; <strong>right</strong> sends it across the row to stand immediately left of the glyph, so the two urgency marks are one object and the key keeps the left edge. Switch between them in the driver.</p>" +
