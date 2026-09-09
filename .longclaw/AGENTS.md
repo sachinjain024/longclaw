@@ -21,6 +21,8 @@ project data.
 | `status` | one of `backlog`, `todo`, `in_progress`, `in_review`, `done`, `canceled` |
 | `priority` | one of `urgent`, `p1`, `p2`, `p3`, `p4`, `none` |
 | `labels` | slugs defined in `longclaw.yaml` |
+| `type` | one of bug, chore, docs, feature, spike |
+| `due` | a date, `YYYY-MM-DD` |
 | description | any CommonMark outside the reserved sections |
 | checklist | flip `[ ]` to `[x]`, or append a task |
 | activity | append a bounded record; never edit or delete an existing one |
@@ -28,6 +30,11 @@ project data.
 Do not change `format`, `id`, `key`, `created_at`, or `rank`. LongClaw owns
 `rank`; preserve any value you find and do not invent one. Keep every key you
 do not understand exactly as it is.
+
+The ticket properties above are the ones this project has turned on. Do not
+add one that is not listed: an unlisted property is one this project does not
+read, and a value you find under it is being hidden rather than deleted — keep
+it exactly as it is.
 
 ## Timestamps and attribution
 
@@ -126,7 +133,7 @@ nothing. Treat registered files as immutable: replacement means a new id.
 ```md
 ---
 format: longclaw.ticket/v1
-id: f11f1e05-a49d-4530-aa32-308279f86c9b
+id: 5b356bfd-0c38-4dc6-ba36-54991670e8f0
 key: LC-1
 title: An example of the shape you are editing
 status: todo
@@ -139,12 +146,12 @@ The description is ordinary CommonMark.
 
 ## Checklist
 
-- [ ] An example task <!-- longclaw:item=ck_65ee6293 -->
+- [ ] An example task <!-- longclaw:item=ck_e168a71e -->
 
 ## Activity
 
 <!-- longclaw:event
-id: evt_bd567ae0
+id: evt_4b7932f3
 kind: create
 occurred_at: 2026-07-29T00:00:00Z
 actor:

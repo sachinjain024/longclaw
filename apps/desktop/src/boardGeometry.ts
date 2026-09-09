@@ -33,7 +33,7 @@
 
 import { isAcknowledged } from "./acknowledgement";
 import type { ExternalMarks } from "./acknowledgement";
-import type { TicketRow } from "./types";
+import type { PropertiesConfig, TicketRow } from "./types";
 
 /**
  * `--lc-size-board-card`, the height `.ticket-row` is pinned to. Exactly what
@@ -53,12 +53,27 @@ export const CARD_HEIGHT = 108;
  * measuring anything.
  */
 export const ACKNOWLEDGED_CARD_HEIGHT = 136;
+/**
+ * `--lc-size-board-card-properties`: the same card with the second footer row
+ * under the title, which is 24px of estimate and type (LC-227).
+ *
+ * Two more heights and not four, because the due date is in the key row. That
+ * row is pinned at 16px and a date is text, so a project that enables only Due
+ * never reaches these numbers on any card — the commonest configuration keeps
+ * today's geometry exactly, and this pair exists for the projects that turn on
+ * one of the other two.
+ */
+export const CARD_HEIGHT_PROPERTIES = 132;
+export const ACKNOWLEDGED_CARD_HEIGHT_PROPERTIES = 160;
 /** `.ticket-row`'s margin-bottom: the gap between cards in a stack. */
 export const CARD_GAP = 8;
 
 /** How far the next card's top sits below this one's. */
 export const CARD_STRIDE = CARD_HEIGHT + CARD_GAP;
 export const ACKNOWLEDGED_CARD_STRIDE = ACKNOWLEDGED_CARD_HEIGHT + CARD_GAP;
+export const CARD_STRIDE_PROPERTIES = CARD_HEIGHT_PROPERTIES + CARD_GAP;
+export const ACKNOWLEDGED_CARD_STRIDE_PROPERTIES =
+  ACKNOWLEDGED_CARD_HEIGHT_PROPERTIES + CARD_GAP;
 
 /**
  * The height a column must reserve before it has measured itself. Deliberately a
@@ -67,16 +82,53 @@ export const ACKNOWLEDGED_CARD_STRIDE = ACKNOWLEDGED_CARD_HEIGHT + CARD_GAP;
  */
 export const ASSUMED_VIEWPORT = 720;
 
+/**
+ * Whether a card draws the second footer row.
+ *
+ * **This reads values and configuration, and never a rung**, because the answer
+ * is a height. A row decided by how near a date is would change at midnight,
+ * with no file write, and shift every column's offsets under a scrolled board.
+ *
+ * It lives here rather than beside the markup for the same reason: its whole
+ * justification is the height contract, and `boardCard.ts` imports it so the
+ * row a card draws and the room a column leaves for it cannot disagree.
+ */
+export function hasSecondRow(
+  ticket: TicketRow,
+  properties: PropertiesConfig,
+): boolean {
+  if (ticket.state === "degraded") return false;
+  if (properties.estimate.enabled && ticket.estimate) return true;
+  return Boolean(properties.type.enabled && ticket.type);
+}
+
+/**
+ * A stride per ticket, from row data alone.
+ *
+ * Four cases now rather than two, and the axis that was added is deliberately
+ * the one that cannot move on its own: whether the ticket *has* a value for an
+ * enabled second-row property, which is `hasSecondRow`'s question and never a
+ * rung's.
+ *
+ * `now` still only decides whether a change is recent enough to be acknowledged,
+ * which is the one clock-derived height the board already had and already
+ * re-renders for.
+ */
 export function cardStrides(
   tickets: TicketRow[],
   marks: ExternalMarks,
   now: number,
+  properties: PropertiesConfig,
 ): number[] {
-  return tickets.map((ticket) =>
-    isAcknowledged(marks[ticket.key], now)
-      ? ACKNOWLEDGED_CARD_STRIDE
-      : CARD_STRIDE,
-  );
+  return tickets.map((ticket) => {
+    const second = hasSecondRow(ticket, properties);
+    if (isAcknowledged(marks[ticket.key], now)) {
+      return second
+        ? ACKNOWLEDGED_CARD_STRIDE_PROPERTIES
+        : ACKNOWLEDGED_CARD_STRIDE;
+    }
+    return second ? CARD_STRIDE_PROPERTIES : CARD_STRIDE;
+  });
 }
 
 /**

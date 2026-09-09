@@ -23,12 +23,14 @@ import { useLongClawStore } from "./state";
 import { isArchived } from "./tickets";
 import type {
   IndexedTicket,
+  PropertiesConfig,
   ProjectReference,
   StreamEnvelope,
   TicketDetail,
   TicketRow,
   WriteResult,
 } from "./types";
+import { NO_PROPERTIES, startOfDay, toIso } from "./properties";
 
 vi.mock("./api", () => ({
   chooseAndCreateProject: vi.fn(),
@@ -131,6 +133,7 @@ describe("recovering from a lost project event", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   it("fetches one snapshot, says it is reconciling, and resumes", async () => {
@@ -237,6 +240,7 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   function created(): WriteResult {
@@ -351,10 +355,50 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
       status: "todo",
       priority: "urgent",
       labels: [],
+      properties: {},
     });
     // The card is the reason this matters: a create that dropped the priority
     // on the way would look right in the modal and wrong on the board.
     expect(screen.getByRole("img", { name: "Priority: Urgent" })).toBeTruthy();
+  });
+
+  it("offers the properties this project turned on, and sends them nested (LC-227)", async () => {
+    // The wiring nothing else can see: which properties a create surface offers
+    // is the project's answer, and handing it the wrong configuration would
+    // typecheck and then draw a modal with no dates in a project that has them.
+    const withDue = {
+      ...project,
+      properties: {
+        ...NO_PROPERTIES,
+        due: { enabled: true, attentionDays: 7 },
+      },
+    };
+    vi.mocked(api.listProjects).mockResolvedValue([withDue]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project: withDue,
+      tickets: [],
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    vi.mocked(api.createTicket).mockResolvedValue(created());
+    render(<App />);
+    await screen.findByRole("button", { name: "Board", pressed: true });
+
+    fireEvent.click(screen.getAllByText("New ticket")[0]);
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Due on a day it names" },
+    });
+    const due = screen.getByLabelText("Due Date");
+    fireEvent.change(due, { target: { value: "2026-09-28" } });
+    fireEvent.keyDown(due, { key: "Enter" });
+    fireEvent.click(screen.getByText("Create"));
+
+    // Under one field rather than spread across the request, which is the shape
+    // `NewTicket` deserializes (`core/storage.rs:1003-1007`).
+    expect(api.createTicket).toHaveBeenCalledWith(
+      expect.objectContaining({ properties: { due: "2026-09-28" } }),
+    );
   });
 
   it("undoes a create by archiving, because v0 never deletes a ticket file", async () => {
@@ -416,7 +460,7 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
    * board but Tab from the top of the document.
    *
    * The same call is how the ticket panel returns focus to its card, so this
-   * covers `keyboard-focus-map.md:162` at size as well as :124.
+   * covers `keyboard-focus-map.md:197` at size as well as :124.
    */
   it("focuses the new card even when it lands outside the rendered window", async () => {
     const crowd: TicketRow[] = Array.from({ length: 30 }, (_, index) => ({
@@ -662,6 +706,7 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
         status: "todo",
         priority: "none",
         labels: [],
+        properties: {},
       });
     });
   });
@@ -680,6 +725,7 @@ describe("the full create surface (V0-16)", () => {
       backend: { name: "Backend", color: "blue" },
       reliability: { name: "Reliability", color: "amber" },
     },
+    properties: NO_PROPERTIES,
   };
 
   function created(): WriteResult {
@@ -797,6 +843,7 @@ describe("the full create surface (V0-16)", () => {
       priority: "p1",
       labels: ["backend"],
       description: "Check whether the round trip holds.",
+      properties: {},
       // Both halves of the row (LC-242h): the create says what the item is and
       // whether it is already done.
       checklist: [{ text: "Let an agent read it", checked: false }],
@@ -876,6 +923,7 @@ describe("priority from the board (V0-08)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   const ticket = {
@@ -986,6 +1034,7 @@ describe("the project path chip (LC-68)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   const ticket = {
@@ -1092,6 +1141,7 @@ describe("the project settings gear (LC-70)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   // Named for what it asserts. It used to claim it "keeps starring in the
@@ -1260,6 +1310,7 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
     starred: false,
     reachable: true,
     labels: { backend: { name: "Backend", color: "blue" } },
+    properties: NO_PROPERTIES,
   };
 
   const ticket: TicketRow = {
@@ -1822,6 +1873,7 @@ describe("the disk-state indicator (LC-69, moved by LC-239w)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   async function openBoard() {
@@ -1927,6 +1979,7 @@ describe("first launch (LC-76 … LC-82)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   /** The flow D-11 restores: welcome → folder picker → create form. */
@@ -2129,6 +2182,7 @@ describe("first launch (LC-76 … LC-82)", () => {
       starred: false,
       reachable: true,
       labels: {},
+      properties: NO_PROPERTIES,
     };
 
     /** A folder that already holds `existing`, on both sides of the picker. */
@@ -2427,6 +2481,7 @@ describe("system-matched appearance (V0-35)", () => {
       starred: false,
       reachable: true,
       labels: {},
+      properties: NO_PROPERTIES,
     };
     vi.mocked(api.listProjects).mockResolvedValue([project]);
     vi.mocked(api.openProject).mockResolvedValue({
@@ -2464,6 +2519,7 @@ describe("instant per-project theme selection (V0-36)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   const ticket = {
@@ -2629,6 +2685,7 @@ describe("label definitions in project settings (V0-10)", () => {
     starred: false,
     reachable: true,
     labels: { backend: { name: "Backend", color: "blue" } },
+    properties: NO_PROPERTIES,
   };
 
   const ticket = {
@@ -2845,6 +2902,7 @@ describe("the list and the board agree (V0-14)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   function ticket(
@@ -3159,6 +3217,7 @@ describe("archive and unarchive (V0-11)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   function row(key: string, overrides?: Partial<IndexedTicket>): TicketRow {
@@ -3534,7 +3593,7 @@ describe("archive and unarchive (V0-11)", () => {
 
   it("archives a canceled ticket without making it any less canceled", async () => {
     // Canceled is a workflow outcome and archiving is tidying
-    // (`file_format.md:345-347`); one must not stand in for the other.
+    // (`file_format.md:406-408`); one must not stand in for the other.
     vi.mocked(api.readTicket).mockResolvedValue(detail("LC-3"));
     vi.mocked(api.editTicket).mockResolvedValue(
       written("LC-3", {
@@ -3567,6 +3626,7 @@ describe("board ordering and manual reordering (V0-09)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   function row(key: string, overrides?: Partial<IndexedTicket>): TicketRow {
@@ -3612,7 +3672,7 @@ describe("board ordering and manual reordering (V0-09)", () => {
   }
 
   /** Switches the header control, which is a real menu with a real footnote. */
-  function chooseOrdering(name: "Priority" | "Manual") {
+  function chooseOrdering(name: "Priority" | "Due" | "Manual") {
     fireEvent.click(screen.getByRole("button", { name: /^Order:/ }));
     fireEvent.click(screen.getByRole("menuitemradio", { name }));
   }
@@ -3669,6 +3729,7 @@ describe("board ordering and manual reordering (V0-09)", () => {
     await openBoard([row("LC-1"), row("LC-2")]);
 
     chooseOrdering("Manual");
+    chooseOrdering("Due");
     chooseOrdering("Priority");
     chooseOrdering("Manual");
 
@@ -3677,7 +3738,7 @@ describe("board ordering and manual reordering (V0-09)", () => {
     expect(api.updateProjectName).not.toHaveBeenCalled();
   });
 
-  it("offers Priority and Manual and nothing else (LC-223 review)", async () => {
+  it("offers Priority, Due and Manual and nothing else", async () => {
     await openBoard([row("LC-1")]);
 
     fireEvent.click(screen.getByRole("button", { name: /^Order:/ }));
@@ -3685,18 +3746,19 @@ describe("board ordering and manual reordering (V0-09)", () => {
     expect(
       screen.getByRole("menuitemradio", { name: "Priority" }),
     ).toBeTruthy();
+    expect(screen.getByRole("menuitemradio", { name: "Due" })).toBeTruthy();
     expect(screen.getByRole("menuitemradio", { name: "Manual" })).toBeTruthy();
-    // The footnote came off at the review: two options say everything.
+    // The footnote came off at the review: the options say everything.
     expect(document.querySelector(".menu-footnote")).toBeNull();
   });
 
   it("keeps the choice for this project, and only this project", async () => {
     await openBoard([row("LC-1")]);
-    chooseOrdering("Manual");
+    chooseOrdering("Due");
 
     await waitFor(() =>
       expect(devicePreferences.projectWorkspaces).toEqual({
-        "project-fixture": { ordering: "manual" },
+        "project-fixture": { ordering: "due" },
       }),
     );
   });
@@ -4055,6 +4117,7 @@ describe("the header filter (V0-15)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   function row(
@@ -4438,6 +4501,7 @@ describe("project-scoped workspace restoration (LC-49)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
   const projectB = {
     ...projectA,
@@ -4477,7 +4541,7 @@ describe("project-scoped workspace restoration (LC-49)", () => {
   const filter = () =>
     screen.getByRole("textbox", { name: "Filter tickets" }) as HTMLInputElement;
 
-  function chooseOrdering(name: "Priority" | "Manual") {
+  function chooseOrdering(name: "Priority" | "Due" | "Manual") {
     fireEvent.click(screen.getByRole("button", { name: /^Order:/ }));
     fireEvent.click(screen.getByRole("menuitemradio", { name }));
   }
@@ -4506,7 +4570,7 @@ describe("project-scoped workspace restoration (LC-49)", () => {
     await screen.findByRole("heading", { name: "Project A" });
 
     fireEvent.click(screen.getByRole("button", { name: "List" }));
-    chooseOrdering("Manual");
+    chooseOrdering("Due");
     fireEvent.change(filter(), { target: { value: "alpha" } });
 
     fireEvent.click(screen.getByRole("button", { name: "Project B" }));
@@ -4526,7 +4590,7 @@ describe("project-scoped workspace restoration (LC-49)", () => {
     expect(
       screen.getByRole("button", { name: "List", pressed: true }),
     ).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Order: Manual" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Order: Due" })).toBeTruthy();
     expect(filter().value).toBe("alpha");
   });
 
@@ -4626,6 +4690,7 @@ describe("the side panel against its spec (Step 16a)", () => {
     starred: true,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   const unreachable = {
@@ -4637,6 +4702,7 @@ describe("the side panel against its spec (Step 16a)", () => {
     starred: false,
     reachable: false,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   /**
@@ -4883,6 +4949,7 @@ describe("the app shell against its spec (LC-71, LC-72, LC-73)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   function row(key: string, title: string): TicketRow {
@@ -5171,6 +5238,7 @@ describe("the app shell against its spec (LC-71, LC-72, LC-73)", () => {
         starred: false,
         reachable: true,
         labels: {},
+        properties: NO_PROPERTIES,
       };
       vi.mocked(api.chooseProjectFolder).mockResolvedValue("/Users/dev/orbit");
       vi.mocked(api.folderHoldsProject).mockResolvedValue(true);
@@ -5219,6 +5287,7 @@ describe("a project folder that cannot be reached (LC-139 … LC-145)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
   const unreachable = { ...project, reachable: false };
 
@@ -5439,6 +5508,7 @@ describe("a project with no tickets (LC-86 … LC-89)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   async function openEmpty() {
@@ -5585,6 +5655,7 @@ describe("a ticket key typed at the palette root (LC-171)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   const found: IndexedTicket = {
@@ -5718,6 +5789,7 @@ describe("a project switch under an open editor (LC-188)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   const bravo = {
@@ -5729,6 +5801,7 @@ describe("a project switch under an open editor (LC-188)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   /** A ticket Bravo already holds, so `BR-1` is a key that is taken. */
@@ -5860,6 +5933,7 @@ describe("a project switch under an open editor (LC-188)", () => {
       status: "todo",
       priority: "none",
       labels: [],
+      properties: {},
     });
     // The optimistic card takes the next key rather than one that is taken:
     // `addProvisionalTicket` keys by key, so a guess of `BR-1` would have put
@@ -5985,6 +6059,7 @@ describe("a project switch under an open editor (LC-188)", () => {
       status: "todo",
       priority: "none",
       labels: [],
+      properties: {},
     });
   });
 
@@ -6014,9 +6089,11 @@ describe("a project switch under an open editor (LC-188)", () => {
 });
 
 /**
- * The two rows of a ticket's context menu that only App can answer (LC-222):
- * the archive, which is a write, and the path, which needs the project folder
- * neither surface has ever been told.
+ * The rows of a ticket's context menu that only App can answer: the archive,
+ * which is a write, and the path, which needs the project folder neither
+ * surface has ever been told (LC-222) — and the four property submenus, which
+ * write through the same seam and, in one case, hand the job to the panel
+ * instead (LC-227).
  */
 describe("the ticket context menu, end to end (LC-222)", () => {
   const project: ProjectReference = {
@@ -6028,6 +6105,7 @@ describe("the ticket context menu, end to end (LC-222)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   function row(key: string, overrides?: Partial<IndexedTicket>): TicketRow {
@@ -6051,10 +6129,14 @@ describe("the ticket context menu, end to end (LC-222)", () => {
     };
   }
 
-  async function openBoard(tickets: TicketRow[] = [row("LC-1")]) {
-    vi.mocked(api.listProjects).mockResolvedValue([project]);
+  async function openBoard(
+    tickets: TicketRow[] = [row("LC-1")],
+    properties = NO_PROPERTIES,
+  ) {
+    const opened = { ...project, properties };
+    vi.mocked(api.listProjects).mockResolvedValue([opened]);
     vi.mocked(api.openProject).mockResolvedValue({
-      project,
+      project: opened,
       tickets,
       generation: 1,
       rebuiltInMs: 1,
@@ -6136,6 +6218,127 @@ describe("the ticket context menu, end to end (LC-222)", () => {
       edit: { status: "in_progress" },
     });
   });
+
+  /**
+   * The four properties as menu rows (LC-227). What is asserted here and
+   * nowhere else is that a pick reaches the disk: `ticketMenu.test.tsx` proves
+   * the rows are right, and only this proves the row that says `Today` writes
+   * today.
+   */
+  describe("the properties a project turned on", () => {
+    const withDates: PropertiesConfig = {
+      ...NO_PROPERTIES,
+      type: { enabled: true, values: { bug: { name: "Bug", color: "red" } } },
+      due: { enabled: true, attentionDays: 7 },
+    };
+    /** The real clock, because nothing here freezes one — see `openBoard`. */
+    const today = () => toIso(startOfDay(Date.now()));
+
+    it("offers nothing for a project that has turned them all off", async () => {
+      await openBoard();
+
+      fireEvent.contextMenu(card("LC-1"));
+
+      // Every project written before this build. Four more rows are affordable
+      // only because this is what they cost when nobody asked for them.
+      expect(screen.queryByRole("menuitem", { name: /Due date/ })).toBeNull();
+      expect(screen.queryByRole("menuitem", { name: /^Type/ })).toBeNull();
+    });
+
+    it("writes the day a quick pick resolved to, and says which day it was", async () => {
+      vi.mocked(api.editTicket).mockResolvedValue({
+        ticket: row("LC-1", {
+          contentHash: "hash-LC-1-written",
+          due: today(),
+        }),
+        generation: 2,
+        changes: [],
+      });
+      await openBoard([row("LC-1")], withDates);
+
+      fireEvent.contextMenu(card("LC-1"));
+      fireEvent.click(screen.getByRole("menuitem", { name: /Due date/ }));
+      fireEvent.click(screen.getByRole("menuitemradio", { name: /Today/ }));
+
+      // The panel's own sentence for the same write, from `propertyToast`.
+      await screen.findByText(`LC-1 Due → ${today()}`);
+      expect(api.editTicket).toHaveBeenCalledWith({
+        projectId: project.id,
+        ticketKey: "LC-1",
+        expectedHash: "hash-LC-1",
+        // The format's only spelling, never the row's own words.
+        edit: { due: today() },
+      });
+    });
+
+    it("clears a property by emptying the field rather than omitting it", async () => {
+      vi.mocked(api.editTicket).mockResolvedValue({
+        ticket: row("LC-1", { contentHash: "hash-LC-1-written" }),
+        generation: 2,
+        changes: [],
+      });
+      await openBoard([row("LC-1", { type: "bug" })], withDates);
+
+      fireEvent.contextMenu(card("LC-1"));
+      fireEvent.click(screen.getByRole("menuitem", { name: /^Type/ }));
+      fireEvent.click(screen.getByRole("menuitem", { name: "Clear" }));
+
+      await screen.findByText("LC-1 Type cleared");
+      expect(api.editTicket).toHaveBeenCalledWith({
+        projectId: project.id,
+        ticketKey: "LC-1",
+        expectedHash: "hash-LC-1",
+        // `null` empties the field; an absent key would leave it alone.
+        edit: { type: null },
+      });
+    });
+
+    it.each(["due", "start"] as const)(
+      "picks %s in the context menu without opening the panel",
+      async (property) => {
+        vi.mocked(api.editTicket).mockResolvedValue({
+          ticket: row("LC-1", {
+            [property]: "2026-09-30",
+            contentHash: "hash-LC-1-written",
+          }),
+          generation: 2,
+          changes: [],
+        });
+        await openBoard([row("LC-1", { [property]: "2026-09-28" })], {
+          ...withDates,
+          start: { enabled: true },
+        });
+
+        fireEvent.contextMenu(card("LC-1"));
+        fireEvent.click(
+          screen.getByRole("menuitem", {
+            name: property === "due" ? /Due date/ : /Start date/,
+          }),
+        );
+        fireEvent.click(screen.getByRole("menuitem", { name: /Pick a date/ }));
+
+        const picker = screen.getByRole("dialog", {
+          name:
+            property === "due" ? "Due Date calendar" : "Start Date calendar",
+        });
+        expect(picker.contains(document.activeElement)).toBe(true);
+        expect(api.readTicket).not.toHaveBeenCalled();
+        fireEvent.click(
+          screen.getByRole("button", { name: "Wed 30 Sep 2026" }),
+        );
+        await waitFor(() =>
+          expect(api.editTicket).toHaveBeenCalledWith({
+            projectId: project.id,
+            ticketKey: "LC-1",
+            expectedHash: "hash-LC-1",
+            edit: { [property]: "2026-09-30" },
+          }),
+        );
+        expect(picker.isConnected).toBe(false);
+        expect(api.readTicket).not.toHaveBeenCalled();
+      },
+    );
+  });
 });
 
 /**
@@ -6167,6 +6370,7 @@ describe("switching project by chord (LC-230)", () => {
         starred: ordinal === "03",
         reachable: true,
         labels: {},
+        properties: NO_PROPERTIES,
       };
     },
   );

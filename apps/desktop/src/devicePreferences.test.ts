@@ -113,7 +113,7 @@ describe("a document is untrusted, wherever it came from", () => {
       appearance: "sepia",
       activeProjectId: 42,
       projectWorkspaces: {
-        good: { view: "board", ordering: "priority", filterQuery: "open" },
+        good: { view: "board", ordering: "due", filterQuery: "open" },
         stale: { view: "grid", ordering: "newest", filterQuery: 42 },
         partial: { view: "list", future: true },
         scalar: "manual",
@@ -125,7 +125,7 @@ describe("a document is untrusted, wherever it came from", () => {
     expect(readAppearance()).toBeUndefined();
     expect(readActiveProjectId()).toBeUndefined();
     expect(readProjectWorkspaces()).toEqual({
-      good: { view: "board", ordering: "priority", filterQuery: "open" },
+      good: { view: "board", ordering: "due", filterQuery: "open" },
       partial: { view: "list" },
     });
   });

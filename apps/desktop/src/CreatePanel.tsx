@@ -23,7 +23,7 @@
  *   written until **Create ticket** either way.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import type { DragEvent, KeyboardEvent } from "react";
 import { useAddRowInView } from "./addRow";
 import { useAutoGrow } from "./autoGrow";
@@ -35,10 +35,14 @@ import { GhostBox } from "./GhostBox";
 import { LabelMenuButton, type LabelDefinition } from "./LabelMenu";
 import { MenuButton } from "./Menu";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "./metaOptions";
+import { enabledPropertyFields, PROPERTY_LABELS } from "./properties";
+import { usePropertyDraft } from "./propertyDraft";
+import { PropertyControl } from "./PropertyControl";
 import type {
   CreateTicketRequest,
   Label,
   NewChecklistItem,
+  PropertiesConfig,
   TicketDraft,
   TicketStatus,
 } from "./types";
@@ -62,6 +66,24 @@ interface CreatePanelProps {
   /** The project's label definitions. A ticket carries slugs and nothing else. */
   labels: Record<string, Label>;
   /**
+   * Which of the four opt-in properties this project reads, and how each is
+   * configured (LC-227).
+   *
+   * A create offers exactly the enabled ones and no others, which is not a
+   * courtesy: `create_ticket` holds a request to what the project configures
+   * before it claims a directory (`engine.rs`), so a control for a property
+   * this project has off would be a control whose only outcome is a refusal.
+   * A project that has turned none on — every project that predates this build
+   * — gets the surface it has always had.
+   */
+  properties: PropertiesConfig;
+  /**
+   * The day the date grammar resolves against, in epoch ms. Injected as it is
+   * everywhere else this feature reads a date, so `28 Sep` means the same day
+   * here as it does on the card behind this panel.
+   */
+  today: number;
+  /**
    * Defines a new label and ticks it onto this draft, in one gesture (LC-236e).
    * The definition is a project write and it lands immediately — it outlives
    * this draft, including one that is abandoned — and a refusal comes back as
@@ -70,8 +92,8 @@ interface CreatePanelProps {
   onDefineLabel: (definition: LabelDefinition) => Promise<boolean>;
   /**
    * Carried in from quick create's "Open full editor →"
-   * (`screen-specs.md:258-259`) — all five fields it asks for, as one draft
-   * rather than five props (`TicketDraft`).
+   * (`screen-specs.md:258-259`) — all six fields it asks for, as one draft
+   * rather than six props (`TicketDraft`).
    *
    * The door is what makes the narrow surface honest: "everything past these
    * lives over there" is only true if getting there costs nothing, so it is
@@ -90,6 +112,13 @@ export function CreatePanel(props: CreatePanelProps) {
   const [status, setStatus] = useState<TicketStatus>(draft?.status ?? "todo");
   const [priority, setPriority] = useState(draft?.priority ?? "none");
   const [labels, setLabels] = useState<string[]>(draft?.labels ?? []);
+  /**
+   * The draft's own property values — what the ticket will carry, not what the
+   * project configures. `props.properties` is the configuration, the same way
+   * `props.labels` is the definitions and `labels` above is what was ticked.
+   * The state and its setter are `usePropertyDraft`'s, shared with `QuickCreate`.
+   */
+  const { properties, setProperty } = usePropertyDraft(draft?.properties);
   const [description, setDescription] = useState(draft?.description ?? "");
   const [checklist, setChecklist] = useState<NewChecklistItem[]>([]);
   const [newItem, setNewItem] = useState("");
@@ -296,6 +325,10 @@ export function CreatePanel(props: CreatePanelProps) {
       status,
       priority,
       labels,
+      // Sent empty rather than omitted, the way the description and the labels
+      // are: one create request shape rather than two, and `{}` is the honest
+      // spelling of a create that asked for none of them.
+      properties,
       checklist,
     });
   }
@@ -374,6 +407,28 @@ export function CreatePanel(props: CreatePanelProps) {
           value={priority}
           onPick={setPriority}
         />
+        {/* The properties this project turned on, between Priority and Labels
+            — which is the panel's rail order exactly (`PropertyControl.tsx`),
+            so the surface a ticket is created on and the surface it is edited
+            on read the same way down.
+
+            Labels stay last for the reason they are last in the rail: they are
+            the only row that grows, and a list of chips at the foot of a column
+            costs nothing when it wraps. */}
+        {enabledPropertyFields(props.properties).map((property) => (
+          <Fragment key={property}>
+            <span>{PROPERTY_LABELS[property].field}</span>
+            <div className="meta-property">
+              <PropertyControl
+                property={property}
+                config={props.properties}
+                value={properties[property]}
+                today={props.today}
+                onCommit={(next) => setProperty(property, next)}
+              />
+            </div>
+          </Fragment>
+        ))}
         <span>Labels</span>
         <LabelMenuButton
           slugs={labels}

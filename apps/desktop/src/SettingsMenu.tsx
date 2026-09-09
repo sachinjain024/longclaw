@@ -24,6 +24,7 @@
 
 import type { ReactNode } from "react";
 import { MenuList, type MenuItem } from "./MenuList";
+import { enabledProperties } from "./properties";
 import { PencilGlyph } from "./PencilGlyph";
 import { useFocusReturn, usePopoverPlacement } from "./popover";
 import {
@@ -31,6 +32,7 @@ import {
   GearGlyph,
   KeyboardGlyph,
   ReloadGlyph,
+  SlidersGlyph,
   TagGlyph,
 } from "./SettingsGlyphs";
 import {
@@ -176,6 +178,13 @@ export function SettingsMenu(
     sectionRow(props, "labels", {
       glyph: <TagGlyph />,
       hint: <code>{labelCount}</code>,
+    }),
+    sectionRow(props, "properties", {
+      glyph: <SlidersGlyph />,
+      // How many of the four this project has turned on, which is the one
+      // number that says whether the pane holds anything yet. All four ship
+      // off, so a project that has never opened it reads `0`.
+      hint: <code>{enabledProperties(props.project.properties).length}</code>,
     }),
     sectionRow(props, "status", {
       glyph: <ColumnsGlyph />,

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import ipcContractJson from "../src-tauri/tests/fixtures/ipc-contract.json";
 import { useLongClawStore } from "./state";
 import type { StreamEnvelope } from "./types";
+import { NO_PROPERTIES } from "./properties";
 
 interface IpcContractFixture {
   projectEventEnvelopes: {
@@ -381,6 +382,7 @@ describe("Rust project-event JSON applied to visible state", () => {
       starred: false,
       reachable: true,
       labels: {},
+      properties: NO_PROPERTIES,
     };
 
     useLongClawStore.getState().upsertProject(project);
@@ -418,6 +420,7 @@ describe("Rust project-event JSON applied to visible state", () => {
           starred: false,
           reachable: false,
           labels: {},
+          properties: NO_PROPERTIES,
         },
       ],
       activeProjectId: changedEnvelope.projectId,
@@ -450,6 +453,7 @@ describe("Rust project-event JSON applied to visible state", () => {
           starred: true,
           reachable: true,
           labels: {},
+          properties: NO_PROPERTIES,
         },
       ],
     });
@@ -466,6 +470,7 @@ describe("Rust project-event JSON applied to visible state", () => {
         starred: true,
         reachable: false,
         labels: {},
+        properties: NO_PROPERTIES,
       },
     ]);
   });

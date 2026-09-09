@@ -7,11 +7,17 @@
  * focus. That is also why `↑↓` and `Enter` are handled here rather than by the
  * rows — a row never holds focus, so it never sees the key.
  *
- * The palette is one screen in seven modes: a root command list and six
- * sub-modes (`:309`). Every mode is declared once, in `MODES` below — its rows,
- * its crumb, what a pick does, and any note under the list — because when the
- * mode was branched on at each of those four points, adding one meant editing
- * four places and forgetting the fourth was silent.
+ * The palette is one screen in a root command list and ten sub-modes (`:309`).
+ * Every mode is declared once, in `MODES` below — its rows, its crumb, what a
+ * pick does, and any note under the list — because when the mode was branched
+ * on at each of those four points, adding one meant editing four places and
+ * forgetting the fourth was silent.
+ *
+ * Four of the ten are the opt-in properties (LC-227), and they are the reason
+ * that record now earns its keep twice over: they differ from each other only
+ * in which values they offer, so they are built by one function rather than
+ * written out four times, and a project that has enabled none of them draws
+ * exactly the palette this file drew before them.
  *
  * The root is the one mode that answers with something other than its own rows:
  * a query shaped like a ticket key is offered as the ticket it names (LC-171),
@@ -26,26 +32,55 @@
  * and is therefore the only place a ticket file is written from.
  */
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { STATUS_OPTIONS, PRIORITY_OPTIONS } from "./metaOptions";
+import { STATUS_OPTIONS, PRIORITY_OPTIONS, typeOptions } from "./metaOptions";
 import { ticketKeyNames, ticketKeyQuery } from "./tickets";
 import { ORDERINGS, type OrderingMode } from "./ordering";
 import type { ViewMode } from "./devicePreferences";
+import { CalendarGlyph } from "./DateField";
 import { FolderGlyph } from "./FolderGlyph";
 import { PriorityGlyph } from "./PriorityGlyph";
+import {
+  datePicks,
+  displayDate,
+  echoDate,
+  enabledPropertyFields,
+  estimateScale,
+  fromIso,
+  parseDate,
+  PROPERTY_LABELS,
+  readEstimate,
+  toIso,
+} from "./properties";
 import { StatusDot } from "./StatusDot";
 import { tabStops } from "./tabStops";
 import { ThemeSwatch } from "./ThemeSwatch";
+import { TypeGlyph } from "./TicketMenuGlyphs";
 import type {
   IndexedTicket,
   ProjectReference,
+  TicketProperty,
   TicketRow,
   TicketPriority,
   TicketStatus,
 } from "./types";
 
-/** The root list, and the six sub-modes it opens (`screen-specs.md:309`). */
+/**
+ * The root list, and the ten sub-modes it opens (`screen-specs.md:309`).
+ *
+ * A property's mode is named by the property, so `opens` needs no mapping from
+ * one to the other — the four are `TicketProperty` verbatim, and adding a fifth
+ * property to that type puts it here as a type error rather than as a mode that
+ * silently never opens.
+ */
 type Mode =
-  "root" | "status" | "priority" | "theme" | "project" | "search" | "ordering";
+  | "root"
+  | "status"
+  | "priority"
+  | "theme"
+  | "project"
+  | "search"
+  | "ordering"
+  | TicketProperty;
 
 /** One row of whichever mode is in force. Never a ticket, and never a command. */
 type PaletteRow = {
@@ -66,8 +101,39 @@ type PaletteRow = {
   reason?: string;
   /** A root row that opens a sub-mode instead of running. */
   opens?: Mode;
+  /**
+   * What a property row writes, for the four modes whose rows are values
+   * rather than commands (LC-227). Absent on the `Clear` row, which is exactly
+   * what clearing is on the wire — an edit that empties the field rather than
+   * one that omits it — so the mode's `run` needs no branch for it.
+   */
+  value?: string;
   /** What a root row does, including whether it closes the palette. */
   run?: () => void;
+};
+
+/**
+ * One sub-mode, declared once: its crumb, its rows, what a pick does, and the
+ * note that belongs under it.
+ *
+ * Named rather than inline because the four property modes are built by a
+ * function now (LC-227), and a function needs a return type to be checked
+ * against the record it fills.
+ */
+type SubMode = {
+  crumb: string;
+  rows: PaletteRow[];
+  run: (row: PaletteRow) => void;
+  /**
+   * A row offered ahead of the rest and never filtered — the mode's answer to
+   * the query rather than a match on it. The root has one of these too, for a
+   * key-shaped query (LC-171); here it is a typed day (LC-227).
+   */
+  lead?: PaletteRow;
+  /** Rendered under the list. A claim about the mode, not a hint. */
+  note?: string;
+  /** Whether typing narrows the rows here. Search is answered by Rust. */
+  filterLocally?: boolean;
 };
 
 /** How long typing settles before the search sub-mode asks Rust (`plan 27`). */
@@ -105,6 +171,24 @@ function RootGlyph({ children }: { children: ReactNode }) {
     </span>
   );
 }
+
+/**
+ * The mark each property's row wears — the same one its context-menu row wears,
+ * so a property is recognisable across the two surfaces that offer it.
+ *
+ * Estimate is the one that differs, and deliberately. The context menu reserves
+ * an empty slot for it, which it can afford because every neighbour is text;
+ * here every root row carries a glyph, and an empty slot among ten filled ones
+ * reads as an icon that failed to load rather than as a property without one.
+ * `~` is the mark, because an estimate is the one property whose value is an
+ * approximation in all three of the systems a project can pick.
+ */
+const PROPERTY_GLYPHS: Record<TicketProperty, ReactNode> = {
+  type: <TypeGlyph />,
+  estimate: <RootGlyph>~</RootGlyph>,
+  start: <CalendarGlyph />,
+  due: <CalendarGlyph />,
+};
 
 /**
  * A ticket as a row (`screen-specs.md:236`): mono key, status dot, title, and
@@ -163,6 +247,15 @@ export function CommandPalette(props: {
   themes: Array<{ id: string; label: string }>;
   /** The board's current ordering, so the sub-mode can tick it. */
   ordering: OrderingMode;
+  /**
+   * Today, at midnight, injected rather than read here (LC-227).
+   *
+   * The four quick picks a date mode offers and the day a typed one resolves to
+   * are both answers about *when now is*, and a component that read the clock
+   * itself could not be tested against a fixed day or moved by the day-boundary
+   * recompute the watcher cannot push.
+   */
+  today: number;
   /** The surface in force, so the view row can name the one it will switch to. */
   view: ViewMode;
   /** Closes and returns focus to whatever held it before `⌘K`. */
@@ -178,6 +271,16 @@ export function CommandPalette(props: {
   onView: (view: ViewMode) => void;
   onArchive: () => void;
   onOrdering: (mode: OrderingMode) => void;
+  /**
+   * One of the four opt-in properties set, or cleared with `undefined`.
+   *
+   * The same handler a card's context menu raises, so the palette writes down
+   * the same path and says the same sentence about having done it.
+   */
+  onChangeProperty: (
+    property: TicketProperty,
+    value: string | undefined,
+  ) => void;
   /** Debounced. The palette holds no results of its own. */
   onSearch: (query: string) => void;
   /** Opens straight into a sub-mode. Tests use it; `⌘K` always opens at root. */
@@ -231,6 +334,156 @@ export function CommandPalette(props: {
     ? props.tickets.find((ticket) => ticketKeyNames(rootKey, ticket.key))
     : undefined;
 
+  /**
+   * What the target ticket holds for a property, read the way that property's
+   * own control reads it — the treatment the status and priority rows already
+   * get from their glyphs, which is the palette showing you the value before
+   * you change it.
+   *
+   * A value this project cannot read is shown as the file writes it rather than
+   * as an empty slot: the bytes are preserved on disk (invariant 16), and a row
+   * that showed nothing would say the ticket holds nothing.
+   */
+  function heldValue(property: TicketProperty): string | undefined {
+    const held = targetTicket?.[property];
+    if (!held) return undefined;
+    const config = props.project.properties;
+    if (property === "estimate")
+      return readEstimate(held, config.estimate)?.text;
+    if (property === "type") return config.type.values[held]?.name ?? held;
+    const day = fromIso(held);
+    return day ? displayDate(day, props.today) : held;
+  }
+
+  /**
+   * The query read as a day, when the query is one — a date mode's answer *to*
+   * what was typed rather than a match on it.
+   *
+   * This is the palette's answer to the context menu's `Pick a date…`, and it
+   * is a better one here: that menu can grow a calendar because it is anchored
+   * to a card, and this is a combobox whose whole job is already to read what
+   * you type. So the four picks are the shortcuts and the whole typed grammar
+   * stays reachable — through `parseDate`, the one parser, rather than a second
+   * that would disagree with it about `28 Sep` in some year nobody tests.
+   *
+   * The row is labelled with the day it resolved to, in full, for the reason
+   * the field echoes it: `28 Sep` typed in December is next year, and a date
+   * that lands a year out must not be silent.
+   *
+   * A refused form comes back as a disabled row wearing the sentence that names
+   * its next move — but only when nothing else matched, because `tom` both
+   * refuses as a month and narrows to `Tomorrow`, and a refusal beside the row
+   * that answers you is noise. A query the app understands well enough to
+   * reject deserves better than `No matches`; one it can answer twice should
+   * only say so once.
+   */
+  function typedDate(
+    property: TicketProperty,
+    held: string | undefined,
+    matched: boolean,
+  ): PaletteRow | undefined {
+    const parsed = parseDate(query, props.today);
+    if (parsed.kind === "empty") return undefined;
+    if (parsed.kind === "refused")
+      return matched
+        ? undefined
+        : {
+            id: `${property}-typed`,
+            label: query,
+            disabled: true,
+            reason: parsed.why,
+          };
+    const iso = toIso(parsed.date);
+    return {
+      id: `${property}-typed`,
+      label: echoDate(parsed.date),
+      value: iso,
+      current: held === iso,
+    };
+  }
+
+  /**
+   * One property's sub-mode: the values the project defines, the one in force
+   * ticked, and `Clear` when there is something to clear.
+   *
+   * The same three answers `ticketMenu.tsx` gives one surface over, read from
+   * the same three functions — `typeOptions`, `estimateScale`, `datePicks` —
+   * because a second place that decides what a due date may be set to is a
+   * second place that can come to disagree with the file format. The switch on
+   * *which* property this is lives here and nowhere else in this file, which is
+   * the bargain `propertyFace` strikes for the menu and `PropertyControl` for
+   * the panel: one branch to write for a fifth property, not three to find.
+   */
+  function propertyMode(property: TicketProperty): SubMode {
+    const config = props.project.properties;
+    const held = targetTicket?.[property];
+    let values: PaletteRow[];
+    if (property === "type") {
+      values = typeOptions(config.type.values)
+        // Minus its `None` row: clearing is the row below, under the word every
+        // other property mode uses for it.
+        .filter((option) => option.id !== "")
+        .map((option) => ({
+          id: `${property}-value-${option.id}`,
+          label: option.label,
+          glyph: option.glyph,
+          value: option.id,
+          current: option.id === held,
+        }));
+    } else if (property === "estimate") {
+      values = estimateScale(config.estimate).map((value) => ({
+        id: `${property}-value-${value}`,
+        // Through the reader the rest of the app shows an estimate with, so a
+        // t-shirt size is upper case here exactly as it is on a card.
+        label: readEstimate(value, config.estimate)?.text ?? value,
+        value,
+        current: value === held,
+      }));
+    } else {
+      values = datePicks(props.today).map((pick) => ({
+        id: `${property}-value-${pick.id}`,
+        label: pick.label,
+        // The day the pick resolves to, shown before the press. It is the whole
+        // reason a row may offer what the typed grammar refuses: nothing is
+        // computed silently when the row says its own answer.
+        tag: displayDate(pick.day, props.today),
+        value: toIso(pick.day),
+        // Compared as the format spells it, which is exact rather than a day
+        // apart: `toIso` is the canonical shape, so a stored date this build
+        // cannot read matches no pick — and it is not one of them.
+        current: held === toIso(pick.day),
+      }));
+    }
+    const rows = [
+      ...values,
+      // `Clear`, only where there is something to clear. The context menu's
+      // rule, unchanged: a row that cannot do anything is worse than no row,
+      // because it says the ticket holds a value.
+      ...(held ? [{ id: `${property}-clear`, label: "Clear" }] : []),
+    ];
+    return {
+      // The settings row's name, so the crumb, the root row and the pane in
+      // Settings all call the property the same thing.
+      crumb: PROPERTY_LABELS[property].name.toLowerCase(),
+      rows,
+      lead:
+        property === "type" || property === "estimate"
+          ? undefined
+          : typedDate(
+              property,
+              held,
+              rows.some((row) =>
+                row.label.toLowerCase().includes(query.toLowerCase()),
+              ),
+            ),
+      run: (row) => {
+        props.onChangeProperty(property, row.value);
+        props.onClose();
+      },
+      filterLocally: true,
+    };
+  }
+
   const unreachable = !props.project.reachable;
   const root: PaletteRow[] = [
     {
@@ -275,6 +528,28 @@ export function CommandPalette(props: {
       disabled: !targetTicket,
       reason: targetTicket ? undefined : NO_TARGET,
     },
+    // One row per property the project has turned on, and none at all for a
+    // project that has turned none on — which is every project written before
+    // this build, and the reason four more rows are affordable at the root of a
+    // list that already has twelve.
+    //
+    // `enabledPropertyFields` rather than a list written out: the panel's rail,
+    // both create surfaces and the context menu already read the four in that
+    // order, and a fifth surface with an order of its own is the disagreement
+    // that function exists to prevent.
+    ...enabledPropertyFields(props.project.properties).map((property) => ({
+      id: `property-${property}`,
+      // `Set priority…` is the shape every row of this kind takes here, and
+      // `PROPERTY_LABELS` is the one place the four are named — lower-cased
+      // into the sentence rather than spelled a second time, so a renamed
+      // property is renamed here too.
+      label: `Set ${PROPERTY_LABELS[property].name.toLowerCase()}…`,
+      glyph: PROPERTY_GLYPHS[property],
+      tag: heldValue(property),
+      opens: property,
+      disabled: !targetTicket,
+      reason: targetTicket ? undefined : NO_TARGET,
+    })),
     {
       id: "search",
       label: "Search tickets…",
@@ -346,18 +621,7 @@ export function CommandPalette(props: {
    * the note that belongs under it. A pick always closes — a sub-mode is the
    * second half of one command, not a place to stand.
    */
-  const MODES: Record<
-    Exclude<Mode, "root">,
-    {
-      crumb: string;
-      rows: PaletteRow[];
-      run: (row: PaletteRow) => void;
-      /** Rendered under the list. A claim about the mode, not a hint. */
-      note?: string;
-      /** Whether typing narrows the rows here. Search is answered by Rust. */
-      filterLocally?: boolean;
-    }
-  > = {
+  const MODES: Record<Exclude<Mode, "root">, SubMode> = {
     status: {
       crumb: "status",
       rows: STATUS_OPTIONS.map((option) => ({
@@ -444,6 +708,14 @@ export function CommandPalette(props: {
       // and label matches that are the reason to use search at all.
       filterLocally: false,
     },
+    // A mode per property whether or not the project has turned it on: the root
+    // offers a row only for an enabled one, so a mode nothing opens costs
+    // nothing, and the record stays total — which is what makes a fifth
+    // property a type error here rather than a mode that never opens.
+    type: propertyMode("type"),
+    estimate: propertyMode("estimate"),
+    start: propertyMode("start"),
+    due: propertyMode("due"),
   };
 
   const subMode = mode === "root" ? undefined : MODES[mode];
@@ -459,9 +731,13 @@ export function CommandPalette(props: {
   // the ticket's title, and the row is the answer to it rather than a match on
   // it. `Enter` therefore lands on the ticket, which is why it was typed.
   const keyRow = rootKeyMatch ? ticketRow(rootKeyMatch) : undefined;
-  const visibleRows = keyRow
-    ? [{ ...keyRow, run: () => openTicketRow(keyRow) }, ...filtered]
-    : filtered;
+  // The two answers-to-the-query the palette has, and they cannot coexist: a
+  // key is only read at the root and a typed day only inside a date mode. One
+  // slot for both, so `Enter` on the first row means the same thing in each.
+  const lead = keyRow
+    ? { ...keyRow, run: () => openTicketRow(keyRow) }
+    : subMode?.lead;
+  const visibleRows = lead ? [lead, ...filtered] : filtered;
 
   function activate(row: PaletteRow) {
     if (row.disabled) return;

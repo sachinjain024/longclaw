@@ -995,6 +995,14 @@ button:disabled {
   background: var(--lc-bg);
 }
 
+/* The menu is rendered inside this stacking context. While it is open, lift
+   the header above List's sticky group header so the menu's first row cannot
+   be painted over by the first group (`:has` keeps the normal header layer
+   below panels and other overlays). */
+.content-header:has(.menu-popover) {
+  z-index: var(--lc-z-popover);
+}
+
 /* The project already owns its star in the side panel; its one other project
    action is the prototype's compact gear, which sits in the identity block with
    the path it belongs to (`screen-specs.md` § Project identity). Unscoped since
@@ -1666,6 +1674,94 @@ button:disabled {
 .card-top .priority-glyph,
 .card-top .priority-chip {
   margin-left: auto;
+}
+
+/* The due date, right-aligned in the key row so the two urgency marks read as
+   one object at the far edge and the key keeps the left edge to itself.
+
+   The auto margin has to *move* rather than be added: a second auto splits the
+   free space and parks the date mid-row, which is neither alignment. So the
+   date takes it and the glyph gives it back — but only on a card that has a
+   date, because a glyph with no auto margin and nothing else holding the right
+   edge walks back up beside the key.
+
+   Its type is stated rather than inherited. The card's own font is 13px UI, and
+   a date set in it renders larger than the key beside it and in the wrong face. */
+.card-top .due-chip,
+.list-row .due-chip {
+  flex: none;
+  overflow: hidden;
+  font-family: var(--lc-type-code-font);
+  font-size: 11px;
+  line-height: 14px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--lc-ink-3);
+}
+
+.card-top .due-chip {
+  margin-left: auto;
+}
+
+.card-top:has(.due-chip) .priority-glyph,
+.card-top:has(.due-chip) .priority-chip {
+  margin-left: 0;
+}
+
+/* Only one rung takes a colour, which is the app's existing rule rather than a
+   new one: PriorityGlyph is monochrome except Urgent, because a state conveyed
+   by colour alone is a state half the people looking at the board cannot read.
+   Every rung here is legible with the colour removed, because the words differ
+   at every rung — `3d overdue`, `Today`, `in 3d`, `20 Oct`. */
+.card-top .due-chip.overdue,
+.list-row .due-chip.overdue {
+  color: var(--lc-danger);
+}
+
+.card-top .due-chip.today,
+.list-row .due-chip.today {
+  color: var(--lc-ink);
+  font-weight: 600;
+}
+
+/* The second footer row: estimate and type, above the label footer and in the
+   first footer's own grammar — mono values first, chips after. It never wraps,
+   for the reason the label footer does not: a card whose height is arithmetic
+   cannot afford a row that sometimes needs two lines.
+
+   24px, and only on a card that has something to put in it. Which cards those
+   are is `hasSecondRow` in boardCard.ts, and card-height-guard.mjs adds this
+   row to both base heights to reach the two below. */
+.card-second {
+  display: flex;
+  height: 16px;
+  gap: 8px;
+  align-items: center;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.card-second .estimate {
+  flex: none;
+  color: var(--lc-ink-3);
+  font-family: var(--lc-type-code-font);
+  font-size: 10.5px;
+}
+
+/* A value the project's estimate system cannot read — written under another
+   system, or by hand. It is shown rather than hidden, because it is on disk
+   and switching back makes it legible again (invariant 16). */
+.card-second .estimate.foreign {
+  color: var(--lc-ink-disabled);
+  font-style: italic;
+}
+
+.ticket-row.has-properties {
+  height: var(--lc-size-board-card-properties);
+}
+
+.ticket-row.has-properties.acknowledged {
+  height: var(--lc-size-board-card-acknowledged-properties);
 }
 
 /* A card that can be picked up says so with the cursor, and the one in the air
@@ -2395,19 +2491,6 @@ button:disabled {
   font-size: 10.5px;
 }
 
-/* A fixed 46px column (`screen-specs.md:175-180`). `nowrap` is the structural
-   half of the promise `describeAgeInSlot` makes in words: whatever age lands
-   here, it cannot become two lines and take the row's neighbours with it. */
-.list-row-updated {
-  flex: none;
-  width: 46px;
-  color: var(--lc-ink-3);
-  font-family: var(--lc-type-code-font);
-  font-size: 10.5px;
-  text-align: right;
-  white-space: nowrap;
-}
-
 .list-row-raw {
   flex: none;
   color: var(--lc-ink-3);
@@ -2753,6 +2836,423 @@ button:disabled {
   background: var(--lc-surface);
 }
 
+/* The panel splits below its title into a main column and a properties rail
+   (LC-227).
+
+   The split is a **container query on the panel itself**, not a media query.
+   LC-238s makes the width a dragged, remembered number (`devicePreferences.ts`,
+   ADR 0012), so "is there room for a rail" is a question about this box and
+   never about the window — a viewport media query would put a rail in a 560px
+   panel on a 27-inch display. */
+.ticket-panel {
+  container-type: inline-size;
+}
+
+.panel-body {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--lc-space-4);
+}
+
+.panel-main,
+.panel-rail {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.panel-main {
+  gap: var(--lc-space-4);
+}
+
+.panel-rail {
+  gap: var(--lc-space-3);
+}
+
+/* One property. Below the query this is the meta grid's own row — 84px label
+   column, 12px gap — because below the query it *is* the meta grid, standing
+   above the description where a 560px panel has always had it.
+
+   It has to be stated **above** the container query rather than below it: the
+   two rules have the same specificity, so the last one in the sheet wins and
+   the query would lose. Written the other way round the rail rendered at 660px+
+   with a 115px value cell — every control in it 100px narrower than the rail it
+   is in, and the estimate scale clipping its own labels. Nothing about that
+   reads as a source-order problem on screen, which is why it took a run in
+   WebKit to find. */
+.rail-row {
+  display: grid;
+  min-width: 0;
+  gap: var(--lc-space-3);
+  grid-template-columns: 84px minmax(0, 1fr);
+  align-items: center;
+}
+
+.rail-row > .rail-label {
+  color: var(--lc-ink-3);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.rail-row .menu-trigger {
+  max-width: 100%;
+  justify-self: start;
+}
+
+/* The value cell has to be able to shrink; a menu trigger's own text is what
+   would otherwise set the rail's width. */
+.rail-row .menu-trigger > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 660px, which is 560 plus the rail plus the gap: the number says "as wide as
+   the panel is today, and somewhere to put the rail" rather than naming a
+   device. Under it there is no rail and the properties are stacked rows. */
+@container (min-width: 660px) {
+  .panel-body {
+    display: grid;
+    gap: var(--lc-space-5);
+    grid-template-columns: minmax(0, 1fr) var(--lc-size-panel-rail);
+    align-items: start;
+  }
+
+  /* The rail is first in the DOM — so that folding it away leaves the
+     properties above the description, where they stand today — and second on
+     screen. Placed explicitly rather than reordered with `order`, which would
+     move the tab stops with it. */
+  .panel-main {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .panel-rail {
+    grid-column: 2;
+    grid-row: 1;
+    border-left: 1px solid var(--lc-line-soft);
+    padding-left: var(--lc-space-5);
+  }
+
+  /* The name sits above its control, which is the one place the rail departs
+     from the meta grid it replaces: 232px spending 84 on a label column leaves
+     148 for a date field and its trigger, and the estimate scale does not fit
+     in that at all. */
+  .rail-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--lc-space-1);
+  }
+
+  /* The description no longer needs a rule over it. It is the first thing under
+     the title now, with nothing between them to separate — and the rail's own
+     hairline is the only line the split should draw. */
+  .panel-main > .panel-section:first-child {
+    border-top: 0;
+    padding-top: 0;
+  }
+}
+
+/* The date field: one control with two ways in — a Field the caret sits in, and
+   a calendar joined to its right edge. Joined rather than beside it, because
+   they are not two controls: the picker writes through the same normalisation
+   the typed grammar does, and a gap between them would say otherwise.
+
+   The box is the field foundation's (`.input`): 30px, `--lc-line-strong`,
+   control radius, moved out to the wrapper so both halves sit inside one
+   border. */
+.date-field {
+  display: flex;
+  height: var(--lc-size-control);
+  align-items: center;
+  border: 1px solid var(--lc-line-strong);
+  border-radius: var(--lc-radius-control);
+  background: var(--lc-surface);
+}
+
+.date-field input {
+  min-width: 0;
+  height: 100%;
+  flex: 1;
+  border: 0;
+  padding: 0 0 0 10px;
+  background: none;
+  font: var(--lc-type-ui-weight) var(--lc-type-ui-size) var(--lc-type-ui-font);
+}
+
+.date-field input:focus-visible {
+  box-shadow: none;
+  outline: none;
+}
+
+/* The ring is the wrapper's, because the wrapper is the control. */
+.date-field:focus-within {
+  border-color: var(--lc-accent-human);
+  box-shadow: var(--lc-focus-ring);
+}
+
+/* `tabIndex={-1}`, stated rather than defaulted (`tab-order-guard.mjs`): the
+   field in front of it opens the picker with the down arrow, and a stop of its
+   own would be an extra press on every pass through a rail with two dates. */
+.date-trigger {
+  display: inline-flex;
+  width: 26px;
+  height: 100%;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-left: 1px solid var(--lc-line);
+  padding: 0;
+  color: var(--lc-ink-3);
+  background: none;
+}
+
+.date-trigger:hover {
+  color: var(--lc-ink-2);
+  background: var(--lc-wash);
+}
+
+/* What is refused is not destroyed: the field keeps the text and reports that
+   it did not resolve. `--lc-danger-border` and not `--lc-danger` — an
+   unresolved value is a thing to finish typing, not an error the app is
+   reporting. */
+.date-field.unresolved {
+  border-color: var(--lc-danger-border);
+}
+
+.date-note,
+.date-echo {
+  margin-top: 3px;
+  font: var(--lc-type-micro-weight) var(--lc-type-micro-size) /
+    var(--lc-type-micro-leading) var(--lc-type-micro-font);
+}
+
+/* The echo, and the reason the grammar is safe to ship as written: a form with
+   no year means the nearest future occurrence, which on 5 Oct silently makes
+   `28 Sep` next year. This is where that stops being silent — confirmation
+   rather than validation, so nothing goes red while a person is mid-word. */
+.date-echo {
+  color: var(--lc-ink-3);
+}
+
+.date-echo strong {
+  color: var(--lc-ink-2);
+  font-weight: 500;
+}
+
+.date-note {
+  color: var(--lc-danger);
+}
+
+/* The app's first two-dimensional popover. The shell is `.menu-popover`'s,
+   which is why that class is on the element too — surface, hairline,
+   `--lc-shadow-menu`, the entrance. Only the contents are new. */
+.date-picker {
+  width: 236px;
+  padding: var(--lc-space-2);
+}
+
+.date-picker-head {
+  display: flex;
+  height: 26px;
+  align-items: center;
+  gap: var(--lc-space-1);
+  padding: 0 2px;
+}
+
+.date-picker-head strong {
+  margin-right: auto;
+  color: var(--lc-ink);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.date-step {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--lc-radius-tile);
+  color: var(--lc-ink-3);
+  background: none;
+}
+
+.date-step:hover {
+  color: var(--lc-ink);
+  background: var(--lc-wash);
+}
+
+.date-grid {
+  display: grid;
+  margin-top: var(--lc-space-1);
+  grid-template-columns: repeat(7, 1fr);
+}
+
+/* Monday first, and derived rather than picked: the app has no locale to ask,
+   the canonical on-disk form is ISO 8601, and ISO 8601's week starts on Monday.
+   One convention already settled, used twice. */
+.date-grid .dow {
+  padding-bottom: 4px;
+  color: var(--lc-ink-3);
+  font: var(--lc-type-kbd-weight) var(--lc-type-kbd-size)
+    var(--lc-type-kbd-font);
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.date-cell {
+  height: 26px;
+  border: 0;
+  border-radius: var(--lc-radius-tile);
+  color: var(--lc-ink);
+  background: none;
+  font-family: var(--lc-type-code-font);
+  font-size: 11.5px;
+}
+
+.date-cell:hover {
+  background: var(--lc-wash);
+}
+
+.date-cell.adjacent {
+  color: var(--lc-ink-disabled);
+}
+
+/* Today and the current value are two different marks, because a ticket due
+   today wears both on one cell: today is a ring, the value is a fill. */
+.date-cell.now {
+  box-shadow: inset 0 0 0 1px var(--lc-line-strong);
+}
+
+.date-cell.picked {
+  color: var(--lc-on-accent-human);
+  background: var(--lc-accent-human);
+  font-weight: 600;
+}
+
+/* The grid is one tab stop and the cursor moves inside it, as a board column's
+   cards do (`rovingFocus.ts`): 42 tab stops in a popover would be a month a
+   person has to Tab across. */
+.date-cell:focus-visible {
+  box-shadow: var(--lc-focus-ring);
+  outline: none;
+}
+
+/* Clearing is a first-class act and is not the same as never set: on disk both
+   are no key, so the distinction lives in the edit command. This row is the
+   pointer's way to do what emptying the field does. */
+.date-clear {
+  display: block;
+  width: 100%;
+  margin-top: var(--lc-space-1);
+  border: 0;
+  border-top: 1px solid var(--lc-line-soft);
+  padding: 7px 0 3px;
+  color: var(--lc-ink-3);
+  background: none;
+  font-size: var(--lc-type-small-size);
+  text-align: left;
+}
+
+.date-clear:hover {
+  color: var(--lc-ink);
+}
+
+/* The estimate scale is the appearance row's segment, because the app already
+   has one control for "pick one of a small fixed set, laid out horizontally"
+   and a second would be a second thing to learn. What is here is only what a
+   rail adds to it.
+
+   `flex`, not the segment's own `inline-flex`: in a rail the segment is the
+   row's control and takes the cell, the way the date field beside it does. As
+   `inline-flex` it shrank to fit and then handed its children `flex: 1` of
+   nothing — six segments 16px wide, each clipping its own label, in a rail with
+   90px going spare. */
+.scale-segment {
+  display: flex;
+  overflow: hidden;
+  max-width: 100%;
+  border: 1px solid var(--lc-line-strong);
+  border-radius: var(--lc-radius-control);
+}
+
+/* No `min-width: 0` here, deliberately. `flex: 1` bases every segment at zero
+   and the automatic minimum is the only thing holding them at the width of the
+   word inside them; taking it away is what let `XS` render as `X`. */
+.scale-segment button {
+  height: 28px;
+  flex: 1;
+  border: 0;
+  padding: 0 var(--lc-space-1);
+  color: var(--lc-ink-2);
+  background: transparent;
+  font-family: var(--lc-type-code-font);
+  font-size: 11px;
+}
+
+.scale-segment button + button {
+  border-left: 1px solid var(--lc-line-strong);
+}
+
+.scale-segment button:hover {
+  background: var(--lc-wash);
+}
+
+.scale-segment button.selected {
+  color: var(--lc-ink);
+  background: var(--lc-line-soft);
+  font-weight: 600;
+}
+
+/* The leading dash. Absent is a value a scale has to be able to say, and the
+   dash is the app's existing word for it — `priority: none` draws this glyph
+   already. Without it the only way back out of an estimate is a menu the scale
+   does not have. */
+.scale-segment button.none {
+  width: 26px;
+  flex: none;
+  color: var(--lc-priority-none);
+}
+
+/* Duration is a number and a unit rather than a scale: the field foundation,
+   then the menu trigger every other rail row wears. */
+.estimate-duration {
+  display: flex;
+  gap: var(--lc-space-2);
+}
+
+.estimate-duration .input {
+  width: 68px;
+  flex: none;
+}
+
+.estimate-duration .menu-trigger {
+  min-width: 0;
+  flex: 1;
+}
+
+/* A value written under another system. It is the ticket's own data and this
+   configuration cannot read it — invariant 16 exactly — so it is drawn in full
+   and only marked as unreadable, the way an undefined label slug is. The
+   control stays under it: a ticket nobody can re-estimate is the worse of the
+   two failures. */
+.estimate-foreign {
+  display: inline-flex;
+  height: var(--lc-size-chip);
+  align-self: flex-start;
+  align-items: center;
+  margin-bottom: var(--lc-space-1);
+  border: 1px dashed var(--lc-line-strong);
+  border-radius: var(--lc-radius-control);
+  padding: 0 8px;
+  color: var(--lc-ink-3);
+  font-family: var(--lc-type-code-font);
+  font-size: 11px;
+}
+
 .meta-grid {
   display: grid;
   grid-template-columns: 84px minmax(0, 1fr);
@@ -2768,6 +3268,15 @@ button:disabled {
 
 .meta-grid .menu-trigger {
   justify-self: start;
+}
+
+/* A property's control in full create's meta grid (LC-227): the rail's value
+   cell in the grid that replaces the rail. The box exists because a date field
+   is not one element — its echo and its refusal stack under it — and it takes
+   `min-width: 0` because a grid item's floor is its own content, and a field
+   with a calendar joined to it would otherwise set the column's width. */
+.meta-property {
+  min-width: 0;
 }
 
 .panel-section {
@@ -3272,7 +3781,8 @@ button:disabled {
    text it opened to change (LC-215). `row-editor-guard.mjs` holds the
    scoping. */
 .checklist-row input[type="checkbox"],
-.create-more input {
+.create-more input,
+.property-head input {
   width: var(--lc-size-checkbox);
   height: var(--lc-size-checkbox);
   flex: none;
@@ -3287,7 +3797,8 @@ button:disabled {
 }
 
 .checklist-row input[type="checkbox"]:checked,
-.create-more input:checked {
+.create-more input:checked,
+.property-head input:checked {
   border-color: var(--lc-ink-3);
   background-color: var(--lc-ink-3);
   background-image:
@@ -4430,6 +4941,37 @@ html.theme-transition *::after {
   border: 0;
   padding: 0;
   background: none;
+}
+
+/* The properties this project turned on, on their own row under the meta line
+   (LC-227). A wrapping row because its shape is the project's rather than the
+   app's: one control or four, and a t-shirt scale beside two date fields is
+   wider than a 620px modal.
+
+   Each cell names itself, which the meta line above deliberately does not: three
+   bare triggers in a fixed order are learned once, while this row's length and
+   order are configuration, and an unlabelled type beside an unlabelled priority
+   is two controls both reading `None`. The name sits above its control, which
+   is the rail's own arrangement wherever it has no label column either. */
+.quick-create-properties {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lc-space-3) var(--lc-space-4);
+}
+
+.quick-create-property {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* `.meta-grid > span`'s treatment and `.rail-label`'s: one eyebrow for a
+   field's name, wherever in the app a field wears one. */
+.quick-create-property > .property-name {
+  color: var(--lc-ink-3);
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .quick-create-modal .editor-footer {
@@ -5577,6 +6119,166 @@ html.theme-transition *::after {
   outline: none;
 }
 
+/* ============================================= the settings Properties pane
+ *
+ * One block per property: a checkbox that turns it on, whatever it has to
+ * configure under that, and — while it is off — the count of tickets still
+ * carrying a value, which is then the only place that fact is visible (LC-227).
+ *
+ * Nothing here restates `.label-row`. The type-values editor wears that class
+ * unchanged, which is the claim this pane is making. */
+.property-settings {
+  display: flex;
+  flex-direction: column;
+}
+
+.property-block {
+  margin-top: var(--lc-space-4);
+  border-top: 1px solid var(--lc-line-soft);
+  padding-top: var(--lc-space-4);
+}
+
+/* The first block sits directly under the subhead, which is already a rule's
+   worth of separation. */
+.property-settings > .property-block:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.property-head {
+  display: flex;
+  gap: var(--lc-space-2);
+  align-items: center;
+  color: var(--lc-ink);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.property-head input {
+  cursor: pointer;
+}
+
+/* What is still on disk while the property is off. It is the count the write
+   feedback said once, going on saying it: the effect of disabling is invisible
+   everywhere else, and a person could reasonably conclude the dates were
+   deleted.
+ *
+ * Beside the name, not at the far edge. `margin-left: auto` would send it the
+ * width of the pane away from the word it counts, which is the defect D-3D
+ * already named one surface up — the panel's section count used to do the same,
+ * and "a number a whole heading away from the word it counts reads as belonging
+ * to nothing" (`.panel-section h3`). The same fix: it reads as part of the
+ * row's own group. */
+.property-state {
+  color: var(--lc-ink-3);
+  font: 400 var(--lc-type-micro-size) / var(--lc-type-micro-leading)
+    var(--lc-type-micro-font);
+}
+
+/* Indented to the checkbox's text, so the configuration reads as belonging to
+   the property rather than as the next thing down the pane. */
+.property-config {
+  margin-top: var(--lc-space-3);
+  padding-left: calc(var(--lc-size-checkbox) + var(--lc-space-2));
+}
+
+.property-config > * + * {
+  margin-top: var(--lc-space-3);
+}
+
+.property-note {
+  color: var(--lc-ink-3);
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+
+/* A sentence with fields set into it — `Highlight tickets due within [7] days`
+   — which is what makes a bare number mean something. It wraps rather than
+   pushing a field off the side, because the pane is 92vw on a narrow window. */
+.property-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lc-space-2);
+  align-items: center;
+  color: var(--lc-ink-2);
+  font-size: var(--lc-type-small-size);
+}
+
+.property-inline .input {
+  width: 56px;
+  flex: none;
+  text-align: center;
+}
+
+.type-values {
+  display: grid;
+  gap: var(--lc-space-2);
+}
+
+/* The t-shirt scale, down the page in its own order — `xs` above `s` above `m`
+   is the only thing that says which of them is the bigger, and a wrapping row
+   of chips says nothing at all. Two columns, because a size has no display name
+   and no colour: it is the slug, and the way out. */
+.scale-values {
+  display: grid;
+  gap: var(--lc-space-2);
+}
+
+/* Four columns: the size, the two ways it moves, and the way out. The moves are
+   narrower than the remove because they sit as a pair — one hit target's worth
+   of gap between them would read as two separate controls. */
+.scale-row {
+  display: grid;
+  gap: var(--lc-space-2);
+  grid-template-columns: minmax(70px, 1fr) 16px 16px 18px;
+  align-items: center;
+}
+
+.scale-row .row-move {
+  justify-self: center;
+  padding: 0;
+  color: var(--lc-ink-3);
+  font-size: 11px;
+}
+
+.scale-row .row-move:hover:not(:disabled),
+.scale-row .row-move:focus-visible {
+  color: var(--lc-ink);
+}
+
+/* The ends of the scale. Disabled rather than absent, so the remove button
+   below stays in the column the row above put it in. */
+.scale-row .row-move:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.scale-row code {
+  color: var(--lc-ink-2);
+  font-size: 11px;
+}
+
+.scale-row .row-remove {
+  justify-self: center;
+  padding: 0 var(--lc-space-1);
+  color: var(--lc-ink-3);
+}
+
+.scale-row .row-remove:hover,
+.scale-row .row-remove:focus-visible {
+  color: var(--lc-danger);
+}
+
+/* The add-row ends in a button rather than a remove glyph, so its second column
+   is that button's width and not the 18px the rows above use. */
+.scale-add {
+  grid-template-columns: minmax(70px, 1fr) max-content;
+  border-top: 1px solid var(--lc-line-soft);
+  margin-top: var(--lc-space-1);
+  padding-top: var(--lc-space-3);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -5610,6 +6312,16 @@ html.theme-transition *::after {
 
   .settings-section {
     padding: var(--lc-space-4);
+  }
+
+  /* The indent is a nicety and the row under it is not. The nav and the padding
+     give up 156px here, and the type editor's four columns are already the
+     widest thing in the pane — `.label-row` alone is wider than the region at
+     the smallest window `tauri.conf.json` allows, and this is 23px the pane
+     does not have to add to that. The block's own checkbox still says what the
+     configuration belongs to. */
+  .property-config {
+    padding-left: 0;
   }
 }
 

@@ -9,7 +9,7 @@ labels:
   - frontend
   - design
 created_at: 2026-08-29T00:01:00.519Z
-updated_at: 2026-08-29T00:01:00.519Z
+updated_at: 2026-09-08T07:20:41.457Z
 ---
 
 The ticket panel is a fixed 560px — `width: min(560px, 88vw)` at `styles.css:2136`, specified as **560px wide (max 88%)** at `screen-specs.md:213`. On a wide display that is a narrow column of description and timeline beside a lot of unused workspace; on a small window `88vw` is the only concession anyone gets. The width is not the reader's to choose, and a ticket with a long description or a full timeline is the case where it should be.
@@ -38,6 +38,36 @@ Whichever, it is read through the same synchronous path: the document is read on
 - **`screen-specs.md:213` is line-cited and pinned.** `citation-guard` holds that line to its text. Rewrite the 560px sentence **in place** rather than inserting beside it, re-point whatever cited it, then `npm run citations:update` — never `--update` to clear a red run.
 - **The panel's own geometry probes.** `probe:checklist` drives the panel add-row at four window heights and `probe:drag`'s fifth case reads the panel checklist's order back; both are run against a panel whose width is now a variable. Run them and quote the runs.
 
+## Settled 2026-09-08, in LC-227's prototype review
+
+**The width is device-level, not per-project.** It goes top-level in
+`devicePreferences.ts` beside `appearance`, which is the placement recommended
+above: the panel is the same panel in every project, and its width is a property
+of this screen and this window rather than of the work. A person who drags it
+wide once expects it wide everywhere. `ProjectWorkspace` keeps `view`,
+`ordering` and `filterQuery`; it does not get this.
+
+**The default goes up, and it is no longer a free choice.**
+[LC-227](../LC-227/ticket.md) puts a properties rail in the panel behind a
+**container query at 660px** — 560 plus the rail plus the gap. Under that width
+there is no rail at all and the properties fold back into the stacked meta grid.
+So:
+
+- **A default under 660px ships LC-227's rail switched off.** 560 is now a
+  number that hides a feature rather than a number that is merely tight.
+- **800px is LC-227's recommendation**, measured: the main column is 507px
+  there, one pixel under what a 560px panel gives the description today, so the
+  rail costs the reader nothing. At 720 the main column is 427px — a ~70ch
+  measure, which reads fine and is a real reduction.
+
+**Two things that were comfort limits are now decisions.** The **minimum** a
+person may drag to: under 660 the rail folds away, which is either the graceful
+degradation the container query was chosen for or a trap, and this ticket should
+say which rather than letting the number decide. And the **clamp on read** that
+this ticket already requires — a width restored against a monitor that is no
+longer attached — can now land under 660 and take the rail with it, silently, on
+a machine where nothing was wrong.
+
 ## Open questions
 
 - Does a double-click on the handle reset to the specified 560px? Cheap, and the only way back to the default once dragged.
@@ -45,8 +75,10 @@ Whichever, it is read through the same synchronous path: the document is read on
 
 ## Checklist
 
-- [ ] Decide device-level vs per-project, and whether create mode follows the same width <!-- longclaw:item=ck_5854b715 -->
+- [ ] Decide whether create mode follows the same width (device-level vs per-project is settled: device-level, top-level in devicePreferences.ts) <!-- longclaw:item=ck_5854b715 -->
+- [ ] Default width goes to 800 (or at least 660): under 660 LC-227's properties rail does not render at all <!-- longclaw:item=ck_16241882 -->
 - [ ] Add a left-edge drag handle to the panel, with min and max bounds that keep the workspace clickable <!-- longclaw:item=ck_46a69acc -->
+- [ ] Say whether the drag minimum may go under 660 and fold the rail away, and make the clamp on read not do it silently <!-- longclaw:item=ck_622f4eb7 -->
 - [ ] Drive the width by CSS custom property during the drag; commit to state once on mouse-up <!-- longclaw:item=ck_1c028975 -->
 - [ ] Persist through devicePreferences.ts, not localStorage; validate and clamp on read in adopt() <!-- longclaw:item=ck_0f3c1e05 -->
 - [ ] Give the handle a keyboard path; update keyboard-focus-map.md in place and re-point citations <!-- longclaw:item=ck_95aa0ce5 -->
@@ -67,4 +99,94 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_07deab84
+kind: update
+occurred_at: 2026-09-08T07:20:28.189Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+  - field: checklist.ck_5854b715.text
+    from: Decide device-level vs per-project, and whether create mode follows the same width
+    to: "Decide whether create mode follows the same width (device-level vs per-project is settled: device-level, top-level in devicePreferences.ts)"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_d7eba33c
+kind: update
+occurred_at: 2026-09-08T07:20:34.781Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_16241882.added
+    to: "Default width goes to 800 (or at least 660): under 660 LC-227's properties rail does not render at all"
+  - field: checklist.ck_622f4eb7.added
+    to: Say whether the drag minimum may go under 660 and fold the rail away, and make the clamp on read not do it silently
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_7c4ea737
+kind: update
+occurred_at: 2026-09-08T07:20:41.436Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_16241882.moved
+    from: "10"
+    to: "2"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_11f7d55b
+kind: update
+occurred_at: 2026-09-08T07:20:41.457Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_622f4eb7.moved
+    from: "11"
+    to: "4"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_317aecba
+kind: comment
+occurred_at: 2026-09-08T11:56:09.814Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+LC-227 has shipped the properties rail, and it puts a floor under the width this ticket owns.
+
+The panel now splits on a **container query at 660px** — 560 plus the 232px rail plus the gap. Above it there is a rail; below it the properties fold back into stacked rows above the description, which is where a 560px panel has always had them. Three consequences follow, and none of them takes the number away from this ticket.
+
+**A default under 660 ships the feature switched off.** 800 is the recommendation. The main column measures 507px there, one pixel under what a 560px panel gives the description today, so the rail costs the reader nothing. At 720 it is 427px — a ~70ch measure that reads fine, and a real reduction.
+
+**The minimum a person may drag to stops being a comfort limit and becomes a decision.** Drag under 660 and the rail folds. That is either the graceful degradation the container query was chosen for or a trap, and this ticket should say which rather than leaving it to whatever number the handle happens to stop at.
+
+**A clamp that lands under 660 takes the rail with it, silently.** This ticket already clamps a width restored against a monitor that is no longer attached; the new part is that the clamp can now switch a feature off with nothing on screen saying so. Worth deciding whether the clamp floor is 660 rather than whatever the window allows.
+
+The query is on the panel and never on the viewport, which is why the width being a dragged, remembered number (devicePreferences.ts, ADR 0012) is the whole reason it works: a media query would put a rail in a 560px panel on a 27-inch display.
 <!-- /longclaw:event -->

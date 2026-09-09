@@ -59,3 +59,7 @@ _Avoid_: Close, delete, hide
 **Field**:
 A text-bearing editable the caret can sit in — a `<textarea>`, a contenteditable, or a textual `<input>`. A checkbox and a `<select>` are controls but not fields, and the distinction is load-bearing: single-key shortcuts stand down inside any control, while the keys a field *owns*, such as ⌘Z, stand down only for something with text and an undo stack of its own.
 _Avoid_: Input, control, box
+
+**Property**:
+A named value in a ticket's frontmatter that says something about the work rather than identifying the ticket — `status`, `priority` and `labels`, joined by `type`, `due`, `start` and `estimate` where a project enables them ([ADR 0013](docs/adr/0013-property-configuration-lives-in-longclaw-yaml.md)). Not a **Field**: a property is what the ticket stores and a field is one of the controls that edits it, while `id`, `key` and `created_at` are identity and neither.
+_Avoid_: Field, attribute, metadata, custom field

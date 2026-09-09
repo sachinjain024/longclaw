@@ -34,7 +34,8 @@ use super::project::{
     ProjectDocument, DEFAULT_THEME, PROJECT_NAME_RULE,
 };
 use super::ticket::{
-    Actor, NewChecklistItem, Priority, Status, Ticket, TicketDocument, TicketEdit,
+    validate_property, Actor, NewChecklistItem, Priority, Property, Status, Ticket, TicketDocument,
+    TicketEdit, TicketProperties,
 };
 
 const PROJECT_DIRECTORY: &str = ".longclaw";
@@ -97,7 +98,7 @@ pub const KEY_SUFFIX_ALPHABET: &[u8] = b"abcdefghijkmnpqrstuvwxyz";
 /// becoming a path.
 ///
 /// Both forms, because `LC-1` … `LC-233` were minted before the suffix existed
-/// and are never renumbered to acquire one (`file_format.md:223`). A key is minted
+/// and are never renumbered to acquire one (`file_format.md:250`). A key is minted
 /// once and never reused, so the grammar is the union of what has been minted.
 ///
 /// The suffix is any lowercase letter rather than only a
@@ -306,6 +307,10 @@ impl TicketFile {
             priority: ticket.priority,
             labels: ticket.labels.clone(),
             rank: ticket.rank.clone(),
+            ticket_type: ticket.ticket_type.clone(),
+            due: ticket.due.clone(),
+            start: ticket.start.clone(),
+            estimate: ticket.estimate.clone(),
             created_at: ticket.created_at.clone(),
             updated_at: ticket.updated_at.clone(),
             archived_at: ticket.archived_at.clone(),
@@ -995,6 +1000,11 @@ fn conflict_error(file: &TicketFile, expected_hash: &str) -> AppError {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct NewTicket {
     pub title: String,
+    /// The four opt-in properties, nested rather than flat because this is a
+    /// request rather than a projection of a file: a caller says what it wants
+    /// set, and a caller that wants none of them sends nothing.
+    #[serde(default)]
+    pub properties: TicketProperties,
     #[serde(default)]
     pub description: String,
     pub status: Option<Status>,
@@ -1046,6 +1056,16 @@ pub fn prepare_new_ticket_as(
             "A title is a single line of 1 to 300 characters",
             true,
         ));
+    }
+    // Validated here rather than in the renderer, which has no error to return,
+    // and here rather than in each caller, because this is the one path a create
+    // takes (ADR 0011). Whether the project *allows* the property is the
+    // caller's question: it holds the project, and this does not.
+    let mut properties = TicketProperties::default();
+    for property in Property::ALL {
+        if let Some(value) = request.properties.get(property) {
+            properties.set(property, Some(validate_property(property, value)?));
+        }
     }
     let tickets = tickets_root(project_root);
     if !tickets.is_dir() {
@@ -1116,6 +1136,7 @@ pub fn prepare_new_ticket_as(
                     request.status.unwrap_or(Status::Todo),
                     request.priority.unwrap_or(Priority::None),
                     &request.labels,
+                    &properties,
                     &request.description,
                     &request.checklist,
                     now,

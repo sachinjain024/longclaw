@@ -83,6 +83,43 @@ export function TagGlyph() {
   );
 }
 
+/**
+ * Two rails with a handle set at different points: the `Ticket properties` row.
+ *
+ * Not a second gear and not a second tag. What the pane holds is four switches
+ * with settings behind them, and sliders are the mark that already means that —
+ * where the tag beside it means a vocabulary.
+ */
+export function SlidersGlyph() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+      <path
+        d="M1.8 4.6 H12.2 M1.8 9.4 H12.2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+      <circle
+        cx="5"
+        cy="4.6"
+        r="1.7"
+        fill="var(--lc-surface)"
+        stroke="currentColor"
+        strokeWidth="1.2"
+      />
+      <circle
+        cx="9.4"
+        cy="9.4"
+        r="1.7"
+        fill="var(--lc-surface)"
+        stroke="currentColor"
+        strokeWidth="1.2"
+      />
+    </svg>
+  );
+}
+
 /** Three columns of unequal height: the board, as the `Status fields` row. */
 export function ColumnsGlyph() {
   return (

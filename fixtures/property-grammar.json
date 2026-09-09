@@ -1,0 +1,82 @@
+{
+  "statement": "The four opt-in ticket properties are read by two implementations: the Rust core, which decides what a project accepts and what the CLI and the app may write, and the frontend, which decides what a stored value renders as and what a control offers. Both are written from this table, so a rule changed on one side and not the other fails here rather than in a project's files.",
+  "readers": [
+    "apps/desktop/src-tauri/src/core/project.rs via apps/desktop/src-tauri/tests/property_grammar.rs",
+    "apps/desktop/src/properties.ts via apps/desktop/src/propertyGrammar.test.ts"
+  ],
+  "fibonacciScale": {
+    "note": "Fixed, and the one estimate system with nothing to configure: a project on Fibonacci has no `values` of its own. The order is the order a control offers.",
+    "values": ["1", "2", "3", "5", "8", "13"]
+  },
+  "durations": {
+    "note": "One number and one unit. Compounds are refused because two units in one value make its meaning depend on `hours_per_day`, which the project can change under the ticket; decimals carry that case instead. A zero amount is not a duration — it is the shape of a value nobody meant to write, and it is the case the two implementations had drifted on.",
+    "cases": [
+      { "value": "2h", "valid": true, "note": "the ordinary shape" },
+      { "value": "30m", "valid": true },
+      { "value": "1d", "valid": true },
+      { "value": "1w", "valid": true },
+      { "value": "1.5d", "valid": true, "note": "decimals carry what compounds may not" },
+      { "value": "0.5h", "valid": true },
+      { "value": "10w", "valid": true, "note": "no ceiling: the format states none" },
+      { "value": "0d", "valid": false, "note": "a zero amount is not a duration" },
+      { "value": "0h", "valid": false },
+      { "value": "0.0d", "valid": false, "note": "and not by another spelling" },
+      { "value": "1d4h", "valid": false, "note": "a compound, whose meaning would move with the project's conversion" },
+      { "value": "1", "valid": false, "note": "no unit" },
+      { "value": "d", "valid": false, "note": "no amount" },
+      { "value": "1y", "valid": false, "note": "a unit the grammar does not have" },
+      { "value": "1D", "valid": false, "note": "units are lowercase" },
+      { "value": ".5d", "valid": false, "note": "a leading point is a number this format does not write" },
+      { "value": "5.d", "valid": false, "note": "nor a trailing one" },
+      { "value": "1.5.5d", "valid": false },
+      { "value": "-1d", "valid": false },
+      { "value": " 1d", "valid": false, "note": "no surrounding space is trimmed" },
+      { "value": "1d ", "valid": false },
+      { "value": "1 d", "valid": false },
+      { "value": "", "valid": false },
+      { "value": "١d", "valid": false, "note": "Arabic-Indic digits are digits to neither side" }
+    ]
+  },
+  "conversions": {
+    "note": "How a duration orders against another duration. The two rates are project settings, so this table states the defaults and the arithmetic, not a fixed minute count per unit.",
+    "minutesPerHour": 60,
+    "cases": [
+      { "value": "30m", "minutes": 30 },
+      { "value": "2h", "minutes": 120 },
+      { "value": "1d", "minutes": 480, "note": "hoursPerDay hours" },
+      { "value": "1w", "minutes": 2400, "note": "daysPerWeek days" },
+      { "value": "1.5d", "minutes": 720 }
+    ]
+  },
+  "defaults": {
+    "note": "What a project file that omits these keys reads as. The frontend carries the same three in `NO_PROPERTIES`, which is what a project with no `properties:` block looks like to a surface.",
+    "attentionDays": 7,
+    "hoursPerDay": 8,
+    "daysPerWeek": 5
+  },
+  "tshirtScale": {
+    "note": "Seeded rather than fixed: this is what `properties.estimate.values` holds when Estimate is first enabled, and a project that deletes a rung keeps it deleted. Both sides state the seed so a control's fallback and the writer's seed cannot disagree.",
+    "values": ["xs", "s", "m", "l", "xl"]
+  },
+  "estimateSystems": {
+    "note": "A project is on exactly one. `tshirt` is the default because its vocabulary is the one already in the file, so a bare `enabled: true` is usable rather than a project that refuses to open over a missing key.",
+    "values": ["tshirt", "fibonacci", "duration"],
+    "default": "tshirt"
+  },
+  "dates": {
+    "note": "What the format stores for `due` and `start`: exactly `YYYY-MM-DD`, and a day the calendar has. Strict about width because `2026-9-8` and `2026-09-08` would otherwise both be written and only one of them sorts as text.",
+    "cases": [
+      { "value": "2026-09-08", "valid": true },
+      { "value": "2028-02-29", "valid": true, "note": "a leap day in a leap year" },
+      { "value": "2026-9-8", "valid": false, "note": "the width is part of the grammar" },
+      { "value": "2026-02-30", "valid": false, "note": "a date nobody has" },
+      { "value": "2029-02-29", "valid": false, "note": "not a leap year" },
+      { "value": "2026-13-01", "valid": false },
+      { "value": "2026-00-10", "valid": false },
+      { "value": "2026-09-00", "valid": false },
+      { "value": "08-09-2026", "valid": false },
+      { "value": "2026-09-08T00:00:00Z", "valid": false, "note": "a day, not an instant" },
+      { "value": "", "valid": false }
+    ]
+  }
+}

@@ -11,11 +11,12 @@ use std::sync::{Arc, OnceLock};
 use std::time::Instant;
 
 use app_state::AppState;
-use core::project::DEFAULT_LABEL_COLOR;
+use core::project::{EstimateSystem, DEFAULT_LABEL_COLOR};
+use core::ticket::Property;
 use core::{
-    AppResult, CreateTicketRequest, EditTicketRequest, ProjectReference, ProjectSnapshot,
-    RebuildReason, SearchResult, StreamEnvelope, StreamFrame, StreamKind, TicketDetail,
-    VisibleUiProbe, WriteResult,
+    AppError, AppResult, CreateTicketRequest, EditTicketRequest, ErrorCode, ProjectReference,
+    ProjectSnapshot, RebuildReason, SearchResult, StreamEnvelope, StreamFrame, StreamKind,
+    TicketDetail, VisibleUiProbe, WriteResult,
 };
 use preferences::PreferenceDocument;
 use serde::Deserialize;
@@ -168,6 +169,131 @@ fn remove_project_label(
     state: State<'_, AppState>,
 ) -> AppResult<ProjectReference> {
     state.remove_project_label(&project_id, &slug)
+}
+
+/// Turns one of the four opt-in properties on or off.
+///
+/// Off never deletes: every ticket keeps the value it carries, and the project
+/// keeps whatever it configured. The same toggle puts it back, which is why
+/// this takes no confirmation (`ProjectSettings.tsx`).
+#[tauri::command]
+fn set_project_property_enabled(
+    project_id: String,
+    property: String,
+    enabled: bool,
+    state: State<'_, AppState>,
+) -> AppResult<ProjectReference> {
+    state.set_property_enabled(&project_id, named_property(&property)?, enabled)
+}
+
+/// The width of the approaching window, in days. `0` is legal and empties that
+/// rung.
+#[tauri::command]
+fn set_project_due_window(
+    project_id: String,
+    attention_days: u32,
+    state: State<'_, AppState>,
+) -> AppResult<ProjectReference> {
+    state.set_attention_days(&project_id, attention_days)
+}
+
+/// Moves the project to another estimate system. No stored value is rewritten:
+/// one written under the old system is legible again the moment it switches
+/// back.
+#[tauri::command]
+fn set_project_estimate_system(
+    project_id: String,
+    system: String,
+    state: State<'_, AppState>,
+) -> AppResult<ProjectReference> {
+    let system = EstimateSystem::parse(&system).ok_or_else(|| {
+        AppError::new(
+            ErrorCode::ParseFailed,
+            format!(
+                "An estimate system is one of {}; found {system:?}",
+                EstimateSystem::ALL.map(EstimateSystem::as_str).join(", ")
+            ),
+            true,
+        )
+    })?;
+    state.set_estimate_system(&project_id, system)
+}
+
+/// How long a working day and week are, which is what makes `4h` and `1d`
+/// comparable. Both at once, because they are one setting with two halves.
+#[tauri::command]
+fn set_project_estimate_conversion(
+    project_id: String,
+    hours_per_day: f64,
+    days_per_week: f64,
+    state: State<'_, AppState>,
+) -> AppResult<ProjectReference> {
+    state.set_estimate_conversion(&project_id, hours_per_day, days_per_week)
+}
+
+/// The t-shirt scale, whole and in order — the order is what says which size is
+/// the bigger.
+#[tauri::command]
+fn set_project_estimate_scale(
+    project_id: String,
+    values: Vec<String>,
+    state: State<'_, AppState>,
+) -> AppResult<ProjectReference> {
+    state.set_tshirt_scale(&project_id, &values)
+}
+
+/// Defines a type value. The label commands in every respect: tickets store the
+/// slug, so nothing here touches a ticket.
+#[tauri::command]
+fn add_project_type_value(
+    project_id: String,
+    slug: String,
+    name: String,
+    color: Option<String>,
+    state: State<'_, AppState>,
+) -> AppResult<ProjectReference> {
+    state.add_type_value(
+        &project_id,
+        &slug,
+        &name,
+        color.as_deref().unwrap_or(DEFAULT_LABEL_COLOR),
+    )
+}
+
+/// Renames a type value, recolours it, or both. The slug is not editable.
+#[tauri::command]
+fn update_project_type_value(
+    project_id: String,
+    slug: String,
+    name: Option<String>,
+    color: Option<String>,
+    state: State<'_, AppState>,
+) -> AppResult<ProjectReference> {
+    state.update_type_value(&project_id, &slug, name.as_deref(), color.as_deref())
+}
+
+/// Removes a definition. Tickets keep the slug and render it as itself.
+#[tauri::command]
+fn remove_project_type_value(
+    project_id: String,
+    slug: String,
+    state: State<'_, AppState>,
+) -> AppResult<ProjectReference> {
+    state.remove_type_value(&project_id, &slug)
+}
+
+/// The property a wire name means, refused rather than guessed at.
+fn named_property(name: &str) -> AppResult<Property> {
+    Property::parse(name).ok_or_else(|| {
+        AppError::new(
+            ErrorCode::ParseFailed,
+            format!(
+                "A property is one of {}; found {name:?}",
+                Property::ALL.map(Property::as_str).join(", ")
+            ),
+            true,
+        )
+    })
 }
 
 #[tauri::command]
@@ -396,6 +522,14 @@ pub fn run() {
             add_project_label,
             update_project_label,
             remove_project_label,
+            set_project_property_enabled,
+            set_project_due_window,
+            set_project_estimate_system,
+            set_project_estimate_conversion,
+            set_project_estimate_scale,
+            add_project_type_value,
+            update_project_type_value,
+            remove_project_type_value,
             remove_project,
             open_project,
             rebuild_index,

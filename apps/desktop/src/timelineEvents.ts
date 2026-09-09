@@ -66,7 +66,7 @@ export function unfamiliarKind(kind: ActivityKind): string | undefined {
 
 /**
  * By `occurred_at`, with `id` as the deterministic tie-breaker
- * (`file_format.md:194`). Sorted here rather than trusted from the file: the
+ * (`file_format.md:221`). Sorted here rather than trusted from the file: the
  * stream is merged from whatever wrote last, and two writers can disagree about
  * append order.
  */
@@ -188,6 +188,28 @@ export function describeChange(
     return to === undefined
       ? { glyph: char("⊞"), text: "unarchived this" }
       : { glyph: char("⊟"), text: "archived this" };
+  }
+  // The four opt-in properties (LC-227). Absent and cleared are one thing on
+  // disk, so `to === undefined` is the whole of "removed it" here, the way it
+  // already is for rank and archived_at.
+  if (field === "type") {
+    return to === undefined
+      ? { glyph: char("◈"), text: "cleared the type" }
+      : { glyph: char("◈"), text: `set the type to ${quote(to)}` };
+  }
+  if (field === "due" || field === "start") {
+    const which = field === "due" ? "due date" : "start date";
+    // The value verbatim, never reformatted: this line also has to carry a date
+    // in a shape the format does not store, and prettying that one up would say
+    // the file holds something it does not.
+    return to === undefined
+      ? { glyph: char("▤"), text: `cleared the ${which}` }
+      : { glyph: char("▤"), text: `set the ${which} to ${to}` };
+  }
+  if (field === "estimate") {
+    return to === undefined
+      ? { glyph: char("≈"), text: "cleared the estimate" }
+      : { glyph: char("≈"), text: `set the estimate to ${quote(to)}` };
   }
   if (field === "description") {
     // The spec's own words, so the timeline and the spec cannot drift apart.

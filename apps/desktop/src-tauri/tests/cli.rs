@@ -694,3 +694,167 @@ fn an_unknown_command_names_itself() {
         "an empty command line asks for usage"
     );
 }
+
+// ------------------------------------------------------- the four properties
+
+/// Turns properties on the way a person does today: by editing the project
+/// file. There is no `longclaw properties` command, and this suite is about the
+/// ticket commands rather than about inventing one.
+fn enable_properties(root: &Path, block: &str) {
+    let path = root.join(".longclaw").join("longclaw.yaml");
+    let mut raw = fs::read_to_string(&path).expect("the project file should be readable");
+    raw.push_str(block);
+    fs::write(&path, raw).expect("the project file should be writable");
+}
+
+const EVERYTHING_ON: &str = concat!(
+    "properties:\n",
+    "  type:\n",
+    "    enabled: true\n",
+    "    values:\n",
+    "      bug: { name: Bug, color: red }\n",
+    "  due:\n",
+    "    enabled: true\n",
+    "  start:\n",
+    "    enabled: true\n",
+    "  estimate:\n",
+    "    enabled: true\n",
+    "    system: duration\n",
+);
+
+/// The default project. Properties ship all off, so every one of these flags is
+/// a flag for something this project does not have.
+#[test]
+fn a_property_the_project_has_not_enabled_is_refused_rather_than_written() {
+    let (_temp, root) = common::new_project("properties-off", "LC");
+
+    for flag in ["--type", "--due", "--start", "--estimate"] {
+        let refused = refuse(
+            &root,
+            &["ticket", "create", "--title", "Refused", flag, "bug"],
+        );
+        assert!(refused.contains("has not enabled"), "{refused}");
+        assert!(refused.contains("longclaw.yaml"), "{refused}");
+    }
+    // And nothing was written on the way to refusing.
+    let listed = run(&root, &["ticket", "list"]);
+    assert_eq!(listed.as_array().expect("a list").len(), 0);
+}
+
+#[test]
+fn an_enabled_property_is_written_on_create_and_cleared_on_edit() {
+    let (_temp, root) = common::new_project("properties-on", "LC");
+    enable_properties(&root, EVERYTHING_ON);
+
+    let created = run(
+        &root,
+        &[
+            "ticket",
+            "create",
+            "--title",
+            "Filed with every property",
+            "--type",
+            "bug",
+            "--due",
+            "2026-09-28",
+            "--start",
+            "2026-09-14",
+            "--estimate",
+            "1.5d",
+        ],
+    );
+    let key = key_of(&created);
+    let raw = read(&root, &key);
+    assert!(
+        raw.contains("type: bug\ndue: 2026-09-28\nstart: 2026-09-14\nestimate: 1.5d\n"),
+        "{raw}"
+    );
+
+    // Cleared, one property, leaving the other three where they were.
+    run(&root, &["ticket", "edit", &key, "--clear-due"]);
+    let raw = read(&root, &key);
+    assert!(!raw.contains("due: 2026-09-28"), "{raw}");
+    assert!(raw.contains("start: 2026-09-14"), "{raw}");
+    assert!(
+        raw.contains("field: due"),
+        "the clear is in the history: {raw}"
+    );
+}
+
+/// The refusal `known_labels` makes, one property over: a value nothing defines
+/// renders as itself, and writing one is how that happens by accident.
+#[test]
+fn an_undefined_type_is_refused_and_names_what_the_project_defines() {
+    let (_temp, root) = common::new_project("undefined-type", "LC");
+    enable_properties(&root, EVERYTHING_ON);
+
+    let refused = refuse(
+        &root,
+        &["ticket", "create", "--title", "Refused", "--type", "epic"],
+    );
+    assert!(refused.contains("\"epic\""), "{refused}");
+    assert!(refused.contains("It defines bug."), "{refused}");
+}
+
+#[test]
+fn an_estimate_the_projects_system_cannot_read_is_refused() {
+    let (_temp, root) = common::new_project("estimate-system", "LC");
+    enable_properties(&root, EVERYTHING_ON);
+
+    // A t-shirt size, in a project on durations.
+    let refused = refuse(
+        &root,
+        &["ticket", "create", "--title", "Refused", "--estimate", "m"],
+    );
+    assert!(refused.contains("duration"), "{refused}");
+    assert!(refused.contains("2h"), "{refused}");
+
+    // And a compound, which is refused under durations too: one number, one
+    // unit, because two of them depend on a conversion the project can change.
+    let refused = refuse(
+        &root,
+        &[
+            "ticket",
+            "create",
+            "--title",
+            "Refused",
+            "--estimate",
+            "1d4h",
+        ],
+    );
+    assert!(refused.contains("1d4h"), "{refused}");
+}
+
+#[test]
+fn a_date_that_is_not_a_day_is_refused_before_a_ticket_is_claimed() {
+    let (_temp, root) = common::new_project("bad-date", "LC");
+    enable_properties(&root, EVERYTHING_ON);
+
+    let refused = refuse(
+        &root,
+        &[
+            "ticket",
+            "create",
+            "--title",
+            "Refused",
+            "--due",
+            "28 Sep 2026",
+        ],
+    );
+    assert!(refused.contains("YYYY-MM-DD"), "{refused}");
+    assert_eq!(run(&root, &["ticket", "list"]).as_array().unwrap().len(), 0);
+}
+
+#[test]
+fn setting_and_clearing_one_property_in_one_command_disagree() {
+    let (_temp, root) = common::new_project("disagree", "LC");
+    enable_properties(&root, EVERYTHING_ON);
+    let created = run(&root, &["ticket", "create", "--title", "A ticket"]);
+    let key = key_of(&created);
+
+    let refused = refuse(
+        &root,
+        &["ticket", "edit", &key, "--due", "2026-09-28", "--clear-due"],
+    );
+    assert!(refused.contains("disagree"), "{refused}");
+}

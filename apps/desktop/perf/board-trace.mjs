@@ -69,6 +69,8 @@ const SURFACE = argument("surface", "board");
  * Which order the surface is in (ADR 0003). Manual is the heavier comparator —
  * it falls through to priority for every card with no rank, and the fixture has
  * no ranks — so `--order=manual` is the one to run after touching the sort.
+ * `--order=due` is the other one worth running since LC-227, and for the same
+ * reason: it is a comparator the default run never reaches.
  */
 const ORDER = argument("order", "priority");
 
@@ -125,6 +127,14 @@ function percentile(samples, fraction) {
 const round = (value) => Math.round(value * 100) / 100;
 
 function summarise(name, samples) {
+  // A lane that collected nothing must not be summarised into one that passed.
+  // `percentile([])` is `undefined`, `round` turns that into `NaN`, and the
+  // budget check asks `p95 > 50` — which `NaN` answers `false`, so an
+  // interaction that was never measured reported itself as within budget. That
+  // is how the board's navigation lane read for three weeks (LC-223).
+  if (samples.length === 0) {
+    throw new Error(`${name} collected no samples, so it has no p50 or p95`);
+  }
   return {
     name,
     samples: samples.length,
@@ -191,10 +201,25 @@ async function traceKeyboard(page) {
 
   // Never more presses than the first group holds; running off the end would read
   // as a broken run rather than as the end of the group.
-  const lane = await page.evaluate(
-    (selector) => Number(document.querySelector(selector)?.textContent ?? 0),
-    UI.count,
-  );
+  //
+  // Read as *the digits in* the heading rather than as the whole of its text.
+  // The two surfaces do not write the count the same way — the list's
+  // `.list-group-count` is a bare `8`, and the board's span has said `· 8` since
+  // LC-223 put the separator inside it — and `Number()` over that is `NaN`,
+  // which `Math.min` passes straight through to `presses`. A `for` bounded by
+  // `index < NaN` runs zero times, so this lane measured nothing at all and
+  // said so only as `n=0`.
+  const lane = await page.evaluate((selector) => {
+    const said = document.querySelector(selector)?.textContent ?? "";
+    const digits = said.match(/\d+/);
+    return digits ? Number(digits[0]) : null;
+  }, UI.count);
+  if (lane === null) {
+    throw new Error(
+      `the ${UI.label}'s heading "${UI.count}" gave no number of rows to ` +
+        `navigate, so there is nothing to bound the run by`,
+    );
+  }
   const presses = Math.min(NAV_SAMPLES, lane - 1);
 
   const samples = [];
@@ -417,9 +442,23 @@ async function measure(browser, size) {
     { timeout: 60_000 },
   );
   await UI.open(page);
-  if (ORDER === "manual") {
+  // Priority is what the surface opens in, so it is the one order that needs no
+  // menu. Every other one is chosen through the same control a person uses, and
+  // a name the menu does not offer stops the run: this used to test for `manual`
+  // alone, so `--order=due` left the surface in priority and printed
+  // `order=due` over it, which is a measurement of the wrong comparator wearing
+  // the right label.
+  if (ORDER !== "priority") {
+    const wanted = ORDER[0].toUpperCase() + ORDER.slice(1);
     await page.click('button[aria-label^="Order:"]');
-    await page.click('[role="menuitemradio"]:has-text("Manual")');
+    const option = page.locator(`[role="menuitemradio"]:has-text("${wanted}")`);
+    if ((await option.count()) === 0) {
+      throw new Error(
+        `the ${UI.label}'s order menu offers no "${wanted}" — ` +
+          `--order must name one of its rows`,
+      );
+    }
+    await option.first().click();
     await page.waitForSelector(UI.row, { timeout: 30_000 });
   }
   const firstPaintMs = Date.now() - openedAt;

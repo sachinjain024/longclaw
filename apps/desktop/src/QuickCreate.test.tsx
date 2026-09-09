@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 
 /**
- * Quick create after V0-16 narrowed it, LC-186 widened it by one and LC-201
- * widened it by two more and gave it a loop: title, description, status,
- * priority and labels, a **Create more** checkbox, and a door to the surface
- * that owns the checklist (`screen-specs.md:253-262`).
+ * Quick create after V0-16 narrowed it, LC-186 widened it by one, LC-201 widened
+ * it by two more and gave it a loop, and LC-227 gave it whichever properties the
+ * project turned on: title, description, status, priority, labels, a **Create
+ * more** checkbox, and a door to the surface that owns the checklist
+ * (`screen-specs.md:253-262`).
  */
 
 import {
@@ -16,8 +17,15 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LabelDefinition } from "./LabelMenu";
+import { NO_PROPERTIES } from "./properties";
 import { QuickCreate } from "./QuickCreate";
-import type { Label, TicketPriority, TicketStatus } from "./types";
+import type {
+  Label,
+  NewTicketProperties,
+  PropertiesConfig,
+  TicketPriority,
+  TicketStatus,
+} from "./types";
 
 afterEach(() => {
   cleanup();
@@ -31,10 +39,16 @@ const LABELS: Record<string, Label> = {
   storage: { name: "Storage", color: "green" },
 };
 
+/** Tuesday 8 September 2026, local: the day the date grammar resolves against. */
+const TODAY = new Date(2026, 8, 8, 9, 0).getTime();
+
 function quickCreate(props?: {
   projectTheme?: string;
   initialStatus?: TicketStatus;
   initialPriority?: TicketPriority;
+  initialProperties?: NewTicketProperties;
+  properties?: PropertiesConfig;
+  today?: number;
   onCancel?: () => void;
   onCreate?: (request: unknown, options: unknown) => void;
   onOpenFullEditor?: (draft: unknown) => void;
@@ -47,9 +61,12 @@ function quickCreate(props?: {
       projectTheme={props?.projectTheme ?? "ember"}
       provisionalKey="RT-4"
       labels={props?.labels ?? LABELS}
+      properties={props?.properties ?? NO_PROPERTIES}
+      today={props?.today ?? TODAY}
       onDefineLabel={props?.onDefineLabel ?? (() => Promise.resolve(true))}
       initialStatus={props?.initialStatus}
       initialPriority={props?.initialPriority}
+      initialProperties={props?.initialProperties}
       onCancel={props?.onCancel ?? (() => {})}
       onCreate={props?.onCreate ?? (() => {})}
       onOpenFullEditor={props?.onOpenFullEditor ?? (() => {})}
@@ -93,6 +110,7 @@ describe("quick create is title, description, status, priority and labels", () =
         status: "in_progress",
         priority: "urgent",
         labels: [],
+        properties: {},
       },
       { createMore: false },
     );
@@ -108,8 +126,8 @@ describe("quick create is title, description, status, priority and labels", () =
     fireEvent.click(screen.getByText("Create"));
 
     // Not omitted: `none` is what the file would hold either way (LC-186), and
-    // an empty description and no labels are the same fact. Sending them keeps
-    // one create request shape rather than two.
+    // an empty description, no labels and no properties are the same fact.
+    // Sending them keeps one create request shape rather than two.
     expect(onCreate).toHaveBeenCalledWith(
       {
         title: "Filed without a thought about urgency",
@@ -117,6 +135,7 @@ describe("quick create is title, description, status, priority and labels", () =
         status: "todo",
         priority: "none",
         labels: [],
+        properties: {},
       },
       { createMore: false },
     );
@@ -371,7 +390,7 @@ describe("quick create is title, description, status, priority and labels", () =
     expect(screen.queryByLabelText(/checklist/i)).toBeNull();
   });
 
-  it("carries all five fields into full create rather than dropping two", () => {
+  it("carries all six fields into full create rather than dropping any", () => {
     const onOpenFullEditor = vi.fn();
     const onCreate = vi.fn();
     render(quickCreate({ onOpenFullEditor, onCreate }));
@@ -391,13 +410,14 @@ describe("quick create is title, description, status, priority and labels", () =
     fireEvent.click(screen.getByText("Open full editor →"));
 
     // The door is what makes the narrow surface honest, so it may not be the
-    // place two of the five fields quietly go missing.
+    // place any of the six fields quietly go missing.
     expect(onOpenFullEditor).toHaveBeenCalledWith({
       title: "Needs more thought",
       description: "And a checklist, which lives over there.",
       status: "backlog",
       priority: "p1",
       labels: ["frontend"],
+      properties: {},
     });
     // Moving surfaces is not creating.
     expect(onCreate).not.toHaveBeenCalled();
@@ -536,6 +556,7 @@ describe("the Create more loop", () => {
         status: "todo",
         priority: "urgent",
         labels: ["storage"],
+        properties: {},
       },
       { createMore: true },
     );
@@ -726,5 +747,169 @@ describe("quick create prototype parity", () => {
     // Decoration. The name is right beside it, so a dot in the reading order
     // would say the project twice.
     expect(dot?.getAttribute("aria-hidden")).toBe("true");
+  });
+});
+
+/**
+ * The opt-in properties on the narrow surface (LC-227).
+ *
+ * Quick create takes them for the reason it took priority back (LC-186): a
+ * project that turned one on has said its tickets carry it, and a create
+ * surface that cannot say so files a board of tickets all missing the same
+ * thing. What it costs is paid only by a project that asked for it.
+ */
+describe("the properties a project turned on", () => {
+  const withDue: PropertiesConfig = {
+    ...NO_PROPERTIES,
+    due: { enabled: true, attentionDays: 7 },
+  };
+  const withAll: PropertiesConfig = {
+    ...withDue,
+    type: { enabled: true, values: { bug: { name: "Bug", color: "red" } } },
+    start: { enabled: true },
+    estimate: {
+      ...NO_PROPERTIES.estimate,
+      enabled: true,
+      values: ["s", "m", "l"],
+    },
+  };
+
+  /** The property row's names, in the order it draws them. */
+  function propertyNames(): (string | null)[] {
+    return [
+      ...document.querySelectorAll(".quick-create-properties .property-name"),
+    ].map((name) => name.textContent);
+  }
+
+  it("draws no row at all for a project that has turned them all off", () => {
+    render(quickCreate());
+
+    // Every project that predates this build: the modal is the one that has
+    // always been here, down to the empty row it does not draw.
+    expect(document.querySelector(".quick-create-properties")).toBeNull();
+  });
+
+  it("names each control, because the row's shape is the project's", () => {
+    // The meta line above is three bare triggers learned by position (D-49).
+    // This row's length and order are configuration, and an unlabelled type
+    // beside an unlabelled priority is two controls both reading `None`.
+    render(quickCreate({ properties: withAll }));
+
+    expect(propertyNames()).toEqual([
+      "Type",
+      "Estimate",
+      "Start Date",
+      "Due Date",
+    ]);
+  });
+
+  it("draws only the ones it turned on", () => {
+    render(quickCreate({ properties: withDue }));
+
+    expect(propertyNames()).toEqual(["Due Date"]);
+  });
+
+  it("sends what was chosen under one properties field", () => {
+    const onCreate = vi.fn();
+    render(quickCreate({ properties: withAll, onCreate }));
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Filed with a date on it" },
+    });
+    const due = screen.getByLabelText("Due Date");
+    fireEvent.change(due, { target: { value: "28 Sep" } });
+    fireEvent.keyDown(due, { key: "Enter" });
+    fireEvent.click(screen.getByRole("button", { name: /^Create/ }));
+
+    expect(onCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ properties: { due: "2026-09-28" } }),
+      expect.anything(),
+    );
+  });
+
+  it("carries them through the door to full create", () => {
+    const onOpenFullEditor = vi.fn();
+    render(quickCreate({ properties: withAll, onOpenFullEditor }));
+
+    const due = screen.getByLabelText("Due Date");
+    fireEvent.change(due, { target: { value: "28 Sep" } });
+    fireEvent.keyDown(due, { key: "Enter" });
+    fireEvent.click(screen.getByText("Open full editor →"));
+
+    // The door is what makes the narrow surface honest, and a property is not
+    // the field it may start going missing at.
+    expect(onOpenFullEditor).toHaveBeenCalledWith(
+      expect.objectContaining({ properties: { due: "2026-09-28" } }),
+    );
+  });
+
+  it("takes a clear off the draft rather than sending a null", () => {
+    // The other half of `usePropertyDraft`'s contract, asserted from this
+    // surface as well as from full create: the hook is what makes the two
+    // answers the same, and a test on one surface alone would not say it is in
+    // this one's path.
+    const onCreate = vi.fn();
+    render(quickCreate({ properties: withAll, onCreate }));
+
+    const due = screen.getByLabelText("Due Date");
+    fireEvent.change(due, { target: { value: "28 Sep" } });
+    fireEvent.keyDown(due, { key: "Enter" });
+    fireEvent.change(due, { target: { value: "" } });
+    fireEvent.keyDown(due, { key: "Enter" });
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Set, then thought better of" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Create/ }));
+
+    expect(onCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ properties: {} }),
+      expect.anything(),
+    );
+  });
+
+  it("opens on the properties it is handed, so coming back does not forget", () => {
+    render(
+      quickCreate({
+        properties: withAll,
+        initialProperties: { due: "2026-09-28" },
+      }),
+    );
+
+    expect(screen.getByLabelText<HTMLInputElement>("Due Date").value).toBe(
+      "28 Sep",
+    );
+  });
+
+  it("keeps them across the Create more loop, as it keeps the rest of the meta", () => {
+    const onCreate = vi.fn();
+    render(quickCreate({ properties: withAll, onCreate }));
+
+    fireEvent.click(screen.getByRole("checkbox"));
+    const due = screen.getByLabelText("Due Date");
+    fireEvent.change(due, { target: { value: "28 Sep" } });
+    fireEvent.keyDown(due, { key: "Enter" });
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "First" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Create/ }));
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Second" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Create/ }));
+
+    // Eight bugs due Friday is LC-201's complaint in a project that turned
+    // dates on. Nothing is hidden while it is kept: the field is on screen
+    // wearing what the next create will send.
+    expect(onCreate).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        title: "Second",
+        properties: { due: "2026-09-28" },
+      }),
+      { createMore: true },
+    );
+    expect(screen.getByLabelText<HTMLInputElement>("Due Date").value).toBe(
+      "28 Sep",
+    );
   });
 });

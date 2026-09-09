@@ -154,8 +154,8 @@ movement. No custom-color affordance exists anywhere.
   v0 is local mode and has no assignee (ADR 0001). Board-specific rules:
   - max 2 label chips; when a checklist fraction is present, max 1 — the
     footer never wraps;
-  - the acknowledgement decays when the ticket is opened, or 2 minutes after
-    the last agent write, whichever comes first;
+  - the acknowledgement decays when the ticket is opened, or 2 minutes after the last agent write, whichever comes first;
+  - the **due date** (LC-227) rides the key row, right-aligned so it stands immediately left of the priority glyph, and shows at every rung whenever the ticket has one — 14px of text in a 16px row, so it costs no height and `cardStrides()` never learns about it. The **second footer row** — estimate, then a type chip — sits between the title and the label footer, only in a project that enabled one of those two and only on a ticket with a value for one; presence is row data, never the rung, which is what keeps the four pinned heights derivable rather than measured (108 · 132 · 136 · 160);
   - clicking anywhere on the card opens the panel; the card is a single
     focusable unit (interior elements are not tab stops).
 - **Empty project:** the board scaffold stays visible (all columns, zero
@@ -175,8 +175,8 @@ movement. No custom-color affordance exists anywhere.
 - **Row:** 36px (`--lc-size-row`), padding 0 12px, gap 10px. Order: status
   dot 13 · mono ID 11px `ink-3` (58px fixed) · priority glyph · title
   (13px/500, truncates) · acknowledgement dot (agent, when acknowledged) · checklist
-  fraction · ≤2 label chips · relative updated mono 10.5px right-aligned
-  (46px fixed). No assignee slot in v0 (ADR 0001). Rows within a group
+  fraction · ≤2 label chips · due date mono 11px, when enabled and valid
+  (LC-227; shared board rungs). No assignee slot in v0 (ADR 0001). Rows within a group
   follow the same ordering preference as the board.
   Hover `wash`; focus = inset human border + ring; selected = human wash +
   2px left accent bar. Degraded rows: warn triangle, mono filename, "View
@@ -227,7 +227,7 @@ movement. No custom-color affordance exists anywhere.
 - **Meta grid:** 84px label column, 12px gap. Rows: Status, Priority,
   Labels — each value a 26px menu trigger (hover `wash`). There is no
   Assignee row: v0 is local mode and the concept doesn't exist here
-  (ADR 0001); the row returns with team projects.
+  (ADR 0001); the row returns with team projects. The project's enabled **properties** (LC-227) are rows of this grid too, between Priority and Labels — and above 660px the grid becomes the right-hand rail described in § Ticket properties, taking Status and Labels with it.
 - **Description:** rendered markdown block; hover shows `wash` + Edit
   affordance; click enters edit mode. Editor anatomy:
   - tab strip on `wash`: **Write** / **Preview** tabs (24px), formatting
@@ -255,8 +255,8 @@ movement. No custom-color affordance exists anywhere.
 - 620px modal at 12vh. Row 1: mono context `project · KEY-n` (the next key,
   allocated on create) and `esc`. Row 2: borderless 15px title input. Row 3:
   description. Row 4: status (defaults Todo; preseeded from a column `+`),
-  priority (defaults None), labels — the meta grid's order (LC-186, LC-201).
-  Footer: **Open full editor →** (carries all five), **Create more**, **Create** (`⌘↵`).
+  priority (defaults None), labels — the meta grid's order (LC-186, LC-201). Then the opt-in properties the project enabled, each named (LC-227).
+  Footer: **Open full editor →** (carries all six), **Create more**, **Create** (`⌘↵`).
 - `↵` from the title or `⌘↵` from anywhere creates optimistically: card appears
   at top of its column, toast `LC-n created` with Undo (`⌘Z`), modal closes,
   focus moves to the new card. Creating never blocks on the disk write.
@@ -264,8 +264,8 @@ movement. No custom-color affordance exists anywhere.
 ## Full create
 
 - The ticket panel in create mode: provisional ID chip (`KEY-n · new`),
-  title textarea, the same meta grid (status/priority/labels),
-  description editor (write mode only until first save), checklist
+  title textarea, the same meta grid (status/priority/labels, and the opt-in
+  properties the project enabled), description editor (write mode only until first save), checklist
   draft rows that tick (LC-242h), remove affordances, add-row. Footer: primary
   **Create ticket** (`⌘↵`) + ghost Cancel. On create the panel swaps to
   view mode of the real ticket.
@@ -303,13 +303,13 @@ movement. No custom-color affordance exists anywhere.
   (`S`) · set priority… (`P`) · search tickets… · star/unstar project ·
   toggle appearance · change project theme… · archive/unarchive ticket
   (ADR 0004) · change board ordering… (ADR 0003) · switch board/list
-  view · **new terminal** — present, disabled, tagged `PHASE 2`.
+  view · **new terminal** — present, disabled, tagged `PHASE 2`. Between set priority… and search tickets… sit the **set <property>…** rows (LC-227): one per property the project has enabled, in the order the panel's rail and both create surfaces draw them, and none at all for a project that has enabled none — which is every project written before this build, and the reason four more rows are affordable at a root that already has twelve. Each is tagged with the value the ticket holds, read the way that property's own control reads it, and each is disabled with the same reason the status row gives when there is no ticket to write to.
   This is D14 minus "assign…" (no assignee in v0, ADR 0001) plus the four
   commands from Proposal P1, accepted on 2026-08-01.
-- **Sub-modes** (status, priority, ordering, theme, project, search)
-  replace the list and show a crumb chip in the input row; `Esc` steps
-  back to root, not out. Status/priority/archive target the open or
-  focused ticket and are disabled with an inline explanation when there
+- **Sub-modes** (status, priority, ordering, theme, project, search, and one
+  per enabled property) replace the list and show a crumb chip in the input
+  row; `Esc` steps back to root, not out. A **property mode** offers what that property's context-menu submenu offers, read from the same lists (LC-227): the project's own type vocabulary, or its estimate scale in the reader a card uses, or the four quick picks each tagged with the day it resolves to — and `Clear`, only where the ticket holds a value. A date mode also reads what is **typed**, through the one grammar `parseDate` owns, and offers the day in full as its first row, unfiltered, the way the root offers a key-shaped query as the ticket it names; a refused form wears the sentence that names its next move rather than `No matches`. This is what the palette has instead of the menus' `Pick a date…`: it has no room to grow a calendar and no need for one, being a combobox whose whole job is already to read what you type.
+  Status, priority, archive and the property modes target the open or focused ticket and are disabled with an inline explanation when there
   is none. Theme rows carry miniature pair swatches. Search rows: status
   dot + mono key + title (archived tickets tagged `· archived`), Enter
   opens the panel.
@@ -320,7 +320,7 @@ movement. No custom-color affordance exists anywhere.
   `--lc-shadow-overlay`, 5px padding. Rows 30px with the option's own
   glyph; current value shows a trailing human-accent check. Arrow keys
   cycle, Enter picks, Esc returns focus to the trigger. `S`/`P`/`⇧F10` anchor
-  one to the focused card/row; a right-click places one at the pointer. The
+  one to the focused card/row; a right-click places one at the pointer. The **ticket menu** gains a submenu per property the project enabled (LC-227), under Priority and above the archive row — five rows in a default project, nine in one with all four on. A date submenu is four quick picks whose hints name the day each resolves to, then `Pick a date…`, which hands the job to the panel's own control; every property submenu carries `Clear`, and none of them ever contains a calendar. The
   ordering menu offers **Priority** and **Manual** and nothing else — the
   footnote it carried came off at the LC-223 review.
 
@@ -331,7 +331,7 @@ movement. No custom-color affordance exists anywhere.
   mono path + **Locate…**) · Theme picker · Appearance segment (System /
   Light / Dark — explicitly labeled an app preference, not project data) ·
   danger zone: **Remove from app** with the copy "Removing only forgets the
-  project in LongClaw. Files on disk are never touched." Labels, Status fields (read-only — v0 ships the fixed set, ADR 0002) and Shortcuts are sections of the same nav.
+  project in LongClaw. Files on disk are never touched." Labels, **Properties** (the four opt-in ticket properties and the configuration each owns, LC-227 — after Labels, because a type value is a label in everything but name), Status fields (read-only — v0 ships the fixed set, ADR 0002) and Shortcuts are sections of the same nav.
 - Remove confirms via a dialog that names the path and repeats the
   non-destructive guarantee; the confirm button is the danger variant.
 
@@ -431,3 +431,163 @@ prose that would not fit in them.
 - **Undo is still one deep** (`data-requirements.md:121`), so after a run of ten
   `⌘Z` archives the tenth. A bulk surface invites the assumption of a bulk undo;
   this is not one.
+
+## Ticket properties (LC-227)
+
+Appended at the end for the reason the editing note gives: § Board, § Ticket
+panel, § Menus and § Project settings were rewritten in place at the same line
+count, and this is the prose that would not fit in them.
+
+Four opt-in properties — **type**, **estimate**, **start**, **due** — each off
+until a project turns it on, each configured beside labels in `longclaw.yaml`
+(ADR 0013). A default project's screens are exactly what the sections above
+describe; every surface here draws that project's enabled set and nothing else,
+so "all four" below is the widest case rather than the usual one.
+
+**The order any surface offering all four puts them in is type · estimate ·
+start · due** — what the ticket *is*, then what kind of work it is and how much,
+then when. Not the file's order (`type due start estimate`), and the difference
+is the point: that one separates the two dates and puts Due above Start, when
+the pair reads chronologically and the forward-only date grammar is a trade made
+for exactly that adjacency. One spelling for three surfaces
+(`enabledPropertyFields`), so the rail, full create and quick create cannot come
+to disagree about it.
+
+### The panel's properties rail
+
+- **The split is a container query on the panel, never a media query.** LC-238s
+  makes the panel's width a dragged, remembered number, so "is there room for a
+  rail" is a question about that box: a viewport query would put a rail in a
+  560px panel on a 27-inch display.
+- **At `min-width: 660px`** — 560 plus the rail plus the gap, a number that says
+  "as wide as the panel is today, and somewhere to put the rail" rather than
+  naming a device — `.panel-body` becomes a two-column grid: the main column,
+  then a **232px rail** (`--lc-size-panel-rail`) with a left `line-soft`
+  hairline and `--lc-space-5` of padding. Below 660 there is no rail and the
+  properties are the stacked meta grid, standing above the description where a
+  560px panel has always had them.
+- **Seven rows at most:** Status · Priority · the enabled properties in the
+  order above · Labels. Labels last because it is the only row that grows — a
+  list of chips at the foot of a rail costs nothing when it wraps to three
+  lines, and the same list in the middle moves everything under it.
+- **The rail is first in the DOM and second on screen.** Folding it away has to
+  leave the properties above the description; the two columns are placed
+  explicitly with `grid-column` rather than reordered with `order`, which would
+  move the tab stops with them.
+- **The name sits above its control in the rail** — the one place it departs
+  from the meta grid, and it is forced: 232px spending 84 on a label column
+  leaves 148 for a date field and its trigger, and no room at all for the
+  estimate scale. `.rail-row` states the meta grid's `84px minmax(0, 1fr)`
+  *above* the container query and the single-column form inside it, because the
+  two rules have equal specificity and the last one in the sheet wins.
+- **Above 660 the description loses the rule over it.** It is the first thing
+  under the title, and the rail's hairline is the only line the split draws.
+- **Under 660 the rail is gone, not scrolled.** A width clamped below it — a
+  remembered width restored against a monitor that is no longer attached —
+  takes the rail with it silently, which is LC-238s's decision to state.
+
+### The date control — one control, two ways in
+
+**One rule generates the whole grammar: the month is named, or the order is
+ISO.** A date input's worst failure is not refusing something a person meant —
+they see that and retype it — but silently storing a different day. So every
+form that would need a locale to resolve is refused, and everything a named
+month makes unambiguous is accepted. The app has no locale to ask: there is no
+`Intl` call in `apps/desktop/src` and every age it prints is hand-formatted.
+
+| Typed | Means |
+|---|---|
+| `2026-09-28` | that day |
+| `28 Sep`, `Sep 28`, `28th September` | the nearest future occurrence, today counting as future |
+| `28 Sep 2026`, `Sep 28, 2026`, `28-Sep-2026` | that day |
+| `today`, `tomorrow` | resolved against the same injected `now` the rungs use |
+
+Refused, each because resolving it needs something the app does not have: an
+all-numeric non-ISO form (`28/09/2026`, `3/4`), a two-digit year, a month with
+no day, a weekday or `next week` or `in 3 days`, and anything carrying a time.
+`today` and `tomorrow` are in because they are what a person types *instead* of
+thinking, not a request for the app to think.
+
+**A form with no year means the nearest future occurrence**, so the past is
+reachable only by typing the year — the rarer direction, and the safer one to
+make explicit, because a date that silently lands in the past reads as an
+overdue ticket nobody created. **Display is the input's mirror**: `28 Sep`, and
+`28 Sep 2027` when the year is not the current one. A **field** also carries the
+year when the value is in the past, because a field's display has to round-trip
+and `5 Sep` shown for a past date reads back as next year; a **card** keeps the
+short form, because nobody types into a card.
+
+**The same rule for `start` as for `due`**, deliberately. Start dates are more
+often backward-looking, so forward-only costs something there — but two adjacent
+controls in one rail where the same typed string means two different days is
+worse than either rule applied to both.
+
+**The control that grammar is typed into:**
+
+- A **Field** (`CONTEXT.md`'s sense: a text-bearing editable the caret sits in)
+  with the calendar trigger **joined to its right edge** rather than beside it,
+  because they are not two controls — the picker writes through the same
+  normalisation the typed grammar does, and a gap would say otherwise.
+- **The field commits on Enter or blur, never per keystroke** (`28 Se` is not a
+  state worth reporting on), and a refused string **stays in the field**, under
+  a sentence naming the rule it broke. What is refused is not destroyed.
+- **A resolved string echoes** — a quiet line under the field naming the day in
+  full, `→ Tue 28 Sep 2027` — and only while the field differs from what the
+  file says, so a field at rest is not wearing a second copy of its own value.
+- **The picker never opens on focus.** Click the trigger, `Enter` on the trigger
+  (the app's rule for a meta trigger), or `↓` from inside the field.
+- **236px, right-aligned on the field, and lifted into view.** `belowAnchor`
+  right-aligns for "a trigger at the window's far edge", which is what a date
+  field in a right-hand rail is, and `liftIntoView` keeps the app's tallest
+  popover — six weeks of grid, a header and a Clear row — from losing that Clear
+  row off the bottom of the window from a rail row six down an 800px panel.
+- **The grid is one tab stop with the cursor moving inside it**, the way a board
+  column's cards are; 42 stops would be a month to Tab across. The movement keys
+  are `keyboard-focus-map.md`'s, and they are the app's first two-dimensional
+  set: `↑↓` is a week there, not a row.
+- **It opens on the month of the current value, or on today.** Today is marked
+  and the value is selected — two marks, because a ticket due today has both on
+  one cell. **No rung treatment inside the grid**: a calendar is where every day
+  is just a day.
+- **Clearing is first-class**: an emptied field committed removes the property,
+  and the picker carries a Clear row for the same act by pointer.
+
+### The estimate control
+
+Three shapes for one property, because `estimate` holds a different kind of
+value under each system a project can be on:
+
+| System | Control |
+|---|---|
+| T-shirt | The appearance row's segment, over the project's own enum |
+| Fibonacci | The same segment, over `1 2 3 5 8 13` |
+| Duration | A number field beside a unit menu (minutes · hours · days · weeks) |
+
+The segment is the existing control rather than a new one, and it **leads with
+`—`**, because absent is a value a scale has to be able to say and the dash is
+the word the app already uses for it. Without that row the only way back out of
+an estimate would be a menu the segment does not have.
+
+### The card, the row and the menu
+
+- **Card:** the due date in the key row (§ Board), the second footer row for
+  estimate and type. A **foreign** estimate — a value written under a system the
+  project has since left — draws as it is written, marked, rather than being
+  hidden or corrected.
+- **List row:** the due date after the labels, in the board's own treatment,
+  where the updated time used to be (`listRow.ts`).
+- **Ticket menu:** § Menus. Quick picks are `Today` · `Tomorrow` ·
+  `Next Monday` · `In a week`, each naming the day it resolves to in its
+  `.menu-hint` — offering a computed day as a row a person points at is a
+  different act from parsing `next week`, and only the second one guesses.
+  Estimate's row is the one row in the menu with no glyph: every other row's
+  mark is its current value's, and a size has none.
+
+### Settings · Properties
+
+One pane after Labels, four blocks, one per property: a checkbox that turns it
+on, and under it the configuration that property owns — the type-values editor
+(the labels editor's own `.label-row`), the estimate system picker with its
+conversion fields, and Due's `attention_days` number. A property carrying values
+on tickets **names the count while it is off**, which is then the only place in
+the app that fact is visible.

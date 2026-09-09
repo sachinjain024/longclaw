@@ -49,6 +49,7 @@ import {
 import { GuideCard } from "./GuideCard";
 import { singleKeyShortcutAllowed } from "./keyContext";
 import { LabelChip } from "./LabelChip";
+import { startOfDay } from "./properties";
 import {
   dropAt,
   GROUP_HEADER_HEIGHT,
@@ -80,7 +81,12 @@ import {
   type DropSpot,
   type TicketMove,
 } from "./ticketMove";
-import type { IndexedTicket, Label, TicketRow } from "./types";
+import type {
+  IndexedTicket,
+  Label,
+  PropertiesConfig,
+  TicketRow,
+} from "./types";
 import { useViewportHeight } from "./viewportHeight";
 
 /** Rows rendered beyond each edge of the viewport, so a scroll shows no gap. */
@@ -136,6 +142,10 @@ export function IssueList(
     selectedKey?: string;
     marks: ExternalMarks;
     labels: Record<string, Label>;
+    /**
+     * Which properties this project has turned on, for the due chip and menu.
+     */
+    properties: PropertiesConfig;
     /**
      * The board's ordering preference, which the rows inside a group follow too
      * (`screen-specs.md:146`) — and which decides, here as there, whether a place
@@ -231,6 +241,9 @@ export function IssueList(
     root: scroller,
     selector: ROW,
     tickets: props.tickets,
+    properties: props.properties,
+    // A day rather than the moving `now`, for the reason `Board` gives.
+    today: startOfDay(props.now).getTime(),
     actions: props,
     requestFocus,
   });
@@ -420,6 +433,7 @@ export function IssueList(
           rovingKey={rovingKey}
           marks={props.marks}
           labels={props.labels}
+          properties={props.properties}
           now={props.now}
           dragKey={dragSeat?.group === index ? dragKey : undefined}
           // Where the row would land, and whether it would arrive from another
@@ -471,6 +485,7 @@ function ListGroup(props: {
   rovingKey?: string;
   marks: ExternalMarks;
   labels: Record<string, Label>;
+  properties: PropertiesConfig;
   now: number;
   /** The row being dragged, when it is one of this group's. */
   dragKey?: string;
@@ -541,6 +556,7 @@ function ListGroup(props: {
                 tabStop={ticket.key === props.rovingKey}
                 mark={props.marks[ticket.key]}
                 labels={props.labels}
+                properties={props.properties}
                 now={props.now}
                 // An archived ticket is off the board entirely (ADR 0004), so
                 // dropping one into a status group would move something the
@@ -562,11 +578,10 @@ function ListGroup(props: {
 /**
  * One row, in the order `screen-specs.md:175-180` sets: status dot, mono ID,
  * priority glyph, title, acknowledgement dot, checklist fraction, up to two label chips,
- * relative updated time. No assignee slot in v0 (ADR 0001).
+ * due date. No assignee slot in v0 (ADR 0001).
  *
  * Memoized on its own ticket, so a change to one ticket re-renders one row. Unlike
- * a board card it does read `now` unconditionally, because every row shows an age
- * — there is nothing to withhold the clock from.
+ * a board card it reads `now` for the due chip and acknowledgement.
  */
 const ListRow = memo(function ListRow(props: {
   ticket: TicketRow;
@@ -577,6 +592,7 @@ const ListRow = memo(function ListRow(props: {
   tabStop: boolean;
   mark?: ExternalMark;
   labels: Record<string, Label>;
+  properties: PropertiesConfig;
   now: number;
   /** True on a row with frontmatter to write a move into, and not archived. */
   draggable: boolean;
@@ -585,7 +601,7 @@ const ListRow = memo(function ListRow(props: {
   onFocusRow: (key: string) => void;
 }) {
   const { ticket, mark } = props;
-  const row = presentRow(ticket, props.labels, props.now);
+  const row = presentRow(ticket, props.labels, props.properties, props.now);
   // A file that would not parse has nothing in it to acknowledge a change to: beside a
   // path and a parser error, the dot was a green light on a broken row. The
   // board card has the same dot for the same reason and is not fixed here —
@@ -636,7 +652,11 @@ const ListRow = memo(function ListRow(props: {
           {row.degraded.readOnly ? "Newer format" : "View raw file"}
         </span>
       )}
-      <span className="list-row-updated">{row.updated}</span>
+      {row.due && (
+        <span className={classes("due-chip", row.due.rung)}>
+          {row.due.text}
+        </span>
+      )}
     </button>
   );
 });

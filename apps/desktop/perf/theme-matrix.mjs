@@ -825,7 +825,11 @@ try {
       await check(state("panel-activity"));
       await page.click('[role="tab"]:has-text("Comments")');
 
-      await page.click(".meta-grid .menu-trigger");
+      // The rail, not `.meta-grid`: LC-227 replaced the panel's stacked meta
+      // grid with a rail, and this selector went on naming a class only full
+      // create still renders — so the run died here rather than reporting a
+      // colour. `verify` cannot see it, because the matrix is a job of its own.
+      await page.click(".panel-rail .menu-trigger");
       await page.waitForSelector(".menu-popover");
       await check(state("menu"));
       // The popover sits on `raised`, which is the other half of the dark

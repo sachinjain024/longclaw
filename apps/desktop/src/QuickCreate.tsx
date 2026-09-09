@@ -1,5 +1,6 @@
 /**
- * Quick create: title, description, status, priority and labels — and a loop
+ * Quick create: title, description, status, priority, labels and whichever
+ * opt-in properties the project turned on — and a loop
  * (`screen-specs.md:253-262`).
  *
  * It used to ask for six fields, which made it the only create surface and made
@@ -18,6 +19,13 @@
  * reopen and explain. **The checklist stays in full create** — it is the one of
  * the three whose case does not change, because draft rows, drag reordering and
  * an add-row that has to stay on screen are the shape of a surface you sit in.
+ *
+ * **The properties came later and by the same argument** (LC-227), and they are
+ * gated on the project rather than on this surface: a project that turned one on
+ * has said its tickets carry it, so a create that could not say so would file a
+ * board of tickets all missing the same thing and leave a second pass to fix
+ * them — which is what priority cost before LC-186 put it back. A project with
+ * none enabled sees the modal it has always had.
  *
  * **Priority is here because urgency is known when the ticket is thought of**
  * (LC-186). V0-16's narrowing kept status alone, and the cost was that every
@@ -38,10 +46,15 @@ import { useAutoGrow } from "./autoGrow";
 import { LabelMenuButton, type LabelDefinition } from "./LabelMenu";
 import { MenuButton } from "./Menu";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "./metaOptions";
+import { enabledPropertyFields, PROPERTY_LABELS } from "./properties";
+import { usePropertyDraft } from "./propertyDraft";
+import { PropertyControl } from "./PropertyControl";
 import { ThemeDot } from "./ThemeSwatch";
 import type {
   CreateTicketRequest,
   Label,
+  NewTicketProperties,
+  PropertiesConfig,
   TicketDraft,
   TicketPriority,
   TicketStatus,
@@ -78,6 +91,21 @@ interface QuickCreateProps {
    */
   onDefineLabel: (definition: LabelDefinition) => Promise<boolean>;
   /**
+   * Which of the four opt-in properties this project reads, and how each is
+   * configured (LC-227).
+   *
+   * The narrow surface takes them for the reason it took priority back
+   * (LC-186): a project that has turned a property on has said its tickets
+   * carry it, and a create surface that cannot say so files a board of tickets
+   * that are all missing the same thing and then need a second pass. What it
+   * costs is paid only by a project that asked for it — with none enabled,
+   * which is every project before this build, the modal is the one that has
+   * always been here.
+   */
+  properties: PropertiesConfig;
+  /** The day the date grammar resolves against, in epoch ms. */
+  today: number;
+  /**
    * The status the modal opens on — "defaults Todo; preseeded from a column
    * `+`" (`screen-specs.md:257`). A board column's `+` chooses it, so
    * the create starts in the column it was pressed in.
@@ -89,6 +117,12 @@ interface QuickCreateProps {
    * back from **Open full editor →** must not forget what was chosen (LC-186).
    */
   initialPriority?: TicketPriority;
+  /**
+   * The properties the modal opens on, for the same reason `initialStatus` and
+   * `initialPriority` exist: what was chosen must survive the trip through
+   * **Open full editor →**.
+   */
+  initialProperties?: NewTicketProperties;
   onCancel: () => void;
   /**
    * Fires and forgets: the create is optimistic, so the modal never waits.
@@ -105,9 +139,9 @@ interface QuickCreateProps {
   /**
    * Hands what has been typed to full create, rather than throwing it away.
    *
-   * All five fields since LC-201, not three. The door is what makes the narrow
+   * All six fields since LC-227, not three. The door is what makes the narrow
    * surface honest — "everything past these lives over there" is only true if
-   * getting there costs nothing — so it is the one place two of them must not
+   * getting there costs nothing — so it is the one place any of them must not
    * quietly go missing.
    */
   onOpenFullEditor: (draft: TicketDraft) => void;
@@ -127,6 +161,12 @@ export function QuickCreate(props: QuickCreateProps) {
     props.initialPriority ?? "none",
   );
   const [labels, setLabels] = useState<string[]>([]);
+  /**
+   * The draft's own property values — what the ticket will carry, as against
+   * `props.properties`, which is what the project configures. The state and its
+   * setter are `usePropertyDraft`'s, shared with `CreatePanel`.
+   */
+  const { properties, setProperty } = usePropertyDraft(props.initialProperties);
   /**
    * Whether the modal stays up after a create (LC-201).
    *
@@ -167,13 +207,17 @@ export function QuickCreate(props: QuickCreateProps) {
         status,
         priority,
         labels,
+        properties,
       },
       { createMore },
     );
     if (!createMore) return;
     // What the next ticket in the run is: two empty fields, and the meta
-    // already right. Status, priority and labels stay because a run almost
-    // always shares them — that is the whole complaint LC-201 is about.
+    // already right. Status, priority, labels and the properties stay because a
+    // run almost always shares them — that is the whole complaint LC-201 is
+    // about, and eight bugs due Friday is the same complaint in a project that
+    // turned dates on. None of it is hidden while it is kept: every one of
+    // those controls is on screen wearing what the next create will send.
     //
     // The modal owns this reset rather than being told to do it, so `App`
     // never reaches in; and the reset is here rather than in an effect on the
@@ -300,6 +344,40 @@ export function QuickCreate(props: QuickCreateProps) {
             onDefine={props.onDefineLabel}
           />
         </div>
+        {/* The properties this project turned on, on a row of their own under
+            the meta line rather than folded into it (LC-227).
+
+            Two reasons it is a second row. The meta line is three bare triggers
+            learned by position (D-49), and a person who knows it should not
+            have to relearn it because a project turned Type on — so Labels
+            stays where it has always been rather than moving to keep the
+            panel's order. And these are the only controls here that carry their
+            own names: the row's shape is the project's decision, so nothing
+            about it can be learned by position, and two triggers both reading
+            `None` is what an unlabelled priority beside an unlabelled type
+            would give. The name sits above its control, which is the rail's own
+            arrangement at the width it has no label column either.
+
+            Nothing is drawn at all when the project has enabled none, which is
+            every project that predates this build. */}
+        {enabledPropertyFields(props.properties).length > 0 && (
+          <div className="quick-create-properties">
+            {enabledPropertyFields(props.properties).map((property) => (
+              <div className="quick-create-property" key={property}>
+                <span className="property-name">
+                  {PROPERTY_LABELS[property].field}
+                </span>
+                <PropertyControl
+                  property={property}
+                  config={props.properties}
+                  value={properties[property]}
+                  today={props.today}
+                  onCommit={(next) => setProperty(property, next)}
+                />
+              </div>
+            ))}
+          </div>
+        )}
         <div className="editor-footer">
           <button
             tabIndex={0}
@@ -312,6 +390,7 @@ export function QuickCreate(props: QuickCreateProps) {
                 status,
                 priority,
                 labels,
+                properties,
               })
             }
           >

@@ -13,6 +13,12 @@
       "skillPath": "skills/in-progress/batch-grill-me/SKILL.md",
       "computedHash": "f448831b8f04518b1527408f1d5024384ad5f543bdbaac6fabb7aa053ad60489"
     },
+    "caveman": {
+      "source": "JuliusBrussee/caveman",
+      "sourceType": "github",
+      "skillPath": "skills/caveman/SKILL.md",
+      "computedHash": "fa7c0951349ae3782a20e55c6d1e72e4c23585b7932bb5e021c17c4f8f055a07"
+    },
     "claude-handoff": {
       "source": "mattpocock/skills",
       "sourceType": "github",

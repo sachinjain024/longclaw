@@ -12,7 +12,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use super::error::Diagnostic;
-use super::ticket::render_new_ticket;
+use super::ticket::{render_new_ticket, validate_property, Property, TicketEdit, TicketProperties};
 use super::yaml::{encode_scalar, Mapping};
 
 pub const PROJECT_FORMAT: &str = "longclaw.project/v1";
@@ -32,8 +32,362 @@ pub struct Label {
     pub color: String,
 }
 
+// --------------------------------------------------- the four ticket properties
+
+/// The estimate scale a project is on.
+///
+/// A project is on exactly one. Switching never rewrites a ticket: a value
+/// written under the old system stays exactly as it was and reads as unreadable
+/// under the new one, which is format invariant 16.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum EstimateSystem {
+    /// The fallback for a project that enables estimates without naming a
+    /// system. It is the one system whose vocabulary is already in the file —
+    /// `values` is seeded for it — so a bare `enabled: true` is usable rather
+    /// than a project that refuses to open over a missing key.
+    #[default]
+    Tshirt,
+    Fibonacci,
+    Duration,
+}
+
+impl EstimateSystem {
+    pub const ALL: [Self; 3] = [Self::Tshirt, Self::Fibonacci, Self::Duration];
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Tshirt => "tshirt",
+            Self::Fibonacci => "fibonacci",
+            Self::Duration => "duration",
+        }
+    }
+
+    pub fn parse(value: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|system| system.as_str() == value)
+    }
+}
+
+/// The Fibonacci scale, which is fixed: a project on Fibonacci has nothing to
+/// configure, so unlike the other two systems this is not a project setting.
+pub const FIBONACCI_SCALE: [&str; 6] = ["1", "2", "3", "5", "8", "13"];
+
+/// What `properties.type.values` holds when Type is first enabled. Seeds rather
+/// than constants — the registry is editable afterwards, and a project that
+/// deletes `spike` keeps it deleted.
+pub const SEEDED_TYPE_VALUES: [(&str, &str, &str); 5] = [
+    ("bug", "Bug", "red"),
+    ("feature", "Feature", "cyan"),
+    ("chore", "Chore", "gray"),
+    ("docs", "Docs", "blue"),
+    ("spike", "Spike", "purple"),
+];
+
+/// What `properties.estimate.values` holds when Estimate is first enabled, in
+/// order.
+pub const SEEDED_TSHIRT_SCALE: [&str; 5] = ["xs", "s", "m", "l", "xl"];
+
+pub const DEFAULT_ATTENTION_DAYS: u32 = 7;
+pub const DEFAULT_HOURS_PER_DAY: f64 = 8.0;
+pub const DEFAULT_DAYS_PER_WEEK: f64 = 5.0;
+
+/// Type: one project-defined slug per ticket.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TypeConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    /// Slug to definition, shaped exactly like `labels`, because a type value is
+    /// the same kind of thing: a name and a colour that tickets refer to by
+    /// slug. Renaming or recolouring one therefore rewrites no ticket.
+    #[serde(default)]
+    pub values: BTreeMap<String, Label>,
+}
+
+/// Due date, and the width of its approaching window.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DueConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    /// How many days ahead count as approaching. `0` is legal and empties that
+    /// rung, leaving today and beyond; a negative value is refused, which is
+    /// what the unsigned type says. Overdue and today are absolute, so this is
+    /// the only boundary a project can move.
+    #[serde(default = "default_attention_days", alias = "attention_days")]
+    pub attention_days: u32,
+}
+
+impl Default for DueConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            attention_days: DEFAULT_ATTENTION_DAYS,
+        }
+    }
+}
+
+/// Start date. `enabled` is the only key every property has, and start has
+/// nothing else: a start date is a day, and no window is measured from it.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StartConfig {
+    #[serde(default)]
+    pub enabled: bool,
+}
+
+/// Estimate: the system, its vocabulary, and the conversion that makes durations
+/// comparable.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EstimateConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub system: EstimateSystem,
+    /// The t-shirt scale, in order, read only under `tshirt`.
+    ///
+    /// A sequence rather than a mapping because a scale is ordered and a mapping
+    /// is not: `xs s m l xl` keyed by slug comes back `l m s xl xs`, which is
+    /// not a scale at all. `type.values` can be a mapping precisely because
+    /// types have no order to lose.
+    #[serde(default)]
+    pub values: Vec<String>,
+    /// Read only under `duration`. The conversion is a project setting rather
+    /// than a constant because `4h` against `1d` cannot be ordered without
+    /// knowing how long a working day is.
+    #[serde(default = "default_hours_per_day", alias = "hours_per_day")]
+    pub hours_per_day: f64,
+    #[serde(default = "default_days_per_week", alias = "days_per_week")]
+    pub days_per_week: f64,
+}
+
+impl Default for EstimateConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            system: EstimateSystem::default(),
+            values: Vec::new(),
+            hours_per_day: DEFAULT_HOURS_PER_DAY,
+            days_per_week: DEFAULT_DAYS_PER_WEEK,
+        }
+    }
+}
+
+impl EstimateConfig {
+    /// Whether this project's current system can read `value`.
+    ///
+    /// This decides what may be newly *written*, never what is kept: a stored
+    /// value the system cannot read is preserved and simply reads as unreadable
+    /// (invariant 16), which is what makes switching systems reversible.
+    pub fn accepts(&self, value: &str) -> bool {
+        match self.system {
+            EstimateSystem::Tshirt => self.values.iter().any(|slug| slug == value),
+            EstimateSystem::Fibonacci => FIBONACCI_SCALE.contains(&value),
+            EstimateSystem::Duration => parse_duration(value).is_some(),
+        }
+    }
+
+    /// What this system accepts, phrased for a refusal message.
+    pub fn vocabulary(&self) -> String {
+        match self.system {
+            EstimateSystem::Tshirt => {
+                if self.values.is_empty() {
+                    "this project's t-shirt scale, which defines no values yet".to_owned()
+                } else {
+                    format!("one of {}", self.values.join(", "))
+                }
+            }
+            EstimateSystem::Fibonacci => format!("one of {}", FIBONACCI_SCALE.join(", ")),
+            EstimateSystem::Duration => "a number and a unit, such as 2h, 1.5d or 1w".to_owned(),
+        }
+    }
+}
+
+/// The four opt-in ticket properties as this project configures them.
+///
+/// Every field defaults, so a `longclaw.yaml` with no `properties:` block at all
+/// — which is every project file written before this build — reads as all four
+/// disabled and needs no migration.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PropertiesConfig {
+    /// `type` on disk and on the wire. The field cannot be called that in Rust,
+    /// and renaming the wire key instead would make the config disagree with the
+    /// ticket key it configures.
+    #[serde(default, rename = "type")]
+    pub ticket_type: TypeConfig,
+    #[serde(default)]
+    pub due: DueConfig,
+    #[serde(default)]
+    pub start: StartConfig,
+    #[serde(default)]
+    pub estimate: EstimateConfig,
+}
+
+impl PropertiesConfig {
+    /// Whether a property may be written at all. A disabled property is refused
+    /// by the creation surfaces and preserved by the reader — the two halves of
+    /// "disabling hides, it never deletes".
+    pub fn is_enabled(&self, property: Property) -> bool {
+        match property {
+            Property::Type => self.ticket_type.enabled,
+            Property::Due => self.due.enabled,
+            Property::Start => self.start.enabled,
+            Property::Estimate => self.estimate.enabled,
+        }
+    }
+
+    /// The enabled set, in the order the format documents them. What
+    /// `.longclaw/AGENTS.md` lists and what a menu offers.
+    pub fn enabled(&self) -> Vec<Property> {
+        Property::ALL
+            .into_iter()
+            .filter(|property| self.is_enabled(*property))
+            .collect()
+    }
+
+    /// Whether this project reads `property` at all, as a refusal a write can
+    /// return.
+    ///
+    /// Both halves of an edit are held to this, including a clear: a disabled
+    /// property is one this build declines to interpret, and deleting a value it
+    /// is deliberately not reading is the one thing "disabling hides, it never
+    /// deletes" rules out.
+    pub fn require_enabled(&self, property: Property) -> Result<(), Diagnostic> {
+        if self.is_enabled(property) {
+            return Ok(());
+        }
+        let name = property.as_str();
+        Err(Diagnostic::parse(format!(
+            "This project has not enabled the {name} property, so a ticket in it carries no \
+             {name}. Turn it on in Settings under Ticket properties, or in \
+             .longclaw/longclaw.yaml under properties.{name}.enabled."
+        )))
+    }
+
+    /// The project half of a property check, returning the value as it would be
+    /// written.
+    ///
+    /// [`validate_property`] has already held the value to the format's own
+    /// rule, which is all a date has. Type and estimate have a vocabulary, and
+    /// this is where an undefined value is refused — the same refusal an
+    /// undefined label gets, for the same reason: a slug nothing defines renders
+    /// as itself, and writing one is how that happens by accident.
+    pub fn accept(&self, property: Property, value: &str) -> Result<String, Diagnostic> {
+        self.require_enabled(property)?;
+        let value = validate_property(property, value)?;
+        match property {
+            Property::Due | Property::Start => {}
+            Property::Type => {
+                if !self.ticket_type.values.contains_key(&value) {
+                    let defined = self.ticket_type.values.keys().cloned().collect::<Vec<_>>();
+                    return Err(Diagnostic::parse(format!(
+                        "The type {value:?} is not defined in this project. {} Define it in \
+                         Settings under Ticket properties, or in .longclaw/longclaw.yaml under \
+                         properties.type.values.",
+                        if defined.is_empty() {
+                            "It defines no type values yet.".to_owned()
+                        } else {
+                            format!("It defines {}.", defined.join(", "))
+                        }
+                    )));
+                }
+            }
+            Property::Estimate => {
+                if !self.estimate.accepts(&value) {
+                    return Err(Diagnostic::parse(format!(
+                        "The estimate {value:?} is not one this project's {} scale can read. \
+                         Expected {}.",
+                        self.estimate.system.as_str(),
+                        self.estimate.vocabulary()
+                    )));
+                }
+            }
+        }
+        Ok(value)
+    }
+
+    /// Holds everything a create asks for to what this project configures.
+    ///
+    /// A create has no clear: there is nothing on a ticket that does not exist
+    /// yet to remove.
+    pub fn accept_new(&self, properties: &TicketProperties) -> Result<(), Diagnostic> {
+        for property in Property::ALL {
+            if let Some(value) = properties.get(property) {
+                self.accept(property, value)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// The same for an edit, which asks two different things of a property.
+    ///
+    /// Every surface that holds the project calls this before the edit reaches
+    /// [`super::ticket::TicketDocument::apply_as`], which deliberately does not:
+    /// applying an edit is the format's business, and what a *project* accepts
+    /// is not a question the file it is writing can answer.
+    pub fn accept_edit(&self, edit: &TicketEdit) -> Result<(), Diagnostic> {
+        for (property, requested) in edit.properties() {
+            let Some(requested) = requested else { continue };
+            match requested.as_deref() {
+                Some(value) => {
+                    self.accept(property, value)?;
+                }
+                // A clear names no value, so the enabled half is all there is to
+                // ask — and it is asked, deliberately.
+                None => self.require_enabled(property)?,
+            }
+        }
+        Ok(())
+    }
+}
+
+fn default_attention_days() -> u32 {
+    DEFAULT_ATTENTION_DAYS
+}
+
+fn default_hours_per_day() -> f64 {
+    DEFAULT_HOURS_PER_DAY
+}
+
+fn default_days_per_week() -> f64 {
+    DEFAULT_DAYS_PER_WEEK
+}
+
+/// Splits a duration estimate into its amount and unit, or `None` when it is not
+/// one.
+///
+/// One number and one unit. `1d4h` is refused rather than summed: two units in
+/// one value make its meaning depend on `hours_per_day`, which the project can
+/// change underneath the ticket. Decimals carry that case instead — `1.5d`.
+pub fn parse_duration(value: &str) -> Option<(f64, char)> {
+    if !value.is_ascii() {
+        return None;
+    }
+    let (amount, unit) = value.split_at(value.len().checked_sub(1)?);
+    let unit = unit.chars().next()?;
+    if !matches!(unit, 'm' | 'h' | 'd' | 'w') {
+        return None;
+    }
+    let digits = amount.bytes().filter(u8::is_ascii_digit).count();
+    let points = amount.bytes().filter(|byte| *byte == b'.').count();
+    if digits + points != amount.len() || points > 1 || digits == 0 {
+        return None;
+    }
+    // A leading or trailing point would parse — `.5` and `5.` are both f64 — and
+    // both are spellings of a number this format does not write.
+    if amount.starts_with('.') || amount.ends_with('.') {
+        return None;
+    }
+    let parsed: f64 = amount.parse().ok()?;
+    (parsed > 0.0).then_some((parsed, unit))
+}
+
 /// A project as its file describes it.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Project {
     pub id: String,
@@ -47,6 +401,10 @@ pub struct Project {
     pub created_at: String,
     pub people: BTreeMap<String, Person>,
     pub labels: BTreeMap<String, Label>,
+    /// How this project configures the four opt-in ticket properties, and where
+    /// their vocabularies live (ADR 0013). Absent from the file means all four
+    /// off.
+    pub properties: PropertiesConfig,
     pub unknown_keys: Vec<String>,
 }
 
@@ -123,6 +481,7 @@ impl ProjectDocument {
                 created_at: fields.created_at,
                 people: fields.people,
                 labels: fields.labels,
+                properties: fields.properties,
                 unknown_keys,
             },
         })
@@ -227,23 +586,321 @@ impl ProjectDocument {
         if self.project.labels.remove(slug).is_none() {
             return Err(unknown_label(slug));
         }
-        self.mapping.remove_nested("labels", slug);
+        self.mapping.remove_path(&["labels", slug]);
         Ok(self.render().into_bytes())
     }
 
     fn write_label(&mut self, slug: &str, name: Option<&str>, color: Option<&str>) {
         for (field, value) in [("name", name), ("color", color)] {
             if let Some(value) = value {
-                self.mapping.set_nested_scalar(
-                    "labels",
-                    slug,
-                    field,
+                self.mapping.set_path_scalar(
+                    &["labels", slug, field],
                     value,
                     &["created_at", "people"],
                 );
             }
         }
     }
+
+    // ------------------------------------ configuring the four properties
+
+    /// Turns one property on or off.
+    ///
+    /// Off writes one line and nothing else: a ticket keeps its `due:` and the
+    /// project keeps the window it configured, because disabling is a build
+    /// declining to interpret a key rather than anything being deleted.
+    ///
+    /// On seeds the vocabulary the property needs to be usable at all, and only
+    /// when there is none — a project that dropped `spike` and turned Type off
+    /// and on again keeps it dropped. The seed is where a vocabulary starts, not
+    /// what it is reset to.
+    pub fn set_property_enabled(
+        &mut self,
+        property: Property,
+        enabled: bool,
+    ) -> Result<Vec<u8>, Diagnostic> {
+        self.set_property_flag(property, enabled);
+        if enabled {
+            match property {
+                Property::Type if !self.has_property_key(Property::Type, "values") => {
+                    for (slug, name, color) in SEEDED_TYPE_VALUES {
+                        self.write_type_value(slug, Some(name), Some(color));
+                        self.project.properties.ticket_type.values.insert(
+                            slug.to_owned(),
+                            Label {
+                                name: name.to_owned(),
+                                color: color.to_owned(),
+                            },
+                        );
+                    }
+                }
+                Property::Estimate if !self.has_property_key(Property::Estimate, "values") => {
+                    // The system before the scale, which is the order the format
+                    // documents and the order it reads in. An absent system is
+                    // already `tshirt`, so this line is not news — but a block
+                    // that names the system it is on says what a reader of the
+                    // file would otherwise have to know the default to work out.
+                    let system = self.project.properties.estimate.system;
+                    self.write_property_scalar(Property::Estimate, "system", system.as_str());
+                    let scale = SEEDED_TSHIRT_SCALE.map(str::to_owned).to_vec();
+                    self.write_property_sequence(Property::Estimate, "values", &scale);
+                    self.project.properties.estimate.values = scale;
+                }
+                _ => {}
+            }
+        }
+        Ok(self.render().into_bytes())
+    }
+
+    /// The width of the approaching window, in days.
+    ///
+    /// `0` is legal and empties that rung, leaving overdue, today and beyond —
+    /// both of the first two are absolute, so this is the only boundary a
+    /// project can move.
+    ///
+    /// There is no ceiling. The format is exhaustive here — `0` is legal, and a
+    /// negative value is refused, which the unsigned type is the whole of — so a
+    /// limit invented on top would refuse a write for a rule nothing wrote down.
+    /// A window wider than the project is silly rather than wrong.
+    pub fn set_attention_days(&mut self, days: u32) -> Result<Vec<u8>, Diagnostic> {
+        self.write_property_number(Property::Due, "attention_days", f64::from(days));
+        self.project.properties.due.attention_days = days;
+        Ok(self.render().into_bytes())
+    }
+
+    /// The scale estimates are written on. A project is on exactly one.
+    ///
+    /// No ticket is rewritten and no vocabulary is dropped: a value written
+    /// under the old system stays exactly as it was and reads as unreadable
+    /// until the project switches back, which is what makes this reversible
+    /// (invariant 16).
+    pub fn set_estimate_system(&mut self, system: EstimateSystem) -> Result<Vec<u8>, Diagnostic> {
+        self.write_property_scalar(Property::Estimate, "system", system.as_str());
+        self.project.properties.estimate.system = system;
+        Ok(self.render().into_bytes())
+    }
+
+    /// How long a working day and a working week are, which is what makes `4h`
+    /// and `1d` comparable. Changing it changes no stored value.
+    pub fn set_estimate_conversion(
+        &mut self,
+        hours_per_day: f64,
+        days_per_week: f64,
+    ) -> Result<Vec<u8>, Diagnostic> {
+        for (field, value, ceiling) in [
+            ("A working day", hours_per_day, 24.0),
+            ("A working week", days_per_week, 7.0),
+        ] {
+            if !(value.is_finite() && value > 0.0 && value <= ceiling) {
+                return Err(Diagnostic::parse(format!(
+                    "{field} is more than none of one and no more than {ceiling:.0}; found {value}"
+                )));
+            }
+        }
+        self.write_property_number(Property::Estimate, "hours_per_day", hours_per_day);
+        self.write_property_number(Property::Estimate, "days_per_week", days_per_week);
+        self.project.properties.estimate.hours_per_day = hours_per_day;
+        self.project.properties.estimate.days_per_week = days_per_week;
+        Ok(self.render().into_bytes())
+    }
+
+    /// The t-shirt scale, in order.
+    ///
+    /// Written whole rather than one size at a time, because the order *is* the
+    /// scale: `xs` before `s` before `m` is the only thing that says which of
+    /// them is the bigger. Held to the label grammar, because a size is a slug a
+    /// ticket stores.
+    pub fn set_tshirt_scale(&mut self, values: &[String]) -> Result<Vec<u8>, Diagnostic> {
+        let mut seen = BTreeMap::new();
+        for value in values {
+            if !is_label_slug(value) {
+                return Err(Diagnostic::parse(format!(
+                    "An estimate size is a slug, so {LABEL_SLUG_RULE}; found {value:?}"
+                )));
+            }
+            if seen.insert(value.clone(), ()).is_some() {
+                return Err(Diagnostic::parse(format!(
+                    "The size {value} is already on this project's scale"
+                )));
+            }
+        }
+        self.write_property_sequence(Property::Estimate, "values", values);
+        self.project.properties.estimate.values = values.to_vec();
+        Ok(self.render().into_bytes())
+    }
+
+    /// Defines a type value. Shaped exactly like `add_label`, because a type
+    /// value is the same kind of thing: a name and a colour that tickets refer
+    /// to by slug.
+    pub fn add_type_value(
+        &mut self,
+        slug: &str,
+        name: &str,
+        color: &str,
+    ) -> Result<Vec<u8>, Diagnostic> {
+        if !is_label_slug(slug) {
+            return Err(Diagnostic::parse(format!(
+                "A type slug is a label slug, so {LABEL_SLUG_RULE}; found {slug:?}"
+            )));
+        }
+        if self
+            .project
+            .properties
+            .ticket_type
+            .values
+            .contains_key(slug)
+        {
+            return Err(Diagnostic::parse(format!(
+                "The type {slug} is already defined in this project"
+            )));
+        }
+        let name = validated_label_name(name)?;
+        validate_label_color(color)?;
+        self.write_type_value(slug, Some(&name), Some(color));
+        self.project.properties.ticket_type.values.insert(
+            slug.to_owned(),
+            Label {
+                name,
+                color: color.to_owned(),
+            },
+        );
+        Ok(self.render().into_bytes())
+    }
+
+    /// Renames a type value, recolours it, or both. The slug never moves: it is
+    /// what every ticket carrying this type stores.
+    pub fn update_type_value(
+        &mut self,
+        slug: &str,
+        name: Option<&str>,
+        color: Option<&str>,
+    ) -> Result<Vec<u8>, Diagnostic> {
+        let Some(mut value) = self
+            .project
+            .properties
+            .ticket_type
+            .values
+            .get(slug)
+            .cloned()
+        else {
+            return Err(unknown_type_value(slug));
+        };
+        if name.is_none() && color.is_none() {
+            return Err(Diagnostic::parse("A type edit has to change something"));
+        }
+        let name = name.map(validated_label_name).transpose()?;
+        if let Some(color) = color {
+            validate_label_color(color)?;
+        }
+        self.write_type_value(slug, name.as_deref(), color);
+        if let Some(name) = name {
+            value.name = name;
+        }
+        if let Some(color) = color {
+            value.color = color.to_owned();
+        }
+        self.project
+            .properties
+            .ticket_type
+            .values
+            .insert(slug.to_owned(), value);
+        Ok(self.render().into_bytes())
+    }
+
+    /// Removes a type value's definition, and only the definition. This is the
+    /// label case exactly: every ticket carrying the slug keeps it, and renders
+    /// it as itself in the fallback hue.
+    pub fn remove_type_value(&mut self, slug: &str) -> Result<Vec<u8>, Diagnostic> {
+        if self
+            .project
+            .properties
+            .ticket_type
+            .values
+            .remove(slug)
+            .is_none()
+        {
+            return Err(unknown_type_value(slug));
+        }
+        self.mapping
+            .remove_path(&["properties", "type", "values", slug]);
+        Ok(self.render().into_bytes())
+    }
+
+    /// Whether the file carries one of a property's configuration keys.
+    ///
+    /// The question the seed has to ask, and it cannot be asked of the parsed
+    /// value: an empty vocabulary and an absent one both read as empty, and they
+    /// are not the same thing. A project that deleted all five of its type
+    /// values deleted them, and a toggle handing them back would be the seed
+    /// acting as a reset — which is what this type's own doc comment promises it
+    /// is not.
+    fn has_property_key(&self, property: Property, field: &str) -> bool {
+        self.mapping
+            .has_path(&["properties", property.as_str(), field])
+    }
+
+    fn set_property_flag(&mut self, property: Property, enabled: bool) {
+        self.write_property_bool(property, "enabled", enabled);
+        match property {
+            Property::Type => self.project.properties.ticket_type.enabled = enabled,
+            Property::Due => self.project.properties.due.enabled = enabled,
+            Property::Start => self.project.properties.start.enabled = enabled,
+            Property::Estimate => self.project.properties.estimate.enabled = enabled,
+        }
+    }
+
+    fn write_type_value(&mut self, slug: &str, name: Option<&str>, color: Option<&str>) {
+        for (field, value) in [("name", name), ("color", color)] {
+            if let Some(value) = value {
+                self.mapping.set_path_scalar(
+                    &["properties", "type", "values", slug, field],
+                    value,
+                    PROPERTIES_AFTER,
+                );
+            }
+        }
+    }
+
+    fn write_property_scalar(&mut self, property: Property, field: &str, value: &str) {
+        self.mapping.set_path_scalar(
+            &["properties", property.as_str(), field],
+            value,
+            PROPERTIES_AFTER,
+        );
+    }
+
+    fn write_property_bool(&mut self, property: Property, field: &str, value: bool) {
+        self.mapping.set_path_bool(
+            &["properties", property.as_str(), field],
+            value,
+            PROPERTIES_AFTER,
+        );
+    }
+
+    fn write_property_number(&mut self, property: Property, field: &str, value: f64) {
+        self.mapping.set_path_number(
+            &["properties", property.as_str(), field],
+            value,
+            PROPERTIES_AFTER,
+        );
+    }
+
+    fn write_property_sequence(&mut self, property: Property, field: &str, values: &[String]) {
+        self.mapping.set_path_sequence(
+            &["properties", property.as_str(), field],
+            values,
+            PROPERTIES_AFTER,
+        );
+    }
+}
+
+/// Where a `properties:` block this build writes for the first time lands: after
+/// `labels`, which is where the format documents it, and after whichever of the
+/// keys before that the file has if it has no labels at all.
+const PROPERTIES_AFTER: &[&str] = &["created_at", "people", "labels"];
+
+fn unknown_type_value(slug: &str) -> Diagnostic {
+    Diagnostic::parse(format!("This project defines no type {slug}"))
 }
 
 fn unknown_label(slug: &str) -> Diagnostic {
@@ -267,7 +924,7 @@ fn validate_label_color(color: &str) -> Result<(), Diagnostic> {
     Ok(())
 }
 
-const KNOWN_KEYS: [&str; 8] = [
+const KNOWN_KEYS: [&str; 9] = [
     "format",
     "id",
     "name",
@@ -276,6 +933,7 @@ const KNOWN_KEYS: [&str; 8] = [
     "created_at",
     "people",
     "labels",
+    "properties",
 ];
 
 #[derive(Debug, Deserialize)]
@@ -291,6 +949,8 @@ struct ProjectFields {
     people: BTreeMap<String, Person>,
     #[serde(default)]
     labels: BTreeMap<String, Label>,
+    #[serde(default)]
+    properties: PropertiesConfig,
 }
 
 fn default_theme() -> String {
@@ -448,6 +1108,7 @@ pub fn render_agent_contract(project: &Project) -> String {
          | `status` | one of `backlog`, `todo`, `in_progress`, `in_review`, `done`, `canceled` |\n\
          | `priority` | one of `urgent`, `p1`, `p2`, `p3`, `p4`, `none` |\n\
          | `labels` | slugs defined in `longclaw.yaml` |\n\
+         {properties}\
          | description | any CommonMark outside the reserved sections |\n\
          | checklist | flip `[ ]` to `[x]`, or append a task |\n\
          | activity | append a bounded record; never edit or delete an existing one |\n\
@@ -455,6 +1116,7 @@ pub fn render_agent_contract(project: &Project) -> String {
          Do not change `format`, `id`, `key`, `created_at`, or `rank`. LongClaw owns\n\
          `rank`; preserve any value you find and do not invent one. Keep every key you\n\
          do not understand exactly as it is.\n\
+         {property_note}\
          \n\
          ## Timestamps and attribution\n\
          \n\
@@ -552,8 +1214,71 @@ pub fn render_agent_contract(project: &Project) -> String {
         name = project.name,
         key = project.key,
         example_key = example_key,
+        properties = property_rules(&project.properties),
+        property_note = property_note(&project.properties),
         example = example_ticket(&example_key),
     )
+}
+
+/// The table rows for the properties this project has turned on, and nothing at
+/// all when it has turned none on.
+///
+/// The four are opt-in, so the contract lists the enabled set rather than all of
+/// them: a field an agent is told it may change had better be one the project
+/// reads. Nothing is the common case, and it is what keeps a project with no
+/// `properties:` block — which is every project file written before this build —
+/// on the contract it has always had.
+///
+/// Each rule is the vocabulary itself rather than a pointer to it. An agent
+/// reading this file is about to write a value, and `one of bug, feature` is an
+/// answer where "the slugs defined in longclaw.yaml" is another file to open.
+fn property_rules(properties: &PropertiesConfig) -> String {
+    properties
+        .enabled()
+        .into_iter()
+        .map(|property| {
+            let rule = match property {
+                Property::Due | Property::Start => "a date, `YYYY-MM-DD`".to_owned(),
+                Property::Type => {
+                    let defined = properties
+                        .ticket_type
+                        .values
+                        .keys()
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    if defined.is_empty() {
+                        "this project defines no type values yet".to_owned()
+                    } else {
+                        format!("one of {}", defined.join(", "))
+                    }
+                }
+                // The same sentence a refusal uses, so the contract cannot
+                // promise a vocabulary the write then rejects.
+                Property::Estimate => properties.estimate.vocabulary(),
+            };
+            format!("| `{}` | {rule} |\n", property.as_str())
+        })
+        .collect()
+}
+
+/// The one thing the table cannot say by listing rows: what a property *not*
+/// listed means.
+///
+/// Silence would read as "not mentioned, so probably fine", and the opposite is
+/// true — a disabled property is one this build declines to interpret, and a
+/// value under it is being hidden rather than deleted. A project with none
+/// enabled says nothing, because there is no enabled set to contrast with and
+/// the table already offers no property row at all.
+fn property_note(properties: &PropertiesConfig) -> String {
+    if properties.enabled().is_empty() {
+        return String::new();
+    }
+    "\n\
+     The ticket properties above are the ones this project has turned on. Do not\n\
+     add one that is not listed: an unlisted property is one this project does not\n\
+     read, and a value you find under it is being hidden rather than deleted — keep\n\
+     it exactly as it is.\n"
+        .to_owned()
 }
 
 fn example_ticket(key: &str) -> String {
@@ -571,7 +1296,12 @@ fn example_ticket(key: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{render_new_project, ProjectDocument, DEFAULT_THEME, PROJECT_FORMAT};
+    use super::{
+        parse_duration, render_new_project, EstimateConfig, EstimateSystem, ProjectDocument,
+        Property, TicketEdit, TicketProperties, DEFAULT_ATTENTION_DAYS, DEFAULT_DAYS_PER_WEEK,
+        DEFAULT_HOURS_PER_DAY, DEFAULT_THEME, PROJECT_FORMAT, SEEDED_TSHIRT_SCALE,
+        SEEDED_TYPE_VALUES,
+    };
     use crate::core::ErrorCode;
 
     const PROJECT: &str = concat!(
@@ -865,5 +1595,633 @@ mod tests {
         assert!(contract.contains("longclaw:item=ck_7d2a"));
         assert!(contract.contains("<!-- /longclaw:event -->"));
         assert!(contract.contains("atomically"));
+        // All four properties are off, so the contract offers no property row
+        // and says nothing about them — the file every project written before
+        // the properties block existed already had.
+        assert!(!contract.contains("| `type` |"));
+        assert!(!contract.contains("turned on"));
+    }
+
+    /// The generated contract offers the enabled set and no more.
+    ///
+    /// An agent reads this file to learn which fields it may write, so listing
+    /// all four would name three fields this project does not read — and the
+    /// write would then be refused by
+    /// [`PropertiesConfig::accept`], which is a contract disagreeing with the
+    /// build that generated it.
+    #[test]
+    fn the_generated_contract_offers_the_properties_the_project_turned_on() {
+        let document = ProjectDocument::parse(CONFIGURED).expect("the fixture should parse");
+        let contract = super::render_agent_contract(document.project());
+
+        // In the documented order, between the other frontmatter fields and the
+        // description — and each carrying the vocabulary itself, not a pointer
+        // to another file.
+        assert!(
+            contract.contains(concat!(
+                "| `labels` | slugs defined in `longclaw.yaml` |\n",
+                "| `type` | one of bug, feature |\n",
+                "| `due` | a date, `YYYY-MM-DD` |\n",
+                "| `estimate` | a number and a unit, such as 2h, 1.5d or 1w |\n",
+                "| description |",
+            )),
+            "{contract}"
+        );
+        // Off, so it is not offered.
+        assert!(!contract.contains("| `start` |"), "{contract}");
+        // And what an unlisted property means is said outright, because silence
+        // reads as permission.
+        assert!(
+            contract.contains("Do not\nadd one that is not listed"),
+            "{contract}"
+        );
+
+        // The estimate rule is the refusal's own sentence, so the contract
+        // cannot promise a vocabulary the write then rejects. Switching systems
+        // seeds nothing — it keeps every value written under the old one — so a
+        // project that arrives at t-shirt this way has an empty scale, and the
+        // contract says exactly that rather than inventing five sizes.
+        let mut document = document;
+        document
+            .set_estimate_system(EstimateSystem::Tshirt)
+            .expect("switching systems is a one-line write");
+        let contract = super::render_agent_contract(document.project());
+        assert!(
+            contract.contains(
+                "| `estimate` | this project's t-shirt scale, which defines no values yet |\n"
+            ),
+            "{contract}"
+        );
+
+        document
+            .set_tshirt_scale(&["s".to_owned(), "m".to_owned(), "l".to_owned()])
+            .expect("a scale of three sizes");
+        let contract = super::render_agent_contract(document.project());
+        assert!(
+            contract.contains("| `estimate` | one of s, m, l |\n"),
+            "{contract}"
+        );
+    }
+
+    /// LC-66's churn, asked of the rows this build added: the property half of
+    /// the contract is derived from the project file, so rendering the same
+    /// project twice produces the same rows.
+    ///
+    /// The rest of the file does not hold still — `example_ticket` mints a fresh
+    /// `id`, `ck_` and `evt_` on every render, and `update_project_file`
+    /// reprints the contract after every project write, so a property toggle's
+    /// real diff arrives alongside three meaningless ones. That is LC-66 and it
+    /// is still open; this test exists so the rows added here are not a second
+    /// source of it.
+    #[test]
+    fn the_property_rows_are_the_same_two_renders_running() {
+        let document = ProjectDocument::parse(CONFIGURED).expect("the fixture should parse");
+        let rows = |contract: &str| {
+            contract
+                .lines()
+                .filter(|line| line.starts_with("| `"))
+                .map(str::to_owned)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            rows(&super::render_agent_contract(document.project())),
+            rows(&super::render_agent_contract(document.project()))
+        );
+    }
+
+    // -------------------------------------------- the properties block
+
+    const CONFIGURED: &str = concat!(
+        "format: longclaw.project/v1\n",
+        "id: project-fixture\n",
+        "name: Fixture\n",
+        "key: LC\n",
+        "theme: indigo\n",
+        "created_at: 2026-07-29T00:00:00Z\n",
+        "people: {}\n",
+        "labels: {}\n",
+        "properties:\n",
+        "  type:\n",
+        "    enabled: true\n",
+        "    values:\n",
+        "      bug: { name: Bug, color: red }\n",
+        "      feature: { name: Feature, color: cyan }\n",
+        "  due:\n",
+        "    enabled: true\n",
+        "    attention_days: 3\n",
+        "  estimate:\n",
+        "    enabled: true\n",
+        "    system: duration\n",
+        "    hours_per_day: 6\n",
+        "    x_future_key: kept\n",
+    );
+
+    /// Every project file written before this block existed. All four off, and
+    /// nothing to migrate.
+    #[test]
+    fn a_project_with_no_properties_block_has_every_property_off() {
+        let document = ProjectDocument::parse(PROJECT).expect("the fixture should parse");
+        let properties = &document.project().properties;
+        assert!(properties.enabled().is_empty());
+        assert_eq!(properties.due.attention_days, DEFAULT_ATTENTION_DAYS);
+        assert_eq!(properties.estimate.hours_per_day, DEFAULT_HOURS_PER_DAY);
+        assert!(!document
+            .project()
+            .unknown_keys
+            .iter()
+            .any(|key| key == "properties"));
+    }
+
+    #[test]
+    fn the_properties_block_is_read_and_its_bytes_are_kept() {
+        let document = ProjectDocument::parse(CONFIGURED).expect("the fixture should parse");
+        let properties = &document.project().properties;
+
+        assert_eq!(
+            properties.enabled(),
+            vec![Property::Type, Property::Due, Property::Estimate]
+        );
+        assert!(!properties.is_enabled(Property::Start));
+        assert_eq!(properties.due.attention_days, 3);
+        assert_eq!(properties.ticket_type.values.len(), 2);
+        assert_eq!(properties.ticket_type.values["bug"].color, "red");
+        assert_eq!(properties.estimate.system, EstimateSystem::Duration);
+        assert_eq!(properties.estimate.hours_per_day, 6.0);
+        // Not named in the file, so the documented default stands.
+        assert_eq!(properties.estimate.days_per_week, DEFAULT_DAYS_PER_WEEK);
+        // A key inside the block that this build does not interpret is part of
+        // the file, and the file comes back as it was.
+        assert_eq!(document.render(), CONFIGURED);
+    }
+
+    /// Every surface that writes a property asks this, so there is one refusal
+    /// rather than one per surface. `apply_as` holds a value to the format's own
+    /// rule and nothing more, which left the app able to write a type no project
+    /// defined — and an undefined slug renders as itself, with no name and no
+    /// colour.
+    #[test]
+    fn a_value_is_held_to_the_vocabulary_the_project_configures() {
+        let document = ProjectDocument::parse(CONFIGURED).expect("the fixture should parse");
+        let properties = &document.project().properties;
+
+        assert_eq!(
+            properties.accept(Property::Type, " bug ").as_deref(),
+            Ok("bug")
+        );
+        assert_eq!(
+            properties.accept(Property::Due, "2026-09-28").as_deref(),
+            Ok("2026-09-28")
+        );
+        assert_eq!(
+            properties.accept(Property::Estimate, "1.5d").as_deref(),
+            Ok("1.5d")
+        );
+
+        // Enabled, and a slug this project never defined.
+        let refused = properties
+            .accept(Property::Type, "epic")
+            .expect_err("epic is not one of this project's types");
+        assert_eq!(refused.code, ErrorCode::ParseFailed);
+        assert!(
+            refused.message.contains("It defines bug, feature."),
+            "{}",
+            refused.message
+        );
+
+        // Enabled, and a value the project's *system* cannot read: `m` is a
+        // t-shirt size and this project estimates in durations.
+        let refused = properties
+            .accept(Property::Estimate, "m")
+            .expect_err("m is not a duration");
+        assert!(
+            refused.message.contains("2h, 1.5d or 1w"),
+            "{}",
+            refused.message
+        );
+
+        // Off, so there is no vocabulary to check a value against at all.
+        let refused = properties
+            .accept(Property::Start, "2026-09-28")
+            .expect_err("this project has no start dates");
+        assert!(
+            refused
+                .message
+                .contains("has not enabled the start property"),
+            "{}",
+            refused.message
+        );
+    }
+
+    /// A clear is refused on a disabled property as firmly as a set is.
+    ///
+    /// `TicketEdit` distinguishes absent from cleared so a Clear row has
+    /// something to send, and a property this build declines to interpret is the
+    /// one place that row must not reach: the value is being hidden, not
+    /// deleted, and the ticket still holds it.
+    #[test]
+    fn an_edit_is_refused_for_a_property_the_project_does_not_read() {
+        let document = ProjectDocument::parse(CONFIGURED).expect("the fixture should parse");
+        let properties = &document.project().properties;
+
+        let named_none = TicketEdit {
+            title: Some("Renamed".to_owned()),
+            ..TicketEdit::default()
+        };
+        properties
+            .accept_edit(&named_none)
+            .expect("an edit that names no property is nobody's business but the format's");
+
+        for refused in [
+            TicketEdit {
+                start: Some(Some("2026-09-28".to_owned())),
+                ..TicketEdit::default()
+            },
+            TicketEdit {
+                start: Some(None),
+                ..TicketEdit::default()
+            },
+        ] {
+            let refused = properties
+                .accept_edit(&refused)
+                .expect_err("this project has no start dates");
+            assert!(
+                refused
+                    .message
+                    .contains("has not enabled the start property"),
+                "{}",
+                refused.message
+            );
+        }
+
+        // The same clear, on a property the project does read.
+        properties
+            .accept_edit(&TicketEdit {
+                due: Some(None),
+                ..TicketEdit::default()
+            })
+            .expect("clearing a due date is what the Clear row is for");
+    }
+
+    /// The create side of the same check. It has no clear — there is nothing on
+    /// a ticket that does not exist yet to remove — so every value it carries is
+    /// a set.
+    #[test]
+    fn a_create_is_held_to_the_same_vocabulary_as_an_edit() {
+        let document = ProjectDocument::parse(CONFIGURED).expect("the fixture should parse");
+        let properties = &document.project().properties;
+
+        properties
+            .accept_new(&TicketProperties {
+                ticket_type: Some("feature".to_owned()),
+                due: Some("2026-09-28".to_owned()),
+                ..TicketProperties::default()
+            })
+            .expect("both values are ones this project configures");
+
+        let refused = properties
+            .accept_new(&TicketProperties {
+                estimate: Some("m".to_owned()),
+                ..TicketProperties::default()
+            })
+            .expect_err("m is not a duration");
+        assert!(
+            refused.message.contains("scale can read"),
+            "{}",
+            refused.message
+        );
+    }
+
+    /// A property this build declines to read is not a property that vanishes.
+    #[test]
+    fn a_project_enabling_estimates_without_a_system_is_on_the_seeded_one() {
+        let raw = format!("{PROJECT}properties:\n  estimate:\n    enabled: true\n");
+        let document = ProjectDocument::parse(&raw).expect("the fixture should parse");
+        assert_eq!(
+            document.project().properties.estimate.system,
+            EstimateSystem::Tshirt
+        );
+    }
+
+    #[test]
+    fn each_estimate_system_reads_its_own_scale_and_no_other() {
+        let mut estimate = EstimateConfig {
+            enabled: true,
+            values: SEEDED_TSHIRT_SCALE.map(str::to_owned).to_vec(),
+            ..EstimateConfig::default()
+        };
+        assert!(estimate.accepts("m"));
+        assert!(!estimate.accepts("5"));
+        assert!(!estimate.accepts("2h"));
+
+        estimate.system = EstimateSystem::Fibonacci;
+        assert!(estimate.accepts("5"));
+        assert!(!estimate.accepts("4"));
+        assert!(!estimate.accepts("m"));
+
+        estimate.system = EstimateSystem::Duration;
+        assert!(estimate.accepts("2h"));
+        assert!(estimate.accepts("1.5d"));
+        assert!(!estimate.accepts("5"));
+        assert!(!estimate.accepts("m"));
+    }
+
+    #[test]
+    fn a_duration_carries_one_number_and_one_unit() {
+        assert_eq!(parse_duration("2h"), Some((2.0, 'h')));
+        assert_eq!(parse_duration("1.5d"), Some((1.5, 'd')));
+        assert_eq!(parse_duration("30m"), Some((30.0, 'm')));
+        assert_eq!(parse_duration("1w"), Some((1.0, 'w')));
+        for refused in [
+            "1d4h", "2", "h", "0h", "-1d", "1.5.5d", ".5h", "5.h", "2y", "2 h", "",
+        ] {
+            assert_eq!(
+                parse_duration(refused),
+                None,
+                "{refused:?} should be refused"
+            );
+        }
+    }
+
+    /// `0` empties the approaching rung; a negative value is not a width.
+    ///
+    /// And it refuses the **file**, rather than degrading the one setting the
+    /// way a ticket's malformed value degrades (invariants 10, 11, 14). This is
+    /// the file whose contents decide what every other file means, so a project
+    /// that opened while quietly substituting a default for a setting it could
+    /// not read would be a project whose configuration is not what its file
+    /// says — and every write made under it would be made under a rule nobody
+    /// chose. `system: banana` is refused for the same reason.
+    #[test]
+    fn a_negative_attention_window_refuses_the_file_and_zero_does_not() {
+        let zero =
+            format!("{PROJECT}properties:\n  due:\n    enabled: true\n    attention_days: 0\n");
+        let parsed = ProjectDocument::parse(&zero).expect("zero should be legal");
+        assert_eq!(parsed.project().properties.due.attention_days, 0);
+
+        let negative =
+            format!("{PROJECT}properties:\n  due:\n    enabled: true\n    attention_days: -1\n");
+        assert!(ProjectDocument::parse(&negative).is_err());
+    }
+
+    // ------------------------------------ configuring the properties block
+
+    /// Every write here has to leave a file the reader still accepts, which is
+    /// the one assertion that catches a quoted boolean or a lost indent.
+    fn written(bytes: Vec<u8>) -> String {
+        let rendered = String::from_utf8(bytes).expect("UTF-8");
+        ProjectDocument::parse(&rendered).expect("a property write leaves a readable project");
+        rendered
+    }
+
+    #[test]
+    fn turning_a_property_on_writes_the_block_and_seeds_its_vocabulary() {
+        let mut document = ProjectDocument::parse(PROJECT).expect("the fixture should parse");
+        let rendered = written(
+            document
+                .set_property_enabled(Property::Type, true)
+                .expect("Type can be turned on"),
+        );
+
+        // After `labels`, which is where the format documents it.
+        assert!(rendered.contains("    color: blue\nproperties:\n  type:\n    enabled: true\n"));
+        for (slug, name, color) in SEEDED_TYPE_VALUES {
+            assert!(
+                rendered.contains(&format!(
+                    "      {slug}:\n        name: {name}\n        color: {color}\n"
+                )),
+                "the seed should carry {slug}"
+            );
+        }
+        let values = &document.project().properties.ticket_type.values;
+        assert_eq!(values.len(), SEEDED_TYPE_VALUES.len());
+        assert!(document.project().properties.is_enabled(Property::Type));
+        // The key it was inserted beside keeps its own bytes.
+        assert!(rendered.contains("x_extension: kept\n"));
+    }
+
+    #[test]
+    fn turning_estimates_on_seeds_the_scale_the_default_system_reads() {
+        let mut document = ProjectDocument::parse(PROJECT).expect("the fixture should parse");
+        let rendered = written(
+            document
+                .set_property_enabled(Property::Estimate, true)
+                .expect("Estimate can be turned on"),
+        );
+        assert_eq!(
+            document.project().properties.estimate.values,
+            SEEDED_TSHIRT_SCALE.map(str::to_owned).to_vec()
+        );
+        // The block reads in the order the format documents it, which is a
+        // question of what the seed writes first rather than of what YAML means.
+        assert!(rendered.contains(concat!(
+            "  estimate:\n",
+            "    enabled: true\n",
+            "    system: tshirt\n",
+            "    values:\n",
+            "      - xs\n",
+        )));
+    }
+
+    /// The whole of "disabling hides, it never deletes": one line flips, and the
+    /// vocabulary and the window the project configured are still there to come
+    /// back to.
+    #[test]
+    fn turning_a_property_off_flips_one_line_and_keeps_its_configuration() {
+        let mut document = ProjectDocument::parse(CONFIGURED).expect("the fixture should parse");
+        let rendered = written(
+            document
+                .set_property_enabled(Property::Due, false)
+                .expect("Due can be turned off"),
+        );
+        assert_eq!(
+            rendered,
+            CONFIGURED.replace(
+                "  due:\n    enabled: true\n",
+                "  due:\n    enabled: false\n"
+            )
+        );
+        assert!(!document.project().properties.due.enabled);
+        assert_eq!(document.project().properties.due.attention_days, 3);
+    }
+
+    /// The seed is what a property that has never been configured starts from,
+    /// not what it is reset to. A project that dropped `spike` keeps it dropped.
+    #[test]
+    fn turning_a_property_on_again_keeps_the_vocabulary_it_was_left_with() {
+        let mut document = ProjectDocument::parse(CONFIGURED).expect("the fixture should parse");
+        written(
+            document
+                .set_property_enabled(Property::Type, false)
+                .expect("Type can be turned off"),
+        );
+        written(
+            document
+                .set_property_enabled(Property::Type, true)
+                .expect("Type can be turned back on"),
+        );
+        assert_eq!(
+            document
+                .project()
+                .properties
+                .ticket_type
+                .values
+                .keys()
+                .collect::<Vec<_>>(),
+            vec!["bug", "feature"]
+        );
+    }
+
+    /// The seed acting as a reset is the failure mode, and emptying the
+    /// vocabulary is the only way to reach it: an empty registry and an absent
+    /// one both read as empty off the parsed value, so the question has to be
+    /// asked of the file.
+    #[test]
+    fn a_vocabulary_a_project_emptied_is_not_handed_back_on_the_next_toggle() {
+        let mut document = ProjectDocument::parse(CONFIGURED).expect("the fixture should parse");
+        for slug in ["bug", "feature"] {
+            written(document.remove_type_value(slug).expect("both are defined"));
+        }
+        assert!(document.project().properties.ticket_type.values.is_empty());
+
+        written(
+            document
+                .set_property_enabled(Property::Type, false)
+                .expect("Type can be turned off"),
+        );
+        let rendered = written(
+            document
+                .set_property_enabled(Property::Type, true)
+                .expect("Type can be turned back on"),
+        );
+        assert!(
+            document.project().properties.ticket_type.values.is_empty(),
+            "the five seeds came back: {rendered}"
+        );
+    }
+
+    /// The type registry is the label registry, so a rename reaches inside a
+    /// value the format contract's own example writes in flow style.
+    #[test]
+    fn renaming_a_type_value_leaves_every_other_value_alone() {
+        let mut document = ProjectDocument::parse(CONFIGURED).expect("the fixture should parse");
+        let rendered = written(
+            document
+                .update_type_value("bug", Some("Defect"), None)
+                .expect("bug is defined"),
+        );
+        assert!(rendered.contains("      bug:\n        name: Defect\n        color: red\n"));
+        assert!(rendered.contains("      feature: { name: Feature, color: cyan }\n"));
+        assert_eq!(
+            document.project().properties.ticket_type.values["bug"].name,
+            "Defect"
+        );
+        assert_eq!(
+            document.project().properties.ticket_type.values["bug"].color,
+            "red"
+        );
+    }
+
+    #[test]
+    fn defining_and_removing_a_type_value_touches_only_that_value() {
+        let mut document = ProjectDocument::parse(CONFIGURED).expect("the fixture should parse");
+        let added = written(
+            document
+                .add_type_value("spike", "Spike", "purple")
+                .expect("a well-formed definition"),
+        );
+        assert!(added.contains("      spike:\n        name: Spike\n        color: purple\n"));
+
+        let removed = written(document.remove_type_value("bug").expect("bug is defined"));
+        assert!(!removed.contains("      bug:"));
+        assert!(removed.contains("      feature: { name: Feature, color: cyan }\n"));
+        assert!(document
+            .project()
+            .properties
+            .ticket_type
+            .values
+            .contains_key("spike"));
+    }
+
+    #[test]
+    fn a_type_value_is_held_to_the_grammar_labels_are() {
+        let mut document = ProjectDocument::parse(CONFIGURED).expect("the fixture should parse");
+        assert!(document
+            .add_type_value("Not A Slug", "Nope", "red")
+            .is_err());
+        assert!(document.add_type_value("bug", "Bug again", "red").is_err());
+        assert!(document
+            .add_type_value("spike", "Spike", "not a color!")
+            .is_err());
+        assert!(document
+            .update_type_value("absent", Some("Nope"), None)
+            .is_err());
+        assert!(document.remove_type_value("absent").is_err());
+        // None of the refusals wrote anything.
+        assert_eq!(document.render(), CONFIGURED);
+    }
+
+    #[test]
+    fn the_attention_window_takes_zero_and_has_no_ceiling_of_its_own() {
+        let mut document = ProjectDocument::parse(CONFIGURED).expect("the fixture should parse");
+        let rendered = written(
+            document
+                .set_attention_days(0)
+                .expect("zero empties the rung"),
+        );
+        assert!(rendered.contains("    attention_days: 0\n"));
+        assert_eq!(document.project().properties.due.attention_days, 0);
+    }
+
+    #[test]
+    fn switching_the_estimate_system_rewrites_one_line_and_no_value() {
+        let mut document = ProjectDocument::parse(CONFIGURED).expect("the fixture should parse");
+        let rendered = written(
+            document
+                .set_estimate_system(EstimateSystem::Fibonacci)
+                .expect("Fibonacci is a system"),
+        );
+        assert_eq!(
+            rendered,
+            CONFIGURED.replace("    system: duration\n", "    system: fibonacci\n")
+        );
+        assert_eq!(
+            document.project().properties.estimate.system,
+            EstimateSystem::Fibonacci
+        );
+    }
+
+    #[test]
+    fn the_conversion_takes_a_fraction_of_an_hour_and_refuses_an_impossible_day() {
+        let mut document = ProjectDocument::parse(CONFIGURED).expect("the fixture should parse");
+        let rendered = written(
+            document
+                .set_estimate_conversion(7.5, 4.0)
+                .expect("a seven-and-a-half-hour day"),
+        );
+        assert!(rendered.contains("    hours_per_day: 7.5\n"));
+        assert!(rendered.contains("    days_per_week: 4\n"));
+        assert_eq!(document.project().properties.estimate.hours_per_day, 7.5);
+        assert!(document.set_estimate_conversion(25.0, 5.0).is_err());
+        assert!(document.set_estimate_conversion(8.0, 0.0).is_err());
+    }
+
+    #[test]
+    fn the_tshirt_scale_is_written_as_the_ordered_sequence_it_is() {
+        let mut document = ProjectDocument::parse(CONFIGURED).expect("the fixture should parse");
+        let scale = ["xs", "s", "m"].map(str::to_owned).to_vec();
+        let rendered = written(
+            document
+                .set_tshirt_scale(&scale)
+                .expect("a well-formed scale"),
+        );
+        assert!(rendered.contains("    values:\n      - xs\n      - s\n      - m\n"));
+        assert_eq!(document.project().properties.estimate.values, scale);
+
+        assert!(document
+            .set_tshirt_scale(&["m".to_owned(), "m".to_owned()])
+            .is_err());
+        assert!(document
+            .set_tshirt_scale(&["Not A Slug".to_owned()])
+            .is_err());
     }
 }

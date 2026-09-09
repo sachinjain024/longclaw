@@ -18,7 +18,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 // Aliased because the panel also binds `keydown` on `document`, where the type
 // is the DOM's own `KeyboardEvent` and shadowing it would silently retype those.
-import type { DragEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
+import type {
+  DragEvent,
+  KeyboardEvent as ReactKeyboardEvent,
+  ReactNode,
+} from "react";
 import { editTicket, openTicketFile, readTicket } from "./api";
 import {
   actorGlyph,
@@ -53,6 +57,12 @@ import { sameLabels } from "./labels";
 import { MarkdownView } from "./MarkdownView";
 import { MenuButton } from "./Menu";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "./metaOptions";
+import {
+  enabledPropertyFields,
+  PROPERTY_LABELS,
+  propertyToast,
+} from "./properties";
+import { PropertyControl } from "./PropertyControl";
 import { PencilGlyph } from "./PencilGlyph";
 import { mutate, type Mutation, useMutationStore } from "./mutations";
 import { RawFileView } from "./RawFileView";
@@ -65,6 +75,7 @@ import type {
   ChecklistItem,
   HeldConflict,
   Label,
+  PropertiesConfig,
   TicketDetail,
   TicketEdit,
   TicketPriority,
@@ -76,8 +87,8 @@ import { diskLabel, WriteIndicator } from "./WriteFeedback";
 /**
  * What a destructive-adjacent change adds to a save: the state it shows before
  * the write returns, the toast copy, and the edit that takes it back
- * (`states.md:62-63`). Status and check use it today; priority, archive, and
- * unarchive are the same shape.
+ * (`states.md:62-63`). Status, check and each of the four opt-in properties use
+ * it today; priority, archive, and unarchive are the same shape.
  */
 export interface SaveFeedback {
   /** Renders the change now; the returned function puts it back on failure. */
@@ -181,6 +192,25 @@ type HistoryTab = "comments" | "activity";
  * composer sits under both, so the two orders are a choice about what is on
  * screen rather than about what is reachable.
  */
+/**
+ * One property in the rail: a name and its control (LC-227).
+ *
+ * Below the container query this is the meta grid's own row — an 84px label
+ * column and a 12px gap — because below the query it *is* the meta grid. Above
+ * it the name moves over the control, which is the one place the rail departs
+ * from the grid it replaces, and it is forced: 232px spending 84 on a label
+ * column leaves 148 for a date field and its trigger, and no room at all for an
+ * estimate scale. Both arrangements are CSS over the same markup.
+ */
+function RailRow(props: { name: string; children: ReactNode }) {
+  return (
+    <div className="rail-row">
+      <span className="rail-label">{props.name}</span>
+      <div>{props.children}</div>
+    </div>
+  );
+}
+
 function HistoryTabs(props: {
   tab: HistoryTab;
   onPick: (tab: HistoryTab) => void;
@@ -249,6 +279,13 @@ interface TicketPanelProps {
   projectPath: string;
   /** The project's label definitions. A ticket carries slugs and nothing else. */
   labels: Record<string, Label>;
+  /**
+   * Which of the four opt-in properties this project has turned on, and what
+   * their values mean here. A property that is off has no row in the rail — and
+   * a ticket that carries one anyway keeps it, because nothing reads a file to
+   * correct it (`file_format.md` invariant 16).
+   */
+  properties: PropertiesConfig;
   /** An unreviewed external change to this ticket, if there is one. */
   mark?: ExternalMark;
   /** Bumped when an external change to this ticket lands, to re-read the file. */
@@ -256,6 +293,15 @@ interface TicketPanelProps {
   /** Bumped when the watched ticket file disappeared while the panel is open. */
   removedSignal: number;
   now: number;
+  /**
+   * Local midnight, in epoch ms — the day the date grammar resolves against.
+   *
+   * Separate from `now` for the reason the board card needed it separate: `now`
+   * is the acknowledgement clock and moves constantly, and a date read against
+   * a moving instant is a date whose meaning depends on the second it was read
+   * in. `28 Sep` means one day all day.
+   */
+  today: number;
   /**
    * Whether the ticket carries an `archived_at` (ADR 0004), taken from the same
    * store row the board and the list read rather than from the file this panel
@@ -703,6 +749,40 @@ export function TicketPanel(props: TicketPanelProps) {
     writing.current = false;
     // Whatever was typed while this was out goes now.
     void drainNewItems();
+  }
+
+  /**
+   * One of the four opt-in properties (LC-227). All four write the same way, so
+   * the rail's rows differ only in the control in front of them.
+   *
+   * `null` rather than `undefined` for a clear: absent and cleared are the same
+   * thing on disk — a ticket carries a property only when it has a value — so
+   * the distinction lives in the edit, which is what makes the Clear every one
+   * of these controls offers mean something to send.
+   *
+   * No optimistic hold. The three fields above have one because a menu closes
+   * on the pick and would otherwise show the old value until the round trip
+   * came back; a date field and an estimate already show what was typed, and
+   * holding it as well would be two copies of the same optimism to unwind.
+   */
+  function saveProperty(
+    property: "type" | "due" | "start" | "estimate",
+    next: string | undefined,
+  ) {
+    const previous = detail?.ticket?.[property];
+    if (next === previous) return;
+    // The same sentence a pick from a card's context menu raises, which is why
+    // it is not built here (`properties.ts`, LC-227).
+    const said = (value: string | undefined) =>
+      propertyToast(ticketKey, property, value);
+    void save(
+      { [property]: next ?? null },
+      {
+        toast: said(next),
+        inverse: { [property]: previous ?? null },
+        inverseToast: said(previous),
+      },
+    );
   }
 
   /**
@@ -1308,79 +1388,137 @@ export function TicketPanel(props: TicketPanelProps) {
             }}
           />
 
-          <div className="meta-grid">
-            <span>Status</span>
-            <MenuButton
-              label="Status"
-              options={STATUS_OPTIONS}
-              value={pending.status ?? ticket.status}
-              open={metaMenu === "status"}
-              onOpenChange={(open) => setMetaMenu(open ? "status" : undefined)}
-              onPick={(next) => {
-                const previous = ticket.status;
-                if (next === previous) return;
-                void save(
-                  { status: next },
-                  {
-                    apply: () => hold("status", next),
-                    toast: `${ticketKey} → ${statusLabel(next)}`,
-                    inverse: { status: previous },
-                    inverseToast: `${ticketKey} back to ${statusLabel(previous)}`,
-                  },
-                );
-              }}
-            />
-            <span>Priority</span>
-            <MenuButton
-              label="Priority"
-              options={PRIORITY_OPTIONS}
-              value={pending.priority ?? ticket.priority}
-              open={metaMenu === "priority"}
-              onOpenChange={(open) =>
-                setMetaMenu(open ? "priority" : undefined)
-              }
-              onPick={(next) => {
-                const previous = ticket.priority;
-                if (next === previous) return;
-                void save(
-                  { priority: next },
-                  {
-                    apply: () => hold("priority", next),
-                    toast: `${ticketKey} → ${priorityLabel(next)}`,
-                    inverse: { priority: previous },
-                    inverseToast: `${ticketKey} back to ${priorityLabel(previous)}`,
-                  },
-                );
-              }}
-            />
-            <span>Labels</span>
-            <LabelMenuButton
-              slugs={pending.labels ?? ticket.labels}
-              definitions={props.labels}
-              onToggle={(next, toggled) => {
-                const previous = pending.labels ?? ticket.labels;
-                // `TicketDocument::apply` refuses an edit that changes nothing.
-                if (sameLabels(next, previous)) return;
-                const added = next.includes(toggled.slug);
-                void save(
-                  { labels: next },
-                  {
-                    apply: () => hold("labels", next),
-                    toast: `${ticketKey} ${added ? "labeled" : "unlabeled"} ${toggled.name}`,
-                    // A label edit replaces the list, so its inverse is the
-                    // whole list as it was — not the one slug that moved.
-                    inverse: { labels: [...previous] },
-                    inverseToast: `${ticketKey} ${added ? "unlabeled" : "labeled"} ${toggled.name}`,
-                  },
-                );
-              }}
-            />
-          </div>
+          {/* Everything under the title, in two columns once there is room for
+              them (LC-227).
 
-          <section className="panel-section description-block">
-            <h3>
-              Description
-              {/* The affordance lives in the header row, where none of the
+              The split is a **container query on the panel**, not a media
+              query: LC-238s makes the width a dragged, remembered number, so
+              "is there room for a rail" is a question about this box and never
+              about the window — a viewport query would put a rail in a 560px
+              panel on a 27-inch display.
+
+              The rail comes first in the DOM and is placed into the second
+              column, which is the one thing here the prototype had the other
+              way round. Source order main-then-rail was chosen so that the fold
+              under the query would be "a no-op rather than a reorder", and it
+              is the arrangement that cannot deliver that: folded, it puts
+              Status and Priority below the activity record, where a 560px panel
+              — today's default — has never had them. This way the properties
+              stay above the description at every width, which is where they
+              stand today, and the rail's stops come before the description's at
+              both widths rather than swapping as the panel is dragged. The
+              prototype's note is struck through in place and the departure is
+              recorded in LC-227, under "The source order the fold decides". */}
+          <div className="panel-body">
+            <div className="panel-rail">
+              {/* The order it reads: what the ticket *is*, then what kind of
+                  work it is and how much, then when, then the free axis.
+                  Labels last because they are the only row that grows — a list
+                  of chips at the foot of a rail costs nothing when it wraps to
+                  three lines, and the same list in the middle moves everything
+                  under it. */}
+              <RailRow name="Status">
+                <MenuButton
+                  label="Status"
+                  options={STATUS_OPTIONS}
+                  value={pending.status ?? ticket.status}
+                  open={metaMenu === "status"}
+                  onOpenChange={(open) =>
+                    setMetaMenu(open ? "status" : undefined)
+                  }
+                  onPick={(next) => {
+                    const previous = ticket.status;
+                    if (next === previous) return;
+                    void save(
+                      { status: next },
+                      {
+                        apply: () => hold("status", next),
+                        toast: `${ticketKey} → ${statusLabel(next)}`,
+                        inverse: { status: previous },
+                        inverseToast: `${ticketKey} back to ${statusLabel(previous)}`,
+                      },
+                    );
+                  }}
+                />
+              </RailRow>
+              <RailRow name="Priority">
+                <MenuButton
+                  label="Priority"
+                  options={PRIORITY_OPTIONS}
+                  value={pending.priority ?? ticket.priority}
+                  open={metaMenu === "priority"}
+                  onOpenChange={(open) =>
+                    setMetaMenu(open ? "priority" : undefined)
+                  }
+                  onPick={(next) => {
+                    const previous = ticket.priority;
+                    if (next === previous) return;
+                    void save(
+                      { priority: next },
+                      {
+                        apply: () => hold("priority", next),
+                        toast: `${ticketKey} → ${priorityLabel(next)}`,
+                        inverse: { priority: previous },
+                        inverseToast: `${ticketKey} back to ${priorityLabel(previous)}`,
+                      },
+                    );
+                  }}
+                />
+              </RailRow>
+              {/* The properties this project turned on, in the order
+                  `enabledPropertyFields` states rather than the order the file
+                  writes them: what the ticket *is*, then what kind of work it
+                  is and how much, then when. Start above Due — chronological,
+                  adjacent, and the pair the forward-only rule is a trade for,
+                  because the same typed string has to mean the same day in
+                  both.
+
+                  A control rather than four written-out rows, because full
+                  create and quick create draw the same four and a rail that
+                  spelled them out here would be the first of three spellings
+                  (`PropertyControl.tsx`). */}
+              {enabledPropertyFields(props.properties).map((property) => (
+                <RailRow key={property} name={PROPERTY_LABELS[property].field}>
+                  <PropertyControl
+                    property={property}
+                    config={props.properties}
+                    value={ticket[property]}
+                    today={props.today}
+                    onCommit={(next) => saveProperty(property, next)}
+                  />
+                </RailRow>
+              ))}
+              <RailRow name="Labels">
+                <LabelMenuButton
+                  slugs={pending.labels ?? ticket.labels}
+                  definitions={props.labels}
+                  onToggle={(next, toggled) => {
+                    const previous = pending.labels ?? ticket.labels;
+                    // `TicketDocument::apply` refuses an edit that changes
+                    // nothing.
+                    if (sameLabels(next, previous)) return;
+                    const added = next.includes(toggled.slug);
+                    void save(
+                      { labels: next },
+                      {
+                        apply: () => hold("labels", next),
+                        toast: `${ticketKey} ${added ? "labeled" : "unlabeled"} ${toggled.name}`,
+                        // A label edit replaces the list, so its inverse is the
+                        // whole list as it was — not the one slug that moved.
+                        inverse: { labels: [...previous] },
+                        inverseToast: `${ticketKey} ${added ? "unlabeled" : "labeled"} ${toggled.name}`,
+                      },
+                    );
+                  }}
+                />
+              </RailRow>
+            </div>
+
+            <div className="panel-main">
+              <section className="panel-section description-block">
+                <h3>
+                  Description
+                  {/* The affordance lives in the header row, where none of the
                   ticket's own text can be under it (LC-99).
 
                   The prototype renders it whenever the editor is closed and
@@ -1390,84 +1528,84 @@ export function TicketPanel(props: TicketPanelProps) {
                   one editor behind two Tab stops, one of them named `Edit` for
                   a description that does not exist yet, is worse than the
                   invitation already on screen. */}
-              {!editingDescription && ticket.description ? (
-                <button
-                  tabIndex={0}
-                  className="ghost small description-edit"
-                  ref={editButton}
-                  aria-label="Edit description"
-                  onClick={() => openDescriptionEditor(ticket.description)}
-                >
-                  <PencilGlyph />
-                  Edit
-                </button>
-              ) : null}
-            </h3>
-            {editingDescription ? (
-              <DescriptionEditor
-                value={descriptionDraft}
-                // `TicketDocument::apply` refuses an edit that changes nothing.
-                canSave={descriptionDraft.trim() !== ticket.description}
-                onChange={(next) => {
-                  drafts.current.description = next;
-                  setDescriptionDraft(next);
-                }}
-                onCancel={() => {
-                  drafts.current.description = ticket.description;
-                  setDescriptionDraft(ticket.description);
-                  closeDescriptionEditor();
-                }}
-                onSave={() => {
-                  closeDescriptionEditor();
-                  // The description the file held. Undo names neither version
-                  // in its copy: a description is prose of any length, and a
-                  // toast is one line at the bottom of the window.
-                  const was = ticket.description;
-                  // The draft, not a re-render of the parsed tree: the bytes the
-                  // human typed are the bytes that reach the file.
-                  void save(
-                    { description: descriptionDraft },
-                    {
-                      toast: `${ticketKey} description updated`,
-                      inverse: { description: was },
-                      inverseToast: `${ticketKey} description restored`,
-                    },
-                  );
-                }}
-              />
-            ) : ticket.description ? (
-              <div className="description-view">
-                <MarkdownView
-                  source={ticket.description}
-                  headingOffset={3}
-                  className="markdown"
-                />
-              </div>
-            ) : (
-              <button
-                tabIndex={0}
-                className="description-view empty"
-                ref={editButton}
-                onClick={() => openDescriptionEditor("")}
-              >
-                Add a description
-              </button>
-            )}
-          </section>
-
-          <section className="panel-section">
-            <h3>
-              Checklist
-              <span
-                className={classes(
-                  "section-count",
-                  checklistAcknowledged && "acknowledged",
-                  checklistAcknowledged && accentClass,
+                  {!editingDescription && ticket.description ? (
+                    <button
+                      tabIndex={0}
+                      className="ghost small description-edit"
+                      ref={editButton}
+                      aria-label="Edit description"
+                      onClick={() => openDescriptionEditor(ticket.description)}
+                    >
+                      <PencilGlyph />
+                      Edit
+                    </button>
+                  ) : null}
+                </h3>
+                {editingDescription ? (
+                  <DescriptionEditor
+                    value={descriptionDraft}
+                    // `TicketDocument::apply` refuses an edit that changes nothing.
+                    canSave={descriptionDraft.trim() !== ticket.description}
+                    onChange={(next) => {
+                      drafts.current.description = next;
+                      setDescriptionDraft(next);
+                    }}
+                    onCancel={() => {
+                      drafts.current.description = ticket.description;
+                      setDescriptionDraft(ticket.description);
+                      closeDescriptionEditor();
+                    }}
+                    onSave={() => {
+                      closeDescriptionEditor();
+                      // The description the file held. Undo names neither version
+                      // in its copy: a description is prose of any length, and a
+                      // toast is one line at the bottom of the window.
+                      const was = ticket.description;
+                      // The draft, not a re-render of the parsed tree: the bytes the
+                      // human typed are the bytes that reach the file.
+                      void save(
+                        { description: descriptionDraft },
+                        {
+                          toast: `${ticketKey} description updated`,
+                          inverse: { description: was },
+                          inverseToast: `${ticketKey} description restored`,
+                        },
+                      );
+                    }}
+                  />
+                ) : ticket.description ? (
+                  <div className="description-view">
+                    <MarkdownView
+                      source={ticket.description}
+                      headingOffset={3}
+                      className="markdown"
+                    />
+                  </div>
+                ) : (
+                  <button
+                    tabIndex={0}
+                    className="description-view empty"
+                    ref={editButton}
+                    onClick={() => openDescriptionEditor("")}
+                  >
+                    Add a description
+                  </button>
                 )}
-              >
-                {checkedCount}/{ticket.checklist.length}
-              </span>
-              {/* The meter the cards have always had, in the panel too
+              </section>
+
+              <section className="panel-section">
+                <h3>
+                  Checklist
+                  <span
+                    className={classes(
+                      "section-count",
+                      checklistAcknowledged && "acknowledged",
+                      checklistAcknowledged && accentClass,
+                    )}
+                  >
+                    {checkedCount}/{ticket.checklist.length}
+                  </span>
+                  {/* The meter the cards have always had, in the panel too
                   (`screen-specs.md:241-242`, D-3D): the fraction is the exact
                   answer and this is the one a glance gives. It reads the same
                   count the fraction does, so it cannot disagree with the number
@@ -1476,301 +1614,309 @@ export function TicketPanel(props: TicketPanelProps) {
                   reason an acknowledged card's does — the change the acknowledgement is
                   about is usually this. Hidden from the reading, because the
                   fraction beside it already says it in words. */}
-              {ticket.checklist.length > 0 && (
-                <span
-                  className={classes(
-                    "progress panel-progress",
-                    checklistAcknowledged && "acknowledged",
-                    checklistAcknowledged && accentClass,
+                  {ticket.checklist.length > 0 && (
+                    <span
+                      className={classes(
+                        "progress panel-progress",
+                        checklistAcknowledged && "acknowledged",
+                        checklistAcknowledged && accentClass,
+                      )}
+                      aria-hidden="true"
+                    >
+                      <i
+                        style={{
+                          width: `${Math.round(
+                            (checkedCount / ticket.checklist.length) * 100,
+                          )}%`,
+                        }}
+                      />
+                    </span>
                   )}
-                  aria-hidden="true"
+                </h3>
+                <ul
+                  className="checklist"
+                  ref={checklistRows}
+                  onDragStart={pickUpRow}
+                  onDragOver={overRow}
+                  onDrop={dropRow}
+                  onDragEnd={endDrag}
+                  onDragLeave={(event) => {
+                    // Leaving for a row of the same list is not leaving; the next
+                    // `dragover` would put the line back a frame later, which reads
+                    // as a flicker under the pointer.
+                    if (
+                      event.currentTarget.contains(event.relatedTarget as Node)
+                    )
+                      return;
+                    setDropGap(undefined);
+                  }}
+                  onKeyDown={moveByKey}
                 >
-                  <i
-                    style={{
-                      width: `${Math.round(
-                        (checkedCount / ticket.checklist.length) * 100,
-                      )}%`,
-                    }}
-                  />
-                </span>
-              )}
-            </h3>
-            <ul
-              className="checklist"
-              ref={checklistRows}
-              onDragStart={pickUpRow}
-              onDragOver={overRow}
-              onDrop={dropRow}
-              onDragEnd={endDrag}
-              onDragLeave={(event) => {
-                // Leaving for a row of the same list is not leaving; the next
-                // `dragover` would put the line back a frame later, which reads
-                // as a flicker under the pointer.
-                if (event.currentTarget.contains(event.relatedTarget as Node))
-                  return;
-                setDropGap(undefined);
-              }}
-              onKeyDown={moveByKey}
-            >
-              {checklist.map((item, index) => {
-                const acknowledged =
-                  item.id !== undefined && acknowledgedChecks.includes(item.id);
-                const checked = isChecked(item);
-                return (
-                  <li
-                    key={item.id ?? `unadopted-${index}`}
-                    data-item-id={item.id}
-                    draggable={reorderable}
-                    // `checked` carries the settled treatment — `ink-3` and a
-                    // line through the text (`components.md:218`). The
-                    // acknowledgement is
-                    // the state above it and takes both back, because a row
-                    // something outside just ticked is news to read, not a line
-                    // to skip.
-                    className={classes(
-                      "checklist-row",
-                      reorderable && "draggable",
-                      item.id === dragItem && "dragging",
-                      dropEdge(index, checklist.length, dropGap),
-                      checked && "checked",
-                      acknowledged && "acknowledged",
-                      acknowledged && accentClass,
-                    )}
-                  >
-                    {/* The affordance, not the mechanism: the row is what is
+                  {checklist.map((item, index) => {
+                    const acknowledged =
+                      item.id !== undefined &&
+                      acknowledgedChecks.includes(item.id);
+                    const checked = isChecked(item);
+                    return (
+                      <li
+                        key={item.id ?? `unadopted-${index}`}
+                        data-item-id={item.id}
+                        draggable={reorderable}
+                        // `checked` carries the settled treatment — `ink-3` and a
+                        // line through the text (`components.md:218`). The
+                        // acknowledgement is
+                        // the state above it and takes both back, because a row
+                        // something outside just ticked is news to read, not a line
+                        // to skip.
+                        className={classes(
+                          "checklist-row",
+                          reorderable && "draggable",
+                          item.id === dragItem && "dragging",
+                          dropEdge(index, checklist.length, dropGap),
+                          checked && "checked",
+                          acknowledged && "acknowledged",
+                          acknowledged && accentClass,
+                        )}
+                      >
+                        {/* The affordance, not the mechanism: the row is what is
                         draggable, and this is what says so. Decorative, because
                         the keyboard's way in is `⌥↑`/`⌥↓` on the row itself
                         (`keyboard-focus-map.md:63`) — a grip that took a Tab
                         stop of its own would put a second stop on every row to
                         offer what the row already answers. */}
-                    {reorderable && (
-                      <span className="row-grip" aria-hidden="true">
-                        ⠿
-                      </span>
-                    )}
-                    {editingItem !== undefined && editingItem === item.id ? (
-                      <RowEditor
-                        text={item.text}
-                        onCommit={(next) => editRow(item.id!, item.text, next)}
-                        onCancel={() => setEditingItem(undefined)}
-                      />
-                    ) : (
-                      <>
-                        <label>
-                          <input
-                            type="checkbox"
-                            // The row's own Tab stop, and the only one it has. A
-                            // checkbox is skipped by WebKit on a default Mac
-                            // exactly as a button is (`tab-order-guard.mjs`), so
-                            // without this the rows are pointer-only — against the
-                            // panel's Tab order and the two gestures bound to a
-                            // focused row (`keyboard-focus-map.md:62-63`). The
-                            // accessibility audit found it while proving `⌥↓`
-                            // reachable, which it was not (LC-185).
-                            tabIndex={0}
-                            checked={checked}
-                            disabled={item.id === undefined}
-                            title={
-                              item.id === undefined
-                                ? "Appended without an id. Saving any change adopts it."
-                                : undefined
+                        {reorderable && (
+                          <span className="row-grip" aria-hidden="true">
+                            ⠿
+                          </span>
+                        )}
+                        {editingItem !== undefined &&
+                        editingItem === item.id ? (
+                          <RowEditor
+                            text={item.text}
+                            onCommit={(next) =>
+                              editRow(item.id!, item.text, next)
                             }
-                            onChange={(event) => {
-                              const itemId = item.id;
-                              if (!itemId) return;
-                              const next = event.target.checked;
-                              void save(
-                                { checklist: [{ itemId, checked: next }] },
-                                {
-                                  // Show the tick now; the file catches up.
-                                  apply: () => holdCheck(itemId, next),
-                                  toast: `${ticketKey} ${next ? "checked" : "unchecked"} · ${item.text}`,
-                                  inverse: {
-                                    checklist: [{ itemId, checked: !next }],
-                                  },
-                                  inverseToast: `${ticketKey} ${next ? "unchecked" : "checked"} · ${item.text}`,
-                                },
-                              );
-                            }}
+                            onCancel={() => setEditingItem(undefined)}
                           />
-                          <span>{item.text}</span>
-                        </label>
-                        {/* The glyph is the actor's, like every other one the app
+                        ) : (
+                          <>
+                            <label>
+                              <input
+                                type="checkbox"
+                                // The row's own Tab stop, and the only one it has. A
+                                // checkbox is skipped by WebKit on a default Mac
+                                // exactly as a button is (`tab-order-guard.mjs`), so
+                                // without this the rows are pointer-only — against the
+                                // panel's Tab order and the two gestures bound to a
+                                // focused row (`keyboard-focus-map.md:62-63`). The
+                                // accessibility audit found it while proving `⌥↓`
+                                // reachable, which it was not (LC-185).
+                                tabIndex={0}
+                                checked={checked}
+                                disabled={item.id === undefined}
+                                title={
+                                  item.id === undefined
+                                    ? "Appended without an id. Saving any change adopts it."
+                                    : undefined
+                                }
+                                onChange={(event) => {
+                                  const itemId = item.id;
+                                  if (!itemId) return;
+                                  const next = event.target.checked;
+                                  void save(
+                                    { checklist: [{ itemId, checked: next }] },
+                                    {
+                                      // Show the tick now; the file catches up.
+                                      apply: () => holdCheck(itemId, next),
+                                      toast: `${ticketKey} ${next ? "checked" : "unchecked"} · ${item.text}`,
+                                      inverse: {
+                                        checklist: [{ itemId, checked: !next }],
+                                      },
+                                      inverseToast: `${ticketKey} ${next ? "unchecked" : "checked"} · ${item.text}`,
+                                    },
+                                  );
+                                }}
+                              />
+                              <span>{item.text}</span>
+                            </label>
+                            {/* The glyph is the actor's, like every other one the app
                         draws: a row an unclaimed write ticked gets the warn
                         triangle, not the agent's chevron (LC-148). */}
-                        {acknowledged && props.mark && (
-                          <em
-                            className={classes(
-                              "acknowledged-note",
-                              accentClass,
+                            {acknowledged && props.mark && (
+                              <em
+                                className={classes(
+                                  "acknowledged-note",
+                                  accentClass,
+                                )}
+                              >
+                                {actorGlyph(props.mark.actorType)} just now
+                              </em>
                             )}
-                          >
-                            {actorGlyph(props.mark.actorType)} just now
-                          </em>
-                        )}
-                        {/* Both gestures need an id to name the row by, and an
+                            {/* Both gestures need an id to name the row by, and an
                         agent's plain Markdown task has none until the next
                         write adopts it — the same reason its box is disabled
                         (LC-215). */}
-                        {item.id !== undefined && (
-                          <RowActions
-                            text={item.text}
-                            onEdit={() => setEditingItem(item.id)}
-                            onRemove={() => removeRow(index)}
-                          />
+                            {item.id !== undefined && (
+                              <RowActions
+                                text={item.text}
+                                onEdit={() => setEditingItem(item.id)}
+                                onRemove={() => removeRow(index)}
+                              />
+                            )}
+                          </>
                         )}
-                      </>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-            <form
-              className="checklist-add"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const text = newItem.trim();
-                if (!text) return;
-                // Enter appends and leaves focus where it is, for rapid entry
-                // (`keyboard-focus-map.md:64`) — nothing here blurs the field.
-                setNewItem("");
-                // Queued rather than written, because the field is cleared
-                // either way and a write already out would otherwise refuse this
-                // one silently (LC-193). It goes now if the disk is free.
-                queuedItems.current.push(text);
-                void drainNewItems();
-              }}
-            >
-              <GhostBox />
-              <input
-                className="checklist-add-field"
-                ref={addField}
-                value={newItem}
-                placeholder="Add a checklist item"
-                aria-label="Add a checklist item"
-                onChange={(event) => setNewItem(event.target.value)}
-              />
-            </form>
-          </section>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <form
+                  className="checklist-add"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const text = newItem.trim();
+                    if (!text) return;
+                    // Enter appends and leaves focus where it is, for rapid entry
+                    // (`keyboard-focus-map.md:64`) — nothing here blurs the field.
+                    setNewItem("");
+                    // Queued rather than written, because the field is cleared
+                    // either way and a write already out would otherwise refuse this
+                    // one silently (LC-193). It goes now if the disk is free.
+                    queuedItems.current.push(text);
+                    void drainNewItems();
+                  }}
+                >
+                  <GhostBox />
+                  <input
+                    className="checklist-add-field"
+                    ref={addField}
+                    value={newItem}
+                    placeholder="Add a checklist item"
+                    aria-label="Add a checklist item"
+                    onChange={(event) => setNewItem(event.target.value)}
+                  />
+                </form>
+              </section>
 
-          {/* Two tabs over one record (LC-211). Comments were entries in the
+              {/* Two tabs over one record (LC-211). Comments were entries in the
               merged stream, where a run of agent status changes buried the one
               thing a person had written; the stream is still whole under
               Activity, with each comment as the line that says it happened. */}
-          <section className="panel-section">
-            <HistoryTabs
-              tab={historyTab}
-              onPick={setHistoryTab}
-              /* The count of what is on screen, not of what the file holds
+              <section className="panel-section">
+                <HistoryTabs
+                  tab={historyTab}
+                  onPick={setHistoryTab}
+                  /* The count of what is on screen, not of what the file holds
                  (LC-109): posting is optimistic, so the pending comment is an
                  entry in the stream and has to be an entry in the count. A tab
                  that said one fewer than the reader can see would be the one
                  place the panel argued with itself. */
-              activityCount={ticket.activity.length + (pendingComment ? 1 : 0)}
-              commentCount={comments.length + (pendingComment ? 1 : 0)}
-            />
-            {historyTab === "activity" ? (
-              <div
-                role="tabpanel"
-                id="panel-tab-activity"
-                aria-labelledby="tab-activity"
-              >
-                {/* Here rather than beside the comments: an entry the file is
+                  activityCount={
+                    ticket.activity.length + (pendingComment ? 1 : 0)
+                  }
+                  commentCount={comments.length + (pendingComment ? 1 : 0)}
+                />
+                {historyTab === "activity" ? (
+                  <div
+                    role="tabpanel"
+                    id="panel-tab-activity"
+                    aria-labelledby="tab-activity"
+                  >
+                    {/* Here rather than beside the comments: an entry the file is
                     missing is a hole in the record, and the record is this
                     tab. */}
-                {ticket.historyIncomplete && (
-                  <p className="history-note">
-                    This ticket changed without a matching activity entry. The
-                    state stands; the history is incomplete.
-                  </p>
+                    {ticket.historyIncomplete && (
+                      <p className="history-note">
+                        This ticket changed without a matching activity entry.
+                        The state stands; the history is incomplete.
+                      </p>
+                    )}
+                    <Timeline
+                      events={ticket.activity}
+                      now={props.now}
+                      // So a change event names a label and a checklist item rather
+                      // than the slug and the id the record carries.
+                      labels={props.labels}
+                      checklist={ticket.checklist}
+                      commentsAsLines
+                      // Drawn under both tabs, because it is the one entry that is
+                      // not a record yet and a tab counting something the reader
+                      // cannot see is the argument LC-109 settled.
+                      pendingComment={pendingComment}
+                    />
+                  </div>
+                ) : (
+                  <div
+                    role="tabpanel"
+                    id="panel-tab-comments"
+                    aria-labelledby="tab-comments"
+                  >
+                    <Timeline
+                      events={comments}
+                      now={props.now}
+                      labels={props.labels}
+                      checklist={ticket.checklist}
+                      pendingComment={pendingComment}
+                    />
+                  </div>
                 )}
-                <Timeline
-                  events={ticket.activity}
-                  now={props.now}
-                  // So a change event names a label and a checklist item rather
-                  // than the slug and the id the record carries.
-                  labels={props.labels}
-                  checklist={ticket.checklist}
-                  commentsAsLines
-                  // Drawn under both tabs, because it is the one entry that is
-                  // not a record yet and a tab counting something the reader
-                  // cannot see is the argument LC-109 settled.
-                  pendingComment={pendingComment}
-                />
-              </div>
-            ) : (
-              <div
-                role="tabpanel"
-                id="panel-tab-comments"
-                aria-labelledby="tab-comments"
-              >
-                <Timeline
-                  events={comments}
-                  now={props.now}
-                  labels={props.labels}
-                  checklist={ticket.checklist}
-                  pendingComment={pendingComment}
-                />
-              </div>
-            )}
-            {/* Outside both panels, because it belongs to neither: posting is
+                {/* Outside both panels, because it belongs to neither: posting is
                 the panel's action, and a composer that lived under Comments
                 would put a click between reading what an agent did and saying
                 something about it. */}
-            <form
-              className="composer"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const comment = commentDraft.trim();
-                if (!comment) return;
-                void save(
-                  { comment },
-                  {
-                    // Clearing the field is part of the optimistic step, so a
-                    // save the conflict banner refuses leaves the draft typed.
-                    apply: () => {
-                      setCommentDraft("");
-                      setPendingComment(comment);
-                      return () => {
-                        setPendingComment(undefined);
-                        setCommentDraft(comment);
-                      };
-                    },
-                  },
-                );
-              }}
-            >
-              {/* Actor identity, which ADR 0001 permits and `screen-specs.md:248`
-                  asks for. It is not an assignee and there is no assignee. */}
-              <span className="actor-tile" aria-hidden="true">
-                •
-              </span>
-              <textarea
-                ref={commentField}
-                value={commentDraft}
-                // Auto-growing, within reason: the field grows to its text and
-                // the stylesheet caps it, because the panel scrolls and a long
-                // comment should not push the timeline off screen entirely.
-                rows={1}
-                // The shortcut is named where it is used, because the button
-                // that used to stand for the action is no longer on screen
-                // until there is text to post (`prototype.js:752` carries the
-                // same hint for the same reason).
-                placeholder="Leave a comment… ⌘↵ to post"
-                aria-label="Comment"
-                onChange={(event) => setCommentDraft(event.target.value)}
-                onKeyDown={(event) => {
-                  if (
-                    event.key === "Enter" &&
-                    (event.metaKey || event.ctrlKey)
-                  ) {
+                <form
+                  className="composer"
+                  onSubmit={(event) => {
                     event.preventDefault();
-                    event.currentTarget.form?.requestSubmit();
-                  }
-                }}
-              />
-              <div className="composer-actions">
-                {/* A comment is Markdown — the timeline renders it as Markdown,
+                    const comment = commentDraft.trim();
+                    if (!comment) return;
+                    void save(
+                      { comment },
+                      {
+                        // Clearing the field is part of the optimistic step, so a
+                        // save the conflict banner refuses leaves the draft typed.
+                        apply: () => {
+                          setCommentDraft("");
+                          setPendingComment(comment);
+                          return () => {
+                            setPendingComment(undefined);
+                            setCommentDraft(comment);
+                          };
+                        },
+                      },
+                    );
+                  }}
+                >
+                  {/* Actor identity, which ADR 0001 permits and `screen-specs.md:248`
+                  asks for. It is not an assignee and there is no assignee. */}
+                  <span className="actor-tile" aria-hidden="true">
+                    •
+                  </span>
+                  <textarea
+                    ref={commentField}
+                    value={commentDraft}
+                    // Auto-growing, within reason: the field grows to its text and
+                    // the stylesheet caps it, because the panel scrolls and a long
+                    // comment should not push the timeline off screen entirely.
+                    rows={1}
+                    // The shortcut is named where it is used, because the button
+                    // that used to stand for the action is no longer on screen
+                    // until there is text to post (`prototype.js:752` carries the
+                    // same hint for the same reason).
+                    placeholder="Leave a comment… ⌘↵ to post"
+                    aria-label="Comment"
+                    onChange={(event) => setCommentDraft(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (
+                        event.key === "Enter" &&
+                        (event.metaKey || event.ctrlKey)
+                      ) {
+                        event.preventDefault();
+                        event.currentTarget.form?.requestSubmit();
+                      }
+                    }}
+                  />
+                  <div className="composer-actions">
+                    {/* A comment is Markdown — the timeline renders it as Markdown,
                     and until LC-211 nothing on the way in said so. The same six
                     buttons the description editor has, over the same helper.
 
@@ -1780,28 +1926,30 @@ export function TicketPanel(props: TicketPanelProps) {
                     group `Tab` can never reach, because the blur that would
                     carry focus into it takes it off the page first. The
                     accessibility audit's A1 walk found it. */}
-                <FormattingToolbar
-                  className="composer-toolbar"
-                  onFormat={formatComment}
-                />
-                {/* ⌘↵ posts, so the button is the second way in rather than the
+                    <FormattingToolbar
+                      className="composer-toolbar"
+                      onFormat={formatComment}
+                    />
+                    {/* ⌘↵ posts, so the button is the second way in rather than the
                     first, and it arrives with the text it would post (LC-107). A
                     disabled button standing over an empty field was a control
                     that could never be pressed and a Tab stop that led nowhere;
                     the quiet variant is the one the prototype gives this exact
                     control (`prototype.js:753`, `btn btn-secondary btn-sm`). */}
-                {commentDraft.trim() ? (
-                  <button
-                    tabIndex={0}
-                    className="secondary small"
-                    type="submit"
-                  >
-                    Comment
-                  </button>
-                ) : null}
-              </div>
-            </form>
-          </section>
+                    {commentDraft.trim() ? (
+                      <button
+                        tabIndex={0}
+                        className="secondary small"
+                        type="submit"
+                      >
+                        Comment
+                      </button>
+                    ) : null}
+                  </div>
+                </form>
+              </section>
+            </div>
+          </div>
         </>
       )}
     </aside>

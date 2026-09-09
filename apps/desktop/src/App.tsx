@@ -30,6 +30,12 @@ import {
   updateProjectTheme,
 } from "./api";
 import { Board } from "./Board";
+import {
+  propertyCounts,
+  propertyToast,
+  startOfDay,
+  untilNextDay,
+} from "./properties";
 import { classes } from "./classes";
 import { copyToClipboard } from "./clipboard";
 import { CommandPalette } from "./CommandPalette";
@@ -95,6 +101,7 @@ import type {
   TicketDraft,
   TicketEdit,
   TicketPriority,
+  TicketProperty,
   TicketStatus,
   TicketRow,
   WriteResult,
@@ -487,7 +494,7 @@ export function App() {
    * past the window, or a panel closing over a row scrolled out of sight, focused
    * nothing and left `<body>` holding it. The surfaces answer this by moving
    * their tab stop first, which mounts the row, and taking focus after. Found by
-   * the Step 17 accessibility audit; `keyboard-focus-map.md:16-18,132,162`.
+   * the Step 17 accessibility audit; `keyboard-focus-map.md:16-18,132,197`.
    */
   const [cardFocus, setCardFocus] = useState<FocusRequest>();
   const focusCard = useCallback((key: string) => {
@@ -974,6 +981,28 @@ export function App() {
     }, 1_000);
     return () => clearInterval(timer);
   }, [hasMarks, sweepMarks]);
+
+  /**
+   * Midnight, which nothing else can deliver (LC-227).
+   *
+   * A due date's rung is read against the reader's own day, and no write makes
+   * that day change: the watcher reports files, and midnight is not a file. The
+   * acknowledgement clock above cannot stand in for it either — it runs only
+   * while a mark is unreviewed, so a board left open overnight with nothing
+   * acknowledged would still be drawing yesterday's rungs in the morning.
+   *
+   * One timeout rather than a poll, and re-armed by the day it is waiting for,
+   * so this effect runs once a day rather than once a second. The extra second
+   * keeps it from firing a hair early and reading the same day again.
+   */
+  const today = startOfDay(now).getTime();
+  useEffect(() => {
+    const timer = setTimeout(
+      () => setNow(Date.now()),
+      untilNextDay(Date.now()),
+    );
+    return () => clearTimeout(timer);
+  }, [today]);
 
   // A lost event cannot be caught up incrementally, so the store stops applying
   // events and says so; the snapshot is fetched here, because asking Rust for the
@@ -1645,6 +1674,38 @@ export function App() {
     );
   }
 
+  /**
+   * One of the four opt-in properties set from a card's context menu (LC-227),
+   * or cleared — `undefined` here, `null` on the wire, which is the distinction
+   * between an edit that omits a field and one that empties it.
+   *
+   * The panel writes the same four through `save()`; a card on a surface is
+   * outside that seam, so this goes to `mutate()` directly, exactly as the
+   * `P` menu's pick does. Both sentences come from `propertyToast`, so the two
+   * paths cannot come to describe one write differently.
+   */
+  function changeProperty(
+    ticket: IndexedTicket,
+    property: TicketProperty,
+    next: string | undefined,
+  ) {
+    const projectId = activeProjectId;
+    const previous = ticket[property];
+    if (!projectId || next === previous) return;
+
+    void mutate(
+      editMutation({
+        projectId,
+        ticket,
+        optimistic: { [property]: next },
+        edit: { [property]: next ?? null },
+        inverse: { [property]: previous ?? null },
+        toast: propertyToast(ticket.key, property, next),
+        inverseToast: propertyToast(ticket.key, property, previous),
+      }),
+    );
+  }
+
   function changeStatus(ticket: IndexedTicket, next: TicketStatus) {
     const projectId = activeProjectId;
     if (!projectId || next === ticket.status) return;
@@ -2245,6 +2306,7 @@ export function App() {
                     selectedKey={selectedKey}
                     marks={externalMarks}
                     labels={project.labels}
+                    properties={project.properties}
                     ordering={ordering}
                     // Six empty columns beside a "No matches" panel is the
                     // empty board the designed state exists to replace — but a
@@ -2257,6 +2319,10 @@ export function App() {
                     onSelect={openTicket}
                     onChangePriority={changePriority}
                     onChangeStatus={changeStatus}
+                    // The context menu's property submenus, which no surface
+                    // can write and only one of which stays inside the menu
+                    // (LC-227).
+                    onChangeProperty={changeProperty}
                     // The context menu's two rows that are App's to answer: one
                     // writes, and one needs the project folder a surface has
                     // never been told (LC-222).
@@ -2270,15 +2336,16 @@ export function App() {
                     // chosen (`keyboard-focus-map.md:45`).
                     onCreateInStatus={(status) => {
                       // A whole draft, empty but for the column: "nothing
-                      // typed yet" is `""` and `[]` rather than absent, which
-                      // is what keeps one shape between the preseed and the
-                      // draft the door carries back.
+                      // typed yet" is `""`, `[]` and `{}` rather than absent,
+                      // which is what keeps one shape between the preseed and
+                      // the draft the door carries back.
                       setCarriedDraft({
                         title: "",
                         description: "",
                         status,
                         priority: "none",
                         labels: [],
+                        properties: {},
                       });
                       setCreateSurface("quick");
                     }}
@@ -2295,12 +2362,16 @@ export function App() {
                     selectedKey={selectedKey}
                     marks={externalMarks}
                     labels={project.labels}
+                    // Nothing on a list row draws one yet; the row's own
+                    // context menu offers all four (LC-227).
+                    properties={project.properties}
                     ordering={ordering}
                     now={now}
                     focusRequest={cardFocus}
                     onSelect={openTicket}
                     onChangePriority={changePriority}
                     onChangeStatus={changeStatus}
+                    onChangeProperty={changeProperty}
                     onArchive={toggleArchived}
                     onCopyPath={(ticket) =>
                       copyTicketPath(project.rootPath, ticket)
@@ -2331,6 +2402,7 @@ export function App() {
             // places the app writes this path agree on how it looks.
             projectPath={tildeAbbreviate(project.rootPath, homePath)}
             labels={project.labels}
+            properties={project.properties}
             mark={externalMarks[selectedKey]}
             reloadSignal={panelReload}
             removedSignal={panelRemoved}
@@ -2338,6 +2410,7 @@ export function App() {
               heldConflict?.ticketKey === selectedKey ? heldConflict : undefined
             }
             now={now}
+            today={today}
             archived={openRow !== undefined && isArchived(openRow)}
             // The file the row the card was drawn from names, so one the board
             // already knows will not parse opens as the raw-file modal rather
@@ -2381,6 +2454,9 @@ export function App() {
         <ProjectSettings
           project={project}
           hasTickets={tickets.length > 0}
+          // Off the rows rather than the project file, which is what makes the
+          // count available while the property is off (LC-227).
+          propertyCounts={propertyCounts(tickets)}
           appearance={appearance}
           themes={THEMES}
           section={settingsSection}
@@ -2454,9 +2530,12 @@ export function App() {
             projectTheme={project.theme}
             provisionalKey={nextKey}
             labels={project.labels}
+            properties={project.properties}
+            today={today}
             onDefineLabel={defineLabel}
             initialStatus={carriedDraft?.status}
             initialPriority={carriedDraft?.priority}
+            initialProperties={carriedDraft?.properties}
             onCancel={closeCreateSurface}
             onCreate={(request, { createMore }) =>
               submitNewTicket(request, { keepOpen: createMore })
@@ -2475,6 +2554,8 @@ export function App() {
           <CreatePanel
             provisionalKey={nextKey}
             labels={project.labels}
+            properties={project.properties}
+            today={today}
             onDefineLabel={defineLabel}
             initialDraft={carriedDraft}
             onCancel={closeCreateSurface}
@@ -2569,6 +2650,10 @@ export function App() {
               setArchived(commandTarget, !isArchived(commandTarget));
           }}
           onOrdering={(next) => updateWorkspace({ ordering: next })}
+          today={today}
+          onChangeProperty={(property, next) => {
+            if (commandTarget) changeProperty(commandTarget, property, next);
+          }}
           searchResults={paletteSearchResults}
           onSearch={(query) => {
             if (!activeProjectId) return;

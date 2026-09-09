@@ -83,3 +83,17 @@ The non-determinism comes in one level down. The contract's `## A complete examp
 
 The existing test (`the_generated_agent_contract_carries_a_readable_example`) asserts `ck_7d2a`, but that is the template's literal in the § Checking off a checklist item section, not the example ticket's — so it passes either way and does not cover this. The checklist's "a test that writes the same project twice and compares" is still the right shape and still absent.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_f1181dc5
+kind: comment
+occurred_at: 2026-09-08T15:03:08.210Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+LC-227 made this fire far more often. The settings Properties pane routes all eight of its writes through registry.rs's update_project_file, which calls write_agent_contract on every one — so every property toggle reprints .longclaw/AGENTS.md with three fresh minted ids, where previously a theme or label change was the only trigger. LC-227 also gave the contract real content to lose in that noise: it now carries a table row per enabled property, so ticking Types on produces three meaningful new lines delivered alongside three meaningless ones. The app's own test suite already works around this with a without_minted_ids helper in storage_integration.rs. Filed at p4 when the trigger was rare; the trigger is no longer rare.
+<!-- /longclaw:event -->

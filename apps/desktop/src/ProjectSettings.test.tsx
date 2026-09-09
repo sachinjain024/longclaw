@@ -21,7 +21,8 @@ import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProjectSettings } from "./ProjectSettings";
 import type { SettingsSection } from "./settingsSections";
-import type { ProjectReference } from "./types";
+import type { ProjectReference, TicketProperty } from "./types";
+import { NO_PROPERTIES } from "./properties";
 
 afterEach(cleanup);
 
@@ -39,10 +40,26 @@ const PROJECT: ProjectReference = {
   starred: false,
   reachable: true,
   labels: { design: { name: "Design", color: "orange" } },
+  properties: NO_PROPERTIES,
 };
+
+/** None of the four carried by any ticket, which is the default project. */
+const NO_COUNTS = { type: 0, due: 0, start: 0, estimate: 0 };
+
+/** The panel's one write channel, spied on: what it was told it was doing. */
+function writeSpy() {
+  return vi.fn<
+    (
+      message: string,
+      write: () => Promise<ProjectReference>,
+    ) => Promise<boolean>
+  >(() => Promise.resolve(true));
+}
 
 function Harness(props: {
   section?: SettingsSection;
+  project?: ProjectReference;
+  propertyCounts?: Record<TicketProperty, number>;
   onClose?: () => void;
   onRename?: (name: string) => void;
   onTheme?: (theme: string) => void;
@@ -58,8 +75,9 @@ function Harness(props: {
   );
   return (
     <ProjectSettings
-      project={PROJECT}
+      project={props.project ?? PROJECT}
       hasTickets
+      propertyCounts={props.propertyCounts ?? NO_COUNTS}
       appearance="system"
       themes={THEMES}
       section={section}
@@ -73,6 +91,33 @@ function Harness(props: {
       onClose={props.onClose ?? (() => {})}
     />
   );
+}
+
+/** A project with all four on, and something configured under each. */
+const CONFIGURED: ProjectReference = {
+  ...PROJECT,
+  properties: {
+    type: {
+      enabled: true,
+      values: {
+        bug: { name: "Bug", color: "red" },
+        feature: { name: "Feature", color: "cyan" },
+      },
+    },
+    due: { enabled: true, attentionDays: 7 },
+    start: { enabled: true },
+    estimate: {
+      enabled: true,
+      system: "duration",
+      values: ["xs", "s", "m"],
+      hoursPerDay: 8,
+      daysPerWeek: 5,
+    },
+  },
+};
+
+function propertiesPane() {
+  return screen.getByRole("tabpanel", { name: "Properties" });
 }
 
 function panel() {
@@ -93,6 +138,7 @@ describe("the settings panel's side nav (LC-208)", () => {
       "General",
       "Theme",
       "Labels",
+      "Properties",
       "Status fields",
       "Shortcuts",
       "Danger zone",
@@ -250,5 +296,310 @@ describe("the sections (LC-208)", () => {
     // The confirm, not the removal (`screen-specs.md:335-336`).
     expect(onRemove).not.toHaveBeenCalled();
     expect(screen.getByRole("dialog", { name: /Remove/ })).toBeTruthy();
+  });
+});
+
+/**
+ * The Properties pane (LC-227): four blocks, one per opt-in property, each a
+ * checkbox with whatever that property has to configure underneath it.
+ *
+ * Two things it is easy to get wrong and no other surface would catch. Turning a
+ * property off is a write that says what it did rather than a dialog that asks
+ * first, and the count it names has to go on being named while the property is
+ * off — that count is then the only place on screen the fact is visible at all.
+ * And a property that is off has nothing to configure, so its block is one row.
+ */
+describe("the Properties pane (LC-227)", () => {
+  it("ships all four off, with nothing configured under them", () => {
+    render(<Harness section="properties" />);
+    const pane = propertiesPane();
+    for (const name of ["Type", "Due date", "Start date", "Estimate"]) {
+      const box = within(pane).getByRole("checkbox", {
+        name: new RegExp(name),
+      });
+      expect((box as HTMLInputElement).checked).toBe(false);
+    }
+    // No editor, no segment, no window: a property that is off configures
+    // nothing, which is what keeps a default project's pane four rows.
+    expect(within(pane).queryByRole("textbox")).toBeNull();
+    expect(within(pane).queryByRole("group", { name: "Estimate system" })).toBe(
+      null,
+    );
+  });
+
+  it("turns a property on with one write and no dialog", async () => {
+    const onWrite = writeSpy();
+    render(<Harness section="properties" onWrite={onWrite} />);
+    fireEvent.click(
+      within(propertiesPane()).getByRole("checkbox", { name: /Type/ }),
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(onWrite).toHaveBeenCalledTimes(1);
+    expect(onWrite.mock.calls[0][0]).toBe("Type turned on");
+  });
+
+  /**
+   * The reassurance and the count in one sentence, because the effect of
+   * disabling is invisible: the dates come off every card, and a person could
+   * reasonably conclude they had been deleted.
+   */
+  it("says what a property being turned off keeps", () => {
+    const onWrite = writeSpy();
+    render(
+      <Harness
+        section="properties"
+        project={CONFIGURED}
+        propertyCounts={{ type: 41, due: 17, start: 6, estimate: 23 }}
+        onWrite={onWrite}
+      />,
+    );
+    fireEvent.click(
+      within(propertiesPane()).getByRole("checkbox", { name: /Due date/ }),
+    );
+    expect(onWrite.mock.calls[0][0]).toBe(
+      "Due date turned off · 17 tickets keep their dates",
+    );
+  });
+
+  /**
+   * A count of one is a count a project reaches, and the sentence is built by
+   * concatenation: "1 ticket keeps its dates", never "keeps its date**s**" and
+   * never "keep their".
+   */
+  it("agrees with a count of one", () => {
+    const onWrite = writeSpy();
+    render(
+      <Harness
+        section="properties"
+        project={CONFIGURED}
+        propertyCounts={{ type: 1, due: 1, start: 0, estimate: 0 }}
+        onWrite={onWrite}
+      />,
+    );
+    fireEvent.click(
+      within(propertiesPane()).getByRole("checkbox", { name: /Type/ }),
+    );
+    expect(onWrite.mock.calls[0][0]).toBe(
+      "Type turned off · 1 ticket keeps its type",
+    );
+  });
+
+  /**
+   * The row goes on saying it once the property is off, which is then the only
+   * place the fact is visible anywhere in the app.
+   */
+  it("keeps naming the count while the property is off", () => {
+    render(
+      <Harness
+        section="properties"
+        propertyCounts={{ type: 41, due: 17, start: 6, estimate: 23 }}
+      />,
+    );
+    const pane = propertiesPane();
+    expect(
+      within(pane).getByText("· 17 tickets keep their dates"),
+    ).toBeTruthy();
+    expect(
+      within(pane).getByText("· 41 tickets keep their types"),
+    ).toBeTruthy();
+    // A property nothing carries has nothing to reassure anyone about.
+    cleanup();
+    render(<Harness section="properties" />);
+    expect(screen.queryByText(/tickets keep their/)).toBeNull();
+  });
+
+  it("is the labels editor for type values, down to the row", () => {
+    render(<Harness section="properties" project={CONFIGURED} />);
+    const pane = propertiesPane();
+    expect(within(pane).getByText("bug")).toBeTruthy();
+    const name = within(pane).getByLabelText("Name of type bug");
+    expect((name as HTMLInputElement).value).toBe("Bug");
+    expect(name.classList.contains("compact")).toBe(true);
+    expect(
+      within(pane).getByRole("button", { name: /Color of type bug/ }),
+    ).toBeTruthy();
+    expect(
+      within(pane).getByRole("button", { name: "Remove type bug" }),
+    ).toBeTruthy();
+    expect(within(pane).getByRole("button", { name: "Add type" })).toBeTruthy();
+  });
+
+  it("writes a renamed type value on Enter, and never on no change", () => {
+    const onWrite = writeSpy();
+    render(
+      <Harness section="properties" project={CONFIGURED} onWrite={onWrite} />,
+    );
+    const name = within(propertiesPane()).getByLabelText("Name of type bug");
+    fireEvent.keyDown(name, { key: "Enter" });
+    expect(onWrite).not.toHaveBeenCalled();
+    fireEvent.change(name, { target: { value: "Defect" } });
+    fireEvent.keyDown(name, { key: "Enter" });
+    expect(onWrite).toHaveBeenCalledTimes(1);
+    expect(onWrite.mock.calls[0][0]).toBe("Type bug updated");
+  });
+
+  it("removes a type value without touching the tickets that carry it", () => {
+    const onWrite = writeSpy();
+    render(
+      <Harness section="properties" project={CONFIGURED} onWrite={onWrite} />,
+    );
+    fireEvent.click(
+      within(propertiesPane()).getByRole("button", { name: "Remove type bug" }),
+    );
+    expect(onWrite.mock.calls[0][0]).toBe("Removed the bug type definition");
+    expect(
+      within(propertiesPane()).getByText(/renders as itself/),
+    ).toBeTruthy();
+  });
+
+  it("offers the three estimate systems and writes the one picked", () => {
+    const onWrite = writeSpy();
+    render(
+      <Harness section="properties" project={CONFIGURED} onWrite={onWrite} />,
+    );
+    const segment = within(propertiesPane()).getByRole("group", {
+      name: "Estimate system",
+    });
+    expect(
+      within(segment)
+        .getByRole("button", { name: "Duration" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
+    fireEvent.click(within(segment).getByRole("button", { name: "Fibonacci" }));
+    expect(onWrite.mock.calls[0][0]).toBe(
+      "Estimates are on the Fibonacci scale",
+    );
+  });
+
+  /**
+   * Each system configures a different thing, and only one of them at a time:
+   * the conversion is meaningless outside duration, and the scale is meaningless
+   * outside t-shirt.
+   */
+  it("shows only the configuration the chosen system has", () => {
+    render(<Harness section="properties" project={CONFIGURED} />);
+    expect(
+      within(propertiesPane()).getByLabelText("Hours per day"),
+    ).toBeTruthy();
+    expect(within(propertiesPane()).queryByLabelText("New size")).toBeNull();
+
+    cleanup();
+    const tshirt = {
+      ...CONFIGURED,
+      properties: {
+        ...CONFIGURED.properties,
+        estimate: {
+          ...CONFIGURED.properties.estimate,
+          system: "tshirt" as const,
+        },
+      },
+    };
+    render(<Harness section="properties" project={tshirt} />);
+    expect(within(propertiesPane()).getByLabelText("New size")).toBeTruthy();
+    expect(within(propertiesPane()).getByText("m")).toBeTruthy();
+    expect(
+      within(propertiesPane()).queryByLabelText("Hours per day"),
+    ).toBeNull();
+
+    cleanup();
+    const fibonacci = {
+      ...CONFIGURED,
+      properties: {
+        ...CONFIGURED.properties,
+        estimate: {
+          ...CONFIGURED.properties.estimate,
+          system: "fibonacci" as const,
+        },
+      },
+    };
+    render(<Harness section="properties" project={fibonacci} />);
+    expect(
+      within(propertiesPane()).queryByLabelText("Hours per day"),
+    ).toBeNull();
+    expect(within(propertiesPane()).queryByLabelText("New size")).toBeNull();
+    // The scale itself, which is the whole of what Fibonacci has to say.
+    expect(
+      within(propertiesPane()).getByText("1 · 2 · 3 · 5 · 8 · 13"),
+    ).toBeTruthy();
+  });
+
+  /**
+   * The order is the scale, so an editor that could add and remove but not
+   * reorder would edit everything about it except the part that makes it one.
+   */
+  it("moves a size up and down its own scale", () => {
+    const onWrite = writeSpy();
+    const tshirt = {
+      ...CONFIGURED,
+      properties: {
+        ...CONFIGURED.properties,
+        estimate: {
+          ...CONFIGURED.properties.estimate,
+          system: "tshirt" as const,
+        },
+      },
+    };
+    render(<Harness section="properties" project={tshirt} onWrite={onWrite} />);
+    const pane = propertiesPane();
+    // `xs` is first and `m` is last, so neither can go further that way.
+    expect(
+      (
+        within(pane).getByRole("button", {
+          name: "Make xs smaller",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    expect(
+      (
+        within(pane).getByRole("button", {
+          name: "Make m bigger",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+
+    fireEvent.click(
+      within(pane).getByRole("button", { name: "Make m smaller" }),
+    );
+    expect(onWrite.mock.calls[0][0]).toBe("m is now smaller than s");
+  });
+
+  it("writes the conversion as one setting with two halves", () => {
+    const onWrite = writeSpy();
+    render(
+      <Harness section="properties" project={CONFIGURED} onWrite={onWrite} />,
+    );
+    const hours = within(propertiesPane()).getByLabelText("Hours per day");
+    fireEvent.change(hours, { target: { value: "7.5" } });
+    fireEvent.blur(hours);
+    expect(onWrite).toHaveBeenCalledTimes(1);
+    expect(onWrite.mock.calls[0][0]).toBe(
+      "One day is 7.5 hours, one week is 5 days",
+    );
+  });
+
+  it("writes the approaching window, and takes a zero", () => {
+    const onWrite = writeSpy();
+    render(
+      <Harness section="properties" project={CONFIGURED} onWrite={onWrite} />,
+    );
+    const days = within(propertiesPane()).getByLabelText("Attention days");
+    fireEvent.change(days, { target: { value: "0" } });
+    fireEvent.keyDown(days, { key: "Enter" });
+    expect(onWrite.mock.calls[0][0]).toBe(
+      "Due dates highlight from 0 days out",
+    );
+  });
+
+  it("gives every control an explicit tab stop", () => {
+    render(<Harness section="properties" project={CONFIGURED} />);
+    const pane = propertiesPane();
+    for (const control of [
+      ...within(pane).getAllByRole("checkbox"),
+      ...within(pane).getAllByRole("button"),
+    ]) {
+      // WebKit skips a button and a checkbox with no explicit `tabIndex` while
+      // the macOS keyboard-navigation setting is off, which is its default.
+      expect(control.getAttribute("tabindex")).not.toBeNull();
+    }
   });
 });
