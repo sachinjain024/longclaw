@@ -41,14 +41,13 @@ import type { MenuItem } from "./MenuList";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS, typeOptions } from "./metaOptions";
 import { PriorityGlyph } from "./PriorityGlyph";
 import {
-  addDays,
+  datePicks,
   displayDate,
   enabledPropertyFields,
   estimateScale,
   fromIso,
   PROPERTY_LABELS,
   readEstimate,
-  startOfDay,
   toIso,
 } from "./properties";
 import { StatusDot } from "./StatusDot";
@@ -205,31 +204,6 @@ export function ticketMenuItems(
  * picks are the same case one rung down.
  */
 const NO_MARK = <span />;
-
-/**
- * The four days a date submenu offers, and the reason it needs no calendar.
- *
- * Each row says the day it resolves to, so nothing is computed silently — which
- * is the whole of the objection the typed grammar raises against `next week`.
- * Refusing to *parse* a computed phrase and offering it as a row a person points
- * at are different acts, and only the first one guesses.
- *
- * `due` and `start` are handed the same four. Two adjacent controls whose
- * vocabulary differs is what the grammar section already refused for the typed
- * forms, and the argument is unchanged one surface over.
- */
-function datePicks(today: number): { id: string; label: string; day: Date }[] {
-  const from = startOfDay(today);
-  // The next one, never today: a Monday asking for `Next Monday` means the one
-  // after this.
-  const monday = (8 - from.getDay()) % 7 || 7;
-  return [
-    { id: "today", label: "Today", day: from },
-    { id: "tomorrow", label: "Tomorrow", day: addDays(from, 1) },
-    { id: "monday", label: "Next Monday", day: addDays(from, monday) },
-    { id: "week", label: "In a week", day: addDays(from, 7) },
-  ];
-}
 
 /**
  * A submenu per property the project has turned on — and none at all for a

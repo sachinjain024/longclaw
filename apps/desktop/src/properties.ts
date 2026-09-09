@@ -292,6 +292,38 @@ export function fromIso(text: string): Date | undefined {
   return date;
 }
 
+/**
+ * The four days a surface offers as rows, and the reason it needs no calendar.
+ *
+ * Each row says the day it resolves to, so nothing is computed silently — which
+ * is the whole of the objection the typed grammar raises against `next week`.
+ * Refusing to *parse* a computed phrase and offering it as a row a person points
+ * at are different acts, and only the first one guesses.
+ *
+ * `due` and `start` are handed the same four. Two adjacent controls whose
+ * vocabulary differs is what the grammar section already refused for the typed
+ * forms, and the argument is unchanged one surface over.
+ *
+ * Here rather than in the one menu that first offered them, because the command
+ * palette offers the same four (LC-227) and two spellings of "the days a date
+ * row offers" is the disagreement every other list in this module exists to
+ * prevent.
+ */
+export function datePicks(
+  today: number,
+): { id: string; label: string; day: Date }[] {
+  const from = startOfDay(today);
+  // The next one, never today: a Monday asking for `Next Monday` means the one
+  // after this.
+  const monday = (8 - from.getDay()) % 7 || 7;
+  return [
+    { id: "today", label: "Today", day: from },
+    { id: "tomorrow", label: "Tomorrow", day: addDays(from, 1) },
+    { id: "monday", label: "Next Monday", day: addDays(from, monday) },
+    { id: "week", label: "In a week", day: addDays(from, 7) },
+  ];
+}
+
 const MONTHS = [
   "January",
   "February",
