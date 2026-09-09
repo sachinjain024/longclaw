@@ -10,7 +10,7 @@ labels:
 type: feature
 due: 2026-09-09
 created_at: 2026-08-22T06:13:17.138Z
-updated_at: 2026-09-09T10:28:32.184Z
+updated_at: 2026-09-09T10:42:24.828Z
 ---
 
 Brainstorm with LLM agent like what other fields we should support. A few items I can think of are Type - Bug/Task, Due State, Start Date, Effort
@@ -1685,7 +1685,7 @@ it yet.
 - [x] npm run a11y:audit, and probe:header since the rail widens the panel <!-- longclaw:item=ck_e4ce4244 -->
 - [x] probe:drag: a drop is arithmetic over the card offsets (gapAt), so a new card height moves where a dragged ticket lands <!-- longclaw:item=ck_5fa993af -->
 - [x] npm run perf:board and perf:list, and quote the numbers — the due comparator touches ordering <!-- longclaw:item=ck_c404ee03 -->
-- [ ] npm run verify <!-- longclaw:item=ck_5e61f2a1 -->
+- [x] npm run verify <!-- longclaw:item=ck_5e61f2a1 -->
 - [x] A /docs page for ticket properties and a /changelog entry <!-- longclaw:item=ck_aa77f085 -->
 - [x] docs/release-notes/v0.1.0.md carries no properties write-up — § What it does is missing all four, and the published changelog is now ahead of the notes <!-- longclaw:item=ck_a1ba21e6 -->
 - [ ] Run /design-sync to push the settled Board card and the new property components to the Claude Design project (LC-63) <!-- longclaw:item=ck_0bc85504 -->
@@ -3569,4 +3569,22 @@ Built the command palette's property rows.
 `screen-specs.md` updated in place. The palette section's line count is unchanged and one pinned line changed text — 309, the sub-mode list, which now names the property modes; the only two citations of it are the ones written in this commit. `citations:update` re-pinned that single line and nothing else in six documents, which is the proof nothing shifted.
 
 Two things found and not changed. `datePicks` is shared, and on a Monday `Next Monday` and `In a week` are the same day — visible in the context menu since LC-222; the test fixture is a Wednesday so the four stay distinct. And the root row's held value uses `displayDate`, the card's reader, as the context menu's row does, so an overdue date reads `5 Sep` without saying it is past.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_76992bbb
+kind: update
+occurred_at: 2026-09-09T10:42:24.828Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_5e61f2a1.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+npm run verify, green end to end on LC-227-property-config-adr at 02af7ee, the branch as pushed. exit 0. 18 structural guards clean, including citation-guard: 498 citations clean across the 6 pinned documents, tab-order-guard: 95 files clean, token-source-guard: 990 tracked files clean, glyph-drift-guard: 17 copies clean, card-height-guard: 5 invariants clean, release-audit: 113 files clean. Frontend: 47 test files, 1343 tests passed. Rust: 206 unit tests plus every integration suite ok. Vite build: 125 modules transformed, built in 721ms. test:watcher on the native adapter, not the polling one: 2 passed in 6.52s, PERF external_visibility_pipeline_ms=187.61 coalesced_events=6. Only .longclaw/tickets/LC-214/ticket.md was dirty in the tree, another agent's ticket file, no app source. Not run, and not required by this change: perf:board and perf:list (quoted on ck_1e0a3f7c earlier), probe:drag, probe:checklist, probe:header, matrix, audit:network. a11y:audit was run green separately for the palette work (A1-A5 PASS).
 <!-- /longclaw:event -->
