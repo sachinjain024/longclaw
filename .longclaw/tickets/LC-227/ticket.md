@@ -10,7 +10,7 @@ labels:
 type: feature
 due: 2026-09-09
 created_at: 2026-08-22T06:13:17.138Z
-updated_at: 2026-09-09T08:14:24.768Z
+updated_at: 2026-09-09T08:29:08.987Z
 ---
 
 Brainstorm with LLM agent like what other fields we should support. A few items I can think of are Type - Bug/Task, Due State, Start Date, Effort
@@ -1687,6 +1687,7 @@ it yet.
 - [ ] npm run perf:board and perf:list, and quote the numbers — the due comparator touches ordering <!-- longclaw:item=ck_c404ee03 -->
 - [ ] npm run verify <!-- longclaw:item=ck_5e61f2a1 -->
 - [x] A /docs page for ticket properties and a /changelog entry <!-- longclaw:item=ck_aa77f085 -->
+- [ ] docs/release-notes/v0.1.0.md carries no properties write-up — § What it does is missing all four, and the published changelog is now ahead of the notes <!-- longclaw:item=ck_a1ba21e6 -->
 - [ ] Run /design-sync to push the settled Board card and the new property components to the Claude Design project (LC-63) <!-- longclaw:item=ck_0bc85504 -->
 - [x] Install Caveman skill for Claude Code and Codex in this repo <!-- longclaw:item=ck_34b6d30d -->
 ## Activity
@@ -3383,4 +3384,37 @@ changes:
 ### Claude Code updated this ticket
 
 Updated screen-specs.md, components.md, states.md and data-requirements.md for the property surfaces that have shipped — the panel's rail, the date field and picker, the estimate control, the card's due chip and second footer row, the context menu's four submenus, and the settings Properties pane — then re-pinned the citation lock. Written to the discipline screen-specs.md asks for: every section that already described one of these surfaces was rewritten in place at the same line count, and the prose that would not fit went below each document's last cited line. 498 citations stayed green and the lock moved by two lines, the one wording change this needed (states.md:62-63, whose list of undo-raising mutations was missing the four properties); its five citing comments were read against the new text first, and TicketPanel.tsx's now names the properties too. Three claims follow the code rather than the settled spec: the rail is first in the DOM and second on screen, placed with grid-column rather than reordered with order; approaching and beyond share one treatment, so four rungs draw as three; and the list's updated_at row is gone from the data table rather than renamed, because nothing on either surface reads it now. The ordering prose — § Board's ordering bullet, the ordering menu's two rows, and data-requirements' ordering lines — was left to ck_79550de2.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_1d51a037
+kind: update
+occurred_at: 2026-09-09T08:28:58.789Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_a1ba21e6.added
+    to: docs/release-notes/v0.1.0.md carries no properties write-up — § What it does is missing all four, and the published changelog is now ahead of the notes
+-->
+### Claude Code updated this ticket
+
+Filed the release-notes gap the /docs commit surfaced. apps/website's 0.1.0 changelog entry gained four bullets for the properties, and docs/release-notes/v0.1.0.md mentions none of them — grep for due, estimate or propert in it returns nothing. § What it does is where they belong. The notes are status: draft and stay draft until the acceptance record's blocker section is empty, so this is a gap to close before that marker lifts rather than after.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_b5053226
+kind: update
+occurred_at: 2026-09-09T08:29:08.987Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_a1ba21e6.moved
+    from: "62"
+    to: "60"
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->
