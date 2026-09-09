@@ -3470,3 +3470,25 @@ With the case live, the board drop is correct: PF-1 dropped into the gap under P
 
 Next: perf/board-trace.mjs:194 reads the same span the same way — Number('· 8') is NaN, so presses = Math.min(NAV_SAMPLES, NaN - 1) is NaN and the navigation loop never runs. That is ck_c404ee03's to fix.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_94c4e0f0
+kind: comment
+occurred_at: 2026-09-09T09:03:22.342Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+perf/board-trace.mjs read the board's count the same way drag-probe did, and the consequence was worse: it passed.
+
+perf/board-trace.mjs:194 did Number('· 8'), got NaN, and presses = Math.min(NAV_SAMPLES, NaN - 1) is NaN. A loop bounded by index < NaN runs zero times, so the board's keyboard-navigation lane collected nothing. Then percentile([]) is undefined, round() makes that NaN, and the budget check asks p95 > 50 — which NaN answers false. So the lane reported n=0, p50=NaN, p95=NaN, max=-Infinity and counted as within budget. drag-probe went red for the same character; this went green.
+
+Fixed both halves. The count is read as the digits in the heading, with a named failure when it gives no number at all, and summarise() now refuses a lane that collected no samples rather than turning it into one that passed. The list was never affected — .list-group-count is a bare number — and its lane is unchanged at n=145, which is the control for the fix.
+
+The board's navigation lane measures again: n=145 where it was n=0.
+
+The numbers are NOT quotable yet and the item stays open. Both runs exit 1 with the harness's own refusal: 'NOT COMPARABLE: animation frames are 20ms (50.0 Hz), not the 16.7ms (60 Hz) the Step 4 budgets were set at.' pmset -g reports lowpowermode 1 — Low Power Mode is on, on AC power, which is what caps the frame. Every number is quantized to a 20ms frame, so the run is evidence for nothing. Turning that off needs sudo and is the user's machine, so it is theirs to do; the runs are minutes and will be redone against a 60 Hz frame before this item is ticked.
+<!-- /longclaw:event -->
