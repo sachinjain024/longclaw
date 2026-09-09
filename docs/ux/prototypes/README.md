@@ -22,12 +22,6 @@ cannot drift. See `AGENTS.md` § UX prototypes for what belongs in it.
 - [`LC-201-Bulk-Create-In-Quick-Create-Mode.html`](LC-201-Bulk-Create-In-Quick-Create-Mode.html)
   — quick create with a description, labels and a **Create more** loop
   (spec: `.longclaw/tickets/LC-201/ticket.md`).
-- [`LC-227-Ticket-Properties.html`](LC-227-Ticket-Properties.html)
-  — the four ticket properties in five scenes: the panel's properties rail and
-  its date control, the four due rungs in both appearances, the card's second
-  footer row and the heights it costs, the estimate control under each system,
-  and the settings Properties pane
-  (spec: `.longclaw/tickets/LC-227/ticket.md`).
 - [`LC-236e-Define-A-New-Label-From-Inside-The-Create-Flows.html`](LC-236e-Define-A-New-Label-From-Inside-The-Create-Flows.html)
   — a define-a-label row inside the labels popover, across quick create, full
   create and the project-settings add-row it makes agree with them

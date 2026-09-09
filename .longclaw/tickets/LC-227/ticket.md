@@ -10,7 +10,7 @@ labels:
 type: feature
 due: 2026-09-09
 created_at: 2026-08-22T06:13:17.138Z
-updated_at: 2026-09-09T07:27:19.688Z
+updated_at: 2026-09-09T07:39:44.075Z
 ---
 
 Brainstorm with LLM agent like what other fields we should support. A few items I can think of are Type - Bug/Task, Due State, Start Date, Effort
@@ -545,15 +545,17 @@ reaches for.
 
 ## The prototype
 
-[`docs/ux/prototypes/LC-227-Ticket-Properties.html`](../../../docs/ux/prototypes/LC-227-Ticket-Properties.html)
-— open it in a browser, no server and no build. Five scenes in the driver bar,
-one question each, and every scene drives off one injected `today` that the
-driver's `± day` moves.
+`docs/ux/prototypes/LC-227-Ticket-Properties.html`. **Reviewed and deleted on
+2026-09-09**, with its line in the prototypes index, which is what it was
+written for. Everything it settled is recorded here; nothing else survives it.
 
-It renders the app's own markup wearing `styles.css`; the CSS it proposes is in
-`<style id="proposed">` and the harness's own in `<style id="harness">`, so a
-review can tell which is which. Written to be **deleted** once this ticket is
-reviewed, along with its line in the prototypes index.
+It had six scenes in its driver bar — the panel's rail, the four due rungs in
+both appearances, the card's second footer row, the estimate control under each
+system, the settings Properties pane, and the copy deck — each driving off one
+injected `today` that the driver's `± day` moved. It rendered the app's own
+markup wearing `styles.css`, with the CSS it proposed in `<style id="proposed">`
+and the harness's own in `<style id="harness">`, so a review could tell which
+was which.
 
 ### What it proposes
 
@@ -1338,6 +1340,292 @@ that is built when it opens.
   Nothing in this change carries both a long label and a hint, and the four
   pick labels fit 200px with room, so this is a note rather than a defect.
 
+## Built 2026-09-09: the copy deck, reviewed and settled
+
+The prototype's sixth scene collected every string this ticket puts on screen
+into one object, and rendered both the scenes and the deck from it — so the deck
+could not drift from what the scenes said. This is that deck, settled in review
+on 2026-09-09 and written down here because the file it lived in is gone.
+
+**118 strings.** 24 the app already said before this ticket, 86 new and shipped,
+4 proposed and never built, 4 revised. **30 of them no screen ever shows** —
+`aria-label`s and `title`s, which are read out loud by someone and which had
+never been reviewed by anyone.
+
+### What the review changed
+
+Five edits, all applied to `src/` as well as to the deck, because by then these
+four surfaces had already shipped.
+
+- **The rail's date rows name the property in full.** `Start` and `Due` became
+  **`Start Date`** and **`Due Date`**. `PROPERTY_LABELS.field` had been carrying
+  two jobs — the row's label and the word the write sentence uses — and only the
+  first was being changed: `LC-1 Due Date → 2026-09-20` says *date* twice. So
+  `field` now holds the full title and a new `said` key holds the short word for
+  `propertyToast`. The change reaches both create surfaces too, which draw the
+  same row, because three surfaces disagreeing is what that record exists to
+  prevent.
+- **Two refusals became one sentence.** `Not a date this reads. Try 28 Sep, Sep
+  28, or 2026-09-28.` and `Not a month this reads. Try Sep or September.` are
+  both **`Invalid date format.`** The seven refusals that name a next move still
+  name one; these two are the general case, and the placeholder is already
+  `28 Sep`.
+- **The Properties pane's first line** became **`Optional Properties - OFF by
+  default. Once turned ON and used in tickets & later turned OFF, the values are
+  kept in the tickets but not visible in UI`**, which names the case the old
+  wording left implicit.
+
+### What the deck surfaced
+
+Collecting the strings found four disagreements between this file and `src/`
+that no scene showed, and they are recorded here rather than fixed:
+
+- **The type add row has no slug field.** The prototype proposed a slug beside
+  a name; the shipped row derives the key from the name and shows it as text
+  (`DerivedKey`, LC-236e). `settings.type.slug.placeholder` and
+  `settings.type.new.slug.voice` are marked `proposed` because nothing says
+  them.
+- **`Pick a date…` changed under its own string.** It first handed the job to
+  the panel's field; `ticketMenu.tsx` now opens the shared calendar in place,
+  anchored on the menu. The row still reads `Pick a date…`, which survives the
+  change intact — but the string was settled against the other behaviour.
+- **The labels chip says `add`, not `+ add`** — the `+` is `PlusGlyph`. Its
+  voice label is `Labels: <the names carried>`, which names the value rather
+  than the action, because the chips beside it are the value.
+- **Defining a type raises `Added the <slug> type`**, a write sentence the
+  prototype never drew.
+
+### What the review left standing
+
+- **Case now splits.** The rail says `Due Date`; the settings row and the
+  context-menu row say `Due date`, because they read `PROPERTY_LABELS.name`,
+  which was not part of the edit.
+- **The screen reader follows the rail.** `PropertyControl` hands the row's
+  label to its control, so the date input is announced `Due Date` and its
+  calendar `Due Date calendar`.
+- **The Properties pane says one fact twice.** The new first line says values
+  are kept when a property is turned off, and the note at the foot of the same
+  pane still opens with "Turning a property off hides it and keeps every value."
+  Only that note's second sentence — what the count beside a switched-off row
+  means — is still saying something new.
+- **`estimate.menu.none` says `None` where the segment says `—`.** One fact,
+  two spellings. Only reachable in the menu shape the ticket did not take.
+- **`toast.estimate.system` is unbuilt** and lower-cases the system name where
+  the settings segment capitalises it: "Estimates now read as fibonacci" beside
+  a button that says `Fibonacci`.
+
+### The deck
+
+Three sets of strings the prototype drew are deliberately absent, none of which
+this ticket touches: the settings window's own chrome, the status and priority
+vocabularies, and the label registry. A `state` of `proposed` means no code says
+it yet.
+
+### The rail
+
+| id | string | kind | when | where | state |
+|---|---|---|---|---|---|
+| `rail.status` | "Status" | field label | Always. The rail's first row. | TicketPanel · rail row | today |
+| `rail.priority` | "Priority" | field label | Always. | TicketPanel · rail row | today |
+| `rail.type` | "Type" | field label | Only when the project has turned Type on. | TicketPanel · rail row | new |
+| `rail.estimate` | "Estimate" | field label | Only when the project has turned Estimate on. | TicketPanel · rail row | new |
+| `rail.start` | "Start Date" | field label | Only when the project has turned Start date on. | TicketPanel · rail row, and both create surfaces' rows | new |
+| `rail.due` | "Due Date" | field label | Only when the project has turned Due date on. | TicketPanel · rail row, and both create surfaces' rows | new |
+| `rail.labels` | "Labels" | field label | Always. Last, because it is the only row that grows. | TicketPanel · rail row | today |
+| `rail.labels.add` | "add" | button | Always, at the end of the chips. | LabelMenu · the chip at the end of the labels row | today |
+| `rail.labels.voice` | "Labels: frontend, design" — `Labels: <the names carried, or `none`>` | aria-label | Always. Never on screen. | LabelMenu · the add chip | today |
+| `rail.trigger.voice` | "Type: Bug" — `<label>: <value>` | aria-label | Every menu trigger in the rail. Never on screen. | Menu.tsx · MenuButton | today |
+
+### The panel around the rail
+
+| id | string | kind | when | where | state |
+|---|---|---|---|---|---|
+| `panel.voice` | "Ticket LC-227" — `Ticket <key>` | aria-label | Always. Never on screen. | TicketPanel · the panel itself | today |
+| `panel.key.voice` | "Copy LC-227" — `Copy <key>` | aria-label | Always. The chip shows the key; this says what pressing it does. | TicketPanel · the key chip | today |
+| `panel.archive` | "Archive" | button | Always. | TicketPanel · the header | today |
+| `panel.close.voice` | "Close ticket" | aria-label | Always. Never on screen. | TicketPanel · the ✕ | today |
+| `panel.title.voice` | "Title" | aria-label | Always. Never on screen. | TicketPanel · the title textarea | today |
+| `panel.description` | "Description" | section heading | Always. The rail moves this to the top of the column. | TicketPanel · the main column's first section | today |
+| `panel.description.edit` | "Edit" | button | While the description is being read rather than written. | TicketPanel · beside the Description heading | today |
+| `panel.description.edit.voice` | "Edit description" | aria-label | Always. Never on screen — the button says Edit. | TicketPanel · the Edit button | today |
+| `panel.checklist` | "Checklist" | section heading | Always. | TicketPanel · the main column | today |
+| `panel.tab.comments` | "Comments" | tab | Always. | TicketPanel · the record | today |
+| `panel.tab.activity` | "Activity" | tab | Always. | TicketPanel · the record | today |
+| `panel.record.voice` | "Ticket record" | aria-label | Always. Never on screen. | TicketPanel · the tab list | today |
+
+### The date field
+
+| id | string | kind | when | where | state |
+|---|---|---|---|---|---|
+| `date.field.placeholder` | "28 Sep" | placeholder | While the field is empty. | DateField · the input | new |
+| `date.field.voice.due` | "Due Date" | aria-label | Always. Never on screen. | DateField · the input | new |
+| `date.field.voice.start` | "Start Date" | aria-label | Always. Never on screen. | DateField · the input | new |
+| `date.trigger.voice` | "Due date calendar" — `<field label> calendar` | aria-label | Always. Never on screen. | DateField · the calendar button | new |
+| `date.echo` | "→ Mon 28 Sep 2026" — `→ <the day it resolved to>` | echo | While typed text resolves and the field is dirty. It is confirmation, not validation — it appears before any commit, and nothing goes red mid-word. | DateField · under the input | new |
+
+### The date grammar's refusals
+
+| id | string | kind | when | where | state |
+|---|---|---|---|---|---|
+| `date.refuse.time` | "A date here is a day, with no time on it." | refusal | The text carries a time — `28 Sep 5pm`, or an ISO timestamp. | DateField · under the input, on commit | revised |
+| `date.refuse.iso` | "That day does not exist. ISO dates are YYYY-MM-DD." | refusal | ISO shape, impossible day — `2026-02-31`, `2026-9-8`. | DateField · under the input, on commit | new |
+| `date.refuse.numeric` | "Numeric dates are read as YYYY-MM-DD only. Try 28 Sep, or 2026-09-28." | refusal | An all-numeric form that is not ISO — `3/4`, `09-28`, `28.9.26`. | DateField · under the input, on commit | new |
+| `date.refuse.month` | "Which day? A month on its own is not a date." | refusal | A bare month — `Sep`, `September`. | DateField · under the input, on commit | new |
+| `date.refuse.computed` | "Dates are typed, not computed. Try 28 Sep, or use the calendar." | refusal | A weekday or a relative phrase — `Friday`, `next week`, `in 3 days`. | DateField · under the input, on commit | new |
+| `date.refuse.unread` | "Invalid date format." | refusal | Anything else that does not parse. | DateField · under the input, on commit | new |
+| `date.refuse.monthName` | "Invalid date format." | refusal | A day and a word that is not a month — `28 Sept`, `28 Setembro`. | DateField · under the input, on commit | new |
+| `date.refuse.year` | "Write the year in full — 28 Sep 2026." | refusal | A two-digit year — `28 Sep 26`. | DateField · under the input, on commit | new |
+| `date.refuse.noSuchDay` | "That day does not exist in that month." | refusal | A named month and an impossible day — `31 Sep 2026`, `30 Feb`. | DateField · under the input, on commit | new |
+
+### The date picker
+
+| id | string | kind | when | where | state |
+|---|---|---|---|---|---|
+| `picker.voice` | "Due date calendar" — `<field label> calendar` | aria-label | While the picker is open. Never on screen. | DateField · the picker dialog | revised |
+| `picker.prev` | "Previous month" | aria-label | Always, on the ‹ button. Never on screen. | DateField · the picker head | new |
+| `picker.next` | "Next month" | aria-label | Always, on the › button. Never on screen. | DateField · the picker head | new |
+| `picker.day.voice` | "Mon 28 Sep 2026" — `<weekday> <day> <month> <year>` | aria-label | Always. The cell shows only the number; this is the whole day. | DateField · every day cell | new |
+| `picker.dow` | "Mo · Tu · We · Th · Fr · Sa · Su" | column heads | Always. | DateField · the grid's first row | new |
+| `picker.clear` | "Clear" | button | Always, whether or not the ticket has a date. | DateField · the picker's last row | new |
+
+### The estimate control
+
+| id | string | kind | when | where | state |
+|---|---|---|---|---|---|
+| `estimate.voice` | "Estimate" | aria-label | Under T-shirt and Fibonacci. Never on screen. | EstimateControl · the segmented group | new |
+| `estimate.none` | "—" | segment | Always. Absent is a value a scale has to be able to say. | EstimateControl · the scale's first segment | new |
+| `estimate.none.voice` | "No estimate" | aria-label | Always. What the dash is read as out loud. | EstimateControl · the — segment | new |
+| `estimate.amount.voice` | "Estimate amount" | aria-label | Under Duration only. Never on screen. | EstimateControl · the duration input | new |
+| `estimate.amount.placeholder` | "0" | placeholder | Under Duration, while the field is empty. | EstimateControl · the duration input | new |
+| `estimate.unit.voice` | "Estimate unit" | aria-label | Under Duration only. | EstimateControl · the unit menu | new |
+| `estimate.unit.m` | "minutes" | menu row | Under Duration. The word, not the letter the file stores. | EstimateControl · the unit menu | new |
+| `estimate.unit.h` | "hours" | menu row | Under Duration. | EstimateControl · the unit menu | new |
+| `estimate.unit.d` | "days" | menu row | Under Duration. | EstimateControl · the unit menu | new |
+| `estimate.unit.w` | "weeks" | menu row | Under Duration. | EstimateControl · the unit menu | new |
+| `estimate.foreign.title` | "Written under another system, and kept" | title | The ticket holds a value written under a system the project has since switched away from — `1.5d` on a Fibonacci project. | EstimateControl · a value the scale cannot read | new |
+| `estimate.menu.none` | "None" | menu trigger value | Only in this prototype's menu alternative, which the ticket did not take — the segment shipped. | EstimateControl · the menu shape | proposed |
+
+### The card's due chip
+
+| id | string | kind | when | where | state |
+|---|---|---|---|---|---|
+| `card.due.overdue` | "3d overdue" — `<n>d overdue` | chip | The due day is in the past and the ticket is not finished. | BoardCard · the key row, and the list row | new |
+| `card.due.today` | "Today" | chip | The due day is today. | BoardCard · the key row, and the list row | new |
+| `card.due.approaching` | "in 3d" — `in <n>d` | chip | The due day is within the project's attention window. | BoardCard · the key row, and the list row | new |
+| `card.due.beyond` | "28 Sep" — `<day> <month>, plus the year when it is not this one` | chip | The due day is further out than the attention window, or the ticket is done, canceled or archived — finished, not overdue. | BoardCard · the key row, and the list row | new |
+
+### The context menu
+
+| id | string | kind | when | where | state |
+|---|---|---|---|---|---|
+| `menu.status` | "Move to" | menu row | Always. | ticketMenu · the first row | today |
+| `menu.priority` | "Priority" | menu row | Always. | ticketMenu | today |
+| `menu.type` | "Type" | menu row | Only when the project has turned Type on. | ticketMenu · a property row | new |
+| `menu.start` | "Start date" | menu row | Only when the project has turned Start date on. | ticketMenu · a property row | new |
+| `menu.due` | "Due date" | menu row | Only when the project has turned Due date on. | ticketMenu · a property row | new |
+| `menu.estimate` | "Estimate" | menu row | Only when the project has turned Estimate on. | ticketMenu · a property row | new |
+| `menu.row.hint` | "28 Sep" — `the value the ticket holds, read the way its control reads it` | menu row hint | The ticket holds a value for that property. Absent, the row carries no hint rather than a dash. | ticketMenu · beside a property row's label | new |
+| `menu.pick.today` | "Today" | menu row | Always, first of the four quick picks. | ticketMenu · a date submenu | new |
+| `menu.pick.tomorrow` | "Tomorrow" | menu row | Always. | ticketMenu · a date submenu | new |
+| `menu.pick.monday` | "Next Monday" | menu row | Always. The next one, never today. | ticketMenu · a date submenu | new |
+| `menu.pick.week` | "In a week" | menu row | Always. | ticketMenu · a date submenu | new |
+| `menu.pick.hint` | "14 Sep" — `the day the pick resolves to` | menu row hint | Always. It is the whole reason a menu may offer what the typed grammar refuses: the row shows its answer before the press. | ticketMenu · beside every quick pick | new |
+| `menu.pick.other` | "Pick a date…" | menu row | Always. It opens the same calendar the field opens, in place and anchored on the menu, rather than the menu growing a date editor of its own. | ticketMenu · a date submenu, last row | new |
+| `menu.clear` | "Clear" | menu row | Only when the ticket holds a value for that property. No value, no door. | ticketMenu · every property submenu, under a rule | new |
+| `menu.archive` | "Archive ticket" | menu row | Always. | ticketMenu · below the rule | today |
+| `menu.copyKey` | "Copy key" | menu row | Always. | ticketMenu | today |
+| `menu.copyPath` | "Copy file path" | menu row | Always. | ticketMenu | today |
+
+### Settings · Properties
+
+| id | string | kind | when | where | state |
+|---|---|---|---|---|---|
+| `settings.nav` | "Properties" | nav row | Always. | ProjectSettings · the section list, after Labels | new |
+| `settings.subhead` | "Optional Properties - OFF by default. Once turned ON and used in tickets & later turned OFF, the values are kept in the tickets but not visible in UI" | note | Always. | ProjectSettings · the pane's first line | new |
+| `settings.type.title` | "Type" | switch label | Always. | ProjectSettings · the property's switch | new |
+| `settings.due.title` | "Due date" | switch label | Always. | ProjectSettings · the property's switch | new |
+| `settings.start.title` | "Start date" | switch label | Always. | ProjectSettings · the property's switch | new |
+| `settings.estimate.title` | "Estimate" | switch label | Always. | ProjectSettings · the property's switch | new |
+| `settings.kept` | "17 tickets keep their dates" — `<n> tickets keep their <dates> · 1 ticket keeps its <date>` | note | The property is off and at least one ticket still carries a value. It is then the only place that fact is visible. | ProjectSettings · beside a switched-off property | new |
+| `settings.due.window.before` | "Highlight tickets due within" | field label | While Due date is on. | ProjectSettings · before the attention-days input | new |
+| `settings.due.window.after` | "days" | field label | While Due date is on. | ProjectSettings · after the attention-days input | new |
+| `settings.due.attention.voice` | "Attention days" | aria-label | Always. Never on screen — the sentence around it is the label. | ProjectSettings · the attention-days input | new |
+| `settings.due.note` | "Overdue and today are absolute; this is the only boundary that moves. 0 is legal and empties the approaching rung." | note | While Due date is on. | ProjectSettings · under the Due date row | new |
+| `settings.start.note` | "Panel only. A start date is not a deadline — a start date in the past means work should have begun, which is a judgement about the work rather than a fact about the date — so it has no rungs and never appears on a card." | note | While Start date is on. | ProjectSettings · under the Start date row | new |
+| `settings.estimate.system.voice` | "Estimate system" | aria-label | While Estimate is on. Never on screen. | ProjectSettings · the system segmented control | new |
+| `settings.estimate.tshirt` | "T-shirt" | segment | While Estimate is on. | ProjectSettings · the system control | new |
+| `settings.estimate.fibonacci` | "Fibonacci" | segment | While Estimate is on. | ProjectSettings · the system control | new |
+| `settings.estimate.duration` | "Duration" | segment | While Estimate is on. | ProjectSettings · the system control | new |
+| `settings.estimate.day.before` | "One day is" | field label | Under Duration only. | ProjectSettings · before the hours input | new |
+| `settings.estimate.day.mid` | "hours · one week is" | field label | Under Duration only. | ProjectSettings · between the two inputs | new |
+| `settings.estimate.day.after` | "days" | field label | Under Duration only. | ProjectSettings · after the days input | new |
+| `settings.estimate.hours.voice` | "Hours per day" | aria-label | Under Duration. Never on screen. | ProjectSettings · the hours input | new |
+| `settings.estimate.days.voice` | "Days per week" | aria-label | Under Duration. Never on screen. | ProjectSettings · the days input | new |
+| `settings.estimate.note.duration` | "An estimate has to be comparable: 4h against 1d needs to know how long a working day is. Changing this changes no stored value." | note | Under Duration only. | ProjectSettings · under the conversion fields | new |
+| `settings.estimate.note.tshirt` | "The sizes are an editable enum, like Type’s. Fibonacci has nothing to configure." | note | Under T-shirt only. | ProjectSettings · under the system control | new |
+| `settings.estimate.note.fibonacci` | "1 · 2 · 3 · 5 · 8 · 13, a fixed scale. Nothing to configure." | note | Under Fibonacci only. | ProjectSettings · under the system control | new |
+| `settings.estimate.note.switching` | "Switching systems never rewrites a ticket: a value written under the old one stays as it was and reads as unreadable until you switch back." | note | While Estimate is on, under every system. | ProjectSettings · under the system control | new |
+| `settings.note` | "Turning a property off hides it and keeps every value. The count beside a switched-off property is what is still on disk." | note | Always. | ProjectSettings · the pane's last line | new |
+| `settings.type.name.voice` | "Name of type bug" — `Name of type <slug>` | aria-label | Always. Never on screen. | ProjectSettings · a type row | new |
+| `settings.type.color.voice` | "Color of type bug" — `Color of type <slug>` | aria-label | Always. Never on screen. | ProjectSettings · a type row | new |
+| `settings.type.remove.voice` | "Remove type bug" — `Remove type <slug>` | aria-label | Always. Never on screen. | ProjectSettings · a type row's ✕ | new |
+| `settings.type.slug.placeholder` | "slug" | placeholder | Never — see the note. | ProjectSettings · the add row | proposed |
+| `settings.type.name.placeholder` | "Display name" | placeholder | Always. | ProjectSettings · the add row | new |
+| `settings.type.new.slug.voice` | "New type slug" | aria-label | Never — see `settings.type.slug.placeholder`. | ProjectSettings · the add row | proposed |
+| `settings.type.new.name.voice` | "New type name" | aria-label | Always. Never on screen. | ProjectSettings · the add row | new |
+| `settings.type.new.color.voice` | "New type color" | aria-label | Always. Never on screen. | ProjectSettings · the add row | new |
+| `settings.type.add` | "Add type" | button | Always. | ProjectSettings · the add row | new |
+| `settings.type.added` | "Added the bug type" — `Added the <slug> type` | write feedback | A type defined from the Properties pane's add row. | WriteFeedback · the toast | new |
+| `settings.type.note` | "Removing a definition never rewrites a ticket — the slug renders as itself, in the fallback hue." | note | While Type is on. | ProjectSettings · under the type rows | new |
+
+### Write feedback
+
+| id | string | kind | when | where | state |
+|---|---|---|---|---|---|
+| `toast.property.set` | "LC-227 Due → 2026-09-20" — `<key> <property> → <value>` | write feedback | Any property set, from either write path — the panel's rail, or a card's context menu. | WriteFeedback · the toast | revised |
+| `toast.property.cleared` | "LC-227 Due cleared" — `<key> <property> cleared` | write feedback | Any property cleared, from either write path. | WriteFeedback · the toast | revised |
+| `toast.property.on` | "Due date turned on" — `<property> turned on` | write feedback | A property switched on in settings. On is one fact. | WriteFeedback · the toast | new |
+| `toast.property.off` | "Due date turned off · 17 tickets keep their dates" — `<property> turned off · <the count sentence>` | write feedback | A property switched off while tickets carry values. Off is two facts, and the second is the reassurance. With no tickets carrying one, the toast is “<property> turned off” alone. | WriteFeedback · the toast | new |
+| `toast.estimate.system` | "Estimates now read as fibonacci · 23 tickets keep their values" — `Estimates now read as <system> · <n> tickets keep their values` | write feedback | The estimate system switched while tickets carry values. | WriteFeedback · the toast | proposed |
+| `toast.undo` | "Undo ⌘Z" | button | Every undoable write, for five seconds. | WriteFeedback · the toast's action | today |
+
+### Notes carried with the rows
+
+- **`rail.start`** — Settled in review, 2026-09-09: was “Start”. The row now names the property in full rather than leaning on its neighbours to finish the word. The write sentence keeps the short form — `LC-227 Start → …` — because a sentence that already names the ticket does not need the noun twice. Note the case: this row is Title Case and the settings row and the menu row are still sentence case (“Start date”).
+- **`rail.due`** — Same as `rail.start`, settled in the same review.
+- **`rail.labels.add`** — The `+` beside it is `PlusGlyph`, not part of the string.
+- **`rail.labels.voice`** — It names the value rather than the action, because the chips beside it are the value and a control called `add` leaves that unsaid for anyone who cannot see them. It is also honest that the menu takes labels off as well as putting them on.
+- **`panel.archive`** — The context menu says “Archive ticket” for the same act, because a menu row stands among rows about other things and a header button does not.
+- **`date.field.placeholder`** — The placeholder is the grammar's shortest legal form, so the field teaches what it accepts rather than describing it.
+- **`date.field.voice.due`** — The input's voice label is its row's label, and in `src/` it is literally the same string — `PropertyControl` hands the row's name to the control. Listed apart because a row label and the word read out for its input are two decisions that happen to agree, and a review should be able to disagree with one of them.
+- **`date.field.voice.start`** — Same as `date.field.voice.due`.
+- **`date.echo`** — The long form, with the weekday and the year, because the point of the echo is to answer *which* day — including which year `28 Sep` landed in.
+- **`date.refuse.time`** — This file said “A due date is a day, with no time on it.” — which is the wrong noun in the Start field, where the same sentence is shown. `src/` ships the neutral wording.
+- **`date.refuse.numeric`** — The one refusal the whole grammar exists for: the app has no locale to ask, so `3/4` cannot be resolved without guessing, and a guess is silently wrong for half the world.
+- **`date.refuse.computed`** — The one refusal the context menu answers: this says *not here*, and the menu's quick picks offer the same four computed days as rows that show the day before the press.
+- **`date.refuse.unread`** — Settled in review, 2026-09-09: was “Not a date this reads. Try 28 Sep, Sep 28, or 2026-09-28.” This row and `date.refuse.monthName` now say the same sentence, so the two cases are one message on screen — the placeholder is `28 Sep`, and the seven refusals that do name a next move still do.
+- **`date.refuse.monthName`** — Settled in review, 2026-09-09: was “Not a month this reads. Try Sep or September.” The same sentence as `date.refuse.unread`.
+- **`picker.voice`** — This file said “Choose a date”. `src/` names the field instead, so the dialog and the button that opened it answer to the same words.
+- **`picker.dow`** — Monday first, derived rather than picked: the canonical on-disk form is ISO 8601, and ISO 8601's week starts on Monday.
+- **`estimate.none`** — The app's existing word for absent — `priority: none` draws this glyph — rather than the word “None”.
+- **`estimate.foreign.title`** — The only place the app explains invariant 16 to a person, and it explains it in a tooltip. Worth asking whether that is enough.
+- **`estimate.menu.none`** — The word here and the dash in the segment are the same fact spelled two ways. If the menu shape ever returns, one of them has to go.
+- **`card.due.overdue`** — The one rung that takes a hue. Legible with the colour removed.
+- **`card.due.approaching`** — Reuses `describeAge`'s relative vocabulary rather than a second one.
+- **`menu.pick.other`** — The ellipsis is the app's existing promise that a row opens something rather than acting. The row first handed the job to the panel's own field; `ticketMenu.tsx` now opens the shared calendar in place, and the string did not change with it.
+- **`settings.subhead`** — Settled in review, 2026-09-09: was “Four optional properties. All four are off until you turn them on, and turning one off hides it without touching a single ticket.” The new line says the same two facts and names the case the old one left implicit — a property turned off after tickets have used it.
+- **`settings.kept`** — Both numbers, and the noun agrees in both — “1 ticket keeps their dates” is the shape of a sentence built by concatenation rather than written.
+- **`settings.start.note`** — The longest string in the pane, and the only one that argues rather than states. It is here because Start is the property people expect to behave like Due.
+- **`settings.note`** — Since `settings.subhead` was rewritten (2026-09-09) its first sentence says what the subhead now says, at the other end of the same pane. Only its second sentence — what the count beside a switched-off row means — is still saying something new.
+- **`settings.type.name.voice`** — The labels editor's own shape, with the noun changed.
+- **`settings.type.color.voice`** — American spelling, which is what the labels editor already says. The prose in this repo says colour; the interface says color.
+- **`settings.type.slug.placeholder`** — This file proposed a two-field add row, a slug beside a name. The shipped one has **no slug field**: the key is derived from the name and shown as text by `DerivedKey` (LC-236e), whose own copy belongs to that ticket. Neither this string nor `settings.type.new.slug.voice` exists in `src/`.
+- **`settings.type.added`** — It names the derived slug rather than the name that was typed, which is what the ticket will store.
+- **`toast.property.set`** — This file said “LC-227 due 2026-09-20” and “LC-227 starts …” — two sentences for one act, and a verb that only worked for dates. `src/` ships one sentence for all four, built from the property's short name: `Due`, not `Due date`, because the sentence already names the ticket and “LC-227 Due date → …” says date twice.
+- **`toast.property.cleared`** — Same revision as `toast.property.set`.
+- **`toast.property.off`** — The count sentence is `settings.kept`, said here and in the row — one string, because two spellings is how they come to disagree.
+- **`toast.estimate.system`** — Not in `src/` yet. It also says the system in lower case, which no other string in the pane does — the segment says `Fibonacci`.
+
 ## Checklist
 
 - [x] ADR: property configuration joins labels in longclaw.yaml — record why ADR 0002's reservation is deferred, and what would revisit it <!-- longclaw:item=ck_945a1ca9 -->
@@ -1359,8 +1647,8 @@ that is built when it opens.
 - [x] The second footer row appears only when the ticket has a value for an enabled property that sits in it — one line, never wrapping, presence derived from row data and never from the rung, giving exactly four pinned heights <!-- longclaw:item=ck_bef33999 -->
 - [x] Prototype the estimate control for each system — t-shirt chips, Fibonacci chips, and number plus unit <!-- longclaw:item=ck_100759d5 -->
 - [x] Prototype the settings Properties pane: the type-values editor, the estimate system picker, and a property switched off while tickets carry values <!-- longclaw:item=ck_d5ddb411 -->
-- [ ] Review the UX copy and strings in the prototype's copy deck — all 116, including the 29 no screen shows — then write the settled deck into this ticket <!-- longclaw:item=ck_4275f23b -->
-- [ ] Review the prototype, record what it settled, then delete it and its line in the index <!-- longclaw:item=ck_7d5bada6 -->
+- [x] Review the UX copy and strings in the prototype's copy deck — all 116, including the 29 no screen shows — then write the settled deck into this ticket <!-- longclaw:item=ck_4275f23b -->
+- [x] Review the prototype, record what it settled, then delete it and its line in the index <!-- longclaw:item=ck_7d5bada6 -->
 - [x] Project: parse and render the properties block in longclaw.yaml, preserving unknown keys <!-- longclaw:item=ck_15465a7c -->
 - [x] Ticket: parse and render the four properties; a disabled one survives a read-modify-write untouched <!-- longclaw:item=ck_15eaaa0f -->
 - [x] Validate a malformed date or estimate without destroying it — degrade the value, keep the bytes <!-- longclaw:item=ck_91489cf3 -->
@@ -3007,4 +3295,38 @@ changes:
 ### Codex updated this ticket
 
 Replaced the list row's updated-time column with the due date after the labels, as requested in review. The list shares the board's due-date presenter and urgency styles; disabled, missing and invalid dates have no chip. Updated the prototype and screen spec. npm run verify passed, including 1,321 frontend tests and the native watcher. Performance runs used 5,000 tickets: list p95 keyboard/scroll/filter/write = 18/22/25/19 ms; board p95 scroll/filter/write = 22/40/20 ms, with no keyboard samples. Both runs were rejected as not comparable because frames measured 20 ms (50 Hz), so the performance checklist remains open.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_8fc12ba0
+kind: update
+occurred_at: 2026-09-09T07:35:46.015Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+  - field: checklist.ck_4275f23b.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_7d5bada6.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_fdb9f5d1
+kind: update
+occurred_at: 2026-09-09T07:39:44.075Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->
