@@ -995,6 +995,14 @@ button:disabled {
   background: var(--lc-bg);
 }
 
+/* The menu is rendered inside this stacking context. While it is open, lift
+   the header above List's sticky group header so the menu's first row cannot
+   be painted over by the first group (`:has` keeps the normal header layer
+   below panels and other overlays). */
+.content-header:has(.menu-popover) {
+  z-index: var(--lc-z-popover);
+}
+
 /* The project already owns its star in the side panel; its one other project
    action is the prototype's compact gear, which sits in the identity block with
    the path it belongs to (`screen-specs.md` § Project identity). Unscoped since
