@@ -248,7 +248,7 @@ describe("the create-project form as first launch's second step", () => {
     expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe("");
   });
 
-  // `keyboard-focus-map.md:203`: the folder picker hands focus to the name
+  // `keyboard-focus-map.md:204`: the folder picker hands focus to the name
   // field. Only on this path — the sidebar's quick create opens beside a board
   // someone is already working in.
   it("puts the caret where the picker left off", () => {

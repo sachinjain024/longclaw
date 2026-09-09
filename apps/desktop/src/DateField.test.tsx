@@ -263,6 +263,70 @@ describe("the calendar", () => {
     );
   });
 
+  it("steps a year with Shift, where the bare key steps a month", () => {
+    // The key that told this apart before was the one the handler never read:
+    // it early-returned on meta, ctrl and alt and never looked at Shift, so
+    // ⇧PageUp silently stepped a month and said it had stepped a year.
+    open("2026-09-28");
+    fireEvent.keyDown(document.activeElement!, { key: "PageUp" });
+    expect(document.activeElement?.getAttribute("aria-label")).toBe(
+      "Fri 28 Aug 2026",
+    );
+    fireEvent.keyDown(document.activeElement!, {
+      key: "PageUp",
+      shiftKey: true,
+    });
+    expect(document.activeElement?.getAttribute("aria-label")).toBe(
+      "Thu 28 Aug 2025",
+    );
+    fireEvent.keyDown(document.activeElement!, {
+      key: "PageDown",
+      shiftKey: true,
+    });
+    expect(document.activeElement?.getAttribute("aria-label")).toBe(
+      "Fri 28 Aug 2026",
+    );
+  });
+
+  it("clamps a year off 29 February rather than overshooting the month", () => {
+    // `addMonths` clamps, which is what keeps ⇧PageDown off a 1 March that the
+    // person stepping a year never asked for.
+    open("2028-02-29");
+    fireEvent.keyDown(document.activeElement!, {
+      key: "PageDown",
+      shiftKey: true,
+    });
+    expect(document.activeElement?.getAttribute("aria-label")).toBe(
+      "Wed 28 Feb 2029",
+    );
+  });
+
+  it("jumps to the week's ends with Home and End", () => {
+    // The row the grid draws, not the seven days around the cursor: Monday
+    // opens it and Sunday closes it, from the same `startOfWeek` the grid
+    // itself lays rows out with.
+    open("2026-09-30");
+    fireEvent.keyDown(document.activeElement!, { key: "Home" });
+    expect(document.activeElement?.getAttribute("aria-label")).toBe(
+      "Mon 28 Sep 2026",
+    );
+    fireEvent.keyDown(document.activeElement!, { key: "End" });
+    expect(document.activeElement?.getAttribute("aria-label")).toBe(
+      "Sun 4 Oct 2026",
+    );
+  });
+
+  it("moves the cursor and writes nothing, on every movement key", () => {
+    // Movement is not a pick anywhere in this grid, which is what leaves Enter
+    // the only key that writes.
+    const onCommit = vi.fn();
+    open("2026-09-28", onCommit);
+    for (const key of ["ArrowRight", "PageUp", "Home", "End"]) {
+      fireEvent.keyDown(document.activeElement!, { key, shiftKey: true });
+    }
+    expect(onCommit).not.toHaveBeenCalled();
+  });
+
   it("keeps the grid to one tab stop", () => {
     // 42 stops in a popover would be a month a person has to Tab across, which
     // is the same reason a board column's cards rove (`rovingFocus.ts`).

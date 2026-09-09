@@ -222,7 +222,7 @@ async function auditLifecycle(browser) {
       "`Enter` creates the ticket and focus moves to the new card",
       createdKey !== undefined,
       `focus=${createdKey ?? (afterCreate.className || afterCreate.tag)}`,
-      "keyboard-focus-map.md:132,200 — focus moves to the new card",
+      "keyboard-focus-map.md:132,201 — focus moves to the new card",
     );
 
     // Find (§ Global `⌘F`, and the filter's rung of the `Esc` ladder).
@@ -378,7 +378,7 @@ async function auditLifecycle(browser) {
       "`Esc` closes the panel and focus returns to the card that opened it",
       isCard(backOnCard),
       `focus=${backOnCard.ticketKey ?? (backOnCard.className || backOnCard.tag)}`,
-      "keyboard-focus-map.md:61,196",
+      "keyboard-focus-map.md:61,197",
     );
     const movedFrom = backOnCard.ticketKey;
     await page.keyboard.press("s");
@@ -572,7 +572,7 @@ async function auditFocusOrder(browser) {
       "canceling quick create returns focus to where it was",
       afterCancel.ticketKey === card,
       `${card} → ${afterCancel.ticketKey ?? (afterCancel.className || afterCancel.tag)}`,
-      "keyboard-focus-map.md:192",
+      "keyboard-focus-map.md:193",
     );
 
     // Menu → the focused card (the single-key path).
@@ -630,7 +630,7 @@ async function auditFocusOrder(browser) {
       "closing the ticket panel returns focus to the card that opened it",
       opened && afterPanel.ticketKey === card,
       `${card} → ${afterPanel.ticketKey ?? (afterPanel.className || afterPanel.tag)}`,
-      "keyboard-focus-map.md:196",
+      "keyboard-focus-map.md:197",
     );
 
     // Reading order inside the panel: the Tab sequence must run down the page.
@@ -741,7 +741,7 @@ async function auditFocusOrder(browser) {
       !(await visible(page, ".settings-panel")) &&
         afterSettings.label === "Project settings",
       `focus=${afterSettings.label || afterSettings.className || afterSettings.tag}`,
-      "keyboard-focus-map.md:202 — settings returns focus to its opener",
+      "keyboard-focus-map.md:203 — settings returns focus to its opener",
     );
 
     /**
@@ -867,7 +867,7 @@ async function auditFocusOrder(browser) {
         inRun.label === "Title" &&
         emptied === "",
       `modal=${await visible(page, "form.quick-create-modal")} focus=${inRun.label || inRun.className || inRun.tag} title="${emptied}"`,
-      "keyboard-focus-map.md:200 — the created row, and the run's exception to it",
+      "keyboard-focus-map.md:201 — the created row, and the run's exception to it",
     );
     await page.keyboard.press("Escape");
     await settle(page);

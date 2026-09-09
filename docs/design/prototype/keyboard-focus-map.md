@@ -180,7 +180,8 @@ a key the offer on screen needs (LC-220, `fieldUndo.ts`).
 |---|---|
 | `←` `→` | A day |
 | `↑` `↓` | A **week** — the one thing here that no menu in the app does, and what makes this its first two-dimensional layer |
-| `PageUp` `PageDown` | A month, without touching the value |
+| `PageUp` `PageDown` | A month, without touching the value — and a **year** with `⇧`, clamped, so a step off 29 February lands on the 28th |
+| `Home` `End` | The Monday and the Sunday of the row the cursor is on, from the same rule that lays the grid's rows out |
 | `Enter` `Space` | Pick the day under the cursor → close → focus returns to the field or context-menu ticket |
 | `Esc` | Close without writing → focus returns to the field or context-menu ticket. An open panel stays open |
 

@@ -172,13 +172,15 @@
     "154": "Welcome: `Tab` between the two buttons, `Enter` activates. Folder picker",
     "155": "rows: `Tab`/arrows + `Enter`. Create form: `Tab` order name → key → theme",
     "156": "swatches (radio group, arrows move, space selects) → Create → Back — `Cancel` in the side panel, whose form *is* the panel while it is open and has no step one behind it to go back to (LC-239w).",
-    "192": "## Focus-return table",
-    "196": "| Ticket panel | The card/row that opened it (survives re-render) |",
-    "200": "| Quick create (created) | The new ticket's card — or, with **Create more** ticked, the emptied title field, and focus never follows the card even when the write returns (LC-201) |",
-    "202": "| Settings / waitlist / confirm / raw view | The opener (the side panel's gear since LC-239w, footer button, degraded card) |",
-    "203": "| Folder picker (create flow) | The create form's name field |",
-    "210": "- No drag-and-drop keyboard equivalent — reordering within a column, and",
-    "215": "inside one, which is the thing v0 deliberately left unbound."
+    "183": "| `PageUp` `PageDown` | A month, without touching the value — and a **year** with `⇧`, clamped, so a step off 29 February lands on the 28th |",
+    "184": "| `Home` `End` | The Monday and the Sunday of the row the cursor is on, from the same rule that lays the grid's rows out |",
+    "193": "## Focus-return table",
+    "197": "| Ticket panel | The card/row that opened it (survives re-render) |",
+    "201": "| Quick create (created) | The new ticket's card — or, with **Create more** ticked, the emptied title field, and focus never follows the card even when the write returns (LC-201) |",
+    "203": "| Settings / waitlist / confirm / raw view | The opener (the side panel's gear since LC-239w, footer button, degraded card) |",
+    "204": "| Folder picker (create flow) | The create form's name field |",
+    "211": "- No drag-and-drop keyboard equivalent — reordering within a column, and",
+    "216": "inside one, which is the thing v0 deliberately left unbound."
   },
   "components.md": {
     "3": "> Phase 0, Step 1 deliverable. Everything below consumes `--lc-*` tokens from",

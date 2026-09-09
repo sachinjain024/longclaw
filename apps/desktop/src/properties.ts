@@ -229,6 +229,18 @@ export function addDays(day: Date, days: number): Date {
 }
 
 /**
+ * The Monday that opens `day`'s week.
+ *
+ * Monday because the app has no locale to ask and ISO 8601 — the form every
+ * date is stored in — starts a week there. Derived here rather than in the
+ * grid, so the row the calendar lays out and the day `Home` jumps to cannot
+ * come to disagree about where a week begins.
+ */
+export function startOfWeek(day: Date): Date {
+  return addDays(day, -((day.getDay() + 6) % 7));
+}
+
+/**
  * The same day-of-month in another month, clamped to that month's length, so
  * stepping a calendar from 31 Jan lands on 28 Feb rather than 3 March.
  */

@@ -33,6 +33,7 @@ import {
   monthName,
   parseDate,
   startOfDay,
+  startOfWeek,
   toIso,
 } from "./properties";
 import {
@@ -285,10 +286,10 @@ export function DatePicker(props: {
     cell.current?.focus();
   }, [cursor]);
 
-  // Monday first, derived rather than picked: the app has no locale to ask, the
-  // canonical on-disk form is ISO 8601, and ISO 8601's week starts on Monday.
+  // Monday first, from `startOfWeek` rather than from a rule spelled twice: the
+  // row this lays out and the day `Home` jumps to are the same question.
   const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
-  const start = addDays(first, -((first.getDay() + 6) % 7));
+  const start = startOfWeek(first);
   const days = Array.from({ length: 42 }, (_, index) => addDays(start, index));
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -315,9 +316,25 @@ export function DatePicker(props: {
       setCursor((day) => addDays(day, step[event.key]));
       return;
     }
+    // A month, or a year with Shift (`keyboard-focus-map.md:183`). Both are
+    // `addMonths`, which clamps, so a year off 29 February lands on the 28th
+    // rather than on 1 March.
     if (event.key === "PageUp" || event.key === "PageDown") {
       event.preventDefault();
-      setCursor((day) => addMonths(day, event.key === "PageUp" ? -1 : 1));
+      const months = event.shiftKey ? 12 : 1;
+      setCursor((day) =>
+        addMonths(day, event.key === "PageUp" ? -months : months),
+      );
+      return;
+    }
+    // The week's ends, which are the grid's own row rather than the seven days
+    // around the cursor (`keyboard-focus-map.md:184`): `Home` is the Monday it
+    // opens on and `End` the Sunday it closes on, both from `startOfWeek`.
+    if (event.key === "Home" || event.key === "End") {
+      event.preventDefault();
+      setCursor((day) =>
+        event.key === "Home" ? startOfWeek(day) : addDays(startOfWeek(day), 6),
+      );
       return;
     }
     if (event.key === "Enter" || event.key === " ") {
