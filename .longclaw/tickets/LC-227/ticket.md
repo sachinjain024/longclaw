@@ -10,7 +10,7 @@ labels:
 type: feature
 due: 2026-09-09
 created_at: 2026-08-22T06:13:17.138Z
-updated_at: 2026-09-09T03:02:01.720Z
+updated_at: 2026-09-09T03:32:26.853Z
 ---
 
 Brainstorm with LLM agent like what other fields we should support. A few items I can think of are Type - Bug/Task, Due State, Start Date, Effort
@@ -1266,6 +1266,7 @@ this rail is nil, and that is recorded here rather than implied by a green run.
 - [ ] npm run verify <!-- longclaw:item=ck_5e61f2a1 -->
 - [ ] A /docs page for ticket properties and a /changelog entry <!-- longclaw:item=ck_aa77f085 -->
 - [ ] Run /design-sync to push the settled Board card and the new property components to the Claude Design project (LC-63) <!-- longclaw:item=ck_0bc85504 -->
+- [x] Install Caveman skill for Claude Code and Codex in this repo <!-- longclaw:item=ck_34b6d30d -->
 ## Activity
 
 <!-- longclaw:event
@@ -2715,4 +2716,35 @@ changes:
   - field: description
 -->
 ### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_ecc16c09
+kind: update
+occurred_at: 2026-09-09T03:32:16.894Z
+actor:
+  type: agent
+  id: codex
+  name: Codex
+changes:
+  - field: checklist.ck_34b6d30d.added
+    to: Install Caveman skill for Claude Code and Codex in this repo
+-->
+### Codex updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_b0040a92
+kind: update
+occurred_at: 2026-09-09T03:32:26.853Z
+actor:
+  type: agent
+  id: codex
+  name: Codex
+changes:
+  - field: checklist.ck_34b6d30d.checked
+    from: "false"
+    to: "true"
+-->
+### Codex updated this ticket
 <!-- /longclaw:event -->
