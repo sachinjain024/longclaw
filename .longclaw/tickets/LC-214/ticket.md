@@ -3,14 +3,14 @@ format: longclaw.ticket/v1
 id: f77e151b-6bf8-45e0-948c-d5e28b24c582
 key: LC-214
 title: Update LongClaw Project Instructions for LLMs
-status: in_progress
+status: done
 priority: urgent
 labels:
   - release
 type: chore
 due: 2026-09-09
 created_at: 2026-08-11T14:56:44.953Z
-updated_at: 2026-09-10T07:28:53.895Z
+updated_at: 2026-09-10T09:07:04.189Z
 ---
 
 ## Brief
@@ -444,4 +444,22 @@ Write-only-what-differs is the load-bearing part. It keeps an unchanged project 
     with this open_ms 1440.32 / 1458.82 / 1431.15   mean 1443, range 28
 
 A 28ms difference of means inside a 99ms baseline spread, and all three budget assertions pass. The reconcile is a 300-byte read, a 9KB render and a 9KB compare; it is lost in a 5,000-ticket open.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_508f206b
+kind: update
+occurred_at: 2026-09-10T09:07:04.189Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_progress
+    to: done
+-->
+### Claude Code updated this ticket
+
+Implementation, the reconcile fold-in and the doc corrections are on PR #27 (https://github.com/sachinjain024/longclaw/pull/27), three commits on `claude/lc214-scope-review-78be2c`. All ten checklist items are ticked and `npm run verify` passes. LC-66 closed alongside it; LC-248d filed for the watcher gap this uncovered.
 <!-- /longclaw:event -->
