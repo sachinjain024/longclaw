@@ -19,9 +19,14 @@ import {
 } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { UNREAD_COMMAND_LINE } from "./CommandLineInstall";
 import { ProjectSettings } from "./ProjectSettings";
 import type { SettingsSection } from "./settingsSections";
-import type { ProjectReference, TicketProperty } from "./types";
+import type {
+  CommandLineStatus,
+  ProjectReference,
+  TicketProperty,
+} from "./types";
 import { NO_PROPERTIES } from "./properties";
 
 afterEach(cleanup);
@@ -58,6 +63,7 @@ function writeSpy() {
 
 function Harness(props: {
   section?: SettingsSection;
+  commandLine?: CommandLineStatus;
   project?: ProjectReference;
   propertyCounts?: Record<TicketProperty, number>;
   onClose?: () => void;
@@ -82,6 +88,8 @@ function Harness(props: {
       themes={THEMES}
       section={section}
       onSection={setSection}
+      commandLine={props.commandLine ?? UNREAD_COMMAND_LINE}
+      onCommandLine={() => {}}
       onAppearance={props.onAppearance ?? (() => {})}
       onRename={props.onRename ?? (() => {})}
       onTheme={props.onTheme ?? (() => {})}
@@ -141,6 +149,7 @@ describe("the settings panel's side nav (LC-208)", () => {
       "Properties",
       "Status fields",
       "Shortcuts",
+      "Command line",
       "Danger zone",
     ]);
   });

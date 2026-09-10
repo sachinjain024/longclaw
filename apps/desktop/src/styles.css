@@ -5961,6 +5961,69 @@ html.theme-transition *::after {
   text-align: center;
 }
 
+/* The `longclaw` command pane (LC-233). It is in the project settings panel and
+   is about the app, so the one thing it must never read as is another row of
+   `longclaw.yaml` — hence a stated sentence per state rather than a control
+   with a value beside it. */
+.cli-state {
+  color: var(--lc-ink-2);
+  font-size: var(--lc-type-small-size);
+  line-height: 1.55;
+}
+
+/* Installed and pointing here: the one state that is an answer rather than an
+   invitation. The agent accent is this design language's "a machine is
+   involved and it is working", which is exactly what this says. */
+.cli-state.ok {
+  color: var(--lc-accent-agent-text);
+}
+
+/* What the app was refused, above the line that gets round it. Warn rather
+   than danger: nothing broke, and nothing was left half-done. */
+.cli-refusal {
+  margin-top: var(--lc-space-2);
+  border: 1px solid var(--lc-warn-border);
+  border-radius: var(--lc-radius-control);
+  padding: var(--lc-space-2) var(--lc-space-3);
+  color: var(--lc-warn-ink);
+  background: var(--lc-warn-surface);
+  font-size: var(--lc-type-small-size);
+  line-height: 1.55;
+}
+
+.cli-actions {
+  display: flex;
+  margin-top: var(--lc-space-3);
+}
+
+.cli-manual {
+  margin-top: var(--lc-space-4);
+}
+
+.cli-manual-row {
+  display: flex;
+  gap: var(--lc-space-2);
+  align-items: flex-start;
+}
+
+/* The line, whole and selectable. It wraps rather than scrolling: this is a
+   command somebody is about to run as root, and a box that hides the end of it
+   is a box that hides what they are agreeing to. `anywhere` rather than
+   `break-all` so a path breaks at its slashes where it can. */
+.cli-command {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--lc-line-strong);
+  border-radius: var(--lc-radius-control);
+  padding: var(--lc-space-2) var(--lc-space-3);
+  color: var(--lc-ink-2);
+  background: var(--lc-bg);
+  font: var(--lc-type-code-weight) var(--lc-type-code-size) /
+    var(--lc-type-code-leading) var(--lc-type-code-font);
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
 /* Definition management, which is project data and so lives in settings. */
 .label-settings {
   display: flex;

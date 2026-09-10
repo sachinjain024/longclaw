@@ -22,6 +22,7 @@ import { resetMutations, useMutationStore } from "./mutations";
 import { useLongClawStore } from "./state";
 import { isArchived } from "./tickets";
 import type {
+  CommandLineStatus,
   IndexedTicket,
   PropertiesConfig,
   ProjectReference,
@@ -37,11 +38,13 @@ vi.mock("./api", () => ({
   chooseAndRelocateProject: vi.fn(),
   chooseOpenFolder: vi.fn(),
   chooseProjectFolder: vi.fn(),
+  commandLineStatus: vi.fn(),
   createProjectInFolder: vi.fn(),
   createTicket: vi.fn(),
   editTicket: vi.fn(),
   folderHoldsProject: vi.fn(),
   homeDir: vi.fn(),
+  installCommandLine: vi.fn(),
   listProjects: vi.fn(),
   listenForProjectEvents: vi.fn(),
   openProject: vi.fn(),
@@ -68,6 +71,15 @@ afterEach(() => {
   // `testSetup.ts` hands every test a fresh store, so nothing needs clearing
   // here and nothing needs putting back.
 });
+
+/** The `longclaw` command, as a build with none beside it reports it (LC-233). */
+const NO_COMMAND_LINE: CommandLineStatus = {
+  state: "unavailable",
+  sourcePath: null,
+  linkPath: "/usr/local/bin/longclaw",
+  currentTarget: null,
+  manualCommand: null,
+};
 
 /**
  * The preferences file, as far as this suite is concerned (LC-150). Device
@@ -104,6 +116,10 @@ beforeEach(() => {
   vi.mocked(api.listProjects).mockResolvedValue([]);
   vi.mocked(api.listenForProjectEvents).mockResolvedValue(() => {});
   vi.mocked(api.homeDir).mockResolvedValue("/home/user");
+  // A window with no CLI beside it, which is what a `cargo run` build and a
+  // test host both are (LC-233). It offers nothing and records nothing, so
+  // every suite below it is unaffected until one says otherwise.
+  vi.mocked(api.commandLineStatus).mockResolvedValue(NO_COMMAND_LINE);
   // Every picked folder is a plain one unless a test says otherwise: that is the
   // answer that leads to the create form, which is where most of these are
   // going (LC-170).
@@ -6690,5 +6706,142 @@ describe("switching project by chord (LC-230)", () => {
     });
     expect(tenth.hasAttribute("aria-keyshortcuts")).toBe(false);
     expect(tenth.querySelector(".project-number")).toBeNull();
+  });
+});
+
+/**
+ * Installing the `longclaw` command (LC-233).
+ *
+ * Two questions belong at this level rather than in `CommandLineInstall.test`:
+ * whether the offer is raised at all, and whether it is raised *again*. The
+ * second is the one that costs something if it is wrong — an offer that comes
+ * back every launch is the app nagging about a shell command, and the answer to
+ * it lives in a preferences document, which is exactly what a relaunch here
+ * re-reads.
+ */
+describe("the longclaw command on PATH (LC-233)", () => {
+  const project = {
+    id: "project-fixture",
+    name: "Fixture Project",
+    rootPath: "/tmp/LongClaw Fixture",
+    key: "LC",
+    theme: "indigo",
+    starred: false,
+    reachable: true,
+    labels: {},
+    properties: NO_PROPERTIES,
+  };
+
+  const SOURCE = "/Applications/LongClaw.app/Contents/MacOS/longclaw";
+  const absent: CommandLineStatus = {
+    state: "absent",
+    sourcePath: SOURCE,
+    linkPath: "/usr/local/bin/longclaw",
+    currentTarget: null,
+    manualCommand: `sudo mkdir -p '/usr/local/bin' && sudo ln -sf '${SOURCE}' '/usr/local/bin/longclaw'`,
+  };
+  const linked: CommandLineStatus = {
+    ...absent,
+    state: "linked",
+    currentTarget: SOURCE,
+  };
+
+  function offer() {
+    return screen.queryByRole("heading", {
+      name: "Install the longclaw command?",
+    });
+  }
+
+  async function openBoard() {
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project,
+      tickets: [],
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    render(<App />);
+    await screen.findByRole("button", { name: "Board", pressed: true });
+  }
+
+  /* The screen most first launches are actually standing on. An offer only the
+     board could raise would be an offer almost nobody is made. */
+  it("is offered on first launch, over the welcome screen", async () => {
+    vi.mocked(api.commandLineStatus).mockResolvedValue(absent);
+    render(<App />);
+    await screen.findByRole("heading", { name: "Plan with your agents." });
+
+    expect(await screen.findByRole("dialog")).toBeTruthy();
+    expect(offer()).toBeTruthy();
+  });
+
+  it("is not offered when the command already points at this app", async () => {
+    vi.mocked(api.commandLineStatus).mockResolvedValue(linked);
+    await openBoard();
+
+    await vi.waitFor(() =>
+      expect(vi.mocked(api.commandLineStatus)).toHaveBeenCalled(),
+    );
+    expect(offer()).toBeNull();
+  });
+
+  it("installs from the offer, and does not ask this machine again", async () => {
+    vi.mocked(api.commandLineStatus).mockResolvedValue(absent);
+    vi.mocked(api.installCommandLine).mockResolvedValue(linked);
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Install" }));
+
+    await vi.waitFor(() => expect(offer()).toBeNull());
+    // Still absent on disk as far as the next launch's *read* is concerned:
+    // what must not come back is the offer, and the reason it does not is the
+    // preference rather than the status.
+    await relaunch();
+    render(<App />);
+    await screen.findByRole("heading", { name: "Plan with your agents." });
+
+    await vi.waitFor(() =>
+      expect(vi.mocked(api.commandLineStatus).mock.calls.length).toBe(2),
+    );
+    expect(offer()).toBeNull();
+  });
+
+  it("takes Not now for an answer, and does not ask again", async () => {
+    vi.mocked(api.commandLineStatus).mockResolvedValue(absent);
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Not now" }));
+
+    expect(offer()).toBeNull();
+    expect(api.installCommandLine).not.toHaveBeenCalled();
+
+    await relaunch();
+    render(<App />);
+    await screen.findByRole("heading", { name: "Plan with your agents." });
+
+    await vi.waitFor(() =>
+      expect(vi.mocked(api.commandLineStatus).mock.calls.length).toBe(2),
+    );
+    expect(offer()).toBeNull();
+  });
+
+  /** The way back, once the offer has been answered: the gear's own menu. */
+  it("is reachable again from the settings menu", async () => {
+    vi.mocked(api.commandLineStatus).mockResolvedValue(linked);
+    await openBoard();
+    const identity = document.querySelector<HTMLElement>(".project-identity")!;
+    fireEvent.click(
+      within(identity).getByRole("button", { name: "Project settings" }),
+    );
+
+    const row = await screen.findByRole("menuitem", {
+      name: /Command line tool/,
+    });
+    expect(row.textContent).toContain("on PATH");
+    fireEvent.click(row);
+
+    const panel = screen.getByRole("region", { name: "Project settings" });
+    expect(
+      within(panel).getByText(/points at this copy of LongClaw/),
+    ).toBeTruthy();
   });
 });

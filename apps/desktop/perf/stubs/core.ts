@@ -242,6 +242,20 @@ export async function invoke<T>(
   // app writes goes nowhere.
   if (command === "read_preferences") return {} as T;
   if (command === "write_preferences") return undefined as T;
+  // The `longclaw` command is not this harness's subject, and the first-launch
+  // offer is a modal that would stand over every measured surface. Served
+  // rather than left to throw: a run whose correctness rests on a rejection
+  // being swallowed is a run that changes the day somebody stops swallowing it
+  // (LC-233). `unavailable` is also the truth here — this build has no bundle.
+  if (command === "command_line_status") {
+    return {
+      state: "unavailable",
+      sourcePath: null,
+      linkPath: "/usr/local/bin/longclaw",
+      currentTarget: null,
+      manualCommand: null,
+    } as T;
+  }
   if (command === "open_project" || command === "rebuild_index") {
     return { ...board, tickets: [...rows.values()], generation } as T;
   }

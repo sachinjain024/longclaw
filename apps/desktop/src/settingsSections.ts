@@ -20,6 +20,7 @@ export type SettingsSection =
   | "properties"
   | "status"
   | "shortcuts"
+  | "commandLine"
   | "danger";
 
 export interface SettingsSectionSpec {
@@ -50,6 +51,14 @@ export const SETTINGS_SECTIONS: SettingsSectionSpec[] = [
   { id: "properties", navLabel: "Properties", menuLabel: "Ticket properties" },
   { id: "status", navLabel: "Status fields", menuLabel: "Status fields" },
   { id: "shortcuts", navLabel: "Shortcuts", menuLabel: "Keyboard shortcuts" },
+  // Beside the other pane that is about the app rather than about this project.
+  // It is the only pane holding a control that writes outside a project folder,
+  // and it says so in its own words rather than relying on its position (LC-233).
+  {
+    id: "commandLine",
+    navLabel: "Command line",
+    menuLabel: "Command line tool",
+  },
   { id: "danger", navLabel: "Danger zone", menuLabel: "Danger zone" },
 ];
 

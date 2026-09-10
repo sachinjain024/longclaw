@@ -34,6 +34,7 @@ import {
   ReloadGlyph,
   SlidersGlyph,
   TagGlyph,
+  TerminalGlyph,
 } from "./SettingsGlyphs";
 import {
   LANDING_SECTION,
@@ -159,6 +160,12 @@ export function SettingsMenu(
   props: MenuContext & {
     /** Re-reads the folder. The one row here that is not a settings section. */
     onReload: () => void;
+    /**
+     * Whether `longclaw` is on `PATH` and pointing at this build (LC-233). A
+     * boolean rather than the status: the row's hint has room for the answer
+     * and not for the reason, and every reason is a sentence in the pane.
+     */
+    commandLineInstalled: boolean;
   },
 ) {
   useFocusReturn(props.anchor);
@@ -194,6 +201,14 @@ export function SettingsMenu(
       hint: <code>{STATUSES.length}</code>,
     }),
     sectionRow(props, "shortcuts", { glyph: <KeyboardGlyph /> }),
+    // The one row here that is about the app rather than the project, which the
+    // hint says so nobody has to open it to find out (LC-233).
+    sectionRow(props, "commandLine", {
+      glyph: <TerminalGlyph />,
+      hint: (
+        <code>{props.commandLineInstalled ? "on PATH" : "not set up"}</code>
+      ),
+    }),
     { kind: "rule", id: "disk-rule" },
     {
       kind: "action",

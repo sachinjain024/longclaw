@@ -23,7 +23,16 @@ The ticket directory is the unit of context. In v0, `ticket.md` is authoritative
 
 LongClaw owns ticket creation and human-facing key allocation. Agents must not guess a key or create `.longclaw/tickets/<KEY>/` directly.
 
-The creation surface is the `longclaw` CLI ([ADR 0011](../adr/0011-cli-is-the-creation-surface-agents-use.md)). Build it once with `cargo build --release --manifest-path apps/desktop/src-tauri/Cargo.toml --bin longclaw`; it prints JSON and exits non-zero on failure.
+The creation surface is the `longclaw` CLI ([ADR 0011](../adr/0011-cli-is-the-creation-surface-agents-use.md)). It prints JSON and exits non-zero on failure.
+
+**Prefer the copy that came with the app.** Installing LongClaw installs the command: the binary is built and sealed into the bundle alongside the window, and one press in *Settings → Command line* links it into `/usr/local/bin` (LC-233). On a machine with the app installed, `longclaw` is already on `PATH` and there is nothing to build.
+
+Build it when there is no installed app, and **when this checkout has moved ahead of one**: an installed `longclaw` is the *app's* build, so a branch that has changed the CLI or the file format must be driven by the freshly built binary rather than by the older one on `PATH`. There is no `--version` flag to settle it with, so use the branch: if the working tree touches `cli.rs`, `core/` or `file_format.md`, build.
+
+```sh
+cargo build --release --manifest-path apps/desktop/src-tauri/Cargo.toml --bin longclaw
+# then run apps/desktop/src-tauri/target/release/longclaw rather than `longclaw`
+```
 
 ```sh
 longclaw ticket create --title "…" --description "…" --label storage \

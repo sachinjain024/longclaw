@@ -1,3 +1,5 @@
+pub mod command_line;
+
 #[cfg(target_os = "macos")]
 pub mod macos;
 

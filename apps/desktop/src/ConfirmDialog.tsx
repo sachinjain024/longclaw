@@ -21,7 +21,18 @@ export function ConfirmDialog(props: {
   title: string;
   /** Why this is safe, in the caller's words: it knows what it is removing. */
   body: ReactNode;
-  confirmLabel: string;
+  /**
+   * `null` when there is nothing left to confirm — a dialog whose body holds
+   * its own action, or one that has become something to read rather than to
+   * answer (`CommandLineInstall.tsx`). Two buttons saying the same thing is
+   * what that would otherwise be.
+   */
+  confirmLabel: string | null;
+  /**
+   * What the way out is called. `Cancel` is right for a confirm and wrong for a
+   * dialog that has already done what it was going to do.
+   */
+  cancelLabel?: string;
   /**
    * How the confirm button reads. `danger` is the default because **Remove from
    * app** was the only caller for a while; a dialog that asks *which project* a
@@ -106,16 +117,18 @@ export function ConfirmDialog(props: {
             type="button"
             onClick={props.onCancel}
           >
-            Cancel
+            {props.cancelLabel ?? "Cancel"}
           </button>
-          <button
-            tabIndex={0}
-            className={props.confirmTone ?? "danger"}
-            type="button"
-            onClick={props.onConfirm}
-          >
-            {props.confirmLabel}
-          </button>
+          {props.confirmLabel !== null && (
+            <button
+              tabIndex={0}
+              className={props.confirmTone ?? "danger"}
+              type="button"
+              onClick={props.onConfirm}
+            >
+              {props.confirmLabel}
+            </button>
+          )}
         </div>
       </div>
     </div>

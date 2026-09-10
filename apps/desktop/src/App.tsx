@@ -11,6 +11,7 @@ import {
   chooseAndRelocateProject,
   chooseOpenFolder,
   chooseProjectFolder,
+  commandLineStatus,
   createProjectInFolder,
   createTicket,
   editTicket,
@@ -39,6 +40,11 @@ import {
 import { classes } from "./classes";
 import { copyToClipboard } from "./clipboard";
 import { CommandPalette } from "./CommandPalette";
+import {
+  CommandLineOffer,
+  UNREAD_COMMAND_LINE,
+  shouldOfferCommandLine,
+} from "./CommandLineInstall";
 import { ConfirmDialog, RemoveProjectConfirm } from "./ConfirmDialog";
 import { CreatePanel } from "./CreatePanel";
 import type { LabelDefinition } from "./LabelMenu";
@@ -46,9 +52,11 @@ import { CreateProjectForm, type ProjectDraft } from "./CreateProjectForm";
 import { DEV_CHROME } from "./devChrome";
 import {
   readActiveProjectId,
+  readCommandLinePrompted,
   readProjectWorkspaces,
   rememberActiveProject,
   rememberAppearance,
+  rememberCommandLinePrompted,
   rememberProjectWorkspaces,
   type ProjectWorkspace,
   type ProjectWorkspacePatch,
@@ -94,6 +102,7 @@ import {
 } from "./tickets";
 import type {
   AppError,
+  CommandLineStatus,
   CreateTicketRequest,
   HeldConflict,
   IndexedTicket,
@@ -335,6 +344,18 @@ export function App() {
     useState<TicketRow[]>();
   /** The current user's home directory, for tilde-abbreviating paths. */
   const [homePath, setHomePath] = useState<string | null>(null);
+  /**
+   * Whether `longclaw` is on `PATH`, read once at launch (LC-233).
+   *
+   * `undefined` until the answer arrives, which is what keeps the first-launch
+   * offer from flashing up before the app knows whether it is already
+   * installed — the same distinction `registryRead` draws for the welcome
+   * screen. It is re-read from what an install answers with rather than
+   * re-asked, since that answer is the fresher one.
+   */
+  const [commandLine, setCommandLine] = useState<CommandLineStatus>();
+  /** Whether the one-time offer is on screen. */
+  const [offeringCommandLine, setOfferingCommandLine] = useState(false);
   /**
    * Whether the project registry has been read yet. The difference between "no
    * projects" and "not asked yet", which is what keeps first launch's
@@ -891,6 +912,41 @@ export function App() {
     if (root.dataset.lcTheme && root.dataset.lcTheme !== theme) crossfade();
     root.dataset.lcTheme = theme;
   }, [project?.theme]);
+
+  /**
+   * The `longclaw` command, asked about once per launch and offered once per
+   * machine (LC-233).
+   *
+   * Its own effect rather than a third promise in the startup batch below: it
+   * decides nothing about which project opens, so making the board wait on it
+   * would be spending startup on a question about a shell. A host that answers
+   * no commands — a browser tab, the perf harness — leaves the status unread,
+   * which is the same "nothing to offer" a dev build produces.
+   */
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const status = await commandLineStatus();
+        if (!active) return;
+        setCommandLine(status);
+        if (shouldOfferCommandLine(status, readCommandLinePrompted())) {
+          setOfferingCommandLine(true);
+        } else if (status.state === "linked") {
+          // Already installed, by an earlier launch or by hand. Recording it
+          // now is what keeps a person who has never been asked from being
+          // asked later, after they move the app and the link goes stale.
+          rememberCommandLinePrompted();
+        }
+      } catch {
+        // Not a failure worth a banner: the app works exactly as well without
+        // the command, and the pane says so if anybody goes looking.
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -1875,6 +1931,22 @@ export function App() {
      registry read that *failed* is not an empty registry, so it keeps the
      shell — that is the one surface that can show the error and still offer
      `Create project` and `Open folder`. */
+  /* The one-time offer of the `longclaw` command (LC-233), on both shells.
+     First launch is the launch most likely to be standing on the welcome
+     screen, and first launch is the one this exists for — so an offer that
+     only the board could raise would be an offer almost nobody is made. */
+  const commandLineOffer = offeringCommandLine && commandLine && (
+    <CommandLineOffer
+      status={commandLine}
+      onStatus={setCommandLine}
+      onDismiss={() => {
+        setOfferingCommandLine(false);
+        // Answered, either way. Settings is where it lives from here.
+        rememberCommandLinePrompted();
+      }}
+    />
+  );
+
   if (registryRead && projects.length === 0) {
     return (
       <main className="welcome-shell">
@@ -1884,6 +1956,7 @@ export function App() {
           onCreate={(rootPath, draft) => void createProjectIn(rootPath, draft)}
           onOpen={chooseOpenProject}
         />
+        {commandLineOffer}
       </main>
     );
   }
@@ -2018,6 +2091,7 @@ export function App() {
                 .then(applySnapshot)
                 .catch((error) => setError(normalizeError(error)));
             }}
+            commandLineInstalled={commandLine?.state === "linked"}
             onClose={() => setSettingsMenuOpen(false)}
           />
         )}
@@ -2461,6 +2535,11 @@ export function App() {
           themes={THEMES}
           section={settingsSection}
           onSection={setSettingsSection}
+          // The pane is offered whether or not the read landed: a host that
+          // answers no commands has no CLI to install, which is exactly what
+          // `unavailable` says (LC-233).
+          commandLine={commandLine ?? UNREAD_COMMAND_LINE}
+          onCommandLine={setCommandLine}
           onAppearance={setAppearance}
           onRename={(name) => void renameProject(name)}
           onTheme={(theme) => void changeTheme(project, theme)}
@@ -2516,6 +2595,8 @@ export function App() {
           onConfirm={() => void forgetProject(removingProject.id)}
         />
       )}
+
+      {commandLineOffer}
 
       {/* Both create surfaces are gated on the folder answering. Nothing is
           creatable on an unreachable project (`states.md:80-98`): the key would

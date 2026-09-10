@@ -137,6 +137,20 @@ surface agents use — it allocates the ticket key, so an agent never invents on
 and it requires `--agent-id`, so every agent-filed ticket is attributed as agent
 work. You create tickets in the app; either way, the plan stays yours to review.
 
+**Install the `longclaw` command once.** It already came with the app —
+LongClaw carries it inside `LongClaw.app`, built from exactly the same source as
+the window — but nothing is on your `PATH` until you say so. LongClaw offers it
+on first launch, and **Project settings → Command line** offers it again
+whenever you are ready. One press links `/usr/local/bin/longclaw` to the copy
+inside the app.
+
+That link is the only thing LongClaw writes outside a project folder, which is
+why it asks. If macOS refuses the write — `/usr/local/bin` is not writable on
+every Mac — LongClaw says so and shows the exact `sudo` line to run instead,
+with a button that copies it. It never replaces a `longclaw` you installed
+another way. And if you move the app, the link goes stale: the same pane says
+where it is pointing and puts it back in one press.
+
 ---
 
 ## 5. When something goes wrong

@@ -569,3 +569,33 @@ export interface VisibleUiProbe {
   viewportWidth: number;
   viewportHeight: number;
 }
+
+/**
+ * What the OS currently offers under the name `longclaw` (LC-233).
+ *
+ * `platform/command_line.rs` is the other half of this pair. The set is closed
+ * and each member is a different sentence and a different button, which is why
+ * it crosses the wire as a state rather than as two booleans.
+ */
+export type CommandLineState =
+  /** Installed, and resolving to this build's own binary. */
+  | "linked"
+  /** Installed and pointing somewhere else — an older or moved copy of the app. */
+  | "stale"
+  /** Something that is not a link is in the way, and is never replaced. */
+  | "occupied"
+  | "absent"
+  /** A build with no CLI beside it — a dev window rather than a bundle. */
+  | "unavailable";
+
+export interface CommandLineStatus {
+  state: CommandLineState;
+  /** The app's own copy of the CLI. Absent only when `state` is `unavailable`. */
+  sourcePath: string | null;
+  /** Where the command goes on this platform: `/usr/local/bin/longclaw`. */
+  linkPath: string;
+  /** What is installed now, written as the link itself writes it. */
+  currentTarget: string | null;
+  /** The one line that installs it from a terminal, with the paths filled in. */
+  manualCommand: string | null;
+}

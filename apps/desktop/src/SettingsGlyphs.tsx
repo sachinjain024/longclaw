@@ -210,3 +210,42 @@ export function ReloadGlyph() {
     </svg>
   );
 }
+
+/**
+ * A prompt and a caret: the `Command line tool` row and its nav entry (LC-233).
+ *
+ * The window with a `>` in it is what every terminal on the machine already
+ * looks like, and it is the mark the row needs to say *this one is not about
+ * the board*. Not a second keycap: the pane beside it is about keys pressed
+ * inside this app, and this one is about a name on `PATH`.
+ */
+export function TerminalGlyph() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+      <rect
+        x="1.5"
+        y="2.6"
+        width="11"
+        height="8.8"
+        rx="1.2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+      />
+      <path
+        d="M4.1 5.6 L6.1 7.2 L4.1 8.8"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M7.4 9 H10.2"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}

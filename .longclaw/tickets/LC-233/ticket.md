@@ -9,7 +9,7 @@ labels:
   - platform
   - release
 created_at: 2026-08-24T23:40:32.472Z
-updated_at: 2026-09-10T06:27:14.805Z
+updated_at: 2026-09-10T10:47:21.963Z
 ---
 
 Installing the desktop app should be all it takes to get the `longclaw` command.
@@ -107,15 +107,15 @@ code does not assume a symlink.
 
 ## Checklist
 
-- [ ] The longclaw binary is built alongside the app and bundled via externalBin into Contents/MacOS/, matching the app's architecture; a Mach-O under Contents/Resources/ is the notarization trap to avoid <!-- longclaw:item=ck_4f1ae7bf -->
-- [ ] codesign --verify --deep --strict passes on the bundle with the CLI inside it, and binary-audit.mjs inspects the CLI's symbols and linked frameworks the way it does the app's — the no-network claim covers both processes <!-- longclaw:item=ck_00d67bc8 -->
-- [ ] A Tauri command symlinks the bundled binary to /usr/local/bin/longclaw with std::os::unix::fs::symlink and no subprocess anywhere — release-audit.mjs:254 fails the build on Command::new, and platform/macos.rs is the precedent for reaching the OS without one <!-- longclaw:item=ck_df85c6d3 -->
-- [ ] A refused write is handled in words, not silence: the directory missing or not writable produces the exact sudo ln -s line with the path filled in, and no privileged helper is built on speculation <!-- longclaw:item=ck_570d6dc9 -->
-- [ ] The app offers the install on first launch and from settings, reports when the command is already linked and pointing at this bundle, and re-links a stale symlink from a previous install location <!-- longclaw:item=ck_9491f7cf -->
-- [ ] The capability description is amended to say the install command writes a symlink outside the project the same way open_ticket_file reaches the editor, and release-audit.mjs's pinned permission list is unchanged <!-- longclaw:item=ck_e2a056c4 -->
-- [ ] AGENTS.md and docs/agents/issue-tracker.md prefer the installed longclaw and keep the cargo build as the fallback, stating that a checkout ahead of the installed app must use the freshly built binary <!-- longclaw:item=ck_763f9051 -->
-- [ ] The install action sits behind the platform/ seam macos.rs establishes, so the Windows and Linux packages can install the CLI their own way without the shared code assuming a symlink <!-- longclaw:item=ck_294c4b21 -->
-- [ ] The release notes document the command, and npm run verify plus a built-bundle release:binary-audit both pass with the run quoted <!-- longclaw:item=ck_edb121bf -->
+- [x] The longclaw binary is built alongside the app and bundled via externalBin into Contents/MacOS/, matching the app's architecture; a Mach-O under Contents/Resources/ is the notarization trap to avoid <!-- longclaw:item=ck_4f1ae7bf -->
+- [x] codesign --verify --deep --strict passes on the bundle with the CLI inside it, and binary-audit.mjs inspects the CLI's symbols and linked frameworks the way it does the app's — the no-network claim covers both processes <!-- longclaw:item=ck_00d67bc8 -->
+- [x] A Tauri command symlinks the bundled binary to /usr/local/bin/longclaw with std::os::unix::fs::symlink and no subprocess anywhere — release-audit.mjs:254 fails the build on Command::new, and platform/macos.rs is the precedent for reaching the OS without one <!-- longclaw:item=ck_df85c6d3 -->
+- [x] A refused write is handled in words, not silence: the directory missing or not writable produces the exact sudo ln -s line with the path filled in, and no privileged helper is built on speculation <!-- longclaw:item=ck_570d6dc9 -->
+- [x] The app offers the install on first launch and from settings, reports when the command is already linked and pointing at this bundle, and re-links a stale symlink from a previous install location <!-- longclaw:item=ck_9491f7cf -->
+- [x] The capability description is amended to say the install command writes a symlink outside the project the same way open_ticket_file reaches the editor, and release-audit.mjs's pinned permission list is unchanged <!-- longclaw:item=ck_e2a056c4 -->
+- [x] AGENTS.md and docs/agents/issue-tracker.md prefer the installed longclaw and keep the cargo build as the fallback, stating that a checkout ahead of the installed app must use the freshly built binary <!-- longclaw:item=ck_763f9051 -->
+- [x] The install action sits behind the platform/ seam macos.rs establishes, so the Windows and Linux packages can install the CLI their own way without the shared code assuming a symlink <!-- longclaw:item=ck_294c4b21 -->
+- [x] The release notes document the command, and npm run verify plus a built-bundle release:binary-audit both pass with the run quoted <!-- longclaw:item=ck_edb121bf -->
 
 ## Activity
 
@@ -159,4 +159,129 @@ changes:
     to: urgent
 -->
 ### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_d7295ade
+kind: update
+occurred_at: 2026-09-10T10:47:21.963Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_4f1ae7bf.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_00d67bc8.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_df85c6d3.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_570d6dc9.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_9491f7cf.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_e2a056c4.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_763f9051.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_294c4b21.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_edb121bf.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_3837a4eb
+kind: comment
+occurred_at: 2026-09-10T10:47:51.283Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Two things in the plan turned out to be wrong, both in the same direction, so
+the shipped shape is smaller than the ticket describes.
+
+**`externalBin` is not needed, and the binary was already in the bundle.**
+`tauri build` does not build `default-run` only: the Tauri CLI enumerates every
+`[[bin]]` the crate declares, `cargo build --release` builds them all, and the
+bundler copies each into `Contents/MacOS/`. A bundle built on `main` before any
+of this work already carried `Contents/MacOS/longclaw`, arm64, ad-hoc signed
+with the hardened-runtime flag, and `codesign --verify --deep --strict` already
+passed with it inside. Adding `externalBin` would have built the CLI a second
+time and shipped a duplicate.
+
+So the first two checklist items were true and nothing said so — which means
+nothing would have said so when they stopped being true. A `default-run` edit,
+or a bundler that stops enumerating bins, and the app ships with an Install
+button pointing at a file that is not there. `binary-audit.mjs` now audits both
+binaries: the CLI must be present at `Contents/MacOS/longclaw`, must carry the
+same architectures as the window (`lipo -archs`), and gets the same
+symbol/framework checks with its own controls — no `_FSEventStreamCreate`,
+because it starts no watcher, and a positive read of its own
+`longclaw_desktop_lib::cli` symbols in place of it, so an absence claim read off
+the wrong file fails instead of passing. Both inversions were run: hiding the
+CLI exits non-zero, and copying the window's binary over it fires the positive
+control and the codesign seal check.
+
+**What was built.** `platform/command_line.rs` holds the vocabulary — five
+states (`linked`, `stale`, `occupied`, `absent`, `unavailable`) and the status
+DTO — and dispatches `status`/`install` to the platform whole rather than
+composing them out of a link path and a symlink call, so Windows and Linux can
+answer the same question their own way. `platform/macos.rs` owns
+`/usr/local/bin`, the `std::os::unix::fs::symlink`, and the `sudo mkdir -p … &&
+sudo ln -sf …` line, shell-quoted so a path with a space in it still pastes.
+No subprocess anywhere; `release-audit.mjs` is green.
+
+Three refusals rather than one: a directory that cannot be created, a directory
+that cannot be written, and a file the app did not create — the last is never
+replaced, because the link that would stand in its place remembers nothing about
+the bytes it displaced. The replacement is a symlink built under a temporary
+name and `rename`d over the destination, so a working install is never removed
+before its replacement exists.
+
+**Two decisions worth flagging.**
+
+- The offer is a `ConfirmDialog` that *stays up* after a refusal, because the
+  refusal is where the line to paste appears. Dismissing to a toast would strand
+  a first-launch user on the welcome screen, which has no settings to go back
+  to. `Not now` becomes `Close`.
+- The settings pane is in the project settings panel and is not project data.
+  It says so in its own closing note, the way the Theme pane does for the
+  appearance (D-42); `screen-specs.md:334` was amended in place.
+
+**Not built, on purpose.** No uninstall (removing a link the app made is a
+second write to design, and nothing asked for one), and no guard against
+installing while the app runs from the mounted `.dmg` — the `stale` state
+already detects and re-links that afterwards, and the release notes and user
+guide now say to move the app to `/Applications` first. There is also no
+`--version` on the CLI, so the agent docs settle "installed or freshly built" on
+the branch rather than on the binary.
+
+**Runs.** `npm run verify` passes. `npm run build:app` then
+`npm run release:binary-audit`: "426 imported symbols and 26 linked libraries
+across 2 bundled binaries clean". `npm run a11y:audit` Part A passes (A1–A5), run
+because this touches a modal. 21 new tests: 8 Rust over a temp directory, 12 over
+the pane and the offer, 5 at the App level for first launch, 2 for the
+preference — the last two verified to fail when the `isEmpty` fix is reverted.
+
+**The one step not driven.** Pressing Install in the packaged app: the window
+opened on another Space and could not be captured, and the press writes
+`/usr/local/bin/longclaw` on this machine, which is not mine to do unasked. The
+backend path is covered by the Rust tests against a temp directory, and the
+`absent` state the app reports is itself proof that `bundled_command()` resolved
+the sibling inside the bundle.
 <!-- /longclaw:event -->

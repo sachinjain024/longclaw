@@ -23,6 +23,24 @@ File it with the CLI, which is the one surface allowed to allocate a key — nev
 by writing a ticket directory by hand, and always with `--agent-id`, because an
 activity entry without it says a human did the work:
 
+**Prefer the installed `longclaw`.** Installing the app installs the command —
+the binary rides inside the bundle and one press in *Settings → Command line*
+links it into `/usr/local/bin` (LC-233) — so on a machine with LongClaw
+installed there is nothing to build:
+
+```sh
+longclaw ticket create \
+  --title "…" --label frontend --agent-id claude-code --agent-name "Claude Code"
+```
+
+Build it when there is no installed app, and **when this checkout has moved
+ahead of one**. An installed `longclaw` is the *app's* build: if the format or
+the CLI has changed on this branch, the command on `PATH` is the older one and
+the freshly built binary is the only one that speaks this tree's format. There
+is no `--version` to ask it with, so the rule is the branch rather than the
+binary: **if the working tree touches `cli.rs`, `core/`, or `file_format.md`,
+build.**
+
 ```sh
 cargo build --release --manifest-path apps/desktop/src-tauri/Cargo.toml --bin longclaw
 apps/desktop/src-tauri/target/release/longclaw ticket create \

@@ -39,6 +39,7 @@ import {
   updateProjectLabel,
   updateProjectTypeValue,
 } from "./api";
+import { CommandLineSection } from "./CommandLineInstall";
 import { RemoveProjectConfirm } from "./ConfirmDialog";
 import { FolderGlyph } from "./FolderGlyph";
 import { LabelColors } from "./LabelColorPicker";
@@ -52,6 +53,7 @@ import { tabStops } from "./tabStops";
 import { ThemePicker, type ThemeOption } from "./ThemePicker";
 import { STATUSES } from "./tickets";
 import type {
+  CommandLineStatus,
   EstimateSystem,
   Label,
   ProjectReference,
@@ -80,6 +82,13 @@ export function ProjectSettings(props: {
    */
   section: SettingsSection;
   onSection: (section: SettingsSection) => void;
+  /**
+   * Whether the `longclaw` command is on `PATH` (LC-233). Read by `App` at
+   * launch and passed down rather than read here, because the first-launch
+   * offer asks the same question and the two must not answer it differently.
+   */
+  commandLine: CommandLineStatus;
+  onCommandLine: (status: CommandLineStatus) => void;
   onAppearance: (next: Appearance) => void;
   onRename: (name: string) => void;
   onTheme: (theme: string) => void;
@@ -230,6 +239,12 @@ export function ProjectSettings(props: {
             )}
             {props.section === "status" && <StatusSection />}
             {props.section === "shortcuts" && <ShortcutsSection />}
+            {props.section === "commandLine" && (
+              <CommandLineSection
+                status={props.commandLine}
+                onStatus={props.onCommandLine}
+              />
+            )}
             {props.section === "danger" && (
               <DangerSection
                 removeButton={removeButton}

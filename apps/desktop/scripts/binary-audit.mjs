@@ -20,12 +20,32 @@
  * work without. If the controls fail, the run fails, whatever the forbidden list
  * says.
  *
+ * **Two binaries, not one** (LC-233). `Contents/MacOS/` holds the window *and*
+ * the `longclaw` CLI: `tauri build` compiles every `[[bin]]` this crate declares
+ * and the bundler seals each one into the app, which is how installing the app
+ * installs the command. That was already true before LC-233 and nothing said
+ * so, so nothing would have said so if it stopped being true — a `default-run`
+ * edit, or a bundler that stopped enumerating bins, and the app ships with the
+ * install button pointing at a file that is not there. So the CLI's presence is
+ * asserted here rather than assumed, and it is audited the way the window is:
+ * the no-network claim covers both processes, and the CLI is a *separate*
+ * process that this script never once looked at.
+ *
+ * Their control sets differ, and deliberately. Both open and stat files, so
+ * both must import `_open` and `_stat`; only the window watches a folder, so
+ * `_FSEventStreamCreate` is the window's control alone and demanding it of the
+ * CLI would be demanding a watcher the CLI is documented not to start
+ * (`cli.rs`). What stands in for it is a positive read of the CLI's own code —
+ * the `longclaw_desktop_lib::cli` symbols — because "the forbidden symbols are
+ * absent" is worth nothing from a file that turned out to be the wrong one.
+ *
  * **What this cannot prove.** WebKit is linked and is network-capable by
  * construction; no symbol table will tell you what the webview does. The CSP
  * `connect-src` restriction is what bounds that, and the process-monitor pass in
  * `docs/acceptance/release-candidate.md` is what verifies it. A pass here means
  * the Rust side links no HTTP client and calls no socket API. It does not mean
- * the app made no connection.
+ * the app made no connection. It is also silent about the CLI's *behaviour*:
+ * `tests/cli.rs` is what covers that.
  *
  * Usage: node scripts/binary-audit.mjs   (exits non-zero on any finding)
  */
@@ -42,7 +62,34 @@ const APP_BUNDLE = join(
   appRoot,
   "src-tauri/target/release/bundle/macos/LongClaw.app",
 );
-const BINARY = join(APP_BUNDLE, "Contents/MacOS/longclaw-desktop");
+const MACOS_DIR = join(APP_BUNDLE, "Contents/MacOS");
+
+/**
+ * Every Mach-O the bundle ships, and the controls that prove each was read.
+ *
+ * `sourceSymbol` is the positive read: a Rust path this binary's own code must
+ * contain. Absence claims are the whole point of this script, and an absence
+ * read off the wrong file is the failure mode it was written to avoid — the
+ * same reasoning as the symbol-count floor, one level up.
+ */
+const BINARIES = [
+  {
+    name: "longclaw-desktop",
+    what: "the window",
+    imports: ["_open", "_stat", "_FSEventStreamCreate"],
+    why: "this app opens files and watches them",
+    sourceSymbol: "longclaw_desktop_lib",
+  },
+  {
+    name: "longclaw",
+    what: "the longclaw CLI, which ships inside the app (LC-233)",
+    // No `_FSEventStreamCreate`: the CLI starts no watcher, on purpose
+    // (`cli.rs` — "it does not start an engine").
+    imports: ["_open", "_stat"],
+    why: "the CLI reads and writes ticket files",
+    sourceSymbol: "longclaw_desktop_lib3cli",
+  },
+];
 
 const findings = [];
 const fail = (message) => findings.push(message);
@@ -53,72 +100,114 @@ const run = (command, args) =>
     maxBuffer: 64 * 1024 * 1024,
   });
 
-if (!existsSync(BINARY)) {
+/** The architectures a Mach-O carries, so a sidecar cannot be the odd one out. */
+const archsOf = (path) =>
+  run("lipo", ["-archs", path]).trim().split(/\s+/).filter(Boolean).sort();
+
+for (const { name } of BINARIES) {
+  if (existsSync(join(MACOS_DIR, name))) continue;
   console.error(
-    `binary-audit: no release binary at\n  ${BINARY}\nRun npm run build:app first — this audit reads the shipped artefact.`,
+    `binary-audit: no release binary at\n  ${join(MACOS_DIR, name)}\nRun npm run build:app first — this audit reads the shipped artefact.`,
   );
   process.exit(1);
 }
 
-const symbols = run("nm", ["-a", BINARY]);
-const undefined_ = run("nm", ["-u", BINARY])
-  .split("\n")
-  .map((line) => line.trim())
-  .filter(Boolean);
-const libraries = run("otool", ["-L", BINARY])
-  .split("\n")
-  .slice(1)
-  .map((line) => line.trim().replace(/\s*\(.*/, ""))
-  .filter(Boolean);
+let read = 0;
+let linked = 0;
 
-// Controls first. Everything below is an absence claim, and an absence claim is
-// only worth what the reading is worth.
-if (undefined_.length < 50) {
-  fail(
-    `only ${undefined_.length} undefined symbols: the symbol table did not read as expected, so no absence below is trustworthy`,
-  );
-}
-for (const control of ["_open", "_stat", "_FSEventStreamCreate"]) {
-  if (!undefined_.some((symbol) => symbol === control)) {
+for (const binary of BINARIES) {
+  const path = join(MACOS_DIR, binary.name);
+  const label = `${binary.name} (${binary.what})`;
+  const symbols = run("nm", ["-a", path]);
+  const undefined_ = run("nm", ["-u", path])
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const libraries = run("otool", ["-L", path])
+    .split("\n")
+    .slice(1)
+    .map((line) => line.trim().replace(/\s*\(.*/, ""))
+    .filter(Boolean);
+  read += undefined_.length;
+  linked += libraries.length;
+
+  // Controls first. Everything below is an absence claim, and an absence claim is
+  // only worth what the reading is worth.
+  if (undefined_.length < 50) {
     fail(
-      `control symbol ${control} is missing: this app opens files and watches them, so the probe is not reading what it thinks it is`,
+      `${label}: only ${undefined_.length} undefined symbols: the symbol table did not read as expected, so no absence below is trustworthy`,
+    );
+  }
+  for (const control of binary.imports) {
+    if (!undefined_.some((symbol) => symbol === control)) {
+      fail(
+        `${label}: control symbol ${control} is missing: ${binary.why}, so the probe is not reading what it thinks it is`,
+      );
+    }
+  }
+  if (!symbols.includes(binary.sourceSymbol)) {
+    fail(
+      `${label}: no ${binary.sourceSymbol} symbol — this is not the binary this check believes it is reading`,
+    );
+  }
+
+  for (const marker of [
+    "reqwest",
+    "hyper_util",
+    "rustls",
+    "native_tls",
+    "h2::",
+    "sentry",
+  ]) {
+    if (symbols.includes(marker)) {
+      fail(`${label}: network or telemetry symbols linked in: ${marker}`);
+    }
+  }
+
+  // The Rust side reaches the network through libSystem or not at all. These are
+  // the imports it would need; none of them is used by local file work.
+  for (const stub of ["_connect", "_socket", "_sendto", "_getaddrinfo"]) {
+    if (undefined_.some((symbol) => symbol === stub)) {
+      fail(`${label}: the binary imports the socket API: ${stub}`);
+    }
+  }
+
+  for (const framework of [
+    "CFNetwork",
+    "Network.framework",
+    "Security.framework",
+  ]) {
+    if (libraries.some((library) => library.includes(framework))) {
+      fail(
+        `${label}: a network-capable system framework is linked: ${framework}`,
+      );
+    }
+  }
+
+  if (
+    binary.name === "longclaw-desktop" &&
+    !libraries.some((l) => l.includes("WebKit"))
+  ) {
+    fail(
+      "control: WebKit is not linked into the window, which a Tauri app cannot be — the binary read is wrong",
     );
   }
 }
-if (!libraries.some((library) => library.includes("WebKit"))) {
-  fail(
-    "control: WebKit is not linked, which a Tauri app cannot be — the binary read is wrong",
-  );
-}
 
-for (const marker of [
-  "reqwest",
-  "hyper_util",
-  "rustls",
-  "native_tls",
-  "h2::",
-  "sentry",
-]) {
-  if (symbols.includes(marker)) {
-    fail(`network or telemetry symbols linked into the binary: ${marker}`);
-  }
-}
-
-// The Rust side reaches the network through libSystem or not at all. These are
-// the imports it would need; none of them is used by local file work.
-for (const stub of ["_connect", "_socket", "_sendto", "_getaddrinfo"]) {
-  if (undefined_.some((symbol) => symbol === stub)) {
-    fail(`the binary imports the socket API: ${stub}`);
-  }
-}
-
-for (const framework of [
-  "CFNetwork",
-  "Network.framework",
-  "Security.framework",
-]) {
-  if (libraries.some((library) => library.includes(framework))) {
-    fail(`a network-capable system framework is linked: ${framework}`);
+/* A universal app needs a universal CLI, and an arm64 app beside an x86_64
+   command is a command that will not run on the machine that just installed it.
+   Both bins come out of one `cargo build` for one target, so this holds by
+   construction — which is exactly the kind of fact that stops holding quietly
+   when someone adds a per-binary build step. */
+const [window_, ...sidecars] = BINARIES.map(({ name }) => ({
+  name,
+  archs: archsOf(join(MACOS_DIR, name)),
+}));
+for (const sidecar of sidecars) {
+  if (sidecar.archs.join() !== window_.archs.join()) {
+    fail(
+      `${sidecar.name} is built for ${sidecar.archs.join("+")} and the app for ${window_.archs.join("+")} — the bundled command will not run everywhere the app does`,
+    );
   }
 }
 
@@ -139,6 +228,12 @@ for (const framework of [
  * An invalid signature and an absent one fail differently, and only the first is
  * fatal here: `spctl` rejecting an unnotarized app is expected and correct for
  * this unsigned release, and is the case that *does* offer Open Anyway.
+ *
+ * `--deep` is also what makes this cover the CLI: a Mach-O in `Contents/MacOS/`
+ * is nested code, so an unsigned or altered sidecar fails the bundle's own
+ * verification. That is the second reason its placement has to be right — a
+ * Mach-O under `Contents/Resources/` is the classic notarization rejection
+ * (LC-233).
  */
 if (existsSync(APP_BUNDLE)) {
   try {
@@ -174,10 +269,10 @@ if (existsSync(APP_BUNDLE)) {
 report({
   name: "binary-audit",
   findings,
-  checked: undefined_.length,
-  noun: `imported symbols and ${libraries.length} linked libraries`,
+  checked: read,
+  noun: `imported symbols and ${linked} linked libraries across ${BINARIES.length} bundled binaries`,
   remedy:
-    "finding(s) in the shipped binary — the v0 boundary is docs/acceptance/release-candidate.md:",
+    "finding(s) in the shipped binaries — the v0 boundary is docs/acceptance/release-candidate.md:",
   clean:
-    "no HTTP client, telemetry, socket import, or network framework in the shipped binary, and the bundle's signature verifies and seals its resources (controls passed; the webview is out of scope and stays a manual pass)",
+    "no HTTP client, telemetry, socket import, or network framework in either shipped binary, the CLI ships beside the window on the same architecture, and the bundle's signature verifies and seals its resources (controls passed; the webview is out of scope and stays a manual pass)",
 });
