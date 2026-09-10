@@ -43,6 +43,7 @@ import { CommandPalette } from "./CommandPalette";
 import {
   CommandLineOffer,
   UNREAD_COMMAND_LINE,
+  commandLineHint,
   shouldOfferCommandLine,
 } from "./CommandLineInstall";
 import { ConfirmDialog, RemoveProjectConfirm } from "./ConfirmDialog";
@@ -2091,7 +2092,7 @@ export function App() {
                 .then(applySnapshot)
                 .catch((error) => setError(normalizeError(error)));
             }}
-            commandLineInstalled={commandLine?.state === "linked"}
+            commandLineHint={commandLineHint(commandLine)}
             onClose={() => setSettingsMenuOpen(false)}
           />
         )}

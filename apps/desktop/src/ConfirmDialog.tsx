@@ -40,7 +40,9 @@ export function ConfirmDialog(props: {
    * destructive one (LC-188).
    */
   confirmTone?: "danger" | "primary";
-  onConfirm: () => void;
+  /** Optional for the same reason `confirmLabel` is nullable: a dialog with no
+   *  confirm button has nothing to hand a handler to. */
+  onConfirm?: () => void;
   onCancel: () => void;
 }) {
   const titleId = useId();

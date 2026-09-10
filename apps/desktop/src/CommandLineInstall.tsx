@@ -69,20 +69,34 @@ function whatItDoes(status: CommandLineStatus) {
   );
 }
 
-/** What the button says, given what is installed now. `null` is no button. */
-function actionLabel(status: CommandLineStatus): string | null {
-  switch (status.state) {
-    case "absent":
-      return "Install";
-    case "stale":
-      return "Point it at this app";
-    // `linked` needs nothing; `occupied` and `unavailable` are states the app
-    // cannot write its way out of, and a button that always fails is worse than
-    // the sentence that says why.
-    default:
-      return null;
+/**
+ * What each state means to a surface: what the button says, whether it is worth
+ * offering unasked, and whether the line to paste is the answer rather than a
+ * second way to do the same thing.
+ *
+ * One record rather than a `switch` per question. The three questions were three
+ * cascades over the same five values, which is the shape where a sixth state
+ * gets added to two of them — and the one it misses is the one that silently
+ * offers a button that can only fail. `StatusLine` keeps its own `switch`,
+ * because a sentence with markup in it is not a table cell.
+ */
+const STATES: Record<
+  CommandLineStatus["state"],
+  {
+    /** `null` is no button — a state the app cannot write its way out of. */
+    action: string | null;
+    /** Raised unasked on a machine that has never been offered the command. */
+    offer: boolean;
+    /** The `sudo` line stands without a refusal first, because it is the way out. */
+    manual: boolean;
   }
-}
+> = {
+  absent: { action: "Install", offer: true, manual: false },
+  stale: { action: "Point it at this app", offer: true, manual: false },
+  linked: { action: null, offer: false, manual: false },
+  occupied: { action: null, offer: false, manual: true },
+  unavailable: { action: null, offer: false, manual: false },
+};
 
 /**
  * Running one install and holding what it answered.
@@ -94,7 +108,10 @@ function actionLabel(status: CommandLineStatus): string | null {
  */
 function useInstall(onStatus: (status: CommandLineStatus) => void) {
   const [installing, setInstalling] = useState(false);
-  const [refusal, setRefusal] = useState<string>();
+  const [refusal, setRefusal] = useState<{
+    message: string;
+    command?: string;
+  }>();
   const install = useCallback(async () => {
     setInstalling(true);
     setRefusal(undefined);
@@ -102,7 +119,15 @@ function useInstall(onStatus: (status: CommandLineStatus) => void) {
       onStatus(await installCommandLine());
       return true;
     } catch (error) {
-      setRefusal(normalizeError(error).message);
+      // The refusal carries its own `command`, and it is the fresher one: the
+      // status was read at launch, and the app may have been moved since. Rust
+      // computed this line against the paths the write actually used, so a
+      // pasted line always names the bundle the refusal was about.
+      const refused = normalizeError(error);
+      setRefusal({
+        message: refused.message,
+        command: refused.context?.command,
+      });
       return false;
     } finally {
       setInstalling(false);
@@ -196,33 +221,36 @@ function StatusLine(props: { status: CommandLineStatus }) {
 function InstallBody(props: {
   status: CommandLineStatus;
   installing: boolean;
-  refusal?: string;
+  refusal?: { message: string; command?: string };
   onInstall: () => void;
   /** The pane leads with its own subhead; the dialog leads with the offer. */
   lead?: boolean;
 }) {
-  const label = actionLabel(props.status);
+  const { action, manual } = STATES[props.status.state];
   // The line is shown when the app has just been refused, and when the state is
   // one the app can never write its way out of. Not otherwise: an unpressed
-  // button beside a `sudo` line reads as two ways to do one thing.
-  const manual =
-    props.status.manualCommand &&
-    (props.refusal !== undefined || props.status.state === "occupied")
+  // button beside a `sudo` line reads as two ways to do one thing. The
+  // refusal's own copy wins where there is one — see `useInstall`.
+  const command = props.refusal
+    ? (props.refusal.command ?? props.status.manualCommand)
+    : manual
       ? props.status.manualCommand
-      : undefined;
+      : null;
   return (
     <>
       {props.lead && (
         <p className="settings-subhead">{whatItDoes(props.status)}</p>
       )}
       {/* Polite rather than assertive: the outcome is worth announcing and is
-          never urgent, and it replaces text the reader may be part-way through
-          (`accessibility.md`). */}
+          never urgent, and it replaces text the reader may be part-way through.
+          The same choice the label editor and the write toast make. */}
       <div aria-live="polite">
         <StatusLine status={props.status} />
-        {props.refusal && <p className="cli-refusal">{props.refusal}</p>}
+        {props.refusal && (
+          <p className="cli-refusal">{props.refusal.message}</p>
+        )}
       </div>
-      {label && (
+      {action && (
         <div className="cli-actions">
           <button
             tabIndex={0}
@@ -231,13 +259,13 @@ function InstallBody(props: {
             disabled={props.installing}
             onClick={props.onInstall}
           >
-            {props.installing ? "Installing…" : label}
+            {props.installing ? "Installing…" : action}
           </button>
         </div>
       )}
-      {manual && (
+      {command && (
         <ManualCommand
-          command={manual}
+          command={command}
           label={
             props.refusal
               ? "Run this in Terminal instead:"
@@ -302,7 +330,7 @@ export function CommandLineOffer(props: {
   onDismiss: () => void;
 }) {
   const { installing, refusal, install } = useInstall(props.onStatus);
-  const label = actionLabel(props.status);
+  const { action } = STATES[props.status.state];
   return (
     <ConfirmDialog
       title="Install the longclaw command?"
@@ -325,8 +353,7 @@ export function CommandLineOffer(props: {
       // is only ever the one that is not there: once the state has no action
       // left, the two buttons would say the same thing twice.
       confirmLabel={null}
-      cancelLabel={label && !refusal ? "Not now" : "Close"}
-      onConfirm={props.onDismiss}
+      cancelLabel={action && !refusal ? "Not now" : "Close"}
       onCancel={props.onDismiss}
     />
   );
@@ -344,6 +371,22 @@ export function shouldOfferCommandLine(
   status: CommandLineStatus,
   alreadyPrompted: boolean,
 ): boolean {
-  if (alreadyPrompted) return false;
-  return status.state === "absent" || status.state === "stale";
+  return !alreadyPrompted && STATES[status.state].offer;
+}
+
+/**
+ * The gear menu's hint for the `Command line tool` row: the answer, when there
+ * is one.
+ *
+ * `null` for `unavailable`, deliberately. The row read `not set up` there — a
+ * dev window's honest state — which named a thing to do that cannot be done,
+ * and pressing it landed on a pane saying there is nothing to install.
+ */
+export function commandLineHint(
+  status: CommandLineStatus | undefined,
+): string | null {
+  if (!status) return null;
+  if (status.state === "linked") return "on PATH";
+  if (status.state === "unavailable") return null;
+  return "not set up";
 }

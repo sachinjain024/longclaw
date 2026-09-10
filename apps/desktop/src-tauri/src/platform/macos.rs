@@ -11,7 +11,7 @@ use objc2_app_kit::{NSWorkspace, NSWorkspaceDidWakeNotification};
 use objc2_foundation::{NSNotification, NSNotificationCenter, NSObjectProtocol, NSString, NSURL};
 use uuid::Uuid;
 
-use super::command_line::{bundled_command, CommandLineState, CommandLineStatus, COMMAND_NAME};
+use super::command_line::{self, CommandLineState, CommandLineStatus, COMMAND_NAME};
 use crate::core::{AppError, AppResult, ErrorCode};
 
 #[allow(dead_code)]
@@ -86,9 +86,45 @@ fn install_path() -> PathBuf {
     Path::new(COMMAND_DIR).join(COMMAND_NAME)
 }
 
-/// What sentence a failure here is about, in words that make sense to somebody
-/// who has never heard of a symlink (V0-29).
+/// What a failure here is about, for `AppError::io` to open its sentence with,
+/// in words that make sense to somebody who has never heard of a symlink
+/// (V0-29). It is an action verb and not a message prefix: the refusals below
+/// are whole sentences and read worse with one bolted on.
 const INSTALL_ACTION: &str = "Installing the longclaw command";
+
+/// The app's own copy of the CLI: the binary beside the running one, **inside an
+/// installed app bundle**.
+///
+/// The bundle shape is checked rather than assumed, and that check is the whole
+/// point of the function. "The sibling of `current_exe`" is true in a checkout
+/// too — `cargo test` builds every `[[bin]]`, so `target/debug/longclaw` exists
+/// on any machine that has ever run the suite — and a `npm run dev` window would
+/// then read as `absent` and offer to link `/usr/local/bin/longclaw` at a path
+/// inside `target/`. That link is a debug build, is wrong the moment anything is
+/// rebuilt, and disappears on `cargo clean`. A link the app already knows will
+/// break is not a link to offer, and `unavailable` is the honest answer for a
+/// window that is not running out of a bundle.
+fn bundled_command() -> Option<PathBuf> {
+    bundled_beside(command_line::running_binary()?.as_path())
+}
+
+/// The same question about a given binary, so the suite can ask it. Split out
+/// for the reason `describe` is: `current_exe` is not something a test can move.
+fn bundled_beside(running: &Path) -> Option<PathBuf> {
+    let macos_dir = running.parent()?;
+    if macos_dir.file_name()? != "MacOS" {
+        return None;
+    }
+    let contents = macos_dir.parent()?;
+    if contents.file_name()? != "Contents" {
+        return None;
+    }
+    if contents.parent()?.extension()? != "app" {
+        return None;
+    }
+    let resolved = fs::canonicalize(macos_dir.join(COMMAND_NAME)).ok()?;
+    resolved.is_file().then_some(resolved)
+}
 
 pub fn command_line_status() -> CommandLineStatus {
     describe(bundled_command().as_deref(), &install_path())
@@ -97,14 +133,12 @@ pub fn command_line_status() -> CommandLineStatus {
 pub fn install_command_line() -> AppResult<CommandLineStatus> {
     let link = install_path();
     let Some(source) = bundled_command() else {
-        // Nothing to install rather than a failed install: this is a `cargo run`
-        // window whose sibling was never built, and the pane already says so.
+        // Nothing to install rather than a failed install: this window is not
+        // running out of a bundle, and the pane already says so.
         return Err(AppError::new(
             ErrorCode::Io,
-            format!(
-                "{INSTALL_ACTION} failed: this build has no copy of the command \
-                 beside it to install."
-            ),
+            "LongClaw has no copy of the longclaw command beside it to install. \
+             This window is not running from an installed app.",
             false,
         ));
     };
@@ -165,29 +199,48 @@ fn describe(source: Option<&Path>, link: &Path) -> CommandLineStatus {
 /// was there. That is `core::storage::atomic_write`'s shape, for the same
 /// reason.
 fn install_into(source: &Path, link: &Path) -> AppResult<()> {
-    let refusal = |message: String, code| {
-        AppError::new(code, message, true)
-            .with_context("path", link.display().to_string())
-            .with_context("command", manual_command(source, link))
-    };
+    /// A refused write, in the words the *kind* of failure deserves.
+    ///
+    /// `EACCES` is the case this whole feature is about, and it gets its own
+    /// sentence naming the folder and the way out. Every other kind is handed to
+    /// `AppError::io`, which classifies by `io::ErrorKind` and names the cause:
+    /// ADR 0010 keeps those apart precisely because they need different actions,
+    /// and "not allowed to write it — run it from Terminal" is bad advice for a
+    /// volume with no space left on it, which `sudo` will not fix either.
+    ///
+    /// The line to paste rides on both, because it is the way out of a refusal
+    /// whatever the refusal was.
+    fn refused(at: &Path, error: std::io::Error, permission: String, command: String) -> AppError {
+        let reported = if error.kind() == std::io::ErrorKind::PermissionDenied {
+            AppError::new(ErrorCode::PermissionDenied, permission, true)
+                .with_context("path", at.display().to_string())
+                .with_context("systemError", error.to_string())
+        } else {
+            AppError::io(INSTALL_ACTION, at, error)
+        };
+        reported.with_context("command", command)
+    }
+
+    let command = manual_command(source, link);
     let Some(parent) = link.parent() else {
-        return Err(refusal(
-            format!(
-                "{INSTALL_ACTION} failed: {} has no folder to install into.",
-                link.display()
-            ),
+        return Err(AppError::new(
             ErrorCode::Io,
-        ));
+            format!("{} has no folder to install into.", link.display()),
+            false,
+        )
+        .with_context("path", link.display().to_string()));
     };
     if !parent.exists() {
-        fs::create_dir_all(parent).map_err(|_| {
-            refusal(
+        fs::create_dir_all(parent).map_err(|error| {
+            refused(
+                parent,
+                error,
                 format!(
                     "{} does not exist, and creating it needs an administrator. \
                      Run the install from Terminal instead.",
                     parent.display()
                 ),
-                ErrorCode::PermissionDenied,
+                command.clone(),
             )
         })?;
     }
@@ -196,30 +249,43 @@ fn install_into(source: &Path, link: &Path) -> AppResult<()> {
     // undo for replacing it does not exist: the link that would stand in its
     // place remembers nothing about the bytes it displaced.
     if fs::symlink_metadata(link).is_ok_and(|entry| !entry.file_type().is_symlink()) {
-        return Err(refusal(
+        return Err(AppError::new(
+            ErrorCode::Io,
             format!(
                 "{} is a file LongClaw did not create, and LongClaw will not \
                  replace one. Move or rename it, then try again.",
                 link.display()
             ),
-            ErrorCode::Io,
-        ));
+            true,
+        )
+        .with_context("path", link.display().to_string())
+        .with_context("command", command));
     }
     let temporary = parent.join(format!(".{COMMAND_NAME}.longclaw-{}.tmp", Uuid::new_v4()));
-    symlink(source, &temporary).map_err(|_| {
-        refusal(
+    symlink(source, &temporary).map_err(|error| {
+        refused(
+            parent,
+            error,
             format!(
                 "LongClaw is not allowed to write to {}. Run the install from \
                  Terminal instead.",
                 parent.display()
             ),
-            ErrorCode::PermissionDenied,
+            command.clone(),
         )
     })?;
     fs::rename(&temporary, link).map_err(|error| {
         let _ = fs::remove_file(&temporary);
-        AppError::io(INSTALL_ACTION, link, error)
-            .with_context("command", manual_command(source, link))
+        refused(
+            link,
+            error,
+            format!(
+                "LongClaw is not allowed to replace {}. Run the install from \
+                 Terminal instead.",
+                link.display()
+            ),
+            command,
+        )
     })
 }
 
@@ -256,7 +322,9 @@ mod command_line_tests {
     use std::os::unix::fs::{symlink, PermissionsExt};
     use std::path::Path;
 
-    use super::{describe, install_into, manual_command, shell_quoted, CommandLineState};
+    use super::{
+        bundled_beside, describe, install_into, manual_command, shell_quoted, CommandLineState,
+    };
 
     /// A temp directory standing in for `/usr/local/bin`, and a file standing in
     /// for the bundle's own binary.
@@ -380,6 +448,46 @@ mod command_line_tests {
         assert!(quoted.contains("'/Volumes/My Disk/LongClaw.app/Contents/MacOS/longclaw'"));
         assert!(quoted.ends_with("'/usr/local/bin/longclaw'"));
         assert_eq!(shell_quoted(Path::new("/a'b")), "'/a'\\''b'");
+    }
+
+    /// The bundle is what makes a copy of the command installable, and a
+    /// checkout is not one.
+    ///
+    /// `cargo test` builds every `[[bin]]`, so `target/debug/longclaw` exists on
+    /// any machine that has run this suite — including the one running it now.
+    /// A sibling check alone would call that installable, and a `npm run dev`
+    /// window would offer to put a debug binary from `target/` on the user's
+    /// `PATH`, where it would be wrong after the next rebuild and gone after a
+    /// `cargo clean`.
+    #[test]
+    fn only_a_binary_inside_an_app_bundle_counts_as_installable() {
+        let temp = tempfile::tempdir().unwrap();
+        let bundled = |layout: &str| {
+            let dir = temp.path().join(layout);
+            fs::create_dir_all(&dir).unwrap();
+            for name in ["longclaw", "longclaw-desktop"] {
+                fs::write(dir.join(name), b"#!/bin/sh\n").unwrap();
+            }
+            bundled_beside(&dir.join("longclaw-desktop"))
+        };
+
+        assert!(bundled("LongClaw.app/Contents/MacOS").is_some());
+        // The three shapes a checkout produces, and one near-miss.
+        assert_eq!(bundled("target/debug"), None);
+        assert_eq!(bundled("target/release"), None);
+        assert_eq!(bundled("LongClaw/Contents/MacOS"), None);
+        assert_eq!(bundled("LongClaw.app/Resources/MacOS"), None);
+    }
+
+    /// The sibling has to actually be there: a bundle is not a promise.
+    #[test]
+    fn a_bundle_missing_the_command_is_not_installable() {
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().join("LongClaw.app/Contents/MacOS");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("longclaw-desktop"), b"#!/bin/sh\n").unwrap();
+
+        assert_eq!(bundled_beside(&dir.join("longclaw-desktop")), None);
     }
 
     /// A build with no CLI beside it has nothing to offer, which is not a

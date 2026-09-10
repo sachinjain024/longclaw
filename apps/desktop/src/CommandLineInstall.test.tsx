@@ -28,6 +28,7 @@ import * as api from "./api";
 import {
   CommandLineOffer,
   CommandLineSection,
+  commandLineHint,
   shouldOfferCommandLine,
 } from "./CommandLineInstall";
 import { useMutationStore } from "./mutations";
@@ -151,6 +152,41 @@ describe("the command line pane", () => {
     expect(screen.getByText(COMMAND)).toBeTruthy();
   });
 
+  /**
+   * The status was read at launch; the refusal was computed against the paths
+   * the write actually used. If the app has been moved since, only one of them
+   * is the "exact line" the refusal promises.
+   */
+  it("prefers the line the refusal itself carries over the one read at launch", async () => {
+    const fresher = `sudo mkdir -p '/usr/local/bin' && sudo ln -sf '/Applications/Moved/LongClaw.app/Contents/MacOS/longclaw' '${LINK}'`;
+    vi.mocked(api.installCommandLine).mockRejectedValue({
+      code: "permission_denied",
+      message: "LongClaw is not allowed to write to /usr/local/bin.",
+      recoverable: true,
+      context: { command: fresher },
+    });
+    render(<CommandLineSection status={status()} onStatus={() => {}} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+    await screen.findByText(fresher);
+    expect(screen.queryByText(COMMAND)).toBeNull();
+  });
+
+  /** A refusal from an older build carries no command; the status still has one. */
+  it("falls back to the status's line when the refusal carries none", async () => {
+    vi.mocked(api.installCommandLine).mockRejectedValue({
+      code: "permission_denied",
+      message: "LongClaw is not allowed to write to /usr/local/bin.",
+      recoverable: true,
+    });
+    render(<CommandLineSection status={status()} onStatus={() => {}} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+    await screen.findByText(COMMAND);
+  });
+
   it("copies the line, and says so", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {
@@ -190,6 +226,18 @@ describe("the first-launch offer", () => {
     expect(
       shouldOfferCommandLine(status({ state: "unavailable" }), false),
     ).toBe(false);
+  });
+
+  /**
+   * The row named a thing to do that cannot be done: `not set up` on a window
+   * with nothing to install, opening a pane that says so.
+   */
+  it("gives the settings menu row no hint when there is nothing to install", () => {
+    expect(commandLineHint(status({ state: "unavailable" }))).toBeNull();
+    expect(commandLineHint(undefined)).toBeNull();
+    expect(commandLineHint(status({ state: "linked" }))).toBe("on PATH");
+    expect(commandLineHint(status())).toBe("not set up");
+    expect(commandLineHint(status({ state: "stale" }))).toBe("not set up");
   });
 
   it("closes and records the answer when the install lands", async () => {

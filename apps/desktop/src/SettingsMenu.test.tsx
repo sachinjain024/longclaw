@@ -54,7 +54,7 @@ function Harness(props: {
   onTheme?: (id: string) => void;
   onAppearance?: (id: string) => void;
   onReload?: () => void;
-  commandLineInstalled?: boolean;
+  commandLineHint?: string | null;
   onRemove?: () => void;
   onStar?: () => void;
   appearance?: "light" | "dark" | "system";
@@ -96,7 +96,7 @@ function Harness(props: {
           <SettingsMenu
             {...shared}
             onReload={props.onReload ?? (() => {})}
-            commandLineInstalled={props.commandLineInstalled ?? false}
+            commandLineHint={props.commandLineHint ?? "not set up"}
           />
         ))}
     </>

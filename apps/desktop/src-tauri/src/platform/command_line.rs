@@ -95,22 +95,14 @@ impl CommandLineStatus {
     }
 }
 
-/// The app's own copy of the CLI: the binary sitting beside the running one.
+/// Where the running binary is, resolved.
 ///
-/// `current_exe` and a sibling rather than a bundle API, because the sibling
-/// relationship is the thing the bundler actually guarantees — every `[[bin]]`
-/// lands in one `Contents/MacOS/` — and it holds just as well in a `cargo run`
-/// window, where the two binaries are siblings in `target/`. Canonicalised, so
-/// the comparison an installed link is judged by has one spelling of the path
-/// on both sides.
-///
-/// `None` is an ordinary answer: a `tauri dev` window whose sibling has never
-/// been built has no CLI to offer, which is not a failure.
-pub fn bundled_command() -> Option<PathBuf> {
-    let running = std::env::current_exe().ok()?;
-    let candidate = running.parent()?.join(COMMAND_NAME);
-    let resolved = std::fs::canonicalize(candidate).ok()?;
-    resolved.is_file().then_some(resolved)
+/// One line, and here rather than in each platform, because *what counts as an
+/// installed package* is the part that differs and this is the part that does
+/// not. Canonicalised, so the comparison an installed link is judged by has one
+/// spelling of the path on both sides.
+pub fn running_binary() -> Option<PathBuf> {
+    std::fs::canonicalize(std::env::current_exe().ok()?).ok()
 }
 
 /// Whether the command is installed, and what it points at.

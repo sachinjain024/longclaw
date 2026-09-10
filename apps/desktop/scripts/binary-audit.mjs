@@ -79,6 +79,12 @@ const BINARIES = [
     imports: ["_open", "_stat", "_FSEventStreamCreate"],
     why: "this app opens files and watches them",
     sourceSymbol: "longclaw_desktop_lib",
+    // A Tauri app links WebKit or it is not the app. The CLI links it too
+    // today, through the shared lib, but that is incidental — a control has to
+    // be something the binary cannot work without, so it is claimed only here.
+    frameworks: ["WebKit"],
+    // The architectures every other bundled binary must match.
+    setsTheArchitecture: true,
   },
   {
     name: "longclaw",
@@ -88,6 +94,8 @@ const BINARIES = [
     imports: ["_open", "_stat"],
     why: "the CLI reads and writes ticket files",
     sourceSymbol: "longclaw_desktop_lib3cli",
+    frameworks: [],
+    setsTheArchitecture: false,
   },
 ];
 
@@ -112,8 +120,8 @@ for (const { name } of BINARIES) {
   process.exit(1);
 }
 
-let read = 0;
-let linked = 0;
+let importedSymbols = 0;
+let linkedLibraries = 0;
 
 for (const binary of BINARIES) {
   const path = join(MACOS_DIR, binary.name);
@@ -128,8 +136,8 @@ for (const binary of BINARIES) {
     .slice(1)
     .map((line) => line.trim().replace(/\s*\(.*/, ""))
     .filter(Boolean);
-  read += undefined_.length;
-  linked += libraries.length;
+  importedSymbols += undefined_.length;
+  linkedLibraries += libraries.length;
 
   // Controls first. Everything below is an absence claim, and an absence claim is
   // only worth what the reading is worth.
@@ -184,29 +192,26 @@ for (const binary of BINARIES) {
     }
   }
 
-  if (
-    binary.name === "longclaw-desktop" &&
-    !libraries.some((l) => l.includes("WebKit"))
-  ) {
-    fail(
-      "control: WebKit is not linked into the window, which a Tauri app cannot be — the binary read is wrong",
-    );
+  for (const framework of binary.frameworks) {
+    if (!libraries.some((library) => library.includes(framework))) {
+      fail(
+        `${label}: control: ${framework} is not linked, which this binary cannot be without — the binary read is wrong`,
+      );
+    }
   }
 }
 
-/* A universal app needs a universal CLI, and an arm64 app beside an x86_64
-   command is a command that will not run on the machine that just installed it.
-   Both bins come out of one `cargo build` for one target, so this holds by
+/* Both bins come out of one `cargo build` for one target, so they agree by
    construction — which is exactly the kind of fact that stops holding quietly
-   when someone adds a per-binary build step. */
-const [window_, ...sidecars] = BINARIES.map(({ name }) => ({
-  name,
-  archs: archsOf(join(MACOS_DIR, name)),
-}));
-for (const sidecar of sidecars) {
-  if (sidecar.archs.join() !== window_.archs.join()) {
+   when someone adds a per-binary build step. The reference is the entry that
+   declares itself the reference, rather than whichever one is written first. */
+const reference = BINARIES.find((binary) => binary.setsTheArchitecture);
+const expected = archsOf(join(MACOS_DIR, reference.name));
+for (const binary of BINARIES.filter((entry) => entry !== reference)) {
+  const archs = archsOf(join(MACOS_DIR, binary.name));
+  if (archs.join() !== expected.join()) {
     fail(
-      `${sidecar.name} is built for ${sidecar.archs.join("+")} and the app for ${window_.archs.join("+")} — the bundled command will not run everywhere the app does`,
+      `${binary.name} is built for ${archs.join("+")} and ${reference.name} for ${expected.join("+")} — the bundled command will not run everywhere the app does`,
     );
   }
 }
@@ -269,8 +274,8 @@ if (existsSync(APP_BUNDLE)) {
 report({
   name: "binary-audit",
   findings,
-  checked: read,
-  noun: `imported symbols and ${linked} linked libraries across ${BINARIES.length} bundled binaries`,
+  checked: importedSymbols,
+  noun: `imported symbols and ${linkedLibraries} linked libraries across ${BINARIES.length} bundled binaries`,
   remedy:
     "finding(s) in the shipped binaries — the v0 boundary is docs/acceptance/release-candidate.md:",
   clean:

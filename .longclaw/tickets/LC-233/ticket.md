@@ -9,7 +9,7 @@ labels:
   - platform
   - release
 created_at: 2026-08-24T23:40:32.472Z
-updated_at: 2026-09-10T10:47:21.963Z
+updated_at: 2026-09-10T10:58:36.190Z
 ---
 
 Installing the desktop app should be all it takes to get the `longclaw` command.
@@ -107,7 +107,7 @@ code does not assume a symlink.
 
 ## Checklist
 
-- [x] The longclaw binary is built alongside the app and bundled via externalBin into Contents/MacOS/, matching the app's architecture; a Mach-O under Contents/Resources/ is the notarization trap to avoid <!-- longclaw:item=ck_4f1ae7bf -->
+- [x] The longclaw binary is built alongside the app and lands in Contents/MacOS/ matching the app's architecture, and binary-audit.mjs asserts it rather than the build happening to do it — tauri build already compiles every [[bin]] and seals each into the bundle, so externalBin would ship a duplicate; a Mach-O under Contents/Resources/ is the notarization trap to avoid <!-- longclaw:item=ck_4f1ae7bf -->
 - [x] codesign --verify --deep --strict passes on the bundle with the CLI inside it, and binary-audit.mjs inspects the CLI's symbols and linked frameworks the way it does the app's — the no-network claim covers both processes <!-- longclaw:item=ck_00d67bc8 -->
 - [x] A Tauri command symlinks the bundled binary to /usr/local/bin/longclaw with std::os::unix::fs::symlink and no subprocess anywhere — release-audit.mjs:254 fails the build on Command::new, and platform/macos.rs is the precedent for reaching the OS without one <!-- longclaw:item=ck_df85c6d3 -->
 - [x] A refused write is handled in words, not silence: the directory missing or not writable produces the exact sudo ln -s line with the path filled in, and no privileged helper is built on speculation <!-- longclaw:item=ck_570d6dc9 -->
@@ -284,4 +284,20 @@ opened on another Space and could not be captured, and the press writes
 backend path is covered by the Rust tests against a temp directory, and the
 `absent` state the app reports is itself proof that `bundled_command()` resolved
 the sibling inside the bundle.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_e41e918e
+kind: update
+occurred_at: 2026-09-10T10:58:36.190Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_4f1ae7bf.text
+    from: The longclaw binary is built alongside the app and bundled via externalBin into Contents/MacOS/, matching the app's architecture; a Mach-O under Contents/Resources/ is the notarization trap to avoid
+    to: The longclaw binary is built alongside the app and lands in Contents/MacOS/ matching the app's architecture, and binary-audit.mjs asserts it rather than the build happening to do it — tauri build already compiles every [[bin]] and seals each into the bundle, so externalBin would ship a duplicate; a Mach-O under Contents/Resources/ is the notarization trap to avoid
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->

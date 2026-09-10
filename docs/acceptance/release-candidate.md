@@ -228,7 +228,7 @@ Run on a clean macOS user profile or machine:
 | Runtime network audit | No non-IPC network connection during launch, project open, create/edit/archive/search, restart, or offline operation. `npm run audit:network`, offline and online, driven by a person |
 | Binary/package audit | No analytics, telemetry, updater, crash-reporting, shell, HTTP, or filesystem plugin is directly configured |
 | Tauri capability audit | Webview can use typed IPC/events and one native folder picker only |
-| Filesystem scope | App writes project data only under the user-selected `.longclaw/` tree and app state only in OS application support |
+| Filesystem scope | App writes project data only under the user-selected `.longclaw/` tree and app state only in OS application support. One exception, and only when the user presses for it: `install_command_line` symlinks `/usr/local/bin/longclaw` at the app's own bundled CLI (LC-233). Nothing else is written there, nothing is written there unasked, and a file the app did not create is never replaced |
 | Crash diagnostics | No automatic crash upload; user-facing guidance names local stdout diagnostics and manual issue reporting |
 | Account boundary | No local feature requires signup, network, cloud sync, or waitlist state |
 

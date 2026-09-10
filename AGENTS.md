@@ -21,7 +21,7 @@ re-keys one side and reports every path that still names the old key — see
 
 File it with the CLI, which is the one surface allowed to allocate a key — never
 by writing a ticket directory by hand, and always with `--agent-id`, because an
-activity entry without it says a human did the work:
+activity entry without it says a human did the work.
 
 **Prefer the installed `longclaw`.** Installing the app installs the command —
 the binary rides inside the bundle and one press in *Settings → Command line*
