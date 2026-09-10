@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 4438c039-2753-4c63-8500-8af0ea2ed05f
 key: LC-233
 title: Installing the app installs the longclaw CLI
-status: in_progress
+status: done
 priority: urgent
 labels:
   - platform
   - release
 created_at: 2026-08-24T23:40:32.472Z
-updated_at: 2026-09-10T10:58:36.190Z
+updated_at: 2026-09-10T11:58:51.185Z
 ---
 
 Installing the desktop app should be all it takes to get the `longclaw` command.
@@ -300,4 +300,69 @@ changes:
     to: The longclaw binary is built alongside the app and lands in Contents/MacOS/ matching the app's architecture, and binary-audit.mjs asserts it rather than the build happening to do it — tauri build already compiles every [[bin]] and seals each into the bundle, so externalBin would ship a duplicate; a Mach-O under Contents/Resources/ is the notarization trap to avoid
 -->
 ### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_8bf8a0e6
+kind: update
+occurred_at: 2026-09-10T11:58:51.185Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_progress
+    to: done
+-->
+### Claude Code updated this ticket
+
+Closed after the two-axis review. The Spec axis was clean; the Standards axis
+found one hard violation, and it was a real one.
+
+**ADR 0011 contradicted the branch.** Its last consequence said "The binary is
+not bundled. `tauri build` ships `longclaw-desktop`; `longclaw` is built by
+`cargo build` and run from the repository", while this work asserts the opposite
+in the module header, in `binary-audit.mjs` and in `AGENTS.md`. `domain.md`
+requires an ADR conflict to be surfaced rather than silently overridden, so the
+ADR now carries a `## Revised for LC-233` section in the shape ADRs 0003 and
+0008 already use, and the original bullet is marked rather than rewritten.
+
+The revision answers the bullet's two halves separately, because they are not
+both wrong. The first sentence was never true — the Tauri CLI enumerates every
+`[[bin]]`, so the CLI has been inside every signed bundle this repository has
+produced, which is what the baseline build off `main` established before any of
+this work started. The last sentence asked for a decision before shipping a CLI
+the release audit's boundary claims did not cover, and that decision is taken
+there: what changes is the cover, not the shipping. Being unbundled was never
+what made it safe, since the file was in the bundle the whole time and nothing
+had ever opened it.
+
+The same stale premise was in two files the review did not reach: `README.md`
+and `CONTRIBUTING.md` both presented `cargo build` as the only way to get the
+command, and the README's block then invoked a bare `longclaw`, which only
+worked if something had already put it on PATH. Both now lead with the installed
+app.
+
+**The duplicated test fixture is left as two, deliberately.** There is no
+shared-fixture precedent here — all 47 suites build their own DTOs, including
+`Ticket`, a far larger contract — so introducing the convention for the smallest
+one would be the inconsistent move. The drift also does not land where the
+review placed it: TypeScript checks the shape at both spellings, and the only
+unchecked part is the `sudo` line, which belongs to `macos::manual_command` and
+is verified by no test on the TypeScript side at all, because the pane prints
+whatever Rust sends. What was genuinely wrong is that the fixture spelled the
+link path three times inside one literal and read like a checked transcription
+of Rust's format; it now names the link once and says it exists to be the right
+shape rather than the right words.
+
+**Still not driven: pressing Install in the packaged app.** The backend is
+covered by Rust tests over a temp directory, but the five states have not been
+walked on a real machine. The order that matters is: the `npm run dev` window
+first, because a dev checkout offering to link `/usr/local/bin/longclaw` at a
+debug binary in `target/` is the defect this review round fixed; then stale,
+which must not read as "already installed"; then occupied, which must leave a
+file the app did not create exactly where it is. On a Mac where
+`/usr/local/bin` is already user-writable the refusal path does not occur
+naturally and has to be forced with a chmod.
 <!-- /longclaw:event -->
