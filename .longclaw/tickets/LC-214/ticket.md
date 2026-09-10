@@ -10,7 +10,7 @@ labels:
 type: chore
 due: 2026-09-09
 created_at: 2026-08-11T14:56:44.953Z
-updated_at: 2026-09-10T06:46:00.185Z
+updated_at: 2026-09-10T07:28:53.895Z
 ---
 
 ## Brief
@@ -194,16 +194,16 @@ rename, label change and property change.
 
 ## Checklist
 
-- [ ] Generated AGENTS.md is CLI-first: it points at longclaw help for the commands and the status/priority enums and does not re-type them <!-- longclaw:item=ck_14d377c7 -->
-- [ ] AGENTS.md states this project's key and the key->.longclaw/tickets/<KEY>-N mapping so a natural-language request for <KEY>-42 resolves to this project <!-- longclaw:item=ck_756d4f50 -->
-- [ ] AGENTS.md describes labels and the enabled ticket properties (LC-227) as the per-project vocabulary — project show / label add for labels — with no second generated glossary file <!-- longclaw:item=ck_2563bc08 -->
-- [ ] AGENTS.md carries the rules longclaw help omits: never hand-create .longclaw/tickets/<KEY>/, always pass --agent-id, activity append-only, id/key immutable, never silently overwrite an external edit <!-- longclaw:item=ck_36a50c8e -->
-- [ ] AGENTS.md keeps a compact hand-edit fallback: YAML subset, atomic write, checklist/activity markers, actor shape, and longclaw.yaml as the source of truth for defined labels, people and enabled properties <!-- longclaw:item=ck_b5d4e69b -->
-- [ ] AGENTS.md and CLAUDE.md carry a version marker and a do-not-edit/may-be-overwritten banner, and AGENTS.md links PROJECT.md for the user's own instructions <!-- longclaw:item=ck_53541445 -->
-- [ ] project init generates .longclaw/CLAUDE.md as a thin pointer to AGENTS.md alongside the reprinted AGENTS.md <!-- longclaw:item=ck_10e46d8e -->
-- [ ] project init writes an empty .longclaw/PROJECT.md only when absent, and never reprints it or deletes a pre-existing one on cleanup <!-- longclaw:item=ck_d22b1bf1 -->
-- [ ] The worked example ticket uses fixed ids so AGENTS.md is byte-identical across reprints (folds in LC-66), with a test that writes the same project twice and compares <!-- longclaw:item=ck_a5c810e3 -->
-- [ ] npm run verify passes and the run is quoted on the ticket <!-- longclaw:item=ck_369e5b20 -->
+- [x] Generated AGENTS.md is CLI-first: it points at longclaw help for the commands and the status/priority enums and does not re-type them <!-- longclaw:item=ck_14d377c7 -->
+- [x] AGENTS.md states this project's key and the key->.longclaw/tickets/<KEY>-N mapping so a natural-language request for <KEY>-42 resolves to this project <!-- longclaw:item=ck_756d4f50 -->
+- [x] AGENTS.md describes labels and the enabled ticket properties (LC-227) as the per-project vocabulary — project show / label add for labels — with no second generated glossary file <!-- longclaw:item=ck_2563bc08 -->
+- [x] AGENTS.md carries the rules longclaw help omits: never hand-create .longclaw/tickets/<KEY>/, always pass --agent-id, activity append-only, id/key immutable, never silently overwrite an external edit <!-- longclaw:item=ck_36a50c8e -->
+- [x] AGENTS.md keeps a compact hand-edit fallback: YAML subset, atomic write, checklist/activity markers, actor shape, and longclaw.yaml as the source of truth for defined labels, people and enabled properties <!-- longclaw:item=ck_b5d4e69b -->
+- [x] AGENTS.md and CLAUDE.md carry a version marker and a do-not-edit/may-be-overwritten banner, and AGENTS.md links PROJECT.md for the user's own instructions <!-- longclaw:item=ck_53541445 -->
+- [x] project init generates .longclaw/CLAUDE.md as a thin pointer to AGENTS.md alongside the reprinted AGENTS.md <!-- longclaw:item=ck_10e46d8e -->
+- [x] project init writes an empty .longclaw/PROJECT.md only when absent, and never reprints it or deletes a pre-existing one on cleanup <!-- longclaw:item=ck_d22b1bf1 -->
+- [x] The worked example ticket uses fixed ids so AGENTS.md is byte-identical across reprints (folds in LC-66), with a test that writes the same project twice and compares <!-- longclaw:item=ck_a5c810e3 -->
+- [x] npm run verify passes and the run is quoted on the ticket <!-- longclaw:item=ck_369e5b20 -->
 ## Activity
 
 <!-- longclaw:event
@@ -327,4 +327,84 @@ changes:
     to: npm run verify passes and the run is quoted on the ticket
 -->
 ### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_8ba29f16
+kind: update
+occurred_at: 2026-09-10T07:28:53.895Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_14d377c7.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_756d4f50.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_2563bc08.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_36a50c8e.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_b5d4e69b.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_53541445.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_10e46d8e.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_d22b1bf1.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_a5c810e3.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_369e5b20.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_e3f2fb2d
+kind: comment
+occurred_at: 2026-09-10T07:29:20.447Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Implemented on branch `claude/lc214-scope-review-78be2c`.
+
+**The generator.** `render_agent_contract` (`core/project.rs`) is rewritten to the plan's ten-section structure: version banner, this project's key and its key→directory mapping, canonical files, the CLI as the primary path with two `--agent-id` worked examples, the project's own labels and enabled properties as a vocabulary section, the six rules `longclaw help` does not state, a compact hand-edit fallback, the PROJECT.md link, and the worked example ticket. It points at `longclaw help` for the command surface and re-types the `status` and `priority` sets exactly once, inside the fallback, where there is no `longclaw help` to read.
+
+**Two new generated files.** `render_claude_pointer` writes `.longclaw/CLAUDE.md` (banner plus `@AGENTS.md`, constant content so a reprint is a no-op diff), and `write_project_instructions_if_absent` creates `.longclaw/PROJECT.md` with `create_new` semantics — a bare `# Project instructions` heading, written once and never reprinted. `write_agent_contract` became `write_agent_instructions` and writes the AGENTS/CLAUDE pair; every reprint site (`registry.rs` `update_project_file`, which is where all eight of LC-227's property controls land, and `cli.rs` `label_add`) now goes through it, and none of them touches PROJECT.md.
+
+**LC-66 is closed by this.** The worked example's ids were minted per render by `render_new_ticket`. `core/ticket.rs` now has an `Ids` seam: `Ids::Minted` for every real create, `Ids::Fixed` for the one caller whose output is documentation. Verified by hand — two `label add` runs against a fresh project produce a diff of exactly the label rows and nothing else. `the_contract_is_byte_identical_two_renders_running` asserts whole bytes rather than the tables, because the ids are the part that moved and a filtered comparison would have passed throughout the bug.
+
+**Tests.** Eight new tests in `core/project.rs` (CLI-first, key mapping, the rules, the fallback, the version banners, the label list, byte identity, and the worked example parsed back through `TicketDocument::parse`), plus three in `tests/storage_integration.rs`: a created project carries all three files with PROJECT.md empty; a project edit reprints the generated pair and leaves a user-written PROJECT.md alone; a failed create in a folder that already held a `.longclaw/` keeps a PROJECT.md that was there first. `the_example_projects_agent_contract_matches_the_generator` now compares bytes — its `without_minted_ids` mask is deleted, since a mask over the fixture is a mask over what the fixture is for.
+
+**Regenerated.** `fixtures/representative-project/.longclaw/` and this repository's own `.longclaw/` now carry the new AGENTS.md plus CLAUDE.md and PROJECT.md.
+
+**Docs corrected where the change made them false:** `user-guide.md`'s folder listing and its contract section, the three acceptance documents that said the folder receives only three paths, `file_format.md`'s AGENTS.md section (replaced in place, so no cited line moved), `data-requirements.md:18` (one line for one line, same reason), and `examples/agent-context/AGENTS.md`, which still told an agent that only a human creates tickets.
+
+**The gate.** `npm run verify` passes, exit 0:
+
+    Test Files  48 passed (48)
+         Tests  1359 passed (1359)
+    test result: ok. 213 passed; 0 failed  (lib)
+    test result: ok. 23 passed; 0 failed   (storage_integration)
+    test result: ok. 21 passed; 0 failed; 2 ignored  (file_format_contract)
+    test result: ok. 2 passed; 0 failed    (test:watcher)
+
+One judgement call worth flagging: the contract says the CLI "ships with the LongClaw app", which is LC-233's work and is not true until it lands. The plan calls the two release-labeled and shipping together; if LC-233 slips, that sentence is the one to revisit.
 <!-- /longclaw:event -->

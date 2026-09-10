@@ -209,8 +209,8 @@ fn label_add(arguments: &[String]) -> AppResult<Value> {
         &storage::project_file_path(&root),
         &bytes,
     )?;
-    // The contract names the project, so a rename or a label change reprints it.
-    storage::write_agent_contract(&root, &document)?;
+    // The generated files name the project's labels, so adding one reprints them.
+    storage::write_agent_instructions(&root, &document)?;
     Ok(json!(reference(&document, &root)))
 }
 

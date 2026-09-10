@@ -12,7 +12,9 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use super::error::Diagnostic;
-use super::ticket::{render_new_ticket, validate_property, Property, TicketEdit, TicketProperties};
+use super::ticket::{
+    render_example_ticket, validate_property, Property, TicketEdit, TicketProperties,
+};
 use super::yaml::{encode_scalar, Mapping};
 
 pub const PROJECT_FORMAT: &str = "longclaw.project/v1";
@@ -1078,211 +1080,447 @@ pub fn render_new_project(id: &str, name: &str, key: &str, theme: &str, now: &st
     rendered
 }
 
-/// The generated agent-facing editing contract for a project.
+/// The version stamped into every file LongClaw generates for an agent.
 ///
-/// LongClaw owns `.longclaw/AGENTS.md` and never touches an unrelated `AGENTS.md`
-/// at the repository root.
+/// It is there so a later build can tell what it is looking at. Nothing reads it
+/// yet — regenerating an older project's files on open is a decision this build
+/// does not make — but a file that may be overwritten had better say which
+/// generation wrote it, and a version added after the fact tells you nothing
+/// about the files already on disk.
+pub const GENERATED_INSTRUCTIONS_VERSION: &str = "1";
+
+/// The generated agent-facing contract for a project.
+///
+/// LongClaw owns `.longclaw/AGENTS.md` and never touches an unrelated
+/// `AGENTS.md` at the repository root.
+///
+/// It teaches the CLI first and the file format second. That order is the whole
+/// point of the rewrite: `longclaw` allocates keys, refuses an undefined label,
+/// writes atomically and records who acted, so an agent that drives the project
+/// through it gets those guarantees for free — where an agent following a
+/// hand-editing contract has to be told each of them and can still get one
+/// wrong. The format stays documented, because a machine without the app
+/// installed is a real case and the file format is the durable contract; it is
+/// the fallback rather than the path.
 pub fn render_agent_contract(project: &Project) -> String {
-    let example_key = format!("{}-1", project.key);
-    format!(
-        "# Editing {name} with an agent\n\
-         \n\
-         LongClaw generated this file. It describes how to read and change this\n\
-         project's canonical files without losing data.\n\
-         \n\
-         ## Canonical files\n\
-         \n\
-         - `.longclaw/longclaw.yaml` — project identity, people, and label definitions.\n\
-         - `.longclaw/tickets/<KEY>/ticket.md` — the complete structured record for one ticket.\n\
-         - `.longclaw/tickets/<KEY>/attachments/` — that ticket's attachment bytes.\n\
-         \n\
-         Read a ticket's `ticket.md` first. Open files under `attachments/` only when\n\
-         the ticket references one and you need it. This file is documentation, not\n\
-         project data.\n\
-         \n\
-         ## What you may change\n\
-         \n\
-         | Field | Rule |\n\
-         |---|---|\n\
-         | `title` | one line |\n\
-         | `status` | one of `backlog`, `todo`, `in_progress`, `in_review`, `done`, `canceled` |\n\
-         | `priority` | one of `urgent`, `p1`, `p2`, `p3`, `p4`, `none` |\n\
-         | `labels` | slugs defined in `longclaw.yaml` |\n\
-         {properties}\
-         | description | any CommonMark outside the reserved sections |\n\
-         | checklist | flip `[ ]` to `[x]`, or append a task |\n\
-         | activity | append a bounded record; never edit or delete an existing one |\n\
-         \n\
-         Do not change `format`, `id`, `key`, `created_at`, or `rank`. LongClaw owns\n\
-         `rank`; preserve any value you find and do not invent one. Keep every key you\n\
-         do not understand exactly as it is.\n\
-         {property_note}\
-         \n\
-         ## Timestamps and attribution\n\
-         \n\
-         Timestamps are UTC RFC 3339 strings such as `2026-07-29T09:12:31Z`. Set\n\
-         `updated_at` when you change ticket state. Attribute yourself explicitly:\n\
-         \n\
-         ```yaml\n\
-         actor:\n\
-         \x20 type: agent\n\
-         \x20 id: your-tool-id\n\
-         \x20 name: Your Tool\n\
-         ```\n\
-         \n\
-         `type` is `human`, `agent`, or `unknown` — never guess. An agent is never an\n\
-         assignee.\n\
-         \n\
-         ## Checking off a checklist item\n\
-         \n\
-         Before:\n\
-         \n\
-         ```md\n\
-         - [ ] Add retry policy <!-- longclaw:item=ck_7d2a -->\n\
-         ```\n\
-         \n\
-         After:\n\
-         \n\
-         ```md\n\
-         - [x] Add retry policy <!-- longclaw:item=ck_7d2a -->\n\
-         ```\n\
-         \n\
-         Keep the `longclaw:item` marker. It is how a change is attributed to that\n\
-         item. A task you append without a marker still works; LongClaw adopts it and\n\
-         mints an id on its next write.\n\
-         \n\
-         ## Appending an activity entry\n\
-         \n\
-         Add to the end of the `## Activity` section, inside the markers:\n\
-         \n\
-         ```md\n\
-         <!-- longclaw:event\n\
-         id: evt_4b91c07a\n\
-         kind: update\n\
-         occurred_at: 2026-07-29T09:12:31Z\n\
-         actor:\n\
-         \x20 type: agent\n\
-         \x20 id: your-tool-id\n\
-         \x20 name: Your Tool\n\
-         changes:\n\
-         \x20 - field: status\n\
-         \x20   from: todo\n\
-         \x20   to: in_progress\n\
-         -->\n\
-         ### Your Tool updated this ticket\n\
-         \n\
-         What you did and what is left.\n\
-         <!-- /longclaw:event -->\n\
-         ```\n\
-         \n\
-         Activity is append-only: correct a mistake by appending another entry. Use\n\
-         `kind: comment` with no `changes` for a plain comment. Every `id` must be\n\
-         unique within the ticket. If you change state without appending an entry, the\n\
-         state still stands and the history is merely incomplete — LongClaw never rolls\n\
-         state back to match history.\n\
-         \n\
-         ## Attachments\n\
-         \n\
-         Copy the file into the ticket's `attachments/` directory as\n\
-         `<attachment-id>-<sanitized-name>`, then register it under `## Attachments`\n\
-         with its id, relative `file` path, original `name`, `media_type`, `size`,\n\
-         `added_at`, and `added_by`. Copy the bytes first and register second, so an\n\
-         interruption leaves a recoverable file rather than an entry pointing at\n\
-         nothing. Treat registered files as immutable: replacement means a new id.\n\
-         \n\
-         ## Writing safely\n\
-         \n\
-         - Write atomically: write a sibling temporary file, then rename it over\n\
-         \x20 `ticket.md`. LongClaw's watcher expects that pattern and will not mistake\n\
-         \x20 your write for its own.\n\
-         - The YAML subset allows mappings, lists, strings, booleans, nulls, and\n\
-         \x20 numbers. No anchors, aliases, tags, merge keys, multiple documents, or\n\
-         \x20 duplicate keys. Files are UTF-8 with LF line endings.\n\
-         - The frontmatter `key` and the ticket's directory name are one identity. Never\n\
-         \x20 change either.\n\
-         - If a file will not parse, leave it alone and say so. LongClaw shows an\n\
-         \x20 unreadable ticket with its raw contents and a diagnostic rather than\n\
-         \x20 repairing it, and so should you.\n\
-         \n\
-         ## This project\n\
-         \n\
-         - Name: {name}\n\
-         - Ticket keys: `{example_key}`, `{key}-2`, and so on\n\
-         - Ticket format: `longclaw.ticket/v1`\n\
-         \n\
-         {example}\n",
+    let mut contract = String::new();
+    contract.push_str(&format!(
+        concat!(
+            "<!-- longclaw:generated file=AGENTS.md version={version} -->\n",
+            "# Working on {name} with an agent\n",
+            "\n",
+            "LongClaw generated this file and rewrites it whenever this project changes.\n",
+            "Do not edit it — an edit here is overwritten without warning. Your own\n",
+            "instructions go in `PROJECT.md`, beside this file, which LongClaw creates\n",
+            "once and never writes to again.\n",
+            "\n",
+            "## This project\n",
+            "\n",
+            "- Name: {name}\n",
+            "- Key: `{key}`\n",
+            "- Ticket format: `longclaw.ticket/v1`\n",
+            "\n",
+            "The project is the folder that holds `.longclaw/`, so a ticket named in a\n",
+            "sentence resolves without searching: `{key}-42` is the directory\n",
+            "`.longclaw/tickets/{key}-42/`, and its record is\n",
+            "`.longclaw/tickets/{key}-42/ticket.md`. A recently minted key may carry a\n",
+            "trailing lowercase letter — `{key}-42n` — because two branches allocating\n",
+            "from one working tree would otherwise mint the same number. Both forms are\n",
+            "keys and both are read the same way.\n",
+            "\n",
+            "## Canonical files\n",
+            "\n",
+            "- `.longclaw/longclaw.yaml` — project identity, people, label definitions,\n",
+            "  and which ticket properties this project has turned on.\n",
+            "- `.longclaw/tickets/<KEY>/ticket.md` — the complete structured record for\n",
+            "  one ticket.\n",
+            "- `.longclaw/tickets/<KEY>/attachments/` — that ticket's attachment bytes.\n",
+            "\n",
+            "Read a ticket's `ticket.md` first: it is the whole record rather than a\n",
+            "summary of one. Open a file under `attachments/` only when the ticket\n",
+            "references it and you need it. This file, `CLAUDE.md` and `PROJECT.md` are\n",
+            "documentation; they are not project data.\n",
+            "\n",
+            "## Use the CLI\n",
+            "\n",
+            "`longclaw` is how this project is driven, and it ships with the LongClaw\n",
+            "app. Start with:\n",
+            "\n",
+            "```sh\n",
+            "longclaw help\n",
+            "```\n",
+            "\n",
+            "That prints every command, the `status` and `priority` sets, the date format\n",
+            "and the attribution rule. It is compiled into the binary, so it cannot go\n",
+            "stale the way a generated file can — read it rather than working from\n",
+            "memory, and rather than trusting a command spelled out here.\n",
+            "\n",
+            "Three things are worth knowing before the first one:\n",
+            "\n",
+            "- A command prints JSON on stdout. A failure prints a typed error on stderr\n",
+            "  and exits non-zero, and the error says what to fix.\n",
+            "- `--path` defaults to the working directory, so run commands from this\n",
+            "  project's folder or pass `--path` explicitly.\n",
+            "- An edit carries the hash of the bytes it read, so a command built from a\n",
+            "  stale read is refused rather than written over whoever changed the file\n",
+            "  first.\n",
+            "\n",
+            "Create a ticket:\n",
+            "\n",
+            "```sh\n",
+            "longclaw ticket create \\\n",
+            "  --title \"Search returns archived tickets\" \\\n",
+            "  --description \"Steps, expected, actual.\" \\\n",
+            "  --status todo --priority p2 \\\n",
+            "  --agent-id your-tool-id --agent-name \"Your Tool\"\n",
+            "```\n",
+            "\n",
+            "Edit one — a status, a checklist tick and a note are one command, and one\n",
+            "activity entry:\n",
+            "\n",
+            "```sh\n",
+            "longclaw ticket edit {example_key} \\\n",
+            "  --status in_progress \\\n",
+            "  --check ck_1b8e4f02 \\\n",
+            "  --comment \"Reproduced. The archived filter runs after the query.\" \\\n",
+            "  --agent-id your-tool-id --agent-name \"Your Tool\"\n",
+            "```\n",
+            "\n",
+            "## This project's vocabulary\n",
+            "\n",
+        ),
+        version = GENERATED_INSTRUCTIONS_VERSION,
         name = project.name,
         key = project.key,
-        example_key = example_key,
-        properties = property_rules(&project.properties),
-        property_note = property_note(&project.properties),
-        example = example_ticket(&example_key),
+        example_key = example_key(&project.key),
+    ));
+    contract.push_str(&label_vocabulary(&project.labels));
+    contract.push_str(&property_vocabulary(&project.properties));
+    contract.push_str(concat!(
+        "## Rules `longclaw help` does not state\n",
+        "\n",
+        "- **Never create `.longclaw/tickets/<KEY>/` by hand.** A key is allocated by\n",
+        "  claiming its directory, which is the one thing that stops two agents\n",
+        "  minting the same key at the same moment. `longclaw ticket create` is the\n",
+        "  only thing that may spend one.\n",
+        "- **Always pass `--agent-id`,** and `--agent-name` when you have one. The\n",
+        "  format declares who acted and never infers it, so an entry without it says\n",
+        "  a human did the work.\n",
+        "- **Activity is append-only.** Correct a mistake by appending another entry,\n",
+        "  never by editing or deleting one that is already there.\n",
+        "- **`id` and `key` are one identity and do not change.** The single exception\n",
+        "  is `ticket renumber`, and it exists for two branches that minted the same\n",
+        "  key rather than for renaming.\n",
+        "- **Never silently overwrite an external edit.** When a write is refused as\n",
+        "  stale, re-read the ticket and decide what to do with what changed. Do not\n",
+        "  retry the same command until it lands.\n",
+        "- **Keep what you do not understand.** A key this build does not read is\n",
+        "  preserved rather than dropped, and so is a value under a property this\n",
+        "  project has turned off — turning it off hides the value; it does not delete\n",
+        "  it.\n",
+        "- **If a file will not parse, leave it alone and say so.** LongClaw shows an\n",
+        "  unreadable ticket with its raw contents and a diagnostic rather than\n",
+        "  repairing it, and so should you.\n",
+        "\n",
+        "## If the CLI is not available\n",
+        "\n",
+        "An agent, an editor or a script on a machine without LongClaw installed can\n",
+        "still read and write these files: the file format is the durable contract and\n",
+        "the CLI is the recommended path through it, not a gate in front of it. What\n",
+        "you cannot do this way is create a ticket — a key is spent by claiming its\n",
+        "directory, and nothing outside LongClaw may spend one.\n",
+        "\n",
+        "### What you may change\n",
+        "\n",
+        "| Field | Rule |\n",
+        "|---|---|\n",
+        "| `title` | one line |\n",
+        "| `status` | one of `backlog`, `todo`, `in_progress`, `in_review`, `done`, `canceled` |\n",
+        "| `priority` | one of `urgent`, `p1`, `p2`, `p3`, `p4`, `none` |\n",
+        "| `labels` | slugs defined in `longclaw.yaml` |\n",
+    ));
+    contract.push_str(&property_rules(&project.properties));
+    contract.push_str(concat!(
+        "| description | any CommonMark outside the reserved sections |\n",
+        "| checklist | flip `[ ]` to `[x]`, or append a task |\n",
+        "| activity | append a bounded record; never edit or delete an existing one |\n",
+        "\n",
+        "Do not change `format`, `id`, `key`, `created_at` or `rank`. LongClaw owns\n",
+        "`rank`; preserve any value you find and do not invent one. Keep every key you\n",
+        "do not understand exactly as it is. `.longclaw/longclaw.yaml` is the source of\n",
+        "truth for the label slugs, the people and the enabled properties a ticket may\n",
+        "use — read it rather than guessing, and do not add a value it does not define.\n",
+        "\n",
+        "### Timestamps and attribution\n",
+        "\n",
+        "Timestamps are UTC RFC 3339 strings such as `2026-07-29T09:12:31Z`. Set\n",
+        "`updated_at` when you change ticket state. Attribute yourself explicitly:\n",
+        "\n",
+        "```yaml\n",
+        "actor:\n",
+        "  type: agent\n",
+        "  id: your-tool-id\n",
+        "  name: Your Tool\n",
+        "```\n",
+        "\n",
+        "`type` is one of `human`, `agent` or `unknown` — never guess. An agent is\n",
+        "never an assignee.\n",
+        "\n",
+        "### Checking off a checklist item\n",
+        "\n",
+        "Before:\n",
+        "\n",
+        "```md\n",
+        "- [ ] Add retry policy <!-- longclaw:item=ck_7d2a -->\n",
+        "```\n",
+        "\n",
+        "After:\n",
+        "\n",
+        "```md\n",
+        "- [x] Add retry policy <!-- longclaw:item=ck_7d2a -->\n",
+        "```\n",
+        "\n",
+        "Keep the `longclaw:item` marker: it is how a change is attributed to that\n",
+        "item. A task you append without one still works — LongClaw adopts it and mints\n",
+        "an id on its next write.\n",
+        "\n",
+        "### Appending an activity entry\n",
+        "\n",
+        "Add to the end of the `## Activity` section, inside the markers:\n",
+        "\n",
+        "```md\n",
+        "<!-- longclaw:event\n",
+        "id: evt_4b91c07a\n",
+        "kind: update\n",
+        "occurred_at: 2026-07-29T09:12:31Z\n",
+        "actor:\n",
+        "  type: agent\n",
+        "  id: your-tool-id\n",
+        "  name: Your Tool\n",
+        "changes:\n",
+        "  - field: status\n",
+        "    from: todo\n",
+        "    to: in_progress\n",
+        "-->\n",
+        "### Your Tool updated this ticket\n",
+        "\n",
+        "What you did and what is left.\n",
+        "<!-- /longclaw:event -->\n",
+        "```\n",
+        "\n",
+        "Use `kind: comment` with no `changes` for a plain comment. Every `id` must be\n",
+        "unique within the ticket. If you change state without appending an entry, the\n",
+        "state still stands and the history is merely incomplete — LongClaw never rolls\n",
+        "state back to match history.\n",
+        "\n",
+        "### Attachments\n",
+        "\n",
+        "Copy the file into the ticket's `attachments/` directory as\n",
+        "`<attachment-id>-<sanitized-name>`, then register it under `## Attachments`\n",
+        "with its id, relative `file` path, original `name`, `media_type`, `size`,\n",
+        "`added_at` and `added_by`. Copy the bytes first and register second, so an\n",
+        "interruption leaves a recoverable file rather than an entry pointing at\n",
+        "nothing. Treat registered files as immutable: replacement means a new id.\n",
+        "\n",
+        "### Writing safely\n",
+        "\n",
+        "- Write atomically: write a sibling temporary file, then rename it over\n",
+        "  `ticket.md`. LongClaw's watcher expects that pattern and will not mistake\n",
+        "  your write for its own.\n",
+        "- The YAML subset allows mappings, lists, strings, booleans, nulls and\n",
+        "  numbers. No anchors, aliases, tags, merge keys, multiple documents or\n",
+        "  duplicate keys. Files are UTF-8 with LF line endings.\n",
+        "- The frontmatter `key` and the ticket's directory name are one identity.\n",
+        "  Never change either.\n",
+        "\n",
+        "## Your own instructions\n",
+        "\n",
+        "`PROJECT.md`, beside this file, is yours: this project's conventions, the words\n",
+        "it wants used, anything an agent should know that LongClaw cannot generate.\n",
+        "LongClaw creates it once and never writes to it again, so what you put there\n",
+        "survives every rename, label change and property change that rewrites this\n",
+        "file.\n",
+        "\n",
+    ));
+    contract.push_str(&example_ticket(&example_key(&project.key)));
+    contract
+}
+
+/// The pointer Claude Code reads.
+///
+/// `CLAUDE.md` is the filename that tool looks for, and `@AGENTS.md` is its
+/// include convention, so the whole file is one line of content plus the banner
+/// every generated file carries. Constant on purpose: a reprint of a file that
+/// says nothing about the project is a no-op diff, which is what lets every
+/// project-edit path rewrite it without thinking about churn.
+pub fn render_claude_pointer() -> String {
+    format!(
+        concat!(
+            "<!-- longclaw:generated file=CLAUDE.md version={version} -->\n",
+            "# Claude instructions\n",
+            "\n",
+            "LongClaw generated this file and may overwrite it. Do not edit it; your own\n",
+            "instructions go in `PROJECT.md`, in this directory.\n",
+            "\n",
+            "@AGENTS.md\n",
+        ),
+        version = GENERATED_INSTRUCTIONS_VERSION,
     )
+}
+
+/// What `PROJECT.md` holds the moment it is created, and the only thing LongClaw
+/// ever writes into it.
+///
+/// A heading and nothing else. The file is the user's, so it arrives empty of
+/// content and stays whatever they make it; what the file is *for* is explained
+/// in `AGENTS.md`, which is the file an agent reads and the file LongClaw is
+/// allowed to rewrite when that explanation changes.
+pub const PROJECT_INSTRUCTIONS_TEMPLATE: &str = "# Project instructions\n";
+
+/// The first key this project would mint, which is the one the worked examples
+/// use.
+fn example_key(key: &str) -> String {
+    format!("{key}-1")
+}
+
+/// The label slugs a ticket in this project may carry, as a table, plus the two
+/// commands that read and extend the set.
+///
+/// The slugs themselves rather than a pointer to `longclaw.yaml`: an agent
+/// reading this is about to pass `--label`, and a refusal is the expensive way
+/// to learn which ones exist.
+fn label_vocabulary(labels: &BTreeMap<String, Label>) -> String {
+    let mut section = String::from("### Labels\n\n");
+    if labels.is_empty() {
+        section.push_str(concat!(
+            "This project defines no labels yet, so a ticket here carries none. A\n",
+            "`--label` naming a slug the project has not defined is refused rather than\n",
+            "written.\n",
+        ));
+    } else {
+        section.push_str(concat!(
+            "A ticket may carry only a slug this project defines; a `--label` naming one\n",
+            "it does not is refused rather than written.\n",
+            "\n",
+            "| Slug | Name |\n",
+            "|---|---|\n",
+        ));
+        for (slug, label) in labels {
+            section.push_str(&format!("| `{slug}` | {} |\n", label.name));
+        }
+    }
+    section.push_str(concat!(
+        "\n",
+        "`longclaw project show` prints what the project defines now. To add one:\n",
+        "\n",
+        "```sh\n",
+        "longclaw label add --slug security --name Security --color blue\n",
+        "```\n",
+        "\n",
+    ));
+    section
+}
+
+/// The ticket properties this project has turned on, what each accepts, and the
+/// flags that write it.
+///
+/// The four are opt-in (ADR 0013), so this describes the enabled set rather than
+/// all of them: a property an agent is told it may write had better be one the
+/// project reads, and a flag for a disabled one is refused. A project with none
+/// on is the common case and says so, because silence would read as "all four,
+/// probably".
+fn property_vocabulary(properties: &PropertiesConfig) -> String {
+    let mut section = String::from("### Ticket properties\n\n");
+    let enabled = properties.enabled();
+    if enabled.is_empty() {
+        section.push_str(concat!(
+            "`type`, `due`, `start` and `estimate` are opt-in, and this project has all\n",
+            "four turned off — so a ticket here carries none of them, and a flag for one\n",
+            "is refused rather than written. `longclaw project show` is where that\n",
+            "changes.\n",
+            "\n",
+        ));
+        return section;
+    }
+    section.push_str(concat!(
+        "`type`, `due`, `start` and `estimate` are opt-in. This project has turned on:\n",
+        "\n",
+        "| Property | Accepts | Flags |\n",
+        "|---|---|---|\n",
+    ));
+    for property in enabled {
+        let name = property.as_str();
+        // The placeholder `longclaw help` uses for the same flag, because the
+        // two are read side by side and a second spelling of one flag reads as
+        // two flags.
+        let placeholder = match property {
+            Property::Type => "<slug>",
+            Property::Due | Property::Start => "<date>",
+            Property::Estimate => "<value>",
+        };
+        section.push_str(&format!(
+            "| `{name}` | {} | `--{name} {placeholder}`, `--clear-{name}` |\n",
+            property_rule(property, properties),
+        ));
+    }
+    section.push_str(concat!(
+        "\n",
+        "Do not write a property that is not listed. An unlisted one is a property\n",
+        "this project does not read, and a value you find under it is being hidden\n",
+        "rather than deleted — keep it exactly as it is.\n",
+        "\n",
+    ));
+    section
 }
 
 /// The table rows for the properties this project has turned on, and nothing at
 /// all when it has turned none on.
 ///
-/// The four are opt-in, so the contract lists the enabled set rather than all of
-/// them: a field an agent is told it may change had better be one the project
-/// reads. Nothing is the common case, and it is what keeps a project with no
-/// `properties:` block — which is every project file written before this build —
-/// on the contract it has always had.
-///
-/// Each rule is the vocabulary itself rather than a pointer to it. An agent
-/// reading this file is about to write a value, and `one of bug, feature` is an
-/// answer where "the slugs defined in longclaw.yaml" is another file to open.
+/// The hand-editing fallback's copy of the same set: it is describing frontmatter
+/// keys rather than flags, so it carries the rule and not the command.
 fn property_rules(properties: &PropertiesConfig) -> String {
     properties
         .enabled()
         .into_iter()
         .map(|property| {
-            let rule = match property {
-                Property::Due | Property::Start => "a date, `YYYY-MM-DD`".to_owned(),
-                Property::Type => {
-                    let defined = properties
-                        .ticket_type
-                        .values
-                        .keys()
-                        .cloned()
-                        .collect::<Vec<_>>();
-                    if defined.is_empty() {
-                        "this project defines no type values yet".to_owned()
-                    } else {
-                        format!("one of {}", defined.join(", "))
-                    }
-                }
-                // The same sentence a refusal uses, so the contract cannot
-                // promise a vocabulary the write then rejects.
-                Property::Estimate => properties.estimate.vocabulary(),
-            };
-            format!("| `{}` | {rule} |\n", property.as_str())
+            format!(
+                "| `{}` | {} |\n",
+                property.as_str(),
+                property_rule(property, properties)
+            )
         })
         .collect()
 }
 
-/// The one thing the table cannot say by listing rows: what a property *not*
-/// listed means.
+/// What one enabled property accepts, in the words a refusal would use.
 ///
-/// Silence would read as "not mentioned, so probably fine", and the opposite is
-/// true — a disabled property is one this build declines to interpret, and a
-/// value under it is being hidden rather than deleted. A project with none
-/// enabled says nothing, because there is no enabled set to contrast with and
-/// the table already offers no property row at all.
-fn property_note(properties: &PropertiesConfig) -> String {
-    if properties.enabled().is_empty() {
-        return String::new();
+/// The vocabulary itself rather than a pointer to it. An agent reading this is
+/// about to write a value, and `one of bug, feature` is an answer where "the
+/// slugs defined in longclaw.yaml" is another file to open.
+fn property_rule(property: Property, properties: &PropertiesConfig) -> String {
+    match property {
+        Property::Due | Property::Start => "a date, `YYYY-MM-DD`".to_owned(),
+        Property::Type => {
+            let defined = properties
+                .ticket_type
+                .values
+                .keys()
+                .cloned()
+                .collect::<Vec<_>>();
+            if defined.is_empty() {
+                "this project defines no type values yet".to_owned()
+            } else {
+                format!("one of {}", defined.join(", "))
+            }
+        }
+        // The same sentence a refusal uses, so the contract cannot promise a
+        // vocabulary the write then rejects.
+        Property::Estimate => properties.estimate.vocabulary(),
     }
-    "\n\
-     The ticket properties above are the ones this project has turned on. Do not\n\
-     add one that is not listed: an unlisted property is one this project does not\n\
-     read, and a value you find under it is being hidden rather than deleted — keep\n\
-     it exactly as it is.\n"
-        .to_owned()
 }
 
 fn example_ticket(key: &str) -> String {
-    let rendered = render_new_ticket(
+    let rendered = render_example_ticket(
         key,
         "An example of the shape you are editing",
         super::ticket::Status::Todo,
@@ -1291,7 +1529,7 @@ fn example_ticket(key: &str) -> String {
         &["An example task".to_owned()],
         "2026-07-29T00:00:00Z",
     );
-    format!("## A complete example\n\n```md\n{rendered}```")
+    format!("## A complete example\n\n```md\n{rendered}```\n")
 }
 
 #[cfg(test)]
@@ -1586,20 +1824,146 @@ mod tests {
         assert!(document.project().unknown_keys.is_empty());
     }
 
+    /// The contract teaches the CLI first, and points at `longclaw help` for the
+    /// command surface rather than re-typing it.
+    ///
+    /// Re-typing it is the failure this asserts against: `cli.rs`'s `USAGE` is
+    /// compiled into the binary and cannot drift, while a command spelled out
+    /// here is a copy that goes stale the first time a flag is renamed — and
+    /// goes stale silently, because a generated file reads as freshly generated
+    /// whatever it says.
+    #[test]
+    fn the_generated_contract_teaches_the_cli_first() {
+        let document = ProjectDocument::parse(PROJECT).expect("the project should parse");
+        let contract = super::render_agent_contract(document.project());
+
+        assert!(contract.contains("longclaw help"), "{contract}");
+        assert!(contract.contains("longclaw ticket create"), "{contract}");
+        assert!(contract.contains("longclaw ticket edit LC-1"), "{contract}");
+        // Both worked examples attribute themselves, because an entry without
+        // `--agent-id` says a human did the work.
+        assert_eq!(contract.matches("--agent-id your-tool-id").count(), 2);
+
+        // The two enums `longclaw help` prints appear once each, in the
+        // hand-editing fallback where there is no `longclaw help` to read.
+        assert_eq!(
+            contract
+                .matches("one of `backlog`, `todo`, `in_progress`, `in_review`, `done`, `canceled`")
+                .count(),
+            1,
+            "{contract}"
+        );
+        assert_eq!(
+            contract
+                .matches("one of `urgent`, `p1`, `p2`, `p3`, `p4`, `none`")
+                .count(),
+            1,
+            "{contract}"
+        );
+    }
+
+    /// A ticket key in a sentence has to resolve to a path without searching,
+    /// which is the brief's question: an agent told "work on LC-42" needs the
+    /// project's own key and the directory it maps to, in the file it is
+    /// already reading.
+    #[test]
+    fn the_generated_contract_maps_this_projects_key_to_a_directory() {
+        let document = ProjectDocument::parse(PROJECT).expect("the project should parse");
+        let contract = super::render_agent_contract(document.project());
+
+        assert!(contract.contains("- Key: `LC`"), "{contract}");
+        assert!(
+            contract.contains("`.longclaw/tickets/LC-42/ticket.md`"),
+            "{contract}"
+        );
+        // The trailing-letter form is a key too, and an agent that has not met
+        // one reads it as a typo.
+        assert!(contract.contains("`LC-42n`"), "{contract}");
+    }
+
+    /// The rules that are LongClaw's rather than the CLI's, which is why
+    /// `longclaw help` cannot carry them: they are about what an agent must not
+    /// do, and a usage string lists what it may.
+    #[test]
+    fn the_generated_contract_carries_the_rules_help_does_not_state() {
+        let document = ProjectDocument::parse(PROJECT).expect("the project should parse");
+        let contract = super::render_agent_contract(document.project());
+
+        for rule in [
+            "Never create `.longclaw/tickets/<KEY>/` by hand",
+            "Always pass `--agent-id`",
+            "Activity is append-only",
+            "`id` and `key` are one identity and do not change",
+            "Never silently overwrite an external edit",
+            "If a file will not parse, leave it alone and say so",
+        ] {
+            assert!(contract.contains(rule), "missing {rule}\n{contract}");
+        }
+    }
+
+    /// The fallback is the whole point of keeping the format documented: a
+    /// machine without the app installed still has to write a legal file, and
+    /// the format is the durable contract underneath the CLI.
+    #[test]
+    fn the_generated_contract_keeps_a_hand_edit_fallback() {
+        let document = ProjectDocument::parse(PROJECT).expect("the project should parse");
+        let contract = super::render_agent_contract(document.project());
+
+        assert!(contract.contains("## If the CLI is not available"));
+        assert!(contract.contains("atomically"));
+        assert!(contract.contains("No anchors, aliases, tags, merge keys"));
+        assert!(contract.contains("longclaw:item=ck_7d2a"));
+        assert!(contract.contains("<!-- longclaw:event"));
+        assert!(contract.contains("<!-- /longclaw:event -->"));
+        assert!(contract.contains("`type` is one of `human`, `agent` or `unknown`"));
+        assert!(contract.contains("`.longclaw/longclaw.yaml` is the source of\ntruth"));
+        // What the CLI would have done for it, said outright: nothing outside
+        // LongClaw may spend a key.
+        assert!(contract.contains("What\nyou cannot do this way is create a ticket"));
+    }
+
+    /// Both generated files say who wrote them, which generation wrote them, and
+    /// where the reader's own instructions go instead.
+    #[test]
+    fn the_generated_files_carry_a_version_and_a_do_not_edit_banner() {
+        let document = ProjectDocument::parse(PROJECT).expect("the project should parse");
+        let contract = super::render_agent_contract(document.project());
+        let pointer = super::render_claude_pointer();
+
+        assert!(contract.starts_with(&format!(
+            "<!-- longclaw:generated file=AGENTS.md version={} -->\n",
+            super::GENERATED_INSTRUCTIONS_VERSION
+        )));
+        assert!(pointer.starts_with(&format!(
+            "<!-- longclaw:generated file=CLAUDE.md version={} -->\n",
+            super::GENERATED_INSTRUCTIONS_VERSION
+        )));
+        assert!(contract.contains("Do not edit it"), "{contract}");
+        assert!(pointer.contains("Do not edit it"), "{pointer}");
+        // Both send an edit somewhere it will survive.
+        assert!(contract.contains("`PROJECT.md`"), "{contract}");
+        assert!(pointer.contains("`PROJECT.md`"), "{pointer}");
+        // The pointer is a pointer: Claude Code's include convention and
+        // nothing that could disagree with the file it includes.
+        assert!(pointer.contains("@AGENTS.md"), "{pointer}");
+        assert!(pointer.lines().count() < 10, "{pointer}");
+    }
+
+    /// The example carries a readable ticket, and the same file says what a
+    /// project with no properties enabled means.
     #[test]
     fn the_generated_agent_contract_carries_a_readable_example() {
         let document = ProjectDocument::parse(PROJECT).expect("the project should parse");
         let contract = super::render_agent_contract(document.project());
         assert!(contract.contains("Representative Project"));
-        assert!(contract.contains("`LC-1`"));
+        assert!(contract.contains("key: LC-1"));
         assert!(contract.contains("longclaw:item=ck_7d2a"));
         assert!(contract.contains("<!-- /longclaw:event -->"));
         assert!(contract.contains("atomically"));
         // All four properties are off, so the contract offers no property row
-        // and says nothing about them — the file every project written before
-        // the properties block existed already had.
+        // and says so in a sentence rather than by omission.
         assert!(!contract.contains("| `type` |"));
-        assert!(!contract.contains("turned on"));
+        assert!(contract.contains("this project has all\nfour turned off"));
     }
 
     /// The generated contract offers the enabled set and no more.
@@ -1614,9 +1978,22 @@ mod tests {
         let document = ProjectDocument::parse(CONFIGURED).expect("the fixture should parse");
         let contract = super::render_agent_contract(document.project());
 
-        // In the documented order, between the other frontmatter fields and the
-        // description — and each carrying the vocabulary itself, not a pointer
-        // to another file.
+        // The vocabulary section names the flag that writes each one, because
+        // the CLI is the path this file recommends.
+        assert!(
+            contract.contains(concat!(
+                "| Property | Accepts | Flags |\n",
+                "|---|---|---|\n",
+                "| `type` | one of bug, feature | `--type <slug>`, `--clear-type` |\n",
+                "| `due` | a date, `YYYY-MM-DD` | `--due <date>`, `--clear-due` |\n",
+                "| `estimate` | a number and a unit, such as 2h, 1.5d or 1w | \
+                 `--estimate <value>`, `--clear-estimate` |\n",
+            )),
+            "{contract}"
+        );
+        // And the fallback's frontmatter table carries the same set in the
+        // documented order, between the other fields and the description —
+        // each with the vocabulary itself rather than a pointer to another file.
         assert!(
             contract.contains(concat!(
                 "| `labels` | slugs defined in `longclaw.yaml` |\n",
@@ -1632,7 +2009,7 @@ mod tests {
         // And what an unlisted property means is said outright, because silence
         // reads as permission.
         assert!(
-            contract.contains("Do not\nadd one that is not listed"),
+            contract.contains("Do not write a property that is not listed"),
             "{contract}"
         );
 
@@ -1663,30 +2040,82 @@ mod tests {
         );
     }
 
-    /// LC-66's churn, asked of the rows this build added: the property half of
-    /// the contract is derived from the project file, so rendering the same
-    /// project twice produces the same rows.
+    /// A project's own label slugs, in the file the agent is already reading.
     ///
-    /// The rest of the file does not hold still — `example_ticket` mints a fresh
-    /// `id`, `ck_` and `evt_` on every render, and `update_project_file`
-    /// reprints the contract after every project write, so a property toggle's
-    /// real diff arrives alongside three meaningless ones. That is LC-66 and it
-    /// is still open; this test exists so the rows added here are not a second
-    /// source of it.
+    /// A pointer to `longclaw.yaml` would be another file to open, and the
+    /// answer it holds is the one an agent needs before it passes `--label` —
+    /// a refusal is the expensive way to learn which slugs exist.
     #[test]
-    fn the_property_rows_are_the_same_two_renders_running() {
-        let document = ProjectDocument::parse(CONFIGURED).expect("the fixture should parse");
-        let rows = |contract: &str| {
-            contract
-                .lines()
-                .filter(|line| line.starts_with("| `"))
-                .map(str::to_owned)
-                .collect::<Vec<_>>()
-        };
-        assert_eq!(
-            rows(&super::render_agent_contract(document.project())),
-            rows(&super::render_agent_contract(document.project()))
+    fn the_generated_contract_lists_this_projects_labels() {
+        let document = ProjectDocument::parse(PROJECT).expect("the project should parse");
+        let contract = super::render_agent_contract(document.project());
+        assert!(contract.contains("| `storage` | Storage |\n"), "{contract}");
+        assert!(contract.contains("longclaw label add"), "{contract}");
+
+        // A project with none says so, rather than printing an empty table for
+        // an agent to read as "any slug, then".
+        let bare = ProjectDocument::parse(&render_new_project(
+            "019c8c31-4d7e-71ad-8997-e67700962b55",
+            "Bare",
+            "BR",
+            DEFAULT_THEME,
+            "2026-07-29T00:00:00Z",
+        ))
+        .expect("a new project should parse");
+        let contract = super::render_agent_contract(bare.project());
+        assert!(
+            contract.contains("This project defines no labels yet"),
+            "{contract}"
         );
+        assert!(!contract.contains("| Slug | Name |"), "{contract}");
+    }
+
+    /// LC-66, closed: rendering the same project twice produces the same bytes.
+    ///
+    /// Every project write reprints this file — a rename, a label, any of
+    /// LC-227's eight property controls — and the worked example used to be
+    /// rendered with minted ids, so each reprint carried a fresh `id`, `ck_` and
+    /// `evt_` and nothing else. The user guide recommends committing
+    /// `.longclaw/`, so that landed in a review as three changed lines that
+    /// meant nothing, which is what trains a reader to skim the diffs where the
+    /// contract really did change.
+    ///
+    /// Whole bytes rather than the property rows alone: the ids are the part
+    /// that moved, and a test that filtered the file down to its tables would
+    /// have passed throughout the bug it exists to catch.
+    #[test]
+    fn the_contract_is_byte_identical_two_renders_running() {
+        for raw in [PROJECT, CONFIGURED] {
+            let document = ProjectDocument::parse(raw).expect("the fixture should parse");
+            assert_eq!(
+                super::render_agent_contract(document.project()),
+                super::render_agent_contract(document.project())
+            );
+        }
+        assert_eq!(
+            super::render_claude_pointer(),
+            super::render_claude_pointer()
+        );
+    }
+
+    /// The worked example is a real render, so what it teaches is what the app
+    /// writes — and it has to survive the round trip it is asking an agent to
+    /// make.
+    #[test]
+    fn the_worked_example_is_a_ticket_the_parser_accepts() {
+        let document = ProjectDocument::parse(PROJECT).expect("the project should parse");
+        let contract = super::render_agent_contract(document.project());
+        let example = contract
+            .split_once("## A complete example\n\n```md\n")
+            .and_then(|(_, rest)| rest.split_once("\n```"))
+            .map(|(example, _)| format!("{example}\n"))
+            .expect("the contract should carry a fenced example");
+
+        let parsed = crate::core::ticket::TicketDocument::parse(&example, "LC-1")
+            .expect("the example the contract teaches should parse");
+        assert_eq!(parsed.ticket().key, "LC-1");
+        assert_eq!(parsed.ticket().checklist.len(), 1);
+        assert_eq!(parsed.ticket().activity.len(), 1);
     }
 
     // -------------------------------------------- the properties block
