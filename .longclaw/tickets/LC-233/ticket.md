@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 4438c039-2753-4c63-8500-8af0ea2ed05f
 key: LC-233
 title: Installing the app installs the longclaw CLI
-status: todo
-priority: none
+status: in_progress
+priority: urgent
 labels:
   - platform
   - release
 created_at: 2026-08-24T23:40:32.472Z
-updated_at: 2026-08-24T23:40:32.472Z
+updated_at: 2026-09-10T06:27:14.805Z
 ---
 
 Installing the desktop app should be all it takes to get the `longclaw` command.
@@ -129,4 +129,34 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_ccea5975
+kind: update
+occurred_at: 2026-09-10T06:26:42.029Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: todo
+    to: in_progress
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_97e4a2f3
+kind: update
+occurred_at: 2026-09-10T06:27:14.805Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: priority
+    from: none
+    to: urgent
+-->
+### You updated this ticket
 <!-- /longclaw:event -->
