@@ -209,8 +209,8 @@ fn label_add(arguments: &[String]) -> AppResult<Value> {
         &storage::project_file_path(&root),
         &bytes,
     )?;
-    // The contract names the project, so a rename or a label change reprints it.
-    storage::write_agent_contract(&root, &document)?;
+    // The generated files name the project's labels, so adding one reprints them.
+    storage::write_agent_instructions(&root, &document)?;
     Ok(json!(reference(&document, &root)))
 }
 
@@ -460,6 +460,11 @@ fn existing_directory(options: &Options) -> AppResult<PathBuf> {
 fn open_project(options: &Options) -> AppResult<(PathBuf, ProjectDocument)> {
     let root = existing_directory(options)?;
     let document = storage::read_project(&root)?;
+    // Every command comes through here, which makes this the CLI's answer to a
+    // project file that was edited by hand: the generated instructions are
+    // brought back in step before the command that needs them runs. It writes
+    // only when they had drifted, so the common case touches nothing.
+    storage::reconcile_agent_instructions(&root, &document);
     Ok((root, document))
 }
 

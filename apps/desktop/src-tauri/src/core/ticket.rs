@@ -1216,6 +1216,7 @@ impl TicketDocument {
         // would not reliably read in the order the change happened.
         if changes.is_empty() {
             next.append_activity(&render_event(
+                Ids::Minted,
                 &EventKind::Comment,
                 now,
                 &[],
@@ -1226,6 +1227,7 @@ impl TicketDocument {
         } else {
             next.frontmatter.set_scalar("updated_at", now);
             next.append_activity(&render_event(
+                Ids::Minted,
                 &EventKind::Update,
                 now,
                 &changes,
@@ -1295,6 +1297,7 @@ impl TicketDocument {
             Some(new_key.to_owned()),
         )];
         next.append_activity(&render_event(
+            Ids::Minted,
             &EventKind::Update,
             now,
             &changes,
@@ -1594,6 +1597,7 @@ impl TicketDocument {
 /// Renders one bounded activity record. Structured metadata lives inside the
 /// markers; the Markdown underneath is what a human reads.
 fn render_event(
+    ids: Ids,
     kind: &EventKind,
     occurred_at: &str,
     changes: &[FieldChange],
@@ -1604,7 +1608,7 @@ fn render_event(
     let mut record = String::new();
     record.push_str(EVENT_OPEN);
     record.push('\n');
-    record.push_str(&format!("id: {}\n", mint_id("evt")));
+    record.push_str(&format!("id: {}\n", ids.event()));
     record.push_str(&format!("kind: {}\n", kind.as_str()));
     record.push_str(&format!("occurred_at: {}\n", encode_scalar(occurred_at)));
     record.push_str(&format!("actor:\n  type: {}\n", author.actor_type.as_str()));
@@ -1712,9 +1716,67 @@ pub fn render_new_ticket_as(
     now: &str,
     author: &Actor,
 ) -> String {
+    render_ticket(
+        key,
+        title,
+        status,
+        priority,
+        labels,
+        properties,
+        description,
+        checklist,
+        now,
+        author,
+        Ids::Minted,
+    )
+}
+
+/// The worked example the generated agent contract carries.
+///
+/// It is a real render — the same function a create goes through — so the shape
+/// an agent is shown cannot drift from the shape the app writes. What it does
+/// not do is mint: see [`Ids`].
+pub fn render_example_ticket(
+    key: &str,
+    title: &str,
+    status: Status,
+    priority: Priority,
+    description: &str,
+    checklist: &[String],
+    now: &str,
+) -> String {
+    render_ticket(
+        key,
+        title,
+        status,
+        priority,
+        &[],
+        &TicketProperties::default(),
+        description,
+        &all_open(checklist),
+        now,
+        &Actor::local_human(),
+        Ids::Fixed,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_ticket(
+    key: &str,
+    title: &str,
+    status: Status,
+    priority: Priority,
+    labels: &[String],
+    properties: &TicketProperties,
+    description: &str,
+    checklist: &[NewChecklistItem],
+    now: &str,
+    author: &Actor,
+    ids: Ids,
+) -> String {
     let mut rendered = String::from("---\n");
     rendered.push_str(&format!("format: {TICKET_FORMAT}\n"));
-    rendered.push_str(&format!("id: {}\n", Uuid::new_v4()));
+    rendered.push_str(&format!("id: {}\n", ids.ticket()));
     rendered.push_str(&format!("key: {}\n", encode_scalar(key)));
     rendered.push_str(&format!("title: {}\n", encode_scalar(title)));
     rendered.push_str(&format!("status: {}\n", status.as_str()));
@@ -1749,7 +1811,7 @@ pub fn render_new_ticket_as(
     }
     if !checklist.is_empty() {
         rendered.push_str("\n## Checklist\n\n");
-        for item in checklist {
+        for (index, item) in checklist.iter().enumerate() {
             // The same two markers every other write in this module uses, so a
             // row created ticked is indistinguishable from one ticked later —
             // which is the point: the file records state, not how it got there.
@@ -1757,12 +1819,13 @@ pub fn render_new_ticket_as(
             rendered.push_str(&format!(
                 "{box_marker}{} {ITEM_MARKER_OPEN}{} {ITEM_MARKER_CLOSE}\n",
                 item.text.trim(),
-                mint_id("ck")
+                ids.item(index)
             ));
         }
     }
     rendered.push_str("\n## Activity\n\n");
     rendered.push_str(&render_event(
+        ids,
         &EventKind::Create,
         now,
         &[],
@@ -1776,6 +1839,61 @@ pub fn render_new_ticket_as(
 fn mint_id(prefix: &str) -> String {
     let uuid = Uuid::new_v4().simple().to_string();
     format!("{prefix}_{}", &uuid[..8])
+}
+
+/// The ids the agent contract's worked example carries.
+///
+/// Real-looking, because the example is what an agent copies the shape of, and
+/// fixed, because nothing reads them.
+const EXAMPLE_TICKET_ID: &str = "3f9c1a7d-4e02-4b8c-9a71-5d6e0c2f8b34";
+const EXAMPLE_ITEM_IDS: [&str; 1] = ["ck_1b8e4f02"];
+const EXAMPLE_EVENT_ID: &str = "evt_2c7a90d5";
+
+/// Where a render gets the ids it has to invent.
+///
+/// Every create mints them: an id is an identity, and two tickets must never
+/// share one. The generated agent contract's worked example is the single
+/// exception, and it is LC-66 — LongClaw reprints `.longclaw/AGENTS.md` after
+/// every project edit, so minting there turned a theme change into a diff of a
+/// fresh `id`, a fresh `ck_` and a fresh `evt_` and nothing else. That is noise
+/// in exactly the reviews where the contract really had changed, and the file is
+/// documentation, so fixed ids cost nothing.
+#[derive(Clone, Copy)]
+enum Ids {
+    Minted,
+    Fixed,
+}
+
+impl Ids {
+    fn ticket(self) -> String {
+        match self {
+            Self::Minted => Uuid::new_v4().to_string(),
+            Self::Fixed => EXAMPLE_TICKET_ID.to_owned(),
+        }
+    }
+
+    /// The `ck_` for the row at `index`.
+    ///
+    /// A fixed example with more rows than there are literals above falls back
+    /// to minting rather than repeating one id, which the byte-identity test
+    /// then fails on — a loud wrong answer instead of two rows LongClaw would
+    /// treat as the same row.
+    fn item(self, index: usize) -> String {
+        match self {
+            Self::Minted => mint_id("ck"),
+            Self::Fixed => EXAMPLE_ITEM_IDS
+                .get(index)
+                .map(|id| (*id).to_owned())
+                .unwrap_or_else(|| mint_id("ck")),
+        }
+    }
+
+    fn event(self) -> String {
+        match self {
+            Self::Minted => mint_id("evt"),
+            Self::Fixed => EXAMPLE_EVENT_ID.to_owned(),
+        }
+    }
 }
 
 // --------------------------------------------------------------------- parsing

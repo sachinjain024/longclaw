@@ -201,7 +201,7 @@ Run on a clean macOS user profile or machine:
 | Scenario | Expected result |
 |---|---|
 | Fresh install from DMG | App launches and reaches project selection without an account, key, or network |
-| First project creation | Selected folder receives only `.longclaw/longclaw.yaml`, `.longclaw/AGENTS.md`, and `.longclaw/tickets/` |
+| First project creation | Selected folder receives only `.longclaw/longclaw.yaml`, `.longclaw/AGENTS.md`, `.longclaw/CLAUDE.md`, `.longclaw/PROJECT.md`, and `.longclaw/tickets/` |
 | Upgrade over the previous candidate or pilot build | Known projects, star state, theme, and appearance preference survive |
 | App restart | Last project state reloads from disk and the registry remains valid |
 | Sleep/wake with the window focused | External edits appear without refresh or restart |

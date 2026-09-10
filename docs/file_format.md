@@ -308,9 +308,9 @@ This is the generated agent-facing editing contract. It should explain:
 - invalid or partial-file behavior;
 - before-and-after examples of safe mutations.
 
-It must specifically instruct an agent to treat `ticket.md` as the complete structured record and read files under `attachments/` only when referenced and relevant.
+It must specifically instruct an agent to treat `ticket.md` as the complete structured record and read files under `attachments/` only when referenced and relevant. It is generated with two siblings: `.longclaw/CLAUDE.md`, a pointer to it for tools that look for that name, and `.longclaw/PROJECT.md`, which belongs to the user — LongClaw creates it once and never writes to it again.
 
-This instruction file is documentation, not source-of-truth project data. LongClaw owns `.longclaw/AGENTS.md`, but must not create or overwrite an unrelated `AGENTS.md` at the repository root. A project may additionally link to this contract from its existing root agent instructions.
+This instruction file is documentation, not source-of-truth project data. LongClaw owns `.longclaw/AGENTS.md` and `.longclaw/CLAUDE.md` and reprints both whenever the project changes, but must not create or overwrite an unrelated `AGENTS.md` or `CLAUDE.md` at the repository root. A project may additionally link to this contract from its existing root agent instructions.
 
 ## Attachments
 

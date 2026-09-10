@@ -8,7 +8,7 @@ use std::fs;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use longclaw_desktop_lib::core::storage::NewTicket;
+use longclaw_desktop_lib::core::storage::{self, NewTicket};
 use longclaw_desktop_lib::core::ticket::TicketEdit;
 use longclaw_desktop_lib::core::{ProjectEvent, RebuildReason, TicketRow};
 
@@ -205,7 +205,18 @@ fn performance_budgets_for_project_load_search_and_write() {
     );
 
     assert_eq!(rebuilt.tickets.len(), tickets);
-    assert_eq!(created.ticket.key(), format!("PF-{}", tickets + 1));
+    // The number is the assertion; the trailing character is not. A minted key
+    // carries one drawn at random (LC-232), so spelling the whole key here made
+    // this fail on every run — and because it fails before the three budget
+    // assertions below, it took them with it.
+    let (number, _suffix) = storage::split_key_suffix(
+        created
+            .ticket
+            .key()
+            .strip_prefix("PF-")
+            .expect("a key in this project"),
+    );
+    assert_eq!(number, (tickets + 1).to_string());
     assert_eq!(search.tickets.len(), 1);
     assert!(detail.ticket.is_some());
     assert!(

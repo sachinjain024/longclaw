@@ -8,7 +8,7 @@ use chrono::{SecondsFormat, Utc};
 use crate::core::project::EstimateSystem;
 use crate::core::storage::{
     atomic_write, initialize_project, project_file_path, read_project, tickets_root,
-    write_agent_contract,
+    write_agent_instructions,
 };
 use crate::core::ticket::Property;
 use crate::core::{AppError, AppResult, ErrorCode, ProjectReference};
@@ -265,7 +265,7 @@ impl RegistryStore {
         let mut document = read_project(root)?;
         let bytes = edit(&mut document).map_err(AppError::from)?;
         atomic_write("Saving project settings", &project_file_path(root), &bytes)?;
-        write_agent_contract(root, &document)?;
+        write_agent_instructions(root, &document)?;
         let mut project =
             ProjectReference::from_project(document.project(), current.root_path.clone());
         project.starred = current.starred;

@@ -28,7 +28,9 @@ When you point LongClaw at a folder, it creates one directory inside it:
 your-project/
 └── .longclaw/
     ├── longclaw.yaml     the project's name, key, theme, people, and labels
-    ├── AGENTS.md         the editing contract agents read
+    ├── AGENTS.md         the contract agents read: the CLI, and the file format
+    ├── CLAUDE.md         a pointer to AGENTS.md, for the tools that look for it
+    ├── PROJECT.md        yours: LongClaw creates it once and never rewrites it
     └── tickets/
         └── LC-1/
             ├── ticket.md          the whole ticket
@@ -114,9 +116,16 @@ where the tickets are and to read the contract first. There is a copyable
 example in [`examples/agent-context/AGENTS.md`](../examples/agent-context/AGENTS.md).
 
 **`.longclaw/AGENTS.md` is the contract, and the app maintains it.** You do not
-write it and should not need to edit it. It tells an agent how to update a
-ticket without corrupting it: keep the fields valid, append history rather than
-rewriting it, and never invent a ticket key.
+write it and should not edit it — the app rewrites it whenever the project
+changes, so an edit there is lost. It tells an agent to drive the project with
+the `longclaw` command, and how to update a ticket by hand without corrupting it:
+keep the fields valid, append history rather than rewriting it, and never invent
+a ticket key. `.longclaw/CLAUDE.md` is a one-line pointer to it, for the tools
+that look for that name instead.
+
+**`.longclaw/PROJECT.md` is yours.** LongClaw creates it empty and never writes
+to it again, so it is where your project's own conventions and vocabulary go —
+what your labels mean, the words you want used. AGENTS.md sends an agent to it.
 
 **You will see who did what.** Edits made by an agent are attributed to an agent
 in the ticket's history, separately from yours. That separation is the point —

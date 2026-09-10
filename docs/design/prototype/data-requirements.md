@@ -15,7 +15,7 @@
 | `ticket.md` frontmatter | id, key, title, status, priority, assignee, labels (slugs), rank, created_at, updated_at, and the four opt-in properties — type, due, start, estimate (LC-227) | canonical |
 | `ticket.md` body | description (CommonMark), `## Checklist` tasks + stable item IDs, `## Attachments` registry, `## Activity` bounded events | canonical |
 | `longclaw.yaml` | project id, name, key, **theme**, created_at, people registry, label definitions, property configuration (ADR 0013) | canonical |
-| `.longclaw/AGENTS.md` | generated agent editing contract | documentation |
+| `.longclaw/AGENTS.md`, `CLAUDE.md`, `PROJECT.md` | the generated agent contract and its pointer, reprinted on every project edit; `PROJECT.md` is the user's, written once at creation and never regenerated | documentation |
 | App state (OS app-support dir) | project registry (paths), last active project, starred, appearance preference, per-project board/list view, ordering preference (ADR 0003), filter query, archived-view toggle, window/panel state, palette history, index, watcher checkpoints, content hashes | disposable / device-local |
 | Derived at render | checklist progress, counts, relative times, the acknowledgement, degraded status, the due rung | never stored |
 

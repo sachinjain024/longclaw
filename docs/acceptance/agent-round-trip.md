@@ -86,7 +86,8 @@ and **Choose folder** is disabled. See
 [the resolved report](../plans/completed/project-key-derivation-bug.md).
 
 **Pass:** the board opens empty, the header shows the folder path, and the
-folder now contains `.longclaw/longclaw.yaml`, `.longclaw/AGENTS.md`, and
+folder now contains `.longclaw/longclaw.yaml`, `.longclaw/AGENTS.md`,
+`.longclaw/CLAUDE.md`, an empty `.longclaw/PROJECT.md`, and
 `.longclaw/tickets/`.
 
 ### 2. Create a ticket (human)
