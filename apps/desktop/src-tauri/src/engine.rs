@@ -35,7 +35,7 @@ use parking_lot::Mutex;
 
 use crate::core::storage::{
     self, atomic_write, content_hash, directory_key, prepare_new_ticket, prepare_ticket_edit,
-    read_project, ticket_file_path, NewTicket,
+    read_project, reconcile_agent_instructions, ticket_file_path, NewTicket,
 };
 use crate::core::ticket::TicketEdit;
 use crate::core::{
@@ -290,6 +290,19 @@ impl ProjectEngine {
         let project_key = engine.project.lock().key.clone();
         let initial_engine = Arc::clone(&engine);
         engine.blocking.run(move || {
+            // Opening a project is the app's first and best chance to notice
+            // that its generated instructions no longer describe it, because
+            // `longclaw.yaml` sits outside the watched directory and a hand-edit
+            // of it arrives as no event at all. Cheap and read-only unless
+            // something really drifted — see `reconcile_agent_instructions`.
+            //
+            // A project whose metadata will not parse is left exactly as the
+            // rest of start leaves it: the index is built from the key the
+            // registry handed over, and nothing here is allowed to turn a
+            // documentation refresh into a project that will not open.
+            if let Ok(document) = read_project(&initial_engine.root) {
+                reconcile_agent_instructions(&initial_engine.root, &document);
+            }
             initial_engine
                 .index
                 .rebuild(&initial_engine.root, &project_key)
@@ -347,10 +360,16 @@ impl ProjectEngine {
         // The project document is read before the tickets, deliberately: its key
         // decides which directories under `tickets/` are this project's at all, so
         // reading it afterwards would index a rebuild against the previous key.
-        let project = ProjectReference::from_project(
-            read_project(&self.root)?.project(),
-            self.root.display().to_string(),
-        );
+        let document = read_project(&self.root)?;
+        let project =
+            ProjectReference::from_project(document.project(), self.root.display().to_string());
+        // The one place the app re-reads the project file, so the one place a
+        // rebuild can notice that the generated instructions no longer describe
+        // it. The watcher covers `.longclaw/tickets/` and nothing else, so a
+        // hand-edited `longclaw.yaml` never arrives as an event — it is found
+        // here, on resume, on overflow, or on the next rebuild something else
+        // asks for, and at launch by the reconcile in `start_with_adapter`.
+        reconcile_agent_instructions(&self.root, &document);
         *self.project.lock() = project.clone();
         let index = self.index.rebuild(&self.root, &project.key)?;
         let snapshot = ProjectSnapshot {

@@ -460,6 +460,11 @@ fn existing_directory(options: &Options) -> AppResult<PathBuf> {
 fn open_project(options: &Options) -> AppResult<(PathBuf, ProjectDocument)> {
     let root = existing_directory(options)?;
     let document = storage::read_project(&root)?;
+    // Every command comes through here, which makes this the CLI's answer to a
+    // project file that was edited by hand: the generated instructions are
+    // brought back in step before the command that needs them runs. It writes
+    // only when they had drifted, so the common case touches nothing.
+    storage::reconcile_agent_instructions(&root, &document);
     Ok((root, document))
 }
 

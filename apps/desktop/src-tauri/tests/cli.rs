@@ -63,6 +63,66 @@ fn defined_label(root: &Path, slug: &str) {
     run(root, &["label", "add", "--slug", slug, "--name", "Storage"]);
 }
 
+/// A hand-edited project file is picked up by the next command, whatever it is.
+///
+/// `longclaw help` names `.longclaw/longclaw.yaml` as the place a project turns
+/// a ticket property on, because no command does it — so hand-editing that file
+/// is the documented path, not a workaround, and it leaves the generated
+/// contract describing a project that has moved on. Nothing watches it either:
+/// the app's watcher covers `.longclaw/tickets/` alone. So the CLI checks when
+/// it opens a project, which is every command.
+#[test]
+fn a_command_brings_a_hand_edited_projects_instructions_back_in_step() {
+    let (_temp, root) = common::new_project("drifted", "DR");
+    let contract = storage::agent_contract_path(&root);
+
+    let path = storage::project_file_path(&root);
+    let raw = fs::read_to_string(&path).expect("longclaw.yaml");
+    fs::write(
+        &path,
+        format!("{raw}properties:\n  due:\n    enabled: true\n"),
+    )
+    .expect("the hand edit");
+    assert!(!fs::read_to_string(&contract)
+        .expect("AGENTS.md")
+        .contains("| `due` |"));
+
+    // A read is enough, and a read is the weakest command there is.
+    run(&root, &["ticket", "list"]);
+
+    let refreshed = fs::read_to_string(&contract).expect("AGENTS.md");
+    assert!(
+        refreshed.contains("| `due` | a date, `YYYY-MM-DD` | `--due <date>`, `--clear-due` |"),
+        "{refreshed}"
+    );
+    // And the property it just learned about is one it will now write.
+    let created = run(
+        &root,
+        &[
+            "ticket",
+            "create",
+            "--title",
+            "Due soon",
+            "--due",
+            "2026-09-30",
+        ],
+    );
+    assert!(read(&root, &key_of(&created)).contains("due: 2026-09-30"));
+
+    // In step now, so the next command leaves the file alone.
+    let settled = fs::metadata(&contract)
+        .and_then(|meta| meta.modified())
+        .expect("mtime");
+    run(&root, &["ticket", "list"]);
+    assert_eq!(
+        fs::metadata(&contract)
+            .and_then(|meta| meta.modified())
+            .expect("mtime"),
+        settled,
+        "a contract that already describes the project is not rewritten"
+    );
+}
+
 /// The whole reason the surface exists: LongClaw allocates the key, not its
 /// caller. Nothing in the CLI composes one, so the numbers come out of the same
 /// directory scan the app's own create uses.

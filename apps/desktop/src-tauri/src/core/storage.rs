@@ -1672,6 +1672,68 @@ pub fn write_project_instructions_if_absent(project_root: &Path) -> AppResult<()
     }
 }
 
+/// Brings the generated instruction files back in step with the project file,
+/// and leaves them alone when they are already in step.
+///
+/// Every LongClaw-driven project write reprints them, so this exists for the one
+/// path that is not a LongClaw write: a person editing `longclaw.yaml` by hand.
+/// That is not an exotic case — the app watches `.longclaw/tickets/` and nothing
+/// else, so a hand-edit reaches no watcher at all, and `longclaw help` names the
+/// file as the place to enable a ticket property, which is the documented way a
+/// CLI-only project turns one on. Without this the contract goes on describing
+/// the labels and properties the project had before the edit, and a stale line
+/// reads exactly like a fresh one.
+///
+/// It also creates `PROJECT.md` when it is missing, which is how a project made
+/// by a build before that file existed gets the file `AGENTS.md` sends its
+/// reader to.
+///
+/// **Write only what differs**, and not for tidiness. Most projects commit
+/// `.longclaw/`, so a rewrite with no change in it is a diff somebody has to
+/// open to dismiss — the churn LC-66 was about, arriving through another door,
+/// and arriving on every command rather than on every project edit. It is also
+/// what makes this safe to call from inside a watch: today the watcher covers
+/// `.longclaw/tickets/` and these files are outside it, but a write that only
+/// ever happens when something changed cannot feed itself if that stops being
+/// true.
+///
+/// **Best effort.** It reports what it rewrote and swallows what it could not:
+/// a read-only checkout or a folder that has just gone away is not a reason to
+/// refuse to open a project, and the caller is on its way to doing something
+/// else. Nothing here is project data.
+pub fn reconcile_agent_instructions(
+    project_root: &Path,
+    document: &ProjectDocument,
+) -> Vec<PathBuf> {
+    let mut rewritten = Vec::new();
+    for (path, wanted) in [
+        (
+            agent_contract_path(project_root),
+            render_agent_contract(document.project()),
+        ),
+        (claude_pointer_path(project_root), render_claude_pointer()),
+    ] {
+        if fs::read_to_string(&path).is_ok_and(|current| current == wanted) {
+            continue;
+        }
+        if atomic_write(
+            "Updating the project's agent instructions",
+            &path,
+            wanted.as_bytes(),
+        )
+        .is_ok()
+        {
+            rewritten.push(path);
+        }
+    }
+    if !project_instructions_path(project_root).exists()
+        && write_project_instructions_if_absent(project_root).is_ok()
+    {
+        rewritten.push(project_instructions_path(project_root));
+    }
+    rewritten
+}
+
 fn project_initialization_paths(project_root: &Path) -> Vec<PathBuf> {
     vec![
         agent_contract_path(project_root),

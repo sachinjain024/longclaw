@@ -1030,6 +1030,123 @@ fn a_failed_create_keeps_a_project_md_that_was_already_there() {
     );
 }
 
+/// The generated files are brought back in step with a project file somebody
+/// edited by hand.
+///
+/// This is the gap the reprint-on-every-write rule leaves: the app watches
+/// `.longclaw/tickets/` and nothing else, so an edit to `longclaw.yaml` reaches
+/// no watcher — and `longclaw help` names that file as where a project turns a
+/// ticket property on, which makes the hand-edit the documented path rather than
+/// an odd one. An agent then reads a contract describing the labels the project
+/// used to have.
+#[test]
+fn a_hand_edited_project_file_brings_the_generated_instructions_back_in_step() {
+    let temp = tempfile::tempdir().expect("temporary folder");
+    let root = temp.path().join("drifted");
+    fs::create_dir_all(&root).expect("create the folder");
+    storage::initialize_project(&root, "Drifted", "DR", None, "2026-07-29T00:00:00Z")
+        .expect("a new project");
+
+    // Nothing has moved, so nothing is rewritten — the guard that keeps this out
+    // of a loop with the watcher, and out of a reviewer's diff.
+    let document = storage::read_project(&root).expect("the project should be readable");
+    let untouched = fs::metadata(storage::agent_contract_path(&root))
+        .and_then(|meta| meta.modified())
+        .expect("mtime");
+    assert!(storage::reconcile_agent_instructions(&root, &document).is_empty());
+    assert_eq!(
+        fs::metadata(storage::agent_contract_path(&root))
+            .and_then(|meta| meta.modified())
+            .expect("mtime"),
+        untouched,
+        "an in-step contract is not rewritten"
+    );
+
+    // Somebody adds a label the way the CLI cannot: by editing the file.
+    let path = storage::project_file_path(&root);
+    let raw = fs::read_to_string(&path).expect("longclaw.yaml");
+    fs::write(
+        &path,
+        raw.replace(
+            "labels: {}\n",
+            "labels:\n  storage:\n    name: Storage\n    color: blue\n",
+        ),
+    )
+    .expect("the hand edit");
+
+    let document = storage::read_project(&root).expect("the edited project should be readable");
+    let rewritten = storage::reconcile_agent_instructions(&root, &document);
+    assert_eq!(rewritten, vec![storage::agent_contract_path(&root)]);
+    let contract = fs::read_to_string(storage::agent_contract_path(&root)).expect("AGENTS.md");
+    assert!(contract.contains("| `storage` | Storage |"), "{contract}");
+
+    // And it is in step now, so a second pass writes nothing.
+    assert!(storage::reconcile_agent_instructions(&root, &document).is_empty());
+}
+
+/// A project made by a build that wrote only `AGENTS.md` gains the two files
+/// that build never wrote, and keeps whatever the user has since put in them.
+#[test]
+fn reconciling_creates_the_files_an_older_project_never_had() {
+    let temp = tempfile::tempdir().expect("temporary folder");
+    let root = temp.path().join("older");
+    fs::create_dir_all(&root).expect("create the folder");
+    storage::initialize_project(&root, "Older", "OL", None, "2026-07-29T00:00:00Z")
+        .expect("a new project");
+
+    // Wind it back to what an older build left behind.
+    fs::remove_file(storage::claude_pointer_path(&root)).expect("remove CLAUDE.md");
+    fs::remove_file(storage::project_instructions_path(&root)).expect("remove PROJECT.md");
+
+    let document = storage::read_project(&root).expect("the project should be readable");
+    let rewritten = storage::reconcile_agent_instructions(&root, &document);
+    assert_eq!(
+        rewritten,
+        vec![
+            storage::claude_pointer_path(&root),
+            storage::project_instructions_path(&root),
+        ]
+    );
+    assert!(fs::read_to_string(storage::claude_pointer_path(&root))
+        .expect("CLAUDE.md")
+        .contains("@AGENTS.md"));
+
+    // The user writes in the file that is theirs, and reconciling again leaves
+    // it exactly as they left it — `PROJECT.md` is created, never restored.
+    let mine = "# Project instructions\n\nCall them tickets.\n";
+    fs::write(storage::project_instructions_path(&root), mine).expect("their own file");
+    assert!(storage::reconcile_agent_instructions(&root, &document).is_empty());
+    assert_eq!(
+        fs::read_to_string(storage::project_instructions_path(&root)).expect("PROJECT.md"),
+        mine
+    );
+}
+
+/// Opening a project is where the app notices, because a hand-edited
+/// `longclaw.yaml` produces no watcher event to notice it by.
+#[test]
+fn opening_a_project_refreshes_a_contract_that_no_longer_describes_it() {
+    let (_temp, root) = copy_representative_project();
+    let path = storage::project_file_path(&root);
+    let raw = fs::read_to_string(&path).expect("longclaw.yaml");
+    fs::write(
+        &path,
+        format!("{raw}properties:\n  due:\n    enabled: true\n"),
+    )
+    .expect("the hand edit");
+
+    let before = fs::read_to_string(storage::agent_contract_path(&root)).expect("AGENTS.md");
+    assert!(!before.contains("| `due` |"), "{before}");
+
+    let (_engine, _events) = start_engine(&root);
+
+    let after = fs::read_to_string(storage::agent_contract_path(&root)).expect("AGENTS.md");
+    assert!(
+        after.contains("| `due` | a date, `YYYY-MM-DD` | `--due <date>`, `--clear-due` |"),
+        "{after}"
+    );
+}
+
 /// The example project committed for pilots and manual runs carries the same
 /// contract a created project gets, so what a real agent reads there is not a
 /// stale copy of what the app generates.

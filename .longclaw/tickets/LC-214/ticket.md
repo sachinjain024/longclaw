@@ -408,3 +408,40 @@ Implemented on branch `claude/lc214-scope-review-78be2c`.
 
 One judgement call worth flagging: the contract says the CLI "ships with the LongClaw app", which is LC-233's work and is not true until it lands. The plan calls the two release-labeled and shipping together; if LC-233 slips, that sentence is the one to revisit.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_8ce3cf01
+kind: comment
+occurred_at: 2026-09-10T08:23:24.188Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Folded in before merge: the generated files now self-heal, because reprint-on-every-write left a hole.
+
+**The hole.** Every LongClaw-driven project write reprints AGENTS.md and CLAUDE.md — 13 in the app through `registry.rs` `update_project_file`, plus `label add` in the CLI. Nothing reprints when a person edits `.longclaw/longclaw.yaml` directly, and that is not an odd path: `longclaw help` names that file as where a project turns a ticket property on, because no command does it. Worse, the app's watcher covers `.longclaw/tickets/` alone (`engine.rs:633`, and `normalize` at `:816` drops anything outside it), so the edit reaches no watcher either. The contract would go on describing the labels and properties the project used to have, and a stale line reads exactly like a fresh one.
+
+**The fix.** `storage::reconcile_agent_instructions` renders both generated files, compares them to what is on disk, and writes only what differs — plus `PROJECT.md` when it is missing, which is how a project created by an earlier build gets the file AGENTS.md sends its reader to. Three call sites, each one a place the project file is read from disk:
+
+- `ProjectEngine::start_with_adapter` — opening a project. Startup builds its index from the key the registry hands over and never re-read the project file, so this is a new read; it is best-effort and a project whose metadata will not parse is left exactly as the rest of start leaves it.
+- `rebuild_now` — resume, overflow, recovery, and any later rebuild.
+- `cli.rs open_project` — every CLI command, which is the whole answer for a CLI-only project: the next command after a hand-edit heals it, and a `ticket list` is enough.
+
+Write-only-what-differs is the load-bearing part. It keeps an unchanged project from producing a diff on every command — LC-66's churn arriving through another door — and it is what would keep this out of a loop if the watch ever widened to cover `.longclaw/`.
+
+**Tests.** Four new: reconciling an in-step project writes nothing and leaves mtime alone; a hand-added label reaches the contract and a second pass then writes nothing; a project wound back to AGENTS.md-only regains CLAUDE.md and PROJECT.md and never has a user-written PROJECT.md restored over; opening a project whose YAML gained `due: enabled` refreshes the property table. Plus one in `tests/cli.rs` driving the whole loop through `ticket list` and then writing `--due`.
+
+**One thing this does not fix, now filed as LC-248d:** the app's own in-memory view of a hand-edited project is still stale until a rebuild — the header name, the label pickers, the enabled properties. Widening the watcher is its own change and touches the code plan 10 warns about.
+
+`npm run verify` passes, exit 0 (48 files / 1359 frontend tests; 213 lib; 27 storage_integration; 24 cli).
+
+**Perf, since the project-open path is now doing a little more.** `perf:rust` was itself broken — it asserted a minted key equalled `PF-5001`, which stopped being true when keys gained a trailing character (LC-232), and it failed on that line *before* its three budget assertions, so the budgets had not run in some time. Fixed to assert the number and ignore the suffix. Three runs each side, 5,000 tickets:
+
+    baseline  open_ms 1399.85 / 1472.25 / 1372.81   mean 1415, range 99
+    with this open_ms 1440.32 / 1458.82 / 1431.15   mean 1443, range 28
+
+A 28ms difference of means inside a 99ms baseline spread, and all three budget assertions pass. The reconcile is a 300-byte read, a 9KB render and a 9KB compare; it is lost in a 5,000-ticket open.
+<!-- /longclaw:event -->
