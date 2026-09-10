@@ -3,14 +3,14 @@ format: longclaw.ticket/v1
 id: 57c3c15c-497f-4647-a6ea-641e6cc3d9f3
 key: LC-227
 title: Add Other Fields to Tickets like Due Date, Start Date, Est Effort, Type
-status: in_progress
+status: done
 priority: urgent
 labels:
   - release
 type: feature
 due: 2026-09-09
 created_at: 2026-08-22T06:13:17.138Z
-updated_at: 2026-09-09T12:22:13.688Z
+updated_at: 2026-09-10T05:47:55.877Z
 ---
 
 Brainstorm with LLM agent like what other fields we should support. A few items I can think of are Type - Bug/Task, Due State, Start Date, Effort
@@ -3746,6 +3746,22 @@ changes:
   - field: checklist.ck_0bc85504.checked
     from: "false"
     to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_969d2675
+kind: update
+occurred_at: 2026-09-10T05:47:55.877Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_progress
+    to: done
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->
