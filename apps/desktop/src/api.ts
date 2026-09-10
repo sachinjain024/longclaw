@@ -2,6 +2,7 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import type {
+  CommandLineStatus,
   CreateTicketRequest,
   EditTicketRequest,
   EstimateSystem,
@@ -341,4 +342,27 @@ export async function writePreferences(
 /** The current user's home directory, for tilde-abbreviating paths in the UI. */
 export async function homeDir(): Promise<string | null> {
   return invoke("home_dir");
+}
+
+/**
+ * Whether the `longclaw` command is on `PATH`, and what it points at (LC-233).
+ *
+ * Read rather than remembered: another process can change the answer — a second
+ * copy of the app, or a `sudo ln -s` run by hand — so a value cached across a
+ * session would go stale exactly when it mattered.
+ */
+export async function commandLineStatus(): Promise<CommandLineStatus> {
+  return invoke("command_line_status");
+}
+
+/**
+ * Puts `longclaw` on `PATH`, and answers with the status that follows.
+ *
+ * No path crosses the wire, the same way none does for `openTicketFile`: this
+ * surface has no filesystem capability, and Rust decides both where the link
+ * goes and what it refuses to replace. A refused write rejects with the usual
+ * tagged error; `manualCommand` on the status is the way out of it.
+ */
+export async function installCommandLine(): Promise<CommandLineStatus> {
+  return invoke("install_command_line");
 }

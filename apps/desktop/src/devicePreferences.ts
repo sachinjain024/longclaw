@@ -54,6 +54,17 @@ type DevicePreferences = {
    */
   activeProjectId?: string;
   projectWorkspaces: Record<string, ProjectWorkspace>;
+  /**
+   * Whether this machine has already been offered the `longclaw` command
+   * (LC-233). Set once the offer has been *answered*, either way, so a person
+   * who said no is not asked again on every launch — settings is where it lives
+   * after that.
+   *
+   * Device-local because the answer is: the command is installed for this Mac,
+   * not for a project, and a person with the app on two machines has to be
+   * asked on both.
+   */
+  commandLinePrompted?: boolean;
 };
 
 /**
@@ -80,6 +91,7 @@ function adopt(stored: unknown): DevicePreferences {
   if (typeof value.activeProjectId === "string" && value.activeProjectId) {
     adopted.activeProjectId = value.activeProjectId;
   }
+  if (value.commandLinePrompted === true) adopted.commandLinePrompted = true;
   const saved = value.projectWorkspaces;
   if (saved && typeof saved === "object" && !Array.isArray(saved)) {
     for (const [projectId, candidate] of Object.entries(
@@ -109,10 +121,20 @@ function adopt(stored: unknown): DevicePreferences {
   return adopted;
 }
 
+/**
+ * Whether this build recognises nothing in the document — which is what decides
+ * that the one-shot migration out of webview storage should run.
+ *
+ * **Every field belongs in here.** A document holding only `commandLinePrompted`
+ * would otherwise read as empty, the migration would replace it with whatever
+ * the old storage held, and a person who declined the command-line offer would
+ * be asked again on the next launch — a "don't ask again" that does not stay.
+ */
 function isEmpty(preferences: DevicePreferences) {
   return (
     preferences.appearance === undefined &&
     preferences.activeProjectId === undefined &&
+    preferences.commandLinePrompted === undefined &&
     Object.keys(preferences.projectWorkspaces).length === 0
   );
 }
@@ -125,6 +147,7 @@ function serialized(): Record<string, unknown> {
   };
   if (held.appearance) written.appearance = held.appearance;
   if (held.activeProjectId) written.activeProjectId = held.activeProjectId;
+  if (held.commandLinePrompted) written.commandLinePrompted = true;
   return written;
 }
 
@@ -244,6 +267,17 @@ export function rememberAppearance(appearance: Appearance) {
 export function rememberActiveProject(projectId: string) {
   if (held.activeProjectId === projectId) return;
   held = { ...held, activeProjectId: projectId };
+  flush();
+}
+
+export function readCommandLinePrompted(): boolean {
+  return held.commandLinePrompted === true;
+}
+
+/** Records that the command-line offer has been answered. One-way (LC-233). */
+export function rememberCommandLinePrompted() {
+  if (held.commandLinePrompted) return;
+  held = { ...held, commandLinePrompted: true };
   flush();
 }
 

@@ -34,6 +34,7 @@ import {
   ReloadGlyph,
   SlidersGlyph,
   TagGlyph,
+  TerminalGlyph,
 } from "./SettingsGlyphs";
 import {
   LANDING_SECTION,
@@ -159,6 +160,14 @@ export function SettingsMenu(
   props: MenuContext & {
     /** Re-reads the folder. The one row here that is not a settings section. */
     onReload: () => void;
+    /**
+     * What the `Command line tool` row says about itself (LC-233), from
+     * `commandLineHint`. A rendered string rather than the status, because the
+     * row's hint has room for the answer and not for the reason, and every
+     * reason is a sentence in the pane. `null` is a row with no hint — a dev
+     * window's state, where there is nothing to set up.
+     */
+    commandLineHint: string | null;
   },
 ) {
   useFocusReturn(props.anchor);
@@ -194,6 +203,14 @@ export function SettingsMenu(
       hint: <code>{STATUSES.length}</code>,
     }),
     sectionRow(props, "shortcuts", { glyph: <KeyboardGlyph /> }),
+    // The one row here that is about the app rather than the project, which the
+    // hint says so nobody has to open it to find out (LC-233).
+    sectionRow(props, "commandLine", {
+      glyph: <TerminalGlyph />,
+      ...(props.commandLineHint
+        ? { hint: <code>{props.commandLineHint}</code> }
+        : {}),
+    }),
     { kind: "rule", id: "disk-rule" },
     {
       kind: "action",

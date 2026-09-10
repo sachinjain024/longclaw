@@ -23,5 +23,58 @@ An agent passes `--agent-id`; without it a command is what it looks like, which 
 - The CLI reaches the project registry for `project init` and `project register` only, so a project it creates appears in the app's list. Every other command works from `--path` and touches nothing outside the project folder. A CLI write while the app is open is an external edit, not a registry conflict.
 - Labels a ticket carries must already be defined in `longclaw.yaml`. The app cannot produce an undefined slug either, and one renders as a bare slug in the fallback hue; refusing here keeps that state to files LongClaw did not write.
 - Unknown options are refused rather than ignored. A dropped `--descriptoin` writes an empty description into every ticket of an import run and says nothing.
-- The binary is not bundled. `tauri build` ships `longclaw-desktop`; `longclaw` is built by `cargo build` and run from the repository. Shipping it to users is a separate decision, and it would need one — a CLI in the bundle is a surface the release audit's boundary claims do not currently cover.
+- The binary is not bundled. `tauri build` ships `longclaw-desktop`; `longclaw` is built by `cargo build` and run from the repository. Shipping it to users is a separate decision, and it would need one — a CLI in the bundle is a surface the release audit's boundary claims do not currently cover. (Revised for LC-233 — see below. The first sentence was never true, and the decision the rest asks for is taken there.)
 - P9 and P11 in [the post-MVP backlog](../backlog/post-mvp-backlog.md) are closed by this, ahead of their tier.
+
+## Revised for LC-233: the binary is bundled, and always was
+
+**Status:** accepted on 2026-09-10, during [LC-233](../../.longclaw/tickets/LC-233/ticket.md).
+
+The consequence above is wrong in its first sentence and right in its last, and
+the halves have to be answered separately.
+
+**It was never true that `tauri build` ships only the window.** The Tauri CLI
+enumerates every `[[bin]]` the crate declares, builds each one, and the macOS
+bundler copies each into `Contents/MacOS/` with the target triple stripped. The
+CLI is a `[[bin]]` in this same crate — which is the whole point of the decision
+above, since sharing the crate is what keeps it from being a second
+implementation — so it has been sealed inside every signed bundle this
+repository has ever produced. A baseline bundle was built off `main` and opened
+before any of LC-233 was written, to be sure the claim being overturned was this
+document's and not the ticket's.
+
+That is why LC-233 adds no `bundle.externalBin` entry, which is the obvious way
+to ship a second binary and is the wrong one here: naming it there copies a
+*second* copy in beside the one the bundler already placed, and two copies of
+the CLI in one bundle is a build that can disagree with itself about the file
+format.
+
+**The decision the bullet asks for is taken here: the CLI ships.** What it
+warned about was a surface the release audit did not cover, and being unbundled
+was never what made that safe — the file was in the bundle the whole time and
+nothing had ever looked at it. So the cover is what changes, not the shipping.
+`binary-audit.mjs` now reads both Mach-O files in `Contents/MacOS/`, with its
+own controls for each, because the no-network claim in
+[the release-candidate checklist](../acceptance/release-candidate.md) is a claim
+about two processes and the CLI is the one it had never opened. The window's
+watcher symbol is not demanded of the CLI, which starts no engine (above); what
+stands in for it is a positive read of the CLI's own symbols, so a pass cannot
+come from having audited the wrong file twice.
+
+**Being in the bundle is still not being on `PATH`.** Nothing installs itself.
+The app offers once on first launch and thereafter from *Settings → Command
+line*, and a press writes one symlink into `/usr/local/bin`. That is outside the
+folder the human chose, which is why it is asked for rather than done — and it
+is the single exception to the first consequence above, which is otherwise still
+exactly true: every command but `project init` and `project register` touches
+nothing outside the project folder. It escalates nothing. A refused write is
+answered with the `sudo` line to paste, never with an authorization prompt,
+because `release-audit.mjs` forbids the subprocess that would ask for one.
+
+**The rule this puts at risk, and what holds it.** The bundled CLI is the app's
+own build, so the command and the window can never disagree about the file
+format — that is the reason to ship it rather than a side effect. A checkout
+that has moved ahead of the installed app is the one case that breaks it, and
+there is no `--version` to detect it with, so `AGENTS.md` makes it a rule about
+the branch instead: build from source when the working tree touches `cli.rs`,
+`core/` or `file_format.md`.

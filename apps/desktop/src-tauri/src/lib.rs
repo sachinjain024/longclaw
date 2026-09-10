@@ -380,6 +380,32 @@ fn open_ticket_file(
     .with_context("path", path.display().to_string()))
 }
 
+/// Whether the `longclaw` command is on `PATH`, and what it points at (LC-233).
+///
+/// Reads and writes nothing. It is here rather than behind a preference because
+/// the answer is a fact about the machine that another process can change — a
+/// second copy of the app, or a `sudo ln -s` run by hand — so a remembered one
+/// would go stale the moment it mattered.
+#[tauri::command]
+fn command_line_status() -> platform::command_line::CommandLineStatus {
+    platform::command_line::status()
+}
+
+/// Puts `longclaw` on `PATH`, once the human has asked for it.
+///
+/// **The one write this app makes outside a folder the user picked**, which is
+/// why it is offered and never silent (LC-233). The webview names no path, the
+/// same way it names none to reach the editor through `open_ticket_file`: it
+/// asks for the command to be installed and Rust decides where that is and what
+/// it is allowed to replace. A refused write comes back as an error carrying
+/// the exact line to run instead — there is no escalation here and no
+/// privileged helper, because `release-audit.mjs` forbids the subprocess that
+/// would ask for one.
+#[tauri::command]
+fn install_command_line() -> AppResult<platform::command_line::CommandLineStatus> {
+    platform::command_line::install()
+}
+
 #[tauri::command]
 fn edit_ticket(
     request: EditTicketRequest,
@@ -536,6 +562,8 @@ pub fn run() {
             search_tickets,
             read_ticket,
             open_ticket_file,
+            command_line_status,
+            install_command_line,
             edit_ticket,
             create_ticket,
             stream_probe,

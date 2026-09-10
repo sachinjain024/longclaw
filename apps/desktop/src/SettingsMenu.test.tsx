@@ -54,6 +54,7 @@ function Harness(props: {
   onTheme?: (id: string) => void;
   onAppearance?: (id: string) => void;
   onReload?: () => void;
+  commandLineHint?: string | null;
   onRemove?: () => void;
   onStar?: () => void;
   appearance?: "light" | "dark" | "system";
@@ -92,7 +93,11 @@ function Harness(props: {
             onRemove={props.onRemove ?? (() => {})}
           />
         ) : (
-          <SettingsMenu {...shared} onReload={props.onReload ?? (() => {})} />
+          <SettingsMenu
+            {...shared}
+            onReload={props.onReload ?? (() => {})}
+            commandLineHint={props.commandLineHint ?? "not set up"}
+          />
         ))}
     </>
   );

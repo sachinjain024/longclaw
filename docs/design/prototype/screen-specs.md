@@ -331,7 +331,7 @@ movement. No custom-color affordance exists anywhere.
   mono path + **Locate…**) · Theme picker · Appearance segment (System /
   Light / Dark — explicitly labeled an app preference, not project data) ·
   danger zone: **Remove from app** with the copy "Removing only forgets the
-  project in LongClaw. Files on disk are never touched." Labels, **Properties** (the four opt-in ticket properties and the configuration each owns, LC-227 — after Labels, because a type value is a label in everything but name), Status fields (read-only — v0 ships the fixed set, ADR 0002) and Shortcuts are sections of the same nav.
+  project in LongClaw. Files on disk are never touched." Labels, **Properties** (the four opt-in ticket properties and the configuration each owns, LC-227 — after Labels, because a type value is a label in everything but name), Status fields (read-only — v0 ships the fixed set, ADR 0002), Shortcuts and **Command line** (installing `longclaw` on `PATH`, LC-233 — an app preference like the appearance, and the one control in this panel that writes outside the project folder) are sections of the same nav.
 - Remove confirms via a dialog that names the path and repeats the
   non-destructive guarantee; the confirm button is the danger variant.
 

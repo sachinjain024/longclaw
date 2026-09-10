@@ -29,7 +29,16 @@ a ticket named in a conversation is read straight from disk.
 The `longclaw` CLI is the one surface allowed to allocate a key — never create a
 ticket directory by hand:
 
+If you have LongClaw installed, you already have it: the binary ships inside
+the bundle and *Settings → Command line* puts it on your `PATH` (LC-233). Build
+it from the checkout when there is no installed app, and whenever your branch
+touches `cli.rs`, `core/` or `file_format.md` — then the command on `PATH` is
+the older build and only the fresh one speaks your tree's format.
+
 ```sh
+longclaw ticket create --title "…" --label frontend
+
+# or, from a checkout:
 cargo build --release --manifest-path apps/desktop/src-tauri/Cargo.toml --bin longclaw
 apps/desktop/src-tauri/target/release/longclaw ticket create --title "…" --label frontend
 ```

@@ -92,10 +92,23 @@ the right file for this: it is target-agnostic and lists crates macOS never
 compiles, `reqwest` and `hyper` among them.
 
 `npm run release:binary-audit` is the other half and needs a bundle, so it runs
-after `build:app` rather than in `verify`. It reads the shipped binary's symbols
-and linked libraries, and asserts controls — symbols that must be *present* —
-before believing any absence, so a probe that reads the wrong file fails instead
-of passing.
+after `build:app` rather than in `verify`. It reads the shipped binaries'
+symbols and linked libraries, and asserts controls — symbols that must be
+*present* — before believing any absence, so a probe that reads the wrong file
+fails instead of passing.
+
+**Binaries, plural: the bundle carries two.** `Contents/MacOS/` holds the window
+and the `longclaw` CLI, because `tauri build` compiles every `[[bin]]` in the
+crate and the bundler seals each one into the app — which is how installing the
+app installs the command (LC-233). The CLI is a separate process and this audit
+never once looked at it, so the no-network claim covered half of what shipped.
+It is audited on the same terms now, with its own controls: no
+`_FSEventStreamCreate`, because it starts no watcher, and a positive read of its
+own `longclaw_desktop_lib::cli` symbols in place of it. Its presence and its
+architecture are asserted too — an arm64 app beside an x86_64 command is a
+command that will not run on the machine that just installed it — and
+`codesign --verify --deep --strict` covers it as nested code, which is the
+second reason it must be in `MacOS/` and not `Resources/`.
 
 Neither can see the **webview**, which is network-capable by construction. The
 CSP bounds it and the runtime network audit below verifies it, and a green audit
@@ -215,7 +228,7 @@ Run on a clean macOS user profile or machine:
 | Runtime network audit | No non-IPC network connection during launch, project open, create/edit/archive/search, restart, or offline operation. `npm run audit:network`, offline and online, driven by a person |
 | Binary/package audit | No analytics, telemetry, updater, crash-reporting, shell, HTTP, or filesystem plugin is directly configured |
 | Tauri capability audit | Webview can use typed IPC/events and one native folder picker only |
-| Filesystem scope | App writes project data only under the user-selected `.longclaw/` tree and app state only in OS application support |
+| Filesystem scope | App writes project data only under the user-selected `.longclaw/` tree and app state only in OS application support. One exception, and only when the user presses for it: `install_command_line` symlinks `/usr/local/bin/longclaw` at the app's own bundled CLI (LC-233). Nothing else is written there, nothing is written there unasked, and a file the app did not create is never replaced |
 | Crash diagnostics | No automatic crash upload; user-facing guidance names local stdout diagnostics and manual issue reporting |
 | Account boundary | No local feature requires signup, network, cloud sync, or waitlist state |
 
