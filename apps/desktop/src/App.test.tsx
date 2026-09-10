@@ -6733,12 +6733,20 @@ describe("the longclaw command on PATH (LC-233)", () => {
   };
 
   const SOURCE = "/Applications/LongClaw.app/Contents/MacOS/longclaw";
+  const LINK = "/usr/local/bin/longclaw";
+  // Its own fixture rather than one shared with `CommandLineInstall.test.tsx`,
+  // which is how every suite here builds a DTO, and this is the smaller of the
+  // two contracts. What the shared thing would have to be is a *line*, and that
+  // line belongs to `macos::manual_command` — no test on this side of the IPC
+  // checks it, because the pane prints whatever Rust sends. This suite never
+  // reads it at all: `absent` and `linked` are the two states that do not show
+  // one. So it is here to be the right shape, not to be the right words.
   const absent: CommandLineStatus = {
     state: "absent",
     sourcePath: SOURCE,
-    linkPath: "/usr/local/bin/longclaw",
+    linkPath: LINK,
     currentTarget: null,
-    manualCommand: `sudo mkdir -p '/usr/local/bin' && sudo ln -sf '${SOURCE}' '/usr/local/bin/longclaw'`,
+    manualCommand: `sudo mkdir -p '/usr/local/bin' && sudo ln -sf '${SOURCE}' '${LINK}'`,
   };
   const linked: CommandLineStatus = {
     ...absent,
