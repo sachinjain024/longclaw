@@ -17,7 +17,7 @@ the reasoning is [LC-47](../.longclaw/tickets/LC-47/ticket.md).
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | Certificate             | `Developer ID Application: Sachin Jain (97864HG7U4)`                                                                             |
 | Team ID                 | `97864HG7U4`                                                                                                                     |
-| **Certificate expires** | **2027-02-01**                                                                                                                   |
+| **Certificate expires** | **2027-02-02** (the portal's date; `notAfter=2027-02-01T22:12:15Z`, so it reads as 1 February in UTC and 2 February locally)     |
 | Membership renews       | 2027-09-02                                                                                                                       |
 | Notarization credential | an App Store Connect API key, stored as the `longclaw-notary` keychain profile                                                   |
 | Private key backup      | held by the account holder, outside this repository. The location is deliberately not written here — this directory is published |
@@ -31,7 +31,9 @@ already shipped — a signature with a secure timestamp stays valid past expiry 
 but it blocks signing anything new, and the first sign of it is a release build
 that will not go out. Note that the certificate expires more than six months
 _before_ the membership does, which is not the usual five-year Developer ID
-validity; check the portal rather than assuming either date.
+validity. Confirmed against the portal on 2026-09-11 rather than assumed:
+Certificates, Identifiers & Profiles lists the Developer ID Application
+certificate with Expiration Date 2027/02/02.
 
 The `.p8` was deleted once `notarytool store-credentials` had stored it, so the
 keychain profile is the only copy of that credential. Losing it costs five
