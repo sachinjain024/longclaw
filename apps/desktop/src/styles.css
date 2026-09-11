@@ -4835,6 +4835,15 @@ html.theme-transition *::after {
   text-align: left;
 }
 
+/* A modifier rather than a change to the base rule (LC-249a). 420px is sized
+   for the two-sentence "are you sure" this dialog was built for; the
+   command-line offer carries a terminal block whose lines are paths and ticket
+   titles, and 420px breaks them badly. Widening the base would also widen the
+   delete confirmations, which are two sentences and should stay narrow. */
+.confirm-dialog.wide {
+  width: min(560px, 92vw);
+}
+
 .confirm-dialog h2 {
   font-size: var(--lc-type-title-size);
   font-weight: 600;
@@ -5965,6 +5974,181 @@ html.theme-transition *::after {
    is about the app, so the one thing it must never read as is another row of
    `longclaw.yaml` — hence a stated sentence per state rather than a control
    with a value beside it. */
+
+/* ---- the preview (LC-249a)
+
+   The block that answers "why would I want this", above everything that answers
+   "what will it write". LC-233 shipped the second and not the first: the pane
+   said what the button does to the filesystem and never once said what the
+   command is *for*, which is the only reason a person would press it.
+
+   It is a terminal, so it sits on `--lc-tile` — near-black in **both**
+   appearances, the same surface the agent's actor tile uses, "a terminal window
+   in miniature" (`components.md:178-183`).
+
+   The ink is the pair that goes with it, and it needed a name. The first draft
+   took `--lc-inverse-surface` and `--lc-inverse-ink`, which are not "the dark
+   ones" but *the inverse of the current appearance*: the block turned into a
+   light-grey card the moment the app went dark, and its text went dark exactly
+   where the tile stayed dark. `--lc-tile-ink` is light in both, which is the
+   only thing a near-black-in-both surface can take; `tile-contrast-guard.mjs`
+   is what makes this rule name one at all. */
+.cli-preview {
+  margin-top: var(--lc-space-3);
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-control);
+  color: var(--lc-tile-ink);
+  background: var(--lc-tile);
+  overflow: hidden;
+}
+
+/* The divider is mixed from the ink rather than taken from `--lc-line`, which
+   is a hairline for a surface that flips and reads as a bright scar on one that
+   does not. */
+.cli-preview-caption {
+  border-bottom: 1px solid
+    color-mix(in oklab, var(--lc-tile-ink) 14%, transparent);
+  padding: var(--lc-space-2) var(--lc-space-3);
+  color: var(--lc-tile-ink-2);
+  font: 500 10.5px/1.2 var(--lc-font-mono);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.cli-preview-body {
+  padding: var(--lc-space-3);
+  font: var(--lc-type-code-weight) var(--lc-type-code-size) /
+    var(--lc-type-code-leading) var(--lc-type-code-font);
+}
+
+/* The prompt line. The agent accent on the actor and the caret, because the
+   sentence this block makes is "a machine ran this" — the same accent the
+   timeline wears when an agent wrote a ticket, and the same pair the actor tile
+   already proves readable on this background. */
+.cli-preview-cmd {
+  display: flex;
+  gap: var(--lc-space-2);
+  align-items: baseline;
+  overflow-wrap: anywhere;
+}
+
+.cli-preview-actor {
+  flex: none;
+  color: var(--lc-accent-agent);
+}
+
+.cli-preview-caret {
+  flex: none;
+  color: var(--lc-accent-agent);
+  font-weight: 600;
+}
+
+/* The output wraps rather than scrolling. A horizontal scroller inside a modal
+   is where a line goes to hide, and the whole point of the block is that the
+   line can be read. */
+.cli-preview-out {
+  margin-top: var(--lc-space-2);
+  color: var(--lc-tile-ink-2);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+/* ---- the pane's header row (LC-249a): what this is, what state it is in, and
+   the action opposite. */
+.cli-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lc-space-3);
+}
+
+.cli-head-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.cli-name {
+  display: flex;
+  align-items: baseline;
+  gap: var(--lc-space-2);
+  flex-wrap: wrap;
+}
+
+.cli-name code {
+  color: var(--lc-ink);
+  font-size: var(--lc-type-ui-size);
+  font-weight: 500;
+}
+
+.cli-name .kind {
+  color: var(--lc-ink-3);
+  font-size: var(--lc-type-small-size);
+}
+
+/* A readout the header row carries so the state is legible at a glance. It is
+   never the only carrier and it is `aria-hidden`: every state but `absent` says
+   it in words beside the dot, and `absent` says it in the `Install` button,
+   which offers to change the thing it is describing. So this is redundancy
+   rather than colour-as-information (`components.md:20`). */
+.cli-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: var(--lc-radius-full);
+  background: var(--lc-ink-3);
+}
+
+.cli-dot.ok {
+  background: var(--lc-accent-human);
+}
+
+.cli-dot.warn {
+  background: var(--lc-warn);
+}
+
+/* ---- the ask-again row (LC-249a)
+
+   The offer's one lasting side effect, made visible and reversible. LC-233
+   wrote `commandLinePrompted` once and never offered a way back: a person who
+   pressed the dismissal on first launch could not be asked again on that Mac,
+   and nothing on screen ever said the press had done anything at all. */
+.cli-ask-again {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lc-space-2);
+  margin-top: var(--lc-space-4);
+}
+
+.cli-ask-again label {
+  color: var(--lc-ink-2);
+  font-size: var(--lc-type-small-size);
+  line-height: 1.4;
+}
+
+.cli-ask-again .hint {
+  color: var(--lc-ink-3);
+}
+
+/* The offer's title once the answer is yes. The check rides in the human
+   accent: installing is a human act, and the confirmation of one stays in the
+   accent that says a person did it. */
+.cli-title-done {
+  display: flex;
+  align-items: center;
+  gap: var(--lc-space-2);
+}
+
+.cli-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border-radius: var(--lc-radius-full);
+  background: var(--lc-accent-human);
+}
+
 .cli-state {
   color: var(--lc-ink-2);
   font-size: var(--lc-type-small-size);
@@ -5972,10 +6156,17 @@ html.theme-transition *::after {
 }
 
 /* Installed and pointing here: the one state that is an answer rather than an
-   invitation. The agent accent is this design language's "a machine is
-   involved and it is working", which is exactly what this says. */
+   invitation.
+
+   The human accent, and this is the second answer to that question (LC-249a).
+   LC-233 used the agent accent, arguing that green is this language's "a
+   machine is involved and it is working" — true of what the command *does*, and
+   the wrong subject. What this sentence reports is that somebody pressed a
+   button, which is a human act, and the offer's own check mark and the header
+   row's dot both say so in the human accent. One installed state cannot be two
+   colours on two surfaces, so the older argument is the one that goes. */
 .cli-state.ok {
-  color: var(--lc-accent-agent-text);
+  color: var(--lc-accent-human-text);
 }
 
 /* What the app was refused, above the line that gets round it. Warn rather
@@ -5989,11 +6180,6 @@ html.theme-transition *::after {
   background: var(--lc-warn-surface);
   font-size: var(--lc-type-small-size);
   line-height: 1.55;
-}
-
-.cli-actions {
-  display: flex;
-  margin-top: var(--lc-space-3);
 }
 
 .cli-manual {

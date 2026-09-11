@@ -1,0 +1,1356 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-lc-theme="clay">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LC-249a — Make installing the longclaw command explain itself</title>
+
+<!-- The app's own fonts, tokens and stylesheet. Nothing here re-implements a
+     component: the dialog is the markup `ConfirmDialog.tsx` renders, the pane's
+     rows are `CommandLineInstall.tsx`'s, the toast is the stack `App.tsx` draws,
+     and every one of them wears the rules `styles.css` already carries — so
+     what is on screen is what would ship rather than a drawing of it. -->
+<link rel="stylesheet" href="../../design/foundations/proof/fonts.css">
+<link rel="stylesheet" href="../../../apps/desktop/src/tokens/design-tokens.css">
+<link rel="stylesheet" href="../../../apps/desktop/src/styles.css">
+
+<!-- ====================================================================
+     PROPOSED — the additions this ticket asks of `apps/desktop/src/styles.css`.
+     This block is the CSS half of the review: everything in it is meant to land,
+     as written, beside the `.cli-*` block LC-233 added, which is where every one
+     of these belongs.
+     ==================================================================== -->
+<style id="proposed">
+/* --------------------------------------------------- the preview (LC-249a)
+
+   The block that answers "why would I want this" — placed above the block that
+   answers "what will it write". LC-233 shipped the second and not the first:
+   the pane said what the button does to the filesystem and never once said what
+   the command is *for*, which is the only reason a person would press it.
+
+   It is a terminal, so it sits on `--lc-tile` — near-black in **both**
+   appearances, the same surface the agent's actor tile uses, "a terminal window
+   in miniature" (`styles.css:4070`).
+
+   Revision 2 fixed a real defect here. The first draft used
+   `--lc-inverse-surface`, which is not "the dark one" but *the inverse of the
+   current theme*: #171923 in light and #e9eaf2 in dark. So the terminal turned
+   into a light-grey card the moment the app went dark. `--lc-tile` is the token
+   that means what this needed — and the ink has the identical trap, so it is
+   pinned to the dark ramp in both appearances rather than to the inverse one. */
+.cli-preview {
+  --preview-ink: var(--lc-inverse-ink);
+  --preview-ink-2: var(--lc-inverse-ink-2);
+  margin-top: var(--lc-space-3);
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-control);
+  background: var(--lc-tile);
+  overflow: hidden;
+}
+
+/* In dark the inverse ramp points the wrong way; the app's own ink ramp is
+   already the light-on-dark one. Same two colours either way. */
+[data-theme="dark"] .cli-preview {
+  --preview-ink: var(--lc-ink);
+  --preview-ink-2: var(--lc-ink-2);
+}
+
+.cli-preview-caption {
+  border-bottom: 1px solid color-mix(in oklab, var(--preview-ink) 14%, transparent);
+  padding: var(--lc-space-2) var(--lc-space-3);
+  color: color-mix(in oklab, var(--preview-ink) 55%, transparent);
+  font: 500 10.5px/1.2 var(--lc-font-mono);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.cli-preview-body {
+  padding: var(--lc-space-3);
+  font: var(--lc-type-code-weight) var(--lc-type-code-size) /
+    var(--lc-type-code-leading) var(--lc-type-code-font);
+}
+
+/* The prompt line. The agent accent on the actor, because the sentence this
+   block makes is "a machine ran this" — the same accent the timeline wears when
+   an agent wrote a ticket. */
+.cli-preview-cmd {
+  display: flex;
+  gap: var(--lc-space-2);
+  align-items: baseline;
+  color: var(--preview-ink);
+  overflow-wrap: anywhere;
+}
+
+.cli-preview-actor { color: var(--lc-accent-agent); flex: none; }
+.cli-preview-caret { color: var(--lc-accent-agent); font-weight: 600; flex: none; }
+
+/* The output wraps rather than scrolling. A horizontal scroller inside a modal
+   is where a line goes to hide, and the whole point of the block is that the
+   line can be read. */
+.cli-preview-out {
+  margin-top: var(--lc-space-2);
+  color: var(--preview-ink-2);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+/* ------------------------------------------------- a wider dialog (LC-249a)
+
+   `.confirm-dialog` is `min(420px, 92vw)`, sized for the two-sentence
+   "are you sure" it was built for. This one carries a terminal block whose
+   lines are paths and JSON, and 420px breaks them badly.
+
+   A modifier rather than a change to the base rule: widening every confirm
+   dialog in the app would also widen the delete confirmations, which are two
+   sentences and should stay narrow. `ConfirmDialog.tsx` has no `className`
+   prop today — adding one is the code half of this rule. */
+.confirm-dialog.wide {
+  width: min(560px, 92vw);
+}
+
+/* ------------------------------------------------- the state dot (LC-249a)
+
+   A readout the pane's header row carries so the state is legible at a glance.
+   It is never the only carrier and it is `aria-hidden`: every state but
+   `absent` says it in words beside the dot, and `absent` says it in the
+   `Install` button, which offers to change the thing it is describing. So this
+   is redundancy rather than colour-as-information. */
+.cli-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: var(--lc-radius-full);
+  background: var(--lc-ink-3);
+}
+
+.cli-dot.ok { background: var(--lc-accent-human); }
+.cli-dot.warn { background: var(--lc-warn-ink); }
+
+/* The pane's header row: what this is, and what state it is in, on one line
+   with the action opposite. */
+.cli-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lc-space-3);
+}
+
+.cli-head-text { flex: 1; min-width: 0; }
+
+.cli-name {
+  display: flex;
+  align-items: baseline;
+  gap: var(--lc-space-2);
+  flex-wrap: wrap;
+}
+
+.cli-name code {
+  color: var(--lc-ink);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.cli-name .kind {
+  color: var(--lc-ink-3);
+  font-size: var(--lc-type-small-size);
+}
+
+/* ---------------------------------------------- the ask-again row (LC-249a)
+
+   The offer's one lasting side effect, made visible and reversible. LC-233
+   wrote `commandLinePrompted` once and never offered a way back: a person who
+   pressed `Not now` on first launch could not be asked again on that Mac, and
+   nothing on screen ever said the press had done anything at all. */
+.cli-ask-again {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lc-space-2);
+  margin-top: var(--lc-space-4);
+}
+
+.cli-ask-again label {
+  color: var(--lc-ink-2);
+  font-size: var(--lc-type-small-size);
+  line-height: 1.4;
+}
+
+.cli-ask-again .hint { color: var(--lc-ink-3); }
+
+/* The dialog's title, when the answer is yes. The check rides in the human
+   accent: installing is a human act and the confirmation of it stays in the
+   human accent — see the third open question, which is where this disagrees
+   with what `.cli-state.ok` ships today. */
+.cli-title-done {
+  display: flex;
+  align-items: center;
+  gap: var(--lc-space-2);
+}
+
+.cli-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border-radius: var(--lc-radius-full);
+  background: var(--lc-accent-human);
+}
+</style>
+
+<!-- ====================================================================
+     HARNESS — the driver bar, the notes column, and the surroundings the
+     surfaces are shown in. None of this ships.
+     ==================================================================== -->
+<style id="harness">
+body {
+  margin: 0;
+  background: var(--lc-bg);
+  color: var(--lc-ink);
+  font-family: var(--lc-font-ui);
+}
+
+.driver {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 14px;
+  background: var(--lc-inverse-surface);
+  color: color-mix(in oklab, var(--lc-inverse-ink) 70%, transparent);
+  font: 500 11px/1.2 var(--lc-font-mono);
+}
+
+.driver .group { display: flex; gap: 4px; align-items: center; }
+.driver .sep { width: 1px; height: 14px; background: color-mix(in oklab, var(--lc-inverse-ink) 20%, transparent); }
+.driver .ask { color: var(--lc-accent-agent); }
+.driver strong { letter-spacing: .05em; text-transform: uppercase; font-weight: 600; color: var(--lc-inverse-ink); }
+.driver .spacer { flex: 1; }
+
+.driver button {
+  border: 1px solid color-mix(in oklab, var(--lc-inverse-ink) 22%, transparent);
+  border-radius: 5px;
+  padding: 3px 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.driver button:hover { color: var(--lc-inverse-ink); border-color: color-mix(in oklab, var(--lc-inverse-ink) 40%, transparent); }
+.driver button[aria-pressed="true"] { color: var(--lc-inverse-ink); border-color: var(--lc-accent-human); }
+.driver button[data-drive="fail"][aria-pressed="true"] { border-color: var(--lc-warn-ink); color: var(--lc-warn-ink); }
+.driver .swatch { width: 26px; padding: 3px 0; }
+.driver .swatch i { display: block; width: 10px; height: 10px; margin: 0 auto; border-radius: 50%; background: var(--lc-accent-human); }
+
+.stage {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+  padding: 24px;
+}
+
+@media (max-width: 900px) { .stage { grid-template-columns: 1fr; } }
+
+.notes { font-size: 13px; line-height: 1.55; color: var(--lc-ink-2); }
+.notes h1 { margin: 0 0 4px; font-size: 19px; letter-spacing: -0.01em; color: var(--lc-ink); }
+.notes .key { font: 500 11px var(--lc-font-mono); letter-spacing: .09em; color: var(--lc-ink-3); text-transform: uppercase; }
+.notes h2 { margin: 20px 0 6px; font-size: 12px; letter-spacing: .07em; text-transform: uppercase; color: var(--lc-ink-3); }
+.notes ul { margin: 0; padding-left: 18px; }
+.notes li { margin-bottom: 7px; }
+.notes li.q { list-style: none; margin-left: -18px; }
+.notes li.q::before { content: "?"; display: inline-block; width: 18px; color: var(--lc-accent-agent); font-weight: 700; }
+.notes code { font: var(--lc-type-code-weight) 11.5px var(--lc-type-code-font); color: var(--lc-ink); }
+.notes .wrong { color: var(--lc-warn-ink); font-weight: 600; }
+
+/* Where the surface under review stands. The offer is a real scrim over a
+   stand-in for the board, because a modal reviewed on a white page is a modal
+   whose contrast nobody has actually looked at. */
+.surface { min-height: 520px; }
+
+.window {
+  position: relative;
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-panel);
+  background: var(--lc-surface);
+  box-shadow: var(--lc-shadow-overlay);
+  overflow: hidden;
+  min-height: 520px;
+}
+
+.window-chrome {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 38px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--lc-line);
+  background: var(--lc-bg);
+}
+
+.window-chrome .dots { display: flex; gap: 7px; }
+.window-chrome .dots i { width: 11px; height: 11px; border-radius: 50%; background: var(--lc-ink-3); opacity: .4; }
+.window-chrome .title { flex: 1; text-align: center; font: var(--lc-type-code-weight) 11px var(--lc-type-code-font); color: var(--lc-ink-3); }
+
+/* A board behind the scrim, flat enough that nobody reviews it by mistake. */
+.fauxboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding: 18px; }
+.fauxboard .col { display: flex; flex-direction: column; gap: 8px; }
+.fauxboard .colhead { font: 500 10.5px var(--lc-font-mono); letter-spacing: .09em; text-transform: uppercase; color: var(--lc-ink-3); }
+.fauxboard .card { border: 1px solid var(--lc-line); border-radius: var(--lc-radius-card); background: var(--lc-surface); padding: 10px; font-size: 12px; color: var(--lc-ink-2); line-height: 1.4; }
+.fauxboard .card b { display: block; font: 500 10.5px var(--lc-font-mono); color: var(--lc-ink-3); margin-bottom: 3px; }
+
+/* The settings pane, shown in the panel it actually lives in. */
+.pane-frame { padding: 22px; max-width: 620px; }
+.pane-frame h2 { margin: 0 0 2px; font-size: var(--lc-type-title-size); font-weight: 600; }
+
+.deck { padding: 4px 0 40px; }
+.deck table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.deck th {
+  position: sticky; top: 36px;
+  text-align: left; padding: 8px 10px;
+  border-bottom: 1px solid var(--lc-line-strong);
+  background: var(--lc-bg);
+  font: 500 10.5px var(--lc-font-mono); letter-spacing: .09em; text-transform: uppercase; color: var(--lc-ink-3);
+}
+.deck td { padding: 9px 10px; border-bottom: 1px solid var(--lc-line-soft); vertical-align: top; line-height: 1.5; }
+.deck td.id { font: var(--lc-type-code-weight) 11.5px var(--lc-type-code-font); color: var(--lc-accent-human-text); white-space: nowrap; }
+.deck td.kind { font: var(--lc-type-code-weight) 11px var(--lc-type-code-font); color: var(--lc-ink-3); white-space: nowrap; }
+.deck td.where { color: var(--lc-ink-3); font-size: 11.5px; white-space: nowrap; }
+.deck td.text { color: var(--lc-ink); }
+.deck td.text .note { display: block; margin-top: 3px; color: var(--lc-ink-3); font-size: 11.5px; line-height: 1.45; }
+.deck td.text code { font: var(--lc-type-code-weight) 11.5px var(--lc-type-code-font); }
+.deck .tag { display: inline-block; border-radius: 3px; padding: 1px 6px; font: 500 10px var(--lc-font-mono); letter-spacing: .05em; text-transform: uppercase; }
+.deck .tag.new { background: var(--lc-accent-human-wash); color: var(--lc-accent-human-text); }
+.deck .tag.changed { background: var(--lc-warn-surface); color: var(--lc-warn-ink); }
+.deck .tag.ships { background: var(--lc-line-soft); color: var(--lc-ink-3); }
+.deck h3 { margin: 24px 0 4px; font-size: 13px; color: var(--lc-ink); }
+.deck h3:first-of-type { margin-top: 8px; }
+.deck p.lead { margin: 0 0 14px; font-size: 12.5px; line-height: 1.55; color: var(--lc-ink-2); }
+</style>
+</head>
+<body>
+
+<header class="driver">
+  <strong>longclaw · LC-249a prototype</strong>
+  <span class="group" role="group" aria-label="Surface">
+    <button data-surface="offer" aria-pressed="true">first launch</button>
+    <button data-surface="pane" aria-pressed="false">settings pane</button>
+    <button data-surface="dismissed" aria-pressed="false">dismissed</button>
+    <button data-surface="deck" aria-pressed="false">copy deck</button>
+  </span>
+  <span class="sep" aria-hidden="true"></span>
+  <span class="group" role="group" aria-label="What the OS reports">
+    <button data-state="absent" aria-pressed="true">absent</button>
+    <button data-state="stale" aria-pressed="false">stale</button>
+    <button data-state="occupied" aria-pressed="false">occupied</button>
+    <button data-state="linked" aria-pressed="false">linked</button>
+    <button data-state="unavailable" aria-pressed="false">unavailable</button>
+  </span>
+  <span class="sep" aria-hidden="true"></span>
+  <span class="group">
+    <button data-drive="fail" aria-pressed="false">refuse the write</button>
+    <button data-drive="reset">reset</button>
+  </span>
+  <span class="sep" aria-hidden="true"></span>
+  <span class="ask">revision 4 · dialog copy from the design</span>
+  <span class="spacer"></span>
+  <span class="group" role="group" aria-label="Project theme">
+    <button class="swatch" data-theme-pick="clay" aria-pressed="true" title="Clay"><i data-theme="light" data-lc-theme="clay"></i></button>
+    <button class="swatch" data-theme-pick="ember" aria-pressed="false" title="Ember"><i data-theme="light" data-lc-theme="ember"></i></button>
+    <button class="swatch" data-theme-pick="indigo" aria-pressed="false" title="Indigo"><i data-theme="light" data-lc-theme="indigo"></i></button>
+    <button class="swatch" data-theme-pick="slate" aria-pressed="false" title="Slate"><i data-theme="light" data-lc-theme="slate"></i></button>
+    <button class="swatch" data-theme-pick="plum" aria-pressed="false" title="Plum"><i data-theme="light" data-lc-theme="plum"></i></button>
+  </span>
+  <span class="group" role="group" aria-label="Appearance">
+    <button data-appearance="light" aria-pressed="true">light</button>
+    <button data-appearance="dark" aria-pressed="false">dark</button>
+  </span>
+</header>
+
+<div class="stage">
+  <aside class="notes">
+    <span class="key">LC-249a · extends LC-233</span>
+    <h1>Make installing the longclaw command explain itself</h1>
+
+    <p>LC-233 put the command in the bundle and a button in two places. What it
+    never did was say <em>why</em>. The pane opens on what the button writes to
+    the filesystem and closes on a promise about folders — a complete answer to a
+    question nobody asked before they knew what the thing was for.</p>
+
+    <h2>Try this</h2>
+    <ul>
+      <li>The driver opens on <strong>first launch · absent</strong>. The dialog
+      is three things now — the lede, the preview, the buttons. Everything that
+      <em>reported</em> rather than <em>argued</em> moved to the pane.</li>
+      <li>Flip to <strong>dark</strong> in the driver and watch the preview
+      block. It stays a terminal. In revision 1 it turned into a light-grey
+      card — see below.</li>
+      <li>Press <kbd>refuse the write</kbd>, then <strong>Install</strong>. The
+      dialog stays up, the refusal lands above the line to paste, and the primary
+      becomes <strong>Try again</strong> — a button LC-233 never offered.</li>
+      <li>Switch to <strong>stale</strong>. This is the state that reads as
+      "installed" from a terminal and runs the wrong build; note it is the one
+      state where the preview block is a warning rather than an invitation.</li>
+      <li>Switch to <strong>dismissed</strong>. Today this path is silent — the
+      dialog closes and nothing says the press was remembered.</li>
+      <li><strong>copy deck</strong> is the last scene. Every string on every
+      other scene is rendered from it.</li>
+    </ul>
+
+    <h2>What is new</h2>
+    <ul>
+      <li><strong>A preview of the thing you are installing.</strong> One real
+      command, its real output. This is the design's strongest idea and the one
+      the shipped pane is most obviously missing.</li>
+      <li><strong>Fewer sentences, everywhere.</strong> Both surfaces now make
+      one argument and stop. The status line survives only where it is news, the
+      <code>what it writes</code> box and the preflight line are gone, and so is
+      the pane's closing note.</li>
+      <li><strong>A dismissal that says so</strong>, with the way back in it.</li>
+      <li><strong>An <code>Ask again</code> checkbox.</strong>
+      <code>commandLinePrompted</code> is written once today and has no way
+      back: skip on first launch and that Mac can never be asked again.</li>
+      <li><strong>Buttons together, bottom-right.</strong> Today the primary sits
+      mid-body in <code>.cli-actions</code> and the dismissal sits in the
+      dialog's own footer, so the two halves of one decision are in two places.</li>
+    </ul>
+
+    <h2>Revision 4 — the dialog's copy, from the design</h2>
+    <p>The title and lede are now the Claude Design project's, and the preview
+    has its shape. Three edits were made on the way in, all of the same kind —
+    the design says something the product does not do.</p>
+    <ul>
+      <li><strong>The lede's slips are repaired</strong>: "ito" → "to", and "So"
+      → "so" mid-sentence. The sentence is otherwise the design's.</li>
+      <li><strong>The command is <code>longclaw ticket list</code>, not
+      <code>longclaw list --status todo</code>.</strong> That verb does not exist
+      and it takes no <code>--status</code>. A block whose entire job is to be
+      believed cannot open on a line that returns <em>unknown command</em>. If
+      the filtered form is wanted, that is a CLI feature and a real ticket.</li>
+      <li><strong><code>.tickets</code> → <code>.longclaw</code></strong> in the
+      second output line. Same defect, smaller: naming a folder the app does not
+      create.</li>
+    </ul>
+    <p><strong>The output is knowingly abbreviated — settled in review, and
+    LC-249a's second checklist item is amended to match.</strong>
+    <code>ticket list</code> prints pretty-printed JSON: on this repository, 251
+    objects of about fifteen fields each. There is no truthful two-line rendering
+    of that, and revision 3's compacted one-line JSON was already a stylisation
+    presented as a transcript — the worse of the two failures, because it looked
+    literal and was not. The block is illustrative and says so in its caption.</p>
+    <p>Two honest alternatives were considered and are still available later
+    without changing the dialog's shape:
+    <code>longclaw ticket list | jq -r '.[] | "\(.key)  \(.title)"'</code> prints
+    exactly these two lines but is noisy for a first-run modal; and a
+    human-readable list mode on the CLI would make the design's line true
+    outright, which is a feature and its own ticket.</p>
+
+    <h2>Revision 3 — from review</h2>
+    <p>The pane came down to the same shape as the dialog: a name, one sentence,
+    the preview, the action. Four things went.</p>
+    <ul>
+      <li><strong>The lede lost its second clause.</strong> "— the same files the
+      board is showing you" explained the app to somebody already looking at it.</li>
+      <li><strong>The pane lost the <code>absent</code> sentence.</strong> The dot
+      and the <code>Install</code> button already said it. Every other state keeps
+      its sentence, because in those it is news rather than restatement — most of
+      all <code>occupied</code> and <code>unavailable</code>, where it is the only
+      content there is.</li>
+      <li><strong>The preflight line and the <code>what it writes</code> box are
+      gone entirely</strong>, from both surfaces. <strong>This removes the only
+      reason for the status-DTO change</strong> — nothing renders writability any
+      more, so <code>CommandLineStatus</code> needs no new field and LC-249a's
+      fifth checklist item is now dead. That is the one consequence of this round
+      worth deciding rather than absorbing.</li>
+      <li><strong>The pane lost its closing note.</strong> LC-233 put it there on
+      purpose: the pane sits in <em>project</em> settings and is not project data,
+      the same exception the Theme pane makes for the appearance (D-42), and
+      <code>screen-specs.md:334</code> was amended in place to say so. Nothing on
+      screen says it now — see the seventh open question.</li>
+    </ul>
+
+    <h2>Revision 2 — from review</h2>
+    <ul>
+      <li><strong>The dialog lost its status line and preflight row.</strong> On
+      the two states the offer actually opens on, "<code>longclaw</code> is not
+      on your <code>PATH</code> yet" is the dialog restating why it is open, and
+      the preflight reassured about a problem the reader did not yet know they
+      might have. Both stay in the pane.</li>
+      <li><strong>The dialog lost the <code>what it writes</code> box.</strong>
+      It answered a question that gets asked one screen later. The pane keeps
+      it — see the sixth open question, because this is the consent detail and
+      moving it out of the consent moment is not obviously right.</li>
+      <li><strong>The dialog is wider</strong> — <code>560px</code> against
+      <code>.confirm-dialog</code>'s <code>min(420px, 92vw)</code>, as a
+      <code>.wide</code> modifier so the delete confirmations stay narrow.</li>
+      <li><strong>The dark-mode preview is fixed, and it was a real defect.</strong>
+      Revision 1 used <code>--lc-inverse-surface</code>, which does not mean
+      "the dark one" — it means <em>the inverse of the current theme</em>
+      (<code>#171923</code> light, <code>#e9eaf2</code> dark). So the terminal
+      became a light-grey card exactly when the app went dark. It now sits on
+      <code>--lc-tile</code>, near-black in <strong>both</strong> appearances and
+      already the app's own terminal surface for the agent actor tile
+      (<code>styles.css:4070</code>). The ink had the identical trap and is
+      pinned to the dark ramp both ways.</li>
+    </ul>
+
+    <h2>Where the design is wrong</h2>
+    <p>Four things in <code>CLI Install.dc.html</code> cannot ship as drawn. The
+    prototype corrects them rather than transcribing them.</p>
+    <ul>
+      <li><span class="wrong">The path.</span> The design links
+      <code>Contents/Resources/bin/longclaw</code>. It is
+      <code>Contents/MacOS/longclaw</code> — a Mach-O under
+      <code>Resources</code> is the classic notarization rejection, which LC-233
+      names outright.</li>
+      <li><span class="wrong">The admin prompt.</span> The design has an
+      <code>auth</code> stage — "macOS is asking you to approve the change".
+      There is no such stage and there cannot be:
+      <code>release-audit.mjs:254</code> fails the build on
+      <code>Command::new</code>, so <code>osascript … with administrator
+      privileges</code> is unavailable and no privileged helper was built. The
+      write is a synchronous <code>symlink</code> that succeeds or returns
+      <code>EACCES</code>.</li>
+      <li><span class="wrong">The commands.</span> The design's terminal shows
+      <code>longclaw list --status todo</code> printing a formatted table, and
+      <code>longclaw --version</code>. The verb is <code>ticket list</code>, it
+      takes no <code>--status</code>, it prints JSON, and there is no
+      <code>--version</code> at all. A trust-building block that shows a command
+      which does not exist inverts on first use.</li>
+      <li><span class="wrong">Four states, not five.</span> The design covers
+      ask / installing / done / error. The app has
+      <code>linked</code>, <code>stale</code>, <code>occupied</code>,
+      <code>absent</code> and <code>unavailable</code>, and
+      <code>stale</code> is the interesting one.</li>
+    </ul>
+
+    <h2>Settled before drawing</h2>
+    <ul>
+      <li><strong>UI pass only.</strong> No <code>Remove link</code>, no
+      <code>--version</code> badge, no <code>Reveal in Finder</code>, no
+      status-bar chip. Each is new capability, and LC-233 declined the first two
+      on purpose.</li>
+      <li><strong>The pane stays in project settings.</strong> The design puts it
+      in an app-level Settings window under <code>Integrations</code>; no such
+      window exists, and building one is its own ticket. The row treatment comes
+      across, the re-home does not.</li>
+      <li><strong>Dismissal is per-Mac, not per-project.</strong> The design says
+      "permanent for this project" in one place and "when I open a project" in
+      another. <code>commandLinePrompted</code> is a device preference, and it is
+      right: the link is a fact about the Mac.</li>
+    </ul>
+
+    <h2>Settled at implementation</h2>
+    <ul>
+      <li><strong>The preview stays in the dialog.</strong> The dialog is where
+      the decision is actually made, so the argument has to be in it.</li>
+      <li><strong>The human accent wins, on both surfaces.</strong> The check on
+      the answered title and the pane’s <code>linked</code> dot are the human
+      accent, and <code>.cli-state.ok</code> moved to it: LC-233’s comment
+      argued green as “a machine is involved and it is working”, which is
+      true of what the command does and is the wrong subject — the sentence
+      reports that somebody pressed a button. One installed state cannot be two
+      colours on two surfaces.</li>
+      <li><strong><code>Ask again</code> belongs to the pane.</strong> Offering
+      somebody the chance to opt out of being asked <em>while they are being
+      asked</em> is one more control in a first-run modal for a decision they
+      have already been handed.</li>
+      <li><strong><code>stale</code> keeps its sentence in the dialog.</strong>
+      It is the one state whose sentence nothing else on that screen carries.</li>
+    </ul>
+
+    <h2>Open — decide these</h2>
+    <ul>
+      <li class="q"><strong>Is the preview worth its height in the dialog?</strong>
+      It is four lines in a modal a person meets before they have made a ticket.
+      The alternative is preview in the pane only, and a one-line lede in the
+      dialog. The dialog is where the decision is actually made, which argues for
+      keeping it.</li>
+      <li class="q"><strong>Human accent or agent accent for success?</strong>
+      The design is explicit — "installing is a human act, so its confirmation
+      stays in the human accent". <code>.cli-state.ok</code> ships the agent
+      accent today, with a comment arguing the opposite. Both arguments are good;
+      this prototype draws the design's. One of the two comments has to go.</li>
+      <li class="q"><strong>Does <code>Ask again</code> belong to the offer or to
+      the pane?</strong> Drawn in the pane. Putting it in the dialog as well
+      would let a person opt out of being asked at the moment they are being
+      asked, which is tidier logic and one more control in a first-run modal.</li>
+
+      <li class="q"><strong>The lede names <code>PATH</code> but not the
+      write.</strong> Revision 4 improved this — "Add the <code>longclaw</code>
+      binary to your <code>PATH</code>" at least says something lands somewhere.
+      It still does not say <em>where</em>: no <code>/usr/local/bin</code>, no
+      symlink, and that path now appears only in the <code>sudo</code> line after
+      a refusal. This is the one press in the app that writes outside a project
+      folder, and LC-233's stated reason for prompting at all was that it must
+      never do so silently. Is naming <code>PATH</code> enough?</li>
+      <li class="q"><strong>Nothing says the pane is not project data.</strong> It
+      sits in the project settings panel next to labels and statuses, which are
+      all stored in <code>longclaw.yaml</code>, and now reads exactly like one
+      more of them. The nav does not say otherwise. If the closing note is not
+      coming back, something else has to carry it.</li>
+    </ul>
+
+    <h2>What this asks of the code</h2>
+    <ul>
+      <li><strong>Nothing is needed from Rust.</strong> Revision 3 removed the
+      preflight, which was the only reader of the proposed writability field, so
+      <code>CommandLineStatus</code> is untouched and all five states are already
+      answered. This is now a frontend-only change.</li>
+      <li><code>devicePreferences.ts</code> needs
+      <code>commandLinePrompted</code> to be clearable;
+      <code>rememberCommandLinePrompted</code> only ever sets it.</li>
+      <li>The preview's command and output are a constant beside
+      <code>COMMAND_NAME</code>, not copy in the pane — a demo of the CLI that
+      lives in the frontend is a demo that goes stale the first time the CLI
+      changes and nothing fails.</li>
+      <li><code>ConfirmDialog.tsx</code> takes no <code>className</code>, so the
+      <code>.wide</code> modifier needs one — or a <code>width</code> prop. Do
+      not widen <code>.confirm-dialog</code> itself: the delete confirmations
+      are two sentences and should stay narrow.</li>
+      <li><code>--lc-tile</code> is the terminal surface, not
+      <code>--lc-inverse-surface</code>. The second is the inverse of the current
+      theme and flips; the first is near-black in both. Worth a comment where it
+      is used, because the names do not say which is which.</li>
+      <li><code>a11y:audit</code> is in scope: this touches a modal, and the
+      button order inside it changes.</li>
+    </ul>
+  </aside>
+
+  <div class="surface" id="surface"></div>
+</div>
+
+<script>
+/* ======================================================================
+   THE COPY DECK.
+
+   Every user-facing string this prototype puts on screen lives here, once.
+   The scenes render from it and so does the deck, so the two cannot drift —
+   which is the rule `AGENTS.md` states and the reason a copy review is worth
+   running at all.
+
+   Each row carries:
+     text   the string, with `backticks` for code spans and {braces} for paths
+     kind   what it is — a title, a button, a note, a refusal, a live region
+     where  the surface it appears on
+     status new | changed | ships, against what the app ships today
+     note   why it reads the way it does, or what it used to say
+   ====================================================================== */
+
+const PATHS = {
+  link: "/usr/local/bin/longclaw",
+  dir: "/usr/local/bin",
+  source: "/Applications/LongClaw.app/Contents/MacOS/longclaw",
+  stale: "/Users/sam/Downloads/LongClaw.app/Contents/MacOS/longclaw",
+  manual:
+    'sudo mkdir -p /usr/local/bin && sudo ln -sf "/Applications/LongClaw.app/Contents/MacOS/longclaw" /usr/local/bin/longclaw',
+};
+
+const COPY = {
+  /* ---------------------------------------------------------- the offer */
+  "offer.title": {
+    text: "Use LongClaw with Agents",
+    kind: "dialog title",
+    where: "first launch",
+    status: "changed",
+    note: "The design's title, taken verbatim in revision 4. Ships as “Install the longclaw command?”, which names the act rather than the reason. Note it is the one title in the app with a capitalised common noun — the design system's own rule is sentence case everywhere, so “agents” is the house spelling if that rule wins.",
+  },
+  "offer.title.done": {
+    text: "`longclaw` is on your PATH",
+    kind: "dialog title",
+    where: "first launch · after installing",
+    status: "new",
+    note: "The title changes rather than a banner appearing under the old one. Carries the check in the human accent.",
+  },
+  "offer.lede": {
+    text: "Add the `longclaw` binary to your `PATH` so agents can read, file, update and close tickets.",
+    kind: "lede",
+    where: "first launch, settings pane",
+    status: "changed",
+    note: "The design's sentence, with two slips repaired: “ito” → “to”, and “So” → “so” mid-sentence. Ships as a 34-word sentence opening on `PATH` and ending on the promise about folders. Unlike revision 3's, this one does name `PATH` — which partly answers open question 6.",
+  },
+
+  /* -------------------------------------------------------- the preview */
+  "preview.caption": {
+    text: "what it gets you · example",
+    kind: "caption",
+    where: "first launch, settings pane",
+    status: "new",
+    note: "Two jobs in one label. “what it gets you” says why the block is there; “example” is the word that keeps it honest, because the output below is an abbreviation of JSON rather than a transcript. Middle dot is the house separator.",
+  },
+  "preview.caption.stale": {
+    text: "what it is running today · example",
+    kind: "caption",
+    where: "first launch · stale",
+    status: "new",
+    note: "The same block, reframed. On a stale link the command does run — it runs the wrong build, which is the point.",
+  },
+  "preview.actor": {
+    text: "claude-code",
+    kind: "prompt (decorative)",
+    where: "first launch, settings pane",
+    status: "new",
+    note: "An agent id rather than a shell username, because agents are who this is for. Not localisable, not a real value.",
+  },
+  "preview.cmd": {
+    text: "longclaw ticket list",
+    kind: "sample command",
+    where: "first launch, settings pane",
+    status: "new",
+    note: "The design's line is `longclaw list --status todo`. That verb does not exist — it is `ticket list` — and it takes no `--status`. This is the one thing revision 4 did not take from the design, because a block whose whole job is to be trusted cannot open on a command that returns “unknown command”.",
+  },
+  "preview.out1": {
+    text: "LC-131  Sign release build with hardened runtime",
+    kind: "sample output",
+    where: "first launch, settings pane",
+    status: "new",
+    note: "The design's output shape, and far more legible than the alternative. Abbreviated, and knowingly: `ticket list` prints pretty-printed JSON — 251 objects of ~15 fields on this repo — so no honest two-line rendering of it exists. See the second open question, which this sharpens rather than settles.",
+  },
+  "preview.out2": {
+    text: "LC-134  Empty state for a project with no .longclaw folder",
+    kind: "sample output",
+    where: "first launch, settings pane",
+    status: "new",
+    note: "The design says “no .tickets folder”. This project's folder is `.longclaw/`, and a demo naming a directory the app does not create is the same defect as a demo naming a command it does not have.",
+  },
+
+
+  /* --------------------------------------------------------- the states */
+  "state.absent": {
+    text: "`longclaw` is not on your `PATH` yet.",
+    kind: "state",
+    where: "settings pane",
+    status: "ships",
+    note: "Unchanged as a string. Pane only since revision 2: in a dialog that exists to offer the install, saying it is not installed yet is the dialog restating its own reason for being open.",
+  },
+  "state.linked": {
+    text: "`longclaw` is installed at `{link}` and points at this copy of LongClaw.",
+    kind: "state",
+    where: "settings pane",
+    status: "ships",
+    note: "Unchanged. After a successful install the dialog's title carries this instead, so the sentence would be said twice.",
+  },
+  "state.stale": {
+    text: "`{link}` points at `{stale}`, which is not this copy of LongClaw. Re-linking replaces it.",
+    kind: "state",
+    where: "first launch · stale, settings pane",
+    status: "ships",
+    note: "Unchanged as a string, and the one state that kept its sentence in the dialog — settled at implementation, and the fifth open question is where the argument is. The command already works from a terminal and is running the wrong build; the title and lede do not say that, and `Point it at this app` alone would be carrying the whole explanation of why somebody who has a working `longclaw` is being asked anything.",
+  },
+  "state.occupied": {
+    text: "`{link}` is a file LongClaw did not create, so LongClaw will not replace it. Move or rename it and reopen this pane, or run the line below yourself.",
+    kind: "state",
+    where: "settings pane",
+    status: "ships",
+    note: "Unchanged.",
+  },
+  "state.unavailable": {
+    text: "This build has no copy of the command beside it, so there is nothing to install. That is what a `npm run dev` window looks like; an app built from the `.dmg` carries one.",
+    kind: "state",
+    where: "settings pane",
+    status: "ships",
+    note: "Unchanged. Never raised as an offer.",
+  },
+
+
+  /* -------------------------------------------------------- the refusal */
+  "refusal.denied": {
+    text: "LongClaw could not write to {dir}. The line below does the same thing.",
+    kind: "refusal",
+    where: "first launch, settings pane",
+    status: "changed",
+    note: "Shorter, and it hands off to the line in the same breath. Nothing broke and nothing is half-done, so it stays warn rather than danger.",
+  },
+  "manual.label.refused": {
+    text: "Run this in Terminal instead:",
+    kind: "field label",
+    where: "first launch, settings pane",
+    status: "ships",
+    note: "Unchanged.",
+  },
+  "manual.label.offered": {
+    text: "To do it yourself:",
+    kind: "field label",
+    where: "settings pane · occupied",
+    status: "ships",
+    note: "Unchanged. Only on states the app can never write its way out of.",
+  },
+  "manual.copy": {
+    text: "Copy",
+    kind: "button",
+    where: "first launch, settings pane",
+    status: "ships",
+    note: "Unchanged.",
+  },
+  "manual.copied": {
+    text: "Command copied",
+    kind: "write feedback",
+    where: "toast",
+    status: "ships",
+    note: "Unchanged — `clipboard.ts` already says this.",
+  },
+
+  /* --------------------------------------------------------- the buttons */
+  "button.install": {
+    text: "Install",
+    kind: "button · primary",
+    where: "first launch, settings pane",
+    status: "ships",
+    note: "Unchanged.",
+  },
+  "button.installing": {
+    text: "Installing…",
+    kind: "button · primary, disabled",
+    where: "first launch, settings pane",
+    status: "ships",
+    note: "Unchanged. A single synchronous symlink, so this is a frame rather than a stage — there is no approval step behind it.",
+  },
+  "button.retry": {
+    text: "Try again",
+    kind: "button · primary",
+    where: "first launch, settings pane · after a refusal",
+    status: "new",
+    note: "LC-233 left the button saying “Install” after a refusal, so pressing it twice looked like it had not registered the first press.",
+  },
+  "button.relink": {
+    text: "Point it at this app",
+    kind: "button · primary",
+    where: "first launch, settings pane · stale",
+    status: "ships",
+    note: "Unchanged.",
+  },
+  "button.skip": {
+    text: "Skip for now",
+    kind: "button · ghost",
+    where: "first launch",
+    status: "changed",
+    note: "Ships as “Not now”. Changed to match the toast that follows it, which says “Skipped.” The design used both spellings in one flow.",
+  },
+  "button.done": {
+    text: "Done",
+    kind: "button · primary",
+    where: "first launch · after installing",
+    status: "changed",
+    note: "Ships as “Close”, which is what a dialog you have failed at says. This one succeeded.",
+  },
+  "button.close": {
+    text: "Close",
+    kind: "button · ghost",
+    where: "first launch · unavailable",
+    status: "ships",
+    note: "Unchanged. The wording for a dialog with nothing left to press.",
+  },
+
+  /* ---------------------------------------------------------- dismissal */
+  "toast.skipped": {
+    text: "Skipped. Settings › Command line has it whenever you want it.",
+    kind: "write feedback",
+    where: "dismissed",
+    status: "new",
+    note: "Today the dialog closes in silence, having quietly written a preference that stops it ever opening again. This is that press, said out loud.",
+  },
+  "toast.skipped.action": {
+    text: "Open settings",
+    kind: "toast action",
+    where: "dismissed",
+    status: "new",
+    note: "",
+  },
+  "toast.installed": {
+    text: "`longclaw` is on your PATH.",
+    kind: "write feedback",
+    where: "dismissed · after installing",
+    status: "new",
+    note: "Shown when the dialog is closed with Done, so the confirmation survives the dialog it was in.",
+  },
+
+  /* ---------------------------------------------------------- the pane */
+  "pane.name": {
+    text: "longclaw",
+    kind: "row name",
+    where: "settings pane",
+    status: "new",
+    note: "The pane names the thing it installs. Today the pane's only heading is the nav label.",
+  },
+  "pane.kind": {
+    text: "command-line interface",
+    kind: "row subtitle",
+    where: "settings pane",
+    status: "new",
+    note: "From the design, unchanged.",
+  },
+  "pane.askAgain": {
+    text: "Ask again when I open a project without the command",
+    kind: "checkbox label",
+    where: "settings pane",
+    status: "new",
+    note: "Makes `commandLinePrompted` visible and, for the first time, reversible.",
+  },
+  "pane.askAgain.hint": {
+    text: "— off since you chose Skip for now",
+    kind: "checkbox hint",
+    where: "settings pane · after dismissal",
+    status: "new",
+    note: "Says which press caused the state. Only shown when the box is unchecked.",
+  },
+
+  /* ------------------------------------- the copy no screen ever shows */
+  "a11y.dialog.label": {
+    text: "Use LongClaw with Agents",
+    kind: "aria-labelledby target",
+    where: "first launch",
+    status: "changed",
+    note: "`ConfirmDialog` points `aria-labelledby` at the `h2`, so the title is the accessible name and the two cannot be written separately. Listed so the change to the title is seen to change this too.",
+  },
+  "a11y.live": {
+    text: "(polite live region — announces the state sentence and any refusal)",
+    kind: "live region",
+    where: "first launch, settings pane",
+    status: "ships",
+    note: "Polite rather than assertive: the outcome is worth announcing, is never urgent, and replaces text the reader may be part-way through.",
+  },
+  "a11y.preview": {
+    text: "Example of the longclaw command and its output",
+    kind: "aria-label",
+    where: "first launch, settings pane",
+    status: "new",
+    note: "The preview is decorative-looking but is not decorative — it is the argument. Without a label a screen reader meets a bare JSON fragment.",
+  },
+  "a11y.copy": {
+    text: "Copy the install command",
+    kind: "aria-label",
+    where: "first launch, settings pane",
+    status: "new",
+    note: "Ships as a bare “Copy”, which in a list of one is ambiguous only to someone who cannot see what it sits beside.",
+  },
+  "a11y.dot": {
+    text: "(aria-hidden — the state is carried by the sentence, or by the button where there is no sentence)",
+    kind: "decorative",
+    where: "settings pane",
+    status: "new",
+    note: "The dot is never the only carrier. Revision 3 removed the sentence on `absent`, so there the carrier is the `Install` button, which states the case by offering to change it. This is the one state with no sentence and it is the row the a11y pass should look at hardest.",
+  },
+};
+
+/* --------------------------------------------------------------------- */
+
+const esc = (s) =>
+  String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+
+/** The raw string, paths filled in. */
+function raw(id) {
+  const row = COPY[id];
+  if (!row) throw new Error("no copy row: " + id);
+  return row.text.replace(/\{(\w+)\}/g, (_, k) => PATHS[k] ?? "{" + k + "}");
+}
+
+/** The string as the scenes render it: escaped, with `code` spans. */
+function t(id) {
+  return esc(raw(id)).replace(/`([^`]+)`/g, "<code>$1</code>");
+}
+
+const app = {
+  surface: "offer",
+  state: "absent",
+  failNext: false,
+  /** Set once the install in this run has been refused. */
+  refused: false,
+  installing: false,
+  /** The dialog has been answered — which way is `installedNow`. */
+  closed: false,
+  installedNow: false,
+  askAgain: true,
+};
+
+/** What each state offers a surface, mirroring `STATES` in `CommandLineInstall.tsx`. */
+const STATES = {
+  absent: { action: "button.install", offer: true, manual: false },
+  stale: { action: "button.relink", offer: true, manual: false },
+  linked: { action: null, offer: false, manual: false },
+  occupied: { action: null, offer: false, manual: true },
+  unavailable: { action: null, offer: false, manual: false },
+};
+
+function statusLineHTML() {
+  const cls = app.state === "linked" ? "cli-state ok" : "cli-state";
+  return '<p class="' + cls + '">' + t("state." + app.state) + "</p>";
+}
+
+function previewHTML() {
+  const caption = app.state === "stale" ? "preview.caption.stale" : "preview.caption";
+  return (
+    '<div class="cli-preview" role="group" aria-label="' + esc(raw("a11y.preview")) + '">' +
+    '<div class="cli-preview-caption">' + t(caption) + "</div>" +
+    '<div class="cli-preview-body">' +
+    '<div class="cli-preview-cmd">' +
+    '<span class="cli-preview-actor">' + t("preview.actor") + "</span>" +
+    '<span class="cli-preview-caret" aria-hidden="true">&#10095;</span>' +
+    "<span>" + t("preview.cmd") + "</span>" +
+    "</div>" +
+    '<div class="cli-preview-out">' + t("preview.out1") + "</div>" +
+    '<div class="cli-preview-out">' + t("preview.out2") + "</div>" +
+    "</div></div>"
+  );
+}
+
+function manualHTML(labelId) {
+  return (
+    '<div class="cli-manual">' +
+    '<p class="settings-label">' + t(labelId) + "</p>" +
+    '<div class="cli-manual-row">' +
+    '<code class="cli-command">' + esc(PATHS.manual) + "</code>" +
+    '<button tabindex="0" type="button" class="secondary small" aria-label="' +
+    esc(raw("a11y.copy")) + '" data-drive="copy">' + t("manual.copy") + "</button>" +
+    "</div></div>"
+  );
+}
+
+/**
+ * The body both surfaces share.
+ *
+ * **Both surfaces got shorter, twice.** Revision 2 took the status sentence,
+ * the preflight line and the `what it writes` box out of the dialog; revision 3
+ * took the last two out of the pane as well, so neither exists any more. What
+ * is left on both is the argument — lede, preview — plus whatever the last
+ * attempt had to say.
+ *
+ * **A state says its sentence only when the sentence is news.** `absent` never
+ * does, on either surface: the dot and the `Install` button already say it, and
+ * the sentence only restated them. `occupied` and `unavailable` always do,
+ * because there the sentence is the only content there is and a surface without
+ * it would refuse to explain itself. `stale` and `linked` say it in the pane,
+ * where somebody has come looking.
+ */
+function bodyHTML(opts) {
+  const spec = STATES[app.state];
+  let html = "";
+
+  if (app.state !== "unavailable" && !(app.state === "linked" && opts.dialog)) {
+    html += previewHTML();
+  }
+
+  // A sentence is said where it is *news*. `absent` never is — the dot and the
+  // `Install` button already say it. In the pane every other state is, because
+  // somebody has come looking. In the dialog the survivors are the states
+  // nothing else explains: `occupied` and `unavailable`, which have no button,
+  // and `stale`, whose button alone would carry the whole reason a working
+  // `longclaw` is being asked about. `linked` is the exception — after a
+  // successful install the title says it, so the sentence would be said twice.
+  const saysStatus =
+    app.state !== "absent" &&
+    (!opts.dialog || (!opts.installed && app.state !== "linked"));
+
+  html += '<div aria-live="polite">';
+  if (saysStatus) html += statusLineHTML();
+  if (app.refused) html += '<p class="cli-refusal">' + t("refusal.denied") + "</p>";
+  html += "</div>";
+
+  if (app.refused) html += manualHTML("manual.label.refused");
+  else if (spec.manual) html += manualHTML("manual.label.offered");
+
+  return html;
+}
+
+/* ------------------------------------------------------- the surfaces */
+
+function fauxboardHTML() {
+  const col = (head, cards) =>
+    '<div class="col"><div class="colhead">' + head + "</div>" +
+    cards.map((c) => '<div class="card"><b>' + c[0] + "</b>" + c[1] + "</div>").join("") +
+    "</div>";
+  return (
+    '<div class="fauxboard" aria-hidden="true">' +
+    col("todo · 4", [
+      ["LC-131", "Sign release build with hardened runtime"],
+      ["LC-134", "Empty state for a project with no .longclaw folder"],
+    ]) +
+    col("in progress · 2", [
+      ["LC-128", "Fix watcher debounce on rename"],
+      ["LC-129", "Frontmatter round-trips unknown keys"],
+    ]) +
+    col("in review · 1", [["LC-126", "Conflict banner when the file changed on disk"]]) +
+    "</div>"
+  );
+}
+
+function offerHTML() {
+  const spec = STATES[app.state];
+
+  // Answered, either way: the dialog is gone and the toast carries what happened.
+  if (app.closed) {
+    return (
+      '<div class="window">' +
+      '<div class="window-chrome"><span class="dots"><i></i><i></i><i></i></span>' +
+      '<span class="title">~/dev/longclaw · .longclaw</span></div>' +
+      fauxboardHTML() +
+      toastHTML(app.installedNow ? "toast.installed" : "toast.skipped", !app.installedNow) +
+      "</div>"
+    );
+  }
+
+  const installed = app.installedNow;
+  const title = installed
+    ? '<span class="cli-title-done"><span class="cli-check" aria-hidden="true">' +
+      '<svg width="12" height="12" viewBox="0 0 14 14"><path d="M3 7.4 L5.9 10.2 L11 4.4" fill="none" ' +
+      'stroke="var(--lc-on-accent, #fff)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+      "</span>" + t("offer.title.done") + "</span>"
+    : t("offer.title");
+
+  // The buttons, together, bottom-right — dismissal weakest. LC-233 put the
+  // primary mid-body and the dismissal in the footer.
+  let actions = "";
+  if (installed) {
+    actions = '<button tabindex="0" type="button" class="primary" data-drive="close">' + t("button.done") + "</button>";
+  } else if (app.state === "unavailable") {
+    actions = '<button tabindex="0" type="button" class="secondary" data-drive="dismiss">' + t("button.close") + "</button>";
+  } else {
+    const primary = app.installing
+      ? '<button tabindex="0" type="button" class="primary" disabled>' + t("button.installing") + "</button>"
+      : '<button tabindex="0" type="button" class="primary" data-drive="install">' +
+        t(app.refused ? "button.retry" : spec.action ?? "button.install") + "</button>";
+    actions =
+      '<button tabindex="0" type="button" class="secondary" data-drive="dismiss">' +
+      t("button.skip") + "</button>" + primary;
+  }
+
+  return (
+    '<div class="window">' +
+    '<div class="window-chrome"><span class="dots"><i></i><i></i><i></i></span>' +
+    '<span class="title">~/dev/longclaw · .longclaw</span></div>' +
+    fauxboardHTML() +
+    '<div class="modal-scrim centered" role="presentation">' +
+    '<div class="confirm-dialog wide" role="dialog" aria-modal="true" aria-labelledby="lc-offer-title">' +
+    '<h2 id="lc-offer-title">' + title + "</h2>" +
+    '<div class="confirm-body">' +
+    (installed ? "" : "<p>" + t("offer.lede") + "</p>") +
+    bodyHTML({ dialog: true, installed }) +
+    "</div>" +
+    '<div class="confirm-actions">' + actions + "</div>" +
+    "</div></div></div>"
+  );
+}
+
+function paneHTML() {
+  const spec = STATES[app.state];
+  const dot = app.state === "linked" ? " ok" : app.state === "occupied" ? " warn" : "";
+  const action = app.installing
+    ? '<button tabindex="0" type="button" class="primary" disabled>' + t("button.installing") + "</button>"
+    : spec.action
+      ? '<button tabindex="0" type="button" class="primary" data-drive="install">' +
+        t(app.refused ? "button.retry" : spec.action) + "</button>"
+      : "";
+
+  return (
+    '<div class="window"><div class="window-chrome">' +
+    '<span class="dots"><i></i><i></i><i></i></span>' +
+    '<span class="title">Settings › Command line</span></div>' +
+    '<div class="pane-frame">' +
+    '<div class="cli-head"><div class="cli-head-text">' +
+    '<div class="cli-name"><span class="cli-dot' + dot + '" aria-hidden="true"></span>' +
+    "<code>" + t("pane.name") + "</code>" +
+    '<span class="kind">' + t("pane.kind") + "</span></div>" +
+    '<p class="settings-subhead">' + t("offer.lede") + "</p>" +
+    "</div>" + action + "</div>" +
+    bodyHTML({ dialog: false, installed: false }) +
+    '<div class="cli-ask-again">' +
+    '<input type="checkbox" tabindex="0" id="lc-ask-again" data-drive="askAgain"' +
+    (app.askAgain ? " checked" : "") + ">" +
+    '<label for="lc-ask-again">' + t("pane.askAgain") +
+    (app.askAgain ? "" : ' <span class="hint">' + t("pane.askAgain.hint") + "</span>") +
+    "</label></div>" +
+    "</div></div>"
+  );
+}
+
+function toastHTML(id, withAction) {
+  return (
+    '<div class="toast-stack"><div class="toast" role="status">' +
+    "<span>" + t(id) + "</span>" +
+    (withAction
+      ? '<button tabindex="0" type="button" class="toast-action" data-drive="openSettings">' +
+        t("toast.skipped.action") + " <kbd>&#8984;,</kbd></button>"
+      : "") +
+    "</div></div>"
+  );
+}
+
+function dismissedHTML() {
+  return (
+    '<div class="window"><div class="window-chrome">' +
+    '<span class="dots"><i></i><i></i><i></i></span>' +
+    '<span class="title">~/dev/longclaw · .longclaw</span></div>' +
+    fauxboardHTML() +
+    toastHTML("toast.skipped", true) +
+    '<div class="pane-frame" style="border-top:1px solid var(--lc-line); max-width:none;">' +
+    '<h2 style="font-size:12px; letter-spacing:.07em; text-transform:uppercase; color:var(--lc-ink-3); margin:0 0 10px;">' +
+    "The way back, today</h2>" +
+    '<p style="margin:0 0 12px; font-size:13px; line-height:1.55; color:var(--lc-ink-2);">' +
+    "The toast is one of two. The other already ships: the gear menu carries the " +
+    "row and its hint, which is the only place a dismissed offer is currently " +
+    "reachable from — and it says nothing about having been dismissed.</p>" +
+    '<div style="display:flex; align-items:center; gap:10px; max-width:320px; border:1px solid var(--lc-line); ' +
+    "border-radius:var(--lc-radius-control); padding:8px 12px; background:var(--lc-surface);\">" +
+    '<span style="flex:1; font-size:13px;">Command line tool</span>' +
+    '<span style="font:var(--lc-type-code-weight) 11px var(--lc-type-code-font); color:var(--lc-ink-3);">not set up</span>' +
+    "</div>" +
+    '<p style="margin:12px 0 0; font-size:12.5px; line-height:1.5; color:var(--lc-ink-3);">' +
+    "The design proposed a third — a persistent <code>longclaw · not installed</code> chip in a " +
+    "status bar. The app has no status bar, so that is a new shell surface and is out " +
+    "of scope here.</p>" +
+    "</div></div>"
+  );
+}
+
+function deckHTML() {
+  const groups = [
+    ["The offer", ["offer.title", "offer.title.done", "offer.lede"]],
+    ["The preview", ["preview.caption", "preview.caption.stale", "preview.actor", "preview.cmd", "preview.out1", "preview.out2"]],
+    ["The five states", ["state.absent", "state.linked", "state.stale", "state.occupied", "state.unavailable"]],
+    ["Refusal, and the way round it", ["refusal.denied", "manual.label.refused", "manual.label.offered", "manual.copy", "manual.copied"]],
+    ["Buttons", ["button.install", "button.installing", "button.retry", "button.relink", "button.skip", "button.done", "button.close"]],
+    ["Dismissal", ["toast.skipped", "toast.skipped.action", "toast.installed"]],
+    ["The pane", ["pane.name", "pane.kind", "pane.askAgain", "pane.askAgain.hint"]],
+    ["Copy no screen shows", ["a11y.dialog.label", "a11y.live", "a11y.preview", "a11y.copy", "a11y.dot"]],
+  ];
+
+  const counts = Object.values(COPY).reduce((acc, r) => {
+    acc[r.status] = (acc[r.status] || 0) + 1;
+    return acc;
+  }, {});
+
+  const rows = (ids) =>
+    ids
+      .map((id) => {
+        const row = COPY[id];
+        return (
+          "<tr>" +
+          '<td class="id">' + esc(id) + "</td>" +
+          '<td class="kind">' + esc(row.kind) + "</td>" +
+          '<td class="where">' + esc(row.where) + "</td>" +
+          '<td class="text">' + t(id) +
+          (row.note ? '<span class="note">' + esc(row.note) + "</span>" : "") +
+          "</td>" +
+          '<td><span class="tag ' + row.status + '">' + row.status + "</span></td>" +
+          "</tr>"
+        );
+      })
+      .join("");
+
+  return (
+    '<div class="deck">' +
+    '<p class="lead">Every user-facing string the other three scenes put on screen, in one place, ' +
+    "rendered from the same object they are. " +
+    "<strong>" + (counts.new || 0) + " new</strong>, " +
+    "<strong>" + (counts.changed || 0) + " changed</strong>, " +
+    (counts.ships || 0) + " unchanged — the unchanged rows are here for tone, not for review. " +
+    "Reply by id: <code>offer.lede &rarr; …</code>.</p>" +
+    groups
+      .map(
+        ([name, ids]) =>
+          "<h3>" + esc(name) + "</h3><table><thead><tr>" +
+          "<th>id</th><th>kind</th><th>where</th><th>string</th><th>vs today</th>" +
+          "</tr></thead><tbody>" + rows(ids) + "</tbody></table>"
+      )
+      .join("") +
+    "</div>"
+  );
+}
+
+/* ---------------------------------------------------------- the driver */
+
+function render() {
+  const surface = document.getElementById("surface");
+  if (app.surface === "offer") surface.innerHTML = offerHTML();
+  else if (app.surface === "pane") surface.innerHTML = paneHTML();
+  else if (app.surface === "dismissed") surface.innerHTML = dismissedHTML();
+  else surface.innerHTML = deckHTML();
+
+  document.querySelectorAll("[data-surface]").forEach((b) =>
+    b.setAttribute("aria-pressed", String(b.dataset.surface === app.surface))
+  );
+  document.querySelectorAll("[data-state]").forEach((b) =>
+    b.setAttribute("aria-pressed", String(b.dataset.state === app.state))
+  );
+  document
+    .querySelector('[data-drive="fail"]')
+    .setAttribute("aria-pressed", String(app.failNext));
+}
+
+/** Every press in a surface lands here; the driver owns the state, not the markup. */
+document.addEventListener("click", (event) => {
+  const el = event.target.closest("[data-surface],[data-state],[data-drive],[data-theme-pick],[data-appearance]");
+  if (!el) return;
+
+  if (el.dataset.surface) {
+    app.surface = el.dataset.surface;
+  } else if (el.dataset.state) {
+    app.state = el.dataset.state;
+    app.refused = false;
+    app.closed = false;
+    app.installedNow = false;
+  } else if (el.dataset.themePick) {
+    document.documentElement.setAttribute("data-lc-theme", el.dataset.themePick);
+    document.querySelectorAll("[data-theme-pick]").forEach((b) =>
+      b.setAttribute("aria-pressed", String(b === el))
+    );
+    return;
+  } else if (el.dataset.appearance) {
+    document.documentElement.setAttribute("data-theme", el.dataset.appearance);
+    document.querySelectorAll("[data-appearance]").forEach((b) =>
+      b.setAttribute("aria-pressed", String(b === el))
+    );
+    return;
+  } else {
+    const drive = el.dataset.drive;
+    if (drive === "fail") {
+      app.failNext = !app.failNext;
+    } else if (drive === "reset") {
+      Object.assign(app, {
+        state: "absent", failNext: false, refused: false,
+        installing: false, closed: false, installedNow: false, askAgain: true,
+      });
+    } else if (drive === "install") {
+      // One synchronous symlink. The frame of "Installing…" is real; the
+      // approval step the design drew is not — see the notes.
+      app.installing = true;
+      render();
+      setTimeout(() => {
+        app.installing = false;
+        if (app.failNext) {
+          app.refused = true;
+        } else {
+          app.refused = false;
+          app.state = "linked";
+          app.installedNow = true;
+        }
+        render();
+      }, 420);
+      return;
+    } else if (drive === "dismiss") {
+      app.closed = true;
+      app.installedNow = false;
+      app.askAgain = false;
+    } else if (drive === "close") {
+      app.closed = true;
+    } else if (drive === "openSettings") {
+      app.surface = "pane";
+    } else if (drive === "askAgain") {
+      app.askAgain = !app.askAgain;
+    } else if (drive === "copy") {
+      void navigator.clipboard?.writeText(PATHS.manual);
+      el.textContent = raw("manual.copied");
+      setTimeout(render, 1400);
+      return;
+    }
+  }
+  render();
+});
+
+render();
+</script>
+</body>
+</html>

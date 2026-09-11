@@ -6755,9 +6755,7 @@ describe("the longclaw command on PATH (LC-233)", () => {
   };
 
   function offer() {
-    return screen.queryByRole("heading", {
-      name: "Install the longclaw command?",
-    });
+    return screen.queryByRole("heading", { name: "Use LongClaw with Agents" });
   }
 
   async function openBoard() {
@@ -6800,7 +6798,12 @@ describe("the longclaw command on PATH (LC-233)", () => {
     render(<App />);
     fireEvent.click(await screen.findByRole("button", { name: "Install" }));
 
+    // The dialog stays up and becomes the answer (LC-249a); `Done` is what
+    // closes it, and what records the press.
+    fireEvent.click(await screen.findByRole("button", { name: "Done" }));
     await vi.waitFor(() => expect(offer()).toBeNull());
+    expect(screen.getByText("longclaw is on your PATH.")).toBeTruthy();
+
     // Still absent on disk as far as the next launch's *read* is concerned:
     // what must not come back is the offer, and the reason it does not is the
     // preference rather than the status.
@@ -6814,10 +6817,12 @@ describe("the longclaw command on PATH (LC-233)", () => {
     expect(offer()).toBeNull();
   });
 
-  it("takes Not now for an answer, and does not ask again", async () => {
+  it("takes Skip for now for an answer, and does not ask again", async () => {
     vi.mocked(api.commandLineStatus).mockResolvedValue(absent);
     render(<App />);
-    fireEvent.click(await screen.findByRole("button", { name: "Not now" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Skip for now" }),
+    );
 
     expect(offer()).toBeNull();
     expect(api.installCommandLine).not.toHaveBeenCalled();
@@ -6830,6 +6835,56 @@ describe("the longclaw command on PATH (LC-233)", () => {
       expect(vi.mocked(api.commandLineStatus).mock.calls.length).toBe(2),
     );
     expect(offer()).toBeNull();
+  });
+
+  /**
+   * The press used to be silent while quietly writing the preference that stops
+   * the offer ever opening again — the same silence a person got for
+   * succeeding. Worded per-Mac rather than per-project, because the link is a
+   * fact about the Mac and `commandLinePrompted` is a device preference.
+   */
+  it("says out loud that skipping was a decision, and where the way back is", async () => {
+    vi.mocked(api.commandLineStatus).mockResolvedValue(absent);
+    render(<App />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Skip for now" }),
+    );
+
+    expect(
+      screen.getByText(
+        "Skipped. Settings › Command line has it whenever you want it.",
+      ),
+    ).toBeTruthy();
+  });
+
+  /**
+   * The way back offered as a press rather than only as a sentence — and only
+   * where it leads somewhere. First launch is usually the welcome screen, which
+   * has no project and so has no settings panel to open; an action that did
+   * nothing there would be worse than none.
+   */
+  it("offers the way back as a button only where there is a panel to open", async () => {
+    vi.mocked(api.commandLineStatus).mockResolvedValue(absent);
+    render(<App />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Skip for now" }),
+    );
+    expect(screen.queryByRole("button", { name: "Open settings" })).toBeNull();
+
+    cleanup();
+    // A Mac that has not been asked. The press above recorded that it had, and
+    // the point of this half is the same offer over a shell that has a panel.
+    devicePreferences = {};
+    await relaunch();
+    await openBoard();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Skip for now" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Open settings" }));
+
+    expect(
+      await screen.findByRole("checkbox", { name: /Ask again when I open/ }),
+    ).toBeTruthy();
   });
 
   /** The way back, once the offer has been answered: the gear's own menu. */
