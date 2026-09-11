@@ -9,7 +9,7 @@ labels:
   - release
   - post-mvp
 created_at: 2026-08-05T14:23:17Z
-updated_at: 2026-08-24T15:15:50.319Z
+updated_at: 2026-09-11T01:21:19.446Z
 ---
 
 **Signing and notarization.** v0 ships unsigned with a documented Gatekeeper route
@@ -92,7 +92,7 @@ The expected result is now **no dialog at all** — a first launch that simply o
 
 ## Checklist
 
-- [ ] Apple Developer Program membership is active, a Developer ID Application certificate is issued, and the notarytool credentials, the Team ID, and the private key backup location are recorded <!-- longclaw:item=ck_c8bff8b2 -->
+- [x] Apple Developer Program membership is active, a Developer ID Application certificate is issued, and the notarytool credentials, the Team ID, and the private key backup location are recorded <!-- longclaw:item=ck_c8bff8b2 -->
 - [ ] The build signs with that identity and notarizes and staples both the .app and the DMG, and `npm run build:app` on a machine holding no certificate still produces an openable ad-hoc bundle, because CI runs it on every PR <!-- longclaw:item=ck_39bdc0a1 -->
 - [ ] Where the signing credentials live is decided and written down, and no pull-request job can reach them <!-- longclaw:item=ck_1adc935f -->
 - [ ] binary-audit.mjs requires `spctl` acceptance, a Developer ID authority chain, the runtime flag, and `stapler validate` on both artefacts, and its --self-test fails when the bundle is unsigned <!-- longclaw:item=ck_ffe5a28f -->
@@ -192,4 +192,31 @@ Still open on this checklist item, so it stays unchecked:
 - Certificate expiry, which is silent until a build fails, and belongs in the runbook next to the membership renewal date.
 
 Xcode Cloud was considered and is not relevant: it builds Xcode schemes, and this app is built by cargo and npm. Signing needs the certificate and the notarytool credentials, nothing from that panel.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_fa909d8e
+kind: update
+occurred_at: 2026-09-11T01:21:19.446Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_c8bff8b2.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+The first checklist item is complete.
+
+- `notarytool` credentials are stored in the login keychain as a profile, created with `notarytool store-credentials` and confirmed against Apple with `notarytool history`. The `.p8` was deleted afterwards, so no file on this machine holds the API key — the build references the profile by name.
+- The signing private key is exported from the login keychain and backed up off this machine, encrypted.
+
+**The backup location is deliberately not recorded here.** The item asks for it, and this ticket directory is published to GitHub, so the location is held by the account holder instead. Noted as a decision rather than left as a gap, because a later reader would otherwise read the absence as an oversight.
+
+Two things this leaves for the runbook in section 6, both silent until a build fails: the certificate expiry, and the membership renewal on 2027-09-02.
+
+Also settled, ahead of its own checklist item: signing happens on this machine only, from the login keychain. No CI-based signing is planned, so no pull-request job can reach the credentials — structurally, since the committed `signingIdentity` stays `"-"` and only this machine's environment overrides it.
 <!-- /longclaw:event -->
