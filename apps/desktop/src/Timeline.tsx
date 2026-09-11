@@ -28,10 +28,12 @@
  * decides what a field change says; `timelineEvents.ts` does.
  */
 
+import { useState } from "react";
 import { actorGlyph, actorName, eventProse } from "./attribution";
 import { describeAge } from "./acknowledgement";
 import { LabelDot } from "./LabelChip";
 import { MarkdownView } from "./MarkdownView";
+import { PencilGlyph } from "./PencilGlyph";
 import { PriorityGlyph } from "./PriorityGlyph";
 import { StatusDot } from "./StatusDot";
 import type { ChangeGlyph } from "./timelineEvents";
@@ -67,6 +69,39 @@ interface TimelineProps {
    * `timelineEvents.ts`.
    */
   commentsAsLines?: boolean;
+  /**
+   * New words for one comment, and the record they replace (LC-241q). Absent
+   * where the gesture is not on offer — the Activity tab draws the same records
+   * with no composer, and a button that called nothing would be a control that
+   * does nothing.
+   */
+  onEditComment?: (eventId: string, text: string) => void;
+  /** The comment to withdraw, by record id. */
+  onRemoveComment?: (eventId: string) => void;
+}
+
+/**
+ * Whether this entry is one the person at the keyboard may rewrite or withdraw
+ * (LC-241q).
+ *
+ * Three things have to be true, and the first two are the interesting ones. It
+ * has to be a **comment**: an entry reporting what happened to the ticket is
+ * corrected by a later entry and never rewritten, which is what keeps the
+ * history honest. And it has to be **theirs**: `actorName` calls exactly this
+ * actor "You", so the rule the buttons follow is the rule the name follows —
+ * the app never offers to put words in an agent's mouth or take them out of it.
+ *
+ * The reserved local human is `{ type: human, id: local }` (ADR 0001), and the
+ * id is part of the test rather than decoration: Rust refuses any comment whose
+ * actor is not the one the write is attributed to, so a button drawn on a
+ * looser rule than that is a button that fails when it is pressed.
+ */
+function isYours(event: ActivityEvent): boolean {
+  return (
+    isComment(event.kind) &&
+    event.actor.type === "human" &&
+    event.actor.id === "local"
+  );
 }
 
 /** Which of the DS's human hue pairs a name wears — stable, so the same
@@ -87,6 +122,8 @@ export function Timeline(props: TimelineProps) {
           now={props.now}
           context={context}
           commentsAsLines={props.commentsAsLines}
+          onEdit={props.onEditComment}
+          onRemove={props.onRemoveComment}
         />
       ))}
       {props.pendingComment !== undefined && (
@@ -104,13 +141,18 @@ function TimelineEntry({
   now,
   context,
   commentsAsLines,
+  onEdit,
+  onRemove,
 }: {
   event: ActivityEvent;
   now: number;
   context: { labels?: Record<string, Label>; checklist?: ChecklistItem[] };
   commentsAsLines?: boolean;
+  onEdit?: (eventId: string, text: string) => void;
+  onRemove?: (eventId: string) => void;
 }) {
   const actorType = event.actor.type;
+  const [editing, setEditing] = useState(false);
   /**
    * A comment drawn as one line (LC-211). Its body is left out with the shape:
    * a change entry keeps its body — an update carrying a note is that note —
@@ -122,6 +164,11 @@ function TimelineEntry({
   const prose = asLine ? "" : eventProse(event.body);
   const meta = [
     describeAge(Date.parse(event.occurredAt), now),
+    // Said, not shown by the words having changed — which nobody watching can
+    // see. It sits beside the age rather than replacing it, because when a
+    // comment was written and when it was last touched are two facts and the
+    // stream is ordered on the first (LC-241q).
+    event.editedAt === undefined ? "" : "edited",
     // Where the change came from, not just when. An external change says it
     // whoever wrote it: the file is the only place it can have come from.
     actorType === "human" && event.kind !== "external_change"
@@ -152,6 +199,15 @@ function TimelineEntry({
     />
   );
 
+  /**
+   * Whether this entry carries the pencil and the `✕`.
+   *
+   * `asLine` is in the test because the Activity tab draws a comment as the one
+   * line saying it happened: its words are not on screen, and a pencil over
+   * words nobody can see would open a field out of nowhere.
+   */
+  const yours = isYours(event) && !asLine && Boolean(onEdit && onRemove);
+
   if (shape === "message") {
     return (
       <li className={className}>
@@ -169,8 +225,30 @@ function TimelineEntry({
           <strong>{actorName(event)}</strong>
           {actorType === "agent" && <span className="agent-badge">AGENT</span>}
           <span className="entry-meta">{meta}</span>
+          {yours && !editing && (
+            <CommentActions
+              onEdit={() => setEditing(true)}
+              onRemove={() => onRemove?.(event.id)}
+            />
+          )}
         </div>
-        {body}
+        {yours && editing ? (
+          <CommentEditor
+            text={prose}
+            onCommit={(text) => {
+              setEditing(false);
+              // An unchanged comment is not a write, and an emptied one is not
+              // a withdrawal: `✕` is. Rust refuses both, and a refusal is not
+              // what closing a field should mean.
+              const next = text.trim();
+              if (!next || next === prose) return;
+              onEdit?.(event.id, next);
+            }}
+            onCancel={() => setEditing(false)}
+          />
+        ) : (
+          body
+        )}
       </li>
     );
   }
@@ -198,6 +276,117 @@ function TimelineEntry({
       <p className="entry-meta change-meta">{meta}</p>
       {body}
     </li>
+  );
+}
+
+/**
+ * A comment's own two controls (LC-241q), quiet until the entry is hovered or
+ * something in it holds focus — the treatment `RowActions` gives a checklist
+ * row, for the same reason: a stream of comments each showing two buttons is a
+ * wall of chrome over what is meant to read as a conversation.
+ *
+ * Both are real Tab stops. WebKit skips a `<button>` entirely with the macOS
+ * *Keyboard navigation* setting off, which is its default, so an explicit
+ * `tabIndex` is what makes these reachable at all (`npm run check` enforces it).
+ *
+ * "your comment" rather than the words themselves: a checklist row is one short
+ * line and names itself, and a comment is prose of any length. The entries are
+ * already distinguished for a screen reader by the author and age above them,
+ * and a label that read out a paragraph before saying *Edit* would bury the
+ * verb.
+ */
+function CommentActions(props: { onEdit: () => void; onRemove: () => void }) {
+  return (
+    <span className="entry-actions">
+      <button
+        type="button"
+        tabIndex={0}
+        className="ghost small row-edit"
+        title="Edit your comment"
+        aria-label="Edit your comment"
+        onClick={props.onEdit}
+      >
+        <PencilGlyph />
+      </button>
+      <button
+        type="button"
+        tabIndex={0}
+        className="ghost small row-remove"
+        title="Delete your comment"
+        aria-label="Delete your comment"
+        onClick={props.onRemove}
+      >
+        ✕
+      </button>
+    </span>
+  );
+}
+
+/**
+ * One comment, being rewritten where it stands.
+ *
+ * A textarea with two named buttons rather than the checklist row's
+ * commit-on-blur field, and the difference is the content: a checklist row is
+ * one line, and a comment is prose with newlines in it. `Enter` has to insert
+ * one, so it cannot also commit — which leaves `⌘↵`, the chord the composer
+ * directly below already takes. Blur cannot commit either, because reaching for
+ * the toolbar or the scrollbar mid-paragraph would file the draft.
+ *
+ * So the way out is stated instead of implied: **Save**, **Cancel**, and `Esc`
+ * for the keyboard. `Esc` is stopped here — the panel's own `Esc` closes the
+ * panel, and a field being abandoned is not the panel being closed
+ * (`keyboard-focus-map.md:16-23`).
+ *
+ * The draft lives here, so a keystroke re-renders one entry rather than the
+ * whole stream.
+ */
+function CommentEditor(props: {
+  text: string;
+  onCommit: (text: string) => void;
+  onCancel: () => void;
+}) {
+  const [draft, setDraft] = useState(props.text);
+  return (
+    <form
+      className="comment-edit-form"
+      onSubmit={(submit) => {
+        submit.preventDefault();
+        props.onCommit(draft);
+      }}
+    >
+      <textarea
+        className="comment-edit-field"
+        aria-label="Edit your comment"
+        autoFocus
+        rows={Math.min(12, Math.max(3, draft.split("\n").length + 1))}
+        value={draft}
+        onChange={(change) => setDraft(change.target.value)}
+        onKeyDown={(key) => {
+          if (key.key === "Escape") {
+            key.stopPropagation();
+            props.onCancel();
+            return;
+          }
+          if (key.key === "Enter" && (key.metaKey || key.ctrlKey)) {
+            key.preventDefault();
+            props.onCommit(draft);
+          }
+        }}
+      />
+      <div className="comment-edit-actions">
+        <button type="submit" tabIndex={0} className="primary small">
+          Save
+        </button>
+        <button
+          type="button"
+          tabIndex={0}
+          className="ghost small"
+          onClick={props.onCancel}
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 }
 

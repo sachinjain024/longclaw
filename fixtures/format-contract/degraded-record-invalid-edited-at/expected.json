@@ -1,0 +1,18 @@
+{
+  "summary": "An activity record whose edited_at is not a UTC timestamp degrades locally while the ticket and its other records stay valid.",
+  "key": "LC-32",
+  "outcome": "valid",
+  "ticket": {
+    "activity": [
+      {
+        "id": "evt_44444444",
+        "kind": "comment",
+        "occurredAt": "2026-07-29T02:00:00Z",
+        "editedAt": null,
+        "actorType": "human",
+        "actorId": "local"
+      }
+    ],
+    "recordDiagnostics": ["activity record"]
+  }
+}

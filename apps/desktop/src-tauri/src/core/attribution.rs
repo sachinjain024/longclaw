@@ -60,6 +60,7 @@ mod tests {
             id: id.to_owned(),
             kind: EventKind::Update,
             occurred_at: "2026-07-31T09:00:00Z".to_owned(),
+            edited_at: None,
             actor: Actor {
                 actor_type,
                 id: name.map(|_| "claude-code".to_owned()),
