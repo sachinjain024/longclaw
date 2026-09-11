@@ -14,7 +14,14 @@
  * off one row is what makes adding a pane to one and not the other impossible.
  */
 export type SettingsSection =
-  "general" | "theme" | "labels" | "status" | "shortcuts" | "danger";
+  | "general"
+  | "theme"
+  | "labels"
+  | "properties"
+  | "status"
+  | "shortcuts"
+  | "commandLine"
+  | "danger";
 
 export interface SettingsSectionSpec {
   id: SettingsSection;
@@ -38,8 +45,20 @@ export const SETTINGS_SECTIONS: SettingsSectionSpec[] = [
   { id: "general", navLabel: "General", menuLabel: "General" },
   { id: "theme", navLabel: "Theme", menuLabel: "Theme" },
   { id: "labels", navLabel: "Labels", menuLabel: "Labels" },
+  // Beside labels rather than after the read-only panes, because it is the
+  // project's other editable vocabulary — and because a type value is a label
+  // in everything but name (LC-227).
+  { id: "properties", navLabel: "Properties", menuLabel: "Ticket properties" },
   { id: "status", navLabel: "Status fields", menuLabel: "Status fields" },
   { id: "shortcuts", navLabel: "Shortcuts", menuLabel: "Keyboard shortcuts" },
+  // Beside the other pane that is about the app rather than about this project.
+  // It is the only pane holding a control that writes outside a project folder,
+  // and it says so in its own words rather than relying on its position (LC-233).
+  {
+    id: "commandLine",
+    navLabel: "Command line",
+    menuLabel: "Command line tool",
+  },
   { id: "danger", navLabel: "Danger zone", menuLabel: "Danger zone" },
 ];
 

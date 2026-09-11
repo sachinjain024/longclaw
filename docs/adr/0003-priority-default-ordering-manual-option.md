@@ -1,14 +1,29 @@
-# Tickets order by priority by default, with a per-board Manual option
+# Tickets order by priority by default, with Due and Manual options
 
 **Status:** accepted 2026-07-29, and propagated through the prototype and specs in the same change.
 
-Within a board column, tickets are ordered by priority by default (Urgent → P1 → P2 → P3 → P4 → None). A board-level control lets the user switch the ordering type between **Priority** and **Manual**. Manual ordering uses the per-ticket `rank` field from the file format; the selected ordering type is a view preference held in device-local app state, not project data.
+Within a board column, tickets are ordered by priority by default (Urgent → P1 → P2 → P3 → P4 → None). A board-level control lets the user switch the ordering type between **Priority**, **Due** and **Manual**. Due sorts by the ticket's date-only `due` value; Manual ordering uses the per-ticket `rank` field from the file format. The selected ordering type is a view preference held in device-local app state, not project data.
+
+## Revised for LC-227: Due ordering
+
+**Status:** accepted on 2026-09-09, during LC-227.
+
+Due is a third ordering mode beside Priority and Manual. It is still a view
+preference and still writes no files: tickets with readable ISO due dates sort
+first, soonest first, while missing, malformed and unreadable rows stay in the
+tail in the order they arrived. The due rungs are only a display treatment; they
+do not participate in ordering, so the order does not change at midnight when
+`in 1d` becomes `Today`.
+
+Manual remains the only mode that writes ranks. A drop inside the same column or
+list group is refused in Due exactly as it is in Priority; a drop into another
+status writes that status and no rank.
 
 ## Consequences
 
-- Drag-and-drop reordering is available only while the selected sort option is **Manual**. It is disabled while sorting by Priority. (Reordering — a card's place _within_ a column. Dragging a card to _another_ column is a status change and is available in both orders; see the revision below, which is where this bullet was read too widely.)
-- `rank` is written only by manual reordering; a project that never leaves Priority mode never writes rank data, and priority ordering needs nothing on disk beyond the existing `priority` field.
-- New tickets need no rank allocation on create in Priority mode; Manual mode assigns rank on first reorder.
+- Drag-and-drop reordering is available only while the selected sort option is **Manual**. It is disabled while sorting by Priority or Due. (Reordering — a card's place _within_ a column. Dragging a card to _another_ column is a status change and is available in every order; see the revision below, which is where this bullet was read too widely.)
+- `rank` is written only by manual reordering; a project that never enters Manual mode never writes rank data, and Priority and Due ordering need nothing on disk beyond the fields they read.
+- New tickets need no rank allocation on create in Priority or Due mode; Manual mode assigns rank on first reorder.
 - LongClaw owns rank allocation in v0. Agents preserve existing rank strings and do not invent them, so the allocation algorithm remains an app implementation detail rather than part of the agent-facing file contract.
 
 ## Revised for LC-60: dragging a card to another column

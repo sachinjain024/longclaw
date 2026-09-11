@@ -25,27 +25,40 @@
  * be a write with nowhere to land.
  */
 
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import {
-  useCallback,
-  useEffect,
-  useId,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
-import { addProjectLabel, removeProjectLabel, updateProjectLabel } from "./api";
+  addProjectLabel,
+  addProjectTypeValue,
+  removeProjectLabel,
+  removeProjectTypeValue,
+  setProjectDueWindow,
+  setProjectEstimateConversion,
+  setProjectEstimateScale,
+  setProjectEstimateSystem,
+  setProjectPropertyEnabled,
+  updateProjectLabel,
+  updateProjectTypeValue,
+} from "./api";
+import { CommandLineSection } from "./CommandLineInstall";
 import { RemoveProjectConfirm } from "./ConfirmDialog";
 import { FolderGlyph } from "./FolderGlyph";
+import { LabelColors } from "./LabelColorPicker";
+import { DerivedKey, useLabelDefinition } from "./LabelDefine";
+import { ESTIMATE_SYSTEMS, PROPERTY_LABELS } from "./properties";
 import { GearGlyph } from "./SettingsGlyphs";
-import { FALLBACK_LABEL_COLOR, isRampColor, LABEL_COLORS } from "./labels";
-import { useDismissOnPressOutside, useFocusReturn } from "./popover";
 import { SETTINGS_SECTIONS, type SettingsSection } from "./settingsSections";
 import { APPEARANCES, type Appearance } from "./state";
 import { StatusDot } from "./StatusDot";
 import { tabStops } from "./tabStops";
 import { ThemePicker, type ThemeOption } from "./ThemePicker";
 import { STATUSES } from "./tickets";
-import type { Label, ProjectReference } from "./types";
+import type {
+  CommandLineStatus,
+  EstimateSystem,
+  Label,
+  ProjectReference,
+  TicketProperty,
+} from "./types";
 
 export function ProjectSettings(props: {
   project: ProjectReference;
@@ -54,6 +67,12 @@ export function ProjectSettings(props: {
    * (`data-requirements.md` § Project settings), which is what the note says.
    */
   hasTickets: boolean;
+  /**
+   * How many tickets carry a value for each of the four properties, off the
+   * index. It is what the Properties pane says beside a property that is
+   * *off* — the one place in the app that fact stays visible (LC-227).
+   */
+  propertyCounts: Record<TicketProperty, number>;
   appearance: Appearance;
   themes: ThemeOption[];
   /**
@@ -63,6 +82,13 @@ export function ProjectSettings(props: {
    */
   section: SettingsSection;
   onSection: (section: SettingsSection) => void;
+  /**
+   * Whether the `longclaw` command is on `PATH` (LC-233). Read by `App` at
+   * launch and passed down rather than read here, because the first-launch
+   * offer asks the same question and the two must not answer it differently.
+   */
+  commandLine: CommandLineStatus;
+  onCommandLine: (status: CommandLineStatus) => void;
   onAppearance: (next: Appearance) => void;
   onRename: (name: string) => void;
   onTheme: (theme: string) => void;
@@ -92,7 +118,7 @@ export function ProjectSettings(props: {
 
   /**
    * "Focus enters the first meaningful control"
-   * (`keyboard-focus-map.md:143-147`), which for this panel is the first
+   * (`keyboard-focus-map.md:144-148`), which for this panel is the first
    * control **of the section that was asked for** rather than a fixed field.
    * The Name input carried `autoFocus` while every section was on screen at
    * once; with a nav in front of them that would land a human who picked
@@ -204,8 +230,21 @@ export function ProjectSettings(props: {
             {props.section === "labels" && (
               <ProjectLabels project={props.project} onWrite={props.onWrite} />
             )}
+            {props.section === "properties" && (
+              <ProjectProperties
+                project={props.project}
+                counts={props.propertyCounts}
+                onWrite={props.onWrite}
+              />
+            )}
             {props.section === "status" && <StatusSection />}
             {props.section === "shortcuts" && <ShortcutsSection />}
+            {props.section === "commandLine" && (
+              <CommandLineSection
+                status={props.commandLine}
+                onStatus={props.onCommandLine}
+              />
+            )}
             {props.section === "danger" && (
               <DangerSection
                 removeButton={removeButton}
@@ -534,7 +573,7 @@ function StatusSection() {
  * a shortcut only its author uses.
  *
  * It is a hand-copy of the map's § Global and § Board tables
- * (`keyboard-focus-map.md:29-34`, `:39-44`) and there is no way for it not to
+ * (`keyboard-focus-map.md:29-35`, `:40-45`) and there is no way for it not to
  * be — the map is prose for people, not a module. So it is written to be
  * *checkable* instead: one row per row of those two tables, in their order,
  * and it shipped missing `⌘↵` and the `J K H L` half of board movement.
@@ -546,6 +585,7 @@ const SHORTCUTS: { action: string; keys: string[] }[] = [
   { action: "Focus the filter field", keys: ["⌘", "F"] },
   { action: "Quick create a ticket", keys: ["C"] },
   { action: "Project settings", keys: ["⌘", ","] },
+  { action: "Switch to the nth project in the sidebar", keys: ["⌘", "1–9"] },
   { action: "Close one layer", keys: ["Esc"] },
   { action: "Move between tickets", keys: ["↑", "↓", "←", "→"] },
   { action: "…or without leaving the home row", keys: ["K", "J", "H", "L"] },
@@ -607,7 +647,7 @@ function DangerSection(props: {
 
 /**
  * Label definitions, which are project data rather than ticket data
- * (`file_format.md:214-231`). `screen-specs.md` § Project settings never
+ * (`file_format.md:241-258`). `screen-specs.md` § Project settings never
  * mentions them, so they sit in the panel that already owns the project file's
  * other fields: the name, the theme, and the folder.
  *
@@ -622,12 +662,15 @@ function ProjectLabels(props: {
     write: () => Promise<ProjectReference>,
   ) => Promise<boolean>;
 }) {
-  const [slug, setSlug] = useState("");
-  const [name, setName] = useState("");
-  const [color, setColor] = useState<string>(LABEL_COLORS[0]);
+  /**
+   * The same three things the popover's define row holds, from the same hook —
+   * which is what stops the two definition surfaces disagreeing about the key a
+   * typed name produces (LC-236e). Nobody authors a key here any more.
+   */
+  const definition = useLabelDefinition(props.project.labels);
   const definitions = Object.entries(props.project.labels);
   /** Where focus goes when the row holding it is taken away. */
-  const addSlug = useRef<HTMLInputElement>(null);
+  const addName = useRef<HTMLInputElement>(null);
 
   /**
    * Every write here returns the project as the file now reads, and every one
@@ -650,6 +693,7 @@ function ProjectLabels(props: {
       {definitions.map(([definedSlug, label]) => (
         <LabelDefinition
           key={definedSlug}
+          noun="label"
           slug={definedSlug}
           label={label}
           onSave={(next) =>
@@ -663,7 +707,7 @@ function ProjectLabels(props: {
           }
           onRemove={() => {
             // "Removed" and not "deleted": the definition goes, and every
-            // ticket carrying the slug keeps it (`file_format.md:214-231`).
+            // ticket carrying the slug keeps it (`file_format.md:241-258`).
             void run(`Removed the ${definedSlug} label definition`, () =>
               removeProjectLabel({
                 projectId: props.project.id,
@@ -672,7 +716,7 @@ function ProjectLabels(props: {
             );
             // The row is going, and with it whatever held focus inside it. The
             // add-row is the one thing here that is always on screen.
-            addSlug.current?.focus();
+            addName.current?.focus();
           }}
         />
       ))}
@@ -680,39 +724,50 @@ function ProjectLabels(props: {
         className="label-row label-add"
         onSubmit={(event) => {
           event.preventDefault();
-          if (!slug.trim() || !name.trim()) return;
+          const { state } = definition;
+          if (state.kind !== "ok") return;
           void (async () => {
-            const added = await run(`Added the ${slug.trim()} label`, () =>
+            const added = await run(`Added the ${state.slug} label`, () =>
               addProjectLabel({
                 projectId: props.project.id,
-                slug: slug.trim(),
-                name: name.trim(),
-                color,
+                slug: state.slug,
+                name: definition.name.trim(),
+                color: definition.color,
               }),
             );
             if (!added) return;
-            setSlug("");
-            setName("");
+            definition.reset();
           })();
         }}
       >
-        <input
-          ref={addSlug}
-          className="input compact mono"
-          value={slug}
-          aria-label="New label slug"
-          placeholder="slug"
-          onChange={(event) => setSlug(event.target.value)}
+        {/* The key stacks under the field that produces it, as it does in the
+            popover — not in the `code` column the rows above use. Those show a
+            key that is already a fact; this one is still following what is
+            being typed, and one column would have said they were the same kind
+            of thing. */}
+        <div className="label-add-name">
+          <input
+            ref={addName}
+            className="input compact"
+            value={definition.name}
+            aria-label="New label name"
+            placeholder="Display name"
+            autoComplete="off"
+            onChange={(event) => definition.setName(event.target.value)}
+          />
+          <DerivedKey state={definition.state} />
+        </div>
+        <LabelColors
+          label="New label color"
+          value={definition.color}
+          onPick={definition.setColor}
         />
-        <input
-          className="input compact"
-          value={name}
-          aria-label="New label name"
-          placeholder="Display name"
-          onChange={(event) => setName(event.target.value)}
-        />
-        <LabelColors label="New label color" value={color} onPick={setColor} />
-        <button tabIndex={0} className="secondary small" type="submit">
+        <button
+          tabIndex={0}
+          className="secondary small"
+          type="submit"
+          disabled={definition.state.kind !== "ok"}
+        >
           Add label
         </button>
       </form>
@@ -732,8 +787,15 @@ function ProjectLabels(props: {
  * way the panel's title does instead (`screen-specs.md:225`) — `Enter` or blur
  * — and a colour applies the moment it is picked, the way the theme picker
  * does, so the only button left is the one that takes the row away.
+ *
+ * Both registries draw this row. A type value is a label in everything but the
+ * key it is written under: same slug, same display name, same colour, stored on
+ * the ticket the same way, and removed with the same guarantee. `noun` is the
+ * only thing that differs, and it is what the row's controls are called.
  */
 function LabelDefinition(props: {
+  /** `label` or `type` — what this row's controls name themselves. */
+  noun: string;
   slug: string;
   label: Label;
   onSave: (next: { name: string; color: string }) => void;
@@ -768,7 +830,7 @@ function LabelDefinition(props: {
       <input
         className="input compact"
         value={name}
-        aria-label={`Name of label ${props.slug}`}
+        aria-label={`Name of ${props.noun} ${props.slug}`}
         onChange={(event) => setName(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
@@ -786,7 +848,7 @@ function LabelDefinition(props: {
         onBlur={commitName}
       />
       <LabelColors
-        label={`Color of label ${props.slug}`}
+        label={`Color of ${props.noun} ${props.slug}`}
         value={color}
         onPick={(next) => {
           setColor(next);
@@ -802,7 +864,7 @@ function LabelDefinition(props: {
         tabIndex={0}
         className="ghost row-remove"
         type="button"
-        aria-label={`Remove label ${props.slug}`}
+        aria-label={`Remove ${props.noun} ${props.slug}`}
         // The press takes focus off the name field, and a typed name would
         // commit on the way out — a rename written to a definition that is
         // about to be deleted, racing the delete for the same slug. Holding
@@ -819,179 +881,676 @@ function LabelDefinition(props: {
 }
 
 /**
- * The colour a label reads as, behind a dropdown (D12, `labels.ts:22-31`).
+ * The Properties pane (LC-227): the four opt-in ticket properties, and the
+ * configuration each of them owns.
  *
- * It was eight swatches laid out inline, which is what LC-208 inherited from
- * V0-10 and carried into the new panel unchanged — and a row of eight dots per
- * label is 48 dots down a six-label list, none of which is the answer to
- * "what colour is `design`?". The prototype draws one dot and a chevron, and
- * that is the right trade: the resting state says the colour, and the eight
- * are a decision you have opened rather than a decision on permanent display.
+ * It sits after Labels because it is the project's *other* editable vocabulary,
+ * and because a type value is a label in everything but name — same slug, same
+ * display name, same colour, stored on the ticket the same way. The editor
+ * below is literally the labels editor's row, which is the claim this pane
+ * makes and the reason it is one pane rather than four.
  *
- * What the swatch row *did* get right and this keeps: the OS `<select>` it
- * replaced was one of the two places the app rendered native chrome (D-72),
- * and it named its colours in words while every other surface draws them as
- * dots. Every dot here carries its name for anything that is not looking.
+ * **All four ship off** (ADR 0013). Four more meta rows turned on by default
+ * would change every project that exists and push the description below the
+ * fold for people who never asked for a due date.
+ *
+ * **Turning one off writes immediately and asks nothing.** The precedent is one
+ * section up and covers a stronger act: removing a label definition *deletes*
+ * something and takes no confirmation either. Disabling is weaker in three ways
+ * — no definition goes, no ticket value is touched, and the same toggle puts it
+ * back, which is a better undo than an undo affordance. A dialog over a
+ * reversible act that destroys nothing is ceremony, and ceremony over the safe
+ * acts is what teaches people to click through the dangerous one.
+ *
+ * What it must not be is *silent*, because the effect is invisible: the dates
+ * come off every card and a person could reasonably conclude they were deleted.
+ * So the write feedback carries the count and the reassurance in one sentence,
+ * and the row goes on carrying it while the property is off — which is then the
+ * only place in the app that fact is visible at all.
  */
-function LabelColors(props: {
-  label: string;
-  value: string;
-  onPick: (color: string) => void;
+function ProjectProperties(props: {
+  project: ProjectReference;
+  counts: Record<TicketProperty, number>;
+  onWrite: (
+    message: string,
+    write: () => Promise<ProjectReference>,
+  ) => Promise<boolean>;
 }) {
-  const [open, setOpen] = useState(false);
-  const trigger = useRef<HTMLButtonElement>(null);
-  // A colour the ramp does not hold is still shown and still selected, or
-  // renaming a label would silently recolour it. It wears the fallback dot,
-  // which is what every other surface draws it as (`labels.ts:40`).
-  const hues: readonly string[] = isRampColor(props.value)
-    ? LABEL_COLORS
-    : [props.value, ...LABEL_COLORS];
-  const dot = (hue: string) =>
-    `label-dot label-${isRampColor(hue) ? hue : FALLBACK_LABEL_COLOR}`;
+  const { properties } = props.project;
+  const projectId = props.project.id;
+  const run = props.onWrite;
+
+  function toggle(property: TicketProperty, enabled: boolean) {
+    const { name } = PROPERTY_LABELS[property];
+    const count = props.counts[property];
+    // On is one fact. Off is two, and the second one is the reassurance: the
+    // values are still there, and this says how many.
+    const message =
+      enabled || count === 0
+        ? `${name} turned ${enabled ? "on" : "off"}`
+        : `${name} turned off · ${keptByTickets(property, count)}`;
+    void run(message, () =>
+      setProjectPropertyEnabled({ projectId, property, enabled }),
+    );
+  }
+
   return (
-    <span className="label-color-field">
-      <button
-        tabIndex={0}
-        type="button"
-        ref={trigger}
-        className="label-color-trigger"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        // The name carries the value, because the trigger's whole content is a
-        // colour: `Color of label design: orange`.
-        aria-label={`${props.label}: ${props.value}`}
-        onClick={() => setOpen(!open)}
+    <section className="property-settings" aria-label="Properties">
+      <p className="settings-subhead">
+        Optional Properties - OFF by default. Once turned ON and used in tickets
+        &amp; later turned OFF, the values are kept in the tickets but not
+        visible in UI
+      </p>
+
+      <PropertyBlock
+        property="type"
+        enabled={properties.type.enabled}
+        count={props.counts.type}
+        onToggle={toggle}
       >
-        <span className={dot(props.value)} aria-hidden="true" />
-        <ChevronGlyph />
-      </button>
-      {open && (
-        <LabelColorMenu
-          label={props.label}
-          hues={hues}
-          value={props.value}
-          anchor={trigger.current}
-          dot={dot}
-          onPick={(hue) => {
-            props.onPick(hue);
-            setOpen(false);
-          }}
-          onClose={() => setOpen(false)}
+        <TypeValues project={props.project} onWrite={run} />
+      </PropertyBlock>
+
+      <PropertyBlock
+        property="due"
+        enabled={properties.due.enabled}
+        count={props.counts.due}
+        onToggle={toggle}
+      >
+        <DueWindow
+          projectId={projectId}
+          attentionDays={properties.due.attentionDays}
+          onWrite={run}
         />
-      )}
-    </span>
+      </PropertyBlock>
+
+      <PropertyBlock
+        property="start"
+        enabled={properties.start.enabled}
+        count={props.counts.start}
+        onToggle={toggle}
+      >
+        {/* Start has nothing to configure, and the note says why rather than
+            leaving an empty block to read as unfinished: a start date in the
+            past means work should have begun, which is a judgement about the
+            work rather than a fact about the date. So there are no rungs to
+            set a window on. */}
+        <p className="property-note">
+          Nothing to configure. A start date is not a deadline, so it has no
+          escalation and never appears on a card — it shows in the ticket panel
+          beside the due date.
+        </p>
+      </PropertyBlock>
+
+      <PropertyBlock
+        property="estimate"
+        enabled={properties.estimate.enabled}
+        count={props.counts.estimate}
+        onToggle={toggle}
+      >
+        <EstimateSettings project={props.project} onWrite={run} />
+      </PropertyBlock>
+
+      <p className="settings-note">
+        Turning a property off hides it and keeps every value. The count beside
+        a switched-off property is what is still on disk.
+      </p>
+    </section>
   );
 }
 
 /**
- * The eight, in one row, as the prototype draws them.
+ * One property: the switch, and whatever it has to configure under it.
  *
- * A strip rather than a list of named rows: the thing being chosen *is* a
- * colour, so the swatch is the label and a column of colour words would be a
- * worse version of the `<select>` D-72 removed. The names are still there for
- * anything not looking at it — on each dot, not beside it.
- *
- * Roving focus, one tab stop, arrows along the strip, `Esc` back to the
- * trigger: the contract `keyboard-focus-map.md:139-141` gives every menu, on
- * the horizontal axis this one is drawn along.
+ * The configuration is inside the `enabled` branch rather than disabled beside
+ * it, because a scale nobody can write a value on is not a setting — it is a
+ * control that does nothing, which is the shape a person reads as broken.
  */
-function LabelColorMenu(props: {
-  label: string;
-  hues: readonly string[];
-  value: string;
-  anchor: HTMLElement | null;
-  dot: (hue: string) => string;
-  onPick: (hue: string) => void;
-  onClose: () => void;
+function PropertyBlock(props: {
+  property: TicketProperty;
+  enabled: boolean;
+  count: number;
+  onToggle: (property: TicketProperty, enabled: boolean) => void;
+  children: React.ReactNode;
 }) {
-  const popover = useRef<HTMLDivElement>(null);
-  const swatches = useRef<(HTMLButtonElement | null)[]>([]);
-  const at = props.hues.indexOf(props.value);
-  const [active, setActive] = useState(at === -1 ? 0 : at);
-  useFocusReturn(props.anchor);
-  useDismissOnPressOutside({
-    popover,
-    anchor: props.anchor,
-    onDismiss: props.onClose,
-  });
-  useLayoutEffect(() => {
-    swatches.current[active]?.focus();
-  }, [active]);
-
+  const { name } = PROPERTY_LABELS[props.property];
   return (
-    <div
-      className="label-color-menu"
-      role="menu"
-      aria-label={props.label}
-      ref={popover}
-      onKeyDown={(event) => {
-        if (event.metaKey || event.ctrlKey || event.altKey) return;
-        const step =
-          event.key === "ArrowRight" || event.key === "ArrowDown"
-            ? 1
-            : event.key === "ArrowLeft" || event.key === "ArrowUp"
-              ? -1
-              : 0;
-        if (step !== 0) {
-          event.preventDefault();
-          event.stopPropagation();
-          // Wraps at both ends, as every other menu in the app does.
-          setActive(
-            (index) => (index + step + props.hues.length) % props.hues.length,
-          );
-          return;
-        }
-        if (event.key !== "Escape") return;
-        event.preventDefault();
-        // Spent here: the panel behind this must not also close.
-        event.stopPropagation();
-        props.onClose();
-      }}
-    >
-      {props.hues.map((hue, index) => (
-        <button
-          key={hue}
-          type="button"
-          role="menuitemradio"
-          aria-checked={hue === props.value}
-          aria-label={hue}
-          tabIndex={index === active ? 0 : -1}
-          ref={(element) => {
-            swatches.current[index] = element;
-          }}
-          className={
-            hue === props.value
-              ? "label-color-swatch selected"
-              : "label-color-swatch"
+    <div className="property-block">
+      {/* A wrapping label, so the name is the checkbox's own hit target and its
+          accessible name in one element. */}
+      <label className="property-head">
+        <input
+          type="checkbox"
+          tabIndex={0}
+          checked={props.enabled}
+          onChange={(event) =>
+            props.onToggle(props.property, event.target.checked)
           }
-          onFocus={() => setActive(index)}
-          onClick={() => props.onPick(hue)}
-        >
-          <span className={props.dot(hue)} aria-hidden="true" />
-        </button>
-      ))}
+        />
+        {name}
+        {/* Beside the name rather than at the far edge: `margin-left: auto`
+            sends a count a whole heading away from the word it counts, which is
+            the defect D-3D already named one surface up. */}
+        {!props.enabled && props.count > 0 && (
+          <span className="property-state">
+            · {keptByTickets(props.property, props.count)}
+          </span>
+        )}
+      </label>
+      {props.enabled && <div className="property-config">{props.children}</div>}
     </div>
   );
 }
 
-/** The mark that says a control opens something (`components.md` § Menus). */
-function ChevronGlyph() {
+/**
+ * The reassurance, in one place, because the toast and the row say it twice and
+ * two spellings of one sentence is how they come to disagree.
+ *
+ * Both numbers, and the noun agrees in both: a project with one dated ticket is
+ * a project this sentence is read on, and "1 ticket keeps its dates" is the
+ * shape of a string built by concatenation rather than written.
+ */
+function keptByTickets(property: TicketProperty, count: number): string {
+  const { kept, keptOne } = PROPERTY_LABELS[property];
+  return count === 1
+    ? `1 ticket keeps its ${keptOne}`
+    : `${count} tickets keep their ${kept}`;
+}
+
+/**
+ * The type registry, which is the label registry: slug, name, colour, remove,
+ * and a row that adds one. Nothing here rewrites a ticket — a ticket stores the
+ * slug, so a rename or a recolour is a change to how it reads and never to what
+ * it says.
+ */
+function TypeValues(props: {
+  project: ProjectReference;
+  onWrite: (
+    message: string,
+    write: () => Promise<ProjectReference>,
+  ) => Promise<boolean>;
+}) {
+  const values = props.project.properties.type.values;
+  /** The same hook the labels editor uses, so one typed name derives one key. */
+  const definition = useLabelDefinition(values);
+  const definitions = Object.entries(values);
+  const addName = useRef<HTMLInputElement>(null);
+  const projectId = props.project.id;
+  const run = props.onWrite;
+
   return (
-    <svg
-      className="label-color-chevron"
-      width="9"
-      height="9"
-      viewBox="0 0 14 14"
-      aria-hidden="true"
-    >
-      <path
-        d="M3 5 L7 9.5 L11 5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <>
+      <div className="type-values">
+        {definitions.map(([slug, value]) => (
+          <LabelDefinition
+            key={slug}
+            noun="type"
+            slug={slug}
+            label={value}
+            onSave={(next) =>
+              void run(`Type ${slug} updated`, () =>
+                updateProjectTypeValue({ projectId, slug, ...next }),
+              )
+            }
+            onRemove={() => {
+              void run(`Removed the ${slug} type definition`, () =>
+                removeProjectTypeValue({ projectId, slug }),
+              );
+              addName.current?.focus();
+            }}
+          />
+        ))}
+        <form
+          className="label-row label-add"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const { state } = definition;
+            if (state.kind !== "ok") return;
+            void (async () => {
+              const added = await run(`Added the ${state.slug} type`, () =>
+                addProjectTypeValue({
+                  projectId,
+                  slug: state.slug,
+                  name: definition.name.trim(),
+                  color: definition.color,
+                }),
+              );
+              if (!added) return;
+              definition.reset();
+            })();
+          }}
+        >
+          <div className="label-add-name">
+            <input
+              ref={addName}
+              className="input compact"
+              value={definition.name}
+              aria-label="New type name"
+              placeholder="Display name"
+              autoComplete="off"
+              onChange={(event) => definition.setName(event.target.value)}
+            />
+            <DerivedKey state={definition.state} />
+          </div>
+          <LabelColors
+            label="New type color"
+            value={definition.color}
+            onPick={definition.setColor}
+          />
+          <button
+            tabIndex={0}
+            className="secondary small"
+            type="submit"
+            disabled={definition.state.kind !== "ok"}
+          >
+            Add type
+          </button>
+        </form>
+      </div>
+      <p className="property-note">
+        Removing a definition never rewrites a ticket — the slug renders as
+        itself, in the fallback hue.
+      </p>
+    </>
+  );
+}
+
+/**
+ * How many days ahead count as approaching.
+ *
+ * The only boundary a project can move: overdue and today are absolute. `0` is
+ * legal and empties that rung, which is why an empty field is not treated as
+ * "unset" — it is reverted instead, so a half-typed number never writes a zero
+ * nobody asked for.
+ */
+function DueWindow(props: {
+  projectId: string;
+  attentionDays: number;
+  onWrite: (
+    message: string,
+    write: () => Promise<ProjectReference>,
+  ) => Promise<boolean>;
+}) {
+  const [days, setDays] = useState(String(props.attentionDays));
+  const fieldId = useId();
+
+  useEffect(() => {
+    setDays(String(props.attentionDays));
+  }, [props.attentionDays]);
+
+  function commit() {
+    const next = Number(days.trim());
+    if (days.trim() === "" || !Number.isInteger(next) || next < 0) {
+      setDays(String(props.attentionDays));
+      return;
+    }
+    if (next === props.attentionDays) return;
+    void props.onWrite(`Due dates highlight from ${next} days out`, () =>
+      setProjectDueWindow({
+        projectId: props.projectId,
+        attentionDays: next,
+      }),
+    );
+  }
+
+  return (
+    <>
+      <div className="property-inline">
+        <label htmlFor={fieldId}>Highlight tickets due within</label>
+        <input
+          id={fieldId}
+          className="input compact mono"
+          value={days}
+          aria-label="Attention days"
+          inputMode="numeric"
+          onChange={(event) => setDays(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              commit();
+              return;
+            }
+            // The field's own revert, and only once it has been typed into, so
+            // an untouched field still owes the panel its `Esc`.
+            if (event.key !== "Escape" || days === String(props.attentionDays))
+              return;
+            event.stopPropagation();
+            setDays(String(props.attentionDays));
+          }}
+          onBlur={commit}
+        />
+        <span>days</span>
+      </div>
+      <p className="property-note">
+        Overdue and today are absolute; this is the only boundary that moves.{" "}
+        <code>0</code> is legal and empties the approaching rung.
+      </p>
+    </>
+  );
+}
+
+/**
+ * The estimate system, and the one thing each system has to configure.
+ *
+ * A project is on exactly one, and switching **rewrites nothing**: a value
+ * written under the old system stays exactly as it was and reads as unreadable
+ * until the project switches back (`file_format.md` invariant 16). That is the
+ * whole reason the switch is a segment rather than a migration.
+ */
+function EstimateSettings(props: {
+  project: ProjectReference;
+  onWrite: (
+    message: string,
+    write: () => Promise<ProjectReference>,
+  ) => Promise<boolean>;
+}) {
+  const estimate = props.project.properties.estimate;
+  const projectId = props.project.id;
+
+  function pick(system: EstimateSystem) {
+    if (system === estimate.system) return;
+    const label = ESTIMATE_SYSTEMS.find((option) => option.id === system);
+    void props.onWrite(`Estimates are on the ${label?.label} scale`, () =>
+      setProjectEstimateSystem({ projectId, system }),
+    );
+  }
+
+  return (
+    <>
+      {/* The panel's own segment, not a second one: this is the same control as
+          the appearance row above it — a short row of places to stand, one of
+          them pressed. No visible label, unlike that row: the block it is the
+          first thing inside is already headed `Estimate`, and a second heading
+          over three words would be naming the same thing twice. */}
+      <div
+        className="appearance-segment"
+        role="group"
+        aria-label="Estimate system"
+      >
+        {ESTIMATE_SYSTEMS.map((option) => (
+          <button
+            tabIndex={0}
+            key={option.id}
+            type="button"
+            className={estimate.system === option.id ? "selected" : ""}
+            aria-pressed={estimate.system === option.id}
+            onClick={() => pick(option.id)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
+      {estimate.system === "tshirt" && (
+        <TshirtScale
+          projectId={projectId}
+          values={estimate.values}
+          onWrite={props.onWrite}
+        />
+      )}
+      {estimate.system === "fibonacci" && (
+        <p className="property-note">
+          <code>1 · 2 · 3 · 5 · 8 · 13</code>, a fixed scale. Nothing to
+          configure.
+        </p>
+      )}
+      {estimate.system === "duration" && (
+        <Conversion
+          projectId={projectId}
+          hoursPerDay={estimate.hoursPerDay}
+          daysPerWeek={estimate.daysPerWeek}
+          onWrite={props.onWrite}
+        />
+      )}
+
+      <p className="property-note">
+        Switching systems never rewrites a ticket: a value written under the old
+        one stays as it was and reads as unreadable until you switch back.
+      </p>
+    </>
+  );
+}
+
+/**
+ * The t-shirt scale, top to bottom in the order it is written.
+ *
+ * A list rather than a set of chips, because the **order is the scale** — `xs`
+ * above `s` above `m` is the only thing that says which of them is the bigger,
+ * and a wrapping row of chips at two different widths says nothing at all.
+ *
+ * Which is also why every row can move. A new size joins the bottom, where a
+ * bigger one belongs, and that is the common case rather than the only one: an
+ * editor that could add and remove but not reorder would be an editor for
+ * everything about the scale except the part that makes it one. The buttons are
+ * the whole affordance and the whole keyboard path — there is no drag here, so
+ * nothing is reachable by pointer that is not reachable by Tab.
+ *
+ * The size itself is not editable. It is the slug a ticket stores, so a rename
+ * would be a rewrite of every ticket carrying it — the same rule that makes a
+ * label slug fixed one section up.
+ */
+function TshirtScale(props: {
+  projectId: string;
+  values: string[];
+  onWrite: (
+    message: string,
+    write: () => Promise<ProjectReference>,
+  ) => Promise<boolean>;
+}) {
+  const [size, setSize] = useState("");
+  const addSize = useRef<HTMLInputElement>(null);
+  const typed = size.trim().toLowerCase();
+  /**
+   * Empty and already-there are the two refusals worth drawing, because the
+   * first is nothing to write and the second names a size the person can see.
+   * Rust owns the slug grammar and its refusal is the message, exactly as it is
+   * one section up — nothing here guesses at a rule of its own.
+   */
+  const ready = typed !== "" && !props.values.includes(typed);
+
+  /** One write for the whole sequence, because the sequence is the value. */
+  function writeScale(message: string, values: string[]) {
+    return props.onWrite(message, () =>
+      setProjectEstimateScale({ projectId: props.projectId, values }),
+    );
+  }
+
+  function move(index: number, step: -1 | 1) {
+    const values = [...props.values];
+    const [size] = values.splice(index, 1);
+    values.splice(index + step, 0, size);
+    void writeScale(
+      `${size} is now ${step < 0 ? "smaller" : "bigger"} than ${props.values[index + step]}`,
+      values,
+    );
+  }
+
+  return (
+    <>
+      <div className="scale-values">
+        {props.values.map((value, index) => (
+          <div className="scale-row" key={value}>
+            <code>{value}</code>
+            {/* The ends have nowhere to go, and a button that cannot act is
+                disabled rather than absent: a row missing one of its two
+                controls would put the remove under a different column than the
+                row above it. */}
+            <button
+              tabIndex={0}
+              className="ghost row-move"
+              type="button"
+              aria-label={`Make ${value} smaller`}
+              disabled={index === 0}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => move(index, -1)}
+            >
+              ↑
+            </button>
+            <button
+              tabIndex={0}
+              className="ghost row-move"
+              type="button"
+              aria-label={`Make ${value} bigger`}
+              disabled={index === props.values.length - 1}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => move(index, 1)}
+            >
+              ↓
+            </button>
+            <button
+              tabIndex={0}
+              className="ghost row-remove"
+              type="button"
+              aria-label={`Remove size ${value}`}
+              onClick={() => {
+                void writeScale(
+                  `Removed the ${value} size`,
+                  props.values.filter((size) => size !== value),
+                );
+                addSize.current?.focus();
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+        <form
+          className="scale-row scale-add"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!ready) return;
+            void (async () => {
+              const added = await writeScale(`Added the ${typed} size`, [
+                ...props.values,
+                typed,
+              ]);
+              if (added) setSize("");
+            })();
+          }}
+        >
+          <input
+            ref={addSize}
+            className="input compact mono"
+            value={size}
+            aria-label="New size"
+            placeholder="size"
+            autoComplete="off"
+            spellCheck={false}
+            onChange={(event) => setSize(event.target.value)}
+          />
+          <button
+            tabIndex={0}
+            className="secondary small"
+            type="submit"
+            disabled={!ready}
+          >
+            Add size
+          </button>
+        </form>
+      </div>
+      <p className="property-note">
+        Sizes are slugs a ticket stores, so removing one never rewrites a ticket
+        — the slug renders as itself. The order down this list is the order of
+        the scale, smallest first.
+      </p>
+    </>
+  );
+}
+
+/**
+ * How long a working day and a working week are.
+ *
+ * A project setting rather than a constant because an estimate has to be
+ * comparable: `4h` against `1d` cannot be ordered without knowing how long a
+ * working day is, and a project on a six-hour day would otherwise order them
+ * wrongly. Changing it changes no stored value — only how they sort.
+ *
+ * Both halves commit together, because they are one setting: writing the hours
+ * without the days would put a half-edited conversion on disk between two
+ * keystrokes.
+ */
+function Conversion(props: {
+  projectId: string;
+  hoursPerDay: number;
+  daysPerWeek: number;
+  onWrite: (
+    message: string,
+    write: () => Promise<ProjectReference>,
+  ) => Promise<boolean>;
+}) {
+  const [hours, setHours] = useState(String(props.hoursPerDay));
+  const [days, setDays] = useState(String(props.daysPerWeek));
+
+  useEffect(() => {
+    setHours(String(props.hoursPerDay));
+    setDays(String(props.daysPerWeek));
+  }, [props.hoursPerDay, props.daysPerWeek]);
+
+  function commit() {
+    const nextHours = Number(hours.trim());
+    const nextDays = Number(days.trim());
+    const legible =
+      hours.trim() !== "" &&
+      days.trim() !== "" &&
+      Number.isFinite(nextHours) &&
+      Number.isFinite(nextDays);
+    if (!legible) {
+      setHours(String(props.hoursPerDay));
+      setDays(String(props.daysPerWeek));
+      return;
+    }
+    if (nextHours === props.hoursPerDay && nextDays === props.daysPerWeek) {
+      return;
+    }
+    void props.onWrite(
+      `One day is ${nextHours} hours, one week is ${nextDays} days`,
+      () =>
+        setProjectEstimateConversion({
+          projectId: props.projectId,
+          hoursPerDay: nextHours,
+          daysPerWeek: nextDays,
+        }),
+    );
+  }
+
+  return (
+    <>
+      <div className="property-inline">
+        <span>One day is</span>
+        <input
+          className="input compact mono"
+          value={hours}
+          aria-label="Hours per day"
+          inputMode="decimal"
+          onChange={(event) => setHours(event.target.value)}
+          onBlur={commit}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            commit();
+          }}
+        />
+        <span>hours · one week is</span>
+        <input
+          className="input compact mono"
+          value={days}
+          aria-label="Days per week"
+          inputMode="decimal"
+          onChange={(event) => setDays(event.target.value)}
+          onBlur={commit}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            commit();
+          }}
+        />
+        <span>days</span>
+      </div>
+      <p className="property-note">
+        An estimate has to be comparable: <code>4h</code> against{" "}
+        <code>1d</code> needs to know how long a working day is. Changing this
+        changes no stored value.
+      </p>
+    </>
   );
 }

@@ -46,6 +46,13 @@ export function CreateProjectForm(props: {
   folder?: string;
   /** Step one is still behind this form, and `Back` is how you reach it. */
   onBack?: () => void;
+  /**
+   * What that way out is called. `Back` on first launch, where there is a step
+   * one to return to; `Cancel` in the side panel, where the form *is* the
+   * panel while it is open and the toggle that opened it is hidden behind it
+   * (LC-239w), so there is nothing behind it to go back to.
+   */
+  backLabel?: string;
   onSubmit: (draft: ProjectDraft) => void;
 }) {
   // Prefilled from the folder, and from nothing else (`screen-specs.md:103`):
@@ -85,7 +92,7 @@ export function CreateProjectForm(props: {
           the one directory creation will add inside it. Read-only text rather
           than a field — it is not editable here, and the way to change it is to
           go `Back` and pick again — so it is deliberately not a tab stop
-          (`keyboard-focus-map.md:153-155` puts the form's order at name → key →
+          (`keyboard-focus-map.md:154-156` puts the form's order at name → key →
           theme → Create → Back). */}
       {props.folder !== undefined && (
         <div className="field">
@@ -117,7 +124,7 @@ export function CreateProjectForm(props: {
           placeholder={DEFAULT_PROJECT_NAME}
           maxLength={PROJECT_NAME_MAX_LENGTH}
           // Where the folder picker hands focus on the create path
-          // (`keyboard-focus-map.md:167`). Only on that path: the sidebar's
+          // (`keyboard-focus-map.md:204`). Only on that path: the sidebar's
           // quick create opens beside a board someone is already working in,
           // and a form that grabs the caret there steals it from the app.
           autoFocus={props.folder !== undefined}
@@ -171,7 +178,7 @@ export function CreateProjectForm(props: {
             type="button"
             onClick={props.onBack}
           >
-            Back
+            {props.backLabel ?? "Back"}
           </button>
         )}
       </div>

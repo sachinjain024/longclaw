@@ -5,7 +5,7 @@
  * composer (LC-211) — and the toolbar over them is one object: the same six
  * actions in the order `screen-specs.md:234-235` lists them, the same roving
  * tabindex so the group costs its surface one Tab stop rather than six
- * (`keyboard-focus-map.md:61`), and the same accessible names, because an icon
+ * (`keyboard-focus-map.md:62`), and the same accessible names, because an icon
  * alone is not a name.
  *
  * What it does *not* own is the text. `markdownToolbar.ts` is what turns an

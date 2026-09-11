@@ -18,7 +18,7 @@ lives under `apps/desktop`:
 /
 ├── CONTEXT.md              the glossary — the vocabulary every output uses
 ├── docs/
-│   └── adr/                the decisions, 0001–0012
+│   └── adr/                the decisions, 0001–0013
 └── apps/desktop/
     ├── src/                the frontend
     └── src-tauri/src/      the Rust backend and the longclaw CLI

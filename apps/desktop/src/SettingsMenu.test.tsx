@@ -25,6 +25,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProjectMenu, SettingsMenu } from "./SettingsMenu";
 import { SETTINGS_SECTIONS } from "./settingsSections";
 import type { ProjectReference } from "./types";
+import { NO_PROPERTIES } from "./properties";
 
 afterEach(cleanup);
 
@@ -43,6 +44,7 @@ const PROJECT: ProjectReference = {
   starred: true,
   reachable: true,
   labels: { design: { name: "Design", color: "orange" } },
+  properties: NO_PROPERTIES,
 };
 
 /** Both menus hang off a trigger and hand focus back to it. */
@@ -52,6 +54,7 @@ function Harness(props: {
   onTheme?: (id: string) => void;
   onAppearance?: (id: string) => void;
   onReload?: () => void;
+  commandLineHint?: string | null;
   onRemove?: () => void;
   onStar?: () => void;
   appearance?: "light" | "dark" | "system";
@@ -90,7 +93,11 @@ function Harness(props: {
             onRemove={props.onRemove ?? (() => {})}
           />
         ) : (
-          <SettingsMenu {...shared} onReload={props.onReload ?? (() => {})} />
+          <SettingsMenu
+            {...shared}
+            onReload={props.onReload ?? (() => {})}
+            commandLineHint={props.commandLineHint ?? "not set up"}
+          />
         ))}
     </>
   );

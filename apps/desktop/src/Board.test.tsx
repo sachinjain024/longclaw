@@ -23,10 +23,13 @@ import type { ExternalMark, ExternalMarks } from "./acknowledgement";
 import type {
   IndexedTicket,
   Label,
+  PropertiesConfig,
   TicketPriority,
+  TicketProperty,
   TicketRow,
   TicketStatus,
 } from "./types";
+import { NO_PROPERTIES } from "./properties";
 
 /**
  * Every card render presents itself exactly once, so this is the render count
@@ -102,11 +105,18 @@ function board(props?: {
   onSelect?: (key: string) => void;
   onChangePriority?: (ticket: IndexedTicket, next: TicketPriority) => void;
   onChangeStatus?: (ticket: IndexedTicket, next: TicketStatus) => void;
+  onChangeProperty?: (
+    ticket: IndexedTicket,
+    property: TicketProperty,
+    next: string | undefined,
+  ) => void;
   onArchive?: (ticket: IndexedTicket) => void;
   onCopyPath?: (ticket: TicketRow) => void;
   onMoveTicket?: (ticket: IndexedTicket, move: TicketMove) => void;
   onCreateInStatus?: (status: TicketStatus) => void;
   onCreateFirst?: () => void;
+  properties?: PropertiesConfig;
+  now?: number;
 }) {
   return (
     <Board
@@ -115,11 +125,13 @@ function board(props?: {
       selectedKey={props?.selectedKey}
       marks={props?.marks ?? {}}
       labels={props?.labels ?? DEFINITIONS}
+      properties={props?.properties ?? NO_PROPERTIES}
       ordering={props?.ordering ?? "priority"}
-      now={NOW}
+      now={props?.now ?? NOW}
       onSelect={props?.onSelect ?? noop}
       onChangePriority={props?.onChangePriority ?? noop}
       onChangeStatus={props?.onChangeStatus ?? noop}
+      onChangeProperty={props?.onChangeProperty ?? noop}
       onArchive={props?.onArchive ?? noop}
       onCopyPath={props?.onCopyPath ?? noop}
       onMoveTicket={props?.onMoveTicket ?? noop}
@@ -292,11 +304,13 @@ describe("the pulse, which says a change just landed", () => {
         tickets={columnOf(400)}
         marks={marks}
         labels={DEFINITIONS}
+        properties={NO_PROPERTIES}
         now={NOW}
         onSelect={noop}
         ordering="priority"
         onChangePriority={noop}
         onChangeStatus={noop}
+        onChangeProperty={noop}
         onMoveTicket={noop}
         onArchive={noop}
         onCopyPath={noop}
@@ -453,11 +467,13 @@ describe("the board's own shape", () => {
         tickets={[row()]}
         marks={{}}
         labels={DEFINITIONS}
+        properties={NO_PROPERTIES}
         now={NOW}
         onSelect={onSelect}
         ordering="priority"
         onChangePriority={noop}
         onChangeStatus={noop}
+        onChangeProperty={noop}
         onMoveTicket={noop}
         onArchive={noop}
         onCopyPath={noop}
@@ -527,11 +543,13 @@ describe("focus on a column that is being scrolled", () => {
         selectedKey="LC-200"
         marks={{}}
         labels={DEFINITIONS}
+        properties={NO_PROPERTIES}
         now={NOW}
         onSelect={() => {}}
         ordering="priority"
         onChangePriority={noop}
         onChangeStatus={noop}
+        onChangeProperty={noop}
         onMoveTicket={noop}
         onArchive={noop}
         onCopyPath={noop}
@@ -741,11 +759,13 @@ describe("what a change to one ticket costs", () => {
         tickets={three}
         marks={marks}
         labels={DEFINITIONS}
+        properties={NO_PROPERTIES}
         now={NOW}
         onSelect={noop}
         ordering="priority"
         onChangePriority={noop}
         onChangeStatus={noop}
+        onChangeProperty={noop}
         onMoveTicket={noop}
         onArchive={noop}
         onCopyPath={noop}
@@ -761,11 +781,13 @@ describe("what a change to one ticket costs", () => {
         tickets={three}
         marks={marks}
         labels={DEFINITIONS}
+        properties={NO_PROPERTIES}
         now={NOW + 1_000}
         onSelect={noop}
         ordering="priority"
         onChangePriority={noop}
         onChangeStatus={noop}
+        onChangeProperty={noop}
         onMoveTicket={noop}
         onArchive={noop}
         onCopyPath={noop}
@@ -793,6 +815,22 @@ describe("priority on the board", () => {
     render(board({ tickets: column }));
 
     expect(columnKeys()).toEqual(["LC-3", "LC-4", "LC-2", "LC-5", "LC-1"]);
+  });
+
+  it("orders a column by due date when Due is chosen", () => {
+    render(
+      board({
+        ordering: "due",
+        tickets: [
+          row({ key: "LC-1", status: "todo", due: "2026-09-20" }),
+          row({ key: "LC-2", status: "todo" }),
+          row({ key: "LC-3", status: "todo", due: "2026-09-09" }),
+          row({ key: "LC-4", status: "todo", due: "2026-09-10" }),
+        ],
+      }),
+    );
+
+    expect(columnKeys()).toEqual(["LC-3", "LC-4", "LC-1", "LC-2"]);
   });
 
   it("moves down the column in the order it is looking at", () => {
@@ -867,7 +905,7 @@ describe("priority on the board", () => {
   });
 
   it("is inert on a file it could not read", () => {
-    // keyboard-focus-map.md:48 — a degraded card takes focus, but S and P have
+    // keyboard-focus-map.md:49 — a degraded card takes focus, but S and P have
     // nothing to write to.
     render(
       board({
@@ -990,7 +1028,7 @@ describe("archived tickets never reach the board (V0-11)", () => {
   });
 
   it("keeps a canceled ticket, which is an outcome and not tidying", () => {
-    // `file_format.md:345-347`: Canceled stays visible; only `archived_at` hides.
+    // `file_format.md:406-408`: Canceled stays visible; only `archived_at` hides.
     render(
       board({
         tickets: [
@@ -1077,12 +1115,15 @@ describe("board ordering and drag-and-drop (V0-09)", () => {
     expect(columnKeys()).toEqual(["LC-2", "LC-3", "LC-1"]);
   });
 
-  it("picks a card up in either order, because a column is a status (LC-60)", () => {
+  it("picks a card up in any order, because a column is a status (LC-60)", () => {
     // Reordering *inside* a column is Manual's alone (ADR 0003). Moving a card
-    // to another column is a status change, which both orders have.
+    // to another column is a status change, which every order has.
     const { rerender } = render(
       board({ tickets: ranked, ordering: "priority" }),
     );
+    expect(card("LC-1").draggable).toBe(true);
+
+    rerender(board({ tickets: ranked, ordering: "due" }));
     expect(card("LC-1").draggable).toBe(true);
 
     rerender(board({ tickets: ranked, ordering: "manual" }));
@@ -1792,5 +1833,121 @@ describe("the context menu on a card (LC-222)", () => {
     expect(
       screen.getByRole("menuitem", { name: /Copy file path/ }),
     ).toBeTruthy();
+  });
+});
+
+/**
+ * The four properties on a card (LC-227).
+ *
+ * A card is the surface with the least room and the most readers, so what it
+ * shows is a series of deliberate refusals: the due date goes in the key row
+ * because that row is pinned and costs nothing, estimate and type go in a
+ * second footer row that exists only when there is something to put in it, and
+ * the only thing a rung decides is a colour.
+ */
+describe("a card in a project that has turned properties on", () => {
+  /** Tuesday 8 September 2026, local, so the rungs below are days apart. */
+  const TODAY = new Date(2026, 8, 8, 9, 0).getTime();
+
+  const withDue: PropertiesConfig = {
+    ...NO_PROPERTIES,
+    due: { enabled: true, attentionDays: 7 },
+  };
+  const withEverything: PropertiesConfig = {
+    ...withDue,
+    type: { enabled: true, values: { bug: { name: "Bug", color: "red" } } },
+    estimate: { ...NO_PROPERTIES.estimate, enabled: true, system: "duration" },
+  };
+
+  function card(
+    overrides: Partial<Extract<TicketRow, { state: "indexed" }>>,
+    properties: PropertiesConfig,
+  ): HTMLElement {
+    // Several of these cases draw the same ticket at several dates, and the
+    // board is the whole surface rather than one card, so each draw replaces
+    // the last rather than standing beside it.
+    cleanup();
+    render(board({ tickets: [row(overrides)], properties, now: TODAY }));
+    return screen.getByRole("button", { name: /LC-1/ });
+  }
+
+  it("shows the due date whenever one is set, not only once it is sharp", () => {
+    // Six weeks out is the weakest rung there is, and it still shows: making
+    // presence itself a reading of the rung left "where is that date I set"
+    // unanswerable without opening the ticket.
+    expect(card({ due: "2026-10-20" }, withDue).textContent).toContain(
+      "20 Oct",
+    );
+  });
+
+  it("sharpens what the chip says as the day approaches", () => {
+    const says = (due: string) =>
+      card({ due }, withDue).querySelector(".due-chip")?.textContent;
+    expect(says("2026-09-05")).toBe("3d overdue");
+    expect(says("2026-09-08")).toBe("Today");
+    expect(says("2026-09-11")).toBe("in 3d");
+    expect(says("2026-10-20")).toBe("20 Oct");
+  });
+
+  it("puts the date in the key row, where it costs the card no height", () => {
+    const drawn = card({ due: "2026-09-11" }, withDue);
+    expect(drawn.querySelector(".card-top .due-chip")).not.toBeNull();
+    // The whole reason for the placement: a project that enables only Due has
+    // exactly the board it always had.
+    expect(drawn.classList.contains("has-properties")).toBe(false);
+  });
+
+  it("stands the rungs down on a ticket that is finished", () => {
+    // Not overdue: finished. A Done column drawn in the danger hue teaches
+    // people to ignore the colour that was supposed to mean something.
+    const chip = card(
+      { due: "2026-09-01", status: "done" },
+      withDue,
+    ).querySelector(".due-chip");
+    expect(chip?.textContent).toBe("1 Sep");
+    expect(chip?.className).not.toContain("overdue");
+  });
+
+  it("says nothing about a date it cannot read", () => {
+    // It is still on disk and the panel still shows it. A card is the one
+    // surface with no room to explain itself.
+    const bad = card({ due: "28 Sep 2026" }, withDue);
+    expect(bad.querySelector(".due-chip")).toBeNull();
+    expect(bad.textContent).not.toContain("28 Sep");
+  });
+
+  it("grows a second footer row for an estimate or a type, and only then", () => {
+    expect(
+      card({ due: "2026-09-11" }, withEverything).querySelector(".card-second"),
+    ).toBeNull();
+
+    const rich = card(
+      { estimate: "1.5d", type: "bug", due: "2026-09-11" },
+      withEverything,
+    );
+    const second = rich.querySelector(".card-second");
+    expect(second?.textContent).toContain("1.5d");
+    expect(second?.textContent).toContain("Bug");
+    expect(rich.classList.contains("has-properties")).toBe(true);
+  });
+
+  it("shows an estimate from another system rather than dropping it", () => {
+    // Invariant 16 on screen: switching systems rewrites no ticket, so a value
+    // written under the old one has to render as something.
+    const estimate = card({ estimate: "m" }, withEverything).querySelector(
+      ".estimate",
+    );
+    expect(estimate?.textContent).toBe("m");
+    expect(estimate?.className).toContain("foreign");
+  });
+
+  it("draws nothing at all for a project that has turned them off", () => {
+    const off = card(
+      { due: "2026-09-08", estimate: "1.5d", type: "bug" },
+      NO_PROPERTIES,
+    );
+    expect(off.querySelector(".due-chip")).toBeNull();
+    expect(off.querySelector(".card-second")).toBeNull();
+    expect(off.classList.contains("has-properties")).toBe(false);
   });
 });

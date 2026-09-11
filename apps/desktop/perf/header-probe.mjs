@@ -20,28 +20,36 @@
  * checked is not "it looks fine" but the four things that sentence means when
  * the disk speaks up:
  *
- *   1. neither half of the header breaks. The header has exactly two items, the
- *      identity and the controls, and the wrap between them is the designed
- *      failure; a break *inside* either one is not, because that is what strands
- *      a control;
+ *   1. the control row does not break. Since LC-239w the header holds one item
+ *      and nothing else — everything that named the project moved to the side
+ *      panel — so there is no seam left for it to wrap at, and a second line
+ *      inside the cluster is the failure that strands a control;
  *   2. nothing in it is clipped;
  *   3. every control is still inside the header — a row that has run out of
  *      width must give some up, not hang past the edge;
  *   4. the write resizes nothing, and every pixel the row has given up since the
  *      widest run is the filter field's — it is the only control here whose
  *      width is a size rather than a content, so it is the only one that can
- *      give any up without losing a label.
+ *      give any up without losing a label;
+ *   5. the side panel's path fits its box and clears the gear above it, the
+ *      block is the width of the rows under it with its gear on their `⋮`, and
+ *      the list scrolls under a pinned create pair;
+ *   6. and the side panel holds still. The write lands in the identity block
+ *      now, whose disk row is reserved rather than conditional: a row that
+ *      arrived with the write would push every project under it down and pull
+ *      it back up when the write settled, which is (1)'s defect on the other
+ *      axis. `.identity-disk` in `styles.css` carries the reasoning.
  *
- * **What it does not assert, and why.** Not "the header's height never changes
- * while a write is in flight", though that is the prototype's behaviour D-65
- * compares against. Between roughly 1230 and 1400 CSS pixels the header is one
- * row with the disk quiet and cannot be one row with the indicator on it, so the
- * control row moves down whole — the designed wrap, arriving for a reason the
- * user did not ask for. Closing that means reserving the indicator's 32ch
- * whether or not there is a write, which at 1440 leaves 4px of slack: a project
- * whose name is a little longer would then be two rows at the width the design
- * was drawn at. The height is printed beside every check so the band is visible;
- * LC-182 is where the choice is recorded.
+ * **What LC-239w settled.** This file carried a paragraph explaining why "the
+ * header's height never changes while a write is in flight" could not be
+ * asserted: between roughly 1230 and 1400 CSS pixels the header was one row with
+ * the disk quiet and could not be one with the indicator on it, so the control
+ * row moved down whole — the designed wrap, arriving for a reason the user did
+ * not ask for (LC-182). The indicator is not in the header any more and the
+ * header has one item, so that band is gone and the height simply holds. The
+ * cost moved with it, into the side panel, where it is paid as one reserved row
+ * of the disk-state line's own height rather than as a wrap — which is what the
+ * last check measures.
  *
  * Usage:
  *   npm run probe:header                  # every width
@@ -91,20 +99,81 @@ const SELF_TEST = process.argv.includes("--self-test");
 const SLOW_MS = 1_800;
 
 /**
- * The header as it was before LC-149, restored from a stylesheet.
+ * The defects this probe exists for, restored from a stylesheet.
  *
- * `display: contents` is how the DOM half is put back without a second build:
- * it dissolves the identity group, so the name, the gear, the path chip and the
- * indicator become items of the header again, which is exactly the arrangement
- * the fix replaced.
+ * It used to put back the pre-LC-149 header with `display: contents` on the
+ * identity group. There is no identity group any more — LC-239w moved the name,
+ * the path and the disk-state line to the side panel and left the header
+ * holding controls alone — so the inversion is now the rules that would bring
+ * the same class of defect back:
+ *
+ *   1. the control row free to wrap and free to refuse to shrink, which is
+ *      LC-149's `New ticket` on a second line and, past that, off the side;
+ *   2. the identity block's disk row free to collapse, which is the same defect
+ *      turned on its side — the project list moving down when a write starts
+ *      and back up when it lands, on every write;
+ *   3. the project list not scrolling inside its own box, which is LC-73's
+ *      create pair walking off the foot of the window at enough projects;
+ *   4. the gear back out of the flow of the name's row, floating over the
+ *      block, where its 26px box hangs into the path's row against an 18px name
+ *      line and takes the chip's last characters with it;
+ *   5. the block inset from the rows it sits over, and its text column sizing
+ *      to the project's name rather than to the panel, which is round 4's
+ *      misalignment on both of its axes;
+ *   6. the rows refusing to shrink below their own content, which is the same
+ *      misalignment from the other side and only at the widths where the shell
+ *      squeezes this panel;
+ *   7. the path chip pinned to a fixed width instead of its column, which is
+ *      the character cap it replaced — 140px of chip in a 165px column, the
+ *      25px of empty the seventh derivation stopped deriving (round 5);
+ *   8. the tail's reserve set wider than the head's own minimum, which is a
+ *      `%` of the *text* rather than of the column and so cuts a path the box
+ *      could hold whole — `~/longclaw` in 39px of a 157px box (round 6).
+ *
+ * **A rule here must actually invert something.** One of them once restated a
+ * declaration the stylesheet already had — `.project-identity .path-chip
+ * { max-width: 100% }`, which is what production and the base rule both say —
+ * so it changed nothing, and the check it was meant to cover went unprotected
+ * while the run still reported `SELF-TEST ok` on the strength of the other
+ * rules. Counting failures cannot see that; the list below is what does.
  */
 const PRE_FIX_CSS = `
-  .header-identity { display: contents; }
   .content-header .toolbar-actions { flex-wrap: wrap; min-width: auto; }
   .content-header .toolbar-actions > * { flex: 0 1 auto; }
-  .content-header .filter-wrap { width: auto; min-width: auto; }
-  .content-header .filter-field { width: 190px; }
+  .content-header .toolbar-actions > .filter-wrap { flex: none; max-width: none; }
+  .content-header .filter-wrap { width: 380px; min-width: 0; }
+  .identity-disk { height: auto; min-height: 0; margin-top: 0; }
+  .project-nav { overflow-y: visible; min-height: auto; }
+  .project-identity { padding-right: 4px; position: relative; }
+  .identity-name .settings-button { position: absolute; top: 0; right: 0; }
+  .identity-text { flex: 0 1 auto; }
+  .project-section, .project-row { min-width: auto; }
+  .project-identity .path-chip { max-width: 140px; }
+  .project-identity .path-chip .head:not(:empty) + .tail { max-width: calc(100% - 4ch); }
 `;
+
+/**
+ * The checks those rules are answerable for — one or more per numbered defect
+ * above, in the order they are numbered. Under `--self-test` each of these must
+ * go red at some width, and a name here that the run never emits at all fails
+ * the same way, so renaming a check cannot quietly drop it out of coverage.
+ *
+ * The probe's other checks are deliberately not in this list. They guard
+ * against a control being clipped, resized by a write, or pushed out of the
+ * window — real defects with causes of their own that no rule up there
+ * reproduces. They are named as uncovered on every self-test run rather than
+ * counted as passes, because a probe must not report on what it cannot reach.
+ */
+const INVERTED_CHECKS = [
+  "the header's control row does not break while writing",
+  "the header's control row does not break with the spinner up",
+  "the identity block and the list hold still while writing",
+  "the identity block and the list hold still with the spinner up",
+  "the project list scrolls and the pinned pair is inside the panel",
+  "the path fills its column to the rows' edge and clears the gear",
+  "the identity block is the rows' width and its gear is on their `⋮`",
+  "every shape of path fills the chip without cutting one that fits",
+];
 
 /* ---------- reporting ---------- */
 
@@ -141,19 +210,28 @@ const measure = (page) =>
     };
     const header = document.querySelector(".content-header");
     const cluster = header?.querySelector(".toolbar-actions");
-    const identity = header?.querySelector(".header-identity");
-    if (!header || !cluster || !identity) return null;
-    const indicator = header.querySelector(".disk-path");
+    // The identity block is in the side panel now (LC-239w), which is where the
+    // write lands and where the disk-state line lives.
+    const identity = document.querySelector(".project-identity");
+    const nav = document.querySelector(".project-nav");
+    if (!header || !cluster || !identity || !nav) return null;
+    const indicator = identity.querySelector(".disk-path");
     const tallest = (element) =>
       Math.max(...[...element.children].map((child) => box(child).height));
     return {
       header: box(header),
       cluster: box(cluster),
+      // The block the write now writes into, and the top of the list under it.
+      // A block that grows when a write starts pushes every project row down
+      // and pulls it back up when the write lands — LC-149's defect on the
+      // other axis, and the reason the disk row is reserved rather than
+      // conditional.
+      identity: box(identity),
+      navTop: box(nav).top,
       window: window.innerWidth,
-      // The two halves the header may break between, and nowhere else: each is
-      // on one line when it is no taller than the tallest thing standing in it.
+      // The header is one item now, so it has one line to hold: it is on it
+      // when it is no taller than the tallest thing standing in it.
       lines: [
-        { name: "identity", box: box(identity), tallest: tallest(identity) },
         { name: "controls", box: box(cluster), tallest: tallest(cluster) },
       ],
       controls: [...cluster.children].map((element) => ({
@@ -223,6 +301,199 @@ async function probe(browser, px) {
     );
     if (SELF_TEST) await page.addStyleTag({ content: PRE_FIX_CSS });
 
+    // The side panel's two load-bearing rules, computed rather than read off the
+    // stylesheet — LC-73 moved the create pair *up* because `.project-nav` had
+    // no `overflow-y` and at the foot of a long list it left the window, and
+    // LC-239w moves it back down on the strength of that one declaration. jsdom
+    // renders no CSS, so this is the layer that can ask.
+    const panel = await page.evaluate(() => {
+      const nav = document.querySelector(".project-nav");
+      const footer = document.querySelector(".side-panel-footer");
+      const pair = footer?.querySelector(".project-actions");
+      const side = document.querySelector(".side-panel");
+      if (!nav || !pair || !side) return null;
+      const box = (element) => element.getBoundingClientRect();
+      return {
+        navScrolls: getComputedStyle(nav).overflowY === "auto",
+        navShrinks: getComputedStyle(nav).minHeight === "0px",
+        // The pair is inside the panel it is pinned to, at every width.
+        pairInside: box(pair).bottom <= box(side).bottom + 1,
+        pairBottom: Math.round(box(pair).bottom),
+        panelBottom: Math.round(box(side).bottom),
+      };
+    });
+    // The path *fills* its box, which is the question the character cap could
+    // never answer. Six derivations of that constant were wrong, and the last
+    // one was wrong in a way no check could see: 21 characters fit the narrow
+    // panel exactly and left 25px of the wide one empty at every window anybody
+    // uses. So this no longer asks whether the text fits a number — it asks
+    // whether the chip reaches the column's right edge, which is the panel's
+    // edge and the `⋮` below it (LC-239w, round 5).
+    const path = await page.evaluate(() => {
+      const txt = document.querySelector(".project-identity .path-chip .txt");
+      const chip = document.querySelector(".project-identity .path-chip");
+      const gear = document.querySelector(".project-identity .settings-button");
+      const column = document.querySelector(".project-identity .identity-text");
+      const head = document.querySelector(".project-identity .path-chip .head");
+      const tail = document.querySelector(".project-identity .path-chip .tail");
+      const kebab = document.querySelector(".project-row .row-menu-button");
+      if (!txt || !chip || !gear || !column || !head || !tail || !kebab)
+        return null;
+      const box = (element) => {
+        const rect = element.getBoundingClientRect();
+        return {
+          left: rect.left,
+          right: rect.right,
+          top: rect.top,
+          bottom: rect.bottom,
+        };
+      };
+      // What the path would want if nothing constrained it. `scrollWidth` on
+      // each half gives its full content width whether or not that half is the
+      // one currently ellipsized, so this does not depend on *which* half gives
+      // — the fixture's head is `/tmp` and never elides, and reading the head's
+      // own elision made this arm vacuous and the rule behind it dead.
+      const wants = head.scrollWidth + tail.scrollWidth;
+      const mustFill = wants > column.clientWidth + 1;
+      // The reference edge is the rows' `⋮`, not the column's — the column is
+      // one of the boxes a defect moves, and this is the alignment the round-4
+      // and round-5 feedback both named. A path the panel can hold whole must
+      // *not* be stretched to it: the chip is a button, and a box wider than
+      // its text is a click on nothing that copies the path.
+      const edge = box(kebab).right;
+      return {
+        text: txt.textContent,
+        mustFill,
+        fills: mustFill
+          ? Math.abs(box(chip).right - edge) <= 1
+          : box(chip).right <= edge + 1,
+        chipRight: Math.round(box(chip).right),
+        columnRight: Math.round(edge),
+        // And it does not run under the gear. They are on different rows since
+        // the gear went into the flow of the name's, so this is a box overlap
+        // rather than a left-of test — the two were side by side once, and a
+        // chip that ran past the gear handed the path's last characters to the
+        // control that opens settings.
+        clearsGear: (() => {
+          const a = box(chip);
+          const b = box(gear);
+          return !(
+            a.right > b.left &&
+            a.left < b.right &&
+            a.bottom > b.top &&
+            a.top < b.bottom
+          );
+        })(),
+      };
+    });
+    check(
+      "the path fills its column to the rows' edge and clears the gear",
+      path && path.fills && path.clearsGear,
+      path
+        ? `chip ends ${path.chipRight}, \u22ee at ${path.columnRight}` +
+            `${path.mustFill ? "" : " (fits whole, not stretched)"}` +
+            `, gear ${path.clearsGear ? "clear" : "OVERLAPPED"}`
+        : "no path chip",
+    );
+
+    // Every shape a path can be, in the chip the app actually drew. The fixture
+    // has exactly one path and its head is `/tmp` — so the shapes that broke
+    // were the ones it does not have: a project directly under `~`, one at the
+    // filesystem root with no head at all, and a last segment wider than the
+    // whole box. A reserve meant for the third silently cut the first two,
+    // because the chip is `fit-content` and a `%` on the tail resolves against
+    // the text rather than the column. Nothing here could see it: one fixture
+    // path is one shape (LC-239w, round 6).
+    const shapes = await page.evaluate(() => {
+      const head = document.querySelector(".project-identity .path-chip .head");
+      const tail = document.querySelector(".project-identity .path-chip .tail");
+      const column = document.querySelector(".project-identity .identity-text");
+      if (!head || !tail || !column) return null;
+      const was = [head.textContent, tail.textContent];
+      const split = (text) => {
+        const cut = text.lastIndexOf("/");
+        return cut <= 0 ? ["", text] : [text.slice(0, cut), text.slice(cut)];
+      };
+      const bad = [];
+      for (const path of [
+        "~/longclaw",
+        "~/aibytes-agents",
+        "/fixture-no-head",
+        "~/dev/aibytes-agents",
+        "~/personal/repo/deep/workspace/aibytes-agents",
+        "/tmp/longclaw-performance-fixture",
+      ]) {
+        const [h, t] = split(path);
+        head.textContent = h;
+        tail.textContent = t;
+        const wants = head.scrollWidth + tail.scrollWidth;
+        const room = column.clientWidth;
+        const headCut = head.scrollWidth > head.clientWidth + 1;
+        const tailCut = tail.scrollWidth > tail.clientWidth + 1;
+        const headBox = head.getBoundingClientRect().width;
+        // A path the column can hold must arrive whole; a head that *is* cut
+        // has to keep the width its ellipsis needs, or the cut is invisible.
+        if (wants <= room - 8 && (headCut || tailCut))
+          bad.push(`${path} cut though it fits`);
+        else if (headCut && headBox < 6) bad.push(`${path} head cut silently`);
+      }
+      head.textContent = was[0];
+      tail.textContent = was[1];
+      return bad;
+    });
+    check(
+      "every shape of path fills the chip without cutting one that fits",
+      shapes && shapes.length === 0,
+      shapes
+        ? shapes.length
+          ? shapes.join("; ")
+          : "6 shapes clean"
+        : "no path chip",
+    );
+
+    // The identity block is the same width as the rows under it, and the gear
+    // ends where their `⋮` ends. Both are alignments between elements that
+    // share no rule and no parent — the arithmetic agreed on paper at every
+    // width and disagreed on screen at all of them, because the text column was
+    // sizing to the project's name rather than to the panel (LC-239w, round 4).
+    const aligned = await page.evaluate(() => {
+      const box = (selector) => {
+        const element = document.querySelector(selector);
+        if (!element) return null;
+        const rect = element.getBoundingClientRect();
+        return { left: Math.round(rect.left), right: Math.round(rect.right) };
+      };
+      const block = box(".project-identity");
+      const row = box(".project-row");
+      const gear = box(".project-identity .settings-button");
+      const kebab = box(".project-row .row-menu-button");
+      if (!block || !row || !gear || !kebab) return null;
+      return {
+        block,
+        row,
+        gear,
+        kebab,
+        sameBox: block.left === row.left && block.right === row.right,
+        sameEdge: gear.right === kebab.right,
+      };
+    });
+    check(
+      "the identity block is the rows' width and its gear is on their `⋮`",
+      aligned && aligned.sameBox && aligned.sameEdge,
+      aligned
+        ? `block ${aligned.block.left}..${aligned.block.right} vs row ${aligned.row.left}..${aligned.row.right}, ` +
+            `gear ends ${aligned.gear.right} vs ⋮ ${aligned.kebab.right}`
+        : "no identity block or project row",
+    );
+
+    check(
+      "the project list scrolls and the pinned pair is inside the panel",
+      panel && panel.navScrolls && panel.navShrinks && panel.pairInside,
+      panel
+        ? `overflow-y ${panel.navScrolls ? "auto" : "visible"}, min-height ${panel.navShrinks ? "0" : "auto"}, pair ends at ${panel.pairBottom} of ${panel.panelBottom}px`
+        : "no side panel",
+    );
+
     const quiet = await measure(page);
     check(
       "the header is on screen with the disk quiet",
@@ -243,11 +514,11 @@ async function probe(browser, px) {
     // a change — `changePriority` returns without writing when it is not.
     await openPriorityMenu(page);
     await page.click('.menu-row:has-text("Urgent")');
-    await page.waitForSelector(".content-header .disk-path.writing", {
+    await page.waitForSelector(".identity-disk .disk-path.writing", {
       timeout: 5_000,
     });
     const writing = await measure(page);
-    await page.waitForSelector(".content-header .write-spinner", {
+    await page.waitForSelector(".identity-disk .write-spinner", {
       timeout: 5_000,
     });
     const spinning = await measure(page);
@@ -273,7 +544,7 @@ async function probe(browser, px) {
         (line) => line.box.height > line.tallest + 1,
       );
       check(
-        `neither half of the header breaks ${state}`,
+        `the header's control row does not break ${state}`,
         broken.length === 0,
         seen.lines
           .map(
@@ -281,8 +552,9 @@ async function probe(browser, px) {
               `${line.name} ${Math.round(line.box.height)}px/${Math.round(line.tallest)}px`,
           )
           .join(", ") +
-          // Reported, not asserted: see the note at the top of this file about
-          // the band of widths where this number does change.
+          // Reported, not asserted. The note at the top of this file has the
+          // reason: the header holds one item now, so the band of widths where
+          // this number used to change is gone and the height simply holds.
           `; header ${Math.round(quiet.header.height)}px quiet → ${Math.round(seen.header.height)}px`,
       );
 
@@ -365,6 +637,19 @@ async function probe(browser, px) {
               .join(", ")
           : `filter ${Math.round(natural.get("filter-wrap") ?? 0)}→${Math.round(widthOf(seen.controls, "filter-wrap"))}px since ${WIDTHS[0]}px`,
       );
+
+      // And the block the write lands in does not change size, so the list
+      // under it does not move: `.identity-disk` reserves its line whether or
+      // not there is anything to put in it. This is the check that goes red if
+      // someone makes that row conditional, and nothing in `npm test` lays
+      // anything out to notice.
+      check(
+        `the identity block and the list hold still ${state}`,
+        Math.abs(seen.identity.height - quiet.identity.height) <= 1 &&
+          Math.abs(seen.navTop - quiet.navTop) <= 1,
+        `block ${Math.round(quiet.identity.height)}→${Math.round(seen.identity.height)}px, ` +
+          `list top ${Math.round(quiet.navTop)}→${Math.round(seen.navTop)}px`,
+      );
     }
   } finally {
     await context.close();
@@ -408,13 +693,37 @@ async function main() {
   console.log(`\n  ${total - failed}/${total} checks passed`);
 
   if (SELF_TEST) {
-    // Inverted: the pre-fix stylesheet must break this, or the probe is blind.
-    console.log(
-      failed > 0
-        ? `\n  SELF-TEST ok — the pre-fix rules failed ${failed} checks`
-        : "\n  SELF-TEST FAILED — the pre-fix rules passed every check",
+    // Inverted: every check the pre-fix rules answer for must go red, or one of
+    // those rules is doing nothing. Counting the failures cannot see that — a
+    // rule that restates what the stylesheet already says leaves its check green
+    // while the total stays comfortably above zero. So the unit is the check
+    // *name*, and the ones that never go red are named rather than summed away.
+    const everRed = new Set();
+    const names = new Set();
+    for (const row of results)
+      for (const item of row.checks) {
+        names.add(item.name);
+        if (!item.ok) everRed.add(item.name);
+      }
+    // A name that never ran and a name that ran green are the same failure
+    // here: neither is evidence the rule meant to break it does anything.
+    const blind = INVERTED_CHECKS.filter((name) => !everRed.has(name));
+    const uncovered = [...names].filter(
+      (name) => !INVERTED_CHECKS.includes(name),
     );
-    process.exit(failed > 0 ? 0 : 1);
+    if (uncovered.length > 0)
+      console.log(
+        `\n  not covered by the pre-fix rules — ${uncovered.length} checks with no inversion:\n` +
+          uncovered.map((name) => `    ${name}`).join("\n"),
+      );
+    console.log(
+      blind.length === 0
+        ? `\n  SELF-TEST ok — the pre-fix rules failed ${failed} checks, ` +
+            `and all ${INVERTED_CHECKS.length} they answer for went red`
+        : `\n  SELF-TEST FAILED — ${blind.length} of ${INVERTED_CHECKS.length} rules inverted nothing:\n` +
+            blind.map((name) => `    ${name}`).join("\n"),
+    );
+    process.exit(blind.length === 0 ? 0 : 1);
   }
   process.exit(failed > 0 ? 1 : 0);
 }

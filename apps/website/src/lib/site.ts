@@ -44,6 +44,7 @@ export const DOCS_NAV = [
   { href: '/docs', label: 'Getting started' },
   { href: '/docs/project-folder', label: 'Your project folder' },
   { href: '/docs/what-a-ticket-is', label: 'What a ticket is' },
+  { href: '/docs/ticket-properties', label: 'Ticket properties' },
   { href: '/docs/backups', label: 'Backups and version control' },
   { href: '/docs/working-with-agents', label: 'Working with agents' },
   { href: '/docs/troubleshooting', label: 'When something goes wrong' },

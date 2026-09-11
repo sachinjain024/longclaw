@@ -50,19 +50,22 @@ const seats = seatsFor(groups);
 const from = seats.get("LC-1")!;
 
 describe("which group would take the drop", () => {
-  it("takes a card from another group, in either order", () => {
+  it("takes a card from another group, in any order", () => {
     expect(takesDrop(groups, from, 1, "priority")).toBe(true);
+    expect(takesDrop(groups, from, 1, "due")).toBe(true);
     expect(takesDrop(groups, from, 1, "manual")).toBe(true);
   });
 
   it("takes it back into its own group only in Manual", () => {
     expect(takesDrop(groups, from, 0, "priority")).toBe(false);
+    expect(takesDrop(groups, from, 0, "due")).toBe(false);
     expect(takesDrop(groups, from, 0, "manual")).toBe(true);
   });
 
   it("never takes it into a group no status names", () => {
     expect(takesDrop(groups, from, 2, "manual")).toBe(false);
     expect(takesDrop(groups, from, 2, "priority")).toBe(false);
+    expect(takesDrop(groups, from, 2, "due")).toBe(false);
   });
 
   it("takes nothing while nothing is being dragged", () => {
@@ -138,10 +141,10 @@ describe("what letting go writes", () => {
     ]);
   });
 
-  it("gives a ticket arriving in Priority no rank and nobody else one", () => {
-    // The order inside the group it arrives in is the priority order, which is
-    // not a thing the human chose by dropping there — so there is no position
-    // to express and nothing above it to express one against.
+  it("gives a ticket arriving in a non-manual order no rank and nobody else one", () => {
+    // The order inside the group it arrives in is a view order, which is not a
+    // thing the human chose by dropping there — so there is no position to
+    // express and nothing above it to express one against.
     const fresh: StatusGroup[] = [
       { id: "todo", title: "Todo", status: "todo", tickets: [row("LC-1")] },
       {
@@ -156,6 +159,9 @@ describe("what letting go writes", () => {
     expect(
       moveForDrop(fresh, seat, { group: 1, gap: 2 }, "priority")?.move,
     ).toStrictEqual({ status: "done" });
+    expect(
+      moveForDrop(fresh, seat, { group: 1, gap: 2 }, "due")?.move,
+    ).toStrictEqual({ status: "done" });
   });
 
   it("writes nothing for a drop that would not move the card", () => {
@@ -165,10 +171,13 @@ describe("what letting go writes", () => {
     expect(
       moveForDrop(groups, from, { group: 0, gap: 1 }, "manual"),
     ).toBeUndefined();
-    // And nothing at all inside its own group in Priority, where a place is
-    // not a thing this board can write (ADR 0003).
+    // And nothing at all inside its own group in a non-manual order, where a
+    // place is not a thing this board can write (ADR 0003).
     expect(
       moveForDrop(groups, from, { group: 0, gap: 2 }, "priority"),
+    ).toBeUndefined();
+    expect(
+      moveForDrop(groups, from, { group: 0, gap: 2 }, "due"),
     ).toBeUndefined();
   });
 

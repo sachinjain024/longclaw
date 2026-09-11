@@ -11,13 +11,13 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 use super::error::Diagnostic;
-use super::project::{Label, Project};
+use super::project::{Label, Project, PropertiesConfig};
 use super::storage::NewTicket;
 use super::ticket::{Actor, FieldChange, Priority, Status, Ticket, TicketEdit};
 
 /// A registered project. `reachable` is false when the folder has moved or gone:
 /// the entry stays listed with its cached name so it can be relocated.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectReference {
     pub id: String,
@@ -38,6 +38,12 @@ pub struct ProjectReference {
     /// written before this field existed still load.
     #[serde(default)]
     pub labels: BTreeMap<String, Label>,
+    /// How the project configures the four opt-in ticket properties. Carried
+    /// here for the reason `labels` is: a surface holding a project reference
+    /// has to know which properties exist and what their values mean, and
+    /// `longclaw.yaml` is the source of truth the registry rebuilds this from.
+    #[serde(default)]
+    pub properties: PropertiesConfig,
 }
 
 impl ProjectReference {
@@ -51,6 +57,7 @@ impl ProjectReference {
             starred: false,
             reachable: true,
             labels: project.labels.clone(),
+            properties: project.properties.clone(),
         }
     }
 }
@@ -80,6 +87,17 @@ pub struct IndexedRow {
     // (ADR 0001). The field is preserved on disk by the writer, not carried here.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rank: Option<String>,
+    /// The four opt-in properties, as raw as the ticket carries them. A row is
+    /// what a card, a list row and a palette row are drawn from, so a property
+    /// that is not here cannot be shown without opening the file.
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub ticket_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub due: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub estimate: Option<String>,
     pub created_at: String,
     pub updated_at: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -371,8 +389,8 @@ mod json_contract_tests {
 
     use super::{
         ActivitySummary, BTreeMap, DegradedRow, EventSource, IndexedRow, Label, ProjectEvent,
-        ProjectReference, ProjectSnapshot, RebuildReason, StreamEnvelope, StreamFrame, StreamKind,
-        TicketRow,
+        ProjectReference, ProjectSnapshot, PropertiesConfig, RebuildReason, StreamEnvelope,
+        StreamFrame, StreamKind, TicketRow,
     };
     use crate::core::ticket::{Actor, ActorType, Priority, Status};
     use crate::core::{Diagnostic, ErrorCode};
@@ -395,6 +413,10 @@ mod json_contract_tests {
             priority: Priority::P2,
             labels: vec!["reliability".to_owned()],
             rank: None,
+            ticket_type: None,
+            due: None,
+            start: None,
+            estimate: None,
             created_at: "2026-07-29T00:00:00Z".to_owned(),
             updated_at: "2026-07-29T09:00:00Z".to_owned(),
             archived_at: None,
@@ -443,6 +465,7 @@ mod json_contract_tests {
             theme: "indigo".to_owned(),
             starred: false,
             reachable: true,
+            properties: PropertiesConfig::default(),
             labels: BTreeMap::from([(
                 "reliability".to_owned(),
                 Label {

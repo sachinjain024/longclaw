@@ -28,7 +28,9 @@ When you point LongClaw at a folder, it creates one directory inside it:
 your-project/
 └── .longclaw/
     ├── longclaw.yaml     the project's name, key, theme, people, and labels
-    ├── AGENTS.md         the editing contract agents read
+    ├── AGENTS.md         the contract agents read: the CLI, and the file format
+    ├── CLAUDE.md         a pointer to AGENTS.md, for the tools that look for it
+    ├── PROJECT.md        yours: LongClaw creates it once and never rewrites it
     └── tickets/
         └── LC-1/
             ├── ticket.md          the whole ticket
@@ -114,9 +116,16 @@ where the tickets are and to read the contract first. There is a copyable
 example in [`examples/agent-context/AGENTS.md`](../examples/agent-context/AGENTS.md).
 
 **`.longclaw/AGENTS.md` is the contract, and the app maintains it.** You do not
-write it and should not need to edit it. It tells an agent how to update a
-ticket without corrupting it: keep the fields valid, append history rather than
-rewriting it, and never invent a ticket key.
+write it and should not edit it — the app rewrites it whenever the project
+changes, so an edit there is lost. It tells an agent to drive the project with
+the `longclaw` command, and how to update a ticket by hand without corrupting it:
+keep the fields valid, append history rather than rewriting it, and never invent
+a ticket key. `.longclaw/CLAUDE.md` is a one-line pointer to it, for the tools
+that look for that name instead.
+
+**`.longclaw/PROJECT.md` is yours.** LongClaw creates it empty and never writes
+to it again, so it is where your project's own conventions and vocabulary go —
+what your labels mean, the words you want used. AGENTS.md sends an agent to it.
 
 **You will see who did what.** Edits made by an agent are attributed to an agent
 in the ticket's history, separately from yours. That separation is the point —
@@ -127,6 +136,20 @@ yours.
 surface agents use — it allocates the ticket key, so an agent never invents one,
 and it requires `--agent-id`, so every agent-filed ticket is attributed as agent
 work. You create tickets in the app; either way, the plan stays yours to review.
+
+**Install the `longclaw` command once.** It already came with the app —
+LongClaw carries it inside `LongClaw.app`, built from exactly the same source as
+the window — but nothing is on your `PATH` until you say so. LongClaw offers it
+on first launch, and **Project settings → Command line** offers it again
+whenever you are ready. One press links `/usr/local/bin/longclaw` to the copy
+inside the app.
+
+That link is the only thing LongClaw writes outside a project folder, which is
+why it asks. If macOS refuses the write — `/usr/local/bin` is not writable on
+every Mac — LongClaw says so and shows the exact `sudo` line to run instead,
+with a button that copies it. It never replaces a `longclaw` you installed
+another way. And if you move the app, the link goes stale: the same pane says
+where it is pointing and puts it back in one press.
 
 ---
 

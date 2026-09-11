@@ -17,6 +17,13 @@
 .env.*
 !.env.example
 
+# Signing material. The keys live in the login keychain and in a password
+# manager; nothing here is a place for them (LC-47).
+*.p8
+*.p12
+*.cer
+*.certSigningRequest
+
 # JavaScript and frontend build output
 node_modules/
 dist/

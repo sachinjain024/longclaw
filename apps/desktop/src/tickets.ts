@@ -88,7 +88,7 @@ export function checklistFraction(ticket: IndexedTicket): string {
  * trailing character it carries if it carries one.
  *
  * `<PREFIX>-<n>` or `<PREFIX>-<n><s>`, `n` without leading zeros and `s` a single
- * lowercase letter (`core/storage.rs:92`, `file_format.md:223`). Both forms,
+ * lowercase letter (`core/storage.rs:92`, `file_format.md:250`). Both forms,
  * because `LC-1` … `LC-233` were minted before `s` existed and keep the keys they
  * were minted with (LC-232).
  *
@@ -98,7 +98,7 @@ export function checklistFraction(ticket: IndexedTicket): string {
  * regex rather than once as a function.
  *
  * The prefix carries no `-`, because a project key is letters and digits
- * (`core/project.rs`, `file_format.md:223`) — which is what keeps `LC-42-1` from
+ * (`core/project.rs`, `file_format.md:250`) — which is what keeps `LC-42-1` from
  * being read as ticket 1 of a project called `LC-42`.
  *
  * Case is taken as typed and normalized by the caller. This says how a key comes
@@ -226,9 +226,20 @@ export function provisionalTicket(
     status: request.status ?? "todo",
     priority: request.priority ?? "none",
     labels: request.labels ?? [],
+    // The properties the create was filed with (LC-227). Not decoration: a
+    // card's height is derived from its row data, and estimate and type are the
+    // second footer row (`boardGeometry.ts`) — so an optimistic card that left
+    // them out would be 24px short of the one that replaces it, and every card
+    // below it in the column would move when the write landed. The due chip
+    // costs no height and would still blink into existence a moment late.
+    ...request.properties,
     createdAt,
     updatedAt: createdAt,
-    checkedCount: 0,
+    // The rows the create was filed with, already ticked (LC-242h). Zero was
+    // right while a create could only produce open rows; leaving it there would
+    // make the optimistic card read `0/3` and then jump to `2/3` the moment the
+    // real row arrived, which is the one thing an optimistic card must not do.
+    checkedCount: request.checklist?.filter((item) => item.checked).length ?? 0,
     checklistCount: request.checklist?.length ?? 0,
     commentCount: 0,
     attachmentCount: 0,

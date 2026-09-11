@@ -58,7 +58,7 @@
  * A drop is a mutation and the board holds no project id, so it is raised as
  * `onMoveTicket` and written in `App.tsx`, beside `changePriority`.
  *
- * There is no keyboard equivalent, deliberately: `keyboard-focus-map.md:174-179`
+ * There is no keyboard equivalent, deliberately: `keyboard-focus-map.md:211-216`
  * puts reordering within a column outside v0 and names `S` — the status move —
  * as the keyboard path that exists for the column a ticket is in.
  */
@@ -67,6 +67,7 @@ import { memo, useCallback, useMemo, useRef, useState } from "react";
 import type { DragEvent, KeyboardEvent } from "react";
 import { acknowledgementClass } from "./attribution";
 import { presentCard } from "./boardCard";
+import { startOfDay } from "./properties";
 import {
   CARD_GAP,
   cardStrides,
@@ -104,7 +105,13 @@ import {
   type MetaMenuTarget,
 } from "./TicketMetaMenu";
 import { moveForDrop, takesDrop, type TicketMove } from "./ticketMove";
-import type { IndexedTicket, Label, TicketRow, TicketStatus } from "./types";
+import type {
+  IndexedTicket,
+  Label,
+  PropertiesConfig,
+  TicketRow,
+  TicketStatus,
+} from "./types";
 import { useViewportHeight } from "./viewportHeight";
 
 /** Cards rendered beyond each edge of the viewport, so a scroll shows no gap. */
@@ -203,6 +210,12 @@ export function Board(
     marks: ExternalMarks;
     /** The project's label definitions, for the chips a card's slugs resolve to. */
     labels: Record<string, Label>;
+    /**
+     * Which properties this project has turned on, and what their values mean.
+     * A card reads it twice: once for what to draw, and once — through
+     * `cardStrides` — for how tall to be.
+     */
+    properties: PropertiesConfig;
     /** Priority or Manual: a device-local view preference, never project data. */
     ordering: OrderingMode;
     /**
@@ -221,7 +234,7 @@ export function Board(
     onMoveTicket: (ticket: IndexedTicket, move: TicketMove) => void;
     /**
      * Raised by a column's `+`, with that column's status
-     * (`keyboard-focus-map.md:44`). The board opens no surface of its own; App
+     * (`keyboard-focus-map.md:45`). The board opens no surface of its own; App
      * decides that a create preseeded with a status is quick create.
      */
     onCreateInStatus: (status: TicketStatus) => void;
@@ -275,6 +288,11 @@ export function Board(
     root: grid,
     selector: CARD,
     tickets: props.tickets,
+    properties: props.properties,
+    // A day, not the acknowledgement clock: `now` moves every few seconds and
+    // a date read against a moving instant is a date whose meaning depends on
+    // the second it was read in (the `today` prop below says it at length).
+    today: startOfDay(props.now).getTime(),
     actions: props,
     requestFocus,
   });
@@ -366,7 +384,7 @@ export function Board(
     const field = metaFieldFor(event.key);
     if (field) {
       // Inert on a file that would not read: there is no field to write to
-      // (`keyboard-focus-map.md:48`).
+      // (`keyboard-focus-map.md:49`).
       if (ticketAt(from).state !== "indexed") return;
       event.preventDefault();
       setMetaMenu({ key: fromKey, field });
@@ -441,6 +459,7 @@ export function Board(
             .map((seat) => (seat as Seat).index)}
           marks={props.marks}
           labels={props.labels}
+          properties={props.properties}
           now={props.now}
           dragKey={dragSeat?.group === columnIndex ? dragKey : undefined}
           drop={dropFor(columnIndex)}
@@ -499,6 +518,7 @@ function BoardColumn(props: {
   anchors: number[];
   marks: ExternalMarks;
   labels: Record<string, Label>;
+  properties: PropertiesConfig;
   now: number;
   /** The card being dragged, when it is one of this column's. */
   dragKey?: string;
@@ -522,10 +542,15 @@ function BoardColumn(props: {
   const driftBy = useEdgeDrift(stack, "scrollTop", setScrollTop);
 
   const offsets = useMemo(
-    () => runningOffsets(cardStrides(props.tickets, props.marks, props.now)),
-    [props.tickets, props.marks, props.now],
+    () =>
+      runningOffsets(
+        cardStrides(props.tickets, props.marks, props.now, props.properties),
+      ),
+    [props.tickets, props.marks, props.now, props.properties],
   );
   const range = windowFor(offsets, scrollTop, viewport, OVERSCAN);
+  /** The day the rungs are read against; see the `today` prop below. */
+  const today = startOfDay(props.now).getTime();
 
   /** The gap under the pointer, measured against the sizer the cards sit in. */
   function gapUnder(event: DragEvent<HTMLDivElement>): number {
@@ -652,13 +677,22 @@ function BoardColumn(props: {
                 tabStop={ticket.key === props.rovingKey}
                 mark={mark}
                 labels={props.labels}
+                properties={props.properties}
                 // The acknowledgement clock ticks every second. Handing it to a
                 // card with nothing to acknowledge would re-render the column once
                 // a second for a number none of those cards read.
                 now={mark ? props.now : 0}
+                // The due date needs a clock too, and `0` is not one: a card
+                // handed the epoch reads every due date as decades away and
+                // renders the whole board's dates in the beyond treatment,
+                // carrying a year each. So the day goes separately. It is a
+                // number that changes once, at midnight, so the optimisation
+                // above survives intact — a memoized card sees the same value
+                // on every tick between.
+                today={today}
                 // A file this build cannot read has no frontmatter to write a
                 // status or a rank into, so it is not draggable — the same
-                // reason `P` is inert on one (`keyboard-focus-map.md:48`).
+                // reason `P` is inert on one (`keyboard-focus-map.md:49`).
                 draggable={ticket.state === "indexed"}
                 dragging={ticket.key === props.dragKey}
                 onSelect={props.onSelect}
@@ -674,7 +708,7 @@ function BoardColumn(props: {
 
 /**
  * A column header's `+`: quick create, preseeded with that column's status
- * (`screen-specs.md` § Board, `keyboard-focus-map.md:44`). It stands at all
+ * (`screen-specs.md` § Board, `keyboard-focus-map.md:45`). It stands at all
  * times — see `.column-add` for why the board's most-reached action is not
  * something you have to sweep a pointer over a heading to discover.
  *
@@ -727,7 +761,14 @@ const BoardCard = memo(function BoardCard(props: {
   tabStop: boolean;
   mark?: ExternalMark;
   labels: Record<string, Label>;
+  properties: PropertiesConfig;
   now: number;
+  /**
+   * Local midnight of the day the due rungs are read against, apart from `now`
+   * because it is a different clock: `now` is a per-second age that only an
+   * acknowledged card reads, and this changes once a day for every card.
+   */
+  today: number;
   /** True on a card with frontmatter to write a move into. */
   draggable: boolean;
   dragging: boolean;
@@ -735,7 +776,7 @@ const BoardCard = memo(function BoardCard(props: {
   onFocusCard: (key: string) => void;
 }) {
   const { ticket, mark } = props;
-  const row = presentCard(ticket, props.labels);
+  const row = presentCard(ticket, props.labels, props.properties, props.today);
   const acknowledged = isAcknowledged(mark, props.now);
   return (
     <button
@@ -743,6 +784,7 @@ const BoardCard = memo(function BoardCard(props: {
         "ticket-row",
         props.selected && "selected",
         ticket.state === "degraded" && "degraded",
+        row.second && "has-properties",
         acknowledged && "acknowledged",
         acknowledged && mark && acknowledgementClass(mark.actorType),
         props.draggable && "draggable",
@@ -764,9 +806,29 @@ const BoardCard = memo(function BoardCard(props: {
           {acknowledged && <PulseDot mark={mark} now={props.now} />}
           {ticket.key}
         </span>
+        {row.due && (
+          <span className={classes("due-chip", row.due.rung)}>
+            {row.due.text}
+          </span>
+        )}
         {row.priority && <PriorityGlyph priority={row.priority} small />}
       </span>
       <strong>{row.title}</strong>
+      {row.second && (
+        <span className="card-second">
+          {row.second.estimate && (
+            <span
+              className={classes(
+                "estimate",
+                row.second.estimate.kind === "foreign" && "foreign",
+              )}
+            >
+              {row.second.estimate.text}
+            </span>
+          )}
+          {row.second.type && <LabelChip label={row.second.type} small />}
+        </span>
+      )}
       <span className="ticket-meta">
         {row.meta && <span className="fraction">{row.meta}</span>}
         {row.progress !== undefined && (

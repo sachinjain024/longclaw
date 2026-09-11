@@ -24,6 +24,7 @@
 
 import type { ReactNode } from "react";
 import { MenuList, type MenuItem } from "./MenuList";
+import { enabledProperties } from "./properties";
 import { PencilGlyph } from "./PencilGlyph";
 import { useFocusReturn, usePopoverPlacement } from "./popover";
 import {
@@ -31,7 +32,9 @@ import {
   GearGlyph,
   KeyboardGlyph,
   ReloadGlyph,
+  SlidersGlyph,
   TagGlyph,
+  TerminalGlyph,
 } from "./SettingsGlyphs";
 import {
   LANDING_SECTION,
@@ -157,6 +160,14 @@ export function SettingsMenu(
   props: MenuContext & {
     /** Re-reads the folder. The one row here that is not a settings section. */
     onReload: () => void;
+    /**
+     * What the `Command line tool` row says about itself (LC-233), from
+     * `commandLineHint`. A rendered string rather than the status, because the
+     * row's hint has room for the answer and not for the reason, and every
+     * reason is a sentence in the pane. `null` is a row with no hint — a dev
+     * window's state, where there is nothing to set up.
+     */
+    commandLineHint: string | null;
   },
 ) {
   useFocusReturn(props.anchor);
@@ -177,6 +188,13 @@ export function SettingsMenu(
       glyph: <TagGlyph />,
       hint: <code>{labelCount}</code>,
     }),
+    sectionRow(props, "properties", {
+      glyph: <SlidersGlyph />,
+      // How many of the four this project has turned on, which is the one
+      // number that says whether the pane holds anything yet. All four ship
+      // off, so a project that has never opened it reads `0`.
+      hint: <code>{enabledProperties(props.project.properties).length}</code>,
+    }),
     sectionRow(props, "status", {
       glyph: <ColumnsGlyph />,
       // The count its neighbour has, from the one list the board is built
@@ -185,6 +203,14 @@ export function SettingsMenu(
       hint: <code>{STATUSES.length}</code>,
     }),
     sectionRow(props, "shortcuts", { glyph: <KeyboardGlyph /> }),
+    // The one row here that is about the app rather than the project, which the
+    // hint says so nobody has to open it to find out (LC-233).
+    sectionRow(props, "commandLine", {
+      glyph: <TerminalGlyph />,
+      ...(props.commandLineHint
+        ? { hint: <code>{props.commandLineHint}</code> }
+        : {}),
+    }),
     { kind: "rule", id: "disk-rule" },
     {
       kind: "action",

@@ -1,0 +1,14 @@
+{
+  "summary": "All four opt-in properties parse, and the reader hands them back exactly as written.",
+  "key": "LC-10",
+  "outcome": "valid",
+  "ticket": {
+    "title": "A ticket carrying all four properties",
+    "type": "bug",
+    "due": "2026-09-28",
+    "start": "2026-09-14",
+    "estimate": "1.5d",
+    "unknownKeys": [],
+    "recordDiagnostics": []
+  }
+}

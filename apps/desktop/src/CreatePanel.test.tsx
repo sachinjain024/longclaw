@@ -15,10 +15,13 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CreatePanel } from "./CreatePanel";
-import type { Label, TicketDraft } from "./types";
+import type { LabelDefinition } from "./LabelMenu";
+import { NO_PROPERTIES } from "./properties";
+import type { Label, PropertiesConfig, TicketDraft } from "./types";
 
 afterEach(() => {
   cleanup();
@@ -32,6 +35,9 @@ afterEach(() => {
 /** What the auto-grow test measures a line of text as. */
 const LINE_HEIGHT = 20;
 
+/** Tuesday 8 September 2026, local: the day the date grammar resolves against. */
+const TODAY = new Date(2026, 8, 8, 9, 0).getTime();
+
 /** What `longclaw.yaml` defines in these tests. Tickets carry only the slugs. */
 const DEFINITIONS: Record<string, Label> = {
   backend: { name: "Backend", color: "blue" },
@@ -40,13 +46,19 @@ const DEFINITIONS: Record<string, Label> = {
 
 function createPanel(props?: {
   initialDraft?: TicketDraft;
+  properties?: PropertiesConfig;
+  today?: number;
   onCancel?: () => void;
   onCreate?: (request: unknown) => void;
+  onDefineLabel?: (definition: LabelDefinition) => Promise<boolean>;
 }) {
   return (
     <CreatePanel
       provisionalKey="RT-4"
       labels={DEFINITIONS}
+      properties={props?.properties ?? NO_PROPERTIES}
+      today={props?.today ?? TODAY}
+      onDefineLabel={props?.onDefineLabel ?? (() => Promise.resolve(true))}
       initialDraft={props?.initialDraft}
       onCancel={props?.onCancel ?? (() => {})}
       onCreate={props?.onCreate ?? (() => {})}
@@ -54,13 +66,31 @@ function createPanel(props?: {
   );
 }
 
-function metaTrigger(field: "Status" | "Priority" | "Labels"): HTMLElement {
+function metaTrigger(
+  field: "Status" | "Priority" | "Type" | "Labels",
+): HTMLElement {
   return screen.getByRole("button", { name: new RegExp(`^${field}: `) });
 }
 
 function pick(field: "Status" | "Priority", option: string) {
   fireEvent.click(metaTrigger(field));
   fireEvent.click(screen.getByRole("menuitemradio", { name: option }));
+}
+
+/**
+ * The rows a create sends when nothing was ticked (LC-242h). Most of these
+ * tests are about a row's words or its place, not its box, and spelling
+ * `checked: false` out on each one would bury what they are checking.
+ */
+function openRows(...texts: string[]) {
+  return texts.map((text) => ({ text, checked: false }));
+}
+
+/** The drafted rows, in the order the list is drawing them. */
+function draftedRows(): string[] {
+  return [...document.querySelectorAll(".checklist-row label span")].map(
+    (node) => node.textContent ?? "",
+  );
 }
 
 function addChecklistItem(text: string) {
@@ -99,7 +129,11 @@ describe("every approved field, in one create", () => {
       priority: "p1",
       labels: ["backend", "reliability"],
       description: "Check whether the round trip holds.",
-      checklist: ["Let an agent read this ticket", "Review what it changed"],
+      properties: {},
+      checklist: openRows(
+        "Let an agent read this ticket",
+        "Review what it changed",
+      ),
     });
   });
 
@@ -123,6 +157,7 @@ describe("every approved field, in one create", () => {
       status: "todo",
       priority: "none",
       labels: [],
+      properties: {},
       ...fields,
     };
   }
@@ -199,7 +234,7 @@ describe("nothing here claims the file exists yet", () => {
     const chip = screen.getByText(/RT-4/);
     expect(chip.textContent).toBe("RT-4 · new");
     expect(chip.classList.contains("id-chip")).toBe(true);
-    // Display only (`keyboard-focus-map.md:61`): the ID chip in view mode is a
+    // Display only (`keyboard-focus-map.md:62`): the ID chip in view mode is a
     // stop because it is the ticket's key, and it copies. This one is not the
     // ticket's key — copying it would hand out a guess — so it is neither.
     expect(chip.closest("button")).toBeNull();
@@ -217,19 +252,159 @@ describe("nothing here claims the file exists yet", () => {
     expect(screen.getByRole("toolbar", { name: "Formatting" })).toBeTruthy();
   });
 
-  it("draws checklist drafts that cannot be ticked, only removed", () => {
+  /**
+   * LC-242h. A ticket filed over work already half done has finished rows to
+   * describe, and the box is where that is said. The row is still a draft — it
+   * is removable and rewordable as it was — so what changed is one thing: the
+   * box answers.
+   */
+  it("draws checklist drafts whose boxes tick, and start open", () => {
     render(createPanel());
     addChecklistItem("Let an agent read this ticket");
 
-    const box = screen.getByRole("checkbox");
-    // `NewTicket.checklist` is a list of strings, so a created item is always
-    // open. An enabled box would offer something the create cannot carry.
-    expect(box.hasAttribute("disabled")).toBe(true);
+    const box = screen.getByRole<HTMLInputElement>("checkbox");
+    // Appended open: a row is ticked by ticking it, never by typing it.
+    expect(box.checked).toBe(false);
+    expect(box.hasAttribute("disabled")).toBe(false);
+    // A real Tab stop, like the panel's own box (LC-185): WebKit skips a
+    // checkbox on a default Mac, so a box without this is pointer-only.
+    expect(box.getAttribute("tabindex")).toBe("0");
+    // Named by its row, through the wrapping label — the panel's box takes its
+    // name the same way, so there is one vocabulary for this control.
+    expect(box.getAttribute("aria-label")).toBeNull();
+    expect(
+      screen.getByRole("checkbox", { name: "Let an agent read this ticket" }),
+    ).toBe(box);
+
+    fireEvent.click(box);
+    expect(box.checked).toBe(true);
+    // The drawn half of the state (`components.md:218`), which the row carries
+    // and the box alone cannot show.
+    expect(box.closest("li")!.classList.contains("checked")).toBe(true);
+
     expect(
       screen.getByRole("button", {
         name: "Remove Let an agent read this ticket",
       }),
     ).toBeTruthy();
+  });
+
+  /**
+   * The whole of what the tick is for: it has to reach Rust, which mints the
+   * ids and writes `- [x]`. A tick the create dropped on the floor would be a
+   * box that moved and changed nothing.
+   */
+  it("sends each drafted row with the state its box is in", () => {
+    const onCreate = vi.fn();
+    render(createPanel({ onCreate }));
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Filed over work already started" },
+    });
+    addChecklistItem("Parse");
+    addChecklistItem("Write");
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Parse" }));
+    fireEvent.click(screen.getByText("Create ticket"));
+
+    expect(onCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        checklist: [
+          { text: "Parse", checked: true },
+          { text: "Write", checked: false },
+        ],
+      }),
+    );
+  });
+
+  /**
+   * `⌥↓` hands focus back to the control it was pressed from, not to `✕`.
+   *
+   * The rows key by position, so the element the human is on keeps its place
+   * while the text inside it changes and focus has to be put back by hand. Doing
+   * that unconditionally on `✕` was harmless while the box was not a tab stop —
+   * the only origins were the two buttons. LC-242h made the box a stop and the
+   * natural place to press `⌥↓` from (`keyboard-focus-map.md:63`), and a
+   * gesture that quietly parks the human on a destructive button turns the next
+   * `Space` — pressed to untick — into a removal.
+   */
+  it("returns focus to the control a keyboard move was pressed from", () => {
+    render(createPanel());
+    addChecklistItem("Parse");
+    addChecklistItem("Write");
+
+    const box = screen.getByRole<HTMLInputElement>("checkbox", {
+      name: "Parse",
+    });
+    box.focus();
+    fireEvent.keyDown(box, { key: "ArrowDown", altKey: true });
+
+    // The row moved under "Write"...
+    expect(draftedRows()).toEqual(["Write", "Parse"]);
+    // ...and focus is on that row's box, not on the `✕` beside it.
+    const moved = screen.getByRole("checkbox", { name: "Parse" });
+    expect(document.activeElement).toBe(moved);
+    expect(
+      (document.activeElement as HTMLElement).classList.contains("row-remove"),
+    ).toBe(false);
+  });
+
+  it("still returns focus to Remove when the move came from Remove", () => {
+    render(createPanel());
+    addChecklistItem("Parse");
+    addChecklistItem("Write");
+
+    const remove = screen.getByRole("button", { name: "Remove Parse" });
+    remove.focus();
+    fireEvent.keyDown(remove, { key: "ArrowDown", altKey: true });
+
+    expect(draftedRows()).toEqual(["Write", "Parse"]);
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Remove Parse" }),
+    );
+  });
+
+  /**
+   * Two gestures that move a row's words or its place must not move its tick:
+   * changing what a row says, or where it sits, is not changing whether it is
+   * done (the reason the panel's own reword keeps the item id, LC-215).
+   */
+  it("keeps a row ticked through a reword and a reorder", () => {
+    const onCreate = vi.fn();
+    render(createPanel({ onCreate }));
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Still done afterwards" },
+    });
+    addChecklistItem("Parse");
+    addChecklistItem("Write");
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Parse" }));
+
+    // Reword the ticked row.
+    fireEvent.click(screen.getByRole("button", { name: "Edit Parse" }));
+    const field = screen.getByRole("textbox", { name: "Edit Parse" });
+    fireEvent.change(field, { target: { value: "Parse the file" } });
+    fireEvent.submit(field.closest("form")!);
+    expect(
+      screen.getByRole<HTMLInputElement>("checkbox", {
+        name: "Parse the file",
+      }).checked,
+    ).toBe(true);
+
+    // Then move it under the other one, with the binding the panel's list has.
+    fireEvent.keyDown(
+      screen.getByRole("button", { name: "Remove Parse the file" }),
+      { key: "ArrowDown", altKey: true },
+    );
+
+    fireEvent.click(screen.getByText("Create ticket"));
+    expect(onCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        checklist: [
+          { text: "Write", checked: false },
+          { text: "Parse the file", checked: true },
+        ],
+      }),
+    );
   });
 
   it("removes a draft row without touching the others", () => {
@@ -246,7 +421,7 @@ describe("nothing here claims the file exists yet", () => {
     fireEvent.click(screen.getByText("Create ticket"));
 
     expect(onCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ checklist: ["First", "Third"] }),
+      expect.objectContaining({ checklist: openRows("First", "Third") }),
     );
   });
 
@@ -271,7 +446,7 @@ describe("nothing here claims the file exists yet", () => {
     fireEvent.click(screen.getByText("Create ticket"));
 
     expect(onCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ checklist: ["First", "Second"] }),
+      expect.objectContaining({ checklist: openRows("First", "Second") }),
     );
   });
 
@@ -290,7 +465,7 @@ describe("nothing here claims the file exists yet", () => {
     fireEvent.click(screen.getByText("Create ticket"));
 
     expect(onCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ checklist: ["First"] }),
+      expect.objectContaining({ checklist: openRows("First") }),
     );
   });
 
@@ -314,7 +489,7 @@ describe("nothing here claims the file exists yet", () => {
     fireEvent.click(screen.getByText("Create ticket"));
 
     expect(onCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ checklist: ["First", "Second"] }),
+      expect.objectContaining({ checklist: openRows("First", "Second") }),
     );
   });
 
@@ -371,7 +546,7 @@ describe("nothing here claims the file exists yet", () => {
       fireEvent.click(screen.getByText("Create ticket"));
       expect(onCreate).toHaveBeenCalledWith(
         expect.objectContaining({
-          checklist: ["Third", "First", "Second"],
+          checklist: openRows("Third", "First", "Second"),
         }),
       );
     });
@@ -453,11 +628,12 @@ describe("nothing here claims the file exists yet", () => {
 
   /**
    * D-4D (LC-119). The prototype draws no counter in create mode at any length,
-   * and the numerator here could not move if it did: every draft item is open
-   * by construction. `0/0` was a count of nothing that read as a checklist left
-   * unfinished, and `0/3` would only repeat the three rows on screen.
+   * and that cell is what settled the row. LC-242h retired the second argument
+   * D-4D offered alongside it — draft items are no longer all open by
+   * construction, so the numerator does move — and the row stands on the
+   * prototype cell alone. Ticking a box here still draws no fraction.
    */
-  it("shows no checklist fraction, however many items are drafted", () => {
+  it("shows no checklist fraction, however many items are drafted or ticked", () => {
     render(createPanel());
     const section = screen.getByRole("heading", { name: /Checklist/ });
     expect(section.querySelector(".section-count")).toBeNull();
@@ -465,6 +641,9 @@ describe("nothing here claims the file exists yet", () => {
 
     addChecklistItem("Let an agent read this ticket");
     addChecklistItem("Review what it changed");
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Review what it changed" }),
+    );
 
     expect(section.querySelector(".section-count")).toBeNull();
     expect(section.textContent).toBe("Checklist");
@@ -510,6 +689,72 @@ describe("full create prototype parity", () => {
     // beside the control are not in its name.
     expect(control.getAttribute("aria-label")).toBe("Labels: none");
     expect(screen.queryByRole("button", { name: "None" })).toBeNull();
+  });
+
+  it("defines a label from its own labels row too (LC-236e)", async () => {
+    const onDefineLabel = vi.fn().mockResolvedValue(true);
+    const onCreate = vi.fn();
+    render(createPanel({ onDefineLabel, onCreate }));
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Full create wants one as well" },
+    });
+    fireEvent.click(metaTrigger("Labels"));
+    // The same row quick create wears — this is the other surface where a
+    // label can be wanted before the project has one.
+    fireEvent.click(screen.getByRole("button", { name: "New label" }));
+    fireEvent.change(screen.getByLabelText("New label name"), {
+      target: { value: "Platform Infra" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add label" }));
+
+    await waitFor(() =>
+      expect(onDefineLabel).toHaveBeenCalledWith(
+        expect.objectContaining({
+          slug: "platform-infra",
+          name: "Platform Infra",
+        }),
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /^Create/ }));
+    expect(onCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ labels: ["platform-infra"] }),
+    );
+  });
+
+  it("ticks a newly defined slug on, and never off (LC-236e)", async () => {
+    const onDefineLabel = vi.fn().mockResolvedValue(true);
+    const onCreate = vi.fn();
+    // A draft that already carries a slug the project does not define — an
+    // agent can write one and the file keeps it, so the menu lists it.
+    render(
+      createPanel({
+        onDefineLabel,
+        onCreate,
+        initialDraft: {
+          title: "Carries an undefined slug",
+          description: "",
+          status: "todo",
+          priority: "none",
+          labels: ["reliability-2"],
+          properties: {},
+        },
+      }),
+    );
+
+    fireEvent.click(metaTrigger("Labels"));
+    fireEvent.click(screen.getByRole("button", { name: "New label" }));
+    fireEvent.change(screen.getByLabelText("New label name"), {
+      target: { value: "Reliability 2" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add label" }));
+
+    await waitFor(() => expect(onDefineLabel).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: /^Create/ }));
+    // Defining the slug it was already carrying must not take it off.
+    expect(onCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ labels: ["reliability-2"] }),
+    );
   });
 
   it("keeps `+ add` beside the chips once labels are on", () => {
@@ -564,5 +809,157 @@ describe("committing and leaving", () => {
 
     expect(onCancel).toHaveBeenCalledTimes(1);
     expect(onCreate).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The opt-in properties on the surface a ticket is filed from (LC-227).
+ *
+ * The claim is that a create offers exactly what the project turned on — no
+ * more, because the engine refuses a property this project does not read before
+ * it claims a directory, and no fewer, because a property a project enabled is
+ * one it decided its tickets carry.
+ */
+describe("the properties a project turned on", () => {
+  const withType: PropertiesConfig = {
+    ...NO_PROPERTIES,
+    type: { enabled: true, values: { bug: { name: "Bug", color: "red" } } },
+  };
+  const withAll: PropertiesConfig = {
+    ...withType,
+    due: { enabled: true, attentionDays: 7 },
+    start: { enabled: true },
+    estimate: {
+      ...NO_PROPERTIES.estimate,
+      enabled: true,
+      values: ["s", "m", "l"],
+    },
+  };
+
+  /** The meta grid's row names, in the order the grid draws them. */
+  function metaRows(): (string | null)[] {
+    return [...document.querySelectorAll(".meta-grid > span")].map(
+      (name) => name.textContent,
+    );
+  }
+
+  it("draws none of them for a project that has turned them all off", () => {
+    render(createPanel());
+
+    // Every project that predates this build, and the surface it has always
+    // had. A control here for a property the project does not read would be a
+    // control whose only outcome is a refusal (`engine.rs`).
+    expect(metaRows()).toEqual(["Status", "Priority", "Labels"]);
+  });
+
+  it("draws only the ones it turned on", () => {
+    render(createPanel({ properties: withType }));
+
+    expect(metaRows()).toEqual(["Status", "Priority", "Type", "Labels"]);
+  });
+
+  it("reads down in the panel's own order, with Labels still last", () => {
+    // The rail's order (`PropertyControl.tsx`), so the surface a ticket is
+    // created on and the surface it is edited on read the same way down.
+    render(createPanel({ properties: withAll }));
+
+    expect(metaRows()).toEqual([
+      "Status",
+      "Priority",
+      "Type",
+      "Estimate",
+      "Start Date",
+      "Due Date",
+      "Labels",
+    ]);
+  });
+
+  it("sends what was chosen under one properties field", () => {
+    const onCreate = vi.fn();
+    render(createPanel({ properties: withAll, onCreate }));
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Due on the day it is typed for" },
+    });
+    fireEvent.click(metaTrigger("Type"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Bug" }));
+    fireEvent.click(screen.getByRole("button", { name: "M" }));
+    const due = screen.getByLabelText("Due Date");
+    fireEvent.change(due, { target: { value: "28 Sep" } });
+    fireEvent.keyDown(due, { key: "Enter" });
+    fireEvent.click(screen.getByText("Create ticket"));
+
+    expect(onCreate).toHaveBeenCalledWith(
+      // Nested rather than spread across the request, which is the shape
+      // `NewTicket` deserializes — and normalised to the day the format stores,
+      // because the typed grammar is the app's and the file's is one shape.
+      expect.objectContaining({
+        properties: { type: "bug", estimate: "m", due: "2026-09-28" },
+      }),
+    );
+  });
+
+  it("takes a clear off the draft rather than sending a null", () => {
+    const onCreate = vi.fn();
+    render(createPanel({ properties: withAll, onCreate }));
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Set, then thought better of" },
+    });
+    fireEvent.click(metaTrigger("Type"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Bug" }));
+    fireEvent.click(metaTrigger("Type"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "None" }));
+    fireEvent.click(screen.getByText("Create ticket"));
+
+    // Absent and cleared are the same thing where no file exists yet. The
+    // `null` an edit sends draws a distinction that only means something
+    // against bytes already on disk.
+    expect(onCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ properties: {} }),
+    );
+  });
+
+  it("opens on the properties quick create was holding", () => {
+    render(
+      createPanel({
+        properties: withAll,
+        initialDraft: {
+          title: "",
+          description: "",
+          status: "todo",
+          priority: "none",
+          labels: [],
+          properties: { due: "2026-09-28" },
+        },
+      }),
+    );
+
+    // Shown the way a field shows a date rather than the way the file stores
+    // one — and without the year, because on 8 September `28 Sep` reads back as
+    // the day it is being shown for.
+    expect(screen.getByLabelText<HTMLInputElement>("Due Date").value).toBe(
+      "28 Sep",
+    );
+  });
+
+  it("takes an uncommitted date with the key that creates from anywhere", () => {
+    const onCreate = vi.fn();
+    render(createPanel({ properties: withAll, onCreate }));
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Typed, then created in one gesture" },
+    });
+    const due = screen.getByLabelText("Due Date");
+    fireEvent.change(due, { target: { value: "28 Sep" } });
+    // A date parses on Enter or blur, so `⌘↵` from inside the field would
+    // otherwise create the ticket without the date the person had just typed.
+    fireEvent.keyDown(due, { key: "Enter", metaKey: true });
+    expect(onCreate).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(due, { key: "Enter", metaKey: true });
+    expect(onCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ properties: { due: "2026-09-28" } }),
+    );
   });
 });

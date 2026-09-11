@@ -10,7 +10,7 @@
  * reads as having dropped them: LC-193, filed as "after entering one checklist
  * item, the next input row isn't focussed".
  *
- * `keyboard-focus-map.md:63` promises the field keeps focus for rapid entry, and
+ * `keyboard-focus-map.md:64` promises the field keeps focus for rapid entry, and
  * a field that keeps focus off the bottom of the pane keeps the letter of that
  * and none of it. So the scroller follows the row down.
  *

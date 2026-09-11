@@ -22,24 +22,29 @@ import { resetMutations, useMutationStore } from "./mutations";
 import { useLongClawStore } from "./state";
 import { isArchived } from "./tickets";
 import type {
+  CommandLineStatus,
   IndexedTicket,
+  PropertiesConfig,
   ProjectReference,
   StreamEnvelope,
   TicketDetail,
   TicketRow,
   WriteResult,
 } from "./types";
+import { NO_PROPERTIES, startOfDay, toIso } from "./properties";
 
 vi.mock("./api", () => ({
   chooseAndCreateProject: vi.fn(),
   chooseAndRelocateProject: vi.fn(),
   chooseOpenFolder: vi.fn(),
   chooseProjectFolder: vi.fn(),
+  commandLineStatus: vi.fn(),
   createProjectInFolder: vi.fn(),
   createTicket: vi.fn(),
   editTicket: vi.fn(),
   folderHoldsProject: vi.fn(),
   homeDir: vi.fn(),
+  installCommandLine: vi.fn(),
   listProjects: vi.fn(),
   listenForProjectEvents: vi.fn(),
   openProject: vi.fn(),
@@ -66,6 +71,15 @@ afterEach(() => {
   // `testSetup.ts` hands every test a fresh store, so nothing needs clearing
   // here and nothing needs putting back.
 });
+
+/** The `longclaw` command, as a build with none beside it reports it (LC-233). */
+const NO_COMMAND_LINE: CommandLineStatus = {
+  state: "unavailable",
+  sourcePath: null,
+  linkPath: "/usr/local/bin/longclaw",
+  currentTarget: null,
+  manualCommand: null,
+};
 
 /**
  * The preferences file, as far as this suite is concerned (LC-150). Device
@@ -102,6 +116,10 @@ beforeEach(() => {
   vi.mocked(api.listProjects).mockResolvedValue([]);
   vi.mocked(api.listenForProjectEvents).mockResolvedValue(() => {});
   vi.mocked(api.homeDir).mockResolvedValue("/home/user");
+  // A window with no CLI beside it, which is what a `cargo run` build and a
+  // test host both are (LC-233). It offers nothing and records nothing, so
+  // every suite below it is unaffected until one says otherwise.
+  vi.mocked(api.commandLineStatus).mockResolvedValue(NO_COMMAND_LINE);
   // Every picked folder is a plain one unless a test says otherwise: that is the
   // answer that leads to the create form, which is where most of these are
   // going (LC-170).
@@ -131,6 +149,7 @@ describe("recovering from a lost project event", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   it("fetches one snapshot, says it is reconciling, and resumes", async () => {
@@ -237,6 +256,7 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   function created(): WriteResult {
@@ -351,10 +371,50 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
       status: "todo",
       priority: "urgent",
       labels: [],
+      properties: {},
     });
     // The card is the reason this matters: a create that dropped the priority
     // on the way would look right in the modal and wrong on the board.
     expect(screen.getByRole("img", { name: "Priority: Urgent" })).toBeTruthy();
+  });
+
+  it("offers the properties this project turned on, and sends them nested (LC-227)", async () => {
+    // The wiring nothing else can see: which properties a create surface offers
+    // is the project's answer, and handing it the wrong configuration would
+    // typecheck and then draw a modal with no dates in a project that has them.
+    const withDue = {
+      ...project,
+      properties: {
+        ...NO_PROPERTIES,
+        due: { enabled: true, attentionDays: 7 },
+      },
+    };
+    vi.mocked(api.listProjects).mockResolvedValue([withDue]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project: withDue,
+      tickets: [],
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    vi.mocked(api.createTicket).mockResolvedValue(created());
+    render(<App />);
+    await screen.findByRole("button", { name: "Board", pressed: true });
+
+    fireEvent.click(screen.getAllByText("New ticket")[0]);
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Due on a day it names" },
+    });
+    const due = screen.getByLabelText("Due Date");
+    fireEvent.change(due, { target: { value: "2026-09-28" } });
+    fireEvent.keyDown(due, { key: "Enter" });
+    fireEvent.click(screen.getByText("Create"));
+
+    // Under one field rather than spread across the request, which is the shape
+    // `NewTicket` deserializes (`core/storage.rs:1003-1007`).
+    expect(api.createTicket).toHaveBeenCalledWith(
+      expect.objectContaining({ properties: { due: "2026-09-28" } }),
+    );
   });
 
   it("undoes a create by archiving, because v0 never deletes a ticket file", async () => {
@@ -416,7 +476,7 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
    * board but Tab from the top of the document.
    *
    * The same call is how the ticket panel returns focus to its card, so this
-   * covers `keyboard-focus-map.md:161` at size as well as :123.
+   * covers `keyboard-focus-map.md:197` at size as well as :124.
    */
   it("focuses the new card even when it lands outside the rendered window", async () => {
     const crowd: TicketRow[] = Array.from({ length: 30 }, (_, index) => ({
@@ -662,6 +722,7 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
         status: "todo",
         priority: "none",
         labels: [],
+        properties: {},
       });
     });
   });
@@ -680,6 +741,7 @@ describe("the full create surface (V0-16)", () => {
       backend: { name: "Backend", color: "blue" },
       reliability: { name: "Reliability", color: "amber" },
     },
+    properties: NO_PROPERTIES,
   };
 
   function created(): WriteResult {
@@ -797,7 +859,10 @@ describe("the full create surface (V0-16)", () => {
       priority: "p1",
       labels: ["backend"],
       description: "Check whether the round trip holds.",
-      checklist: ["Let an agent read it"],
+      properties: {},
+      // Both halves of the row (LC-242h): the create says what the item is and
+      // whether it is already done.
+      checklist: [{ text: "Let an agent read it", checked: false }],
     });
     await screen.findByText("LC-7 created");
   });
@@ -874,6 +939,7 @@ describe("priority from the board (V0-08)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   const ticket = {
@@ -984,6 +1050,7 @@ describe("the project path chip (LC-68)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   const ticket = {
@@ -1040,8 +1107,9 @@ describe("the project path chip (LC-68)", () => {
     const chip = screen.getByRole("button", {
       name: `Copy path — ${p.rootPath}`,
     });
-    // Display text is tilde-abbreviated; title and clipboard keep the full path.
-    expect(chip.textContent).toContain("~/dev/longclaw");
+    // Display text is tilde-abbreviated, and short enough to escape the
+    // elision, which is what makes this an assertion about the `~`.
+    expect(chip.textContent).toBe("~/dev/longclaw");
     expect(chip.textContent).not.toContain(home);
     expect(chip.getAttribute("title")).toBe(p.rootPath);
 
@@ -1057,8 +1125,14 @@ describe("the project path chip (LC-68)", () => {
     const chip = screen.getByRole("button", {
       name: `Copy path — ${p.rootPath}`,
     });
-    expect(chip.textContent).toContain("/Users/other/shared");
+    // Shown whole, and with no `~`, which is this test's subject: the
+    // abbreviation is the home directory's, not any prefix's. jsdom lays
+    // nothing out, so `head + tail` is the whole string here whatever the box
+    // would do with it — where the display cut falls is `probe:header`'s.
+    expect(chip.textContent).toBe("/Users/other/shared");
     expect(chip.textContent).not.toContain("~");
+    // And the whole path is still what the chip is named for and copies.
+    expect(chip.getAttribute("title")).toBe(p.rootPath);
   });
 
   it("copies the path to the clipboard and raises a toast on click", async () => {
@@ -1083,13 +1157,14 @@ describe("the project settings gear (LC-70)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   // Named for what it asserts. It used to claim it "keeps starring in the
   // sidebar" and then never look at the sidebar (LC-158): the star's half of
   // LC-70 is that the row affordance already existed and was left alone, which
   // is covered where that row is — § the side panel against its spec.
-  it("drops the header Star button and opens settings from a header gear", async () => {
+  it("drops the Star button and opens settings from the identity block's gear", async () => {
     vi.mocked(api.listProjects).mockResolvedValue([project]);
     vi.mocked(api.openProject).mockResolvedValue({
       project,
@@ -1101,15 +1176,19 @@ describe("the project settings gear (LC-70)", () => {
     render(<App />);
     await screen.findByRole("button", { name: "Board", pressed: true });
 
-    // Scoped by class, not `getByRole("banner")`: this `<header>` sits inside
-    // `.main-panel`, so HTML-AAM maps it to `generic`, and only jsdom's
-    // unconditional `header: "banner"` would make that query pass.
-    const header = document.querySelector<HTMLElement>(".content-header")!;
-    const settings = within(header).getByRole("button", {
+    // The identity block, not the content header: the gear moved with the path
+    // it belongs to when the header became controls-only (LC-239w). Scoped by
+    // class rather than `getByRole("banner")` because this `<header>` sits
+    // inside `.side-panel`, so HTML-AAM maps it to `generic`.
+    const identity = document.querySelector<HTMLElement>(".project-identity")!;
+    const settings = within(identity).getByRole("button", {
       name: "Project settings",
     });
     expect(
-      within(header).queryByRole("button", { name: /^Star(?:red)?$/ }),
+      document.querySelector(".content-header .settings-button"),
+    ).toBeNull();
+    expect(
+      within(identity).queryByRole("button", { name: /^Star(?:red)?$/ }),
     ).toBeNull();
     // What it opens is a menu since LC-208, so the expanded state is back: a
     // menu *is* a region that stays under its trigger, which is the thing
@@ -1247,6 +1326,7 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
     starred: false,
     reachable: true,
     labels: { backend: { name: "Backend", color: "blue" } },
+    properties: NO_PROPERTIES,
   };
 
   const ticket: TicketRow = {
@@ -1613,11 +1693,16 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
     const toast = await screen.findByRole("status");
     expect(toast.textContent).toContain("Renamed to Renamed");
     // The write is named for the file it lands in, not for a ticket — the
-    // header's disk-state indicator said `ticket.md` for every settings write
-    // that reached it, because that is what it says when nothing names a path.
+    // disk-state indicator said `ticket.md` for every settings write that
+    // reached it, because that is what it says when nothing names a path. It
+    // reads from the side panel's identity block since LC-239w, and only while
+    // the write is in flight.
+    act(() => {
+      useMutationStore.setState({ writing: ".longclaw/longclaw.yaml" });
+    });
     await waitFor(() =>
       expect(
-        document.querySelector(".content-header .disk-path")?.textContent,
+        document.querySelector(".identity-disk .disk-path")?.textContent,
       ).toContain("longclaw.yaml"),
     );
 
@@ -1647,6 +1732,43 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
     // "Removed the definition", not "deleted the label": the slug stays on
     // every ticket carrying it, which is the whole guarantee of this section.
     expect(toast.textContent).toContain("Removed the backend label definition");
+  });
+
+  /**
+   * LC-236e. A create surface is over the modal scrim, and `ErrorBanner` draws
+   * at board level — `--lc-z-modal` is 4 — so a refusal routed through the
+   * banner is painted *behind* the surface that caused it, and quick create
+   * looks like it did nothing at all.
+   */
+  it("puts a refused definition on the toast, not behind the scrim", async () => {
+    vi.mocked(api.addProjectLabel).mockRejectedValue({
+      code: "permission_denied",
+      message: "longclaw.yaml is read-only",
+      recoverable: true,
+    });
+    await openSettings();
+    // Out of settings and into quick create, which is the surface that cannot
+    // use the banner.
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    fireEvent.keyDown(document.body, { key: "c" });
+    await screen.findByLabelText("Create a ticket");
+
+    fireEvent.click(screen.getByRole("button", { name: /^Labels: / }));
+    fireEvent.click(screen.getByRole("button", { name: "New label" }));
+    fireEvent.change(screen.getByLabelText("New label name"), {
+      target: { value: "Reliability" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add label" }));
+
+    const toast = await screen.findByRole("status");
+    expect(toast.textContent).toContain("longclaw.yaml is read-only");
+    expect(toast.querySelector(".toast.danger")).toBeTruthy();
+    // Nothing was ticked onto the draft: the definition did not land.
+    expect(
+      screen
+        .getByRole("button", { name: /^Labels: / })
+        .getAttribute("aria-label"),
+    ).toBe("Labels: none");
   });
 
   it("D-4J: `Esc` in a label name reverts the field and leaves the panel up", async () => {
@@ -1733,9 +1855,9 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
     vi.mocked(api.removeProject).mockResolvedValue(undefined);
     render(<App />);
     await screen.findByRole("button", { name: "Board", pressed: true });
-    const header = document.querySelector<HTMLElement>(".content-header")!;
+    const identity = document.querySelector<HTMLElement>(".project-identity")!;
     fireEvent.click(
-      within(header).getByRole("button", { name: "Project settings" }),
+      within(identity).getByRole("button", { name: "Project settings" }),
     );
     fireEvent.click(screen.getByRole("menuitem", { name: /All settings/ }));
     fireEvent.click(screen.getByRole("tab", { name: "Danger zone" }));
@@ -1757,7 +1879,7 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
   });
 });
 
-describe("the header disk-state indicator (LC-69)", () => {
+describe("the disk-state indicator (LC-69, moved by LC-239w)", () => {
   const project = {
     id: "project-fixture",
     name: "Fixture Project",
@@ -1767,6 +1889,7 @@ describe("the header disk-state indicator (LC-69)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   async function openBoard() {
@@ -1780,39 +1903,75 @@ describe("the header disk-state indicator (LC-69)", () => {
     });
     render(<App />);
     await screen.findByRole("button", { name: "Board", pressed: true });
-    return document.querySelector<HTMLElement>(".content-header")!;
+    // The side panel's identity block, where it rides with the path
+    // (`screen-specs.md` § Project identity). It left the content header with
+    // everything else that said which project this is (LC-239w).
+    return document.querySelector<HTMLElement>(".project-identity")!;
   }
 
   it("is silent on a settled board, where the old chip said `watching`", async () => {
-    const header = await openBoard();
+    const identity = await openBoard();
 
-    expect(header.textContent).not.toContain("watching");
+    expect(identity.textContent).not.toContain("watching");
   });
 
-  it("names the file a write landed in, and nothing before the first write", async () => {
-    const header = await openBoard();
-    expect(header.textContent).not.toContain("✓");
+  it("names the file a write is landing in, while it is in flight", async () => {
+    const identity = await openBoard();
 
     act(() => {
       useMutationStore.setState({
-        settled: ".longclaw/tickets/LC-1/ticket.md",
+        writing: ".longclaw/tickets/LC-1/ticket.md",
       });
     });
 
     // With the key, because every ticket in the project is stored as
-    // `ticket.md`: the mark has to say which one landed, not that one did.
-    expect(header.textContent).toContain("✓ tickets/LC-1/ticket.md");
-    expect(header.textContent).not.toContain(".longclaw/tickets");
+    // `ticket.md`: the line has to say which one is being written, not that one
+    // is.
+    expect(identity.textContent).toContain("writing tickets/LC-1/ticket.md");
+    expect(identity.textContent).not.toContain(".longclaw/tickets");
+  });
+
+  /**
+   * The settled `✓ ticket.md` is not drawn here (LC-239w). Under a path chip it
+   * read as a second, quieter path rather than as news, and it stood there for
+   * the whole `SETTLED_MS` after every write — D-07's argument against the
+   * `● watching` chip, one state further on.
+   */
+  it("says nothing once the write has landed", async () => {
+    const identity = await openBoard();
+
+    act(() => {
+      useMutationStore.setState({
+        settled: ".longclaw/tickets/LC-1/ticket.md",
+        writing: undefined,
+      });
+    });
+
+    expect(identity.textContent).not.toContain("✓");
+    expect(identity.textContent).not.toContain("ticket.md");
+  });
+
+  /**
+   * And the slot it would have used stays, empty. A slot that collapsed when
+   * the disk went quiet would move every row of the project list under it, on
+   * every write — LC-149's defect turned on its side.
+   */
+  it("keeps its row whether or not there is anything to say", async () => {
+    const identity = await openBoard();
+    const slot = identity.querySelector<HTMLElement>(".identity-disk")!;
+
+    expect(slot).toBeTruthy();
+    expect(slot.textContent).toBe("");
   });
 
   it("speaks up while a read is in flight", async () => {
-    const header = await openBoard();
+    const identity = await openBoard();
 
     act(() => void useLongClawStore.setState({ loading: true }));
-    expect(header.textContent).toContain("reading");
+    expect(identity.textContent).toContain("reading");
 
     act(() => void useLongClawStore.setState({ loading: false }));
-    expect(header.textContent).not.toContain("reading");
+    expect(identity.textContent).not.toContain("reading");
   });
 });
 
@@ -1836,6 +1995,7 @@ describe("first launch (LC-76 … LC-82)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   /** The flow D-11 restores: welcome → folder picker → create form. */
@@ -2038,6 +2198,7 @@ describe("first launch (LC-76 … LC-82)", () => {
       starred: false,
       reachable: true,
       labels: {},
+      properties: NO_PROPERTIES,
     };
 
     /** A folder that already holds `existing`, on both sides of the picker. */
@@ -2336,6 +2497,7 @@ describe("system-matched appearance (V0-35)", () => {
       starred: false,
       reachable: true,
       labels: {},
+      properties: NO_PROPERTIES,
     };
     vi.mocked(api.listProjects).mockResolvedValue([project]);
     vi.mocked(api.openProject).mockResolvedValue({
@@ -2373,6 +2535,7 @@ describe("instant per-project theme selection (V0-36)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   const ticket = {
@@ -2538,6 +2701,7 @@ describe("label definitions in project settings (V0-10)", () => {
     starred: false,
     reachable: true,
     labels: { backend: { name: "Backend", color: "blue" } },
+    properties: NO_PROPERTIES,
   };
 
   const ticket = {
@@ -2590,16 +2754,18 @@ describe("label definitions in project settings (V0-10)", () => {
     });
     await openSettings();
 
-    fireEvent.change(screen.getByLabelText("New label slug"), {
-      target: { value: "reliability" },
-    });
+    // One field. The key is derived from the name and shown under it, never
+    // typed (LC-236e) — there is no slug input here to fill in.
     fireEvent.change(screen.getByLabelText("New label name"), {
       target: { value: "Reliability" },
     });
+    expect(screen.getByText("reliability")).toBeTruthy();
     // The app's own dropdown, never an OS one (LC-130, LC-208): the trigger
     // shows the hue it is set to, and the strip names every hue it offers.
+    // It opens on `cyan` rather than blue, because this project's one
+    // definition already holds blue.
     fireEvent.click(
-      screen.getByRole("button", { name: "New label color: blue" }),
+      screen.getByRole("button", { name: "New label color: cyan" }),
     );
     fireEvent.click(
       within(screen.getByRole("menu", { name: "New label color" })).getByRole(
@@ -2676,23 +2842,69 @@ describe("label definitions in project settings (V0-10)", () => {
   });
 
   it("surfaces a slug the format refuses rather than swallowing it", async () => {
+    // Rust stays the authority (`core/project.rs:349`). The derivation only
+    // proposes a key, so a refusal it did not predict still has to arrive.
     vi.mocked(api.addProjectLabel).mockRejectedValue({
       code: "parse_failed",
       message:
-        'A label slug is lowercase letters and digits, optionally separated by - or _, starting with a letter; found "9lives"',
+        'A label slug is lowercase letters and digits, optionally separated by - or _, starting with a letter; found "nine-lives"',
       recoverable: true,
     });
     await openSettings();
 
-    fireEvent.change(screen.getByLabelText("New label slug"), {
-      target: { value: "9lives" },
-    });
     fireEvent.change(screen.getByLabelText("New label name"), {
       target: { value: "Nine lives" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Add label" }));
 
-    expect(await screen.findByText(/found "9lives"/)).toBeTruthy();
+    expect(await screen.findByText(/found "nine-lives"/)).toBeTruthy();
+  });
+
+  it("refuses a name that cannot make a key, before the write", async () => {
+    await openSettings();
+
+    // `9 lives` derives `9-lives`, which is not a slug. The key's own slot
+    // carries the rule instead — it never holds a string that is not a key —
+    // and the commit is dead until the name changes.
+    fireEvent.change(screen.getByLabelText("New label name"), {
+      target: { value: "9 lives" },
+    });
+
+    expect(
+      screen.getByText("Label Name must start with a letter [a-z]"),
+    ).toBeTruthy();
+    expect(screen.queryByText("9-lives")).toBeNull();
+    expect(
+      screen
+        .getByRole("button", { name: "Add label" })
+        .hasAttribute("disabled"),
+    ).toBe(true);
+    expect(api.addProjectLabel).not.toHaveBeenCalled();
+  });
+
+  it("refuses a name whose key is already defined, and says what holds it", async () => {
+    await openSettings();
+
+    fireEvent.change(screen.getByLabelText("New label name"), {
+      target: { value: "Backend" },
+    });
+
+    // The key is drawn — it exists — and the sentence under it names the key
+    // and the definition already holding it. Scoped to the add-row: the
+    // definition it collided with is on screen too, directly above.
+    expect(
+      document.querySelector(".label-add .derived-key-line")?.textContent,
+    ).toBe("backend");
+    expect(
+      screen.getByText(
+        "backend already exists for Backend. Please provide a new Label name.",
+      ),
+    ).toBeTruthy();
+    expect(
+      screen
+        .getByRole("button", { name: "Add label" })
+        .hasAttribute("disabled"),
+    ).toBe(true);
   });
 });
 
@@ -2706,6 +2918,7 @@ describe("the list and the board agree (V0-14)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   function ticket(
@@ -3020,6 +3233,7 @@ describe("archive and unarchive (V0-11)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   function row(key: string, overrides?: Partial<IndexedTicket>): TicketRow {
@@ -3395,7 +3609,7 @@ describe("archive and unarchive (V0-11)", () => {
 
   it("archives a canceled ticket without making it any less canceled", async () => {
     // Canceled is a workflow outcome and archiving is tidying
-    // (`file_format.md:345-347`); one must not stand in for the other.
+    // (`file_format.md:406-408`); one must not stand in for the other.
     vi.mocked(api.readTicket).mockResolvedValue(detail("LC-3"));
     vi.mocked(api.editTicket).mockResolvedValue(
       written("LC-3", {
@@ -3428,6 +3642,7 @@ describe("board ordering and manual reordering (V0-09)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   function row(key: string, overrides?: Partial<IndexedTicket>): TicketRow {
@@ -3473,7 +3688,7 @@ describe("board ordering and manual reordering (V0-09)", () => {
   }
 
   /** Switches the header control, which is a real menu with a real footnote. */
-  function chooseOrdering(name: "Priority" | "Manual") {
+  function chooseOrdering(name: "Priority" | "Due" | "Manual") {
     fireEvent.click(screen.getByRole("button", { name: /^Order:/ }));
     fireEvent.click(screen.getByRole("menuitemradio", { name }));
   }
@@ -3530,6 +3745,7 @@ describe("board ordering and manual reordering (V0-09)", () => {
     await openBoard([row("LC-1"), row("LC-2")]);
 
     chooseOrdering("Manual");
+    chooseOrdering("Due");
     chooseOrdering("Priority");
     chooseOrdering("Manual");
 
@@ -3538,7 +3754,7 @@ describe("board ordering and manual reordering (V0-09)", () => {
     expect(api.updateProjectName).not.toHaveBeenCalled();
   });
 
-  it("offers Priority and Manual and nothing else (LC-223 review)", async () => {
+  it("offers Priority, Due and Manual and nothing else", async () => {
     await openBoard([row("LC-1")]);
 
     fireEvent.click(screen.getByRole("button", { name: /^Order:/ }));
@@ -3546,18 +3762,19 @@ describe("board ordering and manual reordering (V0-09)", () => {
     expect(
       screen.getByRole("menuitemradio", { name: "Priority" }),
     ).toBeTruthy();
+    expect(screen.getByRole("menuitemradio", { name: "Due" })).toBeTruthy();
     expect(screen.getByRole("menuitemradio", { name: "Manual" })).toBeTruthy();
-    // The footnote came off at the review: two options say everything.
+    // The footnote came off at the review: the options say everything.
     expect(document.querySelector(".menu-footnote")).toBeNull();
   });
 
   it("keeps the choice for this project, and only this project", async () => {
     await openBoard([row("LC-1")]);
-    chooseOrdering("Manual");
+    chooseOrdering("Due");
 
     await waitFor(() =>
       expect(devicePreferences.projectWorkspaces).toEqual({
-        "project-fixture": { ordering: "manual" },
+        "project-fixture": { ordering: "due" },
       }),
     );
   });
@@ -3916,6 +4133,7 @@ describe("the header filter (V0-15)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   function row(
@@ -4299,6 +4517,7 @@ describe("project-scoped workspace restoration (LC-49)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
   const projectB = {
     ...projectA,
@@ -4338,7 +4557,7 @@ describe("project-scoped workspace restoration (LC-49)", () => {
   const filter = () =>
     screen.getByRole("textbox", { name: "Filter tickets" }) as HTMLInputElement;
 
-  function chooseOrdering(name: "Priority" | "Manual") {
+  function chooseOrdering(name: "Priority" | "Due" | "Manual") {
     fireEvent.click(screen.getByRole("button", { name: /^Order:/ }));
     fireEvent.click(screen.getByRole("menuitemradio", { name }));
   }
@@ -4367,7 +4586,7 @@ describe("project-scoped workspace restoration (LC-49)", () => {
     await screen.findByRole("heading", { name: "Project A" });
 
     fireEvent.click(screen.getByRole("button", { name: "List" }));
-    chooseOrdering("Manual");
+    chooseOrdering("Due");
     fireEvent.change(filter(), { target: { value: "alpha" } });
 
     fireEvent.click(screen.getByRole("button", { name: "Project B" }));
@@ -4387,7 +4606,7 @@ describe("project-scoped workspace restoration (LC-49)", () => {
     expect(
       screen.getByRole("button", { name: "List", pressed: true }),
     ).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Order: Manual" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Order: Due" })).toBeTruthy();
     expect(filter().value).toBe("alpha");
   });
 
@@ -4487,6 +4706,7 @@ describe("the side panel against its spec (Step 16a)", () => {
     starred: true,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   const unreachable = {
@@ -4498,6 +4718,7 @@ describe("the side panel against its spec (Step 16a)", () => {
     starred: false,
     reachable: false,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   /**
@@ -4744,6 +4965,7 @@ describe("the app shell against its spec (LC-71, LC-72, LC-73)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   function row(key: string, title: string): TicketRow {
@@ -4863,32 +5085,82 @@ describe("the app shell against its spec (LC-71, LC-72, LC-73)", () => {
   });
 
   /**
-   * These pin the sidebar the spec now draws, not a fallback: the actions live
-   * above the sections by founder decision of 2026-08-06, and `screen-specs.md`
-   * § App shell was amended to match rather than the other way round (LC-73).
+   * These pin the sidebar the spec now draws, not a fallback.
    *
-   * What they guard is the *hierarchy*, which is the whole reason this position
-   * is not the one D-0B flagged. Two controls of equal weight above the rows is
-   * the regression; a `secondary` CTA over a quiet `ghost` is not.
+   * LC-73's founder decision put the pair *above* the sections, because
+   * `.project-nav` had no `overflow-y` and at the foot of a long list the two
+   * controls left the window. LC-239w moves them back to the foot and pays the
+   * price that decision named: the nav scrolls, and `.side-panel-footer` is
+   * `margin-top: auto` — a pin rather than a place in the flow — so the pair is
+   * at the same height with 25 projects as with 5. The ordering test below is
+   * that trade written down; without the `overflow-y`, LC-73 recurs.
+   *
+   * What they also guard is the *hierarchy*, which is the whole reason this
+   * position is not the one D-0B flagged. Two controls of equal weight is the
+   * regression; a `secondary` CTA over a quiet `ghost` is not.
    */
   describe("sidebar project actions", () => {
-    it("puts them above the project sections, under the lockup", async () => {
+    it("puts the identity block first, the list next, and the pair at the foot", async () => {
       await openBoard();
 
       const panel = document.querySelector(".side-panel")!;
-      const kinds = [...panel.children].map((child) =>
-        child.classList.contains("project-actions")
-          ? "actions"
-          : child.classList.contains("brand-lockup")
-            ? "lockup"
+      const kinds = [...panel.children]
+        .map((child) =>
+          child.classList.contains("project-identity")
+            ? "identity"
             : child.classList.contains("project-nav")
               ? "nav"
-              : "other",
-      );
-      // Lockup, then the actions, then the list. `.project-nav` has no
-      // `overflow-y`, so at the foot these leave the viewport once the project
-      // list is long enough — that is what this ordering exists to prevent.
-      expect(kinds.slice(0, 3)).toEqual(["lockup", "actions", "nav"]);
+              : child.classList.contains("side-panel-footer")
+                ? "footer"
+                : "other",
+        )
+        .filter((kind) => kind !== "other");
+      expect(kinds).toEqual(["identity", "nav", "footer"]);
+
+      // The pair is *in* the footer, and the footer is the last child — which
+      // is what `margin-top: auto` needs to pin it.
+      const footer = panel.querySelector(".side-panel-footer")!;
+      expect(footer.querySelector(".project-actions")).toBeTruthy();
+      expect(panel.lastElementChild).toBe(footer);
+
+      // That the list *scrolls* — the rule that makes this pin safe — is not
+      // asked here. jsdom loads no stylesheet, so `getComputedStyle` would
+      // answer about a page with no CSS and pass whatever happened to be
+      // there. `probe:header` asks it in WebKit, where it is computed.
+    });
+
+    /**
+     * The form is the panel's body while it is open: it is ~520px tall and the
+     * panel has 560px of content at the window's 620px `minHeight`, so under
+     * the pair it does not fit (LC-239w). The list goes with it, and so does
+     * the pair — which is what stops `Create project` being on screen twice,
+     * once as the form's filled submit and once as the toggle below it.
+     */
+    it("gives the create form the panel, and takes the list and the pair away", async () => {
+      await openBoard();
+
+      const panel = document.querySelector(".side-panel")!;
+      expect(panel.className).not.toContain("creating");
+
+      fireEvent.click(screen.getByText("Create project"));
+      await screen.findByText("Choose folder");
+
+      expect(panel.className).toContain("creating");
+      expect(
+        panel.querySelector(".create-region form.quick-create"),
+      ).toBeTruthy();
+      // Not inside the pair's section, which is where it used to render.
+      expect(panel.querySelector(".project-actions form")).toBeNull();
+      // Both are hidden by one rule keyed off `creating`, asserted above.
+      // Whether that rule actually hides them is a computed style, which
+      // `probe:header` asks in WebKit for the same reason as the line above.
+
+      // The way out, now that the toggle that opened it is behind it.
+      const cancel = within(
+        panel.querySelector<HTMLElement>(".create-region")!,
+      ).getByRole("button", { name: "Cancel" });
+      fireEvent.click(cancel);
+      expect(panel.className).not.toContain("creating");
     });
 
     it("leads with a secondary create CTA over a quieter ghost, never two of equal weight", async () => {
@@ -4982,6 +5254,7 @@ describe("the app shell against its spec (LC-71, LC-72, LC-73)", () => {
         starred: false,
         reachable: true,
         labels: {},
+        properties: NO_PROPERTIES,
       };
       vi.mocked(api.chooseProjectFolder).mockResolvedValue("/Users/dev/orbit");
       vi.mocked(api.folderHoldsProject).mockResolvedValue(true);
@@ -5030,6 +5303,7 @@ describe("a project folder that cannot be reached (LC-139 … LC-145)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
   const unreachable = { ...project, reachable: false };
 
@@ -5250,6 +5524,7 @@ describe("a project with no tickets (LC-86 … LC-89)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   async function openEmpty() {
@@ -5396,6 +5671,7 @@ describe("a ticket key typed at the palette root (LC-171)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   const found: IndexedTicket = {
@@ -5529,6 +5805,7 @@ describe("a project switch under an open editor (LC-188)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   const bravo = {
@@ -5540,6 +5817,7 @@ describe("a project switch under an open editor (LC-188)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   /** A ticket Bravo already holds, so `BR-1` is a key that is taken. */
@@ -5671,6 +5949,7 @@ describe("a project switch under an open editor (LC-188)", () => {
       status: "todo",
       priority: "none",
       labels: [],
+      properties: {},
     });
     // The optimistic card takes the next key rather than one that is taken:
     // `addProvisionalTicket` keys by key, so a guess of `BR-1` would have put
@@ -5796,6 +6075,7 @@ describe("a project switch under an open editor (LC-188)", () => {
       status: "todo",
       priority: "none",
       labels: [],
+      properties: {},
     });
   });
 
@@ -5825,9 +6105,11 @@ describe("a project switch under an open editor (LC-188)", () => {
 });
 
 /**
- * The two rows of a ticket's context menu that only App can answer (LC-222):
- * the archive, which is a write, and the path, which needs the project folder
- * neither surface has ever been told.
+ * The rows of a ticket's context menu that only App can answer: the archive,
+ * which is a write, and the path, which needs the project folder neither
+ * surface has ever been told (LC-222) — and the four property submenus, which
+ * write through the same seam and, in one case, hand the job to the panel
+ * instead (LC-227).
  */
 describe("the ticket context menu, end to end (LC-222)", () => {
   const project: ProjectReference = {
@@ -5839,6 +6121,7 @@ describe("the ticket context menu, end to end (LC-222)", () => {
     starred: false,
     reachable: true,
     labels: {},
+    properties: NO_PROPERTIES,
   };
 
   function row(key: string, overrides?: Partial<IndexedTicket>): TicketRow {
@@ -5862,10 +6145,14 @@ describe("the ticket context menu, end to end (LC-222)", () => {
     };
   }
 
-  async function openBoard(tickets: TicketRow[] = [row("LC-1")]) {
-    vi.mocked(api.listProjects).mockResolvedValue([project]);
+  async function openBoard(
+    tickets: TicketRow[] = [row("LC-1")],
+    properties = NO_PROPERTIES,
+  ) {
+    const opened = { ...project, properties };
+    vi.mocked(api.listProjects).mockResolvedValue([opened]);
     vi.mocked(api.openProject).mockResolvedValue({
-      project,
+      project: opened,
       tickets,
       generation: 1,
       rebuiltInMs: 1,
@@ -5946,5 +6233,623 @@ describe("the ticket context menu, end to end (LC-222)", () => {
       expectedHash: "hash-LC-1",
       edit: { status: "in_progress" },
     });
+  });
+
+  /**
+   * The four properties as menu rows (LC-227). What is asserted here and
+   * nowhere else is that a pick reaches the disk: `ticketMenu.test.tsx` proves
+   * the rows are right, and only this proves the row that says `Today` writes
+   * today.
+   */
+  describe("the properties a project turned on", () => {
+    const withDates: PropertiesConfig = {
+      ...NO_PROPERTIES,
+      type: { enabled: true, values: { bug: { name: "Bug", color: "red" } } },
+      due: { enabled: true, attentionDays: 7 },
+    };
+    /** The real clock, because nothing here freezes one — see `openBoard`. */
+    const today = () => toIso(startOfDay(Date.now()));
+
+    it("offers nothing for a project that has turned them all off", async () => {
+      await openBoard();
+
+      fireEvent.contextMenu(card("LC-1"));
+
+      // Every project written before this build. Four more rows are affordable
+      // only because this is what they cost when nobody asked for them.
+      expect(screen.queryByRole("menuitem", { name: /Due date/ })).toBeNull();
+      expect(screen.queryByRole("menuitem", { name: /^Type/ })).toBeNull();
+    });
+
+    it("writes the day a quick pick resolved to, and says which day it was", async () => {
+      vi.mocked(api.editTicket).mockResolvedValue({
+        ticket: row("LC-1", {
+          contentHash: "hash-LC-1-written",
+          due: today(),
+        }),
+        generation: 2,
+        changes: [],
+      });
+      await openBoard([row("LC-1")], withDates);
+
+      fireEvent.contextMenu(card("LC-1"));
+      fireEvent.click(screen.getByRole("menuitem", { name: /Due date/ }));
+      fireEvent.click(screen.getByRole("menuitemradio", { name: /Today/ }));
+
+      // The panel's own sentence for the same write, from `propertyToast`.
+      await screen.findByText(`LC-1 Due → ${today()}`);
+      expect(api.editTicket).toHaveBeenCalledWith({
+        projectId: project.id,
+        ticketKey: "LC-1",
+        expectedHash: "hash-LC-1",
+        // The format's only spelling, never the row's own words.
+        edit: { due: today() },
+      });
+    });
+
+    it("clears a property by emptying the field rather than omitting it", async () => {
+      vi.mocked(api.editTicket).mockResolvedValue({
+        ticket: row("LC-1", { contentHash: "hash-LC-1-written" }),
+        generation: 2,
+        changes: [],
+      });
+      await openBoard([row("LC-1", { type: "bug" })], withDates);
+
+      fireEvent.contextMenu(card("LC-1"));
+      fireEvent.click(screen.getByRole("menuitem", { name: /^Type/ }));
+      fireEvent.click(screen.getByRole("menuitem", { name: "Clear" }));
+
+      await screen.findByText("LC-1 Type cleared");
+      expect(api.editTicket).toHaveBeenCalledWith({
+        projectId: project.id,
+        ticketKey: "LC-1",
+        expectedHash: "hash-LC-1",
+        // `null` empties the field; an absent key would leave it alone.
+        edit: { type: null },
+      });
+    });
+
+    it.each(["due", "start"] as const)(
+      "picks %s in the context menu without opening the panel",
+      async (property) => {
+        vi.mocked(api.editTicket).mockResolvedValue({
+          ticket: row("LC-1", {
+            [property]: "2026-09-30",
+            contentHash: "hash-LC-1-written",
+          }),
+          generation: 2,
+          changes: [],
+        });
+        await openBoard([row("LC-1", { [property]: "2026-09-28" })], {
+          ...withDates,
+          start: { enabled: true },
+        });
+
+        fireEvent.contextMenu(card("LC-1"));
+        fireEvent.click(
+          screen.getByRole("menuitem", {
+            name: property === "due" ? /Due date/ : /Start date/,
+          }),
+        );
+        fireEvent.click(screen.getByRole("menuitem", { name: /Pick a date/ }));
+
+        const picker = screen.getByRole("dialog", {
+          name:
+            property === "due" ? "Due Date calendar" : "Start Date calendar",
+        });
+        expect(picker.contains(document.activeElement)).toBe(true);
+        expect(api.readTicket).not.toHaveBeenCalled();
+        fireEvent.click(
+          screen.getByRole("button", { name: "Wed 30 Sep 2026" }),
+        );
+        await waitFor(() =>
+          expect(api.editTicket).toHaveBeenCalledWith({
+            projectId: project.id,
+            ticketKey: "LC-1",
+            expectedHash: "hash-LC-1",
+            edit: { [property]: "2026-09-30" },
+          }),
+        );
+        expect(picker.isConnected).toBe(false);
+        expect(api.readTicket).not.toHaveBeenCalled();
+      },
+    );
+  });
+});
+
+/**
+ * `⌘1`…`⌘9` switch to the nth project (LC-230).
+ *
+ * The number is the row's place in the sidebar's **Local** list, which is
+ * `sortedProjects(projects)` and so is the whole registry in the order it is
+ * already drawn. Starred is a second view of some of those same projects, not
+ * a second list to count: a starred project carries one number and it is its
+ * Local row's.
+ */
+describe("switching project by chord (LC-230)", () => {
+  /**
+   * Ten projects, named so that `localeCompare` puts them in the order the
+   * digits read — the tenth exists to be the row past the end of the chords.
+   * Project 03 is starred, so it appears in both sections and can be counted
+   * in only one.
+   */
+  const registry: ProjectReference[] = Array.from(
+    { length: 10 },
+    (_, index) => {
+      const ordinal = String(index + 1).padStart(2, "0");
+      return {
+        id: `project-${ordinal}`,
+        name: `Project ${ordinal}`,
+        rootPath: `/tmp/LongClaw ${ordinal}`,
+        key: `L${ordinal}`,
+        theme: "plum",
+        starred: ordinal === "03",
+        reachable: true,
+        labels: {},
+        properties: NO_PROPERTIES,
+      };
+    },
+  );
+
+  function section(title: string) {
+    return [...document.querySelectorAll<HTMLElement>(".project-section")].find(
+      (element) => element.querySelector("h2")?.textContent === title,
+    )!;
+  }
+
+  function badges(title: string) {
+    return [
+      ...section(title).querySelectorAll<HTMLElement>(".project-number"),
+    ].map((badge) => badge.textContent);
+  }
+
+  /** One ticket, on the first project only, so a panel can be opened on it. */
+  const onlyOnTheFirst: IndexedTicket[] = [
+    {
+      state: "indexed",
+      key: "L01-1",
+      id: "019c8c7e",
+      title: "Only in Project 01",
+      status: "todo",
+      priority: "p3",
+      labels: [],
+      createdAt: "2026-07-31T09:00:00Z",
+      updatedAt: "2026-07-31T09:00:00Z",
+      checkedCount: 0,
+      checklistCount: 0,
+      commentCount: 0,
+      attachmentCount: 0,
+      contentHash: "hash-L01-1",
+      relativePath: ".longclaw/tickets/L01-1/ticket.md",
+    },
+  ];
+
+  async function openRegistry() {
+    vi.mocked(api.listProjects).mockResolvedValue(registry);
+    vi.mocked(api.openProject).mockImplementation(async (projectId: string) => {
+      const project = registry.find((candidate) => candidate.id === projectId)!;
+      return {
+        project,
+        tickets: projectId === "project-01" ? onlyOnTheFirst : [],
+        generation: 1,
+        rebuiltInMs: 1,
+        sequence: 1,
+      };
+    });
+    render(<App />);
+    await screen.findByRole("button", { name: "Board", pressed: true });
+    vi.mocked(api.openProject).mockClear();
+  }
+
+  it("makes the nth Local project active, from the first to the ninth", async () => {
+    await openRegistry();
+
+    fireEvent.keyDown(document, { key: "1", metaKey: true });
+    expect(api.openProject).toHaveBeenCalledWith("project-01");
+
+    fireEvent.keyDown(document, { key: "9", metaKey: true });
+    expect(api.openProject).toHaveBeenCalledWith("project-09");
+
+    await screen.findByRole("heading", { name: "Project 09" });
+  });
+
+  /**
+   * The reason the chord goes through `loadProject` rather than setting the
+   * active id: a key belongs to one project, so a panel left open across the
+   * switch asks the new project for a ticket that was never in it — the second
+   * half of LC-188. Asserted rather than asserted-about: the first version of
+   * this block claimed the behaviour in a comment and then only checked that
+   * the heading had changed, which the no-close bug would have passed.
+   */
+  /** What the panel reads for the one ticket the first project has. */
+  function panelDetail(): TicketDetail {
+    return {
+      key: "L01-1",
+      relativePath: ".longclaw/tickets/L01-1/ticket.md",
+      contentHash: "hash-L01-1",
+      byteLength: 300,
+      readOnly: false,
+      raw: "",
+      rawTruncated: false,
+      missingAttachments: [],
+      orphanAttachments: [],
+      ticket: {
+        id: "019c8c7e",
+        key: "L01-1",
+        title: "Only in Project 01",
+        status: "todo",
+        priority: "p3",
+        labels: [],
+        createdAt: "2026-07-31T09:00:00Z",
+        updatedAt: "2026-07-31T09:00:00Z",
+        description: "",
+        checklist: [],
+        attachments: [],
+        activity: [],
+        historyIncomplete: false,
+        unknownKeys: [],
+        recordDiagnostics: [],
+      },
+    };
+  }
+
+  it("closes a panel open on the project it is switching away from", async () => {
+    await openRegistry();
+    vi.mocked(api.readTicket).mockResolvedValue(panelDetail());
+
+    fireEvent.click(screen.getByText("Only in Project 01"));
+    expect(
+      await screen.findByRole("complementary", { name: "Ticket L01-1" }),
+    ).toBeTruthy();
+
+    fireEvent.keyDown(document, { key: "2", metaKey: true });
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("complementary", { name: /^Ticket / }),
+      ).toBeNull(),
+    );
+    expect(api.openProject).toHaveBeenCalledWith("project-02");
+  });
+
+  /**
+   * Rule 3 — focus is "never lost" (`keyboard-focus-map.md:16-18`). The panel
+   * the switch closes is closed *without* a key, because the card to hand focus
+   * back to belongs to the project being left. A click keeps its anchor — focus
+   * stays on the row the pointer pressed — and this chord is the first
+   * keyboard-only way into that close, so it is the first that can drop focus
+   * on `<body>`.
+   */
+  it("does not leave `body` holding focus when the switch closes the panel", async () => {
+    await openRegistry();
+    vi.mocked(api.readTicket).mockResolvedValue(panelDetail());
+
+    fireEvent.click(screen.getByText("Only in Project 01"));
+    const panel = await screen.findByRole("complementary", {
+      name: "Ticket L01-1",
+    });
+    const inside = within(panel).getAllByRole("button")[0];
+    inside.focus();
+    expect(document.activeElement).toBe(inside);
+
+    fireEvent.keyDown(document, { key: "2", metaKey: true });
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("complementary", { name: /^Ticket / }),
+      ).toBeNull(),
+    );
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+  });
+
+  /**
+   * Past nine there is no chord, and `⌘0` is not the tenth one. Nine presses
+   * reach nine projects and never the tenth, which is the only way to say
+   * "unbound" about a key that has no visible answer.
+   */
+  it("leaves ⌘0 and the tenth project alone", async () => {
+    await openRegistry();
+
+    fireEvent.keyDown(document, { key: "0", metaKey: true });
+    expect(api.openProject).not.toHaveBeenCalled();
+
+    for (let digit = 1; digit <= 9; digit += 1) {
+      fireEvent.keyDown(document, { key: String(digit), metaKey: true });
+    }
+    expect(api.openProject).not.toHaveBeenCalledWith("project-10");
+    expect(api.openProject).toHaveBeenCalledTimes(9);
+  });
+
+  /**
+   * A chord stays live inside a field, where a single-key shortcut stands down
+   * (`keyboard-focus-map.md:13-15`). Nothing in a text field claims `⌘digit`.
+   */
+  it("stays live while a text field has focus", async () => {
+    await openRegistry();
+
+    fireEvent.keyDown(document, { key: "f", metaKey: true });
+    const field = document.activeElement as HTMLInputElement;
+    expect(field.tagName).toBe("INPUT");
+
+    fireEvent.keyDown(field, { key: "2", metaKey: true });
+
+    expect(api.openProject).toHaveBeenCalledWith("project-02");
+  });
+
+  /**
+   * Refused where `⌘K` and `⌘F` are refused, and for the same reason: a layer
+   * belongs to the project under it, so switching beneath one would leave it
+   * standing over a board it was never opened against.
+   */
+  it("is refused under the palette", async () => {
+    await openRegistry();
+
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+    expect(document.querySelector(".command-palette")).toBeTruthy();
+
+    fireEvent.keyDown(document, { key: "5", metaKey: true });
+
+    expect(api.openProject).not.toHaveBeenCalled();
+    expect(document.querySelector(".command-palette")).toBeTruthy();
+  });
+
+  it("is refused under a menu", async () => {
+    await openRegistry();
+
+    fireEvent.click(screen.getByRole("button", { name: "Project settings" }));
+    expect(screen.getByRole("menu")).toBeTruthy();
+
+    fireEvent.keyDown(document, { key: "5", metaKey: true });
+
+    expect(api.openProject).not.toHaveBeenCalled();
+  });
+
+  it("is refused under the settings modal", async () => {
+    await openRegistry();
+
+    fireEvent.keyDown(document, { key: ",", metaKey: true });
+    expect(
+      screen.getByRole("region", { name: "Project settings" }),
+    ).toBeTruthy();
+
+    fireEvent.keyDown(document, { key: "5", metaKey: true });
+
+    expect(api.openProject).not.toHaveBeenCalled();
+  });
+
+  it("is refused under quick create", async () => {
+    await openRegistry();
+
+    fireEvent.keyDown(document, { key: "c" });
+    expect(screen.getByLabelText("Create a ticket")).toBeTruthy();
+
+    fireEvent.keyDown(document, { key: "5", metaKey: true });
+
+    expect(api.openProject).not.toHaveBeenCalled();
+  });
+
+  it("badges the first nine Local rows, and the tenth not at all", async () => {
+    await openRegistry();
+
+    expect(badges("Local")).toEqual([
+      "⌘1",
+      "⌘2",
+      "⌘3",
+      "⌘4",
+      "⌘5",
+      "⌘6",
+      "⌘7",
+      "⌘8",
+      "⌘9",
+    ]);
+  });
+
+  /**
+   * A Starred row is the same project pinned to the top, not a second one, so
+   * it shows the same key rather than none. Project 03 is third in Local and
+   * is the starred one, so `⌘3` is what has to appear in both places — the
+   * number is looked up by project rather than counted per section, which is
+   * why the Starred row cannot say `⌘1` for being first in its own list.
+   */
+  it("shows a starred project the same badge in both sections", async () => {
+    await openRegistry();
+
+    expect(badges("Starred")).toEqual(["⌘3"]);
+    expect(badges("Local")[2]).toBe("⌘3");
+
+    // The star is said in words on the row, so the Starred copy answers to
+    // that name — and it claims the same key as its Local row.
+    expect(
+      within(section("Starred"))
+        .getByRole("button", { name: "Project 03Starred" })
+        .getAttribute("aria-keyshortcuts"),
+    ).toBe("Meta+3");
+  });
+
+  /**
+   * Beside the dot, before the name (LC-230's UX round). At the row's end the
+   * badge sat behind the one element whose width is not fixed, so where it
+   * landed depended on the project's name.
+   */
+  it("draws the badge between the dot and the name", async () => {
+    await openRegistry();
+
+    const row = within(section("Local")).getByRole("button", {
+      name: "Project 01",
+    });
+    const order = [...row.children].map((child) => child.className);
+
+    expect(order[0]).toContain("theme-dot");
+    expect(order[1]).toContain("project-number");
+    expect(row.children[2].tagName).toBe("STRONG");
+  });
+
+  /**
+   * The badge is decoration and `aria-keyshortcuts` is what announces the key
+   * (`GuideCard.tsx`, LC-71). A glyph inside the row's own button leaking into
+   * its accessible name is LC-208, and the row would announce itself twice.
+   */
+  it("announces the key without putting the badge in the row's name", async () => {
+    await openRegistry();
+
+    const row = within(section("Local")).getByRole("button", {
+      name: "Project 01",
+    });
+
+    expect(row.getAttribute("aria-keyshortcuts")).toBe("Meta+1");
+    expect(
+      row.querySelector(".project-number")?.getAttribute("aria-hidden"),
+    ).toBe("true");
+    // The tenth row claims no key at all, and shows none.
+    const tenth = within(section("Local")).getByRole("button", {
+      name: "Project 10",
+    });
+    expect(tenth.hasAttribute("aria-keyshortcuts")).toBe(false);
+    expect(tenth.querySelector(".project-number")).toBeNull();
+  });
+});
+
+/**
+ * Installing the `longclaw` command (LC-233).
+ *
+ * Two questions belong at this level rather than in `CommandLineInstall.test`:
+ * whether the offer is raised at all, and whether it is raised *again*. The
+ * second is the one that costs something if it is wrong — an offer that comes
+ * back every launch is the app nagging about a shell command, and the answer to
+ * it lives in a preferences document, which is exactly what a relaunch here
+ * re-reads.
+ */
+describe("the longclaw command on PATH (LC-233)", () => {
+  const project = {
+    id: "project-fixture",
+    name: "Fixture Project",
+    rootPath: "/tmp/LongClaw Fixture",
+    key: "LC",
+    theme: "indigo",
+    starred: false,
+    reachable: true,
+    labels: {},
+    properties: NO_PROPERTIES,
+  };
+
+  const SOURCE = "/Applications/LongClaw.app/Contents/MacOS/longclaw";
+  const LINK = "/usr/local/bin/longclaw";
+  // Its own fixture rather than one shared with `CommandLineInstall.test.tsx`,
+  // which is how every suite here builds a DTO, and this is the smaller of the
+  // two contracts. What the shared thing would have to be is a *line*, and that
+  // line belongs to `macos::manual_command` — no test on this side of the IPC
+  // checks it, because the pane prints whatever Rust sends. This suite never
+  // reads it at all: `absent` and `linked` are the two states that do not show
+  // one. So it is here to be the right shape, not to be the right words.
+  const absent: CommandLineStatus = {
+    state: "absent",
+    sourcePath: SOURCE,
+    linkPath: LINK,
+    currentTarget: null,
+    manualCommand: `sudo mkdir -p '/usr/local/bin' && sudo ln -sf '${SOURCE}' '${LINK}'`,
+  };
+  const linked: CommandLineStatus = {
+    ...absent,
+    state: "linked",
+    currentTarget: SOURCE,
+  };
+
+  function offer() {
+    return screen.queryByRole("heading", {
+      name: "Install the longclaw command?",
+    });
+  }
+
+  async function openBoard() {
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project,
+      tickets: [],
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    render(<App />);
+    await screen.findByRole("button", { name: "Board", pressed: true });
+  }
+
+  /* The screen most first launches are actually standing on. An offer only the
+     board could raise would be an offer almost nobody is made. */
+  it("is offered on first launch, over the welcome screen", async () => {
+    vi.mocked(api.commandLineStatus).mockResolvedValue(absent);
+    render(<App />);
+    await screen.findByRole("heading", { name: "Plan with your agents." });
+
+    expect(await screen.findByRole("dialog")).toBeTruthy();
+    expect(offer()).toBeTruthy();
+  });
+
+  it("is not offered when the command already points at this app", async () => {
+    vi.mocked(api.commandLineStatus).mockResolvedValue(linked);
+    await openBoard();
+
+    await vi.waitFor(() =>
+      expect(vi.mocked(api.commandLineStatus)).toHaveBeenCalled(),
+    );
+    expect(offer()).toBeNull();
+  });
+
+  it("installs from the offer, and does not ask this machine again", async () => {
+    vi.mocked(api.commandLineStatus).mockResolvedValue(absent);
+    vi.mocked(api.installCommandLine).mockResolvedValue(linked);
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Install" }));
+
+    await vi.waitFor(() => expect(offer()).toBeNull());
+    // Still absent on disk as far as the next launch's *read* is concerned:
+    // what must not come back is the offer, and the reason it does not is the
+    // preference rather than the status.
+    await relaunch();
+    render(<App />);
+    await screen.findByRole("heading", { name: "Plan with your agents." });
+
+    await vi.waitFor(() =>
+      expect(vi.mocked(api.commandLineStatus).mock.calls.length).toBe(2),
+    );
+    expect(offer()).toBeNull();
+  });
+
+  it("takes Not now for an answer, and does not ask again", async () => {
+    vi.mocked(api.commandLineStatus).mockResolvedValue(absent);
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Not now" }));
+
+    expect(offer()).toBeNull();
+    expect(api.installCommandLine).not.toHaveBeenCalled();
+
+    await relaunch();
+    render(<App />);
+    await screen.findByRole("heading", { name: "Plan with your agents." });
+
+    await vi.waitFor(() =>
+      expect(vi.mocked(api.commandLineStatus).mock.calls.length).toBe(2),
+    );
+    expect(offer()).toBeNull();
+  });
+
+  /** The way back, once the offer has been answered: the gear's own menu. */
+  it("is reachable again from the settings menu", async () => {
+    vi.mocked(api.commandLineStatus).mockResolvedValue(linked);
+    await openBoard();
+    const identity = document.querySelector<HTMLElement>(".project-identity")!;
+    fireEvent.click(
+      within(identity).getByRole("button", { name: "Project settings" }),
+    );
+
+    const row = await screen.findByRole("menuitem", {
+      name: /Command line tool/,
+    });
+    expect(row.textContent).toContain("on PATH");
+    fireEvent.click(row);
+
+    const panel = screen.getByRole("region", { name: "Project settings" });
+    expect(
+      within(panel).getByText(/points at this copy of LongClaw/),
+    ).toBeTruthy();
   });
 });

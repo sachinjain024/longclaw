@@ -23,9 +23,9 @@
  * reads the order back afterwards. Each case below is one row of LC-174's
  * checklist:
  *
- *   1. drag between columns on the board, in either order;
+ *   1. drag between columns on the board, in every order;
  *   2. Manual: place a card at a chosen spot inside its column;
- *   3. drag between groups in the list, in either order;
+ *   3. drag between groups in the list, in every order;
  *   4. Manual: place a row at a chosen spot inside its group.
  *
  * A fifth case asks the same question of the ticket panel's checklist (LC-185),
@@ -49,9 +49,9 @@
  * a filter on, **clear it, and read the whole column back**: the card must be in
  * the gap it was let go in and every hidden row must be where it was left.
  *
- * The two Priority "place" cases are here as the control: ADR 0003 gives a place
- * inside a group to Manual alone, so those two must be *refused* — the pointer
- * says no rather than the row sliding back. A probe that only checked the four
+ * The Priority and Due "place" cases are here as the control: ADR 0003 gives a
+ * place inside a group to Manual alone, so those must be *refused* — the pointer
+ * says no rather than the row sliding back. A probe that only checked the cases
  * that must work would pass just as happily against a build that accepted
  * everything.
  *
@@ -179,9 +179,10 @@ const SURFACES = {
 };
 
 /**
- * LC-174's checklist, as runs. `across` is a status change and both orders have
- * it (ADR 0003 as revised for LC-60); `place` is a rank, which is Manual's
- * alone — so the two Priority `place` rows expect a refusal rather than a move.
+ * LC-174's checklist, as runs. `across` is a status change and every order has
+ * it (ADR 0003 as revised for LC-60 and LC-227); `place` is a rank, which is
+ * Manual's alone — so the Priority and Due `place` rows expect a refusal rather
+ * than a move.
  */
 const CASES = [
   {
@@ -189,6 +190,13 @@ const CASES = [
     item: "1. board: drag between columns (Priority)",
     surface: "board",
     order: "priority",
+    move: "across",
+  },
+  {
+    id: "board-across-due",
+    item: "1. board: drag between columns (Due)",
+    surface: "board",
+    order: "due",
     move: "across",
   },
   {
@@ -222,10 +230,25 @@ const CASES = [
     refused: true,
   },
   {
+    id: "board-place-due",
+    item: "control: a place inside a column is Manual's alone (Due)",
+    surface: "board",
+    order: "due",
+    move: "place",
+    refused: true,
+  },
+  {
     id: "list-across-priority",
     item: "3. list: drag between groups (Priority)",
     surface: "list",
     order: "priority",
+    move: "across",
+  },
+  {
+    id: "list-across-due",
+    item: "3. list: drag between groups (Due)",
+    surface: "list",
+    order: "due",
     move: "across",
   },
   {
@@ -247,6 +270,14 @@ const CASES = [
     item: "control: a place inside a group is Manual's alone (ADR 0003)",
     surface: "list",
     order: "priority",
+    move: "place",
+    refused: true,
+  },
+  {
+    id: "list-place-due",
+    item: "control: a place inside a group is Manual's alone (Due)",
+    surface: "list",
+    order: "due",
     move: "place",
     refused: true,
   },
@@ -359,10 +390,18 @@ const read = (page, surface) =>
         // drawing of it: both surfaces render a window of a long group, so a
         // run that needs the whole order has to be able to tell the two apart
         // rather than take the rows it can see for the column (LC-187).
-        const counted = Number(
-          group.querySelector(sel.count)?.textContent?.trim(),
-        );
-        return { title, rows, held: Number.isNaN(counted) ? null : counted };
+        //
+        // The count is read as *the digits in* the heading rather than as the
+        // whole of its text, because the two surfaces do not write it the same
+        // way: the list's `.list-group-count` is a bare `8` and the board's span
+        // has said `· 8` since LC-223 put the separator inside it. `Number()`
+        // over that is `NaN`, which this used to store as "the column would not
+        // say", and every board column saying that is indistinguishable here
+        // from a fixture that produced no case to run — which is exactly how it
+        // read for three weeks.
+        const said = group.querySelector(sel.count)?.textContent ?? "";
+        const digits = said.match(/\d+/);
+        return { title, rows, held: digits ? Number(digits[0]) : null };
       });
     },
     pick(surface, "group", "head", "count", "scroller", "pane", "row"),
@@ -649,9 +688,11 @@ async function probe(browser, row) {
       { timeout: 60_000 },
     );
     await ui.open(page);
-    if (row.order === "manual") {
+    if (row.order !== "priority") {
       await page.click('button[aria-label^="Order:"]');
-      await page.click('[role="menuitemradio"]:has-text("Manual")');
+      await page.click(
+        `[role="menuitemradio"]:has-text("${row.order === "manual" ? "Manual" : "Due"}")`,
+      );
       await page.waitForSelector(ui.row, { timeout: 30_000 });
     }
     if (SELF_TEST) await swallowDragstart(page);
@@ -895,6 +936,18 @@ async function probeFiltered(browser, row) {
 
     // The column with nothing hidden, which is what the run is judged against.
     const whole = await read(page, row.surface);
+    // A column that will not say how many rows it holds cannot be told from one
+    // the query left solid, and the second is the message this used to print for
+    // the first. `fullyDrawn` needs the number, so the run stops here and names
+    // the heading instead of describing a fixture it never got far enough to
+    // judge.
+    if (whole.every((group) => group.held === null)) {
+      throw new Error(
+        `no ${row.surface} group's heading gave a number of rows — ` +
+          `"${ui.count}" read as ` +
+          JSON.stringify(await page.textContent(ui.count).catch(() => null)),
+      );
+    }
     await setFilter(page, row.filter);
     const drawn = await read(page, row.surface);
 

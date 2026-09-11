@@ -60,7 +60,7 @@ Run these on the participant's machine, not only on the build machine:
 - [ ] the app launches without an account or network connection;
 - [ ] first launch reaches an empty board in under a minute;
 - [ ] the chosen folder gains `.longclaw/longclaw.yaml`, `.longclaw/AGENTS.md`,
-      and `.longclaw/tickets/`;
+      `.longclaw/CLAUDE.md`, `.longclaw/PROJECT.md` and `.longclaw/tickets/`;
 - [ ] steps 2–6 of [the acceptance scenario](agent-round-trip.md) pass with the
       participant's own agent tool;
 - [ ] quitting and relaunching restores the project, its star, and the

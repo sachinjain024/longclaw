@@ -2,14 +2,17 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import type {
+  CommandLineStatus,
   CreateTicketRequest,
   EditTicketRequest,
+  EstimateSystem,
   ProjectReference,
   ProjectSnapshot,
   SearchResult,
   StreamEnvelope,
   StreamFrame,
   TicketDetail,
+  TicketProperty,
   VisibleUiProbe,
   WriteResult,
 } from "./types";
@@ -153,6 +156,85 @@ export async function removeProjectLabel(request: {
   return invoke("remove_project_label", request);
 }
 
+/**
+ * Turns one of the four opt-in properties on or off (LC-227).
+ *
+ * Off hides and never deletes: every ticket keeps the value it carries, and the
+ * project keeps what it configured. The same toggle puts it back, which is the
+ * undo — and the reason this write asks nothing first.
+ */
+export async function setProjectPropertyEnabled(request: {
+  projectId: string;
+  property: TicketProperty;
+  enabled: boolean;
+}): Promise<ProjectReference> {
+  return invoke("set_project_property_enabled", request);
+}
+
+/** The width of the approaching window, in days. `0` empties that rung. */
+export async function setProjectDueWindow(request: {
+  projectId: string;
+  attentionDays: number;
+}): Promise<ProjectReference> {
+  return invoke("set_project_due_window", request);
+}
+
+/**
+ * Moves the project to another estimate system. Nothing stored is rewritten —
+ * a value written under the old one reads as unreadable until it switches back.
+ */
+export async function setProjectEstimateSystem(request: {
+  projectId: string;
+  system: EstimateSystem;
+}): Promise<ProjectReference> {
+  return invoke("set_project_estimate_system", request);
+}
+
+/** Both halves of the conversion at once, because it is one setting. */
+export async function setProjectEstimateConversion(request: {
+  projectId: string;
+  hoursPerDay: number;
+  daysPerWeek: number;
+}): Promise<ProjectReference> {
+  return invoke("set_project_estimate_conversion", request);
+}
+
+/** The t-shirt scale, whole and in order — the order is the scale. */
+export async function setProjectEstimateScale(request: {
+  projectId: string;
+  values: string[];
+}): Promise<ProjectReference> {
+  return invoke("set_project_estimate_scale", request);
+}
+
+/** Defines a type value. Tickets store the slug, so this touches no ticket. */
+export async function addProjectTypeValue(request: {
+  projectId: string;
+  slug: string;
+  name: string;
+  color?: string;
+}): Promise<ProjectReference> {
+  return invoke("add_project_type_value", request);
+}
+
+/** Renames a type value, recolours it, or both. The slug is not editable. */
+export async function updateProjectTypeValue(request: {
+  projectId: string;
+  slug: string;
+  name?: string;
+  color?: string;
+}): Promise<ProjectReference> {
+  return invoke("update_project_type_value", request);
+}
+
+/** Removes a definition. Tickets keep the slug and render it as itself. */
+export async function removeProjectTypeValue(request: {
+  projectId: string;
+  slug: string;
+}): Promise<ProjectReference> {
+  return invoke("remove_project_type_value", request);
+}
+
 export async function removeProject(projectId: string): Promise<void> {
   return invoke("remove_project", { projectId });
 }
@@ -260,4 +342,27 @@ export async function writePreferences(
 /** The current user's home directory, for tilde-abbreviating paths in the UI. */
 export async function homeDir(): Promise<string | null> {
   return invoke("home_dir");
+}
+
+/**
+ * Whether the `longclaw` command is on `PATH`, and what it points at (LC-233).
+ *
+ * Read rather than remembered: another process can change the answer — a second
+ * copy of the app, or a `sudo ln -s` run by hand — so a value cached across a
+ * session would go stale exactly when it mattered.
+ */
+export async function commandLineStatus(): Promise<CommandLineStatus> {
+  return invoke("command_line_status");
+}
+
+/**
+ * Puts `longclaw` on `PATH`, and answers with the status that follows.
+ *
+ * No path crosses the wire, the same way none does for `openTicketFile`: this
+ * surface has no filesystem capability, and Rust decides both where the link
+ * goes and what it refuses to replace. A refused write rejects with the usual
+ * tagged error; `manualCommand` on the status is the way out of it.
+ */
+export async function installCommandLine(): Promise<CommandLineStatus> {
+  return invoke("install_command_line");
 }

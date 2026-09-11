@@ -14,7 +14,8 @@ use longclaw_desktop_lib::core::storage::{
     belongs_to_project, foreign_project_diagnostic, prepare_new_ticket, NewTicket,
 };
 use longclaw_desktop_lib::core::ticket::{
-    ChecklistToggle, Priority, Status, TicketDocument, TicketEdit,
+    ChecklistToggle, NewChecklistItem, Priority, Property, Status, TicketDocument, TicketEdit,
+    TicketProperties,
 };
 use serde::{Deserialize, Deserializer};
 
@@ -66,6 +67,14 @@ struct ExpectedTicket {
     labels: Option<Vec<String>>,
     #[serde(default, deserialize_with = "nullable")]
     rank: Option<Option<String>>,
+    #[serde(default, rename = "type", deserialize_with = "nullable")]
+    ticket_type: Option<Option<String>>,
+    #[serde(default, deserialize_with = "nullable")]
+    due: Option<Option<String>>,
+    #[serde(default, deserialize_with = "nullable")]
+    start: Option<Option<String>>,
+    #[serde(default, deserialize_with = "nullable")]
+    estimate: Option<Option<String>>,
     #[serde(default)]
     created_at: Option<String>,
     #[serde(default)]
@@ -309,6 +318,21 @@ fn check_ticket(
     if let Some(rank) = &expected.rank {
         report.equal(name, "rank", &ticket.rank, rank);
     }
+    for (property, expected) in [
+        (Property::Type, &expected.ticket_type),
+        (Property::Due, &expected.due),
+        (Property::Start, &expected.start),
+        (Property::Estimate, &expected.estimate),
+    ] {
+        if let Some(expected) = expected {
+            report.equal(
+                name,
+                property.as_str(),
+                ticket.property(property).map(str::to_owned),
+                expected.clone(),
+            );
+        }
+    }
     if let Some(created_at) = &expected.created_at {
         report.equal(name, "createdAt", &ticket.created_at, created_at);
     }
@@ -494,6 +518,14 @@ fn check_edit_preserves_everything_else(
     report.equal(name, "status after edit", after.status, before.status);
     report.equal(name, "labels after edit", &after.labels, &before.labels);
     report.equal(name, "rank after edit", &after.rank, &before.rank);
+    for property in Property::ALL {
+        report.equal(
+            name,
+            &format!("{} after edit", property.as_str()),
+            after.property(property),
+            before.property(property),
+        );
+    }
     report.equal(
         name,
         "assignee after edit",
@@ -1223,6 +1255,10 @@ struct CreatedState {
     checklist: Vec<(String, bool)>,
     assignee: Option<String>,
     rank: Option<String>,
+    ticket_type: Option<String>,
+    due: Option<String>,
+    start: Option<String>,
+    estimate: Option<String>,
     archived_at: Option<String>,
     attachments: usize,
     unknown_keys: Vec<String>,
@@ -1246,6 +1282,10 @@ impl CreatedState {
                 .collect(),
             assignee: ticket.assignee.clone(),
             rank: ticket.rank.clone(),
+            ticket_type: ticket.ticket_type.clone(),
+            due: ticket.due.clone(),
+            start: ticket.start.clone(),
+            estimate: ticket.estimate.clone(),
             archived_at: ticket.archived_at.clone(),
             attachments: ticket.attachments.len(),
             unknown_keys: ticket.unknown_keys.clone(),
@@ -1266,10 +1306,11 @@ fn parse_written(bytes: &[u8], key: &str) -> TicketDocument {
 /// V0-16's must-pass: **a ticket created with every field parses identically to
 /// the same ticket assembled by edits.**
 ///
-/// The full create surface can set six things — title, status, priority, labels,
-/// description, and a checklist — and the same six can be reached one at a time
-/// through the panel. Two routes to one ticket is two chances to disagree about
-/// what a field means, so this pins that they do not.
+/// The full create surface can set seven things — title, status, priority,
+/// labels, description, a checklist, and the four opt-in properties — and the
+/// same seven can be reached one at a time through the panel. Two routes to one
+/// ticket is two chances to disagree about what a field means, so this pins that
+/// they do not.
 ///
 /// `CreatedState` is what is compared, and it deliberately leaves out the things
 /// that *cannot* match between two files written minutes apart:
@@ -1299,11 +1340,29 @@ fn a_ticket_created_with_every_field_matches_one_assembled_by_edits() {
     // Path one: the full create surface, with every field it can set.
     let everything = NewTicket {
         title: title.to_owned(),
+        properties: TicketProperties {
+            ticket_type: Some("bug".to_owned()),
+            due: Some("2026-09-28".to_owned()),
+            start: Some("2026-09-14".to_owned()),
+            estimate: Some("1.5d".to_owned()),
+        },
         description: description.to_owned(),
         status: Some(Status::InReview),
         priority: Some(Priority::P1),
         labels: labels.to_vec(),
-        checklist: checklist.to_vec(),
+        // The first row is filed already ticked (LC-242h). Both paths would
+        // agree about an all-open checklist no matter how the create rendered
+        // the box, so this is the side of the field that does not pass by
+        // accident.
+        checklist: checklist
+            .iter()
+            .cloned()
+            .enumerate()
+            .map(|(position, text)| NewChecklistItem {
+                text,
+                checked: position == 0,
+            })
+            .collect(),
     };
     let created = prepare_new_ticket(root, "LC", &everything, NOW).expect("the create should land");
     let created = parse_written(&created.bytes, &created.key);
@@ -1311,6 +1370,7 @@ fn a_ticket_created_with_every_field_matches_one_assembled_by_edits() {
     // Path two: quick create's minimum, then one edit per field.
     let minimum = NewTicket {
         title: title.to_owned(),
+        properties: TicketProperties::default(),
         description: String::new(),
         status: None,
         priority: None,
@@ -1356,12 +1416,43 @@ fn a_ticket_created_with_every_field_matches_one_assembled_by_edits() {
                 ..TicketEdit::default()
             },
         ),
+        (
+            "properties",
+            TicketEdit {
+                ticket_type: Some(Some("bug".to_owned())),
+                due: Some(Some("2026-09-28".to_owned())),
+                start: Some(Some("2026-09-14".to_owned())),
+                estimate: Some(Some("1.5d".to_owned())),
+                ..TicketEdit::default()
+            },
+        ),
     ] {
         let applied = assembled
             .apply(&edit, later)
             .unwrap_or_else(|error| panic!("the {name} edit was refused: {error}"));
         assembled = parse_written(&applied.bytes, &key);
     }
+
+    // The sixth edit, which cannot go in the table above because the id it names
+    // is minted by the fifth. It is the whole of what makes LC-242h a contract
+    // rather than an assertion: a row created ticked has to be
+    // indistinguishable from one ticked afterwards, and the only way to show
+    // that is to reach the same file down both paths.
+    let minted = assembled.ticket().checklist[0].id.clone();
+    let first_item = minted.expect("an appended row is minted an id");
+    let ticked = assembled
+        .apply(
+            &TicketEdit {
+                checklist: vec![ChecklistToggle {
+                    item_id: first_item,
+                    checked: true,
+                }],
+                ..TicketEdit::default()
+            },
+            later,
+        )
+        .unwrap_or_else(|error| panic!("the checklist toggle was refused: {error}"));
+    assembled = parse_written(&ticked.bytes, &key);
 
     let mut report = Report::default();
     let created_state = CreatedState::of(&created);
@@ -1373,6 +1464,19 @@ fn a_ticket_created_with_every_field_matches_one_assembled_by_edits() {
     report.equal("created", "priority", created_state.priority, Priority::P1);
     report.equal("created", "labels", created_state.labels.len(), 2);
     report.equal("created", "checklist", created_state.checklist.len(), 2);
+    report.equal(
+        "created",
+        "due",
+        created_state.due.as_deref(),
+        Some("2026-09-28"),
+    );
+    report.equal(
+        "created",
+        "estimate",
+        created_state.estimate.as_deref(),
+        Some("1.5d"),
+    );
+    report.equal("created", "tick", created_state.checklist[0].1, true);
     report.check("created", !created_state.description.is_empty(), || {
         "the create wrote no description".to_owned()
     });
@@ -1392,10 +1496,10 @@ fn a_ticket_created_with_every_field_matches_one_assembled_by_edits() {
     );
     report.check(
         "history",
-        created.ticket().activity.len() == 1 && assembled.ticket().activity.len() == 6,
+        created.ticket().activity.len() == 1 && assembled.ticket().activity.len() == 8,
         || {
             format!(
-                "expected one create event against a create plus five updates, got {} and {}",
+                "expected one create event against a create plus seven updates, got {} and {}",
                 created.ticket().activity.len(),
                 assembled.ticket().activity.len()
             )
@@ -1429,6 +1533,7 @@ fn nothing_but_a_manual_reordering_ever_writes_a_rank() {
             "quick create",
             NewTicket {
                 title: "A title and nothing else".to_owned(),
+                properties: TicketProperties::default(),
                 description: String::new(),
                 status: None,
                 priority: None,
@@ -1440,11 +1545,17 @@ fn nothing_but_a_manual_reordering_ever_writes_a_rank() {
             "full create",
             NewTicket {
                 title: "Every field the create surface can set".to_owned(),
+                properties: TicketProperties {
+                    ticket_type: Some("bug".to_owned()),
+                    due: Some("2026-09-28".to_owned()),
+                    start: Some("2026-09-14".to_owned()),
+                    estimate: Some("1.5d".to_owned()),
+                },
                 description: "Written in the create panel.".to_owned(),
                 status: Some(Status::InReview),
                 priority: Some(Priority::P1),
                 labels: vec!["backend".to_owned()],
-                checklist: vec!["Read the file".to_owned()],
+                checklist: vec![NewChecklistItem::open("Read the file")],
             },
         ),
     ];

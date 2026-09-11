@@ -6,7 +6,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { fieldOwnsUndo, trackFieldEdits } from "./fieldUndo";
+import { fieldCommitted, fieldOwnsUndo, trackFieldEdits } from "./fieldUndo";
 
 let stop: () => void;
 
@@ -74,6 +74,21 @@ describe("who owns ⌘Z", () => {
     field.value = "";
 
     expect(fieldOwnsUndo(field)).toBe(false);
+  });
+
+  it("takes it back when a field says it has written what it holds", () => {
+    // The date and estimate fields commit on Enter and keep the caret, so the
+    // text still in the box is the value the app was just asked to store rather
+    // than an edit waiting to be given back — and the toast that write raised
+    // is the only Undo either of them has (LC-227).
+    const field = input();
+    type(field, "28 Sep");
+    fieldCommitted();
+
+    expect(fieldOwnsUndo(field)).toBe(false);
+    // Typing again is a new edit, now over a value the file already carries.
+    type(field, "29 Sep");
+    expect(fieldOwnsUndo(field)).toBe(true);
   });
 
   it("takes it back when the caret moves to another field", () => {

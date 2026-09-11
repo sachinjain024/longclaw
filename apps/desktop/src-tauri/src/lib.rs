@@ -11,11 +11,12 @@ use std::sync::{Arc, OnceLock};
 use std::time::Instant;
 
 use app_state::AppState;
-use core::project::DEFAULT_LABEL_COLOR;
+use core::project::{EstimateSystem, DEFAULT_LABEL_COLOR};
+use core::ticket::Property;
 use core::{
-    AppResult, CreateTicketRequest, EditTicketRequest, ProjectReference, ProjectSnapshot,
-    RebuildReason, SearchResult, StreamEnvelope, StreamFrame, StreamKind, TicketDetail,
-    VisibleUiProbe, WriteResult,
+    AppError, AppResult, CreateTicketRequest, EditTicketRequest, ErrorCode, ProjectReference,
+    ProjectSnapshot, RebuildReason, SearchResult, StreamEnvelope, StreamFrame, StreamKind,
+    TicketDetail, VisibleUiProbe, WriteResult,
 };
 use preferences::PreferenceDocument;
 use serde::Deserialize;
@@ -170,6 +171,131 @@ fn remove_project_label(
     state.remove_project_label(&project_id, &slug)
 }
 
+/// Turns one of the four opt-in properties on or off.
+///
+/// Off never deletes: every ticket keeps the value it carries, and the project
+/// keeps whatever it configured. The same toggle puts it back, which is why
+/// this takes no confirmation (`ProjectSettings.tsx`).
+#[tauri::command]
+fn set_project_property_enabled(
+    project_id: String,
+    property: String,
+    enabled: bool,
+    state: State<'_, AppState>,
+) -> AppResult<ProjectReference> {
+    state.set_property_enabled(&project_id, named_property(&property)?, enabled)
+}
+
+/// The width of the approaching window, in days. `0` is legal and empties that
+/// rung.
+#[tauri::command]
+fn set_project_due_window(
+    project_id: String,
+    attention_days: u32,
+    state: State<'_, AppState>,
+) -> AppResult<ProjectReference> {
+    state.set_attention_days(&project_id, attention_days)
+}
+
+/// Moves the project to another estimate system. No stored value is rewritten:
+/// one written under the old system is legible again the moment it switches
+/// back.
+#[tauri::command]
+fn set_project_estimate_system(
+    project_id: String,
+    system: String,
+    state: State<'_, AppState>,
+) -> AppResult<ProjectReference> {
+    let system = EstimateSystem::parse(&system).ok_or_else(|| {
+        AppError::new(
+            ErrorCode::ParseFailed,
+            format!(
+                "An estimate system is one of {}; found {system:?}",
+                EstimateSystem::ALL.map(EstimateSystem::as_str).join(", ")
+            ),
+            true,
+        )
+    })?;
+    state.set_estimate_system(&project_id, system)
+}
+
+/// How long a working day and week are, which is what makes `4h` and `1d`
+/// comparable. Both at once, because they are one setting with two halves.
+#[tauri::command]
+fn set_project_estimate_conversion(
+    project_id: String,
+    hours_per_day: f64,
+    days_per_week: f64,
+    state: State<'_, AppState>,
+) -> AppResult<ProjectReference> {
+    state.set_estimate_conversion(&project_id, hours_per_day, days_per_week)
+}
+
+/// The t-shirt scale, whole and in order — the order is what says which size is
+/// the bigger.
+#[tauri::command]
+fn set_project_estimate_scale(
+    project_id: String,
+    values: Vec<String>,
+    state: State<'_, AppState>,
+) -> AppResult<ProjectReference> {
+    state.set_tshirt_scale(&project_id, &values)
+}
+
+/// Defines a type value. The label commands in every respect: tickets store the
+/// slug, so nothing here touches a ticket.
+#[tauri::command]
+fn add_project_type_value(
+    project_id: String,
+    slug: String,
+    name: String,
+    color: Option<String>,
+    state: State<'_, AppState>,
+) -> AppResult<ProjectReference> {
+    state.add_type_value(
+        &project_id,
+        &slug,
+        &name,
+        color.as_deref().unwrap_or(DEFAULT_LABEL_COLOR),
+    )
+}
+
+/// Renames a type value, recolours it, or both. The slug is not editable.
+#[tauri::command]
+fn update_project_type_value(
+    project_id: String,
+    slug: String,
+    name: Option<String>,
+    color: Option<String>,
+    state: State<'_, AppState>,
+) -> AppResult<ProjectReference> {
+    state.update_type_value(&project_id, &slug, name.as_deref(), color.as_deref())
+}
+
+/// Removes a definition. Tickets keep the slug and render it as itself.
+#[tauri::command]
+fn remove_project_type_value(
+    project_id: String,
+    slug: String,
+    state: State<'_, AppState>,
+) -> AppResult<ProjectReference> {
+    state.remove_type_value(&project_id, &slug)
+}
+
+/// The property a wire name means, refused rather than guessed at.
+fn named_property(name: &str) -> AppResult<Property> {
+    Property::parse(name).ok_or_else(|| {
+        AppError::new(
+            ErrorCode::ParseFailed,
+            format!(
+                "A property is one of {}; found {name:?}",
+                Property::ALL.map(Property::as_str).join(", ")
+            ),
+            true,
+        )
+    })
+}
+
 #[tauri::command]
 fn remove_project(project_id: String, state: State<'_, AppState>) -> AppResult<()> {
     state.remove_project(&project_id)
@@ -252,6 +378,32 @@ fn open_ticket_file(
     )
     .with_context("ticketKey", ticket_key)
     .with_context("path", path.display().to_string()))
+}
+
+/// Whether the `longclaw` command is on `PATH`, and what it points at (LC-233).
+///
+/// Reads and writes nothing. It is here rather than behind a preference because
+/// the answer is a fact about the machine that another process can change — a
+/// second copy of the app, or a `sudo ln -s` run by hand — so a remembered one
+/// would go stale the moment it mattered.
+#[tauri::command]
+fn command_line_status() -> platform::command_line::CommandLineStatus {
+    platform::command_line::status()
+}
+
+/// Puts `longclaw` on `PATH`, once the human has asked for it.
+///
+/// **The one write this app makes outside a folder the user picked**, which is
+/// why it is offered and never silent (LC-233). The webview names no path, the
+/// same way it names none to reach the editor through `open_ticket_file`: it
+/// asks for the command to be installed and Rust decides where that is and what
+/// it is allowed to replace. A refused write comes back as an error carrying
+/// the exact line to run instead — there is no escalation here and no
+/// privileged helper, because `release-audit.mjs` forbids the subprocess that
+/// would ask for one.
+#[tauri::command]
+fn install_command_line() -> AppResult<platform::command_line::CommandLineStatus> {
+    platform::command_line::install()
 }
 
 #[tauri::command]
@@ -396,12 +548,22 @@ pub fn run() {
             add_project_label,
             update_project_label,
             remove_project_label,
+            set_project_property_enabled,
+            set_project_due_window,
+            set_project_estimate_system,
+            set_project_estimate_conversion,
+            set_project_estimate_scale,
+            add_project_type_value,
+            update_project_type_value,
+            remove_project_type_value,
             remove_project,
             open_project,
             rebuild_index,
             search_tickets,
             read_ticket,
             open_ticket_file,
+            command_line_status,
+            install_command_line,
             edit_ticket,
             create_ticket,
             stream_probe,

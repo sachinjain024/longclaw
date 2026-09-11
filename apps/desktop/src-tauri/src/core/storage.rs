@@ -17,7 +17,7 @@
 use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::fs::{self, File, OpenOptions};
-use std::io::Write;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -30,10 +30,14 @@ use super::model::{
     ActivitySummary, DegradedRow, IndexedRow, TicketDetail, TicketRow, TicketWrite,
 };
 use super::project::{
-    is_project_key, is_project_name, is_theme_id, render_agent_contract, render_new_project,
-    ProjectDocument, DEFAULT_THEME, PROJECT_NAME_RULE,
+    is_project_key, is_project_name, is_theme_id, render_agent_contract, render_claude_pointer,
+    render_new_project, ProjectDocument, DEFAULT_THEME, PROJECT_INSTRUCTIONS_TEMPLATE,
+    PROJECT_NAME_RULE,
 };
-use super::ticket::{Actor, Priority, Status, Ticket, TicketDocument, TicketEdit};
+use super::ticket::{
+    validate_property, Actor, NewChecklistItem, Priority, Property, Status, Ticket, TicketDocument,
+    TicketEdit, TicketProperties,
+};
 
 const PROJECT_DIRECTORY: &str = ".longclaw";
 const PROJECT_FILE: &str = "longclaw.yaml";
@@ -41,6 +45,10 @@ const TICKETS_DIRECTORY: &str = "tickets";
 const TICKET_FILE: &str = "ticket.md";
 const ATTACHMENTS_DIRECTORY: &str = "attachments";
 const AGENT_CONTRACT_FILE: &str = "AGENTS.md";
+/// The name Claude Code looks for, holding a pointer to the contract beside it.
+const CLAUDE_POINTER_FILE: &str = "CLAUDE.md";
+/// The one generated path LongClaw writes once and never again: it is the user's.
+const PROJECT_INSTRUCTIONS_FILE: &str = "PROJECT.md";
 /// Bounds how much of a description the index keeps for search.
 const SEARCH_TEXT_LIMIT: usize = 4_096;
 /// Bounds how much of an unreadable file the raw view carries across IPC.
@@ -71,6 +79,18 @@ pub fn agent_contract_path(project_root: &Path) -> PathBuf {
         .join(AGENT_CONTRACT_FILE)
 }
 
+pub fn claude_pointer_path(project_root: &Path) -> PathBuf {
+    project_root
+        .join(PROJECT_DIRECTORY)
+        .join(CLAUDE_POINTER_FILE)
+}
+
+pub fn project_instructions_path(project_root: &Path) -> PathBuf {
+    project_root
+        .join(PROJECT_DIRECTORY)
+        .join(PROJECT_INSTRUCTIONS_FILE)
+}
+
 /// The alphabet a newly minted key's trailing character is drawn from.
 ///
 /// Lowercase only, and that is not a style choice. `fs::create_dir` is how a key
@@ -95,7 +115,7 @@ pub const KEY_SUFFIX_ALPHABET: &[u8] = b"abcdefghijkmnpqrstuvwxyz";
 /// becoming a path.
 ///
 /// Both forms, because `LC-1` … `LC-233` were minted before the suffix existed
-/// and are never renumbered to acquire one (`file_format.md:223`). A key is minted
+/// and are never renumbered to acquire one (`file_format.md:250`). A key is minted
 /// once and never reused, so the grammar is the union of what has been minted.
 ///
 /// The suffix is any lowercase letter rather than only a
@@ -304,6 +324,10 @@ impl TicketFile {
             priority: ticket.priority,
             labels: ticket.labels.clone(),
             rank: ticket.rank.clone(),
+            ticket_type: ticket.ticket_type.clone(),
+            due: ticket.due.clone(),
+            start: ticket.start.clone(),
+            estimate: ticket.estimate.clone(),
             created_at: ticket.created_at.clone(),
             updated_at: ticket.updated_at.clone(),
             archived_at: ticket.archived_at.clone(),
@@ -993,14 +1017,23 @@ fn conflict_error(file: &TicketFile, expected_hash: &str) -> AppError {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct NewTicket {
     pub title: String,
+    /// The four opt-in properties, nested rather than flat because this is a
+    /// request rather than a projection of a file: a caller says what it wants
+    /// set, and a caller that wants none of them sends nothing.
+    #[serde(default)]
+    pub properties: TicketProperties,
     #[serde(default)]
     pub description: String,
     pub status: Option<Status>,
     pub priority: Option<Priority>,
     #[serde(default)]
     pub labels: Vec<String>,
+    /// Rows, each of which may already be ticked (LC-242h). Text alone was the
+    /// shape until a ticket filed over half-finished work needed to say which
+    /// half; [`NewChecklistItem`] carries both, and `checked` defaults to false
+    /// so a caller with nothing to tick writes the same file it always did.
     #[serde(default)]
-    pub checklist: Vec<String>,
+    pub checklist: Vec<NewChecklistItem>,
 }
 
 /// Allocates the next key, creates the ticket directory, and returns the bytes to
@@ -1040,6 +1073,16 @@ pub fn prepare_new_ticket_as(
             "A title is a single line of 1 to 300 characters",
             true,
         ));
+    }
+    // Validated here rather than in the renderer, which has no error to return,
+    // and here rather than in each caller, because this is the one path a create
+    // takes (ADR 0011). Whether the project *allows* the property is the
+    // caller's question: it holds the project, and this does not.
+    let mut properties = TicketProperties::default();
+    for property in Property::ALL {
+        if let Some(value) = request.properties.get(property) {
+            properties.set(property, Some(validate_property(property, value)?));
+        }
     }
     let tickets = tickets_root(project_root);
     if !tickets.is_dir() {
@@ -1110,6 +1153,7 @@ pub fn prepare_new_ticket_as(
                     request.status.unwrap_or(Status::Todo),
                     request.priority.unwrap_or(Priority::None),
                     &request.labels,
+                    &properties,
                     &request.description,
                     &request.checklist,
                     now,
@@ -1476,7 +1520,7 @@ pub fn initialize_project(
         key,
         theme,
         now,
-        write_agent_contract,
+        write_agent_instructions,
     )
 }
 
@@ -1551,6 +1595,7 @@ fn initialize_project_with_contract_writer(
             .map_err(|error| AppError::io("Creating the project folder", &tickets, error))?;
         atomic_write("Creating the project", &project_path, rendered.as_bytes())?;
         write_contract(project_root, &document)?;
+        write_project_instructions_if_absent(project_root)?;
         Ok(())
     })();
     if let Err(error) = result {
@@ -1581,28 +1626,137 @@ fn initialize_project_with_contract_writer(
     Ok(document)
 }
 
-/// Writes the generated agent-facing contract. LongClaw owns
-/// `.longclaw/AGENTS.md` and never touches a repository-root `AGENTS.md`.
-pub fn write_agent_contract(project_root: &Path, document: &ProjectDocument) -> AppResult<()> {
+/// Writes the two generated instruction files LongClaw owns: the contract in
+/// `.longclaw/AGENTS.md` and the `CLAUDE.md` pointer beside it.
+///
+/// Both are derived from the project file, so every path that changes the
+/// project reprints them — a rename, a label, a property toggle. Neither is
+/// project data, and LongClaw never touches an `AGENTS.md` or `CLAUDE.md` at the
+/// repository root: the two it owns live inside `.longclaw/`.
+///
+/// `PROJECT.md` is deliberately not here. It belongs to the user, so it is
+/// written once at creation ([`write_project_instructions_if_absent`]) and never
+/// reprinted; a rewrite of it would take their instructions with it.
+pub fn write_agent_instructions(project_root: &Path, document: &ProjectDocument) -> AppResult<()> {
     let contract = render_agent_contract(document.project());
     atomic_write(
         "Creating the project",
         &agent_contract_path(project_root),
         contract.as_bytes(),
+    )?;
+    atomic_write(
+        "Creating the project",
+        &claude_pointer_path(project_root),
+        render_claude_pointer().as_bytes(),
     )
+}
+
+/// Creates `.longclaw/PROJECT.md` when there is not one already, and reports
+/// success when there is.
+///
+/// `create_new` rather than "check, then write": the check-then-write pair has a
+/// window in it, and the file this guards is the one file in `.longclaw/` LongClaw
+/// cannot reconstruct if it loses it.
+pub fn write_project_instructions_if_absent(project_root: &Path) -> AppResult<()> {
+    let path = project_instructions_path(project_root);
+    match fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&path)
+    {
+        Ok(mut file) => file
+            .write_all(PROJECT_INSTRUCTIONS_TEMPLATE.as_bytes())
+            .map_err(|error| AppError::io("Creating the project", &path, error)),
+        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => Ok(()),
+        Err(error) => Err(AppError::io("Creating the project", &path, error)),
+    }
+}
+
+/// Brings the generated instruction files back in step with the project file,
+/// and leaves them alone when they are already in step.
+///
+/// Every LongClaw-driven project write reprints them, so this exists for the one
+/// path that is not a LongClaw write: a person editing `longclaw.yaml` by hand.
+/// That is not an exotic case — the app watches `.longclaw/tickets/` and nothing
+/// else, so a hand-edit reaches no watcher at all, and `longclaw help` names the
+/// file as the place to enable a ticket property, which is the documented way a
+/// CLI-only project turns one on. Without this the contract goes on describing
+/// the labels and properties the project had before the edit, and a stale line
+/// reads exactly like a fresh one.
+///
+/// It also creates `PROJECT.md` when it is missing, which is how a project made
+/// by a build before that file existed gets the file `AGENTS.md` sends its
+/// reader to.
+///
+/// **Write only what differs**, and not for tidiness. Most projects commit
+/// `.longclaw/`, so a rewrite with no change in it is a diff somebody has to
+/// open to dismiss — the churn LC-66 was about, arriving through another door,
+/// and arriving on every command rather than on every project edit. It is also
+/// what makes this safe to call from inside a watch: today the watcher covers
+/// `.longclaw/tickets/` and these files are outside it, but a write that only
+/// ever happens when something changed cannot feed itself if that stops being
+/// true.
+///
+/// **Best effort.** It reports what it rewrote and swallows what it could not:
+/// a read-only checkout or a folder that has just gone away is not a reason to
+/// refuse to open a project, and the caller is on its way to doing something
+/// else. Nothing here is project data.
+pub fn reconcile_agent_instructions(
+    project_root: &Path,
+    document: &ProjectDocument,
+) -> Vec<PathBuf> {
+    let mut rewritten = Vec::new();
+    for (path, wanted) in [
+        (
+            agent_contract_path(project_root),
+            render_agent_contract(document.project()),
+        ),
+        (claude_pointer_path(project_root), render_claude_pointer()),
+    ] {
+        if fs::read_to_string(&path).is_ok_and(|current| current == wanted) {
+            continue;
+        }
+        if atomic_write(
+            "Updating the project's agent instructions",
+            &path,
+            wanted.as_bytes(),
+        )
+        .is_ok()
+        {
+            rewritten.push(path);
+        }
+    }
+    if !project_instructions_path(project_root).exists()
+        && write_project_instructions_if_absent(project_root).is_ok()
+    {
+        rewritten.push(project_instructions_path(project_root));
+    }
+    rewritten
 }
 
 fn project_initialization_paths(project_root: &Path) -> Vec<PathBuf> {
     vec![
         agent_contract_path(project_root),
+        claude_pointer_path(project_root),
+        project_instructions_path(project_root),
         project_file_path(project_root),
         tickets_root(project_root),
         project_root.join(PROJECT_DIRECTORY),
     ]
 }
 
+/// Removes what a failed creation claimed.
+///
+/// Only ever called when this attempt created `.longclaw/` itself, which is what
+/// makes removing `PROJECT.md` safe: a user's own instructions live inside that
+/// directory, so a `PROJECT.md` LongClaw did not just write cannot be here. When
+/// the directory was already there the caller skips this entirely and reports
+/// what it left behind instead, because a folder somebody else is using is not
+/// ours to tidy.
 fn cleanup_failed_project_initialization(project_root: &Path) -> Vec<PathBuf> {
     let _ = fs::remove_file(agent_contract_path(project_root));
+    let _ = fs::remove_file(claude_pointer_path(project_root));
+    let _ = fs::remove_file(project_instructions_path(project_root));
     let _ = fs::remove_file(project_file_path(project_root));
     let _ = fs::remove_dir(tickets_root(project_root));
     let _ = fs::remove_dir(project_root.join(PROJECT_DIRECTORY));
