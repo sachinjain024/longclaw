@@ -274,10 +274,25 @@ export function readCommandLinePrompted(): boolean {
   return held.commandLinePrompted === true;
 }
 
-/** Records that the command-line offer has been answered. One-way (LC-233). */
-export function rememberCommandLinePrompted() {
-  if (held.commandLinePrompted) return;
-  held = { ...held, commandLinePrompted: true };
+/**
+ * Records that the command-line offer has been answered, or takes that back.
+ *
+ * LC-233 wrote it once and gave it no way back, which made `Not now` on first
+ * launch the last word a Mac ever had on the subject: the offer never opened
+ * again and nothing on screen said the press had done anything at all. The
+ * pane's `Ask again` checkbox is the way back (LC-249a), so this goes both
+ * directions now.
+ *
+ * Clearing deletes the key rather than writing `false`, because absent is
+ * already what "has not been asked" means — a document with an explicit `false`
+ * in it would be a second spelling of one state, and `adopt` reads only `true`.
+ */
+export function rememberCommandLinePrompted(prompted = true) {
+  if (readCommandLinePrompted() === prompted) return;
+  const next = { ...held };
+  if (prompted) next.commandLinePrompted = true;
+  else delete next.commandLinePrompted;
+  held = next;
   flush();
 }
 

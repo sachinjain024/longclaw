@@ -18,7 +18,14 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 import type { ProjectReference } from "./types";
 
 export function ConfirmDialog(props: {
-  title: string;
+  /**
+   * `ReactNode` rather than a string because one caller's title is the answer
+   * rather than the question: the command-line offer swaps its own heading for
+   * a check mark and a `<code>` span once the install lands (LC-249a). The
+   * accessible name still comes off the `h2`, so what goes in here is what a
+   * screen reader reads out.
+   */
+  title: ReactNode;
   /** Why this is safe, in the caller's words: it knows what it is removing. */
   body: ReactNode;
   /**
@@ -31,8 +38,14 @@ export function ConfirmDialog(props: {
   /**
    * What the way out is called. `Cancel` is right for a confirm and wrong for a
    * dialog that has already done what it was going to do.
+   *
+   * `null` removes it, which only a dialog with nothing left to refuse may ask
+   * for: the offer after a successful install is one button reading `Done`, and
+   * a `Cancel` beside it would offer to undo something this dialog cannot undo.
+   * Focus opens on the confirm instead — the same rule, since with one button
+   * the safe answer and the only answer are the same button.
    */
-  cancelLabel?: string;
+  cancelLabel?: string | null;
   /**
    * How the confirm button reads. `danger` is the default because **Remove from
    * app** was the only caller for a while; a dialog that asks *which project* a
@@ -43,11 +56,22 @@ export function ConfirmDialog(props: {
   /** Optional for the same reason `confirmLabel` is nullable: a dialog with no
    *  confirm button has nothing to hand a handler to. */
   onConfirm?: () => void;
+  /** The confirm is pressed and its write is out. A frame rather than a stage:
+   *  nothing behind it is waiting on the person (LC-249a). */
+  confirmDisabled?: boolean;
+  /**
+   * An extra class on the dialog box. One modifier exists — `wide`, for the
+   * offer, whose body carries a terminal block that 420px breaks badly. The
+   * base width stays where it is on purpose: the delete confirmations are two
+   * sentences and widening them would be widening the wrong dialog.
+   */
+  className?: string;
   onCancel: () => void;
 }) {
   const titleId = useId();
   const dialog = useRef<HTMLDivElement>(null);
   const cancel = useRef<HTMLButtonElement>(null);
+  const confirm = useRef<HTMLButtonElement>(null);
 
   // Entry and exit in one place, and in this order deliberately: whatever raised
   // the dialog is read *before* focus moves into it, so the ref holds the opener
@@ -62,17 +86,42 @@ export function ConfirmDialog(props: {
       document.activeElement instanceof HTMLElement
         ? document.activeElement
         : undefined;
-    cancel.current?.focus();
+    // Cancel where there is one, and where there is not, the only button there
+    // is. `?.` on both rather than a branch: a dialog can have neither — one
+    // whose body holds its own action — and focusing nothing is the honest
+    // answer there, not an error.
+    (cancel.current ?? confirm.current)?.focus();
     return () => opener?.focus();
   }, []);
 
   /**
+   * A control that disables itself under the pointer takes focus with it: the
+   * browser blurs a focused element the moment it becomes disabled, and focus
+   * lands on the document body — outside the dialog, which is the one place
+   * rule 5 says it may never be. So when the confirm comes back, it is given
+   * focus back, but only if nothing inside the dialog has it: a person who
+   * tabbed to Cancel while the write was out has made a choice, and taking it
+   * off them would be worse than the thing this fixes.
+   */
+  useEffect(() => {
+    if (props.confirmDisabled) return;
+    if (dialog.current?.contains(document.activeElement)) return;
+    confirm.current?.focus();
+  }, [props.confirmDisabled]);
+
+  /**
    * Rule 5: a modal holds focus until it is dismissed. Without this, `Tab` off
    * the danger button walks straight into the screen the dialog is asking about.
+   *
+   * Disabled buttons are not stops. A disabled one is still in the document and
+   * `focus()` on it does nothing, so a ring that included it would swallow every
+   * other `Tab` while a write is out (LC-249a) — the browser's own ring skips
+   * them, and this stands in for the browser's ring.
    */
   function holdFocus(event: React.KeyboardEvent) {
     const stops = Array.from(
-      dialog.current?.querySelectorAll<HTMLElement>("button") ?? [],
+      dialog.current?.querySelectorAll<HTMLElement>("button:not(:disabled)") ??
+        [],
     );
     if (stops.length === 0) return;
     event.preventDefault();
@@ -94,7 +143,11 @@ export function ConfirmDialog(props: {
     >
       <div
         ref={dialog}
-        className="confirm-dialog"
+        className={
+          props.className
+            ? `confirm-dialog ${props.className}`
+            : "confirm-dialog"
+        }
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -112,20 +165,24 @@ export function ConfirmDialog(props: {
         <h2 id={titleId}>{props.title}</h2>
         <div className="confirm-body">{props.body}</div>
         <div className="confirm-actions">
-          <button
-            ref={cancel}
-            tabIndex={0}
-            className="secondary"
-            type="button"
-            onClick={props.onCancel}
-          >
-            {props.cancelLabel ?? "Cancel"}
-          </button>
+          {props.cancelLabel !== null && (
+            <button
+              ref={cancel}
+              tabIndex={0}
+              className="secondary"
+              type="button"
+              onClick={props.onCancel}
+            >
+              {props.cancelLabel ?? "Cancel"}
+            </button>
+          )}
           {props.confirmLabel !== null && (
             <button
+              ref={confirm}
               tabIndex={0}
               className={props.confirmTone ?? "danger"}
               type="button"
+              disabled={props.confirmDisabled}
               onClick={props.onConfirm}
             >
               {props.confirmLabel}

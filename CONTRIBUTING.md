@@ -86,11 +86,13 @@ order and stopping at the first failure:
    tile-contrast and token-source guards, the WCAG contrast check, and the
    Claude Design re-emit.
 2. **Structural guards** — tab order, fields, state panels, trust line, row
-   editor, create surface, glyph drift, design-doc citations, ticket keys, and
-   card height. Each is a `scripts/*-guard.mjs` that reads the shipping tree and
-   fails on drift from a written spec. `ticket-key-guard.mjs` is the one that
-   reads outside it: its subject is this repository's own `.longclaw/tickets/`,
-   where two branches can mint one key (LC-232).
+   editor, create surface, glyph drift, design-doc citations, ticket keys, card
+   height, and the CLI demo. Each is a `scripts/*-guard.mjs` that reads the
+   shipping tree and fails on drift from a written spec. Two read outside it:
+   `ticket-key-guard.mjs`, whose subject is this repository's own
+   `.longclaw/tickets/`, where two branches can mint one key (LC-232); and
+   `cli-demo-guard.mjs`, which reads the Rust `cli.rs` to hold the command the
+   install offer demonstrates to a verb the CLI really dispatches (LC-249a).
 3. **Release audit** — the privacy and filesystem boundary.
 4. **Formatting** — Prettier over the frontend, `cargo fmt` over the Rust.
 5. **Lint and types** — ESLint, then `tsc`.

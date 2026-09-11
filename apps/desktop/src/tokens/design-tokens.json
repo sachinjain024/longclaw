@@ -280,6 +280,16 @@
         "dark": "#060709",
         "role": "agent avatar tile — a terminal window in miniature; always near-black in both appearances, so anything painted on it must name a light ink rather than inherit one (scripts/tile-contrast-guard.mjs)"
       },
+      "tile-ink": {
+        "light": "#FFFFFF",
+        "dark": "#E9EAF2",
+        "role": "text on `tile`. The pair `tile` asks for and had no name: `inverse-ink` is the *inverse of the current appearance* and goes dark exactly where the tile stays near-black, so it reads 1.1:1 in dark (LC-249a). This one is light in both, which is the only thing a near-black-in-both surface can take."
+      },
+      "tile-ink-2": {
+        "light": "#A6AABC",
+        "dark": "#A6AABC",
+        "role": "secondary text on `tile` — command output, captions. One value for both appearances for `tile-ink`'s reason; `inverse-ink-2` is the trap in the same place."
+      },
       "inverse-surface": {
         "light": "#171923",
         "dark": "#E9EAF2",

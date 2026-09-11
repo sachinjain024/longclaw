@@ -205,7 +205,7 @@ fn install_into(source: &Path, link: &Path) -> AppResult<()> {
     /// sentence naming the folder and the way out. Every other kind is handed to
     /// `AppError::io`, which classifies by `io::ErrorKind` and names the cause:
     /// ADR 0010 keeps those apart precisely because they need different actions,
-    /// and "not allowed to write it — run it from Terminal" is bad advice for a
+    /// and "could not write it — run the line below" is bad advice for a
     /// volume with no space left on it, which `sudo` will not fix either.
     ///
     /// The line to paste rides on both, because it is the way out of a refusal
@@ -237,7 +237,7 @@ fn install_into(source: &Path, link: &Path) -> AppResult<()> {
                 error,
                 format!(
                     "{} does not exist, and creating it needs an administrator. \
-                     Run the install from Terminal instead.",
+                     The line below does the same thing.",
                     parent.display()
                 ),
                 command.clone(),
@@ -267,8 +267,8 @@ fn install_into(source: &Path, link: &Path) -> AppResult<()> {
             parent,
             error,
             format!(
-                "LongClaw is not allowed to write to {}. Run the install from \
-                 Terminal instead.",
+                "LongClaw could not write to {}. The line below does the same \
+                 thing.",
                 parent.display()
             ),
             command.clone(),
@@ -280,8 +280,8 @@ fn install_into(source: &Path, link: &Path) -> AppResult<()> {
             link,
             error,
             format!(
-                "LongClaw is not allowed to replace {}. Run the install from \
-                 Terminal instead.",
+                "LongClaw could not replace {}. The line below does the same \
+                 thing.",
                 link.display()
             ),
             command,
@@ -426,7 +426,15 @@ mod command_line_tests {
 
         fs::set_permissions(directory, fs::Permissions::from_mode(0o755)).unwrap();
         assert_eq!(error.code, crate::core::ErrorCode::PermissionDenied);
-        assert!(error.message.contains("Terminal"), "{}", error.message);
+        // The refusal hands off to the line rather than stopping at "no". It
+        // used to say "Run the install from Terminal instead"; LC-249a's copy
+        // deck points at the line the app puts directly underneath it, which is
+        // the thing the person actually has to do next.
+        assert!(
+            error.message.contains("The line below"),
+            "{}",
+            error.message
+        );
         let command = error.context.get("command").unwrap();
         assert!(command.starts_with("sudo mkdir -p "), "{command}");
         assert!(command.contains("ln -sf"), "{command}");

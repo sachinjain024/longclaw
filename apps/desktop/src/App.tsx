@@ -1940,10 +1940,34 @@ export function App() {
     <CommandLineOffer
       status={commandLine}
       onStatus={setCommandLine}
-      onDismiss={() => {
+      onDismiss={(outcome) => {
         setOfferingCommandLine(false);
         // Answered, either way. Settings is where it lives from here.
         rememberCommandLinePrompted();
+        // And the dismissal says so (LC-249a). It used to close in silence,
+        // having quietly written the preference that stops it ever opening
+        // again — the same silence a person got for succeeding. The way back
+        // rides on the toast, because a first launch is standing on the welcome
+        // screen and there is no gear menu on it yet.
+        useMutationStore.getState().raise(
+          outcome === "installed"
+            ? { message: "longclaw is on your PATH.", tone: "default" }
+            : {
+                message:
+                  "Skipped. Settings › Command line has it whenever you want it.",
+                tone: "default",
+                // Only where it leads somewhere. First launch is usually the
+                // welcome screen, which has no project and so has no settings
+                // panel to open; the sentence still says where the pane is, and
+                // an action that did nothing would be worse than none.
+                action: project
+                  ? {
+                      label: "Open settings",
+                      run: () => setSettingsSection("commandLine"),
+                    }
+                  : undefined,
+              },
+        );
       }}
     />
   );
@@ -1958,6 +1982,11 @@ export function App() {
           onOpen={chooseOpenProject}
         />
         {commandLineOffer}
+        {/* The welcome screen raises no writes, and until LC-249a it raised no
+            toasts either. It raises one now — the answer to the command-line
+            offer, which is the one thing that happens on this screen — and a
+            stack that is not mounted is a toast nobody sees. */}
+        <ToastStack />
       </main>
     );
   }
