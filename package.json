@@ -34,7 +34,7 @@
     "probe:drag": "npm --prefix apps/desktop run probe:drag --",
     "probe:checklist": "npm --prefix apps/desktop run probe:checklist --",
     "release:binary-audit": "npm --prefix apps/desktop run release:binary-audit",
-    "release:macos": "npm --prefix apps/desktop run release:macos",
+    "release:macos": "npm --prefix apps/desktop run release:macos --",
     "audit:network": "npm --prefix apps/desktop run audit:network --",
     "site:dev": "npm --prefix apps/website run dev",
     "site:build": "npm --prefix apps/website run build",

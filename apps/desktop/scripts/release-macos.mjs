@@ -75,6 +75,23 @@ const stapled = (path) =>
   spawnSync("xcrun", ["stapler", "validate", path], { encoding: "utf8" })
     .status === 0;
 
+/**
+ * Try to staple, and say whether it worked.
+ *
+ * `stapler staple` asks Apple for the ticket matching this artefact's CDHash,
+ * so a success means "Apple has already notarized exactly this code" and a
+ * failure means "it has not" — which is the question worth asking before
+ * spending fifteen minutes of the notary queue on a resubmission. Asking
+ * instead whether a staple is *currently attached* gets this wrong in the one
+ * case that matters: a rebuild re-signs the bundle and strips the staple, and
+ * if the code did not change the CDHash is identical and the old ticket still
+ * applies. That happened here, and re-uploading would have been the cost of
+ * asking the easier question.
+ */
+const tryStaple = (path) =>
+  spawnSync("xcrun", ["stapler", "staple", path], { stdio: "inherit" })
+    .status === 0;
+
 const die = (message) => {
   console.error(`release-macos: ${message}`);
   process.exit(1);
@@ -102,17 +119,24 @@ const step = (what, command, args, options = {}) => {
    twenty minutes. */
 const mounted =
   rebuild && existsSync("/Volumes")
-    ? readdirSync("/Volumes").filter((name) => name.startsWith("LongClaw"))
+    ? readdirSync("/Volumes").filter(
+        (name) => name.startsWith("LongClaw") || name.startsWith("dmg."),
+      )
     : [];
 if (mounted.length > 0) {
   die(
-    `these LongClaw volumes are mounted and will make the DMG step fail:\n  ${mounted
+    `these volumes are mounted and will make the DMG step fail (a dmg.* one is a previous run's leftover):\n  ${mounted
       .map((name) => `/Volumes/${name}`)
       .join("\n  ")}\nEject them (hdiutil detach) and run this again.`,
   );
 }
 
 if (rebuild) {
+  console.log(
+    "\n⚠ `bundle_dmg.sh` mounts the image and drives a Finder window to lay it out.\n" +
+      "  Leave it alone while it works — clicking in it, or dragging the app out of it,\n" +
+      '  fails the DMG step with nothing but "failed to run".',
+  );
   step("Building and signing", "npm", ["run", "build:app"], {
     cwd: appRoot,
     env: { ...process.env, APPLE_SIGNING_IDENTITY: identity },
@@ -133,9 +157,10 @@ const repacked = join(scratch, "repacked.dmg");
 const mountPoint = join(scratch, "mnt");
 
 try {
-  if (stapled(APP_BUNDLE)) {
+  console.log("\n▸ Asking Apple whether this exact build is already notarized");
+  if (tryStaple(APP_BUNDLE)) {
     console.log(
-      "\n▸ The app already has a ticket stapled — skipping its notarization",
+      "  it is — stapled from the existing ticket, with no resubmission",
     );
   } else {
     /* notarytool takes a zip, a DMG or a pkg — never a bare .app — and `ditto`
@@ -157,6 +182,7 @@ try {
     ]);
     step("Stapling the app", "xcrun", ["stapler", "staple", APP_BUNDLE]);
   }
+  if (!stapled(APP_BUNDLE)) die("the app still has no stapled ticket");
 
   /* `process.exit` here would skip the `finally` below and leak the scratch
      directory, so what follows is a branch rather than an early return. */
