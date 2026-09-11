@@ -276,9 +276,22 @@ try {
     `\n${findings.length === 0 ? "PASS" : `FAIL (${findings.length})`} — ${phase}`,
   );
   if (findings.length === 0) {
+    /* LC-47 predicted "no dialog at all", and that is not achievable for a
+       downloaded app: `com.apple.quarantine` earns a one-time confirmation
+       however impeccable the signature, and stripping it is the thing the
+       release notes tell people not to do. What notarization changes is which
+       dialog. The distinction is the entire release, so it is spelled out
+       rather than left to whoever runs this to judge. */
     say(
       `The last step is yours: double-click ${kept}\n` +
-        "It should simply open — no dialog at all, and in the offline phase no network.",
+        "Expect ONE dialog, and read it:\n" +
+        '  right — "is an app downloaded from the internet. Are you sure you want to open it?",\n' +
+        '          saying Apple "checked it for malicious software and none was detected",\n' +
+        "          with Cancel and a highlighted Open. Click Open; it never asks again.\n" +
+        '  wrong — "Apple could not verify…" or "is damaged and can\'t be opened", offering\n' +
+        "          Move to Bin, or sending you to System Settings → Privacy & Security.\n" +
+        "In the offline phase the malware sentence is rendered from the stapled ticket,\n" +
+        "which is the whole point: no network was consulted to produce it.",
     );
   }
 } finally {
