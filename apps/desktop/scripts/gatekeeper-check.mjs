@@ -97,6 +97,25 @@ const reachable = (host) =>
    reachable the machine is not offline, whatever the flag says. */
 const APPLE_HOSTS = ["api.apple-cloudkit.com", "ocsp.apple.com"];
 
+/**
+ * Is a notarization ticket stapled to this artefact, asked **locally**?
+ *
+ * `xcrun stapler validate` is the obvious way to ask and it is the wrong one
+ * here, because it asks Apple. The first offline run failed both staple rows
+ * on the exact DMG that had passed them online minutes earlier, and the kept
+ * copy — the same bytes, untouched — passed `stapler validate` again the
+ * moment the network came back. An offline claim cannot be evidenced by a
+ * check that needs the network: it reports a missing ticket on an artefact
+ * that has one, which would have read as a broken release and was not.
+ *
+ * `codesign -dvvv` prints `Notarization Ticket=stapled` by reading the
+ * artefact itself, for the `.app` and the DMG alike, and answers without
+ * asking anyone. `stapler` stays as a second opinion in the online phase,
+ * where it is entitled to reach out.
+ */
+const ticketStapled = (path) =>
+  /Notarization Ticket=stapled/.test(run("codesign", ["-dvvv", path]).out);
+
 const check = (label, ok, detail) => {
   say(`  ${ok ? "pass" : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
   if (!ok) findings.push(label);
@@ -172,9 +191,15 @@ try {
     dmgAssess.out.split("\n").join(" / "),
   );
   check(
-    "the DMG carries a stapled ticket",
-    run("xcrun", ["stapler", "validate", dmg]).status === 0,
+    "the DMG carries a stapled ticket, read from the file",
+    ticketStapled(dmg),
   );
+  if (phase === "online") {
+    check(
+      "stapler agrees with that, against Apple",
+      run("xcrun", ["stapler", "validate", dmg]).status === 0,
+    );
+  }
 
   const mounted = run("hdiutil", [
     "attach",
@@ -208,8 +233,14 @@ try {
   );
   check(
     "the copy carries the stapled ticket, which is what makes an offline launch possible",
-    run("xcrun", ["stapler", "validate", dragged]).status === 0,
+    ticketStapled(dragged),
   );
+  if (phase === "online") {
+    check(
+      "stapler agrees with that too, against Apple",
+      run("xcrun", ["stapler", "validate", dragged]).status === 0,
+    );
+  }
   const appAssess = run("spctl", [
     "--assess",
     "--type",
