@@ -115,10 +115,47 @@ opaque way. `release-macos.mjs` refuses to start with one mounted and names it;
 perfectly stapled artefact when the network is down. Offline, read the ticket
 locally instead: `codesign -dvvv <artefact>` prints `Notarization Ticket=stapled`.
 
+## Why the certificate is short, and what that costs
+
+It is not five years because **a leaf cannot outlive the intermediate that
+issued it**, and the one that signed this certificate is nearly done. The chain
+extracted from the signed app makes it plain — the two expiries are identical to
+the second:
+
+```
+codesign0  Developer ID Application: Sachin Jain (97864HG7U4)   notAfter=Feb  1 22:12:15 2027 GMT
+codesign1  Developer ID Certification Authority                 notAfter=Feb  1 22:12:15 2027 GMT
+codesign2  Apple Root CA                                        notAfter=Feb  9 21:40:36 2035 GMT
+```
+
+Anyone issuing a Developer ID certificate under that intermediate today gets the
+same date, whatever their enrolment. Apple offers a newer **G2 Sub-CA** when a
+certificate is created through the portal; the Xcode route does not ask, and
+this one was created through Xcode. Check which intermediate you get when
+reissuing, and check the resulting expiry rather than assuming it is five years.
+
+**Nothing already shipped is affected by the expiry.** A signature with a secure
+timestamp stays valid after its certificate expires, and the notarization ticket
+is Apple's record of the build rather than of the certificate. Users of a
+release signed before the date are unaffected, forever. What expiry blocks is
+signing something _new_ — so the deadline binds only on the next release after
+it, not on the date itself.
+
 ## Reissuing the certificate
 
 Xcode → Settings → Accounts → the team → Manage Certificates… → **+** →
 **Developer ID Application**. Export the new private key immediately —
 Keychain Access → My Certificates → the _outer_ row → Export as `.p12` — and
-back it up before signing anything with it. Then update the identity string in
-this runbook, and in whatever environment the release build reads it from.
+back it up before signing anything with it.
+
+Two things that are easy to miss. The identity _string_ does not change — it is
+still `Developer ID Application: Sachin Jain (97864HG7U4)` — so
+`APPLE_SIGNING_IDENTITY` and every script here keep working untouched. That is
+convenient and it is also the trap: with the old and new certificates both in
+the keychain, that string names two identities and `codesign` will not choose
+for you. Remove the expired one, or select by its SHA-1 hash from
+`security find-identity -v -p codesigning`.
+
+And the new certificate is a new **key pair**. The `.p12` backed up for the old
+one is worthless for it, so the export and the backup happen again, and the date
+in the table at the top of this file gets updated.
