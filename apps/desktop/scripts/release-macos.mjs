@@ -29,9 +29,21 @@
  * back up. Tauri's own window layout and background survive that; a DMG built
  * from scratch here would not have them.
  *
- * Usage: npm run release:macos
+ * **It can be run again.** Apple's notary service takes minutes, and the first
+ * submission from a new Team ID took long enough that it read as a hang and was
+ * killed — which cancels nothing, because the submission is Apple's and carries
+ * on without the local `--wait`. Starting over from the build would then re-sign
+ * the app into a different CDHash and abandon a ticket that was about to exist.
+ * So each artefact's work is skipped when `stapler` says it is already done, and
+ * `--no-build` keeps a rebuild from re-signing away a ticket already earned.
+ * Re-running after any interruption is the correct move, and costs only what is
+ * genuinely still missing.
+ *
+ * Usage: npm run release:macos [-- --no-build]
  *   APPLE_SIGNING_IDENTITY   required, e.g. "Developer ID Application: … (TEAMID)"
  *   LONGCLAW_NOTARY_PROFILE  optional, defaults to longclaw-notary
+ *   --no-build               notarize the artefacts already in target/, rather
+ *                            than building fresh ones
  *
  * Afterwards: `npm run release:binary-audit`, which fails on every state this
  * script exists to leave behind.
@@ -56,6 +68,12 @@ const DMG_DIR = join(BUNDLE_DIR, "dmg");
 
 const identity = process.env.APPLE_SIGNING_IDENTITY;
 const profile = process.env.LONGCLAW_NOTARY_PROFILE ?? "longclaw-notary";
+const rebuild = !process.argv.includes("--no-build");
+
+/** Does this artefact already carry a stapled notarization ticket? */
+const stapled = (path) =>
+  spawnSync("xcrun", ["stapler", "validate", path], { encoding: "utf8" })
+    .status === 0;
 
 const die = (message) => {
   console.error(`release-macos: ${message}`);
@@ -82,9 +100,10 @@ const step = (what, command, args, options = {}) => {
    "failed to run", which reads as a broken build and is not one. Acceptance
    testing mounts these by the handful, so say it plainly before the build eats
    twenty minutes. */
-const mounted = existsSync("/Volumes")
-  ? readdirSync("/Volumes").filter((name) => name.startsWith("LongClaw"))
-  : [];
+const mounted =
+  rebuild && existsSync("/Volumes")
+    ? readdirSync("/Volumes").filter((name) => name.startsWith("LongClaw"))
+    : [];
 if (mounted.length > 0) {
   die(
     `these LongClaw volumes are mounted and will make the DMG step fail:\n  ${mounted
@@ -93,10 +112,14 @@ if (mounted.length > 0) {
   );
 }
 
-step("Building and signing", "npm", ["run", "build:app"], {
-  cwd: appRoot,
-  env: { ...process.env, APPLE_SIGNING_IDENTITY: identity },
-});
+if (rebuild) {
+  step("Building and signing", "npm", ["run", "build:app"], {
+    cwd: appRoot,
+    env: { ...process.env, APPLE_SIGNING_IDENTITY: identity },
+  });
+} else if (!existsSync(APP_BUNDLE)) {
+  die(`--no-build, but there is no bundle at ${APP_BUNDLE} to notarize`);
+}
 
 const dmgs = readdirSync(DMG_DIR).filter((name) => name.endsWith(".dmg"));
 if (dmgs.length !== 1)
@@ -110,80 +133,94 @@ const repacked = join(scratch, "repacked.dmg");
 const mountPoint = join(scratch, "mnt");
 
 try {
-  /* notarytool takes a zip, a DMG or a pkg — never a bare .app — and `ditto`
-     is the one archiver that preserves the signature's symlinks and xattrs. */
-  step("Archiving the app for submission", "ditto", [
-    "-c",
-    "-k",
-    "--keepParent",
-    APP_BUNDLE,
-    zipped,
-  ]);
-  step("Notarizing the app (this uploads it to Apple)", "xcrun", [
-    "notarytool",
-    "submit",
-    zipped,
-    "--keychain-profile",
-    profile,
-    "--wait",
-  ]);
-  step("Stapling the app", "xcrun", ["stapler", "staple", APP_BUNDLE]);
-
-  // The app inside the DMG is a second copy and has to be stapled where it
-  // lies, which means opening the image read-write and sealing it again.
-  step("Opening the DMG read-write", "hdiutil", [
-    "convert",
-    dmg,
-    "-format",
-    "UDRW",
-    "-o",
-    readWrite,
-  ]);
-  step("Mounting it", "hdiutil", [
-    "attach",
-    readWrite,
-    "-mountpoint",
-    mountPoint,
-    "-nobrowse",
-    "-noverify",
-  ]);
-  try {
-    const inside = readdirSync(mountPoint).filter((name) =>
-      name.endsWith(".app"),
+  if (stapled(APP_BUNDLE)) {
+    console.log(
+      "\n▸ The app already has a ticket stapled — skipping its notarization",
     );
-    if (inside.length !== 1)
-      die(`expected one .app in the DMG, found ${inside.length}`);
-    step("Stapling the app inside the DMG", "xcrun", [
-      "stapler",
-      "staple",
-      join(mountPoint, inside[0]),
+  } else {
+    /* notarytool takes a zip, a DMG or a pkg — never a bare .app — and `ditto`
+       is the one archiver that preserves the signature's symlinks and xattrs. */
+    step("Archiving the app for submission", "ditto", [
+      "-c",
+      "-k",
+      "--keepParent",
+      APP_BUNDLE,
+      zipped,
     ]);
-  } finally {
-    spawnSync("hdiutil", ["detach", mountPoint], { stdio: "inherit" });
+    step("Notarizing the app (this uploads it to Apple)", "xcrun", [
+      "notarytool",
+      "submit",
+      zipped,
+      "--keychain-profile",
+      profile,
+      "--wait",
+    ]);
+    step("Stapling the app", "xcrun", ["stapler", "staple", APP_BUNDLE]);
   }
-  step("Sealing the DMG back up", "hdiutil", [
-    "convert",
-    readWrite,
-    "-format",
-    "UDZO",
-    "-o",
-    repacked,
-  ]);
 
-  /* The image's bytes changed, so its signature and any ticket it carried are
+  /* `process.exit` here would skip the `finally` below and leak the scratch
+     directory, so what follows is a branch rather than an early return. */
+  if (stapled(dmg)) {
+    console.log(
+      "\n▸ The DMG already has a ticket stapled — nothing left to do",
+    );
+  } else {
+    // The app inside the DMG is a second copy and has to be stapled where it
+    // lies, which means opening the image read-write and sealing it again.
+    step("Opening the DMG read-write", "hdiutil", [
+      "convert",
+      dmg,
+      "-format",
+      "UDRW",
+      "-o",
+      readWrite,
+    ]);
+    step("Mounting it", "hdiutil", [
+      "attach",
+      readWrite,
+      "-mountpoint",
+      mountPoint,
+      "-nobrowse",
+      "-noverify",
+    ]);
+    try {
+      const inside = readdirSync(mountPoint).filter((name) =>
+        name.endsWith(".app"),
+      );
+      if (inside.length !== 1)
+        die(`expected one .app in the DMG, found ${inside.length}`);
+      step("Stapling the app inside the DMG", "xcrun", [
+        "stapler",
+        "staple",
+        join(mountPoint, inside[0]),
+      ]);
+    } finally {
+      spawnSync("hdiutil", ["detach", mountPoint], { stdio: "inherit" });
+    }
+    step("Sealing the DMG back up", "hdiutil", [
+      "convert",
+      readWrite,
+      "-format",
+      "UDZO",
+      "-o",
+      repacked,
+    ]);
+
+    /* The image's bytes changed, so its signature and any ticket it carried are
      both stale: sign the new one, then notarize *that*. */
-  rmSync(dmg);
-  renameSync(repacked, dmg);
-  step("Signing the DMG", "codesign", ["--force", "--sign", identity, dmg]);
-  step("Notarizing the DMG (this uploads it to Apple)", "xcrun", [
-    "notarytool",
-    "submit",
-    dmg,
-    "--keychain-profile",
-    profile,
-    "--wait",
-  ]);
-  step("Stapling the DMG", "xcrun", ["stapler", "staple", dmg]);
+    rmSync(dmg);
+    renameSync(repacked, dmg);
+    step("Signing the DMG", "codesign", ["--force", "--sign", identity, dmg]);
+    step("Notarizing the DMG (this uploads it to Apple)", "xcrun", [
+      "notarytool",
+      "submit",
+      dmg,
+      "--keychain-profile",
+      profile,
+      "--wait",
+    ]);
+    step("Stapling the DMG", "xcrun", ["stapler", "staple", dmg]);
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true });
 }
