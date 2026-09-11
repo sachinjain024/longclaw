@@ -35,6 +35,7 @@
     "probe:checklist": "npm --prefix apps/desktop run probe:checklist --",
     "release:binary-audit": "npm --prefix apps/desktop run release:binary-audit",
     "release:macos": "npm --prefix apps/desktop run release:macos --",
+    "release:gatekeeper-check": "npm --prefix apps/desktop run release:gatekeeper-check --",
     "audit:network": "npm --prefix apps/desktop run audit:network --",
     "site:dev": "npm --prefix apps/website run dev",
     "site:build": "npm --prefix apps/website run build",

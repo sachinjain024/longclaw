@@ -34,6 +34,7 @@
     "release:audit": "node scripts/release-audit.mjs",
     "release:binary-audit": "node scripts/binary-audit.mjs",
     "release:macos": "node scripts/release-macos.mjs",
+    "release:gatekeeper-check": "node scripts/gatekeeper-check.mjs",
     "typecheck": "tsc --noEmit",
     "test": "npm run test:frontend && npm run test:rust",
     "tauri": "tauri",
