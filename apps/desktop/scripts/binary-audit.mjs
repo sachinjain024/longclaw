@@ -48,10 +48,20 @@
  * `tests/cli.rs` is what covers that.
  *
  * Usage: node scripts/binary-audit.mjs   (exits non-zero on any finding)
+ *        node scripts/binary-audit.mjs --self-test   (see the signing section)
  */
 
-import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -63,6 +73,11 @@ const APP_BUNDLE = join(
   "src-tauri/target/release/bundle/macos/LongClaw.app",
 );
 const MACOS_DIR = join(APP_BUNDLE, "Contents/MacOS");
+const DMG_DIR = join(appRoot, "src-tauri/target/release/bundle/dmg");
+
+/* `--self-test` asks only the signing question, so the symbol audit — two `nm`
+   reads over a 200MB binary — is skipped for it. */
+const SELF_TEST = process.argv.includes("--self-test");
 
 /**
  * Every Mach-O the bundle ships, and the controls that prove each was read.
@@ -123,7 +138,7 @@ for (const { name } of BINARIES) {
 let importedSymbols = 0;
 let linkedLibraries = 0;
 
-for (const binary of BINARIES) {
+for (const binary of SELF_TEST ? [] : BINARIES) {
   const path = join(MACOS_DIR, binary.name);
   const label = `${binary.name} (${binary.what})`;
   const symbols = run("nm", ["-a", path]);
@@ -206,8 +221,10 @@ for (const binary of BINARIES) {
    when someone adds a per-binary build step. The reference is the entry that
    declares itself the reference, rather than whichever one is written first. */
 const reference = BINARIES.find((binary) => binary.setsTheArchitecture);
-const expected = archsOf(join(MACOS_DIR, reference.name));
-for (const binary of BINARIES.filter((entry) => entry !== reference)) {
+const expected = SELF_TEST ? [] : archsOf(join(MACOS_DIR, reference.name));
+for (const binary of SELF_TEST
+  ? []
+  : BINARIES.filter((entry) => entry !== reference)) {
   const archs = archsOf(join(MACOS_DIR, binary.name));
   if (archs.join() !== expected.join()) {
     fail(
@@ -217,8 +234,7 @@ for (const binary of BINARIES.filter((entry) => entry !== reference)) {
 }
 
 /**
- * The bundle's signature, which is not a privacy question but ships with the
- * same artefact and had no check at all until it cost a release.
+ * The signature, the identity behind it, and Apple's notarization ticket.
  *
  * Every candidate through Step 17 shipped a `.app` that macOS refuses to open:
  * Tauri wrote no `signingIdentity`, so the bundle was never signed — only the
@@ -230,40 +246,279 @@ for (const binary of BINARIES.filter((entry) => entry !== reference)) {
  * opened"** with no *Open Anyway* button — so the route the release notes
  * document does not exist, and a user's only offered option is Move to Bin.
  *
- * An invalid signature and an absent one fail differently, and only the first is
- * fatal here: `spctl` rejecting an unnotarized app is expected and correct for
- * this unsigned release, and is the case that *does* offer Open Anyway.
+ * That is why the seal is checked, and it stays checked: it costs nothing and it
+ * is what caught the defect that shipped through Step 17.
  *
- * `--deep` is also what makes this cover the CLI: a Mach-O in `Contents/MacOS/`
- * is nested code, so an unsigned or altered sidecar fails the bundle's own
- * verification. That is the second reason its placement has to be right — a
- * Mach-O under `Contents/Resources/` is the classic notarization rejection
- * (LC-233).
+ * **What LC-47 changed.** This section used to tolerate `spctl` refusing the
+ * bundle, in a comment, and it was right to: an unsigned release was what
+ * shipped, a rejection was the expected answer, and the case *did* offer Open
+ * Anyway. The release now signs with a Developer ID identity and staples a
+ * notarization ticket, so a rejection is the defect rather than the baseline,
+ * and an audit that passed on the old state has to fail on it or it is not
+ * watching anything. Four questions are asked that were not:
+ *
+ * - the authority chain is a **Developer ID** one, leaf through Apple's root,
+ *   rather than ad-hoc or a development certificate;
+ * - the **Hardened Runtime** flag is set, which notarization requires. Tauri
+ *   passes `--options runtime` itself — it is set even on the ad-hoc build, so
+ *   nothing in the config asks for it and nothing in the config would say so if
+ *   that stopped being true;
+ * - **Gatekeeper accepts**, which is the user's actual first-launch question;
+ * - a notarization **ticket is stapled**, on both artefacts. This is the offline
+ *   case, and for this app it is the one that matters: without the staple a
+ *   first launch needs a round trip to Apple, which is precisely what a
+ *   local-only tool should not require of someone.
+ *
+ * **Two artefacts, and they are not asked the same questions.** The `.app` is a
+ * bundle of executable code: it seals resources, it carries the runtime flag,
+ * and Gatekeeper assesses it as `execute`. The DMG is a container — it seals
+ * nothing (`Sealed Resources=none`), its CodeDirectory flags are `0x0(none)`,
+ * and the assessment that matches what a user does with it is `open` against the
+ * primary signature. Demanding a seal or a runtime flag of the DMG would be
+ * demanding something correct signing does not produce, which is a guard that
+ * fails on a good release — the same class of mistake as tolerating a bad one.
+ *
+ * **There is no opt-out flag.** `npm run build:app` on a machine holding no
+ * certificate still produces an openable ad-hoc bundle, which is what CI builds
+ * on every PR (`.github/workflows/ci.yml`) — but CI does not run this script,
+ * and this is the *release* audit. A switch that let it pass on an unsigned
+ * artefact would be the tolerance this ticket removed, spelled differently.
  */
-if (existsSync(APP_BUNDLE)) {
-  try {
-    execFileSync("codesign", ["--verify", "--deep", "--strict", APP_BUNDLE], {
-      encoding: "utf8",
-      stdio: "pipe",
-    });
-  } catch (error) {
-    fail(
-      `the app bundle's signature does not verify, so macOS will call it damaged and offer only "Move to Bin": ${String(
-        error.stderr ?? error.message,
-      ).trim()}`,
+
+/** The three links a Developer ID chain has, and what each one being absent means. */
+const AUTHORITY_CHAIN = [
+  [
+    /^Authority=Developer ID Application: .+ \([A-Z0-9]{10}\)$/m,
+    "a Developer ID Application leaf certificate",
+  ],
+  [
+    /^Authority=Developer ID Certification Authority$/m,
+    "Apple's Developer ID intermediate",
+  ],
+  [/^Authority=Apple Root CA$/m, "the Apple root"],
+];
+
+/**
+ * `{ status, out }` for a tool that says what it means on stderr, or in its
+ * exit status, or both.
+ *
+ * `codesign -dv` writes its entire report to stderr and exits 0. `spctl` and
+ * `stapler` put the sentence on stdout and the verdict in the status —
+ * `stapler` exits 65 for a missing ticket, and both print a plausible-looking
+ * "Processing:" line on the way to failing. `execFileSync` returns stdout
+ * alone, and throws away everything when the status is non-zero, so a probe
+ * built on it reads an empty string for half of these and calls it a pass.
+ * Both streams and the status, every time.
+ */
+const probe = (command, args) => {
+  const result = spawnSync(command, args, {
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  return {
+    status: result.status ?? 1,
+    out: `${result.stdout ?? ""}${result.stderr ?? ""}`,
+  };
+};
+
+/**
+ * Every signing finding for one artefact, each tagged with the question it
+ * answers.
+ *
+ * The tags are what `--self-test` reads. A finding's prose is for a person and
+ * will be reworded; the tag is what lets the inversion assert that *this
+ * particular* check fired rather than that something, somewhere, failed —
+ * which is how a self-test passes while three of four checks are blind.
+ */
+function signingFindings({ path, label, seals, hardened, assess }) {
+  const found = [];
+  const note = (tag, message) =>
+    found.push({ tag, message: `${label}: ${message}` });
+
+  const verified = probe("codesign", ["--verify", "--deep", "--strict", path]);
+  if (verified.status !== 0) {
+    note(
+      "verify",
+      `the signature does not verify, so macOS will call it damaged and offer only "Move to Bin": ${verified.out.trim()}`,
     );
   }
-  const details = execFileSync("codesign", ["-dv", "--verbose=2", APP_BUNDLE], {
-    encoding: "utf8",
-    stdio: ["pipe", "pipe", "pipe"],
-  });
-  // The seal is the part that was missing. A linker-signed Mach-O inside an
-  // unsealed bundle verifies as neither signed nor unsigned — it verifies as
-  // broken, which is the state that produces the damaged dialog.
-  if (/Sealed Resources=none/.test(details)) {
-    fail(
-      "the app bundle seals no resources — it was never signed as a bundle, only linker-signed. Set bundle.macOS.signingIdentity in tauri.conf.json",
+
+  const details = probe("codesign", ["-dv", "--verbose=4", path]).out;
+  const adhoc = /^Signature=adhoc$/m.test(details);
+
+  if (seals && /Sealed Resources=none/.test(details)) {
+    note(
+      "seal",
+      "seals no resources — it was never signed as a bundle, only linker-signed",
     );
+  }
+
+  for (const [pattern, what] of AUTHORITY_CHAIN) {
+    if (!pattern.test(details)) {
+      note(
+        "authority",
+        `no ${what} in the authority chain — this is ${adhoc ? "an ad-hoc signature" : "not a Developer ID signature"}`,
+      );
+    }
+  }
+
+  if (!/^TeamIdentifier=[A-Z0-9]{10}$/m.test(details)) {
+    note("team", "the signature carries no Team ID");
+  }
+
+  if (hardened) {
+    const flags = details.match(
+      /^CodeDirectory .*\bflags=0x[0-9a-f]+\(([^)]*)\)/m,
+    );
+    if (!(flags?.[1] ?? "").split(",").includes("runtime")) {
+      note(
+        "runtime",
+        "the Hardened Runtime flag is not set, which notarization requires",
+      );
+    }
+  }
+
+  const assessed = probe("spctl", ["--assess", ...assess, "-vv", path]);
+  if (assessed.status !== 0) {
+    note(
+      "spctl",
+      `Gatekeeper rejects it — ${assessed.out.trim().split("\n").join(" / ")}`,
+    );
+  }
+
+  const stapled = probe("xcrun", ["stapler", "validate", path]);
+  if (stapled.status !== 0) {
+    note(
+      "staple",
+      `no notarization ticket is stapled, so a first launch needs a round trip to Apple — ${stapled.out.trim().split("\n").pop()}`,
+    );
+  }
+
+  return found;
+}
+
+/** The `.app`, and the one DMG the release ships beside it. */
+function artefacts() {
+  const dmgs = existsSync(DMG_DIR)
+    ? readdirSync(DMG_DIR).filter((name) => name.endsWith(".dmg"))
+    : [];
+  if (dmgs.length !== 1) {
+    fail(
+      dmgs.length === 0
+        ? `no DMG in ${DMG_DIR} — run npm run build:app first; the DMG is half of what is released and is notarized separately`
+        : `${dmgs.length} DMGs in ${DMG_DIR} (${dmgs.join(", ")}) — the audit cannot tell which one is the release`,
+    );
+  }
+  return [
+    {
+      path: APP_BUNDLE,
+      label: "the app bundle",
+      seals: true,
+      hardened: true,
+      assess: ["--type", "execute"],
+    },
+    ...dmgs.slice(0, 1).map((name) => ({
+      path: join(DMG_DIR, name),
+      label: `the DMG (${name})`,
+      seals: false,
+      hardened: false,
+      // What Gatekeeper is asked when a person opens a downloaded disk image,
+      // rather than when it launches an app.
+      assess: ["--type", "open", "--context", "context:primary-signature"],
+    })),
+  ];
+}
+
+/**
+ * The inversion: run the signing checks against an artefact in exactly the
+ * state this ticket removed, and fail if any of them stays green.
+ *
+ * The subject is built rather than recorded. A fixture of captured `codesign`
+ * output would pin this test to the wording of a tool that is free to change
+ * its wording, and would keep passing after the real thing stopped being
+ * readable — the failure mode the symbol-count floor exists for, one level up.
+ * So a throwaway `.app` is assembled from the CLI the bundle already ships, and
+ * signed **ad-hoc**, which is what `signingIdentity: "-"` produces and what
+ * every candidate through Step 17 shipped.
+ *
+ * It is signed rather than left bare on purpose. An unsigned directory would
+ * fail every check at once, including the two that were always here, and a
+ * green run would prove nothing about the four that LC-47 added. A correctly
+ * ad-hoc-signed bundle separates them: it verifies, it seals its resources —
+ * so `verify` and `seal` must *not* fire — and it has no Developer ID, no Team
+ * ID, no Hardened Runtime, no Gatekeeper acceptance and no stapled ticket, so
+ * the other five must. Both halves are asserted. A self-test that only checks
+ * that something failed is satisfied by a guard that is blind everywhere but
+ * one place.
+ */
+const INFO_PLIST = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleExecutable</key><string>Probe</string>
+<key>CFBundleIdentifier</key><string>io.longclaw.binary-audit.self-test</string>
+<key>CFBundleName</key><string>Probe</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+</dict></plist>
+`;
+
+const MUST_FIRE = ["authority", "team", "runtime", "spctl", "staple"];
+const MUST_NOT_FIRE = ["verify", "seal"];
+
+if (SELF_TEST) {
+  const scratch = mkdtempSync(join(tmpdir(), "binary-audit-self-test-"));
+  const bundle = join(scratch, "Probe.app");
+  try {
+    mkdirSync(join(bundle, "Contents/MacOS"), { recursive: true });
+    copyFileSync(
+      join(MACOS_DIR, "longclaw"),
+      join(bundle, "Contents/MacOS/Probe"),
+    );
+    writeFileSync(join(bundle, "Contents/Info.plist"), INFO_PLIST);
+
+    const signed = probe("codesign", ["--force", "--sign", "-", bundle]);
+    if (signed.status !== 0) {
+      console.error(
+        `binary-audit --self-test: could not ad-hoc sign the probe bundle, so the inversion never ran: ${signed.out.trim()}`,
+      );
+      process.exit(1);
+    }
+
+    const tags = new Set(
+      signingFindings({
+        path: bundle,
+        label: "the self-test bundle",
+        seals: true,
+        hardened: true,
+        assess: ["--type", "execute"],
+      }).map(({ tag }) => tag),
+    );
+
+    const blind = MUST_FIRE.filter((tag) => !tags.has(tag));
+    const overshot = MUST_NOT_FIRE.filter((tag) => tags.has(tag));
+    if (blind.length > 0 || overshot.length > 0) {
+      console.error(
+        "binary-audit --self-test: the inversion did not hold\n" +
+          (blind.length > 0
+            ? `  an ad-hoc bundle still passes: ${blind.join(", ")} — the guard is blind there\n`
+            : "") +
+          (overshot.length > 0
+            ? `  a correctly sealed bundle was faulted for: ${overshot.join(", ")} — the probe is failing for the wrong reason, so a green run proves nothing\n`
+            : ""),
+      );
+      process.exit(1);
+    }
+    console.log(
+      `binary-audit --self-test: an ad-hoc bundle is caught on ${MUST_FIRE.join(", ")}, and is not faulted for ${MUST_NOT_FIRE.join(" or ")}`,
+    );
+    process.exit(0);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
+if (existsSync(APP_BUNDLE)) {
+  for (const artefact of artefacts()) {
+    for (const { message } of signingFindings(artefact)) fail(message);
   }
 } else {
   fail(
@@ -279,5 +534,5 @@ report({
   remedy:
     "finding(s) in the shipped binaries — the v0 boundary is docs/acceptance/release-candidate.md:",
   clean:
-    "no HTTP client, telemetry, socket import, or network framework in either shipped binary, the CLI ships beside the window on the same architecture, and the bundle's signature verifies and seals its resources (controls passed; the webview is out of scope and stays a manual pass)",
+    "no HTTP client, telemetry, socket import, or network framework in either shipped binary, the CLI ships beside the window on the same architecture, and both the bundle and the DMG verify, seal what they should, carry a Developer ID chain and the Hardened Runtime flag, are accepted by Gatekeeper and have a notarization ticket stapled (controls passed; the webview is out of scope and stays a manual pass)",
 });
