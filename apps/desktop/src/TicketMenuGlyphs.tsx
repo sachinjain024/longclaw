@@ -1,5 +1,5 @@
 /**
- * The three marks a ticket's context menu wears that nothing else in the app
+ * The marks a ticket's context menu wears that nothing else in the app
  * draws yet (LC-222).
  *
  * One file named for the surface, the shape `SettingsGlyphs.tsx` established: a
@@ -12,6 +12,26 @@
  * All decorative. Every row names itself in words beside the mark, so a glyph
  * that also announced itself would say it twice (`accessibility.md`).
  */
+
+/** `Type`: three different shapes for the kinds of ticket a project defines. */
+export function TypeGlyph() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="3.5" cy="3.5" r="2" />
+      <rect x="8.5" y="1.5" width="4" height="4" rx="0.4" />
+      <path d="M7 7.5 L10 12.5 H4 Z" />
+    </svg>
+  );
+}
 
 /**
  * `Open file`, the degraded menu's row and now the only one that opens

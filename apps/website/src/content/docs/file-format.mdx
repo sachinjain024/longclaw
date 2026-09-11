@@ -39,6 +39,8 @@ labels:
   - reliability
   - backend
 rank: "a0V"
+type: bug
+due: 2026-09-28
 created_at: 2026-07-27T08:20:00Z
 updated_at: 2026-07-27T09:12:31Z
 ---
@@ -59,6 +61,12 @@ The worker currently fails permanently after a transient network error.
   shared conflict hotspot. It affects order only in **Manual** sort. In v0
   LongClaw owns rank allocation; agents preserve existing ranks and do not
   invent them.
+- `type`, `due`, `start` and `estimate` are the four optional properties. Each
+  is off unless the project's `longclaw.yaml` enables it, and a ticket carries
+  the key only when it has a value. `due` and `start` are days, `YYYY-MM-DD`,
+  with no timezone recorded; `estimate` is always a string; a malformed value
+  degrades and is never repaired in place. See
+  [ticket properties](/docs/ticket-properties).
 - Every canonical structured record declares its own versioned `format`.
 
 ## `longclaw.yaml`
@@ -80,12 +88,34 @@ labels:
   reliability:
     name: Reliability
     color: amber
+properties:
+  type:
+    enabled: true
+    values:
+      bug: { name: Bug, color: red }
+      feature: { name: Feature, color: cyan }
+  due:
+    enabled: true
+    attention_days: 7
+  estimate:
+    enabled: true
+    system: duration
+    hours_per_day: 8
+    days_per_week: 5
 ```
 
 Tickets store label *slugs*, so a label's display name or colour can change
 without rewriting every ticket that carries it. Assignees refer to stable IDs
 in `people`, and only registered people are valid assignees. Agents appear as
 explicitly typed actors in activity events but never in `people`.
+
+The `properties:` block configures the four optional ticket properties, and
+all four are off by default — a project file with no `properties:` key has
+every property disabled and needs no migration. `type.values` is a registry
+shaped exactly like `labels`; `due.attention_days` is the width of the
+approaching window; `estimate.system` is `tshirt`, `fibonacci` or `duration`.
+Disabling a property hides it without deleting: a ticket keeps its `due:`
+when the project turns Due off, and re-enabling shows every value again.
 
 ## Attachments
 

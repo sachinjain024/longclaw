@@ -7,9 +7,11 @@ import {
   useState,
 } from "react";
 import {
+  addProjectLabel,
   chooseAndRelocateProject,
   chooseOpenFolder,
   chooseProjectFolder,
+  commandLineStatus,
   createProjectInFolder,
   createTicket,
   editTicket,
@@ -29,18 +31,33 @@ import {
   updateProjectTheme,
 } from "./api";
 import { Board } from "./Board";
+import {
+  propertyCounts,
+  propertyToast,
+  startOfDay,
+  untilNextDay,
+} from "./properties";
 import { classes } from "./classes";
 import { copyToClipboard } from "./clipboard";
 import { CommandPalette } from "./CommandPalette";
+import {
+  CommandLineOffer,
+  UNREAD_COMMAND_LINE,
+  commandLineHint,
+  shouldOfferCommandLine,
+} from "./CommandLineInstall";
 import { ConfirmDialog, RemoveProjectConfirm } from "./ConfirmDialog";
 import { CreatePanel } from "./CreatePanel";
+import type { LabelDefinition } from "./LabelMenu";
 import { CreateProjectForm, type ProjectDraft } from "./CreateProjectForm";
 import { DEV_CHROME } from "./devChrome";
 import {
   readActiveProjectId,
+  readCommandLinePrompted,
   readProjectWorkspaces,
   rememberActiveProject,
   rememberAppearance,
+  rememberCommandLinePrompted,
   rememberProjectWorkspaces,
   type ProjectWorkspace,
   type ProjectWorkspacePatch,
@@ -54,14 +71,19 @@ import {
   isUnreachableFailure,
 } from "./failure";
 import { filterTickets, isFiltering } from "./filtering";
-import { FolderGlyph } from "./FolderGlyph";
 import { GearGlyph, KebabGlyph } from "./SettingsGlyphs";
 import { IssueList } from "./IssueList";
-import { isChord, singleKeyShortcutAllowed } from "./keyContext";
+import {
+  chordDigit,
+  isChord,
+  PROJECT_CHORD_COUNT,
+  singleKeyShortcutAllowed,
+} from "./keyContext";
 import { MenuButton } from "./Menu";
 import { mutate, type Mutation, useMutationStore } from "./mutations";
 import { ORDERINGS, type OrderingMode } from "./ordering";
 import { OwlMark } from "./OwlMark";
+import { splitPath, tildeAbbreviate } from "./pathDisplay";
 import { ProjectSettings } from "./ProjectSettings";
 import { QuickCreate } from "./QuickCreate";
 import type { FocusRequest } from "./rovingFocus";
@@ -81,6 +103,7 @@ import {
 } from "./tickets";
 import type {
   AppError,
+  CommandLineStatus,
   CreateTicketRequest,
   HeldConflict,
   IndexedTicket,
@@ -88,6 +111,7 @@ import type {
   TicketDraft,
   TicketEdit,
   TicketPriority,
+  TicketProperty,
   TicketStatus,
   TicketRow,
   WriteResult,
@@ -322,6 +346,18 @@ export function App() {
   /** The current user's home directory, for tilde-abbreviating paths. */
   const [homePath, setHomePath] = useState<string | null>(null);
   /**
+   * Whether `longclaw` is on `PATH`, read once at launch (LC-233).
+   *
+   * `undefined` until the answer arrives, which is what keeps the first-launch
+   * offer from flashing up before the app knows whether it is already
+   * installed — the same distinction `registryRead` draws for the welcome
+   * screen. It is re-read from what an install answers with rather than
+   * re-asked, since that answer is the fresher one.
+   */
+  const [commandLine, setCommandLine] = useState<CommandLineStatus>();
+  /** Whether the one-time offer is on screen. */
+  const [offeringCommandLine, setOfferingCommandLine] = useState(false);
+  /**
    * Whether the project registry has been read yet. The difference between "no
    * projects" and "not asked yet", which is what keeps first launch's
    * full-window welcome (D-10) from flashing over every ordinary launch.
@@ -480,7 +516,7 @@ export function App() {
    * past the window, or a panel closing over a row scrolled out of sight, focused
    * nothing and left `<body>` holding it. The surfaces answer this by moving
    * their tab stop first, which mounts the row, and taking focus after. Found by
-   * the Step 17 accessibility audit; `keyboard-focus-map.md:16-18,131,161`.
+   * the Step 17 accessibility audit; `keyboard-focus-map.md:16-18,132,197`.
    */
   const [cardFocus, setCardFocus] = useState<FocusRequest>();
   const focusCard = useCallback((key: string) => {
@@ -546,21 +582,53 @@ export function App() {
       setHeldConflict({ ticketKey, error, edit });
     };
   }
-  const localProjects = sortedProjects(projects);
-  const starredProjects = sortedProjects(
-    projects.filter((candidate) => candidate.starred),
+  // Memoized because the `⌘1`…`⌘9` handler counts this list and so takes it as
+  // a dependency (LC-230): a fresh array on every render would tear the global
+  // key listener down and rebuild it on every keystroke the app takes.
+  const localProjects = useMemo(() => sortedProjects(projects), [projects]);
+  const starredProjects = useMemo(
+    () => sortedProjects(projects.filter((candidate) => candidate.starred)),
+    [projects],
+  );
+  /**
+   * Which project each `⌘n` reaches, keyed by id rather than by position
+   * (LC-230). The number is the row's place in **Local**, which is the whole
+   * registry in draw order, and Starred is that same row pinned to the top
+   * rather than a second list — so it is looked up, not counted again, and a
+   * project shows one number wherever it is drawn.
+   *
+   * Keying by id is also what keeps the badge and the chord honest: both read
+   * this, so a row cannot advertise a key that lands somewhere else.
+   */
+  const projectChords = useMemo(
+    () =>
+      new Map(
+        localProjects
+          .slice(0, PROJECT_CHORD_COUNT)
+          .map((project, index) => [project.id, index + 1] as const),
+      ),
+    [localProjects],
   );
 
   async function loadProject(projectId: string) {
-    const knownProject = useLongClawStore
-      .getState()
-      .projects.find((project) => project.id === projectId);
+    // Both fields off one read of the store, rather than the projects from the
+    // store and the active id from whichever render's closure the caller is
+    // holding. The global key listener is the caller that made the difference
+    // matter: it is installed by an effect that does not list this function,
+    // and stayed correct only because `project` happens to track the active id
+    // for it (LC-230). An invariant that holds by coincidence is the shape the
+    // note under that dep array records going wrong once already.
+    const { projects: knownProjects, activeProjectId: activeNow } =
+      useLongClawStore.getState();
+    const knownProject = knownProjects.find(
+      (project) => project.id === projectId,
+    );
     // A ticket panel is open on a key, and a key belongs to one project. Left
     // open across a switch it re-aims at the new project and asks it for a
     // ticket that was never in it, which is the second half of LC-188. A
     // relocate and a rename both re-load the project they are already on, so
     // this is a switch and not every load.
-    if (projectId !== activeProjectId) {
+    if (projectId !== activeNow) {
       closeTicket();
       setPaletteTicketKey(undefined);
     }
@@ -608,8 +676,17 @@ export function App() {
      * here, because everything below reads this to stand down.
      */
     const menuOpen = settingsMenuOpen || projectMenu !== undefined;
-    const layerOpen =
-      selectedKey !== undefined ||
+    /**
+     * Everything standing *over* the board and holding focus. It is what `⌘F`
+     * refuses to reach past, and what `⌘1`…`⌘9` refuses to switch out from
+     * under (LC-230) — written once because two chords that must agree on the
+     * answer had it spelled out twice, which is one edit away from disagreeing.
+     *
+     * The ticket panel is deliberately not in it. The panel belongs to a
+     * project too, but it does not have to refuse the switch: `loadProject`
+     * closes it on the way through, which is the whole of LC-188.
+     */
+    const overlayOpen =
       createSurface !== undefined ||
       paletteOpen ||
       menuOpen ||
@@ -617,6 +694,7 @@ export function App() {
       // its own `Esc` closes it, and that press must not also empty the filter
       // on the board behind it.
       settingsOpen;
+    const layerOpen = selectedKey !== undefined || overlayOpen;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       if (isChord(event, "k")) {
@@ -659,7 +737,7 @@ export function App() {
       // `⌘,` is the platform's own settings chord, and both menus advertise it
       // (LC-208). It opens the panel on `General` from anywhere a layer is not
       // already up — including from inside a field, since it is a chord
-      // (`keyboard-focus-map.md:12-14`) — and closes nothing: pressing it with
+      // (`keyboard-focus-map.md:13-15`) — and closes nothing: pressing it with
       // settings already open is a no-op rather than a toggle, because the
       // panel's way out is `Esc` and a chord that also closed would fight the
       // section the human just picked.
@@ -683,19 +761,59 @@ export function App() {
       }
       if (isChord(event, "f")) {
         const field = filterField.current;
-        if (
-          !field ||
-          createSurface !== undefined ||
-          paletteOpen ||
-          menuOpen ||
-          settingsOpen
-        )
-          return;
+        if (!field || overlayOpen) return;
         event.preventDefault();
         field.focus();
         // "Selects existing query" (`keyboard-focus-map.md:31`), so the next
         // keystroke replaces it rather than appending to it.
         field.select();
+        return;
+      }
+      // `⌘1`…`⌘9` make the nth project active (`keyboard-focus-map.md:34`,
+      // LC-230). The number is the row's
+      // place in the sidebar's **Local** list, which is the whole registry in
+      // the order it is already drawn — so the chord and the badge count the
+      // same thing and cannot disagree. Starred is a second view of some of
+      // those projects rather than a second list, so a starred project carries
+      // one number and it is its Local row's.
+      //
+      // A chord, so it stays live inside a field where a single-key shortcut
+      // stands down (`keyboard-focus-map.md:13-15`) — nothing in a text field
+      // claims `⌘digit`. It is refused under `overlayOpen`, which is where `⌘F`
+      // is refused: each of those layers was opened against the board behind it
+      // and would be left standing over a different one. The ticket panel is
+      // not among them and must not be — `loadProject` closes it on the way
+      // through (LC-188), so the switch answers for it rather than refusing.
+      const projectDigit = chordDigit(event);
+      if (projectDigit !== undefined) {
+        if (overlayOpen) return;
+        // Past the ninth row there is no chord and nothing to preventDefault
+        // for: the press is unbound, not swallowed.
+        const target = localProjects[projectDigit - 1];
+        if (!target) return;
+        event.preventDefault();
+        // `loadProject`, not `setActiveProjectId` — a panel open on another
+        // project's key has to close across the switch rather than re-aim at a
+        // ticket that was never there (LC-188), and that is what this path
+        // does for a row's click.
+        void loadProject(target.id).then(() => {
+          // The switch can take focus's holder with it: the panel it closes is
+          // closed without a key, because the card to hand focus back to
+          // belongs to the project being left. A click has an anchor — focus
+          // stays on the row the pointer pressed — and this is the first
+          // keyboard-only way in, so it is the first that can leave `<body>`
+          // holding focus, which `keyboard-focus-map.md:16-18` forbids.
+          //
+          // Read after the frame React commits the new board in, and only
+          // acted on when focus was *actually* lost: a chord pressed from the
+          // sidebar leaves focus on the row it was on rather than being pulled
+          // to a board the human did not ask to be standing in.
+          requestAnimationFrame(() => {
+            const holder = document.activeElement;
+            if (holder && holder !== document.body) return;
+            focusSurface();
+          });
+        });
         return;
       }
       if (event.key !== "Escape" || layerOpen || !filtering) return;
@@ -712,6 +830,7 @@ export function App() {
     clearFilter,
     createSurface,
     filtering,
+    localProjects,
     paletteOpen,
     project,
     projectMenu,
@@ -731,7 +850,7 @@ export function App() {
     setPaletteSearchResults(undefined);
   }
 
-  /** Dismiss plus the focus return the map owes an ordinary close (`:148`). */
+  /** Dismiss plus the focus return the map owes an ordinary close (`:149`). */
   function closePalette() {
     dismissPalette();
     requestAnimationFrame(() => paletteReturnFocus.current?.focus());
@@ -794,6 +913,41 @@ export function App() {
     if (root.dataset.lcTheme && root.dataset.lcTheme !== theme) crossfade();
     root.dataset.lcTheme = theme;
   }, [project?.theme]);
+
+  /**
+   * The `longclaw` command, asked about once per launch and offered once per
+   * machine (LC-233).
+   *
+   * Its own effect rather than a third promise in the startup batch below: it
+   * decides nothing about which project opens, so making the board wait on it
+   * would be spending startup on a question about a shell. A host that answers
+   * no commands — a browser tab, the perf harness — leaves the status unread,
+   * which is the same "nothing to offer" a dev build produces.
+   */
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const status = await commandLineStatus();
+        if (!active) return;
+        setCommandLine(status);
+        if (shouldOfferCommandLine(status, readCommandLinePrompted())) {
+          setOfferingCommandLine(true);
+        } else if (status.state === "linked") {
+          // Already installed, by an earlier launch or by hand. Recording it
+          // now is what keeps a person who has never been asked from being
+          // asked later, after they move the app and the link goes stale.
+          rememberCommandLinePrompted();
+        }
+      } catch {
+        // Not a failure worth a banner: the app works exactly as well without
+        // the command, and the pane says so if anybody goes looking.
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -884,6 +1038,28 @@ export function App() {
     }, 1_000);
     return () => clearInterval(timer);
   }, [hasMarks, sweepMarks]);
+
+  /**
+   * Midnight, which nothing else can deliver (LC-227).
+   *
+   * A due date's rung is read against the reader's own day, and no write makes
+   * that day change: the watcher reports files, and midnight is not a file. The
+   * acknowledgement clock above cannot stand in for it either — it runs only
+   * while a mark is unreviewed, so a board left open overnight with nothing
+   * acknowledged would still be drawing yesterday's rungs in the morning.
+   *
+   * One timeout rather than a poll, and re-armed by the day it is waiting for,
+   * so this effect runs once a day rather than once a second. The extra second
+   * keeps it from firing a hair early and reading the same day again.
+   */
+  const today = startOfDay(now).getTime();
+  useEffect(() => {
+    const timer = setTimeout(
+      () => setNow(Date.now()),
+      untilNextDay(Date.now()),
+    );
+    return () => clearTimeout(timer);
+  }, [today]);
 
   // A lost event cannot be caught up incrementally, so the store stops applying
   // events and says so; the snapshot is fetched here, because asking Rust for the
@@ -1117,6 +1293,15 @@ export function App() {
     onWritten: (result: T) => void;
     /** The inverse, where there is a one-field one. `⌘Z` runs it. */
     undo?: () => void;
+    /**
+     * Where a refusal is drawn. The default is `ErrorBanner`, at board level —
+     * which is **under the modal scrim**, since `--lc-z-modal` is 4. A write
+     * raised from a create surface has to ask for the danger toast instead
+     * (`--lc-z-toast` is 5), or the reason it was refused is painted behind the
+     * thing that asked for it and the surface looks like it did nothing
+     * (LC-236e).
+     */
+    refusal?: "banner" | "toast";
     /** Runs before the write, and again with `false` if it is refused. */
     optimistic?: (applied: boolean) => void;
   }) {
@@ -1131,9 +1316,46 @@ export function App() {
     } catch (error) {
       options.optimistic?.(false);
       endWrite();
-      setError(normalizeError(error));
+      const refused = normalizeError(error);
+      if (options.refusal === "toast") {
+        raise({ message: refused.message, tone: "danger" });
+      } else {
+        setError(refused);
+      }
       return false;
     }
+  }
+
+  /**
+   * Defines a label from inside a create surface (LC-236e) and says whether it
+   * landed, so the row can tick it onto the draft or keep what was typed.
+   *
+   * It is a **project write that lands immediately**: the definition outlives an
+   * abandoned draft, and someone who defines `infra` and then closes quick
+   * create without creating a ticket has still changed `longclaw.yaml`. The
+   * alternative — holding it until the ticket is created — makes the ticket
+   * write conditional on a second write, and puts a chip on screen for a label
+   * that does not exist yet.
+   *
+   * No `undo` on the toast, and that is a decision rather than an omission: the
+   * inverse is two things — remove the definition *and* untick the draft — and
+   * this Undo is for one field with one inverse.
+   */
+  async function defineLabel(definition: LabelDefinition) {
+    if (!activeProjectId) return false;
+    return writeProjectFile({
+      message: `Added the ${definition.slug} label`,
+      write: () =>
+        addProjectLabel({
+          projectId: activeProjectId,
+          slug: definition.slug,
+          name: definition.name,
+          color: definition.color,
+        }),
+      onWritten: upsertProject,
+      // Both create surfaces sit over the scrim; the banner would be behind it.
+      refusal: "toast",
+    });
   }
 
   async function toggleStar(project: ProjectReference) {
@@ -1509,6 +1731,38 @@ export function App() {
     );
   }
 
+  /**
+   * One of the four opt-in properties set from a card's context menu (LC-227),
+   * or cleared — `undefined` here, `null` on the wire, which is the distinction
+   * between an edit that omits a field and one that empties it.
+   *
+   * The panel writes the same four through `save()`; a card on a surface is
+   * outside that seam, so this goes to `mutate()` directly, exactly as the
+   * `P` menu's pick does. Both sentences come from `propertyToast`, so the two
+   * paths cannot come to describe one write differently.
+   */
+  function changeProperty(
+    ticket: IndexedTicket,
+    property: TicketProperty,
+    next: string | undefined,
+  ) {
+    const projectId = activeProjectId;
+    const previous = ticket[property];
+    if (!projectId || next === previous) return;
+
+    void mutate(
+      editMutation({
+        projectId,
+        ticket,
+        optimistic: { [property]: next },
+        edit: { [property]: next ?? null },
+        inverse: { [property]: previous ?? null },
+        toast: propertyToast(ticket.key, property, next),
+        inverseToast: propertyToast(ticket.key, property, previous),
+      }),
+    );
+  }
+
   function changeStatus(ticket: IndexedTicket, next: TicketStatus) {
     const projectId = activeProjectId;
     if (!projectId || next === ticket.status) return;
@@ -1678,6 +1932,22 @@ export function App() {
      registry read that *failed* is not an empty registry, so it keeps the
      shell — that is the one surface that can show the error and still offer
      `Create project` and `Open folder`. */
+  /* The one-time offer of the `longclaw` command (LC-233), on both shells.
+     First launch is the launch most likely to be standing on the welcome
+     screen, and first launch is the one this exists for — so an offer that
+     only the board could raise would be an offer almost nobody is made. */
+  const commandLineOffer = offeringCommandLine && commandLine && (
+    <CommandLineOffer
+      status={commandLine}
+      onStatus={setCommandLine}
+      onDismiss={() => {
+        setOfferingCommandLine(false);
+        // Answered, either way. Settings is where it lives from here.
+        rememberCommandLinePrompted();
+      }}
+    />
+  );
+
   if (registryRead && projects.length === 0) {
     return (
       <main className="welcome-shell">
@@ -1687,58 +1957,189 @@ export function App() {
           onCreate={(rootPath, draft) => void createProjectIn(rootPath, draft)}
           onOpen={chooseOpenProject}
         />
+        {commandLineOffer}
       </main>
     );
   }
 
   return (
     <main className="app-shell">
-      <aside className="side-panel">
-        <div className="brand-lockup">
-          <OwlMark size={22} />
-          <strong>LongClaw</strong>
-        </div>
+      <aside className={classes("side-panel", quickCreateOpen && "creating")}>
+        {/* What the lockup used to be, answering a better question. The window's
+            own title bar says LongClaw — `tauri.conf.json` sets the title and no
+            `titleBarStyle`, so macOS draws the name above this panel whether or
+            not the panel repeats it — and nothing up here said which project you
+            were in. This does, with the path, the disk and the gear that only it
+            has (`screen-specs.md` § Project identity, LC-239w).
 
-        {/* Above the sections, under the lockup: the sidebar is the surface
-            that lists projects, so "add one" belongs on it, and `.project-nav`
-            has no `overflow-y` — at the foot these scroll out of reach once the
-            list is long enough. Founder decision, 2026-08-06; the spec was
-            amended to match (`screen-specs.md` § App shell, LC-73).
+            The owl is not deleted: `Welcome` still draws it at 52px. */}
+        {project && (
+          <header className="project-identity">
+            <div className="identity-row">
+              {/* The project's first letter, square. A circle is this design
+                  language's shape for *people* — humans are circle avatars in
+                  the timeline and the composer — and a project is not one. It
+                  is decorative: the name it abbreviates is the next thing in
+                  the row. Unreachable takes the row's warn triangle instead
+                  (`screen-specs.md:60`), said in words below because a glyph is
+                  never the only channel. */}
+              <span
+                className={classes(
+                  "project-tile",
+                  !project.reachable && "unreachable",
+                )}
+                aria-hidden="true"
+              >
+                {project.reachable ? projectInitial(project.name) : "⚠"}
+              </span>
+              {!project.reachable && (
+                <span className="visually-hidden">Unreachable</span>
+              )}
+              <div className="identity-text">
+                {/* The gear is *in* the name's row, so the width it takes comes
+                    out of the name — which ellipsizes and can spare it — and
+                    none of it out of the path below, which gets the column
+                    whole. It rode above the row, out of flow, until the real
+                    app showed what that cost: the path had to be held 30px
+                    clear of a control that was not on its line. Still outside
+                    the `project.reachable` guard, because settings holds
+                    `Locate…`, the way back (LC-239w, keeping LC-223's rule). */}
+                <div className="identity-name">
+                  <h1>{project.name}</h1>
+                  {/* `aria-haspopup="menu"` and a real `aria-expanded`: what
+                      the gear opens is a menu now (LC-208), which is a region
+                      that stays part of the page under its trigger — the very
+                      thing LC-125 removed the expanded state for when this
+                      opened a dialog instead. The menu is what opens the
+                      dialog.
 
-            The hierarchy is the point, and it is what makes this not the two
-            filled buttons D-0B flagged: `New ticket` is the app's primary and
-            keeps the only filled accent on screen, so create is `secondary` and
-            open is the quiet `ghost` beneath it (`components.md:49-53`). */}
-        <section className="project-actions">
-          <button
-            tabIndex={0}
-            className="secondary"
-            onClick={() =>
-              quickCreateOpen ? closeQuickCreate() : setQuickCreateOpen(true)
+                      No `small`. That class is a 24px labelled control with 9px
+                      of side padding, and this is a 26px square with none: while
+                      the gear lived in the content header the rule that says so
+                      out-specified it two classes to one, and unscoping the rule
+                      for the move left the two tied — so `.small`'s padding won
+                      on source order and squeezed the 14px glyph to 6px. It
+                      shipped, and it read as a dot. The class it never wanted is
+                      gone and the rule is scoped to this row. */}
+                  <button
+                    tabIndex={0}
+                    ref={settingsButton}
+                    className={classes(
+                      "ghost settings-button",
+                      settingsMenuOpen && "open",
+                    )}
+                    aria-label="Project settings"
+                    aria-haspopup="menu"
+                    aria-expanded={settingsMenuOpen}
+                    title="Project settings"
+                    onClick={() => setSettingsMenuOpen(!settingsMenuOpen)}
+                  >
+                    <GearGlyph />
+                  </button>
+                </div>
+                <PathChip path={project.rootPath} homePath={homePath} />
+              </div>
+            </div>
+            {/* One disk-state line, riding with the path where
+                `screen-specs.md` § Project identity puts it — and only while a
+                write is in flight. The settled `✓ ticket.md` this used to end on
+                is gone: under a path chip it read as a second, quieter path
+                rather than as news, and it sat there for as long after every
+                write as `SETTLED_MS` lasts. D-07's argument, one state further
+                on — the `● watching` chip went because it said the same thing at
+                every idle moment.
+
+                The slot is reserved whether or not there is anything in it —
+                `.identity-disk` in `styles.css` carries the reason and the
+                arithmetic. `reading` is the one word here D-07 did not ask for:
+                the design answers a load with a board skeleton
+                (`states.md:45-52`) that is not built, so until LC-159 builds it
+                this line is the only thing that says a read is in flight. */}
+            <div className="identity-disk">
+              {project.reachable && (
+                <WriteIndicator
+                  reports="in-flight"
+                  busy={
+                    reconciling
+                      ? "reconciling"
+                      : loading
+                        ? "reading"
+                        : undefined
+                  }
+                />
+              )}
+            </div>
+          </header>
+        )}
+        {settingsMenuOpen && project && (
+          <SettingsMenu
+            project={project}
+            themes={THEMES}
+            appearance={appearance}
+            anchor={settingsButton.current}
+            onAppearance={setAppearance}
+            onTheme={(theme) => void changeTheme(project, theme)}
+            onOpenSection={(section) => {
+              closeTicket();
+              setSettingsSection(section);
+            }}
+            // The board's own re-read (ADR 0006), which the menu is the
+            // first surface to offer by hand: the watcher is what
+            // normally keeps this current, and this is the way back
+            // when a person has reason to doubt it.
+            onReload={() => {
+              void reconcileProject(project.id)
+                .then(applySnapshot)
+                .catch((error) => setError(normalizeError(error)));
+            }}
+            commandLineHint={commandLineHint(commandLine)}
+            onClose={() => setSettingsMenuOpen(false)}
+          />
+        )}
+
+        <nav className="project-nav" aria-label="Projects">
+          <ProjectSection
+            title="Starred"
+            empty="No starred projects"
+            chords={projectChords}
+            projects={starredProjects}
+            activeProjectId={activeProjectId}
+            onOpen={(id) => void loadProject(id)}
+            menuFor={projectMenu?.projectId}
+            onMenu={(project, anchor) =>
+              setProjectMenu({ projectId: project.id, anchor })
             }
-          >
-            Create project
-          </button>
-          <button
-            tabIndex={0}
-            className="ghost"
-            onClick={() =>
-              void chooseOpenProject().then((folder) => {
-                // A plain folder is an offer to create one there rather than a
-                // refusal (LC-170). The form below is this surface's create
-                // step, so the fall-through lands in it with the folder already
-                // answered — the same two screens the welcome column runs, in
-                // the space the sidebar has.
-                if (folder) {
-                  setQuickCreateFolder(folder);
-                  setQuickCreateOpen(true);
-                }
-              })
+            onCloseMenu={() => setProjectMenu(undefined)}
+          />
+          <ProjectSection
+            title="Local"
+            empty="No local projects"
+            chords={projectChords}
+            projects={localProjects}
+            activeProjectId={activeProjectId}
+            onOpen={(id) => void loadProject(id)}
+            menuFor={projectMenu?.projectId}
+            onMenu={(project, anchor) =>
+              setProjectMenu({ projectId: project.id, anchor })
             }
-          >
-            Open folder
-          </button>
-          {quickCreateOpen && (
+            onCloseMenu={() => setProjectMenu(undefined)}
+          />
+        </nav>
+
+        {/* The form is the panel's body while it is open, not a thing hanging
+            off the pair — which is what the measurement forced. It is ~520px
+            tall and the panel has 560px of content at the window's 620px
+            `minHeight`, so under the pair it does not fit: a cap put the submit
+            button below the fold of a nested scroller, and pinning the footer
+            instead collapsed the list and still hung the button past the
+            panel's bottom edge (LC-239w, prototype rounds 2–3).
+
+            So the list goes while it is up — nothing about choosing a name
+            needs the list of projects you are not in — and so does the pair,
+            which also settles a `Create project` that was otherwise on screen
+            twice: the form's filled submit, and the quieter toggle under it. */}
+        {quickCreateOpen && (
+          <div className="create-region">
             <CreateProjectForm
               // Remounted when the folder changes: the form reads it once, to
               // prefill the name and the key and to take the caret.
@@ -1758,44 +2159,66 @@ export function App() {
                   ? void createProject(draft)
                   : void createProjectIn(quickCreateFolder, draft)
               }
+              // The way out, now that the toggle that opened it is hidden. The
+              // form already renders this slot; the sidebar is the first caller
+              // to hand it one.
+              backLabel="Cancel"
+              onBack={closeQuickCreate}
             />
-          )}
-        </section>
+          </div>
+        )}
 
-        <nav className="project-nav" aria-label="Projects">
-          <ProjectSection
-            title="Starred"
-            empty="No starred projects"
-            projects={starredProjects}
-            activeProjectId={activeProjectId}
-            onOpen={(id) => void loadProject(id)}
-            menuFor={projectMenu?.projectId}
-            onMenu={(project, anchor) =>
-              setProjectMenu({ projectId: project.id, anchor })
-            }
-            onCloseMenu={() => setProjectMenu(undefined)}
-          />
-          <ProjectSection
-            title="Local"
-            empty="No local projects"
-            projects={localProjects}
-            activeProjectId={activeProjectId}
-            onOpen={(id) => void loadProject(id)}
-            menuFor={projectMenu?.projectId}
-            onMenu={(project, anchor) =>
-              setProjectMenu({ projectId: project.id, anchor })
-            }
-            onCloseMenu={() => setProjectMenu(undefined)}
-          />
-        </nav>
+        {/* Pinned to the panel's foot, over a list that scrolls under it. LC-73
+            moved this pair *up* because `.project-nav` had no `overflow-y`, so
+            at the foot of a long list it left the window; the nav scrolls now,
+            and `margin-top: auto` is a pin rather than a position in the flow,
+            so at 25 projects the pair is exactly where it is at 5 (LC-239w).
 
+            The hierarchy is unchanged and is still the point: `New ticket` is
+            the app's primary and keeps the only filled accent on screen, so
+            create is `secondary` and open is the quiet `ghost` beneath it
+            (`components.md:49-53`).
+
+            Appearance is an app preference, not project data, and the spec puts
+            its 3-up segment in project settings (`screen-specs.md:331`), not
+            here — the native `<select>` that used to sit above this line was the
+            only OS chrome left in the sidebar (LC-72). Until the settings modal
+            carries the segment (LC-127), the palette's `Toggle appearance`
+            command is the control. */}
         <div className="side-panel-footer">
-          {/* Appearance is an app preference, not project data, and the spec
-              puts its 3-up segment in project settings (`screen-specs.md:331`),
-              not here — the native `<select>` that used to sit above this line
-              was the only OS chrome left in the sidebar (LC-72). Until the
-              settings modal carries the segment (LC-127), the palette's
-              `Toggle appearance` command is the control. */}
+          <section className="project-actions">
+            {/* Open, not toggle. This was a toggle while the form rendered
+                under it; the form is the panel's body now and this pair is
+                `display: none` for as long as it is up, so the closing arm was
+                a branch nothing could reach. The way out is the form's own
+                `Cancel`. */}
+            <button
+              tabIndex={0}
+              className="secondary"
+              onClick={() => setQuickCreateOpen(true)}
+            >
+              Create project
+            </button>
+            <button
+              tabIndex={0}
+              className="ghost"
+              onClick={() =>
+                void chooseOpenProject().then((folder) => {
+                  // A plain folder is an offer to create one there rather than
+                  // a refusal (LC-170). The form above is this surface's create
+                  // step, so the fall-through lands in it with the folder
+                  // already answered — the same two screens the welcome column
+                  // runs, in the space the sidebar has.
+                  if (folder) {
+                    setQuickCreateFolder(folder);
+                    setQuickCreateOpen(true);
+                  }
+                })
+              }
+            >
+              Open folder
+            </button>
+          </section>
         </div>
       </aside>
 
@@ -1825,59 +2248,34 @@ export function App() {
           )
         ) : (
           <>
-            {/* One row, not three (`screen-specs.md:64-69`): the project's
-                identity on the left, every board control on the right. The
-                `LOCAL PROJECT` eyebrow and the `Board`/`List` heading that used
-                to stand above this are gone — the sidebar already says which
-                project you are in, and the view segment's pressed state already
-                says which surface you are standing on. Between them they cost
-                ~230px of chrome before the first card. */}
-            <header className="content-header">
-              {/* Two units, not five (LC-149). Everything that says *which
-                  project this is* is one box and every control is the other, so
-                  the only place the header can break is between them — which is
-                  the wrap `screen-specs.md` § Content header allows. Ungrouped,
-                  the disk-state
-                  line was a fourth item on this side that arrived when a write
-                  left and took a line of its own below 830px, putting a third
-                  row under a header the spec draws as one. */}
-              <div className="header-identity">
-                {/* The prototype's title stack: the name over its path, the
-                    gear beside the stack (LC-223, item 20). */}
-                <div className="title-stack">
-                  <h1>{project.name}</h1>
-                  <div className="path-line">
-                    <PathChip path={project.rootPath} homePath={homePath} />
-                    {/* One disk-state line, beside the path chip and before the
-                    spacer, where `screen-specs.md:44-53` puts it — and silent
-                    when the disk is quiet (D-07). The `● watching` chip this
-                    replaces said the same thing at every idle moment, which
-                    is a dev trace rather than designed chrome. `reading` is
-                    the one word here D-07 did not ask for: the design answers
-                    a load with a board skeleton (`states.md:45-52`) that is
-                    not built, so until LC-159 builds it this line is the only
-                    thing that says a read is in flight. */}
-                    {project.reachable && (
-                      <WriteIndicator
-                        busy={
-                          reconciling
-                            ? "reconciling"
-                            : loading
-                              ? "reading"
-                              : undefined
-                        }
-                      />
-                    )}
-                  </div>
-                </div>
-              </div>
-              {/* The controls belong to the board, so they appear only when
-                  there is one: an unreachable project keeps its identity row and
-                  gets `UnreachableProject` below it instead. */}
-              {project.reachable && (
+            {/* Controls, and nothing else (`screen-specs.md` § Content header,
+                LC-239w). Everything that says *which project this is* moved to
+                the side panel, which is where the question was already being
+                asked and answered by the list.
+
+                That makes LC-149's rule stronger rather than weaker. The row is
+                one flex child now, so it has no seam to break at: it cannot wrap
+                between halves, because there is no second half, and it cannot
+                wrap inside the cluster, because `.toolbar-actions` is `nowrap`.
+                What is left to defend is the overflow, and that is what the
+                filter field's floor is for. The measured consequence is that the
+                header is one row at 760px — the window's own `minWidth` — where
+                it used to be two.
+
+                The header belongs to the board, so it renders only when there is
+                one: an unreachable project has no controls, and an empty 62px
+                band with a hairline under it is a rule drawn across the top of
+                the centred panel that state *is* (`states.md:80-98`). */}
+            {project.reachable && (
+              <header className="content-header">
                 <div className="toolbar-actions">
-                  {/* `screen-specs.md:47-48` orders the content header:
-                      filter field, then ordering control, then view segment. */}
+                  {/* `screen-specs.md:67-69` orders the content header:
+                      filter field, then ordering control, then view segment,
+                      then `New ticket`. (This cited `:47-48` until LC-239w,
+                      which is the project-actions hierarchy and never said
+                      anything about the header — stale on the day it was
+                      typed, and the sort of thing `citations:check` pins but
+                      cannot notice.) */}
                   {/* The chip is overlaid inside the field's right edge, as
                       the prototype draws it (`prototype.js:495-498`). It is
                       `aria-hidden` and paired with `aria-keyshortcuts` so the
@@ -1948,56 +2346,8 @@ export function App() {
                     <kbd aria-hidden="true">C</kbd>
                   </button>
                 </div>
-              )}
-              {/* The gear, last in the row at the user's direction (LC-223
-                  review) — after New ticket when the board renders, and still
-                  here when the project is unreachable, because settings holds
-                  `Locate…`, the way back. */}
-              {/* `aria-haspopup="menu"` and a real `aria-expanded`: what the
-                  gear opens is a menu now (LC-208), which is a region that
-                  stays part of the page under its trigger — the very thing
-                  LC-125 removed the expanded state for when this opened a
-                  dialog instead. The menu is what opens the dialog. */}
-              <button
-                tabIndex={0}
-                ref={settingsButton}
-                className={classes(
-                  "ghost small settings-button",
-                  settingsMenuOpen && "open",
-                )}
-                aria-label="Project settings"
-                aria-haspopup="menu"
-                aria-expanded={settingsMenuOpen}
-                title="Project settings"
-                onClick={() => setSettingsMenuOpen(!settingsMenuOpen)}
-              >
-                <GearGlyph />
-              </button>
-              {settingsMenuOpen && (
-                <SettingsMenu
-                  project={project}
-                  themes={THEMES}
-                  appearance={appearance}
-                  anchor={settingsButton.current}
-                  onAppearance={setAppearance}
-                  onTheme={(theme) => void changeTheme(project, theme)}
-                  onOpenSection={(section) => {
-                    closeTicket();
-                    setSettingsSection(section);
-                  }}
-                  // The board's own re-read (ADR 0006), which the menu is the
-                  // first surface to offer by hand: the watcher is what
-                  // normally keeps this current, and this is the way back
-                  // when a person has reason to doubt it.
-                  onReload={() => {
-                    void reconcileProject(project.id)
-                      .then(applySnapshot)
-                      .catch((error) => setError(normalizeError(error)));
-                  }}
-                  onClose={() => setSettingsMenuOpen(false)}
-                />
-              )}
-            </header>
+              </header>
+            )}
 
             {!project.reachable ? (
               <UnreachableProject
@@ -2031,6 +2381,7 @@ export function App() {
                     selectedKey={selectedKey}
                     marks={externalMarks}
                     labels={project.labels}
+                    properties={project.properties}
                     ordering={ordering}
                     // Six empty columns beside a "No matches" panel is the
                     // empty board the designed state exists to replace — but a
@@ -2043,6 +2394,10 @@ export function App() {
                     onSelect={openTicket}
                     onChangePriority={changePriority}
                     onChangeStatus={changeStatus}
+                    // The context menu's property submenus, which no surface
+                    // can write and only one of which stays inside the menu
+                    // (LC-227).
+                    onChangeProperty={changeProperty}
                     // The context menu's two rows that are App's to answer: one
                     // writes, and one needs the project folder a surface has
                     // never been told (LC-222).
@@ -2053,18 +2408,19 @@ export function App() {
                     onMoveTicket={moveCard}
                     // A column's `+` is the same quick create `C` opens,
                     // arriving with the column it was pressed in already
-                    // chosen (`keyboard-focus-map.md:44`).
+                    // chosen (`keyboard-focus-map.md:45`).
                     onCreateInStatus={(status) => {
                       // A whole draft, empty but for the column: "nothing
-                      // typed yet" is `""` and `[]` rather than absent, which
-                      // is what keeps one shape between the preseed and the
-                      // draft the door carries back.
+                      // typed yet" is `""`, `[]` and `{}` rather than absent,
+                      // which is what keeps one shape between the preseed and
+                      // the draft the door carries back.
                       setCarriedDraft({
                         title: "",
                         description: "",
                         status,
                         priority: "none",
                         labels: [],
+                        properties: {},
                       });
                       setCreateSurface("quick");
                     }}
@@ -2081,12 +2437,16 @@ export function App() {
                     selectedKey={selectedKey}
                     marks={externalMarks}
                     labels={project.labels}
+                    // Nothing on a list row draws one yet; the row's own
+                    // context menu offers all four (LC-227).
+                    properties={project.properties}
                     ordering={ordering}
                     now={now}
                     focusRequest={cardFocus}
                     onSelect={openTicket}
                     onChangePriority={changePriority}
                     onChangeStatus={changeStatus}
+                    onChangeProperty={changeProperty}
                     onArchive={toggleArchived}
                     onCopyPath={(ticket) =>
                       copyTicketPath(project.rootPath, ticket)
@@ -2117,6 +2477,7 @@ export function App() {
             // places the app writes this path agree on how it looks.
             projectPath={tildeAbbreviate(project.rootPath, homePath)}
             labels={project.labels}
+            properties={project.properties}
             mark={externalMarks[selectedKey]}
             reloadSignal={panelReload}
             removedSignal={panelRemoved}
@@ -2124,6 +2485,7 @@ export function App() {
               heldConflict?.ticketKey === selectedKey ? heldConflict : undefined
             }
             now={now}
+            today={today}
             archived={openRow !== undefined && isArchived(openRow)}
             // The file the row the card was drawn from names, so one the board
             // already knows will not parse opens as the raw-file modal rather
@@ -2167,10 +2529,18 @@ export function App() {
         <ProjectSettings
           project={project}
           hasTickets={tickets.length > 0}
+          // Off the rows rather than the project file, which is what makes the
+          // count available while the property is off (LC-227).
+          propertyCounts={propertyCounts(tickets)}
           appearance={appearance}
           themes={THEMES}
           section={settingsSection}
           onSection={setSettingsSection}
+          // The pane is offered whether or not the read landed: a host that
+          // answers no commands has no CLI to install, which is exactly what
+          // `unavailable` says (LC-233).
+          commandLine={commandLine ?? UNREAD_COMMAND_LINE}
+          onCommandLine={setCommandLine}
           onAppearance={setAppearance}
           onRename={(name) => void renameProject(name)}
           onTheme={(theme) => void changeTheme(project, theme)}
@@ -2227,6 +2597,8 @@ export function App() {
         />
       )}
 
+      {commandLineOffer}
+
       {/* Both create surfaces are gated on the folder answering. Nothing is
           creatable on an unreachable project (`states.md:80-98`): the key would
           be guessed from a board with no rows, so the next create offered
@@ -2240,8 +2612,12 @@ export function App() {
             projectTheme={project.theme}
             provisionalKey={nextKey}
             labels={project.labels}
+            properties={project.properties}
+            today={today}
+            onDefineLabel={defineLabel}
             initialStatus={carriedDraft?.status}
             initialPriority={carriedDraft?.priority}
+            initialProperties={carriedDraft?.properties}
             onCancel={closeCreateSurface}
             onCreate={(request, { createMore }) =>
               submitNewTicket(request, { keepOpen: createMore })
@@ -2260,6 +2636,9 @@ export function App() {
           <CreatePanel
             provisionalKey={nextKey}
             labels={project.labels}
+            properties={project.properties}
+            today={today}
+            onDefineLabel={defineLabel}
             initialDraft={carriedDraft}
             onCancel={closeCreateSurface}
             onCreate={(request) =>
@@ -2353,6 +2732,10 @@ export function App() {
               setArchived(commandTarget, !isArchived(commandTarget));
           }}
           onOrdering={(next) => updateWorkspace({ ordering: next })}
+          today={today}
+          onChangeProperty={(property, next) => {
+            if (commandTarget) changeProperty(commandTarget, property, next);
+          }}
           searchResults={paletteSearchResults}
           onSearch={(query) => {
             if (!activeProjectId) return;
@@ -2395,28 +2778,43 @@ function ViewSegment(props: {
 }
 
 /**
- * Abbreviate a home-relative path to `~/…` for display. The clause lives in
- * LC-68, which carries D-06's remaining work; `cc_ui_diffs.md` § Step 2 was the
- * original citation and was deleted 2026-08-07.
- * Only the actual home directory — supplied by the native layer — is
- * abbreviated. The clipboard and tooltip keep the full absolute path.
+ * The letter on the side panel's project tile.
+ *
+ * `Array.from` rather than `charAt`, because the first character of a name is
+ * not always the first code unit of one — a project called `🦉 Owl` has a
+ * surrogate pair there, and half of one renders as the replacement glyph.
  */
-function tildeAbbreviate(path: string, home: string | null): string {
-  if (!home) return path;
-  if (path === home) return "~";
-  if (path.startsWith(home + "/")) return "~" + path.slice(home.length);
-  return path;
+function projectInitial(name: string): string {
+  return (Array.from(name.trim())[0] ?? "").toUpperCase();
 }
 
 /**
- * The project path as a chip (`screen-specs.md:64-67`, D-06): mono 12px, a
- * folder glyph, truncated to the header with `text-overflow: ellipsis`, and a
- * click that copies the full path and says so with a toast. The bare wrapping
+ * The project path as a chip (`screen-specs.md` § Project identity, D-06): mono
+ * 10.5px in the side panel's identity block, elided in the middle, and a click
+ * that copies the full path and says so with a toast. The bare wrapping
  * `<code>` it replaces consumed two lines for a long path; this one never does.
+ *
+ * **Elided in the middle, not at the tail** (LC-239w). A tail ellipsis keeps
+ * `~/Developer/…`, which is the same on every path in this app; the end is the
+ * folder that identifies the project, so that is the half kept whole. Which is
+ * why the two halves are two spans: the box decides where the cut falls, at
+ * whatever width the panel currently is, and only the head may be cut. There
+ * was a character cap here instead until round 5, and it could only ever be
+ * right about one of the panel's two widths — `pathDisplay.ts` carries the six
+ * derivations of it that were wrong.
+ *
+ * No folder glyph. It costs 19px of a box that is 145px at its narrowest —
+ * three characters of path — and the row it would lead is already led by the
+ * project tile.
  * The display text is tilde-abbreviated; the clipboard and `title` keep the
  * full path.
  */
 function PathChip(props: { path: string; homePath: string | null }) {
+  // Two spans, because the ellipsis is the box's decision and not this
+  // component's: the head shrinks and ellipsizes when the panel is too narrow
+  // for the whole path, and the tail — the folder that identifies the project —
+  // is never the part that gives.
+  const shown = splitPath(tildeAbbreviate(props.path, props.homePath));
   const copy = useCallback(
     () =>
       copyToClipboard(props.path, {
@@ -2433,8 +2831,10 @@ function PathChip(props: { path: string; homePath: string | null }) {
       title={props.path}
       onClick={() => void copy()}
     >
-      <FolderGlyph />
-      <span className="txt">{tildeAbbreviate(props.path, props.homePath)}</span>
+      <span className="txt">
+        <span className="head">{shown.head}</span>
+        <span className="tail">{shown.tail}</span>
+      </span>
     </button>
   );
 }
@@ -2451,6 +2851,12 @@ function ProjectSection(props: {
   onCloseMenu: () => void;
   /** Which row's menu is up, so its `⋮` can hold the pressed state. */
   menuFor?: string;
+  /**
+   * Each project's `⌘n`, by id, for the rows that have one (LC-230). Both
+   * sections are handed the same map: a Starred row is the same project pinned
+   * to the top, so it shows the same key rather than none.
+   */
+  chords: ReadonlyMap<string, number>;
 }) {
   return (
     <section className="project-section">
@@ -2479,6 +2885,15 @@ function ProjectSection(props: {
                 project.id === props.activeProjectId && "selected",
                 !project.reachable && "unreachable",
               )}
+              // What actually announces the chord (`GuideCard.tsx`, LC-71).
+              // The badge is decoration, because a glyph inside the row's own
+              // button lands in its accessible name and the row announces
+              // itself twice (LC-208).
+              aria-keyshortcuts={
+                props.chords.has(project.id)
+                  ? `Meta+${props.chords.get(project.id)}`
+                  : undefined
+              }
               // The path is the row's whole subject and does not fit on it; the
               // content header and settings show it in full.
               title={
@@ -2504,6 +2919,20 @@ function ProjectSection(props: {
                       reliably exposed, so the word is real text. */}
                   <span className="visually-hidden">Unreachable</span>
                 </>
+              )}
+              {/* The chord, beside the dot rather than at the row's end: it
+                  belongs to the row as a whole, and read down the sidebar the
+                  nine of them line up into a column you can scan (LC-230's UX
+                  round). At the end they sat behind a name of any length, which
+                  is the one thing on the row whose width is not fixed.
+
+                  Decorative: `aria-keyshortcuts` above is the channel that
+                  reaches a screen reader, and this would otherwise read out as
+                  part of the project's name. */}
+              {props.chords.has(project.id) && (
+                <span className="project-number" aria-hidden="true">
+                  ⌘{props.chords.get(project.id)}
+                </span>
               )}
               <strong>{project.name}</strong>
               {/* The star is a mark now, not a control (LC-208). It was a

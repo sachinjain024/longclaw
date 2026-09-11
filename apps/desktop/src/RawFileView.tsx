@@ -62,7 +62,7 @@ function errorText(detail: TicketDetail): string | undefined {
  * skipped one would number every line after it wrongly.
  *
  * The block is a tab stop of its own. It is the modal's scroller, and page keys
- * scroll what focus is inside (`keyboard-focus-map.md:148-149` — "scrolls with
+ * scroll what focus is inside (`keyboard-focus-map.md:149-150` — "scrolls with
  * the page keys"); with the buttons as the only stops, a long file could be
  * read by pointer and not by keyboard.
  */
@@ -124,7 +124,7 @@ export function RawFileView(props: {
 
   /**
    * `Retry parse` takes focus when the view opens
-   * (`keyboard-focus-map.md:148-149`), and `Close` takes it on a newer-format
+   * (`keyboard-focus-map.md:149-150`), and `Close` takes it on a newer-format
    * file, which offers no retry — a modal that opened with focus still on the
    * card behind it would be a layer the keyboard is not in.
    *
@@ -150,7 +150,7 @@ export function RawFileView(props: {
    * is the surface this file's ticket is not on.
    *
    * The page keys are the other half of the same line
-   * (`keyboard-focus-map.md:148-149`): the view "scrolls with the page keys",
+   * (`keyboard-focus-map.md:149-150`): the view "scrolls with the page keys",
    * and the block that scrolls is the file rather than whatever the focused
    * button sits in — so the keys are handed to it wherever focus is, which is
    * on `Retry parse` when the view opens.

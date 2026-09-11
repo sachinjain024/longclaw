@@ -56,7 +56,7 @@ Implemented on `feat/lc-241q-edit-delete-comment`, PR #15.
 
 Your own comment now carries a pencil and a cross under Comments. Rewording rewrites the record in place — same id, same instant, same place in the stream — and stamps `edited_at`, which the entry shows as "edited" beside its age. Deleting takes the record out whole, and ⌘Z puts it back at the instant it was said.
 
-Two decisions were yours before any code, because the ticket carried none: mutate in place rather than append a correction (which amends the append-only rule at `file_format.md:186`), and your own comments only — an agent's is read-only, so the app never offers to put words in an agent's mouth. Rust enforces both, not just the surface that draws the buttons.
+Two decisions were yours before any code, because the ticket carried none: mutate in place rather than append a correction (which amends the append-only rule at `file_format.md:213`), and your own comments only — an agent's is read-only, so the app never offers to put words in an agent's mouth. Rust enforces both, not just the surface that draws the buttons.
 
 Not offered in the CLI, for the reason `restoreChecklistItem` is not: these exist so the app's own gestures can be written and undone.
 <!-- /longclaw:event -->

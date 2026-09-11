@@ -80,6 +80,62 @@ export interface Label {
   color: string;
 }
 
+/** The scale a project's estimates are on. It is on exactly one. */
+export type EstimateSystem = "tshirt" | "fibonacci" | "duration";
+
+/**
+ * One of the four opt-in properties, named by the frontmatter key it writes —
+ * which is also the key its configuration sits under in `longclaw.yaml`.
+ */
+export type TicketProperty = "type" | "due" | "start" | "estimate";
+
+/** Type: one project-defined slug per ticket, shaped exactly like `labels`. */
+export interface TypeConfig {
+  enabled: boolean;
+  values: Record<string, Label>;
+}
+
+export interface DueConfig {
+  enabled: boolean;
+  /**
+   * How many days ahead count as approaching. `0` is legal and empties that
+   * rung, leaving today and beyond; overdue and today are absolute, so this is
+   * the only boundary a project can move.
+   */
+  attentionDays: number;
+}
+
+/** `enabled` is the only key every property has, and start has nothing else. */
+export interface StartConfig {
+  enabled: boolean;
+}
+
+export interface EstimateConfig {
+  enabled: boolean;
+  system: EstimateSystem;
+  /**
+   * The t-shirt scale, in order, read only under `tshirt`. A sequence rather
+   * than a record because a scale has an order and a record does not.
+   */
+  values: string[];
+  /** Read only under `duration`, and what makes `4h` and `1d` comparable. */
+  hoursPerDay: number;
+  daysPerWeek: number;
+}
+
+/**
+ * How a project configures the four opt-in ticket properties (ADR 0013).
+ *
+ * All four ship off. A project file with no `properties:` block — every one
+ * written before this build — reads as this with `enabled` false throughout.
+ */
+export interface PropertiesConfig {
+  type: TypeConfig;
+  due: DueConfig;
+  start: StartConfig;
+  estimate: EstimateConfig;
+}
+
 export interface ProjectReference {
   id: string;
   name: string;
@@ -96,6 +152,12 @@ export interface ProjectReference {
    * not defined here is preserved on disk and rendered as itself.
    */
   labels: Record<string, Label>;
+  /**
+   * The property configuration, carried for the reason `labels` is: a surface
+   * holding a project reference has to know which properties exist and what
+   * their values mean before it can draw one.
+   */
+  properties: PropertiesConfig;
 }
 
 export type ActorType = "human" | "agent" | "unknown";
@@ -206,6 +268,17 @@ export interface IndexedTicket {
   // No assignee: local projects have none and no v0 surface renders one
   // (ADR 0001). The field is preserved on disk, not carried on the row.
   rank?: string;
+  /**
+   * The four opt-in properties, as raw as the ticket carries them. A value the
+   * project's configuration cannot interpret is preserved rather than corrected
+   * (`file_format.md` invariant 16), so these are strings and never parsed
+   * values — `properties.ts` reads them where a surface needs them to mean
+   * something.
+   */
+  type?: string;
+  due?: string;
+  start?: string;
+  estimate?: string;
   createdAt: string;
   updatedAt: string;
   archivedAt?: string;
@@ -272,6 +345,11 @@ export interface Ticket {
   assignee?: string;
   labels: string[];
   rank?: string;
+  /** The four opt-in properties, raw. See `IndexedTicket`. */
+  type?: string;
+  due?: string;
+  start?: string;
+  estimate?: string;
   createdAt: string;
   updatedAt: string;
   archivedAt?: string;
@@ -323,6 +401,16 @@ export interface TicketEdit {
    * rewrites a file.
    */
   rank?: string | null;
+  /**
+   * Absent leaves the property alone; `null` removes the key. On disk absent
+   * and cleared are the same thing — a ticket carries a property only when it
+   * has a value — so the distinction lives here, and it is what lets the Clear
+   * row every property menu carries mean something to send.
+   */
+  type?: string | null;
+  due?: string | null;
+  start?: string | null;
+  estimate?: string | null;
   archived?: boolean;
   description?: string;
   checklist?: { itemId: string; checked: boolean }[];
@@ -374,6 +462,38 @@ export interface EditTicketRequest {
   edit: TicketEdit;
 }
 
+/**
+ * One row of a create's checklist, before there is a file to put it in.
+ *
+ * Text alone was enough while every row a create could produce was open by
+ * construction. That held only for a ticket filed before its work began; one
+ * filed over work already half done has finished rows to describe, and asking
+ * the human to tick them again once the file lands is asking them to restate
+ * what they just typed (LC-242h).
+ *
+ * There is no id. Ids are minted by the render in Rust, which is the only place
+ * that can promise they are unique in the file — which is also why the create
+ * panel keys these rows by position rather than by anything they carry.
+ */
+export interface NewChecklistItem {
+  text: string;
+  checked: boolean;
+}
+
+/**
+ * The opt-in properties a create asks for, keyed by the frontmatter key each
+ * one writes (LC-227).
+ *
+ * Nested under one field rather than spread across the request, which is the
+ * shape Rust deserializes (`core/storage.rs:1003-1007`) and for the reason it
+ * gives: this is a request rather than a projection of a file, so a caller says
+ * what it wants set and a caller that wants none of them sends an empty object.
+ *
+ * Derived from `TicketProperty` rather than written out, so a fifth property
+ * cannot join the union and quietly fail to be creatable.
+ */
+export type NewTicketProperties = Partial<Record<TicketProperty, string>>;
+
 export interface CreateTicketRequest {
   projectId: string;
   title: string;
@@ -381,7 +501,8 @@ export interface CreateTicketRequest {
   status?: TicketStatus;
   priority?: TicketPriority;
   labels?: string[];
-  checklist?: string[];
+  properties?: NewTicketProperties;
+  checklist?: NewChecklistItem[];
 }
 
 /**
@@ -389,15 +510,20 @@ export interface CreateTicketRequest {
  *
  * Named once because it travels through three places — the door's argument,
  * `App`'s held draft, and the create panel's opening state — and three
- * restatements of the same five fields is three chances for them to disagree
- * about which are optional. They did: the door sent all five, `App` held three
- * of them optional, and the panel took five separate `initial…` props.
+ * restatements of the same six fields is three chances for them to disagree
+ * about which are optional. They did: the door sent all five it had then, `App`
+ * held three of them optional, and the panel took five separate `initial…`
+ * props.
  *
  * Every field is required here. A draft is what the human had typed at the
- * moment they asked for more room, and "nothing typed yet" is `""` or `[]`
- * rather than absent — the same reason the create request sends an empty
+ * moment they asked for more room, and "nothing typed yet" is `""`, `[]` or
+ * `{}` rather than absent — the same reason the create request sends an empty
  * description instead of omitting it. The checklist is not in it: it is the one
  * field quick create does not offer, so there is never one to carry.
+ *
+ * The properties are, because quick create offers whichever of them the project
+ * turned on (LC-227) — and the door is the one place a field must not quietly
+ * go missing, which is what makes the narrow surface honest.
  */
 export interface TicketDraft {
   title: string;
@@ -405,6 +531,7 @@ export interface TicketDraft {
   status: TicketStatus;
   priority: TicketPriority;
   labels: string[];
+  properties: NewTicketProperties;
 }
 
 export interface WriteResult {
@@ -483,4 +610,34 @@ export interface VisibleUiProbe {
   lastSequence: number;
   viewportWidth: number;
   viewportHeight: number;
+}
+
+/**
+ * What the OS currently offers under the name `longclaw` (LC-233).
+ *
+ * `platform/command_line.rs` is the other half of this pair. The set is closed
+ * and each member is a different sentence and a different button, which is why
+ * it crosses the wire as a state rather than as two booleans.
+ */
+export type CommandLineState =
+  /** Installed, and resolving to this build's own binary. */
+  | "linked"
+  /** Installed and pointing somewhere else — an older or moved copy of the app. */
+  | "stale"
+  /** Something that is not a link is in the way, and is never replaced. */
+  | "occupied"
+  | "absent"
+  /** A build with no CLI beside it — a dev window rather than a bundle. */
+  | "unavailable";
+
+export interface CommandLineStatus {
+  state: CommandLineState;
+  /** The app's own copy of the CLI. Absent only when `state` is `unavailable`. */
+  sourcePath: string | null;
+  /** Where the command goes on this platform: `/usr/local/bin/longclaw`. */
+  linkPath: string;
+  /** What is installed now, written as the link itself writes it. */
+  currentTarget: string | null;
+  /** The one line that installs it from a terminal, with the paths filled in. */
+  manualCommand: string | null;
 }

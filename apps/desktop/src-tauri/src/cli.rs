@@ -42,7 +42,8 @@ use crate::app_state::AppState;
 use crate::core::project::{ProjectDocument, DEFAULT_LABEL_COLOR};
 use crate::core::storage::{self, NewTicket};
 use crate::core::ticket::{
-    Actor, ChecklistMove, ChecklistTextEdit, ChecklistToggle, Priority, Status, TicketEdit,
+    Actor, ChecklistMove, ChecklistTextEdit, ChecklistToggle, NewChecklistItem, Priority, Property,
+    Status, TicketEdit, TicketProperties,
 };
 use crate::core::{AppError, AppResult, ErrorCode, ProjectReference};
 
@@ -67,8 +68,14 @@ TICKETS
   ticket create     --title <title> [--description <text> | --description-file <file>]
                     [--status <status>] [--priority <priority>]
                     [--label <slug>]... [--checklist <item>]... [--path <dir>]
+                    [--type <slug>] [--due <date>] [--start <date>]
+                    [--estimate <value>]
   ticket edit <KEY> [--title <title>] [--status <status>] [--priority <priority>]
                     [--label <slug>]... [--clear-labels]
+                    [--type <slug> | --clear-type]
+                    [--due <date> | --clear-due]
+                    [--start <date> | --clear-start]
+                    [--estimate <value> | --clear-estimate]
                     [--description <text> | --description-file <file>]
                     [--check <item-id>]... [--uncheck <item-id>]...
                     [--add-checklist <item>]... [--comment <text>]
@@ -86,6 +93,14 @@ TICKETS
 
   status    backlog | todo | in_progress | in_review | done | canceled
   priority  urgent | p1 | p2 | p3 | p4 | none
+  date      YYYY-MM-DD, a day rather than an instant
+
+PROPERTIES
+  type, due, start and estimate are off unless the project enables them in
+  .longclaw/longclaw.yaml, and a flag for one this project has not enabled is
+  refused rather than written. A type must be a slug the project defines, and
+  an estimate must be a value the project's estimate system can read. Run
+  project show to see which are on and what they accept.
 
 ATTRIBUTION
   --agent-id <id> [--agent-name <name>]
@@ -194,8 +209,8 @@ fn label_add(arguments: &[String]) -> AppResult<Value> {
         &storage::project_file_path(&root),
         &bytes,
     )?;
-    // The contract names the project, so a rename or a label change reprints it.
-    storage::write_agent_contract(&root, &document)?;
+    // The generated files name the project's labels, so adding one reprints them.
+    storage::write_agent_instructions(&root, &document)?;
     Ok(json!(reference(&document, &root)))
 }
 
@@ -210,6 +225,10 @@ fn ticket_create(arguments: &[String]) -> AppResult<Value> {
             "status",
             "priority",
             "label",
+            "type",
+            "due",
+            "start",
+            "estimate",
             "checklist",
             "agent-id",
             "agent-name",
@@ -221,11 +240,21 @@ fn ticket_create(arguments: &[String]) -> AppResult<Value> {
     known_labels(&document, &labels)?;
     let request = NewTicket {
         title: options.require("title")?.to_owned(),
+        properties: new_properties(&options, &document)?,
         description: description(&options)?.unwrap_or_default(),
         status: status(&options)?,
         priority: priority(&options)?,
         labels,
-        checklist: options.many("checklist"),
+        // `--checklist` gives text and nothing else, so every row it files is
+        // open. LC-242h put the gesture on the create panel, where a human is
+        // describing work they have already partly done; a flag that let an
+        // agent file a ticked row is a decision of its own and has not been
+        // asked for (ADR 0011 makes this the surface agents create through).
+        checklist: options
+            .many("checklist")
+            .into_iter()
+            .map(NewChecklistItem::open)
+            .collect(),
     };
     let project_key = document.project().key.clone();
     let write =
@@ -255,6 +284,10 @@ fn ticket_edit(arguments: &[String]) -> AppResult<Value> {
             "status",
             "priority",
             "label",
+            "type",
+            "due",
+            "start",
+            "estimate",
             "check",
             "uncheck",
             "add-checklist",
@@ -267,7 +300,15 @@ fn ticket_edit(arguments: &[String]) -> AppResult<Value> {
             "agent-id",
             "agent-name",
         ],
-        &["clear-labels", "archive", "unarchive"],
+        &[
+            "clear-labels",
+            "clear-type",
+            "clear-due",
+            "clear-start",
+            "clear-estimate",
+            "archive",
+            "unarchive",
+        ],
     )?;
     let key = options.subject()?;
     let (root, document) = open_project(&options)?;
@@ -297,6 +338,10 @@ fn ticket_edit(arguments: &[String]) -> AppResult<Value> {
         priority: priority(&options)?,
         labels,
         rank: None,
+        ticket_type: property_edit(&options, &document, Property::Type)?,
+        due: property_edit(&options, &document, Property::Due)?,
+        start: property_edit(&options, &document, Property::Start)?,
+        estimate: property_edit(&options, &document, Property::Estimate)?,
         archived,
         description: description(&options)?,
         checklist: toggles(&options),
@@ -424,6 +469,11 @@ fn existing_directory(options: &Options) -> AppResult<PathBuf> {
 fn open_project(options: &Options) -> AppResult<(PathBuf, ProjectDocument)> {
     let root = existing_directory(options)?;
     let document = storage::read_project(&root)?;
+    // Every command comes through here, which makes this the CLI's answer to a
+    // project file that was edited by hand: the generated instructions are
+    // brought back in step before the command that needs them runs. It writes
+    // only when they had drifted, so the common case touches nothing.
+    storage::reconcile_agent_instructions(&root, &document);
     Ok((root, document))
 }
 
@@ -448,6 +498,59 @@ fn known_labels(document: &ProjectDocument, labels: &[String]) -> AppResult<()> 
         }
     }
     Ok(())
+}
+
+/// The flag names a property answers to: `--due` sets it, `--clear-due` removes
+/// it.
+fn property_flags(property: Property) -> (String, String) {
+    let name = property.as_str().to_owned();
+    let clear = format!("clear-{name}");
+    (name, clear)
+}
+
+/// Reads one property off the command line as the three answers `TicketEdit`
+/// distinguishes: absent leaves it alone, `--clear-x` removes the key, and a
+/// value sets it.
+///
+/// Both halves are refused on a property the project has not enabled, including
+/// the clear: a disabled property is one this build declines to interpret, and
+/// deleting a value it is deliberately not reading is the one thing "disabling
+/// hides, it never deletes" rules out.
+fn property_edit(
+    options: &Options,
+    document: &ProjectDocument,
+    property: Property,
+) -> AppResult<Option<Option<String>>> {
+    let (name, clear) = property_flags(property);
+    let requested = options.one(&name)?;
+    let cleared = options.has(&clear);
+    if requested.is_none() && !cleared {
+        return Ok(None);
+    }
+    if requested.is_some() && cleared {
+        return Err(usage_error(format!("--{name} and --{clear} disagree")));
+    }
+    let properties = &document.project().properties;
+    properties.require_enabled(property)?;
+    match requested {
+        None => Ok(Some(None)),
+        Some(value) => Ok(Some(Some(properties.accept(property, value)?))),
+    }
+}
+
+/// The create side of the same read. A create has no clear: there is nothing on
+/// a ticket that does not exist yet to remove.
+fn new_properties(options: &Options, document: &ProjectDocument) -> AppResult<TicketProperties> {
+    let mut properties = TicketProperties::default();
+    for property in Property::ALL {
+        let (name, _) = property_flags(property);
+        let Some(value) = options.one(&name)? else {
+            continue;
+        };
+        let value = document.project().properties.accept(property, value)?;
+        properties.set(property, Some(value));
+    }
+    Ok(properties)
 }
 
 fn description(options: &Options) -> AppResult<Option<String>> {

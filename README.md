@@ -54,7 +54,15 @@ allocation, the write seams and the file format have exactly one implementation
 ([ADR 0011](docs/adr/0011-cli-is-the-creation-surface-agents-use.md)). This is
 how an agent files and updates work:
 
+**Installing the app installs the command.** The binary rides inside the signed
+bundle, and one press in *Settings → Command line* links it into
+`/usr/local/bin` (LC-233). Build it from a checkout only when there is no
+installed app, or when the checkout has moved ahead of one — an installed
+`longclaw` is the app's own build, and this tree's format is spoken only by
+this tree's binary.
+
 ```sh
+# from a checkout, when there is no installed app:
 cargo build --release --manifest-path apps/desktop/src-tauri/Cargo.toml --bin longclaw
 
 longclaw project init --name "My Project" --key MP

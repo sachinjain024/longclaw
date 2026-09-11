@@ -86,6 +86,18 @@
                   "name": "Reliability",
                   "color": "amber"
                 }
+              },
+              "properties": {
+                "type": { "enabled": false, "values": {} },
+                "due": { "enabled": false, "attentionDays": 7 },
+                "start": { "enabled": false },
+                "estimate": {
+                  "enabled": false,
+                  "system": "tshirt",
+                  "values": [],
+                  "hoursPerDay": 8.0,
+                  "daysPerWeek": 5.0
+                }
               }
             },
             "tickets": [
@@ -200,6 +212,22 @@
     {
       "field": "rank",
       "to": "0|hzzzzz:"
+    },
+    {
+      "field": "type",
+      "to": "bug"
+    },
+    {
+      "field": "due",
+      "to": "2026-09-28"
+    },
+    {
+      "field": "start",
+      "to": "2026-09-14"
+    },
+    {
+      "field": "estimate",
+      "to": "1.5d"
     },
     {
       "field": "archived_at",

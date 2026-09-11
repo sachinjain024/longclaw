@@ -17,7 +17,7 @@
 //! headings, fenced code, and bounded records never end a section, so an agent
 //! can quote `## Checklist` inside a comment without changing what the file means.
 
-use chrono::DateTime;
+use chrono::{DateTime, NaiveDate};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -298,6 +298,177 @@ pub struct Attachment {
     pub added_by: Actor,
 }
 
+/// One of the four opt-in properties, named by the frontmatter key it writes.
+///
+/// Whether a project may write one at all, and what values it accepts, are
+/// project configuration (`project::PropertiesConfig`). This is only the set of
+/// keys and the order the format documents them in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Property {
+    Type,
+    Due,
+    Start,
+    Estimate,
+}
+
+impl Property {
+    pub const ALL: [Self; 4] = [Self::Type, Self::Due, Self::Start, Self::Estimate];
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Type => "type",
+            Self::Due => "due",
+            Self::Start => "start",
+            Self::Estimate => "estimate",
+        }
+    }
+
+    pub fn parse(value: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|property| property.as_str() == value)
+    }
+
+    /// Where a newly written key goes: after the last of these that the file
+    /// already has. Each property names the ones before it, so the four land in
+    /// the documented order however many of them a ticket ends up carrying, and
+    /// after the fields that were there before they existed.
+    fn anchors(self) -> &'static [&'static str] {
+        match self {
+            Self::Type => &["priority", "rank", "labels"],
+            Self::Due => &["priority", "rank", "labels", "type"],
+            Self::Start => &["priority", "rank", "labels", "type", "due"],
+            Self::Estimate => &["priority", "rank", "labels", "type", "due", "start"],
+        }
+    }
+}
+
+/// The four properties as a ticket carries them: raw text, exactly as the file
+/// spells it.
+///
+/// They are strings rather than parsed values on purpose. A stored value that
+/// the project's current configuration cannot interpret — an estimate written
+/// under another system, a property since switched off — is preserved rather
+/// than corrected (invariant 16), and parsing here would be the place that
+/// stopped being true.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TicketProperties {
+    #[serde(default, rename = "type")]
+    pub ticket_type: Option<String>,
+    #[serde(default)]
+    pub due: Option<String>,
+    #[serde(default)]
+    pub start: Option<String>,
+    #[serde(default)]
+    pub estimate: Option<String>,
+}
+
+impl TicketProperties {
+    pub fn get(&self, property: Property) -> Option<&str> {
+        match property {
+            Property::Type => self.ticket_type.as_deref(),
+            Property::Due => self.due.as_deref(),
+            Property::Start => self.start.as_deref(),
+            Property::Estimate => self.estimate.as_deref(),
+        }
+    }
+
+    /// The mirror of [`Self::get`], and the reason it exists: the four-arm match
+    /// that assigns one property was written out at both of the places that
+    /// build a `TicketProperties` from a request — the CLI's create and
+    /// `storage.rs`'s — so a fifth property meant finding two matches rather
+    /// than extending one.
+    pub fn set(&mut self, property: Property, value: Option<String>) {
+        match property {
+            Property::Type => self.ticket_type = value,
+            Property::Due => self.due = value,
+            Property::Start => self.start = value,
+            Property::Estimate => self.estimate = value,
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        Property::ALL
+            .into_iter()
+            .all(|property| self.get(property).is_none())
+    }
+}
+
+/// A date the format stores as a day: exactly `YYYY-MM-DD`, and a real one.
+///
+/// Strict about width because `2026-9-8` and `2026-09-08` would otherwise both
+/// be written and only one of them sorts as text, and strict about the calendar
+/// because `2026-02-30` is a date nobody has.
+pub fn is_property_date(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    bytes.len() == 10
+        && bytes[4] == b'-'
+        && bytes[7] == b'-'
+        && bytes
+            .iter()
+            .enumerate()
+            .all(|(index, byte)| matches!(index, 4 | 7) || byte.is_ascii_digit())
+        && NaiveDate::parse_from_str(value, "%Y-%m-%d").is_ok()
+}
+
+/// What this module can say about a property value without knowing the project.
+///
+/// Dates are checked in full: `YYYY-MM-DD` is the format's own rule and needs no
+/// configuration to apply. Type and estimate are checked only for the shape a
+/// frontmatter scalar has to have — whether a type slug is *defined*, and
+/// whether an estimate fits the project's system, are questions only a caller
+/// holding the project can answer, and `project::EstimateConfig::accepts` and
+/// the type registry are where they are asked.
+pub fn validate_property(property: Property, value: &str) -> Result<String, Diagnostic> {
+    let value = value.trim();
+    match property {
+        Property::Due | Property::Start => {
+            if !is_property_date(value) {
+                return Err(Diagnostic::parse(format!(
+                    "{} is a date of the form YYYY-MM-DD, such as 2026-09-28; found {value:?}",
+                    property.as_str()
+                )));
+            }
+        }
+        Property::Type | Property::Estimate => {
+            if value.is_empty() || value.chars().count() > 60 || value.chars().any(char::is_control)
+            {
+                return Err(Diagnostic::parse(format!(
+                    "{} is a single line of 1 to 60 characters; found {value:?}",
+                    property.as_str()
+                )));
+            }
+        }
+    }
+    Ok(value.to_owned())
+}
+
+/// Reads a frontmatter scalar as the text it was written as, whatever type YAML
+/// resolves it to.
+///
+/// `estimate: 5` is a YAML integer and `estimate: "5"` is a string; the format
+/// asks for the second and cannot afford to refuse the first, because a value
+/// this build cannot use is preserved rather than destroyed (invariants 10 and
+/// 16). `Option<String>` alone would take the whole ticket down over one
+/// unquoted scalar.
+fn scalar_text<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Ok(match serde_yaml::Value::deserialize(deserializer)? {
+        serde_yaml::Value::String(text) => Some(text),
+        serde_yaml::Value::Bool(flag) => Some(flag.to_string()),
+        serde_yaml::Value::Number(number) => Some(number.to_string()),
+        // A sequence or a mapping under one of these keys is not a scalar at
+        // all. It reads as absent, which leaves the bytes where their author put
+        // them (invariant 11); refusing would lose a ticket over a key this
+        // build was only trying to read.
+        _ => None,
+    })
+}
+
 /// A ticket as its file describes it. Counts, progress, and freshness are derived
 /// at render time and never stored.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -313,6 +484,17 @@ pub struct Ticket {
     pub labels: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rank: Option<String>,
+    /// The four opt-in properties, flat and named exactly as the frontmatter
+    /// keys are, because every surface that reads one reads it as `due` or
+    /// `type` and the file is what it is projecting.
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub ticket_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub due: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub estimate: Option<String>,
     pub created_at: String,
     pub updated_at: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -335,6 +517,15 @@ pub struct Ticket {
 impl Ticket {
     pub fn is_archived(&self) -> bool {
         self.archived_at.is_some()
+    }
+
+    pub fn property(&self, property: Property) -> Option<&str> {
+        match property {
+            Property::Type => self.ticket_type.as_deref(),
+            Property::Due => self.due.as_deref(),
+            Property::Start => self.start.as_deref(),
+            Property::Estimate => self.estimate.as_deref(),
+        }
     }
 
     pub fn checked_count(&self) -> usize {
@@ -367,6 +558,18 @@ pub struct TicketEdit {
     /// placeholder value. Switching the board out of Manual sends nothing.
     #[serde(default, deserialize_with = "nullable")]
     pub rank: Option<Option<String>>,
+    /// Absent leaves the property alone; `null` removes the key. On disk absent
+    /// and cleared are the same thing — a ticket carries a property only when it
+    /// has a value — so the distinction lives here, and it is what lets the
+    /// Clear row every property menu carries mean something to send.
+    #[serde(default, rename = "type", deserialize_with = "nullable")]
+    pub ticket_type: Option<Option<String>>,
+    #[serde(default, deserialize_with = "nullable")]
+    pub due: Option<Option<String>>,
+    #[serde(default, deserialize_with = "nullable")]
+    pub start: Option<Option<String>>,
+    #[serde(default, deserialize_with = "nullable")]
+    pub estimate: Option<Option<String>>,
     pub archived: Option<bool>,
     pub description: Option<String>,
     #[serde(default)]
@@ -421,6 +624,38 @@ where
 pub struct ChecklistToggle {
     pub item_id: String,
     pub checked: bool,
+}
+
+/// One row of a checklist a create is asking for.
+///
+/// `checked` is the whole of LC-242h. A create used to be a list of strings
+/// because every row it could produce was open by construction, and that held
+/// only as long as a ticket was filed before its work started. A ticket filed
+/// over work already half done is the ordinary case it did not cover: the rows
+/// that are already finished are part of what the human is describing, and
+/// making them tick the boxes again after the file lands is asking them to
+/// restate what they just said.
+///
+/// There is no id here. Ids are minted by the render, which is the one place
+/// that can promise they are unique in the file — a draft row has nothing to be
+/// named by yet, which is also why the create panel keys its rows by position.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct NewChecklistItem {
+    pub text: String,
+    #[serde(default)]
+    pub checked: bool,
+}
+
+impl NewChecklistItem {
+    /// A row with nothing ticked, which is what every caller that has only text
+    /// to give — the CLI's `--checklist`, the project README's example — means.
+    pub fn open(text: impl Into<String>) -> Self {
+        Self {
+            text: text.into(),
+            checked: false,
+        }
+    }
 }
 
 /// Where an item now sits, named by the item it follows.
@@ -500,6 +735,10 @@ impl TicketEdit {
             && self.priority.is_none()
             && self.labels.is_none()
             && self.rank.is_none()
+            && self.ticket_type.is_none()
+            && self.due.is_none()
+            && self.start.is_none()
+            && self.estimate.is_none()
             && self.archived.is_none()
             && self.description.is_none()
             && self.checklist.is_empty()
@@ -512,6 +751,23 @@ impl TicketEdit {
             && self.edit_comment.is_none()
             && self.remove_comment.is_none()
             && self.restore_comment.is_none()
+    }
+
+    /// What this edit asks of each of the four properties, paired with the
+    /// property it answers for.
+    ///
+    /// One spelling of the four, because there are two walks over them — the one
+    /// that applies them and the one that holds them to the project
+    /// ([`crate::core::project::PropertiesConfig::accept_edit`]) — and a fifth
+    /// property added to one and not the other would be a property the app
+    /// writes without ever checking.
+    pub fn properties(&self) -> [(Property, &Option<Option<String>>); 4] {
+        [
+            (Property::Type, &self.ticket_type),
+            (Property::Due, &self.due),
+            (Property::Start, &self.start),
+            (Property::Estimate, &self.estimate),
+        ]
     }
 }
 
@@ -701,6 +957,10 @@ impl TicketDocument {
                 assignee: fields.assignee,
                 labels: fields.labels,
                 rank: fields.rank,
+                ticket_type: fields.ticket_type,
+                due: fields.due,
+                start: fields.start,
+                estimate: fields.estimate,
                 created_at: fields.created_at,
                 updated_at: fields.updated_at,
                 archived_at: fields.archived_at,
@@ -823,6 +1083,30 @@ impl TicketDocument {
                     changes.push(FieldChange::new("rank", Some(previous), None));
                 }
                 _ => {}
+            }
+        }
+        for (property, requested) in edit.properties() {
+            let Some(requested) = requested else { continue };
+            let key = property.as_str();
+            let previous = current.property(property).map(str::to_owned);
+            match requested.as_deref() {
+                Some(value) => {
+                    let value = validate_property(property, value)?;
+                    if Some(value.as_str()) != previous.as_deref() {
+                        next.frontmatter
+                            .set_scalar_after(key, &value, property.anchors());
+                        changes.push(FieldChange::new(key, previous, Some(value)));
+                    }
+                }
+                // Removing a key the ticket does not have is not a change. Left
+                // in, it would append an event saying a property was cleared
+                // that was never set.
+                None => {
+                    if let Some(previous) = previous {
+                        next.frontmatter.remove(key);
+                        changes.push(FieldChange::new(key, Some(previous), None));
+                    }
+                }
             }
         }
         if let Some(archived) = edit.archived {
@@ -1017,6 +1301,7 @@ impl TicketDocument {
             let text = comment_text(&restored.text)?;
             restorable(restored, now)?;
             next.append_activity(&render_event(
+                Ids::Minted,
                 &EventKind::Comment,
                 &restored.occurred_at,
                 restored.edited_at.as_deref(),
@@ -1055,6 +1340,7 @@ impl TicketDocument {
             // already carries the whole of what happened to it.
             if !comment.is_empty() {
                 next.append_activity(&render_event(
+                    Ids::Minted,
                     &EventKind::Comment,
                     now,
                     None,
@@ -1067,6 +1353,7 @@ impl TicketDocument {
         } else {
             next.frontmatter.set_scalar("updated_at", now);
             next.append_activity(&render_event(
+                Ids::Minted,
                 &EventKind::Update,
                 now,
                 None,
@@ -1142,6 +1429,7 @@ impl TicketDocument {
             Some(new_key.to_owned()),
         )];
         next.append_activity(&render_event(
+            Ids::Minted,
             &EventKind::Update,
             now,
             None,
@@ -1535,6 +1823,7 @@ impl TicketDocument {
 /// markers; the Markdown underneath is what a human reads.
 #[allow(clippy::too_many_arguments)]
 fn render_event(
+    ids: Ids,
     kind: &EventKind,
     occurred_at: &str,
     edited_at: Option<&str>,
@@ -1546,7 +1835,7 @@ fn render_event(
     let mut record = String::new();
     record.push_str(EVENT_OPEN);
     record.push('\n');
-    record.push_str(&format!("id: {}\n", mint_id("evt")));
+    record.push_str(&format!("id: {}\n", ids.event()));
     record.push_str(&format!("kind: {}\n", kind.as_str()));
     record.push_str(&format!("occurred_at: {}\n", encode_scalar(occurred_at)));
     // Directly under `occurred_at`, which is where `set_comment_body` puts one
@@ -1610,6 +1899,17 @@ pub fn render_new_ticket(
     )
 }
 
+/// The text-only spelling of a checklist, for the callers that have no ticked
+/// row to describe: every item comes out open. [`render_new_ticket_as`] is where
+/// a create that does carry ticks goes (LC-242h).
+fn all_open(checklist: &[String]) -> Vec<NewChecklistItem> {
+    checklist
+        .iter()
+        .cloned()
+        .map(NewChecklistItem::open)
+        .collect()
+}
+
 /// The app's own create, attributed to the local human actor (ADR 0001).
 #[allow(clippy::too_many_arguments)]
 pub fn render_new_ticket_with_labels(
@@ -1628,8 +1928,9 @@ pub fn render_new_ticket_with_labels(
         status,
         priority,
         labels,
+        &TicketProperties::default(),
         description,
-        checklist,
+        &all_open(checklist),
         now,
         &Actor::local_human(),
     )
@@ -1642,14 +1943,73 @@ pub fn render_new_ticket_as(
     status: Status,
     priority: Priority,
     labels: &[String],
+    properties: &TicketProperties,
     description: &str,
-    checklist: &[String],
+    checklist: &[NewChecklistItem],
     now: &str,
     author: &Actor,
 ) -> String {
+    render_ticket(
+        key,
+        title,
+        status,
+        priority,
+        labels,
+        properties,
+        description,
+        checklist,
+        now,
+        author,
+        Ids::Minted,
+    )
+}
+
+/// The worked example the generated agent contract carries.
+///
+/// It is a real render — the same function a create goes through — so the shape
+/// an agent is shown cannot drift from the shape the app writes. What it does
+/// not do is mint: see [`Ids`].
+pub fn render_example_ticket(
+    key: &str,
+    title: &str,
+    status: Status,
+    priority: Priority,
+    description: &str,
+    checklist: &[String],
+    now: &str,
+) -> String {
+    render_ticket(
+        key,
+        title,
+        status,
+        priority,
+        &[],
+        &TicketProperties::default(),
+        description,
+        &all_open(checklist),
+        now,
+        &Actor::local_human(),
+        Ids::Fixed,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_ticket(
+    key: &str,
+    title: &str,
+    status: Status,
+    priority: Priority,
+    labels: &[String],
+    properties: &TicketProperties,
+    description: &str,
+    checklist: &[NewChecklistItem],
+    now: &str,
+    author: &Actor,
+    ids: Ids,
+) -> String {
     let mut rendered = String::from("---\n");
     rendered.push_str(&format!("format: {TICKET_FORMAT}\n"));
-    rendered.push_str(&format!("id: {}\n", Uuid::new_v4()));
+    rendered.push_str(&format!("id: {}\n", ids.ticket()));
     rendered.push_str(&format!("key: {}\n", encode_scalar(key)));
     rendered.push_str(&format!("title: {}\n", encode_scalar(title)));
     rendered.push_str(&format!("status: {}\n", status.as_str()));
@@ -1658,6 +2018,19 @@ pub fn render_new_ticket_as(
         rendered.push_str("labels:\n");
         for label in labels {
             rendered.push_str(&format!("  - {}\n", encode_scalar(label.trim())));
+        }
+    }
+    // In the documented order, and only the ones with a value: a ticket carries
+    // a property key when it has something to say, never as an empty default.
+    // The values arrive validated — `storage::prepare_new_ticket_as` is the one
+    // path a create takes, and it is where a bad date is refused.
+    for property in Property::ALL {
+        if let Some(value) = properties.get(property) {
+            rendered.push_str(&format!(
+                "{}: {}\n",
+                property.as_str(),
+                encode_scalar(value.trim())
+            ));
         }
     }
     rendered.push_str(&format!("created_at: {}\n", encode_scalar(now)));
@@ -1671,16 +2044,21 @@ pub fn render_new_ticket_as(
     }
     if !checklist.is_empty() {
         rendered.push_str("\n## Checklist\n\n");
-        for text in checklist {
+        for (index, item) in checklist.iter().enumerate() {
+            // The same two markers every other write in this module uses, so a
+            // row created ticked is indistinguishable from one ticked later —
+            // which is the point: the file records state, not how it got there.
+            let box_marker = if item.checked { "- [x] " } else { "- [ ] " };
             rendered.push_str(&format!(
-                "- [ ] {} {ITEM_MARKER_OPEN}{} {ITEM_MARKER_CLOSE}\n",
-                text.trim(),
-                mint_id("ck")
+                "{box_marker}{} {ITEM_MARKER_OPEN}{} {ITEM_MARKER_CLOSE}\n",
+                item.text.trim(),
+                ids.item(index)
             ));
         }
     }
     rendered.push_str("\n## Activity\n\n");
     rendered.push_str(&render_event(
+        ids,
         &EventKind::Create,
         now,
         None,
@@ -1697,9 +2075,64 @@ fn mint_id(prefix: &str) -> String {
     format!("{prefix}_{}", &uuid[..8])
 }
 
+/// The ids the agent contract's worked example carries.
+///
+/// Real-looking, because the example is what an agent copies the shape of, and
+/// fixed, because nothing reads them.
+const EXAMPLE_TICKET_ID: &str = "3f9c1a7d-4e02-4b8c-9a71-5d6e0c2f8b34";
+const EXAMPLE_ITEM_IDS: [&str; 1] = ["ck_1b8e4f02"];
+const EXAMPLE_EVENT_ID: &str = "evt_2c7a90d5";
+
+/// Where a render gets the ids it has to invent.
+///
+/// Every create mints them: an id is an identity, and two tickets must never
+/// share one. The generated agent contract's worked example is the single
+/// exception, and it is LC-66 — LongClaw reprints `.longclaw/AGENTS.md` after
+/// every project edit, so minting there turned a theme change into a diff of a
+/// fresh `id`, a fresh `ck_` and a fresh `evt_` and nothing else. That is noise
+/// in exactly the reviews where the contract really had changed, and the file is
+/// documentation, so fixed ids cost nothing.
+#[derive(Clone, Copy)]
+enum Ids {
+    Minted,
+    Fixed,
+}
+
+impl Ids {
+    fn ticket(self) -> String {
+        match self {
+            Self::Minted => Uuid::new_v4().to_string(),
+            Self::Fixed => EXAMPLE_TICKET_ID.to_owned(),
+        }
+    }
+
+    /// The `ck_` for the row at `index`.
+    ///
+    /// A fixed example with more rows than there are literals above falls back
+    /// to minting rather than repeating one id, which the byte-identity test
+    /// then fails on — a loud wrong answer instead of two rows LongClaw would
+    /// treat as the same row.
+    fn item(self, index: usize) -> String {
+        match self {
+            Self::Minted => mint_id("ck"),
+            Self::Fixed => EXAMPLE_ITEM_IDS
+                .get(index)
+                .map(|id| (*id).to_owned())
+                .unwrap_or_else(|| mint_id("ck")),
+        }
+    }
+
+    fn event(self) -> String {
+        match self {
+            Self::Minted => mint_id("evt"),
+            Self::Fixed => EXAMPLE_EVENT_ID.to_owned(),
+        }
+    }
+}
+
 // --------------------------------------------------------------------- parsing
 
-const KNOWN_KEYS: [&str; 12] = [
+const KNOWN_KEYS: [&str; 16] = [
     "format",
     "id",
     "key",
@@ -1709,6 +2142,10 @@ const KNOWN_KEYS: [&str; 12] = [
     "assignee",
     "labels",
     "rank",
+    "type",
+    "due",
+    "start",
+    "estimate",
     "created_at",
     "updated_at",
     "archived_at",
@@ -1728,6 +2165,14 @@ struct FrontmatterFields {
     labels: Vec<String>,
     #[serde(default)]
     rank: Option<String>,
+    #[serde(default, rename = "type", deserialize_with = "scalar_text")]
+    ticket_type: Option<String>,
+    #[serde(default, deserialize_with = "scalar_text")]
+    due: Option<String>,
+    #[serde(default, deserialize_with = "scalar_text")]
+    start: Option<String>,
+    #[serde(default, deserialize_with = "scalar_text")]
+    estimate: Option<String>,
     created_at: String,
     updated_at: String,
     #[serde(default)]
@@ -2459,9 +2904,10 @@ fn parse_attachment(record: &RawRecord) -> Result<Attachment, Diagnostic> {
 #[cfg(test)]
 mod tests {
     use super::{
-        render_new_ticket, Actor, ChecklistMove, ChecklistRestore, ChecklistTextEdit,
-        ChecklistToggle, CommentRestore, CommentTextEdit, Priority, Status, TicketDocument,
-        TicketEdit, TICKET_FORMAT,
+        is_property_date, render_new_ticket, render_new_ticket_as, Actor, ChecklistMove,
+        ChecklistRestore, ChecklistTextEdit, ChecklistToggle, CommentRestore, CommentTextEdit,
+        NewChecklistItem, Priority, Property, Status, TicketDocument, TicketEdit, TicketProperties,
+        TICKET_FORMAT,
     };
 
     const NOW: &str = "2026-07-30T10:00:00.000Z";
@@ -2595,6 +3041,10 @@ mod tests {
                     priority: Some(Priority::Urgent),
                     labels: Some(vec!["storage".to_owned(), "reliability".to_owned()]),
                     rank: Some(Some("0|hzzzzz:".to_owned())),
+                    ticket_type: Some(Some("bug".to_owned())),
+                    due: Some(Some("2026-09-28".to_owned())),
+                    start: Some(Some("2026-09-14".to_owned())),
+                    estimate: Some(Some("1.5d".to_owned())),
                     archived: Some(true),
                     description: Some("A new description.".to_owned()),
                     checklist: vec![ChecklistToggle {
@@ -3023,7 +3473,7 @@ mod tests {
         assert_eq!(event.occurred_at, posted);
         assert_eq!(event.edited_at.as_deref(), Some(NOW));
         // The whole record, because where the stamp goes is part of the format
-        // contract (`file_format.md:186`) and "contains an edited_at somewhere"
+        // contract (`file_format.md:213`) and "contains an edited_at somewhere"
         // would pass with it written into the middle of the actor block.
         assert!(
             rendered.contains(&format!(
@@ -3974,6 +4424,49 @@ mod tests {
         assert!(ticket.record_diagnostics.is_empty());
     }
 
+    /// A create filed over work already half done (LC-242h). What the file has to
+    /// say is which rows are finished — and it has to say it in the same two
+    /// markers a later tick would write, so nothing downstream can tell a row
+    /// created ticked from one ticked afterwards.
+    #[test]
+    fn a_new_ticket_can_be_created_with_rows_already_ticked() {
+        let rendered = render_new_ticket_as(
+            "LC-9",
+            "Filed over work already started",
+            Status::InProgress,
+            Priority::P2,
+            &[],
+            &TicketProperties::default(),
+            "",
+            &[
+                NewChecklistItem {
+                    text: "Parse".to_owned(),
+                    checked: true,
+                },
+                NewChecklistItem::open("Write"),
+            ],
+            NOW,
+            &Actor::local_human(),
+        );
+
+        let document = TicketDocument::parse(&rendered, "LC-9").expect("a new ticket should read");
+        let ticket = document.ticket();
+        assert_eq!(document.render(), rendered, "a create must round trip");
+        let checked: Vec<(&str, bool)> = ticket
+            .checklist
+            .iter()
+            .map(|item| (item.text.as_str(), item.checked))
+            .collect();
+        assert_eq!(checked, vec![("Parse", true), ("Write", false)]);
+        // Both rows are minted the same way: being ticked at birth is a state,
+        // not a different kind of row.
+        assert!(ticket.checklist.iter().all(|item| item.id.is_some()));
+        // The create is the only entry. A row that arrived ticked was never
+        // toggled, so narrating one would be inventing history (ADR 0001).
+        assert_eq!(ticket.activity.len(), 1);
+        assert_eq!(ticket.activity[0].kind.as_str(), "create");
+    }
+
     #[test]
     fn a_new_ticket_with_a_colon_in_its_title_is_quoted_and_reads_back() {
         let rendered = render_new_ticket(
@@ -3989,5 +4482,201 @@ mod tests {
         let document = TicketDocument::parse(&rendered, "LC-8").expect("should parse");
         assert_eq!(document.ticket().title, "Fix: the sync worker");
         assert_eq!(document.ticket().description, "");
+    }
+
+    // ------------------------------------------------- the four properties
+
+    #[test]
+    fn a_property_is_written_in_the_documented_order_and_only_when_it_has_a_value() {
+        let applied = document()
+            .apply(
+                &TicketEdit {
+                    due: Some(Some("2026-09-28".to_owned())),
+                    ticket_type: Some(Some("bug".to_owned())),
+                    ..TicketEdit::default()
+                },
+                NOW,
+            )
+            .expect("setting two properties should be accepted");
+        let rendered = String::from_utf8(applied.bytes).expect("UTF-8");
+
+        // Type before due, both after the labels they sit below on disk, and no
+        // key at all for the two this edit did not mention.
+        assert!(
+            rendered.contains("  - storage\ntype: bug\ndue: 2026-09-28\ncreated_at:"),
+            "{rendered}"
+        );
+        assert!(!rendered.contains("start:"));
+        assert!(!rendered.contains("estimate:"));
+        assert_eq!(
+            applied.document.ticket().ticket_type.as_deref(),
+            Some("bug")
+        );
+        assert_eq!(applied.document.ticket().start, None);
+    }
+
+    /// The two answers that are one answer on disk. A ticket carries a property
+    /// only when it has a value, so absent and cleared are the same file — and
+    /// the edit is where they stop being the same request.
+    #[test]
+    fn clearing_a_property_removes_its_key_and_leaves_the_others_alone() {
+        let set = document()
+            .apply(
+                &TicketEdit {
+                    due: Some(Some("2026-09-28".to_owned())),
+                    estimate: Some(Some("1.5d".to_owned())),
+                    ..TicketEdit::default()
+                },
+                NOW,
+            )
+            .expect("setting should be accepted");
+        let cleared = set
+            .document
+            .apply(
+                &TicketEdit {
+                    due: Some(None),
+                    ..TicketEdit::default()
+                },
+                NOW,
+            )
+            .expect("clearing should be accepted");
+        let rendered = String::from_utf8(cleared.bytes).expect("UTF-8");
+
+        assert!(!rendered.contains("due:"), "{rendered}");
+        assert!(rendered.contains("estimate: 1.5d"), "{rendered}");
+        assert_eq!(cleared.document.ticket().due, None);
+        assert_eq!(cleared.changes.len(), 1);
+        assert_eq!(cleared.changes[0].field, "due");
+        assert_eq!(cleared.changes[0].from.as_deref(), Some("2026-09-28"));
+        assert_eq!(cleared.changes[0].to, None);
+    }
+
+    /// Clearing what is not there is not a change. Left in, it would append an
+    /// event saying a due date was removed from a ticket that never had one.
+    #[test]
+    fn clearing_a_property_that_is_already_absent_changes_nothing() {
+        let refused = document().apply(
+            &TicketEdit {
+                due: Some(None),
+                ..TicketEdit::default()
+            },
+            NOW,
+        );
+        assert!(refused.is_err(), "an edit that changes nothing is refused");
+    }
+
+    #[test]
+    fn a_date_that_is_not_a_day_is_refused_rather_than_normalised() {
+        for value in [
+            "2026-9-8",
+            "28 Sep 2026",
+            "2026-02-30",
+            "2026-09-28T00:00:00Z",
+        ] {
+            let refused = document().apply(
+                &TicketEdit {
+                    due: Some(Some(value.to_owned())),
+                    ..TicketEdit::default()
+                },
+                NOW,
+            );
+            assert!(refused.is_err(), "{value:?} should be refused");
+        }
+        assert!(is_property_date("2026-09-28"));
+        assert!(is_property_date("2024-02-29"));
+        assert!(!is_property_date("2023-02-29"));
+        assert!(!is_property_date(""));
+    }
+
+    /// The estimate the format asks to be quoted, written by somebody who did
+    /// not quote it.
+    ///
+    /// `estimate: 5` is a YAML integer. Refusing it would take down a ticket
+    /// whose only fault is a missing pair of quotes, and the format's posture
+    /// toward a value it cannot use is to keep it (invariants 10 and 16).
+    #[test]
+    fn an_unquoted_estimate_reads_as_text_rather_than_taking_the_ticket_down() {
+        let raw = TICKET.replace(
+            "priority: p2\n",
+            "priority: p2\nestimate: 5\ndue: 2026-09-28\n",
+        );
+        let document = TicketDocument::parse(&raw, "LC-1").expect("the ticket should still parse");
+        assert_eq!(document.ticket().estimate.as_deref(), Some("5"));
+        assert_eq!(document.ticket().due.as_deref(), Some("2026-09-28"));
+        assert_eq!(document.render(), raw);
+        // Known keys, not preserved-because-unrecognised ones: the difference
+        // between invariant 16 and invariant 11.
+        assert_eq!(
+            document.ticket().unknown_keys,
+            vec!["x_extension".to_owned()]
+        );
+    }
+
+    /// Invariant 16, from the side that matters most: the project turned Due
+    /// off, and the app went on editing the ticket for a week.
+    #[test]
+    fn a_property_survives_an_edit_that_never_mentions_it() {
+        let raw = TICKET.replace(
+            "priority: p2\n",
+            "priority: p2\ntype: not-a-defined-type\ndue: 2026-09-28\nestimate: \"17 sandwiches\"\n",
+        );
+        let document = TicketDocument::parse(&raw, "LC-1").expect("the ticket should parse");
+        let applied = document
+            .apply(
+                &TicketEdit {
+                    status: Some(Status::Done),
+                    ..TicketEdit::default()
+                },
+                NOW,
+            )
+            .expect("an unrelated edit should be accepted");
+        let after = applied.document.ticket();
+
+        for property in Property::ALL {
+            assert_eq!(
+                after.property(property),
+                document.ticket().property(property)
+            );
+        }
+        let rendered = String::from_utf8(applied.bytes).expect("UTF-8");
+        assert!(
+            rendered.contains("estimate: \"17 sandwiches\""),
+            "{rendered}"
+        );
+        assert!(applied
+            .changes
+            .iter()
+            .all(|change| change.field == "status"));
+    }
+
+    #[test]
+    fn a_create_writes_the_properties_it_is_given_and_no_others() {
+        let rendered = render_new_ticket_as(
+            "LC-9",
+            "Filed with a due date",
+            Status::Todo,
+            Priority::None,
+            &["backend".to_owned()],
+            &TicketProperties {
+                due: Some("2026-09-28".to_owned()),
+                ..TicketProperties::default()
+            },
+            "",
+            &[],
+            NOW,
+            &Actor::local_human(),
+        );
+        assert!(
+            rendered.contains("  - backend\ndue: 2026-09-28\ncreated_at:"),
+            "{rendered}"
+        );
+        // The frontmatter alone: an activity record's actor block says `type:`
+        // too, and it is not this key.
+        let frontmatter = rendered.split("---\n").nth(1).expect("frontmatter");
+        assert!(!frontmatter.contains("type:"), "{frontmatter}");
+        assert!(!frontmatter.contains("estimate:"), "{frontmatter}");
+        let parsed = TicketDocument::parse(&rendered, "LC-9").expect("the create should parse");
+        assert_eq!(parsed.ticket().due.as_deref(), Some("2026-09-28"));
+        assert_eq!(parsed.ticket().estimate, None);
     }
 }

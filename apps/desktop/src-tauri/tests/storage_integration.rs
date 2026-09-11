@@ -13,7 +13,9 @@ use common::{
     assert_minted, copy_representative_project, project_reference, start_engine, ticket_path,
 };
 use longclaw_desktop_lib::core::storage::{self, NewTicket};
-use longclaw_desktop_lib::core::ticket::{ChecklistToggle, Priority, Status, TicketEdit};
+use longclaw_desktop_lib::core::ticket::{
+    ChecklistToggle, NewChecklistItem, Priority, Status, TicketEdit, TicketProperties,
+};
 use longclaw_desktop_lib::core::{
     ErrorCode, ProjectEvent, RebuildReason, StreamEnvelope, TicketRow,
 };
@@ -112,6 +114,118 @@ fn an_app_write_reaches_disk_and_survives_a_restart() {
     let newest = reloaded.last_activity.expect("an appended event");
     assert_eq!(newest.kind, "update");
     assert_eq!(newest.actor.id.as_deref(), Some("local"));
+}
+
+/// The app's own create and edit refuse a disabled property and an undefined
+/// value, the way the CLI's flags do (LC-227).
+///
+/// `TicketDocument::apply_as` holds a value to the format's own rule and
+/// deliberately no further — it is handed a file, not a project — so until the
+/// engine asked, the app could write a `type` no project defined, and an
+/// undefined slug renders as its own text with no name and no colour. Every
+/// refusal here lands before any bytes are placed: the file on disk is checked
+/// afterwards and is the one that was there before.
+#[test]
+fn the_app_refuses_a_property_the_project_does_not_configure() {
+    let (_temp, root) = copy_representative_project();
+    // Types on with one value; the other three left off, which is what every
+    // project file written before this build reads as.
+    let project_file = root.join(".longclaw/longclaw.yaml");
+    let mut configured = fs::read_to_string(&project_file).expect("the fixture project file");
+    configured.push_str(concat!(
+        "properties:\n",
+        "  type:\n",
+        "    enabled: true\n",
+        "    values:\n",
+        "      bug:\n",
+        "        name: Bug\n",
+        "        color: red\n",
+    ));
+    fs::write(&project_file, &configured).expect("the configured project file");
+
+    let (engine, _events) = start_engine(&root);
+    let before = indexed(&engine.snapshot().tickets, "LC-1").clone();
+    let untouched = fs::read_to_string(ticket_path(&root, "LC-1")).expect("ticket.md");
+
+    for (edit, expected) in [
+        (
+            // Enabled, and a slug this project never defined.
+            TicketEdit {
+                ticket_type: Some(Some("epic".to_owned())),
+                ..TicketEdit::default()
+            },
+            "is not defined in this project",
+        ),
+        (
+            // Off, so the app has no business writing it.
+            TicketEdit {
+                due: Some(Some("2026-09-28".to_owned())),
+                ..TicketEdit::default()
+            },
+            "has not enabled the due property",
+        ),
+        (
+            // And off is off for a clear as much as for a set: the value is
+            // being hidden, not deleted, and the ticket still holds it.
+            TicketEdit {
+                estimate: Some(None),
+                ..TicketEdit::default()
+            },
+            "has not enabled the estimate property",
+        ),
+    ] {
+        let refused = engine
+            .edit_ticket("LC-1", &edit, &before.content_hash)
+            .expect_err("this project does not configure that property");
+        assert_eq!(refused.code, ErrorCode::ParseFailed);
+        assert!(refused.message.contains(expected), "{}", refused.message);
+    }
+
+    // The value the project does define is written, so the refusals above are
+    // about the project's configuration and not about properties at all.
+    engine
+        .edit_ticket(
+            "LC-1",
+            &TicketEdit {
+                ticket_type: Some(Some("bug".to_owned())),
+                ..TicketEdit::default()
+            },
+            &before.content_hash,
+        )
+        .expect("bug is a type this project defines");
+    assert!(fs::read_to_string(ticket_path(&root, "LC-1"))
+        .expect("ticket.md")
+        .contains("type: bug\n"));
+
+    // A create is held to the same vocabulary, and refused before it claims a
+    // directory: the next key is still free.
+    let refused = engine
+        .create_ticket(&NewTicket {
+            title: "A ticket the project cannot describe".to_owned(),
+            properties: TicketProperties {
+                start: Some("2026-09-14".to_owned()),
+                ..TicketProperties::default()
+            },
+            ..NewTicket::default()
+        })
+        .expect_err("this project has no start dates");
+    assert!(
+        refused
+            .message
+            .contains("has not enabled the start property"),
+        "{}",
+        refused.message
+    );
+    assert!(!ticket_path(&root, "LC-7").exists());
+
+    // Four writes were asked for and one was accepted, so the history records
+    // one. A refusal that had reached `apply_as` would have appended an event
+    // for a change no file kept.
+    let after = fs::read_to_string(ticket_path(&root, "LC-1")).expect("ticket.md");
+    assert_eq!(
+        after.matches("kind: update").count(),
+        untouched.matches("kind: update").count() + 1
+    );
 }
 
 #[test]
@@ -555,11 +669,20 @@ fn creating_tickets_allocates_keys_from_the_files_and_never_reuses_one() {
     let created = engine
         .create_ticket(&NewTicket {
             title: "Ship the storage engine".to_owned(),
+            properties: TicketProperties::default(),
             description: "Written by the app.".to_owned(),
             status: Some(Status::Todo),
             priority: Some(Priority::P1),
             labels: vec!["backend".to_owned(), "reliability".to_owned()],
-            checklist: vec!["Parse".to_owned(), "Write".to_owned()],
+            checklist: vec![
+                NewChecklistItem::open("Parse"),
+                // Filed already ticked, which is what LC-242h added: a create
+                // can describe work that is part done.
+                NewChecklistItem {
+                    text: "Write".to_owned(),
+                    checked: true,
+                },
+            ],
         })
         .expect("creation should be accepted");
     // The number is this project's; the trailing character is drawn (LC-232).
@@ -574,6 +697,10 @@ fn creating_tickets_allocates_keys_from_the_files_and_never_reuses_one() {
     let row = indexed(&snapshot.tickets, &key);
     assert_eq!(row.title, "Ship the storage engine");
     assert_eq!(row.checklist_count, 2);
+    // The tick the create carried, read back off the index rather than the
+    // request (LC-242h): this is the number the board card draws, and the whole
+    // point of filing a row ticked is that it arrives that way.
+    assert_eq!(row.checked_count, 1);
     assert_eq!(row.priority, Priority::P1);
     assert_eq!(row.labels, vec!["backend", "reliability"]);
 
@@ -679,6 +806,19 @@ fn initializing_a_folder_writes_a_project_and_its_agent_contract() {
         "the repository root AGENTS.md is not ours"
     );
 
+    // The pointer Claude Code reads, and the file that belongs to the user.
+    let pointer = fs::read_to_string(storage::claude_pointer_path(&root)).expect("CLAUDE.md");
+    assert!(pointer.contains("@AGENTS.md"), "{pointer}");
+    assert!(
+        !root.join("CLAUDE.md").exists(),
+        "the repository root CLAUDE.md is not ours"
+    );
+    assert_eq!(
+        fs::read_to_string(storage::project_instructions_path(&root)).expect("PROJECT.md"),
+        "# Project instructions\n",
+        "PROJECT.md arrives empty of instructions"
+    );
+
     let error = storage::initialize_project(&root, "Again", "FP", None, "2026-07-29T00:00:00Z")
         .expect_err("an existing project must not be overwritten");
     assert_eq!(error.code, ErrorCode::InvalidProject);
@@ -770,21 +910,241 @@ fn every_refused_create_field_leaves_the_folder_untouched() {
 
 /// The contract's worked example carries freshly minted ids on every render, so a
 /// comparison of two renders has to ignore them and nothing else.
-fn without_minted_ids(contract: &str) -> String {
-    contract
+/// A project edit reprints what LongClaw generates and leaves alone what it does
+/// not.
+///
+/// Both halves matter and they fail in opposite directions. AGENTS.md and
+/// CLAUDE.md are derived from the project file, so a theme or a label that did
+/// not reach them leaves an agent reading a description of a project that no
+/// longer exists. PROJECT.md is the user's, so a reprint that reached it would
+/// destroy the one file here nobody can regenerate — and it is reached by every
+/// rename, label and property write, which is a lot of chances to be wrong once.
+#[test]
+fn a_project_edit_reprints_the_generated_files_and_never_project_md() {
+    let temp = tempfile::tempdir().expect("temporary folder");
+    let root = temp.path().join("edited");
+    fs::create_dir_all(&root).expect("create the folder");
+    storage::initialize_project(&root, "Edited", "ED", None, "2026-07-29T00:00:00Z")
+        .expect("a new project");
+
+    let mine = "# Project instructions\n\nCall them tickets, never issues.\n";
+    fs::write(storage::project_instructions_path(&root), mine).expect("the user writes their own");
+    let contract_before =
+        fs::read_to_string(storage::agent_contract_path(&root)).expect("AGENTS.md");
+    let pointer_before =
+        fs::read_to_string(storage::claude_pointer_path(&root)).expect("CLAUDE.md");
+
+    // A write that changes nothing the generated files describe: the same bytes
+    // come back, so a theme change is not three lines of churn (LC-66).
+    let mut document = storage::read_project(&root).expect("the project should be readable");
+    let bytes = document.set_theme("clay").expect("clay is a preset id");
+    storage::atomic_write(
+        "Saving project settings",
+        &storage::project_file_path(&root),
+        &bytes,
+    )
+    .expect("the project file should be written");
+    storage::write_agent_instructions(&root, &document).expect("the reprint");
+
+    assert_eq!(
+        fs::read_to_string(storage::agent_contract_path(&root)).expect("AGENTS.md"),
+        contract_before,
+        "a theme change describes nothing in the contract, so it changes nothing in it"
+    );
+    assert_eq!(
+        fs::read_to_string(storage::claude_pointer_path(&root)).expect("CLAUDE.md"),
+        pointer_before
+    );
+
+    // A write that does change what they describe reaches them, and reaches
+    // only the lines it is about.
+    let bytes = document
+        .add_label("storage", "Storage", "blue")
+        .expect("a label the grammar accepts");
+    storage::atomic_write(
+        "Saving project settings",
+        &storage::project_file_path(&root),
+        &bytes,
+    )
+    .expect("the project file should be written");
+    storage::write_agent_instructions(&root, &document).expect("the reprint");
+
+    let with_one_label =
+        fs::read_to_string(storage::agent_contract_path(&root)).expect("AGENTS.md");
+    assert!(
+        with_one_label.contains("| `storage` | Storage |"),
+        "{with_one_label}"
+    );
+
+    // A second label moves exactly its own row, which is the diff a reviewer
+    // should get: the meaning that changed and nothing else.
+    let bytes = document
+        .add_label("design", "Design", "orange")
+        .expect("a second label");
+    storage::atomic_write(
+        "Saving project settings",
+        &storage::project_file_path(&root),
+        &bytes,
+    )
+    .expect("the project file should be written");
+    storage::write_agent_instructions(&root, &document).expect("the reprint");
+
+    let with_two_labels =
+        fs::read_to_string(storage::agent_contract_path(&root)).expect("AGENTS.md");
+    let added: Vec<&str> = with_two_labels
         .lines()
-        .map(|line| match line.split_once("longclaw:item=") {
-            Some((prefix, rest)) => {
-                let tail = rest.split_once(' ').map(|(_, tail)| tail).unwrap_or("");
-                format!("{prefix}longclaw:item=<minted> {tail}")
-            }
-            None => match line.split_once("id: ") {
-                Some((prefix, _)) => format!("{prefix}id: <minted>"),
-                None => line.to_owned(),
-            },
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
+        .filter(|line| !with_one_label.lines().any(|before| before == *line))
+        .collect();
+    assert_eq!(added, vec!["| `design` | Design |"], "{with_two_labels}");
+
+    // Through all of it, the user's file is exactly as they left it.
+    assert_eq!(
+        fs::read_to_string(storage::project_instructions_path(&root)).expect("PROJECT.md"),
+        mine
+    );
+}
+
+/// A failed create tidies up after itself, and the folder it failed in was
+/// already somebody's.
+///
+/// `PROJECT.md` is the path that makes this worth a test of its own: it is the
+/// one file under `.longclaw/` a person may have written before LongClaw ever
+/// ran here, and a cleanup that treated it as its own residue would delete
+/// their instructions on the way out of a create that did not even succeed.
+#[test]
+fn a_failed_create_keeps_a_project_md_that_was_already_there() {
+    let temp = tempfile::tempdir().expect("temporary folder");
+    let root = temp.path().join("occupied");
+    fs::create_dir_all(root.join(".longclaw")).expect("create the folder");
+    let mine = "# Project instructions\n\nMine, written before any of this.\n";
+    fs::write(storage::project_instructions_path(&root), mine).expect("the user's own file");
+
+    let error =
+        storage::initialize_project(&root, "30 July 4PM", "3J4", None, "2026-07-29T00:00:00Z")
+            .expect_err("a digit-leading key must be refused");
+    assert_eq!(error.code, ErrorCode::InvalidProject);
+
+    assert_eq!(
+        fs::read_to_string(storage::project_instructions_path(&root)).expect("PROJECT.md"),
+        mine
+    );
+}
+
+/// The generated files are brought back in step with a project file somebody
+/// edited by hand.
+///
+/// This is the gap the reprint-on-every-write rule leaves: the app watches
+/// `.longclaw/tickets/` and nothing else, so an edit to `longclaw.yaml` reaches
+/// no watcher — and `longclaw help` names that file as where a project turns a
+/// ticket property on, which makes the hand-edit the documented path rather than
+/// an odd one. An agent then reads a contract describing the labels the project
+/// used to have.
+#[test]
+fn a_hand_edited_project_file_brings_the_generated_instructions_back_in_step() {
+    let temp = tempfile::tempdir().expect("temporary folder");
+    let root = temp.path().join("drifted");
+    fs::create_dir_all(&root).expect("create the folder");
+    storage::initialize_project(&root, "Drifted", "DR", None, "2026-07-29T00:00:00Z")
+        .expect("a new project");
+
+    // Nothing has moved, so nothing is rewritten — the guard that keeps this out
+    // of a loop with the watcher, and out of a reviewer's diff.
+    let document = storage::read_project(&root).expect("the project should be readable");
+    let untouched = fs::metadata(storage::agent_contract_path(&root))
+        .and_then(|meta| meta.modified())
+        .expect("mtime");
+    assert!(storage::reconcile_agent_instructions(&root, &document).is_empty());
+    assert_eq!(
+        fs::metadata(storage::agent_contract_path(&root))
+            .and_then(|meta| meta.modified())
+            .expect("mtime"),
+        untouched,
+        "an in-step contract is not rewritten"
+    );
+
+    // Somebody adds a label the way the CLI cannot: by editing the file.
+    let path = storage::project_file_path(&root);
+    let raw = fs::read_to_string(&path).expect("longclaw.yaml");
+    fs::write(
+        &path,
+        raw.replace(
+            "labels: {}\n",
+            "labels:\n  storage:\n    name: Storage\n    color: blue\n",
+        ),
+    )
+    .expect("the hand edit");
+
+    let document = storage::read_project(&root).expect("the edited project should be readable");
+    let rewritten = storage::reconcile_agent_instructions(&root, &document);
+    assert_eq!(rewritten, vec![storage::agent_contract_path(&root)]);
+    let contract = fs::read_to_string(storage::agent_contract_path(&root)).expect("AGENTS.md");
+    assert!(contract.contains("| `storage` | Storage |"), "{contract}");
+
+    // And it is in step now, so a second pass writes nothing.
+    assert!(storage::reconcile_agent_instructions(&root, &document).is_empty());
+}
+
+/// A project made by a build that wrote only `AGENTS.md` gains the two files
+/// that build never wrote, and keeps whatever the user has since put in them.
+#[test]
+fn reconciling_creates_the_files_an_older_project_never_had() {
+    let temp = tempfile::tempdir().expect("temporary folder");
+    let root = temp.path().join("older");
+    fs::create_dir_all(&root).expect("create the folder");
+    storage::initialize_project(&root, "Older", "OL", None, "2026-07-29T00:00:00Z")
+        .expect("a new project");
+
+    // Wind it back to what an older build left behind.
+    fs::remove_file(storage::claude_pointer_path(&root)).expect("remove CLAUDE.md");
+    fs::remove_file(storage::project_instructions_path(&root)).expect("remove PROJECT.md");
+
+    let document = storage::read_project(&root).expect("the project should be readable");
+    let rewritten = storage::reconcile_agent_instructions(&root, &document);
+    assert_eq!(
+        rewritten,
+        vec![
+            storage::claude_pointer_path(&root),
+            storage::project_instructions_path(&root),
+        ]
+    );
+    assert!(fs::read_to_string(storage::claude_pointer_path(&root))
+        .expect("CLAUDE.md")
+        .contains("@AGENTS.md"));
+
+    // The user writes in the file that is theirs, and reconciling again leaves
+    // it exactly as they left it — `PROJECT.md` is created, never restored.
+    let mine = "# Project instructions\n\nCall them tickets.\n";
+    fs::write(storage::project_instructions_path(&root), mine).expect("their own file");
+    assert!(storage::reconcile_agent_instructions(&root, &document).is_empty());
+    assert_eq!(
+        fs::read_to_string(storage::project_instructions_path(&root)).expect("PROJECT.md"),
+        mine
+    );
+}
+
+/// Opening a project is where the app notices, because a hand-edited
+/// `longclaw.yaml` produces no watcher event to notice it by.
+#[test]
+fn opening_a_project_refreshes_a_contract_that_no_longer_describes_it() {
+    let (_temp, root) = copy_representative_project();
+    let path = storage::project_file_path(&root);
+    let raw = fs::read_to_string(&path).expect("longclaw.yaml");
+    fs::write(
+        &path,
+        format!("{raw}properties:\n  due:\n    enabled: true\n"),
+    )
+    .expect("the hand edit");
+
+    let before = fs::read_to_string(storage::agent_contract_path(&root)).expect("AGENTS.md");
+    assert!(!before.contains("| `due` |"), "{before}");
+
+    let (_engine, _events) = start_engine(&root);
+
+    let after = fs::read_to_string(storage::agent_contract_path(&root)).expect("AGENTS.md");
+    assert!(
+        after.contains("| `due` | a date, `YYYY-MM-DD` | `--due <date>`, `--clear-due` |"),
+        "{after}"
+    );
 }
 
 /// The example project committed for pilots and manual runs carries the same
@@ -799,10 +1159,11 @@ fn the_example_projects_agent_contract_matches_the_generator() {
         .expect("the fixture should carry .longclaw/AGENTS.md");
     let generated = longclaw_desktop_lib::core::project::render_agent_contract(document.project());
 
-    assert_eq!(
-        without_minted_ids(&committed),
-        without_minted_ids(&generated)
-    );
+    // Byte for byte, which the file only became capable of when its worked
+    // example stopped minting ids (LC-66). The comparison used to mask every
+    // `id:` line, and a mask over the fixture is a mask over the thing the
+    // fixture is for.
+    assert_eq!(committed, generated);
 }
 
 #[test]
@@ -862,7 +1223,7 @@ fn directory_listing(directory: &Path) -> Vec<String> {
 /// The V0-11 gate: archiving is a frontmatter flip and nothing else. The
 /// directory never moves and never goes away (ADR 0004), and the workflow status
 /// it had is still the status it has — Canceled and archived are distinct
-/// (`file_format.md:345-347`).
+/// (`file_format.md:406-408`).
 #[test]
 fn archiving_sets_archived_at_and_leaves_the_directory_where_it_is() {
     let (_temp, root) = copy_representative_project();
@@ -918,7 +1279,7 @@ fn archiving_sets_archived_at_and_leaves_the_directory_where_it_is() {
 
 /// The other half of the gate: archived tickets "stay findable". `archived_at`
 /// hides a ticket from ordinary views, and search is not one of them
-/// (`file_format.md:345-347`). The `· archived` tag on a result belongs to the
+/// (`file_format.md:406-408`). The `· archived` tag on a result belongs to the
 /// search surface, which is V0-24.
 #[test]
 fn an_archived_ticket_is_still_found_by_search() {

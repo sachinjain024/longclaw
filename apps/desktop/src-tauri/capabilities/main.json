@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main",
-  "description": "The LongClaw desktop webview may use typed IPC/events and open one native folder picker. It has no frontend filesystem, shell, network, or process capability: where a command reaches the disk or the OS — reading a ticket, or handing one to the editor via open_ticket_file — the webview names a ticket key and Rust resolves the path inside the open project.",
+  "description": "The LongClaw desktop webview may use typed IPC/events and open one native folder picker. It has no frontend filesystem, shell, network, or process capability: where a command reaches the disk or the OS — reading a ticket, or handing one to the editor via open_ticket_file — the webview names a ticket key and Rust resolves the path inside the open project. install_command_line is the one command that writes outside a project folder, and it is the same shape rather than an exception to it: the webview asks for the longclaw command to be installed and names no path, and Rust decides that the link is /usr/local/bin/longclaw, that its target is this bundle's own binary, and that a file it did not create is never replaced. It is app-defined, so it runs under core:default and the permission list below is unchanged.",
   "windows": ["main"],
   "platforms": ["macOS"],
   "permissions": ["core:default", "core:event:default", "dialog:allow-open"]

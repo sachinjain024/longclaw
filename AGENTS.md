@@ -21,7 +21,25 @@ re-keys one side and reports every path that still names the old key — see
 
 File it with the CLI, which is the one surface allowed to allocate a key — never
 by writing a ticket directory by hand, and always with `--agent-id`, because an
-activity entry without it says a human did the work:
+activity entry without it says a human did the work.
+
+**Prefer the installed `longclaw`.** Installing the app installs the command —
+the binary rides inside the bundle and one press in *Settings → Command line*
+links it into `/usr/local/bin` (LC-233) — so on a machine with LongClaw
+installed there is nothing to build:
+
+```sh
+longclaw ticket create \
+  --title "…" --label frontend --agent-id claude-code --agent-name "Claude Code"
+```
+
+Build it when there is no installed app, and **when this checkout has moved
+ahead of one**. An installed `longclaw` is the *app's* build: if the format or
+the CLI has changed on this branch, the command on `PATH` is the older one and
+the freshly built binary is the only one that speaks this tree's format. There
+is no `--version` to ask it with, so the rule is the branch rather than the
+binary: **if the working tree touches `cli.rs`, `core/`, or `file_format.md`,
+build.**
 
 ```sh
 cargo build --release --manifest-path apps/desktop/src-tauri/Cargo.toml --bin longclaw
@@ -67,7 +85,12 @@ docs, one line in `DOCS_NAV` (`src/lib/site.ts`).
 
 **Four skills cover the routine work; use them rather than working from memory.**
 They are the only first-party skills in `.agents/skills/` — everything else there
-is vendored from `mattpocock/skills` and tracked in `skills-lock.json`.
+is vendored, and every vendored skill is tracked in `skills-lock.json` with the
+`source` it came from. `mattpocock/skills` is where nearly all of them come from;
+`caveman` came from `JuliusBrussee/caveman` and is the reason this sentence names
+the lockfile rather than one upstream. **The lockfile is the rule**: a skill under
+`.agents/skills/` that is neither one of the four above nor an entry there is
+untracked, and that is the thing to fix.
 
 | Skill | For |
 |---|---|
@@ -81,6 +104,46 @@ eaten inside a `<pre>`, grid floors that cannot shrink below a phone, prose
 styles leaking into a component's own `<pre>`, and defects that exist only once
 Pages is serving the site.
 
+## UX prototypes
+
+A prototype under `docs/ux/prototypes/` exists to be reviewed **before** code is
+written, so it has to be reviewable in both of the things it proposes: the
+layout and the copy. `docs/ux/prototypes/README.md` covers the file's shape —
+one standalone HTML file per ticket, the app's own tokens and `styles.css`, the
+components' real markup, and the CSS it proposes in `<style id="proposed">`
+apart from the harness's own.
+
+**Every prototype also carries a copy deck**, in the prototype itself — the last
+scene in its driver bar, not a separate document. Collect into it every
+user-facing string the prototype puts on screen, so the copy can be read _as
+copy_: one column, one voice, without hunting through five scenes for the three
+sentences that disagree with each other. Copy is the half of a design that gets
+reviewed last and shipped hardest to change.
+
+Five rules make the deck worth having:
+
+- **The scenes read the deck, not the other way round.** Put the strings in one
+  object and render both the scenes and the deck from it. A deck typed out
+  beside the markup is two spellings of one sentence, and this repo already
+  knows how that ends: a stale copy line reads exactly like a fresh one.
+- **Every row is addressable.** Give each string a short id and show it, so a
+  reply can say `due.window.note → …` rather than quoting prose back.
+- **Say what each string is and where it appears** — a button, a field label, a
+  placeholder, an empty state, a note, write feedback, a refusal, a menu row and
+  its hint. Tone is judged per kind: a refusal and a note are not written the
+  same way, and a list that flattens them invites one voice for both.
+- **Include the copy no screen shows.** `aria-label`s, `title`s and live regions
+  are read out loud by someone, and they are the copy that has never once been
+  reviewed.
+- **Mark which rows are new or changed** against what the app ships today. A
+  review needs the neighbours for tone and needs to know which sentences it is
+  actually being asked about.
+
+When the copy comes back edited, change the prototype's object — one place,
+before any of it reaches `src/`. Then **write the settled deck into the ticket**,
+because the prototype is deleted once the ticket is reviewed and copy that only
+ever lived in a deleted file has to be re-litigated by whoever ships it.
+
 ## Git workflow
 
 Agents must always create a topic branch before making changes.
@@ -93,6 +156,8 @@ Before creating the topic branch, agents must:
 4. Create a new topic branch from the updated `main`.
 
 Agents may commit only on topic branches. Agents must not commit directly to `main`. Agents must not merge into `main` unless the user explicitly asks them to do so.
+
+When merging a PR, use **Squash and merge** (`gh pr merge --squash`).
 
 ## Toolchain and the gate
 

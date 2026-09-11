@@ -158,12 +158,14 @@ const STATES = [
       ".board-column h3",
       ".project-link strong",
       // Was `.eyebrow` — the `LOCAL PROJECT` one, which the one-row header
-      // dropped — then `.project-path`, until LC-68 made the path a chip. The
-      // path is still the header's quiet text, which is the pairing this probe
-      // exists to prove; the chip carries `ink-2` where the bare `<code>` was
-      // `ink-3`, so the probe now measures a slightly easier pair, not a
-      // different one.
-      ".content-header .path-chip",
+      // dropped — then `.project-path`, until LC-68 made the path a chip, and
+      // it left the header for the side panel's identity block with everything
+      // else that named the project (LC-239w). It is still the shell's quiet
+      // text, which is the pairing this probe exists to prove — and in the
+      // panel it is `ink-3` against `--lc-bg`, which is the harder pair of the
+      // two, not the easier.
+      ".project-identity .path-chip",
+      ".identity-text h1",
       ".content-header .primary",
     ],
     token: [
@@ -223,7 +225,7 @@ const STATES = [
       ".list-row strong",
       ".list-row-key",
       ".list-group-header",
-      ".content-header .path-chip",
+      ".project-identity .path-chip",
     ],
     token: [],
     distinct: [],
@@ -823,7 +825,11 @@ try {
       await check(state("panel-activity"));
       await page.click('[role="tab"]:has-text("Comments")');
 
-      await page.click(".meta-grid .menu-trigger");
+      // The rail, not `.meta-grid`: LC-227 replaced the panel's stacked meta
+      // grid with a rail, and this selector went on naming a class only full
+      // create still renders — so the run died here rather than reporting a
+      // colour. `verify` cannot see it, because the matrix is a job of its own.
+      await page.click(".panel-rail .menu-trigger");
       await page.waitForSelector(".menu-popover");
       await check(state("menu"));
       // The popover sits on `raised`, which is the other half of the dark

@@ -76,7 +76,7 @@ export function RowActions(props: {
  * draft does not sit in the store.
  *
  * `Enter` commits and `Esc` abandons, which is the title field's contract
- * (`keyboard-focus-map.md:80-81`) and the one a human arrives already knowing.
+ * (`keyboard-focus-map.md:81-82`) and the one a human arrives already knowing.
  * Blur commits too: a field left by clicking elsewhere has been left, and losing
  * what was typed to a stray click is the worse of the two failures.
  */

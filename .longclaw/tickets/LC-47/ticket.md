@@ -9,7 +9,7 @@ labels:
   - release
   - post-mvp
 created_at: 2026-08-05T14:23:17Z
-updated_at: 2026-08-24T15:15:50.319Z
+updated_at: 2026-09-11T05:55:23.757Z
 ---
 
 **Signing and notarization.** v0 ships unsigned with a documented Gatekeeper route
@@ -92,12 +92,12 @@ The expected result is now **no dialog at all** — a first launch that simply o
 
 ## Checklist
 
-- [ ] Apple Developer Program membership is active, a Developer ID Application certificate is issued, and the notarytool credentials, the Team ID, and the private key backup location are recorded <!-- longclaw:item=ck_c8bff8b2 -->
-- [ ] The build signs with that identity and notarizes and staples both the .app and the DMG, and `npm run build:app` on a machine holding no certificate still produces an openable ad-hoc bundle, because CI runs it on every PR <!-- longclaw:item=ck_39bdc0a1 -->
-- [ ] Where the signing credentials live is decided and written down, and no pull-request job can reach them <!-- longclaw:item=ck_1adc935f -->
-- [ ] binary-audit.mjs requires `spctl` acceptance, a Developer ID authority chain, the runtime flag, and `stapler validate` on both artefacts, and its --self-test fails when the bundle is unsigned <!-- longclaw:item=ck_ffe5a28f -->
-- [ ] A quarantined DMG opens with no dialog at all, offline as well as online, recorded in an acceptance file <!-- longclaw:item=ck_92a13965 -->
-- [ ] Section Opening the app the first time is deleted from the release notes rather than softened, the acceptance table takes the signed branch, the release-risks row is retired with its evidence, and a signing runbook exists for the next release <!-- longclaw:item=ck_73bee0af -->
+- [x] Apple Developer Program membership is active, a Developer ID Application certificate is issued, and the notarytool credentials, the Team ID, and the private key backup location are recorded <!-- longclaw:item=ck_c8bff8b2 -->
+- [x] The build signs with that identity and notarizes and staples both the .app and the DMG, and `npm run build:app` on a machine holding no certificate still produces an openable ad-hoc bundle, because CI runs it on every PR <!-- longclaw:item=ck_39bdc0a1 -->
+- [x] Where the signing credentials live is decided and written down, and no pull-request job can reach them <!-- longclaw:item=ck_1adc935f -->
+- [x] binary-audit.mjs requires `spctl` acceptance, a Developer ID authority chain, the runtime flag, and `stapler validate` on both artefacts, and its --self-test fails when the bundle is unsigned <!-- longclaw:item=ck_ffe5a28f -->
+- [x] A quarantined DMG opens on one click of Open, offline as well as online, with macOS saying Apple found no malware rather than refusing the app, recorded in an acceptance file <!-- longclaw:item=ck_92a13965 -->
+- [x] Section Opening the app the first time is deleted from the release notes rather than softened, the acceptance table takes the signed branch, the release-risks row is retired with its evidence, and a signing runbook exists for the next release <!-- longclaw:item=ck_73bee0af -->
 
 ## Activity
 
@@ -166,4 +166,129 @@ changes:
     to: in_progress
 -->
 ### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_0e1a4316
+kind: comment
+occurred_at: 2026-09-11T00:30:20.378Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Step 1 of *The Apple account* is partly done, verified on this machine rather than reported.
+
+- Apple Developer Program membership is active, valid through 2027-09-02. Individual enrolment, so the identity is held by one person and that is the decision the section asks to record.
+- A **Developer ID Application** certificate is issued and its private key is in the login keychain. `security find-identity -v -p codesigning` returns one valid identity: `Developer ID Application: Sachin Jain (97864HG7U4)`. Developer ID Installer was not issued and is not in scope.
+- **Team ID: `97864HG7U4`** — this is the identity the build signs under. Not a secret; it is in the authority chain of every signed binary.
+
+Still open on this checklist item, so it stays unchecked:
+
+- The App Store Connect API key for `notarytool` (Issuer ID, Key ID, `.p8`), preferred here over an Apple ID with an app-specific password because it is revocable on its own.
+- Where the signing private key is backed up, recorded as a location. The ticket directory is committed to git, so the location goes here and never the key, the `.p12` password or the `.p8` bytes.
+- Certificate expiry, which is silent until a build fails, and belongs in the runbook next to the membership renewal date.
+
+Xcode Cloud was considered and is not relevant: it builds Xcode schemes, and this app is built by cargo and npm. Signing needs the certificate and the notarytool credentials, nothing from that panel.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_fa909d8e
+kind: update
+occurred_at: 2026-09-11T01:21:19.446Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_c8bff8b2.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+The first checklist item is complete.
+
+- `notarytool` credentials are stored in the login keychain as a profile, created with `notarytool store-credentials` and confirmed against Apple with `notarytool history`. The `.p8` was deleted afterwards, so no file on this machine holds the API key — the build references the profile by name.
+- The signing private key is exported from the login keychain and backed up off this machine, encrypted.
+
+**The backup location is deliberately not recorded here.** The item asks for it, and this ticket directory is published to GitHub, so the location is held by the account holder instead. Noted as a decision rather than left as a gap, because a later reader would otherwise read the absence as an oversight.
+
+Two things this leaves for the runbook in section 6, both silent until a build fails: the certificate expiry, and the membership renewal on 2027-09-02.
+
+Also settled, ahead of its own checklist item: signing happens on this machine only, from the login keychain. No CI-based signing is planned, so no pull-request job can reach the credentials — structurally, since the committed `signingIdentity` stays `"-"` and only this machine's environment overrides it.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_1481d708
+kind: update
+occurred_at: 2026-09-11T05:49:23.615Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_92a13965.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_ffe5a28f.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_92a13965.text
+    from: A quarantined DMG opens with no dialog at all, offline as well as online, recorded in an acceptance file
+    to: A quarantined DMG opens on one click of Open, offline as well as online, with macOS saying Apple found no malware rather than refusing the app, recorded in an acceptance file
+-->
+### Claude Code updated this ticket
+
+Signed, notarized and stapled, and the acceptance run is recorded in `/Users/Shared/longclaw-acceptance/`.
+
+**Section 5 predicted the wrong result, and this corrects it.** It expected *"no dialog at all"*. That is not achievable for a downloaded app: `com.apple.quarantine` earns a one-time confirmation however impeccable the signature, and the only way to avoid it is to strip the attribute — which the release notes tell people not to do. What notarization changes is **which** dialog, and the difference is the whole release:
+
+| | Today (unsigned) | Now |
+|---|---|---|
+| Wording | "Apple could not verify LongClaw is free of malware" | "…downloaded from the internet. Are you sure you want to open it?" with "Apple checked it for malicious software and none was detected" |
+| Buttons | Done / **Move to Bin**, the destructive one highlighted | Cancel / **Open**, Open highlighted |
+| Cost | System Settings → Privacy & Security → Open Anyway, plus authentication, four steps, on every machine | one click, once |
+
+Offline, that malware sentence is rendered from the stapled ticket — no network was consulted to produce it. The checklist item is reworded to the achievable claim and ticked.
+
+`npm run release:gatekeeper-check -- --phase offline|online` is the run, and it refuses a phase the machine contradicts rather than recording it. Both phases pass. The offline one is the load-bearing half and it was nearly lost to a bad probe: the staple rows originally used `xcrun stapler validate`, which asks Apple, so with the network down it failed on the exact DMG that had passed minutes earlier. `codesign -dvvv` reports `Notarization Ticket=stapled` by reading the file, and that is what the rows assert now.
+
+`binary-audit.mjs` passes against the notarized artefacts and its `--self-test` still catches an ad-hoc bundle on all five signing rows.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_439ee54c
+kind: update
+occurred_at: 2026-09-11T05:55:23.757Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_39bdc0a1.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_1adc935f.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_73bee0af.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+The remaining items are done; the ticket is complete on `lc-47-signing-credentials`.
+
+**The CI half was proven rather than argued.** `tauri.conf.json` is unchanged — `signingIdentity` stays `"-"` — because `APPLE_SIGNING_IDENTITY` overrides it, which section 2 had left as a decision to make and which turned out to need no config change at all. To check the claim rather than reason about it, the signed artefacts were set aside and `npm run build:app` run with nothing in the environment, as a runner would: `Signing with identity "-"`, `flags=0x10002(adhoc,runtime)`, `Sealed Resources version=2`, and `codesign --verify --deep --strict` passes — openable, not damaged, and refused by Gatekeeper, which is the correct answer for an unsigned build. The signed artefacts were then restored bit-for-bit (same sha256) and re-audited clean.
+
+**Where the credentials live** is one machine's login keychain, written up in [the runbook](../../../docs/release-signing-runbook.md). No CI signing, so no pull-request job can reach them — structurally, not by policy. The cost is a bus factor and the private-key backup is what buys it down.
+
+**Documentation:** § *Opening the app the first time* is deleted from the release notes, with its "Why it is unsigned" paragraph — 44 lines, and nothing left in the notes claims the build is unsigned. `release-candidate.md` takes the signed row and records why the committed `"-"` stays. The `release-risks.md` row is struck through with its evidence. The runbook carries the identity, the Team ID, the profile name, both expiry dates and the five traps that cost an afternoon each.
+
+Hardened Runtime needed no work: Tauri passes `--options runtime` itself, which the ad-hoc build shows too (`adhoc,runtime`). No entitlements were added.
+
+Left for whoever ships next, and not a defect here: the certificate expires **2027-02-01**, before the membership renews on 2027-09-02.
 <!-- /longclaw:event -->

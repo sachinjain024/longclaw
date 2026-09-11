@@ -86,6 +86,45 @@ describe("every field apply() can write", () => {
       { field: "archived_at", from: "2026-08-01T12:00:00Z" },
       "unarchived this",
     ],
+    ["type, set", { field: "type", to: "bug" }, "set the type to “bug”"],
+    ["type, cleared", { field: "type", from: "bug" }, "cleared the type"],
+    [
+      "due, set",
+      { field: "due", to: "2026-09-28" },
+      "set the due date to 2026-09-28",
+    ],
+    [
+      "due, cleared",
+      { field: "due", from: "2026-09-28" },
+      "cleared the due date",
+    ],
+    [
+      "start, set",
+      { field: "start", to: "2026-09-14" },
+      "set the start date to 2026-09-14",
+    ],
+    [
+      "start, cleared",
+      { field: "start", from: "2026-09-14" },
+      "cleared the start date",
+    ],
+    // A date in a shape the format does not store reaches the timeline verbatim.
+    // Prettying it up would say the file holds something it does not (LC-227).
+    [
+      "due, a value this build cannot read",
+      { field: "due", to: "28 Sep 2026" },
+      "set the due date to 28 Sep 2026",
+    ],
+    [
+      "estimate, set",
+      { field: "estimate", to: "1.5d" },
+      "set the estimate to “1.5d”",
+    ],
+    [
+      "estimate, cleared",
+      { field: "estimate", from: "1.5d" },
+      "cleared the estimate",
+    ],
     // `apply` records a description change with no from and no to, because the
     // diff is not tracked. The expandable diff is deferred (`components.md:234-238`).
     ["description", { field: "description" }, "edited the description"],
@@ -140,7 +179,9 @@ describe("every field apply() can write", () => {
       // No code chip: that is reserved for a key with no sentence of its own.
       expect(line.code).toBeUndefined();
       // And no dotted path, which is the shape a checklist field arrives in.
-      expect(line.text).not.toMatch(/\w+\.\w+/);
+      // A letter has to follow the dot: an estimate is a legal value with one
+      // in it — `1.5d` — and a sentence that says so is not a leaked key.
+      expect(line.text).not.toMatch(/\b[a-z_]+\.[a-z_]/i);
       // Nor a wire enum value, which is what `status todo → in_review` was.
       expect(line.text).not.toMatch(/\b\w+_\w+\b/);
     }

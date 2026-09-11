@@ -109,6 +109,19 @@ const acknowledged = tokenLength(
   "height",
   "board-card-acknowledged",
 );
+// The same two cards with LC-227's second footer row under the title. Four
+// heights and not eight: the due date lives in the key row, which is pinned at
+// 16px and holds text, so a project that enables only Due never reaches these.
+const withProperties = tokenLength(
+  ".ticket-row.has-properties",
+  "height",
+  "board-card-properties",
+);
+const acknowledgedWithProperties = tokenLength(
+  ".ticket-row.has-properties.acknowledged",
+  "height",
+  "board-card-acknowledged-properties",
+);
 
 // The frame the rows sit inside. `padding` is the block token and the inline one
 // in a single declaration, so it is checked whole and the block half taken from
@@ -132,6 +145,12 @@ const titleHeight = leadingLength(".ticket-row strong", "height");
 const titleRow =
   titleHeight + leadingLength(".ticket-row strong", "margin-bottom");
 const foot = leadingLength(".ticket-meta", "height");
+
+// The second footer row, which is the whole difference between each pinned
+// height and its taller twin.
+const secondRow =
+  leadingLength(".card-second", "height") +
+  leadingLength(".card-second", "margin-bottom");
 
 // The acknowledgement footer, which is the whole difference between the two
 // heights: its margin, the rule above it, its padding and one line of mono.
@@ -177,16 +196,35 @@ if (readable(acknowledged, card, footer) && acknowledged !== card + footer)
     `\`--lc-size-board-card-acknowledged\` is ${acknowledged}px and an acknowledged card draws ${card + footer}px (${card} + ${footer} of footer), so a column misplaces the cards below every change that arrives from disk`,
   );
 
+// The second row costs the same on both, which is what makes this one term
+// rather than two numbers that only look related today.
+if (
+  readable(withProperties, card, secondRow) &&
+  withProperties !== card + secondRow
+)
+  findings.push(
+    `\`--lc-size-board-card-properties\` is ${withProperties}px and a card with the second footer row draws ${card + secondRow}px (${card} + ${secondRow} of second row), so a column misplaces every card below one that carries an estimate or a type`,
+  );
+
+if (
+  readable(acknowledgedWithProperties, acknowledged, secondRow) &&
+  acknowledgedWithProperties !== acknowledged + secondRow
+)
+  findings.push(
+    `\`--lc-size-board-card-acknowledged-properties\` is ${acknowledgedWithProperties}px and that card draws ${acknowledged + secondRow}px (${acknowledged} + ${secondRow} of second row), so the two ways a card can grow do not add up together`,
+  );
+
 report({
-  // Three, not two: the title's clamp is an assertion in its own right, and it
-  // is the one LC-166 was filed for. A pass line that counted only the two
-  // heights would stop naming the check most likely to be the one that broke.
+  // Five: the title's clamp is an assertion in its own right — it is the one
+  // LC-166 was filed for — and LC-227's second footer row doubled the heights.
+  // A pass line that counted only the base pair would stop naming the checks
+  // most likely to be the ones that broke.
   name: "card-height-guard",
   findings,
-  checked: 3,
+  checked: 5,
   noun: "board card invariants",
   remedy:
     "term(s) the board's pinned card heights no longer add up to — fix the sum in src/tokens/design-tokens.json and src/boardGeometry.ts together, or the column jitters:",
   clean:
-    "the title reserves every line it clamps, and both card heights are the sum of the rows styles.css draws inside them",
+    "the title reserves every line it clamps, and all four card heights are the sum of the rows styles.css draws inside them",
 });

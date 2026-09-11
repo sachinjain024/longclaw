@@ -11,9 +11,11 @@ import * as api from "./api";
 import {
   readActiveProjectId,
   readAppearance,
+  readCommandLinePrompted,
   readProjectWorkspaces,
   rememberActiveProject,
   rememberAppearance,
+  rememberCommandLinePrompted,
   rememberProjectWorkspaces,
   resetDevicePreferences,
   restoreDevicePreferences,
@@ -113,7 +115,7 @@ describe("a document is untrusted, wherever it came from", () => {
       appearance: "sepia",
       activeProjectId: 42,
       projectWorkspaces: {
-        good: { view: "board", ordering: "priority", filterQuery: "open" },
+        good: { view: "board", ordering: "due", filterQuery: "open" },
         stale: { view: "grid", ordering: "newest", filterQuery: 42 },
         partial: { view: "list", future: true },
         scalar: "manual",
@@ -125,7 +127,7 @@ describe("a document is untrusted, wherever it came from", () => {
     expect(readAppearance()).toBeUndefined();
     expect(readActiveProjectId()).toBeUndefined();
     expect(readProjectWorkspaces()).toEqual({
-      good: { view: "board", ordering: "priority", filterQuery: "open" },
+      good: { view: "board", ordering: "due", filterQuery: "open" },
       partial: { view: "list" },
     });
   });
@@ -277,5 +279,40 @@ describe("writes", () => {
       }),
     );
     expect(vi.mocked(api.writePreferences).mock.calls.length).toBeLessThan(3);
+  });
+});
+
+/**
+ * The command-line offer is asked once per machine (LC-233), so the record of
+ * having asked has to survive a relaunch like every other preference — and has
+ * to survive the *migration*, which is the way a one-field document quietly
+ * loses its one field.
+ */
+describe("the command-line offer, once per machine", () => {
+  it("comes back after a relaunch", async () => {
+    await restoreDevicePreferences();
+    expect(readCommandLinePrompted()).toBe(false);
+
+    rememberCommandLinePrompted();
+    await landed({ projectWorkspaces: {}, commandLinePrompted: true });
+    await relaunch();
+
+    expect(readCommandLinePrompted()).toBe(true);
+  });
+
+  /**
+   * A document holding only this field is not an empty document. Read as one,
+   * the migration replaces it with whatever webview storage still holds — and
+   * a person who declined the offer is asked again on the next launch, which
+   * is a "don't ask again" that does not stay.
+   */
+  it("is not thrown away by the migration out of webview storage", async () => {
+    disk = { commandLinePrompted: true };
+    localStorage.setItem("longclaw.appearance", "light");
+
+    await restoreDevicePreferences();
+
+    expect(readCommandLinePrompted()).toBe(true);
+    expect(api.writePreferences).not.toHaveBeenCalled();
   });
 });

@@ -8,8 +8,9 @@ priority: p1
 labels:
   - release
   - product
+type: chore
 created_at: 2026-08-25T07:33:13.529Z
-updated_at: 2026-08-25T07:33:13.529Z
+updated_at: 2026-09-09T06:47:21.623Z
 ---
 
 The **Download for Mac** button on longclaw.io points at
@@ -76,4 +77,18 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_1e4e34fe
+kind: update
+occurred_at: 2026-09-09T06:47:21.623Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: type
+    to: chore
+-->
+### You updated this ticket
 <!-- /longclaw:event -->

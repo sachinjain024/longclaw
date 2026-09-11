@@ -23,11 +23,14 @@ import {
 } from "./listGeometry";
 import type * as ListRow from "./listRow";
 import type { OrderingMode } from "./ordering";
+import { NO_PROPERTIES } from "./properties";
 import type { TicketMove } from "./ticketMove";
 import type {
   IndexedTicket,
   Label,
+  PropertiesConfig,
   TicketPriority,
+  TicketProperty,
   TicketRow,
   TicketStatus,
 } from "./types";
@@ -86,7 +89,13 @@ function list(props?: {
   onSelect?: (key: string) => void;
   onChangePriority?: (ticket: IndexedTicket, next: TicketPriority) => void;
   onChangeStatus?: (ticket: IndexedTicket, next: TicketStatus) => void;
+  onChangeProperty?: (
+    ticket: IndexedTicket,
+    property: TicketProperty,
+    next: string | undefined,
+  ) => void;
   onArchive?: (ticket: IndexedTicket) => void;
+  properties?: PropertiesConfig;
   onCopyPath?: (ticket: TicketRow) => void;
   onMoveTicket?: (ticket: IndexedTicket, move: TicketMove) => void;
   onCreateFirst?: () => void;
@@ -97,11 +106,13 @@ function list(props?: {
       selectedKey={props?.selectedKey}
       marks={props?.marks ?? {}}
       labels={DEFINITIONS}
+      properties={props?.properties ?? NO_PROPERTIES}
       ordering={props?.ordering ?? "priority"}
       now={NOW}
       onSelect={props?.onSelect ?? noop}
       onChangePriority={props?.onChangePriority ?? noop}
       onChangeStatus={props?.onChangeStatus ?? noop}
+      onChangeProperty={props?.onChangeProperty ?? noop}
       onArchive={props?.onArchive ?? noop}
       onCopyPath={props?.onCopyPath ?? noop}
       onMoveTicket={props?.onMoveTicket ?? noop}
@@ -220,6 +231,22 @@ describe("the groups the list draws", () => {
       ),
     ).toEqual(["LC-3", "LC-4", "LC-2", "LC-1"]);
   });
+
+  it("orders a group by due date when Due is chosen", () => {
+    render(
+      list({
+        ordering: "due",
+        tickets: [
+          row({ key: "LC-1", status: "todo", due: "2026-09-20" }),
+          row({ key: "LC-2", status: "todo" }),
+          row({ key: "LC-3", status: "todo", due: "2026-09-09" }),
+          row({ key: "LC-4", status: "todo", due: "2026-09-10" }),
+        ],
+      }),
+    );
+
+    expect(rowKeys()).toEqual(["LC-3", "LC-4", "LC-1", "LC-2"]);
+  });
 });
 
 describe("what one row says", () => {
@@ -256,23 +283,68 @@ describe("what one row says", () => {
         (chip) => chip.textContent,
       ),
     ).toEqual(["Backend", "Reliability"]);
-    expect(element.querySelector(".list-row-updated")?.textContent).toBe("3h");
+    expect(element.querySelector(".list-row-updated")).toBeNull();
     // No assignee slot in v0 (ADR 0001).
     expect(element.querySelector(".avatar")).toBeNull();
   });
 
-  // `just now` wrapped onto a second line inside the 46px column and made the
-  // row taller than its neighbours (D-35); the slot's vocabulary is one word.
-  it("says now for a ticket that changed a moment ago, not just now", () => {
+  it.each([
+    ["2026-07-28", "3d overdue", "overdue"],
+    ["2026-07-31", "Today", "today"],
+    ["2026-08-03", "in 3d", "approaching"],
+    ["2026-10-20", "20 Oct", "beyond"],
+  ])("shows due %s at the end of the row", (due, text, rung) => {
     render(
       list({
-        tickets: [row({ updatedAt: new Date(NOW - 400).toISOString() })],
+        tickets: [row({ due })],
+        properties: {
+          ...NO_PROPERTIES,
+          due: { enabled: true, attentionDays: 7 },
+        },
       }),
     );
+    const element = listRow("LC-1");
+    const chip = element.querySelector(".due-chip");
+    expect(chip?.textContent).toBe(text);
+    expect(chip?.classList.contains(rung)).toBe(true);
+    expect(element.lastElementChild).toBe(chip);
+    expect(element.querySelector(".list-row-updated")).toBeNull();
+  });
 
-    expect(
-      listRow("LC-1").querySelector(".list-row-updated")?.textContent,
-    ).toBe("now");
+  it.each([undefined, "invalid", "2026-02-30"])(
+    "omits an absent or invalid due date: %s",
+    (due) => {
+      render(
+        list({
+          tickets: [row({ due })],
+          properties: {
+            ...NO_PROPERTIES,
+            due: { enabled: true, attentionDays: 7 },
+          },
+        }),
+      );
+      expect(listRow("LC-1").querySelector(".due-chip")).toBeNull();
+    },
+  );
+
+  it("hides due when the property is disabled", () => {
+    render(list({ tickets: [row({ due: "2026-07-28" })] }));
+    expect(listRow("LC-1").querySelector(".due-chip")).toBeNull();
+  });
+
+  it("shows a finished ticket's date without overdue urgency", () => {
+    render(
+      list({
+        tickets: [row({ due: "2026-07-28", status: "done" })],
+        properties: {
+          ...NO_PROPERTIES,
+          due: { enabled: true, attentionDays: 7 },
+        },
+      }),
+    );
+    const chip = listRow("LC-1").querySelector(".due-chip");
+    expect(chip?.textContent).toBe("28 Jul");
+    expect(chip?.classList.contains("overdue")).toBe(false);
   });
 
   it("names the status for anyone who cannot see the dot's colour", () => {
@@ -614,7 +686,7 @@ describe("moving through the list with the keyboard", () => {
 
   it("leaves the archived toggle its own tab stop", () => {
     // The header button is the keyboard path to the archive
-    // (`keyboard-focus-map.md:125`), so it is reachable rather than roved over.
+    // (`keyboard-focus-map.md:126`), so it is reachable rather than roved over.
     render(
       list({
         tickets: [
@@ -832,10 +904,13 @@ describe("dragging a row to another group (LC-60)", () => {
     return section;
   }
 
-  it("is draggable in either order, because a group is a status", () => {
+  it("is draggable in any order, because a group is a status", () => {
     const { rerender } = render(
       list({ tickets: across, ordering: "priority" }),
     );
+    expect(listRow("LC-1").draggable).toBe(true);
+
+    rerender(list({ tickets: across, ordering: "due" }));
     expect(listRow("LC-1").draggable).toBe(true);
 
     rerender(list({ tickets: across, ordering: "manual" }));

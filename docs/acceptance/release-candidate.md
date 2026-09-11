@@ -15,12 +15,12 @@ This document is the gate: what every candidate must record and prove. What a
 particular candidate actually measured goes in its own dated record beside this
 file, so the checklist and the evidence stop changing for each other's reasons.
 
-| Candidate | Record |
-|---|---|
-| 2026-08-04, `implement/step-16b-release-hardening` | [release-candidate-2026-08-04.md](release-candidate-2026-08-04.md) |
-| 2026-08-04, `implement/step-17-final-acceptance` — the Step 17 pass over the same gate | [final-acceptance-2026-08-04.md](final-acceptance-2026-08-04.md) |
-| 2026-08-05, the same branch rebuilt at the final commit — DMG produced, startup measured, the network audit harnessed | [final-acceptance-2026-08-05.md](final-acceptance-2026-08-05.md) |
-| 2026-08-05, the packaged-install pass against that build — the last blocker, and the signing defect it found | [clean-machine-2026-08-05.md](clean-machine-2026-08-05.md) |
+| Candidate                                                                                                             | Record                                                             |
+| --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| 2026-08-04, `implement/step-16b-release-hardening`                                                                    | [release-candidate-2026-08-04.md](release-candidate-2026-08-04.md) |
+| 2026-08-04, `implement/step-17-final-acceptance` — the Step 17 pass over the same gate                                | [final-acceptance-2026-08-04.md](final-acceptance-2026-08-04.md)   |
+| 2026-08-05, the same branch rebuilt at the final commit — DMG produced, startup measured, the network audit harnessed | [final-acceptance-2026-08-05.md](final-acceptance-2026-08-05.md)   |
+| 2026-08-05, the packaged-install pass against that build — the last blocker, and the signing defect it found          | [clean-machine-2026-08-05.md](clean-machine-2026-08-05.md)         |
 
 The § Accessibility report below is no longer entirely a manual pass. Its first,
 second, third, seventh and eighth rows are automated by `npm run a11y:audit`
@@ -33,15 +33,15 @@ screen reader says.
 
 Record these before any manual checks:
 
-| Field | Value |
-|---|---|
-| Source revision |  |
-| Branch |  |
-| Build command | `npm run build:app` |
-| App bundle | `apps/desktop/src-tauri/target/release/bundle/macos/LongClaw.app` |
-| DMG | `apps/desktop/src-tauri/target/release/bundle/dmg/LongClaw_0.1.0_<arch>.dmg` |
-| macOS build machine |  |
-| Oldest supported test Mac |  |
+| Field                     | Value                                                                        |
+| ------------------------- | ---------------------------------------------------------------------------- |
+| Source revision           |                                                                              |
+| Branch                    |                                                                              |
+| Build command             | `npm run build:app`                                                          |
+| App bundle                | `apps/desktop/src-tauri/target/release/bundle/macos/LongClaw.app`            |
+| DMG                       | `apps/desktop/src-tauri/target/release/bundle/dmg/LongClaw_0.1.0_<arch>.dmg` |
+| macOS build machine       |                                                                              |
+| Oldest supported test Mac |                                                                              |
 
 The release build is not valid unless `npm run verify` and
 `npm run build:app` both pass from a clean checkout at the recorded revision.
@@ -92,10 +92,23 @@ the right file for this: it is target-agnostic and lists crates macOS never
 compiles, `reqwest` and `hyper` among them.
 
 `npm run release:binary-audit` is the other half and needs a bundle, so it runs
-after `build:app` rather than in `verify`. It reads the shipped binary's symbols
-and linked libraries, and asserts controls — symbols that must be *present* —
-before believing any absence, so a probe that reads the wrong file fails instead
-of passing.
+after `build:app` rather than in `verify`. It reads the shipped binaries'
+symbols and linked libraries, and asserts controls — symbols that must be
+_present_ — before believing any absence, so a probe that reads the wrong file
+fails instead of passing.
+
+**Binaries, plural: the bundle carries two.** `Contents/MacOS/` holds the window
+and the `longclaw` CLI, because `tauri build` compiles every `[[bin]]` in the
+crate and the bundler seals each one into the app — which is how installing the
+app installs the command (LC-233). The CLI is a separate process and this audit
+never once looked at it, so the no-network claim covered half of what shipped.
+It is audited on the same terms now, with its own controls: no
+`_FSEventStreamCreate`, because it starts no watcher, and a positive read of its
+own `longclaw_desktop_lib::cli` symbols in place of it. Its presence and its
+architecture are asserted too — an arm64 app beside an x86_64 command is a
+command that will not run on the machine that just installed it — and
+`codesign --verify --deep --strict` covers it as nested code, which is the
+second reason it must be in `MacOS/` and not `Resources/`.
 
 Neither can see the **webview**, which is network-capable by construction. The
 CSP bounds it and the runtime network audit below verifies it, and a green audit
@@ -136,16 +149,16 @@ not the dependency list, which is why it is pinned exactly rather than loosely.
 
 ## Performance report
 
-| Area | Budget / expectation | Evidence |
-|---|---|---|
-| Startup | cold ≤ 1,500 ms, warm ≤ 750 ms, process start → first painted board | `npm run perf:startup`, plus a clean-machine cold launch |
-| Folder open | Step 4 folder-open budget | `npm run perf:rust` |
-| Index build, 1,000 tickets | ≤ 750 ms | `LONGCLAW_PERF_TICKETS=1000 npm run perf:rust` |
-| Index build, 5,000 tickets | ≤ 2,500 ms | `npm run perf:rust` |
-| Board interaction, 5,000 tickets | p95 ≤ 50 ms **and** p50 ≤ 16 ms, and median within 4 ms of the 600-ticket floor | `npm run perf:board` |
-| List interaction, 5,000 tickets | p95 ≤ 50 ms **and** p50 ≤ 16 ms, and median within 4 ms of the 600-ticket floor | `npm run perf:list` |
-| Search/filter | p95 ≤ 50 ms during the WebKit trace | `npm run perf:board`, `npm run perf:list`, `npm run perf:rust` |
-| External-change visibility | Step 4 external write → visible paint budget | `npm run verify`, `npm --prefix apps/desktop run test:watcher`, WebKit traces |
+| Area                             | Budget / expectation                                                            | Evidence                                                                      |
+| -------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Startup                          | cold ≤ 1,500 ms, warm ≤ 750 ms, process start → first painted board             | `npm run perf:startup`, plus a clean-machine cold launch                      |
+| Folder open                      | Step 4 folder-open budget                                                       | `npm run perf:rust`                                                           |
+| Index build, 1,000 tickets       | ≤ 750 ms                                                                        | `LONGCLAW_PERF_TICKETS=1000 npm run perf:rust`                                |
+| Index build, 5,000 tickets       | ≤ 2,500 ms                                                                      | `npm run perf:rust`                                                           |
+| Board interaction, 5,000 tickets | p95 ≤ 50 ms **and** p50 ≤ 16 ms, and median within 4 ms of the 600-ticket floor | `npm run perf:board`                                                          |
+| List interaction, 5,000 tickets  | p95 ≤ 50 ms **and** p50 ≤ 16 ms, and median within 4 ms of the 600-ticket floor | `npm run perf:list`                                                           |
+| Search/filter                    | p95 ≤ 50 ms during the WebKit trace                                             | `npm run perf:board`, `npm run perf:list`, `npm run perf:rust`                |
+| External-change visibility       | Step 4 external write → visible paint budget                                    | `npm run verify`, `npm --prefix apps/desktop run test:watcher`, WebKit traces |
 
 Record **p50 as well as p95**. The p50 line is a Step 4 budget in its own right
 (`docs/architecture-spike-report.md:80`) and it is the one that says whether an
@@ -179,16 +192,16 @@ Use [the accessibility foundations](../design/foundations/accessibility.md) for
 the generated color and contrast baseline, then complete this manual pass against
 the release app in light and dark appearance:
 
-| Check |
-|---|
-| Keyboard-only create, select, edit, move, search, archive, undo, and retry |
-| Focus order matches visible reading order in board, list, panel, menus, palette, settings, and toasts |
-| Visible focus is present and not hidden by panels, overlays, or scroll containers |
-| Buttons, menus, form fields, tabs, alerts, and status regions have useful accessible names |
+| Check                                                                                                      |
+| ---------------------------------------------------------------------------------------------------------- |
+| Keyboard-only create, select, edit, move, search, archive, undo, and retry                                 |
+| Focus order matches visible reading order in board, list, panel, menus, palette, settings, and toasts      |
+| Visible focus is present and not hidden by panels, overlays, or scroll containers                          |
+| Buttons, menus, form fields, tabs, alerts, and status regions have useful accessible names                 |
 | VoiceOver can identify the active row, ticket state, write status, conflict state, and degraded-file state |
-| Contrast report has no failures |
-| Reduced motion preserves state changes without long or masking animation |
-| 200% zoom and larger text do not overlap or hide primary controls |
+| Contrast report has no failures                                                                            |
+| Reduced motion preserves state changes without long or masking animation                                   |
+| 200% zoom and larger text do not overlap or hide primary controls                                          |
 
 Meaningful motion should remain short: it may call attention to a write,
 selection, or freshness change, but it must not delay the user's next action or
@@ -198,26 +211,26 @@ be the only carrier of state.
 
 Run on a clean macOS user profile or machine:
 
-| Scenario | Expected result |
-|---|---|
-| Fresh install from DMG | App launches and reaches project selection without an account, key, or network |
-| First project creation | Selected folder receives only `.longclaw/longclaw.yaml`, `.longclaw/AGENTS.md`, and `.longclaw/tickets/` |
-| Upgrade over the previous candidate or pilot build | Known projects, star state, theme, and appearance preference survive |
-| App restart | Last project state reloads from disk and the registry remains valid |
-| Sleep/wake with the window focused | External edits appear without refresh or restart |
-| Folder move | Project is marked unreachable, can be located again, and no unrelated folder is scanned |
-| Offline launch and edit | Local use works with Wi-Fi disabled and no account prompt |
+| Scenario                                           | Expected result                                                                                                                                         |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fresh install from DMG                             | App launches and reaches project selection without an account, key, or network                                                                          |
+| First project creation                             | Selected folder receives only `.longclaw/longclaw.yaml`, `.longclaw/AGENTS.md`, `.longclaw/CLAUDE.md`, `.longclaw/PROJECT.md`, and `.longclaw/tickets/` |
+| Upgrade over the previous candidate or pilot build | Known projects, star state, theme, and appearance preference survive                                                                                    |
+| App restart                                        | Last project state reloads from disk and the registry remains valid                                                                                     |
+| Sleep/wake with the window focused                 | External edits appear without refresh or restart                                                                                                        |
+| Folder move                                        | Project is marked unreachable, can be located again, and no unrelated folder is scanned                                                                 |
+| Offline launch and edit                            | Local use works with Wi-Fi disabled and no account prompt                                                                                               |
 
 ## Security, privacy, and filesystem checklist
 
-| Check | Expected result |
-|---|---|
-| Runtime network audit | No non-IPC network connection during launch, project open, create/edit/archive/search, restart, or offline operation. `npm run audit:network`, offline and online, driven by a person |
-| Binary/package audit | No analytics, telemetry, updater, crash-reporting, shell, HTTP, or filesystem plugin is directly configured |
-| Tauri capability audit | Webview can use typed IPC/events and one native folder picker only |
-| Filesystem scope | App writes project data only under the user-selected `.longclaw/` tree and app state only in OS application support |
-| Crash diagnostics | No automatic crash upload; user-facing guidance names local stdout diagnostics and manual issue reporting |
-| Account boundary | No local feature requires signup, network, cloud sync, or waitlist state |
+| Check                  | Expected result                                                                                                                                                                                                                                                                                                                                                                                  |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Runtime network audit  | No non-IPC network connection during launch, project open, create/edit/archive/search, restart, or offline operation. `npm run audit:network`, offline and online, driven by a person                                                                                                                                                                                                            |
+| Binary/package audit   | No analytics, telemetry, updater, crash-reporting, shell, HTTP, or filesystem plugin is directly configured                                                                                                                                                                                                                                                                                      |
+| Tauri capability audit | Webview can use typed IPC/events and one native folder picker only                                                                                                                                                                                                                                                                                                                               |
+| Filesystem scope       | App writes project data only under the user-selected `.longclaw/` tree and app state only in OS application support. One exception, and only when the user presses for it: `install_command_line` symlinks `/usr/local/bin/longclaw` at the app's own bundled CLI (LC-233). Nothing else is written there, nothing is written there unasked, and a file the app did not create is never replaced |
+| Crash diagnostics      | No automatic crash upload; user-facing guidance names local stdout diagnostics and manual issue reporting                                                                                                                                                                                                                                                                                        |
+| Account boundary       | No local feature requires signup, network, cloud sync, or waitlist state                                                                                                                                                                                                                                                                                                                         |
 
 For runtime network auditing, run the app with the machine offline first, then
 repeat online. Tauri IPC over `ipc:` and `http://ipc.localhost` is expected;
@@ -248,33 +261,55 @@ WebKit XPC services reparented to launchd rather than to the app.
 
 ## macOS signing and packaging
 
-The release candidate must make one of these two choices explicit:
+**The release is signed and notarized (LC-47).** The recorded pass is
+[the 2026-09-11 record](signed-notarized-2026-09-11.md); the unsigned branch
+below is kept because it is what every candidate through Step 17 shipped, and
+because it is still what a build on a machine holding no certificate produces.
 
-| Choice | Release condition |
-|---|---|
-| Signed and notarized | A Developer ID identity and a notarization request are recorded |
-| Unsigned | Release notes must state the Gatekeeper warning, why it is accepted, and how to open the app without weakening system-wide security |
+| Choice               | Release condition                                                                                                                   | Standing                                                                                                                                                                |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Signed and notarized | A Developer ID identity and a notarization request are recorded                                                                     | **Taken.** `Developer ID Application: Sachin Jain (97864HG7U4)`, Team ID `97864HG7U4`; submissions `624c49b7-…` (app) and `84a73512-…` (DMG), both Accepted and stapled |
+| Unsigned             | Release notes must state the Gatekeeper warning, why it is accepted, and how to open the app without weakening system-wide security | Retired. § _Opening the app the first time_ is deleted from the release notes rather than softened                                                                      |
 
-**"Unsigned" means unnotarized, not unsealed, and the difference is the whole
-release.** The bundle must still carry a valid ad-hoc signature —
-`bundle.macOS.signingIdentity: "-"` in `tauri.conf.json`. Without it Tauri leaves
-the bundle unsigned and only the linker's signature on the Mach-O, `Sealed
+**The committed `signingIdentity` stays `"-"`, and that is not a leftover.**
+`npm run build:app` runs on every pull request (`.github/workflows/ci.yml`) on a
+runner holding no certificate, and it has to keep producing an _openable_ ad-hoc
+bundle. The release build overrides it from the environment —
+`APPLE_SIGNING_IDENTITY`, which the bundler prefers over the configured value —
+so nothing in the repository names an identity only one machine holds. The
+release path is `npm run release:macos`; see the
+[signing runbook](../release-signing-runbook.md).
+
+**"Unsigned" means unnotarized, not unsealed, and the difference is still the
+whole release.** An ad-hoc signature is what seals the bundle. Without it Tauri
+leaves the bundle unsigned and only the linker's signature on the Mach-O, `Sealed
 Resources` reads `none`, and macOS on Apple Silicon calls a quarantined copy
-**"damaged"** and offers only *Move to Bin* — so the Open Anyway route this table
-requires the release notes to document **does not exist**, and the release is
-unopenable by the person following its own instructions.
+**"damaged"** and offers only _Move to Bin_ — unopenable by the person following
+the instructions.
 
-`npm run release:binary-audit` now fails on this, in both its forms: a signature
-that does not verify, and a bundle that seals no resources.
+`npm run release:binary-audit` now fails on every state this section retires: a
+signature that does not verify, a bundle that seals no resources, an authority
+chain that is not Developer ID, a missing Hardened Runtime flag, a Gatekeeper
+rejection, or a missing stapled ticket — on the DMG as well as the `.app`. Its
+`--self-test` fails if an ad-hoc bundle passes any of them.
 
 This is invisible on a build machine. A locally built app has never been
 downloaded, so it carries no `com.apple.quarantine` attribute and Gatekeeper
-never runs. To test the real first-launch path, give the DMG the attribute a
-browser would:
+never runs. `npm run release:gatekeeper-check -- --phase online|offline` writes
+the attribute a browser would, follows the path a person takes — mount, drag the
+app out, ask about **the copy** — and refuses to record a phase the machine
+contradicts. The manual form of the attribute is:
 
 ```sh
 xattr -w com.apple.quarantine "0081;$(printf '%x' $(date +%s));Safari;$(uuidgen)" <dmg>
 ```
+
+**Expect one dialog, not none.** A downloaded app is quarantined and earns a
+one-time confirmation however impeccable its signature. Notarization changes
+which one: _"…downloaded from the internet. Are you sure you want to open it?"_
+with _"Apple checked it for malicious software and none was detected"_ and a
+highlighted **Open**, rather than _"Apple could not verify…"_ with **Move to
+Bin** and a trip through System Settings.
 
 The v0 bundle metadata lives in
 `apps/desktop/src-tauri/tauri.conf.json`: product name, identifier, category,
@@ -293,14 +328,14 @@ The release candidate must ship or link the following user-facing material:
 five topics. The rows below name where each is specified in full, for a reader
 who needs the detail behind it.
 
-| Topic | User-facing | Specified in |
-|---|---|---|
-| Project folder layout and owned files | [User guide § 1](../user-guide.md) | [File format](../file_format.md) |
-| The ticket file | [User guide § 2](../user-guide.md) | [File format](../file_format.md) |
-| Backups and version control | [User guide § 3](../user-guide.md) | `apps/desktop/README.md` registry recovery |
-| Agent editing contract | [User guide § 4](../user-guide.md) | [Agent context example](../../examples/agent-context/README.md) |
-| Recovery from degraded files, conflicts, unavailable folders, and corrupt registry | [User guide § 5](../user-guide.md) | `apps/desktop/README.md`, [agent round trip](agent-round-trip.md) |
-| Privacy boundary and local diagnostics | [User guide](../user-guide.md), [release notes](../release-notes/v0.1.0.md) | `apps/desktop/README.md`, this checklist |
+| Topic                                                                              | User-facing                                                                 | Specified in                                                      |
+| ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Project folder layout and owned files                                              | [User guide § 1](../user-guide.md)                                          | [File format](../file_format.md)                                  |
+| The ticket file                                                                    | [User guide § 2](../user-guide.md)                                          | [File format](../file_format.md)                                  |
+| Backups and version control                                                        | [User guide § 3](../user-guide.md)                                          | `apps/desktop/README.md` registry recovery                        |
+| Agent editing contract                                                             | [User guide § 4](../user-guide.md)                                          | [Agent context example](../../examples/agent-context/README.md)   |
+| Recovery from degraded files, conflicts, unavailable folders, and corrupt registry | [User guide § 5](../user-guide.md)                                          | `apps/desktop/README.md`, [agent round trip](agent-round-trip.md) |
+| Privacy boundary and local diagnostics                                             | [User guide](../user-guide.md), [release notes](../release-notes/v0.1.0.md) | `apps/desktop/README.md`, this checklist                          |
 
 The release notes carry the local-only boundary, the Phase 2 / Phase 3
 separation, and the Gatekeeper rationale the unsigned branch below requires.

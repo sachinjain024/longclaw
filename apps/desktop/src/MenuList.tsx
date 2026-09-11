@@ -39,6 +39,13 @@ export type MenuItem =
       id: string;
       label: string;
       glyph?: ReactNode;
+      /**
+       * The same quiet right-hand note an `action` carries, beside the tick
+       * rather than instead of it: a date submenu's quick picks are choices —
+       * one of them can be the day the ticket already holds — and each has to
+       * say the day it resolves to before it is pressed (LC-227).
+       */
+      hint?: ReactNode;
       checked: boolean;
       run: () => void;
     }
@@ -281,9 +288,7 @@ export function MenuList(props: {
             >
               {item.glyph && <span className="menu-glyph">{item.glyph}</span>}
               <span className="menu-label">{item.label}</span>
-              {item.kind !== "choice" && item.hint && (
-                <span className="menu-hint">{item.hint}</span>
-              )}
+              {item.hint && <span className="menu-hint">{item.hint}</span>}
               {item.kind === "submenu" && <SubmenuChevron />}
               {checked && (
                 <span className="menu-check" aria-hidden="true">
