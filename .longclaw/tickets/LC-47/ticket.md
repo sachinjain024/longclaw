@@ -167,3 +167,29 @@ changes:
 -->
 ### You updated this ticket
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_0e1a4316
+kind: comment
+occurred_at: 2026-09-11T00:30:20.378Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Step 1 of *The Apple account* is partly done, verified on this machine rather than reported.
+
+- Apple Developer Program membership is active, valid through 2027-09-02. Individual enrolment, so the identity is held by one person and that is the decision the section asks to record.
+- A **Developer ID Application** certificate is issued and its private key is in the login keychain. `security find-identity -v -p codesigning` returns one valid identity: `Developer ID Application: Sachin Jain (97864HG7U4)`. Developer ID Installer was not issued and is not in scope.
+- **Team ID: `97864HG7U4`** — this is the identity the build signs under. Not a secret; it is in the authority chain of every signed binary.
+
+Still open on this checklist item, so it stays unchecked:
+
+- The App Store Connect API key for `notarytool` (Issuer ID, Key ID, `.p8`), preferred here over an Apple ID with an app-specific password because it is revocable on its own.
+- Where the signing private key is backed up, recorded as a location. The ticket directory is committed to git, so the location goes here and never the key, the `.p12` password or the `.p8` bytes.
+- Certificate expiry, which is silent until a build fails, and belongs in the runbook next to the membership renewal date.
+
+Xcode Cloud was considered and is not relevant: it builds Xcode schemes, and this app is built by cargo and npm. Signing needs the certificate and the notarytool credentials, nothing from that panel.
+<!-- /longclaw:event -->
