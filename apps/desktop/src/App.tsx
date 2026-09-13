@@ -1953,13 +1953,20 @@ export function App() {
           outcome === "installed"
             ? { message: "longclaw is on your PATH.", tone: "default" }
             : {
-                message:
-                  "Skipped. Settings › Command line has it whenever you want it.",
+                // Two spellings, because the way back is not in the same place
+                // on the two shells. The pane lives inside a project's settings
+                // — there is no panel to open without one, and no gear on the
+                // welcome screen to open it from — so on first launch the
+                // sentence names the one thing that has to happen first rather
+                // than a place that is not there yet. Sending somebody to
+                // `Settings › Command line` from a screen with no settings on
+                // it is the offer closing in silence again, one sentence later.
+                message: project
+                  ? "Skipped. Settings › Command line has it whenever you want it."
+                  : "Skipped. Open a project, and Settings › Command line has it.",
                 tone: "default",
-                // Only where it leads somewhere. First launch is usually the
-                // welcome screen, which has no project and so has no settings
-                // panel to open; the sentence still says where the pane is, and
-                // an action that did nothing would be worse than none.
+                // Only where it leads somewhere: an action that did nothing
+                // would be worse than none.
                 action: project
                   ? {
                       label: "Open settings",

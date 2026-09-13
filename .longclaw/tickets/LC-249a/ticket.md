@@ -3,13 +3,14 @@ format: longclaw.ticket/v1
 id: 56b7f9f7-f384-406c-997b-257ab8bf0b94
 key: LC-249a
 title: Make installing the longclaw command explain itself
-status: in_review
+status: done
 priority: p1
 labels:
   - frontend
   - design
+  - release
 created_at: 2026-09-11T06:33:38.630Z
-updated_at: 2026-09-11T12:51:02.742Z
+updated_at: 2026-09-13T02:01:32.844Z
 ---
 
 LC-233 put the `longclaw` binary inside the signed bundle and a button in two
@@ -174,11 +175,19 @@ LC-249a.
 
 | id | text | kind | where | status |
 |---|---|---|---|---|
-| `state.absent` | `longclaw` is not on your `PATH` yet. | state | settings pane | ships |
+| `state.absent` | `longclaw` is not on your `PATH` yet. | state | nowhere | cut |
 | `state.linked` | `longclaw` is installed at `{link}` and points at this copy of LongClaw. | state | settings pane | ships |
 | `state.stale` | `{link}` points at `{stale}`, which is not this copy of LongClaw. Re-linking replaces it. | state | first launch · stale, settings pane | ships |
 | `state.occupied` | `{link}` is a file LongClaw did not create, so LongClaw will not replace it. Move or rename it and reopen this pane, or run the line below yourself. | state | settings pane | ships |
 | `state.unavailable` | This build has no copy of the command beside it, so there is nothing to install. That is what a `npm run dev` window looks like; an app built from the `.dmg` carries one. | state | settings pane | ships |
+
+`state.absent` is the row this deck got wrong. It was written as shipping in
+the pane, and it does not ship anywhere: the `Install` button states the case
+by offering to change it, so the sentence above it was the same fact twice, and
+review cut it from both surfaces. Checklist item 10's amendment recorded that
+and this row did not, which left the ticket holding two accounts of the settled
+copy. The text is kept rather than deleted because it is what LC-233 shipped
+and this deck is read against that.
 
 #### Refusal, and the way round it
 
@@ -206,9 +215,19 @@ LC-249a.
 
 | id | text | kind | where | status |
 |---|---|---|---|---|
-| `toast.skipped` | Skipped. Settings › Command line has it whenever you want it. | write feedback | dismissed | new |
-| `toast.skipped.action` | Open settings | toast action | dismissed | new |
+| `toast.skipped` | Skipped. Settings › Command line has it whenever you want it. | write feedback | dismissed · a project is open | new |
+| `toast.skipped.welcome` | Skipped. Open a project, and Settings › Command line has it. | write feedback | dismissed · welcome screen | new |
+| `toast.skipped.action` | Open settings | toast action | dismissed · a project is open | new |
 | `toast.installed` | `longclaw` is on your PATH. | write feedback | dismissed · after installing | new |
+
+The dismissal is **two sentences, and the action is on only one of them**. The
+pane lives inside a project's settings: with no project open there is no panel
+to open and no gear on the welcome screen to open it from. A single sentence
+naming `Settings › Command line` was therefore false on the surface this whole
+offer exists for — first launch is the launch most likely to be standing on the
+welcome screen — so that shell names the one thing that has to happen first
+instead. The button is withheld there for the same reason, an action that did
+nothing being worse than none.
 
 #### The pane
 
@@ -504,4 +523,69 @@ This is also why **checklist item 5 has been corrected a second time**. My earli
 **Re-run after all four:** `npm run verify` green — `cli-demo-guard: 4 claims clean`, `tile-contrast-guard: 2 tile surfaces clean`, `citation-guard: 502 citations clean`, `release-audit: 117 files clean`, 1394 frontend tests, 223 + 21 Rust tests, `test:watcher` 2 passed. `a11y:audit` Part A passes, all five rows.
 
 **Not verified, and worth saying plainly: none of this has been looked at.** The prototype was never opened in a browser during its four review rounds — the Chrome tooling in that session timed out repeatedly — and the app has not been run. Everything above is guards, tests and headless probes. The first person to open the pane should look at the preview block in both appearances, which is the part with no rendered check behind it.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_1ebd05ee
+kind: update
+occurred_at: 2026-09-13T01:58:54.892Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: labels
+    from: frontend, design
+    to: frontend, design, release
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_33d9858f
+kind: comment
+occurred_at: 2026-09-13T02:01:26.241Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Second code review, against `origin/main` this time. Zero hard standards violations; two spec findings and four judgement calls. Both axes landed independently on the same sentence, from opposite directions, and that is the one I would have wanted them to find.
+
+**1. The skipped toast named a place the screen it appears on cannot reach.** It read "Skipped. Settings › Command line has it whenever you want it." — and the pane lives inside a project's settings. On the welcome screen there is no panel to open and no gear to open it from, which is also why `toast.skipped.action` was correctly withheld there. So the copy promised an address while the button that would have gone there was deliberately absent: Spec found the missing way back, Standards found the sentence whose truth depends on which shell raised it, and they are the same defect.
+
+First launch is the surface this entire offer exists for — the comment in `App.tsx` says so — so it is the surface the sentence has to be true on. It is two sentences now, one per shell. The welcome screen's names the one thing that has to happen first: "Skipped. Open a project, and Settings › Command line has it." The address is still in it; what changes is that it no longer claims the address is reachable from here. The action stays withheld, for the reason it always was.
+
+The deck now carries both rows and the paragraph explaining why there are two. That was the real finding: the carve-out was deliberate, tested and reasoned in a code comment, and recorded nowhere a reader of the ticket would see it.
+
+**2. `state.absent`'s deck row disagreed with checklist item 10.** The row said the sentence ships in the settings pane. It ships nowhere — `statusIsNews` returns false for `absent` on both surfaces, because the `Install` button states the case by offering to change it. Item 10's amendment recorded that; the deck row did not, which left this ticket holding two accounts of one settled decision.
+
+The row is now marked `cut`, with the text kept, since the deck is read against what LC-233 shipped. The unreachable arm in `StatusLine` is gone with it — an unshipped sentence sitting in the tree looking shipped is exactly the drift the deck exists to prevent.
+
+**3. `saysStatus` → `statusIsNews`.** Possible Mysterious Name. Its doc defined it as "whether this state's sentence is *news* on this surface"; the name says that now, without the comment.
+
+**4. `ConfirmDialog`'s `className` → `wide`.** Possible Divergent Change: four caller-shaped props in one change, and `className`'s own doc admitted only one modifier exists. A named boolean keeps that vocabulary inside the component; a free-text class hook is an invitation to restyle the dialog from outside it. The other three props stay — each is a focus or layout contract the dialog itself has to honour, and two of them came with focus rules.
+
+Not taken: `Toast.action` as Speculative Generality, which the review itself suppressed on the grounds that the design is argued in its doc comment. Agreed.
+
+**Re-run after all four:** `npm run verify` green — 1419 frontend tests, 237 Rust plus the integration suites, `citation-guard: 505 citations clean`, `cli-demo-guard: 4 claims clean`, `release-audit: 117 files clean`. `a11y:audit` Part A passes, all five rows.
+
+**Still not verified, and it has not changed:** none of this has been looked at. The app has not been run and the prototype was never opened in a browser. The preview block in both appearances remains the part with no rendered check behind it.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_8c015976
+kind: update
+occurred_at: 2026-09-13T02:01:32.844Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_review
+    to: done
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->

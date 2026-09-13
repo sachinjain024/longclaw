@@ -6842,10 +6842,40 @@ describe("the longclaw command on PATH (LC-233)", () => {
    * the offer ever opening again — the same silence a person got for
    * succeeding. Worded per-Mac rather than per-project, because the link is a
    * fact about the Mac and `commandLinePrompted` is a device preference.
+   *
+   * Two spellings, because the way back is not in the same place on the two
+   * shells. Code review found both axes landing on this sentence from different
+   * directions: it named `Settings › Command line` on a screen that has no
+   * settings on it, while the button that would have opened the pane was
+   * correctly withheld there — so the copy promised a place the shell could not
+   * reach. First launch is the surface this whole offer exists for, so it is
+   * the surface the sentence has to be true on.
    */
-  it("says out loud that skipping was a decision, and where the way back is", async () => {
+  it("says where the way back is, and says it differently with no project open", async () => {
     vi.mocked(api.commandLineStatus).mockResolvedValue(absent);
     render(<App />);
+    await screen.findByRole("heading", { name: "Plan with your agents." });
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Skip for now" }),
+    );
+
+    expect(
+      screen.getByText(
+        "Skipped. Open a project, and Settings › Command line has it.",
+      ),
+    ).toBeTruthy();
+    // The pane's own name is still in it — what changes is the precondition,
+    // not the address.
+    expect(
+      screen.queryByText(
+        "Skipped. Settings › Command line has it whenever you want it.",
+      ),
+    ).toBeNull();
+
+    cleanup();
+    devicePreferences = {};
+    await relaunch();
+    await openBoard();
     fireEvent.click(
       await screen.findByRole("button", { name: "Skip for now" }),
     );

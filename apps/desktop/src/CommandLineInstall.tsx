@@ -20,7 +20,7 @@
  * answer to a question nobody had asked, because nothing on screen said what
  * the command was for. So the first thing on both surfaces is now a terminal
  * block showing one real command and what it gets you, and the sentences that
- * survived it are the ones that are *news* — see `saysStatus`.
+ * survived it are the ones that are *news* — see `statusIsNews`.
  *
  * **A refusal is answered in words.** `/usr/local/bin` is admin-writable on most
  * developer Macs and Homebrew is why, so the write usually just succeeds; on a
@@ -307,12 +307,15 @@ function StatusLine(props: { status: CommandLineStatus }) {
           an app built from the <code>.dmg</code> carries one.
         </p>
       );
+    // `absent` has no sentence on either surface, and this is not the place
+    // that decides so — `statusIsNews` is, and it is what the suite reads.
+    // What was here was LC-233's "`longclaw` is not on your `PATH` yet", left
+    // behind when review cut it: a string no surface can reach, sitting in the
+    // tree looking shipped. The copy deck is the record of what the states say,
+    // and a sentence in here that the deck does not carry is the drift this
+    // feature has already had once.
     case "absent":
-      return (
-        <p className="cli-state">
-          <code>longclaw</code> is not on your <code>PATH</code> yet.
-        </p>
-      );
+      return null;
   }
 }
 
@@ -335,7 +338,7 @@ function StatusLine(props: { status: CommandLineStatus }) {
  * `linked` is the exception that proves it: after a successful install the
  * dialog's own title says it, so the sentence would be said twice.
  */
-function saysStatus(
+function statusIsNews(
   status: CommandLineStatus,
   surface: "dialog" | "pane",
   installed: boolean,
@@ -386,7 +389,7 @@ function InstallBody(props: {
           never urgent, and it replaces text the reader may be part-way through.
           The same choice the label editor and the write toast make. */}
       <div aria-live="polite">
-        {saysStatus(props.status, props.surface, installed) && (
+        {statusIsNews(props.status, props.surface, installed) && (
           <StatusLine status={props.status} />
         )}
         {props.refusal && (
@@ -581,7 +584,7 @@ export function CommandLineOffer(props: {
 
   return (
     <ConfirmDialog
-      className="wide"
+      wide
       title={title}
       body={
         <>

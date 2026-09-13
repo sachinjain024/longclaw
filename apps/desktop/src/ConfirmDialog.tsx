@@ -60,12 +60,14 @@ export function ConfirmDialog(props: {
    *  nothing behind it is waiting on the person (LC-249a). */
   confirmDisabled?: boolean;
   /**
-   * An extra class on the dialog box. One modifier exists — `wide`, for the
-   * offer, whose body carries a terminal block that 420px breaks badly. The
-   * base width stays where it is on purpose: the delete confirmations are two
-   * sentences and widening them would be widening the wrong dialog.
+   * The wider box, for the offer, whose body carries a terminal block that
+   * 420px breaks badly. A named modifier rather than a `className` the caller
+   * fills in: the one class this takes is part of this component's vocabulary,
+   * and a free-text hook is an invitation to restyle the dialog from outside
+   * it. The base width stays where it is on purpose — the delete confirmations
+   * are two sentences and widening them would be widening the wrong dialog.
    */
-  className?: string;
+  wide?: boolean;
   onCancel: () => void;
 }) {
   const titleId = useId();
@@ -143,11 +145,7 @@ export function ConfirmDialog(props: {
     >
       <div
         ref={dialog}
-        className={
-          props.className
-            ? `confirm-dialog ${props.className}`
-            : "confirm-dialog"
-        }
+        className={props.wide ? "confirm-dialog wide" : "confirm-dialog"}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
