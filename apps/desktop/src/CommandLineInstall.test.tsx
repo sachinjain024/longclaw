@@ -290,10 +290,14 @@ describe("the command line pane", () => {
  * press had done anything at all.
  */
 describe("the ask-again checkbox", () => {
+  const NAME = /Ask again when I open a project without the command/;
+
   function checkbox() {
-    return screen.getByRole("checkbox", {
-      name: /Ask again when I open a project without the command/,
-    });
+    return screen.getByRole("checkbox", { name: NAME });
+  }
+
+  function maybeCheckbox() {
+    return screen.queryByRole("checkbox", { name: NAME });
   }
 
   it("is on for a machine that has not been asked, and off for one that has", () => {
@@ -342,6 +346,80 @@ describe("the ask-again checkbox", () => {
       />,
     );
     expect(screen.queryByText(/off since you chose Skip for now/)).toBeNull();
+  });
+
+  /**
+   * The box was rendered in every state, including the one where it can do
+   * nothing at all: `unavailable` has no command beside it to install, so
+   * `shouldOfferCommandLine` is false there however the preference is set.
+   *
+   * That state is a `npm run dev` window — which is where somebody working on
+   * this feature is most likely to tick the box, restart, and watch nothing
+   * happen. It was reported as the checkbox being broken. The preference was
+   * being written correctly the whole time; the control was the thing making a
+   * promise it could not keep, one line under a paragraph saying there is
+   * nothing to install.
+   */
+  it("is not offered by a build that can never raise the offer", () => {
+    render(
+      <CommandLineSection
+        status={status({
+          state: "unavailable",
+          sourcePath: null,
+          manualCommand: null,
+        })}
+        onStatus={() => {}}
+      />,
+    );
+
+    expect(maybeCheckbox()).toBeNull();
+    // The state still explains itself — this hides one control, not the pane.
+    expect(screen.getByText(/nothing\s+to install/)).toBeTruthy();
+  });
+
+  /**
+   * Stated over all five rather than as one `unavailable` case, so a sixth
+   * state has to answer the question rather than inherit an answer. The four
+   * here can all reach the offer eventually: an `occupied` path gets moved out
+   * of the way, a `linked` command gets unlinked, and either is then a project
+   * opened without the command.
+   */
+  it("is offered in every state whose build has a command to install", () => {
+    for (const state of ["absent", "stale", "linked", "occupied"] as const) {
+      render(
+        <CommandLineSection status={status({ state })} onStatus={() => {}} />,
+      );
+      expect(maybeCheckbox(), state).not.toBeNull();
+      cleanup();
+    }
+  });
+
+  /**
+   * The pairing the render is actually for: the box appears exactly where the
+   * preference it writes can still change what happens. Asserted against
+   * `shouldOfferCommandLine` on a machine that has never been asked, which is
+   * the question the checkbox is offering to reopen.
+   */
+  it("appears only where clearing the preference could change something", () => {
+    for (const state of [
+      "absent",
+      "stale",
+      "linked",
+      "occupied",
+      "unavailable",
+    ] as const) {
+      const reachable = state !== "unavailable";
+      render(
+        <CommandLineSection status={status({ state })} onStatus={() => {}} />,
+      );
+      expect(maybeCheckbox() !== null, state).toBe(reachable);
+      cleanup();
+    }
+    // The one that is out is out because no preference can let it in.
+    resetDevicePreferences();
+    expect(
+      shouldOfferCommandLine(status({ state: "unavailable" }), false),
+    ).toBe(false);
   });
 });
 

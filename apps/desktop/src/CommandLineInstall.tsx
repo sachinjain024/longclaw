@@ -110,18 +110,48 @@ const STATES: Record<
     /** The pane's readout, as the modifier on `.cli-dot`. `""` is the resting
      *  grey: nothing is installed, and nothing is wrong either. */
     dot: "" | "ok" | "warn";
+    /** Whether `Ask again` is a promise this state can keep. Every state but
+     *  one can reach the offer eventually — an `occupied` path gets moved, a
+     *  `linked` one gets unlinked — but a build with no command beside it can
+     *  never raise it at all, however the preference is set. */
+    askable: boolean;
   }
 > = {
-  absent: { action: "Install", offer: true, manual: false, dot: "" },
+  absent: {
+    action: "Install",
+    offer: true,
+    manual: false,
+    dot: "",
+    askable: true,
+  },
   stale: {
     action: "Point it at this app",
     offer: true,
     manual: false,
     dot: "",
+    askable: true,
   },
-  linked: { action: null, offer: false, manual: false, dot: "ok" },
-  occupied: { action: null, offer: false, manual: true, dot: "warn" },
-  unavailable: { action: null, offer: false, manual: false, dot: "" },
+  linked: {
+    action: null,
+    offer: false,
+    manual: false,
+    dot: "ok",
+    askable: true,
+  },
+  occupied: {
+    action: null,
+    offer: false,
+    manual: true,
+    dot: "warn",
+    askable: true,
+  },
+  unavailable: {
+    action: null,
+    offer: false,
+    manual: false,
+    dot: "",
+    askable: false,
+  },
 };
 
 /**
@@ -404,6 +434,15 @@ function actionLabel(
  * surface, and it is in the pane rather than in the dialog: offering somebody
  * the chance to opt out of being asked *while they are being asked* is one more
  * control in a first-run modal for a decision they have already been given.
+ *
+ * **Not rendered where the offer cannot fire.** `unavailable` is a window with
+ * no command beside it to install, so `shouldOfferCommandLine` is false there
+ * whatever this preference says — and a checkbox reading `Ask again when I open
+ * a project without the command` under a paragraph reading `there is nothing to
+ * install` is a control that cannot do the thing it names. It was read as
+ * broken, which is the correct reading: a `npm run dev` window is the one place
+ * a person is most likely to go looking, and it is the one place the box has
+ * never had an effect.
  */
 function AskAgain(props: { status: CommandLineStatus }) {
   const id = useId();
@@ -456,7 +495,7 @@ export function CommandLineSection(props: {
 }) {
   const { installing, refusal, install } = useInstall(props.onStatus);
   const label = actionLabel(props.status, installing, refusal !== undefined);
-  const { dot } = STATES[props.status.state];
+  const { dot, askable } = STATES[props.status.state];
   return (
     <>
       <div className="cli-head">
@@ -484,7 +523,7 @@ export function CommandLineSection(props: {
         )}
       </div>
       <InstallBody status={props.status} refusal={refusal} surface="pane" />
-      <AskAgain status={props.status} />
+      {askable && <AskAgain status={props.status} />}
     </>
   );
 }
