@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: 016ec3ad-8e3f-4477-8b2e-0b5e1790132f
 key: LC-47
 title: Signing and notarization
-status: in_progress
+status: done
 priority: p1
 labels:
   - release
   - post-mvp
 created_at: 2026-08-05T14:23:17Z
-updated_at: 2026-09-11T05:55:23.757Z
+updated_at: 2026-09-13T01:59:10.697Z
 ---
 
 **Signing and notarization.** v0 ships unsigned with a documented Gatekeeper route
@@ -291,4 +291,19 @@ The remaining items are done; the ticket is complete on `lc-47-signing-credentia
 Hardened Runtime needed no work: Tauri passes `--options runtime` itself, which the ad-hoc build shows too (`adhoc,runtime`). No entitlements were added.
 
 Left for whoever ships next, and not a defect here: the certificate expires **2027-02-01**, before the membership renews on 2027-09-02.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_c200f60d
+kind: update
+occurred_at: 2026-09-13T01:59:10.697Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: status
+    from: in_progress
+    to: done
+-->
+### You updated this ticket
 <!-- /longclaw:event -->
