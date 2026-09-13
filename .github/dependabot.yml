@@ -14,3 +14,12 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+
+  # The website is a separate npm project with its own lockfile, and it was
+  # missing here: seven of the ten alerts open on 2026-09-11 lived in
+  # apps/website/package-lock.json, where nothing was watching for them.
+  - package-ecosystem: npm
+    directory: /apps/website
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
