@@ -235,6 +235,18 @@ export function ToastStack() {
               Open ticket
             </button>
           )}
+          {toast.action && (
+            <button
+              tabIndex={0}
+              className="toast-action"
+              onClick={() => {
+                dismiss(toast.id);
+                toast.action?.run();
+              }}
+            >
+              {toast.action.label}
+            </button>
+          )}
           {toast.tone === "danger" && (
             <button
               tabIndex={0}

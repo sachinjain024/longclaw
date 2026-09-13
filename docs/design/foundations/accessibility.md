@@ -25,6 +25,8 @@
 | system · light | ink-3 on wash | `#686D80` on `#EEF0F5` | 4.51 | pass |
 | system · light | toast text on toast | `#FFFFFF` on `#171923` | 17.50 | pass |
 | system · light | toast secondary on toast | `#A6AABC` on `#171923` | 7.58 | pass |
+| system · light | tile text on tile | `#FFFFFF` on `#171923` | 17.50 | pass |
+| system · light | tile secondary on tile | `#A6AABC` on `#171923` | 7.58 | pass |
 | system · light | warn text on surface | `#B45309` on `#FFFFFF` | 5.02 | pass |
 | system · light | warn text on warn banner | `#B45309` on `#FBF3E8` | 4.56 | pass |
 | system · light | warn secondary on warn banner | `#7D5F33` on `#FBF3E8` | 5.37 | pass |
@@ -46,6 +48,8 @@
 | system · dark | ink-3 on wash | `#7F8599` on `#1C1E27` | 4.52 | pass |
 | system · dark | toast text on toast | `#171923` on `#E9EAF2` | 14.60 | pass |
 | system · dark | toast secondary on toast | `#5A5F75` on `#E9EAF2` | 5.26 | pass |
+| system · dark | tile text on tile | `#E9EAF2` on `#060709` | 16.81 | pass |
+| system · dark | tile secondary on tile | `#A6AABC` on `#060709` | 8.73 | pass |
 | system · dark | warn text on surface | `#D98E3E` on `#16171E` | 6.71 | pass |
 | system · dark | warn text on warn banner | `#D98E3E` on `#2A2119` | 5.93 | pass |
 | system · dark | warn secondary on warn banner | `#C89A62` on `#2A2119` | 6.21 | pass |

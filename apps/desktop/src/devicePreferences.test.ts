@@ -301,6 +301,28 @@ describe("the command-line offer, once per machine", () => {
   });
 
   /**
+   * The pane's `Ask again` checkbox (LC-249a). LC-233 wrote this field once and
+   * gave it no way back, so a person who declined on first launch could never
+   * be asked again on that Mac.
+   *
+   * Clearing takes the key out rather than writing `false`: absent is already
+   * what "has not been asked" means, `adopt` reads only `true`, and a document
+   * carrying both spellings of one state is a document with a second way to say
+   * the same thing.
+   */
+  it("can be taken back, and leaves nothing behind when it is", async () => {
+    await restoreDevicePreferences();
+    rememberCommandLinePrompted();
+    await landed({ projectWorkspaces: {}, commandLinePrompted: true });
+
+    rememberCommandLinePrompted(false);
+    await landed({ projectWorkspaces: {} });
+    await relaunch();
+
+    expect(readCommandLinePrompted()).toBe(false);
+  });
+
+  /**
    * A document holding only this field is not an empty document. Read as one,
    * the migration replaces it with whatever webview storage still holds — and
    * a person who declined the offer is asked again on the next launch, which

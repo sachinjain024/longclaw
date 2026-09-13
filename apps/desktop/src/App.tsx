@@ -1940,10 +1940,41 @@ export function App() {
     <CommandLineOffer
       status={commandLine}
       onStatus={setCommandLine}
-      onDismiss={() => {
+      onDismiss={(outcome) => {
         setOfferingCommandLine(false);
         // Answered, either way. Settings is where it lives from here.
         rememberCommandLinePrompted();
+        // And the dismissal says so (LC-249a). It used to close in silence,
+        // having quietly written the preference that stops it ever opening
+        // again — the same silence a person got for succeeding. The way back
+        // rides on the toast, because a first launch is standing on the welcome
+        // screen and there is no gear menu on it yet.
+        useMutationStore.getState().raise(
+          outcome === "installed"
+            ? { message: "longclaw is on your PATH.", tone: "default" }
+            : {
+                // Two spellings, because the way back is not in the same place
+                // on the two shells. The pane lives inside a project's settings
+                // — there is no panel to open without one, and no gear on the
+                // welcome screen to open it from — so on first launch the
+                // sentence names the one thing that has to happen first rather
+                // than a place that is not there yet. Sending somebody to
+                // `Settings › Command line` from a screen with no settings on
+                // it is the offer closing in silence again, one sentence later.
+                message: project
+                  ? "Skipped. Settings › Command line has it whenever you want it."
+                  : "Skipped. Open a project, and Settings › Command line has it.",
+                tone: "default",
+                // Only where it leads somewhere: an action that did nothing
+                // would be worse than none.
+                action: project
+                  ? {
+                      label: "Open settings",
+                      run: () => setSettingsSection("commandLine"),
+                    }
+                  : undefined,
+              },
+        );
       }}
     />
   );
@@ -1958,6 +1989,11 @@ export function App() {
           onOpen={chooseOpenProject}
         />
         {commandLineOffer}
+        {/* The welcome screen raises no writes, and until LC-249a it raised no
+            toasts either. It raises one now — the answer to the command-line
+            offer, which is the one thing that happens on this screen — and a
+            stack that is not mounted is a toast nobody sees. */}
+        <ToastStack />
       </main>
     );
   }

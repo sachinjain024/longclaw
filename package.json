@@ -24,6 +24,7 @@
     "citations:check": "npm --prefix apps/desktop run citations:check",
     "citations:update": "npm --prefix apps/desktop run citations:update",
     "ticket-keys:check": "npm --prefix apps/desktop run ticket-keys:check",
+    "cli-demo:check": "npm --prefix apps/desktop run cli-demo:check",
     "a11y:audit": "npm --prefix apps/desktop run a11y:audit --",
     "matrix": "npm --prefix apps/desktop run matrix --",
     "perf:rust": "npm --prefix apps/desktop run perf:rust",

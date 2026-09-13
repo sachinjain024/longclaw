@@ -156,6 +156,12 @@ for (const app of APPEARANCES) {
   }
   check("text", scope, N("inverse-ink", app), N("inverse-surface", app), "toast text on toast", 4.5);
   check("text", scope, N("inverse-ink-2", app), N("inverse-surface", app), "toast secondary on toast", 4.5);
+  /* The tile is near-black in *both* appearances, so its ink is the one pair
+     that must not be the inverse ramp — which is dark exactly where the tile
+     stays dark (LC-249a). Checked here so the pair is proved rather than
+     assumed; `tile-contrast-guard.mjs` is what makes a rule name it. */
+  check("text", scope, N("tile-ink", app), N("tile", app), "tile text on tile", 4.5);
+  check("text", scope, N("tile-ink-2", app), N("tile", app), "tile secondary on tile", 4.5);
 
   const F = (name) => tokens.color.feedback[name][app];
   check("text", scope, F("warn"), N("surface", app), "warn text on surface", 4.5);

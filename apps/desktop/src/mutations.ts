@@ -42,6 +42,16 @@ export interface Toast {
   retry?: () => void;
   /** A conflict's honest offer instead: look at the file as it now reads. */
   review?: () => void;
+  /**
+   * Anything else the toast can offer, named by the caller.
+   *
+   * The three above are the write's own vocabulary and carry fixed labels,
+   * because `Undo` on one mutation must read the same as `Undo` on another.
+   * This one is for a toast that is not reporting a write at all — the
+   * command-line offer's `Skipped.`, whose action is the way back to the pane
+   * (LC-249a). It says what it does, so it brings its own label.
+   */
+  action?: { label: string; run: () => void };
 }
 
 export interface Mutation {
