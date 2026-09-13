@@ -19,11 +19,20 @@ collected in one scene so the copy can be reviewed as copy rather than found
 scene by scene. The scenes and the deck render from the same object, so the two
 cannot drift. See `AGENTS.md` § UX prototypes for what belongs in it.
 
-**There are none right now.** Three have been here and all three shipped:
-LC-201 (quick create's **Create more** loop), LC-236e (defining a label from
-inside the create flows) and LC-249a (the `longclaw` command's install offer).
-Each was deleted when its ticket did, which is the rule rather than tidying —
-see `AGENTS.md` § UX prototypes. They are in the history at `3ad94ef`.
+- [`LC-201-Bulk-Create-In-Quick-Create-Mode.html`](LC-201-Bulk-Create-In-Quick-Create-Mode.html)
+  — quick create with a description, labels and a **Create more** loop
+  (spec: `.longclaw/tickets/LC-201/ticket.md`).
+
+  **Kept past its ticket on purpose.** LC-201 shipped and the rule above would
+  delete this, but LC-237k's first step names this file as the model for the
+  prototype it has yet to write, and a `todo` ticket pointing at a deleted file
+  is worse than a stale example. It goes when LC-237k's own prototype lands.
+  Read it for the shape, not for the rules: it predates the **copy deck**,
+  which `AGENTS.md` has required since LC-249a and which a new prototype owes.
+
+Two others have been here and are not any more, both deleted when their tickets
+shipped: LC-236e (defining a label from inside the create flows) and LC-249a
+(the `longclaw` command's install offer). They are in the history at `3ad94ef`.
 
 ## Imported prototypes
 

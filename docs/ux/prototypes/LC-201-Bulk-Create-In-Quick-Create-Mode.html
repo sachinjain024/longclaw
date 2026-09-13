@@ -1,0 +1,633 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-lc-theme="ember">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LC-201 — Bulk create in quick create mode</title>
+
+<!-- The app's own fonts, tokens and stylesheet. Nothing here re-implements a
+     component: the modal below is the markup `QuickCreate.tsx` renders, wearing
+     the rules `styles.css` already carries, so what is on screen is what would
+     ship rather than a drawing of it. -->
+<link rel="stylesheet" href="../../design/foundations/proof/fonts.css">
+<link rel="stylesheet" href="../../../apps/desktop/src/tokens/design-tokens.css">
+<link rel="stylesheet" href="../../../apps/desktop/src/styles.css">
+
+<!-- ====================================================================
+     PROPOSED — the additions this ticket asks of `apps/desktop/src/styles.css`.
+     This block is the CSS half of the review: everything in it is meant to
+     land, as written, in the sections named beside each rule.
+     ==================================================================== -->
+<style id="proposed">
+/* `esc`, top right of the context row.
+ *
+ * Not the palette's chip. That one is a `<kbd>` in a bordered box reporting a
+ * key, and a box up here competes with the two fields under it for the only
+ * edge the modal has to spend. This is the word, in the eyebrow's own register,
+ * and it closes the modal when it is clicked — so quick create finally has an
+ * exit that is not a create. There is no **Cancel** in this footer and the
+ * scrim does not dismiss.
+ *
+ * `tabIndex={-1}`, stated rather than defaulted (`tab-order-guard.mjs`): its
+ * keyboard path is the key it is named after, and a stop in front of the title
+ * for a control the keyboard already has is a press the human pays on every
+ * open. Lower case, because that is how the key is written everywhere else in
+ * the app's mono hints. */
+.quick-create-esc {
+  margin-left: auto;
+  border: 0;
+  padding: 0;
+  color: var(--lc-ink-3);
+  background: none;
+  font: var(--lc-type-kbd-weight) var(--lc-type-kbd-size)
+    var(--lc-type-kbd-font);
+}
+
+.quick-create-esc:hover {
+  color: var(--lc-ink-2);
+}
+
+/* The description: three lines to start, growing with what is typed, capped so
+   a long one scrolls itself rather than pushing the footer off the modal. This
+   is `.composer textarea`'s shape and very nearly its rules — the app already
+   has a bordered, auto-growing, capped markdown field, and a second kind here
+   would be a second answer to a solved question.
+
+   It takes the box the title does not. D-47 leaves the title borderless because
+   "the modal is one field and two menus, so a box around the field is a frame
+   around nothing"; at three lines that argument inverts — an unframed block of
+   empty space under the title reads as a gap rather than as a field. The panel
+   makes the same split, with a bare `.panel-title` over a boxed editor.
+
+   `resize: none` with an auto-grow, which is the pair `field-guard.mjs` checks
+   together: the grabber is a diff (D-3F, D-3G) and a floor without the grow is
+   a field that clips. */
+.quick-create-description {
+  overflow: auto;
+  /* Three lines of the code type, which is the floor the field never goes
+     under however little is in it. */
+  min-height: calc(var(--lc-type-code-size) * var(--lc-type-code-leading) * 3);
+  max-height: 180px;
+  /* `--lc-line`, not the `--lc-line-strong` the app's field foundation uses.
+     Field-strength is right where a box is the only thing saying "this is a
+     control" — a settings dialog, a composer at the bottom of a timeline. Here
+     the modal is four rows tall and the footer's own hairline sits directly
+     under this one, so a stronger edge than that reads as a frame rather than
+     as a field. This is the weight every other hairline in the modal carries. */
+  border: 1px solid var(--lc-line);
+  border-radius: var(--lc-radius-control);
+  padding: var(--lc-space-2);
+  color: var(--lc-ink);
+  background: var(--lc-surface);
+  font: var(--lc-type-code-weight) var(--lc-type-code-size) /
+    var(--lc-type-code-leading) var(--lc-type-code-font);
+  resize: none;
+}
+
+.quick-create-description::placeholder {
+  color: var(--lc-ink-3);
+}
+
+/* Labels join status and priority on the meta row. `.meta-labels` is a value
+   cell built for the panel's two-column grid, where its own padding sets the
+   row's height; on this row the two triggers beside it do that, so it gives the
+   padding back rather than making the row 8px taller than the controls in it. */
+.quick-create-meta .meta-labels {
+  padding: 0;
+}
+
+/* **Create more** (LC-201). A checkbox and its word, immediately left of
+   **Create** — the control it changes is the next thing the eye and the Tab key
+   reach. `gap` rather than a margin: the label is the control's own hit area
+   and the two move together. */
+.create-more {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  margin-left: auto;
+  color: var(--lc-ink-2);
+  font-size: var(--lc-type-micro-size);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* Sized, because `label input` is the app's *text field* foundation — 100%
+   wide, 30px tall, hairline border — and a checkbox inside a label collects it
+   and disappears. The checklist's rows answer this the same way, with the same
+   token and the same accent (`styles.css:2701-2705`). */
+.create-more input {
+  width: var(--lc-size-checkbox);
+  height: var(--lc-size-checkbox);
+  flex: none;
+  margin: 0;
+  accent-color: var(--lc-accent-human);
+  cursor: pointer;
+}
+</style>
+
+<!-- ====================================================================
+     HARNESS — the driver bar, the stand-in board and the notes column.
+     None of this is the app and none of it is proposed. It is kept in its
+     own block so the review can tell the two apart at a glance.
+     ==================================================================== -->
+<style id="harness">
+body {
+  margin: 0;
+  color: var(--lc-ink);
+  background: var(--lc-bg);
+  font-family: var(--lc-font-ui);
+  font-size: var(--lc-type-body-size);
+}
+
+/* Above the modal scrim, which is `position: fixed; inset: 0` and would
+   otherwise swallow every click in the bar for as long as the modal is open —
+   which, in a prototype about a modal that stays open, is always. The modal
+   hangs from 12vh, so nothing here is ever underneath it. */
+.driver {
+  position: relative;
+  z-index: calc(var(--lc-z-modal) + 10);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 7px 14px;
+  color: var(--lc-inverse-ink);
+  /* The inverse pair, not `--lc-tile`: these two flip together with the
+     appearance, so the bar reads in dark as well as light. */
+  background: var(--lc-inverse-surface);
+  font-family: var(--lc-font-mono);
+  font-size: 10.5px;
+}
+.driver .group { display: flex; gap: 4px; align-items: center; }
+.driver .sep { width: 1px; height: 14px; background: color-mix(in oklab, var(--lc-inverse-ink) 20%, transparent); }
+.driver .ask { color: var(--lc-accent-agent); }
+.driver strong { letter-spacing: .05em; text-transform: uppercase; font-weight: 600; }
+.driver .spacer { flex: 1; }
+.driver button {
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid color-mix(in oklab, var(--lc-inverse-ink) 18%, transparent);
+  border-radius: var(--lc-radius-kbd);
+  color: var(--lc-inverse-ink-2);
+  background: none;
+  font-family: var(--lc-font-mono);
+  font-size: 10px;
+  cursor: pointer;
+}
+.driver button:hover { color: var(--lc-inverse-ink); border-color: color-mix(in oklab, var(--lc-inverse-ink) 40%, transparent); }
+.driver button[aria-pressed="true"] { color: var(--lc-inverse-ink); border-color: var(--lc-accent-human); }
+.driver .swatch { width: 26px; padding: 0; }
+.driver .swatch i { display: block; width: 10px; height: 10px; margin: 0 auto; border-radius: 50%; background: var(--lc-accent-human); }
+
+.stage {
+  display: grid;
+  min-height: calc(100vh - 36px);
+  grid-template-columns: minmax(280px, 340px) 1fr;
+}
+
+.notes {
+  overflow-y: auto;
+  max-height: calc(100vh - 36px);
+  padding: 20px;
+  border-right: 1px solid var(--lc-line);
+  background: var(--lc-surface);
+}
+.notes h1 { margin: 0 0 4px; font: var(--lc-type-title-weight) var(--lc-type-title-size) / var(--lc-type-title-leading) var(--lc-type-title-font); }
+.notes h2 { margin: 20px 0 6px; font-size: var(--lc-type-small-size); text-transform: uppercase; letter-spacing: .06em; color: var(--lc-ink-3); }
+.notes p, .notes li { margin: 0 0 8px; color: var(--lc-ink-2); font-size: var(--lc-type-small-size); line-height: 1.55; }
+.notes ol, .notes ul { margin: 0; padding-left: 18px; }
+.notes code { font-family: var(--lc-font-mono); font-size: 11px; color: var(--lc-ink); }
+.notes .q { border-left: 2px solid var(--lc-accent-human); padding-left: 10px; }
+
+/* The board the run writes into. Real `.ticket-row` cards, laid out in flow
+   rather than at the absolute `top` the virtualiser gives them. */
+/* Right-aligned, because the modal is centred in the viewport and a column
+   under it is a column the review cannot watch fill up. */
+.board { position: relative; display: flex; justify-content: flex-end; padding: 20px; }
+.column { width: 288px; }
+.column h3 { display: flex; gap: 8px; align-items: center; margin: 0 0 10px; font-size: var(--lc-type-small-size); }
+.column .count { color: var(--lc-ink-3); font-family: var(--lc-font-mono); font-size: 11px; }
+.column .ticket-row { position: static; width: 100%; margin-bottom: 8px; text-align: left; }
+.column .empty { color: var(--lc-ink-3); font-size: var(--lc-type-small-size); }
+.column .ticket-row.landing { animation: land var(--lc-motion-panel, 180ms) ease-out; }
+@keyframes land { from { opacity: 0; transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) { .column .ticket-row.landing { animation: none; } }
+</style>
+</head>
+<body>
+
+<header class="driver">
+  <strong>longclaw · LC-201 prototype</strong>
+  <span class="group">
+    <button data-drive="reopen">reopen · C</button>
+    <button data-drive="reset">reset the run</button>
+  </span>
+  <span class="sep" aria-hidden="true"></span>
+  <span class="ask">revision 3 · softer field edge, esc closes</span>
+  <span class="spacer"></span>
+  <span class="swatches" role="group" aria-label="Project theme">
+    <button class="swatch" data-theme-pick="ember" aria-pressed="true" title="Ember"><i data-theme="light" data-lc-theme="ember"></i></button>
+    <button class="swatch" data-theme-pick="indigo" aria-pressed="false" title="Indigo"><i data-theme="light" data-lc-theme="indigo"></i></button>
+    <button class="swatch" data-theme-pick="clay" aria-pressed="false" title="Clay"><i data-theme="light" data-lc-theme="clay"></i></button>
+    <button class="swatch" data-theme-pick="slate" aria-pressed="false" title="Slate"><i data-theme="light" data-lc-theme="slate"></i></button>
+    <button class="swatch" data-theme-pick="plum" aria-pressed="false" title="Plum"><i data-theme="light" data-lc-theme="plum"></i></button>
+  </span>
+  <span role="group" aria-label="Appearance">
+    <button data-appearance="light" aria-pressed="true">light</button>
+    <button data-appearance="dark" aria-pressed="false">dark</button>
+  </span>
+</header>
+
+<div class="stage">
+  <aside class="notes">
+    <h1>Bulk create in quick create mode</h1>
+    <p>LC-201 · <a href="../../plans/completed/LC-201-Bulk-Create-In-Quick-Create-Mode.md"><code>docs/plans/completed/LC-201…md</code></a></p>
+
+    <h2>Try this</h2>
+    <ol>
+      <li>Type a title and three lines of description, pick <strong>P1</strong> and a label, tick <strong>Create&nbsp;more</strong>, press <kbd>↵</kbd>.</li>
+      <li>The modal stays. Title and description are empty; status, priority and labels are exactly where you left them; the key has counted up.</li>
+      <li>Do it four more times, then untick and press <kbd>↵</kbd> — the last one closes the modal, as it always has.</li>
+      <li>Put the caret in the description and press <kbd>↵</kbd>: it makes a newline. <kbd>⌘↵</kbd> creates from anywhere, which is what the <strong>Create</strong> button now says.</li>
+      <li>Keep typing past the fourth line — the field grows, then caps and scrolls itself rather than pushing the footer off.</li>
+    </ol>
+
+    <h2>What is new</h2>
+    <ul>
+      <li>A <strong>description</strong> — three lines to start, growing, capped. The app's existing markdown field, not the Write/Preview editor: no toolbar, no tabs.</li>
+      <li><strong>Labels</strong>, through the project's own menu. Never the comma-separated box V0-10 removed.</li>
+      <li><strong>Create more</strong>, off on every open, never persisted.</li>
+      <li>The checklist stays in full create.</li>
+    </ul>
+
+    <h2>Settled in review</h2>
+    <ol>
+      <li class="q"><strong>The description is 3 lines and boxed.</strong> It takes the field treatment the title does not: at three lines an unframed block reads as a gap, and the panel makes the same split between a bare title and a boxed editor.</li>
+      <li class="q"><strong><kbd>⌘↵</kbd> is on the Create button</strong>, the way full create already writes it — so the binding is stated once, on the thing it does.</li>
+      <li class="q"><strong><code>esc</code> sits at the top right</strong> — the word, in the eyebrow's register, not a chip. Clicking it closes the modal.</li>
+      <li class="q"><strong>Open full editor → is hard left</strong>, and <strong>Create more sits immediately left of Create</strong> — the toggle beside the button it changes.</li>
+      <li class="q">The mono hints line is gone: with both bindings now on controls of their own, it had nothing left to say.</li>
+    </ol>
+
+    <h2>Nothing open</h2>
+    <p>The <code>esc</code> at the top right is plain text and it closes the modal when clicked — which is quick create's first exit that is not a create. It is not a tab stop: its keyboard path is the key it is named after.</p>
+
+    <h2>Worth watching</h2>
+    <p>Each create replaces the toast, so the third ticket's <strong>Undo</strong> takes the second one's off the screen. Undo is the inverse of the <em>last</em> mutation — <code>data-requirements.md:121</code> scopes it one deep, and this ticket does not widen it.</p>
+    <p>Nothing here moves focus to the new card while the loop is on. In the app that means neither <code>focusCard</code> may run on this path — including the one in <code>onWritten</code>, which fires when the disk write returns, <em>while the next title is being typed</em>.</p>
+  </aside>
+
+  <main class="board">
+    <div class="column">
+      <h3><svg class="status-dot status-todo" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg> Todo <span class="count" id="count">0</span></h3>
+      <div id="cards"><p class="empty">Nothing here yet. Create a few.</p></div>
+    </div>
+  </main>
+</div>
+
+<div id="overlay"></div>
+<div class="toast-stack" id="toasts" aria-live="polite"></div>
+
+<script>
+/* ====================================================================
+   The modal is rendered from this script so the run can be driven and
+   the three review questions can be swapped live. The markup it writes
+   is `QuickCreate.tsx`'s, plus the rows LC-201 adds.
+   ==================================================================== */
+
+const STATUSES = [
+  ["backlog", "Backlog"], ["todo", "Todo"], ["in_progress", "In Progress"],
+  ["in_review", "In Review"], ["done", "Done"], ["canceled", "Canceled"],
+];
+const PRIORITIES = [
+  ["urgent", "Urgent"], ["p1", "P1"], ["p2", "P2"], ["p3", "P3"], ["p4", "P4"], ["none", "None"],
+];
+/* One project's definitions, as `longclaw.yaml` would carry them. The menu can
+   only ever offer these — which is the whole reason labels may come back. */
+const LABELS = [
+  ["frontend", "Frontend", "blue"], ["storage", "Storage", "green"],
+  ["design", "Design", "purple"], ["bug", "Bug", "red"], ["docs", "Docs", "amber"],
+];
+
+const app = {
+  open: true,
+  seq: 4,            // the next key the board would guess
+  title: "",
+  description: "",
+  status: "todo",
+  priority: "none",
+  labels: [],
+  createMore: false,
+  created: [],
+  menu: undefined,   // {kind, anchorRect}
+};
+
+const $ = (sel) => document.querySelector(sel);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const statusName = (id) => (STATUSES.find((s) => s[0] === id) || [])[1];
+const priorityName = (id) => (PRIORITIES.find((p) => p[0] === id) || [])[1];
+const labelOf = (slug) => LABELS.find((l) => l[0] === slug);
+
+/* ---------------------------------------------------------------- glyphs */
+
+function statusDot(id) {
+  const open = id === "todo" || id === "backlog";
+  const dash = id === "backlog" ? ' stroke-dasharray="2.1 2.5"' : "";
+  return `<svg class="status-dot status-${id.replace(/_/g, "-")}" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="${open ? "none" : "currentColor"}" stroke="currentColor" stroke-width="1.6"${dash}/></svg>`;
+}
+
+function priorityGlyph(id, small) {
+  const cls = small ? " small" : "";
+  if (id === "none") {
+    return `<span class="priority-chip none${cls}" aria-hidden="true"><svg class="priority-dash" width="9" height="2" viewBox="0 0 9 2" aria-hidden="true"><rect y="0.2" width="9" height="1.6" rx="0.8"/></svg></span>`;
+  }
+  if (id === "urgent") {
+    return `<svg class="priority-glyph" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="3"/><rect class="mark" x="6.25" y="3.4" width="1.5" height="4.6" rx="0.75"/><rect class="mark" x="6.25" y="9.2" width="1.5" height="1.5" rx="0.75"/></svg>`;
+  }
+  return `<span class="priority-chip${cls}" aria-hidden="true">${id.toUpperCase()}</span>`;
+}
+
+const chevron = `<svg class="menu-chevron" width="11" height="11" viewBox="0 0 14 14" aria-hidden="true"><path d="M4.5 2.5 L9.5 7 L4.5 11.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const plus = `<svg class="plus-glyph" width="13" height="13" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 2.5 V11.5 M2.5 7 H11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+
+function labelChip(slug, small) {
+  const def = labelOf(slug);
+  const cls = `label-chip${small ? " small" : ""}${def ? "" : " undefined-slug"}`;
+  const color = def ? def[2] : "gray";
+  return `<span class="${cls}"><span class="label-dot label-${color}${small ? " small" : ""}" aria-hidden="true"></span>${esc(def ? def[1] : slug)}</span>`;
+}
+
+/* ------------------------------------------------------------ the modal */
+
+function createMoreHTML() {
+  return `<label class="create-more" title="Stay open after Create, keeping status, priority and labels">
+    <input type="checkbox" tabindex="0" data-role="create-more"${app.createMore ? " checked" : ""}>
+    Create more
+  </label>`;
+}
+
+function modalHTML() {
+  const meta = `
+      <div class="quick-create-meta">
+        <button type="button" tabindex="0" class="menu-trigger" data-menu="status" aria-haspopup="menu" aria-expanded="false" aria-label="Status: ${esc(statusName(app.status))}">
+          <span class="menu-glyph">${statusDot(app.status)}</span><span>${esc(statusName(app.status))}</span>${chevron}
+        </button>
+        <button type="button" tabindex="0" class="menu-trigger" data-menu="priority" aria-haspopup="menu" aria-expanded="false" aria-label="Priority: ${esc(priorityName(app.priority))}">
+          <span class="menu-glyph">${priorityGlyph(app.priority)}</span><span>${esc(priorityName(app.priority))}</span>${chevron}
+        </button>
+        <div class="meta-labels">
+          ${app.labels.map((slug) => labelChip(slug)).join("")}
+          <button type="button" tabindex="0" class="label-chip addable" data-menu="labels" aria-haspopup="menu" aria-expanded="false" aria-label="Labels: ${app.labels.length ? esc(app.labels.map((s) => labelOf(s)[1]).join(", ")) : "none"}">${plus}add</button>
+        </div>
+      </div>`;
+
+  return `
+  <div class="modal-scrim" role="presentation">
+    <form class="quick-create-modal" aria-label="Create a ticket">
+      <p class="eyebrow quick-create-context">
+        <span class="theme-dot" data-lc-theme="${document.documentElement.dataset.lcTheme}" data-theme="${document.documentElement.dataset.theme}" aria-hidden="true"></span>
+        Round Trip · RT-${app.seq}
+        <button type="button" tabindex="-1" class="quick-create-esc" data-role="close" aria-label="Close">esc</button>
+      </p>
+      <input class="quick-create-title" autofocus value="${esc(app.title)}" aria-label="Title" placeholder="Ticket title">
+      <textarea class="quick-create-description" rows="3" aria-label="Description" placeholder="What should happen? Agents read this before they start.">${esc(app.description)}</textarea>
+      ${meta}
+      <div class="editor-footer">
+        <button tabindex="0" class="ghost" type="button" data-role="full">Open full editor →</button>
+        ${createMoreHTML()}
+        <button tabindex="0" class="primary" type="submit"${app.title.trim() ? "" : " disabled"}>Create <kbd aria-hidden="true">⌘↵</kbd></button>
+      </div>
+    </form>
+  </div>`;
+}
+
+function menuHTML() {
+  if (!app.menu) return "";
+  const { kind, rect } = app.menu;
+  const rows =
+    kind === "status"
+      ? STATUSES.map(([id, name]) => ({ id, name, glyph: statusDot(id), on: app.status === id }))
+      : kind === "priority"
+        ? PRIORITIES.map(([id, name]) => ({ id, name, glyph: priorityGlyph(id), on: app.priority === id }))
+        : LABELS.map(([slug, name, color]) => ({
+            id: slug, name,
+            glyph: `<span class="label-dot label-${color}" aria-hidden="true"></span>`,
+            on: app.labels.includes(slug),
+          }));
+  return `
+  <div class="menu-popover" role="menu" aria-label="${kind === "labels" ? "Labels" : kind === "status" ? "Status" : "Priority"}" style="left:${rect.left}px; top:${rect.bottom + 6}px">
+    ${rows.map((row) => `
+      <button type="button" tabindex="-1" class="menu-row" role="menuitem${kind === "labels" ? "checkbox" : "radio"}" aria-checked="${row.on}" data-pick="${row.id}">
+        <span class="menu-glyph">${row.glyph}</span><span class="menu-label">${esc(row.name)}</span>
+        ${row.on ? '<span class="menu-check" aria-hidden="true">✓</span>' : ""}
+      </button>`).join("")}
+  </div>`;
+}
+
+/* ------------------------------------------------------------- rendering */
+
+/** Which field held the caret, so a re-render does not drop it on the floor. */
+let caret;
+
+function render() {
+  const active = document.activeElement;
+  if (active && active.closest && active.closest(".quick-create-modal")) {
+    caret = active.className.split(" ")[0];
+  }
+  $("#overlay").innerHTML = (app.open ? modalHTML() : "") + menuHTML();
+  if (app.open) {
+    const field = document.querySelector("." + (caret || "quick-create-title"));
+    if (field && !app.menu) field.focus();
+    grow();
+  }
+  const cards = app.created
+    .map((t, i) => `
+      <button class="ticket-row${i === 0 ? " landing" : ""}" data-ticket-key="${t.key}" tabindex="-1">
+        <span class="card-top"><span class="ticket-key">${t.key}</span>${priorityGlyph(t.priority, true)}</span>
+        <strong>${esc(t.title)}</strong>
+        <span class="ticket-meta">${t.labels.map((s) => labelChip(s, true)).join("")}</span>
+      </button>`)
+    .join("");
+  $("#cards").innerHTML = cards || '<p class="empty">Nothing here yet. Create a few.</p>';
+  $("#count").textContent = String(app.created.length);
+}
+
+/**
+ * The auto-grow half of the pair `field-guard.mjs` checks (`useAutoGrow`) —
+ * with the borders added back.
+ *
+ * `useAutoGrow` sets `height = scrollHeight`, which is exact for a field with
+ * no border and two pixels short for one with. Everything the hook drives today
+ * is borderless except `.composer textarea`, so nobody has had to notice; this
+ * field has a border, and two pixels short means it scrolls its own last line
+ * out of sight for as long as there is text in it. The stylesheet is
+ * `box-sizing: border-box`, so the height has to carry them.
+ */
+function grow() {
+  const field = document.querySelector(".quick-create-description");
+  if (!field) return;
+  const style = getComputedStyle(field);
+  const borders =
+    parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
+  field.style.height = "auto";
+  field.style.height = field.scrollHeight + borders + "px";
+}
+
+/* ------------------------------------------------------------- the loop */
+
+function create() {
+  const title = app.title.trim();
+  if (!title) return;
+
+  app.created.unshift({
+    key: `RT-${app.seq}`,
+    title,
+    priority: app.priority,
+    labels: [...app.labels],
+  });
+  toast(`RT-${app.seq} created`);
+  app.seq += 1;
+
+  if (app.createMore) {
+    // Title and description clear; status, priority and labels stay; the modal
+    // stays; focus goes back to the title. Nothing here moves focus to the new
+    // card — in the app that means neither `focusCard` may run on this path,
+    // including the one in `onWritten`, which fires while the next title is
+    // being typed.
+    app.title = "";
+    app.description = "";
+    caret = "quick-create-title";
+  } else {
+    app.open = false;
+    app.title = "";
+    app.description = "";
+  }
+  render();
+}
+
+/**
+ * One toast at a time, replacing — which is what `WriteFeedback.tsx:172-176`
+ * draws, and worth watching during a run: the Undo for the third ticket takes
+ * the second one's offer off the screen. Undo is one deep either way
+ * (`data-requirements.md:121`); this is what that looks like.
+ */
+function toast(text) {
+  $("#toasts").innerHTML =
+    `<div class="toast"><span class="toast-message">${esc(text)}</span>` +
+    `<button class="toast-action" tabindex="-1" type="button">Undo <kbd>⌘Z</kbd></button></div>`;
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => { $("#toasts").innerHTML = ""; }, 4000);
+}
+
+function openQuickCreate() {
+  // Every open starts unchecked: it is a mode for the run in front of you, not
+  // a preference.
+  app.open = true;
+  app.createMore = false;
+  app.title = "";
+  app.description = "";
+  app.status = "todo";
+  app.priority = "none";
+  app.labels = [];
+  caret = "quick-create-title";
+  render();
+}
+
+/* ------------------------------------------------------------- wiring */
+
+document.addEventListener("input", (event) => {
+  const field = event.target;
+  if (field.classList.contains("quick-create-title")) {
+    app.title = field.value;
+    const button = document.querySelector(".quick-create-modal .primary");
+    if (button) button.disabled = field.value.trim() === "";
+  }
+  if (field.classList.contains("quick-create-description")) {
+    app.description = field.value;
+    grow();
+  }
+});
+
+document.addEventListener("change", (event) => {
+  if (event.target.dataset.role === "create-more") app.createMore = event.target.checked;
+});
+
+document.addEventListener("click", (event) => {
+  // `esc`, the word, doing what it says.
+  if (event.target.closest('[data-role="close"]')) {
+    app.open = false;
+    app.menu = undefined;
+    return render();
+  }
+  const menuTrigger = event.target.closest("[data-menu]");
+  const pick = event.target.closest("[data-pick]");
+  const drive = event.target.closest("[data-drive]");
+  const appearance = event.target.closest("[data-appearance]");
+  const themePick = event.target.closest("[data-theme-pick]");
+
+  if (appearance) {
+    document.documentElement.dataset.theme = appearance.dataset.appearance;
+    document.querySelectorAll("[data-appearance]").forEach((b) =>
+      b.setAttribute("aria-pressed", String(b === appearance)));
+    return render();
+  }
+  if (themePick) {
+    document.documentElement.dataset.lcTheme = themePick.dataset.themePick;
+    document.querySelectorAll("[data-theme-pick]").forEach((b) =>
+      b.setAttribute("aria-pressed", String(b === themePick)));
+    return render();
+  }
+  if (drive) {
+    const what = drive.dataset.drive;
+    if (what === "reopen") openQuickCreate();
+    if (what === "reset") { app.created = []; app.seq = 4; openQuickCreate(); }
+    return render();
+  }
+  if (pick) {
+    const id = pick.dataset.pick;
+    if (app.menu.kind === "status") { app.status = id; app.menu = undefined; }
+    else if (app.menu.kind === "priority") { app.priority = id; app.menu = undefined; }
+    else {
+      // Multi-select ticks and stays open, which is the only difference between
+      // the labels menu and the other two.
+      app.labels = app.labels.includes(id) ? app.labels.filter((s) => s !== id) : [...app.labels, id];
+    }
+    return render();
+  }
+  if (menuTrigger) {
+    const kind = menuTrigger.dataset.menu;
+    app.menu = app.menu && app.menu.kind === kind
+      ? undefined
+      : { kind, rect: menuTrigger.getBoundingClientRect() };
+    return render();
+  }
+  if (app.menu && !event.target.closest(".menu-popover")) { app.menu = undefined; render(); }
+});
+
+document.addEventListener("submit", (event) => {
+  event.preventDefault();
+  create();
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    if (app.menu) { app.menu = undefined; return render(); }
+    if (app.open) { app.open = false; return render(); }
+  }
+  // `⌘↵` creates from anywhere in the modal, including the description, which
+  // is what makes the textarea safe to put here at all.
+  if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && app.open) {
+    event.preventDefault();
+    return create();
+  }
+  // `C` reopens, as it does in the app — but never while a field has the caret.
+  if (event.key.toLowerCase() === "c" && !app.open && !event.metaKey && !event.ctrlKey) {
+    const editing = document.activeElement && /INPUT|TEXTAREA/.test(document.activeElement.tagName);
+    if (!editing) { event.preventDefault(); openQuickCreate(); }
+  }
+});
+
+render();
+</script>
+</body>
+</html>

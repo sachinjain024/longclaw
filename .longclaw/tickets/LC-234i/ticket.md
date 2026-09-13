@@ -2,7 +2,7 @@
 format: longclaw.ticket/v1
 id: 294421e9-0eb5-4d37-bc99-bd000d0da05f
 key: LC-234i
-title: Point the Download CTA at a real release
+title: Make the first release and Point the Download CTA at a real release
 status: todo
 priority: p1
 labels:
@@ -10,7 +10,7 @@ labels:
   - product
 type: chore
 created_at: 2026-08-25T07:33:13.529Z
-updated_at: 2026-09-09T06:47:21.623Z
+updated_at: 2026-09-13T02:30:07.426Z
 ---
 
 The **Download for Mac** button on longclaw.io points at
@@ -89,6 +89,21 @@ actor:
 changes:
   - field: type
     to: chore
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_b61a28c9
+kind: update
+occurred_at: 2026-09-13T02:30:07.426Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: title
+    from: Point the Download CTA at a real release
+    to: Make the first release and Point the Download CTA at a real release
 -->
 ### You updated this ticket
 <!-- /longclaw:event -->
