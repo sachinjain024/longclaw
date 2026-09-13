@@ -6,7 +6,7 @@ ticket: LC-201
 owner_area: Frontend
 release_blocking: false
 depends_on: "13 (mutate), 15 (LabelMenu), 18 (DescriptionEditor), 22 (create surfaces)"
-prototype: ../../ux/prototypes/LC-201-Bulk-Create-In-Quick-Create-Mode.html
+prototype: deleted with the ticket — docs/ux/prototypes/LC-201-Bulk-Create-In-Quick-Create-Mode.html at 3ad94ef
 ---
 
 # Bulk create in quick create mode

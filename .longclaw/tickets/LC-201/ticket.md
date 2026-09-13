@@ -17,6 +17,9 @@ When users have selected the option and the first ticket is created then Quick C
 
 - Product spec: `docs/plans/active/LC-201-Bulk-Create-In-Quick-Create-Mode.md`
 - Prototype: `docs/ux/prototypes/LC-201-Bulk-Create-In-Quick-Create-Mode.html`
+  — **deleted once this shipped**, as `AGENTS.md` asks. In the history at
+  `3ad94ef`. What it proposed is in the app; what it never carried is a copy
+  deck, which was not asked for until LC-249a.
 
 Both are on the `feat/lc-201-quick-create-multiple` branch, at revision 3. No
 implementation code is written yet.

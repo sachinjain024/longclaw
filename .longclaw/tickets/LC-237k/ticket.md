@@ -24,7 +24,9 @@ Both compose with the existing text query and with each other.
 
 This is three pieces of work, in order, and the ticket is not done until the third lands:
 
-1. **UX prototype first.** An HTML prototype under `docs/ux/prototypes/`, named for this ticket, in the manner of `LC-201-Bulk-Create-In-Quick-Create-Mode.html`. It answers the open questions below before any app code is written.
+1. **UX prototype first.** An HTML prototype under `docs/ux/prototypes/`, named for this ticket, following `docs/ux/prototypes/README.md` and `AGENTS.md` § UX prototypes. It answers the open questions below before any app code is written.
+
+   This step used to say "in the manner of `LC-201-Bulk-Create-In-Quick-Create-Mode.html`". That file was deleted when LC-201 shipped, and it had stopped being the right model before that: it predates the **copy deck**, which `AGENTS.md` has required since LC-249a and which is the half of a prototype that gets reviewed last and shipped hardest to change. The rules are the model now. LC-249a's is the one that followed them, in the history at `3ad94ef`.
 2. **Then a plan**, filed as its own ticket or as a plan doc, once the prototype has settled the shape.
 3. **Then execute it.**
 
