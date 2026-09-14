@@ -21,6 +21,8 @@ file, so the checklist and the evidence stop changing for each other's reasons.
 | 2026-08-04, `implement/step-17-final-acceptance` — the Step 17 pass over the same gate                                | [final-acceptance-2026-08-04.md](final-acceptance-2026-08-04.md)   |
 | 2026-08-05, the same branch rebuilt at the final commit — DMG produced, startup measured, the network audit harnessed | [final-acceptance-2026-08-05.md](final-acceptance-2026-08-05.md)   |
 | 2026-08-05, the packaged-install pass against that build — the last blocker, and the signing defect it found          | [clean-machine-2026-08-05.md](clean-machine-2026-08-05.md)         |
+| 2026-09-11, the signed and notarized first-launch pass (LC-47)                                                       | [signed-notarized-2026-09-11.md](signed-notarized-2026-09-11.md)   |
+| 2026-09-14, **the 0.1.0 release** — the artefact published to longclaw.io and GitHub (LC-234i)                       | [release-2026-09-14.md](release-2026-09-14.md)                     |
 
 The § Accessibility report below is no longer entirely a manual pass. Its first,
 second, third, seventh and eighth rows are automated by `npm run a11y:audit`

@@ -115,7 +115,7 @@ Copy: one file holds everything — metadata, description, checklist, comments, 
 
 Structure mirrors `docs/user-guide.md` (already written in the right voice):
 
-1. **Getting started** — download, and the honest Gatekeeper walkthrough from the release notes (unsigned build: Done → Privacy & Security → Open Anyway; never disable Gatekeeper system-wide). Requirements: macOS 13+, Apple Silicon only.
+1. **Getting started** — download, and what first launch actually looks like, from the release notes (signed and notarized since LC-47: one dialog, one click, no System Settings; plus the two messages that mean the copy is not this build). Requirements: macOS 13+, Apple Silicon only.
 2. **Your project folder** — the `.longclaw/` layout; LongClaw writes inside `.longclaw/` and nowhere else.
 3. **What a ticket is** — ticket.md anatomy: frontmatter, description, checklist, attachments, activity. Status set: backlog/todo/in_progress/in_review/done/canceled. Priorities: urgent/p1–p4/none.
 4. **Backups and version control** — tickets travel with the repo.
@@ -133,7 +133,7 @@ No posts exist yet. Design: index + post template (title, date, author, mono met
 
 ### 4.5 Changelog (`/changelog`)
 
-Reverse-chronological entries. First entry: **0.1.0** from `docs/release-notes/v0.1.0.md` — the local core; board + list, ⌘K, watcher, visible recovery, five themes light and dark, local-only boundary; known limitations. *(Note: the release notes are still draft with three named blockers — the site copy stays draft until acceptance clears.)*
+Reverse-chronological entries. First entry: **0.1.0** from `docs/release-notes/v0.1.0.md` — the local core; board + list, ⌘K, watcher, visible recovery, five themes light and dark, local-only boundary; known limitations.
 
 ### 4.6 Roadmap (`/roadmap`) — designed, not live
 
@@ -144,19 +144,25 @@ Reverse-chronological entries. First entry: **0.1.0** from `docs/release-notes/v
 - **Logo/marks:** `assets/brand/app-icon/in-app/` (ochre + white marks, rounded 512 tile); full icon set in `assets/brand/app-icon/icons/`.
 - **App screenshots — reference only (decided):** the website embeds no screenshots; product visuals (board, ticket panel, file trees, terminal blocks) are recreated as token-driven HTML components in the design system, with `apps/desktop/dist-matrix/` shots attached as fidelity reference. This makes visuals crisp, theme-aware (five-preset demo = accent-token swap), and lightweight. *The missing Graphite shots in dist-matrix no longer block anything — the recreated component renders Graphite from tokens.*
 - **Design-prototype renders (richer states):** `docs/design/prototype/renders/` — welcome, panel, agent-acknowledged, conflict, raw-file screens.
-- **Links:** GitHub `https://github.com/sachinjain024/longclaw` · Download `LongClaw_0.1.0_aarch64.dmg` (URL TBD — GitHub Releases assumed) · License MPL 2.0.
+- **Links:** GitHub `https://github.com/sachinjain024/longclaw` · Download `https://longclaw.io/downloads/LongClaw_0.1.0_aarch64.dmg` (site-hosted — see §7) · License MPL 2.0.
 
 ## 6. Honesty constraints (do not oversell)
 
-The site must not promise what v0 doesn't do: no terminals yet (Phase 2), no sync/teams/accounts/billing (Phase 3), no Windows/Linux/Intel builds, no custom themes, no hard deletion; the app doesn't open links in a browser; the build is unsigned (documented openly, as the release notes do). Release notes are draft until the three acceptance blockers clear — the Download CTA should go live only when a real release exists.
+The site must not promise what v0 doesn't do: no terminals yet (Phase 2), no sync/teams/accounts/billing (Phase 3), no Windows/Linux/Intel builds, no custom themes, no hard deletion; the app doesn't open links in a browser.
+
+Two constraints here have expired, and are kept rather than deleted because the sentences they licensed are still on the site and still need replacing when they are found. **The build is no longer unsigned** — LC-47 shipped signing and notarization on 2026-09-11, so the rule is now the opposite one and it is easy to overshoot: say *one dialog*, never *no dialog*. A downloaded app is quarantined and earns a confirmation however good its signature. **The release notes are no longer draft** — the three acceptance blockers closed on 2026-08-05 and the marker was lifted for 0.1.0 (LC-234i). The rule that survives both is the last clause: the Download CTA goes live only when a real release exists behind it.
 
 ## 7. Decisions taken · open items
 
 **Decided (2026-08-22):** five theme presets (Graphite included) — repo docs corrected · agents DO create tickets, via the CLI — repo docs corrected · website primary accent is ochre, generated from the existing separate ochre website Design System in Claude Design (audited via Prompt 0, not created) · no upcoming features or pricing on the live site at launch; roadmap page designed for completeness but not linked or published · no pricing page designed at all · tagline candidates listed in §2, final pick at prompt time.
 
+**Decided (2026-09-14, LC-234i):** **the download is site-hosted, and the release is still cut.** This closes open item 2 below, which asked for one or the other and gets both, with the CTA pointing at only one of them.
+
+`LongClaw_0.1.0_aarch64.dmg` is committed to `apps/website/public/downloads/` and every Download button links to `https://longclaw.io/downloads/LongClaw_0.1.0_aarch64.dmg`. The GitHub release stays as the canonical record — tag, notes, `sha256`, source tarballs — and `SITE.releases` points at the tag for anyone who wants it, but no CTA goes there. Two reasons, neither cosmetic: a releases page is a list of artefacts shown to someone who has already said which one they want; and the site-hosted URL survives LC-204's transfer to `the.infin8y`, after which every `github.com/sachinjain024/…` URL depends on a redirect GitHub owns and can stop honouring. The cost is ~4.5 MB of binary in git per release and GitHub Pages' 100 GB/month bandwidth soft limit, both accepted for v0 and worth revisiting at the release where either bites.
+
 **Still open:**
 
 1. **Sync waitlist:** vision.md wires an optional sign-up to a sync waitlist. An email capture leans "upcoming feature" — likely skip at launch to stay consistent with the no-upcoming-features call. Confirm.
-2. **Download link:** GitHub Releases, or a hosted download? Affects the CTA.
+2. ~~**Download link:** GitHub Releases, or a hosted download? Affects the CTA.~~ — decided above, 2026-09-14.
 3. **Docs depth at launch:** full file-format reference on the site, or link to the repo doc for v1 of the site?
 4. **Blog at launch:** ship with the announcement post only, or design-only until a post exists?

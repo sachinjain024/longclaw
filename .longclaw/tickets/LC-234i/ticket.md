@@ -10,7 +10,7 @@ labels:
   - product
 type: chore
 created_at: 2026-08-25T07:33:13.529Z
-updated_at: 2026-09-14T06:39:10.637Z
+updated_at: 2026-09-14T06:54:42.488Z
 ---
 
 Cut LongClaw 0.1.0 — the first public release — and make every **Download for
@@ -137,9 +137,9 @@ DMG attached.
 - [x] P1 · Getting started: delete the four-step System Settings walkthrough and write the one-dialog notarized flow in its place <!-- longclaw:item=ck_a13642c7 -->
 - [ ] P1 · Getting started: point Download at the site-hosted .dmg and name its sha256 <!-- longclaw:item=ck_b0ed899b -->
 - [x] P1 · Blog: drop 'The build is also unsigned' from introducing-longclaw.mdx <!-- longclaw:item=ck_e7d815be -->
-- [ ] P1 · Content brief: record the download-hosting decision in §7 and drop the two expired constraints in §6 <!-- longclaw:item=ck_8cb3f8bb -->
+- [x] P1 · Content brief: record the download-hosting decision in §7 and drop the two expired constraints in §6 <!-- longclaw:item=ck_8cb3f8bb -->
 - [x] P1 · changelog-entry skill: rewrite the 'do not publish ahead of the release' gate — both its premises change here <!-- longclaw:item=ck_6b4300ee -->
-- [ ] P1 · release-candidate.md: add this candidate to the table at the top of the gate <!-- longclaw:item=ck_09cb95d6 -->
+- [x] P1 · release-candidate.md: add this candidate to the table at the top of the gate <!-- longclaw:item=ck_09cb95d6 -->
 - [ ] P2 · npm run verify passes at the release tree <!-- longclaw:item=ck_d7a501b2 -->
 - [ ] P2 · APPLE_SIGNING_IDENTITY set; npm run release:macos builds, signs, notarizes and staples both artefacts <!-- longclaw:item=ck_5bb01908 -->
 - [ ] P2 · npm run release:binary-audit passes on the .app and the DMG <!-- longclaw:item=ck_c2a8af66 -->
@@ -789,4 +789,36 @@ P1 website copy done: changelog re-derived from the release notes (comments, the
 Two things found while in there, both fixed: the announcement post says '0.1.0 is out today' and was dated 2026-08-22, three weeks before the release it announces; and apps/website/README.md's honesty-constraints rule still read 'The build is unsigned and the docs say so', which is the rule every future website change is checked against.
 
 site:verify passes — astro check 0/0/0, 15 pages. Getting started's Download section and the blog footer button still point at GitHub Releases; both move in P4 with SITE.download.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_14f0ac20
+kind: update
+occurred_at: 2026-09-14T06:54:42.450Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_8cb3f8bb.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_c1e6376c
+kind: update
+occurred_at: 2026-09-14T06:54:42.488Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_09cb95d6.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->
