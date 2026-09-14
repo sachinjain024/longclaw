@@ -10,7 +10,7 @@ labels:
   - product
 type: chore
 created_at: 2026-08-25T07:33:13.529Z
-updated_at: 2026-09-14T06:00:22.777Z
+updated_at: 2026-09-14T06:39:10.637Z
 ---
 
 Cut LongClaw 0.1.0 — the first public release — and make every **Download for
@@ -133,12 +133,12 @@ DMG attached.
 - [x] P1 · Release notes: lift the status: draft marker and the draft banner from docs/release-notes/v0.1.0.md <!-- longclaw:item=ck_25fce201 -->
 - [x] P1 · Release notes: replace the unsigned story with the signed-and-notarized one — expect one dialog, not none <!-- longclaw:item=ck_e8a907d0 -->
 - [x] P1 · Release notes: add what landed after they were written — comment edit/withdraw (LC-241q), the CLI offer that explains itself (LC-249a) <!-- longclaw:item=ck_35334b6c -->
-- [ ] P1 · Changelog: re-derive apps/website/src/content/changelog/0.1.0.md from the release notes, and date it the day the release is cut <!-- longclaw:item=ck_7667947b -->
-- [ ] P1 · Getting started: delete the four-step System Settings walkthrough and write the one-dialog notarized flow in its place <!-- longclaw:item=ck_a13642c7 -->
+- [x] P1 · Changelog: re-derive apps/website/src/content/changelog/0.1.0.md from the release notes, and date it the day the release is cut <!-- longclaw:item=ck_7667947b -->
+- [x] P1 · Getting started: delete the four-step System Settings walkthrough and write the one-dialog notarized flow in its place <!-- longclaw:item=ck_a13642c7 -->
 - [ ] P1 · Getting started: point Download at the site-hosted .dmg and name its sha256 <!-- longclaw:item=ck_b0ed899b -->
-- [ ] P1 · Blog: drop 'The build is also unsigned' from introducing-longclaw.mdx <!-- longclaw:item=ck_e7d815be -->
+- [x] P1 · Blog: drop 'The build is also unsigned' from introducing-longclaw.mdx <!-- longclaw:item=ck_e7d815be -->
 - [ ] P1 · Content brief: record the download-hosting decision in §7 and drop the two expired constraints in §6 <!-- longclaw:item=ck_8cb3f8bb -->
-- [ ] P1 · changelog-entry skill: rewrite the 'do not publish ahead of the release' gate — both its premises change here <!-- longclaw:item=ck_6b4300ee -->
+- [x] P1 · changelog-entry skill: rewrite the 'do not publish ahead of the release' gate — both its premises change here <!-- longclaw:item=ck_6b4300ee -->
 - [ ] P1 · release-candidate.md: add this candidate to the table at the top of the gate <!-- longclaw:item=ck_09cb95d6 -->
 - [ ] P2 · npm run verify passes at the release tree <!-- longclaw:item=ck_d7a501b2 -->
 - [ ] P2 · APPLE_SIGNING_IDENTITY set; npm run release:macos builds, signs, notarizes and staples both artefacts <!-- longclaw:item=ck_5bb01908 -->
@@ -707,4 +707,86 @@ actor:
 ### Claude Code commented
 
 P1 release notes done. Draft marker lifted (status: published, milestone M6 — Release); § Installing it written for the signed-and-notarized build — one dialog, the two failure messages that mean the copy is not this one, and drag-to-Applications; a comments bullet added for LC-241q (reword/withdraw, your own only, enforced in Rust); the CLI section updated for LC-249a (the offer argues for itself first, Ask again, Try again) and corrected from 'Project settings' to the 'Settings › Command line' the app actually says. One paragraph was cut as a duplicate of an existing bullet. citations:check clean.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_bdedb225
+kind: update
+occurred_at: 2026-09-14T06:39:10.537Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_7667947b.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_39e07c35
+kind: update
+occurred_at: 2026-09-14T06:39:10.573Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_a13642c7.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_68c72a25
+kind: update
+occurred_at: 2026-09-14T06:39:10.607Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_e7d815be.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_3b3d3b12
+kind: update
+occurred_at: 2026-09-14T06:39:10.637Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_6b4300ee.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_e5571633
+kind: comment
+occurred_at: 2026-09-14T06:39:20.534Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+P1 website copy done: changelog re-derived from the release notes (comments, the CLI, signing; date 2026-08-22 → 2026-09-14; limitations widened from 3 of the release notes' 6 to 5), Getting started's four-step System Settings walkthrough replaced by the one-dialog notarized flow, the announcement post's 'the build is also unsigned' replaced and moved out of § What is deliberately not here, and the changelog-entry skill's publish gate rewritten — it asked whether the release notes were draft, which is now always no.
+
+Two things found while in there, both fixed: the announcement post says '0.1.0 is out today' and was dated 2026-08-22, three weeks before the release it announces; and apps/website/README.md's honesty-constraints rule still read 'The build is unsigned and the docs say so', which is the rule every future website change is checked against.
+
+site:verify passes — astro check 0/0/0, 15 pages. Getting started's Download section and the blog footer button still point at GitHub Releases; both move in P4 with SITE.download.
 <!-- /longclaw:event -->

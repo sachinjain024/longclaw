@@ -19,17 +19,27 @@ drift.
 
 ## Do not publish ahead of the release
 
-`docs/release-notes/v0.1.0.md` opens with a `status: draft` block naming the
-acceptance blockers still open. **An entry must not claim a release that has not
-happened.** Check before writing:
+**An entry must not claim a release that has not happened.** Shipping a
+changelog entry for a release nobody can download is the single worst thing this
+skill can do: every Download CTA on the site points at
+`SITE.download`, and a changelog row for a version that is not behind it makes
+the whole page a liar.
 
-- Is the release note still marked draft?
-- Does the acceptance record still name blockers?
-- Does a real build exist to download?
+`docs/release-notes/<version>.md` is the tell. Check before writing:
 
-If any answer is wrong, say so and stop. Shipping a changelog entry for a
-release that does not exist is the single worst thing this skill can do — the
-Download CTA on every page points at GitHub Releases.
+- Is the release note still `status: draft`?
+- Does its acceptance record still name open blockers?
+- Is the artefact published — the `.dmg` in `apps/website/public/downloads/`
+  and attached to the release — with a matching `sha256`?
+
+If any answer is wrong, say so and stop.
+
+**Writing the entry on the release branch is the exception, and it is how 0.1.0
+shipped.** The entry, the release notes and the artefact land in one branch, so
+during that branch the third answer is legitimately "not yet". What must not
+happen is the *merge*: nothing goes to `main` until the build exists, because
+merging is what publishes. If you are on such a branch, say which one and carry
+on; if you are on `main`, the three questions are the gate and they bind.
 
 ## Adding an entry
 

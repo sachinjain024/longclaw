@@ -77,8 +77,9 @@ headline.
 
 **Honesty constraints.** Nothing on the site may promise what v0.1.0 does not
 do: no terminals, no sync, teams, accounts or billing, no Windows, Linux or
-Intel build, no custom themes, no hard deletion. The build is unsigned and the
-docs say so. These come from
+Intel build, no custom themes, no hard deletion. The build is signed and
+notarized as of 0.1.0 (LC-47), so first launch is one dialog — say that, and do
+not promise none. These come from
 [`docs/design/website-content-brief.md`](../../docs/design/website-content-brief.md) §6.
 
 **`/roadmap` is designed but unpublished.** It is absent from both navigations,

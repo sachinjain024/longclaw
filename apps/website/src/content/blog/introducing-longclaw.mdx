@@ -1,7 +1,7 @@
 ---
 title: Introducing LongClaw
 description: One canvas where humans plan and agents execute. LongClaw 0.1.0 is out today — a local-first project manager for macOS, open source under MPL 2.0.
-date: 2026-08-22
+date: 2026-09-14
 author: Sachin Jain
 ---
 
@@ -66,16 +66,17 @@ telemetry, no crash reporting. Nothing about your projects leaves your machine
 — and this repository tracks its own work with LongClaw, through the same
 contract your agents will read.
 
+The app is signed with a Developer ID certificate and notarized, so first launch
+is one dialog and one click. The check reads a ticket stapled inside the app, so
+it works offline too — which it had better, for a tool whose whole claim is that
+it needs no network. [Getting started](/docs) shows exactly what it says.
+
 ## What is deliberately not here
 
 No terminals inside the app; that is Phase 2. No sync, teams, accounts or
 billing; that is Phase 3. No Windows or Linux build, no Intel binary, no custom
 themes, no hard deletion. These are separate phases, not partial features —
 nothing in this release is a preview of them.
-
-The build is also unsigned, which macOS will tell you about on first launch.
-[Getting started](/docs) walks through approving it without weakening anything
-else on your machine.
 
 <div class="post__footer">
   <Button href="https://github.com/sachinjain024/longclaw/releases" external>Download for Mac</Button>

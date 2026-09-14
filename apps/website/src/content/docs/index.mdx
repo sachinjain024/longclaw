@@ -28,37 +28,39 @@ same code — see [building from source](#building-from-source) below.
 
 ## Opening the app the first time
 
-This build is not signed with an Apple Developer certificate, so macOS will
-warn you the first time. The warning is Gatekeeper reporting that Apple has not
-certified who built the app — not that anything is wrong with it. Approving it
-takes about thirty seconds.
+LongClaw is signed with an Apple Developer ID certificate and notarized by
+Apple. **Expect one dialog, and expect to click through it once.**
 
-<ol class="steps">
-  <li>
-    <p>Open LongClaw. macOS says it can't verify the app is free of malware. Click <strong>Done</strong> — and never <strong>Move to Bin</strong>, which deletes the app.</p>
-  </li>
-  <li>
-    <p>Open <strong>System Settings → Privacy &amp; Security</strong>, scroll to the Security section. You'll see "LongClaw" was blocked. Click <strong>Open Anyway</strong> and authenticate.</p>
-    <p>Do this soon after step 1: the button refers to the most recent blocked app and does not stay indefinitely.</p>
-  </li>
-  <li>
-    <p>Confirm in the dialog that follows. macOS remembers the decision — you won't be asked again for this copy of the app.</p>
-  </li>
-</ol>
+Anything you download from a browser is quarantined by macOS and earns a
+confirmation on first launch however good its signature. What notarization
+changes is which confirmation. You will see:
+
+<div class="callout callout--note">
+  <p>"LongClaw" is an app downloaded from the internet. Are you sure you want to open it?</p>
+  <p class="mono">As of <em>the date it was notarized</em>, Apple checked it for malicious software and none was detected.</p>
+</div>
+
+Click **Open**. That is the whole step — no System Settings, nothing to
+authenticate, and macOS does not ask again for this copy of the app.
+
+That second sentence is read from a ticket stapled into the app itself, so it
+appears whether or not you are online. Nothing has to reach Apple for a first
+launch to work.
+
+### If you see something else
+
+Two other messages exist, and neither should appear for this build. Both mean
+the copy you have is not the one published here.
 
 <Callout tone="warning">
-  <p>Do not disable Gatekeeper system-wide. Both routes above approve this one app only, and leave every other app on your machine as protected as it was.</p>
+  <p><strong>"Apple could not verify…is free of malware"</strong>, offering <em>Move to Bin</em> — an unsigned or unnotarized build.</p>
+  <p><strong>"LongClaw is damaged and can't be opened"</strong>, offering only <em>Move to Bin</em> — a bundle whose signature does not verify.</p>
 </Callout>
 
-On macOS 14 and earlier you can instead Control-click the app and choose
-**Open**. That route was removed in macOS 15 — on current systems, System
-Settings is the only way.
-
-If macOS instead says LongClaw **"is damaged and can't be opened"** and offers
-only *Move to Bin*, that is a different message and it is not what this build
-should do. It means the copy you have was built without a valid bundle
-signature. Do not work around it by stripping the quarantine attribute; get a
-build whose `codesign --verify --deep --strict` passes.
+Download it again from this page rather than working around it, and never strip
+the quarantine attribute to get past either one: that turns the check off for
+the single app you were least able to vouch for. If you build from source, the
+bar is `codesign --verify --deep --strict` passing.
 
 ## Point it at a folder
 
