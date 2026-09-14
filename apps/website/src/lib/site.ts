@@ -19,7 +19,26 @@ export const SITE = {
   /** Shown in the mono small print under every download CTA. */
   requirements: 'macOS 13+ · Apple Silicon · no account required',
   repo: 'https://github.com/sachinjain024/longclaw',
-  releases: 'https://github.com/sachinjain024/longclaw/releases',
+  /**
+   * Where every Download CTA goes. Site-hosted rather than the GitHub release,
+   * for two reasons recorded in website-content-brief.md §7: a releases page is
+   * a list of artefacts shown to someone who has already said which one they
+   * want, and this URL survives LC-204's transfer of the repository, after
+   * which every `github.com/sachinjain024/…` link depends on a redirect GitHub
+   * owns. The file is committed at `public/downloads/`, so it ships with the
+   * site and is served from the same origin.
+   *
+   * Changing the version means replacing the file, this line, `downloadSha256`
+   * and `version` together. They are four spellings of one fact and there is no
+   * guard that holds them to each other yet.
+   */
+  download: 'https://longclaw.io/downloads/LongClaw_0.1.0_aarch64.dmg',
+  downloadFile: 'LongClaw_0.1.0_aarch64.dmg',
+  /** `shasum -a 256` of the file above, so a reader can check what they got. */
+  downloadSha256: 'a2b8786b53d8b57d44e6bef7f94f4454c49064d8d43584b5b7680ecc1d7800df',
+  /** The canonical release record — notes, checksum, source tarballs. No CTA
+      points here; it is for people who want the tag rather than the app. */
+  releases: 'https://github.com/sachinjain024/longclaw/releases/tag/v0.1.0',
   license: 'MPL 2.0',
   licenseUrl: 'https://github.com/sachinjain024/longclaw/blob/main/LICENSE',
   contact: 'sachinjain.hq@gmail.com',
