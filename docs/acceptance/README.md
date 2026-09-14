@@ -23,7 +23,8 @@ unchanged acceptance criteria is a re-ranked backlog nobody can check.
 ## Records of particular runs
 
 They live beside the gate they were run against, newest last. **The current
-state of the release is the 2026-08-05 pair: all four blockers are closed.**
+state of the release is [the 2026-09-14 record](release-2026-09-14.md): 0.1.0 is
+built, signed, notarized and gated, with three rows open that need a person.**
 
 | Record | What it was | Standing |
 |---|---|---|
@@ -31,6 +32,8 @@ state of the release is the 2026-08-05 pair: all four blockers are closed.**
 | [final acceptance, 2026-08-04](final-acceptance-2026-08-04.md) | Step 17's first pass | **Partly superseded.** Two of its conclusions — that `perf:startup` and DMG bundling need a human — were about the machine, not the product, and are wrong. Its own header says so |
 | [final acceptance, 2026-08-05](final-acceptance-2026-08-05.md) | Step 17's second pass | Current. Closed two of the three blockers, and fixed the defect that made the bundle unopenable for anyone who downloaded it |
 | [clean-machine pass, 2026-08-05](clean-machine-2026-08-05.md) | The packaged app on a machine that had never run it | Current. Every row passes; the last blocker closed |
+| [signed and notarized, 2026-09-11](signed-notarized-2026-09-11.md) | The first pass with a Developer ID certificate and a notarization ticket (LC-47) | Superseded as evidence by the 2026-09-14 build, which has a different CDHash. Still the authority on **why** first launch shows one dialog rather than none, and on the two traps that each cost a run |
+| [the 0.1.0 release, 2026-09-14](release-2026-09-14.md) | The build that ships: the artefact on longclaw.io, and the whole gate re-run against it | **Current.** Three rows open — offline Gatekeeper, `audit:network` both phases, and first launch by hand |
 
 The round-trip document also carries the current map of what the automated suite
 covers and what only a human can prove. That table is the authority on the

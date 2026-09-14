@@ -144,7 +144,7 @@ Reverse-chronological entries. First entry: **0.1.0** from `docs/release-notes/v
 - **Logo/marks:** `assets/brand/app-icon/in-app/` (ochre + white marks, rounded 512 tile); full icon set in `assets/brand/app-icon/icons/`.
 - **App screenshots — reference only (decided):** the website embeds no screenshots; product visuals (board, ticket panel, file trees, terminal blocks) are recreated as token-driven HTML components in the design system, with `apps/desktop/dist-matrix/` shots attached as fidelity reference. This makes visuals crisp, theme-aware (five-preset demo = accent-token swap), and lightweight. *The missing Graphite shots in dist-matrix no longer block anything — the recreated component renders Graphite from tokens.*
 - **Design-prototype renders (richer states):** `docs/design/prototype/renders/` — welcome, panel, agent-acknowledged, conflict, raw-file screens.
-- **Links:** GitHub `https://github.com/sachinjain024/longclaw` · Download `https://longclaw.io/downloads/LongClaw_0.1.0_aarch64.dmg` (site-hosted — see §7) · License MPL 2.0.
+- **Links:** GitHub `https://github.com/sachinjain024/longclaw` · Download `/downloads/LongClaw_0.1.0_aarch64.dmg` (site-hosted and site-relative — see §7) · License MPL 2.0.
 
 ## 6. Honesty constraints (do not oversell)
 
@@ -158,7 +158,7 @@ Two constraints here have expired, and are kept rather than deleted because the 
 
 **Decided (2026-09-14, LC-234i):** **the download is site-hosted, and the release is still cut.** This closes open item 2 below, which asked for one or the other and gets both, with the CTA pointing at only one of them.
 
-`LongClaw_0.1.0_aarch64.dmg` is committed to `apps/website/public/downloads/` and every Download button links to `https://longclaw.io/downloads/LongClaw_0.1.0_aarch64.dmg`. The GitHub release stays as the canonical record — tag, notes, `sha256`, source tarballs — and `SITE.releases` points at the tag for anyone who wants it, but no CTA goes there. Two reasons, neither cosmetic: a releases page is a list of artefacts shown to someone who has already said which one they want; and the site-hosted URL survives LC-204's transfer to `the.infin8y`, after which every `github.com/sachinjain024/…` URL depends on a redirect GitHub owns and can stop honouring. The cost is ~4.5 MB of binary in git per release and GitHub Pages' 100 GB/month bandwidth soft limit, both accepted for v0 and worth revisiting at the release where either bites.
+`LongClaw_0.1.0_aarch64.dmg` is committed to `apps/website/public/downloads/` and every Download button links to `/downloads/LongClaw_0.1.0_aarch64.dmg` — **relative, so the button resolves against whatever origin serves the page** and can be followed on a local preview instead of silently leaving for production. The absolute form belongs only where a machine reads it: the `SoftwareApplication` `downloadUrl`, composed with `absolute()`. The GitHub release stays as the canonical record — tag, notes, `sha256`, source tarballs — and `SITE.releases` points at the tag for anyone who wants it, but no CTA goes there. Two reasons, neither cosmetic: a releases page is a list of artefacts shown to someone who has already said which one they want; and the site-hosted URL survives LC-204's transfer to `the.infin8y`, after which every `github.com/sachinjain024/…` URL depends on a redirect GitHub owns and can stop honouring. The cost is ~4.5 MB of binary in git per release and GitHub Pages' 100 GB/month bandwidth soft limit, both accepted for v0 and worth revisiting at the release where either bites.
 
 **Still open:**
 

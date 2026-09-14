@@ -10,7 +10,7 @@ labels:
   - product
 type: chore
 created_at: 2026-08-25T07:33:13.529Z
-updated_at: 2026-09-14T07:13:08.435Z
+updated_at: 2026-09-14T07:26:47.403Z
 ---
 
 Cut LongClaw 0.1.0 — the first public release — and make every **Download for
@@ -144,14 +144,14 @@ DMG attached.
 - [x] P2 · APPLE_SIGNING_IDENTITY set; npm run release:macos builds, signs, notarizes and staples both artefacts <!-- longclaw:item=ck_5bb01908 -->
 - [x] P2 · npm run release:binary-audit passes on the .app and the DMG <!-- longclaw:item=ck_c2a8af66 -->
 - [x] P2 · npm run release:gatekeeper-check -- --phase online passes on a quarantined copy <!-- longclaw:item=ck_fdc8b380 -->
-- [ ] P2 · matrix, a11y:audit, perf:rust, perf:board and perf:list run; quote the numbers <!-- longclaw:item=ck_d68aeefd -->
-- [ ] P3 · Write docs/acceptance/release-2026-09-14.md — revision, apps/desktop tree hash, CDHash, DMG sha256, notary ids, every result <!-- longclaw:item=ck_5562d313 -->
-- [ ] P3 · Record the three rows that need a person as open: gatekeeper --phase offline, audit:network offline and online, first launch by hand <!-- longclaw:item=ck_bada4fe4 -->
+- [x] P2 · matrix, a11y:audit, perf:rust, perf:board and perf:list run; quote the numbers <!-- longclaw:item=ck_d68aeefd -->
+- [x] P3 · Write docs/acceptance/release-2026-09-14.md — revision, apps/desktop tree hash, CDHash, DMG sha256, notary ids, every result <!-- longclaw:item=ck_5562d313 -->
+- [x] P3 · Record the three rows that need a person as open: gatekeeper --phase offline, audit:network offline and online, first launch by hand <!-- longclaw:item=ck_bada4fe4 -->
 - [x] P4 · Commit the stapled DMG to apps/website/public/downloads/LongClaw_0.1.0_aarch64.dmg <!-- longclaw:item=ck_fd9d0591 -->
 - [x] P4 · Add SITE.download and SITE.downloadSha256 beside SITE.releases in apps/website/src/lib/site.ts <!-- longclaw:item=ck_96567d72 -->
 - [x] P4 · Move all five CTA call sites and the SoftwareApplication downloadUrl onto SITE.download <!-- longclaw:item=ck_fe42ee61 -->
 - [x] P4 · Point SITE.releases at the v0.1.0 tag rather than the releases index <!-- longclaw:item=ck_a7054d67 -->
-- [ ] P4 · npm run site:verify passes; open the built site and follow every Download button <!-- longclaw:item=ck_24e8f3db -->
+- [x] P4 · npm run site:verify passes; open the built site and follow every Download button <!-- longclaw:item=ck_24e8f3db -->
 - [ ] P4 · Merge the branch, tag v0.1.0 at the merge commit, cut the GitHub release with the same DMG bytes attached <!-- longclaw:item=ck_5c21fae2 -->
 - [ ] P4 · Confirm the live longclaw.io download serves the .dmg and its sha256 still matches <!-- longclaw:item=ck_3180c64e -->
 ## Activity
@@ -961,6 +961,70 @@ actor:
   name: Claude Code
 changes:
   - field: checklist.ck_a7054d67.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_36d4d9ff
+kind: update
+occurred_at: 2026-09-14T07:19:24.922Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_d68aeefd.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_7b9721fa
+kind: update
+occurred_at: 2026-09-14T07:22:05.150Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_5562d313.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_4b46d995
+kind: update
+occurred_at: 2026-09-14T07:22:05.177Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_bada4fe4.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_9a8c5b8b
+kind: update
+occurred_at: 2026-09-14T07:26:47.403Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_24e8f3db.checked
     from: "false"
     to: "true"
 -->

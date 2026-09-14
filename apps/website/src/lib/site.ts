@@ -28,11 +28,20 @@ export const SITE = {
    * owns. The file is committed at `public/downloads/`, so it ships with the
    * site and is served from the same origin.
    *
+   * **Site-relative on purpose.** An absolute `https://longclaw.io/…` here works
+   * in production and nowhere else: every Download button on a local preview or
+   * a branch build would leave for the live site, so the one control that
+   * matters most is the one nobody can test before shipping it. Relative, the
+   * button resolves against whatever origin is serving the page. Where a full
+   * URL is genuinely needed — the `SoftwareApplication` structured data a
+   * machine reads — compose it with `absolute()`, which leaves asset paths
+   * unslashed.
+   *
    * Changing the version means replacing the file, this line, `downloadSha256`
    * and `version` together. They are four spellings of one fact and there is no
    * guard that holds them to each other yet.
    */
-  download: 'https://longclaw.io/downloads/LongClaw_0.1.0_aarch64.dmg',
+  download: '/downloads/LongClaw_0.1.0_aarch64.dmg',
   downloadFile: 'LongClaw_0.1.0_aarch64.dmg',
   /** `shasum -a 256` of the file above, so a reader can check what they got. */
   downloadSha256: 'a2b8786b53d8b57d44e6bef7f94f4454c49064d8d43584b5b7680ecc1d7800df',

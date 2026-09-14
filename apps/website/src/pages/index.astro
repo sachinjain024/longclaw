@@ -23,7 +23,7 @@ const jsonLd = [
     softwareVersion: SITE.version,
     description,
     url: absolute('/'),
-    downloadUrl: SITE.download,
+    downloadUrl: absolute(SITE.download),
     license: SITE.licenseUrl,
     isAccessibleForFree: true,
     author: { '@type': 'Person', name: SITE.author },
@@ -60,7 +60,7 @@ const claims = [
       </p>
 
       <div class="cta-row">
-        <Button href={SITE.download} size="lg" external>
+        <Button href={SITE.download} size="lg">
           <Icon name="apple" size={16} />
           Download for Mac
         </Button>
@@ -135,7 +135,7 @@ const claims = [
         </h2>
 
         <div class="cta-row">
-          <Button href={SITE.download} size="lg" external>
+          <Button href={SITE.download} size="lg">
             <Icon name="apple" size={16} />
             Download for Mac
           </Button>
