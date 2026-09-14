@@ -95,9 +95,13 @@ this ticket carries a prototype at all.
 
 ## The prototype
 
-[`docs/ux/prototypes/LC-249a-Make-Installing-The-Longclaw-Command-Explain-Itself.html`](../../../docs/ux/prototypes/LC-249a-Make-Installing-The-Longclaw-Command-Explain-Itself.html)
-— four scenes (first launch, settings pane, dismissed, copy deck) across all
-five states, with a driver for the refusal. Four rounds of review took it from
+`docs/ux/prototypes/LC-249a-Make-Installing-The-Longclaw-Command-Explain-Itself.html`,
+**deleted once this shipped**, as `AGENTS.md` asks. It is in the history at
+`3ad94ef` if it is ever wanted again; what survives it is the settled copy deck
+below, which is the half a deleted file would otherwise take with it.
+
+It was four scenes (first launch, settings pane, dismissed, copy deck) across
+all five states, with a driver for the refusal. Four rounds of review took it from
 45 rows to **38: 18 new, 6 changed, 14 unchanged**, and the scenes render from
 the deck rather than beside it.
 

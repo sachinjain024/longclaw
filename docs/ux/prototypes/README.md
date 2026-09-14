@@ -22,17 +22,17 @@ cannot drift. See `AGENTS.md` § UX prototypes for what belongs in it.
 - [`LC-201-Bulk-Create-In-Quick-Create-Mode.html`](LC-201-Bulk-Create-In-Quick-Create-Mode.html)
   — quick create with a description, labels and a **Create more** loop
   (spec: `.longclaw/tickets/LC-201/ticket.md`).
-- [`LC-236e-Define-A-New-Label-From-Inside-The-Create-Flows.html`](LC-236e-Define-A-New-Label-From-Inside-The-Create-Flows.html)
-  — a define-a-label row inside the labels popover, across quick create, full
-  create and the project-settings add-row it makes agree with them
-  (spec: `.longclaw/tickets/LC-236e/ticket.md`).
-- [`LC-249a-Make-Installing-The-Longclaw-Command-Explain-Itself.html`](LC-249a-Make-Installing-The-Longclaw-Command-Explain-Itself.html)
-  — the first-launch offer, the settings pane and the dismissed path for the
-  `longclaw` command, across all five states LC-233 defined
-  (spec: `.longclaw/tickets/LC-249a/ticket.md`). The first prototype here to
-  carry the copy deck `AGENTS.md` asks for: 38 rows after four rounds of review,
-  and the scenes render from it rather than beside it. The settled deck is
-  written into the ticket, which is where it survives this file.
+
+  **Kept past its ticket on purpose.** LC-201 shipped and the rule above would
+  delete this, but LC-237k's first step names this file as the model for the
+  prototype it has yet to write, and a `todo` ticket pointing at a deleted file
+  is worse than a stale example. It goes when LC-237k's own prototype lands.
+  Read it for the shape, not for the rules: it predates the **copy deck**,
+  which `AGENTS.md` has required since LC-249a and which a new prototype owes.
+
+Two others have been here and are not any more, both deleted when their tickets
+shipped: LC-236e (defining a label from inside the create flows) and LC-249a
+(the `longclaw` command's install offer). They are in the history at `3ad94ef`.
 
 ## Imported prototypes
 
