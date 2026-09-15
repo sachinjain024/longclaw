@@ -162,11 +162,11 @@ carries no meaning on its own. Chips never take the theme accent and never
 gain a fill — a filled P-chip would compete with the ID chip and the agent
 chip, which own the soft-fill register.
 
-**Revised 2026-08-07 (LC-85):** None keeps the dash, and gains the frame. The
-dash used to stand bare in the slot the numbers fill with a chip, which on a
-board card read as a stray hyphen rather than as a level — the five priorities
-share one slot, so they share its shape. The dash's own geometry is unchanged;
-only its container is new.
+**Revised 2026-08-07 (LC-85), and reopened 2026-09-15 (LC-243d):** LC-85 gave
+None the frame, so that the five priorities sharing one slot would share its
+shape. The frame is off again: the chip is what says a level is *set*, and drawn
+around the absence of one it is a box around nothing — on a young board, an
+empty rectangle on nearly every card. The dash's own geometry never changed.
 
 ## Avatars — humans are circles, agents are not
 
