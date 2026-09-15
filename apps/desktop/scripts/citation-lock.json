@@ -60,7 +60,7 @@
     "180": "follow the same ordering preference as the board.",
     "205": "- **Archived group (ADR 0004):** below the last status group, a",
     "209": "surface in palette search, tagged `· archived`.",
-    "213": "- Overlay panel anchored right, **800px** wide by default, dragged by its left-edge handle between **660px** and **88%**",
+    "213": "- Overlay panel anchored right, **800px** wide by default, dragged by its left-edge handle — a 4×28 `ink-3` grip on the",
     "218": "- **Header row** (padding 14px 20px 0): ID chip (click copies), mono file",
     "219": "path `tickets/LC-128/ticket.md` — the disk made visible — an `archived`",
     "221": "(ADR 0004), close. Archiving closes the panel, hides the ticket from",

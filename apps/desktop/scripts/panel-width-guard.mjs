@@ -23,13 +23,21 @@
  * vitest cannot stand in for this: it loads no stylesheet, and a `?raw` import
  * of one comes back empty under the CSS transform.
  *
+ * A fourth claim is here for the same reason and is not a number: **the handle
+ * draws a grip at rest.** It shipped for review drawing nothing until hover —
+ * the edge is a line in the design, and a line that is already a control
+ * seemed not to need announcing — and came back as "I don't see the handle".
+ * Every test of this control asks what it *does*, in jsdom, where a
+ * `background: transparent` is as good as any other; so the one property that
+ * decides whether a human can find it at all is checked where it is written.
+ *
  * Usage: node scripts/panel-width-guard.mjs   (exits non-zero on any finding)
  */
 
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { report } from "./guard.mjs";
+import { cssRules, declaredValues, report } from "./guard.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const src = resolve(here, "../src");
@@ -86,15 +94,40 @@ requireAgreement(
   "under it the properties fold away, and no gesture may take a reader there",
 );
 
+/**
+ * The grip's own rule: `.panel-resize::after` is painted at rest, in a token.
+ * `transparent` is exactly the value the first cut had, so it is named as the
+ * failure rather than left to a generic "not a token".
+ */
+const rules = cssRules(styles);
+checked.push("the grip drawn at rest");
+const grip = declaredValues(rules, ".panel-resize::after", "background");
+if (grip.length === 0) {
+  findings.push(
+    ".panel-resize::after declares no background — the handle draws no grip " +
+      "at rest, and a control nobody can see is one nobody reaches for",
+  );
+} else if (grip.includes("transparent") || grip.includes("none")) {
+  findings.push(
+    `.panel-resize::after is ${grip.join(", ")} at rest — that is the ` +
+      "hover-only handle LC-238s shipped for review and had to change",
+  );
+} else if (!grip.some((value) => value.includes("var(--lc-"))) {
+  findings.push(
+    `.panel-resize::after draws ${grip.join(", ")}, which is not a token — ` +
+      "the grip straddles the panel's hairline and belongs to the line scale",
+  );
+}
+
 report({
   name: "panel-width-guard",
   findings,
   checked: checked.length,
   noun: "panel width claim",
   remedy:
-    "number(s) written twice and no longer agreeing — change both sides, or " +
-    "state one of them in terms of the other:",
+    "claim(s) that no longer hold — change both sides of a number, state one " +
+    "in terms of the other, or give the grip a colour again:",
   clean:
     "the panel's default, cap and rail floor read the same in styles.css and " +
-    "panelWidth.ts",
+    "panelWidth.ts, and the handle draws a grip at rest",
 });

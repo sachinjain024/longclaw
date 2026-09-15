@@ -487,3 +487,27 @@ Reviewed on both axes — standards and spec — and five findings were worth ac
 
 **Runs after the fixes.** `verify` green, `panel-width-guard` in it. `a11y:audit` A1–A6 pass; `--only=A6 --self-test` still takes A6 red. `probe:checklist` 60/60 over 8/8 sizes. `probe:drag` 79/79. One pre-existing item, unrelated to this branch and reproduced on `main`: the full `--self-test` run leaves **A3** green against its injected break, so that row's break no longer breaks what it checks.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_b2c44f03
+kind: comment
+occurred_at: 2026-09-15T07:35:33.646Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+The handle shipped invisible, and it should not have. It drew nothing until hover — the reasoning written beside the rule was that the panel's edge is a line in the design and a line that is already a control need not announce itself — which is a nice sentence about a control nobody can find. Reported as "I don't see the handle on the ticket panel pane".
+
+**There is a grip now**: a 4×28 pill on the hairline, centred on the window, `--lc-ink-3` at rest and the human accent on hover and focus, alongside the hairline itself thickening. It is hidden when the window has no travel to offer, because a grip drawn where nothing can be gripped is the same defect told the other way round.
+
+**Why a mid ink rather than the line scale**, which is what the first cut used and is what the edge is made of: the pixels this grip occupies are already painted. WebKit draws its own focus ring around the panel while the panel holds focus — which is exactly when a reader goes looking for the edge — and it is a saturated system blue, 3px outside the edge and over the hairline, the full height of the window. A grip in `--lc-line-strong` vanished into it. Measured in WebKit, light and dark, at rest and hovered; the band is on `main` too, with no handle in the code at all, so it predates this control. Filed as **LC-255x**: the outline reset at `styles.css:38-47` covers `button`, `input`, `select`, `textarea`, `[role="button"]` and `[tabindex="0"]`, and the panel is `[tabindex="-1"]`, so it keeps the platform's ring rather than the app's.
+
+**Pinned rather than trusted.** `panel-width-guard` has a fourth claim now: `.panel-resize::after` is painted at rest, in a token, and `transparent` is named as the failure because `transparent` is exactly what the first cut had. Every test of this control asks what it *does*, in jsdom, where an invisible background is as good as any other — so the one property that decides whether a human can find it is checked where it is written.
+
+`screen-specs.md:213` carries the grip now, rewritten in place, citations re-pinned.
+
+Runs: `verify` green, `matrix` 8 axes × 12 states clean, `a11y:audit --only=A6` passes.
+<!-- /longclaw:event -->

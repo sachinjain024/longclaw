@@ -2589,10 +2589,9 @@ button:disabled {
   cursor: col-resize;
 }
 
-/* The affordance is the hairline thickening under the pointer rather than a
-   grabber drawn at rest: the panel's edge is a line in the design, and a line
-   that is already a control does not need to announce it until reached. */
-.panel-resize::after {
+/* The line the pointer thickens: the panel's own edge, in the human accent
+   while the handle is under the pointer or holds focus. */
+.panel-resize::before {
   position: absolute;
   top: 0;
   left: 4px;
@@ -2602,7 +2601,38 @@ button:disabled {
   content: "";
 }
 
-.panel-resize:hover::after {
+/* **The grip, drawn at rest.** This started as hover-only — the edge is a line
+   in the design, and the thinking was that a line which is already a control
+   need not announce itself until reached. It does: a control nobody can see is
+   one nobody knows to reach for, which is how this shipped for review and came
+   straight back as "I don't see the handle".
+
+   A 4×28 pill centred on the window, in a **mid ink rather than a line
+   colour**, because of what else is painted here: WebKit draws its own focus
+   ring around the panel while the panel itself holds focus — which is exactly
+   when a reader is looking for the edge — and that ring is a saturated blue
+   4px band over these same pixels (measured on `main`, so it predates this
+   control). A grip in the line scale disappeared into it. An ink reads against
+   the ring, against the workspace grey and against the panel's white. */
+.panel-resize::after {
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 4px;
+  height: 28px;
+  transform: translateY(-50%);
+  border-radius: var(--lc-radius-full);
+  background: var(--lc-ink-3);
+  content: "";
+}
+
+/* Reached: the accent the app gives a person's own actions, on both marks at
+   once, so the edge reads as one control rather than a line and a pill that
+   light up separately. */
+.panel-resize:hover::before,
+.panel-resize:focus-visible::before,
+.panel-resize:hover::after,
+.panel-resize:focus-visible::after {
   background: var(--lc-accent-human-border);
 }
 
@@ -2613,11 +2643,15 @@ button:disabled {
 
 /* A window with 24px or less between the 660px floor and the 88% cap has
    nowhere to drag into (`panelWidth.ts`). The handle keeps its focus stop and
-   its name, and stops claiming a gesture it cannot honour. */
+   its name, and stops claiming a gesture it cannot honour — so the grip goes
+   too. A grip drawn where nothing can be gripped is the same defect as no grip
+   drawn where something can be, told the other way round. */
 .panel-resize[aria-disabled="true"] {
   cursor: default;
 }
 
+.panel-resize[aria-disabled="true"]::after,
+.panel-resize[aria-disabled="true"]:hover::before,
 .panel-resize[aria-disabled="true"]:hover::after {
   background: transparent;
 }
