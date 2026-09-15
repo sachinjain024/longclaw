@@ -854,9 +854,11 @@ describe("priority on the board", () => {
     ).toBeTruthy();
   });
 
-  // LC-85: the dash used to sit bare in the slot P1–P4 fill with a chip, which
-  // on a card read as a stray hyphen rather than as a level.
-  it("gives None the same chip frame the numbered levels wear", () => {
+  // LC-243d reopens D-23 the other way: the dash is a dash again, as the
+  // prototype draws it (`prototype.js:102`). LC-85 had framed it like a number
+  // so the five levels shared one slot; the frame read as a box around nothing,
+  // which is the thing None is not.
+  it("draws None as a bare dash and keeps the frame for the numbers", () => {
     render(
       board({
         tickets: [
@@ -867,9 +869,15 @@ describe("priority on the board", () => {
     );
 
     const none = card("LC-1").querySelector('[aria-label="Priority: None"]');
-    expect(none?.className).toContain("priority-chip");
-    expect(none?.querySelector(".priority-dash")).toBeTruthy();
-    expect(none?.textContent).toBe("");
+    expect(none?.tagName.toLowerCase()).toBe("svg");
+    expect(none?.getAttribute("class")).toContain("priority-dash");
+    expect(none?.getAttribute("class")).not.toContain("priority-chip");
+    // The master's own dash on the master's own grid (`assets/glyphs.svg`), not
+    // a 9×2 box of its own: `glyph-drift-guard` can only compare two drawings
+    // that share a viewBox, and re-framing it was why it never could.
+    expect(none?.getAttribute("viewBox")).toBe("0 0 14 14");
+    expect(none?.querySelector("rect")?.getAttribute("x")).toBe("2.5");
+
     expect(
       card("LC-2").querySelector('[aria-label="Priority: P3"]')?.className,
     ).toContain("priority-chip");

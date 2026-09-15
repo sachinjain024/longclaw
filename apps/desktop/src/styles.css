@@ -5405,16 +5405,16 @@ html.theme-transition *::after {
   font-size: 8.5px;
 }
 
-/* None wears the same frame, holding the dash instead of a number: it is the
-   absence of a level, not the absence of a priority slot, and the dash on its
-   own read as a stray hyphen where the numbers had a chip (D-23). */
-.priority-chip.none {
-  color: var(--lc-priority-none);
-}
+/* None is a dash and nothing else (LC-243d, reopening D-23). It shares the
+   glyph's box and not the chip's: the frame is what says a ticket carries a
+   level, so putting one around the absence of a level draws a box around
+   nothing — on a young board, an empty rectangle on nearly every card.
 
+   After `.priority-glyph` rather than inside it, because the two have the same
+   specificity and the fill is the one thing they disagree on: the glyph's
+   `urgent` is the only coloured rung, and this is the quiet one. */
 .priority-dash {
-  flex: none;
-  fill: currentColor;
+  fill: var(--lc-priority-none);
 }
 
 /* One popover behind status, priority, ordering and labels

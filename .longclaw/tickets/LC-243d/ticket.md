@@ -6,15 +6,15 @@ title: Fix the Inconsistencies with the Prototype
 status: todo
 priority: none
 created_at: 2026-08-31T09:50:40.465Z
-updated_at: 2026-09-15T13:17:53.846Z
+updated_at: 2026-09-15T15:44:35.478Z
 ---
 
 
 ## Checklist
 
 - [x] Board and List View Switcher <!-- longclaw:item=ck_73bf8498 -->
+- [x] Remove the Border around “-“ when there is no Priority. Simply Show as - <!-- longclaw:item=ck_1af0547b -->
 - [ ] Ticket Panel Fields <!-- longclaw:item=ck_f9160e3b -->
-- [ ] Remove the Border around “-“ when there is no Priority. Simply Show as - <!-- longclaw:item=ck_1af0547b -->
 - [ ] Date Field in Ticket Panel is too long. <!-- longclaw:item=ck_01be6641 -->
 ## Activity
 
@@ -120,4 +120,35 @@ Two decisions the review settled, recorded here because the prototype and the do
 
 1. The settings dialog's Appearance and Estimate segments move with the header's. They share one rule and the prototype fills all three the same way, so scoping the change to `.view-segment` would have left the shared rule prescribing a treatment nothing used. `components.md:31` was amended in place to say so.
 2. The pressed pill needed a focus ring of its own. `--lc-accent-human-ring` is the accent at 14%, and over `--lc-accent-human` it composites to exactly that fill — the ring painted an identical pixel and tabbing onto Board showed nothing. It is now drawn in `--lc-on-accent-human` at full opacity (5.6:1 at worst across the five themes × both appearances). `components.md:30` names the exception and `a11y:audit` A3 measures it.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_69ab7e78
+kind: update
+occurred_at: 2026-09-15T15:27:24.653Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: checklist.ck_1af0547b.moved
+    from: "3"
+    to: "2"
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_471c6976
+kind: update
+occurred_at: 2026-09-15T15:44:35.478Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_1af0547b.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->

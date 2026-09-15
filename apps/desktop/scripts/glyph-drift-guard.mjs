@@ -49,10 +49,14 @@
  * **What is not registered, and why.** `priority-p1`…`p4` are not copyable: the
  * sheet draws them with `<text>` and says so in its own comment — "in
  * components, render as a styled `<span>` so the chip uses the app's loaded
- * mono face" — and `PriorityGlyph` does. `priority-none` is the same dash as
- * its master (9 × 1.6, rx 0.8) re-framed into the chip P1–P4 wear, on its own
- * 9×2 viewBox rather than the 14×14 grid, so there is no grid to compare it on
- * (D-23). `checkbox-*` and `agent-tile` have no SVG copy in the app at all.
+ * mono face" — and `PriorityGlyph` does. `checkbox-*` and `agent-tile` have no
+ * SVG copy in the app at all.
+ *
+ * `priority-none` was excused here until LC-243d for a reason worth keeping in
+ * view: the dash was the master's own (9 × 1.6, rx 0.8) but re-framed into the
+ * chip P1–P4 wear, on a 9×2 viewBox rather than the 14×14 grid, and two
+ * drawings on different grids are two drawings this guard cannot compare. The
+ * frame came off, the grid came back, and the excuse became a registration.
  *
  * The registry is this guard's one hand-maintained fact, so it is pinned to the
  * sheet: every `format-*`, `status-*`, `priority-*` and `view-*` symbol must be
@@ -151,6 +155,13 @@ const COPIES = [
     varies: ["fill", "stroke-dasharray"],
   },
   { symbols: ["priority-urgent"], copies: [["component", PRIORITY, "mark"]] },
+  // Checkable since LC-243d, and only since: the dash used to be re-framed
+  // into the P1–P4 chip on a 9×2 viewBox of its own, and two drawings on
+  // different grids are two drawings this guard cannot compare.
+  {
+    symbols: ["priority-none"],
+    copies: [["component", PRIORITY, "priority-dash"]],
+  },
   {
     // The column header's plain 8px dot (LC-223) — its own master, not an
     // eighth shape in the status family above.
@@ -175,8 +186,6 @@ const NOT_COPIED = {
     "the sheet draws `<text>`; components render a styled `<span>`",
   "priority-p4":
     "the sheet draws `<text>`; components render a styled `<span>`",
-  "priority-none":
-    "the same dash, re-framed into the P1–P4 chip on a 9×2 viewBox (D-23)",
 };
 
 /** Every master this guard must have an answer for. */

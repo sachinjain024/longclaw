@@ -2,8 +2,8 @@
  * The priority glyphs, from `components.md:153-163`.
  *
  * Six levels, monochrome except Urgent: a filled square with an exclamation for
- * Urgent, a bordered mono chip carrying its own number for P1–P4, and a dash for
- * None — in the same chip frame, because the five of them share one slot. D4
+ * Urgent, a bordered mono chip carrying its own number for P1–P4, and a bare
+ * dash for None, which wears no chip because it is not a level (LC-243d). D4
  * retired the old High/Medium/Low bars — the number carries the level, so no
  * chip is ever filled and none of them takes the theme accent.
  *
@@ -65,26 +65,28 @@ export function PriorityGlyph(props: {
     );
   }
 
-  // The dash components.md keeps for None, inside the frame P1–P4 wear. The two
-  // share one slot — the card's ID row, a menu row's glyph column — and an
-  // unframed dash beside four framed numbers reads as a stray hyphen rather
-  // than as a level (D-23).
+  // The dash on its own, as the prototype draws it (`prototype.js:102`) and as
+  // the sheet holds it — the master's rect on the master's 14×14 grid, so this
+  // is a copy `glyph-drift-guard` can actually compare.
+  //
+  // D-23 went the other way and LC-85 shipped it: the dash took the frame P1–P4
+  // wear, so the five levels shared one slot and None was not the one level
+  // drawn unlike the rest. What that reasoning missed is that the frame is the
+  // chip, and a chip is a thing a ticket *has*. Framing the absence of a level
+  // draws a box around nothing and puts a second empty rectangle on every card
+  // that has said nothing about priority — which is most of them on a young
+  // board. LC-243d reopened it against the prototype and settled it there.
   if (props.priority === "none") {
     return (
-      <span
-        className={classes("priority-chip", "none", props.small && "small")}
+      <svg
+        className="priority-glyph priority-dash"
+        width={size}
+        height={size}
+        viewBox="0 0 14 14"
         {...naming}
       >
-        <svg
-          className="priority-dash"
-          width="9"
-          height="2"
-          viewBox="0 0 9 2"
-          aria-hidden="true"
-        >
-          <rect y="0.2" width="9" height="1.6" rx="0.8" />
-        </svg>
-      </span>
+        <rect x="2.5" y="6.2" width="9" height="1.6" rx="0.8" />
+      </svg>
     );
   }
 

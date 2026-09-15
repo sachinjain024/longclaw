@@ -154,7 +154,7 @@ no fill hierarchy, nothing louder.
 |---|---|---|
 | Urgent | 12×12 rx3 square + exclamation (14×14 viewBox) — unchanged | fill `--lc-priority-urgent`, mark `--lc-priority-urgent-mark` |
 | P1 · P2 · P3 · P4 | bordered mono chip: 14px tall (13px on cards), min-width 21px, padding 0 3px, radius `--lc-radius-kbd` (3px), 1px border, transparent fill, label `P1`–`P4` in mono 9px/500 (8.5px on cards), uppercase | text `--lc-priority-chip-text`, border `--lc-priority-chip-border` |
-| None | 9×1.6 rx0.8 dash, in the same chip frame as `P1`–`P4` | dash `--lc-priority-none`, border `--lc-priority-chip-border` |
+| None | 9×1.6 rx0.8 dash on the 14×14 glyph grid (13×13 on cards), bare — the chip frame is what says a level is set, so the absence of one wears none (LC-243d, reopening ~~D-23~~) | dash `--lc-priority-none` |
 
 The chip label is real text and is held to the 4.5:1 text gate on both bg and
 surface (see `accessibility.md`); the border is a decorative container and
