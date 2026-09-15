@@ -1107,7 +1107,12 @@ button:disabled {
 
    The growth has to be written *here* rather than on `.filter-wrap`, because
    this two-class rule is what the row hands its shortfall to and a one-class
-   rule proposing `flex` beside it loses. */
+   rule proposing `flex` beside it loses.
+
+   **The growth is switched off below 759px** — this same selector again, in the
+   sub-`minWidth` media query at § the segmented control, where the row wraps
+   and a field that fills its line pushes its neighbour off the side of the
+   viewport (LC-243d). Change the flex here and read that one too. */
 .content-header .toolbar-actions > .filter-wrap {
   flex: 1 1 240px;
   max-width: 380px;
@@ -2172,6 +2177,17 @@ button:disabled {
     justify-content: flex-start;
     row-gap: 8px;
   }
+
+  /* And the field stops growing, for the same reason the lines align left. A
+     field that takes the whole leftover of its line is a field that pushes
+     whatever shares that line onto the edge the viewport cannot see — the
+     ordering control at x=742 in a 720px band, which is `New ticket` at x=628
+     one wrap further up, and the A5 row catches it in exactly the same words.
+     Above the breakpoint the growth is the point: the band has width to spare
+     and the field is the only control that can hold any (LC-243d). */
+  .content-header .toolbar-actions > .filter-wrap {
+    flex-grow: 0;
+  }
 }
 
 /* Anatomy from `.kbd-chip`; the placement and the prototype's own tracking are
@@ -2221,8 +2237,9 @@ button:disabled {
 }
 
 /* The segmented control, in the header for the view and in project settings for
-   appearance (`screen-specs.md:331-332`, D-42). One rule for both: they are the
-   same control — a short row of places to stand, one of them pressed. */
+   appearance and the estimate system (`screen-specs.md:331-332`, D-42). One
+   rule for both: they are the same control — a short row of places to stand,
+   one of them pressed. */
 .view-segment,
 .appearance-segment {
   display: inline-flex;
@@ -2231,21 +2248,38 @@ button:disabled {
   overflow: hidden;
 }
 
-.view-segment button,
-.appearance-segment button {
-  height: 28px;
-  border: 0;
-  padding: 0 12px;
-  color: var(--lc-ink-2);
-  background: transparent;
-  font-size: var(--lc-type-small-size);
+/* The header's is the one that never gives width, and only the header's: the
+   filter field is the sole control in that row whose width is a size rather
+   than a content, so it is the only one that can give any up without losing a
+   label (`.content-header`, LC-149). A segment that shrinks instead loses
+   `Board` a letter at a time behind the `overflow: hidden` above. */
+.view-segment {
+  flex: none;
 }
 
-/* The prototype rules a hairline between neighbours — the segments read as
-   one control with internal walls, not a row of buttons. */
-.view-segment button + button,
-.appearance-segment button + button {
-  border-left: 1px solid var(--lc-line-strong);
+/* A surface, not the band it stands on (`prototype.css:331-332`). Transparent
+   was the shipped reading, and it left the unpressed half of the control
+   wearing the header's `--lc-bg`: an outline with nothing inside it, on the one
+   row where every other control is a filled box. The gap is the mark's
+   (LC-243d) — 6px, then the word. */
+.view-segment button,
+.appearance-segment button {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  height: 28px;
+  border: 0;
+  padding: 0 11px;
+  color: var(--lc-ink-2);
+  background: var(--lc-surface);
+  font-size: var(--lc-type-small-size);
+  font-weight: 500;
+}
+
+/* Dark has no white to sit on, so the pill takes the step above its ground. */
+[data-theme="dark"] .view-segment button,
+[data-theme="dark"] .appearance-segment button {
+  background: var(--lc-raised);
 }
 
 .view-segment button:hover,
@@ -2253,17 +2287,37 @@ button:disabled {
   background: var(--lc-wash);
 }
 
+/* The accent fill, both halves of it (`prototype.css:334`, `prototype.css:724`).
+   This is the exception `components.md:31` now names: a nav row is a place in a
+   list of places and takes the quiet `line-soft`, but a segment is the whole
+   list — two or three boxes with nothing else between them — and a step of
+   background against a neighbour 1px away is not a difference a person reads at
+   a glance. It is not colour alone either: the fill inverts the luminance of
+   both the label and its mark, which survives greyscale and every CVD. */
 .view-segment button.selected,
 .appearance-segment button.selected {
-  color: var(--lc-ink);
-  background: var(--lc-line-soft);
-  font-weight: 600;
+  color: var(--lc-on-accent-human);
+  background: var(--lc-accent-human);
+}
+
+/* Inset, because the group clips. `overflow: hidden` is what rounds the two end
+   buttons into the pill, so the global ring — which grows outward from the
+   button — is cut off on three sides of every segment (`prototype.css:335`). */
+.view-segment button:focus-visible,
+.appearance-segment button:focus-visible {
+  box-shadow: inset var(--lc-focus-ring);
 }
 
 /* The dialog's stands on its own row rather than beside a filter field, and
-   takes the prototype's roomier 16px sides. */
+   takes the prototype's roomier 14px sides (`prototype.css:722`). */
 .appearance-segment button {
-  padding: 0 16px;
+  padding: 0 14px;
+}
+
+/* The mark never gives. The filter field is the header's flexible control and
+   the one that yields; a board glyph squashed to 9px is a different glyph. */
+.view-glyph {
+  flex: none;
 }
 
 /* One scroller for every group, unlike the board's six (screen-specs.md:169).

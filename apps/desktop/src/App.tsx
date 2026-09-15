@@ -116,6 +116,7 @@ import type {
   TicketRow,
   WriteResult,
 } from "./types";
+import { ViewGlyph } from "./ViewGlyph";
 import { WarnGlyph } from "./WarnGlyph";
 import { ToastStack, WriteIndicator } from "./WriteFeedback";
 
@@ -2791,6 +2792,10 @@ export function App() {
  * The Board | List segment in the content header (`screen-specs.md:69`). A pair
  * of buttons rather than a radio group: each one is a place to go, and `pressed`
  * is what says which one you are standing in.
+ *
+ * Mark then word, as the prototype draws it (`prototype.js:503-504`). The words
+ * alone is what shipped, and it made the one control that says which surface you
+ * are looking at the one control with nothing to recognise it by at a glance.
  */
 function ViewSegment(props: {
   view: ViewMode;
@@ -2806,6 +2811,7 @@ function ViewSegment(props: {
           aria-pressed={props.view === id}
           onClick={() => props.onChange(id)}
         >
+          <ViewGlyph view={id} />
           {id === "board" ? "Board" : "List"}
         </button>
       ))}

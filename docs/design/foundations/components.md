@@ -25,10 +25,10 @@ color-vision deficiency (see `accessibility.md`).
 
 | State | Treatment | Motion |
 |---|---|---|
-| Hover | Background shifts one step (`--lc-wash` on quiet surfaces, `--lc-raised` + `--lc-shadow-overlay` on popovers); accent fills shift to `--lc-accent-*-hover` | `--lc-motion-fast` (80ms) |
+| Hover | Background shifts one step (`--lc-wash` on quiet surfaces, `--lc-raised` + `--lc-shadow-overlay` on popovers); accent fills shift to `--lc-accent-*-hover` — except a **pressed segment**, which is the place you are already standing and answers a pointer with nothing | `--lc-motion-fast` (80ms) |
 | Active/pressed | Accent fills shift to `--lc-accent-*-active`; no scale transforms | `--lc-motion-fast` |
 | Focus (keyboard) | `box-shadow: var(--lc-focus-ring)` **plus** a 1px `--lc-accent-human` border on the focused control. Focus is human-accent everywhere — focus is a planning act | none |
-| Selected | Content (cards, rows, palette) takes `--lc-accent-human-soft`; a place to stand (nav rows, segments) takes `line-soft` + `ink` + 600 — neither relies on color alone | `--lc-motion-state` (120ms) |
+| Selected | Content (cards, rows, palette) takes `--lc-accent-human-soft`; a nav row takes `line-soft` + `ink` + 600; a **segment** takes the `--lc-accent-human` fill and `--lc-on-accent-human`, because its neighbour is 1px away and a step of background is not a difference read at a glance — none relies on color alone | `--lc-motion-state` (120ms) |
 | Disabled | Text/glyphs `--lc-ink-disabled`; fills `--lc-wash`; no hover response; `cursor: default` | none |
 | Loading | Optimistic UI first — mutations render immediately; a 500ms-delayed spinner appears only if the write hasn't settled | `--lc-motion-state` |
 | Acknowledged (agent) | See § Agent presence — ring, border, pulse dot, footer | `lc-pulse` 1.8s loop |
