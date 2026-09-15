@@ -320,7 +320,7 @@ const STATES = [
     token: [
       {
         // The agent's own, not any actor's: `.change-actor` is the name on
-        // every change entry and a person's wears ink (`styles.css:4321`).
+        // every change entry and a person's wears ink (`styles.css:4341`).
         // The accent contract is about the one the agent wrote.
         selector: ".timeline-entry.agent .change-actor",
         property: "color",

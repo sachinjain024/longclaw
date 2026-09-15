@@ -2308,6 +2308,26 @@ button:disabled {
   box-shadow: inset var(--lc-focus-ring);
 }
 
+/* And on the pressed pill the ring's colour *is* the ground it is drawn on.
+   `--lc-accent-human-ring` is `--lc-accent-human` at `--lc-mix-ring` over
+   nothing, so compositing it onto `--lc-accent-human` returns that same colour
+   exactly — the rule above paints not a faint ring but an identical pixel, and
+   tabbing onto Board put nothing on screen at all. Neither half of the usual
+   pair is there to cover for it: `border: 0` above means there is no 1px accent
+   border, and the global rule takes the outline away
+   (`keyboard-focus-map.md:16-18`, `components.md:30`).
+
+   So the ring is drawn in the label's own colour, which is the one token defined
+   per theme to be legible on this fill — white on the five light accents, near
+   black on the five dark ones, 5.6:1 at its worst (light indigo) against the
+   3:1 a focus indicator owes its background. Full opacity, not `--lc-mix-ring`:
+   the on-colour at 14% over the accent clears 1.3:1, which is the same defect
+   spelled in the other direction. `a11y:audit` A3 measures this. */
+.view-segment button.selected:focus-visible,
+.appearance-segment button.selected:focus-visible {
+  box-shadow: inset 0 0 0 var(--lc-border-focus) var(--lc-on-accent-human);
+}
+
 /* The dialog's stands on its own row rather than beside a filter field, and
    takes the prototype's roomier 14px sides (`prototype.css:722`). */
 .appearance-segment button {

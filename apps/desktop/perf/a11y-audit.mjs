@@ -1069,6 +1069,86 @@ async function auditVisibleFocus(browser) {
     await page.keyboard.press("Escape");
     await settle(page);
 
+    // The pressed half of the header's view segment (LC-243d). The hardest case
+    // in the shell for a ring, and one no other row here reaches: the group
+    // clips, so the ring has to be drawn *inside* the button, and the button is
+    // already filled with the very accent the ring is mixed from.
+    //
+    // `paints` is the wrong instrument for it, and quietly: a ring in
+    // `--lc-accent-human-ring` over `--lc-accent-human` is that accent at 14%
+    // composited onto itself, which is the same colour — but the mix is
+    // interpolated in oklab and comes back through sRGB a rounding step off, so
+    // the two screenshots differ by three bytes of PNG and nothing a person can
+    // see. `paints` passed on the broken build for exactly that reason. So this
+    // measures the ring the way the eye judges it: composite the shadow's own
+    // colour, alpha and all, over the fill it lands on, and ask what contrast is
+    // left. WCAG 2.2 SC 1.4.11 wants 3:1 of a focus indicator; the broken build
+    // scores 1.0.
+    await page.evaluate(() => document.activeElement?.blur?.());
+    const toSegment = await tabTo(
+      page,
+      (at) => at.className === "selected" && at.text === "Board",
+    );
+    if (toSegment.found) {
+      const segmentClip = await clipping();
+      check(
+        "the pressed half of the view segment keeps its ring on screen",
+        segmentClip.ok,
+        segmentClip.why,
+        "keyboard-focus-map.md:16-18 — focus is visible and never lost",
+      );
+      const ring = await page.evaluate(() => {
+        const element = document.activeElement;
+        const style = getComputedStyle(element);
+        // The shadow serialises colour-first (`oklab(…) 0px 0px 0px 3px inset`),
+        // so the colour is everything before the first length.
+        const shadow = style.boxShadow.match(/^(.*?)\s+-?[\d.]+px/)?.[1];
+        if (!shadow) return { why: `box-shadow is ${style.boxShadow}` };
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 1;
+        const paint = canvas.getContext("2d");
+        paint.fillStyle = style.backgroundColor;
+        const fill = paint.fillStyle;
+        paint.fillRect(0, 0, 1, 1);
+        paint.fillStyle = shadow;
+        // A colour the canvas cannot parse leaves `fillStyle` on the previous
+        // one, which would draw the fill over the fill and report 1.0 — the
+        // right answer by accident, for the wrong reason. Say so instead.
+        if (paint.fillStyle === fill)
+          return { why: `canvas could not parse ${shadow}` };
+        paint.fillRect(0, 0, 1, 1);
+        const over = [...paint.getImageData(0, 0, 1, 1).data].slice(0, 3);
+        paint.clearRect(0, 0, 1, 1);
+        paint.fillStyle = fill;
+        paint.fillRect(0, 0, 1, 1);
+        const under = [...paint.getImageData(0, 0, 1, 1).data].slice(0, 3);
+        const luminance = ([r, g, b]) =>
+          [r, g, b]
+            .map((c) => c / 255)
+            .map((c) =>
+              c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4,
+            )
+            .reduce((sum, c, i) => sum + c * [0.2126, 0.7152, 0.0722][i], 0);
+        const [hi, lo] = [luminance(over), luminance(under)].sort(
+          (a, b) => b - a,
+        );
+        return { ratio: (hi + 0.05) / (lo + 0.05), shadow, fill };
+      });
+      check(
+        "the pressed half of the view segment paints a ring on its own fill",
+        (ring.ratio ?? 0) >= 3,
+        ring.why ??
+          `${ring.ratio.toFixed(2)}:1 — ${ring.shadow} over ${ring.fill}`,
+        "components.md:30 — on an accent fill the ring is the accent's on-colour",
+      );
+    } else {
+      check(
+        "the pressed half of the view segment is reachable by Tab",
+        false,
+        `Tab never reached it, stopped on ${toSegment.at.tag}.${toSegment.at.className}`,
+      );
+    }
+
     // A control inside the ticket panel, which overlays the surface. `paints`
     // blurs whatever it measured, so focus is put back on a card before the
     // `Enter` that opens the panel — otherwise this would be measuring a panel

@@ -100,3 +100,24 @@ changes:
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_990d7a82
+kind: comment
+occurred_at: 2026-09-15T15:21:35.457Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Board and List View Switcher — shipped in PR #47: https://github.com/sachinjain024/longclaw/pull/47
+
+The header's Board | List segment now draws the prototype's mark in front of each word and fills the pressed half with `--lc-accent-human` (`prototype.js:115-116`, `prototype.css:330-335`). The two marks are masters on `glyphs.svg` and registered with `glyph-drift-guard`, so the sheet and the component cannot drift apart.
+
+Two decisions the review settled, recorded here because the prototype and the docs disagreed:
+
+1. The settings dialog's Appearance and Estimate segments move with the header's. They share one rule and the prototype fills all three the same way, so scoping the change to `.view-segment` would have left the shared rule prescribing a treatment nothing used. `components.md:31` was amended in place to say so.
+2. The pressed pill needed a focus ring of its own. `--lc-accent-human-ring` is the accent at 14%, and over `--lc-accent-human` it composites to exactly that fill — the ring painted an identical pixel and tabbing onto Board showed nothing. It is now drawn in `--lc-on-accent-human` at full opacity (5.6:1 at worst across the five themes × both appearances). `components.md:30` names the exception and `a11y:audit` A3 measures it.
+<!-- /longclaw:event -->
