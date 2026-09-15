@@ -963,3 +963,18 @@ describe("the properties a project turned on", () => {
     );
   });
 });
+
+/**
+ * The width is the panel's, not the mode's (LC-238s): both surfaces are
+ * `.ticket-panel`, so both are drawn from `--ticket-panel-width` — and create
+ * mode carries the handle rather than being the one mode that can only read
+ * it.
+ */
+describe("the panel's width in create mode", () => {
+  it("carries the same resize handle the ticket panel does", () => {
+    render(createPanel());
+
+    const handle = screen.getByRole("separator", { name: "Panel width" });
+    expect(handle.closest(".ticket-panel")).not.toBeNull();
+  });
+});

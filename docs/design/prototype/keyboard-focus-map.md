@@ -59,10 +59,10 @@ groups; `←→`/`H L` are unbound. Group headers are not focus stops.
 | Key | Action |
 |---|---|
 | `Esc` | Close panel → focus returns to the originating card/row |
-| `Tab` | Natural order: ID chip → archive → close → title → status → priority → the opt-in properties the project enabled (type → estimate → start → due, LC-227) → labels → description → checklist rows (box → edit → remove, LC-215) → add-item → record tabs (one stop, `←`/`→` between Activity and Comments, LC-211) → under Comments, each of your own comments (edit → delete, LC-241q) → composer → comment¹ |
+| `Tab` | Natural order: resize handle (LC-238s) → ID chip → archive → close → title → status → priority → the opt-in properties the project enabled (type → estimate → start → due, LC-227) → labels → description → checklist rows (box → edit → remove, LC-215) → add-item → record tabs (one stop, `←`/`→` between Activity and Comments, LC-211) → under Comments, each of your own comments (edit → delete, LC-241q) → composer → comment¹ |
 | `Enter` / `Space` · `⌥↑` / `⌥↓` on a checklist row | Toggle the item · move it one place (LC-185) |
-| `Enter` in add-item field | Append item, keep focus in the field |
-| `Enter` on a meta trigger | Open that menu |
+| `Enter` in add-item field · on a meta trigger | Append item, keep focus in the field · open that menu |
+| `←` / `→` on the resize handle | Widen · narrow the panel, 16px a press and 64px with `⇧` (LC-238s) |
 
 ¹ The `comment` stop exists only once the composer has text (LC-107). While it
 is empty there is nothing to post, so the last stop in the panel is the

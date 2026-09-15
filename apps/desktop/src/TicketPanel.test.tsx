@@ -3540,3 +3540,20 @@ describe("a comment the human wrote", () => {
     await screen.findByRole("button", { name: /Keep mine/ });
   });
 });
+
+/**
+ * The handle's own behaviour is `PanelResizeHandle.test.tsx`. What matters here
+ * is that the panel has one, first, because the Tab order matches the visual
+ * order and the handle is the panel's leftmost edge
+ * (`keyboard-focus-map.md:62`).
+ */
+describe("the panel's width", () => {
+  it("opens with the resize handle as its first stop", async () => {
+    render(surface());
+    await ready();
+
+    const handle = screen.getByRole("separator", { name: "Panel width" });
+    const panel = handle.closest(".ticket-panel");
+    expect(panel?.firstElementChild).toBe(handle);
+  });
+});

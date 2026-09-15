@@ -210,11 +210,11 @@ movement. No custom-color affordance exists anywhere.
 
 ## Ticket panel
 
-- Overlay panel anchored right, **560px** wide (max 88%), full height of
-  the main region, `surface` bg, left hairline, `--lc-shadow-overlay`.
-  Slides in 24px over `--lc-motion-panel` (150ms). Board/list stay visible
-  and clickable behind it — clicking another card retargets the panel; Esc
-  closes and returns focus to the originating card.
+- Overlay panel anchored right, **800px** wide by default, dragged by its left-edge handle — a 4×28 `ink-3` grip on the
+  hairline, `human` on hover and focus — between **660px** and **88%**, and remembered for this machine (LC-238s): the cap
+  applies as the panel is drawn and is never written back to the stored width. Where the window leaves under 24px of travel the handle stays put, `ink-disabled` and unavailable rather than hidden. Full height of the main region, `surface`
+  bg, left hairline, `--lc-shadow-overlay`. Slides in 24px over `--lc-motion-panel` (150ms). Board/list stay visible and
+  clickable behind it — clicking another card retargets the panel; Esc closes and returns focus to the originating card.
 - **Header row** (padding 14px 20px 0): ID chip (click copies), mono file
   path `tickets/LC-128/ticket.md` — the disk made visible — an `archived`
   kbd-style chip when archived, spacer, **Archive/Unarchive** ghost button

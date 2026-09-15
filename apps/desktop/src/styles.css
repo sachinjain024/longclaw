@@ -2517,6 +2517,27 @@ button:disabled {
 
 /* --------------------------------------------------------- the ticket panel */
 
+/* How wide the panel is drawn (LC-238s). `--ticket-panel-width` is the width the
+   reader dragged it to, stamped on the root by `PanelResizeHandle` — before
+   the panel is painted, and again on every frame of a gesture — and the 800px
+   fallback here is both what a panel nobody has dragged opens at and what is
+   drawn in the moment before a panel's own handle has stamped anything. It is
+   wide enough for LC-227's properties rail behind its 660px container query,
+   which is the whole reason it is not 560.
+
+   **The 88% cap lives here rather than in the stored number**, which is what
+   makes a remembered width safe: a width dragged on a large display cannot open
+   a panel wider than today's window, no paint waits on a resize listener, and
+   an afternoon on a laptop never writes the reduced width back over what the
+   reader chose — not to the document and not to the property either, which
+   holds the width that was chosen and nothing else. The handle reads the same
+   value, so the two cannot disagree about where the edge is. It does listen for
+   a resize, for the one thing the cap cannot tell it: whether this window
+   leaves it any travel to offer. */
+:root {
+  --ticket-panel-width-drawn: min(var(--ticket-panel-width, 800px), 88vw);
+}
+
 /* Over the workspace it is read on top of. Saying nothing was not enough: a
    layer of `auto` loses to the list's sticky group headers, which carry one of
    their own, and they painted opaque bands across the open panel (LC-96). */
@@ -2530,12 +2551,123 @@ button:disabled {
   flex-direction: column;
   gap: var(--lc-space-4);
   overflow-y: auto;
-  width: min(560px, 88vw);
+  width: var(--ticket-panel-width-drawn);
   border-left: 1px solid var(--lc-line);
   padding: var(--lc-space-4) var(--lc-space-5) var(--lc-space-6);
   background: var(--lc-surface);
   box-shadow: var(--lc-shadow-overlay);
   animation: lc-panel-in var(--lc-motion-panel) ease-out;
+}
+
+/* The panel's left edge, as a control: a 9px strip straddling the hairline,
+   held to the edge by the same expression the panel's own width is (LC-238s).
+
+   `fixed` rather than `absolute` because the panel is the scroller: an
+   absolutely positioned child scrolls with the timeline and would leave the
+   edge the moment anyone read a long ticket. Fixed against the viewport is the
+   same place — the panel is anchored `right: 0`, so `right` here is the panel's
+   own left edge — and stays there at every scroll offset.
+
+   **Its containing block changes for 150ms and the place does not.** The
+   panel's entrance animates `transform`, and a transformed ancestor is the
+   containing block for a fixed descendant, so during `lc-panel-in` this
+   resolves against the panel rather than the viewport. That is the same
+   number: the panel's padding box is as wide as the width both boxes are drawn
+   from. Measured in WebKit when this landed, sampling the entrance at 0, 30,
+   80, 140 and 400ms — the strip sat at the panel's own left edge less 5px at
+   every sample, tracking the 24px slide, and `elementFromPoint` at the panel's
+   left edge answered `.panel-resize` in every frame including the first.
+
+   It takes the panel's own layer (`stacking-guard.mjs`): the edge is part of
+   the panel, so what it has to be over is exactly what the panel is over. The
+   number orders it inside the panel's stacking context too, where it is above
+   the header and the timeline it overlaps by 4px. */
+.panel-resize {
+  position: fixed;
+  z-index: var(--lc-z-panel);
+  top: 0;
+  right: calc(var(--ticket-panel-width-drawn) - 4px);
+  bottom: 0;
+  width: 9px;
+  cursor: col-resize;
+}
+
+/* The line the pointer thickens: the panel's own edge, in the human accent
+   while the handle is under the pointer or holds focus. */
+.panel-resize::before {
+  position: absolute;
+  top: 0;
+  left: 4px;
+  bottom: 0;
+  width: 1px;
+  background: transparent;
+  content: "";
+}
+
+/* **The grip, drawn at rest.** This started as hover-only — the edge is a line
+   in the design, and the thinking was that a line which is already a control
+   need not announce itself until reached. It does: a control nobody can see is
+   one nobody knows to reach for, which is how this shipped for review and came
+   straight back as "I don't see the handle".
+
+   A 4×28 pill centred on the window, in a **mid ink rather than a line
+   colour**, because of what else is painted here: WebKit draws its own focus
+   ring around the panel while the panel itself holds focus — which is exactly
+   when a reader is looking for the edge — and that ring is a saturated blue
+   4px band over these same pixels (measured on `main`, so it predates this
+   control). A grip in the line scale disappeared into it. An ink reads against
+   the ring, against the workspace grey and against the panel's white. */
+.panel-resize::after {
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 4px;
+  height: 28px;
+  transform: translateY(-50%);
+  border-radius: var(--lc-radius-full);
+  background: var(--lc-ink-3);
+  content: "";
+}
+
+/* Reached: the accent the app gives a person's own actions, on both marks at
+   once, so the edge reads as one control rather than a line and a pill that
+   light up separately.
+
+   `:not([aria-disabled="true"])` for the reason `.ghost:hover:not(:disabled)`
+   carries it above: a handle with nowhere to drag into must not answer the
+   pointer as though it had. Stated here rather than overridden below, because
+   the two would tie on specificity and source order would be the only thing
+   deciding it. */
+.panel-resize:not([aria-disabled="true"]):hover::before,
+.panel-resize:not([aria-disabled="true"]):focus-visible::before,
+.panel-resize:not([aria-disabled="true"]):hover::after,
+.panel-resize:not([aria-disabled="true"]):focus-visible::after {
+  background: var(--lc-accent-human-border);
+}
+
+.panel-resize:focus-visible {
+  box-shadow: var(--lc-focus-ring);
+  outline: none;
+}
+
+/* A window with 24px or less between the 660px floor and the 88% cap has
+   nowhere to drag into (`panelWidth.ts`). The handle keeps its focus stop, its
+   name **and its grip**, and stops claiming a gesture it cannot honour: the
+   default cursor and no hover response, which is what `button:disabled` does
+   above — a control that is merely unavailable has not refused anything.
+
+   The grip is dimmed rather than removed. Taking it away was the first cut, on
+   the argument that a grip drawn where nothing can be gripped is as wrong as no
+   grip where something can be; but that hides the control at every window under
+   778px, which is "I don't see the handle" again, told by window width instead
+   of by hover. LC-238s asks for one component at every width that says what it
+   can do, and `ink-disabled` is how the rest of the app says this. */
+.panel-resize[aria-disabled="true"] {
+  cursor: default;
+}
+
+.panel-resize[aria-disabled="true"]::after {
+  background: var(--lc-ink-disabled);
 }
 
 /* The panel is a scrolling column, and a flex column shrinks its children to
