@@ -3,14 +3,14 @@ format: longclaw.ticket/v1
 id: 294421e9-0eb5-4d37-bc99-bd000d0da05f
 key: LC-234i
 title: Make the first release and Point the Download CTA at a real release
-status: in_progress
+status: done
 priority: p1
 labels:
   - release
   - product
 type: chore
 created_at: 2026-08-25T07:33:13.529Z
-updated_at: 2026-09-14T07:26:47.403Z
+updated_at: 2026-09-15T00:23:33.066Z
 ---
 
 Cut LongClaw 0.1.0 — the first public release — and make every **Download for
@@ -152,8 +152,8 @@ DMG attached.
 - [x] P4 · Move all five CTA call sites and the SoftwareApplication downloadUrl onto SITE.download <!-- longclaw:item=ck_fe42ee61 -->
 - [x] P4 · Point SITE.releases at the v0.1.0 tag rather than the releases index <!-- longclaw:item=ck_a7054d67 -->
 - [x] P4 · npm run site:verify passes; open the built site and follow every Download button <!-- longclaw:item=ck_24e8f3db -->
-- [ ] P4 · Merge the branch, tag v0.1.0 at the merge commit, cut the GitHub release with the same DMG bytes attached <!-- longclaw:item=ck_5c21fae2 -->
-- [ ] P4 · Confirm the live longclaw.io download serves the .dmg and its sha256 still matches <!-- longclaw:item=ck_3180c64e -->
+- [x] P4 · Merge the branch, tag v0.1.0 at the merge commit, cut the GitHub release with the same DMG bytes attached <!-- longclaw:item=ck_5c21fae2 -->
+- [x] P4 · Confirm the live longclaw.io download serves the .dmg and its sha256 still matches <!-- longclaw:item=ck_3180c64e -->
 ## Activity
 
 <!-- longclaw:event
@@ -1027,6 +1027,54 @@ changes:
   - field: checklist.ck_24e8f3db.checked
     from: "false"
     to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_d94e3af8
+kind: update
+occurred_at: 2026-09-15T00:23:27.861Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_5c21fae2.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_55b94b50
+kind: update
+occurred_at: 2026-09-15T00:23:27.885Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_3180c64e.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_d89336a6
+kind: update
+occurred_at: 2026-09-15T00:23:33.066Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_progress
+    to: done
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->
