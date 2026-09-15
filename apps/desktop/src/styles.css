@@ -2517,11 +2517,13 @@ button:disabled {
 
 /* --------------------------------------------------------- the ticket panel */
 
-/* How wide the panel is drawn (LC-238s). `--panel-width` is the width the
-   reader dragged it to, stamped on the root by `PanelResizeHandle` — from the
-   preferences document at launch and on every frame of a gesture — and 800px
-   is what a panel nobody has dragged opens at, wide enough for LC-227's
-   properties rail behind its 660px container query.
+/* How wide the panel is drawn (LC-238s). `--ticket-panel-width` is the width the
+   reader dragged it to, stamped on the root by `PanelResizeHandle` — before
+   the panel is painted, and again on every frame of a gesture — and the 800px
+   fallback here is both what a panel nobody has dragged opens at and what is
+   drawn in the moment before a panel's own handle has stamped anything. It is
+   wide enough for LC-227's properties rail behind its 660px container query,
+   which is the whole reason it is not 560.
 
    **The 88% cap lives here rather than in the stored number**, which is what
    makes a remembered width safe: a width dragged on a large display cannot open
@@ -2530,7 +2532,7 @@ button:disabled {
    reader chose. The handle reads the same value, so the two cannot disagree
    about where the edge is. */
 :root {
-  --panel-width-drawn: min(var(--panel-width, 800px), 88vw);
+  --ticket-panel-width-drawn: min(var(--ticket-panel-width, 800px), 88vw);
 }
 
 /* Over the workspace it is read on top of. Saying nothing was not enough: a
@@ -2546,7 +2548,7 @@ button:disabled {
   flex-direction: column;
   gap: var(--lc-space-4);
   overflow-y: auto;
-  width: var(--panel-width-drawn);
+  width: var(--ticket-panel-width-drawn);
   border-left: 1px solid var(--lc-line);
   padding: var(--lc-space-4) var(--lc-space-5) var(--lc-space-6);
   background: var(--lc-surface);
@@ -2563,6 +2565,16 @@ button:disabled {
    same place — the panel is anchored `right: 0`, so `right` here is the panel's
    own left edge — and stays there at every scroll offset.
 
+   **Its containing block changes for 150ms and the place does not.** The
+   panel's entrance animates `transform`, and a transformed ancestor is the
+   containing block for a fixed descendant, so during `lc-panel-in` this
+   resolves against the panel rather than the viewport. That is the same
+   number: the panel's padding box is as wide as the width both boxes are drawn
+   from. Measured in WebKit when this landed, sampling the entrance at 0, 30,
+   80, 140 and 400ms — the strip sat at the panel's own left edge less 5px at
+   every sample, tracking the 24px slide, and `elementFromPoint` at the panel's
+   left edge answered `.panel-resize` in every frame including the first.
+
    It takes the panel's own layer (`stacking-guard.mjs`): the edge is part of
    the panel, so what it has to be over is exactly what the panel is over. The
    number orders it inside the panel's stacking context too, where it is above
@@ -2571,7 +2583,7 @@ button:disabled {
   position: fixed;
   z-index: var(--lc-z-panel);
   top: 0;
-  right: calc(var(--panel-width-drawn) - 4px);
+  right: calc(var(--ticket-panel-width-drawn) - 4px);
   bottom: 0;
   width: 9px;
   cursor: col-resize;

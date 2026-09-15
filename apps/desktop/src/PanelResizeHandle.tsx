@@ -9,7 +9,7 @@
  * **The width is a custom property on the root, not React state.** A drag that
  * held the width in state would re-render the panel's whole subtree —
  * description, checklist and timeline — on every `mousemove`, so the gesture
- * restamps `--panel-width` and nothing renders until it ends. The number
+ * restamps `--ticket-panel-width` and nothing renders until it ends. The number
  * kept here is for the *control*: a separator reports where it stands
  * (`aria-valuenow`), and that is a once-per-gesture fact.
  *
@@ -66,7 +66,17 @@ export function PanelResizeHandle() {
     return () => window.removeEventListener("resize", measure);
   }, []);
 
-  /** One settled width: painted, held for the control, and written to disk. */
+  /**
+   * One settled width: painted, held for the control, and written to disk.
+   *
+   * **Only a gesture reaches here**, which is what keeps the stored width the
+   * reader's. It is written from `drawn` rather than from `stored`, so a reader
+   * who narrows the panel on a laptop stores what they narrowed it *to* — and
+   * a remembered 1,400px is spent only because someone moved the edge, never
+   * because a smaller display drew less of it. A press that cannot move the
+   * edge writes nothing at all (`onKeyDown`), so trying to widen a panel
+   * already at this window's cap leaves the wider remembered width alone.
+   */
   function commit(width: number) {
     stampPanelWidth(width);
     setStored(width);
@@ -86,31 +96,34 @@ export function PanelResizeHandle() {
     event.preventDefault();
   }
 
-  function onPointerMove(event: PointerEvent<HTMLDivElement>) {
+  /**
+   * Where this event has taken the width, or `undefined` when it belongs to a
+   * gesture this handle is not holding. One function because all three pointer
+   * handlers ask the same question of the same three fields, and asking it
+   * three times is three places for the sign of `deltaX` to go wrong.
+   */
+  function widthAt(event: PointerEvent<HTMLDivElement>): number | undefined {
     const held = drag.current;
-    if (!held || held.pointerId !== event.pointerId) return;
-    // Straight to the property: this runs on every frame of the gesture.
-    stampPanelWidth(
-      panelWidthFromDrag(
-        held.fromWidth,
-        event.clientX - held.fromX,
-        window.innerWidth,
-      ),
+    if (!held || held.pointerId !== event.pointerId) return undefined;
+    return panelWidthFromDrag(
+      held.fromWidth,
+      event.clientX - held.fromX,
+      window.innerWidth,
     );
   }
 
+  function onPointerMove(event: PointerEvent<HTMLDivElement>) {
+    const next = widthAt(event);
+    // Straight to the property: this runs on every frame of the gesture.
+    if (next !== undefined) stampPanelWidth(next);
+  }
+
   function onPointerUp(event: PointerEvent<HTMLDivElement>) {
-    const held = drag.current;
-    if (!held || held.pointerId !== event.pointerId) return;
+    const next = widthAt(event);
+    if (next === undefined) return;
     drag.current = undefined;
     event.currentTarget.releasePointerCapture?.(event.pointerId);
-    commit(
-      panelWidthFromDrag(
-        held.fromWidth,
-        event.clientX - held.fromX,
-        window.innerWidth,
-      ),
-    );
+    commit(next);
   }
 
   /**
@@ -119,16 +132,10 @@ export function PanelResizeHandle() {
    * It is committed here because `pointerup` is the event that will not arrive.
    */
   function onPointerCancel(event: PointerEvent<HTMLDivElement>) {
-    const held = drag.current;
-    if (!held || held.pointerId !== event.pointerId) return;
+    const next = widthAt(event);
+    if (next === undefined) return;
     drag.current = undefined;
-    commit(
-      panelWidthFromDrag(
-        held.fromWidth,
-        event.clientX - held.fromX,
-        window.innerWidth,
-      ),
-    );
+    commit(next);
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {

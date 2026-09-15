@@ -74,7 +74,7 @@ type DevicePreferences = {
    * this window rather than of the work — a person who drags it wide once
    * expects it wide everywhere.
    *
-   * Stored unclamped. `styles.css` draws `min(var(--panel-width), 88vw)`,
+   * Stored unclamped. `styles.css` draws `min(var(--ticket-panel-width), 88vw)`,
    * so the window's cap is applied where the panel is painted; writing the
    * reduced width back here would cost a reader the width they chose on a
    * large display the first afternoon they spent on a laptop.

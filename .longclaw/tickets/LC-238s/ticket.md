@@ -459,3 +459,31 @@ The stacking guard was right about a fixed element with no layer: the handle tak
 
 **What is not here.** No reset to 800 — the decision was no double-click — so once dragged, the way back is by eye. A Settings row or a menu item is the place for it if it is ever wanted.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_78b69971
+kind: comment
+occurred_at: 2026-09-15T07:18:00.515Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Reviewed on both axes — standards and spec — and five findings were worth acting on. All of them were about the seams rather than the behaviour, which is the shape a review of this ticket should have had.
+
+**Two comments were lying.** `panelWidth.ts` cited `styles.css:2914` for LC-227's container query, which this branch's own insertion had moved to 2986 — a stale line number that reads exactly like a fresh one, and `citation-guard` does not pin source-to-source citations. And `stampPanelWidth`'s comment said `restoreDevicePreferences` stamps the width at launch, which it does not: the only caller is the handle's layout effect. The behaviour is right either way — a layout effect lands before paint, so nothing snaps — but the comment described a design that was considered and dropped, because no panel is open at launch and `devicePreferences.ts` has no business touching the DOM.
+
+**The property is now the one this ticket named.** `--ticket-panel-width`, not `--panel-width`.
+
+**Three numbers were written twice with nothing holding them together** — the default, the 88% cap and the rail's container query, each once in `panelWidth.ts` and once in `styles.css`, and the CSS comment claimed the two "cannot disagree" while being two independent literals. `scripts/panel-width-guard.mjs` now reads both files and fails when a term moves on one side only; it is in `npm run check`. vitest cannot stand in for it — it loads no stylesheet, and a `?raw` import of one comes back empty under the CSS transform.
+
+**The 150ms entrance was worth measuring rather than arguing about.** The review's reading was that the panel's `transform` keyframe makes the transformed panel the containing block for a `fixed` child, so the handle is offset and clipped while the panel slides in. It is the containing block — but the place is the same, because `right` resolves against a padding box as wide as the width both boxes are drawn from. Sampled in WebKit at 0, 30, 80, 140 and 400ms: the strip sat at the panel's own left edge less 5px in every frame, tracking the slide, and `elementFromPoint` at the panel's left edge answered `.panel-resize` in every one, including the first. That is in the stylesheet beside the rule now.
+
+**One finding was declined, with the reason written into the code.** The review read the keyboard path as breaking this ticket's own rule about never reducing the stored width: a `→` press on a laptop does write the narrower number, so a remembered 1,400px can be spent there. That is the rule working rather than failing — what it forbids is a width reduced *silently*, by a display that draws less of it, and a keypress is not silent. `commit`'s comment now says so, and says the other half: a press that cannot move the edge writes nothing, so trying to widen a panel already at this window's cap leaves the wider remembered width alone.
+
+**Two findings are noted and not changed.** The handle is a `role="separator"`, so `aria-disabled` is the whole of what it can say — a `<div>` cannot carry `disabled`, and the ARIA window-splitter pattern is the right one for a thing that reports a position. And `keyboard-focus-map.md:64` now carries two rows in one line, which is the price of the in-place rule: inserting a line would have shifted 91 citations of that document.
+
+**Runs after the fixes.** `verify` green, `panel-width-guard` in it. `a11y:audit` A1–A6 pass; `--only=A6 --self-test` still takes A6 red. `probe:checklist` 60/60 over 8/8 sizes. `probe:drag` 79/79. One pre-existing item, unrelated to this branch and reproduced on `main`: the full `--self-test` run leaves **A3** green against its injected break, so that row's break no longer breaks what it checks.
+<!-- /longclaw:event -->

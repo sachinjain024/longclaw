@@ -16,7 +16,7 @@
  * nothing.
  *
  * **The window's cap is applied where the panel is drawn, and never written
- * back.** `styles.css` draws `min(var(--panel-width), 88vw)`, so a width
+ * back.** `styles.css` draws `min(var(--ticket-panel-width), 88vw)`, so a width
  * restored against a monitor that is no longer attached cannot open a panel
  * wider than the window, nothing has to listen for a resize, and an afternoon
  * on a laptop does not cost the reader the width they dragged on a large
@@ -24,7 +24,12 @@
  * it as fits.
  */
 
-/** The container query LC-227's properties rail is behind (`styles.css:2914`). */
+/**
+ * The container query LC-227's properties rail is behind
+ * (`styles.css:2986`). `panelWidth.test.ts` reads the stylesheet and fails if
+ * this number and that query stop agreeing: they are two statements of one
+ * bound, and the one that goes stale reads exactly like the one that did not.
+ */
 export const PANEL_RAIL_FLOOR = 660;
 
 /** What a panel nobody has dragged opens at. */
@@ -148,16 +153,21 @@ export function panelResizeInert(viewportWidth: number): boolean {
  * from `tokens/design-tokens.json`, and this is runtime state a gesture writes
  * rather than a value of the design system.
  */
-export const PANEL_WIDTH_PROPERTY = "--panel-width";
+export const PANEL_WIDTH_PROPERTY = "--ticket-panel-width";
 
 /**
  * Puts the width where CSS reads it: on the root, in pixels.
  *
- * On the root rather than on the panel because the width has to be in force
- * *before* the panel mounts. `restoreDevicePreferences` stamps it from the
- * document it reads, so the panel's first paint is already the remembered
- * width — a value that arrived a tick later would be a panel that visibly
- * snaps — and the drag restamps it on every frame without a React render.
+ * On the root rather than on the panel because the handle and the panel are
+ * two elements drawing from one number, and the handle's own `right` is the
+ * panel's left edge. `PanelResizeHandle` stamps it in a **layout** effect, so
+ * the value is in force before the panel it belongs to is painted — an effect
+ * would be a frame of the default width and a panel that visibly snaps — and
+ * restamps it on every frame of a gesture without a React render.
+ *
+ * Nothing stamps it at launch, and nothing needs to: no panel is open when the
+ * app comes up, and the `800px` fallback in `styles.css` is the same default
+ * `readPanelWidth` answers with.
  */
 export function stampPanelWidth(
   width: number,

@@ -1378,7 +1378,7 @@ async function auditPanelResize(browser) {
           name,
           ...rest
         ) {
-          if (name === "--panel-width") return undefined;
+          if (name === "--ticket-panel-width") return undefined;
           return real.call(this, name, ...rest);
         };
       }),
