@@ -3,13 +3,13 @@ format: longclaw.ticket/v1
 id: ee362897-f304-4012-b365-bacaf4d83019
 key: LC-238s
 title: Make the ticket panel width adjustable, and remember it
-status: in_progress
+status: done
 priority: none
 labels:
   - frontend
   - design
 created_at: 2026-08-29T00:01:00.519Z
-updated_at: 2026-09-15T09:18:19.912Z
+updated_at: 2026-09-15T09:52:43.464Z
 ---
 
 The ticket panel is a fixed 560px — `width: min(560px, 88vw)` at `styles.css:2533` (it was `styles.css:2136` when this ticket was filed; the file has moved under it since), specified as **560px wide (max 88%)** at `screen-specs.md:213`. On a wide display that is a narrow column of description and timeline beside a lot of unused workspace; on a small window `88vw` is the only concession anyone gets. The width is not the reader's to choose, and a ticket with a long description or a full timeline is the case where it should be.
@@ -584,6 +584,22 @@ changes:
   - field: checklist.ck_48eb94a2.text
     from: Handle renders at every width but sets disabled and aria-disabled when 88vw - 660px < 24px; no double-click reset
     to: Handle renders at every width, dimmed to ink-disabled and aria-disabled when 88vw - 660px < 24px; a separator div carries no disabled attribute; no double-click reset
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_81e96b4c
+kind: update
+occurred_at: 2026-09-15T09:52:43.464Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_progress
+    to: done
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->
