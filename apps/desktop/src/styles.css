@@ -2527,10 +2527,13 @@ button:disabled {
 
    **The 88% cap lives here rather than in the stored number**, which is what
    makes a remembered width safe: a width dragged on a large display cannot open
-   a panel wider than today's window, nothing has to listen for a resize, and an
-   afternoon on a laptop never writes the reduced width back over what the
-   reader chose. The handle reads the same value, so the two cannot disagree
-   about where the edge is. */
+   a panel wider than today's window, no paint waits on a resize listener, and
+   an afternoon on a laptop never writes the reduced width back over what the
+   reader chose — not to the document and not to the property either, which
+   holds the width that was chosen and nothing else. The handle reads the same
+   value, so the two cannot disagree about where the edge is. It does listen for
+   a resize, for the one thing the cap cannot tell it: whether this window
+   leaves it any travel to offer. */
 :root {
   --ticket-panel-width-drawn: min(var(--ticket-panel-width, 800px), 88vw);
 }
@@ -2628,11 +2631,17 @@ button:disabled {
 
 /* Reached: the accent the app gives a person's own actions, on both marks at
    once, so the edge reads as one control rather than a line and a pill that
-   light up separately. */
-.panel-resize:hover::before,
-.panel-resize:focus-visible::before,
-.panel-resize:hover::after,
-.panel-resize:focus-visible::after {
+   light up separately.
+
+   `:not([aria-disabled="true"])` for the reason `.ghost:hover:not(:disabled)`
+   carries it above: a handle with nowhere to drag into must not answer the
+   pointer as though it had. Stated here rather than overridden below, because
+   the two would tie on specificity and source order would be the only thing
+   deciding it. */
+.panel-resize:not([aria-disabled="true"]):hover::before,
+.panel-resize:not([aria-disabled="true"]):focus-visible::before,
+.panel-resize:not([aria-disabled="true"]):hover::after,
+.panel-resize:not([aria-disabled="true"]):focus-visible::after {
   background: var(--lc-accent-human-border);
 }
 
@@ -2642,18 +2651,23 @@ button:disabled {
 }
 
 /* A window with 24px or less between the 660px floor and the 88% cap has
-   nowhere to drag into (`panelWidth.ts`). The handle keeps its focus stop and
-   its name, and stops claiming a gesture it cannot honour — so the grip goes
-   too. A grip drawn where nothing can be gripped is the same defect as no grip
-   drawn where something can be, told the other way round. */
+   nowhere to drag into (`panelWidth.ts`). The handle keeps its focus stop, its
+   name **and its grip**, and stops claiming a gesture it cannot honour: the
+   default cursor and no hover response, which is what `button:disabled` does
+   above — a control that is merely unavailable has not refused anything.
+
+   The grip is dimmed rather than removed. Taking it away was the first cut, on
+   the argument that a grip drawn where nothing can be gripped is as wrong as no
+   grip where something can be; but that hides the control at every window under
+   778px, which is "I don't see the handle" again, told by window width instead
+   of by hover. LC-238s asks for one component at every width that says what it
+   can do, and `ink-disabled` is how the rest of the app says this. */
 .panel-resize[aria-disabled="true"] {
   cursor: default;
 }
 
-.panel-resize[aria-disabled="true"]::after,
-.panel-resize[aria-disabled="true"]:hover::before,
-.panel-resize[aria-disabled="true"]:hover::after {
-  background: transparent;
+.panel-resize[aria-disabled="true"]::after {
+  background: var(--lc-ink-disabled);
 }
 
 /* The panel is a scrolling column, and a flex column shrinks its children to

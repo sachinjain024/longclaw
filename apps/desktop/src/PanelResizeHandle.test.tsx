@@ -12,7 +12,10 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "./api";
-import { resetDevicePreferences } from "./devicePreferences";
+import {
+  rememberPanelWidth,
+  resetDevicePreferences,
+} from "./devicePreferences";
 import { PanelResizeHandle } from "./PanelResizeHandle";
 import { PANEL_WIDTH_MIN, PANEL_WIDTH_PROPERTY } from "./panelWidth";
 
@@ -54,6 +57,23 @@ describe("what the handle reports", () => {
     // a width that arrived a frame later would be a panel that snaps.
     expect(drawn()).toBe("800px");
     expect(handle().getAttribute("aria-valuenow")).toBe("800");
+  });
+
+  /**
+   * The property is the width the reader chose, and `styles.css` draws as much
+   * of it as `min(…, 88vw)` has room for. Stamping the clamped width instead
+   * would put this window's ceiling where the choice belongs: the paint is the
+   * same either way, and the difference shows the moment the window widens
+   * again — from the stored number CSS draws the wider panel in the same frame.
+   */
+  it("stamps the width the reader chose, not this window's ceiling", () => {
+    rememberPanelWidth(1_400);
+    windowWidth(900);
+    render(<PanelResizeHandle />);
+
+    expect(drawn()).toBe("1400px");
+    // The control reports what is on screen, which is 88% of 900.
+    expect(handle().getAttribute("aria-valuenow")).toBe("792");
   });
 
   it("names the range this window allows", () => {

@@ -26,9 +26,11 @@
 
 /**
  * The container query LC-227's properties rail is behind
- * (`styles.css:2986`). `panelWidth.test.ts` reads the stylesheet and fails if
- * this number and that query stop agreeing: they are two statements of one
- * bound, and the one that goes stale reads exactly like the one that did not.
+ * (`styles.css:3046`). `scripts/panel-width-guard.mjs` is what holds this
+ * number and that query together: they are two statements of one bound, and
+ * the one that goes stale reads exactly like the one that did not. Not a
+ * vitest file — the suite loads no stylesheet, and a `?raw` import of one
+ * comes back empty under the CSS transform.
  */
 export const PANEL_RAIL_FLOOR = 660;
 
@@ -52,7 +54,7 @@ export const PANEL_WIDTH_MAX = 4_000;
 
 /**
  * The share of the window the panel may cover — `88vw`, the ceiling the panel
- * has had since the spec (`screen-specs.md:213`). The board and list stay
+ * has had since the spec (`screen-specs.md:214`). The board and list stay
  * visible and clickable behind it, so the workspace keeps a strip that is
  * always the board's rather than the panel's.
  */
@@ -169,9 +171,9 @@ export const PANEL_WIDTH_PROPERTY = "--ticket-panel-width";
  * app comes up, and the `800px` fallback in `styles.css` is the same default
  * `readPanelWidth` answers with.
  */
-export function stampPanelWidth(
-  width: number,
-  root = document.documentElement,
-) {
-  root.style.setProperty(PANEL_WIDTH_PROPERTY, `${width}px`);
+export function stampPanelWidth(width: number) {
+  document.documentElement.style.setProperty(
+    PANEL_WIDTH_PROPERTY,
+    `${width}px`,
+  );
 }

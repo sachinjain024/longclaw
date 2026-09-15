@@ -53,13 +53,25 @@ export function PanelResizeHandle() {
    * Before the first paint of the panel this handle belongs to, so the panel
    * opens at the remembered width rather than snapping to it a frame later.
    * A layout effect and not an effect for exactly that reason.
+   *
+   * **The stored width goes on the root, not the drawn one.** The clamp is the
+   * window's, and `min(…, 88vw)` in `styles.css` applies it as the panel is
+   * painted; stamping `drawn` would write today's ceiling into the property
+   * that is supposed to hold the reader's choice. The paint is identical
+   * either way — and from the stored number a window that widens again draws
+   * the wider panel in the same frame, without waiting for a render.
    */
   useLayoutEffect(() => {
-    stampPanelWidth(drawn);
-  }, [drawn]);
+    stampPanelWidth(stored);
+  }, [stored]);
 
-  // Whether the handle has anywhere to go is a question about the window, and
-  // the window is resizable while the panel is open.
+  /**
+   * Whether the handle has anywhere to go is a question about the window, and
+   * the window is resizable while the panel is open. Nothing about the *paint*
+   * needs this — that is the cap's whole reason for living in CSS — so what a
+   * resize changes here is only what the control says about itself:
+   * `aria-valuenow`, `aria-valuemax`, and whether there is travel to offer.
+   */
   useEffect(() => {
     const measure = () => setViewport(window.innerWidth);
     window.addEventListener("resize", measure);
@@ -101,6 +113,11 @@ export function PanelResizeHandle() {
    * gesture this handle is not holding. One function because all three pointer
    * handlers ask the same question of the same three fields, and asking it
    * three times is three places for the sign of `deltaX` to go wrong.
+   *
+   * The window's width comes from `viewport` here and in `onKeyDown`, not from
+   * a fresh `window.innerWidth`: the listener above is what keeps it current,
+   * and a component that reads the window two ways has the same two-spellings
+   * problem this width has in CSS and TypeScript.
    */
   function widthAt(event: PointerEvent<HTMLDivElement>): number | undefined {
     const held = drag.current;
@@ -108,7 +125,7 @@ export function PanelResizeHandle() {
     return panelWidthFromDrag(
       held.fromWidth,
       event.clientX - held.fromX,
-      window.innerWidth,
+      viewport,
     );
   }
 
@@ -140,12 +157,7 @@ export function PanelResizeHandle() {
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (inert) return;
-    const next = panelWidthFromKey(
-      drawn,
-      event.key,
-      event.shiftKey,
-      window.innerWidth,
-    );
+    const next = panelWidthFromKey(drawn, event.key, event.shiftKey, viewport);
     if (next === undefined) return;
     // Both halves matter: the arrows are the page's scroll and the board's
     // focus otherwise, and the board's handler is on `document`.

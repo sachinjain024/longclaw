@@ -1440,8 +1440,39 @@ async function auditPanelResize(browser) {
       "`→` stops at 660px rather than folding the properties rail away",
       Math.round(floored) === 660 && railed,
       `${Math.round(floored)}px, rail drawn=${railed}`,
-      "screen-specs.md:213 — between 660px and 88%",
+      "screen-specs.md:214 — between 660px and 88%",
     );
+
+    /*
+     * The one state no jsdom test and no 1440px run can reach: a window with
+     * nowhere to drag into. The handle stays a focus stop and says it is
+     * unavailable — and, the defect this check exists for, keeps a grip a
+     * reader can see. It was `transparent` here, which hid the control at
+     * every window under 778px: the "I don't see the handle" report again,
+     * told by window width instead of by hover. Read from the rendered
+     * pseudo-element, because that is the only place the answer lives.
+     */
+    await page.setViewportSize({ width: 760, height: VIEWPORT.height });
+    await settle(page);
+    const unavailable = await page.evaluate(() => {
+      const handle = document.querySelector(".panel-resize");
+      if (!handle) return { said: "no handle", grip: "none" };
+      return {
+        said: handle.getAttribute("aria-disabled"),
+        grip: getComputedStyle(handle, "::after").backgroundColor,
+      };
+    });
+    const painted =
+      unavailable.grip !== "transparent" &&
+      !/^rgba\(\d+, \d+, \d+, 0\)$/.test(unavailable.grip);
+    check(
+      "a window with no travel says so, and still draws a grip",
+      unavailable.said === "true" && painted,
+      `aria-disabled=${unavailable.said} grip=${unavailable.grip}`,
+      "screen-specs.md:215 — `ink-disabled` and unavailable rather than hidden",
+    );
+    await page.setViewportSize(VIEWPORT);
+    await settle(page);
 
     // Closed and reopened: the width is device-level, so it is the same panel
     // whatever is in it.
@@ -1455,7 +1486,7 @@ async function auditPanelResize(browser) {
       "the next panel opens at the width the last one was left at",
       Math.round(reopened) === 660,
       `${Math.round(reopened)}px`,
-      "screen-specs.md:213 — remembered for this machine",
+      "screen-specs.md:214 — remembered for this machine",
     );
   } finally {
     await context.close();

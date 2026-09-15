@@ -9,7 +9,7 @@ labels:
   - frontend
   - design
 created_at: 2026-08-29T00:01:00.519Z
-updated_at: 2026-09-15T07:05:27.194Z
+updated_at: 2026-09-15T09:18:19.912Z
 ---
 
 The ticket panel is a fixed 560px — `width: min(560px, 88vw)` at `styles.css:2533` (it was `styles.css:2136` when this ticket was filed; the file has moved under it since), specified as **560px wide (max 88%)** at `screen-specs.md:213`. On a wide display that is a narrow column of description and timeline beside a lot of unused workspace; on a small window `88vw` is the only concession anyone gets. The width is not the reader's to choose, and a ticket with a long description or a full timeline is the case where it should be.
@@ -119,18 +119,48 @@ ticket does not add one.
 
 **The handle renders always, and reports when it cannot move.** Between a 760px
 and a 795px window the travel between the 660 floor and the 88vw cap is under
-35px, and under zoom it is nothing at all. Rather than hide the control, set
-`disabled` and `aria-disabled="true"` when `88vw - 660px < 24px`: one component
-at every width, and a handle that says it cannot move beats one that silently
-refuses to.
+35px, and under zoom it is nothing at all. Rather than hide the control, mark it
+unavailable when `88vw - 660px < 24px`: one component at every width, and a
+handle that says it cannot move beats one that silently refuses to.
+
+*Amended 2026-09-15, in review.* Two words of that paragraph were wrong about
+what the control is, and one first implementation of it was wrong about what a
+reader sees.
+
+`aria-disabled="true"` is the whole of the mark. The handle is a `div` carrying
+`role="separator"`, and `disabled` is an attribute of form controls: on a `div`
+it changes nothing in the browser and says nothing to a screen reader. The
+handler refuses the gesture, so a press and a drag do nothing; `aria-disabled`
+is what announces it. Nothing here wanted the HTML attribute.
+
+And **unavailable is not invisible.** The first cut painted the grip
+`transparent` at these widths, on the argument that a grip drawn where nothing
+can be gripped is as wrong as no grip where something can be. That hides the
+control at every window under 778px, which is the same "I don't see the handle"
+report that put the grip there to begin with, told by window width instead of by
+hover. The grip stays and goes to `ink-disabled`, with the default cursor and no
+hover response — what `button:disabled` does everywhere else in this app, where
+a control that is merely unavailable has not refused anything.
+
+**The audit's A2 row now reads the panel as two columns.** Not asked for here,
+and worth recording because it changes a check every later change is measured
+by. A2 walks the panel's Tab order and fails a step that goes back up the page.
+LC-227 gave the panel a properties rail, so the panel has two columns: the rail
+is first in the DOM and second on screen, and the step that crosses from the
+bottom of one to the top of the other goes up the page in correct reading order.
+The old single-column reading passed only because its 14-stop window stopped
+short of that crossing — and this ticket's handle, one stop longer, brought the
+crossing inside it. The check now asks each column separately for one unbroken
+downward run, plus that no column is left and returned to. A gate that goes red
+on correct code is not a gate the next change can use.
 
 ## Checklist
 
 - [x] Create mode follows the same width and gets the same handle; .ticket-panel already covers both, so no branch <!-- longclaw:item=ck_5854b715 -->
 - [x] Default is min(800px, 88vw): 800 keeps LC-227's rail on, 88vw is the cap the panel already has <!-- longclaw:item=ck_16241882 -->
-- [x] Apply the viewport cap in CSS — width: min(var(--ticket-panel-width, 800px), 88vw) — so no resize listener and no clamp writes back <!-- longclaw:item=ck_9fa55893 -->
+- [x] Apply the viewport cap in CSS — min(var(--ticket-panel-width, 800px), 88vw) — so no paint waits on a resize listener and no clamp is written back, to the document or to the property <!-- longclaw:item=ck_9fa55893 -->
 - [x] Add a left-edge drag handle to the panel, with min and max bounds that keep the workspace clickable <!-- longclaw:item=ck_46a69acc -->
-- [x] Handle renders at every width but sets disabled and aria-disabled when 88vw - 660px < 24px; no double-click reset <!-- longclaw:item=ck_48eb94a2 -->
+- [x] Handle renders at every width, dimmed to ink-disabled and aria-disabled when 88vw - 660px < 24px; a separator div carries no disabled attribute; no double-click reset <!-- longclaw:item=ck_48eb94a2 -->
 - [x] Drag floor is 660px, so the rail never folds by drag; only the viewport cap may take it, under zoom <!-- longclaw:item=ck_622f4eb7 -->
 - [x] Drive the width by CSS custom property during the drag; commit to state once on mouse-up <!-- longclaw:item=ck_1c028975 -->
 - [x] Persist through devicePreferences.ts, not localStorage; adopt() validates a finite 660-4000 number and does not clamp to the viewport <!-- longclaw:item=ck_0f3c1e05 -->
@@ -510,4 +540,50 @@ The handle shipped invisible, and it should not have. It drew nothing until hove
 `screen-specs.md:213` carries the grip now, rewritten in place, citations re-pinned.
 
 Runs: `verify` green, `matrix` 8 axes × 12 states clean, `a11y:audit --only=A6` passes.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_8a560102
+kind: update
+occurred_at: 2026-09-15T09:18:10.664Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_9438fe5f
+kind: update
+occurred_at: 2026-09-15T09:18:19.894Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_9fa55893.text
+    from: "Apply the viewport cap in CSS — width: min(var(--ticket-panel-width, 800px), 88vw) — so no resize listener and no clamp writes back"
+    to: Apply the viewport cap in CSS — min(var(--ticket-panel-width, 800px), 88vw) — so no paint waits on a resize listener and no clamp is written back, to the document or to the property
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_327fb37f
+kind: update
+occurred_at: 2026-09-15T09:18:19.912Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_48eb94a2.text
+    from: Handle renders at every width but sets disabled and aria-disabled when 88vw - 660px < 24px; no double-click reset
+    to: Handle renders at every width, dimmed to ink-disabled and aria-disabled when 88vw - 660px < 24px; a separator div carries no disabled attribute; no double-click reset
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->

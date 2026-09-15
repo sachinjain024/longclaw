@@ -23,13 +23,24 @@
  * vitest cannot stand in for this: it loads no stylesheet, and a `?raw` import
  * of one comes back empty under the CSS transform.
  *
- * A fourth claim is here for the same reason and is not a number: **the handle
- * draws a grip at rest.** It shipped for review drawing nothing until hover —
- * the edge is a line in the design, and a line that is already a control
- * seemed not to need announcing — and came back as "I don't see the handle".
- * Every test of this control asks what it *does*, in jsdom, where a
- * `background: transparent` is as good as any other; so the one property that
- * decides whether a human can find it at all is checked where it is written.
+ * Two more claims are here for the same reason and are not numbers.
+ *
+ * **The handle draws a grip at rest, at every width.** It shipped for review
+ * drawing nothing until hover — the edge is a line in the design, and a line
+ * that is already a control seemed not to need announcing — and came back as
+ * "I don't see the handle". The second cut kept the grip but painted it
+ * `transparent` wherever the window left no travel, which is the same defect
+ * under 778px. Every test of this control asks what it *does*, in jsdom, where
+ * a `background: transparent` is as good as any other; so the one property
+ * that decides whether a human can find it at all is checked where it is
+ * written, in both states.
+ *
+ * **And the line `panelWidth.ts` cites for the container query is the line the
+ * container query is on.** The floor is the one number here whose other half
+ * is not in this stylesheet's panel section but 500 lines further down, so the
+ * comment points at it — and a citation into a file that grows above the line
+ * it names goes stale the way this repo's design-doc citations do. It went
+ * stale inside this ticket.
  *
  * Usage: node scripts/panel-width-guard.mjs   (exits non-zero on any finding)
  */
@@ -119,6 +130,52 @@ if (grip.length === 0) {
   );
 }
 
+/**
+ * And the same rule with no travel to offer: dimmed, never dropped. The grip
+ * vanishing below a 778px window is the hover-only handle again, told by window
+ * width — and it is the state no jsdom test and no 1440px audit run visits.
+ */
+const INERT = '.panel-resize[aria-disabled="true"]::after';
+checked.push("the grip still drawn where there is nowhere to drag");
+const dimmed = declaredValues(rules, INERT, "background");
+if (dimmed.some((value) => value === "transparent" || value === "none")) {
+  findings.push(
+    `${INERT} is ${dimmed.join(", ")} — a handle with nowhere to drag into ` +
+      "keeps its grip and dims it, or it is hidden at every window under 778px",
+  );
+} else if (dimmed.length > 0 && !dimmed.some((v) => v.includes("var(--lc-"))) {
+  findings.push(
+    `${INERT} draws ${dimmed.join(", ")}, which is not a token — ` +
+      "unavailable is `--lc-ink-disabled` everywhere else in this stylesheet",
+  );
+}
+
+/**
+ * The floor's citation, as a citation: the line named in `panelWidth.ts` has to
+ * be the line the container query is on.
+ */
+checked.push("the rail's container query is where panelWidth.ts says it is");
+const cited = /`styles\.css:(\d+)`/.exec(module);
+const floor = constant("PANEL_RAIL_FLOOR");
+if (!cited) {
+  findings.push(
+    "panelWidth.ts cites no line of styles.css for the rail's container " +
+      "query; the floor's other half is 500 lines from the panel's own rules",
+  );
+} else {
+  const line = styles.split("\n")[Number(cited[1]) - 1] ?? "";
+  const query = `@container (min-width: ${floor}px)`;
+  if (!line.includes(query)) {
+    const moved = styles.split("\n").findIndex((one) => one.includes(query));
+    findings.push(
+      `panelWidth.ts cites styles.css:${cited[1]} for \`${query}\`, which is ` +
+        (moved === -1
+          ? "nowhere in the stylesheet"
+          : `at styles.css:${moved + 1}`),
+    );
+  }
+}
+
 report({
   name: "panel-width-guard",
   findings,
@@ -126,8 +183,10 @@ report({
   noun: "panel width claim",
   remedy:
     "claim(s) that no longer hold — change both sides of a number, state one " +
-    "in terms of the other, or give the grip a colour again:",
+    "in terms of the other, give the grip a colour again, or re-point the " +
+    "line the floor cites:",
   clean:
     "the panel's default, cap and rail floor read the same in styles.css and " +
-    "panelWidth.ts, and the handle draws a grip at rest",
+    "panelWidth.ts, the handle draws a grip at every width, and the floor's " +
+    "citation lands on the container query",
 });
