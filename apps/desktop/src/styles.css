@@ -2517,6 +2517,22 @@ button:disabled {
 
 /* --------------------------------------------------------- the ticket panel */
 
+/* How wide the panel is drawn (LC-238s). `--panel-width` is the width the
+   reader dragged it to, stamped on the root by `PanelResizeHandle` — from the
+   preferences document at launch and on every frame of a gesture — and 800px
+   is what a panel nobody has dragged opens at, wide enough for LC-227's
+   properties rail behind its 660px container query.
+
+   **The 88% cap lives here rather than in the stored number**, which is what
+   makes a remembered width safe: a width dragged on a large display cannot open
+   a panel wider than today's window, nothing has to listen for a resize, and an
+   afternoon on a laptop never writes the reduced width back over what the
+   reader chose. The handle reads the same value, so the two cannot disagree
+   about where the edge is. */
+:root {
+  --panel-width-drawn: min(var(--panel-width, 800px), 88vw);
+}
+
 /* Over the workspace it is read on top of. Saying nothing was not enough: a
    layer of `auto` loses to the list's sticky group headers, which carry one of
    their own, and they painted opaque bands across the open panel (LC-96). */
@@ -2530,12 +2546,68 @@ button:disabled {
   flex-direction: column;
   gap: var(--lc-space-4);
   overflow-y: auto;
-  width: min(560px, 88vw);
+  width: var(--panel-width-drawn);
   border-left: 1px solid var(--lc-line);
   padding: var(--lc-space-4) var(--lc-space-5) var(--lc-space-6);
   background: var(--lc-surface);
   box-shadow: var(--lc-shadow-overlay);
   animation: lc-panel-in var(--lc-motion-panel) ease-out;
+}
+
+/* The panel's left edge, as a control: a 9px strip straddling the hairline,
+   held to the edge by the same expression the panel's own width is (LC-238s).
+
+   `fixed` rather than `absolute` because the panel is the scroller: an
+   absolutely positioned child scrolls with the timeline and would leave the
+   edge the moment anyone read a long ticket. Fixed against the viewport is the
+   same place — the panel is anchored `right: 0`, so `right` here is the panel's
+   own left edge — and stays there at every scroll offset.
+
+   It takes the panel's own layer (`stacking-guard.mjs`): the edge is part of
+   the panel, so what it has to be over is exactly what the panel is over. The
+   number orders it inside the panel's stacking context too, where it is above
+   the header and the timeline it overlaps by 4px. */
+.panel-resize {
+  position: fixed;
+  z-index: var(--lc-z-panel);
+  top: 0;
+  right: calc(var(--panel-width-drawn) - 4px);
+  bottom: 0;
+  width: 9px;
+  cursor: col-resize;
+}
+
+/* The affordance is the hairline thickening under the pointer rather than a
+   grabber drawn at rest: the panel's edge is a line in the design, and a line
+   that is already a control does not need to announce it until reached. */
+.panel-resize::after {
+  position: absolute;
+  top: 0;
+  left: 4px;
+  bottom: 0;
+  width: 1px;
+  background: transparent;
+  content: "";
+}
+
+.panel-resize:hover::after {
+  background: var(--lc-accent-human-border);
+}
+
+.panel-resize:focus-visible {
+  box-shadow: var(--lc-focus-ring);
+  outline: none;
+}
+
+/* A window with 24px or less between the 660px floor and the 88% cap has
+   nowhere to drag into (`panelWidth.ts`). The handle keeps its focus stop and
+   its name, and stops claiming a gesture it cannot honour. */
+.panel-resize[aria-disabled="true"] {
+  cursor: default;
+}
+
+.panel-resize[aria-disabled="true"]:hover::after {
+  background: transparent;
 }
 
 /* The panel is a scrolling column, and a flex column shrinks its children to

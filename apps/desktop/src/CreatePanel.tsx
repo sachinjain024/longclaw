@@ -34,6 +34,7 @@ import { DescriptionEditor } from "./DescriptionEditor";
 import { GhostBox } from "./GhostBox";
 import { LabelMenuButton, type LabelDefinition } from "./LabelMenu";
 import { MenuButton } from "./Menu";
+import { PanelResizeHandle } from "./PanelResizeHandle";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "./metaOptions";
 import { enabledPropertyFields, PROPERTY_LABELS } from "./properties";
 import { usePropertyDraft } from "./propertyDraft";
@@ -361,6 +362,10 @@ export function CreatePanel(props: CreatePanelProps) {
       }
       onKeyDown={onKeyDown}
     >
+      {/* Create mode follows the ticket panel's width and carries the same
+          handle: the same overlay in the same place does not change size
+          between reading a ticket and writing one (LC-238s). */}
+      <PanelResizeHandle />
       <header className="panel-header">
         {/* The same chip the panel's own key wears (D-4A), so the two headers
             read as the same object — but a `span`, because this one is display

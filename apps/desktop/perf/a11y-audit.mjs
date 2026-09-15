@@ -21,7 +21,7 @@
  * a pointer anywhere in a lifecycle step would make that step's pass meaningless.
  *
  * Usage:
- *   npm run a11y:audit                 # the five Part A rows
+ *   npm run a11y:audit                 # the six Part A rows
  *   npm run a11y:audit -- --only=A3    # one row while it is being written
  *   npm run a11y:audit -- --self-test  # break the build, expect the rows to fail
  */
@@ -50,7 +50,7 @@ const argument = (name, fallback) => {
  * small enough that a lifecycle step is not waiting on 5,000 rows.
  */
 const TICKETS = Number(argument("tickets", "600"));
-const ONLY = argument("only", "A1,A2,A3,A4,A5").split(",");
+const ONLY = argument("only", "A1,A2,A3,A4,A5,A6").split(",");
 const SELF_TEST = process.argv.includes("--self-test");
 /** 1440×900 is the matrix's window; halving the CSS viewport is A5's 200%. */
 const VIEWPORT = { width: 1_440, height: 900 };
@@ -115,6 +115,14 @@ const focused = (page) =>
       // Quick create's **Create more**, recognised the same way and for the
       // same reason (LC-201): it is a checkbox named by the label around it.
       inCreateMore: !!element.closest?.(".create-more"),
+      // Which of the panel's columns this stop is in, for a reading order that
+      // has two of them (LC-227). The header and the title are above the
+      // split and are in neither.
+      panelColumn: element.closest?.(".panel-rail")
+        ? "rail"
+        : element.closest?.(".panel-main")
+          ? "main"
+          : "head",
       box: { x: box.x, y: box.y, width: box.width, height: box.height },
     };
   });
@@ -647,22 +655,42 @@ async function auditFocusOrder(browser) {
       if (!panel) break;
       sequence.push(at);
     }
-    /** A step backwards up the page that is not a new row is out of order. */
+    /**
+     * A step backwards up the page that is not a new row is out of order —
+     * **within one column**. The panel has two since LC-227: the rail is first
+     * in the DOM and second on screen, so the step that crosses from the
+     * bottom of the rail back to the top of the main column is reading order
+     * rather than a defect. What would be a defect is crossing back, which is
+     * why each column has to be one unbroken run of stops; the old check read
+     * the whole walk as one column and passed only because its window stopped
+     * short of the first crossing (LC-238s, whose handle lengthened the walk
+     * by a stop and brought the crossing inside it).
+     */
     const backwards = sequence.filter((at, index) => {
       const previous = sequence[index - 1];
-      if (!previous) return false;
+      if (!previous || at.panelColumn !== previous.panelColumn) return false;
       const sameBand = Math.abs(at.box.y - previous.box.y) < 8;
       return sameBand
         ? at.box.x < previous.box.x - 1
         : at.box.y < previous.box.y - 8;
     });
+    /** A column left and then returned to: two runs where there must be one. */
+    const revisited = sequence
+      .map((at) => at.panelColumn)
+      .filter(
+        (column, index, columns) =>
+          index > 0 &&
+          column !== columns[index - 1] &&
+          columns.slice(0, index - 1).includes(column),
+      );
     check(
-      "the panel's Tab order runs down the page in reading order",
-      sequence.length >= 4 && backwards.length === 0,
+      "the panel's Tab order runs down each of its columns in reading order",
+      sequence.length >= 4 && backwards.length === 0 && revisited.length === 0,
       `${sequence.length} stops, ${backwards.length} out of order` +
         (backwards.length
           ? `: ${backwards.map((at) => at.label || at.text || at.className).join(", ")}`
-          : ""),
+          : "") +
+        (revisited.length ? `, column revisited: ${revisited.join(", ")}` : ""),
       "keyboard-focus-map.md:62 — the panel's natural order",
     );
 
@@ -1324,6 +1352,116 @@ async function auditZoom(browser) {
   }
 }
 
+/* ---------- A6: the ticket panel's resize handle ---------- */
+
+/**
+ * The panel's width is the reader's (LC-238s), and a handle that only the
+ * pointer can reach is the gap the panel's controls had before Step 17 and its
+ * checklist rows had before LC-185. `keyboard-focus-map.md:62,65` is the
+ * oracle: the handle is the panel's first Tab stop and `←`/`→` move it.
+ *
+ * Measured rather than asserted from state, because the failure this catches is
+ * a width that is stored and never drawn: the panel's own box is what a reader
+ * sees, so the box is what every check below reads.
+ */
+async function auditPanelResize(browser) {
+  row("A6", "The ticket panel's width has a keyboard path");
+  const { context, page } = await board(browser, {
+    // The property the panel is drawn from, dropped on the floor. Everything
+    // else still works — the handle is reachable, the arrows are handled, the
+    // width is remembered — and not one press moves the panel, which is
+    // precisely the defect a test of the state would have missed.
+    selfTest: (target) =>
+      target.evaluate(() => {
+        const real = CSSStyleDeclaration.prototype.setProperty;
+        CSSStyleDeclaration.prototype.setProperty = function setProperty(
+          name,
+          ...rest
+        ) {
+          if (name === "--panel-width") return undefined;
+          return real.call(this, name, ...rest);
+        };
+      }),
+  });
+  const panelWidth = () =>
+    page.evaluate(
+      () =>
+        document.querySelector(".ticket-panel")?.getBoundingClientRect()
+          .width ?? 0,
+    );
+  try {
+    await focusFirstCard(page);
+    await page.keyboard.press("Enter");
+    await settle(page);
+
+    const opened = await panelWidth();
+    check(
+      "the panel opens at the width LC-227's properties rail needs",
+      Math.round(opened) === 800,
+      `${Math.round(opened)}px, rail floor 660`,
+      "screen-specs.md:213 — 800px wide by default",
+    );
+
+    await page.keyboard.press("Tab");
+    const at = await focused(page);
+    check(
+      "the handle is the panel's first Tab stop",
+      at.role === "separator" && at.label === "Panel width",
+      `focus=${at.role || at.tag} ${at.label || at.className}`,
+      "keyboard-focus-map.md:62 — the panel's natural order",
+    );
+
+    await page.keyboard.press("ArrowLeft");
+    await settle(page);
+    const widened = await panelWidth();
+    await page.keyboard.down("Shift");
+    await page.keyboard.press("ArrowLeft");
+    await page.keyboard.up("Shift");
+    await settle(page);
+    const coarse = await panelWidth();
+    check(
+      "`←` widens the panel, 16px a press and 64px with shift",
+      Math.round(widened) === 816 && Math.round(coarse) === 880,
+      `800 → ${Math.round(widened)} → ${Math.round(coarse)}`,
+      "keyboard-focus-map.md:65 — 16px a press and 64px with `⇧`",
+    );
+
+    // Far more presses than the travel allows: the floor is the answer, not
+    // the last press.
+    await page.keyboard.down("Shift");
+    for (let press = 0; press < 12; press += 1) {
+      await page.keyboard.press("ArrowRight");
+    }
+    await page.keyboard.up("Shift");
+    await settle(page);
+    const floored = await panelWidth();
+    const railed = await visible(page, ".panel-rail");
+    check(
+      "`→` stops at 660px rather than folding the properties rail away",
+      Math.round(floored) === 660 && railed,
+      `${Math.round(floored)}px, rail drawn=${railed}`,
+      "screen-specs.md:213 — between 660px and 88%",
+    );
+
+    // Closed and reopened: the width is device-level, so it is the same panel
+    // whatever is in it.
+    await page.keyboard.press("Escape");
+    await settle(page);
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("Enter");
+    await settle(page);
+    const reopened = await panelWidth();
+    check(
+      "the next panel opens at the width the last one was left at",
+      Math.round(reopened) === 660,
+      `${Math.round(reopened)}px`,
+      "screen-specs.md:213 — remembered for this machine",
+    );
+  } finally {
+    await context.close();
+  }
+}
+
 /* ---------- main ---------- */
 
 const AUDITS = [
@@ -1332,6 +1470,7 @@ const AUDITS = [
   ["A3", auditVisibleFocus],
   ["A4", auditReducedMotion],
   ["A5", auditZoom],
+  ["A6", auditPanelResize],
 ];
 
 async function main() {

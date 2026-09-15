@@ -57,6 +57,7 @@ import { LabelMenuButton } from "./LabelMenu";
 import { sameLabels } from "./labels";
 import { MarkdownView } from "./MarkdownView";
 import { MenuButton } from "./Menu";
+import { PanelResizeHandle } from "./PanelResizeHandle";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "./metaOptions";
 import {
   enabledPropertyFields,
@@ -1324,6 +1325,9 @@ export function TicketPanel(props: TicketPanelProps) {
       ref={panelRef}
       tabIndex={-1}
     >
+      {/* First in the panel, because it is the panel's leftmost edge and the
+          Tab order matches the visual order (`keyboard-focus-map.md:62`). */}
+      <PanelResizeHandle />
       <header className="panel-header">
         <IdChip ticketKey={ticketKey} />
         {detail && <TicketPathChip path={detail.relativePath} />}

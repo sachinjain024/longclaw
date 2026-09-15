@@ -31,6 +31,7 @@
 
 import { readPreferences, writePreferences } from "./api";
 import { isOrderingMode, type OrderingMode } from "./ordering";
+import { PANEL_WIDTH_DEFAULT, isStoredPanelWidth } from "./panelWidth";
 import { useLongClawStore, type Appearance } from "./state";
 import {
   forgetWebviewPreferences,
@@ -65,6 +66,20 @@ type DevicePreferences = {
    * asked on both.
    */
   commandLinePrompted?: boolean;
+  /**
+   * How wide the ticket panel was last left (LC-238s).
+   *
+   * Top-level rather than inside `ProjectWorkspace`: the panel is the same
+   * panel in every project, and its width is a property of this screen and
+   * this window rather than of the work — a person who drags it wide once
+   * expects it wide everywhere.
+   *
+   * Stored unclamped. `styles.css` draws `min(var(--panel-width), 88vw)`,
+   * so the window's cap is applied where the panel is painted; writing the
+   * reduced width back here would cost a reader the width they chose on a
+   * large display the first afternoon they spent on a laptop.
+   */
+  panelWidth?: number;
 };
 
 /**
@@ -92,6 +107,8 @@ function adopt(stored: unknown): DevicePreferences {
     adopted.activeProjectId = value.activeProjectId;
   }
   if (value.commandLinePrompted === true) adopted.commandLinePrompted = true;
+  if (isStoredPanelWidth(value.panelWidth))
+    adopted.panelWidth = value.panelWidth;
   const saved = value.projectWorkspaces;
   if (saved && typeof saved === "object" && !Array.isArray(saved)) {
     for (const [projectId, candidate] of Object.entries(
@@ -135,6 +152,7 @@ function isEmpty(preferences: DevicePreferences) {
     preferences.appearance === undefined &&
     preferences.activeProjectId === undefined &&
     preferences.commandLinePrompted === undefined &&
+    preferences.panelWidth === undefined &&
     Object.keys(preferences.projectWorkspaces).length === 0
   );
 }
@@ -148,6 +166,7 @@ function serialized(): Record<string, unknown> {
   if (held.appearance) written.appearance = held.appearance;
   if (held.activeProjectId) written.activeProjectId = held.activeProjectId;
   if (held.commandLinePrompted) written.commandLinePrompted = true;
+  if (held.panelWidth !== undefined) written.panelWidth = held.panelWidth;
   return written;
 }
 
@@ -250,6 +269,11 @@ export function readActiveProjectId(): string | undefined {
   return held.activeProjectId;
 }
 
+/** The remembered width, or what a panel nobody has dragged opens at. */
+export function readPanelWidth(): number {
+  return held.panelWidth ?? PANEL_WIDTH_DEFAULT;
+}
+
 export function readProjectWorkspaces(): Record<string, ProjectWorkspace> {
   return held.projectWorkspaces;
 }
@@ -293,6 +317,20 @@ export function rememberCommandLinePrompted(prompted = true) {
   if (prompted) next.commandLinePrompted = true;
   else delete next.commandLinePrompted;
   held = next;
+  flush();
+}
+
+/**
+ * Records the width a drag or an arrow press settled on.
+ *
+ * The default is not a decision, the way `system` is not one for the
+ * appearance: a launch that has dragged nothing writes nothing, so the
+ * document says what a reader chose rather than what this build opens at.
+ */
+export function rememberPanelWidth(width: number) {
+  if (held.panelWidth === width) return;
+  if (held.panelWidth === undefined && width === PANEL_WIDTH_DEFAULT) return;
+  held = { ...held, panelWidth: width };
   flush();
 }
 

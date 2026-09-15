@@ -12,14 +12,17 @@ import {
   readActiveProjectId,
   readAppearance,
   readCommandLinePrompted,
+  readPanelWidth,
   readProjectWorkspaces,
   rememberActiveProject,
   rememberAppearance,
   rememberCommandLinePrompted,
+  rememberPanelWidth,
   rememberProjectWorkspaces,
   resetDevicePreferences,
   restoreDevicePreferences,
 } from "./devicePreferences";
+import { PANEL_WIDTH_DEFAULT } from "./panelWidth";
 import { useLongClawStore } from "./state";
 
 vi.mock("./api", () => ({
@@ -335,6 +338,72 @@ describe("the command-line offer, once per machine", () => {
     await restoreDevicePreferences();
 
     expect(readCommandLinePrompted()).toBe(true);
+    expect(api.writePreferences).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The ticket panel's width (LC-238s). It is device-level rather than
+ * per-project — the panel is the same panel in every project, and its width is
+ * a property of this screen rather than of the work — so it sits beside the
+ * appearance and not inside a workspace.
+ */
+describe("the width the ticket panel was last left at", () => {
+  it("comes back after a relaunch", async () => {
+    await restoreDevicePreferences();
+    rememberPanelWidth(1_040);
+    await landed({ projectWorkspaces: {}, panelWidth: 1_040 });
+
+    await relaunch();
+
+    expect(readPanelWidth()).toBe(1_040);
+  });
+
+  it("answers the default until someone drags it", async () => {
+    await restoreDevicePreferences();
+
+    expect(readPanelWidth()).toBe(PANEL_WIDTH_DEFAULT);
+    expect(api.writePreferences).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The clamp this ticket was filed with would have written the reduced width
+   * back, and a width restored against a monitor that is no longer attached
+   * would then be the width forever. The cap belongs to `styles.css`, which
+   * applies it every frame: what is stored is the width that was chosen.
+   */
+  it("keeps a width wider than this window rather than shrinking it on disk", async () => {
+    disk = { projectWorkspaces: {}, panelWidth: 1_800 };
+
+    await restoreDevicePreferences();
+
+    expect(readPanelWidth()).toBe(1_800);
+    expect(api.writePreferences).not.toHaveBeenCalled();
+  });
+
+  it("drops a width this build cannot draw, and anything that is not one", async () => {
+    for (const stored of [659, 4_001, 0, -800, "800", null, {}]) {
+      resetDevicePreferences();
+      disk = { projectWorkspaces: {}, panelWidth: stored };
+
+      await restoreDevicePreferences();
+
+      expect(readPanelWidth()).toBe(PANEL_WIDTH_DEFAULT);
+    }
+  });
+
+  /**
+   * The same fact `commandLinePrompted` records above: a document holding only
+   * this field is not an empty document, and read as one the migration hands
+   * webview storage's choices back over the top of it.
+   */
+  it("is not thrown away by the migration out of webview storage", async () => {
+    disk = { panelWidth: 900 };
+    localStorage.setItem("longclaw.appearance", "light");
+
+    await restoreDevicePreferences();
+
+    expect(readPanelWidth()).toBe(900);
     expect(api.writePreferences).not.toHaveBeenCalled();
   });
 });
