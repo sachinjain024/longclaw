@@ -167,10 +167,25 @@ const STATES = [
       ".project-identity .path-chip",
       ".identity-text h1",
       ".content-header .primary",
+      // The second text-on-accent pairing in the shell, and the newer one
+      // (LC-243d): the pressed half of the view segment carries a label *and* a
+      // mark on the human accent. `New ticket` above proves the pair on a
+      // button the design has always filled; this proves the components paired
+      // it again on a control that used to be quiet.
+      ".view-segment button.selected",
     ],
     token: [
       {
         selector: ".content-header .primary",
+        property: "background-color",
+        token: "--lc-accent-human",
+      },
+      {
+        // The fill itself, not just the contrast of what sits on it: a pressed
+        // segment that drifted to `accent-human-soft` or back to `line-soft`
+        // would still clear AA and would no longer be the control the prototype
+        // draws (`prototype.css:334`).
+        selector: ".view-segment button.selected",
         property: "background-color",
         token: "--lc-accent-human",
       },
@@ -305,7 +320,7 @@ const STATES = [
     token: [
       {
         // The agent's own, not any actor's: `.change-actor` is the name on
-        // every change entry and a person's wears ink (`styles.css:3013`).
+        // every change entry and a person's wears ink (`styles.css:4341`).
         // The accent contract is about the one the agent wrote.
         selector: ".timeline-entry.agent .change-actor",
         property: "color",

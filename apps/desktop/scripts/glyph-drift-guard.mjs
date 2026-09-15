@@ -55,9 +55,9 @@
  * (D-23). `checkbox-*` and `agent-tile` have no SVG copy in the app at all.
  *
  * The registry is this guard's one hand-maintained fact, so it is pinned to the
- * sheet: every `format-*`, `status-*` and `priority-*` symbol must be either
- * registered or listed in `NOT_COPIED` with its reason, and a new one arriving
- * fails the run rather than silently going unchecked.
+ * sheet: every `format-*`, `status-*`, `priority-*` and `view-*` symbol must be
+ * either registered or listed in `NOT_COPIED` with its reason, and a new one
+ * arriving fails the run rather than silently going unchecked.
  *
  * Usage: node scripts/glyph-drift-guard.mjs   (exits non-zero on any finding)
  */
@@ -76,6 +76,7 @@ const ICON = "apps/desktop/src/FormattingIcon.tsx";
 const SPECIMEN = "docs/design/foundations/proof/components-library.html";
 const STATUS = "apps/desktop/src/StatusDot.tsx";
 const PRIORITY = "apps/desktop/src/PriorityGlyph.tsx";
+const VIEW = "apps/desktop/src/ViewGlyph.tsx";
 
 /**
  * Which masters are redrawn where. The reader name says how to find the copy in
@@ -156,6 +157,12 @@ const COPIES = [
     symbols: ["column-dot"],
     copies: [["component", "apps/desktop/src/ColumnDot.tsx"]],
   },
+  // The view segment's pair (LC-243d). Read as `marks` rather than as a
+  // component, because `ViewGlyph` draws both from one table under one `<svg>`
+  // exactly as `FormattingIcon` does — the wrapper is where their shared
+  // `fill` lives, and the table is what says which mark is which.
+  { symbols: ["view-board"], copies: [["marks", VIEW, "board"]] },
+  { symbols: ["view-list"], copies: [["marks", VIEW, "list"]] },
 ];
 
 /** Masters with no SVG copy in the app, and the reason there is none. */
@@ -173,7 +180,7 @@ const NOT_COPIED = {
 };
 
 /** Every master this guard must have an answer for. */
-const PINNED = /^(format|status|priority)-/;
+const PINNED = /^(format|status|priority|view)-/;
 
 const SHAPES = /<(path|rect|circle|polyline|ellipse|line)\b([^>]*?)\/?>/g;
 

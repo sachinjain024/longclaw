@@ -5046,6 +5046,57 @@ describe("the app shell against its spec (LC-71, LC-72, LC-73)", () => {
     });
   });
 
+  describe("the view segment (LC-243d)", () => {
+    /** The segment's two buttons, in the order the header draws them. */
+    const segment = () =>
+      Array.from(
+        document.querySelectorAll<HTMLElement>(".view-segment button"),
+      );
+
+    it("puts the prototype's mark in front of each label", async () => {
+      await openBoard();
+
+      // `prototype.js:115-116` draws a mark beside both words, and the segment
+      // shipped with the words alone. Board is three columns of falling height,
+      // List is three rules — the pair a person recognises before reading
+      // either label.
+      const [board, list] = segment();
+      expect(board?.querySelector("svg.view-glyph-board")).not.toBeNull();
+      expect(list?.querySelector("svg.view-glyph-list")).not.toBeNull();
+    });
+
+    it("keeps both marks out of the accessible name", async () => {
+      await openBoard();
+
+      // The button is named by its word, so a mark that reached the name would
+      // say it twice (`accessibility.md`). The two `getByRole` calls are what
+      // catch an unhidden one: the name would stop being "Board".
+      for (const button of segment()) {
+        expect(button.querySelector("svg")?.getAttribute("aria-hidden")).toBe(
+          "true",
+        );
+      }
+      expect(screen.getByRole("button", { name: "Board" })).toBe(segment()[0]);
+      expect(screen.getByRole("button", { name: "List" })).toBe(segment()[1]);
+    });
+
+    it("says which view you are standing in with `aria-pressed`", async () => {
+      await openBoard();
+
+      // A pair of buttons rather than a radio group, so `pressed` is the whole
+      // of the state — and it is what carries the accent fill to a reader that
+      // never sees the fill.
+      const [board, list] = segment();
+      expect(board?.getAttribute("aria-pressed")).toBe("true");
+      expect(list?.getAttribute("aria-pressed")).toBe("false");
+
+      fireEvent.click(list as HTMLElement);
+
+      expect(segment()[0]?.getAttribute("aria-pressed")).toBe("false");
+      expect(segment()[1]?.getAttribute("aria-pressed")).toBe("true");
+    });
+  });
+
   describe("sidebar footer (LC-72)", () => {
     it("has no appearance select — appearance is not project chrome", async () => {
       await openBoard();
