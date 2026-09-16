@@ -30,21 +30,11 @@ cannot drift. See `AGENTS.md` § UX prototypes for what belongs in it.
   Read it for the shape, not for the rules: it predates the **copy deck**,
   which `AGENTS.md` has required since LC-249a and which a new prototype owes.
 
-- [`LC-243d-Board-List-View-Switcher-Selected-State.html`](LC-243d-Board-List-View-Switcher-Selected-State.html)
-  — three answers to one question: with the accent fill off the Board | List
-  segment, what says which half is pressed? (spec:
-  `.longclaw/tickets/LC-243d/ticket.md`, item `ck_73bf8498`, reopened after
-  PR #47 shipped the fill.)
-
-  The four scenes stand the shipped control and all three answers in the same
-  header row, so the comparison is a look down a column rather than a memory
-  test. Hover and focus are the browser's own — nothing here draws its own
-  `:hover`, because a prototype that paints its own states is a prototype that
-  only ever agrees with itself.
-
-Two others have been here and are not any more, both deleted when their tickets
-shipped: LC-236e (defining a label from inside the create flows) and LC-249a
-(the `longclaw` command's install offer). They are in the history at `3ad94ef`.
+Three others have been here and are not any more, all deleted when their
+tickets settled: LC-236e (defining a label from inside the create flows) and
+LC-249a (the `longclaw` command's install offer), both in the history at
+`3ad94ef`, and LC-243d (three answers to what says which half of the Board |
+List segment is pressed — option B was chosen), at `567d0cf`.
 
 ## Imported prototypes
 
