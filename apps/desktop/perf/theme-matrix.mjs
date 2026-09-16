@@ -167,12 +167,15 @@ const STATES = [
       ".project-identity .path-chip",
       ".identity-text h1",
       ".content-header .primary",
-      // The second text-on-accent pairing in the shell, and the newer one
-      // (LC-243d): the pressed half of the view segment carries a label *and* a
-      // mark on the human accent. `New ticket` above proves the pair on a
-      // button the design has always filled; this proves the components paired
-      // it again on a control that used to be quiet.
+      // Both halves of the view segment, which say which surface you are
+      // looking at in ink alone since LC-243d took the accent fill off them:
+      // the pressed one in `--lc-accent-human-text`, the other in `ink-3`, both
+      // on the pill's own surface. The pressed half is also where the fill
+      // coming back would show — `accent-human-text` over `accent-human` is the
+      // same hue over itself, so this probe reads about 1:1 and fails hard,
+      // which no probe on the fill's own token could do once the fill is gone.
       ".view-segment button.selected",
+      ".view-segment button:not(.selected)",
     ],
     token: [
       {
@@ -181,13 +184,15 @@ const STATES = [
         token: "--lc-accent-human",
       },
       {
-        // The fill itself, not just the contrast of what sits on it: a pressed
-        // segment that drifted to `accent-human-soft` or back to `line-soft`
-        // would still clear AA and would no longer be the control the prototype
-        // draws (`prototype.css:334`).
+        // The ink itself, not just its contrast: a pressed half that drifted to
+        // plain `ink` or to `accent-human` would still clear AA and would no
+        // longer be the control LC-243d settled — the first says nothing about
+        // being pressed, and the second is the fill's own token borrowed as
+        // text, which on four of these ten axes is not the colour drawn to be
+        // read on a surface. Those four are the ones this probe is for.
         selector: ".view-segment button.selected",
-        property: "background-color",
-        token: "--lc-accent-human",
+        property: "color",
+        token: "--lc-accent-human-text",
       },
       {
         // The trace strip is dev-only chrome (devChrome.ts) and this build is
@@ -320,7 +325,7 @@ const STATES = [
     token: [
       {
         // The agent's own, not any actor's: `.change-actor` is the name on
-        // every change entry and a person's wears ink (`styles.css:4341`).
+        // every change entry and a person's wears ink (`styles.css:4382`).
         // The accent contract is about the one the agent wrote.
         selector: ".timeline-entry.agent .change-actor",
         property: "color",

@@ -26,7 +26,7 @@
 
 /**
  * The container query LC-227's properties rail is behind
- * (`styles.css:3120`). `scripts/panel-width-guard.mjs` is what holds this
+ * (`styles.css:3161`). `scripts/panel-width-guard.mjs` is what holds this
  * number and that query together: they are two statements of one bound, and
  * the one that goes stale reads exactly like the one that did not. Not a
  * vitest file — the suite loads no stylesheet, and a `?raw` import of one

@@ -5084,8 +5084,8 @@ describe("the app shell against its spec (LC-71, LC-72, LC-73)", () => {
       await openBoard();
 
       // A pair of buttons rather than a radio group, so `pressed` is the whole
-      // of the state — and it is what carries the accent fill to a reader that
-      // never sees the fill.
+      // of the state — and it is what carries the accent ink and the 600 to a
+      // reader who never sees either (LC-243d).
       const [board, list] = segment();
       expect(board?.getAttribute("aria-pressed")).toBe("true");
       expect(list?.getAttribute("aria-pressed")).toBe("false");
