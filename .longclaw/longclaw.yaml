@@ -69,3 +69,12 @@ properties:
         color: purple
   due:
     enabled: true
+  estimate:
+    enabled: true
+    system: fibonacci
+    values:
+      - xs
+      - s
+      - m
+      - l
+      - xl

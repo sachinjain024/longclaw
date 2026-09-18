@@ -116,6 +116,7 @@ longclaw label add --slug security --name Security --color blue
 |---|---|---|
 | `type` | one of bug, chore, docs, feature, spike | `--type <slug>`, `--clear-type` |
 | `due` | a date, `YYYY-MM-DD` | `--due <date>`, `--clear-due` |
+| `estimate` | one of 1, 2, 3, 5, 8, 13 | `--estimate <value>`, `--clear-estimate` |
 
 Do not write a property that is not listed. An unlisted one is a property
 this project does not read, and a value you find under it is being hidden
@@ -164,6 +165,7 @@ directory, and nothing outside LongClaw may spend one.
 | `labels` | slugs defined in `longclaw.yaml` |
 | `type` | one of bug, chore, docs, feature, spike |
 | `due` | a date, `YYYY-MM-DD` |
+| `estimate` | one of 1, 2, 3, 5, 8, 13 |
 | description | any CommonMark outside the reserved sections |
 | checklist | flip `[ ]` to `[x]`, or append a task |
 | activity | append a bounded record; never edit or delete an existing one |
