@@ -195,3 +195,38 @@ Both marks stay `aria-hidden`: the button carries the word, and a mark that repe
 
 The prototype was `docs/ux/prototypes/LC-243d-Board-List-View-Switcher-Selected-State.html`, deleted with this change and in the history at `567d0cf`.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_7943723b
+kind: comment
+occurred_at: 2026-09-18T06:51:29.212Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+**Open question closed: the dialog's segments follow the header's.** Shipped in PR #48 as `a206a68`, which reverses the third bullet above.
+
+The case that settled it is not the header's. The header's reason was its neighbour — `New ticket` is the accent fill in that row, and a second fill the width of `Board` competed with it. The settings panel has no accent-filled control at all, so on that argument the dialog's segments could have kept the fill. What decided it was reading the panel as one panel rather than as a list of controls: it had come to answer "which one is chosen?" three different ways on one screen.
+
+| control | how it said "chosen" |
+|---|---|
+| section nav row (`Theme`) | `line-soft` + `ink` + 600 — deliberately neutral, because "the panel's accent belongs to the controls being set, not to the nav pointing at them" |
+| Appearance segment (`System`) | a full `--lc-accent-human` fill — the only one in the dialog |
+| theme option (`Indigo`) | a 1px `--lc-accent-human` border, the focus ring, and a check in `--lc-accent-human-text` |
+
+The two that disagreed sat one row apart, and the loudest was the least consequential: which appearance you are *previewing* outweighed, in ink, the theme you have *chosen*. Ink and weight is the answer the other two are already nearest to, so both segments now take `--lc-accent-human-text` + 600 on the segment's own surface and `.selected` is one rule again.
+
+What came with it:
+
+- **`ink-3` moved to the shared base rule.** Both unpressed halves step back for the same reason now — so the pressed one is the stronger of the two — which is one rule instead of two.
+- **The on-accent focus ring is gone**, with the fill that needed it. `--lc-accent-human-ring` and the 1px accent line both composite to `--lc-accent-human` over `--lc-accent-human`, which is why a pressed pill needed its ring drawn in `--lc-on-accent-human` at full opacity (decision 2 of the PR #47 comment). No accent ground is left under either carrier, so one `:focus-visible` rule now holds every half of both segments. `components.md:30` still names the exception — it is a true rule about inset rings on accent fills, and `.date-cell.picked` is one inset ring away from needing it — but nothing in the app stands in it today.
+- **`components.md:31` is one treatment again**, amended in place and re-pinned.
+- **The dialog's segment is measured for the first time.** The matrix's `settings` state now probes both halves for contrast and pins the pressed half's `color` to `--lc-accent-human-text`. Nothing had ever measured this control: the header's segment was the only segment any run reached, and the fill's own focus rule was reached by none — which is the half of the split I flagged as held by tokens rather than by a measurement. It is held by a measurement now.
+
+`verify` EXIT=0 · `matrix` 8 axes × 12 states clean · `a11y:audit` A1–A6 PASS, both halves 5.60:1 · `--self-test --only=A3` red on every check · `citations:check` 525 clean.
+
+Not reached by any run, and worth its own item if it ever grows an inset ring: `.date-cell.picked` is an accent fill whose `:focus-visible` is the ordinary outward `--lc-focus-ring`. It is legible today only because the ring grows onto the popover's ground rather than onto the fill.
+<!-- /longclaw:event -->
