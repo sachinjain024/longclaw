@@ -30,9 +30,11 @@ cannot drift. See `AGENTS.md` § UX prototypes for what belongs in it.
   Read it for the shape, not for the rules: it predates the **copy deck**,
   which `AGENTS.md` has required since LC-249a and which a new prototype owes.
 
-Two others have been here and are not any more, both deleted when their tickets
-shipped: LC-236e (defining a label from inside the create flows) and LC-249a
-(the `longclaw` command's install offer). They are in the history at `3ad94ef`.
+Three others have been here and are not any more, all deleted when their
+tickets settled: LC-236e (defining a label from inside the create flows) and
+LC-249a (the `longclaw` command's install offer), both in the history at
+`3ad94ef`, and LC-243d (three answers to what says which half of the Board |
+List segment is pressed — option B was chosen), at `567d0cf`.
 
 ## Imported prototypes
 

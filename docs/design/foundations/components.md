@@ -28,7 +28,7 @@ color-vision deficiency (see `accessibility.md`).
 | Hover | Background shifts one step (`--lc-wash` on quiet surfaces, `--lc-raised` + `--lc-shadow-overlay` on popovers); accent fills shift to `--lc-accent-*-hover` — except a **pressed segment**, which is the place you are already standing and answers a pointer with nothing | `--lc-motion-fast` (80ms) |
 | Active/pressed | Accent fills shift to `--lc-accent-*-active`; no scale transforms | `--lc-motion-fast` |
 | Focus (keyboard) | `box-shadow: var(--lc-focus-ring)` **plus** a 1px `--lc-accent-human` border on the focused control. Focus is human-accent everywhere — focus is a planning act — except where the accent is the *ground*: on an accent fill the ring is drawn in that accent's `--lc-on-accent-human`, at full opacity, because the accent over its own fill composites to the fill and is no ring at all | none |
-| Selected | Content (cards, rows, palette) takes `--lc-accent-human-soft`; a nav row takes `line-soft` + `ink` + 600; a **segment** takes the `--lc-accent-human` fill and `--lc-on-accent-human`, because its neighbour is 1px away and a step of background is not a difference read at a glance — none relies on color alone | `--lc-motion-state` (120ms) |
+| Selected | Content (cards, rows, palette) takes `--lc-accent-human-soft`; a nav row takes `line-soft` + `ink` + 600; a **segment** — the header's view switcher or a dialog's — takes `--lc-accent-human-text` + 600 on the segment's own surface rather than the accent fill the prototype draws, because the header's row already spends its fill on `New ticket` and the settings panel already says "this one" in a nav row's weight and a theme option's border (LC-243d) — none relies on color alone | `--lc-motion-state` (120ms) |
 | Disabled | Text/glyphs `--lc-ink-disabled`; fills `--lc-wash`; no hover response; `cursor: default` | none |
 | Loading | Optimistic UI first — mutations render immediately; a 500ms-delayed spinner appears only if the write hasn't settled | `--lc-motion-state` |
 | Acknowledged (agent) | See § Agent presence — ring, border, pulse dot, footer | `lc-pulse` 1.8s loop |
@@ -154,7 +154,7 @@ no fill hierarchy, nothing louder.
 |---|---|---|
 | Urgent | 12×12 rx3 square + exclamation (14×14 viewBox) — unchanged | fill `--lc-priority-urgent`, mark `--lc-priority-urgent-mark` |
 | P1 · P2 · P3 · P4 | bordered mono chip: 14px tall (13px on cards), min-width 21px, padding 0 3px, radius `--lc-radius-kbd` (3px), 1px border, transparent fill, label `P1`–`P4` in mono 9px/500 (8.5px on cards), uppercase | text `--lc-priority-chip-text`, border `--lc-priority-chip-border` |
-| None | 9×1.6 rx0.8 dash, in the same chip frame as `P1`–`P4` | dash `--lc-priority-none`, border `--lc-priority-chip-border` |
+| None | 9×1.6 rx0.8 dash on the 14×14 glyph grid (13×13 on cards), bare — the chip frame is what says a level is set, so the absence of one wears none (LC-243d, reopening ~~D-23~~) | dash `--lc-priority-none` |
 
 The chip label is real text and is held to the 4.5:1 text gate on both bg and
 surface (see `accessibility.md`); the border is a decorative container and
@@ -162,11 +162,11 @@ carries no meaning on its own. Chips never take the theme accent and never
 gain a fill — a filled P-chip would compete with the ID chip and the agent
 chip, which own the soft-fill register.
 
-**Revised 2026-08-07 (LC-85):** None keeps the dash, and gains the frame. The
-dash used to stand bare in the slot the numbers fill with a chip, which on a
-board card read as a stray hyphen rather than as a level — the five priorities
-share one slot, so they share its shape. The dash's own geometry is unchanged;
-only its container is new.
+**Revised 2026-08-07 (LC-85), and reopened 2026-09-15 (LC-243d):** LC-85 gave
+None the frame, so that the five priorities sharing one slot would share its
+shape. The frame is off again: the chip is what says a level is *set*, and drawn
+around the absence of one it is a box around nothing — on a young board, an
+empty rectangle on nearly every card. The dash's own geometry never changed.
 
 ## Avatars — humans are circles, agents are not
 

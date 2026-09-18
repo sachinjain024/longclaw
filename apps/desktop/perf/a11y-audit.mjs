@@ -952,28 +952,30 @@ async function auditVisibleFocus(browser) {
   row("A3", "Visible focus survives panels, overlays, and scroll containers");
   const { context, page } = await board(browser, {
     /**
-     * KNOWN BLIND, and blind on `main` too — `--self-test` has been reporting
-     * `A3 passed against a broken build` since this row was written, which
-     * nothing caught because the inversion had never been run (found while
-     * reviewing LC-208; it reproduces identically on `origin/main`).
+     * This row was KNOWN BLIND until LC-243d, on this branch and on `main`:
+     * `--self-test` reported `A3 passed against a broken build` from the day it
+     * was written, and nothing caught it because the inversion had never been
+     * run (found while reviewing LC-208).
      *
-     * The break below cannot bite, and no small edit to it can. Focus in this
-     * app has **two** independent carriers by rule 3 of the focus map —
-     * `--lc-focus-ring` *and* a 1px `accent-human` border — so removing the
-     * ring leaves the border still repainting the card, and `paints()` goes on
-     * seeing a difference, correctly. Forcing the border off as well is worse:
-     * `border-color: transparent` differs from the unfocused border, so focusing
-     * still changes pixels and the row still passes.
+     * The old break took the outline, which is neither of focus's two carriers
+     * — rule 3 of the focus map gives it `--lc-focus-ring` *and* a 1px
+     * `accent-human` border — so it changed no pixels at all, and `paints()`
+     * went on seeing a difference, correctly. Taking the ring alone was no
+     * better: the border still repaints the card.
      *
-     * Making this row red needs the injected state to *equal* the unfocused one,
-     * which is a change to what the break is rather than a line of CSS. Left
-     * failing and named rather than quietly weakened, because a green
-     * `--self-test` here would be the claim the row is not blind.
+     * `box-shadow` is now the carrier the segment's checks below *measure*, and
+     * it is the one the second carrier cannot cover for — a control that clips
+     * cannot spell its focus as a border, which is why the segment draws both
+     * as inset shadows. With the shadow gone there is nothing left to composite
+     * and those checks go red, which is the inversion this row had been
+     * missing. The outline stays in the break: it is still the mistake a
+     * control outside the segment would make.
      */
     selfTest: (target) =>
       target.addStyleTag({
         // The exact mistake this row exists to catch.
-        content: "*:focus, *:focus-visible { outline: none !important; }",
+        content:
+          "*:focus, *:focus-visible { outline: none !important; box-shadow: none !important; }",
       }),
   });
   try {
@@ -1069,59 +1071,64 @@ async function auditVisibleFocus(browser) {
     await page.keyboard.press("Escape");
     await settle(page);
 
-    // The pressed half of the header's view segment (LC-243d). The hardest case
-    // in the shell for a ring, and one no other row here reaches: the group
-    // clips, so the ring has to be drawn *inside* the button, and the button is
-    // already filled with the very accent the ring is mixed from.
+    // Both halves of the header's view segment (LC-243d). The hardest case in
+    // the shell for a focus indicator, and one no other row here reaches: the
+    // group clips, so the indicator has to be drawn *inside* the button —
+    // which means `border: 0`, which means the 1px `accent-human` line the
+    // focus map pairs with the ring is a second inset shadow rather than a
+    // border.
     //
-    // `paints` is the wrong instrument for it, and quietly: a ring in
-    // `--lc-accent-human-ring` over `--lc-accent-human` is that accent at 14%
-    // composited onto itself, which is the same colour — but the mix is
+    // `paints` is the wrong instrument for this, and quietly. While the pressed
+    // half was accent-filled, its ring in `--lc-accent-human-ring` was that
+    // accent at 14% composited onto itself — the same colour — but the mix is
     // interpolated in oklab and comes back through sRGB a rounding step off, so
-    // the two screenshots differ by three bytes of PNG and nothing a person can
-    // see. `paints` passed on the broken build for exactly that reason. So this
-    // measures the ring the way the eye judges it: composite the shadow's own
-    // colour, alpha and all, over the fill it lands on, and ask what contrast is
-    // left. WCAG 2.2 SC 1.4.11 wants 3:1 of a focus indicator; the broken build
-    // scores 1.0.
-    await page.evaluate(() => document.activeElement?.blur?.());
-    const toSegment = await tabTo(
-      page,
-      (at) => at.className === "selected" && at.text === "Board",
-    );
-    if (toSegment.found) {
-      const segmentClip = await clipping();
-      check(
-        "the pressed half of the view segment keeps its ring on screen",
-        segmentClip.ok,
-        segmentClip.why,
-        "keyboard-focus-map.md:16-18 — focus is visible and never lost",
-      );
-      const ring = await page.evaluate(() => {
+    // the two screenshots differed by three bytes of PNG and nothing a person
+    // could see. `paints` passed on that build. So this measures the indicator
+    // the way the eye judges it: composite each layer of the shadow, alpha and
+    // all, over the fill it lands on, and keep the strongest contrast any of
+    // them leaves. WCAG 2.2 SC 1.4.11 wants 3:1 of a focus indicator; the
+    // accent-on-its-own-accent build scored 1.0, and the ring by itself — what
+    // both halves wore until the accent line went in beside it — scores 1.2.
+    const ringContrast = () =>
+      page.evaluate(() => {
         const element = document.activeElement;
         const style = getComputedStyle(element);
-        // The shadow serialises colour-first (`oklab(…) 0px 0px 0px 3px inset`),
-        // so the colour is everything before the first length.
-        const shadow = style.boxShadow.match(/^(.*?)\s+-?[\d.]+px/)?.[1];
-        if (!shadow) return { why: `box-shadow is ${style.boxShadow}` };
+        // Split on the commas between layers, not the ones inside `rgb(…)`.
+        // Each layer serialises colour-first (`oklab(…) 0px 0px 0px 3px inset`),
+        // so the colour is everything before its first length.
+        const layers = style.boxShadow
+          .split(/,(?![^(]*\))/)
+          .map((layer) => layer.trim().match(/^(.*?)\s+-?[\d.]+px/)?.[1])
+          .filter(Boolean);
+        if (!layers.length) return { why: `box-shadow is ${style.boxShadow}` };
+
         const canvas = document.createElement("canvas");
         canvas.width = canvas.height = 1;
         const paint = canvas.getContext("2d");
         paint.fillStyle = style.backgroundColor;
         const fill = paint.fillStyle;
-        paint.fillRect(0, 0, 1, 1);
-        paint.fillStyle = shadow;
-        // A colour the canvas cannot parse leaves `fillStyle` on the previous
-        // one, which would draw the fill over the fill and report 1.0 — the
-        // right answer by accident, for the wrong reason. Say so instead.
-        if (paint.fillStyle === fill)
-          return { why: `canvas could not parse ${shadow}` };
-        paint.fillRect(0, 0, 1, 1);
-        const over = [...paint.getImageData(0, 0, 1, 1).data].slice(0, 3);
-        paint.clearRect(0, 0, 1, 1);
-        paint.fillStyle = fill;
-        paint.fillRect(0, 0, 1, 1);
-        const under = [...paint.getImageData(0, 0, 1, 1).data].slice(0, 3);
+        // A colour the canvas cannot parse leaves `fillStyle` where it was, so
+        // asking twice from two different starting points is what tells an
+        // unparseable colour apart from one that merely equals the fill — which
+        // is a real answer (1.0) rather than a broken probe.
+        const parses = (colour) => {
+          paint.fillStyle = "#000000";
+          paint.fillStyle = colour;
+          const first = paint.fillStyle;
+          paint.fillStyle = "#ffffff";
+          paint.fillStyle = colour;
+          return first === paint.fillStyle;
+        };
+        const pixel = (colour) => {
+          paint.clearRect(0, 0, 1, 1);
+          paint.fillStyle = fill;
+          paint.fillRect(0, 0, 1, 1);
+          if (colour) {
+            paint.fillStyle = colour;
+            paint.fillRect(0, 0, 1, 1);
+          }
+          return [...paint.getImageData(0, 0, 1, 1).data].slice(0, 3);
+        };
         const luminance = ([r, g, b]) =>
           [r, g, b]
             .map((c) => c / 255)
@@ -1129,23 +1136,54 @@ async function auditVisibleFocus(browser) {
               c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4,
             )
             .reduce((sum, c, i) => sum + c * [0.2126, 0.7152, 0.0722][i], 0);
-        const [hi, lo] = [luminance(over), luminance(under)].sort(
-          (a, b) => b - a,
+
+        const under = luminance(pixel(null));
+        const measured = layers.map((colour) => {
+          if (!parses(colour)) return { colour, why: "canvas cannot parse it" };
+          const [hi, lo] = [luminance(pixel(colour)), under].sort(
+            (a, b) => b - a,
+          );
+          return { colour, ratio: (hi + 0.05) / (lo + 0.05) };
+        });
+        const best = measured.reduce((a, b) =>
+          (b.ratio ?? 0) > (a.ratio ?? 0) ? b : a,
         );
-        return { ratio: (hi + 0.05) / (lo + 0.05), shadow, fill };
+        return {
+          ratio: best.ratio,
+          colour: best.colour,
+          fill,
+          why: best.ratio === undefined ? best.why : undefined,
+        };
       });
+
+    await page.evaluate(() => document.activeElement?.blur?.());
+    for (const [half, is] of [
+      ["pressed", (at) => at.className === "selected" && at.text === "Board"],
+      ["unpressed", (at) => at.className === "" && at.text === "List"],
+    ]) {
+      const toSegment = await tabTo(page, is);
+      if (!toSegment.found) {
+        check(
+          `the ${half} half of the view segment is reachable by Tab`,
+          false,
+          `Tab never reached it, stopped on ${toSegment.at.tag}.${toSegment.at.className}`,
+        );
+        continue;
+      }
+      const segmentClip = await clipping();
       check(
-        "the pressed half of the view segment paints a ring on its own fill",
+        `the ${half} half of the view segment keeps its ring on screen`,
+        segmentClip.ok,
+        segmentClip.why,
+        "keyboard-focus-map.md:16-18 — focus is visible and never lost",
+      );
+      const ring = await ringContrast();
+      check(
+        `the ${half} half of the view segment paints an indicator on its own fill`,
         (ring.ratio ?? 0) >= 3,
         ring.why ??
-          `${ring.ratio.toFixed(2)}:1 — ${ring.shadow} over ${ring.fill}`,
-        "components.md:30 — on an accent fill the ring is the accent's on-colour",
-      );
-    } else {
-      check(
-        "the pressed half of the view segment is reachable by Tab",
-        false,
-        `Tab never reached it, stopped on ${toSegment.at.tag}.${toSegment.at.className}`,
+          `${ring.ratio.toFixed(2)}:1 — ${ring.colour} over ${ring.fill}`,
+        "components.md:30 — the ring and a 1px accent line, both of them",
       );
     }
 

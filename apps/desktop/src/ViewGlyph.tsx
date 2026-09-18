@@ -14,7 +14,7 @@ import type { ViewMode } from "./devicePreferences";
  * board is three columns of falling height and a list is three rules, and a
  * 1.3px stroke around a 3.2px column leaves a sliver of interior that reads as
  * noise. `currentColor` because the button owns every state the mark has — the
- * pressed pill flips both the fill and the glyph to `--lc-on-accent-human` in
+ * pressed half takes `--lc-accent-human-text` and the mark comes with it, in
  * one move.
  *
  * Decorative. The button carries the word, and a mark that repeated it would

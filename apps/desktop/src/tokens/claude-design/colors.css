@@ -32,8 +32,8 @@
   --status-canceled: #878ca0;
   --status-canceled-x: #ffffff;
   /* priority — Urgent · P1–P4 · None (D4): exclamation square, bordered
-     mono chips, framed dash (LC-85). The bar-glyph aliases left with the
-     v1 components (LC-196) */
+     mono chips, bare dash (LC-243d — LC-85's frame came off). The
+     bar-glyph aliases left with the v1 components (LC-196) */
   --priority-urgent: #db7129;
   --priority-urgent-fg: #ffffff;
   --priority-none: #8a8fa3;
@@ -103,8 +103,8 @@
   --status-canceled: #5f6375;
   --status-canceled-x: #16171e;
   /* priority — Urgent · P1–P4 · None (D4): exclamation square, bordered
-     mono chips, framed dash (LC-85). The bar-glyph aliases left with the
-     v1 components (LC-196) */
+     mono chips, bare dash (LC-243d — LC-85's frame came off). The
+     bar-glyph aliases left with the v1 components (LC-196) */
   --priority-urgent: #e0762f;
   --priority-urgent-fg: #101116;
   --priority-none: #767b90;
