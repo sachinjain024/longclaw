@@ -9,113 +9,33 @@ labels:
   - platform
   - release
   - product
+  - ready-for-agent
 type: feature
 created_at: 2026-09-16T07:40:42.050Z
-updated_at: 2026-09-16T07:40:42.050Z
+updated_at: 2026-09-18T08:07:05.558Z
 ---
 
-LongClaw ships as a signed, notarized DMG downloaded from longclaw.io. There is
-no way for an installed copy to learn that a newer one exists, and no way for a
-user to get it except by going back to the site and repeating the install. Every
-v0.1.0 in the world is a permanent v0.1.0.
+LongClaw ships as a signed, notarized DMG. An installed copy has no way to
+learn that a newer one exists and no way to get one except a fresh install
+from the site, so every v0.1.0 in the world is a permanent v0.1.0 — and the
+population that has to be told to reinstall by hand grows with every day the
+first release is out. LC-47 deferred the updater knowingly; this is the
+follow-through.
 
-This is urgent because it is the one defect that gets worse with time and cannot
-be fixed retroactively: a user who installs today and never returns to the site
-is unreachable by every later fix. The longer the first release is out without
-an update path, the larger the population that has to be told to reinstall by
-hand.
+**Offline stays first-class.** Nothing that works today stops working or
+starts needing a network. With no internet, every feature behaves exactly as
+v0.1.0 does; the only thing that does not happen is the update check and the
+download it can lead to.
 
-## It was deliberately deferred, and that decision is what is being revisited
-
-LC-47 put it out of scope in as many words — "The Tauri updater. It carries its
-own separate signing key and is not part of v0." That was the right call for
-shipping v0.1.0. This ticket is the follow-through, not a contradiction of it,
-and the separate signing key is still the first real obstacle.
-
-## The no-network contract has to be amended, on purpose and in writing
-
-Three gates assert that a running LongClaw never touches the network, and an
-updater trips all three:
-
-- `capabilities/main.json` — the webview has no network capability. Whatever
-  checks for an update is Rust, and the webview names an intent rather than a
-  URL, the same shape as `open_ticket_file` and `install_command_line`.
-- `scripts/binary-audit.mjs` — **fails the build** when `CFNetwork` or
-  `Network.framework` is linked, and its own summary line currently certifies
-  "no HTTP client, telemetry, socket import, or network framework in either
-  shipped binary". The updater plugin links one.
-- `npm run audit:network` — the release gate's process-monitor pass, whose
-  premise is no non-IPC connection at all, offline or online.
-
-`docs/acceptance/release-candidate.md` states the same thing to the release
-reviewer twice, including the row "No analytics, telemetry, updater,
-crash-reporting, shell, HTTP, or filesystem plugin is directly configured".
-
-None of these are obstacles to route around. They are the product's promise
-written as tests, and the promise is narrower than "no network" — it is no
-telemetry, no analytics, no phoning home about the user's data. An update check
-can be inside that promise if it is written to be: no identifiers, no project
-data, nothing about what the user has open. Amend the contracts to say exactly
-that, and change the gates to assert the *new* narrow shape rather than deleting
-them. A gate that stops asserting anything is worse than a gate that goes red.
-
-**Write an ADR for this.** It is the same class of decision as ADR 0009 and
-ADR 0011, and the audit docs should cite it rather than re-arguing it.
-
-## Signing and the manifest
-
-- The updater has its own key pair, separate from the Developer ID identity in
-  `docs/release-signing-runbook.md`. Generating it, storing the private half,
-  and getting the public half into the bundle are prerequisites to any code.
-- Someone has to host the update manifest and the artifacts. GitHub Releases
-  plus a static manifest on the existing Pages deployment is the obvious answer
-  and should be considered against alternatives in the ADR.
-- `scripts/release-macos.mjs` produces the release today; it grows the step that
-  signs the update artifact and publishes the manifest. A release that updates
-  nobody because the manifest was not refreshed is the failure mode to design
-  against.
-
-## The experience, which is half the ticket
-
-The title says "functionality & experience" and the second word is where this
-gets decided. Minimum:
-
-- **Consent.** The user is told an update exists and chooses. No silent
-  download, no forced restart, no surprise version change under an open project.
-- **What changed.** `/changelog` already exists on the site and release notes
-  already live in `docs/release-notes/`. The update prompt should show what it
-  is offering, not just a version number. One source, not a retyped one — this
-  repo already knows how a second copy of a sentence ends.
-- **Never mid-write.** A restart while a ticket write is in flight is data loss
-  in a product whose whole claim is that the files are yours. The disk-state
-  indicator already knows when a write is outstanding; the updater must too.
-- **Failure is quiet.** No network, a blocked host, a bad signature, a corrupt
-  download — none of these are the user's problem and none produce a dialog they
-  cannot act on. Failing to check for an update is not an error state.
-- **A way to turn it off,** and a way to check manually. Both belong in
-  Settings, next to `Command line` — the other pane that is about the app rather
-  than the project.
-- **Offline users stay first-class.** LongClaw works with no network and must
-  keep working, including never nagging about a check it could not perform.
-
-## Also
-
-- Any new Settings pane is added to `SETTINGS_SECTIONS` in
-  `settingsSections.ts`, which holds both the nav label and the menu label so
-  the two surfaces cannot drift.
-- Controls need explicit `tabIndex` (`scripts/tab-order-guard.mjs`), and a modal
-  changes the keyboard contract — `npm run a11y:audit` against
-  `keyboard-focus-map.md`.
-- Every user-facing string here, including the live region that announces an
-  update is ready, belongs in a copy deck before it reaches `src/`.
-- The website's copy rule bites once this ships: the brief forbids overselling
-  v0.1.0, and "auto-updates" becomes sayable only when it does.
+**Spec:** [`docs/specs/LC-256a-auto-update.md`](../../../docs/specs/LC-256a-auto-update.md)
+— the problem, the user stories, the implementation and testing decisions, the
+seams, the offline invariants, and a provisional copy deck. The amendment to
+the no-network contract is an ADR, which the spec asks for first.
 
 ## Related
 
 - LC-47 deferred this and names the separate signing key.
-- The GitHub star-count ticket filed alongside this one needs the same network
-  path and should follow it rather than build its own.
+- LC-257s (the GitHub star control) needs the same network path and follows it.
 
 ## Checklist
 
@@ -132,6 +52,14 @@ gets decided. Minimum:
 - [ ] Settings pane: turn it off, and check manually <!-- longclaw:item=ck_86fd9686 -->
 - [ ] Copy deck for every string, including the live region <!-- longclaw:item=ck_42b4fa8a -->
 - [ ] Run a11y:audit and probe:header; quote the runs <!-- longclaw:item=ck_743cbe53 -->
+- [ ] Offline invariants: no existing code path calls the updater, and startup issues no request before first paint <!-- longclaw:item=ck_4bf45090 -->
+- [ ] Bounded single attempt off the main thread; no retry loop, no backoff <!-- longclaw:item=ck_80d7940d -->
+- [ ] A broken or absent updater configuration is a failed check, never a failed launch <!-- longclaw:item=ck_2fc77e43 -->
+- [ ] Regression proof: npm run verify green with no existing test rewritten to accommodate the update path <!-- longclaw:item=ck_b71178f7 -->
+- [ ] Regression proof: every other operation survives a dead, hanging or absent updater <!-- longclaw:item=ck_ea629ace -->
+- [ ] Regression proof: nothing outside the Updates pane changes when a check fails <!-- longclaw:item=ck_d03644b2 -->
+- [ ] Run audit:network offline, and again online with the automatic check off; both must record zero connections; quote the runs <!-- longclaw:item=ck_027b4aa2 -->
+- [ ] Re-run perf:startup against a built bundle; quote it unchanged <!-- longclaw:item=ck_9619080c -->
 
 ## Activity
 
@@ -145,4 +73,55 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_16102dbf
+kind: update
+occurred_at: 2026-09-18T07:05:53.211Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: labels
+    from: platform, release, product
+    to: platform, release, product, ready-for-agent
+  - field: description
+-->
+### Claude Code updated this ticket
+
+Wrote the spec to docs/specs/LC-256a-auto-update.md and moved the ticket's design content there. The description now holds the problem and the link; the checklist is unchanged. Labelled ready-for-agent.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_f5f59b91
+kind: update
+occurred_at: 2026-09-18T08:07:05.558Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+  - field: checklist.ck_4bf45090.added
+    to: "Offline invariants: no existing code path calls the updater, and startup issues no request before first paint"
+  - field: checklist.ck_80d7940d.added
+    to: Bounded single attempt off the main thread; no retry loop, no backoff
+  - field: checklist.ck_2fc77e43.added
+    to: A broken or absent updater configuration is a failed check, never a failed launch
+  - field: checklist.ck_b71178f7.added
+    to: "Regression proof: npm run verify green with no existing test rewritten to accommodate the update path"
+  - field: checklist.ck_ea629ace.added
+    to: "Regression proof: every other operation survives a dead, hanging or absent updater"
+  - field: checklist.ck_d03644b2.added
+    to: "Regression proof: nothing outside the Updates pane changes when a check fails"
+  - field: checklist.ck_027b4aa2.added
+    to: Run audit:network offline, and again online with the automatic check off; both must record zero connections; quote the runs
+  - field: checklist.ck_9619080c.added
+    to: Re-run perf:startup against a built bundle; quote it unchanged
+-->
+### Claude Code updated this ticket
+
+Made the offline guarantee explicit at the user's request. The spec gains D10, a set of offline invariants: no existing code path calls the updater, startup issues no request before first paint, a request is one bounded attempt off the main thread with no retry loop, a failed check is not a state the app carries outside the pane, losing the network mid-download discards the download and leaves the installed bundle untouched, and a broken updater configuration is a failed check rather than a failed launch. Testing Decisions gains a section that proves each one, including that the existing gate passes with no test rewritten. Six user stories were added for the offline person, the flaky network, the plane, and the dev window. Eight checklist items here carry the same ground.
 <!-- /longclaw:event -->

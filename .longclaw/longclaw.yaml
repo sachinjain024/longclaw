@@ -48,6 +48,9 @@ labels:
   prototype-diff:
     name: Prototype Diff
     color: pink
+  ready-for-agent:
+    name: Ready for agent
+    color: green
 properties:
   type:
     enabled: true
