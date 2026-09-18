@@ -2,17 +2,12 @@
 format: longclaw.ticket/v1
 id: b95dbc8f-8cbd-4886-8ef4-d1160910daff
 key: LC-204
-title: Transfer repo to the.infin8y account
+title: Dummy Ticket
 status: todo
-priority: urgent
+priority: none
 created_at: 2026-08-11T14:28:13.958Z
-updated_at: 2026-08-12T11:53:38.537Z
+updated_at: 2026-09-18T06:56:44.273Z
 ---
-
-- Rewrite the commits to change the author from sachinjain024 to the.infini8y
-- Move the repo to the.infini8y github account
-- Check the access on iMac and macbook pro
-
 
 ## Checklist
 
@@ -141,6 +136,49 @@ changes:
   - field: status
     from: in_progress
     to: todo
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_b52dfb01
+kind: update
+occurred_at: 2026-09-18T06:56:23.941Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: title
+    from: Transfer repo to the.infin8y account
+    to: Dummy Ticket
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_4653721b
+kind: update
+occurred_at: 2026-09-18T06:56:33.765Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: description
+-->
+### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_015e2d62
+kind: update
+occurred_at: 2026-09-18T06:56:44.273Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: priority
+    from: urgent
+    to: none
 -->
 ### You updated this ticket
 <!-- /longclaw:event -->
