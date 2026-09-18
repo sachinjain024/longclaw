@@ -2261,7 +2261,12 @@ button:disabled {
    was the shipped reading, and it left the unpressed half of the control
    wearing the header's `--lc-bg`: an outline with nothing inside it, on the one
    row where every other control is a filled box. The gap is the mark's
-   (LC-243d) — 6px, then the word. */
+   (LC-243d) — 6px, then the word.
+
+   `ink-3` rather than the `ink-2` of an ordinary label: an unpressed half steps
+   back so the pressed one is the stronger of the two. At `ink-2` it is not —
+   7.9:1 against the pill where the accent below is 5.6:1 — which made the half
+   you are *not* standing in the darker half, and read the state backwards. */
 .view-segment button,
 .appearance-segment button {
   display: inline-flex;
@@ -2270,7 +2275,7 @@ button:disabled {
   height: 28px;
   border: 0;
   padding: 0 11px;
-  color: var(--lc-ink-2);
+  color: var(--lc-ink-3);
   background: var(--lc-surface);
   font-size: var(--lc-type-small-size);
   font-weight: 500;
@@ -2284,41 +2289,32 @@ button:disabled {
 
 /* Never the pressed half, in either segment: a pressed segment is the place you
    are already standing and answers a pointer with nothing (`components.md:28`).
-   Source order used to say that — the fill below came after this rule and won
-   the tie on equal specificity — and the header's pressed half no longer has a
-   fill to say it with, so the selector says it instead. */
+   Source order used to say that — the fill this rule used to sit above won the
+   tie on equal specificity — and neither pressed half has a fill to say it with
+   any more, so the selector says it instead. */
 .view-segment button:not(.selected):hover,
 .appearance-segment button:not(.selected):hover {
   background: var(--lc-wash);
 }
 
-/* The header's unpressed half steps back to `ink-3`, so the pressed one is the
-   stronger of the two. At the shared `ink-2` it is not — 7.9:1 against the pill
-   where the accent below is 5.6:1 — which made the half you are *not* standing
-   in the darker half, and read the state backwards. */
-.view-segment button {
-  color: var(--lc-ink-3);
-}
+/* Both segments say pressed in ink, departing from `prototype.css:334` and
+   `:724`, which fill all three (LC-243d).
 
-/* The dialog's segments take the accent fill, both halves of it
-   (`prototype.css:724`). A nav row is a place in a list of places and takes the
-   quiet `line-soft`, but a segment is the whole list — two or three boxes with
-   nothing else between them — and a step of background against a neighbour 1px
-   away is not a difference a person reads at a glance. It is not colour alone
-   either: the fill inverts the luminance of both the label and its mark, which
-   survives greyscale and every CVD. */
-.appearance-segment button.selected {
-  color: var(--lc-on-accent-human);
-  background: var(--lc-accent-human);
-}
+   The header's row holds this segment, the filter field, the ordering trigger
+   and `New ticket` — and `New ticket` is the accent fill in that row, the one
+   action a header is for. A second fill the width of `Board` put the surface you
+   are already looking at in competition with it, which is a lot of ink to spend
+   saying where you already are.
 
-/* The header's says it in ink instead, and departs from `prototype.css:334` to
-   do it (LC-243d). One row holds this segment, the filter field, the ordering
-   trigger and `New ticket` — and `New ticket` is the accent fill in that row,
-   the one action a header is for. A second fill the width of `Board` put the
-   surface you are already looking at in competition with it, which is a lot of
-   ink to spend saying where you already are. The dialog's segments have no such
-   neighbour and keep the fill above.
+   The dialog's two have no such neighbour, and kept the fill until the settings
+   panel was read as one panel rather than as a list of controls. Its section nav
+   says the open row in `line-soft` + `ink` + 600; the theme picker one row under
+   the Appearance segment says the chosen row in a 1px `--lc-accent-human` border
+   and a check in `--lc-accent-human-text`. A full fill between those two made
+   three answers to one question on one screen, and the loudest of the three was
+   the least consequential — which theme you are *previewing* outranked in weight
+   the theme you have *chosen*. Ink and weight is the answer the other two are
+   already nearest to.
 
    `--lc-accent-human-text` rather than `--lc-accent-human`: it is the token
    drawn per theme to be read *on* a surface rather than to be one, 5.6:1 at its
@@ -2326,7 +2322,8 @@ button:disabled {
    quiet ink above come as close as 1.1:1 in luminance, so the weight is what
    keeps this from being state by colour alone (`components.md:31`). It is the
    channel a nav row in this app already uses to say the same thing. */
-.view-segment button.selected {
+.view-segment button.selected,
+.appearance-segment button.selected {
   color: var(--lc-accent-human-text);
   font-weight: 600;
 }
@@ -2341,32 +2338,19 @@ button:disabled {
    alone is what shipped, and the ring alone is the accent at `--lc-mix-ring` —
    1.2:1 against the pill it lands on, where a focus indicator owes 3:1 (WCAG 2.2
    SC 1.4.11). The line is 4.9:1 at its worst. `a11y:audit` A3 measures both
-   halves. */
+   halves.
+
+   One rule for every half of both segments now, with no exception under it. The
+   pressed pill used to need its ring drawn in `--lc-on-accent-human`, the case
+   `components.md:30` still names: over `--lc-accent-human` both carriers here
+   composite to that same fill exactly — not a faint ring but an identical pixel
+   — so tabbing onto a pressed segment showed nothing at all. That was the fill's
+   defect, and it left with the fill. */
 .view-segment button:focus-visible,
 .appearance-segment button:focus-visible {
   box-shadow:
     inset 0 0 0 1px var(--lc-accent-human),
     inset var(--lc-focus-ring);
-}
-
-/* Except on a pressed pill in the dialog, where the ring's colour *is* the
-   ground it is drawn on. `--lc-accent-human-ring` is `--lc-accent-human` at
-   `--lc-mix-ring` over nothing, so compositing it — or the line above — onto
-   `--lc-accent-human` returns that same colour exactly: not a faint ring but an
-   identical pixel, and tabbing onto a pressed segment showed nothing at all.
-   Neither carrier is left to cover for the other, and the global rule takes the
-   outline away (`keyboard-focus-map.md:16-18`, `components.md:30`).
-
-   So the ring is drawn in the label's own colour, which is the one token defined
-   per theme to be legible on this fill — white on the five light accents, near
-   black on the five dark ones, 5.6:1 at its worst (light indigo). Full opacity,
-   not `--lc-mix-ring`: the on-colour at 14% over the accent clears 1.3:1, which
-   is the same defect spelled in the other direction. The header's segment wore
-   this rule until LC-243d took its fill away, and A3 measured it there; no run
-   reaches the dialog's, so this one is held by the two tokens rather than by a
-   measurement. */
-.appearance-segment button.selected:focus-visible {
-  box-shadow: inset 0 0 0 var(--lc-border-focus) var(--lc-on-accent-human);
 }
 
 /* The dialog's stands on its own row rather than beside a filter field, and

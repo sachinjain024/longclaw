@@ -325,7 +325,7 @@ const STATES = [
     token: [
       {
         // The agent's own, not any actor's: `.change-actor` is the name on
-        // every change entry and a person's wears ink (`styles.css:4382`).
+        // every change entry and a person's wears ink (`styles.css:4366`).
         // The accent contract is about the one the agent wrote.
         selector: ".timeline-entry.agent .change-actor",
         property: "color",
@@ -379,8 +379,27 @@ const STATES = [
   },
   {
     name: "settings",
-    contrast: [".theme-option-name", ".settings-panel label"],
-    token: [],
+    contrast: [
+      ".theme-option-name",
+      ".settings-panel label",
+      // Both halves of the Appearance segment. Nothing measured this control
+      // while it was an accent fill — the header's segment was the only one any
+      // run reached, and the fill's own focus rule was reached by none — so the
+      // pair it says `pressed` with since LC-243d is measured here, the way the
+      // board state measures the header's.
+      ".appearance-segment button.selected",
+      ".appearance-segment button:not(.selected)",
+    ],
+    token: [
+      {
+        // The fill coming back is what this catches: `accent-human-text` over
+        // `accent-human` is one hue over itself, which the contrast probe above
+        // reads at about 1:1, and this one names the token it drifted from.
+        selector: ".appearance-segment button.selected",
+        property: "color",
+        token: "--lc-accent-human-text",
+      },
+    ],
     distinct: [],
   },
   {
