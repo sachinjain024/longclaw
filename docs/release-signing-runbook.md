@@ -58,8 +58,8 @@ reissue it from.
 | Key pair           | minisign (Ed25519), generated once by `tauri signer generate` on 2026-09-19                                                      |
 | Key id             | `EDFADFEFA0CB7DF1`. Not a secret — it is in the public key and in every signature, and it is what `binary-audit.mjs` compares    |
 | Public half        | committed in `tauri.conf.json` under `plugins.updater.pubkey`, which is how it reaches every bundle. Not a secret — every installed copy carries it |
-| Private half       | the release machine's login keychain, beside the Developer ID identity. One machine, no CI signing, for the same reason           |
-| Password           | stored with it; the key is generated with one rather than bare                                                                    |
+| Private half       | the login keychain, as the generic password `longclaw-updater-key` for this user. One machine, no CI signing, for the same reason |
+| Password           | **none.** The key was generated bare, so the keychain is the whole of its protection — see below                                  |
 | Private key backup | held by the account holder, outside this repository, at a location this published file deliberately does not name                |
 
 **Losing the private half orphans every installed copy.** A bundle verifies an
@@ -81,16 +81,58 @@ short of a hand reinstall.
 npx tauri signer generate -w ~/.longclaw/longclaw-updater.key
 ```
 
-It prints the public half and writes the private half to that path. Then:
+It prints the public half and writes the private half to that path. Both files
+are a single base64 line: the whole minisign key file, base64-wrapped. That is
+why the keychain value below needs no special handling.
 
-1. Put the **public** half in `tauri.conf.json` under `plugins.updater.pubkey`
-   and commit it. It ships in the bundle and is meant to be read.
-2. Move the **private** half into the login keychain, and delete the file.
-3. Back it up where the table above says, and confirm the backup is readable
-   before the first release goes out.
-4. Export `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
-   in the release shell, from the keychain, the way the notarization credential
-   is read.
+**Step 1 — the public half into the bundle.** Put it in `tauri.conf.json` under
+`plugins.updater.pubkey` and commit it. It ships in every bundle and is meant to
+be read.
+
+**Step 2 — the private half into the keychain, then delete the file.**
+
+```sh
+security add-generic-password -a "$USER" -s longclaw-updater-key -U \
+  -w "$(base64 -i ~/.longclaw/longclaw-updater.key)"
+rm ~/.longclaw/longclaw-updater.key      # only after step 3
+```
+
+The extra `base64` wrapper is not required — the file is already one line — but
+it makes the stored value single-line whatever a future key format looks like,
+which is the property a keychain value wants.
+
+**There is no password item.** This key was generated bare, so
+`TAURI_SIGNING_PRIVATE_KEY_PASSWORD` is the empty string and
+`security find-generic-password -s longclaw-updater-password` correctly reports
+that nothing is there. `release-macos.mjs` passes `""` and the signer accepts
+it. Worth knowing what that costs: the login keychain is the *only* thing
+protecting this key, so anyone who can read your keychain can sign an update
+your users will install and trust. A password cannot be added to an existing
+key with Tauri's CLI — it is set at generation — so the moment to reconsider is
+before the first release, while the public half can still be replaced for free.
+
+**Step 3 — back it up off this machine, and confirm the backup reads back.**
+Before the `rm`, and before the first release. The keychain is on one Mac, and
+that Mac dying is the scenario the backup exists for.
+
+**Step 4 — the release shell.**
+
+```sh
+export TAURI_SIGNING_PRIVATE_KEY="$(security find-generic-password -a "$USER" -s longclaw-updater-key -w | base64 -d)"
+export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
+```
+
+**Step 5 — prove the two halves are one pair**, which no amount of careful
+copying proves on its own:
+
+```sh
+echo probe > /tmp/probe.txt && npx tauri signer sign -p "" /tmp/probe.txt
+```
+
+The signature's minisign key id must be the one in the table above. Verified on
+2026-09-19: the keychain key signs for the committed public key, key id
+`EDFADFEFA0CB7DF1`. `binary-audit.mjs` makes the same comparison against a real
+release's manifest.
 
 **Step 1 is done** — the public half is committed and every build from here
 carries it. Steps 2 to 4 are the account holder's and are the ones that decide

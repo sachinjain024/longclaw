@@ -13,7 +13,7 @@ labels:
 type: feature
 estimate: "3"
 created_at: 2026-09-16T07:40:42.050Z
-updated_at: 2026-09-19T12:26:22.812Z
+updated_at: 2026-09-19T12:41:45.742Z
 ---
 
 LongClaw ships as a signed, notarized DMG. An installed copy has no way to
@@ -144,8 +144,10 @@ one flow carry the word and the first of them downloads rather than updates.
 
 - [x] ADR: amend the no-network contract to a narrow, identifier-free update check <!-- longclaw:item=ck_e47d47ec -->
 - [x] Generate the updater signing key pair and get the public half into the bundle <!-- longclaw:item=ck_27060633 -->
-- [ ] Private updater key into the login keychain, the generated file deleted, and the backup confirmed readable — a prerequisite to shipping, not a follow-up <!-- longclaw:item=ck_bf4c8dd0 -->
-- [ ] Export TAURI_SIGNING_PRIVATE_KEY and its password in the release shell, and do one dry run of release:macos --no-build <!-- longclaw:item=ck_f85a62ac -->
+- [ ] Back the updater private key up off this machine and confirm the backup reads back — the keychain is on one Mac, and that Mac dying is what the backup is for <!-- longclaw:item=ck_bf4c8dd0 -->
+- [ ] Decide whether the updater key stays passwordless — the keychain is its only protection, and a password cannot be added to an existing key. Free to change until the first release <!-- longclaw:item=ck_8a4d4d38 -->
+- [x] Release shell exports TAURI_SIGNING_PRIVATE_KEY from the keychain and signs for the committed public key; the key carries no password, so its variable is empty <!-- longclaw:item=ck_f85a62ac -->
+- [ ] Dry run release:macos --no-build once, so the archive, signature and manifest steps have run before a real release depends on them <!-- longclaw:item=ck_0ec492d4 -->
 - [ ] Run release:binary-audit against a signed bundle; the updater-key and manifest-signature checks have never run <!-- longclaw:item=ck_49b83bcf -->
 - [x] Decide and document where the update manifest and artifacts are hosted <!-- longclaw:item=ck_83adaa6c -->
 - [x] Wire the updater in Rust; the webview names an intent, never a URL <!-- longclaw:item=ck_0c3bfdb7 -->
@@ -698,6 +700,77 @@ changes:
   - field: checklist.ck_91432a40.moved
     from: "34"
     to: "25"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_5230183c
+kind: update
+occurred_at: 2026-09-19T12:41:34.447Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_bf4c8dd0.text
+    from: Private updater key into the login keychain, the generated file deleted, and the backup confirmed readable — a prerequisite to shipping, not a follow-up
+    to: Back the updater private key up off this machine and confirm the backup reads back — the keychain is on one Mac, and that Mac dying is what the backup is for
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_93f22fd0
+kind: update
+occurred_at: 2026-09-19T12:41:34.476Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_f85a62ac.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_f85a62ac.text
+    from: Export TAURI_SIGNING_PRIVATE_KEY and its password in the release shell, and do one dry run of release:macos --no-build
+    to: Release shell exports TAURI_SIGNING_PRIVATE_KEY from the keychain and signs for the committed public key; the key carries no password, so its variable is empty
+  - field: checklist.ck_0ec492d4.added
+    to: Dry run release:macos --no-build once, so the archive, signature and manifest steps have run before a real release depends on them
+  - field: checklist.ck_8a4d4d38.added
+    to: Decide whether the updater key stays passwordless — the keychain is its only protection, and a password cannot be added to an existing key. Free to change until the first release
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_e9eb8f8f
+kind: update
+occurred_at: 2026-09-19T12:41:45.720Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_0ec492d4.moved
+    from: "37"
+    to: "5"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_94a588e9
+kind: update
+occurred_at: 2026-09-19T12:41:45.742Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_8a4d4d38.moved
+    from: "38"
+    to: "4"
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->
