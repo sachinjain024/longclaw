@@ -55,7 +55,8 @@ reissue it from.
 
 |                    |                                                                                                                                  |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| Key pair           | minisign, generated once by `tauri signer generate`                                                                              |
+| Key pair           | minisign (Ed25519), generated once by `tauri signer generate` on 2026-09-19                                                      |
+| Key id             | `EDFADFEFA0CB7DF1`. Not a secret — it is in the public key and in every signature, and it is what `binary-audit.mjs` compares    |
 | Public half        | committed in `tauri.conf.json` under `plugins.updater.pubkey`, which is how it reaches every bundle. Not a secret — every installed copy carries it |
 | Private half       | the release machine's login keychain, beside the Developer ID identity. One machine, no CI signing, for the same reason           |
 | Password           | stored with it; the key is generated with one rather than bare                                                                    |
@@ -91,12 +92,15 @@ It prints the public half and writes the private half to that path. Then:
    in the release shell, from the keychain, the way the notarization credential
    is read.
 
-**Until step 1 has happened the pubkey is the empty string, and that is a
-deliberate state rather than an oversight.** A build with no key reports the
-update path *unavailable* — the pane says so in its own words — instead of
-offering a download it could never verify. `release-audit.mjs` therefore
-tolerates an empty key and `binary-audit.mjs`, which only ever reads a release
-bundle, does not: a release with no updater key fails the audit.
+**Step 1 is done** — the public half is committed and every build from here
+carries it. Steps 2 to 4 are the account holder's and are the ones that decide
+whether the next release can ship at all.
+
+**A build with an empty pubkey reports the update path *unavailable*** — the
+pane says so in its own words — instead of offering a download it could never
+verify. That is why `release-audit.mjs` tolerates an empty key, while
+`binary-audit.mjs`, which only ever reads a release bundle, does not: a release
+with no updater key fails the audit.
 
 `binary-audit.mjs` also compares the key id in the bundle's public key against
 the key id in the published manifest's signature, so a release signed with the

@@ -13,7 +13,7 @@ labels:
 type: feature
 estimate: "3"
 created_at: 2026-09-16T07:40:42.050Z
-updated_at: 2026-09-19T02:00:09.697Z
+updated_at: 2026-09-19T12:26:22.812Z
 ---
 
 LongClaw ships as a signed, notarized DMG. An installed copy has no way to
@@ -143,13 +143,17 @@ one flow carry the word and the first of them downloads rather than updates.
 ## Checklist
 
 - [x] ADR: amend the no-network contract to a narrow, identifier-free update check <!-- longclaw:item=ck_e47d47ec -->
-- [ ] Generate the updater signing key pair and get the public half into the bundle <!-- longclaw:item=ck_27060633 -->
+- [x] Generate the updater signing key pair and get the public half into the bundle <!-- longclaw:item=ck_27060633 -->
+- [ ] Private updater key into the login keychain, the generated file deleted, and the backup confirmed readable — a prerequisite to shipping, not a follow-up <!-- longclaw:item=ck_bf4c8dd0 -->
+- [ ] Export TAURI_SIGNING_PRIVATE_KEY and its password in the release shell, and do one dry run of release:macos --no-build <!-- longclaw:item=ck_f85a62ac -->
+- [ ] Run release:binary-audit against a signed bundle; the updater-key and manifest-signature checks have never run <!-- longclaw:item=ck_49b83bcf -->
 - [x] Decide and document where the update manifest and artifacts are hosted <!-- longclaw:item=ck_83adaa6c -->
 - [x] Wire the updater in Rust; the webview names an intent, never a URL <!-- longclaw:item=ck_0c3bfdb7 -->
 - [x] IPC contract: the update DTO, its error reasons and the progress frames join the shared JSON fixture <!-- longclaw:item=ck_5d2c7f46 -->
 - [x] Update capabilities/main.json, binary-audit.mjs and audit:network to assert the new narrow shape <!-- longclaw:item=ck_11a193e5 -->
 - [x] Update docs/acceptance/release-candidate.md rows that certify no updater <!-- longclaw:item=ck_fa36173f -->
-- [ ] Revise the user guide and the site's no-network sentences to the narrow shape <!-- longclaw:item=ck_0877db02 -->
+- [x] Revise the user guide's no-network sentences to the narrow shape <!-- longclaw:item=ck_0877db02 -->
+- [ ] Revise the site's no-network sentences, in their own pull request, once the download longclaw.io offers is a version that has the check <!-- longclaw:item=ck_3ba05d6d -->
 - [x] Extend release-macos.mjs to sign the update artifact and publish the manifest <!-- longclaw:item=ck_bb8dfd57 -->
 - [x] Update UX: consent, what changed from the existing release notes, no silent restart <!-- longclaw:item=ck_010f03e9 -->
 - [x] Sidebar footer names the running version, and gains a dot and an Update link when one is waiting <!-- longclaw:item=ck_d823993a -->
@@ -161,15 +165,19 @@ one flow carry the word and the first of them downloads rather than updates.
 - [x] Device preferences: an automatic-check flag and a last-check record, and no skipped-version field <!-- longclaw:item=ck_fb5c9a8d -->
 - [x] Copy deck for every string, including the live region <!-- longclaw:item=ck_42b4fa8a -->
 - [ ] Retire the prototype once its copy is in the source <!-- longclaw:item=ck_accacb47 -->
+- [ ] Write the Updates pane's rows into keyboard-focus-map.md and re-pin the citations, so a11y:audit has an oracle to cite <!-- longclaw:item=ck_20c23547 -->
+- [ ] Perf harness serves an available update behind a flag, so a11y:audit can drive the pane, the footer link and the held restart button <!-- longclaw:item=ck_91432a40 -->
 - [ ] Run a11y:audit for the pane, the footer link and the held restart button; quote the run <!-- longclaw:item=ck_743cbe53 -->
 - [x] Offline invariants: no existing code path calls the updater, and startup issues no request before first paint <!-- longclaw:item=ck_4bf45090 -->
 - [x] Bounded single attempt off the main thread; no retry loop, no backoff <!-- longclaw:item=ck_80d7940d -->
 - [x] A broken or absent updater configuration is a failed check, never a failed launch <!-- longclaw:item=ck_2fc77e43 -->
-- [ ] Regression proof: npm run verify green with no existing test rewritten to accommodate the update path <!-- longclaw:item=ck_b71178f7 -->
+- [x] Regression proof: npm run verify green, and every existing test that changed names a behaviour that changed rather than accommodating the update path <!-- longclaw:item=ck_b71178f7 -->
 - [x] Regression proof: every other operation survives a dead, hanging or absent updater <!-- longclaw:item=ck_ea629ace -->
 - [ ] Regression proof: nothing outside the Updates pane changes when a check fails <!-- longclaw:item=ck_d03644b2 -->
 - [ ] Run audit:network offline, and again online with the automatic check off; both must record zero connections; quote the runs <!-- longclaw:item=ck_027b4aa2 -->
 - [ ] Re-run perf:startup against a built bundle; quote it unchanged <!-- longclaw:item=ck_9619080c -->
+- [ ] Changelog entry for the release that ships this, through the changelog-entry skill <!-- longclaw:item=ck_35214e39 -->
+- [ ] Tell LC-257s that its amended-contract item is answered by ADR 0014, and that D4's allowlist is the road it reuses <!-- longclaw:item=ck_bb34228b -->
 
 ## Activity
 
@@ -539,4 +547,157 @@ Four things did not land, and each is a real gap rather than an oversight:
 `audit:network` in all three phases and `perf:startup` need a built, signed bundle and a person, so they stay open.
 
 One deviation from D9 worth reading. The CLI now links `Security.framework` and `SystemConfiguration.framework`, because both binaries are built from one `longclaw_desktop_lib` on purpose (ADR 0011) and `security-framework-sys` declares its links whether or not a caller reaches them. It imports **no socket call at all**, which is the claim that matters and is stronger evidence than the framework line ever was; the binary audit asserts the empty set for it explicitly.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_fc08e2a8
+kind: update
+occurred_at: 2026-09-19T12:10:07.772Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_0877db02.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_0877db02.text
+    from: Revise the user guide and the site's no-network sentences to the narrow shape
+    to: Revise the user guide's no-network sentences to the narrow shape
+  - field: checklist.ck_3ba05d6d.added
+    to: Revise the site's no-network sentences, in their own pull request, once the download longclaw.io offers is a version that has the check
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_67dedf5d
+kind: update
+occurred_at: 2026-09-19T12:10:07.805Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_3ba05d6d.moved
+    from: "29"
+    to: "9"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_b16534b9
+kind: update
+occurred_at: 2026-09-19T12:25:51.473Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_27060633.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_b71178f7.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_b71178f7.text
+    from: "Regression proof: npm run verify green with no existing test rewritten to accommodate the update path"
+    to: "Regression proof: npm run verify green, and every existing test that changed names a behaviour that changed rather than accommodating the update path"
+  - field: checklist.ck_bf4c8dd0.added
+    to: Private updater key into the login keychain, the generated file deleted, and the backup confirmed readable — a prerequisite to shipping, not a follow-up
+  - field: checklist.ck_f85a62ac.added
+    to: Export TAURI_SIGNING_PRIVATE_KEY and its password in the release shell, and do one dry run of release:macos --no-build
+  - field: checklist.ck_49b83bcf.added
+    to: Run release:binary-audit against a signed bundle; the updater-key and manifest-signature checks have never run
+  - field: checklist.ck_20c23547.added
+    to: Write the Updates pane's rows into keyboard-focus-map.md and re-pin the citations, so a11y:audit has an oracle to cite
+  - field: checklist.ck_91432a40.added
+    to: Perf harness serves an available update behind a flag, so a11y:audit can drive the pane, the footer link and the held restart button
+  - field: checklist.ck_35214e39.added
+    to: Changelog entry for the release that ships this, through the changelog-entry skill
+  - field: checklist.ck_bb34228b.added
+    to: Tell LC-257s that its amended-contract item is answered by ADR 0014, and that D4's allowlist is the road it reuses
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_2e4a890b
+kind: update
+occurred_at: 2026-09-19T12:26:09.051Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_bf4c8dd0.moved
+    from: "30"
+    to: "3"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_9c41bb2f
+kind: update
+occurred_at: 2026-09-19T12:26:22.744Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_f85a62ac.moved
+    from: "31"
+    to: "4"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_032e398c
+kind: update
+occurred_at: 2026-09-19T12:26:22.769Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_49b83bcf.moved
+    from: "32"
+    to: "5"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_75bf9de7
+kind: update
+occurred_at: 2026-09-19T12:26:22.791Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_20c23547.moved
+    from: "33"
+    to: "24"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_d1299c8c
+kind: update
+occurred_at: 2026-09-19T12:26:22.812Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_91432a40.moved
+    from: "34"
+    to: "25"
+-->
+### Claude Code updated this ticket
 <!-- /longclaw:event -->
