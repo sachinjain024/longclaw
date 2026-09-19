@@ -271,3 +271,17 @@ changes:
 -->
 ### You updated this ticket
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_41102740
+kind: comment
+occurred_at: 2026-09-19T00:50:18.144Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Split out: LC-261h removes `Command line tool` from the gear menu. That half of the review changes behaviour that shipped in 0.1.0, so it carries its own ticket rather than riding inside this one.
+<!-- /longclaw:event -->
