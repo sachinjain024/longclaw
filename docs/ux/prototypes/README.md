@@ -19,6 +19,13 @@ collected in one scene so the copy can be reviewed as copy rather than found
 scene by scene. The scenes and the deck render from the same object, so the two
 cannot drift. See `AGENTS.md` § UX prototypes for what belongs in it.
 
+- [`LC-256a-Auto-Update.html`](LC-256a-Auto-Update.html)
+  — the update notice in the sidebar footer, the gear menu with its two
+  app-level rows removed, and the **Updates** pane in twelve states
+  (ticket: `.longclaw/tickets/LC-256a/ticket.md`, which carries the settled
+  copy deck; spec: `docs/specs/LC-256a-auto-update.md`, whose D6 this
+  supersedes).
+
 - [`LC-201-Bulk-Create-In-Quick-Create-Mode.html`](LC-201-Bulk-Create-In-Quick-Create-Mode.html)
   — quick create with a description, labels and a **Create more** loop
   (spec: `.longclaw/tickets/LC-201/ticket.md`).

@@ -1,0 +1,813 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-lc-theme="indigo">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LC-256a — Auto-update: the notice, the pane, and the two presses</title>
+
+<!-- The app's own fonts, tokens and stylesheet. Nothing here re-implements a
+     component: the side panel, the gear menu and the settings panel below are
+     the markup `App.tsx`, `SettingsMenu.tsx` and `ProjectSettings.tsx` render,
+     wearing the rules `styles.css` already carries, so what is on screen is
+     what would ship rather than a drawing of it. -->
+<link rel="stylesheet" href="../../design/foundations/proof/fonts.css">
+<link rel="stylesheet" href="../../../apps/desktop/src/tokens/design-tokens.css">
+<link rel="stylesheet" href="../../../apps/desktop/src/styles.css">
+
+<!-- ====================================================================
+     PROPOSED — the additions this ticket asks of `apps/desktop/src/styles.css`.
+     This block is the CSS half of the review: everything in it is meant to
+     land, as written, in the sections named beside each rule.
+     ==================================================================== -->
+<style id="proposed">
+/* ---- the sidebar footer's version line (LC-256a)
+
+   Which LongClaw this is, standing at the foot of the side panel, and — only
+   when there is news — a dot and the way to it. It goes inside
+   `.side-panel-footer`, under `.project-actions`, because it is a claim about
+   the app rather than about any project, and the footer is the one part of
+   that panel that is already not about the open project.
+
+   The dot is the human accent, never the agent green: green means an agent
+   acted (`components.md` § the two rules), and an available update is news for
+   a person to act on. It is `aria-hidden`, so the link beside it carries the
+   whole message in words — colour is never the only channel. */
+.app-version {
+  display: flex;
+  align-items: center;
+  gap: var(--lc-space-2);
+  margin-top: 2px;
+  padding: 0 var(--lc-space-2);
+}
+
+.app-version .ver {
+  color: var(--lc-ink-3);
+  font: var(--lc-type-code-weight) var(--lc-type-micro-size) /
+    var(--lc-type-code-leading) var(--lc-font-mono);
+}
+
+/* `margin-left: auto` rather than the version growing, so a short version
+   string does not drag the pair in beside it — the same trick the gear uses in
+   `.identity-name`. */
+.app-version .upd-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  margin-left: auto;
+  border-radius: var(--lc-radius-full);
+  background: var(--lc-accent-human);
+}
+
+/* A real `<button>`: it opens the settings panel on `Updates`, which is an
+   in-app move rather than a link out. `tabIndex={0}` is stated rather than
+   defaulted, which `tab-order-guard.mjs` requires of every button. */
+.app-version .upd-link {
+  border: 0;
+  padding: 0;
+  color: var(--lc-accent-human-text);
+  background: none;
+  font: 500 11px / 1.4 var(--lc-font-ui);
+  cursor: pointer;
+}
+
+.app-version .upd-link:hover {
+  text-decoration: underline;
+}
+
+/* ---- the same news on the settings panel's own nav (LC-256a)
+
+   A dot on the `Updates` row, so a panel opened for any other reason still
+   carries it. Same 6px and same accent as the footer's, because it is the same
+   fact in a second place; a second size or a second hue would read as a second
+   kind of news. `.settings-nav-row` is already `display: flex`, so the dot
+   takes the end of the row the way the footer's does. */
+.settings-nav-row .nav-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  margin-left: auto;
+  border-radius: var(--lc-radius-full);
+  background: var(--lc-accent-human);
+}
+
+/* ---- the Updates pane's "what changed" block (LC-256a)
+
+   The version on offer, its release date, the notes the manifest carries, and
+   the presses. A card on the pane's surface, in the board card's geometry
+   (radius 8, one hairline, the whisper shadow) because it is the same object:
+   a bounded thing you read and then act on. */
+.upd-available {
+  margin-top: 18px;
+  border: var(--lc-border-hairline) solid var(--lc-line);
+  border-radius: var(--lc-radius-card);
+  padding: 14px 16px;
+  background: var(--lc-surface);
+  box-shadow: var(--lc-shadow-card);
+}
+
+.upd-title {
+  margin: 0;
+  color: var(--lc-ink);
+  font: var(--lc-type-heading-weight) var(--lc-type-heading-size) /
+    var(--lc-type-heading-leading) var(--lc-type-heading-font);
+}
+
+.upd-date {
+  margin: 2px 0 0;
+  color: var(--lc-ink-3);
+  font-size: 11.5px;
+}
+
+/* The release notes, rendered as Markdown from the manifest. Not copy: they
+   are the release-notes file the site's changelog already follows (D8), so the
+   app and the changelog cannot disagree. */
+.upd-notes {
+  margin: 12px 0 0;
+  color: var(--lc-ink-2);
+  font-size: var(--lc-type-small-size);
+  line-height: 1.55;
+}
+
+.upd-notes ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.upd-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lc-space-2);
+  margin-top: 14px;
+}
+
+/* The reason a press is being refused, beside the control that is refusing —
+   never instead of it. */
+.upd-actions .why {
+  color: var(--lc-ink-3);
+  font-size: var(--lc-type-small-size);
+}
+
+.upd-progress {
+  display: grid;
+  gap: 7px;
+  margin-top: 14px;
+}
+
+.upd-bar {
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--lc-radius-full);
+  background: var(--lc-line);
+}
+
+/* The one animated thing here, and it is a state rather than decoration: the
+   fill moves because the number behind it moved. */
+.upd-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--lc-accent-human);
+  transition: width var(--lc-motion-state) var(--lc-motion-ease);
+}
+
+.upd-frame {
+  margin: 0;
+  color: var(--lc-ink-2);
+  font-size: var(--lc-type-small-size);
+}
+
+/* Downloaded and verified, in the human accent, for the same reason the
+   command-line pane's installed state is: what it reports is that a person
+   pressed a button and it worked. */
+.upd-ready {
+  margin: 0 0 10px;
+  color: var(--lc-accent-human-text);
+  font-size: var(--lc-type-small-size);
+}
+
+.upd-auto {
+  margin-top: 18px;
+}
+
+/* Indented to clear the checkbox, so the sentence hangs under the label rather
+   than under the box — `.property-head`'s checkbox is 15px with an 8px gap. */
+.upd-auto-note {
+  margin: 6px 0 0 23px;
+  color: var(--lc-ink-3);
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+</style>
+
+<!-- ====================================================================
+     HARNESS — this page's own scaffolding. None of it ships. It exists to
+     stand the real surfaces up outside the app: to give the side panel the
+     240px the shell's grid normally gives it, to put the settings panel in a
+     box rather than at `100vh`, and to drive the states.
+     ==================================================================== -->
+<style id="harness">
+body {
+  margin: 0;
+  padding: 20px 24px 64px;
+  color: var(--lc-ink);
+  background: var(--lc-bg);
+  font: var(--lc-type-body-weight) var(--lc-type-body-size) /
+    var(--lc-type-body-leading) var(--lc-type-body-font);
+}
+
+.h-head {
+  max-width: 900px;
+  margin-bottom: 18px;
+}
+
+.h-eyebrow {
+  margin: 0 0 6px;
+  color: var(--lc-ink-3);
+  font: 500 11px var(--lc-font-mono);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.h-head h1 {
+  margin: 0 0 8px;
+  font: 600 22px/1.25 var(--lc-font-display);
+  letter-spacing: -0.02em;
+}
+
+.h-head p {
+  margin: 0;
+  color: var(--lc-ink-2);
+  font-size: var(--lc-type-small-size);
+  line-height: 1.55;
+}
+
+.h-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 18px;
+  border: var(--lc-border-hairline) dashed var(--lc-line-strong);
+  border-radius: var(--lc-radius-panel);
+  padding: 10px 12px;
+  background: var(--lc-surface);
+}
+
+.h-bar .h-tag {
+  margin-right: 4px;
+  color: var(--lc-ink-3);
+  font: 500 10px var(--lc-font-mono);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.h-bar button {
+  height: 24px;
+  border: var(--lc-border-hairline) solid var(--lc-line-strong);
+  border-radius: var(--lc-radius-control);
+  padding: 0 9px;
+  color: var(--lc-ink-2);
+  background: var(--lc-surface);
+  font: 500 11.5px var(--lc-font-ui);
+  cursor: pointer;
+}
+
+.h-bar button[aria-pressed="true"] {
+  border-color: var(--lc-accent-human);
+  color: var(--lc-accent-human-text);
+  background: var(--lc-accent-human-soft);
+}
+
+.h-bar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--lc-ink-2);
+  font-size: 12px;
+}
+
+.h-bar .h-spacer {
+  flex: 1;
+}
+
+.h-note {
+  max-width: 900px;
+  margin: 0 0 14px;
+  color: var(--lc-ink-3);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.h-rail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.h-case {
+  display: grid;
+  gap: 8px;
+}
+
+.h-case > figcaption {
+  color: var(--lc-ink-3);
+  font: 500 10.5px var(--lc-font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* The shell's grid gives `.side-panel` its 240px; standing alone it needs the
+   column from somewhere, and a height, so the footer's `margin-top: auto`
+   has something to push against. */
+.h-shell {
+  position: relative;
+  display: grid;
+  overflow: hidden;
+  width: 240px;
+  height: 520px;
+  border: var(--lc-border-hairline) solid var(--lc-line);
+  border-radius: var(--lc-radius-panel);
+  grid-template-columns: 240px;
+  background: var(--lc-bg);
+}
+
+.h-shell .side-panel {
+  min-height: 0;
+  border-right: 0;
+}
+
+/* The panel is `height: 100vh` in the app, pinned to the shell's third column.
+   Here it is a box on the page. */
+.h-panel .settings-panel {
+  width: 620px;
+  height: 620px;
+  border-left: var(--lc-border-hairline) solid var(--lc-line);
+  border-radius: var(--lc-radius-panel);
+  animation: none;
+  grid-area: auto;
+}
+
+/* The gear menu is `position: fixed` against the window in the app. Inside a
+   harness box it is placed against the box. */
+.h-shell .menu-popover {
+  position: absolute;
+  top: 46px;
+  left: 14px;
+  width: 236px;
+}
+
+.h-deck {
+  overflow: hidden;
+  max-width: 1180px;
+  border: var(--lc-border-hairline) solid var(--lc-line);
+  border-radius: var(--lc-radius-panel);
+  background: var(--lc-surface);
+}
+
+.h-deck table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.h-deck th {
+  border-bottom: var(--lc-border-hairline) solid var(--lc-line);
+  padding: 9px 14px;
+  color: var(--lc-ink-3);
+  font: 500 10.5px var(--lc-font-mono);
+  letter-spacing: 0.09em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.h-deck td {
+  border-bottom: var(--lc-border-hairline) solid var(--lc-line-soft);
+  padding: 9px 14px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  vertical-align: top;
+}
+
+.h-deck td.id {
+  color: var(--lc-ink-2);
+  font: 400 11.5px var(--lc-font-mono);
+  white-space: nowrap;
+}
+
+.h-deck td.where {
+  color: var(--lc-ink-3);
+  font-size: 12px;
+}
+
+.h-deck td.text {
+  color: var(--lc-ink);
+}
+
+.h-deck .rowhint {
+  display: block;
+  margin-top: 3px;
+  color: var(--lc-ink-3);
+  font-size: 11.5px;
+}
+</style>
+</head>
+<body>
+
+<div class="h-head">
+  <p class="h-eyebrow">LC-256a · ux prototype</p>
+  <h1>Auto-update: the notice, the pane, and the two presses</h1>
+  <p>
+    The three surfaces this ticket touches, in the app's own markup and styles.
+    The notice lives in the sidebar footer and on the settings nav's
+    <code>Updates</code> row; the gear menu loses its app-level rows; the pane
+    carries the states. Every string on this page comes from one object, and the
+    copy deck at the end renders from that same object, so the two cannot drift.
+    The project list is context and is drawn one row deep, without its theme dot
+    or its <code>⋮</code>, because this ticket proposes nothing about it.
+  </p>
+</div>
+
+<div class="h-bar" id="driver"></div>
+<div id="stage"></div>
+
+<script>
+/* ------------------------------------------------------------------ the copy
+ * The one object the scenes and the deck both render from. Reply with an id to
+ * change a row (`updates.pane.restart.blocked → …`). `{version}`, `{age}`,
+ * `{date}`, `{received}` and `{total}` are filled at render.
+ */
+const COPY = {
+  version: { running: "0.1.0", available: "0.2.0", date: "18 Sep 2026", total: "5.3 MB", age: "2h ago", ageFailed: "3d ago" },
+  /* Not copy: the manifest carries these from `docs/release-notes` (D8). */
+  notes: [
+    "Checks for a newer LongClaw once a day and says so in Settings › Updates. Nothing downloads or restarts until you press the button, and the check sends nothing about you or your projects.",
+    "Drag the ticket panel wider or narrower, and it keeps the width you gave it.",
+    "The Board | List switcher is drawn the way the prototype draws it, and the None priority dash loses its frame."
+  ],
+  rows: [
+    { id: "updates.nav.label", kind: "nav row", where: "Settings side nav, between Command line and Danger zone", text: "Updates", status: "new" },
+    { id: "updates.nav.available", kind: "visually-hidden", where: "the Updates row in the settings nav, update waiting", text: "An update is available", status: "proposed", note: "Asked for in review: the settings panel carries the indicator as well as the sidebar, so a panel opened for any other reason still shows it. The dot is decorative; this is what a screen reader hears after the row\u2019s name." },
+    { id: "updates.footer.version", kind: "note", where: "side panel footer, always", text: "LongClaw {version}", status: "proposed", note: "Asked for in review: the footer names the running version at all times, so \u201cwhich version do you have?\u201d is answered without opening anything." },
+    { id: "updates.footer.update", kind: "link", where: "side panel footer, update available", text: "Update", status: "proposed", note: "The notice moved here from the gear. It reads the same word as the pane\u2019s press-1 button, which is worth settling: this one opens the pane, that one starts the download." },
+    { id: "updates.footer.update.aria", kind: "aria-label", where: "the footer\u2019s Update link", text: "Update to LongClaw {version}", status: "proposed", note: "The visible word alone does not say what is on offer. It opens with the visible label so the accessible name still contains it." },
+    { id: "updates.pane.version", kind: "note", where: "pane, first line", text: "LongClaw {version}", status: "new" },
+    { id: "updates.pane.automatic.label", kind: "toggle label", where: "pane", text: "Check for updates automatically", status: "new" },
+    { id: "updates.pane.automatic.note", kind: "note", where: "under the toggle", text: "Once a day, and when the app opens. The check fetches one file from LongClaw’s GitHub release and sends nothing about you or your projects.", status: "changed", note: "Timing corrected in review: the check runs at launch AND every 24 hours, so “after the app opens” read as launch-only. The second sentence stays because the pane is required to say what the check sends and to whom." },
+    { id: "updates.pane.check", kind: "button", where: "pane, opposite the version line", text: "Check now", status: "new" },
+    { id: "updates.pane.checking", kind: "frame", where: "the same button, while a check runs", text: "Checking…", status: "new" },
+    { id: "updates.pane.last", kind: "note", where: "pane, under the version line", text: "Last checked {age}", status: "new" },
+    { id: "updates.pane.never", kind: "note", where: "pane, no successful check yet", text: "Not checked yet", status: "new" },
+    { id: "updates.pane.uptodate", kind: "note", where: "pane, after a check", text: "You’re on the latest version.", status: "new" },
+    { id: "updates.pane.available.title", kind: "heading", where: "pane, update pending", text: "{version} is available", status: "new" },
+    { id: "updates.pane.available.date", kind: "note", where: "under the heading", text: "Released {date}", status: "new" },
+    { id: "updates.pane.download", kind: "button", where: "pane, update pending — press 1", text: "Update", status: "changed", note: "Asked for in review, replacing “Download {version}”. Note it now sits one press away from “Restart to update”, so two buttons in the same flow carry the word update." },
+    { id: "updates.pane.progress", kind: "frame", where: "pane, during download", text: "Downloading… {received} of {total}", status: "new" },
+    { id: "updates.pane.ready", kind: "note", where: "pane, download complete, above the restart button", text: "Downloaded and verified.", status: "proposed", note: "The deck had a live-region sentence for this moment and nothing on screen; the pane needs one visible line that says the file is whole before the second press." },
+    { id: "updates.pane.restart", kind: "button", where: "pane, download complete — press 2", text: "Restart to update", status: "new" },
+    { id: "updates.pane.restart.blocked", kind: "note", where: "beside the held restart button", text: "Waiting for a save to finish.", status: "new" },
+    { id: "updates.pane.restarting", kind: "frame", where: "the restart button, after press 2", text: "Restarting…", status: "proposed", note: "A frame on the button, the way Checking… and Installing… are, for the second between the press and the window going away." },
+    { id: "updates.pane.check.failed", kind: "note", where: "pane, check failed", text: "Couldn’t check for updates.", status: "new" },
+    { id: "updates.pane.verify.failed", kind: "refusal", where: "pane", text: "The download couldn’t be verified and was discarded.", status: "new" },
+    { id: "updates.pane.download.failed", kind: "refusal", where: "pane", text: "The download didn’t finish.", status: "new" },
+    { id: "updates.pane.retry", kind: "button", where: "pane, after a failure", text: "Try again", status: "new" },
+    { id: "updates.pane.downloadpage", kind: "button", where: "pane, after a failure", text: "Open the download page", status: "new" },
+    { id: "updates.pane.unavailable", kind: "note", where: "pane, a build without an updater", text: "This build can’t check for updates. That is what a npm run dev window looks like; an app built from the .dmg can.", status: "proposed", note: "D10 says the path reports itself unavailable the way Command line does; this is that pane’s sentence, in its shape. The toggle and Check now are hidden here rather than disabled." },
+    { id: "updates.live.available", kind: "live region", where: "announced once, when a check finds a version", text: "LongClaw {version} is available. Open Settings, then Updates.", status: "new" },
+    { id: "updates.live.ready", kind: "live region", where: "announced once, when the download verifies", text: "LongClaw {version} is downloaded. Restart to update.", status: "new" },
+    { id: "updates.live.blocked", kind: "live region", where: "on a refused restart", text: "Restart is waiting for a save to finish.", status: "new", note: "The held button is aria-disabled rather than disabled so it stays in the Tab order and a press can announce this; a disabled button vanishes and nobody hears why." }
+  ]
+};
+const T = {};
+COPY.rows.forEach((r) => { T[r.id] = r.text; });
+const V = COPY.version;
+const app = { scene: "sidebar", pane: "available", pending: true, writing: false };
+
+function fill(str, extra) {
+  const map = Object.assign(
+    { version: V.available, date: V.date, total: V.total, age: V.age, received: "2.1 MB" },
+    extra || {},
+  );
+  return String(str).replace(/\{(\w+)\}/g, (m, k) => (k in map ? map[k] : m));
+}
+const esc = (s) =>
+  String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+/* The marks, from `SettingsGlyphs.tsx`. Decorative in every caller: each row
+   names itself in words. */
+const GEAR =
+  '<svg class="gear-glyph" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="1.9" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M5.9 1.5 L8.1 1.5 L8.4 2.9 A4.3 4.3 0 0 1 9.6 3.6 L10.95 3.15 L12.05 5.05 L11 6 A4.4 4.4 0 0 1 11 8 L12.05 8.95 L10.95 10.85 L9.6 10.4 A4.3 4.3 0 0 1 8.4 11.1 L8.1 12.5 L5.9 12.5 L5.6 11.1 A4.3 4.3 0 0 1 4.4 10.4 L3.05 10.85 L1.95 8.95 L3 8 A4.4 4.4 0 0 1 3 6 L1.95 5.05 L3.05 3.15 L4.4 3.6 A4.3 4.3 0 0 1 5.6 2.9 Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>';
+const TAG =
+  '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M1.8 6.6 L6.6 1.8 L12.2 1.8 L12.2 7.4 L7.4 12.2 Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><circle cx="9.6" cy="4.4" r="1.1" fill="currentColor"/></svg>';
+const SLIDERS =
+  '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 4.3 H12 M2 9.7 H12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="5" cy="4.3" r="1.6" fill="var(--lc-raised)" stroke="currentColor" stroke-width="1.2"/><circle cx="9" cy="9.7" r="1.6" fill="var(--lc-raised)" stroke="currentColor" stroke-width="1.2"/></svg>';
+const COLUMNS =
+  '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><rect x="1.8" y="3" width="2.8" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="5.6" y="3" width="2.8" height="5.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="9.4" y="3" width="2.8" height="7" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>';
+const KEYBOARD =
+  '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><rect x="1.5" y="3.8" width="11" height="6.4" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M4 8.2 H10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M3.6 6 H4.4 M6.6 6 H7.4 M9.6 6 H10.4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>';
+const RELOAD =
+  '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M11.6 7 A4.6 4.6 0 1 1 9.9 3.4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M10.2 1.6 L10.2 3.7 L8.1 3.7" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+/* Which pane states count as "an update is waiting", and so light both dots. */
+const PENDING = ["available", "downloading", "downloaded", "blocked", "verifyFailed", "downloadFailed"];
+
+const PANE_STATES = [
+  ["notChecked", "Not checked yet"],
+  ["checking", "Checking"],
+  ["uptodate", "Up to date"],
+  ["failed", "Couldn’t check"],
+  ["available", "Available"],
+  ["downloading", "Downloading"],
+  ["downloaded", "Downloaded"],
+  ["blocked", "Save in flight"],
+  ["verifyFailed", "Couldn’t verify"],
+  ["downloadFailed", "Didn’t finish"],
+  ["off", "Automatic off"],
+  ["unavailable", "No updater"],
+];
+
+/* ------------------------------------------------------------ the side panel
+ * `App.tsx`'s own markup. The one thing this ticket adds to it is
+ * `.app-version` inside `.side-panel-footer`; everything above that is the
+ * panel as it ships. The project list is one row deep and drops its theme dot
+ * and `⋮` — context, not proposal.
+ */
+function sidePanel(pending, menuOpen) {
+  const link = pending
+    ? '<span class="upd-dot" aria-hidden="true"></span>' +
+      '<button tabindex="0" class="upd-link" data-act="updates" aria-label="' +
+      esc(fill(T["updates.footer.update.aria"])) + '">' + esc(T["updates.footer.update"]) + "</button>"
+    : "";
+  return (
+    '<aside class="side-panel">' +
+      '<header class="project-identity">' +
+        '<div class="identity-row">' +
+          '<span class="project-tile" aria-hidden="true">L</span>' +
+          '<div class="identity-text">' +
+            '<div class="identity-name"><h1>longclaw</h1>' +
+              '<button tabindex="0" class="ghost settings-button' + (menuOpen ? " open" : "") +
+                '" aria-label="Project settings" aria-haspopup="menu" aria-expanded="' + menuOpen +
+                '" title="Project settings" data-act="menu">' + GEAR + "</button>" +
+            "</div>" +
+            '<button tabindex="0" class="path-chip" aria-label="Copy path — /Users/you/personal/repo/longclaw" title="/Users/you/personal/repo/longclaw">' +
+              '<span class="txt"><span class="head">~/personal/repo/</span><span class="tail">longclaw</span></span>' +
+            "</button>" +
+          "</div>" +
+        "</div>" +
+        '<div class="identity-disk"></div>' +
+      "</header>" +
+      '<section class="project-section"><h2>Starred</h2>' +
+        '<div class="project-row selected">' +
+          '<button tabindex="0" class="project-link selected" title="/Users/you/personal/repo/longclaw" aria-keyshortcuts="Meta+1">' +
+            '<span class="project-number" aria-hidden="true">⌘1</span>' +
+            "<strong>longclaw</strong>" +
+            '<span class="star-mark"><span aria-hidden="true">★</span><span class="visually-hidden">Starred</span></span>' +
+          "</button>" +
+        "</div>" +
+      "</section>" +
+      '<div class="side-panel-footer">' +
+        '<section class="project-actions">' +
+          '<button tabindex="0" class="secondary">Create project</button>' +
+          '<button tabindex="0" class="ghost">Open folder</button>' +
+        "</section>" +
+        '<div class="app-version">' +
+          '<span class="ver">' + esc(fill(T["updates.footer.version"], { version: V.running })) + "</span>" +
+          link +
+        "</div>" +
+      "</div>" +
+    "</aside>"
+  );
+}
+
+/* ------------------------------------------------------------- the gear menu
+ * `SettingsMenu.tsx`'s rows, minus the two this ticket takes out: `Updates` was
+ * never added, and `Command line tool` is removed. Both are settings-panel
+ * panes now, so the gear menu is about this project and nothing else.
+ */
+function gearMenu() {
+  const row = (glyph, label, hint) =>
+    '<button tabindex="0" class="menu-row" role="menuitem">' +
+      (glyph ? '<span class="menu-glyph">' + glyph + "</span>" : "") +
+      '<span class="menu-label">' + label + "</span>" +
+      (hint ? '<span class="menu-hint">' + hint + "</span>" : "") +
+    "</button>";
+  return (
+    '<div class="menu-popover" role="menu" aria-label="Project settings">' +
+      '<button tabindex="0" class="menu-row" role="menuitem" aria-haspopup="menu">' +
+        '<span class="menu-glyph"><span class="theme-swatch"><span class="swatch-human"></span><span class="swatch-agent"></span></span></span>' +
+        '<span class="menu-label">Theme</span><span class="menu-hint">Indigo · System</span>' +
+      "</button>" +
+      '<hr class="menu-rule">' +
+      row(GEAR, "General", "name · key · folder") +
+      row(TAG, "Labels", "<code>5</code>") +
+      row(SLIDERS, "Ticket properties", "<code>0</code>") +
+      row(COLUMNS, "Status fields", "<code>6</code>") +
+      row(KEYBOARD, "Keyboard shortcuts", "") +
+      '<hr class="menu-rule">' +
+      row(RELOAD, "Reload from disk", "") +
+      '<hr class="menu-rule">' +
+      row(GEAR, "All settings", "<kbd>⌘,</kbd>") +
+    "</div>"
+  );
+}
+
+/* ---------------------------------------------------------- the Updates pane
+ * `ProjectSettings.tsx`'s panel and nav, with the new `Updates` section between
+ * `Command line` and `Danger zone`. The pane's own head borrows the shape the
+ * `Command line` pane established: a dot, a name, a sentence, an action.
+ */
+function settingsPanel(scene, writing) {
+  const pending = PENDING.indexOf(scene) >= 0;
+  const running = scene === "restarted" ? V.available : V.running;
+  const navRows = ["General", "Theme", "Labels", "Properties", "Status fields", "Shortcuts", "Command line"]
+    .map((n) => '<button tabindex="-1" class="settings-nav-row" role="tab" aria-selected="false">' + n + "</button>")
+    .join("");
+
+  let dot = "", state = "", stateClass = "";
+  if (scene === "uptodate") { dot = "ok"; state = T["updates.pane.uptodate"]; stateClass = " ok"; }
+  else if (scene === "failed") { dot = "warn"; state = T["updates.pane.check.failed"]; }
+  else if (scene === "unavailable") { state = T["updates.pane.unavailable"]; }
+
+  let last = "";
+  if (scene === "notChecked") last = T["updates.pane.never"];
+  else if (scene !== "unavailable")
+    last = fill(T["updates.pane.last"], { age: scene === "failed" ? V.ageFailed : V.age });
+
+  let block = "";
+  if (pending) {
+    let actions = "";
+    if (scene === "available") {
+      actions = '<div class="upd-actions"><button tabindex="0" class="primary" data-act="download">' +
+        esc(fill(T["updates.pane.download"])) + "</button></div>";
+    } else if (scene === "downloading") {
+      actions = '<div class="upd-progress" role="progressbar" aria-label="Download" aria-valuemin="0" aria-valuemax="100" aria-valuenow="40">' +
+        '<div class="upd-bar"><span style="width: 40%"></span></div>' +
+        '<p class="upd-frame">' + esc(fill(T["updates.pane.progress"])) + "</p></div>";
+    } else if (scene === "downloaded" || scene === "blocked") {
+      const held = scene === "blocked" || writing;
+      actions = '<div class="upd-actions" style="flex-direction: column; align-items: flex-start; gap: 0;">' +
+        '<p class="upd-ready">' + esc(T["updates.pane.ready"]) + "</p>" +
+        '<div style="display: flex; align-items: center; gap: 10px;">' +
+          '<button tabindex="0" class="primary" data-act="restart" aria-disabled="' + held + '">' +
+            esc(T["updates.pane.restart"]) + "</button>" +
+          (held ? '<span class="why" role="status">' + esc(T["updates.pane.restart.blocked"]) + "</span>" : "") +
+        "</div></div>";
+    } else {
+      const refusal = scene === "verifyFailed" ? T["updates.pane.verify.failed"] : T["updates.pane.download.failed"];
+      actions = '<p class="cli-refusal" role="alert">' + esc(refusal) + "</p>" +
+        '<div class="upd-actions"><button tabindex="0" class="secondary" data-act="retry">' + esc(T["updates.pane.retry"]) +
+        '</button><button tabindex="0" class="ghost">' + esc(T["updates.pane.downloadpage"]) + "</button></div>";
+    }
+    block =
+      '<section class="upd-available" aria-labelledby="upd-title">' +
+        '<h3 id="upd-title" class="upd-title">' + esc(fill(T["updates.pane.available.title"])) + "</h3>" +
+        '<p class="upd-date">' + esc(fill(T["updates.pane.available.date"])) + "</p>" +
+        '<div class="upd-notes"><ul>' + COPY.notes.map((n) => "<li>" + esc(n) + "</li>").join("") + "</ul></div>" +
+        actions +
+      "</section>";
+  }
+
+  const auto = scene === "unavailable" ? "" :
+    '<div class="upd-auto">' +
+      '<label class="property-head"><input type="checkbox" tabindex="0"' + (scene === "off" ? "" : " checked") +
+        "><span>" + esc(T["updates.pane.automatic.label"]) + "</span></label>" +
+      '<p class="upd-auto-note">' + esc(T["updates.pane.automatic.note"]) + "</p>" +
+    "</div>";
+
+  return (
+    '<section class="settings-panel" aria-label="Project settings">' +
+      '<div class="settings-head">' + GEAR +
+        "<h2>Project settings</h2>" +
+        '<span class="settings-file">longclaw.yaml</span>' +
+        '<button tabindex="0" class="ghost settings-close" aria-label="Close settings" title="Close · Esc">✕</button>' +
+      "</div>" +
+      '<div class="settings-split">' +
+        '<nav class="settings-nav" role="tablist" aria-label="Settings sections" aria-orientation="vertical">' +
+          navRows +
+          '<button tabindex="0" class="settings-nav-row" role="tab" aria-selected="true" id="nav-updates">' +
+            esc(T["updates.nav.label"]) +
+            (pending
+              ? '<span class="nav-dot" aria-hidden="true"></span><span class="visually-hidden">' +
+                esc(T["updates.nav.available"]) + "</span>"
+              : "") +
+          "</button>" +
+          '<button tabindex="-1" class="settings-nav-row danger" role="tab" aria-selected="false">Danger zone</button>' +
+          '<p class="settings-nav-note">stored in<br>longclaw.yaml</p>' +
+        "</nav>" +
+        '<div class="settings-section" role="tabpanel" aria-labelledby="nav-updates" tabindex="0">' +
+          '<div class="cli-head"><div class="cli-head-text">' +
+            '<div class="cli-name"><span class="cli-dot ' + dot + '" aria-hidden="true"></span><code>' +
+              esc(fill(T["updates.pane.version"], { version: running })) + "</code></div>" +
+            (state ? '<p class="cli-state' + stateClass + '" style="margin-top: 6px;">' + esc(state) + "</p>" : "") +
+            (last ? '<p class="settings-subhead" style="margin: 4px 0 0;">' + esc(last) + "</p>" : "") +
+          "</div>" +
+          (scene === "unavailable" ? "" :
+            '<button tabindex="0" class="secondary" data-act="check"' + (scene === "checking" ? " disabled" : "") + ">" +
+            esc(scene === "checking" ? T["updates.pane.checking"] : T["updates.pane.check"]) + "</button>") +
+          "</div>" + auto + block +
+        "</div>" +
+      "</div>" +
+    "</section>"
+  );
+}
+
+/* ------------------------------------------------------------------ the deck
+ * Rendered from the same object the scenes read, so a string cannot be spelled
+ * two ways. Every row is addressable by its id.
+ */
+function deck() {
+  const rows = COPY.rows.map((r) =>
+    "<tr>" +
+      '<td class="id">' + esc(r.id) + "</td>" +
+      "<td>" + esc(r.kind) + "</td>" +
+      '<td class="where">' + esc(r.where) + "</td>" +
+      '<td class="text">' + esc(r.text) +
+        (r.note ? '<span class="rowhint">' + esc(r.note) + "</span>" : "") +
+      "</td>" +
+    "</tr>").join("");
+  return '<div class="h-deck"><table><thead><tr><th>Id</th><th>Kind</th><th>Where</th><th>Text</th></tr></thead><tbody>' +
+    rows + "</tbody></table></div>";
+}
+
+/* --------------------------------------------------------------- the driver */
+const SCENES = [
+  ["sidebar", "Sidebar footer"],
+  ["menu", "Gear menu"],
+  ["pane", "Updates pane"],
+  ["deck", "Copy deck"],
+];
+
+function render() {
+  const bar = ['<span class="h-tag">scene</span>'];
+  SCENES.forEach(([id, label]) => {
+    bar.push('<button data-scene="' + id + '" aria-pressed="' + (app.scene === id) + '">' + label + "</button>");
+  });
+  if (app.scene === "pane") {
+    bar.push('<span class="h-tag" style="margin-left:10px">state</span>');
+    PANE_STATES.forEach(([id, label]) => {
+      bar.push('<button data-pane="' + id + '" aria-pressed="' + (app.pane === id) + '">' + label + "</button>");
+    });
+  } else if (app.scene !== "deck") {
+    bar.push('<span class="h-spacer"></span>');
+    bar.push('<label><input type="checkbox" data-toggle="pending"' + (app.pending ? " checked" : "") +
+      "> an update is waiting</label>");
+  }
+  document.getElementById("driver").innerHTML = bar.join("");
+
+  let stage = "";
+  if (app.scene === "sidebar") {
+    stage =
+      '<p class="h-note">The footer names the running version at all times. When an update is waiting it gains a dot and <code>Update</code>, which opens the settings panel on <code>Updates</code>. The gear carries no mark: its menu no longer says anything about updates, so a mark there would open a dead end.</p>' +
+      '<div class="h-rail">' +
+        '<figure class="h-case" style="margin:0"><figcaption>nothing pending</figcaption><div class="h-shell">' + sidePanel(false, false) + "</div></figure>" +
+        '<figure class="h-case" style="margin:0"><figcaption>an update is waiting</figcaption><div class="h-shell">' + sidePanel(true, false) + "</div></figure>" +
+      "</div>";
+  } else if (app.scene === "menu") {
+    stage =
+      '<p class="h-note">Eight rows. <code>Command line tool</code> is removed and <code>Updates</code> was never added: both are panes about the app rather than about this project, so they are reached through the settings panel and the gear menu stays about the project you are looking at.</p>' +
+      '<div class="h-rail"><div class="h-shell">' + sidePanel(app.pending, true) + gearMenu() + "</div></div>";
+  } else if (app.scene === "pane") {
+    stage =
+      '<p class="h-note">One pane, twelve states. The <code>Updates</code> nav row carries the same dot as the footer whenever an update is waiting, so a panel opened for any other reason still shows it. <code>Save in flight</code> is the refusal: the restart is <code>aria-disabled</code> rather than <code>disabled</code>, so it keeps its tab stop and a press can announce the reason.</p>' +
+      '<div class="h-rail h-panel">' + settingsPanel(app.pane, app.writing) + "</div>";
+  } else {
+    stage =
+      '<p class="h-note">Every user-facing string, including the ones no screen shows. The scenes above render from this same object, so the deck cannot go stale against them.</p>' +
+      deck();
+  }
+  document.getElementById("stage").innerHTML = stage;
+}
+
+document.addEventListener("click", (event) => {
+  const el = event.target.closest("[data-scene], [data-pane], [data-act]");
+  if (!el) return;
+  if (el.dataset.scene) { app.scene = el.dataset.scene; return render(); }
+  if (el.dataset.pane) { app.pane = el.dataset.pane; return render(); }
+  const act = el.dataset.act;
+  if (act === "updates") { app.scene = "pane"; app.pane = "available"; return render(); }
+  if (act === "menu") { app.scene = app.scene === "menu" ? "sidebar" : "menu"; return render(); }
+  if (act === "download") { app.pane = "downloading"; render(); setTimeout(() => { app.pane = "downloaded"; render(); }, 1200); return; }
+  if (act === "retry") { app.pane = "downloading"; render(); setTimeout(() => { app.pane = "downloaded"; render(); }, 1200); return; }
+  if (act === "check") { app.pane = "checking"; render(); setTimeout(() => { app.pane = "available"; render(); }, 900); return; }
+  if (act === "restart") {
+    if (el.getAttribute("aria-disabled") === "true") return;
+    app.pane = "uptodate";
+    return render();
+  }
+});
+
+document.addEventListener("change", (event) => {
+  if (event.target.dataset && event.target.dataset.toggle === "pending") {
+    app.pending = event.target.checked;
+    render();
+  }
+});
+
+render();
+</script>
+</body>
+</html>
