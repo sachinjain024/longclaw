@@ -11,7 +11,7 @@ labels:
   - design
 type: feature
 created_at: 2026-09-16T07:40:54.137Z
-updated_at: 2026-09-16T07:40:54.137Z
+updated_at: 2026-09-19T13:29:01.450Z
 ---
 
 A persistent star control in the app chrome, showing the repository's live star
@@ -105,7 +105,7 @@ it.
 
 ## Checklist
 
-- [ ] Decide and write down the amended network contract (blocked on LC-256a's ADR) <!-- longclaw:item=ck_7ae24e80 -->
+- [x] Decide and write down the amended network contract (blocked on LC-256a's ADR) <!-- longclaw:item=ck_7ae24e80 -->
 - [ ] Rust command to open the repository; the webview names no URL <!-- longclaw:item=ck_27e27fea -->
 - [ ] Rust-side star-count fetch, cached in device preferences with its timestamp <!-- longclaw:item=ck_df29f281 -->
 - [ ] Design the no-count state first; the count is the enhancement <!-- longclaw:item=ck_48fbeacb -->
@@ -127,4 +127,45 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_0176aa56
+kind: update
+occurred_at: 2026-09-19T13:29:01.450Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_7ae24e80.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+The amended contract that blocked the first item is written: [ADR 0014 — one optional check for a newer LongClaw](../../../docs/adr/0014-one-optional-check-for-a-newer-longclaw.md), landed with LC-256a.
+
+What it settles for this ticket:
+
+- **The boundary moved from *no connection* to *no information*.** The promise is no longer that the app never opens a socket; it is that nothing identifying leaves the machine. One identifier-free `GET` for one static manifest is inside the contract. A star *count* is the same shape of request; a star *action* is not, because it needs an account.
+- **The road already exists.** D4's host allowlist is the mechanism: `release-audit.mjs` holds a `NETWORK_CAPABLE` map of crate to permitted ancestors, pinned under the one sanctioned root, and the updater's endpoints are checked for host and scheme. A second caller adds hosts to that allowlist rather than inventing a second way out. `api.github.com` is not on it today, so adding it is a deliberate edit with a reviewer, which is the point of the list.
+- **Three things ADR 0014 keeps forbidden, which this ticket inherits:** no identifier of any kind in the request, no second request nobody asked for, and the check must be refusable before it is made — the preference is read *before* the request, not after one.
+- **The gates already assert it.** `binary-audit.mjs` pins the exact socket symbols and network frameworks each shipped binary may import; `perf/network-audit.mjs` classifies a peer as sanctioned only when it is the app's own process on 443 at a resolved allowlisted address, and its `automatic-off` phase records that a refused check makes no request at all. A star fetch has to be spelled into all three or it fails the release gate — which is the intended cost.
+
+One open decision this ticket still owns, which ADR 0014 does not answer: whether a count that fails to fetch leaves the control with no number or with a stale one. The ADR's own answer for the update check is that a failure claims nothing — worth reading before designing the no-count state (ck_48fbeacb).
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_b2fdf2f1
+kind: comment
+occurred_at: 2026-09-19T13:29:13.577Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Correction to the line above: ADR 0014 is written and committed on `lc-256a-auto-update-spec`, not yet merged to main. The decision is settled and the file is there to read; the path only resolves once LC-256a lands.
 <!-- /longclaw:event -->

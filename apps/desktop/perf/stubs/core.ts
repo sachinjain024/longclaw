@@ -13,7 +13,10 @@
  * fail, which is the only way to reach the Retry the gate asks about, and
  * `?fail=parse` degrades every read, which is the only way to reach the raw
  * file view. `?slow=N` holds a write open, which is the only way to see the
- * screen the app shows while one is in flight.
+ * screen the app shows while one is in flight. `?update=available` serves a
+ * pending release, which is the only way to reach the Updates pane's two
+ * presses, the sidebar footer's link and the held `Restart to update` — none of
+ * which a build with no updater draws at all (LC-256a).
  */
 
 import { bridge, markLoaded } from "../bridge";
@@ -24,6 +27,8 @@ import type {
   EditTicketRequest,
   IndexedTicket,
   TicketDetail,
+  UpdateProgress,
+  UpdateStatus,
   VisibleUiProbe,
   WriteResult,
 } from "../../src/types";
@@ -70,6 +75,23 @@ const FAIL_PARSE = params.get("fail") === "parse";
  * being held is "written, not yet confirmed", not "the app is stalled".
  */
 let slowWriteMs = Number(params.get("slow") ?? 0);
+/**
+ * `?update=available` (or `=uptodate`): what the update path reports.
+ *
+ * Off by default, and `unavailable` is what off means — the truthful answer for
+ * a page that is not an installed bundle, and the one every measured surface
+ * wants, since it is the answer that schedules no check and draws no version
+ * line. The accessibility audit is the caller that needs otherwise: the pane's
+ * two presses, the footer's link and the held restart button exist only while
+ * something is on offer, so a keyboard path to them cannot be driven without
+ * this (`a11y-audit.mjs`, row A7).
+ *
+ * **Nothing here touches the network, in any state.** The release below is a
+ * literal, the download is a timer, and `install_update` never restarts
+ * anything: ADR 0014 lets the installed app make one request, and lets this
+ * harness make none.
+ */
+const UPDATE = params.get("update");
 const settling = () =>
   slowWriteMs > 0
     ? new Promise<void>((wake) => setTimeout(wake, slowWriteMs))
@@ -227,6 +249,109 @@ function ticketDetail(key: string): TicketDetail {
   };
 }
 
+/* ----------------------------------------------------------------- updates */
+
+/** The release `?update=available` puts on offer. A literal, not a fetch. */
+const RELEASE = {
+  version: "0.2.0",
+  date: "2026-09-19",
+  notes: "- The board remembers where it was scrolled to.",
+};
+
+/** Set by a finished `download_update`, which is what unlocks the second press. */
+let downloaded = false;
+
+function updateStatus(): UpdateStatus {
+  if (UPDATE === "available") {
+    return {
+      state: "available",
+      currentVersion: "0.1.0",
+      available: RELEASE,
+      downloaded,
+    };
+  }
+  if (UPDATE === "uptodate") {
+    return {
+      state: "upToDate",
+      currentVersion: "0.1.0",
+      available: null,
+      downloaded: false,
+    };
+  }
+  return {
+    state: "unavailable",
+    currentVersion: "0.0.0-harness",
+    available: null,
+    downloaded: false,
+  };
+}
+
+/**
+ * The first press, as frames rather than bytes.
+ *
+ * Real frames on a real channel (ADR 0007), because the progress bar and the
+ * `{received} of {total}` line are drawn from them — a download that resolved
+ * in one step would leave the audit with nothing on screen to find.
+ */
+async function downloadUpdate(
+  channel: Channel<UpdateProgress>,
+): Promise<UpdateStatus> {
+  const total = 18 * 1024 * 1024;
+  channel.onmessage({
+    event: "started",
+    data: { version: RELEASE.version, total },
+  });
+  for (const part of [0.25, 0.6, 1]) {
+    await new Promise<void>((wake) => setTimeout(wake, 120));
+    channel.onmessage({
+      event: "progress",
+      data: { received: Math.round(total * part), total },
+    });
+  }
+  channel.onmessage({
+    event: "finished",
+    data: { version: RELEASE.version },
+  });
+  downloaded = true;
+  return updateStatus();
+}
+
+/**
+ * The second press, refused while a write is outstanding.
+ *
+ * The refusal is Rust's — a count kept around the atomic write seams, not
+ * anything the webview said (ADR 0009) — so the harness keeps a count of its
+ * own around the two commands that write. Without it the held button could be
+ * looked at but never pressed, and what the press is for is the sentence it
+ * announces.
+ *
+ * It never restarts anything. A harness that replaced its own page mid-run
+ * would take the run with it.
+ */
+async function installUpdate(): Promise<void> {
+  if (writesInFlight > 0) {
+    // The tagged shape ADR 0010 sends, with the reason the pane switches on.
+    throw Object.assign(new Error("a save is still in flight"), {
+      code: "io",
+      recoverable: true,
+      context: { reason: "writeInFlight" },
+    });
+  }
+}
+
+/** Writes this harness has accepted and not yet answered (`storage.rs`). */
+let writesInFlight = 0;
+
+async function writing<T>(work: () => Promise<T> | T): Promise<T> {
+  writesInFlight += 1;
+  try {
+    await settling();
+    return await work();
+  } finally {
+    writesInFlight -= 1;
+  }
+}
+
 export async function invoke<T>(
   command: string,
   args?: Record<string, unknown>,
@@ -256,21 +381,25 @@ export async function invoke<T>(
       manualCommand: null,
     } as T;
   }
-  // Same reasoning as `command_line_status` above, and the same answer. The
-  // update path is not this harness's subject, and `unavailable` is the truth
-  // here twice over: this build has no bundle to replace, and a harness must
-  // make no network request at all (LC-256a, ADR 0014, D10). Served rather
-  // than left to throw, so no run's correctness rests on a rejection being
-  // swallowed. With this answer the app schedules no check and the sidebar
-  // footer draws no version line, which is what a measured surface should be.
-  if (command === "update_status") {
-    return {
-      state: "unavailable",
-      currentVersion: "0.0.0-harness",
-      available: null,
-      downloaded: false,
-    } as T;
+  // Same reasoning as `command_line_status` above, and the same answer unless
+  // `?update` asks for another. The update path is not this harness's subject,
+  // and `unavailable` is the truth here twice over: this build has no bundle to
+  // replace, and a harness must make no network request at all (LC-256a, ADR
+  // 0014, D10). Served rather than left to throw, so no run's correctness rests
+  // on a rejection being swallowed. With that answer the app schedules no check
+  // and the sidebar footer draws no version line, which is what a measured
+  // surface should be.
+  if (command === "update_status") return updateStatus() as T;
+  // `force` is ignored: this check answers from the flag and asks nothing, so
+  // there is no slot for a second request to fall inside (`update.rs`).
+  if (command === "check_for_update") return updateStatus() as T;
+  if (command === "download_update") {
+    return downloadUpdate(args?.onProgress as Channel<UpdateProgress>) as T;
   }
+  if (command === "install_update") return installUpdate() as T;
+  // The real command opens a browser. Nothing here does, and nothing may: a
+  // harness that opened a page would be a run with a second window in it.
+  if (command === "open_download_page") return undefined as T;
   if (command === "open_project" || command === "rebuild_index") {
     return { ...board, tickets: [...rows.values()], generation } as T;
   }
@@ -294,26 +423,31 @@ export async function invoke<T>(
 
   if (WRITABLE) {
     if (command === "create_ticket") {
-      await settling();
-      return createTicket(args?.request as CreateTicketRequest) as T;
+      return (await writing(() =>
+        createTicket(args?.request as CreateTicketRequest),
+      )) as T;
     }
     if (command === "edit_ticket") {
-      await settling();
-      if (failNextEdit) {
-        failNextEdit = false;
-        // The shape `failure.ts` reads: a cause it knows, and a path, so the
-        // danger toast carries a recovery sentence and a Retry rather than a
-        // bare code.
-        throw Object.assign(new Error("Permission denied writing ticket.md"), {
-          code: "permission_denied",
-          recoverable: true,
-          context: {
-            cause: "readOnly",
-            path: `.longclaw/tickets/${(args?.request as EditTicketRequest).ticketKey}/ticket.md`,
-          },
-        });
-      }
-      return editTicket(args?.request as EditTicketRequest) as T;
+      return (await writing(() => {
+        if (failNextEdit) {
+          failNextEdit = false;
+          // The shape `failure.ts` reads: a cause it knows, and a path, so the
+          // danger toast carries a recovery sentence and a Retry rather than a
+          // bare code.
+          throw Object.assign(
+            new Error("Permission denied writing ticket.md"),
+            {
+              code: "permission_denied",
+              recoverable: true,
+              context: {
+                cause: "readOnly",
+                path: `.longclaw/tickets/${(args?.request as EditTicketRequest).ticketKey}/ticket.md`,
+              },
+            },
+          );
+        }
+        return editTicket(args?.request as EditTicketRequest);
+      })) as T;
     }
     if (command === "search_tickets") {
       const query = String(args?.query ?? "").toLowerCase();

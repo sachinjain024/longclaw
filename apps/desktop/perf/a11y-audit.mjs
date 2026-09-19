@@ -21,7 +21,7 @@
  * a pointer anywhere in a lifecycle step would make that step's pass meaningless.
  *
  * Usage:
- *   npm run a11y:audit                 # the six Part A rows
+ *   npm run a11y:audit                 # the seven Part A rows
  *   npm run a11y:audit -- --only=A3    # one row while it is being written
  *   npm run a11y:audit -- --self-test  # break the build, expect the rows to fail
  */
@@ -50,7 +50,7 @@ const argument = (name, fallback) => {
  * small enough that a lifecycle step is not waiting on 5,000 rows.
  */
 const TICKETS = Number(argument("tickets", "600"));
-const ONLY = argument("only", "A1,A2,A3,A4,A5,A6").split(",");
+const ONLY = argument("only", "A1,A2,A3,A4,A5,A6,A7").split(",");
 const SELF_TEST = process.argv.includes("--self-test");
 /** 1440×900 is the matrix's window; halving the CSS viewport is A5's 200%. */
 const VIEWPORT = { width: 1_440, height: 900 };
@@ -81,6 +81,11 @@ async function board(browser, options = {}) {
   const page = await context.newPage();
   const query = new URLSearchParams({ tickets: String(TICKETS), rw: "1" });
   if (options.fail) query.set("fail", options.fail);
+  // Anything else the stub reads, for a row whose surface is not drawn at all
+  // in the harness's default state (`stubs/core.ts`, `?update`).
+  for (const [name, value] of Object.entries(options.query ?? {})) {
+    query.set(name, value);
+  }
   await page.goto(`${preview.origin}/?${query}`, { waitUntil: "load" });
   await page.waitForFunction(
     () => document.querySelectorAll("[data-ticket-key]").length > 0,
@@ -230,7 +235,7 @@ async function auditLifecycle(browser) {
       "`Enter` creates the ticket and focus moves to the new card",
       createdKey !== undefined,
       `focus=${createdKey ?? (afterCreate.className || afterCreate.tag)}`,
-      "keyboard-focus-map.md:132,201 — focus moves to the new card",
+      "keyboard-focus-map.md:132,218 — focus moves to the new card",
     );
 
     // Find (§ Global `⌘F`, and the filter's rung of the `Esc` ladder).
@@ -386,7 +391,7 @@ async function auditLifecycle(browser) {
       "`Esc` closes the panel and focus returns to the card that opened it",
       isCard(backOnCard),
       `focus=${backOnCard.ticketKey ?? (backOnCard.className || backOnCard.tag)}`,
-      "keyboard-focus-map.md:61,197",
+      "keyboard-focus-map.md:61,214",
     );
     const movedFrom = backOnCard.ticketKey;
     await page.keyboard.press("s");
@@ -580,7 +585,7 @@ async function auditFocusOrder(browser) {
       "canceling quick create returns focus to where it was",
       afterCancel.ticketKey === card,
       `${card} → ${afterCancel.ticketKey ?? (afterCancel.className || afterCancel.tag)}`,
-      "keyboard-focus-map.md:193",
+      "keyboard-focus-map.md:210",
     );
 
     // Menu → the focused card (the single-key path).
@@ -638,7 +643,7 @@ async function auditFocusOrder(browser) {
       "closing the ticket panel returns focus to the card that opened it",
       opened && afterPanel.ticketKey === card,
       `${card} → ${afterPanel.ticketKey ?? (afterPanel.className || afterPanel.tag)}`,
-      "keyboard-focus-map.md:197",
+      "keyboard-focus-map.md:214",
     );
 
     // Reading order inside the panel: the Tab sequence must run down the page.
@@ -769,7 +774,7 @@ async function auditFocusOrder(browser) {
       !(await visible(page, ".settings-panel")) &&
         afterSettings.label === "Project settings",
       `focus=${afterSettings.label || afterSettings.className || afterSettings.tag}`,
-      "keyboard-focus-map.md:203 — settings returns focus to its opener",
+      "keyboard-focus-map.md:220 — settings returns focus to its opener",
     );
 
     /**
@@ -895,7 +900,7 @@ async function auditFocusOrder(browser) {
         inRun.label === "Title" &&
         emptied === "",
       `modal=${await visible(page, "form.quick-create-modal")} focus=${inRun.label || inRun.className || inRun.tag} title="${emptied}"`,
-      "keyboard-focus-map.md:201 — the created row, and the run's exception to it",
+      "keyboard-focus-map.md:218 — the created row, and the run's exception to it",
     );
     await page.keyboard.press("Escape");
     await settle(page);
@@ -1611,6 +1616,226 @@ async function auditPanelResize(browser) {
   }
 }
 
+/* ---------- A7: the update path ---------- */
+
+/**
+ * The update path's keyboard contract (LC-256a), which is three controls and a
+ * refusal: the footer's `Update` link, the pane's two presses, and the restart
+ * that is held while a ticket write is outstanding.
+ *
+ * `keyboard-focus-map.md` § Updates is the oracle, and it is the only section
+ * of it no other row here can reach: a build with no updater draws none of
+ * this, and the harness is such a build unless `?update=available` says
+ * otherwise. That flag is what this row is driven over — it serves a release
+ * from a literal and makes no request, so the row proves a keyboard path
+ * without ADR 0014's one request happening anywhere near it.
+ *
+ * The held restart is the check worth the setup. `aria-disabled` rather than
+ * `disabled` is a decision about *the keyboard*: a `disabled` button leaves the
+ * tab order, so a reader arriving at the pane would find the press missing and
+ * nothing saying why. So the button has to be reachable, has to be pressable,
+ * and the press has to say the thing — three claims a rendering test cannot
+ * make.
+ */
+async function auditUpdates(browser) {
+  row(
+    "A7",
+    "The update path has a keyboard path, and it all lives in one pane",
+  );
+  const { context, page } = await board(browser, {
+    query: { update: "available" },
+    // Focus, dropped on the floor for the one control the panel owes it back
+    // to. Everything else still works — the link is reachable, `Enter` opens
+    // the pane, `Esc` closes it — and focus lands on `<body>` instead of on
+    // the link a reader pressed, which is what a lost focus return is.
+    selfTest: (target) =>
+      target.evaluate(() => {
+        const real = HTMLElement.prototype.focus;
+        HTMLElement.prototype.focus = function focus(...rest) {
+          if (this.classList?.contains("upd-link")) return undefined;
+          return real.apply(this, rest);
+        };
+      }),
+  });
+  /** The link's accessible name, which names the version it would fetch. */
+  const LINK = "Update to LongClaw 0.2.0";
+  const onLink = (at) => at.label === LINK;
+  /** What holds focus, in the terms a checkbox with no name of its own needs. */
+  const activeShape = () =>
+    page.evaluate(() => {
+      const element = document.activeElement;
+      return {
+        tag: element?.tagName.toLowerCase() ?? "body",
+        type: element?.getAttribute("type") ?? "",
+        text: (element?.textContent ?? "").trim().slice(0, 40),
+        inAuto: Boolean(element?.closest(".upd-auto")),
+        inPane: Boolean(element?.closest(".settings-section")),
+      };
+    });
+  try {
+    // The shell's order (rule 1): the footer pair, then the version line's
+    // link. Walked rather than queried — the question is what a reader reaches
+    // and in what order, and a selector answers neither.
+    const stops = [];
+    for (let press = 0; press < 16; press += 1) {
+      await page.keyboard.press("Tab");
+      const at = await focused(page);
+      stops.push(at.label || at.text || at.className || at.tag);
+      if (onLink(at)) break;
+    }
+    const linkAt = stops.findIndex((stop) => stop === LINK);
+    const openFolderAt = stops.findIndex((stop) => stop === "Open folder");
+    check(
+      "the footer's `Update` link is a Tab stop, straight after the footer pair",
+      linkAt > 0 && openFolderAt >= 0 && linkAt === openFolderAt + 1,
+      `${stops.slice(Math.max(0, linkAt - 3), linkAt + 1).join(" → ")}`,
+      "keyboard-focus-map.md:12,197 — the shell's order follows the DOM",
+    );
+
+    await page.keyboard.press("Enter");
+    await settle(page);
+    const landed = await activeShape();
+    const selected = await textOf(
+      page,
+      '.settings-nav-row[aria-selected="true"]',
+    );
+    check(
+      "`Enter` opens the panel on `Updates` with focus on the pane's first control",
+      (await visible(page, ".settings-panel")) &&
+        selected.startsWith("Updates") &&
+        landed.inPane &&
+        landed.text === "Check now",
+      `section=${JSON.stringify(selected)} focus=${landed.text || landed.tag}`,
+      "keyboard-focus-map.md:198 — focus enters the pane's first control",
+    );
+
+    // The dot is decorative, so the row has to say it in words as well.
+    const navRow = await page.evaluate(() => {
+      const row = document.querySelector(
+        '.settings-nav-row[aria-selected="true"]',
+      );
+      return {
+        dot: Boolean(row?.querySelector(".nav-dot")),
+        hidden:
+          row?.querySelector(".visually-hidden")?.textContent?.trim() ?? "",
+      };
+    });
+    check(
+      "the nav row carries the news in words as well as in colour",
+      navRow.dot && navRow.hidden === "An update is available",
+      `dot=${navRow.dot} words=${JSON.stringify(navRow.hidden)}`,
+      "keyboard-focus-map.md:203-204 — the dots are decorative",
+    );
+
+    await page.keyboard.press("Tab");
+    const onDownload = await activeShape();
+    await page.keyboard.press("Tab");
+    const onToggle = await activeShape();
+    check(
+      "the pane's order is `Check now` → `Update` → the automatic toggle",
+      onDownload.text === "Update" &&
+        onToggle.tag === "input" &&
+        onToggle.type === "checkbox" &&
+        onToggle.inAuto,
+      `${onDownload.text} → ${onToggle.tag}[type=${onToggle.type}]`,
+      "keyboard-focus-map.md:199 — the pane's Tab order",
+    );
+
+    // The first press. Back onto it, since the walk above went past.
+    await page.keyboard.press("Shift+Tab");
+    await page.keyboard.press("Enter");
+    let sawProgress = false;
+    try {
+      await page.waitForSelector(".upd-progress", { timeout: 3_000 });
+      sawProgress = true;
+    } catch {
+      // Recorded as a failed check below rather than as a thrown row: the
+      // question is whether a reader sees the download, and "no" is an answer.
+    }
+    await page
+      .waitForSelector(".upd-ready", { timeout: 10_000 })
+      .catch(() => {});
+    const ready = await textOf(page, ".upd-ready");
+    const restart = await tabTo(
+      page,
+      (at) => at.text === "Restart to update",
+      8,
+    );
+    check(
+      "`Enter` downloads, and the second press appears only once it has verified",
+      sawProgress && ready === "Downloaded and verified." && restart.found,
+      `progress=${sawProgress} ready=${JSON.stringify(ready)} restart after ${restart.presses} presses`,
+      "keyboard-focus-map.md:199 — `Restart to update` after the download",
+    );
+
+    await page.keyboard.press("Escape");
+    await settle(page);
+    const back = await focused(page);
+    check(
+      "`Esc` closes the pane and focus returns to the link that opened it",
+      !(await visible(page, ".settings-panel")) && onLink(back),
+      `focus=${back.label || back.className || back.tag}`,
+      "keyboard-focus-map.md:220 — settings returns focus to its opener",
+    );
+
+    // A ticket write, held open, so the restart has something to wait for.
+    await page.evaluate(() => window.__longclawPerf.holdWrites(20_000));
+    await focusFirstCard(page);
+    await page.keyboard.press("s");
+    await settle(page);
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("Enter");
+    await settle(page);
+
+    // Backwards: the link is above the board in the DOM, so walking forward
+    // would be a lap of the document rather than a walk to the control.
+    const backToLink = await tabTo(page, onLink, 30, "Shift+Tab");
+    await page.keyboard.press("Enter");
+    await settle(page);
+    const held = await page.evaluate(() => {
+      const button = [...document.querySelectorAll(".upd-actions button")].find(
+        (node) => node.textContent?.trim() === "Restart to update",
+      );
+      return {
+        found: Boolean(button),
+        said: button?.getAttribute("aria-disabled") ?? "",
+        stop: button?.getAttribute("tabindex") ?? "",
+        disabled: button?.hasAttribute("disabled") ?? false,
+        why:
+          document.querySelector(".upd-actions .why")?.textContent?.trim() ??
+          "",
+      };
+    });
+    check(
+      "a write in flight holds the restart without taking away its tab stop",
+      backToLink.found &&
+        held.said === "true" &&
+        held.stop === "0" &&
+        !held.disabled &&
+        held.why === "Waiting for a save to finish.",
+      `aria-disabled=${held.said} tabindex=${held.stop} disabled=${held.disabled} why=${JSON.stringify(held.why)}`,
+      "keyboard-focus-map.md:200 — `aria-disabled` and not `disabled`",
+    );
+
+    const reached = await tabTo(
+      page,
+      (at) => at.text === "Restart to update",
+      8,
+    );
+    await page.keyboard.press("Enter");
+    await settle(page);
+    const announced = await textOf(page, "[aria-live] .visually-hidden");
+    check(
+      "pressing it announces why it is held rather than doing nothing",
+      reached.found && announced === "Restart is waiting for a save to finish.",
+      `reached=${reached.found} announced=${JSON.stringify(announced)}`,
+      "keyboard-focus-map.md:200 — the reason is announced",
+    );
+  } finally {
+    await context.close();
+  }
+}
+
 /* ---------- main ---------- */
 
 const AUDITS = [
@@ -1620,6 +1845,7 @@ const AUDITS = [
   ["A4", auditReducedMotion],
   ["A5", auditZoom],
   ["A6", auditPanelResize],
+  ["A7", auditUpdates],
 ];
 
 async function main() {

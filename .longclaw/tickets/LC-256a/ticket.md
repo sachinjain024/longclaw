@@ -13,7 +13,7 @@ labels:
 type: feature
 estimate: "3"
 created_at: 2026-09-16T07:40:42.050Z
-updated_at: 2026-09-19T13:07:34.008Z
+updated_at: 2026-09-19T13:28:27.860Z
 ---
 
 LongClaw ships as a signed, notarized DMG. An installed copy has no way to
@@ -167,15 +167,15 @@ one flow carry the word and the first of them downloads rather than updates.
 - [x] Device preferences: an automatic-check flag and a last-check record, and no skipped-version field <!-- longclaw:item=ck_fb5c9a8d -->
 - [x] Copy deck for every string, including the live region <!-- longclaw:item=ck_42b4fa8a -->
 - [ ] Retire the prototype once its copy is in the source <!-- longclaw:item=ck_accacb47 -->
-- [ ] Write the Updates pane's rows into keyboard-focus-map.md and re-pin the citations, so a11y:audit has an oracle to cite <!-- longclaw:item=ck_20c23547 -->
-- [ ] Perf harness serves an available update behind a flag, so a11y:audit can drive the pane, the footer link and the held restart button <!-- longclaw:item=ck_91432a40 -->
-- [ ] Run a11y:audit for the pane, the footer link and the held restart button; quote the run <!-- longclaw:item=ck_743cbe53 -->
+- [x] Write the Updates pane's rows into keyboard-focus-map.md and re-pin the citations, so a11y:audit has an oracle to cite <!-- longclaw:item=ck_20c23547 -->
+- [x] Perf harness serves an available update behind a flag, so a11y:audit can drive the pane, the footer link and the held restart button <!-- longclaw:item=ck_91432a40 -->
+- [x] Run a11y:audit for the pane, the footer link and the held restart button; quote the run <!-- longclaw:item=ck_743cbe53 -->
 - [x] Offline invariants: no existing code path calls the updater, and startup issues no request before first paint <!-- longclaw:item=ck_4bf45090 -->
 - [x] Bounded single attempt off the main thread; no retry loop, no backoff <!-- longclaw:item=ck_80d7940d -->
 - [x] A broken or absent updater configuration is a failed check, never a failed launch <!-- longclaw:item=ck_2fc77e43 -->
 - [x] Regression proof: npm run verify green, and every existing test that changed names a behaviour that changed rather than accommodating the update path <!-- longclaw:item=ck_b71178f7 -->
 - [x] Regression proof: every other operation survives a dead, hanging or absent updater <!-- longclaw:item=ck_ea629ace -->
-- [ ] Regression proof: nothing outside the Updates pane changes when a check fails <!-- longclaw:item=ck_d03644b2 -->
+- [x] Regression proof: nothing outside the Updates pane changes when a check fails <!-- longclaw:item=ck_d03644b2 -->
 - [ ] Run audit:network offline, and again online with the automatic check off; both must record zero connections; quote the runs <!-- longclaw:item=ck_027b4aa2 -->
 - [ ] Re-run perf:startup against a built bundle; quote it unchanged <!-- longclaw:item=ck_9619080c -->
 - [ ] Changelog entry for the release that ships this, through the changelog-entry skill <!-- longclaw:item=ck_35214e39 -->
@@ -840,4 +840,66 @@ changes:
     to: "true"
 -->
 ### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_d7f814b2
+kind: update
+occurred_at: 2026-09-19T13:28:27.860Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_d03644b2.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_20c23547.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_91432a40.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_743cbe53.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+The four items that needed nothing from anyone else are done, and `npm run verify` is green.
+
+**`a11y:audit` grew a seventh row.** A7 drives the whole update path with the keyboard and nothing else — no pointer input anywhere in it — over `?update=available`, a new perf-harness flag that serves a release from a literal and makes no request. The full run:
+
+```
+A11Y-PART-A tickets=600 viewport=1440x900
+engine=WebKit (playwright-core), the engine the packaged app's WKWebView runs
+
+A7  PASS  The update path has a keyboard path, and it all lives in one pane
+      ok    the footer's `Update` link is a Tab stop, straight after the footer pair
+            Performance Fixture menu → Create project → Open folder → Update to LongClaw 0.2.0
+      ok    `Enter` opens the panel on `Updates` with focus on the pane's first control
+            section="UpdatesAn update is available" focus=Check now
+      ok    the nav row carries the news in words as well as in colour
+            dot=true words="An update is available"
+      ok    the pane's order is `Check now` → `Update` → the automatic toggle
+      ok    `Enter` downloads, and the second press appears only once it has verified
+            progress=true ready="Downloaded and verified." restart after 1 presses
+      ok    `Esc` closes the pane and focus returns to the link that opened it
+      ok    a write in flight holds the restart without taking away its tab stop
+            aria-disabled=true tabindex=0 disabled=false why="Waiting for a save to finish."
+      ok    pressing it announces why it is held rather than doing nothing
+            announced="Restart is waiting for a save to finish."
+
+Part A passes: A1 … A7
+```
+
+A1–A6 still pass beside it, and `--self-test` goes red exactly where it should: the injected break is a `focus()` that does nothing on `.upd-link`, and the focus-return check is the one that catches it while the other seven stay green.
+
+**A focus-return defect, found by writing the oracle down.** `closeSettings` always handed focus back to the gear, so the footer's `Update` link opened a panel that returned focus to a control the reader never touched — rule 3 of `keyboard-focus-map.md` and the focus-return table both say *the opener*. The panel now remembers what opened it, with the gear as the default rather than the answer, and falls back to the gear when the opener has left the screen (the link is drawn only while an update is waiting). There is a jsdom test for it as well as A7's check.
+
+**The focus map gained a § Updates section** — the link's place in the shell's order, the pane's Tab order, the held restart, and the `Esc` rung — inserted before § Focus-return table. Fourteen citations below the insertion were re-pointed by hand and verified to land on the same prose before `citations:update` ran; 534 citations clean. Rule 1's shell order was amended in place to name the link.
+
+**Nothing outside the pane changes when a check fails** is three tests at the `App` level, where the question can actually be asked: no banner, no toast, no dialog, no store error, no dot, no `Update` link, an unmarked gear, the board untouched — and the last-checked record unmoved, because a failure that wrote *last checked just now* would be a failed check reported as one that worked. The second test opens the pane, presses `Check now`, and asserts the sentence appears there exactly once and still nowhere else.
+
+One correction made on the way past: `settingsSections.ts` said LC-261h *had* taken `Command line tool` out of the gear menu. It has not — LC-261h is still open, and the row is still there. The comment now says so.
 <!-- /longclaw:event -->

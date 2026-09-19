@@ -385,6 +385,17 @@ export function App() {
   const filterField = useRef<HTMLInputElement>(null);
   /** The gear the settings dialog opens from, and the focus it owes on close. */
   const settingsButton = useRef<HTMLButtonElement>(null);
+  /**
+   * The control that opened the settings panel, where that was not the gear.
+   *
+   * Rule 3 of `keyboard-focus-map.md` is that closing a layer returns focus to
+   * the element that opened it, and the focus-return table names *the opener*
+   * rather than the gear specifically. The footer's `Update` link is the second
+   * opener this panel has (LC-256a), so the gear became a default rather than
+   * the answer. Cleared on close, so a later gear press is not handed the last
+   * link a reader used.
+   */
+  const settingsOpener = useRef<HTMLElement | null>(null);
 
   const project = projects.find((item) => item.id === activeProjectId);
   /** The project whose `⋮` menu is open, as the store holds it *now*. */
@@ -534,7 +545,7 @@ export function App() {
    * past the window, or a panel closing over a row scrolled out of sight, focused
    * nothing and left `<body>` holding it. The surfaces answer this by moving
    * their tab stop first, which mounts the row, and taking focus after. Found by
-   * the Step 17 accessibility audit; `keyboard-focus-map.md:16-18,132,197`.
+   * the Step 17 accessibility audit; `keyboard-focus-map.md:16-18,132,214`.
    */
   const [cardFocus, setCardFocus] = useState<FocusRequest>();
   const focusCard = useCallback((key: string) => {
@@ -1514,10 +1525,20 @@ export function App() {
     });
   }
 
-  /** Closes the settings panel and hands focus back to the gear that opened it. */
+  /** Closes the settings panel and hands focus back to whatever opened it. */
   function closeSettings() {
+    const opener = settingsOpener.current;
+    settingsOpener.current = null;
     setSettingsSection(undefined);
-    requestAnimationFrame(() => settingsButton.current?.focus());
+    requestAnimationFrame(() => {
+      // An opener can be gone by the time the panel closes — the footer's
+      // `Update` link is drawn only while an update is waiting — and focusing a
+      // detached node puts focus on `<body>`, which is what a lost focus return
+      // looks like. The gear is always there.
+      const landing =
+        opener && document.contains(opener) ? opener : settingsButton.current;
+      landing?.focus();
+    });
   }
 
   /**
@@ -2369,7 +2390,12 @@ export function App() {
                     aria-label={UPDATE_COPY.footer.updateAria(
                       update.available.version,
                     )}
-                    onClick={() => setSettingsSection("updates")}
+                    onClick={(event) => {
+                      // The opener, so `Esc` comes back here rather than to
+                      // the gear a reader never touched.
+                      settingsOpener.current = event.currentTarget;
+                      setSettingsSection("updates");
+                    }}
                   >
                     {UPDATE_COPY.footer.update}
                   </button>
