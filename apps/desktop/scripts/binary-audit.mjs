@@ -51,12 +51,14 @@
  *        node scripts/binary-audit.mjs --self-test   (see the signing section)
  */
 
+import { Buffer } from "node:buffer";
 import { execFileSync, spawnSync } from "node:child_process";
 import {
   copyFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   readdirSync,
   rmSync,
   writeFileSync,
@@ -87,6 +89,62 @@ const SELF_TEST = process.argv.includes("--self-test");
  * read off the wrong file is the failure mode it was written to avoid — the
  * same reasoning as the symbol-count floor, one level up.
  */
+/**
+ * Every socket call a process could make through libSystem.
+ *
+ * The *set* is what is audited, not a handful of names. The old check listed
+ * four and asked whether any was present; an enumerated expectation has to know
+ * every name it might see, or a build that swapped `_connect` for `_connectx`
+ * would read as a build that stopped connecting.
+ */
+const SOCKET_API = [
+  "_accept",
+  "_bind",
+  "_connect",
+  "_connectx",
+  "_freeaddrinfo",
+  "_getaddrinfo",
+  "_getnameinfo",
+  "_getpeername",
+  "_getsockname",
+  "_getsockopt",
+  "_listen",
+  "_recv",
+  "_recvfrom",
+  "_recvmsg",
+  "_send",
+  "_sendmsg",
+  "_sendto",
+  "_setsockopt",
+  "_shutdown",
+  "_socket",
+  "_socketpair",
+];
+
+/** Every system framework that can carry traffic off this machine. */
+const NETWORK_FRAMEWORKS = [
+  "CFNetwork",
+  "Network.framework",
+  "Security.framework",
+  "SystemConfiguration.framework",
+];
+
+/**
+ * Every Mach-O the bundle ships, and the controls that prove each was read.
+ *
+ * `sourceSymbol` is the positive read: a Rust path this binary's own code must
+ * contain. Absence claims are the whole point of this script, and an absence
+ * read off the wrong file is the failure mode it was written to avoid — the
+ * same reasoning as the symbol-count floor, one level up.
+ *
+ * **`socketApi` and `networkFrameworks` are exact sets, not forbidden lists**
+ * (LC-256a). ADR 0014 sanctions one update check, so "no network anything" is
+ * no longer true of the window and a gate that still claimed it would have to
+ * be deleted to go green — which is how a gate stops watching. An enumerated
+ * expectation fails when the set *grows* as surely as when a control is
+ * missing: a second caller, a new TLS stack, or a framework nobody asked for
+ * all move the set and all go red.
+ */
 const BINARIES = [
   {
     name: "longclaw-desktop",
@@ -98,6 +156,29 @@ const BINARIES = [
     // today, through the shared lib, but that is incidental — a control has to
     // be something the binary cannot work without, so it is claimed only here.
     frameworks: ["WebKit"],
+    // Exactly what the updater's TLS stack reaches libSystem for, and nothing
+    // else. `_sendto` and `_recvfrom` are absent and must stay absent: HTTPS is
+    // a connected stream, and a datagram call would be something else entirely.
+    socketApi: [
+      "_bind",
+      "_connect",
+      "_freeaddrinfo",
+      "_getaddrinfo",
+      "_getsockopt",
+      "_recv",
+      "_send",
+      "_setsockopt",
+      "_socket",
+    ],
+    // `Security` for the platform certificate verifier and `SystemConfiguration`
+    // for the system proxy settings — both arriving with the updater's client.
+    // `CFNetwork` and `Network.framework` are the two that must stay out: they
+    // are how a process reaches the network *without* the crate graph saying so,
+    // which is the thing `release-audit.mjs` cannot see.
+    networkFrameworks: ["Security.framework", "SystemConfiguration.framework"],
+    // The positive read for the update path itself. Without it a build that
+    // quietly lost the updater would pass every absence claim below.
+    networkMarkers: ["reqwest", "rustls"],
     // The architectures every other bundled binary must match.
     setsTheArchitecture: true,
   },
@@ -110,12 +191,64 @@ const BINARIES = [
     why: "the CLI reads and writes ticket files",
     sourceSymbol: "longclaw_desktop_lib3cli",
     frameworks: [],
+    // **The CLI still imports no socket call at all**, which is the claim that
+    // matters and the one ADR 0014 keeps strict for it: it starts no updater
+    // and can make no connection.
+    socketApi: [],
+    // It does link the two frameworks the window does, and that is not a
+    // regression being tolerated — it is the shared library being honest. Both
+    // binaries are built from one `longclaw_desktop_lib` on purpose (ADR 0011:
+    // the CLI links the same core so the write seams and the file format stay
+    // in one implementation), and `security-framework-sys` declares its links
+    // at link time whether or not a caller reaches them. Linking a framework is
+    // not calling one; the empty `socketApi` above is what says nothing is
+    // called, and it is stronger evidence than the framework line ever was.
+    networkFrameworks: ["Security.framework", "SystemConfiguration.framework"],
+    // And it must not contain the update path's own code.
+    networkMarkers: [],
     setsTheArchitecture: false,
   },
 ];
 
+/** Whichever of `names` the reading actually found, in a stable order. */
+const present = (names, haystack) =>
+  names.filter((name) => haystack.some((entry) => entry.includes(name)));
+
+/**
+ * Every finding about one binary's network shape, given what was read off it.
+ *
+ * Pure, and taking the reading rather than performing it, so `--self-test` can
+ * hand it the pre-amendment shape and an over-broad one and assert that each
+ * goes red. A guard whose judgment cannot be run against a known-bad input is a
+ * guard nobody has ever seen fail.
+ */
+function networkShapeFindings(binary, undefinedSymbols, libraries) {
+  const found = [];
+  const note = (message) => found.push(`${binary.name}: ${message}`);
+  const sameSet = (left, right) =>
+    left.length === right.length &&
+    left.every((name, at) => name === right[at]);
+
+  const socket = SOCKET_API.filter((name) => undefinedSymbols.includes(name));
+  if (!sameSet(socket, [...binary.socketApi].sort())) {
+    note(
+      `the socket API it imports is [${socket.join(", ")}], and ADR 0014 sanctions exactly [${[...binary.socketApi].sort().join(", ")}]`,
+    );
+  }
+
+  const frameworks = present(NETWORK_FRAMEWORKS, libraries);
+  if (!sameSet(frameworks, [...binary.networkFrameworks].sort())) {
+    note(
+      `the network-capable frameworks it links are [${frameworks.join(", ")}], and ADR 0014 sanctions exactly [${[...binary.networkFrameworks].sort().join(", ")}]`,
+    );
+  }
+  return found;
+}
+
 const findings = [];
 const fail = (message) => findings.push(message);
+
+const readJson = (path) => JSON.parse(readFileSync(path, "utf8"));
 
 const run = (command, args) =>
   execFileSync(command, args, {
@@ -174,37 +307,28 @@ for (const binary of SELF_TEST ? [] : BINARIES) {
     );
   }
 
-  for (const marker of [
-    "reqwest",
-    "hyper_util",
-    "rustls",
-    "native_tls",
-    "h2::",
-    "sentry",
-  ]) {
+  // Telemetry is still forbidden outright: ADR 0014 amended the network claim
+  // and left this one exactly where it was.
+  for (const marker of ["sentry", "posthog", "amplitude"]) {
     if (symbols.includes(marker)) {
-      fail(`${label}: network or telemetry symbols linked in: ${marker}`);
+      fail(`${label}: telemetry symbols linked in: ${marker}`);
     }
   }
 
-  // The Rust side reaches the network through libSystem or not at all. These are
-  // the imports it would need; none of them is used by local file work.
-  for (const stub of ["_connect", "_socket", "_sendto", "_getaddrinfo"]) {
-    if (undefined_.some((symbol) => symbol === stub)) {
-      fail(`${label}: the binary imports the socket API: ${stub}`);
-    }
-  }
-
-  for (const framework of [
-    "CFNetwork",
-    "Network.framework",
-    "Security.framework",
-  ]) {
-    if (libraries.some((library) => library.includes(framework))) {
+  // The update path, read positively. A build that lost it would otherwise pass
+  // every absence claim in this script by having nothing in it at all.
+  for (const marker of binary.networkMarkers) {
+    if (!symbols.includes(marker)) {
       fail(
-        `${label}: a network-capable system framework is linked: ${framework}`,
+        `${label}: no ${marker} symbol — the update path ADR 0014 sanctions is not in this binary, so the sets below are describing a different build`,
       );
     }
+  }
+
+  // The socket API and the network frameworks, as exact sets rather than as
+  // forbidden lists. See `networkShapeFindings`.
+  for (const finding of networkShapeFindings(binary, undefined_, libraries)) {
+    fail(finding);
   }
 
   for (const framework of binary.frameworks) {
@@ -231,6 +355,97 @@ for (const binary of SELF_TEST
       `${binary.name} is built for ${archs.join("+")} and ${reference.name} for ${expected.join("+")} — the bundled command will not run everywhere the app does`,
     );
   }
+}
+
+/**
+ * The updater key, and whether it is the key that signed the manifest (D3).
+ *
+ * Losing or mismatching this key orphans every installed copy — the exact
+ * problem LC-256a exists to end — so a mismatch has to fail the build rather
+ * than every user's update. Two questions:
+ *
+ * - **Is there a key at all?** The public half is committed in the Tauri
+ *   configuration, which is how it reaches every bundle. It is empty until the
+ *   release engineer generates the pair, and an empty key makes the app report
+ *   the update path unavailable rather than offering a download it could never
+ *   verify. That is the right behaviour for a dev window and the wrong one for
+ *   a release, so it is a finding *here* — this script only ever reads a
+ *   release bundle — and not in `release-audit.mjs`.
+ * - **Did that key sign the manifest?** minisign puts an 8-byte key id in both
+ *   the public key and every signature, so the two can be compared without a
+ *   cryptographic library. This proves the release was signed by the key the
+ *   bundle carries. It does **not** prove the signature is valid over the
+ *   archive — that is `release-macos.mjs`'s step, which fetches the published
+ *   manifest back and verifies it. A key id match is the failure this catches,
+ *   and it is the one that would otherwise reach users.
+ */
+const MANIFEST_NAME = "latest.json";
+
+/** The 8-byte minisign key id inside a base64-wrapped `.pub` or `.sig` body. */
+function minisignKeyId(wrapped) {
+  const lines = Buffer.from(wrapped.trim(), "base64")
+    .toString("utf8")
+    .split("\n")
+    .filter((line) => line.trim() && !line.startsWith("untrusted comment"));
+  if (lines.length === 0) return null;
+  const body = Buffer.from(lines[0].trim(), "base64");
+  // Two bytes of algorithm, then the key id.
+  return body.length >= 10 ? body.subarray(2, 10).toString("hex") : null;
+}
+
+function updaterKeyFindings() {
+  const found = [];
+  const pubkey = readJson(join(appRoot, "src-tauri/tauri.conf.json")).plugins
+    ?.updater?.pubkey;
+  if (!pubkey) {
+    found.push({
+      tag: "updaterKey",
+      message:
+        "the bundle carries no updater public key, so every copy it installs is a permanent one — generate the pair per docs/release-signing-runbook.md",
+    });
+    return found;
+  }
+
+  const keyId = minisignKeyId(pubkey);
+  if (!keyId) {
+    found.push({
+      tag: "updaterKey",
+      message:
+        "the updater public key is not a minisign key this script can read",
+    });
+    return found;
+  }
+
+  // The manifest is written beside the DMG by the release script. Before that
+  // step has run there is nothing to compare against, and saying so is better
+  // than passing silently.
+  const manifestPath = join(DMG_DIR, MANIFEST_NAME);
+  if (!existsSync(manifestPath)) {
+    found.push({
+      tag: "manifest",
+      message: `no ${MANIFEST_NAME} beside the DMG — the release has no update manifest, so nothing an installed copy reads was produced`,
+    });
+    return found;
+  }
+
+  const manifest = readJson(manifestPath);
+  const platforms = Object.entries(manifest.platforms ?? {});
+  if (platforms.length === 0) {
+    found.push({
+      tag: "manifest",
+      message: `${MANIFEST_NAME} names no platform, so it can update nobody`,
+    });
+  }
+  for (const [platform, entry] of platforms) {
+    const signed = minisignKeyId(entry.signature ?? "");
+    if (signed !== keyId) {
+      found.push({
+        tag: "manifestKey",
+        message: `${MANIFEST_NAME}'s ${platform} signature was made by key ${signed ?? "an unreadable key"}, and the bundle verifies against ${keyId} — every update would be refused`,
+      });
+    }
+  }
+  return found;
 }
 
 /**
@@ -464,7 +679,132 @@ const INFO_PLIST = `<?xml version="1.0" encoding="UTF-8"?>
 const MUST_FIRE = ["authority", "team", "runtime", "spctl", "staple"];
 const MUST_NOT_FIRE = ["verify", "seal"];
 
+/**
+ * The network-shape inversion (LC-256a).
+ *
+ * The signing self-test below builds its subject; this one writes its readings
+ * out, because a reading is what `nm` and `otool` hand over and there is no
+ * cheaper way to produce a binary that links a framework it should not. Four
+ * cases, and both directions matter:
+ *
+ * - the shape ADR 0014 describes must stay green;
+ * - **the pre-amendment shape** — no socket imports, no network frameworks —
+ *   must now go red for the window, because that is a build with no update path
+ *   and this script's sets describe one that has it;
+ * - **one extra socket call** must go red, which is what the old forbidden list
+ *   was for and what deleting it would have lost;
+ * - **one extra framework** must go red for the same reason.
+ */
+function networkShapeSelfTest() {
+  const window_ = BINARIES.find((binary) => binary.name === "longclaw-desktop");
+  const cli = BINARIES.find((binary) => binary.name === "longclaw");
+  const linked = (...names) =>
+    names.map(
+      (name) =>
+        `/System/Library/Frameworks/${name}.framework/Versions/A/${name}`,
+    );
+
+  return [
+    {
+      what: "the window in the shape ADR 0014 describes",
+      binary: window_,
+      symbols: window_.socketApi,
+      libraries: linked("Security", "SystemConfiguration"),
+      red: false,
+    },
+    {
+      what: "the CLI, which imports no socket call at all",
+      binary: cli,
+      symbols: [],
+      libraries: linked("Security", "SystemConfiguration"),
+      red: false,
+    },
+    {
+      what: "the window in its pre-amendment shape, with no update path",
+      binary: window_,
+      symbols: [],
+      libraries: [],
+      red: true,
+    },
+    {
+      what: "the window with one socket call more than the update path needs",
+      binary: window_,
+      symbols: [...window_.socketApi, "_sendto"],
+      libraries: linked("Security", "SystemConfiguration"),
+      red: true,
+    },
+    {
+      what: "the window linking one network framework more",
+      binary: window_,
+      symbols: window_.socketApi,
+      libraries: linked("Security", "SystemConfiguration", "CFNetwork"),
+      red: true,
+    },
+    {
+      what: "the CLI having acquired a socket call",
+      binary: cli,
+      symbols: ["_connect"],
+      libraries: linked("Security", "SystemConfiguration"),
+      red: true,
+    },
+  ];
+}
+
+/** The key-id comparison, against a pair that agrees and a pair that does not. */
+function updaterKeySelfTest() {
+  const wrap = (keyId) =>
+    Buffer.from(
+      `untrusted comment: probe\n${Buffer.concat([
+        Buffer.from([0x45, 0x64]),
+        Buffer.from(keyId, "hex"),
+        Buffer.alloc(32),
+      ]).toString("base64")}\n`,
+    ).toString("base64");
+
+  return [
+    {
+      what: "a key id read back from its own key",
+      wrapped: wrap("0123456789abcdef"),
+      expect: "0123456789abcdef",
+    },
+    {
+      what: "a different key",
+      wrapped: wrap("fedcba9876543210"),
+      expect: "fedcba9876543210",
+    },
+    {
+      what: "something that is not a key",
+      wrapped: "bm90IGEga2V5",
+      expect: null,
+    },
+  ];
+}
+
 if (SELF_TEST) {
+  const shapeWrong = networkShapeSelfTest().filter(
+    (probe) =>
+      networkShapeFindings(probe.binary, probe.symbols, probe.libraries)
+        .length >
+        0 !==
+      probe.red,
+  );
+  const keyWrong = updaterKeySelfTest().filter(
+    (probe) => minisignKeyId(probe.wrapped) !== probe.expect,
+  );
+  if (shapeWrong.length > 0 || keyWrong.length > 0) {
+    console.error(
+      "binary-audit --self-test: the network inversion did not hold\n" +
+        shapeWrong
+          .map(
+            (probe) =>
+              `  ${probe.red ? "stayed green on" : "went red on"}: ${probe.what}`,
+          )
+          .concat(keyWrong.map((probe) => `  misread: ${probe.what}`))
+          .join("\n"),
+    );
+    process.exit(1);
+  }
+
   const scratch = mkdtempSync(join(tmpdir(), "binary-audit-self-test-"));
   const bundle = join(scratch, "Probe.app");
   try {
@@ -508,7 +848,7 @@ if (SELF_TEST) {
       process.exit(1);
     }
     console.log(
-      `binary-audit --self-test: an ad-hoc bundle is caught on ${MUST_FIRE.join(", ")}, and is not faulted for ${MUST_NOT_FIRE.join(" or ")}`,
+      `binary-audit --self-test: the network sets accept ${networkShapeSelfTest().filter((probe) => !probe.red).length} sanctioned shapes and reject ${networkShapeSelfTest().filter((probe) => probe.red).length} broad ones; an ad-hoc bundle is caught on ${MUST_FIRE.join(", ")}, and is not faulted for ${MUST_NOT_FIRE.join(" or ")}`,
     );
     process.exit(0);
   } finally {
@@ -520,6 +860,7 @@ if (existsSync(APP_BUNDLE)) {
   for (const artefact of artefacts()) {
     for (const { message } of signingFindings(artefact)) fail(message);
   }
+  for (const { message } of updaterKeyFindings()) fail(message);
 } else {
   fail(
     `no app bundle at ${APP_BUNDLE} to check the signature of — run npm run build:app first`,
@@ -534,5 +875,5 @@ report({
   remedy:
     "finding(s) in the shipped binaries — the v0 boundary is docs/acceptance/release-candidate.md:",
   clean:
-    "no HTTP client, telemetry, socket import, or network framework in either shipped binary, the CLI ships beside the window on the same architecture, and both the bundle and the DMG verify, seal what they should, carry a Developer ID chain and the Hardened Runtime flag, are accepted by Gatekeeper and have a notarization ticket stapled (controls passed; the webview is out of scope and stays a manual pass)",
+    "no telemetry in either shipped binary, exactly the socket API and network frameworks ADR 0014 sanctions and no others, no socket call at all from the CLI, the update path present in the window, the manifest signed by the key the bundle carries, the CLI beside the window on the same architecture, and both the bundle and the DMG verifying, sealing what they should, carrying a Developer ID chain and the Hardened Runtime flag, accepted by Gatekeeper and with a notarization ticket stapled (controls passed; the webview is out of scope and stays a manual pass)",
 });

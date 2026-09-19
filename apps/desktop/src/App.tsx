@@ -29,6 +29,8 @@ import {
   setProjectStarred,
   updateProjectName,
   updateProjectTheme,
+  updateStatus,
+  checkForUpdate,
 } from "./api";
 import { Board } from "./Board";
 import {
@@ -53,12 +55,15 @@ import { CreateProjectForm, type ProjectDraft } from "./CreateProjectForm";
 import { DEV_CHROME } from "./devChrome";
 import {
   readActiveProjectId,
+  readAutomaticUpdateCheck,
   readCommandLinePrompted,
+  readLastUpdateCheck,
   readProjectWorkspaces,
   rememberActiveProject,
   rememberAppearance,
   rememberCommandLinePrompted,
   rememberProjectWorkspaces,
+  rememberUpdateCheck,
   type ProjectWorkspace,
   type ProjectWorkspacePatch,
   type ViewMode,
@@ -101,6 +106,8 @@ import {
   statusLabel,
   ticketPath,
 } from "./tickets";
+import { UNREAD_UPDATE_STATUS } from "./UpdatesPane";
+import { CHECK_INTERVAL_MS, UPDATE_COPY, isCheckDue } from "./updates";
 import type {
   AppError,
   CommandLineStatus,
@@ -114,6 +121,7 @@ import type {
   TicketProperty,
   TicketStatus,
   TicketRow,
+  UpdateStatus,
   WriteResult,
 } from "./types";
 import { ViewGlyph } from "./ViewGlyph";
@@ -358,6 +366,15 @@ export function App() {
   const [commandLine, setCommandLine] = useState<CommandLineStatus>();
   /** Whether the one-time offer is on screen. */
   const [offeringCommandLine, setOfferingCommandLine] = useState(false);
+  /**
+   * Whether a newer LongClaw is waiting (LC-256a).
+   *
+   * `undefined` until an answer arrives, and it stays `undefined` forever on a
+   * host with no updater — a browser tab, the perf harness, a `vitest` render —
+   * which is what keeps the sidebar footer's version line off a surface that
+   * has no version to name.
+   */
+  const [update, setUpdate] = useState<UpdateStatus>();
   /**
    * Whether the project registry has been read yet. The difference between "no
    * projects" and "not asked yet", which is what keeps first launch's
@@ -947,6 +964,75 @@ export function App() {
     })();
     return () => {
       active = false;
+    };
+  }, []);
+
+  /**
+   * The update schedule (LC-256a, ADR 0014).
+   *
+   * **Nothing here can precede a frame.** The status is read first and reads
+   * nothing off the network; the *check* is deferred to the first idle callback
+   * after paint, so no DNS lookup, proxy negotiation or TLS handshake can
+   * happen before the board is on screen. `perf:startup` is re-run against a
+   * built bundle to hold that rather than assume it.
+   *
+   * **A host with no updater schedules nothing at all.** `updateStatus` throws
+   * where no command answers, and `unavailable` is the answer everywhere that
+   * is not an installed bundle, so a dev window, the perf harness and a
+   * `vitest` render never reach the timer below.
+   *
+   * **The preference is read before the request, not after it.** `isCheckDue`
+   * is what ADR 0014 means by the choice being honoured before anything is
+   * asked, and the runtime audit's `automatic-off` phase is what records it.
+   *
+   * The frontend schedules and Rust performs, because ADR 0012 keeps Rust out
+   * of the preferences document and the preference lives there. Rust refuses a
+   * second request inside a slot anyway: the same rule held at both ends, so a
+   * reload cannot turn one check into two.
+   */
+  useEffect(() => {
+    let active = true;
+    let timer: ReturnType<typeof setInterval> | undefined;
+
+    const runScheduled = async () => {
+      if (!isCheckDue(readAutomaticUpdateCheck(), readLastUpdateCheck()))
+        return;
+      try {
+        const status = await checkForUpdate(false);
+        if (!active) return;
+        rememberUpdateCheck();
+        setUpdate(status);
+      } catch {
+        // Quiet, and quiet everywhere but the pane. A failed check leaves no
+        // mark, no toast and no banner — a machine that has never checked and
+        // one that is up to date look the same from out here (D10).
+      }
+    };
+
+    void (async () => {
+      let current: UpdateStatus;
+      try {
+        current = await updateStatus();
+      } catch {
+        return;
+      }
+      if (!active) return;
+      setUpdate(current);
+      if (current.state === "unavailable") return;
+
+      // After paint, and after the frame has gone quiet. `requestIdleCallback`
+      // where the engine has it; a plain delay is the honest fallback rather
+      // than a polyfill that claims to know when the frame is idle.
+      const idle = window.requestIdleCallback?.bind(window);
+      if (idle) idle(() => void runScheduled(), { timeout: 5_000 });
+      else setTimeout(() => void runScheduled(), 2_000);
+
+      timer = setInterval(() => void runScheduled(), CHECK_INTERVAL_MS);
+    })();
+
+    return () => {
+      active = false;
+      if (timer !== undefined) clearInterval(timer);
     };
   }, []);
 
@@ -2256,6 +2342,41 @@ export function App() {
               Open folder
             </button>
           </section>
+          {/* Which LongClaw this is, and — only when there is news — the way to
+              it (LC-256a). It is in the footer because it is a claim about the
+              app rather than about any project, and the footer is the one part
+              of this panel that is already not about the open project.
+
+              **The link opens the pane; it does not update.** The release
+              notes and the two presses are read in Settings › Updates, which
+              is the only surface that says anything about updates in words.
+              The dot is decorative and the link carries the message: colour is
+              never the only channel. The gear carries no mark at all — with no
+              Updates row in its menu, a marked gear would open a menu that
+              says nothing about updates. */}
+          {update && (
+            <div className="app-version">
+              <span className="ver">
+                {UPDATE_COPY.footer.version(update.currentVersion)}
+              </span>
+              {update.state === "available" && update.available && (
+                <>
+                  <span className="upd-dot" aria-hidden="true" />
+                  <button
+                    tabIndex={0}
+                    type="button"
+                    className="upd-link"
+                    aria-label={UPDATE_COPY.footer.updateAria(
+                      update.available.version,
+                    )}
+                    onClick={() => setSettingsSection("updates")}
+                  >
+                    {UPDATE_COPY.footer.update}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </aside>
 
@@ -2577,6 +2698,8 @@ export function App() {
           // answers no commands has no CLI to install, which is exactly what
           // `unavailable` says (LC-233).
           commandLine={commandLine ?? UNREAD_COMMAND_LINE}
+          update={update ?? UNREAD_UPDATE_STATUS}
+          onUpdate={setUpdate}
           onCommandLine={setCommandLine}
           onAppearance={setAppearance}
           onRename={(name) => void renameProject(name)}

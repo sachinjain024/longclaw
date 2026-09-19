@@ -8,6 +8,15 @@
  * wall, and both say so: WebKit is network-capable by construction, no symbol
  * table describes what a webview does, and only a process monitor can tell you
  * whether the running app opened a connection.
+ *
+ * **What LC-256a changed.** ADR 0014 sanctions exactly one connection — an
+ * update check, from the app's own process, to one of two named hosts — so the
+ * question is no longer "did anything connect" but "did anything *else*". The
+ * offline phase is unchanged and still demands total silence. The online phase
+ * gains an allowlist and, more importantly, a control that the sanctioned check
+ * *was seen*: a run that observed nothing at all would otherwise pass while
+ * proving nothing. A third phase runs with the automatic check turned off and
+ * must be as silent as the offline one.
  * `docs/acceptance/release-candidate.md` § Security, privacy, and filesystem
  * has asked for that pass since Step 16b and it has never been run.
  *
@@ -54,6 +63,11 @@
  *       demonstrably the app's, and neither is their silence
  *   C5  the app painted a board — otherwise it exercised nothing, and an app
  *       that did nothing is silent for reasons that have no bearing on release
+ *   C6  in the online phase, the sanctioned update check was observed —
+ *       otherwise the one connection the app is allowed to make never fired,
+ *       and nothing beside it being quiet is evidence of anything
+ *   C7  the run is labelled with one of the three phases — otherwise the
+ *       record cannot be filed against the acceptance document
  *
  * **What this cannot prove.** It watches sockets and byte counters, not
  * payloads: it says a connection was or was not made, never what crossed one. A
@@ -85,6 +99,18 @@
  *   npm run audit:network -- --attach          # audit an app the operator launched
  *   npm run audit:network -- --duration=180    # unattended, sample for N seconds
  *   npm run audit:network -- --self-test       # inject a peer, expect the run to go red
+ *   npm run audit:network -- --self-test-classify   # the classifier inversion alone,
+ *                                              # which needs no bundle and no operator
+ *
+ * **Three phases, and the release needs all three** (LC-256a, ADR 0014):
+ *
+ *   --phase=offline        the machine has no network. Nothing may connect.
+ *   --phase=automatic-off  online, with `Check for updates automatically` off.
+ *                          Nothing may connect: the preference is honoured
+ *                          before the first request, not after one.
+ *   --phase=online         online, the check on. Exactly the update check may
+ *                          connect, and control C6 requires that it *did* —
+ *                          a silent online run is a run that watched nothing.
  */
 
 import { execFileSync, spawn } from "node:child_process";
@@ -140,8 +166,22 @@ const STEPS = [
   "edit a ticket, and let an external write land",
   "archive a ticket",
   "search and filter",
+  "open Settings, then Updates, and press Check now",
   "restart the app",
 ];
+
+/**
+ * The three phases this gate is run in, and what each one has to show.
+ *
+ * `offline` and `automatic-off` are the ones that carry the promise: the first
+ * says the app needs no network, the second says the person's choice is
+ * honoured before any request, not after one. `online` is the only phase in
+ * which a peer may be observed at all, and it is the only one that *requires*
+ * one — a silent online run is a run where the check never fired, which is not
+ * evidence of anything (ADR 0014).
+ */
+const SILENT_PHASES = ["offline", "automatic-off"];
+const PHASES = [...SILENT_PHASES, "online"];
 
 /* ---------- process-set resolution ---------- */
 
@@ -266,6 +306,66 @@ function lsofSample(pids) {
   return rows;
 }
 
+/* ---------- the one sanctioned peer (LC-256a, ADR 0014) ---------- */
+
+/**
+ * The hosts the update check may speak to, and nothing else.
+ *
+ * The same two names `update.rs` holds and `release-audit.mjs` checks the
+ * configured endpoints against. Three copies of one list is two too many, and
+ * they are pinned to each other by the acceptance document rather than by an
+ * import, because these three files have no build step in common.
+ */
+const ALLOWED_UPDATE_HOSTS = ["github.com", "objects.githubusercontent.com"];
+
+/**
+ * Every address those names resolve to right now.
+ *
+ * Resolved at run time rather than pinned, because the release assets sit
+ * behind a CDN whose addresses change and a pinned list would fail on a good
+ * release. The set is refreshed while the run is live, so a sample taken after
+ * a rotation is still judged against what the name meant then.
+ *
+ * An address that is *not* in the set is never quietly accepted: it is reported
+ * as an external connection, which is the finding. Over-reporting a legitimate
+ * CDN address costs the operator one look; under-reporting an unsanctioned peer
+ * costs the promise.
+ */
+const sanctionedAddresses = new Set();
+
+async function refreshSanctionedAddresses() {
+  const { promises: dns } = await import("node:dns");
+  for (const host of ALLOWED_UPDATE_HOSTS) {
+    for (const family of ["resolve4", "resolve6"]) {
+      try {
+        for (const address of await dns[family](host)) {
+          sanctionedAddresses.add(address);
+        }
+      } catch {
+        // A name that will not resolve is the offline phase working as
+        // intended. It is not a probe failure and must not read as one.
+      }
+    }
+  }
+}
+
+/**
+ * Whether one peer is the update check and nothing else.
+ *
+ * Three things have to be true at once, and the first is the one that matters:
+ * **the connection must come from the app's own process.** ADR 0014 puts the
+ * request in Rust precisely so that the webview never gains a network
+ * capability, so a connection from a WebKit helper is never sanctioned however
+ * well-known its peer — that would be the amendment being spent on the one
+ * surface it was written to keep out.
+ */
+function isSanctionedUpdatePeer(row, peer) {
+  if (isWebKitHelper(String(row.command ?? ""))) return false;
+  const host = hostOf(peer);
+  const port = peer.slice(peer.lastIndexOf(":") + 1);
+  return port === "443" && host !== null && sanctionedAddresses.has(host);
+}
+
 /**
  * `loopback` is allowed and still recorded: Tauri's IPC is a custom scheme
  * handled inside the webview and should not produce a socket at all, so a
@@ -273,6 +373,14 @@ function lsofSample(pids) {
  * `external` is the finding — link-local and LAN peers included, because the
  * claim under audit is "works locally without a network connection", not
  * "made no connection to the internet".
+ *
+ * **`sanctioned` is the amendment** (ADR 0014): the update check, from the
+ * app's own process, to a resolved address of one of two named hosts, on 443.
+ * It is a separate kind rather than an exemption from `external`, for two
+ * reasons. A phase that must be silent — offline, or the automatic check
+ * turned off — fails on it exactly as it would on any other peer, and the
+ * online phase can assert that it *was observed*, so a run that saw nothing
+ * because the check never fired is not mistaken for a clean one.
  */
 function classify(row) {
   const peer = peerOf(row.name);
@@ -287,8 +395,117 @@ function classify(row) {
   }
   const host = hostOf(peer);
   if (host && LOOPBACK.test(host)) return { kind: "loopback", peer };
+  if (isSanctionedUpdatePeer(row, peer)) return { kind: "sanctioned", peer };
   return { kind: "external", peer };
 }
+
+/**
+ * The classifier's inversion, which needs no bundle and no operator.
+ *
+ * The live self-test below injects a real peer and asserts the run goes red;
+ * it is the stronger test and it costs a release build and a person. This one
+ * asks the narrower question the amendment introduced — **is the sanctioned
+ * peer narrow?** — and it asks it in both directions, because a rule that
+ * accepted everything would satisfy a one-sided check just as well as the
+ * right rule does.
+ *
+ * Four of the six cases are peers that *look* like the update check and are
+ * not: the webview making the same connection, a different port, an address
+ * that is not in the resolved set. Each of those is the amendment being spent
+ * on something it was not granted for, and each must still read as `external`.
+ */
+function classifierSelfTest() {
+  const app = "longclaw-desktop";
+  const helper = "com.apple.WebKit.Networking";
+  sanctionedAddresses.add("140.82.121.4");
+  const connected = (peer) => `1.2.3.4:50000->${peer}`;
+
+  return [
+    {
+      what: "the update check, from the app's own process",
+      row: {
+        command: app,
+        name: connected("140.82.121.4:443"),
+        state: "ESTABLISHED",
+      },
+      kind: "sanctioned",
+    },
+    {
+      what: "the same peer, but from the webview",
+      row: {
+        command: helper,
+        name: connected("140.82.121.4:443"),
+        state: "ESTABLISHED",
+      },
+      kind: "external",
+    },
+    {
+      what: "a sanctioned address on a port the check does not use",
+      row: {
+        command: app,
+        name: connected("140.82.121.4:80"),
+        state: "ESTABLISHED",
+      },
+      kind: "external",
+    },
+    {
+      what: "an address nothing in the allowlist resolves to",
+      row: {
+        command: app,
+        name: connected("203.0.113.9:443"),
+        state: "ESTABLISHED",
+      },
+      kind: "external",
+    },
+    {
+      what: "loopback, which is Tauri's own IPC and is not egress",
+      row: {
+        command: app,
+        name: connected("127.0.0.1:1420"),
+        state: "ESTABLISHED",
+      },
+      kind: "loopback",
+    },
+    {
+      what: "a listener on loopback",
+      row: { command: app, name: "127.0.0.1:1420", state: "LISTEN" },
+      kind: "listen",
+    },
+  ];
+}
+
+function runClassifierSelfTest() {
+  const wrong = classifierSelfTest().filter(
+    (probe) => classify(probe.row).kind !== probe.kind,
+  );
+  if (wrong.length > 0) {
+    console.error(
+      "network-audit --self-test: the classifier inversion did not hold\n" +
+        wrong
+          .map(
+            (probe) =>
+              `  ${probe.what}: classified ${classify(probe.row).kind}, expected ${probe.kind}`,
+          )
+          .join("\n"),
+    );
+    process.exit(1);
+  }
+  console.log(
+    `network-audit: the classifier accepts 1 sanctioned peer and refuses ${
+      classifierSelfTest().filter((probe) => probe.kind === "external").length
+    } that only look like it`,
+  );
+}
+
+if (process.argv.includes("--self-test-classify")) {
+  runClassifierSelfTest();
+  process.exit(0);
+}
+
+// The live self-test runs this first: a live run that goes red proves the
+// probes see *something*, and this proves that what they see is judged
+// narrowly. Neither half is worth much without the other.
+if (SELF_TEST) runClassifierSelfTest();
 
 /* ---------- probe 2: nettop, which cannot miss traffic ---------- */
 
@@ -527,6 +744,9 @@ async function main() {
   const confirmed = [];
 
   const sample = () => {
+    // Kept current while the run is live, so a sample taken after the CDN
+    // rotated is judged against what the name means now rather than at launch.
+    void refreshSanctionedAddresses();
     const monitored = resolveSet();
     const withControl = new Set([...monitored, control.pid]);
 
@@ -719,12 +939,43 @@ async function main() {
           ? "the app's own visible-ui probe reported rows"
           : "no rendered board was reported — the app exercised nothing, so its silence is not evidence. Run this from a terminal with a foreground GUI session",
     },
+    {
+      /* The control that keeps the amendment honest (ADR 0014). Silence is the
+         answer this whole script exists to be able to trust, and in the online
+         phase silence would mean the update check never fired — which is not
+         the app being quiet, it is the probe watching nothing. So the online
+         phase must *see* the sanctioned peer before any absence beside it
+         counts for anything. */
+      id: "C6",
+      name: "the update check was observed in the online phase",
+      ok:
+        PHASE !== "online" ||
+        [...observed.values()].some((row) => row.kind === "sanctioned"),
+      detail:
+        PHASE !== "online"
+          ? `not applicable in the ${PHASE} phase, where any connection at all is a finding`
+          : [...observed.values()].some((row) => row.kind === "sanctioned")
+            ? "the update check was sampled, so the absence of every other peer is evidence"
+            : "no update check was observed — either it never fired or the sampler missed it, and either way this run says nothing about what else was quiet. Drive the Check now step",
+    },
+    {
+      /* A run whose phase is not one of the three cannot be filed against the
+         acceptance document, and an unlabelled run has historically been the
+         one nobody could place afterwards. */
+      id: "C7",
+      name: "the run is labelled with one of the three phases",
+      ok: PHASES.includes(PHASE),
+      detail: PHASES.includes(PHASE)
+        ? `phase=${PHASE}`
+        : `phase=${PHASE} is not one of ${PHASES.join(", ")} — pass --phase so the record can be filed against docs/acceptance/release-candidate.md`,
+    },
   ];
 
   /* ---------- findings ---------- */
 
   const rows = [...observed.values()];
   const external = rows.filter((row) => row.kind === "external");
+  const sanctioned = rows.filter((row) => row.kind === "sanctioned");
   const loopback = rows.filter((row) => row.kind === "loopback");
   const listening = rows.filter((row) => row.kind === "listen");
 
@@ -737,7 +988,10 @@ async function main() {
   // that reported "clean" off the back of that would be reporting its own
   // blind spot as evidence.
   const disagreement =
-    moved.length > 0 && external.length === 0 && loopback.length === 0;
+    moved.length > 0 &&
+    external.length === 0 &&
+    sanctioned.length === 0 &&
+    loopback.length === 0;
 
   const failedControls = controls.filter((entry) => !entry.ok);
 
@@ -755,6 +1009,8 @@ async function main() {
     helpers: Object.fromEntries(attributed),
     controls,
     connections: rows,
+    sanctionedHosts: ALLOWED_UPDATE_HOSTS,
+    sanctionedAddresses: [...sanctionedAddresses],
     counters: moved,
     controlBytes,
     selfTest: selfTestRow,
@@ -778,9 +1034,9 @@ async function main() {
   }
 
   console.log(
-    `\nconnections: ${external.length} external, ${loopback.length} loopback, ${listening.length} listening`,
+    `\nconnections: ${external.length} external, ${sanctioned.length} sanctioned update check, ${loopback.length} loopback, ${listening.length} listening`,
   );
-  for (const row of [...external, ...loopback, ...listening]) {
+  for (const row of [...external, ...sanctioned, ...loopback, ...listening]) {
     console.log(
       `  ${row.kind.padEnd(8)} ${row.process}.${row.pid}  ${row.name} (${row.state})`,
     );
@@ -808,6 +1064,18 @@ async function main() {
   }
   for (const row of external) {
     findings.push(`external connection: ${row.name} during ${row.step}`);
+  }
+  // The sanctioned peer is the one connection ADR 0014 permits, and it is
+  // permitted only where it was promised. In a phase that must be silent it is
+  // the whole finding: offline means no request at all, and the automatic check
+  // turned off means the preference is honoured *before* the first request
+  // rather than after one.
+  if (SILENT_PHASES.includes(PHASE)) {
+    for (const row of sanctioned) {
+      findings.push(
+        `the update check connected to ${row.name} during ${row.step}, in the ${PHASE} phase, where nothing may connect`,
+      );
+    }
   }
   if (disagreement) {
     findings.push(
@@ -840,14 +1108,18 @@ async function main() {
     // Named rather than described, and named from what the operator actually
     // confirmed — a run that swept seven steps it was never driven through is
     // the overstatement this whole file exists to avoid.
+    const quiet =
+      sanctioned.length === 0
+        ? "No non-IPC network connection observed."
+        : `Exactly the update check ADR 0014 sanctions was observed (${sanctioned.length} connection(s) to ${ALLOWED_UPDATE_HOSTS.join(" or ")}), and no other peer.`;
     console.log(
       confirmed.length > 0
-        ? `\nNo non-IPC network connection observed. Controls C1-C5 passed, so the silence is` +
+        ? `\n${quiet} Controls C1-C7 passed, so the silence is` +
             ` evidence rather than an unread probe.\nDriven through: ${confirmed.join("; ")}.` +
             (confirmed.length < STEPS.length
               ? `\nNOT driven, and therefore not covered: ${STEPS.filter((name) => !confirmed.includes(name)).join("; ")}.`
               : "")
-        : `\nNo non-IPC network connection observed, but no step of the gate's list was confirmed driven.` +
+        : `\n${quiet} But no step of the gate's list was confirmed driven.` +
             ` This covers launch and idle only, and is not the release pass.`,
     );
   }

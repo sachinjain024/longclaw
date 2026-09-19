@@ -80,6 +80,28 @@ type DevicePreferences = {
    * large display the first afternoon they spent on a laptop.
    */
   panelWidth?: number;
+  /**
+   * The update path's two device-local facts (LC-256a, ADR 0014).
+   *
+   * Device-local for the same reason the command-line offer is: the answer is
+   * about this Mac. Turning the automatic check off on a work machine must not
+   * turn it off at home.
+   *
+   * **There is no skipped-version field.** The spec had one and the UX review
+   * removed `Skip this version` with it, so nothing would ever have written it
+   * — and a stored field nothing sets is a field the next person has to work
+   * out the meaning of. With no way to decline, an available update stays
+   * announced in the footer until it is installed.
+   */
+  updates?: {
+    /** Default on. Absent means on, so a launch that has chosen nothing writes
+     *  nothing — the same rule the appearance follows. */
+    automatic?: boolean;
+    /** When the last *successful* check was, ISO-8601. A failed check does not
+     *  move it: the pane's `Last checked` is a claim about what is known, and a
+     *  failure knows nothing. */
+    lastCheckedAt?: string;
+  };
 };
 
 /**
@@ -109,6 +131,21 @@ function adopt(stored: unknown): DevicePreferences {
   if (value.commandLinePrompted === true) adopted.commandLinePrompted = true;
   if (isStoredPanelWidth(value.panelWidth))
     adopted.panelWidth = value.panelWidth;
+  const updates = value.updates;
+  if (updates && typeof updates === "object" && !Array.isArray(updates)) {
+    const fields = updates as Record<string, unknown>;
+    const kept: NonNullable<DevicePreferences["updates"]> = {};
+    // Only an explicit `false` is carried: absent already means on, and a
+    // stored `true` would be a second spelling of the default.
+    if (fields.automatic === false) kept.automatic = false;
+    if (
+      typeof fields.lastCheckedAt === "string" &&
+      !Number.isNaN(Date.parse(fields.lastCheckedAt))
+    ) {
+      kept.lastCheckedAt = fields.lastCheckedAt;
+    }
+    if (Object.keys(kept).length > 0) adopted.updates = kept;
+  }
   const saved = value.projectWorkspaces;
   if (saved && typeof saved === "object" && !Array.isArray(saved)) {
     for (const [projectId, candidate] of Object.entries(
@@ -153,6 +190,7 @@ function isEmpty(preferences: DevicePreferences) {
     preferences.activeProjectId === undefined &&
     preferences.commandLinePrompted === undefined &&
     preferences.panelWidth === undefined &&
+    preferences.updates === undefined &&
     Object.keys(preferences.projectWorkspaces).length === 0
   );
 }
@@ -167,6 +205,7 @@ function serialized(): Record<string, unknown> {
   if (held.activeProjectId) written.activeProjectId = held.activeProjectId;
   if (held.commandLinePrompted) written.commandLinePrompted = true;
   if (held.panelWidth !== undefined) written.panelWidth = held.panelWidth;
+  if (held.updates) written.updates = held.updates;
   return written;
 }
 
@@ -351,4 +390,48 @@ export function resetDevicePreferences() {
   held = nothing();
   writing = false;
   owed = false;
+}
+
+/**
+ * Whether the automatic update check is on. Absent means on (ADR 0014).
+ */
+export function readAutomaticUpdateCheck(): boolean {
+  return held.updates?.automatic !== false;
+}
+
+/** When the last successful check was, or `undefined` if there has been none. */
+export function readLastUpdateCheck(): string | undefined {
+  return held.updates?.lastCheckedAt;
+}
+
+/**
+ * Records the toggle.
+ *
+ * On deletes the key rather than writing `true`, the way `commandLinePrompted`
+ * deletes rather than writing `false`: absent is already what on means, and an
+ * explicit value would be a second spelling of one state.
+ */
+export function rememberAutomaticUpdateCheck(automatic: boolean) {
+  if (readAutomaticUpdateCheck() === automatic) return;
+  const updates = { ...held.updates };
+  if (automatic) delete updates.automatic;
+  else updates.automatic = false;
+  held = {
+    ...held,
+    updates: Object.keys(updates).length > 0 ? updates : undefined,
+  };
+  flush();
+}
+
+/**
+ * Records that a check succeeded, and when.
+ *
+ * Only a success. A failed check leaves this alone, so the pane's `Last
+ * checked` stays the last time the app actually knew something — and a machine
+ * that has been offline for a week reads as last checked a week ago rather
+ * than as up to date a moment ago.
+ */
+export function rememberUpdateCheck(checkedAt = new Date().toISOString()) {
+  held = { ...held, updates: { ...held.updates, lastCheckedAt: checkedAt } };
+  flush();
 }

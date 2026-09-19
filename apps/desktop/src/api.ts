@@ -13,6 +13,8 @@ import type {
   StreamFrame,
   TicketDetail,
   TicketProperty,
+  UpdateProgress,
+  UpdateStatus,
   VisibleUiProbe,
   WriteResult,
 } from "./types";
@@ -365,4 +367,63 @@ export async function commandLineStatus(): Promise<CommandLineStatus> {
  */
 export async function installCommandLine(): Promise<CommandLineStatus> {
   return invoke("install_command_line");
+}
+
+/**
+ * Whether a newer LongClaw exists
+ * ([ADR 0014](../../../docs/adr/0014-one-optional-check-for-a-newer-longclaw.md)).
+ *
+ * **No URL crosses the wire**, the same way none does for `openTicketFile`:
+ * this surface has no network capability, and Rust owns the host, the key and
+ * the budget. The webview asks for a check and names nothing.
+ *
+ * `force` is *Check now*. A scheduled check passes `false`, and Rust makes at
+ * most one request per slot — so two schedulers, a re-render and a failed
+ * attempt cost one request between them, and a failure is never retried until
+ * the next slot.
+ */
+export async function checkForUpdate(force: boolean): Promise<UpdateStatus> {
+  return invoke("check_for_update", { force });
+}
+
+/**
+ * What the pane should draw, without asking the network anything.
+ *
+ * Safe on every render, and that is the point: a pane that is merely open must
+ * not become a second schedule.
+ */
+export async function updateStatus(): Promise<UpdateStatus> {
+  return invoke("update_status");
+}
+
+/**
+ * The first press. Fetches and verifies the pending version, reporting progress
+ * on a channel (ADR 0007).
+ *
+ * A failure leaves the installed bundle untouched and keeps no partial file, so
+ * losing the network halfway costs the download and nothing else.
+ */
+export async function downloadUpdate(
+  onProgress: (frame: UpdateProgress) => void,
+): Promise<UpdateStatus> {
+  const channel = new Channel<UpdateProgress>();
+  channel.onmessage = onProgress;
+  return invoke("download_update", { onProgress: channel });
+}
+
+/**
+ * The second press. Refuses while a ticket write is outstanding, with
+ * `context.reason` of `writeInFlight`.
+ *
+ * The pane holds the button and says why; this refusal is the guarantee behind
+ * that sentence, and it reads a count kept around the atomic write seams rather
+ * than anything the webview told it (ADR 0009).
+ */
+export async function installUpdate(): Promise<void> {
+  return invoke("install_update");
+}
+
+/** The way out when the in-app update cannot finish. The webview names no URL. */
+export async function openDownloadPage(): Promise<void> {
+  return invoke("open_download_page");
 }

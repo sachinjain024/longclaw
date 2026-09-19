@@ -256,6 +256,21 @@ export async function invoke<T>(
       manualCommand: null,
     } as T;
   }
+  // Same reasoning as `command_line_status` above, and the same answer. The
+  // update path is not this harness's subject, and `unavailable` is the truth
+  // here twice over: this build has no bundle to replace, and a harness must
+  // make no network request at all (LC-256a, ADR 0014, D10). Served rather
+  // than left to throw, so no run's correctness rests on a rejection being
+  // swallowed. With this answer the app schedules no check and the sidebar
+  // footer draws no version line, which is what a measured surface should be.
+  if (command === "update_status") {
+    return {
+      state: "unavailable",
+      currentVersion: "0.0.0-harness",
+      available: null,
+      downloaded: false,
+    } as T;
+  }
   if (command === "open_project" || command === "rebuild_index") {
     return { ...board, tickets: [...rows.values()], generation } as T;
   }

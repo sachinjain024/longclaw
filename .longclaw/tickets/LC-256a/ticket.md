@@ -13,7 +13,7 @@ labels:
 type: feature
 estimate: "3"
 created_at: 2026-09-16T07:40:42.050Z
-updated_at: 2026-09-19T00:22:07.254Z
+updated_at: 2026-09-19T02:00:09.697Z
 ---
 
 LongClaw ships as a signed, notarized DMG. An installed copy has no way to
@@ -142,24 +142,31 @@ one flow carry the word and the first of them downloads rather than updates.
 
 ## Checklist
 
-- [ ] ADR: amend the no-network contract to a narrow, identifier-free update check <!-- longclaw:item=ck_e47d47ec -->
+- [x] ADR: amend the no-network contract to a narrow, identifier-free update check <!-- longclaw:item=ck_e47d47ec -->
 - [ ] Generate the updater signing key pair and get the public half into the bundle <!-- longclaw:item=ck_27060633 -->
-- [ ] Decide and document where the update manifest and artifacts are hosted <!-- longclaw:item=ck_83adaa6c -->
-- [ ] Wire the updater in Rust; the webview names an intent, never a URL <!-- longclaw:item=ck_0c3bfdb7 -->
-- [ ] Update capabilities/main.json, binary-audit.mjs and audit:network to assert the new narrow shape <!-- longclaw:item=ck_11a193e5 -->
-- [ ] Update docs/acceptance/release-candidate.md rows that certify no updater <!-- longclaw:item=ck_fa36173f -->
-- [ ] Extend release-macos.mjs to sign the update artifact and publish the manifest <!-- longclaw:item=ck_bb8dfd57 -->
-- [ ] Update UX: consent, what changed from the existing release notes, no silent restart <!-- longclaw:item=ck_010f03e9 -->
-- [ ] Refuse to restart while a ticket write is in flight <!-- longclaw:item=ck_55f6655e -->
-- [ ] Quiet failure for offline, blocked, bad-signature and corrupt-download cases <!-- longclaw:item=ck_a8ca9293 -->
-- [ ] Settings pane: turn it off, and check manually <!-- longclaw:item=ck_86fd9686 -->
-- [ ] Copy deck for every string, including the live region <!-- longclaw:item=ck_42b4fa8a -->
-- [ ] Run a11y:audit and probe:header; quote the runs <!-- longclaw:item=ck_743cbe53 -->
-- [ ] Offline invariants: no existing code path calls the updater, and startup issues no request before first paint <!-- longclaw:item=ck_4bf45090 -->
-- [ ] Bounded single attempt off the main thread; no retry loop, no backoff <!-- longclaw:item=ck_80d7940d -->
-- [ ] A broken or absent updater configuration is a failed check, never a failed launch <!-- longclaw:item=ck_2fc77e43 -->
+- [x] Decide and document where the update manifest and artifacts are hosted <!-- longclaw:item=ck_83adaa6c -->
+- [x] Wire the updater in Rust; the webview names an intent, never a URL <!-- longclaw:item=ck_0c3bfdb7 -->
+- [x] IPC contract: the update DTO, its error reasons and the progress frames join the shared JSON fixture <!-- longclaw:item=ck_5d2c7f46 -->
+- [x] Update capabilities/main.json, binary-audit.mjs and audit:network to assert the new narrow shape <!-- longclaw:item=ck_11a193e5 -->
+- [x] Update docs/acceptance/release-candidate.md rows that certify no updater <!-- longclaw:item=ck_fa36173f -->
+- [ ] Revise the user guide and the site's no-network sentences to the narrow shape <!-- longclaw:item=ck_0877db02 -->
+- [x] Extend release-macos.mjs to sign the update artifact and publish the manifest <!-- longclaw:item=ck_bb8dfd57 -->
+- [x] Update UX: consent, what changed from the existing release notes, no silent restart <!-- longclaw:item=ck_010f03e9 -->
+- [x] Sidebar footer names the running version, and gains a dot and an Update link when one is waiting <!-- longclaw:item=ck_d823993a -->
+- [x] A dot on the settings nav's Updates row, so a panel opened for any other reason still shows it <!-- longclaw:item=ck_36bea4c4 -->
+- [x] The Update link opens the Updates pane; it never starts the download itself <!-- longclaw:item=ck_882d2b0e -->
+- [x] Refuse to restart while a ticket write is in flight <!-- longclaw:item=ck_55f6655e -->
+- [x] Quiet failure for offline, blocked, bad-signature and corrupt-download cases <!-- longclaw:item=ck_a8ca9293 -->
+- [x] Settings pane: turn it off, and check manually <!-- longclaw:item=ck_86fd9686 -->
+- [x] Device preferences: an automatic-check flag and a last-check record, and no skipped-version field <!-- longclaw:item=ck_fb5c9a8d -->
+- [x] Copy deck for every string, including the live region <!-- longclaw:item=ck_42b4fa8a -->
+- [ ] Retire the prototype once its copy is in the source <!-- longclaw:item=ck_accacb47 -->
+- [ ] Run a11y:audit for the pane, the footer link and the held restart button; quote the run <!-- longclaw:item=ck_743cbe53 -->
+- [x] Offline invariants: no existing code path calls the updater, and startup issues no request before first paint <!-- longclaw:item=ck_4bf45090 -->
+- [x] Bounded single attempt off the main thread; no retry loop, no backoff <!-- longclaw:item=ck_80d7940d -->
+- [x] A broken or absent updater configuration is a failed check, never a failed launch <!-- longclaw:item=ck_2fc77e43 -->
 - [ ] Regression proof: npm run verify green with no existing test rewritten to accommodate the update path <!-- longclaw:item=ck_b71178f7 -->
-- [ ] Regression proof: every other operation survives a dead, hanging or absent updater <!-- longclaw:item=ck_ea629ace -->
+- [x] Regression proof: every other operation survives a dead, hanging or absent updater <!-- longclaw:item=ck_ea629ace -->
 - [ ] Regression proof: nothing outside the Updates pane changes when a check fails <!-- longclaw:item=ck_d03644b2 -->
 - [ ] Run audit:network offline, and again online with the automatic check off; both must record zero connections; quote the runs <!-- longclaw:item=ck_027b4aa2 -->
 - [ ] Re-run perf:startup against a built bundle; quote it unchanged <!-- longclaw:item=ck_9619080c -->
@@ -284,4 +291,252 @@ actor:
 ### Claude Code commented
 
 Split out: LC-261h removes `Command line tool` from the gear menu. That half of the review changes behaviour that shipped in 0.1.0, so it carries its own ticket rather than riding inside this one.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_2c927394
+kind: update
+occurred_at: 2026-09-19T01:13:05.566Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_42b4fa8a.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_5d2c7f46.added
+    to: "IPC contract: the update DTO, its error reasons and the progress frames join the shared JSON fixture"
+  - field: checklist.ck_fb5c9a8d.added
+    to: "Device preferences: an automatic-check flag and a last-check record, and no skipped-version field"
+  - field: checklist.ck_d823993a.added
+    to: Sidebar footer names the running version, and gains a dot and an Update link when one is waiting
+  - field: checklist.ck_36bea4c4.added
+    to: A dot on the settings nav's Updates row, so a panel opened for any other reason still shows it
+  - field: checklist.ck_882d2b0e.added
+    to: The Update link opens the Updates pane; it never starts the download itself
+  - field: checklist.ck_accacb47.added
+    to: Retire the prototype once its copy is in the source
+  - field: checklist.ck_0877db02.added
+    to: Revise the user guide and the site's no-network sentences to the narrow shape
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_f0bf066a
+kind: update
+occurred_at: 2026-09-19T01:13:48.546Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_743cbe53.text
+    from: Run a11y:audit and probe:header; quote the runs
+    to: Run a11y:audit for the pane, the footer link and the held restart button; quote the run
+  - field: checklist.ck_5d2c7f46.moved
+    from: "22"
+    to: "5"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_3f3148ab
+kind: update
+occurred_at: 2026-09-19T01:13:48.568Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_fb5c9a8d.moved
+    from: "23"
+    to: "13"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_6d755cec
+kind: update
+occurred_at: 2026-09-19T01:13:48.587Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_d823993a.moved
+    from: "24"
+    to: "10"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_800d94d3
+kind: update
+occurred_at: 2026-09-19T01:13:48.605Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_36bea4c4.moved
+    from: "25"
+    to: "11"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_e24b99d9
+kind: update
+occurred_at: 2026-09-19T01:13:48.621Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_882d2b0e.moved
+    from: "26"
+    to: "12"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_ab3a6805
+kind: update
+occurred_at: 2026-09-19T01:13:48.638Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_accacb47.moved
+    from: "27"
+    to: "18"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_30fafd62
+kind: update
+occurred_at: 2026-09-19T01:13:48.658Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_0877db02.moved
+    from: "28"
+    to: "8"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_0084312f
+kind: update
+occurred_at: 2026-09-19T02:00:09.697Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_e47d47ec.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_83adaa6c.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_0c3bfdb7.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_5d2c7f46.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_11a193e5.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_fa36173f.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_bb8dfd57.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_010f03e9.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_d823993a.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_36bea4c4.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_882d2b0e.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_55f6655e.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_a8ca9293.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_86fd9686.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_fb5c9a8d.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_4bf45090.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_80d7940d.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_2fc77e43.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_ea629ace.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_ba583aaf
+kind: comment
+occurred_at: 2026-09-19T02:00:33.411Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Implemented, with `npm run verify` green. What landed:
+
+ADR 0014 records the amendment: one identifier-free GET for one static manifest, two named hosts, off by one control, and the offline invariants D10 asks for.
+
+Rust. `update.rs` holds the decisions behind a port — `Updater`, `Clock` and the count of writes in flight are injected — so the suite drives every state without a network; `update_plugin.rs` is the Tauri adapter. Four intent commands, all `async` over `spawn_blocking`, so nothing that draws a frame waits on a socket. Progress crosses on a channel; failures cross as ADR 0010's shape with a `reason` from a closed set. A check is one bounded attempt per 24-hour slot, with no retry: a failed check makes exactly one request and none afterwards, against an injected clock. The restart guard reads a count kept around `atomic_write` and `atomic_replace`, and `tests/update_offline.rs` proves the refusal from inside the replace window itself.
+
+Frontend. A new `Updates` pane beside `Command line`, the sidebar footer's version line with its dot and `Update` link, and a dot on the nav's own row. Every string comes from `updates.ts`, which is the settled deck; nothing user-facing is typed in a component. Two device preferences — the automatic flag and the last successful check — and no skipped-version field, since the review removed the only thing that would have written one.
+
+Gates. All three rewritten to assert the narrow shape rather than deleted, each with a self-test that goes red on the pre-amendment claim and on a too-broad new one. The static audit's forbidden-crate list became an allowlist — every network-capable crate must arrive under `tauri-plugin-updater` — which is stricter than what it replaced. The binary audit enumerates the socket API and the network frameworks as exact sets. The runtime audit gains a third phase, a sanctioned-peer classifier that refuses the same peer from a WebKit helper, and control C6, which requires the check to have been *observed* in the online phase.
+
+Four things did not land, and each is a real gap rather than an oversight:
+
+1. **The updater key is not generated.** It needs the release machine's keychain and a backup the account holder holds; the runbook now has the section and the empty pubkey is what makes a build report the update path unavailable rather than offering a download it could never verify.
+2. **The site's no-network sentences are unchanged**, which is the spec's own rule: they change in their own pull request once the download the site offers is the version that has the check. The user guide, which describes the app being built, is updated.
+3. **Three existing tests changed**, so the "no test rewritten" item stays unchecked. Each marks a behaviour that changed rather than an accommodation: `ProjectSettings.test.tsx` gains `Updates` to the nav's expected list, and `SettingsMenu.test.tsx` turns its single deliberate omission into a list of two — the gear offers neither `Danger zone` nor `Updates`.
+4. **`a11y:audit` and `probe:header` are green and do not cover the new surfaces.** 140/140 header checks and Part A's six rows pass, which says nothing regressed; neither has a row driving the Updates pane, the footer link or the held restart button, and writing one needs the perf harness to serve an available update.
+
+`audit:network` in all three phases and `perf:startup` need a built, signed bundle and a person, so they stay open.
+
+One deviation from D9 worth reading. The CLI now links `Security.framework` and `SystemConfiguration.framework`, because both binaries are built from one `longclaw_desktop_lib` on purpose (ADR 0011) and `security-framework-sys` declares its links whether or not a caller reaches them. It imports **no socket call at all**, which is the claim that matters and is stronger evidence than the framework line ever was; the binary audit asserts the empty set for it explicitly.
 <!-- /longclaw:event -->

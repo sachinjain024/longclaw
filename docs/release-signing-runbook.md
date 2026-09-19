@@ -45,6 +45,63 @@ reissued, only replaced by a new identity users have not seen before.
 breaks builds already in people's hands; expiry is not. Revoke only if the key
 is actually exposed, where breaking them is the point.
 
+## The updater key, which is a second key and a second way to lose everything
+
+The auto-updater signs its own artefacts with a **minisign** key pair that has
+nothing to do with the Developer ID identity above ([LC-256a](../.longclaw/tickets/LC-256a/ticket.md),
+[ADR 0014](adr/0014-one-optional-check-for-a-newer-longclaw.md)). Apple has
+never held it either, and unlike the signing certificate there is nobody to
+reissue it from.
+
+|                    |                                                                                                                                  |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| Key pair           | minisign, generated once by `tauri signer generate`                                                                              |
+| Public half        | committed in `tauri.conf.json` under `plugins.updater.pubkey`, which is how it reaches every bundle. Not a secret — every installed copy carries it |
+| Private half       | the release machine's login keychain, beside the Developer ID identity. One machine, no CI signing, for the same reason           |
+| Password           | stored with it; the key is generated with one rather than bare                                                                    |
+| Private key backup | held by the account holder, outside this repository, at a location this published file deliberately does not name                |
+
+**Losing the private half orphans every installed copy.** A bundle verifies an
+update against the public key sealed inside it, so a new key cannot update the
+copies that carry the old one: everybody who already has LongClaw would have to
+be told to reinstall by hand, which is the exact problem the updater was built
+to end. **So the backup is a prerequisite to shipping, not a follow-up.** Losing
+the Developer ID key is bad; losing this one is worse, because it is silent —
+nothing breaks until the release after it, and by then the installed population
+is unreachable.
+
+Rotation is out of scope and is not decided here (ADR 0014 says so too). There
+is no supported way to move installed copies from one updater key to another
+short of a hand reinstall.
+
+### Generating it, once
+
+```sh
+npx tauri signer generate -w ~/.longclaw/longclaw-updater.key
+```
+
+It prints the public half and writes the private half to that path. Then:
+
+1. Put the **public** half in `tauri.conf.json` under `plugins.updater.pubkey`
+   and commit it. It ships in the bundle and is meant to be read.
+2. Move the **private** half into the login keychain, and delete the file.
+3. Back it up where the table above says, and confirm the backup is readable
+   before the first release goes out.
+4. Export `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+   in the release shell, from the keychain, the way the notarization credential
+   is read.
+
+**Until step 1 has happened the pubkey is the empty string, and that is a
+deliberate state rather than an oversight.** A build with no key reports the
+update path *unavailable* — the pane says so in its own words — instead of
+offering a download it could never verify. `release-audit.mjs` therefore
+tolerates an empty key and `binary-audit.mjs`, which only ever reads a release
+bundle, does not: a release with no updater key fails the audit.
+
+`binary-audit.mjs` also compares the key id in the bundle's public key against
+the key id in the published manifest's signature, so a release signed with the
+wrong key fails the build rather than every user's update.
+
 ## Where signing happens
 
 One machine, from its login keychain. No CI signing, deliberately: no

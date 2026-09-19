@@ -20,10 +20,12 @@ import {
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { UNREAD_COMMAND_LINE } from "./CommandLineInstall";
+import { UNREAD_UPDATE_STATUS } from "./UpdatesPane";
 import { ProjectSettings } from "./ProjectSettings";
 import type { SettingsSection } from "./settingsSections";
 import type {
   CommandLineStatus,
+  UpdateStatus,
   ProjectReference,
   TicketProperty,
 } from "./types";
@@ -64,6 +66,7 @@ function writeSpy() {
 function Harness(props: {
   section?: SettingsSection;
   commandLine?: CommandLineStatus;
+  update?: UpdateStatus;
   project?: ProjectReference;
   propertyCounts?: Record<TicketProperty, number>;
   onClose?: () => void;
@@ -90,6 +93,8 @@ function Harness(props: {
       onSection={setSection}
       commandLine={props.commandLine ?? UNREAD_COMMAND_LINE}
       onCommandLine={() => {}}
+      update={props.update ?? UNREAD_UPDATE_STATUS}
+      onUpdate={() => {}}
       onAppearance={props.onAppearance ?? (() => {})}
       onRename={props.onRename ?? (() => {})}
       onTheme={props.onTheme ?? (() => {})}
@@ -150,6 +155,10 @@ describe("the settings panel's side nav (LC-208)", () => {
       "Status fields",
       "Shortcuts",
       "Command line",
+      // Beside the other app-level pane (LC-256a). It is not in the gear's
+      // menu and was never added to it, which is what `SettingsMenu.test.tsx`
+      // pins — the nav is the one surface that lists every pane.
+      "Updates",
       "Danger zone",
     ]);
   });

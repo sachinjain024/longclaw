@@ -122,9 +122,19 @@ function openMenu(props: Parameters<typeof Harness>[0] = {}) {
  * from the gear.
  */
 describe("the sections the two surfaces agree on (LC-208)", () => {
-  /** `danger` is the one pane the gear deliberately does not offer. */
+  /**
+   * The panes the gear deliberately does not offer, and why each one is out.
+   *
+   * A list rather than a single exception, because there are two now and the
+   * reasons differ. `danger`'s only control removes a project, so it is not one
+   * press from the gear. `updates` is app-level rather than project-level and
+   * was never added to this menu (LC-256a): the gear stays about *this
+   * project*, and the app-level panes are reached through the settings panel,
+   * whose side nav lists every pane there is.
+   */
+  const NOT_OFFERED = new Set<string>(["danger", "updates"]);
   const OFFERED = SETTINGS_SECTIONS.filter(
-    (section) => section.id !== "danger",
+    (section) => !NOT_OFFERED.has(section.id),
   );
 
   it("gives every pane the menu offers the label the nav gives it", () => {
@@ -140,7 +150,15 @@ describe("the sections the two surfaces agree on (LC-208)", () => {
         `${section.id} is missing from the gear's menu`,
       ).toBe(true);
     }
-    expect(rows.some((row) => row.includes("Danger zone"))).toBe(false);
+    for (const id of NOT_OFFERED) {
+      const label = SETTINGS_SECTIONS.find(
+        (section) => section.id === id,
+      )?.menuLabel;
+      expect(
+        rows.some((row) => label && row.includes(label)),
+        `${id} must not be one press from the gear`,
+      ).toBe(false);
+    }
   });
 
   /**

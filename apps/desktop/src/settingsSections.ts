@@ -21,6 +21,7 @@ export type SettingsSection =
   | "status"
   | "shortcuts"
   | "commandLine"
+  | "updates"
   | "danger";
 
 export interface SettingsSectionSpec {
@@ -59,6 +60,14 @@ export const SETTINGS_SECTIONS: SettingsSectionSpec[] = [
     navLabel: "Command line",
     menuLabel: "Command line tool",
   },
+  // The second pane that is about the app rather than about this project, and
+  // it sits beside the first (LC-256a). Neither is offered from the gear any
+  // more — LC-261h took `Command line tool` out of that menu and `Updates` was
+  // never added to it, so the gear stays about *this project* and the two
+  // app-level panes live in one place. Both labels are still held here: the
+  // set is what this file exists to keep single, and a pane the menu does not
+  // currently offer is not a pane with no menu name.
+  { id: "updates", navLabel: "Updates", menuLabel: "Updates" },
   { id: "danger", navLabel: "Danger zone", menuLabel: "Danger zone" },
 ];
 

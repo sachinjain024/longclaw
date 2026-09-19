@@ -5,6 +5,8 @@ pub mod engine;
 mod platform;
 mod preferences;
 mod registry;
+pub mod update;
+mod update_plugin;
 
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
@@ -22,6 +24,7 @@ use preferences::PreferenceDocument;
 use serde::Deserialize;
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Emitter, Manager, State};
+use update::{UpdatePath, UpdateProgress, UpdateStatus};
 
 const PROJECT_EVENT_NAME: &str = "longclaw://project-event";
 static PROCESS_STARTED: OnceLock<Instant> = OnceLock::new();
@@ -406,6 +409,112 @@ fn install_command_line() -> AppResult<platform::command_line::CommandLineStatus
     platform::command_line::install()
 }
 
+/// Whether a newer LongClaw exists ([ADR 0014](../../../docs/adr/0014-one-optional-check-for-a-newer-longclaw.md)).
+///
+/// The one request this app makes, and it names nothing: no URL crosses the
+/// wire, the same way none does for `open_ticket_file` or
+/// `install_command_line`. Rust owns the host, the key and the budget.
+///
+/// `async` and then `spawn_blocking`, because a plain Tauri command runs on the
+/// main thread and this one can wait on a socket. `force` is *Check now*; a
+/// scheduled check makes at most one request per slot, and a failed one is not
+/// retried until the next (D10).
+#[tauri::command]
+async fn check_for_update(
+    force: bool,
+    updates: State<'_, Arc<UpdatePath>>,
+) -> AppResult<UpdateStatus> {
+    let updates = Arc::clone(&updates);
+    run_off_thread(move || updates.check(force)).await
+}
+
+/// What the pane draws, without asking the network anything.
+///
+/// Read on every render of the pane and by the sidebar footer, so it must stay
+/// free of requests: a pane that is merely open is not a second schedule.
+#[tauri::command]
+fn update_status(updates: State<'_, Arc<UpdatePath>>) -> UpdateStatus {
+    updates.status()
+}
+
+/// The first press. Fetches and verifies the pending version, reporting
+/// progress on a channel per ADR 0007.
+///
+/// A failure leaves the installed bundle untouched and keeps no partial file,
+/// which is why losing the network halfway costs the download and nothing else.
+#[tauri::command]
+async fn download_update(
+    on_progress: Channel<UpdateProgress>,
+    updates: State<'_, Arc<UpdatePath>>,
+) -> AppResult<UpdateStatus> {
+    let updates = Arc::clone(&updates);
+    let version = updates
+        .status()
+        .available
+        .map(|release| release.version)
+        .unwrap_or_default();
+    let started = version.clone();
+    run_off_thread(move || {
+        let _ = on_progress.send(UpdateProgress::Started {
+            version: started.clone(),
+            total: None,
+        });
+        let outcome = updates.download(&mut |received, total| {
+            let _ = on_progress.send(UpdateProgress::Progress { received, total });
+        });
+        if outcome.is_ok() {
+            let _ = on_progress.send(UpdateProgress::Finished { version: started });
+        }
+        outcome
+    })
+    .await
+}
+
+/// The second press. Refuses while a ticket write is outstanding.
+///
+/// The frontend disables the button and says why; this is the guarantee, and it
+/// reads the count kept around the atomic write seams rather than anything the
+/// webview told it (ADR 0009).
+#[tauri::command]
+async fn install_update(updates: State<'_, Arc<UpdatePath>>) -> AppResult<()> {
+    let updates = Arc::clone(&updates);
+    run_off_thread(move || updates.install_and_restart(core::storage::writes_in_flight())).await
+}
+
+/// The way out when the in-app update cannot finish: the site's download page,
+/// in the default browser. The webview names no URL.
+#[tauri::command]
+fn open_download_page() -> AppResult<()> {
+    if update_plugin::open_download_page() {
+        return Ok(());
+    }
+    Err(core::AppError::new(
+        core::ErrorCode::Io,
+        "macOS would not open the download page. Visit longclaw.io/download in your browser.",
+        true,
+    ))
+}
+
+/// Runs one blocking update call on the blocking pool and awaits its answer.
+///
+/// Every update command goes through here, so "nothing that draws a frame waits
+/// on a socket" is one line rather than a convention four commands remember.
+async fn run_off_thread<T, F>(work: F) -> AppResult<T>
+where
+    F: FnOnce() -> AppResult<T> + Send + 'static,
+    T: Send + 'static,
+{
+    tauri::async_runtime::spawn_blocking(work)
+        .await
+        .map_err(|error| {
+            core::AppError::new(
+                core::ErrorCode::Internal,
+                format!("The update worker did not finish: {error}"),
+                true,
+            )
+        })?
+}
+
 #[tauri::command]
 fn edit_ticket(
     request: EditTicketRequest,
@@ -526,9 +635,18 @@ pub fn run() {
     let _ = PROCESS_STARTED.set(Instant::now());
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let app_data_dir = app.path().app_data_dir()?;
             let state = AppState::new(&app_data_dir)?;
+            // A build with no bundle to replace, or no key to verify with, has
+            // no update path — which is a state the pane reads as `unavailable`
+            // and never a reason to refuse to launch (ADR 0014, D10).
+            app.manage(Arc::new(UpdatePath::new(
+                update_plugin::PluginUpdater::attach(app.handle()),
+                Arc::new(update::SystemClock),
+                app.package_info().version.to_string(),
+            )));
             #[cfg(debug_assertions)]
             if let Ok(root) = std::env::var("LONGCLAW_DEV_PROJECT") {
                 state.register_project(PathBuf::from(root))?;
@@ -570,7 +688,12 @@ pub fn run() {
             report_visible_ui,
             read_preferences,
             write_preferences,
-            home_dir
+            home_dir,
+            check_for_update,
+            update_status,
+            download_update,
+            install_update,
+            open_download_page
         ])
         .run(tauri::generate_context!())
         .expect("LongClaw desktop should run");

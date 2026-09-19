@@ -20,4 +20,15 @@ pub mod macos {
     pub fn open_in_default_app(_path: &Path) -> bool {
         false
     }
+
+    /// The same, for the one URL the update path can offer.
+    pub fn open_web_url(_url: &str) -> bool {
+        false
+    }
+
+    /// Off macOS there is no bundle this build knows how to replace, so the
+    /// update path reports itself unavailable rather than claiming one.
+    pub fn running_from_bundle() -> bool {
+        false
+    }
 }

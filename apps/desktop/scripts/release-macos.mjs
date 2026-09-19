@@ -39,11 +39,29 @@
  * Re-running after any interruption is the correct move, and costs only what is
  * genuinely still missing.
  *
- * Usage: npm run release:macos [-- --no-build]
+ * **The update artefact is made last, and that order is the point** (LC-256a,
+ * D8). An installed copy replaces itself with the archive this script writes,
+ * so the archive has to hold the *stapled, notarized* app — the same bundle a
+ * fresh install gets. Archiving during `tauri build`, which is what Tauri's own
+ * `createUpdaterArtifacts` does, would ship an unstapled app to everyone who
+ * updates and a stapled one to everyone who downloads: a first launch that
+ * needs a round trip to Apple, for exactly the people who are offline.
+ *
+ * The manifest's notes come from `docs/release-notes/`, which the site's
+ * changelog already follows, so the app and the site cannot disagree about what
+ * changed. `update-manifest.mjs` holds that step and has its own self-test in
+ * the gate — a release must never be the first time it runs.
+ *
+ * Usage: npm run release:macos [-- --no-build] [-- --no-update]
  *   APPLE_SIGNING_IDENTITY   required, e.g. "Developer ID Application: … (TEAMID)"
  *   LONGCLAW_NOTARY_PROFILE  optional, defaults to longclaw-notary
+ *   TAURI_SIGNING_PRIVATE_KEY           the updater key, and
+ *   TAURI_SIGNING_PRIVATE_KEY_PASSWORD  its password, from the login keychain
+ *                            (docs/release-signing-runbook.md). Without them the
+ *                            update step is skipped and says so.
  *   --no-build               notarize the artefacts already in target/, rather
  *                            than building fresh ones
+ *   --no-update              skip the update archive and manifest entirely
  *
  * Afterwards: `npm run release:binary-audit`, which fails on every state this
  * script exists to leave behind.
@@ -53,13 +71,17 @@ import { spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdtempSync,
+  readFileSync,
   readdirSync,
   renameSync,
   rmSync,
+  writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { releaseNotesFor, updateManifest } from "./update-manifest.mjs";
 
 const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const BUNDLE_DIR = join(appRoot, "src-tauri/target/release/bundle");
@@ -69,6 +91,7 @@ const DMG_DIR = join(BUNDLE_DIR, "dmg");
 const identity = process.env.APPLE_SIGNING_IDENTITY;
 const profile = process.env.LONGCLAW_NOTARY_PROFILE ?? "longclaw-notary";
 const rebuild = !process.argv.includes("--no-build");
+const makeUpdate = !process.argv.includes("--no-update");
 
 /** Does this artefact already carry a stapled notarization ticket? */
 const stapled = (path) =>
@@ -251,7 +274,95 @@ try {
   rmSync(scratch, { recursive: true, force: true });
 }
 
+/* ---------------------------------------------------- the update artefacts */
+
+/**
+ * The archive an installed copy replaces itself with, its signature, and the
+ * manifest that points at both.
+ *
+ * Everything here runs **after** stapling, deliberately — see the header. The
+ * archive is made from the bundle on disk, which by this point carries Apple's
+ * ticket.
+ *
+ * The upload is not done here. `gh release create` wants a tag that exists and
+ * a decision about whether this is a draft, and that is a judgment rather than
+ * a build step; the script writes the three files and names the command.
+ */
+const updateArtefacts = [];
+if (makeUpdate) {
+  const version = JSON.parse(
+    readFileSync(join(appRoot, "src-tauri/tauri.conf.json"), "utf8"),
+  ).version;
+  const archive = join(DMG_DIR, `LongClaw_${version}_aarch64.app.tar.gz`);
+
+  if (!process.env.TAURI_SIGNING_PRIVATE_KEY) {
+    console.log(
+      "\n▸ No TAURI_SIGNING_PRIVATE_KEY in the environment, so no update artefacts were made.\n" +
+        "  An installed copy cannot learn about this release. See docs/release-signing-runbook.md\n" +
+        "  § The updater key, or pass --no-update to say that was deliberate.",
+    );
+  } else {
+    step("Archiving the stapled app for the updater", "tar", [
+      "czf",
+      archive,
+      "-C",
+      join(BUNDLE_DIR, "macos"),
+      "LongClaw.app",
+    ]);
+    step("Signing the update archive", "npx", [
+      "tauri",
+      "signer",
+      "sign",
+      "--password",
+      process.env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD ?? "",
+      archive,
+    ]);
+    if (!existsSync(`${archive}.sig`)) {
+      die(`the updater signer wrote no ${archive}.sig`);
+    }
+
+    const manifestPath = join(DMG_DIR, "latest.json");
+    writeFileSync(
+      manifestPath,
+      `${JSON.stringify(
+        updateManifest({
+          version,
+          notes: releaseNotesFor(
+            version,
+            join(appRoot, "../../docs/release-notes"),
+          ),
+          signature: readFileSync(`${archive}.sig`, "utf8").trim(),
+          archiveUrl: `https://github.com/sachinjain024/longclaw/releases/download/v${version}/${basename(archive)}`,
+          pubDate: new Date().toISOString(),
+        }),
+        null,
+        2,
+      )}\n`,
+    );
+    updateArtefacts.push(archive, `${archive}.sig`, manifestPath);
+    console.log(
+      `\n▸ Update artefacts written\n  ${updateArtefacts.join("\n  ")}`,
+    );
+  }
+}
+
 console.log(
   `\nrelease-macos: signed as ${identity}, notarized through ${profile}, and stapled.\n` +
     `  ${APP_BUNDLE}\n  ${dmg}\n\nNow run: npm run release:binary-audit`,
 );
+
+if (updateArtefacts.length > 0) {
+  /* The manifest and the artefacts are assets of the *same* release, so
+     publishing the release is what refreshes the manifest and nothing else can
+     (ADR 0014, D4). `latest.json` must be among them: the app reads it from the
+     release's stable `latest/download` URL. */
+  console.log(
+    `\nThen publish them all as assets of one release, which is what refreshes the manifest:\n` +
+      `  gh release create v${JSON.parse(readFileSync(join(appRoot, "src-tauri/tauri.conf.json"), "utf8")).version} \\\n` +
+      `    ${dmg} \\\n` +
+      updateArtefacts.map((path) => `    ${path} \\\n`).join("") +
+      `    --notes-file ../../docs/release-notes/v${JSON.parse(readFileSync(join(appRoot, "src-tauri/tauri.conf.json"), "utf8")).version}.md\n\n` +
+      `And then read it back, which is the step that catches a release that updates nobody:\n` +
+      `  curl -sSL https://github.com/sachinjain024/longclaw/releases/latest/download/latest.json | jq .version`,
+  );
+}

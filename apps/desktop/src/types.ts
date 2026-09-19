@@ -630,6 +630,74 @@ export type CommandLineState =
   /** A build with no CLI beside it — a dev window rather than a bundle. */
   | "unavailable";
 
+/**
+ * Where the update path stands, as a closed set the pane switches on
+ * ([ADR 0014](../../../docs/adr/0014-one-optional-check-for-a-newer-longclaw.md)).
+ *
+ * `unavailable` is the resting answer on anything that is not an installed
+ * bundle — a `npm run dev` window, the perf harness, a `vitest` render — and it
+ * is a state rather than a failure, exactly as `CommandLineState`'s own
+ * `unavailable` is.
+ */
+export type UpdateState = "unavailable" | "upToDate" | "available";
+
+/**
+ * Why the update path could not do what was asked.
+ *
+ * The tuple is the source, the way `FAILURE_CAUSES` is: the type is derived
+ * from it and so is the guard in `updates.ts`, so there is one list to keep in
+ * step with Rust rather than three to keep in step with each other. Wire order,
+ * to match `tests/fixtures/ipc-contract.json` § `updateFailureReasons`.
+ *
+ * It travels on the error's `context.reason` rather than in `code`: ADR 0010's
+ * code says what kind of failure it is, and this says which one — which is what
+ * decides the sentence and, for two of them, the pair of buttons.
+ */
+export const UPDATE_FAILURE_REASONS = [
+  "offline",
+  "blocked",
+  "badManifest",
+  "badSignature",
+  "corruptDownload",
+  "unavailable",
+  "writeInFlight",
+] as const;
+
+export type UpdateFailureReason = (typeof UPDATE_FAILURE_REASONS)[number];
+
+/** The version on offer, as the manifest describes it. */
+export interface UpdateRelease {
+  version: string;
+  /** `YYYY-MM-DD`, or absent where the manifest carried no date. */
+  date: string | null;
+  /** The release notes, Markdown, taken from `docs/release-notes`. Not copy. */
+  notes: string | null;
+}
+
+/** Everything the pane and the sidebar footer need, in one answer. */
+export interface UpdateStatus {
+  state: UpdateState;
+  /** The running bundle's version. Present in every state. */
+  currentVersion: string;
+  /** Absent unless `state` is `available`. */
+  available: UpdateRelease | null;
+  /** Whether the pending version is downloaded and verified — the second press. */
+  downloaded: boolean;
+}
+
+/**
+ * The download, as it happens, on a channel rather than the project-event topic
+ * (ADR 0007): it is an ordered stream belonging to one caller, and it is
+ * neither a project change nor something a second window should be told about.
+ *
+ * `total` is `null` where the host did not say. A bar drawn against a total
+ * nobody has is a lie about a number.
+ */
+export type UpdateProgress =
+  | { event: "started"; data: { version: string; total: number | null } }
+  | { event: "progress"; data: { received: number; total: number | null } }
+  | { event: "finished"; data: { version: string } };
+
 export interface CommandLineStatus {
   state: CommandLineState;
   /** The app's own copy of the CLI. Absent only when `state` is `unavailable`. */
