@@ -13,7 +13,7 @@ labels:
 type: feature
 estimate: "3"
 created_at: 2026-09-16T07:40:42.050Z
-updated_at: 2026-09-19T12:57:23.883Z
+updated_at: 2026-09-19T13:07:34.008Z
 ---
 
 LongClaw ships as a signed, notarized DMG. An installed copy has no way to
@@ -144,7 +144,7 @@ one flow carry the word and the first of them downloads rather than updates.
 
 - [x] ADR: amend the no-network contract to a narrow, identifier-free update check <!-- longclaw:item=ck_e47d47ec -->
 - [x] Generate the updater signing key pair and get the public half into the bundle <!-- longclaw:item=ck_27060633 -->
-- [ ] Back the NEW updater private key and its password up off this machine and confirm both read back — the first pair's backup is worthless now <!-- longclaw:item=ck_bf4c8dd0 -->
+- [x] Back the NEW updater private key and its password up off this machine and confirm both read back — the first pair's backup is worthless now <!-- longclaw:item=ck_bf4c8dd0 -->
 - [x] Decide whether the updater key stays passwordless — settled 2026-09-19: it does not. The bare pair was discarded and replaced before anything shipped <!-- longclaw:item=ck_8a4d4d38 -->
 - [x] Release shell exports TAURI_SIGNING_PRIVATE_KEY and its password from the keychain, signs for the committed public key, and refuses an empty password <!-- longclaw:item=ck_f85a62ac -->
 - [ ] Dry run release:macos --no-build once, so the archive, signature and manifest steps have run before a real release depends on them <!-- longclaw:item=ck_0ec492d4 -->
@@ -822,6 +822,22 @@ changes:
   - field: checklist.ck_f85a62ac.text
     from: Release shell exports TAURI_SIGNING_PRIVATE_KEY from the keychain and signs for the committed public key; the key carries no password, so its variable is empty
     to: Release shell exports TAURI_SIGNING_PRIVATE_KEY and its password from the keychain, signs for the committed public key, and refuses an empty password
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_5f0ce33a
+kind: update
+occurred_at: 2026-09-19T13:07:34.008Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_bf4c8dd0.checked
+    from: "false"
+    to: "true"
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->
