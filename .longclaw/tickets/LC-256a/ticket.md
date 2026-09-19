@@ -13,7 +13,7 @@ labels:
 type: feature
 estimate: "3"
 created_at: 2026-09-16T07:40:42.050Z
-updated_at: 2026-09-19T12:41:45.742Z
+updated_at: 2026-09-19T12:57:23.883Z
 ---
 
 LongClaw ships as a signed, notarized DMG. An installed copy has no way to
@@ -144,9 +144,9 @@ one flow carry the word and the first of them downloads rather than updates.
 
 - [x] ADR: amend the no-network contract to a narrow, identifier-free update check <!-- longclaw:item=ck_e47d47ec -->
 - [x] Generate the updater signing key pair and get the public half into the bundle <!-- longclaw:item=ck_27060633 -->
-- [ ] Back the updater private key up off this machine and confirm the backup reads back — the keychain is on one Mac, and that Mac dying is what the backup is for <!-- longclaw:item=ck_bf4c8dd0 -->
-- [ ] Decide whether the updater key stays passwordless — the keychain is its only protection, and a password cannot be added to an existing key. Free to change until the first release <!-- longclaw:item=ck_8a4d4d38 -->
-- [x] Release shell exports TAURI_SIGNING_PRIVATE_KEY from the keychain and signs for the committed public key; the key carries no password, so its variable is empty <!-- longclaw:item=ck_f85a62ac -->
+- [ ] Back the NEW updater private key and its password up off this machine and confirm both read back — the first pair's backup is worthless now <!-- longclaw:item=ck_bf4c8dd0 -->
+- [x] Decide whether the updater key stays passwordless — settled 2026-09-19: it does not. The bare pair was discarded and replaced before anything shipped <!-- longclaw:item=ck_8a4d4d38 -->
+- [x] Release shell exports TAURI_SIGNING_PRIVATE_KEY and its password from the keychain, signs for the committed public key, and refuses an empty password <!-- longclaw:item=ck_f85a62ac -->
 - [ ] Dry run release:macos --no-build once, so the archive, signature and manifest steps have run before a real release depends on them <!-- longclaw:item=ck_0ec492d4 -->
 - [ ] Run release:binary-audit against a signed bundle; the updater-key and manifest-signature checks have never run <!-- longclaw:item=ck_49b83bcf -->
 - [x] Decide and document where the update manifest and artifacts are hosted <!-- longclaw:item=ck_83adaa6c -->
@@ -771,6 +771,57 @@ changes:
   - field: checklist.ck_8a4d4d38.moved
     from: "38"
     to: "4"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_c82b3afc
+kind: update
+occurred_at: 2026-09-19T12:57:15.983Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_bf4c8dd0.text
+    from: Back the updater private key up off this machine and confirm the backup reads back — the keychain is on one Mac, and that Mac dying is what the backup is for
+    to: Back the NEW updater private key and its password up off this machine and confirm both read back — the first pair's backup is worthless now
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_79c5800d
+kind: update
+occurred_at: 2026-09-19T12:57:23.861Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_8a4d4d38.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_8a4d4d38.text
+    from: Decide whether the updater key stays passwordless — the keychain is its only protection, and a password cannot be added to an existing key. Free to change until the first release
+    to: "Decide whether the updater key stays passwordless — settled 2026-09-19: it does not. The bare pair was discarded and replaced before anything shipped"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_c7bc07dd
+kind: update
+occurred_at: 2026-09-19T12:57:23.883Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_f85a62ac.text
+    from: Release shell exports TAURI_SIGNING_PRIVATE_KEY from the keychain and signs for the committed public key; the key carries no password, so its variable is empty
+    to: Release shell exports TAURI_SIGNING_PRIVATE_KEY and its password from the keychain, signs for the committed public key, and refuses an empty password
 -->
 ### Claude Code updated this ticket
 <!-- /longclaw:event -->

@@ -50,7 +50,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEVERkFERkVGQTBDQjdERjEKUldUeGZjdWc3OS82N1lJYmxickl3S3JTRlpTQ2dZMithejlueW80T0Zub3FkUFQ4U0dEY2ZXamEK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDJBRTM2OEU0OTkzRjE3MjYKUldRbUZ6K1o1R2pqS3VXT0NZbWV0NzZqcEo5L284YWV4M1RBSVNSQWZoT2UrYXFPdHVqRDRuREQK",
       "endpoints": [
         "https://github.com/sachinjain024/longclaw/releases/latest/download/latest.json"
       ]
