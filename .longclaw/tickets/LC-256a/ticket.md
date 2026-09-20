@@ -13,7 +13,7 @@ labels:
 type: feature
 estimate: "3"
 created_at: 2026-09-16T07:40:42.050Z
-updated_at: 2026-09-20T11:43:13.007Z
+updated_at: 2026-09-20T11:57:57.131Z
 ---
 
 LongClaw ships as a signed, notarized DMG. An installed copy has no way to
@@ -153,7 +153,7 @@ one flow carry the word and the first of them downloads rather than updates.
 - [x] Decide whether the updater key stays passwordless — settled 2026-09-19: it does not. The bare pair was discarded and replaced before anything shipped <!-- longclaw:item=ck_8a4d4d38 -->
 - [x] Release shell exports TAURI_SIGNING_PRIVATE_KEY and its password from the keychain, signs for the committed public key, and refuses an empty password <!-- longclaw:item=ck_f85a62ac -->
 - [x] Dry run release:macos --no-build once, so the archive, signature and manifest steps have run before a real release depends on them <!-- longclaw:item=ck_0ec492d4 -->
-- [ ] Run release:binary-audit against a signed bundle; the updater-key and manifest-signature checks have never run <!-- longclaw:item=ck_49b83bcf -->
+- [x] Run release:binary-audit against a signed bundle; the updater-key and manifest-signature checks have never run <!-- longclaw:item=ck_49b83bcf -->
 - [x] Decide and document where the update manifest and artifacts are hosted <!-- longclaw:item=ck_83adaa6c -->
 - [x] Wire the updater in Rust; the webview names an intent, never a URL <!-- longclaw:item=ck_0c3bfdb7 -->
 - [x] IPC contract: the update DTO, its error reasons and the progress frames join the shared JSON fixture <!-- longclaw:item=ck_5d2c7f46 -->
@@ -182,7 +182,7 @@ one flow carry the word and the first of them downloads rather than updates.
 - [x] Regression proof: every other operation survives a dead, hanging or absent updater <!-- longclaw:item=ck_ea629ace -->
 - [x] Regression proof: nothing outside the Updates pane changes when a check fails <!-- longclaw:item=ck_d03644b2 -->
 - [ ] Run audit:network offline, and again online with the automatic check off; both must record zero connections; quote the runs <!-- longclaw:item=ck_027b4aa2 -->
-- [ ] Re-run perf:startup against a built bundle; quote it unchanged <!-- longclaw:item=ck_9619080c -->
+- [x] Re-run perf:startup against a built bundle; quote it unchanged <!-- longclaw:item=ck_9619080c -->
 - [ ] Changelog entry for the release that ships this, through the changelog-entry skill <!-- longclaw:item=ck_35214e39 -->
 - [x] Tell LC-257s that its amended-contract item is answered by ADR 0014, and that D4's allowlist is the road it reuses <!-- longclaw:item=ck_bb34228b -->
 
@@ -977,4 +977,51 @@ The first finding is a defect in this script, and it is about this ticket's own 
 The second finding is bigger than this ticket and is filed as LC-262z. The script asks whether a build is already notarized by trying to staple it, and treats every failure as Apple saying no. The staple failed for a local reason — stapler had downloaded the ticket and could not write it into that particular bundle directory — so the script uploaded to the notary service, got Accepted, stapled again, failed the same way and died. Twice, for two submissions. Worse, the failed staple removed the existing ticket first, so a bundle that validated as stapled beforehand did not afterwards. The bundle itself was fine: a ditto copy of it stapled first time, in the scratch directory and inside target/ both, and replacing the directory with a copy of itself fixed it. codesign --verify --deep --strict passed throughout.
 
 So the dry run did what this item was for. A release was not the first time the archive, signature and manifest steps ran, and it was not the first time either of those two defects was met.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_e1ac670f
+kind: update
+occurred_at: 2026-09-20T11:57:57.131Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_49b83bcf.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_9619080c.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+A signed, notarized bundle of this branch exists now, and the two items waiting on one are done.
+
+release:binary-audit, which had never run against a build with the updater in it, found one thing — and it was this ticket's own expectation rather than the build:
+
+  longclaw-desktop: the socket API it imports is [_bind, _connect, _freeaddrinfo, _getaddrinfo, _getpeername, _getsockname, _getsockopt, _recv, _send, _setsockopt, _shutdown, _socket], and ADR 0014 sanctions exactly [_bind, _connect, _freeaddrinfo, _getaddrinfo, _getsockopt, _recv, _send, _setsockopt, _socket]
+
+The nine-name list was written from the crate graph before a build with the updater existed to measure, and the first one that did added three: _getpeername, _getsockname and _shutdown. They are not a wider boundary. Every one of them operates on a socket the process has already connected — it names no host, opens nothing and sends nothing — and _shutdown is how an orderly TLS close ends. A process holding _connect and _send already has everything the three could give it. So the set is now the measured set, and the comment says it was measured and when, because a prediction written in the voice of a measurement is the thing that made this row wrong in the first place.
+
+What stays absent is what the claim rests on, and all of it is still absent: _sendto and _recvfrom, because HTTPS is a connected stream and a datagram call would be something else; _listen and _accept, because nothing here is a server; and _connectx, _getnameinfo, _recvmsg, _sendmsg and _socketpair. The CLI still imports no socket call at all.
+
+The audit then passed whole:
+
+  binary-audit: 499 imported symbols and 32 linked libraries across 2 bundled binaries clean — no telemetry in either shipped binary, exactly the socket API and network frameworks ADR 0014 sanctions and no others, no socket call at all from the CLI, the update path present in the window, the manifest signed by the key the bundle carries, the CLI beside the window on the same architecture, and both the bundle and the DMG verifying, sealing what they should, carrying a Developer ID chain and the Hardened Runtime flag, accepted by Gatekeeper and with a notarization ticket stapled
+
+Its --self-test still goes red where it should: the network sets accept 2 sanctioned shapes and reject 4 broad ones, and an ad-hoc bundle is caught on authority, team, runtime, spctl and staple.
+
+perf:startup against that bundle, unchanged and inside budget:
+
+  PERF-STARTUP project=fixtures/representative-project rows_rendered=5 launches=5 bundle_built=2026-09-20T11:50:23.809Z
+  samples ms: 764.27, 627.19, 566.1, 592.05, 577.05
+  first launch of this run: 764.27 ms  (NOT a cold-boot number)
+  warm: p50 592.05 ms, p95 627.19 ms, min 566.1 ms, max 627.19 ms
+  within budget: warm <= 750ms, first launch <= 1500ms
+
+One thing worth knowing for whoever runs this next, recorded here rather than in the harness because it is an observation and not a diagnosis: the very first perf:startup after the fresh signed build failed with 'no probe reporting rows within 60s of launching the app', which reads as a broken app and was not one. Launching the bundle once by hand reported a frame with five rows in 1158.82 ms, and the harness then passed five launches out of five. If it happens again, launch the app once before blaming the build.
+
+npm run verify green.
 <!-- /longclaw:event -->

@@ -157,17 +157,32 @@ const BINARIES = [
     // be something the binary cannot work without, so it is claimed only here.
     frameworks: ["WebKit"],
     // Exactly what the updater's TLS stack reaches libSystem for, and nothing
-    // else. `_sendto` and `_recvfrom` are absent and must stay absent: HTTPS is
-    // a connected stream, and a datagram call would be something else entirely.
+    // else. **Measured off a signed build on 2026-09-20, not predicted.** The
+    // first nine were written from the crate graph before a build with the
+    // updater in it existed, and the first one that did added three more:
+    // `_getpeername`, `_getsockname` and `_shutdown`. They are not a wider
+    // boundary — every one of them operates on a socket this process has
+    // already connected, so it names no host, opens nothing and sends nothing,
+    // and `_shutdown` is how an orderly TLS close ends. A process holding
+    // `_connect` and `_send` already has everything they could add.
+    //
+    // What is absent is what the claim rests on, and it must stay absent:
+    // `_sendto` and `_recvfrom`, because HTTPS is a connected stream and a
+    // datagram call would be something else entirely; `_listen` and `_accept`,
+    // because nothing here is a server; and `_connectx`, `_getnameinfo`,
+    // `_recvmsg`, `_sendmsg` and `_socketpair`.
     socketApi: [
       "_bind",
       "_connect",
       "_freeaddrinfo",
       "_getaddrinfo",
+      "_getpeername",
+      "_getsockname",
       "_getsockopt",
       "_recv",
       "_send",
       "_setsockopt",
+      "_shutdown",
       "_socket",
     ],
     // `Security` for the platform certificate verifier and `SystemConfiguration`

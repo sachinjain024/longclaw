@@ -96,3 +96,29 @@ actor:
 -->
 ### Claude Code created this ticket
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_69089f01
+kind: comment
+occurred_at: 2026-09-20T11:57:39.466Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+The full release run gave the clean contrast this needs, and it narrows the fix.
+
+Building, signing and notarizing from scratch on 2026-09-20, the same first step said:
+
+  ▸ Asking Apple whether this exact build is already notarized
+  CloudKit query for LongClaw.app (2/0babf2db3172fa88ea7fe04d492b69901c3c530c) failed due to "Record not found".
+  The staple and validate action failed! Error 65.
+
+That is the honest case — Apple genuinely has no ticket for this CDHash — and stapler reports it as **65**, not 73. The local write failure that started this ticket reports **73**. So the two cases the script currently conflates already have different exit codes, and tryStaple throws that away by asking only whether the status was zero.
+
+That does not make the fix a one-liner. 65 means resubmit, 73 means something local is wrong and the bundle may now be worse than it was found, but neither number is documented as a contract and a third code is not something to guess about. What it does mean is that the script has a signal to read rather than needing an spctl probe invented for it, and that the safe default for an unrecognised failure is to stop and say so rather than to upload.
+
+The rest of that run was clean: app submitted, Accepted, stapled, DMG opened read-write, its inner app stapled, sealed, signed, submitted, Accepted, stapled. Exit 0.
+<!-- /longclaw:event -->
