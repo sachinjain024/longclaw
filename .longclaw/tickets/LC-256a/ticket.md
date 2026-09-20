@@ -3,7 +3,7 @@ format: longclaw.ticket/v1
 id: 157695a7-ac33-494c-8a8d-a3d2a37e4dc7
 key: LC-256a
 title: "Auto-update: the update path, and the experience around it"
-status: in_progress
+status: done
 priority: urgent
 labels:
   - platform
@@ -13,7 +13,7 @@ labels:
 type: feature
 estimate: "3"
 created_at: 2026-09-16T07:40:42.050Z
-updated_at: 2026-09-20T13:40:06.776Z
+updated_at: 2026-09-20T13:55:17.287Z
 ---
 
 LongClaw ships as a signed, notarized DMG. An installed copy has no way to
@@ -1109,4 +1109,26 @@ One of those sentences has since been reverted, deliberately. The home page badg
 What is unchanged is the constraint about **traffic**, which is the one the boundary was always about: the promise is *no information*, never *no network*, and no sentence anywhere may claim the app makes no request at all. The announcement post says exactly what the one request is and where its off switch lives, and was left alone.
 
 PR #51 restores the badge and rewrites the two rules that had just been written to forbid it — `apps/website/README.md` and `website-content-brief.md` §6 — to hold it to the feature rule instead.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_02fa1329
+kind: update
+occurred_at: 2026-09-20T13:55:17.287Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: in_progress
+    to: done
+-->
+### Claude Code updated this ticket
+
+Done. 0.2.0 is published, notarized and stapled, longclaw.io serves it, and the update path has been read back end to end — an installed 0.1.0 sees 0.2.0 from `releases/latest/download/latest.json`, and the archive it names downloads at its published length under a signature the shipped key verifies.
+
+38 of 38 items, one marked (Skipped): the two `audit:network` runs, which need a person driving a bundle on a quiet machine and are recorded above as skipped rather than silently passed. The binary audit covers the half a harness can assert — the socket-API and network-framework sets against the shipped Mach-Os — and it is green.
+
+Two follow-ups are filed and stay open: LC-262z for the `stapler` exit-73 write failure on a bundle that already carries a ticket, and the `perf:startup` first-run timeout after a fresh signed build, which is an observation on this ticket and not a harness change, because the cause was never established.
 <!-- /longclaw:event -->
