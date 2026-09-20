@@ -13,7 +13,7 @@ labels:
 type: feature
 estimate: "3"
 created_at: 2026-09-16T07:40:42.050Z
-updated_at: 2026-09-20T02:16:19.653Z
+updated_at: 2026-09-20T11:43:13.007Z
 ---
 
 LongClaw ships as a signed, notarized DMG. An installed copy has no way to
@@ -152,7 +152,7 @@ one flow carry the word and the first of them downloads rather than updates.
 - [x] Back the NEW updater private key and its password up off this machine and confirm both read back — the first pair's backup is worthless now <!-- longclaw:item=ck_bf4c8dd0 -->
 - [x] Decide whether the updater key stays passwordless — settled 2026-09-19: it does not. The bare pair was discarded and replaced before anything shipped <!-- longclaw:item=ck_8a4d4d38 -->
 - [x] Release shell exports TAURI_SIGNING_PRIVATE_KEY and its password from the keychain, signs for the committed public key, and refuses an empty password <!-- longclaw:item=ck_f85a62ac -->
-- [ ] Dry run release:macos --no-build once, so the archive, signature and manifest steps have run before a real release depends on them <!-- longclaw:item=ck_0ec492d4 -->
+- [x] Dry run release:macos --no-build once, so the archive, signature and manifest steps have run before a real release depends on them <!-- longclaw:item=ck_0ec492d4 -->
 - [ ] Run release:binary-audit against a signed bundle; the updater-key and manifest-signature checks have never run <!-- longclaw:item=ck_49b83bcf -->
 - [x] Decide and document where the update manifest and artifacts are hosted <!-- longclaw:item=ck_83adaa6c -->
 - [x] Wire the updater in Rust; the webview names an intent, never a URL <!-- longclaw:item=ck_0c3bfdb7 -->
@@ -935,4 +935,46 @@ Retiring it was conditional on its copy being in the source, so that was checked
 Two other places named it, and both were repaired rather than left pointing at nothing. docs/ux/prototypes/README.md moves it into the paragraph that lists the prototypes which have been here and are not any more, and says where each of the three things it carried now lives. LC-261h cited its Gear menu scene as the visual result of a decision it inherits; that sentence now names what the scene showed — Theme, then General, Labels, Ticket properties, Status fields and Keyboard shortcuts, then Reload from disk, then All settings — so the ticket stands on its own. The README's own rule is that a todo ticket pointing at a deleted file is worse than a stale example, and that rule is why LC-201's prototype is still there.
 
 LC-257s: its blocked item, deciding and writing down the amended network contract, was answered from ADR 0014 and checked off there on 2026-09-19, with a comment recording what the ADR settles for a star count — the boundary moved from no connection to no information, D4's host allowlist is the road it reuses, the three things that stay forbidden, and the three gates that already assert it — plus the correction that the ADR is committed on lc-256a-auto-update-spec and has not merged yet.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_54d040cd
+kind: update
+occurred_at: 2026-09-20T11:43:13.007Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_0ec492d4.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+The --no-build dry run has been done, and it earned its place on this list twice over.
+
+The run, once the bundle it was pointed at was in a fit state:
+
+  > node scripts/release-macos.mjs --no-build
+  ▸ Asking Apple whether this exact build is already notarized
+    it is — stapled from the existing ticket, with no resubmission
+  ▸ The DMG already has a ticket stapled — nothing left to do
+  ▸ Archiving the stapled app for the updater
+    tar czf .../LongClaw_0.1.0_aarch64.app.tar.gz -C .../macos LongClaw.app
+  ▸ Signing the update archive
+    npx tauri signer sign .../LongClaw_0.1.0_aarch64.app.tar.gz
+  ▸ Update artefacts written
+    LongClaw_0.1.0_aarch64.app.tar.gz
+    LongClaw_0.1.0_aarch64.app.tar.gz.sig
+    latest.json
+  release-macos: signed as Developer ID Application: Sachin Jain (97864HG7U4), notarized through longclaw-notary, and stapled.
+
+Exit 0. The manifest reads version 0.1.0, one darwin-aarch64 platform, the archive URL naming that version, a 424-byte signature, and notes lifted from docs/release-notes/v0.1.0.md with the frontmatter and the title taken off. The signature's minisign key id is 2AE368E4993F1726, which is the id of the public key committed in tauri.conf.json — so the archive is signed by the key every installed copy verifies against, proven against a real artefact rather than the runbook's probe file.
+
+The first finding is a defect in this script, and it is about this ticket's own key material. The signer step passed the updater key's password as --password on argv, and step() prints every command it runs, so the password went to stdout — into the release log, into whatever scrolled past, and into ps for the length of the run. Tauri reads the same value from TAURI_SIGNING_PRIVATE_KEY_PASSWORD, which the script already inherits, so the flag was redundant as well as leaky. It is gone. The script now also refuses to start the update artefacts when the key is set and the password is not, rather than letting the signer stop at a prompt no scripted release is watching.
+
+The second finding is bigger than this ticket and is filed as LC-262z. The script asks whether a build is already notarized by trying to staple it, and treats every failure as Apple saying no. The staple failed for a local reason — stapler had downloaded the ticket and could not write it into that particular bundle directory — so the script uploaded to the notary service, got Accepted, stapled again, failed the same way and died. Twice, for two submissions. Worse, the failed staple removed the existing ticket first, so a bundle that validated as stapled beforehand did not afterwards. The bundle itself was fine: a ditto copy of it stapled first time, in the scratch directory and inside target/ both, and replacing the directory with a copy of itself fixed it. codesign --verify --deep --strict passed throughout.
+
+So the dry run did what this item was for. A release was not the first time the archive, signature and manifest steps ran, and it was not the first time either of those two defects was met.
 <!-- /longclaw:event -->

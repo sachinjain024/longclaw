@@ -295,6 +295,22 @@ if (makeUpdate) {
   ).version;
   const archive = join(DMG_DIR, `LongClaw_${version}_aarch64.app.tar.gz`);
 
+  /* A key with no password in the environment is two failures, not one: the
+     signer stops to ask for one and a scripted release hangs on a prompt
+     nobody is watching, and answering it with nothing would sign the archive
+     with a key this project decided would not be bare (`ck_8a4d4d38`). Said
+     here rather than discovered there. */
+  if (
+    process.env.TAURI_SIGNING_PRIVATE_KEY &&
+    !process.env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+  ) {
+    die(
+      "TAURI_SIGNING_PRIVATE_KEY is set but TAURI_SIGNING_PRIVATE_KEY_PASSWORD is not.\n" +
+        "  This key has a password and the signer would stop to ask for it. Export both:\n" +
+        "  see docs/release-signing-runbook.md § The release shell.",
+    );
+  }
+
   if (!process.env.TAURI_SIGNING_PRIVATE_KEY) {
     console.log(
       "\n▸ No TAURI_SIGNING_PRIVATE_KEY in the environment, so no update artefacts were made.\n" +
@@ -309,12 +325,16 @@ if (makeUpdate) {
       join(BUNDLE_DIR, "macos"),
       "LongClaw.app",
     ]);
+    /* The password reaches the signer through the environment it already
+       inherits, and never on argv. `--password` is the same option — Tauri
+       reads `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` for it — but `step` prints
+       every command it runs, so passing it as a flag put the updater key's
+       password in the release log, and on any local `ps` for the length of the
+       run. The key itself was never on argv; this is the half that was. */
     step("Signing the update archive", "npx", [
       "tauri",
       "signer",
       "sign",
-      "--password",
-      process.env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD ?? "",
       archive,
     ]);
     if (!existsSync(`${archive}.sig`)) {
