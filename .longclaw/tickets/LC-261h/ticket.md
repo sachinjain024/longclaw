@@ -10,7 +10,7 @@ labels:
   - ready-for-agent
 estimate: "1"
 created_at: 2026-09-19T00:49:57.005Z
-updated_at: 2026-09-19T00:49:57.005Z
+updated_at: 2026-09-20T02:15:53.537Z
 ---
 
 The gear menu's `Command line tool` row goes, leaving that menu about the
@@ -21,9 +21,13 @@ the settings panel's side nav and is still reached by `All settings` and `⌘,`.
 "beside the other pane that is about the app rather than about this project" —
 and LC-256a's UX review took it one step further. A control labelled *Project
 settings* should not offer app-level panes from its menu, so that review removed
-this row and declined to add an `Updates` row beside it. The prototype shows the
-result: [`docs/ux/prototypes/LC-256a-Auto-Update.html`](../../../docs/ux/prototypes/LC-256a-Auto-Update.html),
-the **Gear menu** scene.
+this row and declined to add an `Updates` row beside it. What is left is
+`Theme`, then `General`, `Labels`, `Ticket properties`, `Status fields` and
+`Keyboard shortcuts`, then `Reload from disk`, then `All settings` — every row
+about the project you are looking at. That was the prototype's **Gear menu**
+scene, and the prototype has since been retired now that its copy is in the
+source; it is in the history at `16629c9`, and the decision itself is § Review
+decisions in LC-256a.
 
 Split out of LC-256a because this half changes behaviour that shipped in 0.1.0,
 and a release note saying a menu row moved should not be buried inside the
@@ -40,7 +44,7 @@ a checklist item rather than a footnote.
 
 ## Related
 
-- LC-256a settled this in its UX review and carries the prototype.
+- LC-256a settled this in its UX review, and its § Review decisions keep it.
 
 ## Checklist
 
@@ -63,4 +67,20 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_d37b1879
+kind: update
+occurred_at: 2026-09-20T02:15:53.537Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+-->
+### Claude Code updated this ticket
+
+LC-256a's prototype has been retired now that its copy is in the source, so this ticket no longer links a file that is not there. The sentence that pointed at the Gear menu scene now names what that scene showed — Theme, then General, Labels, Ticket properties, Status fields and Keyboard shortcuts, then Reload from disk, then All settings — and points at the history for the file itself. Nothing about the decision changed: LC-256a's Review decisions section is what settled it.
 <!-- /longclaw:event -->

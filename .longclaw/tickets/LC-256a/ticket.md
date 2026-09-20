@@ -13,7 +13,7 @@ labels:
 type: feature
 estimate: "3"
 created_at: 2026-09-16T07:40:42.050Z
-updated_at: 2026-09-19T13:28:27.860Z
+updated_at: 2026-09-20T02:16:19.653Z
 ---
 
 LongClaw ships as a signed, notarized DMG. An installed copy has no way to
@@ -44,9 +44,14 @@ is the one being built.
 
 ## Review decisions
 
-Settled 2026-09-19, from the prototype at
-[`docs/ux/prototypes/LC-256a-Auto-Update.html`](../../../docs/ux/prototypes/LC-256a-Auto-Update.html).
-Each of these changes what D6 describes.
+Settled 2026-09-19, from the prototype these were reviewed in. The prototype has
+since been retired, which is what happens to one once its copy is in the source:
+the decisions are here, the copy deck is below and in
+[`apps/desktop/src/updates.ts`](../../../apps/desktop/src/updates.ts), the
+keyboard path is § Updates in
+[`docs/design/prototype/keyboard-focus-map.md`](../../../docs/design/prototype/keyboard-focus-map.md),
+and the file itself is in the history at `16629c9`. Each of these changes what
+D6 describes.
 
 - **The notice lives in the sidebar footer, not on the gear.** The footer gains
   a line that always names the running version, and when an update is waiting
@@ -166,7 +171,7 @@ one flow carry the word and the first of them downloads rather than updates.
 - [x] Settings pane: turn it off, and check manually <!-- longclaw:item=ck_86fd9686 -->
 - [x] Device preferences: an automatic-check flag and a last-check record, and no skipped-version field <!-- longclaw:item=ck_fb5c9a8d -->
 - [x] Copy deck for every string, including the live region <!-- longclaw:item=ck_42b4fa8a -->
-- [ ] Retire the prototype once its copy is in the source <!-- longclaw:item=ck_accacb47 -->
+- [x] Retire the prototype once its copy is in the source <!-- longclaw:item=ck_accacb47 -->
 - [x] Write the Updates pane's rows into keyboard-focus-map.md and re-pin the citations, so a11y:audit has an oracle to cite <!-- longclaw:item=ck_20c23547 -->
 - [x] Perf harness serves an available update behind a flag, so a11y:audit can drive the pane, the footer link and the held restart button <!-- longclaw:item=ck_91432a40 -->
 - [x] Run a11y:audit for the pane, the footer link and the held restart button; quote the run <!-- longclaw:item=ck_743cbe53 -->
@@ -179,7 +184,7 @@ one flow carry the word and the first of them downloads rather than updates.
 - [ ] Run audit:network offline, and again online with the automatic check off; both must record zero connections; quote the runs <!-- longclaw:item=ck_027b4aa2 -->
 - [ ] Re-run perf:startup against a built bundle; quote it unchanged <!-- longclaw:item=ck_9619080c -->
 - [ ] Changelog entry for the release that ships this, through the changelog-entry skill <!-- longclaw:item=ck_35214e39 -->
-- [ ] Tell LC-257s that its amended-contract item is answered by ADR 0014, and that D4's allowlist is the road it reuses <!-- longclaw:item=ck_bb34228b -->
+- [x] Tell LC-257s that its amended-contract item is answered by ADR 0014, and that D4's allowlist is the road it reuses <!-- longclaw:item=ck_bb34228b -->
 
 ## Activity
 
@@ -902,4 +907,32 @@ A1–A6 still pass beside it, and `--self-test` goes red exactly where it should
 **Nothing outside the pane changes when a check fails** is three tests at the `App` level, where the question can actually be asked: no banner, no toast, no dialog, no store error, no dot, no `Update` link, an unmarked gear, the board untouched — and the last-checked record unmoved, because a failure that wrote *last checked just now* would be a failed check reported as one that worked. The second test opens the pane, presses `Check now`, and asserts the sentence appears there exactly once and still nowhere else.
 
 One correction made on the way past: `settingsSections.ts` said LC-261h *had* taken `Command line tool` out of the gear menu. It has not — LC-261h is still open, and the row is still there. The comment now says so.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_fba062f3
+kind: update
+occurred_at: 2026-09-20T02:16:19.653Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+  - field: checklist.ck_accacb47.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_bb34228b.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+The prototype is retired, and LC-257s has its answer.
+
+Retiring it was conditional on its copy being in the source, so that was checked rather than assumed: all thirty rows of the settled deck above were matched against apps/desktop/src/updates.ts, and every one of them is there. The prototype's other two jobs survive it as well — the layout decisions are the Review decisions section of this ticket, and the keyboard path the review implied is now the Updates section of keyboard-focus-map.md, which a11y:audit's A7 row drives. The file is in the history at 16629c9.
+
+Two other places named it, and both were repaired rather than left pointing at nothing. docs/ux/prototypes/README.md moves it into the paragraph that lists the prototypes which have been here and are not any more, and says where each of the three things it carried now lives. LC-261h cited its Gear menu scene as the visual result of a decision it inherits; that sentence now names what the scene showed — Theme, then General, Labels, Ticket properties, Status fields and Keyboard shortcuts, then Reload from disk, then All settings — so the ticket stands on its own. The README's own rule is that a todo ticket pointing at a deleted file is worse than a stale example, and that rule is why LC-201's prototype is still there.
+
+LC-257s: its blocked item, deciding and writing down the amended network contract, was answered from ADR 0014 and checked off there on 2026-09-19, with a comment recording what the ADR settles for a star count — the boundary moved from no connection to no information, D4's host allowlist is the road it reuses, the three things that stay forbidden, and the three gates that already assert it — plus the correction that the ADR is committed on lc-256a-auto-update-spec and has not merged yet.
 <!-- /longclaw:event -->

@@ -6869,8 +6869,9 @@ html.theme-transition *::after {
 /* ---------------------------------------------------------------- updates
    The update path's surfaces (LC-256a): the sidebar footer's version line, the
    dot on the settings nav's Updates row, and the Updates pane itself. The
-   geometry and the reasoning come from
-   `docs/ux/prototypes/LC-256a-Auto-Update.html`, where they were reviewed.
+   geometry and the reasoning were reviewed in that ticket's prototype, which
+   has been retired now its copy is in the source; the rules it proposed are
+   below, and the file is in the history at `16629c9`.
 
    Every dot here is 6px in the human accent, and every one of them is
    decorative. Green would be wrong twice over: green means an agent acted
