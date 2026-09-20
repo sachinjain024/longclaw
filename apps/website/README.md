@@ -80,10 +80,15 @@ do: no terminals, no sync, teams, accounts or billing, no Windows, Linux or
 Intel build, no custom themes, no hard deletion. The build is signed and
 notarized as of 0.1.0 (LC-47), so first launch is one dialog — say that, and do
 not promise none. **And the app is no longer network-free**: 0.2.0 makes one
-optional, identifier-free check for a newer LongClaw (LC-256a, ADR 0014), so
-the site says *works offline* and *no information*, never *no network*. A badge
-or a sentence claiming the app makes no request at all is now a false claim,
-not a strong one. These come from
+optional, identifier-free check for a newer LongClaw (LC-256a, ADR 0014). The
+home page still says **`Fully offline`**, and that is the settled decision
+(2026-09-20): the badge is a claim about *features*, and it comes off the day a
+feature requires a connection — not for a check that downloads nothing until
+you press a button, and that every feature behaves identically without. It was
+briefly changed to `Works offline` and changed back. What may not be said is
+anything about *traffic*: the promise is *no information*, never *no network*,
+and a sentence claiming the app makes no request at all is a false claim, not a
+strong one. These come from
 [`docs/design/website-content-brief.md`](../../docs/design/website-content-brief.md) §6.
 
 **`/roadmap` is designed but unpublished.** It is absent from both navigations,
