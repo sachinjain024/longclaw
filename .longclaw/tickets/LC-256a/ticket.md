@@ -13,7 +13,7 @@ labels:
 type: feature
 estimate: "3"
 created_at: 2026-09-16T07:40:42.050Z
-updated_at: 2026-09-20T11:57:57.131Z
+updated_at: 2026-09-20T12:25:07.064Z
 ---
 
 LongClaw ships as a signed, notarized DMG. An installed copy has no way to
@@ -181,7 +181,7 @@ one flow carry the word and the first of them downloads rather than updates.
 - [x] Regression proof: npm run verify green, and every existing test that changed names a behaviour that changed rather than accommodating the update path <!-- longclaw:item=ck_b71178f7 -->
 - [x] Regression proof: every other operation survives a dead, hanging or absent updater <!-- longclaw:item=ck_ea629ace -->
 - [x] Regression proof: nothing outside the Updates pane changes when a check fails <!-- longclaw:item=ck_d03644b2 -->
-- [ ] Run audit:network offline, and again online with the automatic check off; both must record zero connections; quote the runs <!-- longclaw:item=ck_027b4aa2 -->
+- [x] (Skipped) ~~Run audit:network offline, and again online with the automatic check off; both must record zero connections; quote the runs~~ <!-- longclaw:item=ck_027b4aa2 -->
 - [x] Re-run perf:startup against a built bundle; quote it unchanged <!-- longclaw:item=ck_9619080c -->
 - [ ] Changelog entry for the release that ships this, through the changelog-entry skill <!-- longclaw:item=ck_35214e39 -->
 - [x] Tell LC-257s that its amended-contract item is answered by ADR 0014, and that D4's allowlist is the road it reuses <!-- longclaw:item=ck_bb34228b -->
@@ -1024,4 +1024,50 @@ perf:startup against that bundle, unchanged and inside budget:
 One thing worth knowing for whoever runs this next, recorded here rather than in the harness because it is an observation and not a diagnosis: the very first perf:startup after the fresh signed build failed with 'no probe reporting rows within 60s of launching the app', which reads as a broken app and was not one. Launching the bundle once by hand reported a frame with five rows in 1158.82 ms, and the harness then passed five launches out of five. If it happens again, launch the app once before blaming the build.
 
 npm run verify green.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_0398602d
+kind: update
+occurred_at: 2026-09-20T12:06:18.915Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_027b4aa2.text
+    from: Run audit:network offline, and again online with the automatic check off; both must record zero connections; quote the runs
+    to: (Skipped) ~~Run audit:network offline, and again online with the automatic check off; both must record zero connections; quote the runs~~
+-->
+### Claude Code updated this ticket
+
+Skipped, on the ticket owner's call on 2026-09-20, and recorded rather than quietly dropped.
+
+What it would have asked: the runtime network audit, in three phases against a built bundle — offline, then online with the automatic check off, then online with it on — with a person driving the app, because the harness samples and does not click, and on a quiet machine, because it attributes WebKit helpers by launch window and anything else that starts a webview during the run lands in its record. The first two phases must record zero connections. That is the one gate that watches the running app rather than the binary or the source.
+
+What still covers the same ground, so the skip is a gap and not a hole:
+
+- release:binary-audit, run against the signed bundle on 2026-09-20 and green: exactly the socket API and network frameworks ADR 0014 sanctions and no others, measured off the shipped Mach-O, and no socket call at all from the CLI. That is a static claim about what the binaries can do.
+- The Rust tests in update_offline.rs, which assert a failed check makes one request per slot and none afterwards, that a build with no updater is unavailable and never an error, and that a download that fails leaves the installed bundle untouched.
+- isCheckDue, which reads the automatic preference before the request rather than after one, with its own tests — which is what phase three was going to observe from outside.
+- capabilities/main.json, which is what the webview is actually allowed to reach.
+
+What none of those cover, and what is therefore genuinely unwitnessed: whether the running app makes a connection nobody wrote down — a webview fetch, a framework reaching out on its own, a request before first paint. That is the case the harness exists for and the case the trap in AGENTS.md is about, since pointing lsof at the app's PID proves nothing on macOS: the webview's traffic belongs to WebKit XPC services reparented to launchd.
+
+So this is not deferred to a later run of this ticket; it is left undone, and it should be run before the next release that changes the update path.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_3272377d
+kind: update
+occurred_at: 2026-09-20T12:25:07.064Z
+actor:
+  type: human
+  id: local
+changes:
+  - field: checklist.ck_027b4aa2.checked
+    from: "false"
+    to: "true"
+-->
+### You updated this ticket
 <!-- /longclaw:event -->
