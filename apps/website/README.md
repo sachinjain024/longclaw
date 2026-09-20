@@ -75,11 +75,15 @@ Google Fonts; this site does not. A page whose whole claim is that nothing
 leaves your machine should not open a third-party connection to draw its own
 headline.
 
-**Honesty constraints.** Nothing on the site may promise what v0.1.0 does not
+**Honesty constraints.** Nothing on the site may promise what v0.2.0 does not
 do: no terminals, no sync, teams, accounts or billing, no Windows, Linux or
 Intel build, no custom themes, no hard deletion. The build is signed and
 notarized as of 0.1.0 (LC-47), so first launch is one dialog — say that, and do
-not promise none. These come from
+not promise none. **And the app is no longer network-free**: 0.2.0 makes one
+optional, identifier-free check for a newer LongClaw (LC-256a, ADR 0014), so
+the site says *works offline* and *no information*, never *no network*. A badge
+or a sentence claiming the app makes no request at all is now a false claim,
+not a strong one. These come from
 [`docs/design/website-content-brief.md`](../../docs/design/website-content-brief.md) §6.
 
 **`/roadmap` is designed but unpublished.** It is absent from both navigations,
