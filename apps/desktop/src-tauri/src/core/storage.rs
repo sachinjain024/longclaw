@@ -19,6 +19,7 @@ use std::collections::BTreeSet;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use sha2::{Digest, Sha256};
@@ -606,7 +607,43 @@ fn attachment_state(ticket_path: &Path, ticket: &Ticket) -> (Vec<String>, Vec<St
 /// contract, so it cannot name the operation itself: a read-only application
 /// support folder reporting "Saving ticket failed for project-registry.json" is
 /// a sentence that is precisely wrong about what happened (V0-29).
+/// How many atomic writes are running right now, across every project.
+///
+/// The count lives here rather than beside the button that reads it because
+/// ADR 0009 puts an invariant about a write with the write. The frontend's
+/// mutation store knows what *it* asked for; this knows what is actually
+/// outstanding on disk, including a write the webview did not start, and it is
+/// what `update::restart_guard` refuses a version change against.
+static WRITES_IN_FLIGHT: AtomicUsize = AtomicUsize::new(0);
+
+/// The number of atomic writes outstanding. Zero means the disk has settled.
+pub fn writes_in_flight() -> usize {
+    WRITES_IN_FLIGHT.load(Ordering::SeqCst)
+}
+
+/// Holds the count up for as long as it is alive.
+///
+/// A guard rather than a pair of calls: every write path below has early
+/// returns and one has a restoring swap in its failure arm, so a decrement
+/// written at the end of the function is a decrement some arm skips — and a
+/// count that only ever goes up refuses every restart forever.
+struct WriteInFlight;
+
+impl WriteInFlight {
+    fn begin() -> Self {
+        WRITES_IN_FLIGHT.fetch_add(1, Ordering::SeqCst);
+        Self
+    }
+}
+
+impl Drop for WriteInFlight {
+    fn drop(&mut self) {
+        WRITES_IN_FLIGHT.fetch_sub(1, Ordering::SeqCst);
+    }
+}
+
 pub fn atomic_write(action: &str, path: &Path, bytes: &[u8]) -> AppResult<()> {
+    let _in_flight = WriteInFlight::begin();
     let parent = path.parent().ok_or_else(|| {
         AppError::new(
             ErrorCode::PermissionDenied,
@@ -781,6 +818,7 @@ pub fn atomic_replace_with_seams(
     expected_hash: &str,
     seams: ReplaceSeams,
 ) -> AppResult<()> {
+    let _in_flight = WriteInFlight::begin();
     if !SWAP_SUPPORTED || seams.force_swap_unsupported {
         return Err(swap_unsupported_error(path));
     }

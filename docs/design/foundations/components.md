@@ -437,3 +437,10 @@ nothing defines still renders, as itself, in the fallback hue.
   animate anything that isn't a state change.
 - **Don't** let an external edit re-render silently — it earns the pulse, the
   footer, or a timeline event.
+- **Don't** trail a label with an ellipsis to promise that more follows — the
+  row reads `Check for updates`, never `Check for updates…`. The dots are
+  macOS's promise of a dialog, and these rows raise none: a settings row opens
+  a pane in place, a palette row opens a sub-list inside the palette. `All
+  settings`, `Rename` and `Remove from app` already read without them. The one
+  survivor is the in-flight frame, where the dots are a state rather than a
+  promise — `Installing…`, `Searching…`, `writing ticket.md…`.

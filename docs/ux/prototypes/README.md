@@ -30,11 +30,19 @@ cannot drift. See `AGENTS.md` § UX prototypes for what belongs in it.
   Read it for the shape, not for the rules: it predates the **copy deck**,
   which `AGENTS.md` has required since LC-249a and which a new prototype owes.
 
-Three others have been here and are not any more, all deleted when their
+Four others have been here and are not any more, all deleted when their
 tickets settled: LC-236e (defining a label from inside the create flows) and
 LC-249a (the `longclaw` command's install offer), both in the history at
-`3ad94ef`, and LC-243d (three answers to what says which half of the Board |
-List segment is pressed — option B was chosen), at `567d0cf`.
+`3ad94ef`; LC-243d (three answers to what says which half of the Board |
+List segment is pressed — option B was chosen), at `567d0cf`; and LC-256a
+(the update notice in the sidebar footer, the gear menu with its two
+app-level rows removed, and the **Updates** pane in twelve states), at
+`16629c9`. What LC-256a's review settled did not go with it: the decisions
+are § Review decisions in `.longclaw/tickets/LC-256a/ticket.md`, the copy
+deck is § Copy deck in the same ticket and `apps/desktop/src/updates.ts` in
+the source, and the keyboard path is § Updates in
+`docs/design/prototype/keyboard-focus-map.md`, which `npm run a11y:audit`
+drives.
 
 ## Imported prototypes
 

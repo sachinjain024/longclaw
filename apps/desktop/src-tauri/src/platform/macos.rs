@@ -68,6 +68,19 @@ pub fn open_in_default_app(path: &Path) -> bool {
     NSWorkspace::sharedWorkspace().openURL(&url)
 }
 
+/// Hands one `https:` URL to the default browser.
+///
+/// The webview names no URL to reach this: the caller is `open_download_page`,
+/// which has one constant to offer and no parameter, the same shape
+/// `open_ticket_file` takes with a ticket key. A surface that could pass a URL
+/// here would be a surface with a network capability spelled differently.
+pub fn open_web_url(url: &str) -> bool {
+    match NSURL::URLWithString(&NSString::from_str(url)) {
+        Some(url) => NSWorkspace::sharedWorkspace().openURL(&url),
+        None => false,
+    }
+}
+
 // --------------------------------------------------- the `longclaw` command on PATH
 
 /// Where a macOS install puts the command (LC-233).
@@ -111,6 +124,18 @@ fn bundled_command() -> Option<PathBuf> {
 /// The same question about a given binary, so the suite can ask it. Split out
 /// for the reason `describe` is: `current_exe` is not something a test can move.
 fn bundled_beside(running: &Path) -> Option<PathBuf> {
+    let macos_dir = app_bundle_of(running)?.join("Contents/MacOS");
+    let resolved = fs::canonicalize(macos_dir.join(COMMAND_NAME)).ok()?;
+    resolved.is_file().then_some(resolved)
+}
+
+/// The `.app` a binary is running out of, if it is running out of one.
+///
+/// `Contents/MacOS/<binary>` and nothing else. Split out because two things now
+/// ask the same question for the same reason: the command-line pane, which will
+/// not offer a link to a binary inside `target/`, and the update path, which
+/// has nothing to replace unless there is a bundle to replace (LC-256a).
+fn app_bundle_of(running: &Path) -> Option<PathBuf> {
     let macos_dir = running.parent()?;
     if macos_dir.file_name()? != "MacOS" {
         return None;
@@ -119,11 +144,21 @@ fn bundled_beside(running: &Path) -> Option<PathBuf> {
     if contents.file_name()? != "Contents" {
         return None;
     }
-    if contents.parent()?.extension()? != "app" {
-        return None;
-    }
-    let resolved = fs::canonicalize(macos_dir.join(COMMAND_NAME)).ok()?;
-    resolved.is_file().then_some(resolved)
+    let bundle = contents.parent()?;
+    (bundle.extension()? == "app").then(|| bundle.to_path_buf())
+}
+
+/// Whether this process is running out of an installed `.app`.
+///
+/// The update path's availability test. A `npm run dev` window, a `cargo test`
+/// binary and the perf harness all answer `false`, which is what makes a build
+/// with no bundle to replace report itself unavailable rather than failing a
+/// check it was never able to make (LC-256a, D10).
+pub fn running_from_bundle() -> bool {
+    command_line::running_binary()
+        .as_deref()
+        .and_then(app_bundle_of)
+        .is_some()
 }
 
 pub fn command_line_status() -> CommandLineStatus {

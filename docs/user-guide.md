@@ -10,11 +10,18 @@ milestone: "M6 — Release candidate"
 LongClaw keeps your tickets as Markdown files inside your project, so you and
 the coding agents you work with are reading and writing the same records.
 
-It runs entirely on your machine. There is no account, no sign-in, no sync, and
-no network connection — not as a setting you can turn on, but as something the
-app cannot do. Everything below follows from that: your tickets are files you
-own, in a folder you chose, that keep working whether or not LongClaw is
-installed.
+It runs entirely on your machine. There is no account, no sign-in, no sync and
+no telemetry — not as a setting you can turn on, but as something the app
+cannot do. Nothing about you, your projects or your tickets leaves your
+computer. Everything below follows from that: your tickets are files you own, in
+a folder you chose, that keep working whether or not LongClaw is installed.
+
+LongClaw makes exactly one request, and only to learn that a newer LongClaw
+exists: it fetches one file from its own GitHub release, sends nothing that
+describes you or your machine, downloads nothing until you press a button, and
+can be turned off in *Settings → Updates*. With no internet at all, every
+feature in this guide behaves exactly the same; the only thing that does not
+happen is that check.
 
 This guide covers the five things worth knowing before you rely on it.
 

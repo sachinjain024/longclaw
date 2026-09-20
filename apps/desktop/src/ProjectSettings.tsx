@@ -52,12 +52,15 @@ import { StatusDot } from "./StatusDot";
 import { tabStops } from "./tabStops";
 import { ThemePicker, type ThemeOption } from "./ThemePicker";
 import { STATUSES } from "./tickets";
+import { UpdatesSection } from "./UpdatesPane";
+import { UPDATE_COPY } from "./updates";
 import type {
   CommandLineStatus,
   EstimateSystem,
   Label,
   ProjectReference,
   TicketProperty,
+  UpdateStatus,
 } from "./types";
 
 export function ProjectSettings(props: {
@@ -89,6 +92,13 @@ export function ProjectSettings(props: {
    */
   commandLine: CommandLineStatus;
   onCommandLine: (status: CommandLineStatus) => void;
+  /**
+   * Whether a newer LongClaw is waiting (LC-256a). Read by `App`, which owns
+   * the schedule, and passed down rather than read here — the sidebar footer
+   * asks the same question and the two must not answer it differently.
+   */
+  update: UpdateStatus;
+  onUpdate: (status: UpdateStatus) => void;
   onAppearance: (next: Appearance) => void;
   onRename: (name: string) => void;
   onTheme: (theme: string) => void;
@@ -191,6 +201,7 @@ export function ProjectSettings(props: {
           <SectionNav
             section={props.section}
             panelId={panelId}
+            updateWaiting={props.update.state === "available"}
             onPick={props.onSection}
           />
           <div
@@ -245,6 +256,9 @@ export function ProjectSettings(props: {
                 onStatus={props.onCommandLine}
               />
             )}
+            {props.section === "updates" && (
+              <UpdatesSection status={props.update} onStatus={props.onUpdate} />
+            )}
             {props.section === "danger" && (
               <DangerSection
                 removeButton={removeButton}
@@ -284,6 +298,9 @@ export function ProjectSettings(props: {
 function SectionNav(props: {
   section: SettingsSection;
   panelId: string;
+  /** Draws the dot on the `Updates` row, so a panel opened for any other
+   *  reason still carries the news (LC-256a). */
+  updateWaiting: boolean;
   onPick: (section: SettingsSection) => void;
 }) {
   const buttons = useRef(new Map<SettingsSection, HTMLButtonElement>());
@@ -332,6 +349,18 @@ function SectionNav(props: {
           }}
         >
           {section.navLabel}
+          {/* 6px, the human accent, and decorative — the visually-hidden line
+              beside it carries the words, because colour is never the only
+              channel. Green would be wrong here: green means an agent acted,
+              and an available update is news for a person to act on. */}
+          {section.id === "updates" && props.updateWaiting && (
+            <>
+              <span className="nav-dot" aria-hidden="true" />
+              <span className="visually-hidden">
+                {UPDATE_COPY.nav.available}
+              </span>
+            </>
+          )}
         </button>
       ))}
       {/* Pinned to the foot of the nav, the way the side panel's trust line is

@@ -80,18 +80,39 @@ hold:
 
 - the shipped frontend source does not call browser network APIs;
 - the shipped Rust source does not use direct HTTP clients or process launch;
-- the app has no direct HTTP, filesystem, shell, updater, analytics, or crash
-  reporting dependency;
+- the app has no direct HTTP, filesystem, shell, analytics, or crash reporting
+  dependency;
+- **the update path is reached from three files and no others** — `update.rs`
+  decides, `update_plugin.rs` carries it out, `lib.rs` registers the plugin and
+  declares the four intent commands, and nothing else in the shipped source may
+  name any of it;
+- **the updater's configured endpoints name only the sanctioned hosts**, over
+  `https`;
 - the single Tauri capability remains `main`;
 - the only explicit permissions are `core:default`, `core:event:default`, and
-  `dialog:allow-open`;
+  `dialog:allow-open` — **the updater plugin's own JavaScript commands are
+  never granted and its npm package is never installed**;
 - the CSP limits `connect-src` to Tauri IPC;
 - the macOS bundle metadata and v0 support floor are present.
 
 It also reads the **macOS host dependency graph** via `cargo tree`, so a
 network-capable crate arriving transitively fails the gate. `Cargo.lock` is not
 the right file for this: it is target-agnostic and lists crates macOS never
-compiles, `reqwest` and `hyper` among them.
+compiles.
+
+**What the amendment changed here** ([ADR 0014](../adr/0014-one-optional-check-for-a-newer-longclaw.md),
+LC-256a). The app now makes one optional update check, so a gate asserting *no
+network at all* could only be deleted to go green — which is how a gate stops
+watching. The forbidden-crate list became an **allowlist** instead, and it is a
+stricter claim than the old one: every network-capable crate in the host graph
+must arrive under `tauri-plugin-updater` and under nothing else. Two crates
+predate the amendment — `tokio` and `socket2`, which arrive under `tauri`
+itself — and are pinned to `tauri` rather than dropped, so the same crate
+arriving under anything else is still a finding.
+
+`node scripts/release-audit.mjs --self-test` is the inversion: the allowlist
+must go red on a graph in the pre-amendment shape, and on one where a second
+network-capable crate arrives on its own.
 
 `npm run release:binary-audit` is the other half and needs a bundle, so it runs
 after `build:app` rather than in `verify`. It reads the shipped binaries'
@@ -125,8 +146,29 @@ window, proves the attribution by requiring them to die with the app, and reads
 two probes whose blind spots differ: `lsof` names peers but can miss a connection
 between samples, and `nettop` byte counters cannot miss traffic but never name a
 peer. Counters that moved with no peer sampled fail the run rather than passing
-it. Five controls decide whether a silent result is evidence at all, and
+it. Seven controls decide whether a silent result is evidence at all, and
 `--self-test` injects a peer the run is required to catch.
+
+**Three phases now, not two** (ADR 0014). The question is no longer "did
+anything connect" but "did anything *else*":
+
+- `--phase=offline` — the machine has no network. Nothing may connect, exactly
+  as before.
+- `--phase=automatic-off` — online, with *Check for updates automatically*
+  turned off. Nothing may connect either, which is what records that the
+  preference is honoured **before** the first request rather than after one.
+- `--phase=online` — online, the check on. Exactly the update check may
+  connect, and control **C6 requires that it did**: a silent online run is a
+  run that watched nothing, and mistaking it for a clean one is precisely what
+  this harness exists to prevent. Control C7 refuses a run that is not labelled
+  with one of the three.
+
+A peer counts as the sanctioned check only when all of three are true: it comes
+from the **app's own process** rather than a WebKit helper, it is on 443, and
+its address is one the allowlisted hosts resolve to. The process test is the one
+that matters — ADR 0014 puts the request in Rust precisely so the webview never
+gains a network capability, so the same peer from a helper is a finding.
+`--self-test-classify` asserts that in both directions and needs no bundle.
 
 What stays with a person: driving the app, and the offline half. The harness
 samples; it does not click, and it says which steps it was actually driven
@@ -227,20 +269,22 @@ Run on a clean macOS user profile or machine:
 
 | Check                  | Expected result                                                                                                                                                                                                                                                                                                                                                                                  |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Runtime network audit  | No non-IPC network connection during launch, project open, create/edit/archive/search, restart, or offline operation. `npm run audit:network`, offline and online, driven by a person                                                                                                                                                                                                            |
-| Binary/package audit   | No analytics, telemetry, updater, crash-reporting, shell, HTTP, or filesystem plugin is directly configured                                                                                                                                                                                                                                                                                      |
+| Runtime network audit  | Offline and `automatic-off`: no connection at all during launch, project open, create/edit/archive/search or restart. Online: exactly the sanctioned update check to `github.com` or `objects.githubusercontent.com`, from the app's own process, and no other peer — and the check must be **observed**, not merely absent. `npm run audit:network` in all three phases, driven by a person |
+| Binary/package audit   | No analytics, telemetry, crash-reporting, shell, HTTP or filesystem plugin is directly configured. The updater is configured, and is the only network-capable dependency: the window imports exactly the socket API and the two network frameworks that path needs and no others, and **the CLI imports no socket call at all**. The bundle carries a non-empty updater public key, and the published manifest is signed by that key |
 | Tauri capability audit | Webview can use typed IPC/events and one native folder picker only                                                                                                                                                                                                                                                                                                                               |
 | Filesystem scope       | App writes project data only under the user-selected `.longclaw/` tree and app state only in OS application support. One exception, and only when the user presses for it: `install_command_line` symlinks `/usr/local/bin/longclaw` at the app's own bundled CLI (LC-233). Nothing else is written there, nothing is written there unasked, and a file the app did not create is never replaced |
 | Crash diagnostics      | No automatic crash upload; user-facing guidance names local stdout diagnostics and manual issue reporting                                                                                                                                                                                                                                                                                        |
 | Account boundary       | No local feature requires signup, network, cloud sync, or waitlist state                                                                                                                                                                                                                                                                                                                         |
 
 For runtime network auditing, run the app with the machine offline first, then
-repeat online. Tauri IPC over `ipc:` and `http://ipc.localhost` is expected;
-external hosts are not.
+repeat online — twice, once with the automatic check off and once with it on.
+Tauri IPC over `ipc:` and `http://ipc.localhost` is expected. The only external
+host expected anywhere is the update check, and only in the `online` phase.
 
 ```sh
-npm run audit:network -- -- --phase=offline    # Wi-Fi disabled, then
-npm run audit:network -- -- --phase=online
+npm run audit:network -- -- --phase=offline          # Wi-Fi disabled, then
+npm run audit:network -- -- --phase=automatic-off    # online, the toggle off
+npm run audit:network -- -- --phase=online           # online, the toggle on
 ```
 
 **The doubled `--` is not a typo.** These wrappers delegate with

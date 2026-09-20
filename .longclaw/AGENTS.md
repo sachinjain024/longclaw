@@ -98,6 +98,7 @@ it does not is refused rather than written.
 | `post-mvp` | Post-MVP |
 | `product` | Product |
 | `prototype-diff` | Prototype Diff |
+| `ready-for-agent` | Ready for agent |
 | `release` | Release Blocker |
 | `storage` | Storage |
 | `v0-backlog` | v0 backlog |

@@ -88,9 +88,17 @@
                 }
               },
               "properties": {
-                "type": { "enabled": false, "values": {} },
-                "due": { "enabled": false, "attentionDays": 7 },
-                "start": { "enabled": false },
+                "type": {
+                  "enabled": false,
+                  "values": {}
+                },
+                "due": {
+                  "enabled": false,
+                  "attentionDays": 7
+                },
+                "start": {
+                  "enabled": false
+                },
                 "estimate": {
                   "enabled": false,
                   "system": "tshirt",
@@ -277,5 +285,60 @@
       "to": "Restored by the fixture"
     }
   ],
-  "writeFailureCauses": ["missing", "noSpace", "readOnly"]
+  "writeFailureCauses": ["missing", "noSpace", "readOnly"],
+  "updateStatus": {
+    "unavailable": {
+      "state": "unavailable",
+      "currentVersion": "0.1.0",
+      "available": null,
+      "downloaded": false
+    },
+    "upToDate": {
+      "state": "upToDate",
+      "currentVersion": "0.1.0",
+      "available": null,
+      "downloaded": false
+    },
+    "available": {
+      "state": "available",
+      "currentVersion": "0.1.0",
+      "available": {
+        "version": "0.2.0",
+        "date": "2026-09-19",
+        "notes": "- A fix"
+      },
+      "downloaded": false
+    }
+  },
+  "updateProgressFrames": {
+    "started": {
+      "event": "started",
+      "data": {
+        "version": "0.2.0",
+        "total": 1024
+      }
+    },
+    "progress": {
+      "event": "progress",
+      "data": {
+        "received": 512,
+        "total": 1024
+      }
+    },
+    "finished": {
+      "event": "finished",
+      "data": {
+        "version": "0.2.0"
+      }
+    }
+  },
+  "updateFailureReasons": [
+    "offline",
+    "blocked",
+    "badManifest",
+    "badSignature",
+    "corruptDownload",
+    "unavailable",
+    "writeInFlight"
+  ]
 }

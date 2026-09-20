@@ -15,6 +15,7 @@ import { App } from "./App";
 import * as api from "./api";
 import { CARD_STRIDE } from "./boardGeometry";
 import {
+  readLastUpdateCheck,
   resetDevicePreferences,
   restoreDevicePreferences,
 } from "./devicePreferences";
@@ -29,15 +30,18 @@ import type {
   StreamEnvelope,
   TicketDetail,
   TicketRow,
+  UpdateStatus,
   WriteResult,
 } from "./types";
 import { NO_PROPERTIES, startOfDay, toIso } from "./properties";
+import { UPDATE_COPY } from "./updates";
 
 vi.mock("./api", () => ({
   chooseAndCreateProject: vi.fn(),
   chooseAndRelocateProject: vi.fn(),
   chooseOpenFolder: vi.fn(),
   chooseProjectFolder: vi.fn(),
+  checkForUpdate: vi.fn(),
   commandLineStatus: vi.fn(),
   createProjectInFolder: vi.fn(),
   createTicket: vi.fn(),
@@ -57,6 +61,7 @@ vi.mock("./api", () => ({
   reportVisibleUi: vi.fn(),
   searchTickets: vi.fn(),
   setProjectStarred: vi.fn(),
+  updateStatus: vi.fn(),
   updateProjectName: vi.fn(),
   updateProjectTheme: vi.fn(),
   writePreferences: vi.fn(),
@@ -120,6 +125,13 @@ beforeEach(() => {
   // test host both are (LC-233). It offers nothing and records nothing, so
   // every suite below it is unaffected until one says otherwise.
   vi.mocked(api.commandLineStatus).mockResolvedValue(NO_COMMAND_LINE);
+  // And a host with no updater, which a test host is for the same reason: the
+  // command is not there to answer, so the call throws and the schedule below
+  // it never runs (LC-256a). Every suite in this file is a window that never
+  // asks about updates until one says otherwise.
+  vi.mocked(api.updateStatus).mockRejectedValue(
+    new Error("update_status is not served here"),
+  );
   // Every picked folder is a plain one unless a test says otherwise: that is the
   // answer that leads to the create form, which is where most of these are
   // going (LC-170).
@@ -476,7 +488,7 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
    * board but Tab from the top of the document.
    *
    * The same call is how the ticket panel returns focus to its card, so this
-   * covers `keyboard-focus-map.md:197` at size as well as :124.
+   * covers `keyboard-focus-map.md:214` at size as well as :124.
    */
   it("focuses the new card even when it lands outside the rendered window", async () => {
     const crowd: TicketRow[] = Array.from({ length: 30 }, (_, index) => ({
@@ -6987,5 +6999,214 @@ describe("the longclaw command on PATH (LC-233)", () => {
     expect(
       within(panel).getByText(/points at this copy of LongClaw/),
     ).toBeTruthy();
+  });
+});
+
+/**
+ * A failed update check is quiet, and quiet **everywhere but the Updates pane**
+ * (LC-256a, ADR 0014's offline invariant, D10).
+ *
+ * This is the shell's half of that promise, and it is the half `UpdatesPane`'s
+ * own suite cannot make: that suite renders the pane alone, so a banner raised
+ * over the board or a mark left on the sidebar would not be in the tree it
+ * queries. Here the whole app is on screen, so "nothing else changed" is a
+ * question that can actually be asked.
+ *
+ * The invariant is stronger than "no error dialog": a machine that has never
+ * checked and one that is up to date must be **indistinguishable** outside the
+ * pane. So the record of when the last check happened must not move either — a
+ * failure that wrote *last checked just now* would be a check reported as
+ * having worked.
+ */
+describe("a failed update check (LC-256a, ADR 0014)", () => {
+  const project = {
+    id: "project-fixture",
+    name: "Fixture Project",
+    rootPath: "/tmp/LongClaw Fixture",
+    key: "LC",
+    theme: "indigo",
+    starred: false,
+    reachable: true,
+    labels: {},
+    properties: NO_PROPERTIES,
+  };
+
+  const ticket: IndexedTicket = {
+    state: "indexed",
+    key: "LC-1",
+    id: "019c8c7e",
+    title: "The board is unchanged",
+    status: "todo",
+    priority: "none",
+    labels: [],
+    createdAt: "2026-09-19T09:00:00Z",
+    updatedAt: "2026-09-19T09:00:00Z",
+    checkedCount: 0,
+    checklistCount: 0,
+    commentCount: 0,
+    attachmentCount: 0,
+    contentHash: "hash-1",
+    relativePath: ".longclaw/tickets/LC-1/ticket.md",
+  };
+
+  const UP_TO_DATE: UpdateStatus = {
+    state: "upToDate",
+    currentVersion: "0.1.0",
+    available: null,
+    downloaded: false,
+  };
+
+  const AVAILABLE: UpdateStatus = {
+    state: "available",
+    currentVersion: "0.1.0",
+    available: { version: "0.2.0", date: "2026-09-19", notes: null },
+    downloaded: false,
+  };
+
+  /** The tagged shape ADR 0010 sends, with the reason the pane switches on. */
+  const OFFLINE = {
+    code: "io",
+    message: "the request could not be made",
+    recoverable: true,
+    context: { reason: "offline" },
+  };
+
+  beforeEach(() => {
+    // The idle callback the schedule defers its check to. jsdom has none, so
+    // without this the app falls to its two-second timer and every test here
+    // would be waiting on a clock rather than on the check.
+    Object.defineProperty(window, "requestIdleCallback", {
+      configurable: true,
+      writable: true,
+      value: (run: () => void) => {
+        run();
+        return 1;
+      },
+    });
+  });
+
+  afterEach(() => {
+    Reflect.deleteProperty(window, "requestIdleCallback");
+  });
+
+  async function openBoard() {
+    vi.mocked(api.listProjects).mockResolvedValue([project]);
+    vi.mocked(api.openProject).mockResolvedValue({
+      project,
+      tickets: [ticket],
+      generation: 1,
+      rebuiltInMs: 1,
+      sequence: 1,
+    });
+    render(<App />);
+    await screen.findByRole("button", { name: "Board", pressed: true });
+  }
+
+  /** The gear, `All settings…`, then the pane by its nav row (LC-208). */
+  function openUpdatesPane() {
+    fireEvent.click(screen.getByRole("button", { name: "Project settings" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /All settings/ }));
+    const panel = screen.getByRole("region", { name: "Project settings" });
+    fireEvent.click(within(panel).getByRole("tab", { name: "Updates" }));
+    return panel;
+  }
+
+  it("leaves the shell exactly as it was, and does not claim to have checked", async () => {
+    vi.mocked(api.updateStatus).mockResolvedValue(UP_TO_DATE);
+    vi.mocked(api.checkForUpdate).mockRejectedValue(OFFLINE);
+
+    await openBoard();
+    await waitFor(() => expect(api.checkForUpdate).toHaveBeenCalledTimes(1));
+    // The scheduled check, not a forced one: `force` is the pane's button.
+    expect(api.checkForUpdate).toHaveBeenCalledWith(false);
+
+    // No banner, no toast, no dialog, and nothing in the store to raise one.
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(useLongClawStore.getState().error).toBeUndefined();
+    // Not one word of the pane's vocabulary anywhere on screen.
+    expect(screen.queryByText(UPDATE_COPY.pane.checkFailed)).toBeNull();
+    expect(screen.queryByText(UPDATE_COPY.pane.upToDate)).toBeNull();
+
+    // No mark: no dot in the footer, no `Update` link, no marked gear.
+    expect(document.querySelector(".upd-dot")).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Update to LongClaw/ })).toBe(
+      null,
+    );
+    expect(
+      screen.getByRole("button", { name: "Project settings" }).textContent,
+    ).not.toMatch(/update/i);
+
+    // The footer says which LongClaw this is, exactly as it did before.
+    expect(screen.getByText(UPDATE_COPY.footer.version("0.1.0"))).toBeTruthy();
+    // And the board is untouched.
+    expect(screen.getByText("The board is unchanged")).toBeTruthy();
+
+    // The thing a reader would be misled by: a failure that moved the record
+    // reads afterwards as a check that worked.
+    expect(readLastUpdateCheck()).toBeUndefined();
+  });
+
+  it("says so in the pane when asked there, and still says nothing outside it", async () => {
+    vi.mocked(api.updateStatus).mockResolvedValue(UP_TO_DATE);
+    vi.mocked(api.checkForUpdate).mockRejectedValue(OFFLINE);
+
+    await openBoard();
+    await waitFor(() => expect(api.checkForUpdate).toHaveBeenCalledTimes(1));
+
+    const panel = openUpdatesPane();
+    // The scheduled failure left nothing behind here either: the pane opens on
+    // *not checked yet*, which is what a machine that has never checked says.
+    expect(within(panel).getByText(UPDATE_COPY.pane.never)).toBeTruthy();
+
+    fireEvent.click(
+      within(panel).getByRole("button", { name: UPDATE_COPY.pane.check }),
+    );
+
+    expect(
+      await within(panel).findByText(UPDATE_COPY.pane.checkFailed),
+    ).toBeTruthy();
+    // Said once, in here, and nowhere else: no banner over the board and no
+    // second copy of the sentence anywhere in the shell.
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getAllByText(UPDATE_COPY.pane.checkFailed)).toHaveLength(1);
+    expect(document.querySelector(".upd-dot")).toBeNull();
+    expect(readLastUpdateCheck()).toBeUndefined();
+  });
+
+  /**
+   * The footer's `Update` link is the second control that opens this panel, so
+   * the gear stopped being the answer to "what opened it" and became the
+   * default. Rule 3 of `keyboard-focus-map.md`: closing a layer returns focus
+   * to the element that opened it.
+   */
+  it("hands focus back to the footer link that opened the pane", async () => {
+    vi.mocked(api.updateStatus).mockResolvedValue(AVAILABLE);
+
+    await openBoard();
+    const link = await screen.findByRole("button", {
+      name: UPDATE_COPY.footer.updateAria("0.2.0"),
+    });
+
+    fireEvent.click(link);
+
+    const panel = screen.getByRole("region", { name: "Project settings" });
+    // `/^Updates/` rather than the bare label: with an update waiting the row
+    // carries the visually-hidden line beside its dot, so its accessible name
+    // is `Updates An update is available` — which is the dot doing its job.
+    const row = within(panel).getByRole("tab", {
+      name: /^Updates/,
+      selected: true,
+    });
+    expect(row.textContent).toContain(UPDATE_COPY.nav.available);
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("region", { name: "Project settings" }),
+      ).toBeNull();
+      expect(document.activeElement).toBe(link);
+    });
   });
 });

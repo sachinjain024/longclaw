@@ -11,12 +11,16 @@ import * as api from "./api";
 import {
   readActiveProjectId,
   readAppearance,
+  readAutomaticUpdateCheck,
   readCommandLinePrompted,
+  readLastUpdateCheck,
   readPanelWidth,
   readProjectWorkspaces,
   rememberActiveProject,
   rememberAppearance,
+  rememberAutomaticUpdateCheck,
   rememberCommandLinePrompted,
+  rememberUpdateCheck,
   rememberPanelWidth,
   rememberProjectWorkspaces,
   resetDevicePreferences,
@@ -404,6 +408,99 @@ describe("the width the ticket panel was last left at", () => {
     await restoreDevicePreferences();
 
     expect(readPanelWidth()).toBe(900);
+    expect(api.writePreferences).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The update path's two device-local facts (LC-256a, ADR 0014).
+ *
+ * Device-local because the answer is about this Mac: turning the check off on
+ * a work machine must not turn it off at home. The same rule the command-line
+ * offer follows, and the same rule the appearance follows for its default —
+ * absent means on, so a launch that has chosen nothing writes nothing.
+ */
+describe("the update check, per machine", () => {
+  it("is on until somebody says otherwise, and writes nothing to say so", async () => {
+    await restoreDevicePreferences();
+
+    expect(readAutomaticUpdateCheck()).toBe(true);
+    expect(readLastUpdateCheck()).toBe(undefined);
+    expect(api.writePreferences).not.toHaveBeenCalled();
+  });
+
+  it("stays off across a relaunch", async () => {
+    await restoreDevicePreferences();
+    rememberAutomaticUpdateCheck(false);
+    await landed({ projectWorkspaces: {}, updates: { automatic: false } });
+    await relaunch();
+
+    expect(readAutomaticUpdateCheck()).toBe(false);
+  });
+
+  /**
+   * On deletes the key rather than writing `true`, the way
+   * `commandLinePrompted` deletes rather than writing `false`: absent is
+   * already what on means, and a document carrying both spellings of one state
+   * is a document with a second way to say the same thing.
+   */
+  it("leaves nothing behind when it is turned back on", async () => {
+    await restoreDevicePreferences();
+    rememberAutomaticUpdateCheck(false);
+    await landed({ projectWorkspaces: {}, updates: { automatic: false } });
+
+    rememberAutomaticUpdateCheck(true);
+    await landed({ projectWorkspaces: {} });
+    await relaunch();
+
+    expect(readAutomaticUpdateCheck()).toBe(true);
+  });
+
+  it("remembers when the last successful check was", async () => {
+    await restoreDevicePreferences();
+    rememberUpdateCheck("2026-09-19T08:00:00.000Z");
+    await landed({
+      projectWorkspaces: {},
+      updates: { lastCheckedAt: "2026-09-19T08:00:00.000Z" },
+    });
+    await relaunch();
+
+    expect(readLastUpdateCheck()).toBe("2026-09-19T08:00:00.000Z");
+  });
+
+  /**
+   * The document is a file a human can open, and one another build may have
+   * written. There is **no** skipped-version field — the UX review removed
+   * `Skip this version` and nothing writes one — so a document carrying it is
+   * exactly the case this drops.
+   */
+  it("drops what this build does not recognise", async () => {
+    disk = {
+      updates: {
+        automatic: "no",
+        lastCheckedAt: "the other day",
+        skippedVersion: "0.2.0",
+      },
+    };
+
+    await restoreDevicePreferences();
+
+    expect(readAutomaticUpdateCheck()).toBe(true);
+    expect(readLastUpdateCheck()).toBe(undefined);
+  });
+
+  /**
+   * The same fact `commandLinePrompted` and `panelWidth` record: a document
+   * holding only this is not an empty document, and read as one the migration
+   * hands webview storage's choices back over the top of it.
+   */
+  it("is not thrown away by the migration out of webview storage", async () => {
+    disk = { updates: { automatic: false } };
+    localStorage.setItem("longclaw.appearance", "light");
+
+    await restoreDevicePreferences();
+
+    expect(readAutomaticUpdateCheck()).toBe(false);
     expect(api.writePreferences).not.toHaveBeenCalled();
   });
 });

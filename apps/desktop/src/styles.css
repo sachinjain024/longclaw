@@ -6865,3 +6865,224 @@ html.theme-transition *::after {
     flex-wrap: wrap;
   }
 }
+
+/* ---------------------------------------------------------------- updates
+   The update path's surfaces (LC-256a): the sidebar footer's version line, the
+   dot on the settings nav's Updates row, and the Updates pane itself. The
+   geometry and the reasoning were reviewed in that ticket's prototype, which
+   has been retired now its copy is in the source; the rules it proposed are
+   below, and the file is in the history at `16629c9`.
+
+   Every dot here is 6px in the human accent, and every one of them is
+   decorative. Green would be wrong twice over: green means an agent acted
+   (`components.md` § the two rules), and an available update is news for a
+   person to act on. The words are always carried by a link or a
+   visually-hidden line beside the dot, because colour is never the only
+   channel. */
+
+/* Which LongClaw this is, at the foot of the side panel, under the project
+   actions — a claim about the app rather than about any project, and the
+   footer is the one part of that panel that is already not about the open
+   project. */
+.app-version {
+  display: flex;
+  align-items: center;
+  gap: var(--lc-space-2);
+  margin-top: 2px;
+  padding: 0 var(--lc-space-2);
+}
+
+.app-version .ver {
+  color: var(--lc-ink-3);
+  font: var(--lc-type-code-weight) var(--lc-type-micro-size) /
+    var(--lc-type-code-leading) var(--lc-font-mono);
+}
+
+/* `margin-left: auto` rather than the version growing, so a short version
+   string does not drag the pair in beside it — the same trick the gear uses in
+   `.identity-name`. */
+.app-version .upd-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  margin-left: auto;
+  border-radius: var(--lc-radius-full);
+  background: var(--lc-accent-human);
+}
+
+/* A real `<button>`: it opens the settings panel on Updates, which is an
+   in-app move rather than a link out. */
+.app-version .upd-link {
+  border: 0;
+  padding: 0;
+  color: var(--lc-accent-human-text);
+  background: none;
+  font: 500 11px / 1.4 var(--lc-font-ui);
+  cursor: pointer;
+}
+
+.app-version .upd-link:hover {
+  text-decoration: underline;
+}
+
+/* The same news in a second place, so a panel opened for any other reason
+   still carries it. `.settings-nav-row` is already `display: flex`, so the dot
+   takes the end of the row the way the footer's does. */
+.settings-nav-row .nav-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  margin-left: auto;
+  border-radius: var(--lc-radius-full);
+  background: var(--lc-accent-human);
+}
+
+/* The pane's header row: the running version and when it was last checked, with
+   Check now opposite. The command-line pane's geometry, because it is the same
+   kind of row. */
+.upd-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lc-space-3);
+}
+
+.upd-head-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.upd-version {
+  margin: 0;
+  color: var(--lc-ink);
+  font-size: var(--lc-type-ui-size);
+  font-weight: 500;
+}
+
+.upd-state {
+  margin-top: var(--lc-space-2);
+  color: var(--lc-ink-2);
+  font-size: var(--lc-type-small-size);
+  line-height: 1.55;
+}
+
+/* A download that would not verify, or did not arrive. Warn rather than
+   danger, exactly as `.cli-refusal` is: nothing broke, and the installed app
+   was never touched. */
+.upd-refusal {
+  margin-top: var(--lc-space-2);
+  border: 1px solid var(--lc-warn-border);
+  border-radius: var(--lc-radius-control);
+  padding: var(--lc-space-2) var(--lc-space-3);
+  color: var(--lc-warn-ink);
+  background: var(--lc-warn-surface);
+  font-size: var(--lc-type-small-size);
+  line-height: 1.55;
+}
+
+/* The version on offer, its date, what changed in it, and the presses. A card
+   in the board card's geometry — radius 8, one hairline, the whisper shadow —
+   because it is the same kind of object: a bounded thing you read and then act
+   on. */
+.upd-available {
+  margin-top: 18px;
+  border: var(--lc-border-hairline) solid var(--lc-line);
+  border-radius: var(--lc-radius-card);
+  padding: 14px 16px;
+  background: var(--lc-surface);
+  box-shadow: var(--lc-shadow-card);
+}
+
+.upd-title {
+  margin: 0;
+  color: var(--lc-ink);
+  font: var(--lc-type-heading-weight) var(--lc-type-heading-size) /
+    var(--lc-type-heading-leading) var(--lc-type-heading-font);
+}
+
+.upd-date {
+  margin: 2px 0 0;
+  color: var(--lc-ink-3);
+  font-size: 11.5px;
+}
+
+/* The release notes, rendered as Markdown from the manifest. Not copy: they
+   are the release-notes file the site's changelog already follows, so the app
+   and the changelog cannot disagree about what changed. */
+.upd-notes {
+  margin: 12px 0 0;
+  color: var(--lc-ink-2);
+  font-size: var(--lc-type-small-size);
+  line-height: 1.55;
+}
+
+.upd-notes ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.upd-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lc-space-2);
+  margin-top: 14px;
+}
+
+/* The reason a press is being refused, beside the control that is refusing —
+   never instead of it. */
+.upd-actions .why {
+  color: var(--lc-ink-3);
+  font-size: var(--lc-type-small-size);
+}
+
+.upd-progress {
+  display: grid;
+  gap: 7px;
+  margin-top: 14px;
+}
+
+.upd-bar {
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--lc-radius-full);
+  background: var(--lc-line);
+}
+
+/* The one animated thing here, and it is a state rather than decoration: the
+   fill moves because the number behind it moved. */
+.upd-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--lc-accent-human);
+  transition: width var(--lc-motion-state) var(--lc-motion-ease);
+}
+
+.upd-frame {
+  margin: 0;
+  color: var(--lc-ink-2);
+  font-size: var(--lc-type-small-size);
+}
+
+/* Downloaded and verified, in the human accent, for the same reason the
+   command-line pane's installed state is: what it reports is that a person
+   pressed a button and it worked. */
+.upd-ready {
+  margin: 0 0 10px;
+  color: var(--lc-accent-human-text);
+  font-size: var(--lc-type-small-size);
+}
+
+.upd-auto {
+  margin-top: 18px;
+}
+
+/* Indented to clear the checkbox, so the sentence hangs under the label rather
+   than under the box — `.cli-ask-again`'s checkbox is 15px with an 8px gap. */
+.upd-auto-note {
+  margin: 6px 0 0 23px;
+  color: var(--lc-ink-3);
+  font-size: 11.5px;
+  line-height: 1.55;
+}
