@@ -61,15 +61,23 @@ place. A `⌘K` palette over every action. The file watcher, the agent contract,
 and the `longclaw` CLI — the same crate as the app. Five themes across light,
 dark, and system appearance.
 
-It works with no account and no network connection. No sign-in, no cloud, no
-telemetry, no crash reporting. Nothing about your projects leaves your machine
-— and this repository tracks its own work with LongClaw, through the same
-contract your agents will read.
+It works with no account and no sync. No sign-in, no cloud, no telemetry, no
+crash reporting. Nothing about you, your projects or your tickets leaves your
+machine — and this repository tracks its own work with LongClaw, through the
+same contract your agents will read.
+
+Since 0.2.0 the app makes exactly one request, and only to learn that a newer
+LongClaw exists: one static file from its own GitHub release, carrying nothing
+that describes you, downloading nothing until you press a button, and switched
+off in one place if you would rather it did not. With no internet at all, every
+feature behaves the same; the only thing that does not happen is that check.
+The promise was never *no connection*, it was *no information*, and that is the
+one worth holding.
 
 The app is signed with a Developer ID certificate and notarized, so first launch
 is one dialog and one click. The check reads a ticket stapled inside the app, so
-it works offline too — which it had better, for a tool whose whole claim is that
-it needs no network. [Getting started](/docs) shows exactly what it says.
+it works offline too — which it had better, for a tool that expects to be useful
+on a plane. [Getting started](/docs) shows exactly what it says.
 
 ## What is deliberately not here
 

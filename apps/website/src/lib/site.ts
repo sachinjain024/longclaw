@@ -41,18 +41,18 @@ export const SITE = {
    * and `version` together. They are four spellings of one fact and there is no
    * guard that holds them to each other yet.
    */
-  download: '/downloads/LongClaw_0.1.0_aarch64.dmg',
-  downloadFile: 'LongClaw_0.1.0_aarch64.dmg',
+  download: '/downloads/LongClaw_0.2.0_aarch64.dmg',
+  downloadFile: 'LongClaw_0.2.0_aarch64.dmg',
   /** `shasum -a 256` of the file above, so a reader can check what they got. */
-  downloadSha256: 'a2b8786b53d8b57d44e6bef7f94f4454c49064d8d43584b5b7680ecc1d7800df',
+  downloadSha256: '24bcd926965b86b3a11d437890358da7901d983413fce6c8e90df6bfa85302e9',
   /** The canonical release record — notes, checksum, source tarballs. No CTA
       points here; it is for people who want the tag rather than the app. */
-  releases: 'https://github.com/sachinjain024/longclaw/releases/tag/v0.1.0',
+  releases: 'https://github.com/sachinjain024/longclaw/releases/tag/v0.2.0',
   license: 'MPL 2.0',
   licenseUrl: 'https://github.com/sachinjain024/longclaw/blob/main/LICENSE',
   contact: 'sachinjain.hq@gmail.com',
   author: 'Sachin Jain',
-  version: '0.1.0',
+  version: '0.2.0',
 } as const;
 
 /** Primary navigation, in header order. */
