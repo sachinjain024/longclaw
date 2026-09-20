@@ -13,7 +13,7 @@ labels:
 type: feature
 estimate: "3"
 created_at: 2026-09-16T07:40:42.050Z
-updated_at: 2026-09-20T12:25:07.064Z
+updated_at: 2026-09-20T13:40:06.776Z
 ---
 
 LongClaw ships as a signed, notarized DMG. An installed copy has no way to
@@ -160,7 +160,7 @@ one flow carry the word and the first of them downloads rather than updates.
 - [x] Update capabilities/main.json, binary-audit.mjs and audit:network to assert the new narrow shape <!-- longclaw:item=ck_11a193e5 -->
 - [x] Update docs/acceptance/release-candidate.md rows that certify no updater <!-- longclaw:item=ck_fa36173f -->
 - [x] Revise the user guide's no-network sentences to the narrow shape <!-- longclaw:item=ck_0877db02 -->
-- [ ] Revise the site's no-network sentences, in their own pull request, once the download longclaw.io offers is a version that has the check <!-- longclaw:item=ck_3ba05d6d -->
+- [x] Revise the site's no-network sentences, in their own pull request, once the download longclaw.io offers is a version that has the check <!-- longclaw:item=ck_3ba05d6d -->
 - [x] Extend release-macos.mjs to sign the update artifact and publish the manifest <!-- longclaw:item=ck_bb8dfd57 -->
 - [x] Update UX: consent, what changed from the existing release notes, no silent restart <!-- longclaw:item=ck_010f03e9 -->
 - [x] Sidebar footer names the running version, and gains a dot and an Update link when one is waiting <!-- longclaw:item=ck_d823993a -->
@@ -183,7 +183,7 @@ one flow carry the word and the first of them downloads rather than updates.
 - [x] Regression proof: nothing outside the Updates pane changes when a check fails <!-- longclaw:item=ck_d03644b2 -->
 - [x] (Skipped) ~~Run audit:network offline, and again online with the automatic check off; both must record zero connections; quote the runs~~ <!-- longclaw:item=ck_027b4aa2 -->
 - [x] Re-run perf:startup against a built bundle; quote it unchanged <!-- longclaw:item=ck_9619080c -->
-- [ ] Changelog entry for the release that ships this, through the changelog-entry skill <!-- longclaw:item=ck_35214e39 -->
+- [x] Changelog entry for the release that ships this, through the changelog-entry skill <!-- longclaw:item=ck_35214e39 -->
 - [x] Tell LC-257s that its amended-contract item is answered by ADR 0014, and that D4's allowlist is the road it reuses <!-- longclaw:item=ck_bb34228b -->
 
 ## Activity
@@ -1070,4 +1070,43 @@ changes:
     to: "true"
 -->
 ### You updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_1f16d8bd
+kind: update
+occurred_at: 2026-09-20T13:40:06.776Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: checklist.ck_3ba05d6d.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_35214e39.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_cb614454
+kind: comment
+occurred_at: 2026-09-20T13:40:15.880Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+0.2.0 is published and longclaw.io serves it. PR #50 merged as df0eab3 and the Website workflow deployed in 41s, so the Download CTA, the version line, the changelog entry and the announcement post are all live on the released version. That closes the site half of this ticket.
+
+One of those sentences has since been reverted, deliberately. The home page badge was changed from `Fully offline` to `Works offline` in #50, on the reading that an app which makes one update check can no longer call itself fully offline. That conflates two claims, and the decision (2026-09-20) is that the badge stays `Fully offline`: it is a claim about **features**, and no feature moved — with no connection at all every one of them behaves the same, and the only thing that does not happen is the check, which downloads nothing until it is pressed and has an off switch in Settings → Updates. The badge comes off the day a feature *requires* a network, and not before.
+
+What is unchanged is the constraint about **traffic**, which is the one the boundary was always about: the promise is *no information*, never *no network*, and no sentence anywhere may claim the app makes no request at all. The announcement post says exactly what the one request is and where its off switch lives, and was left alone.
+
+PR #51 restores the badge and rewrites the two rules that had just been written to forbid it — `apps/website/README.md` and `website-content-brief.md` §6 — to hold it to the feature rule instead.
 <!-- /longclaw:event -->
