@@ -9,7 +9,7 @@ labels:
   - design
   - frontend
 created_at: 2026-08-24T23:16:20.668Z
-updated_at: 2026-08-24T23:16:20.668Z
+updated_at: 2026-09-20T12:51:20.320Z
 ---
 
 Three founder notes, one theme change: add **Ochre** and make it the default,
@@ -93,7 +93,7 @@ before it clears it:
   and 35, and V0-34/36/37 in `v0-backlog.md`. These are history and were true
   when written. **Leave them.**
 - **Five in the live statements** — `decisions.md:9` (D1),
-  `screen-specs.md:112-118`, `website-content-brief.md:27,155`,
+  `screen-specs.md:112-118`, `website-content-brief.md:27,159`,
   `website-prompts.md:164`, and the DS readme's theme table. These are the ones
   to fix.
 - **Stale and already resolved** — `vision.md:118` and `design_brief.md:72`
@@ -138,4 +138,24 @@ actor:
   name: Claude Code
 -->
 ### Claude Code created this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_0d168517
+kind: update
+occurred_at: 2026-09-20T12:51:20.320Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+-->
+### Claude Code updated this ticket
+
+Re-pointed one citation: website-content-brief.md:155 is now :159. Line 27 is unchanged.
+
+It was already wrong before today. When this ticket was written on 2026-08-25, line 155 was the Decided (2026-08-22) paragraph whose first clause is 'five theme presets (Graphite included)' — which is the live statement this ticket lists as one to fix. The 2026-09-14 decision about the site-hosted download pushed it to 157, and a note added to section 6 today for LC-256a pushed it to 159. Neither edit touched the sentence; both moved it, and a stale line number reads exactly like a fresh one.
+
+This brief is not one of the six documents citation-guard pins, so nothing catches this — which is why it drifted twice unnoticed. Worth knowing if this ticket's fix ends up touching the brief again.
 <!-- /longclaw:event -->
