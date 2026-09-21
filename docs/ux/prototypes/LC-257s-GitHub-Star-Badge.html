@@ -800,7 +800,10 @@ const V = COPY.version;
 /* `count` is whether the control is drawing a number at all — the ticket's
    no-count state is the first paint, here as in the app. `stars` and `source`
    are filled by the live fetch below. */
-const app = { scene: "b", count: "none", style: "pill", pending: false, stars: null, source: "checking" };
+/* Opens on the settled design — variant G, the labelled ghost. `count` is left
+   at `none` because the live fetch below overwrites it a beat after first
+   paint, and what it decides is the thing worth watching. */
+const app = { scene: "g", count: "none", style: "labelled", pending: false, stars: null, source: "checking" };
 
 /* ------------------------------------------------------------------ the floor
  * **The count is drawn only at or above this number.** Below it, the control is
@@ -961,7 +964,7 @@ function ghStar(variant) {
     '<button tabindex="0" type="button" class="gh-star' + (pill ? " pill" : "") +
       '" data-act="github"' +
       ' aria-label="' + esc(aria) + '"' +
-      ' title="' + esc(T["github.star.title"]) + '">' +
+      ' title="' + esc(fill(T["github.star.title"])) + '">' +
       GH + label + count + tail +
     "</button>"
   );
@@ -1159,7 +1162,7 @@ function ghStarWelcome() {
   return (
     '<button tabindex="0" type="button" class="gh-star' + (pill ? " pill" : "") +
       '" data-act="github"' +
-      ' aria-label="' + esc(aria) + '" title="' + esc(T["github.star.title"]) + '">' +
+      ' aria-label="' + esc(aria) + '" title="' + esc(fill(T["github.star.title"])) + '">' +
       GH + '<span class="gh-label">' + esc(label) + "</span>" +
       (known ? '<span class="gh-count">' + esc(countText(stars())) + "</span>" : "") +
       (pill && app.style === "pillstar" && known ? STAR : "") +
@@ -1279,6 +1282,7 @@ const NOTES = {
     'The palette is drawn with <code>Star project</code> directly under the new row, which is the point: read the two together and decide whether <code>Open LongClaw on GitHub</code> is far enough from it.'
   ],
   g: [
+    '<strong>Settled, 2026-09-21.</strong> This is the placement that was chosen, in the <code>labelled ghost</code> shape and with the count drawn. In this bar the control is the compact form, so it carries no visible words at all — the mark and the number, and <code>github.star.aria</code> holding the whole meaning. The decision and the settled deck are recorded on LC-257s.',
     'A new app-wide bar across the foot of the window, carrying the version and the update news <em>out of</em> the side panel and giving the star the far end. Nothing competes for an edge, the star is visible on every screen including the welcome one, and the sidebar footer gets its row back.',
     '<strong>It is also the only variant that changes the shell.</strong> <code>.app-shell</code> gains a second grid row, and 26px comes off the board, the list, the ticket panel and the settings panel — all of which size themselves against the window today. <code>screen-specs.md:20-30</code> describes the shell as a side panel and a main region; a status bar amends that. Price it as a chrome change that a star count happens to ride on, not as a place to put a star count.'
   ],

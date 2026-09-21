@@ -115,6 +115,23 @@ it.
 - [ ] Run probe:header at every window width; quote the run <!-- longclaw:item=ck_2fcae634 -->
 - [ ] Run a11y:audit, including the A5 row; quote the run <!-- longclaw:item=ck_9890ef90 -->
 
+## Attachments
+
+<!-- longclaw:attachment
+id: att_5c1f93ab
+file: attachments/att_5c1f93ab-status-bar-star.png
+name: status-bar-star.png
+media_type: image/png
+size: 3724
+added_at: 2026-09-21T14:11:36Z
+added_by:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+![The status bar, with the version at one end and the star control at the other](./attachments/att_5c1f93ab-status-bar-star.png)
+<!-- /longclaw:attachment -->
+
 ## Activity
 
 <!-- longclaw:event
@@ -168,4 +185,81 @@ actor:
 ### Claude Code commented
 
 Correction to the line above: ADR 0014 is written and committed on `lc-256a-auto-update-spec`, not yet merged to main. The decision is settled and the file is there to read; the path only resolves once LC-256a lands.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_afc1f77e
+kind: comment
+occurred_at: 2026-09-21T14:15:04.108Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+**Settled: variant G — the status bar — in the labelled-ghost shape, with the count drawn.** Reviewed from the prototype, `docs/ux/prototypes/LC-257s-GitHub-Star-Badge.html`, which is deleted once this ticket is reviewed. What it settled is written out below so it does not have to be re-litigated by whoever ships it.
+
+![The status bar, with the version at one end and the star control at the other](./attachments/att_5c1f93ab-status-bar-star.png)
+
+## What ships
+
+A new app-wide bar across the foot of the window. `.app-shell` gains a second grid row; the bar is 26px, `grid-column: 1 / -1`, hairline top border, `--lc-bg`. The version and the update news move **out of** the side-panel footer and stand at its left end. The star control takes the far end on `margin-left: auto`.
+
+The control is a borderless ghost: no fill, no border, GitHub's mark then the count, `--lc-ink-2` resting and `--lc-ink` on hover. Measured in WebKit at the grown count: **48 × 18px**, `background: rgba(0,0,0,0)`, `border-width: 0`, `tabIndex={0}`.
+
+In this bar it is the **compact** form, so it carries no visible words at all — `github.star.label` has no room and is not drawn. That puts the entire meaning of the control into `github.star.aria`, and it is the one thing worth checking hardest when the built version is reviewed.
+
+## Why G, and what it costs
+
+- **It does not touch the content header.** That was C's bill. The same shape in the header measures 147px, 155px with its gap, and the filter field pays it: at a 1180px window the field goes 380 → 342px (the row had 117px of slack); at 980px it goes 297 → 142px and pays the whole 155; at 760px it is already on its 120px floor in both. G adds a row rather than widening one, so `probe:header` measures the same header it measures today.
+- **It fixes A rather than living with it.** On the version line, with an update waiting, `LongClaw 0.2.0` is the only flexible thing left in 216px and wraps onto two lines, stranding the count beside nothing that says what it counts. The status bar is the window's full width and nothing there competes for an edge.
+- **It is visible where the others are not** — including the welcome screen and a project that will not open, which is exactly where a brand-new reader is standing. The content header is absent on both.
+- **The cost is that it is the only variant that changes the shell.** 26px comes off the board, the list, the ticket panel and the settings panel, all of which size themselves against the window today. `screen-specs.md:20-30` describes the shell as a side panel and a main region; a status bar amends that, and those lines are pinned by `citation-guard`, so this is a spec edit as well as a code edit. Price it as a chrome change that a star count rides on, not as a place to put a star count.
+
+## The settled deck
+
+| id | kind | where | text | status |
+|---|---|---|---|---|
+| `github.star.count` | count | the control, after the mark — only once a count has arrived | `{countShort}` | new |
+| `github.star.floor` | rule, not a string | decides whether `github.star.count` is drawn at all | Draw the count at 50 stars and above. Below it, the control is the no-count state. | new, **open** |
+| `github.star.aria` | aria-label | the control, no count known | Star LongClaw on GitHub. Opens github.com in your browser. | new |
+| `github.star.aria.count` | aria-label | the control, count known | Star LongClaw on GitHub, {count} stars. Opens github.com in your browser. | new |
+| `github.star.title` | title | hover | github.com/{repo} | new |
+| `github.open.failed` | refusal (toast) | when the browser could not be opened | Couldn't open GitHub. | new |
+| `github.settings.note` | note | Settings › Updates, under the automatic-check note | The star count is fetched the same way, at most once a day, and sends nothing about you or your projects. | new |
+| `updates.footer.version` | note | **the status bar**, left end — it leaves the side-panel footer | LongClaw {version} | moved |
+| `updates.footer.update` | link | beside the version, when an update is waiting | Update | moved |
+| `updates.footer.update.aria` | aria-label | the Update link | Update to LongClaw {version} | moved |
+
+Four notes the table cannot carry:
+
+- **`github.star.count` is abbreviated, `github.star.aria.count` is not.** Under 1,000 the number is written out (847); at and above it, one decimal and a k (1.3k). The aria-label speaks the full grouped number — `1,284 stars` — because `1.3k` is a thing to read at a glance, not a thing to hear. Nothing announces a count that arrives after first paint: it is not news, and a live region for it would interrupt a reader mid-sentence to say a number went up.
+- **`github.star.aria`'s second sentence is doing real work here.** In this placement the visible control is a mark and a number and nothing else, so the aria-label is the only thing that says what the control is *for* — and the only warning that a press leaves the app. A local-first app opening a browser is a surprise worth naming.
+- **`github.star.title` and LC-204.** Transferring the repository leaves every `github.com/sachinjain024/…` path depending on a redirect GitHub owns (`apps/website/src/lib/site.ts:27`). A browser follows that; a Rust HTTP client follows it only if it is told to, and `api.github.com/repos/…` answers a moved repository with a 301. Whoever builds the fetch owns that decision.
+- **`github.settings.note` sits under `updates.pane.automaticNote` deliberately.** ADR 0014 moved the promise from *no connection* to *no information*; the price of a second caller on that road is that it is stated in the same place as the first. Two sentences about one mechanism, not two mechanisms.
+
+**Rows that do not ship with this choice:** `github.star.label` ("Star on GitHub" — no room in the compact form), `github.star.pill.nocount` ("Star" — the pill shape lost), `github.welcome.label` (the welcome placement was not chosen).
+
+**Not decided here:** `github.palette.label` — "Open LongClaw on GitHub" — the keyboard twin. It costs one palette row and is worth shipping alongside. "Open", not "Star", because the palette already carries `project.menu.star` and the two would sort together under the same three keystrokes.
+
+## Still open: the floor
+
+`github.star.floor` is the one decision on the page that is a judgement rather than a measurement, and this placement sharpens it. The repository's live count today is **1** — the prototype fetches it — and at that number the badge is an argument *against* the control it decorates.
+
+The floor costs nothing to build, because the no-count state is required anyway: offline, a rate limit, and first paint all produce it. What it costs is a promise — until the floor is cleared, the expensive half of this ticket buys nothing a static link would not.
+
+**What the no-count state looks like in this placement, measured:** a **17px** GitHub mark with empty text content. No word beside it, because the compact form has no label and the pill's `github.star.pill.nocount` fallback went with the pill. That is a weaker control than either of the shapes that lost, and it is the shape this control will wear until the repository clears 50. Worth settling the floor with that picture in front of you.
+
+One grammar note that rides on the same decision: `github.star.aria.count` says `{count} stars`. At or above 50 the plural is always right. Remove the floor and that string needs a singular form.
+
+## What this changes in the checklist
+
+- **`ck_b667f847`** (place it in the app chrome) now means building a new shell row, not adding a control to an existing one. It is the larger half of the remaining work.
+- **The version and Update move.** `UPDATE_COPY.footer` (`apps/desktop/src/updates.ts:40-44`) keeps its strings unchanged but changes address, and `.side-panel-footer` gets its row back. That is a change to what LC-256a shipped three days ago.
+- **`ck_9890ef90`** (a11y:audit) gains a prerequisite: the bar is a new focus stop at the end of the shell, so `keyboard-focus-map.md` needs a line for it before the audit can check it against anything.
+- **`ck_2fcae634`** (probe:header at every width) is still worth running, but G is the variant least likely to move it. Record that expectation before running it, so that a red run means something.
+- **`ck_ec86bdc3`** is GitHub's mark, not a star glyph. `.star-mark` already draws ★ at 11px `ink-2` on starred project rows in the same window, which is why this control leads with the GitHub mark instead of a second star.
+
+The prototype now opens on this design — scene G, labelled shape — and the live fetch decides whether a number appears, which is the behaviour worth watching.
 <!-- /longclaw:event -->
