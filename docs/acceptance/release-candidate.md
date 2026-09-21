@@ -86,8 +86,14 @@ hold:
   decides, `update_plugin.rs` carries it out, `lib.rs` registers the plugin and
   declares the four intent commands, and nothing else in the shipped source may
   name any of it;
+- **one file may name an HTTP client** — `github_client.rs`, which makes the star
+  count's request (ADR 0015). The rule became narrower rather than wider: it used
+  to say *no shipped Rust file*, and it now names the one that may, with every
+  *decision* about the request in a file that may not;
 - **the updater's configured endpoints name only the sanctioned hosts**, over
-  `https`;
+  `https`, and so do the star count's two constants in `github.rs`, which are
+  read out of the source because the webview names no URL and there is no
+  configuration entry to read;
 - the single Tauri capability remains `main`;
 - the only explicit permissions are `core:default`, `core:event:default`, and
   `dialog:allow-open` — **the updater plugin's own JavaScript commands are
@@ -110,9 +116,25 @@ predate the amendment — `tokio` and `socket2`, which arrive under `tauri`
 itself — and are pinned to `tauri` rather than dropped, so the same crate
 arriving under anything else is still a finding.
 
-`node scripts/release-audit.mjs --self-test` is the inversion: the allowlist
-must go red on a graph in the pre-amendment shape, and on one where a second
-network-capable crate arrives on its own.
+**What the second amendment changed** ([ADR 0015](../adr/0015-the-star-count-rides-the-update-path.md),
+LC-257s). The star count is a second *caller*, not a second road: it uses the
+`reqwest` the updater already compiles in, declared directly so the dependency
+is visible rather than borrowed in silence. That moves one arrival of that crate
+from under `tauri-plugin-updater` to under the app, which the ancestry rule would
+otherwise read as a client arriving on its own. The rule was widened by exactly
+one crate at exactly one place, and three controls were added to pay for it:
+`reqwest` may only be declared with `default-features = false` and the updater's
+own features; the **set** of network-capable crates in the graph must be exactly
+the set that was there before, in both directions; and the app root admits a
+crate only as a **direct** dependency, since it is the root of every ancestry and
+"somewhere above" there would permit any depth.
+
+`node scripts/release-audit.mjs --self-test` is the inversion: the allowlist must
+go red on a graph in the pre-amendment shape, on one where a second
+network-capable crate arrives on its own, on the client arriving under neither
+root, and on its stack loose under the app rather than under the client — and the
+frozen set must go red both on a crate it does not name and on one it names that
+the graph no longer has.
 
 `npm run release:binary-audit` is the other half and needs a bundle, so it runs
 after `build:app` rather than in `verify`. It reads the shipped binaries'
@@ -269,8 +291,8 @@ Run on a clean macOS user profile or machine:
 
 | Check                  | Expected result                                                                                                                                                                                                                                                                                                                                                                                  |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Runtime network audit  | Offline and `automatic-off`: no connection at all during launch, project open, create/edit/archive/search or restart. Online: exactly the sanctioned update check to `github.com` or `objects.githubusercontent.com`, from the app's own process, and no other peer — and the check must be **observed**, not merely absent. `npm run audit:network` in all three phases, driven by a person |
-| Binary/package audit   | No analytics, telemetry, crash-reporting, shell, HTTP or filesystem plugin is directly configured. The updater is configured, and is the only network-capable dependency: the window imports exactly the socket API and the two network frameworks that path needs and no others, and **the CLI imports no socket call at all**. The bundle carries a non-empty updater public key, and the published manifest is signed by that key |
+| Runtime network audit  | Offline and `automatic-off`: no connection at all during launch, project open, create/edit/archive/search or restart. Online: exactly the sanctioned update check to `github.com` or `objects.githubusercontent.com`, and at most one star-count request to `api.github.com` (ADR 0015), from the app's own process, and no other peer — and the check must be **observed**, not merely absent. `npm run audit:network` in all three phases, driven by a person |
+| Binary/package audit   | No analytics, telemetry, crash-reporting, shell, HTTP or filesystem plugin is directly configured. The updater is configured, and its client is the only network-capable dependency — the star count declares that same client and adds no feature to it (ADR 0015): the window imports exactly the socket API and the two network frameworks that path needs and no others, and **the CLI imports no socket call at all**. The bundle carries a non-empty updater public key, and the published manifest is signed by that key |
 | Tauri capability audit | Webview can use typed IPC/events and one native folder picker only                                                                                                                                                                                                                                                                                                                               |
 | Filesystem scope       | App writes project data only under the user-selected `.longclaw/` tree and app state only in OS application support. One exception, and only when the user presses for it: `install_command_line` symlinks `/usr/local/bin/longclaw` at the app's own bundled CLI (LC-233). Nothing else is written there, nothing is written there unasked, and a file the app did not create is never replaced |
 | Crash diagnostics      | No automatic crash upload; user-facing guidance names local stdout diagnostics and manual issue reporting                                                                                                                                                                                                                                                                                        |

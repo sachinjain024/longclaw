@@ -1,5 +1,5 @@
 /**
- * The `⌘K` command palette (`screen-specs.md:296-315`).
+ * The `⌘K` command palette (`screen-specs.md:310-329`).
  *
  * A combobox over a listbox, not a menu: the input is what the human types into
  * and the rows are what it filters, so the input keeps DOM focus throughout and
@@ -65,7 +65,7 @@ import type {
 } from "./types";
 
 /**
- * The root list, and the ten sub-modes it opens (`screen-specs.md:309`).
+ * The root list, and the ten sub-modes it opens (`screen-specs.md:323`).
  *
  * A property's mode is named by the property, so `opens` needs no mapping from
  * one to the other — the four are `TicketProperty` verbatim, and adding a fifth
@@ -88,7 +88,7 @@ type PaletteRow = {
   label: string;
   /** The option's own glyph: a status dot, a priority mark, a pair swatch. */
   glyph?: ReactNode;
-  /** Mono ticket key before the label. Search rows only (`screen-specs.md:314`). */
+  /** Mono ticket key before the label. Search rows only (`screen-specs.md:328`). */
   monoKey?: string;
   /** Quiet trailing note on the row itself, e.g. `· archived` (`:209`). */
   tag?: string;
@@ -191,7 +191,7 @@ const PROPERTY_GLYPHS: Record<TicketProperty, ReactNode> = {
 };
 
 /**
- * A ticket as a row (`screen-specs.md:236`): mono key, status dot, title, and
+ * A ticket as a row (`screen-specs.md:250`): mono key, status dot, title, and
  * the `· archived` tag.
  *
  * Search mode's rows are built here, and so is the one the root offers for a
@@ -493,7 +493,7 @@ export function CommandPalette(props: {
       hint: "C",
       // Nothing is creatable in a folder the app cannot read (`states.md:80-98`).
       // Disabled rather than hidden, with its reason, like every other row that
-      // is unavailable rather than absent (`screen-specs.md:106-107`).
+      // is unavailable rather than absent (`screen-specs.md:120-121`).
       disabled: unreachable,
       reason: unreachable ? NO_FOLDER : undefined,
       run: props.onCreate,
@@ -672,7 +672,7 @@ export function CommandPalette(props: {
         id: project.id,
         label: project.name,
         // The sidebar's treatment for an unreachable project
-        // (`screen-specs.md:61-62`), which the palette had no rule of its own
+        // (`screen-specs.md:75-76`), which the palette had no rule of its own
         // for: still listed, still openable — opening it is how a human reaches
         // the Locate folder action.
         tag: project.reachable ? undefined : "unreachable",
@@ -815,7 +815,7 @@ export function CommandPalette(props: {
         aria-label="Command palette"
         onKeyDown={keyDown}
       >
-        {/* `screen-specs.md:221`, `:310`: one 44px row carrying the crumb chip,
+        {/* `screen-specs.md:235`, `:310`: one 44px row carrying the crumb chip,
             the input, and the `esc` chip. */}
         <div className="palette-input-row">
           <span className="palette-input-glyph" aria-hidden="true">

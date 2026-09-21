@@ -134,7 +134,7 @@ const NOTHING_PENDING: Pending = { checks: {} };
 type LoadMode = "open" | "external" | "local";
 
 /**
- * The ticket's key as a chip that copies it (`screen-specs.md:218`, D-38).
+ * The ticket's key as a chip that copies it (`screen-specs.md:232`, D-38).
  *
  * The same bargain as the header's path chip: a piece of identity that reads as
  * text, and one click to take it somewhere else — a terminal, a commit message,
@@ -161,7 +161,7 @@ function IdChip(props: { ticketKey: string }) {
 }
 
 /**
- * The ticket's file, named where the ticket is read (`screen-specs.md:218-219`,
+ * The ticket's file, named where the ticket is read (`screen-specs.md:232-233`,
  * D-39): the disk made visible, and static, so it holds still while the
  * indicator beside it reports the writes.
  *
@@ -275,7 +275,7 @@ interface TicketPanelProps {
   ticketKey: string;
   /**
    * The project's root as the header shows it — tilde-abbreviated, for display
-   * only. The raw-file view names the file in full (`screen-specs.md:351`) and
+   * only. The raw-file view names the file in full (`screen-specs.md:365`) and
    * a `TicketDetail` carries only the half below the project root.
    */
   projectPath: string;
@@ -368,7 +368,7 @@ export function TicketPanel(props: TicketPanelProps) {
   const [commentDraft, setCommentDraft] = useState("");
   /**
    * A comment already on screen whose write has not returned. Posting is
-   * optimistic (`screen-specs.md:248`), and this is the whole of it: the
+   * optimistic (`screen-specs.md:262`), and this is the whole of it: the
    * timeline draws it as an entry that says it is still posting, and `load`
    * clears it when the file comes back carrying the real record.
    */
@@ -1240,7 +1240,7 @@ export function TicketPanel(props: TicketPanelProps) {
 
   /**
    * A file that will not parse gets the modal the spec draws rather than this
-   * panel (`screen-specs.md:349-356`, D-51 / LC-134), so it is returned instead
+   * panel (`screen-specs.md:363-370`, D-51 / LC-134), so it is returned instead
    * of the panel and not inside it: the panel is a surface for editing a ticket,
    * and there is no ticket here to edit.
    *
@@ -1258,7 +1258,7 @@ export function TicketPanel(props: TicketPanelProps) {
    * The path is the same answer as the surface, so it is one value: the file
    * the modal is about, from the read when it has come back and from the row
    * the card was drawn from until then. The heading is the *full* path
-   * (`screen-specs.md:351`), and taking the row's half means it is the full one
+   * (`screen-specs.md:365`), and taking the row's half means it is the full one
    * from the first frame rather than a directory name that grows into a path
    * when the read lands.
    */
@@ -1682,7 +1682,7 @@ export function TicketPanel(props: TicketPanelProps) {
                     {checkedCount}/{ticket.checklist.length}
                   </span>
                   {/* The meter the cards have always had, in the panel too
-                  (`screen-specs.md:241-242`, D-3D): the fraction is the exact
+                  (`screen-specs.md:255-256`, D-3D): the fraction is the exact
                   answer and this is the one a glance gives. It reads the same
                   count the fraction does, so it cannot disagree with the number
                   beside it while a tick's write is still out. It wears the
@@ -1967,7 +1967,7 @@ export function TicketPanel(props: TicketPanelProps) {
                     );
                   }}
                 >
-                  {/* Actor identity, which ADR 0001 permits and `screen-specs.md:248`
+                  {/* Actor identity, which ADR 0001 permits and `screen-specs.md:262`
                   asks for. It is not an assignee and there is no assignee. */}
                   <span className="actor-tile" aria-hidden="true">
                     •

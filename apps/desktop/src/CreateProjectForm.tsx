@@ -55,7 +55,7 @@ export function CreateProjectForm(props: {
   backLabel?: string;
   onSubmit: (draft: ProjectDraft) => void;
 }) {
-  // Prefilled from the folder, and from nothing else (`screen-specs.md:103`):
+  // Prefilled from the folder, and from nothing else (`screen-specs.md:117`):
   // by the time this form exists the picker has answered, and the folder's own
   // name is the best guess anyone has. The sidebar's quick create runs before
   // the picker, so it starts empty and offers `Untitled Project`.
@@ -124,7 +124,7 @@ export function CreateProjectForm(props: {
           placeholder={DEFAULT_PROJECT_NAME}
           maxLength={PROJECT_NAME_MAX_LENGTH}
           // Where the folder picker hands focus on the create path
-          // (`keyboard-focus-map.md:242`). Only on that path: the sidebar's
+          // (`keyboard-focus-map.md:257`). Only on that path: the sidebar's
           // quick create opens beside a board someone is already working in,
           // and a form that grabs the caret there steals it from the app.
           autoFocus={props.folder !== undefined}

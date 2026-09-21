@@ -312,7 +312,7 @@ describe("the sections (LC-208)", () => {
     render(<Harness section="danger" onRemove={onRemove} />);
     expect(screen.getByText(/never touched/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Remove from app" }));
-    // The confirm, not the removal (`screen-specs.md:335-336`).
+    // The confirm, not the removal (`screen-specs.md:349-350`).
     expect(onRemove).not.toHaveBeenCalled();
     expect(screen.getByRole("dialog", { name: /Remove/ })).toBeTruthy();
   });

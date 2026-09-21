@@ -138,6 +138,14 @@ const COPIES = [
     symbols: ["warn"],
     copies: [["component", "apps/desktop/src/WarnGlyph.tsx"]],
   },
+  // GitHub's mark (LC-257s), on its own 16×16 grid rather than the 14×14 the
+  // rest of the sheet uses. The guard compares a master to its copy and never
+  // one master to another, so a foreign grid costs it nothing — which is the
+  // whole reason this mark can be registered rather than excused.
+  {
+    symbols: ["github"],
+    copies: [["component", "apps/desktop/src/GitHubMark.tsx"]],
+  },
   {
     // One circle, seven statuses. The fill is the state and the dash is
     // Backlog's alone; everything else is the Todo ring the set derives from

@@ -496,7 +496,7 @@ describe("a comment's own controls", () => {
   it("still says edited where the comment is drawn as one line", () => {
     // The Activity tab leaves the words to the tab that is about words, but
     // *that it was edited* is news either way — and the meta is where the age
-    // already is (`screen-specs.md:247`).
+    // already is (`screen-specs.md:261`).
     editable(
       [
         event({

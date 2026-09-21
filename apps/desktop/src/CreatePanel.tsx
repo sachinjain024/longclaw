@@ -1,5 +1,5 @@
 /**
- * Full create: the ticket panel in create mode (`screen-specs.md:264-271`).
+ * Full create: the ticket panel in create mode (`screen-specs.md:278-285`).
  *
  * It sits beside `TicketPanel` rather than inside it, and wears the same
  * `.ticket-panel` treatment. The panel is built around a file: it reads one on
@@ -93,7 +93,7 @@ interface CreatePanelProps {
   onDefineLabel: (definition: LabelDefinition) => Promise<boolean>;
   /**
    * Carried in from quick create's "Open full editor →"
-   * (`screen-specs.md:258-259`) — all six fields it asks for, as one draft
+   * (`screen-specs.md:272-273`) — all six fields it asks for, as one draft
    * rather than six props (`TicketDraft`).
    *
    * The door is what makes the narrow surface honest: "everything past these
@@ -336,7 +336,7 @@ export function CreatePanel(props: CreatePanelProps) {
 
   /**
    * `⌘↵` creates from anywhere in the panel and `Esc` cancels it
-   * (`screen-specs.md:269-271`). Both are panel-wide because the footer is the only
+   * (`screen-specs.md:283-285`). Both are panel-wide because the footer is the only
    * commit — the menus and the description editor stop their own keys before
    * they reach here.
    */
@@ -566,7 +566,7 @@ export function CreatePanel(props: CreatePanelProps) {
             // is said, which is the split the panel keeps too.
             setChecklist((rows) => [...rows, { text, checked: false }]);
             // Enter appends and keeps focus, for rapid entry
-            // (`screen-specs.md:244`).
+            // (`screen-specs.md:258`).
             setNewItem("");
           }}
         >

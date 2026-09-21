@@ -2,6 +2,8 @@ mod app_state;
 pub mod cli;
 pub mod core;
 pub mod engine;
+pub mod github;
+mod github_client;
 mod platform;
 mod preferences;
 mod registry;
@@ -20,6 +22,7 @@ use core::{
     ProjectSnapshot, RebuildReason, SearchResult, StreamEnvelope, StreamFrame, StreamKind,
     TicketDetail, VisibleUiProbe, WriteResult,
 };
+use github::StarCount;
 use preferences::PreferenceDocument;
 use serde::Deserialize;
 use tauri::ipc::Channel;
@@ -47,7 +50,7 @@ fn register_project(root_path: String, state: State<'_, AppState>) -> AppResult<
 }
 
 /// Whether the folder the picker just answered with already holds a project
-/// (`screen-specs.md:99-101`). The frontend has no filesystem of its own, so
+/// (`screen-specs.md:113-115`). The frontend has no filesystem of its own, so
 /// without this it can only find out by trying — `register_project` on a plain
 /// folder, or `create_project` on an initialised one — and both find out by
 /// failing, after the user has answered questions that were never going to be
@@ -359,7 +362,7 @@ fn read_ticket(
         .detail(&ticket_key)
 }
 
-/// `Open in editor` from the raw-file view (`screen-specs.md:356`, D-54).
+/// `Open in editor` from the raw-file view (`screen-specs.md:370`, D-54).
 ///
 /// The webview sends a ticket key, never a path: the path is resolved against
 /// the project the app already opened and proven to be inside it, which is what
@@ -505,6 +508,39 @@ fn open_download_page() -> AppResult<()> {
         "macOS would not open the download page. Visit longclaw.io/download in your browser.",
         true,
     ))
+}
+
+/// Opens the LongClaw repository on GitHub, in the default browser.
+///
+/// The webview names no URL: it asks for *the repository* and `github.rs` holds
+/// the one it means, the shape `open_ticket_file` and `open_download_page`
+/// already take (LC-257s).
+#[tauri::command]
+fn open_repository() -> AppResult<()> {
+    if github_client::open_repository() {
+        return Ok(());
+    }
+    Err(core::AppError::new(
+        core::ErrorCode::Io,
+        "macOS would not open GitHub. Visit github.com/sachinjain024/longclaw in your browser.",
+        true,
+    ))
+}
+
+/// The repository's star count, or nothing at all (LC-257s, ADR 0015).
+///
+/// **Nothing is an answer here, never an error.** Offline, rate limited,
+/// refused by a proxy, or simply asked again inside the same slot: all of them
+/// are `None`, the control stays in its no-count state, and no toast is raised.
+/// The count is the enhancement; the mark is the control.
+///
+/// `async` and then `spawn_blocking`, for the reason every update command does
+/// it: a plain Tauri command runs on the main thread and this one can wait on a
+/// socket.
+#[tauri::command]
+async fn star_count(stars: State<'_, Arc<StarCount>>) -> AppResult<Option<u64>> {
+    let stars = Arc::clone(&stars);
+    run_off_thread(move || Ok(stars.fetch())).await
 }
 
 /// Runs one blocking update call on the blocking pool and awaits its answer.
@@ -659,6 +695,11 @@ pub fn run() {
                 Arc::new(update::SystemClock),
                 app.package_info().version.to_string(),
             )));
+            // The second caller on the same road (LC-257s, ADR 0015). It is
+            // managed unconditionally, unlike the update path: a window with no
+            // bundle to replace can still open a browser and can still read a
+            // public number, and the slot is what keeps it to one request.
+            app.manage(Arc::new(StarCount::new(Box::new(github_client::HttpStars))));
             #[cfg(debug_assertions)]
             if let Ok(root) = std::env::var("LONGCLAW_DEV_PROJECT") {
                 state.register_project(PathBuf::from(root))?;
@@ -702,6 +743,8 @@ pub fn run() {
             read_preferences,
             write_preferences,
             home_dir,
+            open_repository,
+            star_count,
             check_for_update,
             update_status,
             download_update,

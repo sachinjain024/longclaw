@@ -59,7 +59,7 @@ fn a_create_checklist_row_without_checked_is_open() {
     assert!(!request.ticket.checklist[0].checked);
 }
 
-/// Quick create is title and status and nothing else (`screen-specs.md:253-262`),
+/// Quick create is title and status and nothing else (`screen-specs.md:267-276`),
 /// so the fields it leaves out have to be genuinely optional on the wire rather
 /// than merely always sent.
 #[test]

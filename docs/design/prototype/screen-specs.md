@@ -22,8 +22,9 @@
 │ side panel 240px │ main (flex)                             │
 │                  │  content header 56px                    │
 │                  │  board / list (flex, scrolls)           │
-│                  │  ── terminal region ── NOT IN V0        │
-│                  │  handle 24px — NOT IN V0                │
+│                  │  terminal region · handle 24px — NOT V0 │
+├────────────────────────────────────────────────────────────┤
+│ status bar 26px — version · update news · GitHub star      │
 └────────────────────────────────────────────────────────────┘
 ```
 
@@ -34,6 +35,19 @@
   scrolls in its own box. Footer: the **project actions** pair, pinned; the
   trust line came off the shell (LC-223 review) and the waitlist ghost button
   under it was already NOT IN V0. In v0: **Starred**, **Local**, no Teams.
+- **Status bar:** 26px across the foot of the window, full width, top
+  hairline `--lc-line`, `--lc-bg`, 12px side padding. **Which LongClaw this
+  is** at the left in mono micro `ink-3`, with the update dot and `Update`
+  link beside it when there is news; the **GitHub star control** at the far
+  right — the mark at 13px in `ink-2`, `ink` on hover, and the count in mono
+  micro after it once there is one. Nothing competes for an edge, which is
+  why the version and the update news moved here out of the side panel's
+  footer: with an update waiting, the version is the only flexible thing left
+  in 216px and it wraps. The bar is on the welcome screen too, which is the
+  one screen the content header and the panel footer are both absent from.
+  **The star control carries no visible words**, so its `aria-label` is the
+  whole offer and the only warning that a press leaves the app. *LC-257s,
+  [ADR 0015](../../adr/0015-the-star-count-rides-the-update-path.md).*
 - **Project identity:** what the brand lockup held until LC-239w — the
   window's own title bar already says `LongClaw`, and nothing up here said
   which project you were in. One row, no hairline under it: a **34px square

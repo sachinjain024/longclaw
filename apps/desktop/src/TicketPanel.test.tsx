@@ -1692,7 +1692,7 @@ describe("the status menu (V0-14 closed V0-08's open edge)", () => {
 
     fireEvent.click(metaTrigger("Status"));
 
-    // `screen-specs.md:320-321` — every menu row carries the option's own glyph, and
+    // `screen-specs.md:334-335` — every menu row carries the option's own glyph, and
     // the status menu's glyph is the coloured dot. V0-08 shipped without one
     // because the app had no status dot at all.
     const rows = screen.getAllByRole("menuitemradio");
@@ -2283,7 +2283,7 @@ describe("labels in the panel (V0-10)", () => {
     fireEvent.click(metaTrigger("Labels"));
     tick("Backend");
 
-    // Multi-select ticks and stays open (`screen-specs.md:317-325`).
+    // Multi-select ticks and stays open (`screen-specs.md:331-339`).
     expect(screen.getByRole("menu", { name: "Labels" })).toBeTruthy();
     await waitFor(() => expect(editTicketMock).toHaveBeenCalledTimes(1));
     expect(editTicketMock.mock.calls[0][0]).toMatchObject({
@@ -2378,7 +2378,7 @@ describe("the archive button in the header (V0-11)", () => {
 });
 
 /**
- * The raw file view (`screen-specs.md:349-356`, `states.md:95-104`): the one
+ * The raw file view (`screen-specs.md:363-370`, `states.md:95-104`): the one
  * screen a human gets when the file will not parse, so every part of it has to
  * carry its weight — where the file is, which line broke it, and the two ways
  * out.
@@ -2420,7 +2420,7 @@ describe("the raw file view (LC-135 → LC-138)", () => {
 
     // The whole path, not the project-relative half the header chip shows:
     // this is the screen read just before opening the file somewhere else
-    // (`screen-specs.md:351`).
+    // (`screen-specs.md:365`).
     expect(heading.textContent).toBe(FULL_PATH);
     expect(screen.getByText(/Shown without repair/)).toBeTruthy();
   });
@@ -2597,7 +2597,7 @@ describe("the raw file view (LC-135 → LC-138)", () => {
       expect(document.querySelector(".ticket-panel")).toBeNull();
       expect(screen.getByText(/Reading LC-1 from disk/)).toBeTruthy();
       // The heading is the full path from the first frame
-      // (`screen-specs.md:351`), taken from the row the card was drawn from —
+      // (`screen-specs.md:365`), taken from the row the card was drawn from —
       // a directory name that grows into a path when the read lands would be
       // the modal changing its mind about which file it is showing.
       expect((await shown()).textContent).toBe(FULL_PATH);
@@ -2757,7 +2757,7 @@ describe("the description editor (V0-12)", () => {
       "ariaSelected",
       "true",
     );
-    // Six, no more and no fewer (`screen-specs.md:234-235`). Scoped to the
+    // Six, no more and no fewer (`screen-specs.md:248-249`). Scoped to the
     // editor's own: the composer below has the same six now (LC-211).
     const toolbar = document.querySelector(".editor-toolbar")!;
     expect(

@@ -112,7 +112,9 @@ import {
   ticketPath,
 } from "./tickets";
 import { UNREAD_UPDATE_STATUS } from "./UpdatesPane";
-import { CHECK_INTERVAL_MS, UPDATE_COPY, isCheckDue } from "./updates";
+import { CHECK_INTERVAL_MS, isCheckDue } from "./updates";
+import { StatusBar } from "./StatusBar";
+import { useStarCount } from "./starCount";
 import type {
   AppError,
   CommandLineStatus,
@@ -159,7 +161,7 @@ type Direction = "make" | "take back";
  */
 interface PendingCreate {
   request: Omit<CreateTicketRequest, "projectId">;
-  /** Full create's ending, carried across the question (`screen-specs.md:270-271`). */
+  /** Full create's ending, carried across the question (`screen-specs.md:284-285`). */
   openPanel: boolean;
   /**
    * Quick create's, when **Create more** is ticked (LC-201). Carried for the
@@ -186,7 +188,7 @@ const THEMES = [
  */
 const PROJECT_FILE = "longclaw.yaml";
 
-/** The note `screen-specs.md:324-325` puts under the ordering menu, verbatim. */
+/** The note `screen-specs.md:338-339` puts under the ordering menu, verbatim. */
 /**
  * Every row on every surface carries its ticket key, which is what lets one
  * selector serve the board's cards and the list's rows: the two never render at
@@ -213,7 +215,7 @@ function focusSurface() {
 
 /**
  * The 150ms crossfade a theme or appearance change wears
- * (`screen-specs.md:364`): the root briefly carries `theme-transition`, under
+ * (`screen-specs.md:378`): the root briefly carries `theme-transition`, under
  * which `styles.css` transitions color-bearing properties only. The timeout
  * outlives the class by a little so the transition finishes before the rule
  * disappears; back-to-back changes just extend the window.
@@ -269,7 +271,7 @@ export function App() {
 
   const [selectedKey, setSelectedKey] = useState<string>();
   /**
-   * Which create surface is up, if either (`screen-specs.md:253-271`). One at a
+   * Which create surface is up, if either (`screen-specs.md:267-285`). One at a
    * time: quick create's **Open full editor →** is a move between them, carrying
    * what has been typed rather than throwing it away.
    */
@@ -396,6 +398,9 @@ export function App() {
    * link a reader used.
    */
   const settingsOpener = useRef<HTMLElement | null>(null);
+  // A fact about LongClaw rather than about any project, so it is read once
+  // here and handed to both shells (LC-257s).
+  const stars = useStarCount();
 
   const project = projects.find((item) => item.id === activeProjectId);
   /** The project whose `⋮` menu is open, as the store holds it *now*. */
@@ -545,7 +550,7 @@ export function App() {
    * past the window, or a panel closing over a row scrolled out of sight, focused
    * nothing and left `<body>` holding it. The surfaces answer this by moving
    * their tab stop first, which mounts the row, and taking focus after. Found by
-   * the Step 17 accessibility audit; `keyboard-focus-map.md:16-18,132,235`.
+   * the Step 17 accessibility audit; `keyboard-focus-map.md:16-18,132,250`.
    */
   const [cardFocus, setCardFocus] = useState<FocusRequest>();
   const focusCard = useCallback((key: string) => {
@@ -1311,7 +1316,7 @@ export function App() {
    * The sidebar's quick create: form first, folder second, because a 240px
    * panel has no room for a second step and the folder is the last thing it
    * needs. Its picker runs through the same branch as every other
-   * (`screen-specs.md:99-101`) — the draft is already answered by the time the
+   * (`screen-specs.md:113-115`) — the draft is already answered by the time the
    * folder is, so an initialised folder opens rather than being refused, and
    * the answers that were never going to be used go with the form. That
    * refusal is the one LC-170 was filed over, three questions and all; this
@@ -1325,7 +1330,7 @@ export function App() {
   /**
    * The folder picker as first launch's opening question (D-11), and then the
    * one question that decides which screen its answer leads to
-   * (`screen-specs.md:99-101`): a folder that already holds a project opens,
+   * (`screen-specs.md:113-115`): a folder that already holds a project opens,
    * and a plain one goes on to the create form. Which button was pressed picks
    * the picker's title and nothing else — before LC-170 each button owned one
    * half of that branch and neither fell through, so `Create a project` on an
@@ -1530,7 +1535,7 @@ export function App() {
   }
 
   /**
-   * Theme applies instantly (`screen-specs.md:116-118`): the reference flips
+   * Theme applies instantly (`screen-specs.md:130-132`): the reference flips
    * before the write returns — the crossfade is the acknowledgement — and a
    * refused write flips it back and says so. No snapshot re-fetch: the theme
    * is a fact about `longclaw.yaml`, not about tickets, so re-loading the
@@ -1670,11 +1675,11 @@ export function App() {
   }
 
   /**
-   * Creating never blocks on the disk write (`screen-specs.md:260-262`): the
+   * Creating never blocks on the disk write (`screen-specs.md:274-276`): the
    * card appears at once under a key guessed from the board, the surface closes,
    * and whatever key Rust allocated replaces the guess when the write lands.
    *
-   * `openPanel` is full create's ending (`screen-specs.md:270-271`): the panel swaps
+   * `openPanel` is full create's ending (`screen-specs.md:284-285`): the panel swaps
    * to view mode of **the real ticket**, so it can only open once the write has
    * returned a key — view mode reads the file, and there is no file to read
    * before then. The card is still optimistic, and focus rides it in the
@@ -2037,7 +2042,7 @@ export function App() {
     if (!projectId || archived === isArchived(ticket)) return;
     // Archiving hides the ticket, so the panel it was raised from goes with it;
     // unarchiving puts it back on the board and leaves the panel open
-    // (`screen-specs.md:219-223`).
+    // (`screen-specs.md:233-237`).
     if (archived) {
       closeTicket();
       focusSurface();
@@ -2089,7 +2094,7 @@ export function App() {
     setArchived(ticket, !isArchived(ticket));
   }
 
-  /* First launch is the whole window (`screen-specs.md:88`, D-10). The shell
+  /* First launch is the whole window (`screen-specs.md:102`, D-10). The shell
      used to stay up around it: a 240px sidebar reading `No starred projects`
      and `No local projects` beside a screen whose entire subject is that there
      are none — the same statement twice, the second time in a form the user
@@ -2164,14 +2169,27 @@ export function App() {
             offer, which is the one thing that happens on this screen — and a
             stack that is not mounted is a toast nobody sees. */}
         <ToastStack />
+        {/* And the bar, here too (LC-257s). First launch is the highest-intent
+            moment the product has and the one screen every other placement for
+            this control was absent from — which was the argument for a bar the
+            width of the window rather than a control inside one region of it.
+            There is no settings panel to open without a project, so the update
+            link is not drawn here; `update` is `undefined` on this screen for
+            the same reason the gear is not. */}
+        <StatusBar stars={stars} onUpdate={() => {}} />
       </main>
     );
   }
 
+  // The shell and the bar under it. The frame exists so the bar is not a grid
+  // child of `.app-shell`: that grid is three columns of panels, and a fourth
+  // in-flow child would auto-place into a row of its own beside them rather
+  // than across the foot of the window (LC-257s).
   return (
-    <main className="app-shell">
-      <aside className={classes("side-panel", quickCreateOpen && "creating")}>
-        {/* What the lockup used to be, answering a better question. The window's
+    <div className="app-frame">
+      <main className="app-shell">
+        <aside className={classes("side-panel", quickCreateOpen && "creating")}>
+          {/* What the lockup used to be, answering a better question. The window's
             own title bar says LongClaw — `tauri.conf.json` sets the title and no
             `titleBarStyle`, so macOS draws the name above this panel whether or
             not the panel repeats it — and nothing up here said which project you
@@ -2179,30 +2197,30 @@ export function App() {
             has (`screen-specs.md` § Project identity, LC-239w).
 
             The owl is not deleted: `Welcome` still draws it at 52px. */}
-        {project && (
-          <header className="project-identity">
-            <div className="identity-row">
-              {/* The project's first letter, square. A circle is this design
+          {project && (
+            <header className="project-identity">
+              <div className="identity-row">
+                {/* The project's first letter, square. A circle is this design
                   language's shape for *people* — humans are circle avatars in
                   the timeline and the composer — and a project is not one. It
                   is decorative: the name it abbreviates is the next thing in
                   the row. Unreachable takes the row's warn triangle instead
-                  (`screen-specs.md:60`), said in words below because a glyph is
+                  (`screen-specs.md:74`), said in words below because a glyph is
                   never the only channel. */}
-              <span
-                className={classes(
-                  "project-tile",
-                  !project.reachable && "unreachable",
+                <span
+                  className={classes(
+                    "project-tile",
+                    !project.reachable && "unreachable",
+                  )}
+                  aria-hidden="true"
+                >
+                  {project.reachable ? projectInitial(project.name) : "⚠"}
+                </span>
+                {!project.reachable && (
+                  <span className="visually-hidden">Unreachable</span>
                 )}
-                aria-hidden="true"
-              >
-                {project.reachable ? projectInitial(project.name) : "⚠"}
-              </span>
-              {!project.reachable && (
-                <span className="visually-hidden">Unreachable</span>
-              )}
-              <div className="identity-text">
-                {/* The gear is *in* the name's row, so the width it takes comes
+                <div className="identity-text">
+                  {/* The gear is *in* the name's row, so the width it takes comes
                     out of the name — which ellipsizes and can spare it — and
                     none of it out of the path below, which gets the column
                     whole. It rode above the row, out of flow, until the real
@@ -2210,9 +2228,9 @@ export function App() {
                     clear of a control that was not on its line. Still outside
                     the `project.reachable` guard, because settings holds
                     `Locate…`, the way back (LC-239w, keeping LC-223's rule). */}
-                <div className="identity-name">
-                  <h1>{project.name}</h1>
-                  {/* `aria-haspopup="menu"` and a real `aria-expanded`: what
+                  <div className="identity-name">
+                    <h1>{project.name}</h1>
+                    {/* `aria-haspopup="menu"` and a real `aria-expanded`: what
                       the gear opens is a menu now (LC-208), which is a region
                       that stays part of the page under its trigger — the very
                       thing LC-125 removed the expanded state for when this
@@ -2227,26 +2245,26 @@ export function App() {
                       on source order and squeezed the 14px glyph to 6px. It
                       shipped, and it read as a dot. The class it never wanted is
                       gone and the rule is scoped to this row. */}
-                  <button
-                    tabIndex={0}
-                    ref={settingsButton}
-                    className={classes(
-                      "ghost settings-button",
-                      settingsMenuOpen && "open",
-                    )}
-                    aria-label="Project settings"
-                    aria-haspopup="menu"
-                    aria-expanded={settingsMenuOpen}
-                    title="Project settings"
-                    onClick={() => setSettingsMenuOpen(!settingsMenuOpen)}
-                  >
-                    <GearGlyph />
-                  </button>
+                    <button
+                      tabIndex={0}
+                      ref={settingsButton}
+                      className={classes(
+                        "ghost settings-button",
+                        settingsMenuOpen && "open",
+                      )}
+                      aria-label="Project settings"
+                      aria-haspopup="menu"
+                      aria-expanded={settingsMenuOpen}
+                      title="Project settings"
+                      onClick={() => setSettingsMenuOpen(!settingsMenuOpen)}
+                    >
+                      <GearGlyph />
+                    </button>
+                  </div>
+                  <PathChip path={project.rootPath} homePath={homePath} />
                 </div>
-                <PathChip path={project.rootPath} homePath={homePath} />
               </div>
-            </div>
-            {/* One disk-state line, riding with the path where
+              {/* One disk-state line, riding with the path where
                 `screen-specs.md` § Project identity puts it — and only while a
                 write is in flight. The settled `✓ ticket.md` this used to end on
                 is gone: under a path chip it read as a second, quieter path
@@ -2261,88 +2279,88 @@ export function App() {
                 the design answers a load with a board skeleton
                 (`states.md:45-52`) that is not built, so until LC-159 builds it
                 this line is the only thing that says a read is in flight. */}
-            <div className="identity-disk">
-              {project.reachable && (
-                <WriteIndicator
-                  reports="in-flight"
-                  busy={
-                    reconciling
-                      ? "reconciling"
-                      : loading
-                        ? "reading"
-                        : undefined
-                  }
-                />
-              )}
-            </div>
-          </header>
-        )}
-        {settingsMenuOpen && project && (
-          <SettingsMenu
-            project={project}
-            themes={THEMES}
-            appearance={appearance}
-            anchor={settingsButton.current}
-            onAppearance={setAppearance}
-            onTheme={(theme) => void changeTheme(project, theme)}
-            onOpenSection={(section) => {
-              closeTicket();
-              setSettingsSection(section);
-            }}
-            // The board's own re-read (ADR 0006), which the menu is the
-            // first surface to offer by hand: the watcher is what
-            // normally keeps this current, and this is the way back
-            // when a person has reason to doubt it.
-            onReload={() => {
-              void reconcileProject(project.id)
-                .then(applySnapshot)
-                .catch((error) => setError(normalizeError(error)));
-            }}
-            commandLineHint={commandLineHint(commandLine)}
-            onClose={() => setSettingsMenuOpen(false)}
-          />
-        )}
+              <div className="identity-disk">
+                {project.reachable && (
+                  <WriteIndicator
+                    reports="in-flight"
+                    busy={
+                      reconciling
+                        ? "reconciling"
+                        : loading
+                          ? "reading"
+                          : undefined
+                    }
+                  />
+                )}
+              </div>
+            </header>
+          )}
+          {settingsMenuOpen && project && (
+            <SettingsMenu
+              project={project}
+              themes={THEMES}
+              appearance={appearance}
+              anchor={settingsButton.current}
+              onAppearance={setAppearance}
+              onTheme={(theme) => void changeTheme(project, theme)}
+              onOpenSection={(section) => {
+                closeTicket();
+                setSettingsSection(section);
+              }}
+              // The board's own re-read (ADR 0006), which the menu is the
+              // first surface to offer by hand: the watcher is what
+              // normally keeps this current, and this is the way back
+              // when a person has reason to doubt it.
+              onReload={() => {
+                void reconcileProject(project.id)
+                  .then(applySnapshot)
+                  .catch((error) => setError(normalizeError(error)));
+              }}
+              commandLineHint={commandLineHint(commandLine)}
+              onClose={() => setSettingsMenuOpen(false)}
+            />
+          )}
 
-        <nav className="project-nav" aria-label="Projects">
-          <ProjectSection
-            title="Starred"
-            empty="No starred projects"
-            chords={projectChords}
-            projects={starredProjects}
-            activeProjectId={activeProjectId}
-            // The place a drop in **Starred** decides is a place in Local, and
-            // `moveWithin` is what works it out: a starred row is the same row
-            // pinned to the top, so it carries one number and that number is
-            // its Local row's (LC-259y).
-            onMove={(projectId, landing) =>
-              moveWithin(starredProjects, projectId, landing)
-            }
-            onOpen={(id) => void loadProject(id)}
-            menuFor={projectMenu?.projectId}
-            onMenu={(project, anchor) =>
-              setProjectMenu({ projectId: project.id, anchor })
-            }
-            onCloseMenu={() => setProjectMenu(undefined)}
-          />
-          <ProjectSection
-            title="Local"
-            empty="No local projects"
-            chords={projectChords}
-            projects={localProjects}
-            activeProjectId={activeProjectId}
-            onMove={(projectId, landing) =>
-              moveWithin(localProjects, projectId, landing)
-            }
-            onOpen={(id) => void loadProject(id)}
-            menuFor={projectMenu?.projectId}
-            onMenu={(project, anchor) =>
-              setProjectMenu({ projectId: project.id, anchor })
-            }
-            onCloseMenu={() => setProjectMenu(undefined)}
-          />
-        </nav>
+          <nav className="project-nav" aria-label="Projects">
+            <ProjectSection
+              title="Starred"
+              empty="No starred projects"
+              chords={projectChords}
+              projects={starredProjects}
+              activeProjectId={activeProjectId}
+              // The place a drop in **Starred** decides is a place in Local, and
+              // `moveWithin` is what works it out: a starred row is the same row
+              // pinned to the top, so it carries one number and that number is
+              // its Local row's (LC-259y).
+              onMove={(projectId, landing) =>
+                moveWithin(starredProjects, projectId, landing)
+              }
+              onOpen={(id) => void loadProject(id)}
+              menuFor={projectMenu?.projectId}
+              onMenu={(project, anchor) =>
+                setProjectMenu({ projectId: project.id, anchor })
+              }
+              onCloseMenu={() => setProjectMenu(undefined)}
+            />
+            <ProjectSection
+              title="Local"
+              empty="No local projects"
+              chords={projectChords}
+              projects={localProjects}
+              activeProjectId={activeProjectId}
+              onMove={(projectId, landing) =>
+                moveWithin(localProjects, projectId, landing)
+              }
+              onOpen={(id) => void loadProject(id)}
+              menuFor={projectMenu?.projectId}
+              onMenu={(project, anchor) =>
+                setProjectMenu({ projectId: project.id, anchor })
+              }
+              onCloseMenu={() => setProjectMenu(undefined)}
+            />
+          </nav>
 
-        {/* The form is the panel's body while it is open, not a thing hanging
+          {/* The form is the panel's body while it is open, not a thing hanging
             off the pair — which is what the measurement forced. It is ~520px
             tall and the panel has 560px of content at the window's 620px
             `minHeight`, so under the pair it does not fit: a cap put the submit
@@ -2354,37 +2372,37 @@ export function App() {
             needs the list of projects you are not in — and so does the pair,
             which also settles a `Create project` that was otherwise on screen
             twice: the form's filled submit, and the quieter toggle under it. */}
-        {quickCreateOpen && (
-          <div className="create-region">
-            <CreateProjectForm
-              // Remounted when the folder changes: the form reads it once, to
-              // prefill the name and the key and to take the caret.
-              key={quickCreateFolder ?? ""}
-              className="quick-create"
-              themes={THEMES}
-              folder={quickCreateFolder}
-              // Naming the step that is actually next. `Choose folder` is a
-              // promise the fall-through has already kept.
-              submitLabel={
-                quickCreateFolder === undefined
-                  ? "Choose folder"
-                  : "Create project"
-              }
-              onSubmit={(draft) =>
-                quickCreateFolder === undefined
-                  ? void createProject(draft)
-                  : void createProjectIn(quickCreateFolder, draft)
-              }
-              // The way out, now that the toggle that opened it is hidden. The
-              // form already renders this slot; the sidebar is the first caller
-              // to hand it one.
-              backLabel="Cancel"
-              onBack={closeQuickCreate}
-            />
-          </div>
-        )}
+          {quickCreateOpen && (
+            <div className="create-region">
+              <CreateProjectForm
+                // Remounted when the folder changes: the form reads it once, to
+                // prefill the name and the key and to take the caret.
+                key={quickCreateFolder ?? ""}
+                className="quick-create"
+                themes={THEMES}
+                folder={quickCreateFolder}
+                // Naming the step that is actually next. `Choose folder` is a
+                // promise the fall-through has already kept.
+                submitLabel={
+                  quickCreateFolder === undefined
+                    ? "Choose folder"
+                    : "Create project"
+                }
+                onSubmit={(draft) =>
+                  quickCreateFolder === undefined
+                    ? void createProject(draft)
+                    : void createProjectIn(quickCreateFolder, draft)
+                }
+                // The way out, now that the toggle that opened it is hidden. The
+                // form already renders this slot; the sidebar is the first caller
+                // to hand it one.
+                backLabel="Cancel"
+                onBack={closeQuickCreate}
+              />
+            </div>
+          )}
 
-        {/* Pinned to the panel's foot, over a list that scrolls under it. LC-73
+          {/* Pinned to the panel's foot, over a list that scrolls under it. LC-73
             moved this pair *up* because `.project-nav` had no `overflow-y`, so
             at the foot of a long list it left the window; the nav scrolls now,
             and `margin-top: auto` is a pin rather than a position in the flow,
@@ -2396,115 +2414,83 @@ export function App() {
             (`components.md:49-53`).
 
             Appearance is an app preference, not project data, and the spec puts
-            its 3-up segment in project settings (`screen-specs.md:331`), not
+            its 3-up segment in project settings (`screen-specs.md:345`), not
             here — the native `<select>` that used to sit above this line was the
             only OS chrome left in the sidebar (LC-72). Until the settings modal
             carries the segment (LC-127), the palette's `Toggle appearance`
             command is the control. */}
-        <div className="side-panel-footer">
-          <section className="project-actions">
-            {/* Open, not toggle. This was a toggle while the form rendered
+          <div className="side-panel-footer">
+            <section className="project-actions">
+              {/* Open, not toggle. This was a toggle while the form rendered
                 under it; the form is the panel's body now and this pair is
                 `display: none` for as long as it is up, so the closing arm was
                 a branch nothing could reach. The way out is the form's own
                 `Cancel`. */}
-            <button
-              tabIndex={0}
-              className="secondary"
-              onClick={() => setQuickCreateOpen(true)}
-            >
-              Create project
-            </button>
-            <button
-              tabIndex={0}
-              className="ghost"
-              onClick={() =>
-                void chooseOpenProject().then((folder) => {
-                  // A plain folder is an offer to create one there rather than
-                  // a refusal (LC-170). The form above is this surface's create
-                  // step, so the fall-through lands in it with the folder
-                  // already answered — the same two screens the welcome column
-                  // runs, in the space the sidebar has.
-                  if (folder) {
-                    setQuickCreateFolder(folder);
-                    setQuickCreateOpen(true);
-                  }
-                })
-              }
-            >
-              Open folder
-            </button>
-          </section>
-          {/* Which LongClaw this is, and — only when there is news — the way to
-              it (LC-256a). It is in the footer because it is a claim about the
-              app rather than about any project, and the footer is the one part
-              of this panel that is already not about the open project.
+              <button
+                tabIndex={0}
+                className="secondary"
+                onClick={() => setQuickCreateOpen(true)}
+              >
+                Create project
+              </button>
+              <button
+                tabIndex={0}
+                className="ghost"
+                onClick={() =>
+                  void chooseOpenProject().then((folder) => {
+                    // A plain folder is an offer to create one there rather than
+                    // a refusal (LC-170). The form above is this surface's create
+                    // step, so the fall-through lands in it with the folder
+                    // already answered — the same two screens the welcome column
+                    // runs, in the space the sidebar has.
+                    if (folder) {
+                      setQuickCreateFolder(folder);
+                      setQuickCreateOpen(true);
+                    }
+                  })
+                }
+              >
+                Open folder
+              </button>
+            </section>
+            {/* The version and the update news used to stand here, under the
+              project actions (LC-256a). They are in the status bar now, at
+              the foot of the window, because the star control needed a place
+              that is always visible and this panel had no room for the pair:
+              with an update waiting, `LongClaw 0.2.0` is the only flexible
+              thing left in 216px and it wraps (LC-257s). The strings did not
+              change — `UPDATE_COPY.footer` is still their one spelling — only
+              their address did. */}
+          </div>
+        </aside>
 
-              **The link opens the pane; it does not update.** The release
-              notes and the two presses are read in Settings › Updates, which
-              is the only surface that says anything about updates in words.
-              The dot is decorative and the link carries the message: colour is
-              never the only channel. The gear carries no mark at all — with no
-              Updates row in its menu, a marked gear would open a menu that
-              says nothing about updates. */}
-          {update && (
-            <div className="app-version">
-              <span className="ver">
-                {UPDATE_COPY.footer.version(update.currentVersion)}
-              </span>
-              {update.state === "available" && update.available && (
-                <>
-                  <span className="upd-dot" aria-hidden="true" />
-                  <button
-                    tabIndex={0}
-                    type="button"
-                    className="upd-link"
-                    aria-label={UPDATE_COPY.footer.updateAria(
-                      update.available.version,
-                    )}
-                    onClick={(event) => {
-                      // The opener, so `Esc` comes back here rather than to
-                      // the gear a reader never touched.
-                      settingsOpener.current = event.currentTarget;
-                      setSettingsSection("updates");
-                    }}
-                  >
-                    {UPDATE_COPY.footer.update}
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      </aside>
-
-      <section className="main-panel">
-        {/* The code used to be the heading here, so an ordinary read-only
+        <section className="main-panel">
+          {/* The code used to be the heading here, so an ordinary read-only
             folder announced itself as `permission denied` (V0-29). */}
-        {/* Not while the project is unreachable: that state is one centered
+          {/* Not while the project is unreachable: that state is one centered
             panel (`states.md:80-98`), and a banner over the top of it said the
             same thing twice — the second time in registry-speak (D-59). */}
-        {error && !unreachable && <ErrorBanner error={error} />}
+          {error && !unreachable && <ErrorBanner error={error} />}
 
-        {!project ? (
-          /* Projects the registry has, none of them open — what removing the
+          {!project ? (
+            /* Projects the registry has, none of them open — what removing the
              open one leaves behind while others remain. Nothing at all until
              the registry *has* answered: a welcome column drawn over an unread
              registry is a statement about projects nobody has counted, and it
              is replaced a frame later by the board it was standing in front
              of. */
-          registryRead && (
-            <Welcome
-              onChooseFolder={chooseCreateFolder}
-              onCreate={(rootPath, draft) =>
-                void createProjectIn(rootPath, draft)
-              }
-              onOpen={chooseOpenProject}
-            />
-          )
-        ) : (
-          <>
-            {/* Controls, and nothing else (`screen-specs.md` § Content header,
+            registryRead && (
+              <Welcome
+                onChooseFolder={chooseCreateFolder}
+                onCreate={(rootPath, draft) =>
+                  void createProjectIn(rootPath, draft)
+                }
+                onOpen={chooseOpenProject}
+              />
+            )
+          ) : (
+            <>
+              {/* Controls, and nothing else (`screen-specs.md` § Content header,
                 LC-239w). Everything that says *which project this is* moved to
                 the side panel, which is where the question was already being
                 asked and answered by the list.
@@ -2522,23 +2508,23 @@ export function App() {
                 one: an unreachable project has no controls, and an empty 62px
                 band with a hairline under it is a rule drawn across the top of
                 the centred panel that state *is* (`states.md:80-98`). */}
-            {project.reachable && (
-              <header className="content-header">
-                <div className="toolbar-actions">
-                  {/* `screen-specs.md:67-69` orders the content header:
+              {project.reachable && (
+                <header className="content-header">
+                  <div className="toolbar-actions">
+                    {/* `screen-specs.md:81-83` orders the content header:
                       filter field, then ordering control, then view segment,
                       then `New ticket`. (This cited `:47-48` until LC-239w,
                       which is the project-actions hierarchy and never said
                       anything about the header — stale on the day it was
                       typed, and the sort of thing `citations:check` pins but
                       cannot notice.) */}
-                  {/* The chip is overlaid inside the field's right edge, as
+                    {/* The chip is overlaid inside the field's right edge, as
                       the prototype draws it (`prototype.js:495-498`). It is
                       `aria-hidden` and paired with `aria-keyshortcuts` so the
                       field's accessible name stays "Filter tickets" rather
                       than becoming "Filter tickets ⌘F" (LC-71). */}
-                  <div className="filter-wrap">
-                    {/* The OS stays out of this field (LC-90). WebKit offered
+                    <div className="filter-wrap">
+                      {/* The OS stays out of this field (LC-90). WebKit offered
                         its own saved-value popover under it — a native
                         dropdown inside a local-first app, which is both
                         off-brand and a small privacy surprise. Turning
@@ -2550,467 +2536,484 @@ export function App() {
                         The prototype's field carries two of the four
                         (`prototype.js:496`); a WebKit that ignores the
                         request is why the other two are here. */}
-                    <input
-                      ref={filterField}
-                      className="input filter-field"
-                      type="text"
-                      name="longclaw-filter"
-                      autoComplete="off"
-                      autoCorrect="off"
-                      spellCheck={false}
-                      value={filterQuery}
-                      aria-label="Filter tickets"
-                      aria-keyshortcuts="Meta+F"
-                      placeholder="Filter tickets"
-                      onChange={(event) => setFilterQuery(event.target.value)}
-                    />
-                    <kbd className="kbd-chip filter-kbd" aria-hidden="true">
-                      ⌘F
-                    </kbd>
-                  </div>
-                  <div className="ordering-control">
-                    <span>Order</span>
-                    <MenuButton
-                      label="Order"
-                      options={ORDERINGS}
-                      value={ordering}
-                      onPick={(next) => updateWorkspace({ ordering: next })}
-                    />
-                  </div>
-                  <ViewSegment view={view} onChange={setView} />
-                  {DEV_CHROME && (
+                      <input
+                        ref={filterField}
+                        className="input filter-field"
+                        type="text"
+                        name="longclaw-filter"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        value={filterQuery}
+                        aria-label="Filter tickets"
+                        aria-keyshortcuts="Meta+F"
+                        placeholder="Filter tickets"
+                        onChange={(event) => setFilterQuery(event.target.value)}
+                      />
+                      <kbd className="kbd-chip filter-kbd" aria-hidden="true">
+                        ⌘F
+                      </kbd>
+                    </div>
+                    <div className="ordering-control">
+                      <span>Order</span>
+                      <MenuButton
+                        label="Order"
+                        options={ORDERINGS}
+                        value={ordering}
+                        onPick={(next) => updateWorkspace({ ordering: next })}
+                      />
+                    </div>
+                    <ViewSegment view={view} onChange={setView} />
+                    {DEV_CHROME && (
+                      <button
+                        tabIndex={0}
+                        className="secondary"
+                        onClick={() => {
+                          if (!activeProjectId) return;
+                          void rebuildIndex(activeProjectId)
+                            .then(applySnapshot)
+                            .catch((error) => setError(normalizeError(error)));
+                        }}
+                      >
+                        Rebuild index
+                      </button>
+                    )}
                     <button
                       tabIndex={0}
-                      className="secondary"
-                      onClick={() => {
-                        if (!activeProjectId) return;
-                        void rebuildIndex(activeProjectId)
-                          .then(applySnapshot)
-                          .catch((error) => setError(normalizeError(error)));
-                      }}
+                      className="primary"
+                      aria-keyshortcuts="C"
+                      onClick={() => setCreateSurface("quick")}
                     >
-                      Rebuild index
+                      New ticket
+                      <kbd aria-hidden="true">C</kbd>
                     </button>
+                  </div>
+                </header>
+              )}
+
+              {!project.reachable ? (
+                <UnreachableProject
+                  project={project}
+                  onLocate={() => void relocateActiveProject(project.id)}
+                  onRemove={() => void forgetProject(project.id)}
+                />
+              ) : (
+                // The no-match state is the one thing that stands *instead of*
+                // the surfaces rather than above them, so the workspace becomes
+                // the column it is centred in (LC-91).
+                <section
+                  className={classes(
+                    "workspace",
+                    showNoMatches && "workspace-state",
                   )}
-                  <button
-                    tabIndex={0}
-                    className="primary"
-                    aria-keyshortcuts="C"
-                    onClick={() => setCreateSurface("quick")}
-                  >
-                    New ticket
-                    <kbd aria-hidden="true">C</kbd>
-                  </button>
-                </div>
-              </header>
-            )}
+                >
+                  {showNoMatches && (
+                    <NoMatches
+                      query={filterQuery}
+                      unreadable={unreadableShown}
+                      onClear={clearFilter}
+                    />
+                  )}
+                  {view === "board" ? (
+                    <Board
+                      tickets={visibleTickets}
+                      // What the surface draws is narrowed; what a drop is
+                      // decided over is not (LC-187, `ticketMove.ts`).
+                      unfiltered={tickets}
+                      selectedKey={selectedKey}
+                      marks={externalMarks}
+                      labels={project.labels}
+                      properties={project.properties}
+                      ordering={ordering}
+                      // Six empty columns beside a "No matches" panel is the
+                      // empty board the designed state exists to replace — but a
+                      // project with no tickets *is* the scaffold plus the guide,
+                      // so this stands down for the query and not for the state
+                      // that owns the columns it would remove (D-20/LC-86).
+                      scaffold={!showNoMatches}
+                      now={now}
+                      focusRequest={cardFocus}
+                      onSelect={openTicket}
+                      onChangePriority={changePriority}
+                      onChangeStatus={changeStatus}
+                      // The context menu's property submenus, which no surface
+                      // can write and only one of which stays inside the menu
+                      // (LC-227).
+                      onChangeProperty={changeProperty}
+                      // The context menu's two rows that are App's to answer: one
+                      // writes, and one needs the project folder a surface has
+                      // never been told (LC-222).
+                      onArchive={toggleArchived}
+                      onCopyPath={(ticket) =>
+                        copyTicketPath(project.rootPath, ticket)
+                      }
+                      onMoveTicket={moveCard}
+                      // A column's `+` is the same quick create `C` opens,
+                      // arriving with the column it was pressed in already
+                      // chosen (`keyboard-focus-map.md:45`).
+                      onCreateInStatus={(status) => {
+                        // A whole draft, empty but for the column: "nothing
+                        // typed yet" is `""`, `[]` and `{}` rather than absent,
+                        // which is what keeps one shape between the preseed and
+                        // the draft the door carries back.
+                        setCarriedDraft({
+                          title: "",
+                          description: "",
+                          status,
+                          priority: "none",
+                          labels: [],
+                          properties: {},
+                        });
+                        setCreateSurface("quick");
+                      }}
+                      onCreateFirst={guide}
+                    />
+                  ) : (
+                    // Both surfaces are projections of the same store state
+                    // and hold no rows of their own, which is what makes them
+                    // agree after an app edit, a file edit, a restart, or a
+                    // rebuild — and now after a query.
+                    <IssueList
+                      tickets={visibleTickets}
+                      unfiltered={tickets}
+                      selectedKey={selectedKey}
+                      marks={externalMarks}
+                      labels={project.labels}
+                      // Nothing on a list row draws one yet; the row's own
+                      // context menu offers all four (LC-227).
+                      properties={project.properties}
+                      ordering={ordering}
+                      now={now}
+                      focusRequest={cardFocus}
+                      onSelect={openTicket}
+                      onChangePriority={changePriority}
+                      onChangeStatus={changeStatus}
+                      onChangeProperty={changeProperty}
+                      onArchive={toggleArchived}
+                      onCopyPath={(ticket) =>
+                        copyTicketPath(project.rootPath, ticket)
+                      }
+                      // The same move the board raises, because the same gesture
+                      // means the same thing on both projections (`ticketMove.ts`).
+                      onMoveTicket={moveCard}
+                      onCreateFirst={guide}
+                    />
+                  )}
+                </section>
+              )}
+            </>
+          )}
+        </section>
 
-            {!project.reachable ? (
-              <UnreachableProject
-                project={project}
-                onLocate={() => void relocateActiveProject(project.id)}
-                onRemove={() => void forgetProject(project.id)}
-              />
-            ) : (
-              // The no-match state is the one thing that stands *instead of*
-              // the surfaces rather than above them, so the workspace becomes
-              // the column it is centred in (LC-91).
-              <section
-                className={classes(
-                  "workspace",
-                  showNoMatches && "workspace-state",
-                )}
-              >
-                {showNoMatches && (
-                  <NoMatches
-                    query={filterQuery}
-                    unreadable={unreadableShown}
-                    onClear={clearFilter}
-                  />
-                )}
-                {view === "board" ? (
-                  <Board
-                    tickets={visibleTickets}
-                    // What the surface draws is narrowed; what a drop is
-                    // decided over is not (LC-187, `ticketMove.ts`).
-                    unfiltered={tickets}
-                    selectedKey={selectedKey}
-                    marks={externalMarks}
-                    labels={project.labels}
-                    properties={project.properties}
-                    ordering={ordering}
-                    // Six empty columns beside a "No matches" panel is the
-                    // empty board the designed state exists to replace — but a
-                    // project with no tickets *is* the scaffold plus the guide,
-                    // so this stands down for the query and not for the state
-                    // that owns the columns it would remove (D-20/LC-86).
-                    scaffold={!showNoMatches}
-                    now={now}
-                    focusRequest={cardFocus}
-                    onSelect={openTicket}
-                    onChangePriority={changePriority}
-                    onChangeStatus={changeStatus}
-                    // The context menu's property submenus, which no surface
-                    // can write and only one of which stays inside the menu
-                    // (LC-227).
-                    onChangeProperty={changeProperty}
-                    // The context menu's two rows that are App's to answer: one
-                    // writes, and one needs the project folder a surface has
-                    // never been told (LC-222).
-                    onArchive={toggleArchived}
-                    onCopyPath={(ticket) =>
-                      copyTicketPath(project.rootPath, ticket)
-                    }
-                    onMoveTicket={moveCard}
-                    // A column's `+` is the same quick create `C` opens,
-                    // arriving with the column it was pressed in already
-                    // chosen (`keyboard-focus-map.md:45`).
-                    onCreateInStatus={(status) => {
-                      // A whole draft, empty but for the column: "nothing
-                      // typed yet" is `""`, `[]` and `{}` rather than absent,
-                      // which is what keeps one shape between the preseed and
-                      // the draft the door carries back.
-                      setCarriedDraft({
-                        title: "",
-                        description: "",
-                        status,
-                        priority: "none",
-                        labels: [],
-                        properties: {},
-                      });
-                      setCreateSurface("quick");
-                    }}
-                    onCreateFirst={guide}
-                  />
-                ) : (
-                  // Both surfaces are projections of the same store state
-                  // and hold no rows of their own, which is what makes them
-                  // agree after an app edit, a file edit, a restart, or a
-                  // rebuild — and now after a query.
-                  <IssueList
-                    tickets={visibleTickets}
-                    unfiltered={tickets}
-                    selectedKey={selectedKey}
-                    marks={externalMarks}
-                    labels={project.labels}
-                    // Nothing on a list row draws one yet; the row's own
-                    // context menu offers all four (LC-227).
-                    properties={project.properties}
-                    ordering={ordering}
-                    now={now}
-                    focusRequest={cardFocus}
-                    onSelect={openTicket}
-                    onChangePriority={changePriority}
-                    onChangeStatus={changeStatus}
-                    onChangeProperty={changeProperty}
-                    onArchive={toggleArchived}
-                    onCopyPath={(ticket) =>
-                      copyTicketPath(project.rootPath, ticket)
-                    }
-                    // The same move the board raises, because the same gesture
-                    // means the same thing on both projections (`ticketMove.ts`).
-                    onMoveTicket={moveCard}
-                    onCreateFirst={guide}
-                  />
-                )}
-              </section>
-            )}
-          </>
-        )}
-      </section>
-
-      {/* Create mode takes the panel's place rather than stacking on it: they
+        {/* Create mode takes the panel's place rather than stacking on it: they
           are the same surface in two modes, not two overlays. */}
-      {project &&
-        activeProjectId &&
-        selectedKey &&
-        project.reachable &&
-        createSurface !== "full" && (
-          <TicketPanel
-            projectId={activeProjectId}
-            ticketKey={selectedKey}
-            // Abbreviated the same way the header's own chip is, so the two
-            // places the app writes this path agree on how it looks.
-            projectPath={tildeAbbreviate(project.rootPath, homePath)}
-            labels={project.labels}
-            properties={project.properties}
-            mark={externalMarks[selectedKey]}
-            reloadSignal={panelReload}
-            removedSignal={panelRemoved}
-            heldConflict={
-              heldConflict?.ticketKey === selectedKey ? heldConflict : undefined
-            }
-            now={now}
-            today={today}
-            archived={openRow !== undefined && isArchived(openRow)}
-            // The file the row the card was drawn from names, so one the board
-            // already knows will not parse opens as the raw-file modal rather
-            // than as a panel that turns into one — and the modal has a path to
-            // title itself with before the read comes back (LC-134).
-            degradedPath={
-              openRow?.state === "degraded" ? openRow.relativePath : undefined
-            }
-            shortcutsActive={
-              !paletteOpen && !settingsOpen && createSurface === undefined
-            }
-            onClose={() => closeTicket(selectedKey)}
-            onArchive={(archived) => {
-              if (openRow?.state === "indexed") setArchived(openRow, archived);
-            }}
-            onWrite={(result) =>
-              applyLocalWrite(result.ticket, result.generation)
-            }
-            // A file that parses again leaves the index holding a degraded row
-            // the watcher may not correct for a while, so the one surface that
-            // knows it is stale asks for the truth (ADR 0006). The whole
-            // project rather than the ticket: a file that would not parse had
-            // no row to replace, and the snapshot is the app's one way to get
-            // one back.
-            onReparsed={() => {
-              void reconcileProject(activeProjectId)
-                .then(applySnapshot)
-                .catch((error) => setError(normalizeError(error)));
-            }}
-            onError={setError}
-          />
-        )}
+        {project &&
+          activeProjectId &&
+          selectedKey &&
+          project.reachable &&
+          createSurface !== "full" && (
+            <TicketPanel
+              projectId={activeProjectId}
+              ticketKey={selectedKey}
+              // Abbreviated the same way the header's own chip is, so the two
+              // places the app writes this path agree on how it looks.
+              projectPath={tildeAbbreviate(project.rootPath, homePath)}
+              labels={project.labels}
+              properties={project.properties}
+              mark={externalMarks[selectedKey]}
+              reloadSignal={panelReload}
+              removedSignal={panelRemoved}
+              heldConflict={
+                heldConflict?.ticketKey === selectedKey
+                  ? heldConflict
+                  : undefined
+              }
+              now={now}
+              today={today}
+              archived={openRow !== undefined && isArchived(openRow)}
+              // The file the row the card was drawn from names, so one the board
+              // already knows will not parse opens as the raw-file modal rather
+              // than as a panel that turns into one — and the modal has a path to
+              // title itself with before the read comes back (LC-134).
+              degradedPath={
+                openRow?.state === "degraded" ? openRow.relativePath : undefined
+              }
+              shortcutsActive={
+                !paletteOpen && !settingsOpen && createSurface === undefined
+              }
+              onClose={() => closeTicket(selectedKey)}
+              onArchive={(archived) => {
+                if (openRow?.state === "indexed")
+                  setArchived(openRow, archived);
+              }}
+              onWrite={(result) =>
+                applyLocalWrite(result.ticket, result.generation)
+              }
+              // A file that parses again leaves the index holding a degraded row
+              // the watcher may not correct for a while, so the one surface that
+              // knows it is stale asks for the truth (ADR 0006). The whole
+              // project rather than the ticket: a file that would not parse had
+              // no row to replace, and the snapshot is the app's one way to get
+              // one back.
+              onReparsed={() => {
+                void reconcileProject(activeProjectId)
+                  .then(applySnapshot)
+                  .catch((error) => setError(normalizeError(error)));
+              }}
+              onError={setError}
+            />
+          )}
 
-      {/* Settings sits beside the board as the shell's third grid column
+        {/* Settings sits beside the board as the shell's third grid column
           (LC-223, the prototype's arrangement) — the board stays live so a
           preset can be tried against it. The right edge holds one record at a
           time, so every opener closes the ticket panel first — and the panel
           stays mounted over an unreachable project, which is one of the two
           screens that needs `Locate…` most. */}
-      {project && settingsSection !== undefined && (
-        <ProjectSettings
-          project={project}
-          hasTickets={tickets.length > 0}
-          // Off the rows rather than the project file, which is what makes the
-          // count available while the property is off (LC-227).
-          propertyCounts={propertyCounts(tickets)}
-          appearance={appearance}
-          themes={THEMES}
-          section={settingsSection}
-          onSection={setSettingsSection}
-          // The pane is offered whether or not the read landed: a host that
-          // answers no commands has no CLI to install, which is exactly what
-          // `unavailable` says (LC-233).
-          commandLine={commandLine ?? UNREAD_COMMAND_LINE}
-          update={update ?? UNREAD_UPDATE_STATUS}
-          onUpdate={setUpdate}
-          onCommandLine={setCommandLine}
-          onAppearance={setAppearance}
-          onRename={(name) => void renameProject(name)}
-          onTheme={(theme) => void changeTheme(project, theme)}
-          onLocate={() => void relocateActiveProject(project.id)}
-          onRemove={() => void forgetProject(project.id)}
-          onWrite={(message, write) =>
-            writeProjectFile({ message, write, onWritten: upsertProject })
-          }
-          onClose={closeSettings}
-        />
-      )}
+        {project && settingsSection !== undefined && (
+          <ProjectSettings
+            project={project}
+            hasTickets={tickets.length > 0}
+            // Off the rows rather than the project file, which is what makes the
+            // count available while the property is off (LC-227).
+            propertyCounts={propertyCounts(tickets)}
+            appearance={appearance}
+            themes={THEMES}
+            section={settingsSection}
+            onSection={setSettingsSection}
+            // The pane is offered whether or not the read landed: a host that
+            // answers no commands has no CLI to install, which is exactly what
+            // `unavailable` says (LC-233).
+            commandLine={commandLine ?? UNREAD_COMMAND_LINE}
+            update={update ?? UNREAD_UPDATE_STATUS}
+            onUpdate={setUpdate}
+            onCommandLine={setCommandLine}
+            onAppearance={setAppearance}
+            onRename={(name) => void renameProject(name)}
+            onTheme={(theme) => void changeTheme(project, theme)}
+            onLocate={() => void relocateActiveProject(project.id)}
+            onRemove={() => void forgetProject(project.id)}
+            onWrite={(message, write) =>
+              writeProjectFile({ message, write, onWritten: upsertProject })
+            }
+            onClose={closeSettings}
+          />
+        )}
 
-      {/* The side panel's own settings reach (LC-208). It is built here rather
+        {/* The side panel's own settings reach (LC-208). It is built here rather
           than inside `ProjectSection` so that one menu is open at a time across
           both sections, and so its rows can reach `App`'s writes without the
           list having to carry six more props per row. */}
-      {/* Read fresh on every render, so the menu's own writes are visible in
+        {/* Read fresh on every render, so the menu's own writes are visible in
           it. A project removed while its menu is up takes the menu with it,
           which is the same answer by the same route. */}
-      {menuProject && projectMenu && (
-        <ProjectMenu
-          project={menuProject}
-          themes={THEMES}
-          appearance={appearance}
-          anchor={projectMenu.anchor}
-          onAppearance={setAppearance}
-          // The row's own project, which may not be the open one — a preset is
-          // visible from the sidebar without switching, since every row's dot
-          // carries its project's own theme.
-          onTheme={(theme) => void changeTheme(menuProject, theme)}
-          // A section, on the other hand, is about a project you are looking
-          // at: the panel shows the open project, so the row opens first and
-          // the section lands on it.
-          onOpenSection={(section) => {
-            if (menuProject.id !== activeProjectId)
-              void loadProject(menuProject.id);
-            closeTicket();
-            setSettingsSection(section);
-          }}
-          onStar={() => void toggleStar(menuProject)}
-          onRemove={() => setRemovingProject(menuProject)}
-          onClose={() => setProjectMenu(undefined)}
-        />
-      )}
+        {menuProject && projectMenu && (
+          <ProjectMenu
+            project={menuProject}
+            themes={THEMES}
+            appearance={appearance}
+            anchor={projectMenu.anchor}
+            onAppearance={setAppearance}
+            // The row's own project, which may not be the open one — a preset is
+            // visible from the sidebar without switching, since every row's dot
+            // carries its project's own theme.
+            onTheme={(theme) => void changeTheme(menuProject, theme)}
+            // A section, on the other hand, is about a project you are looking
+            // at: the panel shows the open project, so the row opens first and
+            // the section lands on it.
+            onOpenSection={(section) => {
+              if (menuProject.id !== activeProjectId)
+                void loadProject(menuProject.id);
+              closeTicket();
+              setSettingsSection(section);
+            }}
+            onStar={() => void toggleStar(menuProject)}
+            onRemove={() => setRemovingProject(menuProject)}
+            onClose={() => setProjectMenu(undefined)}
+          />
+        )}
 
-      {/* The `⋮` menu's removal, behind the confirm that names the path and
+        {/* The `⋮` menu's removal, behind the confirm that names the path and
           repeats the guarantee — the same one settings and the unreachable
           screen raise (LC-144). */}
-      {removingProject && (
-        <RemoveProjectConfirm
-          project={removingProject}
-          onCancel={() => setRemovingProject(undefined)}
-          onConfirm={() => void forgetProject(removingProject.id)}
-        />
-      )}
+        {removingProject && (
+          <RemoveProjectConfirm
+            project={removingProject}
+            onCancel={() => setRemovingProject(undefined)}
+            onConfirm={() => void forgetProject(removingProject.id)}
+          />
+        )}
 
-      {commandLineOffer}
+        {commandLineOffer}
 
-      {/* Both create surfaces are gated on the folder answering. Nothing is
+        {/* Both create surfaces are gated on the folder answering. Nothing is
           creatable on an unreachable project (`states.md:80-98`): the key would
           be guessed from a board with no rows, so the next create offered
           `LC-1` — a collision waiting for the folder to come back (LC-140). */}
-      {project &&
-        activeProjectId &&
-        !unreachable &&
-        createSurface === "quick" && (
-          <QuickCreate
-            projectName={project.name}
-            projectTheme={project.theme}
-            provisionalKey={nextKey}
-            labels={project.labels}
-            properties={project.properties}
-            today={today}
-            onDefineLabel={defineLabel}
-            initialStatus={carriedDraft?.status}
-            initialPriority={carriedDraft?.priority}
-            initialProperties={carriedDraft?.properties}
-            onCancel={closeCreateSurface}
-            onCreate={(request, { createMore }) =>
-              submitNewTicket(request, { keepOpen: createMore })
+        {project &&
+          activeProjectId &&
+          !unreachable &&
+          createSurface === "quick" && (
+            <QuickCreate
+              projectName={project.name}
+              projectTheme={project.theme}
+              provisionalKey={nextKey}
+              labels={project.labels}
+              properties={project.properties}
+              today={today}
+              onDefineLabel={defineLabel}
+              initialStatus={carriedDraft?.status}
+              initialPriority={carriedDraft?.priority}
+              initialProperties={carriedDraft?.properties}
+              onCancel={closeCreateSurface}
+              onCreate={(request, { createMore }) =>
+                submitNewTicket(request, { keepOpen: createMore })
+              }
+              onOpenFullEditor={(draft) => {
+                setCarriedDraft(draft);
+                setCreateSurface("full");
+              }}
+            />
+          )}
+
+        {project &&
+          activeProjectId &&
+          !unreachable &&
+          createSurface === "full" && (
+            <CreatePanel
+              provisionalKey={nextKey}
+              labels={project.labels}
+              properties={project.properties}
+              today={today}
+              onDefineLabel={defineLabel}
+              initialDraft={carriedDraft}
+              onCancel={closeCreateSurface}
+              onCreate={(request) =>
+                submitNewTicket(request, { openPanel: true })
+              }
+            />
+          )}
+
+        {/* Over the create surface rather than instead of it: the draft behind
+          this is still the answer if the question is cancelled (LC-188). */}
+        {pendingCreate && project && createSurface !== undefined && (
+          <ConfirmDialog
+            title="The active project changed"
+            body={
+              <>
+                <p>
+                  This ticket was started in{" "}
+                  <strong>{projectName(pendingCreate.fromProjectId)}</strong>,
+                  and <strong>{project.name}</strong> is the project on screen
+                  now. Create it in <strong>{project.name}</strong>?
+                </p>
+                {/* No "still opening" branch to write here: **Create** is
+                  disabled on both surfaces until the board answers, so a
+                  project with no key to offer cannot raise this dialog. */}
+                <p>
+                  It lands in <code>{project.rootPath}</code> as{" "}
+                  <code>{nextKey}</code>, the next key free in this project.
+                </p>
+              </>
             }
-            onOpenFullEditor={(draft) => {
-              setCarriedDraft(draft);
-              setCreateSurface("full");
+            confirmLabel={`Create in ${project.name}`}
+            // Nothing is destroyed either way: this asks where a write goes.
+            confirmTone="primary"
+            onConfirm={() => {
+              const held = pendingCreate;
+              setPendingCreate(undefined);
+              writeNewTicket(held.request, {
+                openPanel: held.openPanel,
+                keepOpen: held.keepOpen,
+              });
+            }}
+            onCancel={() => setPendingCreate(undefined)}
+          />
+        )}
+
+        {paletteOpen && project && (
+          <CommandPalette
+            project={project}
+            ticket={commandTarget}
+            // The project's rows, not the filtered ones: a key is what you type
+            // to reach a ticket the surface behind the palette is not showing.
+            tickets={tickets}
+            projects={localProjects}
+            appearance={appearance}
+            themes={THEMES}
+            ordering={ordering}
+            onClose={closePalette}
+            // Both of these hand focus somewhere specific — the new card, the
+            // panel — so they dismiss the palette without the focus return
+            // `closePalette` owes an ordinary close.
+            onCreate={() => {
+              dismissPalette();
+              setCreateSurface("quick");
+            }}
+            onOpenTicket={(key) => {
+              dismissPalette();
+              openTicket(key);
+            }}
+            onProject={(projectId) => void loadProject(projectId)}
+            onChangeStatus={(next) => {
+              if (commandTarget) changeStatus(commandTarget, next);
+            }}
+            onChangePriority={(next) => {
+              if (commandTarget) changePriority(commandTarget, next);
+            }}
+            onToggleStar={() => void toggleStar(project)}
+            onToggleAppearance={() =>
+              setAppearance(
+                appearance === "system"
+                  ? "light"
+                  : appearance === "light"
+                    ? "dark"
+                    : "system",
+              )
+            }
+            onTheme={(theme) => void changeTheme(project, theme)}
+            onView={(next) => setView(next)}
+            view={view}
+            onArchive={() => {
+              if (commandTarget)
+                setArchived(commandTarget, !isArchived(commandTarget));
+            }}
+            onOrdering={(next) => updateWorkspace({ ordering: next })}
+            today={today}
+            onChangeProperty={(property, next) => {
+              if (commandTarget) changeProperty(commandTarget, property, next);
+            }}
+            searchResults={paletteSearchResults}
+            onSearch={(query) => {
+              if (!activeProjectId) return;
+              void searchTickets(activeProjectId, query)
+                .then((result) => setPaletteSearchResults(result.tickets))
+                .catch((error) => setError(normalizeError(error)));
             }}
           />
         )}
 
-      {project &&
-        activeProjectId &&
-        !unreachable &&
-        createSurface === "full" && (
-          <CreatePanel
-            provisionalKey={nextKey}
-            labels={project.labels}
-            properties={project.properties}
-            today={today}
-            onDefineLabel={defineLabel}
-            initialDraft={carriedDraft}
-            onCancel={closeCreateSurface}
-            onCreate={(request) =>
-              submitNewTicket(request, { openPanel: true })
-            }
-          />
-        )}
-
-      {/* Over the create surface rather than instead of it: the draft behind
-          this is still the answer if the question is cancelled (LC-188). */}
-      {pendingCreate && project && createSurface !== undefined && (
-        <ConfirmDialog
-          title="The active project changed"
-          body={
-            <>
-              <p>
-                This ticket was started in{" "}
-                <strong>{projectName(pendingCreate.fromProjectId)}</strong>, and{" "}
-                <strong>{project.name}</strong> is the project on screen now.
-                Create it in <strong>{project.name}</strong>?
-              </p>
-              {/* No "still opening" branch to write here: **Create** is
-                  disabled on both surfaces until the board answers, so a
-                  project with no key to offer cannot raise this dialog. */}
-              <p>
-                It lands in <code>{project.rootPath}</code> as{" "}
-                <code>{nextKey}</code>, the next key free in this project.
-              </p>
-            </>
-          }
-          confirmLabel={`Create in ${project.name}`}
-          // Nothing is destroyed either way: this asks where a write goes.
-          confirmTone="primary"
-          onConfirm={() => {
-            const held = pendingCreate;
-            setPendingCreate(undefined);
-            writeNewTicket(held.request, {
-              openPanel: held.openPanel,
-              keepOpen: held.keepOpen,
-            });
-          }}
-          onCancel={() => setPendingCreate(undefined)}
-        />
-      )}
-
-      {paletteOpen && project && (
-        <CommandPalette
-          project={project}
-          ticket={commandTarget}
-          // The project's rows, not the filtered ones: a key is what you type
-          // to reach a ticket the surface behind the palette is not showing.
-          tickets={tickets}
-          projects={localProjects}
-          appearance={appearance}
-          themes={THEMES}
-          ordering={ordering}
-          onClose={closePalette}
-          // Both of these hand focus somewhere specific — the new card, the
-          // panel — so they dismiss the palette without the focus return
-          // `closePalette` owes an ordinary close.
-          onCreate={() => {
-            dismissPalette();
-            setCreateSurface("quick");
-          }}
-          onOpenTicket={(key) => {
-            dismissPalette();
-            openTicket(key);
-          }}
-          onProject={(projectId) => void loadProject(projectId)}
-          onChangeStatus={(next) => {
-            if (commandTarget) changeStatus(commandTarget, next);
-          }}
-          onChangePriority={(next) => {
-            if (commandTarget) changePriority(commandTarget, next);
-          }}
-          onToggleStar={() => void toggleStar(project)}
-          onToggleAppearance={() =>
-            setAppearance(
-              appearance === "system"
-                ? "light"
-                : appearance === "light"
-                  ? "dark"
-                  : "system",
-            )
-          }
-          onTheme={(theme) => void changeTheme(project, theme)}
-          onView={(next) => setView(next)}
-          view={view}
-          onArchive={() => {
-            if (commandTarget)
-              setArchived(commandTarget, !isArchived(commandTarget));
-          }}
-          onOrdering={(next) => updateWorkspace({ ordering: next })}
-          today={today}
-          onChangeProperty={(property, next) => {
-            if (commandTarget) changeProperty(commandTarget, property, next);
-          }}
-          searchResults={paletteSearchResults}
-          onSearch={(query) => {
-            if (!activeProjectId) return;
-            void searchTickets(activeProjectId, query)
-              .then((result) => setPaletteSearchResults(result.tickets))
-              .catch((error) => setError(normalizeError(error)));
-          }}
-        />
-      )}
-
-      <ToastStack />
-    </main>
+        <ToastStack />
+      </main>
+      {/* Last in the DOM, so it is last in the tab order: the bar's controls
+          come after the header's, which is what `keyboard-focus-map.md` § The
+          status bar records. */}
+      <StatusBar
+        update={update}
+        stars={stars}
+        onUpdate={(opener) => {
+          // The opener, so `Esc` comes back here rather than to the gear a
+          // reader never touched — the same contract the footer link had.
+          settingsOpener.current = opener;
+          setSettingsSection("updates");
+        }}
+      />
+    </div>
   );
 }
 
 /**
- * The Board | List segment in the content header (`screen-specs.md:69`). A pair
+ * The Board | List segment in the content header (`screen-specs.md:83`). A pair
  * of buttons rather than a radio group: each one is a place to go, and `pressed`
  * is what says which one you are standing in.
  *
@@ -3318,7 +3321,7 @@ function ProjectSection(props: {
             >
               {/* The dot carries the project's own preset, so a row can show a
                   theme this window is not currently wearing. Unreachable swaps
-                  it for the warn triangle (`screen-specs.md:60`) — said in
+                  it for the warn triangle (`screen-specs.md:74`) — said in
                   words too, because a glyph is never the only channel. */}
               {project.reachable ? (
                 <ThemeDot theme={project.theme} />
@@ -3430,7 +3433,7 @@ function ErrorBanner(props: { error: AppError }) {
 }
 
 /**
- * First launch (`screen-specs.md:88-110`, `states.md:22-27`), as one centered
+ * First launch (`screen-specs.md:102-124`, `states.md:22-27`), as one centered
  * column and two steps.
  *
  * It was one step in two columns: copy on the left and a create form always on
@@ -3483,7 +3486,7 @@ function Welcome(props: {
   return (
     <section className="welcome-panel">
       {/* 52px mark, display greeting, and the trust line the spec closes this
-          screen with (`screen-specs.md:90-94`). This is also the no-projects
+          screen with (`screen-specs.md:104-108`). This is also the no-projects
           state — there is no separate empty app screen and no account step
           anywhere in the flow. */}
       <OwlMark size={52} />
@@ -3528,7 +3531,7 @@ function Welcome(props: {
 }
 
 /**
- * The no-match state (`states.md:37-41`, `screen-specs.md:164-165`): a centered
+ * The no-match state (`states.md:37-41`, `screen-specs.md:178-179`): a centered
  * panel, the query echoed back, and a secondary Clear filter that `Esc` also
  * reaches. The one state that stands *instead of* the surfaces — the
  * empty-project guide (`GuideCard.tsx`) stands inside them.

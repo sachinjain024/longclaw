@@ -3,7 +3,7 @@ format: longclaw.ticket/v1
 id: 566fa940-7de2-453c-8afe-85ec5b5543b8
 key: LC-257s
 title: Show a GitHub star control, with star count, in the app chrome
-status: todo
+status: in_review
 priority: none
 labels:
   - frontend
@@ -11,7 +11,7 @@ labels:
   - design
 type: feature
 created_at: 2026-09-16T07:40:54.137Z
-updated_at: 2026-09-19T13:29:01.450Z
+updated_at: 2026-09-21T15:04:01.259Z
 ---
 
 A persistent star control in the app chrome, showing the repository's live star
@@ -106,14 +106,14 @@ it.
 ## Checklist
 
 - [x] Decide and write down the amended network contract (blocked on LC-256a's ADR) <!-- longclaw:item=ck_7ae24e80 -->
-- [ ] Rust command to open the repository; the webview names no URL <!-- longclaw:item=ck_27e27fea -->
-- [ ] Rust-side star-count fetch, cached in device preferences with its timestamp <!-- longclaw:item=ck_df29f281 -->
-- [ ] Design the no-count state first; the count is the enhancement <!-- longclaw:item=ck_48fbeacb -->
-- [ ] Star glyph as an SVG in the app's glyph set, under glyph-drift-guard <!-- longclaw:item=ck_ec86bdc3 -->
-- [ ] Place it in the app chrome with an explicit tabIndex <!-- longclaw:item=ck_b667f847 -->
-- [ ] Copy deck: the label, the count format, and the aria-label <!-- longclaw:item=ck_4788c646 -->
-- [ ] Run probe:header at every window width; quote the run <!-- longclaw:item=ck_2fcae634 -->
-- [ ] Run a11y:audit, including the A5 row; quote the run <!-- longclaw:item=ck_9890ef90 -->
+- [x] Rust command to open the repository; the webview names no URL <!-- longclaw:item=ck_27e27fea -->
+- [x] Rust-side star-count fetch, cached in device preferences with its timestamp <!-- longclaw:item=ck_df29f281 -->
+- [x] Design the no-count state first; the count is the enhancement <!-- longclaw:item=ck_48fbeacb -->
+- [x] Star glyph as an SVG in the app's glyph set, under glyph-drift-guard <!-- longclaw:item=ck_ec86bdc3 -->
+- [x] Place it in the app chrome with an explicit tabIndex <!-- longclaw:item=ck_b667f847 -->
+- [x] Copy deck: the label, the count format, and the aria-label <!-- longclaw:item=ck_4788c646 -->
+- [x] Run probe:header at every window width; quote the run <!-- longclaw:item=ck_2fcae634 -->
+- [x] Run a11y:audit, including the A5 row; quote the run <!-- longclaw:item=ck_9890ef90 -->
 
 ## Attachments
 
@@ -262,4 +262,95 @@ One grammar note that rides on the same decision: `github.star.aria.count` says 
 - **`ck_ec86bdc3`** is GitHub's mark, not a star glyph. `.star-mark` already draws ★ at 11px `ink-2` on starred project rows in the same window, which is why this control leads with the GitHub mark instead of a second star.
 
 The prototype now opens on this design — scene G, labelled shape — and the live fetch decides whether a number appears, which is the behaviour worth watching.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_edba2993
+kind: update
+occurred_at: 2026-09-21T15:04:01.259Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: in_review
+  - field: checklist.ck_27e27fea.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_df29f281.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_48fbeacb.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_ec86bdc3.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_b667f847.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_4788c646.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_2fcae634.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_9890ef90.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+
+Built, on `lc-257s-github-star-prototype`. The settled design from the comment above — variant G, the ghost shape, with the count — is in `src/`.
+
+## What landed
+
+**The chrome.** `.app-frame` wraps the shell and the new `.app-statusbar`: 26px, full width, hairline top, `--lc-bg`. It is a flex column rather than a fourth row on `.app-shell`'s grid, because that grid is three columns of panels whose children auto-place — a fourth in-flow child would take a cell beside them rather than a row under them. `StatusBar.tsx` renders on both shells, the welcome screen included, which was the argument for this placement over the content header.
+
+The version and `Update` moved out of `.side-panel-footer`. `UPDATE_COPY.footer` is unchanged; only its address is.
+
+**The count.** `github.rs` holds the decisions — one address, one 24-hour slot counted in Rust, a 5-second budget, and a failure that claims nothing — behind a `StarSource` port. `github_client.rs` is the syscall half and the only shipped Rust file that may name an HTTP client. The frontend caches the count and its timestamp in device preferences, so the number is on screen on the frame the control mounts rather than a frame after the network answers.
+
+**The floor is 50** (`STAR_FLOOR`, `github.ts`), so today the control ships as a bare mark. That is the designed behaviour and the thing worth arguing with.
+
+## The network amendment
+
+[ADR 0015](../../../docs/adr/0015-the-star-count-rides-the-update-path.md) — the star count is a second *caller* on ADR 0014's road, not a second road. It uses the `reqwest` the updater already compiles in, declared directly with `default-features = false` and no feature the updater had not already asked for. **The graph is unchanged**: `Cargo.lock` gained one line, `cargo tree` shows no new crate, and `h2` and `encoding_rs` — which reqwest's defaults would have pulled in — are still absent.
+
+That still widened the ancestry rule by one crate at one place, so three controls were added to pay for it, each inverted by `--self-test`:
+
+- **The client's features are frozen.** `release-audit.mjs` reads the declaration and fails on defaults or on a feature beyond the pair the updater asks for. Without this the amendment would be a sentence rather than a fact — reqwest's defaults really do pull a crate the audit's own list forbids.
+- **The set of network-capable crates is frozen**, in both directions. A new arrival is a finding even when its ancestry passes; so is a departure, because a frozen set that has quietly shrunk asserts more than the build contains.
+- **The app root admits a direct dependency only.** It is the root of every ancestry, so "somewhere above" there would have permitted the client at any depth. Caught by its own self-test case before it shipped.
+
+Two existing controls now cover one more thing: `release-audit.mjs` reads `REPOSITORY_URL`, `API_URL` and `API_HOST` out of `github.rs` and checks scheme, host and agreement the way it checks the updater's configured endpoints; and the "no Rust HTTP client" source rule became *narrower*, naming the one file that may.
+
+`api.github.com` joins `perf/network-audit.mjs`'s host list and both acceptance rows.
+
+## The runs
+
+```
+npm run verify                  exit 0
+npm run probe:header            140/140 checks passed
+npm run a11y:audit              Part A passes: A1…A8
+npm run a11y:audit --self-test  every row went red against its injected break
+```
+
+`probe:header` is the one worth quoting in full, because it is the measurement that chose this placement: `filter 380→120px since 1440px`, `header ends at 760 of 760px`, `controls 30px/30px; header 62px quiet → 62px`. Identical to before — G adds a row rather than widening one, so the header this probe watches did not move. That was the prediction recorded above, made before the run.
+
+**A7 gained three checks and a second injected break.** The row used to assert the link was the stop straight after `Open folder`; it now asserts the link comes after the header, the star is the stop after it and the last in the shell, and the star says what it is. One injection would have left the new checks unable to fail, so the self-test also strips the star's `aria-label` — both new checks go red under it and green without.
+
+## Spec changes
+
+- `screen-specs.md` § App shell: the diagram gained the bar, in place, and a **Status bar** bullet was added.
+- `keyboard-focus-map.md`: rule 1's shell order was rewritten in place, § Updates renamed, and a new § The status bar added.
+- Both are `citation-guard` documents, so ~290 citations were re-pointed by the offsets the guard itself named, and the lock re-pinned afterwards. Completed plans and `cc_screens_diff.md` were deliberately left alone — the guard's own comment says their line numbers are part of the record.
+
+## Still open
+
+`github.star.floor`. Nothing here settles it, and the code makes it a one-line change (`STAR_FLOOR`). Worth reading `ADR 0015` § *The count is not the control* before deciding: at the live count of 1 this feature ships the bare link the ticket rejected, and the expensive half buys nothing until the repository clears 50.
+
+`github.palette.label` — the keyboard twin — is not built. It was never decided, and it is one palette row whenever it is.
 <!-- /longclaw:event -->

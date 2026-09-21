@@ -33,6 +33,18 @@ chrono = { version = "0.4", features = ["serde"] }
 hex = "0.4"
 notify = "8"
 parking_lot = "0.12"
+# The updater's own HTTP client, declared rather than borrowed in silence
+# (LC-257s, ADR 0015).
+#
+# **`default-features = false` is load-bearing, not tidiness.** reqwest's
+# defaults are `default-tls`, `charset`, `http2` and `system-proxy`;
+# `tauri-plugin-updater` turns none of them on, so declaring this crate the
+# ordinary way pulls `h2`, `encoding_rs` and more into a binary that has never
+# had them — and `h2` is on `release-audit.mjs`'s own list of crates that must
+# not arrive. Declared this way the feature union is unchanged, and so are the
+# linked frameworks and the imported socket calls. `binary-audit.mjs` is what
+# holds that claim; this comment only says why it still holds.
+reqwest = { version = "0.13", default-features = false, features = ["json"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"

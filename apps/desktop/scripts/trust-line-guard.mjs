@@ -4,7 +4,7 @@
  * `.trust-line` is the only rule that decides its face.
  *
  * `no account · no cloud · your files, on your disk` is set in mono by the
- * spec (`screen-specs.md:93-94`) and by `.trust-line`, which has always asked
+ * spec (`screen-specs.md:107-108`) and by `.trust-line`, which has always asked
  * for a mono token. It rendered in the UI face on the welcome screen anyway
  * (`cc_screens_diff.md` D-16, LC-82), and the reason is the whole point of this
  * script: the subtitle above it was styled as `.welcome-copy p`, which matched
@@ -132,7 +132,7 @@ if (family === null) {
 } else if (!/mono/i.test(stack)) {
   findings.push(
     `.trust-line resolves ${family} to \`${stack}\`, which is not the mono ` +
-      "stack (`screen-specs.md:93-94`)",
+      "stack (`screen-specs.md:107-108`)",
   );
 }
 

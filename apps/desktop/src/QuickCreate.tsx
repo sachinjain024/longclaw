@@ -1,7 +1,7 @@
 /**
  * Quick create: title, description, status, priority, labels and whichever
  * opt-in properties the project turned on — and a loop
- * (`screen-specs.md:253-262`).
+ * (`screen-specs.md:267-276`).
  *
  * It used to ask for six fields, which made it the only create surface and made
  * it the wrong one — labels in particular were a comma-separated text box, typed
@@ -107,7 +107,7 @@ interface QuickCreateProps {
   today: number;
   /**
    * The status the modal opens on — "defaults Todo; preseeded from a column
-   * `+`" (`screen-specs.md:257`). A board column's `+` chooses it, so
+   * `+`" (`screen-specs.md:271`). A board column's `+` chooses it, so
    * the create starts in the column it was pressed in.
    */
   initialStatus?: TicketStatus;
@@ -312,7 +312,7 @@ export function QuickCreate(props: QuickCreateProps) {
           onChange={(event) => setDescription(event.target.value)}
         />
         {/* Status then priority, which is the meta grid's order in the panel
-            and in full create (`screen-specs.md:229`). Both wear D-49's bare
+            and in full create (`screen-specs.md:243`). Both wear D-49's bare
             trigger: the rule is on `.quick-create-meta .menu-trigger`, so the
             second one is bare for the same reason the first is. */}
         <div className="quick-create-meta">

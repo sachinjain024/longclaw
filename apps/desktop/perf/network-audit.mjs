@@ -309,14 +309,22 @@ function lsofSample(pids) {
 /* ---------- the one sanctioned peer (LC-256a, ADR 0014) ---------- */
 
 /**
- * The hosts the update check may speak to, and nothing else.
+ * The hosts this app may speak to, and nothing else.
  *
- * The same two names `update.rs` holds and `release-audit.mjs` checks the
- * configured endpoints against. Three copies of one list is two too many, and
- * they are pinned to each other by the acceptance document rather than by an
- * import, because these three files have no build step in common.
+ * The first two are the update check's, held in `update.rs` and checked against
+ * the configured endpoints by `release-audit.mjs`. The third is the star
+ * count's (LC-257s, ADR 0015): it is never an updater endpoint and never
+ * appears in `tauri.conf.json` — it is `github.rs`'s own `API_HOST`, which
+ * `release-audit.mjs` reads out of the source and checks the same way.
+ *
+ * Copies of one list are pinned to each other by the acceptance document rather
+ * than by an import, because these files have no build step in common.
  */
-const ALLOWED_UPDATE_HOSTS = ["github.com", "objects.githubusercontent.com"];
+const ALLOWED_UPDATE_HOSTS = [
+  "github.com",
+  "objects.githubusercontent.com",
+  "api.github.com",
+];
 
 /**
  * Every address those names resolve to right now.

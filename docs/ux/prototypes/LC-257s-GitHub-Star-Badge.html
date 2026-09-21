@@ -1032,7 +1032,7 @@ function sidePanel(placement) {
 
 /* --------------------------------------------------------- the content header
  * `App.tsx`'s band: filter field, ordering control, view segment, `New ticket`
- * — the four `screen-specs.md:67-69` names, in that order — and, in variant C,
+ * — the four `screen-specs.md:81-83` names, in that order — and, in variant C,
  * a fifth control after them.
  */
 function contentHeader(withStar) {
@@ -1272,7 +1272,7 @@ const NOTES = {
     'Switch the count to <code>no number</code> and watch what each shape does with it. The ghost keeps saying <code>Star on GitHub</code> and simply loses its number; the pill has no words to fall back on and takes <code>github.star.pill.nocount</code> instead. Given the floor, and given how often a count will be missing, that fallback is not an edge case — it is the shape the pill will wear most of the time until the repository grows.'
   ],
   c: [
-    'The literal reading of “the app chrome”, drawn at three widths the window can actually be. <code>screen-specs.md:67-69</code> names this row’s four controls in order and <code>citation-guard</code> pins those lines, so a fifth is a spec edit as well as a code edit.',
+    'The literal reading of “the app chrome”, drawn at three widths the window can actually be. <code>screen-specs.md:81-83</code> names this row’s four controls in order and <code>citation-guard</code> pins those lines, so a fifth is a spec edit as well as a code edit.',
     '<strong>Read the measurement, not the picture.</strong> These are mocks of the header’s controls, and a mock’s labels are not the app’s to the pixel — this row measures some 40px wider than the shipped one, which is why even the bottom band, the row as it ships <em>today</em>, is drawn overflowing a width that <code>probe:header</code> says is fine. The overflow figures below are therefore this page’s arithmetic and <em>not</em> a verdict on the app. The one number that carries over is the last one: the star’s own width, plus the gap before it, is the same here as it would be there.',
     'That width comes out of the filter field first. The field is <code>flex: 1 1 240px</code> with a <code>max-width: 380px</code> and a <code>120px</code> floor, so the star eats its growth at 1180px and pushes against its floor at 760px — and once the floor is reached the row has nothing left to give. The sub-760px wrap rule is a viewport media query and these bands are boxes, so it does not fire here either. <code>probe:header</code> at every width from 1440 down to 760, and <code>a11y:audit</code>’s A5 row, are what actually decide this.',
     'The other objection is not about width at all: this band is absent when a project is unreachable and absent on the welcome screen, so “always visible” fails precisely where a brand-new user is standing.'
