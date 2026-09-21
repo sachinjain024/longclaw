@@ -93,7 +93,7 @@ import { mutate, type Mutation, useMutationStore } from "./mutations";
 import { ORDERINGS, type OrderingMode } from "./ordering";
 import { OwlMark } from "./OwlMark";
 import { splitPath, tildeAbbreviate } from "./pathDisplay";
-import { moveOf, type ProjectLanding } from "./projectOrder";
+import { sectionMoveOf, type ProjectLanding } from "./projectOrder";
 import { ProjectSettings } from "./ProjectSettings";
 import { QuickCreate } from "./QuickCreate";
 import type { FocusRequest } from "./rovingFocus";
@@ -1498,9 +1498,9 @@ export function App() {
   /**
    * What a move says, in the section the gesture happened in.
    *
-   * `moveOf` is handed **Local** as well, because Starred draws some of the
-   * same rows and the place it decides is a place in Local either way — a row's
-   * number is its position there, wherever the row was dragged.
+   * `sectionMoveOf` is handed **Local** as well, because Starred draws some
+   * of the same rows and the place it decides is a place in Local either way —
+   * a row's number is its position there, wherever the row was dragged.
    */
   function moveWithin(
     section: ProjectReference[],
@@ -1508,7 +1508,7 @@ export function App() {
     landing: number,
   ) {
     const moving = localProjects.find((project) => project.id === projectId);
-    const decided = moveOf(
+    const decided = sectionMoveOf(
       localProjects.map((project) => project.id),
       section.map((project) => project.id),
       projectId,
@@ -3173,7 +3173,7 @@ function ProjectSection(props: {
   // not differ are five of them, and a third copy is where that stops being a
   // pattern and starts being duplication. A `useRowDrag({ rowSelector, idAt,
   // length, onMove })` would collapse all three; it is not done here because
-  // the other two surfaces are not this ticket's to move.
+  // the other two surfaces are not this ticket's to move, and is LC-263v.
   const [dragId, setDragId] = useState<string>();
   const [dropGap, setDropGap] = useState<number>();
   /** One row has nowhere to go, and nothing to be let go between. */

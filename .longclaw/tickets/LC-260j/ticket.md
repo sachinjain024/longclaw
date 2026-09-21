@@ -11,7 +11,7 @@ labels:
   - design
 type: feature
 created_at: 2026-09-17T00:43:00.866Z
-updated_at: 2026-09-21T10:23:47.079Z
+updated_at: 2026-09-21T12:45:31.495Z
 ---
 
 Drag a project row in the sidebar to put it where you want it. The `⌘1`–`⌘9`
@@ -157,9 +157,10 @@ of projects. Every row is new.
 | `sidebar.move.toast.unbound` | write feedback · live region | the same, when {n} is past the ninth place | Moved {name} to {n} of {total} · no shortcut |
 | `sidebar.move.undo` | button | on that toast, as every write's is | Undo ⌘Z |
 | `sidebar.row.keys` | aria-keyshortcuts | every project row that can be moved | Meta+{n} Alt+ArrowUp Alt+ArrowDown |
+| `sidebar.row.keys.unbound` | aria-keyshortcuts | the same, on a row past the ninth place | Alt+ArrowUp Alt+ArrowDown |
 | `settings.shortcuts.project` | shortcut row | Settings → Shortcuts (**changed**) | Switch to the nth project in the sidebar's Local list |
 
-Four rows need their reasoning kept:
+The reasoning worth keeping:
 
 - The toast **is** the announcement. `ToastStack` is `role="status"
   aria-live="polite"`, so the live region this ticket asks for is the one the
@@ -172,6 +173,13 @@ Four rows need their reasoning kept:
   glyph, no menu row and no label — the row is its own drag handle, at 28px
   inside a 216px panel with nowhere to put a grip — so without this the only way
   to learn a focused row can be moved is to press `⌥↓` and watch.
+- `sidebar.row.keys.unbound` is the same string with the half that would be a
+  lie taken out. `Meta+{n}` past the ninth place names a chord that does not
+  exist, and a row advertising a key that does nothing is worse than one
+  advertising nothing: the two Alt keys are true of every movable row, and the
+  chord is true of nine. It is the same pairing as the two toasts, for the same
+  boundary, and it is what an assistive technology reads out for the rows below
+  it.
 - `settings.shortcuts.project` was *"in the sidebar"*, which was true of a list
   nobody could rearrange. The number counts **Local**, and Starred is the same
   rows pinned above it, so a reader counting from the top of the panel was
@@ -203,6 +211,14 @@ Four rows need their reasoning kept:
   the row that crosses the ninth place.
 - `keyboard-focus-map.md` gains § The sidebar's project rows; its § Not bound in
   v0 now says which lists the unbound reorder is about.
+- `CONTEXT.md` gains **Project chord**. The word carries the toast, the settings
+  row and this ticket's title, and the glossary defined no such term — the entry
+  says the thing the whole ticket turns on, that a chord is a consequence of a
+  position rather than something a row is given, so it is lost and gained by
+  rows that did not move.
+- The sidebar's landing function is `sectionMoveOf`, not a second `moveOf`.
+  `checklistOrder.ts` exports one already; two modules spelling one name for two
+  different questions is an import a reader gets wrong silently.
 
 ## Checklist
 
@@ -539,4 +555,67 @@ allocate against nothing and be a second authority over the order. No finding
 under (c): nothing implemented wrongly.
 
 `npm run verify` exits 0 again; `a11y:audit` A1–A8 PASS.
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_6efc1228
+kind: update
+occurred_at: 2026-09-21T12:45:31.495Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: description
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_99068cd9
+kind: comment
+occurred_at: 2026-09-21T13:05:35.697Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Second round, from the review on PR #55. It found no hard violation and nothing
+missing; all four findings were judgement calls, and three of them were worth
+acting on.
+
+**The glossary gap is the one that mattered.** *Chord* carries this ticket's
+title, its toast and its settings row, and `CONTEXT.md` defined no such term —
+`docs/agents/domain.md` asks that an absent-but-needed concept be noted rather
+than used. It is a term now, and the entry says the thing this ticket actually
+turns on: a chord is a consequence of a position, not something a row is given,
+which is why a row that never moved can lose one.
+
+**`moveOf` is `sectionMoveOf` here.** `checklistOrder.ts` exports a `moveOf`
+too, with different arguments and a different return, and two modules spelling
+one name for two questions is an import a reader gets wrong in silence. The
+arities differ today, so the compiler would catch it today; that is luck rather
+than design. The header says why the names diverge.
+
+**The copy deck had a row the code ships and the deck did not.** A row past the
+ninth place advertises `Alt+ArrowUp Alt+ArrowDown` with no `Meta+{n}` — correct,
+since the chord does not exist, but the deck's one `sidebar.row.keys` row
+implied every movable row names a chord. `sidebar.row.keys.unbound` is now
+written down, paired with its toast at the same boundary. This is the copy an
+assistive technology reads out for every row below the ninth, and it had never
+been reviewed as copy.
+
+**The third copy of the drag wiring is filed, not fixed** — LC-263v. Collapsing
+it means editing `TicketPanel.tsx` and `CreatePanel.tsx`, which are not this
+ticket's to move, and a refactor of three drag surfaces wants its own
+`probe:drag` run rather than a ride on this one. The note at the third copy now
+names the key.
+
+`npm run verify` exits 0. `probe:drag` re-run because `projectOrder.ts` is one
+of the files whose rule says to — the rename is a no-op only if the gesture
+still lands the same row in the same place: **94/94**, and `sidebar-starred`
+green on all six, `Fixture 02` still coming to rest immediately after
+`Fixture 05` in Local with every badge its row's place.
 <!-- /longclaw:event -->

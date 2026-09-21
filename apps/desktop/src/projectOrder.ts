@@ -20,6 +20,14 @@
  * A landing is stated as an index here and as a *neighbour* on the wire — the
  * write says "after `zebra`", never "at 3". An index is a claim about the whole
  * list, and the registry is the one authority over that (`registry.rs`).
+ *
+ * The decision here is `sectionMoveOf` rather than a second `moveOf` on
+ * purpose. The two answer different questions from different arguments — a
+ * checklist's move is a pair of indices into one list, this one is a place in
+ * one of two sections that draw the same rows — and a name spelled the same in
+ * two modules is one a caller imports the wrong half of and learns about from
+ * a type error, if the arities happen to differ, and from a wrong order if
+ * they ever do not.
  */
 
 /** Where a row comes to rest, and everything the surfaces need to say so. */
@@ -57,7 +65,7 @@ export interface ProjectLanding {
  * write puts back, so the two are one thing on purpose: the order the sidebar
  * returns to when the file says no is the order `⌘Z` returns it to.
  */
-export function moveOf(
+export function sectionMoveOf(
   localIds: readonly string[],
   sectionIds: readonly string[],
   movingId: string,

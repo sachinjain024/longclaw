@@ -67,3 +67,7 @@ _Avoid_: Field, attribute, metadata, custom field
 **Sidebar order**:
 Where a project's row sits in the sidebar, which `⌘1`–`⌘9` selects a project by. A new project joins it last and the human rearranges it by hand — by dragging a row or with `⌥↑`/`⌥↓` on it ([LC-260j](.longclaw/tickets/LC-260j/ticket.md)) — and nothing else moves a row: it is not a function of the name, so renaming a project moves none ([LC-259y](.longclaw/tickets/LC-259y/ticket.md)). The registry owns it and persists it as each reference's `order`; `longclaw.yaml` does not hold it, so a reference rebuilt from a project file carries none.
 _Avoid_: Rank, sort order
+
+**Project chord**:
+`⌘1`–`⌘9`, which opens the project sitting at that place in the sidebar's **Local** list. Nine is the whole set and the place is the **Sidebar order**, so a row is not assigned a chord and cannot be given one: it has the chord its position implies, loses it by being moved or pushed past the ninth place, and gains one by arriving above it ([LC-260j](.longclaw/tickets/LC-260j/ticket.md)). The number a row shows is the chord that opens it — one fact drawn twice, not a badge and a shortcut that have to be kept in agreement.
+_Avoid_: Hotkey, accelerator, project number
