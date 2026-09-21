@@ -63,3 +63,7 @@ _Avoid_: Input, control, box
 **Property**:
 A named value in a ticket's frontmatter that says something about the work rather than identifying the ticket — `status`, `priority` and `labels`, joined by `type`, `due`, `start` and `estimate` where a project enables them ([ADR 0013](docs/adr/0013-property-configuration-lives-in-longclaw-yaml.md)). Not a **Field**: a property is what the ticket stores and a field is one of the controls that edits it, while `id`, `key` and `created_at` are identity and neither.
 _Avoid_: Field, attribute, metadata, custom field
+
+**Sidebar order**:
+Where a project's row sits in the sidebar, which is the order the projects were registered in and which `⌘1`–`⌘9` selects a project by. The registry owns it and persists it as each reference's `order`; `longclaw.yaml` does not hold it, so a reference rebuilt from a project file carries none. It is not a function of the name — renaming a project moves no row ([LC-259y](.longclaw/tickets/LC-259y/ticket.md)) — and v0 offers no way to rearrange it by hand.
+_Avoid_: Rank, sort order

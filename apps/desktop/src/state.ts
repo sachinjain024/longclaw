@@ -122,8 +122,10 @@ function reachableAgain(
  * Removing a project leaves a hole in the numbers — the registry closes it and
  * this list has to close it too, or the next reference the registry hands back
  * carries a place this list no longer agrees with and the row moves (LC-259y).
- * The array's identity is preserved when nothing changes, so an ordinary write
- * does not re-render every surface that watches the project list.
+ * A row already sitting at its index is returned as it stands, so an ordinary
+ * write allocates no new reference for a project it did not touch. The array
+ * itself is new either way — both callers build one before calling — so this
+ * holds element identity, not the list's.
  */
 function renumbered(projects: ProjectReference[]): ProjectReference[] {
   if (projects.every((project, index) => project.order === index))

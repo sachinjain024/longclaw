@@ -35,10 +35,15 @@ pub struct ProjectReference {
     /// that registering `Admin`, or renaming `Work` to `Acme`, renumbered every
     /// project it passed (LC-259y).
     ///
-    /// `default` is also the migration. A registry written before this field
-    /// existed reads 0 for every entry, `RegistryStore::load` sorts stably, and
-    /// so the order the file is already in survives untouched — which is the
-    /// order those users have in their fingers.
+    /// `default` is what lets a registry written before this field existed load
+    /// at all, but it is not the migration: it cannot tell an entry that says
+    /// `"order": 0` from one that says nothing, so every old entry reads 0 and
+    /// 0 is not an answer. `RegistryStore::load` works the answer out instead —
+    /// `read_registry` asks the file which entries declared a place, and
+    /// `as_drawn` puts the ones that did not back in the order their build
+    /// *drew* them. Deliberately not the order it *wrote* them: those were two
+    /// different lists, and the one somebody has in their fingers is the one
+    /// that was on the screen.
     #[serde(default)]
     pub order: u32,
     /// Label definitions keyed by slug, so every surface holding a project

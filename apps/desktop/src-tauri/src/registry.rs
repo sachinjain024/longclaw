@@ -411,9 +411,11 @@ fn read_registry(
         .with_context("path", path.display().to_string())
         .with_context("backupPath", backup_path.display().to_string())
     };
-    // Read twice rather than once, because `serde(default)` cannot tell an entry
-    // that says `"order": 0` from one that says nothing: the first pass asks the
-    // file which entries declared a place at all.
+    // Through a `Value` rather than straight into the struct, because
+    // `serde(default)` cannot tell an entry that says `"order": 0` from one that
+    // says nothing, and the difference is the whole migration. The bytes are
+    // still lexed once; what this adds is a tree to ask that question of, and
+    // one walk of it to build the references from.
     let entries: Vec<serde_json::Value> = serde_json::from_slice(bytes).map_err(invalid)?;
     let declared: Vec<bool> = entries
         .iter()
@@ -446,11 +448,22 @@ fn read_registry(
 /// sidebar of everyone whose projects are not cased alike, which is the exact
 /// defect this field exists to prevent (LC-259y).
 ///
-/// `localeCompare`'s default collation is reproduced as far as a project name
-/// goes: case-insensitive first, then lowercase before uppercase where two names
-/// differ only in case. Accents and scripts outside Latin can still fall
-/// elsewhere than ICU would put them. It runs on the one launch that migrates a
-/// registry and never again.
+/// `localeCompare`'s collation is reproduced as far as an unaccented name goes:
+/// case-insensitive first, then lowercase before uppercase where two names
+/// differ only in case. A pair that differs first at an accented or non-Latin
+/// letter can land elsewhere than ICU would put it, and that is a decision
+/// rather than an omission — `localeCompare` with no locale argument collates in
+/// the *webview's* locale, so there is no single order to reproduce. A Swedish
+/// sidebar drew `Åsa` after `Zebra`, because `Å` is the last letter of that
+/// alphabet rather than a marked `A`; a French one drew it among the `A`s.
+/// Comparing the lowercased codepoints, as this does, gives the Swedish answer,
+/// and folding the mark away would give the French one; nothing here can tell
+/// which sidebar this file came off, because the locale that drew it belonged to
+/// a webview that does not exist yet when the registry loads. Getting it right
+/// would mean collating in the frontend and writing the order back, which is a
+/// second authority over the order and the thing this field exists to end. It
+/// runs on the one launch that migrates a registry and never again, and what it
+/// can get wrong is one row against another whose names disagree only there.
 fn as_drawn(left: &str, right: &str) -> std::cmp::Ordering {
     left.to_lowercase()
         .cmp(&right.to_lowercase())
