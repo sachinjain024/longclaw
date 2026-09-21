@@ -147,6 +147,17 @@ export interface ProjectReference {
   /** False when the folder has moved or gone. The project stays listed. */
   reachable: boolean;
   /**
+   * Where the row sits in the sidebar: registration order, held as a stored
+   * fact rather than derived from the name (LC-259y). `⌘1`–`⌘9` is a row's
+   * position in **Local**, so a project whose place moved took somebody's
+   * shortcut with it — which is what sorting by name did on every registration
+   * and every rename.
+   *
+   * The registry is the one authority. Nothing on this side sorts by name, and
+   * the only sort left is by this.
+   */
+  order: number;
+  /**
    * Label definitions from `longclaw.yaml`, keyed by slug. Read fresh from the
    * project file on every list, find, and open. A slug a ticket carries that is
    * not defined here is preserved on disk and rendered as itself.

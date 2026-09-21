@@ -29,6 +29,23 @@ pub struct ProjectReference {
     #[serde(default)]
     pub starred: bool,
     pub reachable: bool,
+    /// Where the row sits in the sidebar, which is the order it was registered
+    /// in. `⌘1`–`⌘9` is a row's *position* in that list, so the order has to be
+    /// a stored fact rather than a function of the name: sorting by name meant
+    /// that registering `Admin`, or renaming `Work` to `Acme`, renumbered every
+    /// project it passed (LC-259y).
+    ///
+    /// `default` is what lets a registry written before this field existed load
+    /// at all, but it is not the migration: it cannot tell an entry that says
+    /// `"order": 0` from one that says nothing, so every old entry reads 0 and
+    /// 0 is not an answer. `RegistryStore::load` works the answer out instead —
+    /// `read_registry` asks the file which entries declared a place, and
+    /// `as_drawn` puts the ones that did not back in the order their build
+    /// *drew* them. Deliberately not the order it *wrote* them: those were two
+    /// different lists, and the one somebody has in their fingers is the one
+    /// that was on the screen.
+    #[serde(default)]
+    pub order: u32,
     /// Label definitions keyed by slug, so every surface holding a project
     /// reference can render a chip for a slug a ticket carries.
     ///
@@ -54,8 +71,15 @@ impl ProjectReference {
             root_path,
             key: project.key.clone(),
             theme: project.theme.clone(),
-            starred: false,
             reachable: true,
+            // A reference built from a project file knows neither of these:
+            // `longclaw.yaml` holds the name, the theme and the labels, and
+            // `RegistryStore` holds the star and the place. It assigns both
+            // when it remembers the project — so a reference that never went
+            // through it, such as the one the engine rebuilds for a snapshot,
+            // reads unstarred and first, and must not be adopted whole.
+            starred: false,
+            order: 0,
             labels: project.labels.clone(),
             properties: project.properties.clone(),
         }
@@ -465,6 +489,7 @@ mod json_contract_tests {
             theme: "indigo".to_owned(),
             starred: false,
             reachable: true,
+            order: 0,
             properties: PropertiesConfig::default(),
             labels: BTreeMap::from([(
                 "reliability".to_owned(),

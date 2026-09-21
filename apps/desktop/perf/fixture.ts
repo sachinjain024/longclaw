@@ -26,6 +26,7 @@ export const PROJECT: ProjectReference = {
   theme: "indigo",
   starred: false,
   reachable: true,
+  order: 0,
   labels: {},
   properties: NO_PROPERTIES,
 };

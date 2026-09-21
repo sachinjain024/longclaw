@@ -3,7 +3,7 @@ format: longclaw.ticket/v1
 id: b3dfbe39-3a24-45b3-b735-b0a5548ede68
 key: LC-259y
 title: A new project should join the sidebar last, not in name order
-status: todo
+status: done
 priority: p2
 labels:
   - platform
@@ -11,7 +11,7 @@ labels:
   - product
 type: bug
 created_at: 2026-09-17T00:42:18.652Z
-updated_at: 2026-09-17T00:43:13.201Z
+updated_at: 2026-09-21T08:09:35.149Z
 ---
 
 A new project lands in the sidebar wherever its name sorts, not at the bottom.
@@ -116,14 +116,14 @@ about.
 
 ## Checklist
 
-- [ ] Add an explicit order field to ProjectReference, with serde(default) <!-- longclaw:item=ck_8fbe1774 -->
-- [ ] Registration appends after every existing project <!-- longclaw:item=ck_4ebce917 -->
-- [ ] Remove the name sort in registry.rs:301 <!-- longclaw:item=ck_ea0b2176 -->
-- [ ] Remove sortedProjects in App.tsx:201; leave exactly one authority for the order <!-- longclaw:item=ck_dee42cb4 -->
-- [ ] Seed the field on migration from the registry's existing order so nobody is renumbered on upgrade <!-- longclaw:item=ck_58900743 -->
-- [ ] Renaming a project moves no row and changes no chord <!-- longclaw:item=ck_1040eff4 -->
-- [ ] Starred, unreachable and removed projects keep their existing numbering behaviour <!-- longclaw:item=ck_1534c364 -->
-- [ ] Tests: registration order, rename, migration from a file with no order field, star/unreachable <!-- longclaw:item=ck_8f80c4c2 -->
+- [x] Add an explicit order field to ProjectReference, with serde(default) <!-- longclaw:item=ck_8fbe1774 -->
+- [x] Registration appends after every existing project <!-- longclaw:item=ck_4ebce917 -->
+- [x] Remove the name sort in registry.rs:301 <!-- longclaw:item=ck_ea0b2176 -->
+- [x] Remove sortedProjects in App.tsx:201; leave exactly one authority for the order <!-- longclaw:item=ck_dee42cb4 -->
+- [x] Seed the field on migration from the registry's existing order so nobody is renumbered on upgrade <!-- longclaw:item=ck_58900743 -->
+- [x] Renaming a project moves no row and changes no chord <!-- longclaw:item=ck_1040eff4 -->
+- [x] Starred, unreachable and removed projects keep their existing numbering behaviour <!-- longclaw:item=ck_1534c364 -->
+- [x] Tests: registration order, rename, migration from a file with no order field, star/unreachable <!-- longclaw:item=ck_8f80c4c2 -->
 
 ## Activity
 
@@ -151,4 +151,58 @@ changes:
   - field: description
 -->
 ### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_d23f24ca
+kind: update
+occurred_at: 2026-09-21T08:09:35.149Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+changes:
+  - field: status
+    from: todo
+    to: done
+  - field: checklist.ck_8fbe1774.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_4ebce917.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_ea0b2176.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_dee42cb4.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_58900743.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_1040eff4.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_1534c364.checked
+    from: "false"
+    to: "true"
+  - field: checklist.ck_8f80c4c2.checked
+    from: "false"
+    to: "true"
+-->
+### Claude Code updated this ticket
+<!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_df217cfa
+kind: comment
+occurred_at: 2026-09-21T08:09:47.603Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+Shipped, with one correction to this ticket's own instruction. *Migrating an existing registry* says to seed from "the order the registry is already in" — but the ticket's own §*Confirmed* is what rules that out: the file was written in byte order (`String::cmp`) and the sidebar drew locale order (`localeCompare`), and the chord follows what was **drawn**. A registry holding `Admin`, `Zebra`, `apple` was filed in that order and shown as `Admin`, `apple`, `Zebra`, so seeding from the file swaps ⌘2 and ⌘3 for everyone whose projects are not cased alike — this ticket's defect, served once on upgrade. The seed is `as_drawn` in registry.rs: case-insensitive, lowercase before uppercase where two names differ only in case, which reproduces localeCompare for the names a project can have. It runs only over entries that declare no place at all, so a migrated registry is read rather than re-derived, and a half-migrated one puts its unplaced entries at the end rather than the front. Two other things the review turned up: the store's removeProjectReference left a hole in the numbers that only showed up two writes later, when a reference the registry handed back landed in the middle of the list; and remember now rewrites its list in place instead of re-sorting it, so there is no comparator left anywhere to disagree with the file.
 <!-- /longclaw:event -->

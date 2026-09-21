@@ -160,6 +160,7 @@ describe("recovering from a lost project event", () => {
     theme: "indigo",
     starred: false,
     reachable: true,
+    order: 0,
     labels: {},
     properties: NO_PROPERTIES,
   };
@@ -267,6 +268,7 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
     theme: "indigo",
     starred: false,
     reachable: true,
+    order: 0,
     labels: {},
     properties: NO_PROPERTIES,
   };
@@ -749,6 +751,7 @@ describe("the full create surface (V0-16)", () => {
     theme: "indigo",
     starred: false,
     reachable: true,
+    order: 0,
     labels: {
       backend: { name: "Backend", color: "blue" },
       reliability: { name: "Reliability", color: "amber" },
@@ -950,6 +953,7 @@ describe("priority from the board (V0-08)", () => {
     theme: "indigo",
     starred: false,
     reachable: true,
+    order: 0,
     labels: {},
     properties: NO_PROPERTIES,
   };
@@ -1061,6 +1065,7 @@ describe("the project path chip (LC-68)", () => {
     theme: "indigo",
     starred: false,
     reachable: true,
+    order: 0,
     labels: {},
     properties: NO_PROPERTIES,
   };
@@ -1168,6 +1173,7 @@ describe("the project settings gear (LC-70)", () => {
     theme: "indigo",
     starred: false,
     reachable: true,
+    order: 0,
     labels: {},
     properties: NO_PROPERTIES,
   };
@@ -1337,6 +1343,7 @@ describe("project settings as a modal (LC-125 … LC-132)", () => {
     theme: "indigo",
     starred: false,
     reachable: true,
+    order: 0,
     labels: { backend: { name: "Backend", color: "blue" } },
     properties: NO_PROPERTIES,
   };
@@ -1900,6 +1907,7 @@ describe("the disk-state indicator (LC-69, moved by LC-239w)", () => {
     theme: "indigo",
     starred: false,
     reachable: true,
+    order: 0,
     labels: {},
     properties: NO_PROPERTIES,
   };
@@ -2006,6 +2014,7 @@ describe("first launch (LC-76 … LC-82)", () => {
     theme: "indigo",
     starred: false,
     reachable: true,
+    order: 0,
     labels: {},
     properties: NO_PROPERTIES,
   };
@@ -2209,6 +2218,7 @@ describe("first launch (LC-76 … LC-82)", () => {
       theme: "slate",
       starred: false,
       reachable: true,
+      order: 0,
       labels: {},
       properties: NO_PROPERTIES,
     };
@@ -2508,6 +2518,7 @@ describe("system-matched appearance (V0-35)", () => {
       theme: "indigo",
       starred: false,
       reachable: true,
+      order: 0,
       labels: {},
       properties: NO_PROPERTIES,
     };
@@ -2546,6 +2557,7 @@ describe("instant per-project theme selection (V0-36)", () => {
     theme: "indigo",
     starred: false,
     reachable: true,
+    order: 0,
     labels: {},
     properties: NO_PROPERTIES,
   };
@@ -2712,6 +2724,7 @@ describe("label definitions in project settings (V0-10)", () => {
     theme: "indigo",
     starred: false,
     reachable: true,
+    order: 0,
     labels: { backend: { name: "Backend", color: "blue" } },
     properties: NO_PROPERTIES,
   };
@@ -2929,6 +2942,7 @@ describe("the list and the board agree (V0-14)", () => {
     theme: "indigo",
     starred: false,
     reachable: true,
+    order: 0,
     labels: {},
     properties: NO_PROPERTIES,
   };
@@ -3244,6 +3258,7 @@ describe("archive and unarchive (V0-11)", () => {
     theme: "indigo",
     starred: false,
     reachable: true,
+    order: 0,
     labels: {},
     properties: NO_PROPERTIES,
   };
@@ -3653,6 +3668,7 @@ describe("board ordering and manual reordering (V0-09)", () => {
     theme: "indigo",
     starred: false,
     reachable: true,
+    order: 0,
     labels: {},
     properties: NO_PROPERTIES,
   };
@@ -4144,6 +4160,7 @@ describe("the header filter (V0-15)", () => {
     theme: "indigo",
     starred: false,
     reachable: true,
+    order: 0,
     labels: {},
     properties: NO_PROPERTIES,
   };
@@ -4528,6 +4545,7 @@ describe("project-scoped workspace restoration (LC-49)", () => {
     theme: "indigo",
     starred: false,
     reachable: true,
+    order: 0,
     labels: {},
     properties: NO_PROPERTIES,
   };
@@ -4538,6 +4556,7 @@ describe("project-scoped workspace restoration (LC-49)", () => {
     rootPath: "/tmp/LongClaw B",
     key: "LB",
     theme: "clay",
+    order: 1,
   };
 
   beforeEach(() => {
@@ -4717,6 +4736,7 @@ describe("the side panel against its spec (Step 16a)", () => {
     theme: "plum",
     starred: true,
     reachable: true,
+    order: 0,
     labels: {},
     properties: NO_PROPERTIES,
   };
@@ -4729,6 +4749,7 @@ describe("the side panel against its spec (Step 16a)", () => {
     theme: "clay",
     starred: false,
     reachable: false,
+    order: 1,
     labels: {},
     properties: NO_PROPERTIES,
   };
@@ -4976,6 +4997,7 @@ describe("the app shell against its spec (LC-71, LC-72, LC-73)", () => {
     theme: "plum",
     starred: false,
     reachable: true,
+    order: 0,
     labels: {},
     properties: NO_PROPERTIES,
   };
@@ -5316,6 +5338,7 @@ describe("the app shell against its spec (LC-71, LC-72, LC-73)", () => {
         theme: "slate",
         starred: false,
         reachable: true,
+        order: 0,
         labels: {},
         properties: NO_PROPERTIES,
       };
@@ -5365,6 +5388,7 @@ describe("a project folder that cannot be reached (LC-139 … LC-145)", () => {
     theme: "indigo",
     starred: false,
     reachable: true,
+    order: 0,
     labels: {},
     properties: NO_PROPERTIES,
   };
@@ -5586,6 +5610,7 @@ describe("a project with no tickets (LC-86 … LC-89)", () => {
     theme: "indigo",
     starred: false,
     reachable: true,
+    order: 0,
     labels: {},
     properties: NO_PROPERTIES,
   };
@@ -5733,6 +5758,7 @@ describe("a ticket key typed at the palette root (LC-171)", () => {
     theme: "indigo",
     starred: false,
     reachable: true,
+    order: 0,
     labels: {},
     properties: NO_PROPERTIES,
   };
@@ -5867,6 +5893,7 @@ describe("a project switch under an open editor (LC-188)", () => {
     theme: "indigo",
     starred: false,
     reachable: true,
+    order: 0,
     labels: {},
     properties: NO_PROPERTIES,
   };
@@ -5879,6 +5906,7 @@ describe("a project switch under an open editor (LC-188)", () => {
     theme: "clay",
     starred: false,
     reachable: true,
+    order: 0,
     labels: {},
     properties: NO_PROPERTIES,
   };
@@ -6183,6 +6211,7 @@ describe("the ticket context menu, end to end (LC-222)", () => {
     theme: "indigo",
     starred: false,
     reachable: true,
+    order: 0,
     labels: {},
     properties: NO_PROPERTIES,
   };
@@ -6423,18 +6452,16 @@ describe("the ticket context menu, end to end (LC-222)", () => {
 /**
  * `⌘1`…`⌘9` switch to the nth project (LC-230).
  *
- * The number is the row's place in the sidebar's **Local** list, which is
- * `sortedProjects(projects)` and so is the whole registry in the order it is
- * already drawn. Starred is a second view of some of those same projects, not
- * a second list to count: a starred project carries one number and it is its
- * Local row's.
+ * The number is the row's place in the sidebar's **Local** list, which is the
+ * whole registry in the order the registry holds it (LC-259y). Starred is a
+ * second view of some of those same projects, not a second list to count: a
+ * starred project carries one number and it is its Local row's.
  */
 describe("switching project by chord (LC-230)", () => {
   /**
-   * Ten projects, named so that `localeCompare` puts them in the order the
-   * digits read — the tenth exists to be the row past the end of the chords.
-   * Project 03 is starred, so it appears in both sections and can be counted
-   * in only one.
+   * Ten projects, registered in the order the digits read — the tenth exists to
+   * be the row past the end of the chords. Project 03 is starred, so it appears
+   * in both sections and can be counted in only one.
    */
   const registry: ProjectReference[] = Array.from(
     { length: 10 },
@@ -6448,6 +6475,7 @@ describe("switching project by chord (LC-230)", () => {
         theme: "plum",
         starred: ordinal === "03",
         reachable: true,
+        order: index,
         labels: {},
         properties: NO_PROPERTIES,
       };
@@ -6773,6 +6801,203 @@ describe("switching project by chord (LC-230)", () => {
 });
 
 /**
+ * The sidebar is in registration order (LC-259y).
+ *
+ * `⌘1`–`⌘9` is a row's *position* in Local, so anything that moves a row takes
+ * somebody's shortcut with it. The list used to be sorted by name in two
+ * places — `remember` wrote byte order and `sortedProjects` drew locale order,
+ * which agree only for names cased alike — so registering `Admin` renumbered
+ * every project after it, and so did renaming `Work` to `Acme`. The registry's
+ * `order` is the one authority now, and nothing here sorts by name.
+ */
+describe("the sidebar's order (LC-259y)", () => {
+  /**
+   * Registered `Zebra`, `apple`, `Admin`: an order neither comparator this
+   * replaced could produce. Byte order puts every capital before every
+   * lowercase (`Admin`, `Zebra`, `apple`) and locale order ignores the case
+   * (`Admin`, `apple`, `Zebra`), so a row drawn out of place here says which
+   * of the two came back.
+   */
+  const registry: ProjectReference[] = [
+    ["zebra", "Zebra", "ZB"],
+    ["apple", "apple", "AP"],
+    ["admin", "Admin", "AD"],
+  ].map(([id, name, key], index) => ({
+    id,
+    name,
+    rootPath: `/tmp/LongClaw ${key}`,
+    key,
+    theme: "plum",
+    starred: false,
+    reachable: true,
+    order: index,
+    labels: {},
+    properties: NO_PROPERTIES,
+  }));
+
+  function section(title: string) {
+    return [...document.querySelectorAll<HTMLElement>(".project-section")].find(
+      (element) => element.querySelector("h2")?.textContent === title,
+    )!;
+  }
+
+  /** Each Local row as the sidebar draws it: its number, then its name. */
+  function rows() {
+    return [
+      ...section("Local").querySelectorAll<HTMLElement>(".project-row"),
+    ].map((row) => [
+      row.querySelector(".project-number")?.textContent ?? "",
+      row.querySelector("strong")?.textContent ?? "",
+    ]);
+  }
+
+  async function openRegistry() {
+    vi.mocked(api.listProjects).mockResolvedValue(registry);
+    vi.mocked(api.openProject).mockImplementation(async (projectId: string) => {
+      const project = registry.find((candidate) => candidate.id === projectId)!;
+      return {
+        project,
+        tickets: [],
+        generation: 1,
+        rebuiltInMs: 1,
+        sequence: 1,
+      };
+    });
+    render(<App />);
+    await screen.findByRole("button", { name: "Board", pressed: true });
+  }
+
+  it("draws the registry in registration order, however the names sort", async () => {
+    await openRegistry();
+
+    expect(rows()).toEqual([
+      ["⌘1", "Zebra"],
+      ["⌘2", "apple"],
+      ["⌘3", "Admin"],
+    ]);
+
+    vi.mocked(api.openProject).mockClear();
+    fireEvent.keyDown(document, { key: "3", metaKey: true });
+    expect(api.openProject).toHaveBeenCalledWith("admin");
+  });
+
+  /**
+   * The sharper half of the defect, because nothing about renaming a project
+   * suggests that other projects' shortcuts change. The write goes through the
+   * settings modal rather than the store, so the whole path — the command, the
+   * reference it answers with, and the row it lands on — is under the
+   * assertion.
+   */
+  it("renames a project without moving a row or changing a number", async () => {
+    await openRegistry();
+    vi.mocked(api.updateProjectName).mockResolvedValue({
+      ...registry[0],
+      name: "zzz renamed last of all",
+    });
+
+    fireEvent.keyDown(document, { key: "1", metaKey: true });
+    await screen.findByRole("heading", { name: "Zebra" });
+    fireEvent.keyDown(document, { key: ",", metaKey: true });
+    const dialog = await screen.findByRole("region", {
+      name: "Project settings",
+    });
+    const field = within(dialog).getByLabelText("Name");
+    fireEvent.change(field, {
+      target: { value: "zzz renamed last of all" },
+    });
+    fireEvent.keyDown(field, { key: "Enter" });
+
+    await waitFor(() =>
+      expect(api.updateProjectName).toHaveBeenCalledWith(
+        "zebra",
+        "zzz renamed last of all",
+      ),
+    );
+    await waitFor(() =>
+      expect(rows()).toEqual([
+        ["⌘1", "zzz renamed last of all"],
+        ["⌘2", "apple"],
+        ["⌘3", "Admin"],
+      ]),
+    );
+    expect(api.listProjects).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * A project that cannot be found is not a project that has been removed. A
+   * disk that was unplugged while the window was open must leave the sidebar
+   * exactly as it was, numbers included — the row says it is unreachable and
+   * keeps its place.
+   */
+  it("keeps an unreachable project's row and its number", async () => {
+    vi.mocked(api.listProjects).mockResolvedValue(registry);
+    vi.mocked(api.openProject).mockImplementation(async (projectId: string) => {
+      const project = registry.find((candidate) => candidate.id === projectId)!;
+      return {
+        project,
+        tickets: [],
+        generation: 1,
+        rebuiltInMs: 1,
+        sequence: 1,
+      };
+    });
+    render(<App />);
+    await screen.findByRole("button", { name: "Board", pressed: true });
+
+    useLongClawStore.getState().markProjectReachable("apple", false);
+
+    await waitFor(() =>
+      expect(rows()).toEqual([
+        ["⌘1", "Zebra"],
+        ["⌘2", "apple"],
+        ["⌘3", "Admin"],
+      ]),
+    );
+    // The row answers to the word the unreachable state puts on it, and still
+    // claims the key it had.
+    expect(
+      within(section("Local"))
+        .getByRole("button", { name: "Unreachableapple" })
+        .getAttribute("aria-keyshortcuts"),
+    ).toBe("Meta+2");
+  });
+
+  /**
+   * A Starred row is the same row pinned to the top rather than a second list,
+   * and that has to stay true of a list whose order is now a stored fact: the
+   * star is not a place.
+   */
+  it("stars a project without moving its Local row or changing its number", async () => {
+    await openRegistry();
+    vi.mocked(api.setProjectStarred).mockResolvedValue({
+      ...registry[2],
+      starred: true,
+    });
+
+    fireEvent.click(
+      within(section("Local")).getByRole("button", { name: "Admin menu" }),
+    );
+    fireEvent.click(screen.getByRole("menuitem", { name: "Star project" }));
+
+    await waitFor(() =>
+      expect(api.setProjectStarred).toHaveBeenCalledWith("admin", true),
+    );
+    await waitFor(() =>
+      expect(
+        [...section("Starred").querySelectorAll("strong")].map(
+          (name) => name.textContent,
+        ),
+      ).toEqual(["Admin"]),
+    );
+    expect(rows()).toEqual([
+      ["⌘1", "Zebra"],
+      ["⌘2", "apple"],
+      ["⌘3", "Admin"],
+    ]);
+  });
+});
+
+/**
  * Installing the `longclaw` command (LC-233).
  *
  * Two questions belong at this level rather than in `CommandLineInstall.test`:
@@ -6791,6 +7016,7 @@ describe("the longclaw command on PATH (LC-233)", () => {
     theme: "indigo",
     starred: false,
     reachable: true,
+    order: 0,
     labels: {},
     properties: NO_PROPERTIES,
   };
@@ -7027,6 +7253,7 @@ describe("a failed update check (LC-256a, ADR 0014)", () => {
     theme: "indigo",
     starred: false,
     reachable: true,
+    order: 0,
     labels: {},
     properties: NO_PROPERTIES,
   };

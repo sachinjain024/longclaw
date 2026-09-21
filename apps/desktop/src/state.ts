@@ -115,6 +115,26 @@ function reachableAgain(
   );
 }
 
+/**
+ * The project list with each row's `order` restated as its index, which is the
+ * shape the registry keeps it in.
+ *
+ * Removing a project leaves a hole in the numbers — the registry closes it and
+ * this list has to close it too, or the next reference the registry hands back
+ * carries a place this list no longer agrees with and the row moves (LC-259y).
+ * A row already sitting at its index is returned as it stands, so an ordinary
+ * write allocates no new reference for a project it did not touch. The array
+ * itself is new either way — both callers build one before calling — so this
+ * holds element identity, not the list's.
+ */
+function renumbered(projects: ProjectReference[]): ProjectReference[] {
+  if (projects.every((project, index) => project.order === index))
+    return projects;
+  return projects.map((project, index) =>
+    project.order === index ? project : { ...project, order: index },
+  );
+}
+
 function without(marks: ExternalMarks, ticketKey: string): ExternalMarks {
   if (!(ticketKey in marks)) return marks;
   const next = { ...marks };
@@ -135,14 +155,22 @@ export const useLongClawStore = create<LongClawState>((set, get) => ({
   setProjects: (projects) => set({ projects }),
   upsertProject: (project) =>
     set((state) => ({
-      projects: [
-        ...state.projects.filter((item) => item.id !== project.id),
-        project,
-      ].sort((left, right) => left.name.localeCompare(right.name)),
+      // Placed by `order`, which is the registry's own, so a write that comes
+      // back here lands where the registry already holds it. Sorting by name
+      // instead is what moved a renamed project — and every project it passed —
+      // out from under the `⌘1`–`⌘9` its human had in their fingers (LC-259y).
+      projects: renumbered(
+        [
+          ...state.projects.filter((item) => item.id !== project.id),
+          project,
+        ].sort((left, right) => left.order - right.order),
+      ),
     })),
   removeProjectReference: (projectId) =>
     set((state) => ({
-      projects: state.projects.filter((project) => project.id !== projectId),
+      projects: renumbered(
+        state.projects.filter((project) => project.id !== projectId),
+      ),
       activeProjectId:
         state.activeProjectId === projectId ? undefined : state.activeProjectId,
       tickets: state.activeProjectId === projectId ? [] : state.tickets,
@@ -177,8 +205,10 @@ export const useLongClawStore = create<LongClawState>((set, get) => ({
         activeProjectId: snapshot.project.id,
         // Rows in hand are proof the folder answered, so a snapshot is what
         // takes an unreachable flag back (LC-141). Only that one field: the
-        // engine's copy of the project carries no `starred`, and adopting the
-        // whole reference would unstar a project by reading its tickets.
+        // engine rebuilds its copy of the project from `longclaw.yaml`, which
+        // holds neither the star nor the place, so adopting the whole reference
+        // would unstar a project and move it to the top of the sidebar by
+        // reading its tickets (LC-259y).
         projects: reachableAgain(state.projects, snapshot.project.id),
         tickets: [...snapshot.tickets].sort(byKey),
         generation: snapshot.generation,

@@ -206,12 +206,6 @@ function focusSurface() {
   });
 }
 
-function sortedProjects(projects: ProjectReference[]) {
-  return [...projects].sort((left, right) =>
-    left.name.localeCompare(right.name),
-  );
-}
-
 /**
  * The 150ms crossfade a theme or appearance change wears
  * (`screen-specs.md:364`): the root briefly carries `theme-transition`, under
@@ -611,12 +605,19 @@ export function App() {
       setHeldConflict({ ticketKey, error, edit });
     };
   }
-  // Memoized because the `⌘1`…`⌘9` handler counts this list and so takes it as
-  // a dependency (LC-230): a fresh array on every render would tear the global
-  // key listener down and rebuild it on every keystroke the app takes.
-  const localProjects = useMemo(() => sortedProjects(projects), [projects]);
+  /**
+   * The sidebar's **Local** list: the registry as the registry holds it, which
+   * is registration order (LC-259y). Nothing sorts it here — a second sort on
+   * this side is how the app came to draw a list it had persisted differently,
+   * `remember` writing byte order against this drawing locale order.
+   *
+   * The store's own array, so its identity is stable across a render the list
+   * did not change in — which the `⌘1`…`⌘9` handler depends on (LC-230).
+   */
+  const localProjects = projects;
+  /** The same rows, pinned to the top. Filtering keeps Local's order. */
   const starredProjects = useMemo(
-    () => sortedProjects(projects.filter((candidate) => candidate.starred)),
+    () => projects.filter((candidate) => candidate.starred),
     [projects],
   );
   /**

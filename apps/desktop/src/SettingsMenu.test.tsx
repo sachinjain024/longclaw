@@ -43,6 +43,7 @@ const PROJECT: ProjectReference = {
   theme: "graphite",
   starred: true,
   reachable: true,
+  order: 0,
   labels: { design: { name: "Design", color: "orange" } },
   properties: NO_PROPERTIES,
 };
