@@ -145,6 +145,57 @@ impl RegistryStore {
         Ok(refreshed(updated))
     }
 
+    /// Moves one project to sit immediately after another, or to the top of the
+    /// sidebar when `after` is `None` (LC-260j).
+    ///
+    /// A neighbour rather than an index, the way a checklist move names the row
+    /// it follows: an index is a claim about the whole list, and this store is
+    /// the one authority over that. The whole list comes back because the whole
+    /// list changed — every row between the two ends of the move has a new
+    /// number, and `⌘1`–`⌘9` is that number.
+    ///
+    /// Every refusal happens before `persist`, so a landing this registry
+    /// cannot make sense of leaves the file and the list exactly as they were.
+    pub fn move_after(
+        &self,
+        project_id: &str,
+        after: Option<&str>,
+    ) -> AppResult<Vec<ProjectReference>> {
+        {
+            let mut projects = self.projects.write();
+            let Some(from) = projects.iter().position(|project| project.id == project_id) else {
+                return Err(unknown_project(project_id));
+            };
+            // A row cannot follow itself. Left to the arithmetic below it would
+            // be a silent no-op, which is a worse answer than a refusal: the
+            // caller asked for something that does not exist.
+            if after == Some(project_id) {
+                return Err(AppError::new(
+                    ErrorCode::InvalidProject,
+                    "A project cannot be placed after itself",
+                    true,
+                ));
+            }
+            let mut next = projects.clone();
+            let moved = next.remove(from);
+            let at = match after {
+                None => 0,
+                Some(neighbour) => next
+                    .iter()
+                    .position(|project| project.id == neighbour)
+                    .map(|index| index + 1)
+                    .ok_or_else(|| unknown_project(neighbour))?,
+            };
+            next.insert(at, moved);
+            // The move *is* the renumbering — the one gesture that is allowed to
+            // take somebody's `⌘n` with it, because it is the one they asked for.
+            renumber(&mut next);
+            self.persist(&next)?;
+            *projects = next;
+        }
+        Ok(self.list())
+    }
+
     pub fn update_theme(&self, project_id: &str, theme: &str) -> AppResult<ProjectReference> {
         self.update_project_file(project_id, |document| document.set_theme(theme))
     }
@@ -1006,6 +1057,67 @@ mod tests {
                 .collect::<Vec<_>>(),
             [0, 1]
         );
+    }
+
+    /// Dragging a row, which is the one gesture that is *allowed* to renumber
+    /// (LC-260j). The move is stated as a neighbour rather than as an index —
+    /// "after `zebra`" — so the registry places it and `renumber` writes the
+    /// new places down.
+    #[test]
+    fn a_project_moves_to_sit_after_the_one_it_was_dropped_under() {
+        let temp = tempfile::tempdir().unwrap();
+        let (store, _roots) = registered_in_order(&temp);
+
+        let listed = store.move_after("zebra", Some("apple")).unwrap();
+        assert_eq!(
+            listed
+                .iter()
+                .map(|project| (project.id.as_str(), project.order))
+                .collect::<Vec<_>>(),
+            [("apple", 0), ("zebra", 1), ("admin", 2)]
+        );
+
+        // No neighbour is the top of the list, which is the one landing that
+        // cannot name the row above it.
+        store.move_after("admin", None).unwrap();
+        assert_eq!(sidebar(&store), ["admin", "apple", "zebra"]);
+    }
+
+    /// A move is the whole of the write: nothing about the project's own files
+    /// changes, and the star does not move with the row or stay behind it.
+    #[test]
+    fn a_move_survives_restart_and_leaves_the_star_where_it_was() {
+        let temp = tempfile::tempdir().unwrap();
+        let app_data = temp.path().join("app-support");
+        let (store, _roots) = registered_in_order(&temp);
+        store.set_starred("admin", true).unwrap();
+
+        store.move_after("admin", None).unwrap();
+        drop(store);
+
+        let restored = RegistryStore::load(&app_data).unwrap();
+        assert_eq!(sidebar(&restored), ["admin", "zebra", "apple"]);
+        let listed = restored.list();
+        assert!(listed[0].starred);
+        assert!(!listed[1].starred);
+    }
+
+    /// A landing this registry cannot make sense of is refused rather than
+    /// guessed at, and the list it refused is the list it still has: a frontend
+    /// holding a stale id must not be able to shuffle the sidebar by asking.
+    #[test]
+    fn a_move_naming_an_unknown_or_circular_neighbour_is_refused_and_writes_nothing() {
+        let temp = tempfile::tempdir().unwrap();
+        let (store, _roots) = registered_in_order(&temp);
+
+        let unknown = store.move_after("zebra", Some("nobody")).unwrap_err();
+        assert_eq!(unknown.code, ErrorCode::InvalidProject);
+        let missing = store.move_after("nobody", None).unwrap_err();
+        assert_eq!(missing.code, ErrorCode::InvalidProject);
+        let itself = store.move_after("zebra", Some("zebra")).unwrap_err();
+        assert_eq!(itself.code, ErrorCode::InvalidProject);
+
+        assert_eq!(sidebar(&store), ["zebra", "apple", "admin"]);
     }
 
     /// The place has to survive a relaunch, or the fix only holds until the

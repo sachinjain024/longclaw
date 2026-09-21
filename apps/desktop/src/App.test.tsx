@@ -51,6 +51,7 @@ vi.mock("./api", () => ({
   installCommandLine: vi.fn(),
   listProjects: vi.fn(),
   listenForProjectEvents: vi.fn(),
+  moveProjectAfter: vi.fn(),
   openProject: vi.fn(),
   readPreferences: vi.fn(),
   readTicket: vi.fn(),
@@ -490,7 +491,7 @@ describe("optimistic create, write feedback, and undo (V0-17)", () => {
    * board but Tab from the top of the document.
    *
    * The same call is how the ticket panel returns focus to its card, so this
-   * covers `keyboard-focus-map.md:214` at size as well as :124.
+   * covers `keyboard-focus-map.md:235` at size as well as :124.
    */
   it("focuses the new card even when it lands outside the rendered window", async () => {
     const crowd: TicketRow[] = Array.from({ length: 30 }, (_, index) => ({
@@ -6754,7 +6755,7 @@ describe("switching project by chord (LC-230)", () => {
       within(section("Starred"))
         .getByRole("button", { name: "Project 03Starred" })
         .getAttribute("aria-keyshortcuts"),
-    ).toBe("Meta+3");
+    ).toContain("Meta+3");
   });
 
   /**
@@ -6779,6 +6780,10 @@ describe("switching project by chord (LC-230)", () => {
    * The badge is decoration and `aria-keyshortcuts` is what announces the key
    * (`GuideCard.tsx`, LC-71). A glyph inside the row's own button leaking into
    * its accessible name is LC-208, and the row would announce itself twice.
+   *
+   * The reorder keys are announced in the same attribute and for the same
+   * reason: they have no glyph and no menu row, so a row that did not say them
+   * would be one whose only reorder is to press `⌥↓` and watch (LC-260j).
    */
   it("announces the key without putting the badge in the row's name", async () => {
     await openRegistry();
@@ -6787,15 +6792,20 @@ describe("switching project by chord (LC-230)", () => {
       name: "Project 01",
     });
 
-    expect(row.getAttribute("aria-keyshortcuts")).toBe("Meta+1");
+    expect(row.getAttribute("aria-keyshortcuts")).toBe(
+      "Meta+1 Alt+ArrowUp Alt+ArrowDown",
+    );
     expect(
       row.querySelector(".project-number")?.getAttribute("aria-hidden"),
     ).toBe("true");
-    // The tenth row claims no key at all, and shows none.
+    // The tenth row claims no key at all, and shows none — but it is still a
+    // row that can be moved, and still says so.
     const tenth = within(section("Local")).getByRole("button", {
       name: "Project 10",
     });
-    expect(tenth.hasAttribute("aria-keyshortcuts")).toBe(false);
+    expect(tenth.getAttribute("aria-keyshortcuts")).toBe(
+      "Alt+ArrowUp Alt+ArrowDown",
+    );
     expect(tenth.querySelector(".project-number")).toBeNull();
   });
 });
@@ -6959,7 +6969,7 @@ describe("the sidebar's order (LC-259y)", () => {
       within(section("Local"))
         .getByRole("button", { name: "Unreachableapple" })
         .getAttribute("aria-keyshortcuts"),
-    ).toBe("Meta+2");
+    ).toContain("Meta+2");
   });
 
   /**
@@ -6994,6 +7004,402 @@ describe("the sidebar's order (LC-259y)", () => {
       ["⌘2", "apple"],
       ["⌘3", "Admin"],
     ]);
+  });
+});
+
+/**
+ * Dragging a project row to reorder the sidebar (LC-260j).
+ *
+ * LC-259y made the order a stored fact so that nothing moved a row the user had
+ * not moved. This is the gesture that is *allowed* to: dragging a row to the top
+ * makes it `⌘1` and every row it passed moves down one. The badge and the chord
+ * read one map built from the order, so they follow together or not at all.
+ */
+describe("reordering the sidebar by hand (LC-260j)", () => {
+  /**
+   * Ten projects, two of them starred — a Starred section with more than one
+   * row is the only one a drag inside it means anything in, and the tenth row
+   * is what makes crossing the ninth place reachable.
+   */
+  const registry: ProjectReference[] = Array.from(
+    { length: 10 },
+    (_, index) => {
+      const ordinal = String(index + 1).padStart(2, "0");
+      return {
+        id: `project-${ordinal}`,
+        name: `Project ${ordinal}`,
+        rootPath: `/tmp/LongClaw ${ordinal}`,
+        key: `L${ordinal}`,
+        theme: "plum",
+        starred: ordinal === "02" || ordinal === "05",
+        reachable: true,
+        order: index,
+        labels: {},
+        properties: NO_PROPERTIES,
+      };
+    },
+  );
+
+  /** The registry as the store would hold it after a move, so a receipt is real. */
+  function placed(order: string[]): ProjectReference[] {
+    return order.map((id, index) => ({
+      ...registry.find((project) => project.id === id)!,
+      order: index,
+    }));
+  }
+
+  function section(title: string) {
+    return [...document.querySelectorAll<HTMLElement>(".project-section")].find(
+      (element) => element.querySelector("h2")?.textContent === title,
+    )!;
+  }
+
+  /** Each row of a section as it reads: its badge, then its name. */
+  function rows(title: string) {
+    return [
+      ...section(title).querySelectorAll<HTMLElement>(".project-row"),
+    ].map((row) => [
+      row.querySelector(".project-number")?.textContent ?? "",
+      row.querySelector("strong")?.textContent ?? "",
+    ]);
+  }
+
+  function row(title: string, id: string) {
+    return section(title).querySelector<HTMLElement>(
+      `.project-row[data-project-id="${id}"]`,
+    )!;
+  }
+
+  /**
+   * A drag from one row onto an edge of another. jsdom lays nothing out and has
+   * no `DragEvent`, so the target's box and the pointer are both stated — the
+   * same shape the checklist's drag tests use.
+   */
+  function dragOnto(
+    title: string,
+    from: string,
+    onto: string,
+    edge: "above" | "below",
+  ) {
+    const target = row(title, onto);
+    target.getBoundingClientRect = () =>
+      ({ top: 0, bottom: 28, height: 28 }) as DOMRect;
+    fireEvent.dragStart(row(title, from));
+    for (const type of ["dragOver", "drop"] as const) {
+      const event = createEvent[type](target);
+      Object.defineProperty(event, "clientY", {
+        value: edge === "below" ? 20 : 5,
+      });
+      fireEvent(target, event);
+    }
+  }
+
+  async function openRegistry() {
+    vi.mocked(api.listProjects).mockResolvedValue(registry);
+    vi.mocked(api.openProject).mockImplementation(
+      async (projectId: string) => ({
+        project: registry.find((candidate) => candidate.id === projectId)!,
+        tickets: [],
+        generation: 1,
+        rebuiltInMs: 1,
+        sequence: 1,
+      }),
+    );
+    render(<App />);
+    await screen.findByRole("button", { name: "Board", pressed: true });
+  }
+
+  it("lands the row in the gap it was let go in, and renumbers what it passed", async () => {
+    await openRegistry();
+    vi.mocked(api.moveProjectAfter).mockResolvedValue(
+      placed([
+        "project-02",
+        "project-03",
+        "project-01",
+        ...registry.slice(3).map((project) => project.id),
+      ]),
+    );
+
+    dragOnto("Local", "project-01", "project-03", "below");
+
+    // Before the write has come back: the sidebar is showing the human's order,
+    // and the numbers moved with it rather than after it.
+    expect(rows("Local").slice(0, 3)).toEqual([
+      ["⌘1", "Project 02"],
+      ["⌘2", "Project 03"],
+      ["⌘3", "Project 01"],
+    ]);
+    await waitFor(() =>
+      expect(api.moveProjectAfter).toHaveBeenCalledWith(
+        "project-01",
+        "project-03",
+      ),
+    );
+
+    // The badge and the chord read one map, so the number a row advertises is
+    // the number that opens it — which is the whole point of the gesture and
+    // the half a test of the drawn order would not catch.
+    vi.mocked(api.openProject).mockClear();
+    fireEvent.keyDown(document, { key: "3", metaKey: true });
+    expect(api.openProject).toHaveBeenCalledWith("project-01");
+  });
+
+  it("names no neighbour at the top of the list, because there is none", async () => {
+    await openRegistry();
+    vi.mocked(api.moveProjectAfter).mockResolvedValue(
+      placed([
+        "project-04",
+        ...registry
+          .map((project) => project.id)
+          .filter((id) => id !== "project-04"),
+      ]),
+    );
+
+    dragOnto("Local", "project-04", "project-01", "above");
+
+    await waitFor(() =>
+      expect(api.moveProjectAfter).toHaveBeenCalledWith("project-04", null),
+    );
+    expect(rows("Local")[0]).toEqual(["⌘1", "Project 04"]);
+  });
+
+  /**
+   * Nine chords and ten projects, so a row dropped last loses its badge and the
+   * row it passed gains one. Both are correct and both have to be visible as
+   * they happen — the toast is the only thing that says it out loud.
+   */
+  it("says so when a row crosses the ninth place in either direction", async () => {
+    await openRegistry();
+    const last = [
+      ...registry
+        .map((project) => project.id)
+        .filter((id) => id !== "project-01"),
+      "project-01",
+    ];
+    vi.mocked(api.moveProjectAfter).mockResolvedValue(placed(last));
+
+    dragOnto("Local", "project-01", "project-10", "below");
+
+    expect(rows("Local").at(-1)).toEqual(["", "Project 01"]);
+    // The row that was tenth is ninth now, and says so.
+    expect(rows("Local").at(-2)).toEqual(["⌘9", "Project 10"]);
+    const toast = await screen.findByRole("status");
+    expect(toast.textContent).toContain("Moved Project 01 to 10 of 10");
+    expect(toast.textContent).toContain("no shortcut");
+  });
+
+  /**
+   * Starred draws the same rows pinned to the top, so a drop inside it is a
+   * statement about the starred rows — and the place it decides is a place in
+   * Local, because that is where the number comes from.
+   */
+  it("places a row dropped inside Starred under its new starred neighbour", async () => {
+    await openRegistry();
+    vi.mocked(api.moveProjectAfter).mockResolvedValue(
+      placed([
+        "project-01",
+        "project-03",
+        "project-04",
+        "project-05",
+        "project-02",
+        ...registry.slice(5).map((project) => project.id),
+      ]),
+    );
+
+    dragOnto("Starred", "project-02", "project-05", "below");
+
+    await waitFor(() =>
+      expect(api.moveProjectAfter).toHaveBeenCalledWith(
+        "project-02",
+        "project-05",
+      ),
+    );
+    // Starred reads in the order it was left in, and Local holds the row
+    // immediately under the starred row it was dropped under — not at the end
+    // of the list, and not above the unstarred rows it was already below.
+    expect(rows("Starred").map(([, name]) => name)).toEqual([
+      "Project 05",
+      "Project 02",
+    ]);
+    expect(
+      rows("Local")
+        .map(([, name]) => name)
+        .slice(0, 5),
+    ).toEqual([
+      "Project 01",
+      "Project 03",
+      "Project 04",
+      "Project 05",
+      "Project 02",
+    ]);
+  });
+
+  /**
+   * The gaps touching the row are its own place. In Starred they are the case
+   * to get wrong: `Project 05` let go under `Project 02` reads as where it
+   * already is, and honouring it as "immediately after Project 02" would lift
+   * it over two unstarred rows and renumber them.
+   */
+  it("writes nothing when a row is let go where it already stood", async () => {
+    await openRegistry();
+
+    dragOnto("Starred", "project-05", "project-02", "below");
+    dragOnto("Local", "project-03", "project-03", "above");
+
+    expect(api.moveProjectAfter).not.toHaveBeenCalled();
+  });
+
+  /** `⌥↑` / `⌥↓` on the focused row — the keyboard's whole path to the gesture. */
+  it("moves the focused row with `⌥↓` and leaves focus on it", async () => {
+    await openRegistry();
+    vi.mocked(api.moveProjectAfter).mockResolvedValue(
+      placed([
+        "project-02",
+        "project-01",
+        ...registry.slice(2).map((project) => project.id),
+      ]),
+    );
+
+    const link = within(section("Local")).getByRole("button", {
+      name: "Project 01",
+    });
+    link.focus();
+    fireEvent.keyDown(link, { key: "ArrowDown", altKey: true });
+
+    await waitFor(() =>
+      expect(api.moveProjectAfter).toHaveBeenCalledWith(
+        "project-01",
+        "project-02",
+      ),
+    );
+    expect(rows("Local").slice(0, 2)).toEqual([
+      ["⌘1", "Project 02"],
+      ["⌘2", "Project 01"],
+    ]);
+    // The same row, so the next press moves the same project rather than
+    // whatever has arrived under the reader's fingers.
+    expect(document.activeElement).toBe(link);
+  });
+
+  /**
+   * A starred row steps past the starred row above it, not past the row above
+   * it in Local: the section is what the reader is being told about.
+   */
+  it("steps a starred row past the starred row above it", async () => {
+    await openRegistry();
+    vi.mocked(api.moveProjectAfter).mockResolvedValue(
+      placed([
+        "project-01",
+        "project-03",
+        "project-04",
+        "project-05",
+        "project-02",
+        ...registry.slice(5).map((project) => project.id),
+      ]),
+    );
+
+    const link = within(section("Starred")).getByRole("button", {
+      name: "Project 02Starred",
+    });
+    link.focus();
+    fireEvent.keyDown(link, { key: "ArrowDown", altKey: true });
+
+    await waitFor(() =>
+      expect(api.moveProjectAfter).toHaveBeenCalledWith(
+        "project-02",
+        "project-05",
+      ),
+    );
+  });
+
+  /**
+   * A refused write must not leave the sidebar showing an order the registry
+   * does not have — which here is sharper than it sounds, since the numbers on
+   * the rows *are* the order, and nine chords would be left pointing at the
+   * wrong projects.
+   */
+  it("puts the order back when the write does not land", async () => {
+    await openRegistry();
+    vi.mocked(api.moveProjectAfter).mockRejectedValue(
+      Object.assign(
+        new Error("Permission denied writing project-registry.json"),
+        {
+          code: "permission_denied",
+          recoverable: true,
+        },
+      ),
+    );
+
+    dragOnto("Local", "project-01", "project-03", "below");
+    expect(rows("Local")[0]).toEqual(["⌘1", "Project 02"]);
+
+    await waitFor(() =>
+      expect(rows("Local").slice(0, 3)).toEqual([
+        ["⌘1", "Project 01"],
+        ["⌘2", "Project 02"],
+        ["⌘3", "Project 03"],
+      ]),
+    );
+    expect(screen.getByRole("alert").textContent).toContain("Permission");
+  });
+
+  it("takes the move back through the toast's Undo", async () => {
+    await openRegistry();
+    vi.mocked(api.moveProjectAfter).mockResolvedValue(
+      placed([
+        "project-02",
+        "project-03",
+        "project-01",
+        ...registry.slice(3).map((project) => project.id),
+      ]),
+    );
+
+    dragOnto("Local", "project-01", "project-03", "below");
+    const toast = await screen.findByRole("status");
+    vi.mocked(api.moveProjectAfter).mockClear();
+    vi.mocked(api.moveProjectAfter).mockResolvedValue(
+      placed(registry.map((project) => project.id)),
+    );
+
+    fireEvent.click(within(toast).getByRole("button", { name: /^Undo/ }));
+
+    // Back under the row it came from — which at the top of the list is no row
+    // at all.
+    await waitFor(() =>
+      expect(api.moveProjectAfter).toHaveBeenCalledWith("project-01", null),
+    );
+    await waitFor(() => expect(rows("Local")[0]).toEqual(["⌘1", "Project 01"]));
+  });
+
+  /**
+   * A project whose folder is unplugged is still a row and still has a place.
+   * Refusing to move it would make the sidebar's order depend on what is
+   * mounted, which is the fact LC-141 already settled for the row itself.
+   */
+  it("moves a row whose folder cannot be reached", async () => {
+    await openRegistry();
+    vi.mocked(api.moveProjectAfter).mockResolvedValue(
+      placed([
+        "project-02",
+        "project-01",
+        ...registry.slice(2).map((project) => project.id),
+      ]),
+    );
+    useLongClawStore.getState().markProjectReachable("project-01", false);
+    await waitFor(() =>
+      expect(
+        row("Local", "project-01").querySelector(".project-warn"),
+      ).toBeTruthy(),
+    );
+
+    dragOnto("Local", "project-01", "project-02", "below");
+
+    await waitFor(() =>
+      expect(api.moveProjectAfter).toHaveBeenCalledWith(
+        "project-01",
+        "project-02",
+      ),
+    );
   });
 });
 

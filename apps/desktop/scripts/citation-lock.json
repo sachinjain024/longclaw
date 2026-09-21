@@ -185,13 +185,16 @@
     "200": "| `Enter` / `Space` on a held `Restart to update` | Says why it is held rather than doing nothing. It is `aria-disabled` and not `disabled`, so it keeps its stop and the reason is announced |",
     "203": "The dot beside the link, and the one on the nav's `Updates` row, are",
     "204": "decorative — the link's own `aria-label` and a visually-hidden line on the nav",
-    "210": "## Focus-return table",
-    "214": "| Ticket panel | The card/row that opened it (survives re-render) |",
-    "218": "| Quick create (created) | The new ticket's card — or, with **Create more** ticked, the emptied title field, and focus never follows the card even when the write returns (LC-201) |",
-    "220": "| Settings / waitlist / confirm / raw view | The opener (the side panel's gear since LC-239w, footer button, degraded card) |",
-    "221": "| Folder picker (create flow) | The create form's name field |",
-    "228": "- No drag-and-drop keyboard equivalent — reordering within a column, and",
-    "233": "inside one, which is the thing v0 deliberately left unbound."
+    "215": "| `⌥↑` / `⌥↓` on a row | Move it one place within **its own section** (LC-260j) |",
+    "221": "comes from. Crossing the ninth place is a badge lost and another gained, and the",
+    "223": "the toast is a live region and the only thing that says either out loud. Focus",
+    "231": "## Focus-return table",
+    "235": "| Ticket panel | The card/row that opened it (survives re-render) |",
+    "239": "| Quick create (created) | The new ticket's card — or, with **Create more** ticked, the emptied title field, and focus never follows the card even when the write returns (LC-201) |",
+    "241": "| Settings / waitlist / confirm / raw view | The opener (the side panel's gear since LC-239w, footer button, degraded card) |",
+    "242": "| Folder picker (create flow) | The create form's name field |",
+    "249": "- No drag-and-drop keyboard equivalent **for a ticket** — reordering within",
+    "256": "sidebar (LC-260j) — each bind `⌥↑`/`⌥↓` on the focused row."
   },
   "components.md": {
     "3": "> Phase 0, Step 1 deliverable. Everything below consumes `--lc-*` tokens from",

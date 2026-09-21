@@ -614,7 +614,15 @@ const SHORTCUTS: { action: string; keys: string[] }[] = [
   { action: "Focus the filter field", keys: ["⌘", "F"] },
   { action: "Quick create a ticket", keys: ["C"] },
   { action: "Project settings", keys: ["⌘", ","] },
-  { action: "Switch to the nth project in the sidebar", keys: ["⌘", "1–9"] },
+  {
+    // "in the sidebar" was true of a list nobody could rearrange and is
+    // half a sentence now that anybody can (LC-260j): the number counts
+    // **Local**, and Starred is the same rows pinned above it rather than rows
+    // of its own, so a reader counting from the top of the panel was already
+    // counting some projects twice.
+    action: "Switch to the nth project in the sidebar's Local list",
+    keys: ["⌘", "1–9"],
+  },
   { action: "Close one layer", keys: ["Esc"] },
   { action: "Move between tickets", keys: ["↑", "↓", "←", "→"] },
   { action: "…or without leaving the home row", keys: ["K", "J", "H", "L"] },

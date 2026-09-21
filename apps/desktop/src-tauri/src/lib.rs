@@ -115,6 +115,18 @@ fn set_project_starred(
     state.set_project_starred(&project_id, starred)
 }
 
+/// Puts a project row after another, or first when `after_project_id` is absent.
+/// Answers with the whole list, because a move renumbers everything between the
+/// two ends of it (LC-260j).
+#[tauri::command]
+fn move_project_after(
+    project_id: String,
+    after_project_id: Option<String>,
+    state: State<'_, AppState>,
+) -> AppResult<Vec<ProjectReference>> {
+    state.move_project_after(&project_id, after_project_id.as_deref())
+}
+
 #[tauri::command]
 fn update_project_theme(
     project_id: String,
@@ -661,6 +673,7 @@ pub fn run() {
             create_project,
             relocate_project,
             set_project_starred,
+            move_project_after,
             update_project_theme,
             update_project_name,
             add_project_label,

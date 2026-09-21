@@ -353,6 +353,7 @@ textarea:focus-visible,
 }
 
 .project-row {
+  position: relative;
   display: flex;
   min-width: 0;
   align-items: center;
@@ -362,6 +363,52 @@ textarea:focus-visible,
 .project-row:hover,
 .project-row:has(.row-menu-button.open) {
   background: var(--lc-line-soft);
+}
+
+/* Reordering the sidebar (LC-260j). No grip: the row is 28px inside a 216px
+   panel whose left gutter is 12px, so there is nowhere to put one — the
+   checklist hangs its `⠿` in the panel's own 20px of padding, and here the same
+   glyph would either sit outside the panel or push the theme dots off the
+   column the rows line up in. The board's cards and the list's rows already
+   answer this geometry the same way (`.ticket-row.draggable`,
+   `.list-row.draggable`): the row is the handle and the cursor is what says so.
+   The keyboard's way in is `⌥↑`/`⌥↓` on the focused row, which the row
+   advertises in its own `aria-keyshortcuts`. */
+.project-row.draggable {
+  cursor: grab;
+}
+
+.project-row.dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+
+/* Where letting go would put the row — the 2px `accent-human` insertion line
+   `components.md:201` specifies, on the boundary the drop is about. On the
+   row's own edge rather than as an element over the list, the way the
+   checklist's is: these rows are in flow, and the sections they sit in scroll.
+
+   Inset to the row's own box rather than bled to the panel's edges: the rows
+   are what is being reordered and the line has to read as a place between two
+   of them. */
+.project-row.drop-above::before,
+.project-row.drop-below::after {
+  position: absolute;
+  right: 0;
+  left: 0;
+  z-index: var(--lc-z-drag);
+  height: 2px;
+  border-radius: var(--lc-radius-full);
+  background: var(--lc-accent-human);
+  content: "";
+}
+
+.project-row.drop-above::before {
+  top: -1px;
+}
+
+.project-row.drop-below::after {
+  bottom: -1px;
 }
 
 /* The active project, in the human accent — opening a project is a planning

@@ -21,7 +21,7 @@
  * a pointer anywhere in a lifecycle step would make that step's pass meaningless.
  *
  * Usage:
- *   npm run a11y:audit                 # the seven Part A rows
+ *   npm run a11y:audit                 # the eight Part A rows
  *   npm run a11y:audit -- --only=A3    # one row while it is being written
  *   npm run a11y:audit -- --self-test  # break the build, expect the rows to fail
  */
@@ -50,7 +50,7 @@ const argument = (name, fallback) => {
  * small enough that a lifecycle step is not waiting on 5,000 rows.
  */
 const TICKETS = Number(argument("tickets", "600"));
-const ONLY = argument("only", "A1,A2,A3,A4,A5,A6,A7").split(",");
+const ONLY = argument("only", "A1,A2,A3,A4,A5,A6,A7,A8").split(",");
 const SELF_TEST = process.argv.includes("--self-test");
 /** 1440×900 is the matrix's window; halving the CSS viewport is A5's 200%. */
 const VIEWPORT = { width: 1_440, height: 900 };
@@ -120,6 +120,16 @@ const focused = (page) =>
       // Quick create's **Create more**, recognised the same way and for the
       // same reason (LC-201): it is a checkbox named by the label around it.
       inCreateMore: !!element.closest?.(".create-more"),
+      // Which sidebar row focus is inside, by id, and which section drew it —
+      // Starred is the same rows pinned to the top, so a row can be reached in
+      // either and the section is what says which one this stop is (LC-260j).
+      projectId: element.closest?.(".project-row")?.dataset?.projectId,
+      projectName:
+        element.closest?.(".project-row")?.querySelector("strong")
+          ?.textContent ?? "",
+      projectSection:
+        element.closest?.(".project-section")?.querySelector("h2")
+          ?.textContent ?? "",
       // Which of the panel's columns this stop is in, for a reading order that
       // has two of them (LC-227). The header and the title are above the
       // split and are in neither.
@@ -235,7 +245,7 @@ async function auditLifecycle(browser) {
       "`Enter` creates the ticket and focus moves to the new card",
       createdKey !== undefined,
       `focus=${createdKey ?? (afterCreate.className || afterCreate.tag)}`,
-      "keyboard-focus-map.md:132,218 — focus moves to the new card",
+      "keyboard-focus-map.md:132,239 — focus moves to the new card",
     );
 
     // Find (§ Global `⌘F`, and the filter's rung of the `Esc` ladder).
@@ -391,7 +401,7 @@ async function auditLifecycle(browser) {
       "`Esc` closes the panel and focus returns to the card that opened it",
       isCard(backOnCard),
       `focus=${backOnCard.ticketKey ?? (backOnCard.className || backOnCard.tag)}`,
-      "keyboard-focus-map.md:61,214",
+      "keyboard-focus-map.md:61,235",
     );
     const movedFrom = backOnCard.ticketKey;
     await page.keyboard.press("s");
@@ -585,7 +595,7 @@ async function auditFocusOrder(browser) {
       "canceling quick create returns focus to where it was",
       afterCancel.ticketKey === card,
       `${card} → ${afterCancel.ticketKey ?? (afterCancel.className || afterCancel.tag)}`,
-      "keyboard-focus-map.md:210",
+      "keyboard-focus-map.md:231",
     );
 
     // Menu → the focused card (the single-key path).
@@ -643,7 +653,7 @@ async function auditFocusOrder(browser) {
       "closing the ticket panel returns focus to the card that opened it",
       opened && afterPanel.ticketKey === card,
       `${card} → ${afterPanel.ticketKey ?? (afterPanel.className || afterPanel.tag)}`,
-      "keyboard-focus-map.md:214",
+      "keyboard-focus-map.md:235",
     );
 
     // Reading order inside the panel: the Tab sequence must run down the page.
@@ -774,7 +784,7 @@ async function auditFocusOrder(browser) {
       !(await visible(page, ".settings-panel")) &&
         afterSettings.label === "Project settings",
       `focus=${afterSettings.label || afterSettings.className || afterSettings.tag}`,
-      "keyboard-focus-map.md:220 — settings returns focus to its opener",
+      "keyboard-focus-map.md:241 — settings returns focus to its opener",
     );
 
     /**
@@ -900,7 +910,7 @@ async function auditFocusOrder(browser) {
         inRun.label === "Title" &&
         emptied === "",
       `modal=${await visible(page, "form.quick-create-modal")} focus=${inRun.label || inRun.className || inRun.tag} title="${emptied}"`,
-      "keyboard-focus-map.md:218 — the created row, and the run's exception to it",
+      "keyboard-focus-map.md:239 — the created row, and the run's exception to it",
     );
     await page.keyboard.press("Escape");
     await settle(page);
@@ -1775,7 +1785,7 @@ async function auditUpdates(browser) {
       "`Esc` closes the pane and focus returns to the link that opened it",
       !(await visible(page, ".settings-panel")) && onLink(back),
       `focus=${back.label || back.className || back.tag}`,
-      "keyboard-focus-map.md:220 — settings returns focus to its opener",
+      "keyboard-focus-map.md:241 — settings returns focus to its opener",
     );
 
     // A ticket write, held open, so the restart has something to wait for.
@@ -1838,6 +1848,167 @@ async function auditUpdates(browser) {
 
 /* ---------- main ---------- */
 
+/* ---------- A8: the sidebar's order, from the keyboard ---------- */
+
+/**
+ * Reordering the sidebar without a pointer (LC-260j).
+ *
+ * The gesture this was built for is a drag, and there is no pointer anywhere in
+ * this file, so `⌥↑`/`⌥↓` on the focused row is the whole of the keyboard's
+ * path to it — and if it did not exist the feature would be unreachable for
+ * anyone who does not drag, which rule 1 forbids.
+ *
+ * Two things are checked that no other row here has to check, because on this
+ * surface the order is a *number the row wears*: the badge has to follow the
+ * move, and the move has to be said out loud. `⌘1`–`⌘9` is a row's position in
+ * **Local**, so a row that moved while its badge stayed put is a shortcut
+ * pointing at the wrong project, and a row that moved in silence is a change a
+ * screen reader never hears.
+ */
+async function auditSidebarOrder(browser) {
+  row("A8", "The sidebar's order can be changed from the keyboard");
+  const { context, page } = await board(browser, {
+    // Ten, because nine is the number of chords: crossing the ninth place is
+    // the badge being lost, and a sidebar of nine cannot ask that question.
+    query: { projects: "10" },
+    // The reorder taken away, and nothing else: the rows are still reachable
+    // and still say which keys move them, and the keys do nothing. That is
+    // exactly what a feature with no keyboard path looks like from here.
+    selfTest: (target) =>
+      target.evaluate(() => {
+        document.addEventListener(
+          "keydown",
+          (event) => {
+            if (event.altKey) event.stopImmediatePropagation();
+          },
+          true,
+        );
+      }),
+  });
+  /** The Local list as it reads: each row's id, name and badge. */
+  const local = () =>
+    page.evaluate(() => {
+      const section = [...document.querySelectorAll(".project-section")].find(
+        (one) => one.querySelector("h2")?.textContent === "Local",
+      );
+      return [...(section?.querySelectorAll(".project-row") ?? [])].map(
+        (item) => ({
+          id: item.dataset.projectId,
+          name: item.querySelector("strong")?.textContent ?? "",
+          badge: item.querySelector(".project-number")?.textContent ?? "",
+        }),
+      );
+    });
+  const inLocal = (at) =>
+    at.projectSection === "Local" && at.projectId !== undefined;
+  try {
+    // The shell's order (rule 1): the gear, then the project rows. Walked
+    // rather than queried — the question is what a reader reaches.
+    const reached = await tabTo(page, inLocal);
+    check(
+      "a Local project row is reachable by Tab",
+      reached.found,
+      `${reached.presses} presses → ${reached.at.projectName || reached.at.tag}`,
+      "keyboard-focus-map.md:12 — the shell's order follows the DOM",
+    );
+    if (!reached.found) return;
+
+    const advertised = await page.evaluate(() =>
+      document.activeElement?.getAttribute("aria-keyshortcuts"),
+    );
+    check(
+      "the focused row says which keys move it",
+      Boolean(
+        advertised?.includes("Alt+ArrowUp") &&
+        advertised.includes("Alt+ArrowDown"),
+      ),
+      `aria-keyshortcuts=${JSON.stringify(advertised ?? "")}`,
+      "keyboard-focus-map.md:215 — `⌥↑`/`⌥↓` move the row within its section",
+    );
+
+    const before = await local();
+    await page.keyboard.press("Alt+ArrowDown");
+    await settle(page);
+    const after = await local();
+    check(
+      "`⌥↓` moves the focused row one place down Local",
+      before.length > 1 &&
+        after[0]?.id === before[1]?.id &&
+        after[1]?.id === before[0]?.id &&
+        after[1]?.id === reached.at.projectId,
+      `${before.map((one) => one.name).join(", ")} → ` +
+        `${after.map((one) => one.name).join(", ")}`,
+      "keyboard-focus-map.md:215 — `⌥↑`/`⌥↓` move the row within its section",
+    );
+    check(
+      "the badge follows the row, so the chord and the number still agree",
+      after[0]?.badge === "⌘1" && after[1]?.badge === "⌘2",
+      `${after
+        .slice(0, 2)
+        .map((one) => `${one.badge || "(none)"} ${one.name}`)
+        .join(", ")}`,
+      "keyboard-focus-map.md:34 — the nth project of the sidebar's Local list",
+    );
+    const stillOn = await focused(page);
+    check(
+      "the row that moved keeps focus, so the next press moves the same row",
+      stillOn.projectId === reached.at.projectId,
+      `focus=${stillOn.projectName || stillOn.className || stillOn.tag}`,
+      "keyboard-focus-map.md:16-18 — focus is visible and never lost",
+    );
+    const said = await textOf(page, ".toast-stack");
+    check(
+      "the move is announced, with the place and the chord it landed on",
+      said.includes(`Moved ${before[0]?.name} to 2 of 10`) &&
+        said.includes("⌘2"),
+      JSON.stringify(said.slice(0, 80)),
+      "keyboard-focus-map.md:221-223 — the move is announced, place and chord",
+    );
+
+    // The ninth place, which is the one boundary on this surface: nine chords
+    // and ten projects, so a row stepped past it loses its badge and the row it
+    // passed gains one. Both have to be true at once, and neither is visible
+    // anywhere but on the rows themselves.
+    const ninth = after[8];
+    const toNinth = await tabTo(
+      page,
+      (at) => inLocal(at) && at.projectId === ninth?.id,
+    );
+    check(
+      "the ninth row is reachable by Tab as well",
+      toNinth.found,
+      `${toNinth.presses} presses → ${toNinth.at.projectName || toNinth.at.tag}`,
+      "keyboard-focus-map.md:12 — the shell's order follows the DOM",
+    );
+    if (!toNinth.found) return;
+    await page.keyboard.press("Alt+ArrowDown");
+    await settle(page);
+    const crossed = await local();
+    check(
+      "a row stepped past the ninth place loses its badge, and the row it passed gains one",
+      crossed[9]?.id === ninth?.id &&
+        crossed[9]?.badge === "" &&
+        crossed[8]?.badge === "⌘9" &&
+        crossed[8]?.id === after[9]?.id,
+      `${crossed
+        .slice(8)
+        .map((one) => `${one.badge || "(none)"} ${one.name}`)
+        .join(", ")}`,
+      "keyboard-focus-map.md:34 — the nth project of the sidebar's Local list",
+    );
+    const lost = await textOf(page, ".toast-stack");
+    check(
+      "and says so, rather than leaving it to be found by pressing a key",
+      lost.includes(`Moved ${ninth?.name} to 10 of 10`) &&
+        lost.includes("no shortcut"),
+      JSON.stringify(lost.slice(0, 80)),
+      "keyboard-focus-map.md:221-223 — the move is announced, place and chord",
+    );
+  } finally {
+    await context.close();
+  }
+}
+
 const AUDITS = [
   ["A1", auditLifecycle],
   ["A2", auditFocusOrder],
@@ -1846,6 +2017,7 @@ const AUDITS = [
   ["A5", auditZoom],
   ["A6", auditPanelResize],
   ["A7", auditUpdates],
+  ["A8", auditSidebarOrder],
 ];
 
 async function main() {
