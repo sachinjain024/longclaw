@@ -381,6 +381,7 @@ describe("Rust project-event JSON applied to visible state", () => {
       theme: "indigo",
       starred: false,
       reachable: true,
+      order: 0,
       labels: {},
       properties: NO_PROPERTIES,
     };
@@ -408,6 +409,90 @@ describe("Rust project-event JSON applied to visible state", () => {
     expect(useLongClawStore.getState().tickets).toEqual([]);
   });
 
+  /**
+   * LC-259y. `upsertProject` sorted by name, so a project that came back from a
+   * rename landed wherever its new name sorted — and `⌘1`–`⌘9` is a row's
+   * position, so it took the numbers of everything it passed with it. The
+   * registry's `order` is the authority, and this is the only sort left.
+   */
+  it("keeps a renamed project where the registry holds it", () => {
+    const registered = (id: string, name: string, order: number) => ({
+      id,
+      name,
+      rootPath: `/tmp/${id}`,
+      key: id.slice(0, 2).toUpperCase(),
+      theme: "indigo",
+      starred: false,
+      reachable: true,
+      order,
+      labels: {},
+      properties: NO_PROPERTIES,
+    });
+    const zebra = registered("zebra", "Zebra", 0);
+    const apple = registered("apple", "apple", 1);
+    const admin = registered("admin", "Admin", 2);
+    useLongClawStore.setState({ projects: [zebra, apple, admin] });
+
+    // The place is the registry's, not the caller's: what comes back from a
+    // rename carries the order it went in with.
+    useLongClawStore
+      .getState()
+      .upsertProject({ ...zebra, name: "zzz renamed last of all" });
+
+    expect(
+      useLongClawStore.getState().projects.map((project) => project.name),
+    ).toEqual(["zzz renamed last of all", "apple", "Admin"]);
+
+    // And a project nobody has seen before joins where the registry put it,
+    // which is after every one that exists.
+    useLongClawStore.getState().upsertProject(registered("aaa", "aaa", 3));
+
+    expect(
+      useLongClawStore.getState().projects.map((project) => project.id),
+    ).toEqual(["zebra", "apple", "admin", "aaa"]);
+  });
+
+  /**
+   * LC-259y. Removing a project closes the gap in the numbers here as well as in
+   * the registry. Leaving the hole open was not visible on the row that was
+   * removed — it was visible two writes later, when a reference the registry
+   * handed back carried a place this list no longer agreed with and the row
+   * landed in the middle of the list rather than where it belonged.
+   */
+  it("closes the gap a removal leaves in the numbering", () => {
+    const registered = (id: string, order: number) => ({
+      id,
+      name: id,
+      rootPath: `/tmp/${id}`,
+      key: id.slice(0, 2).toUpperCase(),
+      theme: "indigo",
+      starred: false,
+      reachable: true,
+      order,
+      labels: {},
+      properties: NO_PROPERTIES,
+    });
+    useLongClawStore.setState({
+      projects: ["one", "two", "three", "four"].map(registered),
+      activeProjectId: "four",
+    });
+
+    useLongClawStore.getState().removeProjectReference("one");
+    useLongClawStore.getState().removeProjectReference("two");
+
+    expect(
+      useLongClawStore.getState().projects.map((project) => project.order),
+    ).toEqual([0, 1]);
+
+    // What the registry hands back for a project registered next: the place
+    // after the two that are left. It goes last, not between them.
+    useLongClawStore.getState().upsertProject(registered("five", 2));
+
+    expect(
+      useLongClawStore.getState().projects.map((project) => project.id),
+    ).toEqual(["three", "four", "five"]);
+  });
+
   it("selects an unreachable project without keeping rows from the last project", () => {
     useLongClawStore.setState({
       projects: [
@@ -419,6 +504,7 @@ describe("Rust project-event JSON applied to visible state", () => {
           theme: "indigo",
           starred: false,
           reachable: false,
+          order: 0,
           labels: {},
           properties: NO_PROPERTIES,
         },
@@ -452,6 +538,7 @@ describe("Rust project-event JSON applied to visible state", () => {
           theme: "indigo",
           starred: true,
           reachable: true,
+          order: 0,
           labels: {},
           properties: NO_PROPERTIES,
         },
@@ -469,6 +556,7 @@ describe("Rust project-event JSON applied to visible state", () => {
         theme: "indigo",
         starred: true,
         reachable: false,
+        order: 0,
         labels: {},
         properties: NO_PROPERTIES,
       },

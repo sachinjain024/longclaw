@@ -81,6 +81,7 @@
               "theme": "indigo",
               "starred": false,
               "reachable": true,
+              "order": 0,
               "labels": {
                 "reliability": {
                   "name": "Reliability",

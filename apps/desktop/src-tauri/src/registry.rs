@@ -33,15 +33,7 @@ impl RegistryStore {
         let backup_path = app_data_dir.join("project-registry.backup.json");
         let mut projects: Vec<ProjectReference> = match fs::read(&path) {
             Ok(bytes) => {
-                let projects = serde_json::from_slice(&bytes).map_err(|error| {
-                    AppError::new(
-                        ErrorCode::ParseFailed,
-                        format!("Project registry is invalid and was left untouched: {error}"),
-                        true,
-                    )
-                    .with_context("path", path.display().to_string())
-                    .with_context("backupPath", backup_path.display().to_string())
-                })?;
+                let projects = read_registry(&bytes, &path, &backup_path)?;
                 preserve_registry_backup(&backup_path, &bytes)?;
                 projects
             }
@@ -57,6 +49,10 @@ impl RegistryStore {
         for project in &mut projects {
             project.reachable = true;
         }
+        // `read_registry` has already put the list in sidebar order; this only
+        // restates each entry's place as the index it is stored at, which is
+        // the shape every write below keeps it in.
+        renumber(&mut projects);
         Ok(Self {
             path,
             backup_path,
@@ -266,9 +262,10 @@ impl RegistryStore {
         let bytes = edit(&mut document).map_err(AppError::from)?;
         atomic_write("Saving project settings", &project_file_path(root), &bytes)?;
         write_agent_instructions(root, &document)?;
-        let mut project =
-            ProjectReference::from_project(document.project(), current.root_path.clone());
-        project.starred = current.starred;
+        let project = carrying_registry_state(
+            ProjectReference::from_project(document.project(), current.root_path.clone()),
+            &current,
+        );
         self.remember(&project)?;
         Ok(project)
     }
@@ -280,6 +277,9 @@ impl RegistryStore {
         }
         let mut next = projects.clone();
         next.retain(|project| project.id != project_id);
+        // The rows below a removed one do move up, and that is right: it is a
+        // deletion the human performed rather than a surprise (LC-259y).
+        renumber(&mut next);
         self.persist(&next)?;
         *projects = next;
         Ok(())
@@ -290,15 +290,27 @@ impl RegistryStore {
     pub fn remember(&self, project: &ProjectReference) -> AppResult<()> {
         let mut projects = self.projects.write();
         let mut next = projects.clone();
-        let starred = next
-            .iter()
-            .find(|candidate| candidate.id == project.id)
-            .is_some_and(|candidate| candidate.starred);
         let mut project = project.clone();
-        project.starred = starred;
-        next.retain(|candidate| candidate.id != project.id);
-        next.push(project);
-        next.sort_by(|left, right| left.name.cmp(&right.name));
+        // The star is the registry's to say rather than the caller's, which hands
+        // in what it read out of `longclaw.yaml` and that file holds no star.
+        // So is the row, and the row is where the entry sits: the list is
+        // rewritten in place rather than re-sorted, which leaves no comparator
+        // to disagree with what was persisted. `remember` runs on every update
+        // to a registered project and not only on registration, so this is what
+        // makes a rename move nothing (LC-259y).
+        match next.iter().position(|candidate| candidate.id == project.id) {
+            Some(index) => {
+                project.starred = next[index].starred;
+                next[index] = project;
+            }
+            // A project nobody has seen before goes after every one that exists.
+            None => {
+                project.starred = false;
+                next.push(project);
+            }
+        }
+        // Each entry's index is its place; this is where that gets written down.
+        renumber(&mut next);
         self.persist(&next)?;
         *projects = next;
         Ok(())
@@ -342,9 +354,109 @@ fn refreshed(project: ProjectReference) -> ProjectReference {
     if fs::read_dir(tickets_root(root)).is_err() {
         return unreachable(project);
     }
-    let mut current = ProjectReference::from_project(document.project(), project.root_path.clone());
-    current.starred = project.starred;
-    current
+    carrying_registry_state(
+        ProjectReference::from_project(document.project(), project.root_path.clone()),
+        &project,
+    )
+}
+
+/// A reference rebuilt from `longclaw.yaml`, carrying the two fields that file
+/// does not hold.
+///
+/// The project file is the source of truth for the name, the theme and the
+/// labels; the registry is the source of truth for the star and for the place.
+/// Every rebuild has to carry both across or reading a project's own settings
+/// would unstar it and move its row (LC-259y).
+fn carrying_registry_state(
+    mut rebuilt: ProjectReference,
+    registry: &ProjectReference,
+) -> ProjectReference {
+    rebuilt.starred = registry.starred;
+    rebuilt.order = registry.order;
+    rebuilt
+}
+
+/// Restates each entry's place as the index it is stored at, so `order` is dense
+/// and the two ways of reading the list cannot come apart.
+///
+/// The list's own order is the sidebar's order; `order` is that written down, so
+/// that the file does not depend on the order of a JSON array and so that a
+/// reference crossing IPC on its own can be put back where it came from
+/// (LC-259y). Nothing here sorts — every caller has already placed the row it
+/// changed.
+fn renumber(projects: &mut [ProjectReference]) {
+    for (index, project) in projects.iter_mut().enumerate() {
+        project.order = index as u32;
+    }
+}
+
+/// The registry file's entries, in sidebar order.
+///
+/// An entry that declares no `order` was written by a build from before the
+/// field existed, and where it goes has to be worked out rather than read. Those
+/// go in the order that build *drew* them, after every entry that does say where
+/// it belongs — which for the ordinary case, a whole registry written before the
+/// field, is the whole list.
+fn read_registry(
+    bytes: &[u8],
+    path: &Path,
+    backup_path: &Path,
+) -> AppResult<Vec<ProjectReference>> {
+    let invalid = |error: serde_json::Error| {
+        AppError::new(
+            ErrorCode::ParseFailed,
+            format!("Project registry is invalid and was left untouched: {error}"),
+            true,
+        )
+        .with_context("path", path.display().to_string())
+        .with_context("backupPath", backup_path.display().to_string())
+    };
+    // Read twice rather than once, because `serde(default)` cannot tell an entry
+    // that says `"order": 0` from one that says nothing: the first pass asks the
+    // file which entries declared a place at all.
+    let entries: Vec<serde_json::Value> = serde_json::from_slice(bytes).map_err(invalid)?;
+    let declared: Vec<bool> = entries
+        .iter()
+        .map(|entry| entry.get("order").is_some())
+        .collect();
+    let projects: Vec<ProjectReference> =
+        serde_json::from_value(serde_json::Value::Array(entries)).map_err(invalid)?;
+    let (mut placed, mut unplaced): (Vec<_>, Vec<_>) = projects
+        .into_iter()
+        .zip(declared)
+        .partition(|(_, declared)| *declared);
+    placed.sort_by_key(|(project, _)| project.order);
+    unplaced.sort_by(|(left, _), (right, _)| as_drawn(&left.name, &right.name));
+    Ok(placed
+        .into_iter()
+        .chain(unplaced)
+        .map(|(project, _)| project)
+        .collect())
+}
+
+/// Two project names in the order the sidebar *drew* them before it had an order
+/// of its own — which is what the `⌘1`–`⌘9` in somebody's fingers actually were.
+///
+/// Deliberately not the order the old `remember` **wrote**. That sorted with
+/// `String::cmp`, which is byte order and puts every capitalised name before
+/// every lowercase one, while the list on screen was sorted a second time in the
+/// frontend with `localeCompare`, which does not: a registry holding `Admin`,
+/// `Zebra` and `apple` was filed in that order and drawn as `Admin`, `apple`,
+/// `Zebra`. Seeding from the file's own order would therefore re-deal the
+/// sidebar of everyone whose projects are not cased alike, which is the exact
+/// defect this field exists to prevent (LC-259y).
+///
+/// `localeCompare`'s default collation is reproduced as far as a project name
+/// goes: case-insensitive first, then lowercase before uppercase where two names
+/// differ only in case. Accents and scripts outside Latin can still fall
+/// elsewhere than ICU would put them. It runs on the one launch that migrates a
+/// registry and never again.
+fn as_drawn(left: &str, right: &str) -> std::cmp::Ordering {
+    left.to_lowercase()
+        .cmp(&right.to_lowercase())
+        // `"a".localeCompare("A")` is -1: the lowercase sorts first, which is
+        // the opposite of what comparing the bytes says.
+        .then_with(|| right.cmp(left))
 }
 
 fn unreachable(mut project: ProjectReference) -> ProjectReference {
@@ -363,6 +475,7 @@ fn unknown_project(project_id: &str) -> AppError {
 #[cfg(test)]
 mod tests {
     use std::fs;
+    use std::path::{Path, PathBuf};
 
     use super::RegistryStore;
     use crate::core::{ErrorCode, ProjectReference};
@@ -391,6 +504,7 @@ mod tests {
                 theme: "indigo".to_owned(),
                 starred: false,
                 reachable: true,
+                order: 0,
                 labels: Default::default(),
                 properties: Default::default(),
             })
@@ -667,6 +781,231 @@ mod tests {
             store.find(&reference.id).unwrap().labels["storage"].name,
             "Edited By Hand"
         );
+    }
+
+    /// LC-259y. The sidebar was sorted by name in two places, so registering a
+    /// project called `Admin` pushed every project after it down a row — and
+    /// `⌘1`–`⌘9` is a row's position, so the chord a human had in their fingers
+    /// opened something else. Registration order is the order.
+    ///
+    /// Named so that both of the comparators this replaced would reorder them:
+    /// `Zebra`, `apple`, `Admin` is neither byte order (which puts every capital
+    /// before every lowercase) nor locale order.
+    const REGISTERED: [(&str, &str, &str); 3] = [
+        ("zebra", "Zebra", "ZB"),
+        ("apple", "apple", "AP"),
+        ("admin", "Admin", "AD"),
+    ];
+
+    fn write_project(root: &Path, id: &str, name: &str, key: &str) {
+        fs::create_dir_all(root.join(".longclaw/tickets")).unwrap();
+        fs::write(
+            root.join(".longclaw/longclaw.yaml"),
+            format!(
+                "format: longclaw.project/v1\nid: {id}\nname: {name}\nkey: {key}\ntheme: indigo\ncreated_at: 2026-07-29T00:00:00Z\n"
+            ),
+        )
+        .unwrap();
+    }
+
+    /// `REGISTERED` registered in that order, and the roots it registered.
+    fn registered_in_order(temp: &tempfile::TempDir) -> (RegistryStore, Vec<PathBuf>) {
+        let store = RegistryStore::load(&temp.path().join("app-support")).unwrap();
+        let mut roots = Vec::new();
+        for (id, name, key) in REGISTERED {
+            let root = temp.path().join(id);
+            write_project(&root, id, name, key);
+            store.register(&root).unwrap();
+            roots.push(root);
+        }
+        (store, roots)
+    }
+
+    fn sidebar(store: &RegistryStore) -> Vec<String> {
+        store.list().into_iter().map(|project| project.id).collect()
+    }
+
+    /// The reported defect: a new project joins last, wherever its name sorts.
+    #[test]
+    fn a_new_project_joins_the_sidebar_last_however_its_name_sorts() {
+        let temp = tempfile::tempdir().unwrap();
+        let (store, _roots) = registered_in_order(&temp);
+
+        assert_eq!(sidebar(&store), ["zebra", "apple", "admin"]);
+        // And the place is dense and says the index, on the way out as well as
+        // in the file.
+        assert_eq!(
+            store
+                .list()
+                .into_iter()
+                .map(|project| project.order)
+                .collect::<Vec<_>>(),
+            [0, 1, 2]
+        );
+    }
+
+    /// The sharper half of the defect: `remember` runs on every update to a
+    /// registered project, so a rename re-sorted the whole sidebar. Nothing
+    /// about renaming a project suggests other projects' shortcuts change.
+    #[test]
+    fn renaming_a_project_moves_no_row() {
+        let temp = tempfile::tempdir().unwrap();
+        let (store, _roots) = registered_in_order(&temp);
+
+        let renamed = store.update_name("zebra", "zzz last of all").unwrap();
+        assert_eq!(renamed.name, "zzz last of all");
+        assert_eq!(renamed.order, 0);
+        assert_eq!(sidebar(&store), ["zebra", "apple", "admin"]);
+
+        store.update_name("admin", "AAA first of all").unwrap();
+        assert_eq!(sidebar(&store), ["zebra", "apple", "admin"]);
+    }
+
+    /// The registry file as a build from before this field wrote it: the same
+    /// entries, sorted the way the old `remember` sorted them — `String::cmp`,
+    /// which is byte order — and carrying no place at all.
+    fn as_an_older_build_wrote_it(registry: &Path) {
+        let mut older: Vec<serde_json::Value> =
+            serde_json::from_str(&fs::read_to_string(registry).unwrap()).unwrap();
+        for entry in &mut older {
+            assert!(entry.as_object_mut().unwrap().remove("order").is_some());
+        }
+        older.sort_by_key(|entry| entry["name"].as_str().unwrap().to_owned());
+        assert_eq!(
+            older
+                .iter()
+                .map(|entry| entry["id"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            ["admin", "zebra", "apple"]
+        );
+        fs::write(registry, serde_json::to_vec_pretty(&older).unwrap()).unwrap();
+    }
+
+    /// The migration, and the part of this ticket that is easiest to get wrong.
+    /// Every current human's muscle memory is built on the sidebar they have
+    /// been looking at, so upgrading has to leave *that* order exactly where it
+    /// is and take effect from the next project registered onward.
+    ///
+    /// Which means seeding from the order the old build **drew**, not the one it
+    /// **wrote**: it filed the list in byte order (`Admin`, `Zebra`, `apple`)
+    /// and the frontend sorted it again with `localeCompare` before drawing it
+    /// (`Admin`, `apple`, `Zebra`). Seeding from the file would swap `⌘2` and
+    /// `⌘3` for everyone whose projects are not cased alike — this ticket's own
+    /// defect, served once on upgrade.
+    #[test]
+    fn a_registry_written_before_the_field_keeps_the_order_it_was_drawn_in() {
+        let temp = tempfile::tempdir().unwrap();
+        let app_data = temp.path().join("app-support");
+        let (store, _roots) = registered_in_order(&temp);
+        drop(store);
+
+        let registry = app_data.join("project-registry.json");
+        as_an_older_build_wrote_it(&registry);
+
+        let restored = RegistryStore::load(&app_data).unwrap();
+        assert_eq!(sidebar(&restored), ["admin", "apple", "zebra"]);
+
+        // And from here on a new project appends rather than landing in the
+        // middle of somebody's chords.
+        let fourth = temp.path().join("bbb");
+        write_project(&fourth, "bbb", "bbb", "BB");
+        restored.register(&fourth).unwrap();
+        assert_eq!(sidebar(&restored), ["admin", "apple", "zebra", "bbb"]);
+
+        // The seed is written down on the first save, so the next launch reads
+        // it rather than working it out again.
+        let placed: Vec<serde_json::Value> =
+            serde_json::from_str(&fs::read_to_string(&registry).unwrap()).unwrap();
+        assert_eq!(
+            placed
+                .iter()
+                .map(|entry| (
+                    entry["id"].as_str().unwrap(),
+                    entry["order"].as_u64().unwrap()
+                ))
+                .collect::<Vec<_>>(),
+            [("admin", 0), ("apple", 1), ("zebra", 2), ("bbb", 3)]
+        );
+    }
+
+    /// A registry that declares a place for some of its entries and not others
+    /// can only come from a hand edit or a half-finished write. It gets an
+    /// answer rather than a shuffle: what says where it goes keeps its place,
+    /// and what does not joins the end, in the order the old build drew it.
+    #[test]
+    fn an_entry_with_no_place_joins_the_end_rather_than_the_front() {
+        let temp = tempfile::tempdir().unwrap();
+        let app_data = temp.path().join("app-support");
+        let (store, _roots) = registered_in_order(&temp);
+        drop(store);
+
+        let registry = app_data.join("project-registry.json");
+        let mut entries: Vec<serde_json::Value> =
+            serde_json::from_str(&fs::read_to_string(&registry).unwrap()).unwrap();
+        // `zebra` is first and says so; `apple` and `admin` say nothing, and 0
+        // is what `serde(default)` would hand them — the value that would sort
+        // them both above the row that does say it belongs there.
+        for entry in &mut entries {
+            if entry["id"] != "zebra" {
+                entry.as_object_mut().unwrap().remove("order");
+            }
+        }
+        fs::write(&registry, serde_json::to_vec_pretty(&entries).unwrap()).unwrap();
+
+        let restored = RegistryStore::load(&app_data).unwrap();
+        assert_eq!(sidebar(&restored), ["zebra", "admin", "apple"]);
+    }
+
+    /// Starred rows are the same rows pinned to the top rather than a second
+    /// list, and an unreachable project is not a removed one: neither may
+    /// renumber anybody. Removal is the one thing that does, and it closes the
+    /// gap.
+    #[test]
+    fn starring_and_unreachability_leave_the_numbering_alone_and_removal_closes_the_gap() {
+        let temp = tempfile::tempdir().unwrap();
+        let (store, roots) = registered_in_order(&temp);
+
+        store.set_starred("admin", true).unwrap();
+        assert_eq!(sidebar(&store), ["zebra", "apple", "admin"]);
+        store.set_starred("admin", false).unwrap();
+        assert_eq!(sidebar(&store), ["zebra", "apple", "admin"]);
+
+        let away = temp.path().join("apple-unplugged");
+        fs::rename(&roots[1], &away).unwrap();
+        let listed = store.list();
+        assert_eq!(
+            listed
+                .iter()
+                .map(|project| project.id.as_str())
+                .collect::<Vec<_>>(),
+            ["zebra", "apple", "admin"]
+        );
+        assert!(!listed[1].reachable);
+        fs::rename(&away, &roots[1]).unwrap();
+
+        store.remove("zebra").unwrap();
+        assert_eq!(sidebar(&store), ["apple", "admin"]);
+        assert_eq!(
+            store
+                .list()
+                .into_iter()
+                .map(|project| project.order)
+                .collect::<Vec<_>>(),
+            [0, 1]
+        );
+    }
+
+    /// The place has to survive a relaunch, or the fix only holds until the
+    /// window is closed.
+    #[test]
+    fn registration_order_survives_restart() {
+        let temp = tempfile::tempdir().unwrap();
+        let app_data = temp.path().join("app-support");
+        let (store, _roots) = registered_in_order(&temp);
+        drop(store);
+
+        let restored = RegistryStore::load(&app_data).unwrap();
+        assert_eq!(sidebar(&restored), ["zebra", "apple", "admin"]);
     }
 
     #[test]

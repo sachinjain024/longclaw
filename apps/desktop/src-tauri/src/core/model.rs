@@ -29,6 +29,18 @@ pub struct ProjectReference {
     #[serde(default)]
     pub starred: bool,
     pub reachable: bool,
+    /// Where the row sits in the sidebar, which is the order it was registered
+    /// in. `⌘1`–`⌘9` is a row's *position* in that list, so the order has to be
+    /// a stored fact rather than a function of the name: sorting by name meant
+    /// that registering `Admin`, or renaming `Work` to `Acme`, renumbered every
+    /// project it passed (LC-259y).
+    ///
+    /// `default` is also the migration. A registry written before this field
+    /// existed reads 0 for every entry, `RegistryStore::load` sorts stably, and
+    /// so the order the file is already in survives untouched — which is the
+    /// order those users have in their fingers.
+    #[serde(default)]
+    pub order: u32,
     /// Label definitions keyed by slug, so every surface holding a project
     /// reference can render a chip for a slug a ticket carries.
     ///
@@ -54,8 +66,15 @@ impl ProjectReference {
             root_path,
             key: project.key.clone(),
             theme: project.theme.clone(),
-            starred: false,
             reachable: true,
+            // A reference built from a project file knows neither of these:
+            // `longclaw.yaml` holds the name, the theme and the labels, and
+            // `RegistryStore` holds the star and the place. It assigns both
+            // when it remembers the project — so a reference that never went
+            // through it, such as the one the engine rebuilds for a snapshot,
+            // reads unstarred and first, and must not be adopted whole.
+            starred: false,
+            order: 0,
             labels: project.labels.clone(),
             properties: project.properties.clone(),
         }
@@ -465,6 +484,7 @@ mod json_contract_tests {
             theme: "indigo".to_owned(),
             starred: false,
             reachable: true,
+            order: 0,
             properties: PropertiesConfig::default(),
             labels: BTreeMap::from([(
                 "reliability".to_owned(),
