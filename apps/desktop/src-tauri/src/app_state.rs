@@ -68,6 +68,16 @@ impl AppState {
         self.registry.set_starred(project_id, starred)
     }
 
+    /// Reorders the sidebar (LC-260j). No engine is dropped: the place is the
+    /// registry's alone, and no project file changed.
+    pub fn move_project_after(
+        &self,
+        project_id: &str,
+        after: Option<&str>,
+    ) -> AppResult<Vec<ProjectReference>> {
+        self.registry.move_after(project_id, after)
+    }
+
     pub fn update_project_theme(
         &self,
         project_id: &str,

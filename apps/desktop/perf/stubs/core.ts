@@ -24,6 +24,7 @@ import { PROJECT, detail, snapshot, ticket } from "../fixture";
 import type {
   ChecklistItem,
   CreateTicketRequest,
+  ProjectReference,
   EditTicketRequest,
   IndexedTicket,
   TicketDetail,
@@ -101,6 +102,64 @@ const settling = () =>
 // through it, and paying `?slow` for every write of the run instead would be
 // minutes of waiting to reach the one that matters.
 if (WRITABLE) bridge.holdWrites = (ms: number) => void (slowWriteMs = ms);
+
+/**
+ * `?projects=N`: a sidebar of N projects rather than the fixture's one, so the
+ * reorder gesture has something to reorder (LC-260j).
+ *
+ * One is the default and stays the default: every other run here measures or
+ * screenshots a surface that draws this list, and a longer sidebar would change
+ * what they are looking at. The two starred entries are what make a drag
+ * *inside* Starred mean anything — it needs two rows to be let go between — and
+ * they are deliberately not adjacent in Local, because the whole question that
+ * section asks is what an unstarred row in between does.
+ */
+const STARRED_IN_HARNESS = [1, 4];
+const projects: ProjectReference[] = Array.from(
+  { length: Math.max(1, Number(params.get("projects") ?? 1) || 1) },
+  (_, index) =>
+    index === 0
+      ? { ...PROJECT, order: 0 }
+      : {
+          ...PROJECT,
+          id: `${PROJECT.id.slice(0, -2)}${String(index).padStart(2, "0")}`,
+          name: `Fixture ${String(index + 1).padStart(2, "0")}`,
+          key: `P${String(index + 1).padStart(2, "0")}`,
+          rootPath: `${PROJECT.rootPath}-${index}`,
+          starred: STARRED_IN_HARNESS.includes(index),
+          order: index,
+        },
+);
+
+/**
+ * The sidebar rewritten in place, the way `RegistryStore::move_after` does it:
+ * the row is taken out, put back after the one it was dropped under, and every
+ * entry's place is restated as its index. The app draws the list this answers
+ * with, so a probe that reads the sidebar back is reading the registry's answer
+ * rather than the optimistic frame.
+ *
+ * Every refusal happens before anything is moved, which the real one also
+ * promises: a harness that emptied a row out of its list and *then* threw would
+ * answer the rest of the run from a sidebar nothing had asked for, and the run
+ * after the refusal is the one that would carry the lie.
+ */
+function moveProjectAfter(projectId: string, after: string | null) {
+  const from = projects.findIndex((project) => project.id === projectId);
+  if (from < 0) throw new Error(`Unknown project id: ${projectId}`);
+  if (after === projectId) {
+    throw new Error("A project cannot be placed after itself");
+  }
+  const rest = projects.filter((_, index) => index !== from);
+  const at =
+    after === null ? 0 : rest.findIndex((project) => project.id === after) + 1;
+  if (after !== null && at === 0) {
+    throw new Error(`Unknown project id: ${after}`);
+  }
+  rest.splice(at, 0, projects[from]);
+  projects.splice(0, projects.length, ...rest);
+  projects.forEach((project, index) => (project.order = index));
+  return projects.map((project) => ({ ...project }));
+}
 
 export class Channel<T> {
   onmessage: (message: T) => void = () => {};
@@ -360,7 +419,8 @@ export async function invoke<T>(
   // abbreviation. This fixture project lives under /tmp, so the concrete stub
   // value does not alter what the performance surfaces render.
   if (command === "home_dir") return "/Users/longclaw" as T;
-  if (command === "list_projects") return [PROJECT] as T;
+  if (command === "list_projects")
+    return projects.map((one) => ({ ...one })) as T;
   // A harness that carried preferences between runs would carry a view mode or
   // a filter into a measurement that did not ask for one, so this device
   // remembers nothing: every run starts on the launch defaults, and what the
@@ -422,6 +482,17 @@ export async function invoke<T>(
   }
 
   if (WRITABLE) {
+    // The sidebar's own write, and the only one here that is not about a ticket
+    // (LC-260j). Under `?rw=1` with the rest: a drag is a write, and a run that
+    // did not ask for the write commands must not be able to reorder anything.
+    if (command === "move_project_after") {
+      return (await writing(() =>
+        moveProjectAfter(
+          args?.projectId as string,
+          (args?.afterProjectId as string | null) ?? null,
+        ),
+      )) as T;
+    }
     if (command === "create_ticket") {
       return (await writing(() =>
         createTicket(args?.request as CreateTicketRequest),

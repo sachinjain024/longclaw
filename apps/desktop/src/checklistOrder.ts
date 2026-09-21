@@ -1,5 +1,5 @@
 /**
- * What letting go of a checklist row means, wherever it was let go.
+ * What letting go of a row in a plain list means, wherever it was let go.
  *
  * The same split the board and the list already run on (`ticketMove.ts`): the
  * surfaces supply the pointer, and the decision lives here. Two surfaces draw a
@@ -7,6 +7,14 @@
  * panel, whose rows are strings that have not been written yet — and a drag has
  * to mean the same thing in both or the same gesture would move a row to two
  * different places depending on whether the ticket existed.
+ *
+ * The **sidebar** is the third, and the reason the top half of this file is
+ * named for a row rather than for a checklist (LC-260j): `landingFor`,
+ * `gapUnder` and `dropEdge` are about a pointer and a list of boxes and know
+ * nothing about items, while `moveOf`, `heldOrder` and the `ChecklistMove` they
+ * build are about a ticket's checklist and stay that. `projectOrder.ts` is the
+ * sidebar's half of the same split, because the question a project row's drop
+ * asks — which of two sections was it let go in — has no checklist equivalent.
  *
  * A landing is stated as an index here and as a *neighbour* on the wire: the
  * edit says "after `ck_0007`", never "at 3". An index is a claim about the whole
@@ -38,19 +46,22 @@ export function landingFor(from: number, gap: number): number {
  * tall as their text — which is the one way this list differs from the board's
  * and the issue list's, where a stride is a constant (`listGeometry.ts`).
  *
- * `rowIndexAt` is what tells the two surfaces apart: the panel's rows know
- * their item id, the create panel's know their position, and neither has the
- * other's. Nothing else about the gesture differs, so nothing else is passed.
+ * `rowIndexAt` is what tells the surfaces apart: the panel's rows know their
+ * item id, the create panel's know their position, the sidebar's know their
+ * project id, and none has another's. `row` is the second thing that differs
+ * and the only other one — the sidebar draws `.project-row` rather than a
+ * checklist row (LC-260j) — and the gesture itself is the same everywhere.
  */
 export function gapUnder(
   event: { target: EventTarget | null; clientY: number },
   rowIndexAt: (target: EventTarget | null) => number,
+  row = ".checklist-row",
 ): number | undefined {
   const index = rowIndexAt(event.target);
   if (index < 0) return undefined;
-  const row = (event.target as HTMLElement).closest(".checklist-row");
-  if (!row) return undefined;
-  const box = row.getBoundingClientRect();
+  const found = (event.target as HTMLElement).closest(row);
+  if (!found) return undefined;
+  const box = found.getBoundingClientRect();
   return event.clientY > box.top + box.height / 2 ? index + 1 : index;
 }
 

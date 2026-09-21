@@ -5,6 +5,8 @@ import {
   useMemo,
   useRef,
   useState,
+  type DragEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import {
   addProjectLabel,
@@ -19,6 +21,7 @@ import {
   homeDir,
   listProjects,
   listenForProjectEvents,
+  moveProjectAfter,
   openProject,
   rebuildIndex,
   reconcileProject,
@@ -39,6 +42,7 @@ import {
   startOfDay,
   untilNextDay,
 } from "./properties";
+import { dropEdge, gapUnder, landingFor } from "./checklistOrder";
 import { classes } from "./classes";
 import { copyToClipboard } from "./clipboard";
 import { CommandPalette } from "./CommandPalette";
@@ -89,6 +93,7 @@ import { mutate, type Mutation, useMutationStore } from "./mutations";
 import { ORDERINGS, type OrderingMode } from "./ordering";
 import { OwlMark } from "./OwlMark";
 import { splitPath, tildeAbbreviate } from "./pathDisplay";
+import { sectionMoveOf, type ProjectLanding } from "./projectOrder";
 import { ProjectSettings } from "./ProjectSettings";
 import { QuickCreate } from "./QuickCreate";
 import type { FocusRequest } from "./rovingFocus";
@@ -236,6 +241,7 @@ export function App() {
   const reconciling = useLongClawStore((state) => state.reconciling);
   const error = useLongClawStore((state) => state.error);
   const setProjects = useLongClawStore((state) => state.setProjects);
+  const reorderProjects = useLongClawStore((state) => state.reorderProjects);
   const upsertProject = useLongClawStore((state) => state.upsertProject);
   const removeProjectReference = useLongClawStore(
     (state) => state.removeProjectReference,
@@ -539,7 +545,7 @@ export function App() {
    * past the window, or a panel closing over a row scrolled out of sight, focused
    * nothing and left `<body>` holding it. The surfaces answer this by moving
    * their tab stop first, which mounts the row, and taking focus after. Found by
-   * the Step 17 accessibility audit; `keyboard-focus-map.md:16-18,132,214`.
+   * the Step 17 accessibility audit; `keyboard-focus-map.md:16-18,132,235`.
    */
   const [cardFocus, setCardFocus] = useState<FocusRequest>();
   const focusCard = useCallback((key: string) => {
@@ -1457,6 +1463,61 @@ export function App() {
     });
   }
 
+  /**
+   * One row's new place in the sidebar, from either gesture and from either
+   * section (LC-260j).
+   *
+   * Both gestures end here because they are one change, and because the way
+   * back has to be the same one either way: the toast says where the row landed
+   * and `⌘Z` puts it back under the row it came from.
+   *
+   * The order is applied before the write and taken back if it is refused, so
+   * the sidebar never shows an order the registry does not have — which for
+   * this surface is sharper than it sounds, since the numbers on the rows are
+   * the order and a refused move that left them alone would leave nine chords
+   * pointing at the wrong projects.
+   */
+  async function placeProject(
+    project: ProjectReference,
+    landed: ProjectLanding,
+    back: ProjectLanding,
+  ) {
+    await writeProjectFile({
+      message: movedMessage(project.name, landed),
+      optimistic: (applied) =>
+        reorderProjects(applied ? landed.order : back.order),
+      write: () => moveProjectAfter(project.id, landed.after),
+      // The whole list, because the whole list moved: every row between the two
+      // ends of the move has a new number, and the registry is the one
+      // authority over what those are (LC-259y).
+      onWritten: setProjects,
+      undo: () => void placeProject(project, back, landed),
+    });
+  }
+
+  /**
+   * What a move says, in the section the gesture happened in.
+   *
+   * `sectionMoveOf` is handed **Local** as well, because Starred draws some
+   * of the same rows and the place it decides is a place in Local either way —
+   * a row's number is its position there, wherever the row was dragged.
+   */
+  function moveWithin(
+    section: ProjectReference[],
+    projectId: string,
+    landing: number,
+  ) {
+    const moving = localProjects.find((project) => project.id === projectId);
+    const decided = sectionMoveOf(
+      localProjects.map((project) => project.id),
+      section.map((project) => project.id),
+      projectId,
+      landing,
+    );
+    if (!moving || !decided) return;
+    void placeProject(moving, decided.move, decided.inverse);
+  }
+
   async function toggleStar(project: ProjectReference) {
     await writeProjectFile({
       message: project.starred
@@ -2249,6 +2310,13 @@ export function App() {
             chords={projectChords}
             projects={starredProjects}
             activeProjectId={activeProjectId}
+            // The place a drop in **Starred** decides is a place in Local, and
+            // `moveWithin` is what works it out: a starred row is the same row
+            // pinned to the top, so it carries one number and that number is
+            // its Local row's (LC-259y).
+            onMove={(projectId, landing) =>
+              moveWithin(starredProjects, projectId, landing)
+            }
             onOpen={(id) => void loadProject(id)}
             menuFor={projectMenu?.projectId}
             onMenu={(project, anchor) =>
@@ -2262,6 +2330,9 @@ export function App() {
             chords={projectChords}
             projects={localProjects}
             activeProjectId={activeProjectId}
+            onMove={(projectId, landing) =>
+              moveWithin(localProjects, projectId, landing)
+            }
             onOpen={(id) => void loadProject(id)}
             menuFor={projectMenu?.projectId}
             onMenu={(project, anchor) =>
@@ -3031,6 +3102,43 @@ function PathChip(props: { path: string; homePath: string | null }) {
   );
 }
 
+/**
+ * What a project row advertises to a screen reader: its `⌘n` where it has one,
+ * and the two keys that move it where the section has somewhere to move it to.
+ *
+ * Both in one attribute rather than two channels, for the reason the chord is
+ * in this one at all — a row may not say a key it does not answer, and these
+ * are the keys this row answers.
+ */
+function keyshortcutsFor(chord: number | undefined, reorderable: boolean) {
+  const keys = [
+    ...(chord === undefined ? [] : [`Meta+${chord}`]),
+    ...(reorderable ? ["Alt+ArrowUp", "Alt+ArrowDown"] : []),
+  ];
+  return keys.length === 0 ? undefined : keys.join(" ");
+}
+
+/**
+ * What a moved row says out loud, and the only thing that does.
+ *
+ * The toast stack is a live region (`WriteFeedback.tsx`), so this is the
+ * announcement as well as the acknowledgement — a row going from third to first
+ * with nothing said is a change a screen reader never hears.
+ *
+ * It names the number rather than the neighbour, because the number is what the
+ * row now advertises and what `⌘n` will open. Crossing the ninth place is the
+ * case this exists for: nine chords and any number of projects, so a row landing
+ * tenth has none and a row landing in the top nine has one, and a sentence that
+ * only said "moved" would leave that to be discovered by pressing a key.
+ */
+function movedMessage(name: string, landed: ProjectLanding) {
+  const chord =
+    landed.position <= PROJECT_CHORD_COUNT
+      ? `⌘${landed.position}`
+      : "no shortcut";
+  return `Moved ${name} to ${landed.position} of ${landed.order.length} · ${chord}`;
+}
+
 function ProjectSection(props: {
   title: string;
   empty: string;
@@ -3049,14 +3157,118 @@ function ProjectSection(props: {
    * to the top, so it shows the same key rather than none.
    */
   chords: ReadonlyMap<string, number>;
+  /**
+   * Where a row was let go, as an index into **this section** with the moving
+   * row taken out. The section reports the gesture and `moveWithin` decides
+   * what it means, because what it means is a place in Local and this section
+   * may be drawing only some of it (LC-260j).
+   */
+  onMove: (projectId: string, landing: number) => void;
 }) {
+  // The five handlers below are the **third** copy of this wiring —
+  // `TicketPanel.tsx` and `CreatePanel.tsx` hold the other two, comments
+  // included. The repo's split puts the decision in a module and lets each
+  // surface own its pointer, so the halves that differ are real: the row
+  // selector, what a row's id is, and what a landing means. The halves that do
+  // not differ are five of them, and a third copy is where that stops being a
+  // pattern and starts being duplication. A `useRowDrag({ rowSelector, idAt,
+  // length, onMove })` would collapse all three; it is not done here because
+  // the other two surfaces are not this ticket's to move, and is LC-263v.
+  const [dragId, setDragId] = useState<string>();
+  const [dropGap, setDropGap] = useState<number>();
+  /** One row has nowhere to go, and nothing to be let go between. */
+  const reorderable = props.projects.length > 1;
+
+  /** Which row an event happened on, by the id its element carries. */
+  function rowIndexAt(target: EventTarget | null): number {
+    const row = (target as HTMLElement | null)?.closest?.(".project-row");
+    const id = (row as HTMLElement | null)?.dataset.projectId;
+    return id === undefined
+      ? -1
+      : props.projects.findIndex((project) => project.id === id);
+  }
+
+  function pickUpRow(event: DragEvent<HTMLElement>) {
+    const index = rowIndexAt(event.target);
+    if (!reorderable || index < 0) return;
+    // WebKit will not start a drag with an empty data transfer (`dragging.ts`).
+    event.dataTransfer?.setData("text/plain", props.projects[index].id);
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+    setDragId(props.projects[index].id);
+  }
+
+  function overRow(event: DragEvent<HTMLElement>) {
+    // A row picked up in the other section is not one this one may place: a
+    // drag between Starred and Local would be starring by gesture, and starring
+    // is a control. Nothing accepts it, so the row goes back where it was.
+    if (dragId === undefined) return;
+    const gap = gapUnder(event, rowIndexAt, ".project-row");
+    if (gap === undefined) return;
+    // Without this the drop never fires: the default is "this is not a target".
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+    // `dragover` fires many times a second over the same gap, and an unchanged
+    // number is a render React can skip.
+    setDropGap((current) => (current === gap ? current : gap));
+  }
+
+  function dropRow(event: DragEvent<HTMLElement>) {
+    const gap = gapUnder(event, rowIndexAt, ".project-row");
+    const moving = dragId;
+    const from = props.projects.findIndex((project) => project.id === moving);
+    endDrag();
+    if (gap === undefined || from < 0 || moving === undefined) return;
+    event.preventDefault();
+    props.onMove(moving, landingFor(from, gap));
+  }
+
+  function endDrag() {
+    setDragId(undefined);
+    setDropGap(undefined);
+  }
+
+  /**
+   * `⌥↑` / `⌥↓` on a row, which is the whole of the keyboard's reorder and the
+   * same binding the panel's checklist carries (`keyboard-focus-map.md:63`).
+   * The row keeps focus across the move because React keys the list by project
+   * id and moves the node rather than rewriting it.
+   *
+   * Within the section, not within Local: a starred row steps past the starred
+   * row above it, which is the row a reader is being told about.
+   */
+  function moveByKey(event: ReactKeyboardEvent<HTMLElement>) {
+    if (!event.altKey || event.metaKey || event.ctrlKey) return;
+    const step =
+      event.key === "ArrowUp" ? -1 : event.key === "ArrowDown" ? 1 : 0;
+    if (step === 0 || !reorderable) return;
+    const from = rowIndexAt(event.target);
+    const to = from + step;
+    if (from < 0 || to < 0 || to >= props.projects.length) return;
+    event.preventDefault();
+    props.onMove(props.projects[from].id, to);
+  }
+
   return (
-    <section className="project-section">
+    <section
+      className="project-section"
+      onDragStart={pickUpRow}
+      onDragOver={overRow}
+      onDrop={dropRow}
+      onDragEnd={endDrag}
+      onDragLeave={(event) => {
+        // Leaving for a row of the same section is not leaving; the next
+        // `dragover` would put the line back a frame later, which reads as a
+        // flicker under the pointer.
+        if (event.currentTarget.contains(event.relatedTarget as Node)) return;
+        setDropGap(undefined);
+      }}
+      onKeyDown={moveByKey}
+    >
       <h2>{props.title}</h2>
       {props.projects.length === 0 ? (
         <p>{props.empty}</p>
       ) : (
-        props.projects.map((project) => (
+        props.projects.map((project, index) => (
           /* Two buttons side by side, not one inside the other. The star used
              to be a span carrying `role="button"` *inside* the row's own
              button — interactive content nested in a button, which is invalid
@@ -3065,8 +3277,13 @@ function ProjectSection(props: {
              itself as "Fixture Project, Fixture Project menu" (LC-208). */
           <div
             key={project.id}
+            data-project-id={project.id}
+            draggable={reorderable}
             className={classes(
               "project-row",
+              reorderable && "draggable",
+              project.id === dragId && "dragging",
+              dropEdge(index, props.projects.length, dropGap),
               project.id === props.activeProjectId && "selected",
             )}
           >
@@ -3081,11 +3298,15 @@ function ProjectSection(props: {
               // The badge is decoration, because a glyph inside the row's own
               // button lands in its accessible name and the row announces
               // itself twice (LC-208).
-              aria-keyshortcuts={
-                props.chords.has(project.id)
-                  ? `Meta+${props.chords.get(project.id)}`
-                  : undefined
-              }
+              //
+              // The reorder is announced here too, and has to be: it has no
+              // glyph, no menu row and no label of its own, so without this the
+              // only way to find out that a focused row can be moved is to
+              // press `⌥↓` and see whether anything happens (LC-260j).
+              aria-keyshortcuts={keyshortcutsFor(
+                props.chords.get(project.id),
+                reorderable,
+              )}
               // The path is the row's whole subject and does not fit on it; the
               // content header and settings show it in full.
               title={

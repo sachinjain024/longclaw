@@ -49,6 +49,17 @@
  * a filter on, **clear it, and read the whole column back**: the card must be in
  * the gap it was let go in and every hidden row must be where it was left.
  *
+ * An eighth group is the sidebar (LC-260j), which is the fourth list a pointer
+ * can rearrange here and the first whose order is a *number on the row*: `⌘1`–
+ * `⌘9` is a project's position, so a drop that lands the row somewhere the badge
+ * does not follow is a shortcut pointing at the wrong project. Both moving runs
+ * read the badges back with the order. The second drops inside **Starred**,
+ * which draws only some of the list: the row has to land under the starred row
+ * it was let go under *in Local as well*, and the unstarred rows it did not
+ * cross have to still be where they were. The third is its control — a row
+ * dragged out of Starred and into Local, which must be **refused**, because
+ * starring is a control and not a gesture.
+ *
  * The Priority and Due "place" cases are here as the control: ADR 0003 gives a
  * place inside a group to Manual alone, so those must be *refused* — the pointer
  * says no rather than the row sliding back. A probe that only checked the cases
@@ -124,6 +135,16 @@ const ACROSS_ROW = 1;
 const FILTER = argument("filter", "1");
 const FILTER_TICKETS = Number(argument("filter-tickets", "48"));
 
+/**
+ * How many projects the sidebar runs ask the harness for (`stubs/core.ts`).
+ *
+ * Ten, because nine is the number of chords: a row dragged to the bottom of ten
+ * crosses the ninth place, which is the badge being lost and another being
+ * gained, and a sidebar of nine could not ask that question at all. Two of them
+ * are starred, and not adjacent.
+ */
+const PROJECTS = Number(argument("projects", "10"));
+
 /** What each surface calls its parts, and how it is reached. */
 const SURFACES = {
   board: {
@@ -157,6 +178,23 @@ const SURFACES = {
     open: async (page) => {
       await page.click('button[aria-pressed="false"]:has-text("List")');
       await page.waitForSelector(".list-row", { timeout: 30_000 });
+    },
+  },
+  /**
+   * The sidebar's two sections (LC-260j). Its rows are in flow inside
+   * `.project-nav`, which is the one scroller — the 240px panel holds 216px of
+   * content and none of it scrolls sideways — so `visible` here is the vertical
+   * question alone, asked of that element. The insertion line is a
+   * pseudo-element on the row's own edge, as the checklist's is, so the box
+   * read back is the row's.
+   */
+  sidebar: {
+    row: ".project-row",
+    lit: ".project-row.drop-above, .project-row.drop-below",
+    line: ".project-row.drop-above, .project-row.drop-below",
+    scroller: ".project-nav",
+    open: async (page) => {
+      await page.waitForSelector(".project-row", { timeout: 30_000 });
     },
   },
   /**
@@ -286,6 +324,26 @@ const CASES = [
     item: "5. panel: drag a checklist row to another place in the list (LC-185)",
     surface: "panel",
     checklist: true,
+  },
+  {
+    id: "sidebar-local",
+    item: "6. sidebar: drag a project row down the Local list (LC-260j)",
+    surface: "sidebar",
+    sidebar: "Local",
+  },
+  {
+    id: "sidebar-starred",
+    item: "6. sidebar: the same inside Starred, which draws only some of the list",
+    surface: "sidebar",
+    sidebar: "Starred",
+  },
+  {
+    id: "sidebar-cross-section",
+    item: "control: a row dragged from Starred into Local is refused (LC-260j)",
+    surface: "sidebar",
+    sidebar: "Starred",
+    into: "Local",
+    refused: true,
   },
   {
     id: "board-place-filtered",
@@ -652,6 +710,222 @@ async function probeChecklist(browser, row) {
       after.map((item) => item.key).join(",") === wanted.join(","),
       `${before.map((item) => item.key).join(" ")} → ` +
         `${after.map((item) => item.key).join(" ")}`,
+    );
+  } finally {
+    await context.close();
+  }
+}
+
+/**
+ * The sidebar's sections as they read, top to bottom, with each row's box and
+ * the badge it is advertising.
+ *
+ * The badge is read with the order because on this surface they are the same
+ * fact: `⌘1`–`⌘9` is a row's position in **Local**, so a run that checked the
+ * order alone would pass against a build whose numbers had stayed where they
+ * were — which is a shortcut opening the wrong project, and the defect LC-259y
+ * exists for arriving by hand.
+ *
+ * `visible` is the scroller's question, not the window's: `.project-nav`
+ * scrolls, and a row parked outside it is one this probe must not aim at
+ * (LC-190's rule). It does not scroll sideways, so there is no second axis to
+ * ask about, unlike the board's.
+ */
+const readSidebar = (page) =>
+  page.evaluate(() => {
+    const nav = document.querySelector(".project-nav");
+    const clip = nav?.getBoundingClientRect();
+    const sections = {};
+    for (const section of document.querySelectorAll(".project-section")) {
+      const title = section.querySelector("h2")?.textContent ?? "";
+      sections[title] = [...section.querySelectorAll(".project-row")].map(
+        (row) => {
+          const box = row.getBoundingClientRect();
+          return {
+            key: row.dataset.projectId,
+            name: row.querySelector("strong")?.textContent ?? "",
+            badge: row.querySelector(".project-number")?.textContent ?? "",
+            draggable: row.draggable,
+            x: box.left,
+            y: box.top,
+            w: box.width,
+            h: box.height,
+            visible: Boolean(
+              clip && box.top >= clip.top && box.bottom <= clip.bottom,
+            ),
+          };
+        },
+      );
+    }
+    return sections;
+  });
+
+/**
+ * A project row dragged to another place in the sidebar (LC-260j).
+ *
+ * LC-174's question again, on the list whose order is a number the row wears:
+ * not whether the page accepted the drop but whether the row landed where it
+ * was let go, and whether the badge came with it. The order is read back after
+ * the write settles — the harness's registry rewrites its list the way
+ * `RegistryStore::move_after` does — so an order that only holds until the
+ * receipt lands shows up here as a row that moved back.
+ *
+ * The **Starred** run is the one that can be right on screen and wrong
+ * underneath: that section draws some of the list, so a drop inside it is a
+ * statement about the starred rows and the place in Local is what has to be
+ * worked out from it. This reads Local back as well, and checks that the rows
+ * the gesture did not cross are still where they were.
+ *
+ * `into` makes the run a **control**: the row is dragged out of its section and
+ * let go in the other one, which must be refused — starring is a control and
+ * not a gesture (LC-260j § Out of scope). It is refused by construction rather
+ * than by a rule, each section holding its own drag and accepting no row it did
+ * not pick up, and a construction is exactly the kind of thing that stops being
+ * true quietly. Being *inside* the source section at the start of the path is
+ * not a refusal, so this asks only about the drop and the order afterwards.
+ */
+async function probeSidebar(browser, row) {
+  run(row);
+  const context = await browser.newContext({
+    viewport: { width: 1440, height: 900 },
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(
+      `${preview.origin}/?tickets=${TICKETS}&rw=1&projects=${PROJECTS}`,
+      { waitUntil: "load" },
+    );
+    await page.waitForFunction(
+      () => document.querySelectorAll("[data-ticket-key]").length > 0,
+      undefined,
+      { timeout: 60_000 },
+    );
+    await SURFACES.sidebar.open(page);
+    if (SELF_TEST) await swallowDragstart(page);
+
+    const before = await readSidebar(page);
+    const section = before[row.sidebar] ?? [];
+    const localBefore = before.Local ?? [];
+    if (section.length < 2) {
+      throw new Error(`${row.sidebar} drew ${section.length} rows to reorder`);
+    }
+    // A control lets go in the *other* section; every other run lets go at the
+    // foot of its own.
+    const target = row.into ? (before[row.into] ?? []) : section;
+    if (target.length < 2) {
+      throw new Error(`${row.into ?? row.sidebar} drew ${target.length} rows`);
+    }
+    const moving = section[0];
+    const onto = target[target.length - 1];
+    // LC-190's rule: what this cannot reach it must not report on. A sidebar
+    // long enough to scroll parks its last rows outside `.project-nav`, and a
+    // mouse-up aimed there would be refused by the window rather than the app.
+    if (!moving.visible || !onto.visible) {
+      throw new Error(
+        `the run needs both rows inside .project-nav: ` +
+          `${moving.name}=${moving.visible} ${onto.name}=${onto.visible}`,
+      );
+    }
+    check(
+      "the row can be picked up",
+      moving.draggable,
+      `${moving.name}, draggable=${moving.draggable}`,
+    );
+
+    // The lower half of the section's last row, which is the one gap below
+    // every row it draws.
+    const saw = await drag(page, "sidebar", middle(moving), {
+      x: onto.x + Math.min(onto.w / 2, 80),
+      y: onto.y + onto.h - 3,
+    });
+    if (row.refused) {
+      check(
+        `the drop into ${row.into} is refused`,
+        saw.dragstart && !saw.dropped,
+        `dragstart=${saw.dragstart} dragover=${saw.overs} ` +
+          `accepted=${saw.accepted} drop=${saw.dropped}`,
+      );
+      // Nothing moves, and nothing is written: a refusal that still reordered
+      // the list would be starring by gesture with the star left behind.
+      await page.waitForTimeout(600);
+      const stayed = await readSidebar(page);
+      const same = (rows) => rows.map((one) => one.name).join(" ");
+      check(
+        "and the sidebar is exactly as it was",
+        same(stayed.Local ?? []) === same(localBefore) &&
+          same(stayed[row.sidebar] ?? []) === same(section),
+        `${same(localBefore)} → ${same(stayed.Local ?? [])}`,
+      );
+      return;
+    }
+    check(
+      "the page accepted the drop",
+      saw.accepted > 0 && saw.dropped,
+      `dragstart=${saw.dragstart} dragover=${saw.overs} ` +
+        `accepted=${saw.accepted} drop=${saw.dropped}`,
+    );
+    check(
+      "the insertion line is drawn on the boundary under the pointer",
+      saw.painted.lit > 0,
+      `lit=${saw.painted.lit} line=${saw.painted.line ?? "none"}`,
+    );
+
+    // Settled, not optimistic: the sidebar shows the human's order before the
+    // registry has confirmed it, and a move the registry disagreed with decays
+    // back here rather than in front of a human.
+    // Compared by id, reported by name: the id is the identity and the name is
+    // the only half of it a person reading this run can tell apart.
+    const names = (rows) => rows.map((one) => one.key).join(",");
+    const said = (rows) => rows.map((one) => one.name).join(" ");
+    const byId = new Map(localBefore.map((one) => [one.key, one.name]));
+    const deadline = Date.now() + 3_000;
+    let after = await readSidebar(page);
+    while (
+      names(after[row.sidebar] ?? []) === names(section) &&
+      Date.now() < deadline
+    ) {
+      await page.waitForTimeout(100);
+      after = await readSidebar(page);
+    }
+    await page.waitForTimeout(400);
+    after = await readSidebar(page);
+
+    const landedIn = after[row.sidebar] ?? [];
+    check(
+      `${moving.name} is last in ${row.sidebar} now`,
+      names(landedIn) === names([...section.slice(1), moving]),
+      `${said(section)} → ${said(landedIn)}`,
+    );
+
+    // The place in Local is the answer either way, because the number is the
+    // place in Local. For a drop inside Starred that is the whole question: the
+    // row has to sit immediately under the starred row it was let go under, and
+    // the unstarred rows it did not cross have to be where they were.
+    const localAfter = after.Local ?? [];
+    const wantedLocal = localBefore
+      .map((one) => one.key)
+      .filter((key) => key !== moving.key);
+    wantedLocal.splice(wantedLocal.indexOf(onto.key) + 1, 0, moving.key);
+    check(
+      `Local holds ${moving.name} immediately after ${onto.name}`,
+      names(localAfter) === wantedLocal.join(","),
+      `wanted ${wantedLocal.map((id) => byId.get(id)).join(" ")}\n            ` +
+        `   got ${said(localAfter)}\n            ` +
+        `  was ${said(localBefore)}`,
+    );
+
+    // The badge and the chord read one map built from the order (`App.tsx`), so
+    // the numbers have to be the first nine places of the list as it now reads
+    // — including the row that crossed the ninth place and lost its badge.
+    const badges = localAfter.map((one) => one.badge);
+    const wantedBadges = localAfter.map((one, index) =>
+      index < 9 ? `⌘${index + 1}` : "",
+    );
+    check(
+      "every badge is its row's place in Local, and the tenth row has none",
+      badges.join(" ") === wantedBadges.join(" "),
+      `wanted ${wantedBadges.join(" ") || "(none)"}\n            ` +
+        `   got ${badges.join(" ") || "(none)"}`,
     );
   } finally {
     await context.close();
@@ -1057,9 +1331,11 @@ async function main() {
       try {
         const drive = row.checklist
           ? probeChecklist
-          : row.filter
-            ? probeFiltered
-            : probe;
+          : row.sidebar
+            ? probeSidebar
+            : row.filter
+              ? probeFiltered
+              : probe;
         await drive(browser, row);
       } catch (error) {
         check(

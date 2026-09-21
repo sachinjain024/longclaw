@@ -60,6 +60,13 @@ interface LongClawState {
   reconciling: boolean;
   error?: AppError;
   setProjects: (projects: ProjectReference[]) => void;
+  /**
+   * The sidebar in a new order, by id — the optimistic half of a drag or an
+   * `⌥↑` (LC-260j). Ids that name no project, and projects the list leaves out,
+   * are what a stale caller looks like, and this refuses the lot rather than
+   * dropping rows from the sidebar.
+   */
+  reorderProjects: (projectIds: readonly string[]) => void;
   upsertProject: (project: ProjectReference) => void;
   removeProjectReference: (projectId: string) => void;
   markProjectReachable: (projectId: string, reachable: boolean) => void;
@@ -124,7 +131,7 @@ function reachableAgain(
  * carries a place this list no longer agrees with and the row moves (LC-259y).
  * A row already sitting at its index is returned as it stands, so an ordinary
  * write allocates no new reference for a project it did not touch. The array
- * itself is new either way — both callers build one before calling — so this
+ * itself is new either way — every caller builds one before calling — so this
  * holds element identity, not the list's.
  */
 function renumbered(projects: ProjectReference[]): ProjectReference[] {
@@ -153,6 +160,19 @@ export const useLongClawStore = create<LongClawState>((set, get) => ({
   loading: false,
   reconciling: false,
   setProjects: (projects) => set({ projects }),
+  reorderProjects: (projectIds) =>
+    set((state) => {
+      if (projectIds.length !== state.projects.length) return state;
+      const moved = projectIds.map((id) =>
+        state.projects.find((project) => project.id === id),
+      );
+      if (moved.some((project) => project === undefined)) return state;
+      // Renumbered here rather than left to the receipt: the sidebar redraws
+      // from this list on the next frame, and `⌘1`–`⌘9` reads the same list, so
+      // an order whose `order` fields still describe the old one is the badge
+      // and the chord disagreeing for as long as the write is in flight.
+      return { projects: renumbered(moved as ProjectReference[]) };
+    }),
   upsertProject: (project) =>
     set((state) => ({
       // Placed by `order`, which is the registry's own, so a write that comes

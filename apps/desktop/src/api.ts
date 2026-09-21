@@ -110,6 +110,24 @@ export async function setProjectStarred(
   return invoke("set_project_starred", { projectId, starred });
 }
 
+/**
+ * Puts a project row after another in the sidebar, or first when `after` is
+ * `null` (LC-260j).
+ *
+ * A neighbour rather than an index, the way a checklist move names the row it
+ * follows. The whole list comes back because a move renumbers every row between
+ * the two ends of it, and `⌘1`–`⌘9` is that number.
+ */
+export async function moveProjectAfter(
+  projectId: string,
+  after: string | null,
+): Promise<ProjectReference[]> {
+  return invoke("move_project_after", {
+    projectId,
+    afterProjectId: after,
+  });
+}
+
 export async function updateProjectTheme(
   projectId: string,
   theme: string,

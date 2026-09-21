@@ -493,6 +493,51 @@ describe("Rust project-event JSON applied to visible state", () => {
     ).toEqual(["three", "four", "five"]);
   });
 
+  /**
+   * LC-260j. The optimistic half of a drag: the sidebar redraws from this list
+   * on the next frame and `⌘1`–`⌘9` reads the same list, so an order whose
+   * `order` fields still described the old one would be the badge and the chord
+   * disagreeing for as long as the write was in flight.
+   */
+  it("renumbers a hand-reordered sidebar, and refuses one that is not the same list", () => {
+    const registered = (id: string, order: number) => ({
+      id,
+      name: id,
+      rootPath: `/tmp/${id}`,
+      key: id.slice(0, 2).toUpperCase(),
+      theme: "indigo",
+      starred: false,
+      reachable: true,
+      order,
+      labels: {},
+      properties: NO_PROPERTIES,
+    });
+    const projects = ["one", "two", "three"].map(registered);
+    useLongClawStore.setState({ projects });
+
+    useLongClawStore.getState().reorderProjects(["three", "one", "two"]);
+
+    expect(
+      useLongClawStore
+        .getState()
+        .projects.map((project) => [project.id, project.order]),
+    ).toEqual([
+      ["three", 0],
+      ["one", 1],
+      ["two", 2],
+    ]);
+
+    // A caller holding a list this store no longer has is what a receipt racing
+    // a removal looks like. It is refused whole rather than applied in part: an
+    // order that drops a row would drop it from the sidebar.
+    useLongClawStore.getState().reorderProjects(["one", "two"]);
+    useLongClawStore.getState().reorderProjects(["one", "two", "nobody"]);
+
+    expect(
+      useLongClawStore.getState().projects.map((project) => project.id),
+    ).toEqual(["three", "one", "two"]);
+  });
+
   it("selects an unreachable project without keeping rows from the last project", () => {
     useLongClawStore.setState({
       projects: [

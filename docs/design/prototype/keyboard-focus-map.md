@@ -207,6 +207,27 @@ updater (`npm run dev`, the perf harness) hides `Check now` and the toggle
 rather than disabling them, so the pane's scroll container is the only stop
 inside it and one sentence says why (LC-256a, ADR 0014).
 
+## The sidebar's project rows
+
+| Key | Action |
+|---|---|
+| `⌘1`…`⌘9` | Switch to the nth row of **Local**, as § Global says |
+| `⌥↑` / `⌥↓` on a row | Move it one place within **its own section** (LC-260j) |
+| `Enter` on a row · on its `⋮` | Open that project · open the row's menu |
+
+A row is moved inside the section it is focused in, and Starred is the same rows
+pinned to the top rather than a second list — so a starred row steps past the
+starred row above it and lands beside it in **Local**, which is where its number
+comes from. Crossing the ninth place is a badge lost and another gained, and the
+move is announced with the place it landed on and the chord that now reaches it:
+the toast is a live region and the only thing that says either out loud. Focus
+stays on the row that moved, so the next press moves the same project.
+
+There is no drag handle and no menu row for this — the row itself is what a
+pointer picks up, at 28px inside a 216px panel — so the two keys are advertised
+in the row's own `aria-keyshortcuts` beside its `⌘n`. A refused write puts the
+order back, because the numbers on the rows *are* the order.
+
 ## Focus-return table
 
 | Layer closed | Focus lands on |
@@ -225,10 +246,12 @@ inside it and one sentence says why (LC-256a, ADR 0014).
 - No chords beyond the `⌘` basics in § Global (D8: "no chords in v0").
 - No `A` (assign) — D8 listed it, but v0 local mode has no assignee
   (ADR 0001); the binding is reserved for team mode.
-- No drag-and-drop keyboard equivalent — reordering within a column, and
-  now within a list group (LC-60), is post-v0 (LC-136 canceled); status
-  moves *are* the keyboard path between columns and between groups (`S`),
-  on both surfaces. So the pointer reaches no *status* the keyboard
+- No drag-and-drop keyboard equivalent **for a ticket** — reordering within
+  a column, and within a list group (LC-60), is post-v0 (LC-136 canceled);
+  status moves *are* the keyboard path between columns and between groups
+  (`S`), on both surfaces. So the pointer reaches no *status* the keyboard
   cannot; what it reaches that the keyboard does not is a ticket's place
-  inside one, which is the thing v0 deliberately left unbound.
+  inside one, which is the thing v0 deliberately left unbound. The two
+  lists that are *not* a board — the panel's checklist (LC-185) and the
+  sidebar (LC-260j) — each bind `⌥↑`/`⌥↓` on the focused row.
 - `New terminal` command exists but is disabled until Phase 2.
