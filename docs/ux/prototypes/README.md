@@ -19,6 +19,17 @@ collected in one scene so the copy can be reviewed as copy rather than found
 scene by scene. The scenes and the deck render from the same object, so the two
 cannot drift. See `AGENTS.md` § UX prototypes for what belongs in it.
 
+- [`LC-257s-GitHub-Star-Badge.html`](LC-257s-GitHub-Star-Badge.html)
+  — five places a GitHub star control could stand, in two shapes (a solid
+  pill and a labelled ghost), with the count states and a proposed floor under
+  the count (spec: `.longclaw/tickets/LC-257s/ticket.md`).
+
+  **It fetches the live star count** from `api.github.com`, so the control is
+  reviewed at the width a real number gives it. That is a harness convenience
+  and not the proposal — the app’s webview has no network capability, and in
+  the app Rust decides the host. Opened offline, the page stays in the no-count
+  state, which is the state the ticket asks to be designed first.
+
 - [`LC-201-Bulk-Create-In-Quick-Create-Mode.html`](LC-201-Bulk-Create-In-Quick-Create-Mode.html)
   — quick create with a description, labels and a **Create more** loop
   (spec: `.longclaw/tickets/LC-201/ticket.md`).
