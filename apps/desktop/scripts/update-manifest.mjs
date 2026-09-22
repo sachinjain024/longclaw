@@ -130,6 +130,36 @@ export function manifestNamesVersion(manifest, version) {
 /* ------------------------------------------------- the archive's own shape */
 
 /**
+ * One record's value out of a pax extended header's body, or null.
+ *
+ * The body is a run of `<length> <key>=<value>\n` records, where `<length>` is
+ * a decimal count of the whole record — its own digits and the newline
+ * included. The first record with the key wins, which is the one the `tar`
+ * crate takes. Anything the format does not allow ends the walk rather than
+ * throwing: this runs on a release artifact, and a name the reader cannot
+ * account for leaves the header's own name standing.
+ */
+function paxRecord(body, key) {
+  for (let at = 0; at < body.length;) {
+    const space = body.indexOf(0x20, at);
+    if (space === -1) break;
+    const length = Number.parseInt(
+      body.subarray(at, space).toString("utf8"),
+      10,
+    );
+    if (!Number.isInteger(length) || at + length > body.length) break;
+    if (length <= space - at) break;
+    const record = body.subarray(space + 1, at + length).toString("utf8");
+    const equals = record.indexOf("=");
+    if (equals !== -1 && record.slice(0, equals) === key) {
+      return record.slice(equals + 1).replace(/\n$/, "");
+    }
+    at += length;
+  }
+  return null;
+}
+
+/**
  * Every entry in a `.app.tar.gz`, read the way the updater reads it (LC-265y).
  *
  * **This walks the tar headers itself, and that is the whole point.** Apple's
@@ -141,15 +171,21 @@ export function manifestNamesVersion(manifest, version) {
  * 0.3.0 ship an archive no installed copy could extract, so the check has to
  * read the bytes rather than ask macOS.
  *
- * A pax or GNU metadata header (`x`, `g`) is consumed rather than listed, for
- * the same reason a correct reader consumes it. Everything else is a name. A
- * GNU long-name entry (`L`, `././@LongLink`) is *not* handled and would be
- * reported as a stranger at the root: `bsdtar` does not emit one for paths this
- * short, and a release that stops and says so is the safe way to be wrong.
+ * **The name an entry is unpacked under is not always the name in its header
+ * block.** `tar::Entry::path` prefers a GNU long-name entry (`L`), then a pax
+ * `path` record (`x`), and only then the header's own `prefix` and `name`
+ * fields, so a reader that took the header alone would vouch for one file and
+ * the updater would write another. This resolves the name in that order, and
+ * consumes the metadata entries rather than listing them — as the crate does,
+ * which unpacks each of them to nothing. A pax *global* header (`g`) is
+ * consumed too, and its records are deliberately not applied: the crate does
+ * not apply them either.
  */
 export function tarEntryNames(gzipped) {
   const tar = gunzipSync(gzipped);
   const names = [];
+  let longName = null;
+  let paxPath = null;
   for (let offset = 0; offset + 512 <= tar.length;) {
     const block = tar.subarray(offset, offset + 512);
     if (block.every((byte) => byte === 0)) break;
@@ -160,12 +196,26 @@ export function tarEntryNames(gzipped) {
     };
     const size = Number.parseInt(field(124, 12).trim() || "0", 8) || 0;
     const kind = String.fromCharCode(block[156]);
-    if (kind !== "x" && kind !== "g") {
-      const name = field(0, 100);
-      const prefix = field(345, 155);
-      names.push(prefix ? `${prefix}/${name}` : name);
-    }
+    const body = tar.subarray(offset + 512, offset + 512 + size);
     offset += 512 + Math.ceil(size / 512) * 512;
+
+    /* The three entries that name the entry after them rather than themselves,
+       and the one — `K`, a long link target — that names neither. */
+    if (kind === "L") {
+      longName = body.toString("utf8").replace(/\0+$/, "");
+      continue;
+    }
+    if (kind === "x") {
+      paxPath = paxRecord(body, "path");
+      continue;
+    }
+    if (kind === "g" || kind === "K") continue;
+
+    const name = field(0, 100);
+    const prefix = field(345, 155);
+    names.push(longName ?? paxPath ?? (prefix ? `${prefix}/${name}` : name));
+    longName = null;
+    paxPath = null;
   }
   return names;
 }
@@ -362,24 +412,52 @@ if (process.argv.includes("--self-test")) {
 
   /* A tar written here, header by header, so the reader above is exercised
      against bytes rather than against a mock of itself. */
-  const tarOf = (names) => {
-    const blocks = names.map((name) => {
+  const tarOf = (entries) => {
+    const blocks = entries.flatMap((entry) => {
+      const name = typeof entry === "string" ? entry : entry.name;
+      const kind =
+        typeof entry === "string"
+          ? name.endsWith("/")
+            ? "5"
+            : "0"
+          : entry.kind;
+      const body = Buffer.from(
+        typeof entry === "string" ? "" : (entry.body ?? ""),
+        "utf8",
+      );
       const header = Buffer.alloc(512);
       header.write(name, 0, 100, "utf8");
       header.write("0000644\0", 100, 8, "utf8");
       header.write("0000000\0", 108, 8, "utf8");
       header.write("0000000\0", 116, 8, "utf8");
-      header.write("00000000000\0", 124, 12, "utf8");
+      header.write(
+        body.length.toString(8).padStart(11, "0") + "\0",
+        124,
+        12,
+        "utf8",
+      );
       header.write("00000000000\0", 136, 12, "utf8");
-      header.write(name.endsWith("/") ? "5" : "0", 156, 1, "utf8");
+      header.write(kind, 156, 1, "utf8");
       header.write("ustar\u000000", 257, 8, "utf8");
       header.fill(" ", 148, 156);
       let sum = 0;
       for (const byte of header) sum += byte;
       header.write(sum.toString(8).padStart(6, "0") + "\0 ", 148, 8, "utf8");
-      return header;
+      const padded = Buffer.alloc(Math.ceil(body.length / 512) * 512);
+      body.copy(padded);
+      return [header, padded];
     });
     return gzipSync(Buffer.concat([...blocks, Buffer.alloc(1024)]));
+  };
+
+  /* One pax record, length field and all, so the self-test writes the format
+     rather than a guess at it: `<length> <key>=<value>\n`, where the length
+     counts its own digits. */
+  const paxRecordOf = (key, value) => {
+    const tail = ` ${key}=${value}\n`;
+    let length = tail.length + 1;
+    while (String(length).length + tail.length > length) length += 1;
+    return `${length}${tail}`;
   };
 
   /* A tar built here rather than read from disk, because the point is a reader
@@ -438,6 +516,63 @@ if (process.argv.includes("--self-test")) {
   check(
     "an empty archive is caught",
     archiveComplaints([], "LongClaw.app").length > 0,
+  );
+
+  /* The three ways an entry can be called one thing in its header block and
+     unpacked under another. Reading the header alone vouches for the innocent
+     name and ships the archive that carries the other one. */
+  const renamedByPax = tarOf([
+    {
+      name: "LongClaw.app/Contents/Info.plist",
+      kind: "x",
+      body: paxRecordOf("path", "._LongClaw.app"),
+    },
+    "LongClaw.app/Contents/Info.plist",
+  ]);
+  check(
+    "a pax path record is the name, not the header block's",
+    tarEntryNames(renamedByPax).join() === "._LongClaw.app",
+  );
+  check(
+    "an AppleDouble entry hidden behind a pax path record is caught",
+    archiveComplaints(tarEntryNames(renamedByPax), "LongClaw.app").length > 0,
+  );
+  check(
+    "a pax header that renames nothing leaves the header block's name alone",
+    tarEntryNames(
+      tarOf([
+        { name: "pax_header", kind: "x", body: paxRecordOf("mtime", "1") },
+        "LongClaw.app/Contents/Info.plist",
+      ]),
+    ).join() === "LongClaw.app/Contents/Info.plist",
+  );
+  check(
+    "a GNU long name is the name, and outranks a pax record",
+    tarEntryNames(
+      tarOf([
+        {
+          name: "LongClaw.app/Contents/Info.plist",
+          kind: "x",
+          body: paxRecordOf("path", "LongClaw.app/Contents/Other.plist"),
+        },
+        { name: "././@LongLink", kind: "L", body: "._LongClaw.app\0" },
+        "LongClaw.app/Contents/Info.plist",
+      ]),
+    ).join() === "._LongClaw.app",
+  );
+  check(
+    "a pax global header is neither an entry nor a rename",
+    tarEntryNames(
+      tarOf([
+        {
+          name: "pax_global_header",
+          kind: "g",
+          body: paxRecordOf("path", "._LongClaw.app"),
+        },
+        "LongClaw.app/",
+        "LongClaw.app/Contents/Info.plist",
+      ]),
+    ).join() === "LongClaw.app/,LongClaw.app/Contents/Info.plist",
   );
 
   if (failures.length > 0) {
