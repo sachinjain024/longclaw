@@ -760,6 +760,32 @@ if (apiHost && !constantUrl("API_URL")?.includes(apiHost)) {
   );
 }
 
+/* The repository is spelled twice, so the second spelling is checked too.
+
+   Rust owns the URLs because the webview names none; `github.ts` names the
+   repository anyway, for the tooltip the control shows on hover. Two spellings
+   of one fact is a drift waiting for a rename — and a rename is precisely when
+   nobody thinks to grep the frontend, because the audit above stays green on
+   the Rust side alone. So the frontend's constant must be the path both Rust
+   URLs already name. */
+const frontendRepo = /export const GITHUB_REPO = "([^"]+)"/.exec(
+  readFileSync(join(appRoot, "src/github.ts"), "utf8"),
+)?.[1];
+if (!frontendRepo) {
+  fail(
+    "github.ts declares no GITHUB_REPO — the tooltip's address is unchecked",
+  );
+} else {
+  for (const name of ["REPOSITORY_URL", "API_URL"]) {
+    const value = constantUrl(name);
+    if (value && !value.endsWith(`/${frontendRepo}`)) {
+      fail(
+        `github.ts names ${frontendRepo}, which is not the repository github.rs ${name} names (${value}) — the control's tooltip and its request disagree`,
+      );
+    }
+  }
+}
+
 const capability = readJson(join(appRoot, "src-tauri/capabilities/main.json"));
 failUnlessSameSet(capability.windows, ["main"], "capability windows");
 failUnlessSameSet(capability.platforms, ["macOS"], "capability platforms");
@@ -838,5 +864,5 @@ report({
   remedy:
     "release boundary violation(s) — the v0 boundary is docs/acceptance/release-candidate.md:",
   clean:
-    "narrow Tauri capabilities, every network-capable crate arriving under the sanctioned updater dependency or the one client the app declares beside it, that client declared with no feature the updater did not already ask for, the frozen set of network-capable crates unchanged, update endpoints and the star count's two constants on sanctioned hosts only, no telemetry dependency, and no network, process or update-path call anywhere else in shipped source",
+    "narrow Tauri capabilities, every network-capable crate arriving under the sanctioned updater dependency or the one client the app declares beside it, that client declared with no feature the updater did not already ask for, the frozen set of network-capable crates unchanged, update endpoints and the star count's two constants on sanctioned hosts only and naming the repository the frontend does, no telemetry dependency, and no network, process or update-path call anywhere else in shipped source",
 });

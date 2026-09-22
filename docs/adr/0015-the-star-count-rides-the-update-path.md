@@ -50,8 +50,12 @@ The gates say so rather than this paragraph saying so. See *What pays for it*.
 - **At most one request per 24-hour slot**, counted in Rust rather than promised
   by the caller, so two schedulers, a reload and a re-render cost one request
   between them. The slot is consumed *before* the request, so a failure costs a
-  slot too — a failure that left the slot open would let a machine behind a
-  blocking proxy ask on every launch forever.
+  slot too — one that left the slot open would let a machine behind a blocking
+  proxy be retried by every re-render for as long as the window is up. Be exact
+  about what that bounds: the slot is per-process, and the frontend's timestamp
+  is written only on success, so a machine that can never reach the host asks
+  once per launch, the same as the update check — and, with automatic checks
+  off, asks nothing at all.
 - **Five-second budget**, shorter than the update check's ten, because nothing
   is waiting on this one.
 - **Off the main thread**, so no frame, no keystroke and no ticket write is ever
@@ -120,7 +124,11 @@ And two that already existed now cover one more thing:
 - **`release-audit.mjs` reads `github.rs`'s constants** the way it reads the
   updater's configured endpoints — both must be `https`, and `API_HOST` must be
   a sanctioned host and must be the host `API_URL` actually names. A constant
-  quietly repointed is what this catches.
+  quietly repointed is what this catches. It also reads `github.ts`'s
+  `GITHUB_REPO`, the second spelling of the repository, and fails when it is not
+  the path both Rust URLs name: the tooltip is the one place the address is
+  shown to a person, and a rename is exactly when nobody thinks to grep the
+  frontend.
 - **The "no Rust HTTP client" source rule became narrower, not wider.** It used
   to say *no file*; it now names the one file that may, and everything that is a
   *decision* about the request lives in a different file that may not.

@@ -102,10 +102,15 @@ impl StarCount {
     /// control that is merely on screen must never become a second schedule.
     ///
     /// The slot is consumed before the request rather than after it, so a
-    /// failure costs a slot too. That is deliberate. A failure that left the
-    /// slot open would let a machine behind a blocking proxy ask on every
-    /// launch forever, which is precisely the "second request nobody asked for"
-    /// ADR 0014 forbids.
+    /// failure costs a slot too. That is deliberate, and it is worth being
+    /// exact about what it buys, because the first draft of this comment was
+    /// not: this slot lives in the process, so it bounds one *run* of the app
+    /// rather than one machine forever. A failure that left it open would let
+    /// a blocked proxy be retried by every re-render and every reload for as
+    /// long as the window is up. Across launches the frontend's timestamp is
+    /// what holds, and that is written only on success — so a machine that can
+    /// never reach the host does ask once per launch, exactly as the update
+    /// check does, and asks nothing at all once automatic checks are off.
     pub fn fetch(&self) -> Option<u64> {
         {
             let mut last = self.last.lock().ok()?;
