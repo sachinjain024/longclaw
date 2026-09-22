@@ -441,3 +441,61 @@ One pixel of the bar above the fold in every one, and `elementFromPoint` at the 
 
 **Gates**, on a quiet machine: `check` exit 0 (56 files, 1543 tests), `probe:header` 140/140, `probe:checklist` 60/60 with 8/8 sizes measured, `probe:drag` 94/94, `a11y:audit` A1–A8, `matrix` 8 axes × 12 states clean, `perf:board` and `perf:list` both within budget. Two line citations were re-pointed for the lines the stylesheet gained — `panelWidth.ts` → `styles.css:3244` and `theme-matrix.mjs` → `styles.css:4465`.
 <!-- /longclaw:event -->
+
+<!-- longclaw:event
+id: evt_909b1467
+kind: comment
+occurred_at: 2026-09-22T06:03:29.206Z
+actor:
+  type: agent
+  id: claude-code
+  name: Claude Code
+-->
+### Claude Code commented
+
+## The code review, and what it found
+
+A two-axis review of PR #56 ran against the merge-base. Both axes found the same defect independently, which is the strongest signal a review gives.
+
+### The star request was not refusable (Standards: hard violation · Spec: (a))
+
+`useStarCount` invoked `starCount()` whenever its 24-hour cache was due and read no preference at all. `readAutomaticUpdateCheck()` gated exactly one caller — the update check. On a fresh machine with *Check for updates automatically* off there is no cache, so `isFetchDue` was always true and every launch performed the `GET api.github.com`.
+
+That is the thing this ticket's own comment set as a condition of building the feature at all — "the check must be refusable before it is made — the preference is read *before* the request, not after one" — and the thing ADR 0015 inherits from ADR 0014 unchanged. ADR 0015 also asserts a consequence that the code falsified: that `audit:network`'s `automatic-off` phase still expects silence. It would not have been silent.
+
+**The fix puts the preference inside the decision rather than beside it.** `isFetchDue` now takes `automatic` as its first argument, in the same order and with the same early return `isCheckDue` uses, so the two functions that answer *should I ask* about the same road read the same way. With the check off nothing is asked, however old the cache is; the cached count stays on screen, because refusing the road is not disowning what already came down it.
+
+**It also had no test, which is the more interesting half.** Nothing in `verify` could see a missing gate, and `starCount.test.ts` exercised `isFetchDue` alone — so the only evidence either way was a person-driven `audit:network --phase=automatic-off` run against a built bundle. That is the wrong place for the sole proof of a promise this loud. `starCount.test.tsx` now renders the hook over a mocked `api` and asserts the request is never made with the preference off, both on a fresh machine and over a stale cache. Reverting the gate reddens three rows, two of them the hook's.
+
+### The pre-consumed slot's comment overclaimed (Spec: (c))
+
+`github.rs` and ADR 0015 both said that a failure which left the slot open would let a machine behind a blocking proxy "ask on every launch forever". It would not: the slot is a `Mutex<Option<Instant>>` on the process, so it bounds one *run* of the app, and the timestamp that bounds the rest is the frontend's, written only on success. A machine that can never reach the host does ask once per launch.
+
+The behaviour is defensible — it is exactly what the update check does — but the sentence was not. Both places now say what the slot actually buys: no retry from a re-render or a reload for as long as the window is up, once per launch across launches, and nothing at all with automatic checks off.
+
+### The repository is spelled twice and only one spelling was pinned (Standards: judgement call)
+
+`github.ts`'s `GITHUB_REPO` re-spells the repository that `github.rs` names in `REPOSITORY_URL` and `API_URL`, and `release-audit.mjs` read only the Rust side. A rename would have left the control's tooltip naming a repository the request never goes to, with every audit green — and a rename is precisely the moment nobody thinks to grep the frontend. The audit now fails unless the frontend constant is the path both Rust URLs name; repointing it to `sachinjain024/longclaw-app` produces two failures.
+
+### The deck row that did not match was the ticket's, not the code's (Spec: (c))
+
+The review is right that `github.open.failed` differs by one character between this ticket's table and the shipped string, and right that the claim "all ten shipping deck rows match this ticket's table character for character" is therefore false. The correction goes the other way, though: the app writes a typographic apostrophe in this exact copy already — `updates.ts` ships *Couldn’t check for updates.* — so U+2019 in `github.ts` is the convention and the straight `'` in the deck table above is the transcription error. The row as settled is:
+
+| id | kind | where | text |
+|---|---|---|---|
+| `github.open.failed` | refusal (toast) | when the browser could not be opened | Couldn’t open GitHub. |
+
+The other nine rows do match character for character.
+
+### The fourth finding needed no change
+
+`grid-template-rows: minmax(0, 1fr)` is beyond this ticket's ask, and the review found it recorded as the fourth cause of the status bar defect rather than as unexplained scope creep. Nothing to do.
+
+### What the reviewers verified
+
+Worth recording, since it is the part a later reader cannot reconstruct: the stars cache in the Rust-owned preferences file rather than `localStorage` (ADR 0012); closed tagged errors and command shapes (ADR 0010/0007); token discipline and `currentColor` in the mark; explicit `tabIndex={0}` on both controls; the bar on the welcome shell as well as the main one; `UPDATE_COPY.footer` strings unchanged with only their address moved; the count drawn after the mark, at and above the floor, with no live region; the Rust command where the webview names no URL; the mark inside the glyph set under `glyph-drift-guard`; one field read, off-thread, on a five-second budget; and all three release gates amended. One reading worth keeping: the many two-line `.tsx` changes are citation re-pins in comments, not re-indentation.
+
+### Gates
+
+`npm run verify` green after the fix: 56 files / 1547 tests, 269 Rust tests, the native watcher 2/2, `release-audit` 131 files clean. The `automatic-off` phase of `audit:network` still needs a person and a built bundle — it is the release gate, unchanged — but it is no longer the only thing that would have caught this.
+<!-- /longclaw:event -->
